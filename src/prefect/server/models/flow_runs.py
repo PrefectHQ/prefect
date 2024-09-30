@@ -316,6 +316,35 @@ async def read_flow_runs(
     return result.scalars().unique().all()
 
 
+async def cleanup_flow_run_concurrency_slots(
+    session: AsyncSession,
+    flow_run: orm_models.FlowRun,
+):
+    """
+    Cleanup flow run related resources, such as releasing concurrency slots.
+    All operations should be idempotent and safe to call multiple times.
+    IMPORTANT: This run may no longer exist in the database when this operation occurs.
+    """
+
+    if (
+        flow_run.deployment_id
+        and flow_run.state
+        and flow_run.state.type
+        in (
+            schemas.states.StateType.PENDING,
+            schemas.states.StateType.RUNNING,
+            schemas.states.StateType.CANCELLING,
+        )
+    ):
+        deployment = await models.deployments.read_deployment(
+            session, flow_run.deployment_id
+        )
+        if deployment and deployment.concurrency_limit_id:
+            await models.concurrency_limits_v2.bulk_decrement_active_slots(
+                session, [deployment.concurrency_limit_id], 1
+            )
+
+
 class DependencyResult(PrefectBaseModel):
     id: UUID
     name: str
@@ -417,7 +446,7 @@ async def count_flow_runs(
 
 async def delete_flow_run(session: AsyncSession, flow_run_id: UUID) -> bool:
     """
-    Delete a flow run by flow_run_id.
+    Delete a flow run by flow_run_id, handling concurrency limits if applicable.
 
     Args:
         session: A database session
@@ -426,10 +455,20 @@ async def delete_flow_run(session: AsyncSession, flow_run_id: UUID) -> bool:
     Returns:
         bool: whether or not the flow run was deleted
     """
+    flow_run = await read_flow_run(session, flow_run_id)
+    if not flow_run:
+        return False
 
+    deployment_id = flow_run.deployment_id
+
+    if deployment_id:
+        await cleanup_flow_run_concurrency_slots(session=session, flow_run=flow_run)
+
+    # Delete the flow run
     result = await session.execute(
         delete(orm_models.FlowRun).where(orm_models.FlowRun.id == flow_run_id)
     )
+
     return result.rowcount > 0
 
 

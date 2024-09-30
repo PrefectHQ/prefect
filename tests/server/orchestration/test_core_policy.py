@@ -2,16 +2,24 @@ import contextlib
 import math
 import random
 from itertools import product
+from typing import Optional
 from unittest import mock
 from uuid import uuid4
 
 import pendulum
 import pytest
+import sqlalchemy as sa
 
 from prefect.results import ResultRecordMetadata
 from prefect.server import schemas
+from prefect.server.database import orm_models as orm
 from prefect.server.exceptions import ObjectNotFoundError
-from prefect.server.models import concurrency_limits, flow_runs
+from prefect.server.models import (
+    concurrency_limits,
+    concurrency_limits_v2,
+    deployments,
+    flow_runs,
+)
 from prefect.server.orchestration.core_policy import (
     BypassCancellingFlowRunsWithNoInfra,
     CacheInsertion,
@@ -27,10 +35,12 @@ from prefect.server.orchestration.core_policy import (
     PreventDuplicateTransitions,
     PreventPendingTransitions,
     PreventRunningTasksFromStoppedFlows,
+    ReleaseFlowConcurrencySlots,
     ReleaseTaskConcurrencySlots,
     RenameReruns,
     RetryFailedFlows,
     RetryFailedTasks,
+    SecureFlowConcurrencySlots,
     SecureTaskConcurrencySlots,
     UpdateFlowRunTrackerOnTasks,
     WaitForScheduledTime,
@@ -43,6 +53,7 @@ from prefect.server.orchestration.rules import (
 from prefect.server.schemas import actions, states
 from prefect.server.schemas.responses import SetStateStatus
 from prefect.server.schemas.states import StateType
+from prefect.settings import PREFECT_DEPLOYMENT_CONCURRENCY_SLOT_WAIT_SECONDS
 from prefect.testing.utilities import AsyncMock
 
 # Convert constants from sets to lists for deterministic ordering of tests
@@ -58,6 +69,35 @@ def transition_names(transition):
     initial = f"{transition[0].name if transition[0] else None}"
     proposed = f" => {transition[1].name if transition[1] else None}"
     return initial + proposed
+
+
+async def assert_deployment_concurrency_limit(
+    session,
+    deployment,
+    expected_limit: int,
+    expected_active_slots: int,
+):
+    """
+    Assert that the deployment concurrency limit matches the expected values.
+    Args:
+        session: The database session.
+        deployment_id: The ID of the deployment to check.
+        expected_limit: The expected concurrency limit.
+        expected_active_slots: The expected number of active slots.
+    Raises:
+        AssertionError: If the actual values don't match the expected values.
+    """
+    await session.refresh(deployment)
+    limit = deployment.global_concurrency_limit
+    assert (
+        limit is not None
+    ), f"No concurrency limit found for deployment {deployment.id}"
+    assert (
+        limit.limit == expected_limit
+    ), f"Expected concurrency limit {expected_limit}, but got {limit.limit}"
+    assert (
+        limit.active_slots == expected_active_slots
+    ), f"Expected {expected_active_slots} active slots, but got {limit.active_slots}"
 
 
 @pytest.fixture
@@ -3287,3 +3327,945 @@ class TestPreventDuplicateTransitions:
 
         # states have the same transition id so the transition should be rejected
         assert ctx.response_status == SetStateStatus.REJECT
+
+
+class TestFlowConcurrencyLimits:
+    all_states = set(ALL_ORCHESTRATION_STATES) - {None}
+
+    ignored_secure_from_states = {
+        states.StateType.PENDING,
+        states.StateType.RUNNING,
+        states.StateType.CANCELLING,
+    }
+    ignored_secure_to_states = all_states - {
+        states.StateType.PENDING,
+    }
+    ignored_secure_transitions = list(
+        sorted(product(ignored_secure_from_states, ignored_secure_to_states))
+    )
+
+    ignored_release_from_states = all_states - {
+        states.StateType.RUNNING,
+        states.StateType.CANCELLING,
+    }
+    ignored_release_to_states = {
+        states.StateType.PENDING,
+        states.StateType.RUNNING,
+        states.StateType.CANCELLING,
+    }
+    ignored_release_transitions = list(
+        sorted(product(ignored_release_from_states, ignored_release_to_states))
+    )
+
+    async def create_deployment_with_concurrency_limit(
+        self,
+        session,
+        limit,
+        flow,
+        collision_strategy: Optional[schemas.core.ConcurrencyLimitStrategy] = None,
+    ):
+        deployment_kwargs = {
+            "name": f"test-deployment-{uuid4()}",
+            "flow_id": flow.id,
+            "concurrency_limit": limit,
+        }
+        if collision_strategy:
+            deployment_kwargs["concurrency_options"] = {
+                "collision_strategy": collision_strategy
+            }
+
+        deployment = await deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(**deployment_kwargs),
+        )
+        await session.flush()
+        return deployment
+
+    @pytest.mark.parametrize(
+        "intended_transition", ignored_secure_transitions, ids=transition_names
+    )
+    async def test_ignored_secure_transitions_are_accepted(
+        self,
+        session,
+        initialize_orchestration,
+        intended_transition,
+        flow,
+    ):
+        # This is a valid transition, so we should accept it and consume a concurrency slot
+        pending_transition = (states.StateType.SCHEDULED, states.StateType.PENDING)
+
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *pending_transition,
+            deployment_id=deployment.id,
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            ctx = await stack.enter_async_context(
+                SecureFlowConcurrencySlots(ctx, *pending_transition)
+            )
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+
+        await assert_deployment_concurrency_limit(
+            session, deployment, expected_limit=1, expected_active_slots=1
+        )
+
+        # Now try to transition to different combinations of ignored states.
+        # The rule should ignore these transitions and not consume a concurrency slot.
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+            deployment_id=deployment.id,
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            ctx = await stack.enter_async_context(
+                SecureFlowConcurrencySlots(ctx, *intended_transition)
+            )
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        await assert_deployment_concurrency_limit(
+            session, deployment, expected_limit=1, expected_active_slots=1
+        )
+
+    @pytest.mark.parametrize(
+        "intended_transition", ignored_release_transitions, ids=transition_names
+    )
+    async def test_ignored_release_transitions_are_accepted(
+        self,
+        session,
+        initialize_orchestration,
+        intended_transition,
+        flow,
+    ):
+        pending_transition = (states.StateType.SCHEDULED, states.StateType.PENDING)
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *pending_transition,
+            deployment_id=deployment.id,
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            ctx = await stack.enter_async_context(
+                SecureFlowConcurrencySlots(ctx, *pending_transition)
+            )
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+
+        await assert_deployment_concurrency_limit(
+            session, deployment, expected_limit=1, expected_active_slots=1
+        )
+
+        # Now try to transition to different combinations of ignored states.
+        # The rule should ignore these transitions and not release a concurrency slot.
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            ctx = await stack.enter_async_context(
+                ReleaseFlowConcurrencySlots(ctx, *intended_transition)
+            )
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        await assert_deployment_concurrency_limit(
+            session, deployment, expected_limit=1, expected_active_slots=1
+        )
+
+    async def test_secure_concurrency_slots(
+        self,
+        session,
+        initialize_orchestration,
+        flow,
+    ):
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 2, flow
+        )
+
+        concurrency_policy = [SecureFlowConcurrencySlots]
+        pending_transition = (states.StateType.SCHEDULED, states.StateType.PENDING)
+
+        # First run should be accepted
+        ctx1 = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment.id
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                ctx1 = await stack.enter_async_context(rule(ctx1, *pending_transition))
+            await ctx1.validate_proposed_state()
+
+        assert ctx1.response_status == SetStateStatus.ACCEPT
+
+        # Second run should be accepted
+        ctx2 = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment.id
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                ctx2 = await stack.enter_async_context(rule(ctx2, *pending_transition))
+                await ctx2.validate_proposed_state()
+
+        assert ctx2.response_status == SetStateStatus.ACCEPT
+
+        # Third run should be delayed
+        ctx3 = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment.id
+        )
+
+        with mock.patch(
+            "prefect.server.orchestration.core_policy.pendulum.now"
+        ) as mock_pendulum_now:
+            expected_now: pendulum.DateTime = pendulum.parse("2024-01-01T00:00:00Z")  # type: ignore
+            mock_pendulum_now.return_value = expected_now
+            expected_scheduled_time = mock_pendulum_now.return_value.add(
+                seconds=PREFECT_DEPLOYMENT_CONCURRENCY_SLOT_WAIT_SECONDS.value()
+            )
+
+            async with contextlib.AsyncExitStack() as stack:
+                for rule in concurrency_policy:
+                    ctx3 = await stack.enter_async_context(
+                        rule(ctx3, *pending_transition)
+                    )
+                await ctx3.validate_proposed_state()
+
+        assert ctx3.response_status == SetStateStatus.REJECT
+        assert str(ctx3.proposed_state) == str(
+            states.Scheduled(
+                name="AwaitingConcurrencySlot",
+                scheduled_time=expected_scheduled_time,
+            )
+        )
+        assert ctx3.response_details.reason == "Deployment concurrency limit reached."
+
+    async def test_release_concurrency_slots(
+        self,
+        session,
+        initialize_orchestration,
+        flow,
+    ):
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+
+        pending_transition = (states.StateType.SCHEDULED, states.StateType.PENDING)
+        completed_transition = (
+            states.StateType.RUNNING,
+            states.StateType.COMPLETED,
+        )
+
+        # First run should be accepted
+        ctx1 = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment.id
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            ctx1 = await stack.enter_async_context(
+                SecureFlowConcurrencySlots(ctx1, *pending_transition)
+            )
+            await ctx1.validate_proposed_state()
+
+            assert ctx1.response_status == SetStateStatus.ACCEPT
+
+            # Second run should be delayed
+            ctx2 = await initialize_orchestration(
+                session, "flow", *pending_transition, deployment_id=deployment.id
+            )
+
+            with mock.patch(
+                "prefect.server.orchestration.core_policy.pendulum.now"
+            ) as mock_pendulum_now:
+                expected_now: pendulum.DateTime = pendulum.parse("2024-01-01T00:00:00Z")  # type: ignore
+                mock_pendulum_now.return_value = expected_now
+                expected_scheduled_time = mock_pendulum_now.return_value.add(
+                    seconds=PREFECT_DEPLOYMENT_CONCURRENCY_SLOT_WAIT_SECONDS.value()
+                )
+                async with contextlib.AsyncExitStack() as stack:
+                    ctx2 = await stack.enter_async_context(
+                        SecureFlowConcurrencySlots(ctx2, *pending_transition)
+                    )
+                await ctx2.validate_proposed_state()
+
+            assert ctx2.response_status == SetStateStatus.REJECT
+            assert str(ctx2.proposed_state) == str(
+                states.Scheduled(
+                    name="AwaitingConcurrencySlot",
+                    scheduled_time=expected_scheduled_time,
+                )
+            )
+            assert (
+                ctx2.response_details.reason == "Deployment concurrency limit reached."
+            )
+
+            # Complete the first run
+            ctx1_completed = await initialize_orchestration(
+                session,
+                "flow",
+                *completed_transition,
+                deployment_id=deployment.id,
+                run_override=ctx1.run,
+            )
+
+            async with contextlib.AsyncExitStack() as stack:
+                ctx1_completed = await stack.enter_async_context(
+                    ReleaseFlowConcurrencySlots(ctx1_completed, *completed_transition)
+                )
+                await ctx1_completed.validate_proposed_state()
+
+            # Now the second run should be accepted
+            ctx2_retry = await initialize_orchestration(
+                session,
+                "flow",
+                *pending_transition,
+                deployment_id=deployment.id,
+                run_override=ctx2.run,
+            )
+
+            async with contextlib.AsyncExitStack() as stack:
+                ctx2_retry = await stack.enter_async_context(
+                    SecureFlowConcurrencySlots(ctx2_retry, *pending_transition)
+                )
+                await ctx2_retry.validate_proposed_state()
+
+            assert ctx2_retry.response_status == SetStateStatus.ACCEPT
+
+    async def test_cancel_new_collision_strategy(
+        self,
+        session,
+        initialize_orchestration,
+        flow,
+    ):
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow, schemas.core.ConcurrencyLimitStrategy.CANCEL_NEW
+        )
+        pending_transition = (states.StateType.SCHEDULED, states.StateType.PENDING)
+
+        # First run should be accepted
+        ctx1 = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment.id
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            ctx1 = await stack.enter_async_context(
+                SecureFlowConcurrencySlots(ctx1, *pending_transition)
+            )
+            await ctx1.validate_proposed_state()
+
+        assert ctx1.response_status == SetStateStatus.ACCEPT
+
+        # Second run should be cancelled
+        ctx2 = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment.id
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            ctx2 = await stack.enter_async_context(
+                SecureFlowConcurrencySlots(ctx2, *pending_transition)
+            )
+            await ctx2.validate_proposed_state()
+
+        assert ctx2.response_status == SetStateStatus.REJECT
+        assert str(ctx2.proposed_state) == str(
+            states.Cancelled(
+                message="Deployment concurrency limit reached.",
+            )
+        )
+        assert ctx2.response_details.reason == "Deployment concurrency limit reached."
+
+    async def test_enqueue_collision_strategy(
+        self,
+        session,
+        initialize_orchestration,
+        flow,
+    ):
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow, schemas.core.ConcurrencyLimitStrategy.ENQUEUE
+        )
+        pending_transition = (states.StateType.SCHEDULED, states.StateType.PENDING)
+        completed_transition = (
+            states.StateType.RUNNING,
+            states.StateType.COMPLETED,
+        )
+
+        # First run should be accepted
+        ctx1 = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment.id
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            ctx1 = await stack.enter_async_context(
+                SecureFlowConcurrencySlots(ctx1, *pending_transition)
+            )
+            await ctx1.validate_proposed_state()
+
+        assert ctx1.response_status == SetStateStatus.ACCEPT
+
+        # Second run should be enqueued
+        ctx2 = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment.id
+        )
+
+        with mock.patch(
+            "prefect.server.orchestration.core_policy.pendulum.now"
+        ) as mock_pendulum_now:
+            expected_now: pendulum.DateTime = pendulum.parse("2024-01-01T00:00:00Z")  # type: ignore
+            mock_pendulum_now.return_value = expected_now
+            expected_scheduled_time = mock_pendulum_now.return_value.add(
+                seconds=PREFECT_DEPLOYMENT_CONCURRENCY_SLOT_WAIT_SECONDS.value()
+            )
+        async with contextlib.AsyncExitStack() as stack:
+            ctx2 = await stack.enter_async_context(
+                SecureFlowConcurrencySlots(ctx2, *pending_transition)
+            )
+            await ctx2.validate_proposed_state()
+
+        assert ctx2.response_status == SetStateStatus.REJECT
+        assert str(ctx2.proposed_state) == str(
+            states.Scheduled(
+                name="AwaitingConcurrencySlot",
+                scheduled_time=expected_scheduled_time,
+            )
+        )
+        assert ctx2.response_details.reason == "Deployment concurrency limit reached."
+
+        # Complete the first run
+        ctx1_completed = await initialize_orchestration(
+            session,
+            "flow",
+            *completed_transition,
+            deployment_id=deployment.id,
+            run_override=ctx1.run,
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            ctx1_completed = await stack.enter_async_context(
+                ReleaseFlowConcurrencySlots(ctx1_completed, *completed_transition)
+            )
+            await ctx1_completed.validate_proposed_state()
+
+            # Now the second run should be accepted
+            ctx2_retry = await initialize_orchestration(
+                session,
+                "flow",
+                *pending_transition,
+                deployment_id=deployment.id,
+                run_override=ctx2.run,
+            )
+
+        async with contextlib.AsyncExitStack() as stack:
+            ctx2_retry = await stack.enter_async_context(
+                SecureFlowConcurrencySlots(ctx2_retry, *pending_transition)
+            )
+            await ctx2_retry.validate_proposed_state()
+
+        assert ctx2_retry.response_status == SetStateStatus.ACCEPT
+
+    async def test_uses_enqueue_collision_strategy_by_default(
+        self,
+        session,
+        initialize_orchestration,
+        flow,
+    ):
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+
+        pending_transition = (states.StateType.SCHEDULED, states.StateType.PENDING)
+
+        # First run should be accepted
+        ctx1 = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment.id
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            ctx1 = await stack.enter_async_context(
+                SecureFlowConcurrencySlots(ctx1, *pending_transition)
+            )
+            await ctx1.validate_proposed_state()
+
+        assert ctx1.response_status == SetStateStatus.ACCEPT
+
+        # Second run should be enqueued
+        ctx2 = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment.id
+        )
+
+        with mock.patch(
+            "prefect.server.orchestration.core_policy.pendulum.now"
+        ) as mock_pendulum_now:
+            expected_now: pendulum.DateTime = pendulum.parse("2024-01-01T00:00:00Z")  # type: ignore
+            mock_pendulum_now.return_value = expected_now
+            expected_scheduled_time = mock_pendulum_now.return_value.add(
+                seconds=PREFECT_DEPLOYMENT_CONCURRENCY_SLOT_WAIT_SECONDS.value()
+            )
+            async with contextlib.AsyncExitStack() as stack:
+                ctx2 = await stack.enter_async_context(
+                    SecureFlowConcurrencySlots(ctx2, *pending_transition)
+                )
+            await ctx2.validate_proposed_state()
+
+        assert ctx2.response_status == SetStateStatus.REJECT
+        assert str(ctx2.proposed_state) == str(
+            states.Scheduled(
+                name="AwaitingConcurrencySlot",
+                scheduled_time=expected_scheduled_time,
+            )
+        )
+        assert ctx2.response_details.reason == "Deployment concurrency limit reached."
+
+    async def test_zero_concurrency_limit(
+        self,
+        session,
+        initialize_orchestration,
+        flow,
+    ):
+        deployment = await deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="test-deployment",
+                flow_id=flow.id,
+            ),
+        )
+        concurrency_limit = await concurrency_limits_v2.create_concurrency_limit(
+            session=session,
+            concurrency_limit=schemas.core.ConcurrencyLimitV2(
+                active=True,
+                name="test-concurrency-limit",
+                limit=0,
+            ),
+        )
+        update_stmt = (
+            sa.update(orm.Deployment)
+            .where(orm.Deployment.id == deployment.id)
+            .values(concurrency_limit_id=concurrency_limit.id)
+        )
+        result = await session.execute(update_stmt)
+        assert result.rowcount == 1
+        await session.flush()
+        await session.refresh(deployment)
+        pending_transition = (states.StateType.SCHEDULED, states.StateType.PENDING)
+
+        ctx = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment.id
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            ctx = await stack.enter_async_context(
+                SecureFlowConcurrencySlots(ctx, *pending_transition)
+            )
+            await ctx.validate_proposed_state()
+
+            assert ctx.response_status == SetStateStatus.ABORT
+            assert (
+                ctx.response_details.reason
+                == "The deployment concurrency limit is 0. The flow will deadlock if submitted again."
+            )
+
+    async def test_no_concurrency_limit(
+        self,
+        session,
+        initialize_orchestration,
+        flow,
+    ):
+        concurrency_policy = [
+            SecureFlowConcurrencySlots,
+            ReleaseFlowConcurrencySlots,
+        ]
+        deployment = await deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="test-deployment",
+                flow_id=flow.id,
+            ),
+        )
+
+        pending_transition = (states.StateType.SCHEDULED, states.StateType.PENDING)
+
+        ctx = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment.id
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *pending_transition))
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+
+    async def test_release_concurrency_slots_nullified_transition_last(
+        self,
+        session,
+        initialize_orchestration,
+        flow,
+    ):
+        class NullifiedTransition(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
+            async def before_transition(self, initial_state, proposed_state, context):
+                await self.abort_transition(reason="For testing purposes")
+
+            async def after_transition(self, initial_state, validated_state, context):
+                pass
+
+            async def cleanup(self, initial_state, validated_state, context):
+                pass
+
+        abort_concurrency_policy = [
+            NullifiedTransition,
+            SecureFlowConcurrencySlots,
+            ReleaseFlowConcurrencySlots,
+        ]
+
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+
+        pending_transition = (states.StateType.SCHEDULED, states.StateType.PENDING)
+
+        # Fill the concurrency slot by transitioning into a running state
+        ctx = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment.id
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            ctx = await stack.enter_async_context(
+                SecureFlowConcurrencySlots(ctx, *pending_transition)
+            )
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+
+        await assert_deployment_concurrency_limit(session, deployment, 1, 1)
+
+        completed_transition = (
+            states.StateType.RUNNING,
+            states.StateType.COMPLETED,
+        )
+
+        ctx = await initialize_orchestration(
+            session, "flow", *completed_transition, deployment_id=deployment.id
+        )
+
+        # Nullify the transition. The release rule will fire but detect that
+        # the transition is nullified and not release the concurrency slot.
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in abort_concurrency_policy:
+                ctx2 = await stack.enter_async_context(
+                    rule(ctx, *completed_transition)  # type: ignore
+                )
+                await ctx2.validate_proposed_state()
+
+        assert ctx2.response_status == SetStateStatus.ABORT
+        assert ctx2.response_details.reason == "For testing purposes"
+
+        # The concurrency slot should not be released because the transition was nullified
+        await assert_deployment_concurrency_limit(session, deployment, 1, 1)
+
+    async def test_multiple_deployments_with_different_concurrency_limits(
+        self,
+        session,
+        initialize_orchestration,
+        flow,
+    ):
+        deployment1 = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+        deployment2 = await self.create_deployment_with_concurrency_limit(
+            session, 2, flow
+        )
+
+        pending_transition = (states.StateType.SCHEDULED, states.StateType.PENDING)
+
+        # Deployment 1 should only allow one run
+        ctx1 = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment1.id
+        )
+        async with contextlib.AsyncExitStack() as stack:
+            ctx1 = await stack.enter_async_context(
+                SecureFlowConcurrencySlots(ctx1, *pending_transition)
+            )
+            await ctx1.validate_proposed_state()
+        assert ctx1.response_status == SetStateStatus.ACCEPT
+
+        ctx2 = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment1.id
+        )
+        async with contextlib.AsyncExitStack() as stack:
+            ctx2 = await stack.enter_async_context(
+                SecureFlowConcurrencySlots(ctx2, *pending_transition)
+            )
+            await ctx2.validate_proposed_state()
+
+        assert ctx2.response_status == SetStateStatus.REJECT
+        assert ctx2.response_details.reason == "Deployment concurrency limit reached."
+
+        await assert_deployment_concurrency_limit(session, deployment1, 1, 1)
+
+        # Deployment 2 should allow two runs
+        ctx3 = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment2.id
+        )
+        async with contextlib.AsyncExitStack() as stack:
+            ctx3 = await stack.enter_async_context(
+                SecureFlowConcurrencySlots(ctx3, *pending_transition)
+            )
+            await ctx3.validate_proposed_state()
+        assert ctx3.response_status == SetStateStatus.ACCEPT
+
+        ctx4 = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment2.id
+        )
+        async with contextlib.AsyncExitStack() as stack:
+            ctx4 = await stack.enter_async_context(
+                SecureFlowConcurrencySlots(ctx4, *pending_transition)
+            )
+            await ctx4.validate_proposed_state()
+        assert ctx4.response_status == SetStateStatus.ACCEPT
+
+        ctx5 = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment2.id
+        )
+        async with contextlib.AsyncExitStack() as stack:
+            ctx5 = await stack.enter_async_context(
+                SecureFlowConcurrencySlots(ctx5, *pending_transition)
+            )
+            await ctx5.validate_proposed_state()
+        assert ctx5.response_status == SetStateStatus.REJECT
+
+        await assert_deployment_concurrency_limit(session, deployment2, 2, 2)
+
+    async def test_flow_run_cancellation(
+        self,
+        session,
+        initialize_orchestration,
+        flow,
+    ):
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+        pending_transition = (states.StateType.SCHEDULED, states.StateType.PENDING)
+        cancelling_transition = (
+            states.StateType.RUNNING,
+            states.StateType.CANCELLING,
+        )
+        cancelled_transition = (
+            states.StateType.CANCELLING,
+            states.StateType.CANCELLED,
+        )
+
+        # Secure a concurrency slot
+        ctx1 = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment.id
+        )
+        async with contextlib.AsyncExitStack() as stack:
+            ctx1 = await stack.enter_async_context(
+                SecureFlowConcurrencySlots(ctx1, *pending_transition)
+            )
+            await ctx1.validate_proposed_state()
+        assert ctx1.response_status == SetStateStatus.ACCEPT
+
+        # Move to Cancelling state (should still hold the slot)
+        ctx2 = await initialize_orchestration(
+            session, "flow", *cancelling_transition, deployment_id=deployment.id
+        )
+        async with contextlib.AsyncExitStack() as stack:
+            ctx2 = await stack.enter_async_context(
+                SecureFlowConcurrencySlots(ctx2, *cancelling_transition)
+            )
+            await ctx2.validate_proposed_state()
+        assert ctx2.response_status == SetStateStatus.ACCEPT
+
+        await assert_deployment_concurrency_limit(
+            session, deployment, 1, 1
+        )  # Concurrency slot still held
+
+        # Move to Cancelled state (should release the slot)
+        ctx3 = await initialize_orchestration(
+            session, "flow", *cancelled_transition, deployment_id=deployment.id
+        )
+        async with contextlib.AsyncExitStack() as stack:
+            ctx3 = await stack.enter_async_context(
+                ReleaseFlowConcurrencySlots(ctx3, *cancelled_transition)
+            )
+            await ctx3.validate_proposed_state()
+
+        await assert_deployment_concurrency_limit(session, deployment, 1, 0)
+
+        # Verify that the concurrency slot can be secured again
+        ctx4 = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment.id
+        )
+        async with contextlib.AsyncExitStack() as stack:
+            ctx4 = await stack.enter_async_context(
+                SecureFlowConcurrencySlots(ctx4, *pending_transition)
+            )
+            await ctx4.validate_proposed_state()
+        assert ctx4.response_status == SetStateStatus.ACCEPT
+
+        await assert_deployment_concurrency_limit(session, deployment, 1, 1)
+
+    async def test_pending_running_completed_releases_concurrency_slot(
+        self,
+        session,
+        initialize_orchestration,
+        flow,
+    ):
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+        pending_transition = (states.StateType.SCHEDULED, states.StateType.PENDING)
+        running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
+        completed_transition = (
+            states.StateType.RUNNING,
+            states.StateType.COMPLETED,
+        )
+
+        # Secure a concurrency slot
+        ctx1 = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment.id
+        )
+        async with contextlib.AsyncExitStack() as stack:
+            ctx1 = await stack.enter_async_context(
+                SecureFlowConcurrencySlots(ctx1, *pending_transition)
+            )
+            await ctx1.validate_proposed_state()
+        assert ctx1.response_status == SetStateStatus.ACCEPT
+        await session.refresh(deployment)
+        await assert_deployment_concurrency_limit(session, deployment, 1, 1)
+
+        # Move to running state
+        ctx2 = await initialize_orchestration(
+            session, "flow", *running_transition, deployment_id=deployment.id
+        )
+        async with contextlib.AsyncExitStack() as stack:
+            ctx2 = await stack.enter_async_context(
+                SecureFlowConcurrencySlots(ctx2, *running_transition)
+            )
+            await ctx2.validate_proposed_state()
+        assert ctx2.response_status == SetStateStatus.ACCEPT
+
+        # Still holds the concurrency slot
+        await assert_deployment_concurrency_limit(session, deployment, 1, 1)
+
+        # Now move to completed
+        ctx2 = await initialize_orchestration(
+            session, "flow", *completed_transition, deployment_id=deployment.id
+        )
+        async with contextlib.AsyncExitStack() as stack:
+            ctx2 = await stack.enter_async_context(
+                ReleaseFlowConcurrencySlots(ctx2, *completed_transition)
+            )
+            await ctx2.validate_proposed_state()
+
+        # Slot is released
+        await assert_deployment_concurrency_limit(session, deployment, 1, 0)
+
+    async def test_error_handling(
+        self,
+        session,
+        initialize_orchestration,
+        flow,
+    ):
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+        pending_transition = (states.StateType.SCHEDULED, states.StateType.PENDING)
+
+        ctx = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment.id
+        )
+
+        async def mock_read_deployment_concurrency_limit(*args, **kwargs):
+            raise Exception("Simulated error")
+
+        with mock.patch(
+            "prefect.server.models.deployments.read_deployment",
+            mock_read_deployment_concurrency_limit,
+        ):
+            async with contextlib.AsyncExitStack() as stack:
+                ctx = await stack.enter_async_context(
+                    SecureFlowConcurrencySlots(ctx, *pending_transition)
+                )
+                await ctx.validate_proposed_state()
+
+        # The orchestration rule should handle the error gracefully
+        assert ctx.response_status == SetStateStatus.ABORT
+
+        await assert_deployment_concurrency_limit(session, deployment, 1, 0)
+
+    async def test_secure_cleanup_on_fizzle(
+        self,
+        session,
+        initialize_orchestration,
+        flow,
+    ):
+        class StateMutatingRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
+            async def before_transition(self, initial_state, proposed_state, context):
+                mutated_state = proposed_state.model_copy()
+                mutated_state.type = random.choice(
+                    list(
+                        set(states.StateType)
+                        - {
+                            states.StateType.PENDING,
+                            states.StateType.RUNNING,
+                            states.StateType.CANCELLING,
+                        }
+                    )
+                )
+                await self.reject_transition(
+                    mutated_state, reason="gotta fizzle some rules, for fun"
+                )
+
+            async def after_transition(self, initial_state, validated_state, context):
+                pass
+
+            async def cleanup(self, initial_state, validated_state, context):
+                pass
+
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+        pending_transition = (states.StateType.SCHEDULED, states.StateType.PENDING)
+
+        policy = [
+            StateMutatingRule,
+            SecureFlowConcurrencySlots,
+            ReleaseFlowConcurrencySlots,
+        ]
+
+        ctx = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment.id
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in policy:
+                ctx = await stack.enter_async_context(rule(ctx, *pending_transition))
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.REJECT
+
+        # The fizzled rule should have caused cleanup to revert the concurrency slot
+
+        await assert_deployment_concurrency_limit(session, deployment, 1, 0)

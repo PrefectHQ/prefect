@@ -22132,6 +22132,11 @@
                         "title": "Prefect Deployment Schedule Max Scheduled Runs",
                         "default": 50
                     },
+                    "PREFECT_DEPLOYMENT_CONCURRENCY_SLOT_WAIT_SECONDS": {
+                        "type": "number",
+                        "title": "Prefect Deployment Concurrency Slot Wait Seconds",
+                        "default": 30.0
+                    },
                     "PREFECT_WORKER_HEARTBEAT_SECONDS": {
                         "type": "number",
                         "title": "Prefect Worker Heartbeat Seconds",

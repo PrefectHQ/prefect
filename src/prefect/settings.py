@@ -1458,6 +1458,12 @@ PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS = Setting(int, default=50)
 The maximum number of scheduled runs to create for a deployment.
 """
 
+PREFECT_DEPLOYMENT_CONCURRENCY_SLOT_WAIT_SECONDS = Setting(float, default=30.0)
+"""
+The number of seconds to wait before retrying when a deployment flow run
+cannot secure a concurrency slot from the server.   
+"""
+
 PREFECT_WORKER_HEARTBEAT_SECONDS = Setting(float, default=30)
 """
 Number of seconds a worker should wait between sending a heartbeat.

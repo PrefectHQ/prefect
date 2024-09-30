@@ -20,6 +20,7 @@ import yaml
 from ruamel.yaml import YAML
 
 from prefect.client.schemas.actions import DeploymentScheduleCreate
+from prefect.client.schemas.objects import ConcurrencyLimitStrategy
 from prefect.client.schemas.schedules import IntervalSchedule
 from prefect.logging import get_logger
 from prefect.settings import PREFECT_DEBUG_MODE
@@ -276,6 +277,17 @@ def _format_deployment_for_saving_to_prefect_file(
             schedules.append(schedule_config)
 
         deployment["schedules"] = schedules
+
+    if deployment.get("concurrency_limit"):
+        concurrency_limit = deployment["concurrency_limit"]
+        if isinstance(concurrency_limit, dict):
+            if isinstance(
+                concurrency_limit["collision_strategy"], ConcurrencyLimitStrategy
+            ):
+                concurrency_limit["collision_strategy"] = str(
+                    concurrency_limit["collision_strategy"].value
+                )
+        deployment["concurrency_limit"] = concurrency_limit
 
     return deployment
 

@@ -4,11 +4,23 @@ Injected orchestration dependencies
 
 from contextlib import contextmanager
 
+from fastapi.params import Depends
+
+from prefect.server.api import dependencies
+
 ORCHESTRATION_DEPENDENCIES = {
     "task_policy_provider": None,
     "flow_policy_provider": None,
     "task_orchestration_parameters_provider": None,
     "flow_orchestration_parameters_provider": None,
+}
+
+WORKER_VERSIONS_THAT_MANAGE_DEPLOYMENT_CONCURRENCY = {
+    "3.0.0rc20",
+    "3.0.0",
+    "3.0.1",
+    "3.0.2",
+    "3.0.3",
 }
 
 
@@ -23,13 +35,21 @@ async def provide_task_policy():
     return await policy_provider()
 
 
-async def provide_flow_policy():
+async def provide_flow_policy(
+    client_version=Depends(dependencies.get_prefect_client_version),
+):
     policy_provider = ORCHESTRATION_DEPENDENCIES.get("flow_policy_provider")
 
     if policy_provider is None:
-        from prefect.server.orchestration.core_policy import CoreFlowPolicy
+        from prefect.server.orchestration.core_policy import (
+            CoreFlowPolicy,
+            CoreFlowPolicyWithoutDeploymentConcurrency,
+        )
 
-        return CoreFlowPolicy
+        if client_version in WORKER_VERSIONS_THAT_MANAGE_DEPLOYMENT_CONCURRENCY:
+            return CoreFlowPolicyWithoutDeploymentConcurrency
+        else:
+            return CoreFlowPolicy
 
     return await policy_provider()
 

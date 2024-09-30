@@ -1197,6 +1197,64 @@ class TestDeleteFlowRuns:
         response = await client.delete(f"/flow_runs/{uuid4()}")
         assert response.status_code == status.HTTP_404_NOT_FOUND, response.text
 
+    @pytest.mark.parametrize(
+        "state_type,expected_slots",
+        [
+            ("PENDING", 0),
+            ("RUNNING", 0),
+            ("CANCELLING", 0),
+            *[
+                (type, 1)
+                for type in schemas.states.StateType
+                if type not in ("PENDING", "RUNNING", "CANCELLING")
+            ],
+        ],
+    )
+    async def test_delete_flow_run_releases_concurrency_slots(
+        self,
+        client,
+        session,
+        flow,
+        deployment_with_concurrency_limit,
+        state_type,
+        expected_slots,
+    ):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                deployment_id=deployment_with_concurrency_limit.id,
+                state=schemas.states.State(
+                    type=state_type,
+                ),
+            ),
+        )
+
+        # Take one active slot
+        await models.concurrency_limits_v2.bulk_increment_active_slots(
+            session=session,
+            concurrency_limit_ids=[
+                deployment_with_concurrency_limit.concurrency_limit_id
+            ],
+            slots=1,
+        )
+
+        await session.commit()
+
+        concurrency_limit = await models.concurrency_limits_v2.read_concurrency_limit(
+            session=session,
+            concurrency_limit_id=deployment_with_concurrency_limit.concurrency_limit_id,
+        )
+        await session.refresh(concurrency_limit)
+        assert concurrency_limit.active_slots == 1
+
+        # delete the flow run
+        response = await client.delete(f"/flow_runs/{flow_run.id}")
+        assert response.status_code == 204, response.text
+
+        await session.refresh(concurrency_limit)
+        assert concurrency_limit.active_slots == expected_slots
+
 
 class TestResumeFlowrun:
     @pytest.fixture
@@ -1797,6 +1855,51 @@ class TestSetFlowRunState:
         )
         # the transition is rejected and the returned state should be the existing state in the db
         assert api_response.state.id == pending_flow_run_with_transition_id.state_id
+
+    @pytest.mark.parametrize(
+        "client_version,should_use_orchestration",
+        [
+            (None, True),
+            ("2.19.3", True),
+            ("3.0.0rc20", False),
+            ("3.0.0", False),
+            ("3.0.1", False),
+            ("3.0.2", False),
+            ("3.0.3", False),
+            ("3.0.4", True),
+        ],
+    )
+    async def test_set_flow_run_state_uses_deployment_concurrency_orchestration_for_certain_client_versions(
+        self,
+        client_version,
+        should_use_orchestration,
+        client,
+        flow_run_with_concurrency_limit,
+    ):
+        # Ensure that setting the flow run state uses new concurrency rules
+        # for older (2.x) clients and 3.x clients other than the ones with
+        # worker handling for deployment concurrency.
+        with mock.patch(
+            "prefect.server.orchestration.core_policy.SecureFlowConcurrencySlots.before_transition"
+        ) as mock_before_transition:
+            post_kwargs = {
+                "json": dict(state=dict(type="PENDING", name="Pending")),
+                "headers": {},
+            }
+            if client_version:
+                post_kwargs["headers"][
+                    "User-Agent"
+                ] = f"prefect/{client_version} (API 2.19.3)"
+            response = await client.post(
+                f"/flow_runs/{flow_run_with_concurrency_limit.id}/set_state",
+                **post_kwargs,
+            )
+            assert response.status_code == 201
+
+            if should_use_orchestration:
+                mock_before_transition.assert_awaited_once()
+            else:
+                mock_before_transition.assert_not_awaited()
 
 
 class TestManuallyRetryingFlowRuns:
