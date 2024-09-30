@@ -318,8 +318,7 @@ async def read_flow_runs(
 
 async def cleanup_flow_run_concurrency_slots(
     session: AsyncSession,
-    deployment_id: UUID,
-    final_state: Optional[State] = None,
+    flow_run: orm_models.FlowRun,
 ):
     """
     Cleanup flow run related resources, such as releasing concurrency slots.
@@ -328,16 +327,18 @@ async def cleanup_flow_run_concurrency_slots(
     """
 
     if (
-        deployment_id
-        and final_state
-        and final_state.type
+        flow_run.deployment_id
+        and flow_run.state
+        and flow_run.state.type
         in (
             schemas.states.StateType.PENDING,
             schemas.states.StateType.RUNNING,
             schemas.states.StateType.CANCELLING,
         )
     ):
-        deployment = await models.deployments.read_deployment(session, deployment_id)
+        deployment = await models.deployments.read_deployment(
+            session, flow_run.deployment_id
+        )
         if deployment and deployment.concurrency_limit_id:
             await models.concurrency_limits_v2.bulk_decrement_active_slots(
                 session, [deployment.concurrency_limit_id], 1
@@ -461,11 +462,7 @@ async def delete_flow_run(session: AsyncSession, flow_run_id: UUID) -> bool:
     deployment_id = flow_run.deployment_id
 
     if deployment_id:
-        await cleanup_flow_run_concurrency_slots(
-            session=session,
-            deployment_id=deployment_id,
-            final_state=flow_run.state.as_state() if flow_run.state else None,
-        )
+        await cleanup_flow_run_concurrency_slots(session=session, flow_run=flow_run)
 
     # Delete the flow run
     result = await session.execute(
