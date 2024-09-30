@@ -98,3 +98,35 @@ async def test_get_cloud_work_pool_types():
             async with get_cloud_client() as client:
                 response = await client.read_worker_metadata()
                 assert response == mock_work_pool_types_response
+
+
+async def test_read_current_workspace():
+    account_id = uuid.uuid4()
+    workspace_id = uuid.uuid4()
+    api_url = f"https://api.prefect.cloud/api/accounts/{account_id}/workspaces/{workspace_id}/"
+
+    with temporary_settings(updates={PREFECT_API_URL: api_url}):
+        with respx.mock(
+            assert_all_mocked=False, base_url=PREFECT_API_URL.value()
+        ) as respx_mock:
+            respx_mock.get("https://api.prefect.cloud/api/me/workspaces").mock(
+                return_value=httpx.Response(
+                    200,
+                    json=[
+                        {
+                            "account_id": str(account_id),
+                            "account_name": "Test Account",
+                            "account_handle": "test-account",
+                            "workspace_id": str(workspace_id),
+                            "workspace_name": "Test Workspace",
+                            "workspace_description": "Test workspace description",
+                            "workspace_handle": "test-workspace",
+                        }
+                    ],
+                )
+            )
+
+            async with get_cloud_client() as client:
+                workspace = await client.read_current_workspace()
+                assert workspace.workspace_id == workspace_id
+                assert workspace.account_id == account_id

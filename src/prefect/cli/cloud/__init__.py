@@ -557,7 +557,12 @@ async def logout():
     exit_with_success("Logged out from Prefect Cloud.")
 
 
-@cloud_app.command()
+@cloud_app.command(
+    deprecated=True,
+    deprecated_name="prefect cloud open",
+    deprecated_start_date="Oct 2024",
+    deprecated_help="Use `prefect dashboard open` to open the Prefect UI.",
+)
 async def open():
     """
     Open the Prefect Cloud UI in the browser.
@@ -570,10 +575,9 @@ async def open():
             "There is no current profile set - set one with `prefect profile create"
             " <name>` and `prefect profile use <name>`."
         )
+    async with get_cloud_client() as client:
+        current_workspace = await client.read_current_workspace()
 
-    current_workspace = get_current_workspace(
-        await prefect.client.cloud.get_cloud_client().read_workspaces()
-    )
     if current_workspace is None:
         exit_with_error(
             "There is no current workspace set - set one with `prefect cloud workspace"
