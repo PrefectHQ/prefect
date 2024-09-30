@@ -1262,6 +1262,37 @@ class TestKubernetesWorkerJobConfiguration:
             "volumeMounts": [{"name": "data-volume", "mountPath": "/data/"}],
         }
 
+    def test_env_can_be_a_list(self):
+        job_manifest = {
+            "apiVersion": "batch/v1",
+            "kind": "Job",
+            "metadata": {"labels": {"my-custom-label": "sweet"}},
+            "spec": {
+                "template": {
+                    "spec": {
+                        "parallelism": 1,
+                        "completions": 1,
+                        "restartPolicy": "Never",
+                        "containers": [
+                            {
+                                "name": "prefect-job",
+                                "env": [],
+                            }
+                        ],
+                    }
+                }
+            },
+        }
+        KubernetesWorkerJobConfiguration(
+            job_manifest=job_manifest,
+            env=[
+                {
+                    "name": "TEST_ENV",
+                    "value": "test",
+                }
+            ],
+        )
+
 
 class TestKubernetesWorker:
     @pytest.fixture

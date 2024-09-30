@@ -113,8 +113,10 @@ from typing import (
     Any,
     AsyncGenerator,
     Dict,
+    List,
     Optional,
     Tuple,
+    Union,
 )
 
 import aiohttp
@@ -270,6 +272,10 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
     pod_watch_timeout_seconds: int = Field(default=60)
     stream_output: bool = Field(default=True)
 
+    env: Union[Dict[str, Optional[str]], List[Dict[str, Any]]] = Field(
+        default_factory=dict
+    )
+
     # internal-use only
     _api_dns_name: Optional[str] = None  # Replaces 'localhost' in API URL
 
@@ -316,6 +322,13 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
             )
 
         return self
+
+    @field_validator("env", mode="before")
+    @classmethod
+    def _coerce_env(cls, v):
+        if isinstance(v, list):
+            return v
+        return {k: str(v) if v is not None else None for k, v in v.items()}
 
     @staticmethod
     def _base_flow_run_labels(flow_run: "FlowRun") -> Dict[str, str]:
@@ -555,26 +568,6 @@ class KubernetesWorker(BaseWorker):
     _display_name = "Kubernetes"
     _documentation_url = "https://prefecthq.github.io/prefect-kubernetes/worker/"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/2d0b896006ad463b49c28aaac14f31e00e32cfab-250x250.png"  # noqa
-
-    @field_validator("env", mode="before")
-    @classmethod
-    def _coerce_env(cls, v):
-        if isinstance(v, dict):
-            return {k: str(v) if v is not None else None for k, v in v.items()}
-        elif isinstance(v, list):
-            return [
-                {
-                    "name": item["name"],
-                    "value": str(item["value"])
-                    if item.get("value") is not None
-                    else None,
-                }
-                if isinstance(item, dict) and "name" in item
-                else item
-                for item in v
-            ]
-        else:
-            raise ValueError("env must be either a dictionary or a list")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
