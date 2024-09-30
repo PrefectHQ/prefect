@@ -154,7 +154,7 @@ def write_data(data: str):
 
 @flow(log_prints=True)
 def pipeline():
-    with transaction(key="download-and-write-data", write_on_commit=True) as txn:
+    with transaction(key="download-and-write-data") as txn:
         if txn.is_committed():
             print("Data file has already been written. Exiting early.")
             return
@@ -168,7 +168,7 @@ if __name__ == "__main__":
 
 If you run this flow, it will write data to a file the first time, but it will exit early on subsequent runs because the transaction has already been committed.
 
-Giving the transaction a `key` and setting `write_on_commit=True` will cause the transaction to write a record on commit signifying that the transaction has completed.
+Giving the transaction a `key` will cause the transaction to write a record on commit signifying that the transaction has completed.
 The call to `txn.is_committed()` will return `True` only if the persisted record exists.
 
 ### Handling race conditions
@@ -202,7 +202,7 @@ def write_file(contents: str):
 
 @flow
 def pipeline(transaction_key: str):
-    with transaction(key=transaction_key, write_on_commit=True) as txn:
+    with transaction(key=transaction_key) as txn:
         if txn.is_committed():
             print("Data file has already been written. Exiting early.")
             return
@@ -257,7 +257,6 @@ def write_file(contents: str):
 def pipeline(transaction_key: str):
     with transaction(
         key=transaction_key,
-        write_on_commit=True,
         isolation_level=IsolationLevel.SERIALIZABLE,
         store=ResultStore(
             lock_manager=FileSystemLockManager(
