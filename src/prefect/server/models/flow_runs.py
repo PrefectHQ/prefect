@@ -445,7 +445,7 @@ async def count_flow_runs(
 
 async def delete_flow_run(session: AsyncSession, flow_run_id: UUID) -> bool:
     """
-    Delete a flow run by flow_run_id.
+    Delete a flow run by flow_run_id, handling concurrency limits if applicable.
 
     Args:
         session: A database session
@@ -454,10 +454,24 @@ async def delete_flow_run(session: AsyncSession, flow_run_id: UUID) -> bool:
     Returns:
         bool: whether or not the flow run was deleted
     """
+    flow_run = await read_flow_run(session, flow_run_id)
+    if not flow_run:
+        return False
 
+    deployment_id = flow_run.deployment_id
+
+    if deployment_id:
+        await cleanup_flow_run_concurrency_slots(
+            session=session,
+            deployment_id=deployment_id,
+            final_state=flow_run.state.as_state() if flow_run.state else None,
+        )
+
+    # Delete the flow run
     result = await session.execute(
         delete(orm_models.FlowRun).where(orm_models.FlowRun.id == flow_run_id)
     )
+
     return result.rowcount > 0
 
 

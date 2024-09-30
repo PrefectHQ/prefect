@@ -1197,20 +1197,63 @@ class TestDeleteFlowRuns:
         response = await client.delete(f"/flow_runs/{uuid4()}")
         assert response.status_code == status.HTTP_404_NOT_FOUND, response.text
 
+    @pytest.mark.parametrize(
+        "state_type,expected_slots",
+        [
+            ("PENDING", 0),
+            ("RUNNING", 0),
+            ("CANCELLING", 0),
+            *[
+                (type, 1)
+                for type in schemas.states.StateType
+                if type not in ("PENDING", "RUNNING", "CANCELLING")
+            ],
+        ],
+    )
     async def test_delete_flow_run_releases_concurrency_slots(
-        self, flow_run_with_concurrency_limit, client, session
+        self,
+        client,
+        session,
+        flow,
+        deployment_with_concurrency_limit,
+        state_type,
+        expected_slots,
     ):
-        # delete the flow run
-        response = await client.delete(
-            f"/flow_runs/{flow_run_with_concurrency_limit.id}"
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                deployment_id=deployment_with_concurrency_limit.id,
+                state=schemas.states.State(
+                    type=state_type,
+                ),
+            ),
         )
+
+        # Take one active slot
+        await models.concurrency_limits_v2.bulk_increment_active_slots(
+            session=session,
+            concurrency_limit_ids=[
+                deployment_with_concurrency_limit.concurrency_limit_id
+            ],
+            slots=1,
+        )
+
+        await session.commit()
+
+        concurrency_limit = await models.concurrency_limits_v2.read_concurrency_limit(
+            session=session,
+            concurrency_limit_id=deployment_with_concurrency_limit.concurrency_limit_id,
+        )
+        await session.refresh(concurrency_limit)
+        assert concurrency_limit.active_slots == 1
+
+        # delete the flow run
+        response = await client.delete(f"/flow_runs/{flow_run.id}")
         assert response.status_code == 204, response.text
 
-        deployment = await models.deployments.read_deployment(
-            session=session, deployment_id=flow_run_with_concurrency_limit.deployment_id
-        )
-
-        assert deployment.global_concurrency_limit.active_slots == 0
+        await session.refresh(concurrency_limit)
+        assert concurrency_limit.active_slots == expected_slots
 
 
 class TestResumeFlowrun:
