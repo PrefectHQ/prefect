@@ -89,7 +89,7 @@ You can create and access any automation with the Python SDK's `Automation` clas
 ```python
 from prefect.automations import Automation
 from prefect.events.schemas.automations import EventTrigger
-from prefect.server.events.actions import CancelFlowRun
+from prefect.events.actions import CancelFlowRun
 
 # creating an automation
 automation = Automation(
@@ -110,9 +110,9 @@ print(automation)
 
 # reading the automation
 
-automation = Automation.read(id ="d641c552-775c-4dc6-a31e-541cb11137a6")
+automation = Automation.read(id=automation.id)
 # or
-automation = Automation.read("woodchonk")
+automation = Automation.read(name="woodchonk")
 
 print(automation)
 # name='woodchonk' description='' enabled=True trigger=EventTrigger(type='event', match=ResourceSpecification(__root__={'genus': 'Marmota', 'species': 'monax'}), match_related=ResourceSpecification(__root__={}), after=set(), expect={'animal.walked'}, for_each=set(), posture=Posture.Reactive, threshold=3, within=datetime.timedelta(seconds=10)) actions=[CancelFlowRun(type='cancel-flow-run')] actions_on_trigger=[] actions_on_resolve=[] owner_resource=None id=UUID('d641c552-775c-4dc6-a31e-541cb11137a6')
@@ -241,7 +241,7 @@ def decorated_fn(param_1: str):
 if __name__=="__main__":
     decorated_fn.deploy(
         name="my-deployment",
-        image="my-image-registry/my-image:my-tag"
+        image="my-image-registry/my-image:my-tag",
         triggers=[
             DeploymentCompoundTrigger(
                 enabled=True,
@@ -669,7 +669,7 @@ Make a helper function that applies this YAML file with the REST API function.
 ```python
 import yaml
 
-from utils import post, put
+from myproject.utils import post, put
 
 def create_or_update_automation(path: str = "automation.yaml"):
     """Create or update an automation from a local YAML file"""
