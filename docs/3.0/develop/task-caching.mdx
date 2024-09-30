@@ -265,7 +265,7 @@ if __name__ == "__main__":
     thread_2.join()
 ```
 
-When running this script, both tasks will execute in parallel and neither will be cached despite both tasks using the same cache key.
+When running this script, both tasks will execute in parallel and perform work despite both tasks using the same cache key.
 
 This is evidenced by seeing both `my_task_version_1 running` and `my_task_version_2 running` in the output:
 
