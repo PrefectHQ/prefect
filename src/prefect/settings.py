@@ -1082,6 +1082,18 @@ PREFECT_API_DATABASE_CONNECTION_TIMEOUT = Setting(
 connections. Defaults to `5`.
 """
 
+PREFECT_API_DATABASE_INCLUDE_JIT_SERVER_SETTING = Setting(
+    Optional[bool],
+    default=True,
+)
+"""
+If `False`, the server setting `{'jit':'off'}` is omitted from the `connect_args` 
+server settings. Defaults to `True`. Passing `{'jit':'off'}` may lead to 
+connection failures in instances where `jit` arguments are not recognized or 
+supported in the database connection context, such as certain loadbalanced
+relational database cluster deployments.
+"""
+
 PREFECT_API_SERVICES_SCHEDULER_LOOP_SECONDS = Setting(
     float,
     default=60,
