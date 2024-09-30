@@ -1245,6 +1245,7 @@ class TestDeleteFlowRuns:
             session=session,
             concurrency_limit_id=deployment_with_concurrency_limit.concurrency_limit_id,
         )
+        await session.refresh(concurrency_limit)
         assert concurrency_limit.active_slots == 1
 
         # delete the flow run
