@@ -1504,6 +1504,7 @@ class Settings(BaseSettings):
 def _cast_settings(
     settings: Union[Dict[Union[str, Setting], Any], Any],
 ) -> Dict[Setting, Any]:
+    """For backwards compatibility, allow either Settings objects as keys or string references to settings."""
     if not isinstance(settings, dict):
         raise ValueError("Settings must be a dictionary.")
     casted_settings = {}
