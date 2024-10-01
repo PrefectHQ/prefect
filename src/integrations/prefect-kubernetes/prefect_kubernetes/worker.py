@@ -113,8 +113,10 @@ from typing import (
     Any,
     AsyncGenerator,
     Dict,
+    List,
     Optional,
     Tuple,
+    Union,
 )
 
 import aiohttp
@@ -290,6 +292,10 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
     pod_watch_timeout_seconds: int = Field(default=60)
     stream_output: bool = Field(default=True)
 
+    env: Union[Dict[str, Optional[str]], List[Dict[str, Any]]] = Field(
+        default_factory=dict
+    )
+
     # internal-use only
     _api_dns_name: Optional[str] = None  # Replaces 'localhost' in API URL
 
@@ -344,6 +350,13 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
                 f"{', '.join(incompatible)}"
             )
         return value
+
+    @validator("env", pre=True)
+    @classmethod
+    def _coerce_env(cls, v):
+        if isinstance(v, list):
+            return v
+        return {k: str(v) if v is not None else None for k, v in v.items()}
 
     @staticmethod
     def _base_flow_run_labels(flow_run: "FlowRun") -> Dict[str, str]:
