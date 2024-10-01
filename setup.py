@@ -14,8 +14,6 @@ def read_requirements(file):
 client_requires = read_requirements("requirements-client.txt")
 install_requires = read_requirements("requirements.txt")[1:] + client_requires
 dev_requires = read_requirements("requirements-dev.txt")
-markdown_requirements = read_requirements("requirements-markdown-tests.txt")
-markdown_tests_requires = dev_requires + markdown_requirements[1:]
 
 setup(
     # Package metadata
@@ -51,7 +49,6 @@ setup(
     install_requires=install_requires,
     extras_require={
         "dev": dev_requires,
-        "markdown-tests": markdown_tests_requires,
         # Infrastructure extras
         "aws": "prefect-aws>=0.5.0rc1",
         "azure": "prefect-azure>=0.4.0rc1",
