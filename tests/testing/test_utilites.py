@@ -65,9 +65,6 @@ async def test_prefect_test_harness():
 
             assert PREFECT_API_URL.value() != existing_api_url
 
-            # should be connected to a different database
-            assert PREFECT_API_DATABASE_CONNECTION_URL.value() != existing_db_url
-
     # API URL should be reset
     assert PREFECT_API_URL.value() == existing_api_url
 

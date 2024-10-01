@@ -301,6 +301,7 @@ def pytest_sessionstart(session):
     when tests are collected they respect the setting values.
     """
     global TEST_PREFECT_HOME, TEST_PROFILE_CTX
+
     TEST_PREFECT_HOME = tempfile.mkdtemp()
 
     profile = prefect.settings.Profile(
@@ -415,7 +416,8 @@ async def generate_test_database_connection_url(
     if scheme == "sqlite+aiosqlite":
         # SQLite databases will be scoped by the PREFECT_HOME setting, which will
         # be in an isolated temporary directory
-        yield None
+        test_db_path = Path(PREFECT_HOME.value()) / f"prefect_{worker_id}.db"
+        yield f"sqlite+aiosqlite:///{test_db_path}"
         return
 
     elif scheme == "postgresql+asyncpg":

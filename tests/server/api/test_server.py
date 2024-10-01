@@ -368,13 +368,13 @@ class TestMemoizeBlockAutoRegistration:
 
 class TestSubprocessASGIServer:
     def test_singleton_on_port(self):
-        server_8000 = SubprocessASGIServer(port=8000)
-        assert server_8000 is SubprocessASGIServer(port=8000)
+        server_8001 = SubprocessASGIServer(port=8001)
+        assert server_8001 is SubprocessASGIServer(port=8001)
 
         server_random = SubprocessASGIServer()
         assert server_random is SubprocessASGIServer()
 
-        assert server_8000 is not server_random
+        assert server_8001 is not server_random
 
     def test_find_available_port_returns_available_port(self):
         server = SubprocessASGIServer()

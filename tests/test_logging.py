@@ -54,6 +54,7 @@ from prefect.settings import (
     PREFECT_LOGGING_TO_API_ENABLED,
     PREFECT_LOGGING_TO_API_MAX_LOG_SIZE,
     PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW,
+    PREFECT_TEST_MODE,
     temporary_settings,
 )
 from prefect.testing.cli import temporary_console_width
@@ -198,7 +199,9 @@ def test_get_logger_does_not_duplicate_prefect_prefix():
 
 
 def test_default_level_is_applied_to_interpolated_yaml_values(dictConfigMock):
-    with temporary_settings({PREFECT_LOGGING_LEVEL: "WARNING"}):
+    with temporary_settings(
+        {PREFECT_LOGGING_LEVEL: "WARNING", PREFECT_TEST_MODE: False}
+    ):
         expected_config = load_logging_config(DEFAULT_LOGGING_SETTINGS_PATH)
         expected_config["incremental"] = False
 
@@ -669,9 +672,8 @@ class TestAPILogWorker:
             )
         assert len(set(log.message for log in logs)) == count, "Each log is unique"
 
-    @pytest.mark.parametrize("exiting", [True, False])
     async def test_send_logs_writes_exceptions_to_stderr(
-        self, log_dict, capsys, monkeypatch, exiting, worker
+        self, log_dict, capsys, monkeypatch, worker
     ):
         monkeypatch.setattr(
             "prefect.client.orchestration.PrefectClient.create_logs",

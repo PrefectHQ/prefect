@@ -42,7 +42,7 @@ from prefect.task_runners import ThreadPoolTaskRunner
 
 
 class ExampleContext(ContextModel):
-    __var__ = ContextVar("test")
+    __var__: ContextVar = ContextVar("test")
 
     x: int
 
@@ -201,11 +201,11 @@ class TestSettingsContext:
     def test_settings_context_variable(self):
         with SettingsContext(
             profile=Profile(name="test", settings={}),
-            settings=prefect.settings.get_settings_from_env(),
+            settings=prefect.settings.get_current_settings(),
         ) as context:
             assert get_settings_context() is context
             assert context.profile == Profile(name="test", settings={})
-            assert context.settings == prefect.settings.get_settings_from_env()
+            assert context.settings == prefect.settings.get_current_settings()
 
     def test_get_settings_context_missing(self, monkeypatch):
         # It's kind of hard to actually exit the default profile, so we patch `get`
@@ -483,14 +483,8 @@ class TestSerializeContext:
                     "tags_context": {"current_tags": current_tags},
                     "settings_context": SettingsContext.get().serialize(),
                 }
-                assert (
-                    serialized["settings_context"]["settings"]["PREFECT_API_KEY"]
-                    == "test"
-                )
-                assert (
-                    serialized["settings_context"]["settings"]["PREFECT_API_URL"]
-                    == "test"
-                )
+                assert serialized["settings_context"]["settings"]["api_key"] == "test"
+                assert serialized["settings_context"]["settings"]["api_url"] == "test"
 
 
 class TestHydratedContext:
@@ -622,7 +616,7 @@ class TestHydratedContext:
             {
                 "settings_context": {
                     "profile": {"name": "test", "settings": {}, "source": None},
-                    "settings": {"PREFECT_API_KEY": "test", "PREFECT_API_URL": "test"},
+                    "settings": {"api_key": "test", "api_url": "test"},
                 },
             }
         ):
@@ -631,5 +625,9 @@ class TestHydratedContext:
                 settings={},
                 source=None,
             )
-            assert SettingsContext.get().settings.PREFECT_API_KEY == "test"
-            assert SettingsContext.get().settings.PREFECT_API_URL == "test"
+            settings = SettingsContext.get().settings
+            assert (
+                settings.api_key is not None
+                and settings.api_key.get_secret_value() == "test"
+            )
+            assert settings.api_url == "test"
