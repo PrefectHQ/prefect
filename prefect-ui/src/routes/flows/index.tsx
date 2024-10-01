@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { Link } from '@tanstack/react-router'
-
+import { QueryService } from '@/api/service'
 
 
 
@@ -8,7 +8,7 @@ export const Route = createFileRoute('/flows/')({
   component: FlowList,
   loader: async ({ context }) => await context.queryClient.ensureQueryData({
       queryKey: ['flows'],
-      queryFn: () => context.queryService.POST('/flows/paginate', { body: { page: 1, limit: 10, sort: 'CREATED_DESC' } }).then(
+      queryFn: () => QueryService.POST('/flows/paginate', { body: { page: 1, limit: 10, sort: 'CREATED_DESC' } }).then(
     )
       
     })
@@ -25,7 +25,7 @@ function FlowList() {
       <ul>
         {data?.data?.results?.map((flow: any) => (
           <li key={flow.id}>
-            <Link to='/flows/flow/$flowId' params={{ flowId: flow.id }}>
+            <Link to='/flows/flow/$id' params={{ id: flow.id }}>
               {flow.name}
             </Link>
           </li>
