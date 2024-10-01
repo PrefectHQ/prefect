@@ -20,7 +20,7 @@ async def read_settings() -> prefect.settings.Settings:
 
     Secret setting values will be obfuscated.
     """
-    return prefect.settings.get_current_settings().with_obfuscated_secrets()
+    return prefect.settings.get_current_settings()
 
 
 @router.get("/version")
@@ -37,7 +37,7 @@ async def clear_database(
         embed=True,
         description="Pass confirm=True to confirm you want to modify the database.",
     ),
-    response: Response = None,
+    response: Response = None,  # type: ignore
 ):
     """Clear all database tables without dropping them."""
     if not confirm:

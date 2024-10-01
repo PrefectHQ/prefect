@@ -2543,7 +2543,7 @@ class PrefectClient:
 
     async def read_logs(
         self,
-        log_filter: LogFilter = None,
+        log_filter: Optional[LogFilter] = None,
         limit: Optional[int] = None,
         offset: Optional[int] = None,
         sort: LogSort = LogSort.TIMESTAMP_ASC,

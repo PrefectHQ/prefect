@@ -225,8 +225,7 @@ async def register(
         "go to the Blocks page in the Prefect UI.\n"
     )
 
-    ui_url = PREFECT_UI_URL.value()
-    if ui_url is not None:
+    if ui_url := PREFECT_UI_URL:
         block_catalog_url = f"{ui_url}/blocks/catalog"
         msg = f"{msg.rstrip().rstrip('.')}: {block_catalog_url}\n"
 
