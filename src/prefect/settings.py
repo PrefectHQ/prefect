@@ -12,11 +12,14 @@ from typing import (
     Dict,
     Generator,
     Iterable,
+    List,
     Mapping,
     Optional,
     Set,
+    Tuple,
     TypeVar,
     Union,
+    get_args,
 )
 from urllib.parse import urlparse
 
@@ -30,6 +33,7 @@ from pydantic import (
     Secret,
     SecretStr,
     SerializationInfo,
+    TypeAdapter,
     field_validator,
     model_serializer,
     model_validator,
@@ -37,6 +41,7 @@ from pydantic import (
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing_extensions import Literal, Self
 
+from prefect.exceptions import ProfileSettingsValidationError
 from prefect.utilities.collections import visit_collection
 from prefect.utilities.names import OBFUSCATED_PREFIX
 from prefect.utilities.pydantic import handle_secret_render
@@ -55,9 +60,10 @@ def env_var_to_attr_name(env_var: str) -> str:
 class Setting:
     """Mimics the old Setting object for compatibility with existing code."""
 
-    def __init__(self, name: str, default: Any):
+    def __init__(self, name: str, default: Any, type_: Any):
         self._name = name
         self._default = default
+        self._type = type_
 
     @property
     def name(self):
@@ -67,6 +73,15 @@ class Setting:
     def field_name(self):
         return env_var_to_attr_name(self.name)
 
+    @property
+    def is_secret(self):
+        if self._type in (Secret, SecretStr):
+            return True
+        for secret_type in (Secret, SecretStr):
+            if secret_type in get_args(self._type):
+                return True
+        return False
+
     def default(self):
         return self._default
 
@@ -75,6 +90,9 @@ class Setting:
         if isinstance(current_value, (Secret, SecretStr)):
             return current_value.get_secret_value()
         return current_value
+
+    def value_from(self: Self, settings: "Settings") -> Any:
+        return getattr(settings, self.field_name)
 
     def __bool__(self) -> bool:
         return bool(self.value())
@@ -92,7 +110,7 @@ class Setting:
         return hash((type(self), self.name))
 
 
-def default_ui_url(settings) -> Optional[str]:
+def default_ui_url(settings: "Settings") -> Optional[str]:
     value = settings.ui_url
     if value is not None:
         return value
@@ -207,6 +225,44 @@ def warn_on_misconfigured_api_url(values):
             warnings.warn("\n".join(warnings_list), stacklevel=2)
 
     return values
+
+
+def default_database_connection_url(settings: "Settings") -> str:
+    if settings.api_database_driver == "postgresql+asyncpg":
+        required = [
+            "api_database_host",
+            "api_database_user",
+            "api_database_name",
+            "api_database_password",
+        ]
+        missing = [attr for attr in required if getattr(settings, attr) is None]
+        if missing:
+            raise ValueError(
+                f"Missing required database connection settings: {', '.join(missing)}"
+            )
+
+        from sqlalchemy import URL
+
+        return URL(
+            drivername=settings.api_database_driver,
+            host=settings.api_database_host,
+            port=settings.api_database_port or 5432,
+            username=settings.api_database_user,
+            password=settings.api_database_password,
+            database=settings.api_database_name,
+            query=[],  # type: ignore
+        ).render_as_string(hide_password=False)
+
+    elif settings.api_database_driver == "sqlite+aiosqlite":
+        if settings.api_database_name:
+            return f"{settings.api_database_driver}:///{settings.api_database_name}"
+        else:
+            return f"sqlite+aiosqlite:///{settings.home}/prefect.db"
+
+    elif settings.api_database_driver:
+        raise ValueError(f"Unsupported database driver: {settings.api_database_driver}")
+
+    return f"sqlite+aiosqlite:///{settings.home}/prefect.db"
 
 
 class Settings(BaseSettings):
@@ -748,6 +804,33 @@ class Settings(BaseSettings):
         """,
     )
 
+    server_cors_allowed_origins: str = Field(
+        default="*",
+        description="""
+        A comma-separated list of origins that are authorized to make cross-origin requests to the API.
+
+        By default, this is set to `*`, which allows requests from all origins.
+        """,
+    )
+
+    server_cors_allowed_methods: str = Field(
+        default="*",
+        description="""
+        A comma-separated list of methods that are authorized to make cross-origin requests to the API.
+
+        By default, this is set to `*`, which allows requests from all methods.
+        """,
+    )
+
+    server_cors_allowed_headers: str = Field(
+        default="*",
+        description="""
+        A comma-separated list of headers that are authorized to make cross-origin requests to the API.
+
+        By default, this is set to `*`, which allows requests from all headers.
+        """,
+    )
+
     server_allow_ephemeral_mode: bool = Field(
         default=False,
         description="""
@@ -1177,7 +1260,7 @@ class Settings(BaseSettings):
                     f"http://{self.server_api_host}:{self.server_api_port}"
                 )
 
-        if self.profiles_path is None:
+        if self.profiles_path is None or "PREFECT_HOME" in str(self.profiles_path):
             self.profiles_path = Path(f"{self.home}/profiles.toml")
         if self.local_storage_path is None:
             self.local_storage_path = Path(f"{self.home}/storage")
@@ -1190,6 +1273,10 @@ class Settings(BaseSettings):
 
         if self.logging_settings_path is None:
             self.logging_settings_path = Path(f"{self.home}/logging.yml")
+
+        # Set default database connection URL if not provided
+        if self.api_database_connection_url is None:
+            self.api_database_connection_url = default_database_connection_url(self)
 
         return self
 
@@ -1206,9 +1293,15 @@ class Settings(BaseSettings):
     ##########################################################################
     # Settings methods
 
-    def value_from_name(self, name: str) -> Any:
-        """Get the value of a setting from its name, like `PREFECT_API_URL`."""
-        return getattr(self, name.lower().replace("prefect_", ""))
+    @classmethod
+    def valid_setting_names(cls) -> Set[str]:
+        """
+        A set of valid setting names.
+        """
+        return set(
+            f"{cls.model_config.get('env_prefix')}{key.upper()}"
+            for key in cls.model_fields.keys()
+        )
 
     def copy_with_update(
         self: Self,
@@ -1271,8 +1364,9 @@ class Settings(BaseSettings):
             include={str(s) for s in include} if include else None, mode="json"
         )
         return {
-            f"{self.model_config.get('env_prefix')}{key.upper()}": value
+            f"{self.model_config.get('env_prefix')}{key.upper()}": str(value)
             for key, value in env.items()
+            if value is not None
         }
 
     @model_serializer(mode="wrap")
@@ -1303,7 +1397,17 @@ class Settings(BaseSettings):
 
 def _cast_settings(settings: Dict[Union[str, Setting], Any]) -> Dict[Setting, Any]:
     return {
-        (Setting(name=k, default=None) if isinstance(k, str) else k): value
+        (
+            Setting(
+                name=k,
+                default=Settings.model_fields[
+                    (name := env_var_to_attr_name(k))
+                ].default,
+                type_=Settings.model_fields[name].annotation,
+            )
+            if isinstance(k, str)
+            else k
+        ): value
         for k, value in settings.items()
     }
 
@@ -1423,10 +1527,26 @@ class Profile(BaseModel):
 
     def to_environment_variables(self) -> Dict[str, str]:
         """Convert the profile settings to a dictionary of environment variables."""
-        return {setting.name: str(value) for setting, value in self.settings.items()}
+        return {
+            setting.name: str(value)
+            for setting, value in self.settings.items()
+            if value is not None
+        }
+
+    def validate_settings(self):
+        errors: List[Tuple[Setting, Exception]] = []
+        for setting, value in self.settings.items():
+            try:
+                TypeAdapter(
+                    Settings.model_fields[setting.field_name].annotation
+                ).validate_python(value)
+            except Exception as e:
+                errors.append((setting, e))
+        if errors:
+            raise ProfileSettingsValidationError(errors)
 
     @field_validator("settings", mode="before")
-    def validate_settings(cls, v):
+    def cast_settings(cls, v):
         if not isinstance(v, dict):
             raise ValueError("Settings must be a dictionary.")
         return _cast_settings(v)
@@ -1625,19 +1745,20 @@ def load_profiles(include_defaults: bool = True) -> ProfilesCollection:
     Load profiles from the current profile path. Optionally include profiles from the
     default profile path.
     """
+    current_settings = get_current_settings()
     default_profiles = _read_profiles_from(DEFAULT_PROFILES_PATH)
 
-    if SETTINGS.profiles_path is None:
+    if current_settings.profiles_path is None:
         raise RuntimeError(
             "No profiles path set; please ensure `PREFECT_PROFILES_PATH` is set."
         )
 
     if not include_defaults:
-        if not SETTINGS.profiles_path.exists():
+        if not current_settings.profiles_path.exists():
             return ProfilesCollection([])
-        return _read_profiles_from(SETTINGS.profiles_path)
+        return _read_profiles_from(current_settings.profiles_path)
 
-    user_profiles_path = SETTINGS.profiles_path
+    user_profiles_path = current_settings.profiles_path
     profiles = default_profiles
     if user_profiles_path.exists():
         user_profiles = _read_profiles_from(user_profiles_path)
@@ -1680,7 +1801,7 @@ def save_profiles(profiles: ProfilesCollection) -> None:
     """
     Writes all non-default profiles to the current profiles path.
     """
-    profiles_path = SETTINGS.profiles_path
+    profiles_path = get_current_settings().profiles_path
     assert profiles_path is not None, "Profiles path is not set."
     profiles = profiles.without_profile_source(DEFAULT_PROFILES_PATH)
     return _write_profiles_to(profiles_path, profiles)
@@ -1725,7 +1846,11 @@ def update_current_profile(
     # Ensure the current profile's settings are present
     profiles.update_profile(current_profile.name, current_profile.settings)
     # Then merge the new settings in
-    profiles.update_profile(current_profile.name, _cast_settings(settings))
+    new_profile = profiles.update_profile(
+        current_profile.name, _cast_settings(settings)
+    )
+
+    new_profile.validate_settings()
 
     save_profiles(profiles)
 
@@ -1733,20 +1858,19 @@ def update_current_profile(
 
 
 ############################################################################
-# Initialize the settings object
+# Allow traditional env var access
 
-SETTINGS = Settings()
 SETTING_VARIABLES = {
-    name: Setting(name=name, default=field.default)
+    name: Setting(
+        name=f"{Settings.model_config.get('env_prefix')}{name.upper()}",
+        default=field.default,
+        type_=field.annotation,
+    )
     for name, field in Settings.model_fields.items()
 }
 
 
 def __getattr__(name: str) -> Setting:
-    if name.startswith("PREFECT_"):
-        field_name = env_var_to_attr_name(name)
-        return Setting(
-            name=name,
-            default=Settings.model_fields[field_name].default,
-        )
+    if name in Settings.valid_setting_names():
+        return SETTING_VARIABLES[env_var_to_attr_name(name)]
     raise AttributeError(f"{name} is not a Prefect setting.")

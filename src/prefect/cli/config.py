@@ -5,7 +5,6 @@ Command line interface for working with profiles
 import os
 from typing import List, Optional
 
-import pydantic
 import typer
 
 import prefect.context
@@ -13,6 +12,8 @@ import prefect.settings
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app, is_interactive
+from prefect.exceptions import ProfileSettingsValidationError
+from prefect.utilities.collections import listrepr
 
 help_message = """
     View and set Prefect profiles.
@@ -37,7 +38,8 @@ def set_(settings: List[str]):
             )
 
         if not hasattr(
-            prefect.settings.SETTINGS, prefect.settings.env_var_to_attr_name(setting)
+            prefect.settings.get_current_settings(),
+            prefect.settings.env_var_to_attr_name(setting),
         ):
             exit_with_error(f"Unknown setting name {setting!r}.")
 
@@ -52,12 +54,12 @@ def set_(settings: List[str]):
 
     try:
         new_profile = prefect.settings.update_current_profile(parsed_settings)
-    except pydantic.ValidationError as exc:
-        for error in exc.errors():
-            setting = error["loc"][0]
-            message = error["msg"]
-            app.console.print(f"Validation error for setting {setting!r}: {message}")
-        exit_with_error("Invalid setting value.")
+    except ProfileSettingsValidationError as exc:
+        help_message = ""
+        for setting, problem in exc.errors:
+            for error in problem.errors():
+                help_message += f"[bold red]Validation error(s) for setting[/bold red] [blue]{setting.name}[/blue]\n\n - {error['msg']}\n\n"
+        exit_with_error(help_message)
 
     for setting, value in parsed_settings.items():
         app.console.print(f"Set {setting!r} to {value!r}.")
@@ -88,21 +90,26 @@ def validate():
 
 
 @config_app.command()
-def unset(settings: List[str], confirm: bool = typer.Option(False, "--yes", "-y")):
+def unset(setting_names: List[str], confirm: bool = typer.Option(False, "--yes", "-y")):
     """
     Restore the default value for a setting.
 
     Removes the setting from the current profile.
     """
+    settings_context = prefect.context.get_settings_context()
     profiles = prefect.settings.load_profiles()
-    profile = profiles[prefect.context.get_settings_context().profile.name]
+    profile = profiles[settings_context.profile.name]
     parsed = set()
 
-    for setting in settings:
-        if setting not in prefect.settings.SETTING_VARIABLES:
-            exit_with_error(f"Unknown setting name {setting!r}.")
+    for setting_name in setting_names:
+        if setting_name not in prefect.settings.Settings.valid_setting_names():
+            exit_with_error(f"Unknown setting name {setting_name!r}.")
         # Cast to settings objects
-        parsed.add(prefect.settings.SETTING_VARIABLES[setting])
+        parsed.add(
+            prefect.settings.SETTING_VARIABLES[
+                prefect.settings.env_var_to_attr_name(setting_name)
+            ]
+        )
 
     for setting in parsed:
         if setting not in profile.settings:
@@ -112,22 +119,22 @@ def unset(settings: List[str], confirm: bool = typer.Option(False, "--yes", "-y"
         not confirm
         and is_interactive()
         and not typer.confirm(
-            f"Are you sure you want to unset the following settings: {settings!r}?",
+            f"Are you sure you want to unset the following setting(s): {listrepr(setting_names)}?",
         )
     ):
         exit_with_error("Unset aborted.")
 
     profiles.update_profile(
-        name=profile.name, settings={setting: None for setting in parsed}
+        name=profile.name, settings={setting_name: None for setting_name in parsed}
     )
 
-    for setting in settings:
-        app.console.print(f"Unset {setting!r}.")
+    for setting_name in setting_names:
+        app.console.print(f"Unset {setting_name!r}.")
 
-        if setting in os.environ:
+        if setting_name in os.environ:
             app.console.print(
-                f"[yellow]{setting!r} is also set by an environment variable. "
-                f"Use `unset {setting}` to clear it."
+                f"[yellow]{setting_name!r} is also set by an environment variable. "
+                f"Use `unset {setting_name}` to clear it."
             )
 
     prefect.settings.save_profiles(profiles)
@@ -184,7 +191,6 @@ def view(
 
     # Get settings at each level, converted to a flat dictionary for easy comparison
     default_settings = prefect.settings.get_default_settings()
-    env_settings = prefect.settings.get_settings_from_env()
     current_profile = context.profile
     current_profile_settings = current_profile.settings
 
@@ -193,26 +199,21 @@ def view(
 
     settings_output = []
 
-    # Used to see which settings in current_profile_settings came from env vars
-    env_overrides = env_settings.model_dump(
-        exclude_unset=True,
-        context=dump_context,
-        include={setting.field_name for setting in current_profile_settings.keys()},
-    )
-
-    breakpoint()
-
     for setting, value in current_profile_settings.items():
-        source = (
-            "env" if env_overrides.get(setting.field_name) is not None else "profile"
-        )
+        if env_value := os.getenv(setting.name):
+            source = "env"
+            value = env_value
+        else:
+            source = "profile"
+        value = "********" if setting.is_secret and not show_secrets else value
         source_blurb = f" (from {source})" if show_sources else ""
         settings_output.append(f"{setting.name}='{value}'{source_blurb}")
 
     if show_defaults:
         for key, value in default_settings.model_dump(context=dump_context).items():
-            if key not in current_profile_settings:
+            setting = prefect.settings.SETTING_VARIABLES[key]
+            if setting not in current_profile_settings:
                 source_blurb = " (from defaults)" if show_sources else ""
-                settings_output.append(f"PREFECT_{key.upper()}='{value}'{source_blurb}")
+                settings_output.append(f"{setting.name}='{value}'{source_blurb}")
 
     app.console.print("\n".join(sorted(settings_output)))

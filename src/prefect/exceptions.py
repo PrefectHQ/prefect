@@ -5,7 +5,7 @@ Prefect-specific exceptions.
 import inspect
 import traceback
 from types import ModuleType, TracebackType
-from typing import Callable, Dict, Iterable, List, Optional, Type
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type
 
 from httpx._exceptions import HTTPStatusError
 from pydantic import ValidationError
@@ -424,3 +424,12 @@ class ConfigurationError(PrefectException):
     """
     Raised when a configuration is invalid.
     """
+
+
+class ProfileSettingsValidationError(PrefectException):
+    """
+    Raised when a profile settings are invalid.
+    """
+
+    def __init__(self, errors: List[Tuple[Any, ValidationError]]) -> None:
+        self.errors = errors

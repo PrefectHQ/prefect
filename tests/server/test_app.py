@@ -8,12 +8,6 @@ from prefect.settings import (
     temporary_settings,
 )
 
-# Steal some fixtures from the experimental test suite
-from .._internal.compatibility.test_experimental import (
-    enable_prefect_experimental_test_opt_in_setting,  # noqa: F401
-    prefect_experimental_test_opt_in_setting,  # noqa: F401
-)
-
 
 def test_app_generates_correct_api_openapi_schema():
     """
@@ -31,29 +25,7 @@ def test_app_exposes_ui_settings():
     client = TestClient(app)
     response = client.get("/ui-settings")
     response.raise_for_status()
-    json = response.json()
-
-    flags = set(json.pop("flags"))
-    assert flags == set()
-    assert json == {
-        "api_url": PREFECT_UI_API_URL.value(),
-        "csrf_enabled": PREFECT_SERVER_CSRF_PROTECTION_ENABLED.value(),
-    }
-
-
-@pytest.mark.usefixtures("enable_prefect_experimental_test_opt_in_setting")
-def test_app_exposes_ui_settings_with_experiments_enabled():
-    app = create_app()
-    client = TestClient(app)
-    response = client.get("/ui-settings")
-    response.raise_for_status()
-    json = response.json()
-
-    flags = set(json.pop("flags"))
-    assert flags == {
-        "test",
-    }
-    assert json == {
+    assert response.json() == {
         "api_url": PREFECT_UI_API_URL.value(),
         "csrf_enabled": PREFECT_SERVER_CSRF_PROTECTION_ENABLED.value(),
     }

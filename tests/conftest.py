@@ -41,6 +41,7 @@ from prefect.logging.configuration import setup_logging
 from prefect.settings import (
     PREFECT_API_BLOCKS_REGISTER_ON_START,
     PREFECT_API_DATABASE_CONNECTION_URL,
+    PREFECT_API_KEY,
     PREFECT_API_LOG_RETRYABLE_ERRORS,
     PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED,
     PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED,
@@ -313,6 +314,7 @@ def pytest_sessionstart(session):
             PREFECT_PROFILES_PATH: "$PREFECT_HOME/profiles.toml",
             # Disable connection to an API
             PREFECT_API_URL: None,
+            PREFECT_API_KEY: None,
             # Disable pretty CLI output for easier assertions
             PREFECT_CLI_COLORS: False,
             PREFECT_CLI_WRAP_LINES: False,

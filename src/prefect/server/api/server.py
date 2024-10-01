@@ -39,7 +39,6 @@ import prefect
 import prefect.server.api as api
 import prefect.server.services as services
 import prefect.settings
-from prefect._internal.compatibility.experimental import enabled_experiments
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.logging import get_logger
 from prefect.server.api.dependencies import EnforceMinimumAPIVersion
@@ -340,7 +339,6 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
         return {
             "api_url": prefect.settings.PREFECT_UI_API_URL.value(),
             "csrf_enabled": prefect.settings.PREFECT_SERVER_CSRF_PROTECTION_ENABLED.value(),
-            "flags": enabled_experiments(),
         }
 
     def reference_file_matches_base_url():
