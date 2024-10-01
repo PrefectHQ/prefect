@@ -12,7 +12,7 @@
 
 import { Route as rootRoute } from './routes/__root'
 import { Route as FlowsIndexImport } from './routes/flows/index'
-import { Route as FlowsFlowFlowIdImport } from './routes/flows/flow.$flowId'
+import { Route as FlowsFlowIdImport } from './routes/flows/flow.$id'
 
 // Create/Update Routes
 
@@ -21,8 +21,8 @@ const FlowsIndexRoute = FlowsIndexImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
-const FlowsFlowFlowIdRoute = FlowsFlowFlowIdImport.update({
-  path: '/flows/flow/$flowId',
+const FlowsFlowIdRoute = FlowsFlowIdImport.update({
+  path: '/flows/flow/$id',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -37,11 +37,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FlowsIndexImport
       parentRoute: typeof rootRoute
     }
-    '/flows/flow/$flowId': {
-      id: '/flows/flow/$flowId'
-      path: '/flows/flow/$flowId'
-      fullPath: '/flows/flow/$flowId'
-      preLoaderRoute: typeof FlowsFlowFlowIdImport
+    '/flows/flow/$id': {
+      id: '/flows/flow/$id'
+      path: '/flows/flow/$id'
+      fullPath: '/flows/flow/$id'
+      preLoaderRoute: typeof FlowsFlowIdImport
       parentRoute: typeof rootRoute
     }
   }
@@ -51,37 +51,37 @@ declare module '@tanstack/react-router' {
 
 export interface FileRoutesByFullPath {
   '/flows': typeof FlowsIndexRoute
-  '/flows/flow/$flowId': typeof FlowsFlowFlowIdRoute
+  '/flows/flow/$id': typeof FlowsFlowIdRoute
 }
 
 export interface FileRoutesByTo {
   '/flows': typeof FlowsIndexRoute
-  '/flows/flow/$flowId': typeof FlowsFlowFlowIdRoute
+  '/flows/flow/$id': typeof FlowsFlowIdRoute
 }
 
 export interface FileRoutesById {
   __root__: typeof rootRoute
   '/flows/': typeof FlowsIndexRoute
-  '/flows/flow/$flowId': typeof FlowsFlowFlowIdRoute
+  '/flows/flow/$id': typeof FlowsFlowIdRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/flows' | '/flows/flow/$flowId'
+  fullPaths: '/flows' | '/flows/flow/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/flows' | '/flows/flow/$flowId'
-  id: '__root__' | '/flows/' | '/flows/flow/$flowId'
+  to: '/flows' | '/flows/flow/$id'
+  id: '__root__' | '/flows/' | '/flows/flow/$id'
   fileRoutesById: FileRoutesById
 }
 
 export interface RootRouteChildren {
   FlowsIndexRoute: typeof FlowsIndexRoute
-  FlowsFlowFlowIdRoute: typeof FlowsFlowFlowIdRoute
+  FlowsFlowIdRoute: typeof FlowsFlowIdRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
   FlowsIndexRoute: FlowsIndexRoute,
-  FlowsFlowFlowIdRoute: FlowsFlowFlowIdRoute,
+  FlowsFlowIdRoute: FlowsFlowIdRoute,
 }
 
 export const routeTree = rootRoute
@@ -97,14 +97,14 @@ export const routeTree = rootRoute
       "filePath": "__root.tsx",
       "children": [
         "/flows/",
-        "/flows/flow/$flowId"
+        "/flows/flow/$id"
       ]
     },
     "/flows/": {
       "filePath": "flows/index.tsx"
     },
-    "/flows/flow/$flowId": {
-      "filePath": "flows/flow.$flowId.tsx"
+    "/flows/flow/$id": {
+      "filePath": "flows/flow.$id.tsx"
     }
   }
 }
