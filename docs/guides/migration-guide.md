@@ -21,7 +21,6 @@ Prefect 3 still:
 
 - Has [tasks](https://docs.prefect.io/latest/develop/write-tasks) and [flows](https://docs.prefect.io/latest/develop/write-flows).
 - Orchestrates your flow runs and provides observability into their execution [states](https://docs.prefect.io/latest/develop/manage-states).
-- Runs and inspects flow runs locally.
 - Employs the same hybrid execution model, where Prefect doesn't store your flow code or data.
 
 ## What changed
