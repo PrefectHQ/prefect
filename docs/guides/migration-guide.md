@@ -12,8 +12,8 @@ search:
 
 Learn how to migrate your workflows from Prefect 1.0 to Prefect 3.0. Check out the [quickstart](https://docs.prefect.io/latest/get-started/quickstart) for a high level overview.
 
-!!! Note "What about Prefect 2?"
-  Prefect 2 refers to the 2.x lineage of the open source prefect package, and Prefect 3.0 refers exclusively to the 3.x lineage of the prefect package. Neither version is strictly tied to any aspect of Prefect’s commercial product, [Prefect Cloud](https://docs.prefect.io/latest/manage/cloud/index).
+!!! Note "What about Prefect 2.x?"
+  [Prefect Cloud](https://docs.prefect.io/latest/manage/cloud/index) is compatible with all 2.x and 3.x package versions. We recommend adopting Prefect 3.0 as it is significantly more performant than Prefect 2.x and includes new features.
 
 ## What stayed the same
 
