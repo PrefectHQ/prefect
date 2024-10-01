@@ -75,12 +75,14 @@ jobs:
 
       - name: Generate OpenAPI YAML and commit
         # Generate OpenAPI YAML for the UI
+        with:
+          token: ${{ secrets.PREFECT_CONTENTS_PR_RW }}
         run: |
           uv run --with 'pydantic>=2.9.0' ./scripts/generate_openapi_yml.py
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add src/prefect/_internal/openapi.yml
           git commit -m "Update OpenAPI YAML" || echo "No changes to commit"
-          git push https://github-actions[bot]:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:${{ github.head_ref || github.ref_name }}
+          git push orign HEAD:${{ github.head_ref || github.ref_name }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PREFECT_CONTENTS_PR_RW }}
+
+  
