@@ -68,6 +68,11 @@ jobs:
         run: |
           pre-commit run --show-diff-on-failure --color=always --all-files
 
+      - name: Extract branch name
+        shell: bash
+        run: echo "branch=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_OUTPUT
+        id: extract_branch
+
       - name: Generate OpenAPI YAML and commit
         # Generate OpenAPI YAML for the UI
         run: |
@@ -76,4 +81,4 @@ jobs:
           git config --local user.name "GitHub Action"
           git add src/prefect/_internal/openapi.yml
           git commit -m "Update OpenAPI YAML" || echo "No changes to commit"
-          git push
+          git push origin HEAD:${{ steps.extract_branch.outputs.branch }}
