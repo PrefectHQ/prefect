@@ -311,8 +311,7 @@ async def test_workers_do_not_submit_flow_runs_awaiting_retry(
     response = await prefect_client.set_flow_run_state(flow_run.id, state=Failed())
     # The transition should be rejected and the flow run should be in `AwaitingRetry` state
     assert response.state.name == "AwaitingRetry"
-    assert response.state.type == 
-    .SCHEDULED
+    assert response.state.type == StateType.SCHEDULED
 
     flow_run = await prefect_client.read_flow_run(flow_run.id)
     # Check to ensure that the flow has a scheduled time earlier than now to rule out
