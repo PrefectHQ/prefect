@@ -401,7 +401,7 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture]):
                 "Using existing local instance."
             )
             return self
-        if self.address and self.address != "auto":
+        elif self.address and self.address != "auto":
             self.logger.info(
                 f"Connecting to an existing Ray instance at {self.address}"
             )
@@ -427,8 +427,12 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture]):
 
     def __exit__(self, *exc_info):
         """
-        Shuts down the cluster.
+        Shuts down the driver/cluster.
         """
-        self.logger.debug("Shutting down Ray cluster...")
-        ray.shutdown()
+        # Check if we are running on the driver. Calling ray.shutdown() when running on a
+        # worker will crash the worker.
+        if ray.get_runtime_context().worker.mode == 0:
+            # Running on the driver. Will shutdown cluster if started by this task runner.
+            self.logger.debug("Shutting down Ray driver...")
+            ray.shutdown()
         super().__exit__(*exc_info)
