@@ -30,7 +30,7 @@ on:
         type: string
       python-versions:
         description: "What versions of Python to run against"
-        default: '["3.8", "3.9", "3.10", "3.11", "3.12"]'
+        default: ""
         type: string
 
 jobs:
@@ -40,7 +40,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ${{ fromJson(inputs.python-versions) }}
+        python-version: ${{ inputs.python-versions && fromJson(inputs.python-versions) || fromJson('["3.8", "3.9", "3.10", "3.11", "3.12"]') }}
 
     steps:
       - uses: actions/checkout@v4
