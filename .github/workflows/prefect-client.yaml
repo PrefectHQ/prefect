@@ -28,6 +28,10 @@ on:
         description: "The name for the build prefect-client artifact"
         default: "prefect-client-pypi-dists"
         type: string
+      python-versions:
+        description: "What versions of Python to run against"
+        default: '["3.8", "3.9", "3.10", "3.11", "3.12"]'
+        type: string
 
 jobs:
   prefect-client-smoke-test:
@@ -36,12 +40,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version:
-          - "3.8"
-          - "3.9"
-          - "3.10"
-          - "3.11"
-          - "3.12"
+        python-version: ${{ fromJson(inputs.python-versions) }}
 
     steps:
       - uses: actions/checkout@v4

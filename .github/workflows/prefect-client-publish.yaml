@@ -11,6 +11,7 @@ jobs:
     with:
       upload-artifacts: true
       artifact-name: "prefect-client-pypi-dists"
+      python-versions: '["3.12"]'
     secrets: inherit
 
   publish-prefect-client-pypi-dists:
