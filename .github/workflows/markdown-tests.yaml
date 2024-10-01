@@ -91,7 +91,7 @@ jobs:
         run: |
           python -m pip install -U uv
           uv pip install --upgrade --system -e .
-          uv pip install -r requirements-markdown-tests.txt
+          uv pip install --upgrade --system -r requirements-markdown-tests.txt
 
       - name: Start server
         run: |
