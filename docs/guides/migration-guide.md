@@ -13,7 +13,7 @@ search:
 Learn how to migrate your workflows from Prefect 1.0 to Prefect 3.0. Check out the [quickstart](https://docs.prefect.io/latest/get-started/quickstart) for a high level overview.
 
 !!! Note "What about Prefect 2.x?"
-  [Prefect Cloud](https://docs.prefect.io/latest/manage/cloud/index) is compatible with all 2.x and 3.x package versions. We recommend adopting Prefect 3.0 as it is significantly more performant than Prefect 2.x and includes new features.
+    [Prefect Cloud](https://docs.prefect.io/latest/manage/cloud/index) is compatible with all 2.x and 3.x package versions. We recommend adopting Prefect 3.0 as it is significantly more performant than Prefect 2.x and includes new features.
 
 ## What stayed the same
 
@@ -43,7 +43,7 @@ Since Prefect 3.0 allows running native Python code within the flow function, so
 
 ### Conceptual and syntax changes
 
-The changes listed below require you to modify your flow code. The following table shows how Prefect .0 concepts have been implemented in Prefect 3.0. The last column contains references to additional resources that provide more details and examples.
+The changes listed below require you to modify your flow code. The following table shows how Prefect 1.0 concepts have been implemented in Prefect 3.0. The last column contains references to additional resources that provide more details and examples.
 
 | Concept                                                                | Prefect 1.0                                                                                                                               | Prefect 3.0                                                                                                                                                                                                      | Reference links                                                                                                                                                                                 |
 | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -54,11 +54,11 @@ The changes listed below require you to modify your flow code. The following tab
 | Retries                                                                | `@task(max_retries=2, retry_delay=timedelta(seconds=5))`                                                                                | `@task(retries=2, retry_delay_seconds=5)`                                                                                                                                                                      | [Retries](https://docs.prefect.io/latest/develop/write-tasks#retries)                                         |
 | Logging                                                                | Logger was retrieved from `prefect.context` and could only be used within tasks.                                                           | Logger is retrieved from `prefect.get_run_logger()` in both flows and tasks.                                                                               | [Configure logging](https://docs.prefect.io/latest/develop/logging)                                                                                               |
 | The syntax and contents of Prefect context.                            | Context was a thread-safe way of accessing variables related to the flow run and task run. The syntax to retrieve it: `prefect.context`. | Context is still available, but its content is much richer, allowing you to retrieve even more information about your flow runs and task runs. The syntax to retrieve it: `prefect.context.get_run_context()`. | [Access runtime context](https://docs.prefect.io/latest/develop/runtime-context)                                                                                 |
-| Task library.                                                          | Included in the [main Prefect Core repository](https://docs-v1.prefect.io/core/task_library/overview.html).                                | Separated into [individually installable packages](https://docs.prefect.io/integrations/integrations) per system, cloud provider, or technology.                                                                                                            | [Use integrations](https://docs.prefect.io/integrations/use-integrations). |
+| Task library.                                                          | Included in the [main Prefect Core repository](https://docs-v1.prefect.io/core/task_library/overview.html).                                | Separated into [individually installable packages](https://docs.prefect.io/integrations/integrations) per system, cloud provider, or technology.                                                                                                            | [Use integrations](https://docs.prefect.io/integrations/use-integrations) |
 
 ### What changed in orchestration?
 
-Let’s look at the differences in how Prefect 3.0 transitions your flow and task runs between various execution states.
+Let’s look at the differences in how Prefect 3.0 transitions your flow and task runs between various execution states:
 
 - In Prefect 3.0, the final state of a flow run that finished without errors is `Completed`, while in Prefect 1.0, this flow run had a `Success` state. You can find more about that topic [here](https://docs.prefect.io/latest/develop/manage-states#final-state-determination).
 - The decision about whether a flow run should be considered successful or not is no longer based on special reference tasks. Instead, your flow’s return value determines the final state of a flow run.
@@ -90,8 +90,8 @@ The following new components and capabilities are enabled by Prefect 3.0:
 - Out-of-the-box `pydantic` validation.
 - [Blocks](https://docs.prefect.io/latest/develop/blocks) allow you to securely store UI-editable, type-checked configuration to external systems. All those components are configurable in one place and provided as part of the open-source Prefect 3.0 product. In contrast, the concept of [Secrets](https://docs-v1.prefect.io/orchestration/concepts/secrets.html) in Prefect 1.0 was more narrowly scoped and only available in Prefect Cloud.
 - [Automations](https://docs.prefect.io/latest/automate/events/automations-triggers) provide an expressive API to define triggers (based on events) and actions. Automations power notifications and much more.
-- Every flow state change, task state change, and more produces a corresponding event which can be the basis of an automation trigger.
-- First-class support for `subflows` which enables a natural and intuitive way of organizing your flows into modular sub-components. In contrast, Prefect 1.0 only allowed the [flow-of-flows orchestrator pattern](https://docs-v1.prefect.io/core/idioms/flow-to-flow.html).
+- Every action within Prefect, including flow state changes and task state changes, produces a corresponding event that can trigger an automatic action. Potential actions include running flows, sending notifications, and pausing or restarting schedules.
+- First-class support for nested flows which enables a natural and intuitive way of organizing your flows into modular sub-components. In contrast, Prefect 1.0 only allowed the [flow-of-flows orchestrator pattern](https://docs-v1.prefect.io/core/idioms/flow-to-flow.html).
 
 ### Orchestration behind the API
 
@@ -101,18 +101,18 @@ Every time you run a flow, whether it is tracked by the API server or ad-hoc thr
 
 ### Code as workflows
 
-With Prefect 3.0, your functions *are* your flows and tasks. Prefect 3.0 automatically detects your flows and tasks without the need to define a rigid DAG structure. While use of tasks is encouraged to provide you the maximum visibility into your workflows, they are no longer required. You can add a single `@flow` decorator to your main function to transform any Python script into a Prefect workflow.
+With Prefect 3.0, your decorated functions *are* your flows and tasks. Prefect 3.0 automatically detects your flows and tasks without the need to define a rigid DAG structure. While use of tasks is encouraged to provide you the maximum visibility into your workflows, they are no longer required. You can add a single `@flow` decorator to your main function to transform any Python script into a Prefect workflow.
 
 ### Fewer ambiguities
 
-Prefect 3.0 eliminates ambiguities in many ways. For example. there is no more confusion between Prefect Core and Prefect Server &mdash; Prefect 3.0 unified those into a single open source product. This product is also much easier to deploy with no requirement for Docker or docker-compose.
+Prefect 3.0 eliminates ambiguities in many ways. For example, there is no more confusion between Prefect Core and Prefect Server &mdash; Prefect 3.0 unified those into a single open source product. This product is also much easier to deploy with no requirement for Docker or docker-compose.
 
 If you want to switch your backend to use Prefect Cloud for an easier production-level managed experience, Prefect profiles let you quickly connect to your workspace.
 
 
-In Prefect 1.0, there were several confusing ways you could implement `caching`. Prefect 3.0 resolves those ambiguities by providing a single `cache_policy` function paired with `cache_expiration`, allowing you to define arbitrary [caching mechanisms](https://docs.prefect.io/latest/develop/task-caching) &mdash; no more confusion about whether you needed to use `cache_for`, `cache_validator`, or file-based caching using `targets`.
+In Prefect 1.0, there were several confusing ways to implement `caching`. Prefect 3.0 resolves those ambiguities by providing a single `cache_policy` function paired with `cache_expiration`, allowing you to define arbitrary [caching mechanisms](https://docs.prefect.io/latest/develop/task-caching) &mdash; no more confusion about whether you needed to use `cache_for`, `cache_validator`, or file-based caching using `targets`.
 
-A similarly confusing concept in Prefect 1.0 was distinguishing between the functional and imperative APIs. This distinction caused ambiguities with respect to how to define state dependencies between tasks. Prefect 1.0 users were often unsure whether they should use the functional `upstream_tasks` keyword argument or the imperative methods such as `task.set_upstream()`, `task.set_downstream()`, or `flow.set_dependencies()`. In Prefect 3.0, there is only the functional API.
+A similarly confusing concept in Prefect 1.0 was distinguishing between the functional and imperative APIs. This distinction caused ambiguities when defining state dependencies between tasks. Prefect 1.0 users were often unsure whether they should use the functional `upstream_tasks` keyword argument or the imperative methods such as `task.set_upstream()`, `task.set_downstream()`, or `flow.set_dependencies()`. In Prefect 3.0, there is only the functional API.
 
 
 ## Next steps
