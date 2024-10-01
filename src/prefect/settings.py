@@ -331,7 +331,6 @@ def default_database_connection_url(settings: "Settings") -> SecretStr:
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=(".env"),
         env_prefix="PREFECT_",
         extra="ignore",
     )
