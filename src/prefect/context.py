@@ -465,10 +465,7 @@ class SettingsContext(ContextModel):
             prefect_home.mkdir(mode=0o0700, exist_ok=True)
         except OSError:
             warnings.warn(
-                (
-                    "Failed to create the Prefect home directory at "
-                    f"{self.settings.home}"
-                ),
+                (f"Failed to create the Prefect home directory at {prefect_home}"),
                 stacklevel=2,
             )
 

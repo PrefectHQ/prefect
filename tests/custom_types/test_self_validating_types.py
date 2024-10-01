@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Annotated, List
+from typing import Annotated, Set
 
 import pytest
 from pydantic import BaseModel, BeforeValidator, TypeAdapter, ValidationError
@@ -7,7 +7,7 @@ from pydantic import BaseModel, BeforeValidator, TypeAdapter, ValidationError
 from prefect.types import (
     NonNegativeInteger,
     PositiveInteger,
-    validate_list_T_from_delim_string,
+    validate_set_T_from_delim_string,
 )
 
 
@@ -45,13 +45,13 @@ class TestCustomValidationLogic:
     @pytest.mark.parametrize(
         "value,delim,expected",
         [
-            (None, None, []),
-            ("", None, []),
-            ("429", None, [429]),
-            ("404,429,503", None, [404, 429, 503]),
-            ("401|403|409", "|", [401, 403, 409]),
-            (419, None, [419]),
-            ([307, 404, 429, 503], None, [307, 404, 429, 503]),
+            (None, None, set()),
+            ("", None, set()),
+            ("429", None, {429}),
+            ("404,429,503", None, {404, 429, 503}),
+            ("401|403|409", "|", {401, 403, 409}),
+            (419, None, {419}),
+            ({307, 404, 429, 503}, None, {307, 404, 429, 503}),
         ],
         ids=[
             "None",
@@ -60,21 +60,21 @@ class TestCustomValidationLogic:
             "comma separated ints as string",
             "pipe separated ints as string",
             "single int",
-            "multiple ints in list",
+            "multiple ints in set",
         ],
     )
-    def test_valid_list_of_ints(self, value, delim, expected):
+    def test_valid_set_of_ints(self, value, delim, expected):
         """e.g. scooping PREFECT_CLIENT_RETRY_EXTRA_CODES"""
-        scoop_list_int_from_string = BeforeValidator(
-            partial(validate_list_T_from_delim_string, type_=int, delim=delim)
+        scoop_set_int_from_string = BeforeValidator(
+            partial(validate_set_T_from_delim_string, type_=int, delim=delim)
         )
-        _type = Annotated[List[int], scoop_list_int_from_string]
+        _type = Annotated[Set[int], scoop_set_int_from_string]
         assert TypeAdapter(_type).validate_python(value) == expected
 
     def test_invalid_list_of_ints(self):
-        scoop_list_int_from_string = BeforeValidator(
-            partial(validate_list_T_from_delim_string, type_=int)
+        scoop_set_int_from_string = BeforeValidator(
+            partial(validate_set_T_from_delim_string, type_=int)
         )
-        _type = Annotated[List[int], scoop_list_int_from_string]
+        _type = Annotated[Set[int], scoop_set_int_from_string]
         with pytest.raises(ValidationError, match="should be a valid int"):
             TypeAdapter(_type).validate_python("just,trust,me")

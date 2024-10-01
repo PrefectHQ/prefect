@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import (
     Annotated,
     Any,
-    Callable,
     Dict,
     Generator,
     Iterable,
@@ -22,7 +21,7 @@ from typing import (
     Union,
     get_args,
 )
-from urllib.parse import urlparse
+from urllib.parse import quote_plus, urlparse
 
 import toml
 from pydantic import (
@@ -34,6 +33,7 @@ from pydantic import (
     Secret,
     SecretStr,
     SerializationInfo,
+    SerializerFunctionWrapHandler,
     TypeAdapter,
     ValidationError,
     field_validator,
@@ -44,14 +44,29 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing_extensions import Literal, Self
 
 from prefect.exceptions import ProfileSettingsValidationError
-from prefect.types import ClientRetryExtraCodes
+from prefect.types import ClientRetryExtraCodes, LogLevel
 from prefect.utilities.collections import visit_collection
-from prefect.utilities.names import OBFUSCATED_PREFIX
 from prefect.utilities.pydantic import handle_secret_render
 
 T = TypeVar("T")
 DEFAULT_PROFILES_PATH = Path(__file__).parent.joinpath("profiles.toml")
 _SECRET_TYPES: Tuple[Type, ...] = (Secret, SecretStr)
+
+# see #https://github.com/pydantic/pydantic/issues/9789
+# these fields will show as "set" even though we are only setting them
+# to their default values in an after model validator
+DEFAULT_DEPENDENT_SETTINGS = [
+    "PREFECT_UI_URL",
+    "PREFECT_UI_API_URL",
+    "PREFECT_LOGGING_SETTINGS_PATH",
+    "PREFECT_API_DATABASE_CONNECTION_URL",
+    "PREFECT_LOCAL_STORAGE_PATH",
+    "PREFECT_LOGGING_INTERNAL_LEVEL",
+    "PREFECT_LOGGING_LEVEL",
+    "PREFECT_PROFILES_PATH",
+    "PREFECT_CLOUD_UI_URL",
+    "PREFECT_MEMO_STORE_PATH",
+]
 
 
 def env_var_to_attr_name(env_var: str) -> str:
@@ -91,8 +106,8 @@ class Setting:
 
     def value(self: Self) -> Any:
         if self.name == "PREFECT_TEST_SETTING":
-            if "PREFECT_UNIT_TEST_MODE" in os.environ:
-                return self.default()
+            if "PREFECT_TEST_MODE" in os.environ:
+                return get_current_settings().test_setting
             else:
                 return None
 
@@ -191,7 +206,7 @@ def warn_on_database_password_value_without_usage(values):
     """
     Validator for settings warning if the database password is set but not used.
     """
-    value = (
+    db_password = (
         v.get_secret_value()
         if (v := values["api_database_password"]) and hasattr(v, "get_secret_value")
         else None
@@ -202,10 +217,11 @@ def warn_on_database_password_value_without_usage(values):
         else values["api_database_connection_url"]
     )
     if (
-        value
-        and not value.startswith(OBFUSCATED_PREFIX)
+        db_password
         and api_db_connection_url is not None
-        and (value not in api_db_connection_url)
+        and ("PREFECT_API_DATABASE_PASSWORD" not in api_db_connection_url)
+        and db_password not in api_db_connection_url
+        and quote_plus(db_password) not in api_db_connection_url
     ):
         warnings.warn(
             "PREFECT_API_DATABASE_PASSWORD is set but not included in the "
@@ -694,17 +710,17 @@ class Settings(BaseSettings):
     ###########################################################################
     # Logging settings
 
-    logging_level: str = Field(
+    logging_level: LogLevel = Field(
         default="INFO",
         description="The default logging level for Prefect loggers.",
     )
 
-    logging_internal_level: str = Field(
+    logging_internal_level: LogLevel = Field(
         default="ERROR",
         description="The default logging level for Prefect's internal machinery loggers.",
     )
 
-    logging_server_level: str = Field(
+    logging_server_level: LogLevel = Field(
         default="WARNING",
         description="The default logging level for the Prefect API server.",
     )
@@ -1053,7 +1069,7 @@ class Settings(BaseSettings):
     )
 
     client_retry_extra_codes: ClientRetryExtraCodes = Field(
-        default_factory=list,
+        default_factory=set,
         description="""
         A list of extra HTTP status codes to retry on. Defaults to an empty list.
         429, 502 and 503 are always retried. Please note that not all routes are idempotent and retrying
@@ -1179,7 +1195,7 @@ class Settings(BaseSettings):
         description="The port the runner's webserver should bind to.",
     )
 
-    runner_server_log_level: str = Field(
+    runner_server_log_level: LogLevel = Field(
         default="error",
         description="The log level of the runner's webserver.",
     )
@@ -1187,11 +1203,6 @@ class Settings(BaseSettings):
     runner_server_enable: bool = Field(
         default=False,
         description="Whether or not to enable the runner's webserver.",
-    )
-
-    runner_server_log_level: str = Field(
-        default="error",
-        description="The log level of the runner's webserver.",
     )
 
     deployment_concurrency_slot_wait_seconds: Annotated[float, Field(ge=0)] = Field(
@@ -1311,7 +1322,7 @@ class Settings(BaseSettings):
         if self.memo_store_path is None:
             self.memo_store_path = Path(f"{self.home}/memo_store.toml")
 
-        if self.debug_mode:
+        if self.debug_mode or self.test_mode:
             self.logging_level = "DEBUG"
             self.logging_internal_level = "DEBUG"
 
@@ -1321,6 +1332,26 @@ class Settings(BaseSettings):
         # Set default database connection URL if not provided
         if self.api_database_connection_url is None:
             self.api_database_connection_url = default_database_connection_url(self)
+
+        if "PREFECT_API_DATABASE_PASSWORD" in (
+            db_url := (
+                self.api_database_connection_url.get_secret_value()
+                if isinstance(self.api_database_connection_url, SecretStr)
+                else self.api_database_connection_url
+            )
+        ):
+            if self.api_database_password is None:
+                raise ValueError(
+                    "database password is None - please set PREFECT_API_DATABASE_PASSWORD"
+                )
+            self.api_database_connection_url = SecretStr(
+                db_url.replace(
+                    "${PREFECT_API_DATABASE_PASSWORD}",
+                    self.api_database_password.get_secret_value(),
+                )
+                if self.api_database_password
+                else ""
+            )
 
         return self
 
@@ -1388,19 +1419,25 @@ class Settings(BaseSettings):
     def to_environment_variables(
         self,
         include: Optional[Iterable[Setting]] = None,
+        exclude: Optional[Iterable[Setting]] = None,
         exclude_unset: bool = False,
         include_secrets: bool = True,
     ) -> Dict[str, str]:
         """Convert the settings object to a dictionary of environment variables."""
-        include = set(include) if include else set()
+        included_names = {s.field_name for s in include} if include else None
+        excluded_names = {s.field_name for s in exclude} if exclude else None
 
         if exclude_unset:
-            include.intersection_update(
-                {key for key in self.model_dump(exclude_unset=True)}
-            )
+            if included_names is None:
+                included_names = set(self.model_dump(exclude_unset=True).keys())
+            else:
+                included_names.intersection_update(
+                    {key for key in self.model_dump(exclude_unset=True)}
+                )
 
         env: Dict[str, Any] = self.model_dump(
-            include={str(s) for s in include} if include else None,
+            include=included_names,
+            exclude=excluded_names,
             mode="json",
             context={"include_secrets": include_secrets},
         )
@@ -1410,10 +1447,16 @@ class Settings(BaseSettings):
             if value is not None
         }
 
-    @model_serializer(mode="wrap")
-    def ser_model(self, handler: Callable, info: SerializationInfo) -> Any:
+    @model_serializer(
+        mode="wrap", when_used="always"
+    )  # TODO: reconsider `when_used` default for more control
+    def ser_model(
+        self, handler: SerializerFunctionWrapHandler, info: SerializationInfo
+    ) -> Any:
+        ctx = info.context
         jsonable_self = handler(self)
-        if (ctx := info.context) and ctx.get("include_secrets") is True:
+        if ctx and ctx.get("include_secrets") is True:
+            dump_kwargs = dict(include=info.include, exclude=info.exclude)
             jsonable_self.update(
                 {
                     field_name: visit_collection(
@@ -1421,7 +1464,7 @@ class Settings(BaseSettings):
                         visit_fn=partial(handle_secret_render, context=ctx),
                         return_data=True,
                     )
-                    for field_name in set(self.model_fields.keys())
+                    for field_name in set(self.model_dump(**dump_kwargs).keys())  # type: ignore
                 }
             )
         return jsonable_self
@@ -1434,20 +1477,23 @@ class Settings(BaseSettings):
 
 
 def _cast_settings(settings: Dict[Union[str, Setting], Any]) -> Dict[Setting, Any]:
-    return {
-        (
-            Setting(
-                name=k,
-                default=Settings.model_fields[
-                    (name := env_var_to_attr_name(k))
-                ].default,
-                type_=Settings.model_fields[name].annotation,
-            )
-            if isinstance(k, str)
-            else k
-        ): value
-        for k, value in settings.items()
-    }
+    casted_settings = {}
+    for k, value in settings.items():
+        try:
+            if isinstance(k, str):
+                field = Settings.model_fields[env_var_to_attr_name(k)]
+                setting = Setting(
+                    name=k,
+                    default=field.default,
+                    type_=field.annotation,
+                )
+            else:
+                setting = k
+            casted_settings[setting] = value
+        except KeyError as e:
+            warnings.warn(f"Setting {e} is not recognized")
+            continue
+    return casted_settings
 
 
 def get_current_settings() -> Settings:
@@ -1494,6 +1540,11 @@ def temporary_settings(
     import prefect.context
 
     context = prefect.context.get_settings_context()
+
+    if not restore_defaults:
+        restore_defaults = [
+            SETTING_VARIABLES[key] for key in DEFAULT_DEPENDENT_SETTINGS
+        ]
 
     new_settings = context.settings.copy_with_update(
         updates=updates, set_defaults=set_defaults, restore_defaults=restore_defaults

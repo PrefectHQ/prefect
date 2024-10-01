@@ -81,7 +81,7 @@ def validate():
     profiles = prefect.settings.load_profiles()
     profile = profiles[prefect.context.get_settings_context().profile.name]
 
-    type(profile).model_validate(profile.model_dump())
+    profile.validate_settings()
 
     prefect.settings.save_profiles(profiles)
     exit_with_success("Configuration valid!")
@@ -185,13 +185,13 @@ def view(
     context = prefect.context.get_settings_context()
     current_profile_settings = context.profile.settings
 
+    if ui_url := prefect.settings.PREFECT_UI_URL.value():
+        app.console.print(
+            f"🚀 you are connected to:\n[green]{ui_url}[/green]", soft_wrap=True
+        )
+
     # Display the profile first
     app.console.print(f"[bold][blue]PREFECT_PROFILE={context.profile.name!r}[/bold]")
-
-    if api_url := prefect.settings.PREFECT_UI_URL.value():
-        app.console.print(
-            f"🚀 you are connected to:\n[green]{api_url}[/green]", soft_wrap=True
-        )
 
     settings_output = []
     processed_settings = set()
@@ -208,11 +208,12 @@ def view(
 
     # Process settings from the current profile
     for setting, value in current_profile_settings.items():
-        env_value = os.getenv(setting.name)
-        if env_value is not None:
-            _process_setting(setting, env_value, "env")
-        else:
-            _process_setting(setting, value, "profile")
+        value_and_source = (
+            (value, "profile")
+            if not (env_value := os.getenv(setting.name))
+            else (env_value, "env")
+        )
+        _process_setting(setting, value_and_source[0], value_and_source[1])
 
     for setting_name in set(os.environ) & set(VALID_SETTING_NAMES):
         setting = prefect.settings.SETTING_VARIABLES[setting_name]
@@ -230,7 +231,4 @@ def view(
                 continue
             _process_setting(setting, value, "defaults")
 
-    app.console.print("===========")
-    app.console.print("Current settings")
-    app.console.print("===========")
     app.console.print("\n".join(sorted(settings_output)), soft_wrap=True)

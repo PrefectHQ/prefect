@@ -354,7 +354,7 @@ def test_view_excludes_unset_settings_without_show_defaults_flag(monkeypatch):
         expected = ctx.settings.model_dump(exclude_unset=True)
 
     lines = res.stdout.splitlines()
-    assert lines[0] == "PREFECT_PROFILE='foo'"
+    assert "PREFECT_PROFILE='foo'" in lines
 
     assert len(expected) < len(
         prefect.settings.Settings.valid_setting_names()
@@ -422,10 +422,11 @@ def test_view_shows_setting_sources(monkeypatch, command):
 
     lines = res.stdout.splitlines()
 
-    # The first line should not include a source
-    assert lines[0] == "PREFECT_PROFILE='foo'"
+    # Get index of line that has current profile
+    i = next(i for i, line in enumerate(lines) if "PREFECT_PROFILE" in line)
+    assert lines[i] == "PREFECT_PROFILE='foo'"
 
-    for line in lines[1:]:
+    for line in lines[i + 1 :]:
         # Assert that each line ends with a source
         assert any(
             line.endswith(s) for s in [FROM_DEFAULT, FROM_PROFILE, FROM_ENV]

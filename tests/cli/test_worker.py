@@ -1,7 +1,6 @@
 import os
 import signal
 import sys
-import tempfile
 from pathlib import Path
 from unittest.mock import ANY
 
@@ -10,6 +9,7 @@ import httpx
 import pytest
 import readchar
 import respx
+from anyio.streams.text import TextReceiveStream
 from typer import Exit
 
 import prefect
@@ -24,8 +24,18 @@ from prefect.settings import (
 from prefect.testing.cli import invoke_and_assert
 from prefect.testing.utilities import AsyncMock, MagicMock
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
-from prefect.utilities.processutils import open_process
 from prefect.workers.base import BaseJobConfiguration, BaseWorker
+
+
+async def _receive_stream(stream) -> str:
+    out = ""
+    while True:
+        try:
+            line = await TextReceiveStream(stream).receive()
+            out += line
+        except anyio.EndOfStream:
+            break
+    return out
 
 
 class MockKubernetesWorker(BaseWorker):
@@ -807,10 +817,11 @@ async def worker_process(use_hosted_api_server):
     Yields:
         The anyio.Process.
     """
-    out = tempfile.TemporaryFile()  # capture output for test assertions
+
+    settings = get_current_settings()
 
     # Will connect to the same database as normal test clients
-    async with open_process(
+    async with await anyio.open_process(
         command=[
             "prefect",
             "worker",
@@ -822,21 +833,17 @@ async def worker_process(use_hosted_api_server):
             "--name",
             "test-worker",
         ],
-        stdout=out,
-        stderr=out,
-        env={**os.environ, **get_current_settings().to_environment_variables()},
+        env={**os.environ, **settings.to_environment_variables()},
     ) as process:
-        process.out = out
-
         for _ in range(int(STARTUP_TIMEOUT / POLL_INTERVAL)):
             await anyio.sleep(POLL_INTERVAL)
-            if out.tell() > 400:
-                # Sleep to allow startup to complete
-                # TODO: Replace with a healthcheck endpoint
-                await anyio.sleep(4)
+            assert process.stdout is not None
+            received = await TextReceiveStream(process.stdout).receive()
+            if "Worker 'test-worker' started!" in received:
                 break
+        else:
+            raise Exception("Worker failed to start")
 
-        assert out.tell() > 400, "The worker did not start up in time"
         assert process.returncode is None, "The worker failed to start up"
 
         # Yield to the consuming tests
@@ -847,7 +854,6 @@ async def worker_process(use_hosted_api_server):
             process.terminate()
         except ProcessLookupError:
             pass
-        out.close()
 
 
 class TestWorkerSignalForwarding:
@@ -858,8 +864,8 @@ class TestWorkerSignalForwarding:
     async def test_sigint_sends_sigterm(self, worker_process):
         worker_process.send_signal(signal.SIGINT)
         await safe_shutdown(worker_process)
-        worker_process.out.seek(0)
-        out = worker_process.out.read().decode()
+
+        out = await _receive_stream(worker_process.stdout)
 
         assert "Sending SIGINT" in out, (
             "When sending a SIGINT, the main process should receive a SIGINT."
@@ -877,13 +883,14 @@ class TestWorkerSignalForwarding:
     async def test_sigterm_sends_sigterm_directly(self, worker_process):
         worker_process.send_signal(signal.SIGTERM)
         await safe_shutdown(worker_process)
-        worker_process.out.seek(0)
-        out = worker_process.out.read().decode()
+
+        out = await _receive_stream(worker_process.stdout)
 
         assert "Sending SIGINT" in out, (
             "When sending a SIGTERM, the main process should receive a SIGINT."
             f" Output:\n{out}"
         )
+
         assert "Worker 'test-worker' stopped!" in out, (
             "When sending a SIGTERM, the main process should shutdown gracefully."
             f" Output:\n{out}"
@@ -894,8 +901,8 @@ class TestWorkerSignalForwarding:
         await anyio.sleep(0.1)  # some time needed for the recursive signal handler
         worker_process.send_signal(signal.SIGINT)
         await safe_shutdown(worker_process)
-        worker_process.out.seek(0)
-        out = worker_process.out.read().decode()
+
+        out = await TextReceiveStream(worker_process.stdout).receive()
 
         if sys.platform != "win32":
             assert (
@@ -924,8 +931,8 @@ class TestWorkerSignalForwarding:
         await anyio.sleep(0.1)  # some time needed for the recursive signal handler
         worker_process.send_signal(signal.SIGTERM)
         await safe_shutdown(worker_process)
-        worker_process.out.seek(0)
-        out = worker_process.out.read().decode()
+
+        out = await TextReceiveStream(worker_process.stdout).receive()
 
         assert (
             # either the main PID is still waiting for shutdown, so forwards the SIGKILL
