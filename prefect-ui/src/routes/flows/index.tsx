@@ -1,23 +1,35 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { Link } from '@tanstack/react-router'
+
+
+
 
 export const Route = createFileRoute('/flows/')({
   component: FlowList,
+  loader: async ({ context }) => await context.queryClient.ensureQueryData({
+      queryKey: ['flows'],
+      queryFn: () => context.queryService.POST('/flows/paginate', { body: { page: 1, limit: 10, sort: 'CREATED_DESC' } }).then(
+    )
+      
+    })
+  ,
+  wrapInSuspense: true,
 })
 
 function FlowList() {
+  const data = Route.useLoaderData()
+
   return (
     <div className="p-2">
       <h3>Flows</h3>
       <ul>
-        <li>
-          <a href="/flows/flow/1">Flow 1</a>
-        </li>
-        <li>
-          <a href="/flows/flow/2">Flow 2</a>
-        </li>
-        <li>
-          <a href="/flows/flow/3">Flow 3</a>
-        </li>
+        {data?.data?.results?.map((flow: any) => (
+          <li key={flow.id}>
+            <Link to='/flows/flow/$flowId' params={{ flowId: flow.id }}>
+              {flow.name}
+            </Link>
+          </li>
+        ))}
       </ul>
     </div>
   )

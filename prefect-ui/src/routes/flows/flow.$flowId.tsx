@@ -1,16 +1,35 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { QueryService } from '@/api/service'
+import { components } from '@/api/prefect'
 
-export const Route = createFileRoute('/flows/flow/$flowId')({
-  component: FlowDetail,
+const queryParams = (id: string) => ({
+  queryKey: ['flows', id],
+  queryFn: () => Promise.all([
+    QueryService.GET('/flows/{id}', { params: { path: { id } } }),
+    QueryService.POST('/flow_runs/filter', { body: { flows: { operator: 'and_', id : {any_: [id]} }, offset: 0, limit: 10, sort: 'START_TIME_DESC' } }),
+    QueryService.POST('/deployments/filter', { body: { flows: { operator: 'and_', id : {any_: [id]} }, offset: 0, limit: 10, sort: 'CREATED_DESC' } }),
+  ]),
+  staleTime: 1000 // Data will be considered stale after 1 second.
 })
 
-function FlowDetail() {
+export const Route = createFileRoute('/flows/flow/$flowId')({
+  component: () => { const [flow, flowRuns] = Route.useLoaderData(); return <FlowDetail flow={flow?.data} flowRuns={flowRuns?.data}/> },
+  loader: async ({ params: { flowId }, context }) => await context.queryClient.ensureQueryData(queryParams(flowId)),
+  wrapInSuspense: true,
+})
 
-  const { flowId } = Route.useParams()
+function FlowDetail({
+  flow, 
+  flowRuns,
+}: {
+  flow: components['schemas']['Flow'] | undefined,
+  flowRuns: components['schemas']['FlowRun'][] | undefined,
+}) {
 
   return (
     <div className="p-2">
-      <h3>Flow {flowId}</h3>
+      <h3>Flow</h3>
+      { JSON.stringify([flow, flowRuns]) }
     </div>
   )
 }
