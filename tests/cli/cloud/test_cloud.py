@@ -129,16 +129,18 @@ def test_login_with_invalid_key(key, expected_output, respx_mock):
         "foo",
     ],
 )
-def test_login_with_prefect_api_key_env_var_different_than_key_exits_with_error(key):
-    with temporary_settings({PREFECT_API_KEY: "pnu_baz"}):
-        invoke_and_assert(
-            ["cloud", "login", "--key", key, "--workspace", "foo"],
-            expected_code=1,
-            expected_output=(
-                "Cannot log in with a key when a different PREFECT_API_KEY is present"
-                " as an environment variable that will override it."
-            ),
-        )
+def test_login_with_prefect_api_key_env_var_different_than_key_exits_with_error(
+    key, monkeypatch
+):
+    monkeypatch.setenv("PREFECT_API_KEY", "pnu_baz")
+    invoke_and_assert(
+        ["cloud", "login", "--key", key, "--workspace", "foo"],
+        expected_code=1,
+        expected_output=(
+            "Cannot log in with a key when a different PREFECT_API_KEY is present"
+            " as an environment variable that will override it."
+        ),
+    )
 
 
 @pytest.mark.parametrize(
@@ -157,7 +159,7 @@ def test_login_with_prefect_api_key_env_var_different_than_key_exits_with_error(
             "foo",
             (
                 "Unable to authenticate with Prefect Cloud. Your key is not in our"
-                " expected format."
+                " expected format: 'pnu_' or 'pnb_'."
             ),
         ),
     ],
@@ -546,9 +548,10 @@ def test_login_with_browser_failure_in_browser(respx_mock, mock_webbrowser):
         ],
     )
 
-    settings = load_current_profile().settings
-    assert PREFECT_API_KEY not in settings
-    assert PREFECT_API_URL not in settings
+    profile = load_current_profile()
+    assert profile is not None
+    assert PREFECT_API_KEY not in profile.settings
+    assert PREFECT_API_URL not in profile.settings
 
 
 @pytest.mark.usefixtures("interactive_console")
@@ -918,6 +921,7 @@ def test_logout_current_profile_is_not_logged_in():
 
 
 def test_logout_reset_prefect_api_key_and_prefect_api_url():
+    profile = None
     cloud_profile = "cloud-foo"
     save_profiles(
         ProfilesCollection(
@@ -938,10 +942,11 @@ def test_logout_reset_prefect_api_key_and_prefect_api_url():
             expected_output_contains="Logged out from Prefect Cloud.",
         )
 
-        settings = load_current_profile()
+        profile = load_current_profile()
 
-    assert PREFECT_API_URL not in settings
-    assert PREFECT_API_KEY not in settings
+    assert profile is not None
+    assert PREFECT_API_URL not in profile.settings
+    assert PREFECT_API_KEY not in profile.settings
 
 
 def test_cannot_set_workspace_if_you_are_not_logged_in():

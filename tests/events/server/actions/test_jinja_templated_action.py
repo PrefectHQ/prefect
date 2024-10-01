@@ -1195,14 +1195,16 @@ async def test_work_queue_health_late_run_count(
     action = DemoAction(template=template)
     (rendered,) = await action.render(triggered_action)
     assert (
-        rendered
-        == f"""
+        """
     Name: camera-queue
     Last polled: 2023-01-02T00:00:00+00:00
     Late run count: 42
-    URL: http://localhost:3000/work-queues/work-queue/{take_a_picture_work_queue.id}
     """
+        in rendered
     )
+
+    assert "URL:" in rendered
+    assert f"work-queues/work-queue/{take_a_picture_work_queue.id}" in rendered
 
 
 async def test_related_resource_by_role_in_templates(

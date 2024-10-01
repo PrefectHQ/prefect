@@ -13,7 +13,7 @@ import yaml
 from prefect.settings import (
     PREFECT_LOGGING_EXTRA_LOGGERS,
     PREFECT_LOGGING_SETTINGS_PATH,
-    SETTING_VARIABLES,
+    get_current_settings,
 )
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict
 
@@ -31,18 +31,14 @@ def load_logging_config(path: Path) -> dict:
     """
     Loads logging configuration from a path allowing override from the environment
     """
+    current_settings = get_current_settings()
     template = string.Template(path.read_text())
+
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=DeprecationWarning)
         config = yaml.safe_load(
             # Substitute settings into the template in format $SETTING / ${SETTING}
-            template.substitute(
-                {
-                    setting.name: str(setting.value())
-                    for setting in SETTING_VARIABLES.values()
-                    if setting.value() is not None
-                }
-            )
+            template.substitute(current_settings.to_environment_variables())
         )
 
     # Load overrides from the environment

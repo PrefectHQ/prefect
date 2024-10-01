@@ -290,13 +290,16 @@ class FlowRunEngine(Generic[P, R]):
         result_store: Optional[ResultStore] = None,
     ) -> State:
         context = FlowRunContext.get()
-        terminal_state = run_coro_as_sync(
-            exception_to_failed_state(
-                exc,
-                message=msg or "Flow run encountered an exception:",
-                result_store=result_store or getattr(context, "result_store", None),
-                write_result=True,
-            )
+        terminal_state = cast(
+            State,
+            run_coro_as_sync(
+                exception_to_failed_state(
+                    exc,
+                    message=msg or "Flow run encountered an exception:",
+                    result_store=result_store or getattr(context, "result_store", None),
+                    write_result=True,
+                )
+            ),
         )
         state = self.set_state(terminal_state)
         if self.state.is_scheduled():

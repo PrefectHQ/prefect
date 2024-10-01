@@ -1,5 +1,4 @@
 import prefect.settings
-from prefect._internal.compatibility.experimental import experiment_enabled
 from prefect.cli.root import app
 
 # Import CLI submodules to register them to the app

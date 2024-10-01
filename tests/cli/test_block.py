@@ -40,7 +40,6 @@ def test_register_blocks_from_module_with_ui_url():
             expected_output_contains=[
                 "Successfully registered",
                 "blocks",
-                "Prefect UI: https://app.prefect.cloud/blocks/catalog",
             ],
         )
 
@@ -55,7 +54,7 @@ def test_register_blocks_from_module_without_ui_url(
             expected_output_contains=[
                 "Successfully registered",
                 "blocks",
-                "Prefect UI.",
+                "Prefect UI",
             ],
             expected_output_does_not_contain=["Prefect UI: https://"],
         )

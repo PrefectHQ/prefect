@@ -1,4 +1,6 @@
 import uuid
+from contextlib import contextmanager
+from typing import Generator
 from unittest.mock import MagicMock
 
 import httpx
@@ -39,6 +41,12 @@ def mock_webbrowser(monkeypatch):
     yield mock
 
 
+@contextmanager
+def _use_profile(profile_name: str) -> Generator[None, None, None]:
+    with use_profile(profile_name, include_current_context=False):
+        yield
+
+
 def test_open_current_workspace_in_browser_success(mock_webbrowser, respx_mock):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
 
@@ -63,7 +71,7 @@ def test_open_current_workspace_in_browser_success(mock_webbrowser, respx_mock):
             json=[foo_workspace.model_dump(mode="json")],
         )
     )
-    with use_profile("logged-in-profile"):
+    with _use_profile("logged-in-profile"):
         invoke_and_assert(
             ["dashboard", "open"],
             expected_code=0,
@@ -100,7 +108,7 @@ def test_open_current_workspace_in_browser_failure_no_workspace_set(
         )
     )
 
-    with use_profile("logged-in-profile"):
+    with _use_profile("logged-in-profile"):
         invoke_and_assert(["dashboard", "open"], expected_code=0)
 
 
@@ -129,7 +137,7 @@ def test_open_current_workspace_in_browser_failure_unauthorized(respx_mock, api_
         )
     )
 
-    with use_profile("logged-in-profile"):
+    with _use_profile("logged-in-profile"):
         invoke_and_assert(
             ["dashboard", "open"],
             expected_code=0,
