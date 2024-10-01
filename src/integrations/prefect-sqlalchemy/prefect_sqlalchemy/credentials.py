@@ -104,7 +104,7 @@ class ConnectionComponents(BaseModel):
         default=..., description="The driver name to use."
     )
     database: Optional[str] = Field(
-        default=None description="The name of the database to use."
+        default=None, description="The name of the database to use."
     )
     username: Optional[str] = Field(
         default=None, description="The user name used to authenticate."
