@@ -91,8 +91,8 @@ The following new components and capabilities are enabled by Prefect 3:
 - Out-of-the-box `pydantic` validation.
 - [Blocks](https://docs.prefect.io/3.0/develop/blocks) allow you to securely store UI-editable, type-checked configuration to external systems. All those components are configurable in one place and provided as part of the open-source Prefect 3 product. In contrast, the concept of [Secrets](https://docs-v1.prefect.io/orchestration/concepts/secrets.html) in Prefect 1 are more narrowly scoped and only available in Prefect Cloud.
 - [Automations](https://docs.prefect.io/3.0/automate/events/automations-triggers) provide an expressive API to define triggers (based on events) and actions. Automations power notifications and much more.
-- Every flow state change, task state change, and more produces a corresponding event which can be the basis of an automation trigger.
-- First-class support for `subflows` which enables a natural and intuitive way of organizing your flows into modular sub-components. In contrast, Prefect 1 only allowed the [flow-of-flows orchestrator pattern](https://docs-v1.prefect.io/core/idioms/flow-to-flow.html).
+- Every action within Prefect, including flow state changes and task state changes, produces a corresponding event that can trigger an automatic action. Potential actions include running flows, sending notifications, and pausing or restarting schedules.
+- First-class support for nested flows enables a natural and intuitive way of organizing your flows into modular sub-components. In contrast, Prefect 1 only allowed the [flow-of-flows orchestrator pattern](https://docs-v1.prefect.io/core/idioms/flow-to-flow.html).
 
 ### Orchestration behind the API
 
@@ -102,7 +102,7 @@ Every time you run a flow, whether it is tracked by the API server or ad-hoc thr
 
 ### Code as workflows
 
-With Prefect 3, your functions *are* your flows and tasks. Prefect 3 automatically detects your flows and tasks without the need to define a rigid DAG structure. While use of tasks is encouraged to provide you the maximum visibility into your workflows, they are no longer required. You can add a single `@flow` decorator to your main function to transform any Python script into a Prefect workflow.
+With Prefect 3, your decorated functions *are* your flows and tasks. Prefect 3 automatically detects your flows and tasks without the need to define a rigid DAG structure. While use of tasks is encouraged to provide you the maximum visibility into your workflows, they are no longer required. You can add a single `@flow` decorator to your main function to transform any Python script into a Prefect workflow.
 
 ### Fewer ambiguities
 
@@ -111,9 +111,9 @@ Prefect 3 eliminates ambiguities in many ways. For example. there is no more con
 If you want to switch your backend to use Prefect Cloud for an easier production-level managed experience, Prefect profiles let you quickly connect to your workspace.
 
 
-In Prefect 1, there are several confusing ways you could implement `caching`. Prefect 3 resolves those ambiguities by providing a single `cache_policy` function paired with `cache_expiration`, allowing you to define arbitrary [caching mechanisms](https://docs.prefect.io/3.0/develop/task-caching) &mdash; no more confusion about whether you need to use `cache_for`, `cache_validator`, or file-based caching using `targets`.
+In Prefect 1, there are several confusing ways to implement `caching`. Prefect 3 resolves those ambiguities by providing a single `cache_policy` function paired with `cache_expiration`, allowing you to define arbitrary [caching mechanisms](https://docs.prefect.io/3.0/develop/task-caching) &mdash; no more confusion about whether you need to use `cache_for`, `cache_validator`, or file-based caching using `targets`.
 
-A similarly confusing concept in Prefect 1 was distinguishing between the functional and imperative APIs. This distinction caused ambiguities with respect to how to define state dependencies between tasks. Prefect 1 users were often unsure whether they should use the functional `upstream_tasks` keyword argument or the imperative methods such as `task.set_upstream()`, `task.set_downstream()`, or `flow.set_dependencies()`. In Prefect 3, there is only the functional API.
+A similarly confusing concept in Prefect 1 was distinguishing between the functional and imperative APIs. This distinction caused ambiguities when defining state dependencies between tasks. Prefect 1 users were often unsure whether they should use the functional `upstream_tasks` keyword argument or the imperative methods such as `task.set_upstream()`, `task.set_downstream()`, or `flow.set_dependencies()`. In Prefect 3, there is only the functional API.
 
 
 ## Next steps
