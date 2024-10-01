@@ -39,7 +39,7 @@ For a public repository, you can use the repository URL directly.
 
 If you are using a private repository and are authenticated in your environment at deployment creation and deployment execution, you can use the repository URL directly.
 
-Alternatively, for a private repository, you can create a Secret block or create a credentials block specific to your git-based version control platform to store you credentials. 
+Alternatively, for a private repository, you can create a `Secret` block or create a credentials block specific to your git-based version control platform to store your credentials. 
 Then you can reference the block in the Python `deploy` method or the `prefect.yaml` file pull step.
 
 If using the Python `deploy` method with a private repository that references a block, provide a [`GitRepository`](https://prefect-python-sdk-docs.netlify.app/prefect/flows/#prefect.runner.storage.GitRepository) object instead of a URL, as shown below.
