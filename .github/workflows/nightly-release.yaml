@@ -58,6 +58,7 @@ jobs:
           fi
 
           next_tag=${major}.${minor}.${micro}.dev${counter}
+          echo "next_tag=$next_tag" >> $GITHUB_OUTPUT
           echo "Next tag is $next_tag"
 
       - name: Create development release
