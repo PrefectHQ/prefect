@@ -1216,8 +1216,9 @@ class Settings(BaseSettings):
         description="Whether or not to enable the runner's webserver.",
     )
 
-    deployment_concurrency_slot_wait_seconds: Annotated[float, Field(ge=0)] = Field(
+    deployment_concurrency_slot_wait_seconds: float = Field(
         default=30.0,
+        ge=0.0,
         description=(
             "The number of seconds to wait before retrying when a deployment flow run"
             " cannot secure a concurrency slot from the server."
