@@ -1262,6 +1262,37 @@ class TestKubernetesWorkerJobConfiguration:
             "volumeMounts": [{"name": "data-volume", "mountPath": "/data/"}],
         }
 
+    def test_env_can_be_a_list(self):
+        job_manifest = {
+            "apiVersion": "batch/v1",
+            "kind": "Job",
+            "metadata": {"labels": {"my-custom-label": "sweet"}},
+            "spec": {
+                "template": {
+                    "spec": {
+                        "parallelism": 1,
+                        "completions": 1,
+                        "restartPolicy": "Never",
+                        "containers": [
+                            {
+                                "name": "prefect-job",
+                                "env": [],
+                            }
+                        ],
+                    }
+                }
+            },
+        }
+        KubernetesWorkerJobConfiguration(
+            job_manifest=job_manifest,
+            env=[
+                {
+                    "name": "TEST_ENV",
+                    "value": "test",
+                }
+            ],
+        )
+
 
 class TestKubernetesWorker:
     @pytest.fixture
@@ -1852,6 +1883,61 @@ class TestKubernetesWorker:
                     "bar": "BAR",
                 }.items()
             ]
+
+    async def test_uses_custom_env_list_from_base_template(
+        self,
+        flow_run,
+        mock_core_client,
+        mock_watch,
+        mock_pods_stream_that_returns_running_pod,
+        mock_batch_client,
+    ):
+        mock_watch.return_value.stream = mock_pods_stream_that_returns_running_pod
+
+        # Create a custom base job template with list-style env
+        custom_base_template = KubernetesWorker.get_default_base_job_template()
+        custom_base_template["job_configuration"]["job_manifest"]["spec"]["template"][
+            "spec"
+        ]["containers"][0]["env"] = [
+            {"name": "MYENV", "value": "foobarbaz"},
+            {
+                "name": "MYENVFROM",
+                "valueFrom": {"secretKeyRef": {"name": "something", "key": "SECRET"}},
+            },
+        ]
+
+        # Create a KubernetesWorkerJobConfiguration using the custom template
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            custom_base_template,
+            {},
+        )
+        configuration.prepare_for_flow_run(flow_run)
+
+        # Run the worker with this configuration
+        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+            await k8s_worker.run(flow_run, configuration)
+
+        mock_batch_client.return_value.create_namespaced_job.assert_called_once()
+        created_job = mock_batch_client.return_value.create_namespaced_job.call_args[0][
+            1
+        ]
+        created_env = created_job["spec"]["template"]["spec"]["containers"][0]["env"]
+
+        # Check if the custom environment variables are present
+        assert any(
+            env
+            for env in created_env
+            if env["name"] == "MYENV" and env["value"] == "foobarbaz"
+        )
+        assert any(
+            env
+            for env in created_env
+            if env["name"] == "MYENVFROM"
+            and env["valueFrom"]["secretKeyRef"]["name"] == "something"
+            and env["valueFrom"]["secretKeyRef"]["key"] == "SECRET"
+        )
+
+        assert any(env for env in created_env if env["name"] == "PREFECT__FLOW_RUN_ID")
 
     async def test_allows_unsetting_environment_variables(
         self,

@@ -214,7 +214,7 @@ class BaseJobConfiguration(BaseModel):
         env = {
             **self._base_environment(),
             **self._base_flow_run_environment(flow_run),
-            **self.env,
+            **(self.env if isinstance(self.env, dict) else {}),
         }
         self.env = {key: value for key, value in env.items() if value is not None}
         self.labels = {
