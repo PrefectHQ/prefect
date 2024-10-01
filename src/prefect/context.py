@@ -40,7 +40,7 @@ from prefect.client.schemas import FlowRun, TaskRun
 from prefect.events.worker import EventsWorker
 from prefect.exceptions import MissingContextError
 from prefect.results import ResultStore, get_default_persist_setting
-from prefect.settings import PREFECT_HOME, Profile, Settings
+from prefect.settings import Profile, Settings
 from prefect.states import State
 from prefect.task_runners import TaskRunner
 from prefect.utilities.services import start_client_metrics_server
@@ -447,7 +447,7 @@ class SettingsContext(ContextModel):
     profile: Profile
     settings: Settings
 
-    __var__ = ContextVar("settings")
+    __var__: ContextVar = ContextVar("settings")
 
     def __hash__(self) -> int:
         return hash(self.settings)
@@ -459,13 +459,13 @@ class SettingsContext(ContextModel):
         return_value = super().__enter__()
 
         try:
-            prefect_home = Path(self.settings.value_of(PREFECT_HOME))
+            prefect_home = Path(self.settings.home)
             prefect_home.mkdir(mode=0o0700, exist_ok=True)
         except OSError:
             warnings.warn(
                 (
                     "Failed to create the Prefect home directory at "
-                    f"{self.settings.value_of(PREFECT_HOME)}"
+                    f"{self.settings.home}"
                 ),
                 stacklevel=2,
             )
