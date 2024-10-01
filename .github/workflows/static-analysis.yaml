@@ -67,3 +67,8 @@ jobs:
       - name: Run pre-commit
         run: |
           pre-commit run --show-diff-on-failure --color=always --all-files
+
+      - name: Generate OpenAPI YAML
+        # Generate OpenAPI YAML for the UI
+        run: |
+          uv run --with 'pydantic>=2.9.0' ./scripts/generate_openapi_yml.py
