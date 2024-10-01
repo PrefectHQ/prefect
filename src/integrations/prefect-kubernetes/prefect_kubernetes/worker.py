@@ -1076,34 +1076,40 @@ class KubernetesWorker(BaseWorker):
         # Create a list of tasks to run concurrently
         async with self._get_batch_client(client) as batch_client:
             tasks = [
-                self._monitor_job_events(
-                    batch_client,
-                    job_name,
-                    logger,
-                    configuration,
+                asyncio.create_task(
+                    self._monitor_job_events(
+                        batch_client,
+                        job_name,
+                        logger,
+                        configuration,
+                    ),
+                    name="monitor_job_events",
                 )
             ]
             try:
                 with timeout_async(seconds=configuration.job_watch_timeout_seconds):
                     if configuration.stream_output:
                         tasks.append(
-                            self._stream_job_logs(
-                                logger,
-                                pod.metadata.name,
-                                job_name,
-                                configuration,
-                                client,
-                            )
+                            asyncio.create_task(
+                                self._stream_job_logs(
+                                    logger,
+                                    pod.metadata.name,
+                                    job_name,
+                                    configuration,
+                                    client,
+                                ),
+                                name="stream_job_logs",
+                            ),
                         )
 
                     results = await asyncio.gather(*tasks, return_exceptions=True)
-                    if any(isinstance(result, Exception) for result in results):
-                        for result in results:
-                            if isinstance(result, Exception):
-                                logger.error(
-                                    f"Error during task execution: {result}",
-                                    exc_info=True,
-                                )
+                    for idx, result in enumerate(results):
+                        if isinstance(result, Exception):
+                            task_name = tasks[idx].get_name()
+                            logger.error(
+                                f"Error in task {task_name!r}: {result}",
+                                exc_info=result,
+                            )
             except TimeoutError:
                 logger.error(
                     f"Job {job_name!r}: Job did not complete within "
@@ -1130,6 +1136,18 @@ class KubernetesWorker(BaseWorker):
         if not first_container_status:
             logger.error(f"Job {job_name!r}: No pods found for job.")
             return -1
+        # In some cases, the pod will still be running at this point.
+        # We can assume that the job is still running and return 0 to prevent marking the flow run as crashed
+        elif first_container_status.state and (
+            first_container_status.state.running is not None
+            or first_container_status.state.waiting is not None
+        ):
+            logger.warning(
+                f"The worker's watch for job {job_name!r} has exited early. Check the logs for more information."
+                " The job is still running, but the worker will not wait for it to complete."
+            )
+            # Return 0 to prevent marking the flow run as crashed
+            return 0
         # In some cases, such as spot instance evictions, the pod will be forcibly
         # terminated and not report a status correctly.
         elif (
