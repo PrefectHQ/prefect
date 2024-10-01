@@ -68,7 +68,12 @@ jobs:
         run: |
           pre-commit run --show-diff-on-failure --color=always --all-files
 
-      - name: Generate OpenAPI YAML
+      - name: Generate OpenAPI YAML and commit
         # Generate OpenAPI YAML for the UI
         run: |
           uv run --with 'pydantic>=2.9.0' ./scripts/generate_openapi_yml.py
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add src/prefect/_internal/openapi.yml
+          git commit -m "Update OpenAPI YAML" || echo "No changes to commit"
+          git push
