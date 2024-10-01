@@ -103,7 +103,9 @@ class ConnectionComponents(BaseModel):
     driver: Union[AsyncDriver, SyncDriver, str] = Field(
         default=..., description="The driver name to use."
     )
-    database: str = Field(default=..., description="The name of the database to use.")
+    database: Optional[str] = Field(
+        default=None, description="The name of the database to use."
+    )
     username: Optional[str] = Field(
         default=None, description="The user name used to authenticate."
     )
