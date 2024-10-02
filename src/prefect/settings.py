@@ -51,7 +51,12 @@ from pydantic import (
     model_serializer,
     model_validator,
 )
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic.fields import FieldInfo
+from pydantic_settings import (
+    BaseSettings,
+    PydanticBaseSettingsSource,
+    SettingsConfigDict,
+)
 from typing_extensions import Literal, Self
 
 from prefect.exceptions import ProfileSettingsValidationError
@@ -60,6 +65,8 @@ from prefect.utilities.collections import visit_collection
 from prefect.utilities.pydantic import handle_secret_render
 
 T = TypeVar("T")
+
+DEFAULT_PREFECT_HOME = Path.home() / ".prefect"
 DEFAULT_PROFILES_PATH = Path(__file__).parent.joinpath("profiles.toml")
 _SECRET_TYPES: Tuple[Type, ...] = (Secret, SecretStr)
 
@@ -326,6 +333,52 @@ def default_database_connection_url(settings: "Settings") -> SecretStr:
 
 
 ###########################################################################
+# Settings Loader
+
+
+class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
+    def __init__(self, settings_cls: Type[BaseSettings]):
+        super().__init__(settings_cls)
+        self.profiles_path = Path(
+            os.environ.get("PREFECT_PROFILES_PATH")
+            or DEFAULT_PREFECT_HOME / "profiles.toml"
+        )
+
+    def load_profile_settings(self) -> Dict[str, Any]:
+        if not self.profiles_path.exists():
+            return {}
+
+        all_profile_data = toml.load(self.profiles_path)
+        active_profile = os.environ.get("PREFECT_PROFILE") or all_profile_data.get(
+            "active"
+        )
+        profiles_data = all_profile_data.get("profiles", {})
+
+        if not active_profile or active_profile not in profiles_data:
+            return {}
+
+        return profiles_data[active_profile]
+
+    def get_field_value(
+        self, field: FieldInfo, field_name: str
+    ) -> Tuple[Any, str, bool]:
+        env_var = f"PREFECT_{field_name.upper()}"
+        value = self.load_profile_settings().get(env_var)
+        return value, field_name, self.field_is_complex(field)
+
+    def __call__(self) -> Dict[str, Any]:
+        profile_settings: Dict[str, Any] = {}
+        for field_name, field in self.settings_cls.model_fields.items():
+            value, key, is_complex = self.get_field_value(field, field_name)
+            if value is not None:
+                prepared_value = self.prepare_field_value(
+                    field_name, field, value, is_complex
+                )
+                profile_settings[key] = prepared_value
+        return profile_settings
+
+
+###########################################################################
 # Settings
 
 
@@ -334,6 +387,23 @@ class Settings(BaseSettings):
         env_prefix="PREFECT_",
         extra="ignore",
     )
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: Type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> Tuple[PydanticBaseSettingsSource, ...]:
+        return (
+            init_settings,
+            env_settings,
+            file_secret_settings,
+            ProfileSettingsTomlLoader(settings_cls),
+            dotenv_settings,
+        )
 
     ###########################################################################
     # CLI
