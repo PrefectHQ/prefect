@@ -74,12 +74,15 @@ from prefect_bitbucket import BitBucketCredentials
 
 
 if __name__ == "__main__":
+    
+    source = GitRepository(
+        url="https://bitbucket.com/org/private-repo.git",
+        credentials=BitBucketCredentials.load("my-bitbucket-credentials-block")
+        )
+
     flow.from_source(
-        source=GitRepository(
-            url="https://bitbucket.com/org/private-repo.git",
-            credentials=BitBucketCredentials.load("my-bitbucket-credentials-block")
-        ),
-    entrypoint="my_file.py:my_flow",
+        source=source,
+        entrypoint="my_file.py:my_flow",
     ).deploy(
         name="private-bitbucket-deploy",
         work_pool_name="my_pool",

@@ -68,12 +68,16 @@ from prefect_gitlab import GitLabCredentials
 
 
 if __name__ == "__main__":
-    flow.from_source(
-        source=GitRepository(
+
+    source = GitRepository(
         url="https://gitlab.com/org/private-repo.git",
         credentials=GitLabCredentials.load("my-gitlab-credentials-block")
-    ),
-    entrypoint="my_file.py:my_flow",
+    )
+
+    source = GitRepository(
+    flow.from_source(
+        source=source,
+        entrypoint="my_file.py:my_flow",
     ).deploy(
         name="private-gitlab-deploy",
         work_pool_name="my_pool",
