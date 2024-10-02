@@ -3,7 +3,7 @@ import { QueryService } from '@/api/service'
 import { components } from '@/api/prefect'
 import { z } from 'zod'
 import { zodSearchValidator } from '@tanstack/router-zod-adapter'
-import { useSuspenseQuery } from '@tanstack/react-query'
+import { useSuspenseQuery, useMutation } from '@tanstack/react-query'
 
 const searchParams = z
   .object({
@@ -20,6 +20,10 @@ const searchParams = z
       .default('CREATED_DESC'),
     'runs.flowRuns.nameLike': z.string().optional(),
     'runs.flowRuns.state.name': z.string().optional(),
+    'type': z.enum(['span', 'range']).optional(),
+    'seconds': z.number().int().positive().optional(),
+    'startDateTime': z.date().optional(),
+    'endDateTime': z.date().optional(),
     'deployments.page': z.number().int().positive().optional().default(1),
     'deployments.limit': z.number().int().positive().optional().default(10),
   })
@@ -33,7 +37,7 @@ const queryParams = (id: string, search:  z.infer<typeof searchParams>) => ({
       QueryService.GET('/flows/{id}', { params: { path: { id } } }),
       QueryService.POST('/flow_runs/filter', {
         body: {
-          flows: { operator: 'and_', id: { any_: [id] } },
+          flows: { operator: 'and_', id: { any_: [id] }, },
           offset: (search?.['runs.page'] - 1) * search?.['runs.limit'],
           limit: search?.['runs.limit'],
           sort: 'START_TIME_DESC',
@@ -66,7 +70,8 @@ export const Route = createFileRoute('/flows/flow/$id')({
       useSuspenseQuery(queryParams(id, search))
     return (
       <FlowDetail
-        flow={flow?.data}
+        id = {id}
+        flow={flow.data}
         flowRuns={flowRuns?.data}
         flowRunsCount={flowRunsCount?.data}
         deployments={deployments?.data}
@@ -82,21 +87,43 @@ export const Route = createFileRoute('/flows/flow/$id')({
 })
 
 function FlowDetail({
+  id,
   flow,
   flowRuns,
   flowRunsCount,
   deployments,
   deploymentsCount,
 }: {
-  flow: components['schemas']['Flow'] | undefined
-  flowRuns: components['schemas']['FlowRun'][] | undefined
-  flowRunsCount: number | undefined
-  deployments: components['schemas']['DeploymentResponse'][] | undefined
+  id: string,
+  flow: components['schemas']['Flow'] | undefined,
+  flowRuns: components['schemas']['FlowRun'][] | undefined,
+  flowRunsCount: number | undefined,
+  deployments: components['schemas']['DeploymentResponse'][] | undefined,
   deploymentsCount: number | undefined
 }) {
+
+  const { mutate: deleteFlow } = useMutation({
+    mutationFn: async () => alert(id) //await QueryService.DELETE('/flows/{id}', { params: { path: { id: id } } })
+  })
+
   return (
     <div className="p-2">
       <h3>Flow {flow?.name}</h3>
+      <ul>
+        Actions
+        <li>
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(flow?.id || '');
+              // You might want to add a toast or notification here
+            }}
+          >
+            Copy Id
+          </button>
+        </li>
+        <li><button onClick={() => deleteFlow()}>Delete</button></li>
+        <li><a href ={`/automations/create?from=flow&flowId=${flow?.id}`}>Automate</a></li>
+      </ul>
       <ul>
         Flow Runs: {flowRunsCount}
         {flowRuns?.map((flowRun) => <li key={flowRun.id}>{flowRun.name}</li>)}
