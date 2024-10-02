@@ -440,13 +440,14 @@ The `prefect.yaml` example includes the additional line to reference a credentia
     from prefect_aws.s3 import S3Bucket
 
     if __name__ == "__main__":
+        source = S3Bucket.load("my-code-storage-block")
         flow.from_source(
-            source=S3Bucket.load(
-                "my-code-storage-block"), 
+            source=source, 
             entrypoint="my_file.py:my_flow"
-        ).deploy(name="my-aws-s3-deployment", 
-        work_pool_name="my-work-pool"
-    )
+        ).deploy(
+            name="my-aws-s3-deployment", 
+            work_pool_name="my-work-pool"
+        )
     ```
 
     ```python s3_credentials_block.py
@@ -454,8 +455,11 @@ The `prefect.yaml` example includes the additional line to reference a credentia
     from prefect import flow
     from prefect_aws import AwsCredentials
 
+    source
+
     if __name__ == "__main__":
         aws_credentials = AwsCredentials.load("my-credentials-block")
+        sourcce 
         flow.from_source(
             source="s3://my-bucket/my-folder",
             entrypoint="my_file.py:my_flow",
