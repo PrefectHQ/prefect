@@ -23,7 +23,8 @@ You can create a deployment through [Python code with the `flow.deploy` method](
 When using the Python `deploy` method specify a flow storage location other than a Docker image requires the `flow.from_source` method. The `source` and `entrypoint` arguments are required. 
 
 The `entrypoint` is the path to the file the flow is located in and the function name, separated by a colon.
-The `source` is the URL to the repository or an object that contains the repository URL and credentials.
+
+The `source` is either a URL to a git repository or a storage object.
 
 To create a `prefect.yaml` file interactively, run `prefect deploy` from the CLI and select the appropriate storage option.
 
@@ -88,11 +89,14 @@ If using the Python `deploy` method with a private repository that references a 
 
 
     if __name__ == "__main__":
+
+        source = GitRepository(
+            url="https://github.com/org/my-private-repo.git",
+            credentials=Secret.load("my-secret-block-with-my-gh-credentials")
+        )
+
         flow.from_source(
-            source=GitRepository(
-                url="https://github.com/org/my-private-repo.git",
-                credentials=Secret.load("my-secret-block-with-my-gh-credentials")
-            ),
+            source=source,
             entrypoint="gh_secret_block.py:my_flow",
         ).deploy(
             name="private-github-deploy",
@@ -154,14 +158,16 @@ If using the Python `deploy` method with a private repository that references a 
     from prefect.runner.storage import GitRepository
     from prefect_bitbucket import BitBucketCredentials
 
-
     if __name__ == "__main__":
+
+        github_repo = GitRepository(
+            url="https://bitbucket.com/org/my-private-repo.git",
+            credentials=BitBucketCredentials.load("my-bitbucket-credentials-block")
+        )
+
         flow.from_source(
-            source=GitRepository(
-                url="https://bitbucket.com/org/my-private-repo.git",
-                credentials=BitBucketCredentials.load("my-bitbucket-credentials-block")
-            ),
-        entrypoint="bb_credentials_block.py:my_flow",
+            source=source,
+            entrypoint="bb_credentials_block.py:my_flow",
         ).deploy(
             name="private-bitbucket-deploy",
             work_pool_name="my_pool",
@@ -227,9 +233,11 @@ If using the Python `deploy` method with a private repository that references a 
 
 
     if __name__ == "__main__":
+        source = "https://gitlab.com/org/my-public-repo.git"
+
         flow.from_source(
-            source="https://gitlab.com/org/my-public-repo.git",
-            entrypoint="gl_no_block.py:my_flow",
+            source=source,
+            entrypoint="gl_no_block.py:my_flow"
         ).deploy(
             name="my-gitlab-deployment",
             work_pool_name="my_pool",
@@ -244,12 +252,14 @@ If using the Python `deploy` method with a private repository that references a 
 
 
     if __name__ == "__main__":
-        flow.from_source(
-            source=GitRepository(
+
+        source = GitRepository(
             url="https://gitlab.com/org/my-private-repo.git",
             credentials=GitLabCredentials.load("my-gitlab-credentials-block")
-        ),
-        entrypoint="gl_credentials_block.py:my_flow",
+        
+        flow.from_source(
+            source=source,
+            entrypoint="gl_credentials_block.py:my_flow",
         ).deploy(
             name="private-gitlab-deploy",
             work_pool_name="my_pool",
@@ -262,12 +272,15 @@ If using the Python `deploy` method with a private repository that references a 
     from prefect.runner.storage import GitRepository
     from prefect.blocks.system import Secret
 
+
     if __name__ == "__main__":
+        source = GitRepository(
+            url="https://gitlab.com/org/my-private-repo.git",
+            credentials=Secret.load("my-secret-block-with-my-gl-credentials")
+            )
+
         flow.from_source(   
-            source=GitRepository(
-                url="https://gitlab.com/org/my-private-repo.git",
-                credentials=Secret.load("my-secret-block-with-my-gl-credentials")
-            ),
+            source=source,
             entrypoint="gl_secret_block.py:my_flow",
         ).deploy(
             name="private-gitlab-deploy",
@@ -443,6 +456,7 @@ The `prefect.yaml` example includes the additional line to reference a credentia
 
     if __name__ == "__main__":
         source = S3Bucket.load("my-code-storage-block")
+
         flow.from_source(
             source=source, 
             entrypoint="my_file.py:my_flow"
