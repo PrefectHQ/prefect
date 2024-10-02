@@ -17,6 +17,7 @@ from contextlib import contextmanager
 from datetime import timedelta
 from functools import partial
 from pathlib import Path
+from threading import Lock
 from typing import (
     Annotated,
     Any,
@@ -336,37 +337,64 @@ def default_database_connection_url(settings: "Settings") -> SecretStr:
 # Settings Loader
 
 
+def _get_profiles_path() -> Path:
+    """Helper to get the profiles path"""
+    if os.getenv("PREFECT_TEST_MODE"):
+        return DEFAULT_PROFILES_PATH
+    if env_path := os.getenv("PREFECT_PROFILES_PATH"):
+        return Path(env_path)
+    return DEFAULT_PREFECT_HOME / "profiles.toml"
+
+
 class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
+    """
+    Custom pydantic settings source to load profile settings from a toml file.
+
+    See https://docs.pydantic.dev/latest/concepts/pydantic_settings/#customise-settings-sources
+    """
+
+    _lock: Lock = Lock()
+    _cached_profile_settings: Dict[Path, Any] = {}
+
     def __init__(self, settings_cls: Type[BaseSettings]):
         super().__init__(settings_cls)
-        self.profiles_path = Path(
-            os.environ.get("PREFECT_PROFILES_PATH")
-            or DEFAULT_PREFECT_HOME / "profiles.toml"
-        )
+        self.settings_cls = settings_cls
+        self.profiles_path = _get_profiles_path()
+        self.profile_settings = self._load_profile_settings()
 
-    def load_profile_settings(self) -> Dict[str, Any]:
-        if not self.profiles_path.exists():
-            return {}
+    def _load_profile_settings(self) -> Dict[str, Any]:
+        """Helper method to load the profile settings from the profiles.toml file"""
+        with self._lock:
+            if cached_settings := self._cached_profile_settings.get(self.profiles_path):
+                return cached_settings
 
-        all_profile_data = toml.load(self.profiles_path)
-        active_profile = os.environ.get("PREFECT_PROFILE") or all_profile_data.get(
-            "active"
-        )
-        profiles_data = all_profile_data.get("profiles", {})
+            if not self.profiles_path.exists():
+                self._cached_profile_settings[self.profiles_path] = {}
+                return {}
 
-        if not active_profile or active_profile not in profiles_data:
-            return {}
+            all_profile_data = toml.load(self.profiles_path)
+            active_profile = os.environ.get("PREFECT_PROFILE") or all_profile_data.get(
+                "active"
+            )
+            profiles_data = all_profile_data.get("profiles", {})
 
-        return profiles_data[active_profile]
+            if not active_profile or active_profile not in profiles_data:
+                self._cached_profile_settings[self.profiles_path] = {}
+                return {}
+
+            profile_settings = profiles_data[active_profile]
+            self._cached_profile_settings[self.profiles_path] = profile_settings
+            return profile_settings
 
     def get_field_value(
         self, field: FieldInfo, field_name: str
     ) -> Tuple[Any, str, bool]:
-        env_var = f"PREFECT_{field_name.upper()}"
-        value = self.load_profile_settings().get(env_var)
+        """Concrete implementation to get the field value from the profile settings"""
+        value = self.profile_settings.get(f"PREFECT_{field_name.upper()}")
         return value, field_name, self.field_is_complex(field)
 
     def __call__(self) -> Dict[str, Any]:
+        """Called by pydantic to get the settings from our custom source"""
         profile_settings: Dict[str, Any] = {}
         for field_name, field in self.settings_cls.model_fields.items():
             value, key, is_complex = self.get_field_value(field, field_name)
@@ -383,6 +411,12 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
 
 
 class Settings(BaseSettings):
+    """
+    Settings for Prefect using Pydantic settings.
+
+    See https://docs.pydantic.dev/latest/concepts/pydantic_settings
+    """
+
     model_config = SettingsConfigDict(
         env_prefix="PREFECT_",
         extra="ignore",
@@ -397,12 +431,19 @@ class Settings(BaseSettings):
         dotenv_settings: PydanticBaseSettingsSource,
         file_secret_settings: PydanticBaseSettingsSource,
     ) -> Tuple[PydanticBaseSettingsSource, ...]:
+        """
+        Define an order for Prefect settings sources.
+
+        The order of the returned callables decides the priority of inputs; first item is the highest priority.
+
+        See https://docs.pydantic.dev/latest/concepts/pydantic_settings/#customise-settings-sources
+        """
         return (
             init_settings,
             env_settings,
+            dotenv_settings,
             file_secret_settings,
             ProfileSettingsTomlLoader(settings_cls),
-            dotenv_settings,
         )
 
     ###########################################################################
