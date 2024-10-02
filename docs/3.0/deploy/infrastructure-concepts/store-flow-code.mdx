@@ -421,17 +421,17 @@ Another option for flow code storage is any [fsspec](https://filesystem-spec.rea
 If the storage location is publicly available, or if you are authenticated in the environment where you are creating and running your deployment, you can reference the storage location directly. 
 You don't need to pass credentials explicitly.
 
-To pass credentials explicitly to authenticate to your storage location, you can use any of the following block types:
+To pass credentials explicitly to authenticate to your storage location, you can use either of the following block types:
 
-- Prefect integration library storage blocks, such as the `prefect-aws` library's `S3Bucket` block.
-- Prefect integration library credentials blocks, such as the `prefect-aws` library's `AwsCredentials` block 
+- Prefect integration library storage blocks, such as the `prefect-aws` library's `S3Bucket` block, which can use a `AWSCredentials` block when it is created.
 - Secret blocks
 
-The examples below show how to create a deployment with flow code stored in AWS S3. 
+The examples below show how to create a deployment with flow code in a cloud provider storage location.
+For each example, we show how to access code that is publicly available.
+The `prefect.yaml` example includes an additional line to reference a credentials block if authenticating to a private storage location through that option. 
 
-For Azure Blob Storage and GCS we just show passing the credentials block explicitly, but the same pattern works for any of the cloud-based storage options.
+We also include Python code that shows how to use an existing storage block and an example of that creates, but doesn't save, a storage block that references an existing nested credentials block.
 
-The `prefect.yaml` example includes the additional line to reference a credentials block if authenticating through that option. 
 
 <Tabs>
   <Tab title="AWS S3 bucket">
@@ -452,7 +452,7 @@ The `prefect.yaml` example includes the additional line to reference a credentia
         )
     ```
 
-    ```python s3_s3bucket_block.py
+    ```python s3_blocks.py
 
     from prefect import flow
     from prefect_aws.s3 import S3Bucket
@@ -460,47 +460,18 @@ The `prefect.yaml` example includes the additional line to reference a credentia
     if __name__ == "__main__":
         source = S3Bucket.load("my-code-storage-block")
 
+        # or:
+        # source = S3Bucket(
+        #     bucket="my-bucket",
+        #     folder="my-folder",
+        #     credentials=AWSCredentials.load("my-credentials-block")
+        # )
+
         flow.from_source(
             source=source, 
             entrypoint="my_file.py:my_flow"
         ).deploy(
             name="my-aws-s3-deployment", 
-            work_pool_name="my-work-pool"
-        )
-    ```
-
-    ```python s3_credentials_block.py
-    
-    from prefect import flow
-    from prefect_aws import AwsCredentials
-
-    source
-
-    if __name__ == "__main__":
-        aws_credentials = AwsCredentials.load("my-credentials-block")
-        
-        flow.from_source(
-            source="s3://my-bucket/my-folder",
-            entrypoint="my_file.py:my_flow",
-            credentials=aws_credentials
-        ).deploy(
-            name="my-aws-s3-deployment",
-            work_pool_name="my-work-pool"
-        )
-    ```
-
-    ```python s3_secret_block.py
-    
-    from prefect import flow
-    from prefect.blocks.system import Secret
-
-    if __name__ == "__main__":
-        flow.from_source(
-            source="s3://my-bucket/my-folder",
-            entrypoint="my_file.py:my_flow",
-            credentials=Secret.load("my-secret-block-with-aws-credentials")
-        ).deploy(
-            name="my-aws-s3-deployment",
             work_pool_name="my-work-pool"
         )
     ```
@@ -525,7 +496,7 @@ The `prefect.yaml` example includes the additional line to reference a credentia
         credentials: "{{ prefect.blocks.aws-credentials.my-credentials-block }}" # if explicit authentication is required 
     
     deployments:
-        - name: my-gcs-deployment
+        - name: my-aws-deployment
         version: null
         tags: []
         concurrency_limit: null
@@ -544,28 +515,46 @@ The `prefect.yaml` example includes the additional line to reference a credentia
 
     To create an `AwsCredentials` block:
 
-    1. Install the [prefect-aWS](https://prefecthq.github.io/prefect-aws/) library with `pip install -U prefect-aws`
-    1. Register the blocks in prefect-aWS with `prefect block register -m prefect_aws` 
+    1. Install the [prefect-aws](https://prefecthq.github.io/prefect-aws/) library with `pip install -U prefect-aws`
+    1. Register the blocks in prefect-aws with `prefect block register -m prefect_aws` 
     1. Create a user with a role with read and write permissions to access the bucket. If using the UI, create an access key pair with *IAM -> Users -> Security credentials -> Access keys -> Create access key*. Choose *Use case -> Other* and then copy the *Access key* and *Secret access key* values.
-    1. Create an [AWS Credentials block](/integrations/prefect-aws/index#save-credentials-to-an-aws-credentials-block) in code or the Prefect UI. In addition to the block name, most users will fill in the *AWS Access Key ID* and *AWS Access Key Secret* fields.
+    1. Create an [`AWSCredentials` block](/integrations/prefect-aws/index#save-credentials-to-an-aws-credentials-block) in code or the Prefect UI. In addition to the block name, most users will fill in the *AWS Access Key ID* and *AWS Access Key Secret* fields.
     1. Reference the block as shown above.
+    
 
   </Tab>
   <Tab title="Azure Blob Storage container">
 
     <CodeGroup>
 
-    ```python azure_credentials_block.py
+    ```python azure_no_block.py
     from prefect import flow
-    from prefect_azure import AzureBlobCredentials
 
 
     if __name__ == "__main__":
-        source = AzureBlobStorage(
-            container="my-prefect-azure-container",
-            folder="my-folder",
-            credentials=AzureBlobCredentials.load("my-credentials-block")
-        )
+        flow.from_source(
+            source="azure://my-container/my-folder",  TK check format
+            entrypoint="my_file.py:my_flow",
+        ).deploy(
+            name="my-azure-deployment",
+            work_pool_name="my-work-pool",
+    ```
+
+    ```python azure_blocks.py
+    from prefect import flow
+    from prefect_azure import AzureBlobCredentials, AzureBlobStorage
+
+
+    if __name__ == "__main__":
+
+        source = AzureBlobStorage.load("my-code-storage-block")
+
+        # or 
+        # source = AzureBlobStorage(   
+        #     container="my-prefect-azure-container",
+        #     folder="my-folder",
+        #     credentials=AzureBlobCredentials.load("my-credentials-block")
+        # )
 
         flow.from_source(source=source, entrypoint="my_file.py:my_flow").deploy(
             name="my-azure-deployment", work_pool_name="my-work-pool"
@@ -581,7 +570,8 @@ The `prefect.yaml` example includes the additional line to reference a credentia
         requires: prefect-azure>=0.4
         container: my-prefect-azure-container
         folder: my-folder
-        credentials: "{{ prefect.blocks.azure-blob-storage-credentials.my-credentials-block }}" # if explicit authentication is required
+        credentials: "{{ prefect.blocks.azure-blob-storage-credentials.my-credentials-block }}" 
+        # if explicit authentication is required
 
     pull:
     - prefect_azure.deployments.steps.pull_from_azure_blob_storage:
@@ -623,18 +613,33 @@ The `prefect.yaml` example includes the additional line to reference a credentia
 
     <CodeGroup>
 
-    ```python gcs_credentials_block.py
+    ```python gcs_no_block.py
     from prefect import flow
-    from prefect_gcp import GcpCredentials
+
+
+    if __name__ == "__main__":
+        flow.from_source(
+            source="gcs://my-bucket/my-folder",  TK check format
+            entrypoint="my_file.py:my_flow",
+        ).deploy(
+            name="my-gcs-deployment",
+    ```
+
+    ```python gcs_blocks.py
+    from prefect import flow
+    from prefect_gcp import GcpCredentials, GCSBucket
 
 
     if __name__ == "__main__":
 
-        source = GCSBucket(
-            bucket="my-bucket",
-            folder="my-folder",
-            credentials=GcpCredentials.load("my-credentials-block")
-        )
+        source = GCSBucket.load("my-code-storage-block")
+
+        # or 
+        # source = GCSBucket(
+        #     bucket="my-bucket",
+        #     folder="my-folder",
+        #     credentials=GcpCredentials.load("my-credentials-block")
+        # )
 
         flow.from_source(
             source=source,
