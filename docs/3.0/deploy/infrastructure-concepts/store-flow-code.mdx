@@ -70,14 +70,17 @@ If using the Python `deploy` method with a private repository that references a 
 
 
     if __name__ == "__main__":
-        flow.from_source(
-            source=GitRepository(
+
+        source = GitRepository(
             url="https://github.com/org/my-private-repo.git",
             credentials=GitHubCredentials.load("my-github-credentials-block")
-        ),
-        entrypoint="gh_credentials_block.py:my_flow",
-        ).deploy(
-            name="private-github-deploy",
+        )
+
+        flow.from_source(
+            source=source,
+            entrypoint="gh_credentials_block.py:my_flow",
+            ).deploy(
+                name="private-github-deploy",
             work_pool_name="my_pool",
         )
     ```
@@ -277,7 +280,7 @@ If using the Python `deploy` method with a private repository that references a 
         source = GitRepository(
             url="https://gitlab.com/org/my-private-repo.git",
             credentials=Secret.load("my-secret-block-with-my-gl-credentials")
-            )
+        )
 
         flow.from_source(   
             source=source,
@@ -475,7 +478,7 @@ The `prefect.yaml` example includes the additional line to reference a credentia
 
     if __name__ == "__main__":
         aws_credentials = AwsCredentials.load("my-credentials-block")
-        sourcce 
+        
         flow.from_source(
             source="s3://my-bucket/my-folder",
             entrypoint="my_file.py:my_flow",
@@ -544,7 +547,7 @@ The `prefect.yaml` example includes the additional line to reference a credentia
     1. Install the [prefect-aWS](https://prefecthq.github.io/prefect-aws/) library with `pip install -U prefect-aws`
     1. Register the blocks in prefect-aWS with `prefect block register -m prefect_aws` 
     1. Create a user with a role with read and write permissions to access the bucket. If using the UI, create an access key pair with *IAM -> Users -> Security credentials -> Access keys -> Create access key*. Choose *Use case -> Other* and then copy the *Access key* and *Secret access key* values.
-    1. Create an [AWS Credentials block](nitegrations/prefect-aws/index#save-credentials-to-an-aws-credentials-block) in code or the Prefect UI. In addition to the block name, most users will fill in the *AWS Access Key ID* and *AWS Access Key Secret* fields.
+    1. Create an [AWS Credentials block](/integrations/prefect-aws/index#save-credentials-to-an-aws-credentials-block) in code or the Prefect UI. In addition to the block name, most users will fill in the *AWS Access Key ID* and *AWS Access Key Secret* fields.
     1. Reference the block as shown above.
 
   </Tab>
@@ -558,17 +561,15 @@ The `prefect.yaml` example includes the additional line to reference a credentia
 
 
     if __name__ == "__main__":
-        flow.from_source(
-            source=AzureBlobStorage(
-                container="my-prefect-azure-container",
-                folder="my-folder",
-                credentials=AzureBlobCredentials.load("my-credentials-block")
-            ),
-            entrypoint="my_file.py:my_flow",
-        ).deploy(
-            name="my-azure-deployment",
-            work_pool_name="my-work-pool"
-    )
+        source = AzureBlobStorage(
+            container="my-prefect-azure-container",
+            folder="my-folder",
+            credentials=AzureBlobCredentials.load("my-credentials-block")
+        )
+
+        flow.from_source(source=source, entrypoint="my_file.py:my_flow").deploy(
+            name="my-azure-deployment", work_pool_name="my-work-pool"
+        )
     ```
 
     ```yaml prefect.yaml
@@ -628,12 +629,15 @@ The `prefect.yaml` example includes the additional line to reference a credentia
 
 
     if __name__ == "__main__":
+
+        source = GCSBucket(
+            bucket="my-bucket",
+            folder="my-folder",
+            credentials=GcpCredentials.load("my-credentials-block")
+        )
+
         flow.from_source(
-            source=GCSBucket(
-                bucket="my-bucket",
-                folder="my-folder",
-                credentials=GcpCredentials.load("my-credentials-block")
-            ),
+            source=source,
             entrypoint="my_file.py:my_flow",
         ).deploy(
             name="my-gcs-deployment",
