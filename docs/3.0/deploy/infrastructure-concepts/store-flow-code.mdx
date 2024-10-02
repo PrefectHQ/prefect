@@ -176,11 +176,13 @@ If using the Python `deploy` method with a private repository that references a 
 
 
     if __name__ == "__main__":
-        flow.from_source(   
-            source=GitRepository(
-                url="https://bitbucket.com/org/my-private-repo.git",
-                credentials=Secret.load("my-secret-block-with-my-bb-credentials")
-            ),
+        github_repo=GitRepository(
+            url="https://bitbucket.com/org/my-private-repo.git",
+            credentials=Secret.load("my-secret-block-with-my-bb-credentials")
+        )
+        
+        flow.from_source(
+            source=github_repo,
             entrypoint="bb_secret_block.py:my_flow",
         ).deploy(
             name="private-bitbucket-deploy",
