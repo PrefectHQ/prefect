@@ -29,8 +29,7 @@ on:
         default: "prefect-client-pypi-dists"
         type: string
       python-versions:
-        description: "What versions of Python to run against"
-        default: ""
+        description: "What versions of Python to run against, as a JSON string"
         type: string
 
 jobs:
