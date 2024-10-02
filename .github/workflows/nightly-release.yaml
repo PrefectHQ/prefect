@@ -66,7 +66,7 @@ jobs:
         if: steps.check_changes.outputs.SHOULD_CREATE_RELEASE == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          name: "Nightly Development Release ${{ steps.get_latest_tag.outputs.next_tag }}"
+          name: "${{ steps.next_dev_version.outputs.next_tag }}: Nightly Development Release"
           tag_name: ${{ steps.next_dev_version.outputs.next_tag }}
           draft: false
           prerelease: true
