@@ -294,6 +294,31 @@ class PagerDutyWebHook(AbstractAppriseNotificationBlock):
         )
         self._start_apprise_client(url)
 
+    @sync_compatible
+    async def notify(
+        self,
+        body: str,
+        subject: Optional[str] = None,
+    ):
+        """
+        Apprise will combine subject and body by default, so we need to move
+        the body into the custom_details field. custom_details is part of the
+        webhook url, so we need to update the url and restart the client.
+        """
+        if self.custom_details:
+            self.custom_details.update(
+                {"Prefect Notification Body": body.replace(" ", "%20")}
+            )
+        else:
+            self.custom_details = {
+                "Prefect Notification Body": body.replace(" ", "%20")
+            }
+        body = " "
+
+        self.block_initialization()
+
+        await super().notify(body, subject)
+
 
 class TwilioSMS(AbstractAppriseNotificationBlock):
     """Enables sending notifications via Twilio SMS.
