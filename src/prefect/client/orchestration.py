@@ -1829,11 +1829,20 @@ class PrefectClient:
                     f"{flow_name_map[d.flow_id]}/{d.name}" for d in deployments
                 ]
 
-                if fuzzy_match := fuzzy_match_string(name, flow_slash_deployment_names):
-                    raise prefect.exceptions.ObjectNotFound(
-                        http_exc=e,
-                        help_message=f"Deployment {name!r} not found; did you mean {fuzzy_match!r}?",
-                    ) from e
+                help_message = (
+                    f"Deployment {name!r} not found; did you mean {fuzzy_match!r}?"
+                    if (
+                        fuzzy_match := fuzzy_match_string(
+                            name, flow_slash_deployment_names
+                        )
+                    )
+                    else f"Deployment {name!r} not found. Try `prefect deployment ls` to find available deployments."
+                )
+
+                raise prefect.exceptions.ObjectNotFound(
+                    http_exc=e,
+                    help_message=help_message,
+                ) from e
             else:
                 raise
 
