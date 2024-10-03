@@ -142,26 +142,28 @@ class TestSettingsClass:
 
     def test_settings_to_environment_exclude_unset_empty_if_none_set(self, monkeypatch):
         for key in SETTING_VARIABLES:
-            if not key.startswith("PREFECT_"):
+            if not key.startswith("PREFECT_") or key == "PREFECT_TEST_MODE":
                 continue
             monkeypatch.delenv(key, raising=False)
 
-        assert (
-            Settings().to_environment_variables(
-                exclude_unset=True,
-                exclude={SETTING_VARIABLES[key] for key in DEFAULT_DEPENDENT_SETTINGS},
-            )
-            == {}
-        )
+        assert Settings().to_environment_variables(
+            exclude_unset=True,
+            exclude={SETTING_VARIABLES[key] for key in DEFAULT_DEPENDENT_SETTINGS},
+        ) == {
+            "PREFECT_TEST_MODE": "True",
+        }
 
     def test_settings_to_environment_exclude_unset_only_includes_set(self, monkeypatch):
         for key in SETTING_VARIABLES:
+            if key == "PREFECT_TEST_MODE":
+                continue
             monkeypatch.delenv(key, raising=False)
 
         assert Settings(debug_mode=True, api_key="Hello").to_environment_variables(
             exclude_unset=True,
             exclude={SETTING_VARIABLES[key] for key in DEFAULT_DEPENDENT_SETTINGS},
         ) == {
+            "PREFECT_TEST_MODE": "True",
             "PREFECT_DEBUG_MODE": "True",
             "PREFECT_API_KEY": "Hello",
         }

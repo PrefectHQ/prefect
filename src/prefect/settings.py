@@ -391,7 +391,6 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
     def __call__(self) -> Dict[str, Any]:
         """Called by pydantic to get the settings from our custom source"""
         if is_test_mode():
-            print("not scooping from profile settings in unit tests")
             return {}
         profile_settings: Dict[str, Any] = {}
         for field_name, field in self.settings_cls.model_fields.items():
@@ -401,7 +400,6 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
                     field_name, field, value, is_complex
                 )
                 profile_settings[key] = prepared_value
-        print("WE BE SCOOPING FROM PROFILE SETTINGS")
         return profile_settings
 
 
