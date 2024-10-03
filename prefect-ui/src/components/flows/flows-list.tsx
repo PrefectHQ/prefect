@@ -175,14 +175,17 @@ const mockFlows: FlowRow[] = [
     },
   ]
 
-export default function Component() {
-  const [flows] = useState<FlowRow[]>(mockFlows)
+export default function Component({
+    flows}: {
+    flows: components['schemas']['Flow'][]
+}) {
+  const [flowList] = useState<FlowRow[]>(mockFlows)
   const [rowSelection, setRowSelection] = useState({})
   const [sorting, setSorting] = useState<SortingState>([])
 
 
   const table = useReactTable({
-    data: flows,
+    data: flowList,
     columns,
     state: {
       sorting,
@@ -197,8 +200,8 @@ export default function Component() {
 
   return (
     <div className="h-full">
-      <header className="mb-6">
-        <h1 className="text-2xl font-bold mb-4">{flows.length} Flows</h1>
+      <header className="mb-6 flex flex-row justify-between">
+        <h1 className="flex self-center">{flowList.length} Flows</h1>
         <div className="flex space-x-4">
           <div className="relative">
             <Input placeholder="Flow names" className="pl-10" />
