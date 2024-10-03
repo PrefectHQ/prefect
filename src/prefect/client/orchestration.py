@@ -1825,23 +1825,22 @@ class PrefectClient:
                         ]
                     )
                 }
-                flow_slash_deployment_names = [
-                    f"{flow_name_map[d.flow_id]}/{d.name}" for d in deployments
-                ]
-
-                help_message = (
-                    f"Deployment {name!r} not found; did you mean {fuzzy_match!r}?"
-                    if (
-                        fuzzy_match := fuzzy_match_string(
-                            name, flow_slash_deployment_names
-                        )
-                    )
-                    else f"Deployment {name!r} not found. Try `prefect deployment ls` to find available deployments."
-                )
 
                 raise prefect.exceptions.ObjectNotFound(
                     http_exc=e,
-                    help_message=help_message,
+                    help_message=(
+                        f"Deployment {name!r} not found; did you mean {fuzzy_match!r}?"
+                        if (
+                            fuzzy_match := fuzzy_match_string(
+                                name,
+                                [
+                                    f"{flow_name_map[d.flow_id]}/{d.name}"
+                                    for d in deployments
+                                ],
+                            )
+                        )
+                        else f"Deployment {name!r} not found. Try `prefect deployment ls` to find available deployments."
+                    ),
                 ) from e
             else:
                 raise
