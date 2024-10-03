@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { Link } from '@tanstack/react-router'
 import { QueryService } from '@/api/service'
+import FlowList from '@/components/flows/flows-list'
 
 
 
@@ -15,22 +16,3 @@ export const Route = createFileRoute('/flows/')({
   ,
   wrapInSuspense: true,
 })
-
-function FlowList() {
-  const data = Route.useLoaderData()
-
-  return (
-    <div className="p-2">
-      <h3>Flows</h3>
-      <ul>
-        {data?.data?.results?.map((flow: any) => (
-          <li key={flow.id}>
-            <Link to='/flows/flow/$id' params={{ id: flow.id }}>
-              {flow.name}
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </div>
-  )
-}

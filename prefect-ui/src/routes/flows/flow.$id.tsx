@@ -32,14 +32,14 @@ const searchParams = z
 
 const flowQueryParams = (id: string) => ({
   queryKey: ['flows', id],
-  queryFn: () => QueryService.GET('/flows/{id}', { params: { path: { id } } }),
+  queryFn: async () => await QueryService.GET('/flows/{id}', { params: { path: { id } } }),
   staleTime: 1000, // Data will be considered stale after 1 second.
 })
 
 const flowRunsQueryParams = (id: string, search: z.infer<typeof searchParams>) => ({
   queryKey: ['flowRun', JSON.stringify({'flowId': id, ...search})],
-  queryFn: () =>
-    QueryService.POST('/flow_runs/filter', {
+  queryFn: async () =>
+    await QueryService.POST('/flow_runs/filter', {
       body: {
         flows: { operator: 'and_', id: { any_: [id] }, },
         offset: (search?.['runs.page'] - 1) * search?.['runs.limit'],
@@ -52,8 +52,8 @@ const flowRunsQueryParams = (id: string, search: z.infer<typeof searchParams>) =
 
 const flowRunsCountQueryParams = (id: string) => ({
   queryKey: ['flowRunCount', JSON.stringify({'flowId': id})],
-  queryFn: () =>
-    QueryService.POST('/flow_runs/count', {
+  queryFn: async () =>
+    await QueryService.POST('/flow_runs/count', {
       body: { flows: { operator: 'and_', id: { any_: [id] } } },
     }),
   staleTime: 1000, // Data will be considered stale after 1 second.
@@ -61,8 +61,8 @@ const flowRunsCountQueryParams = (id: string) => ({
 
 const deploymentsQueryParams = (id: string, search: z.infer<typeof searchParams>) => ({
   queryKey: ['deployments', JSON.stringify({'flowId': id, ...search})],
-  queryFn: () =>
-    QueryService.POST('/deployments/filter', {
+  queryFn: async () =>
+    await QueryService.POST('/deployments/filter', {
       body: {
         flows: { operator: 'and_', id: { any_: [id] } },
         offset: (search['deployments.page'] - 1) * search['deployments.limit'],
@@ -75,8 +75,8 @@ const deploymentsQueryParams = (id: string, search: z.infer<typeof searchParams>
 
 const deploymentsCountQueryParams = (id: string) => ({
   queryKey: ['deploymentsCount', JSON.stringify({'flowId': id})],
-  queryFn: () =>
-    QueryService.POST('/deployments/count', {
+  queryFn: async () =>
+    await QueryService.POST('/deployments/count', {
       body: { flows: { operator: 'and_', id: { any_: [id] } } },
     }),
   staleTime: 1000, // Data will be considered stale after 1 second.
@@ -145,6 +145,8 @@ function FlowDetail({
   })
 
   return (
+
+
     <div className="p-2">
       <h3>Flow {flow?.name}</h3>
       <ul>
