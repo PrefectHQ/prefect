@@ -4,7 +4,7 @@ description: Restrict block and deployment access to individual actors within a 
 ---
 
 Prefect Cloud's [Enterprise plan](https://www.prefect.io/pricing) offers object-level access control lists (ACLs) to restrict access to 
-specific users and service accounts within a workspace. ACLs are supported for blocks and deployments.
+specific users and service accounts within a workspace. ACLs are supported for blocks, deployments, and work pools.
 
 Organization Admins and Workspace Owners can configure access control lists by navigating to an object and clicking **manage access**.
 When an ACL is added, all users and service accounts with access to an object through their workspace role will lose access if not 
@@ -18,3 +18,12 @@ workspace even if an associated block or deployment has been restricted for that
 </Note>
 
 See the [Prefect Cloud plans](https://www.prefect.io/pricing) to learn more about options for supporting object-level access control.
+
+## ACL delegation for work pools and deployments
+
+Deployments can delegate their permission checks to work pools. This delegation works as follows:
+
+1. If a work pool has ACLs configured, those ACLs apply to all deployments that use the work pool.
+2. If a work pool does not have ACLs, the ACLs of the individual deployments apply instead.
+
+This delegation system allows for more efficient management of permissions, especially when multiple deployments use the same work pool.
