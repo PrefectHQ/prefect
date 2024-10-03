@@ -513,3 +513,13 @@ def get_from_dict(dct: Dict, keys: Union[str, List[str]], default: Any = None) -
         return dct
     except (TypeError, KeyError, IndexError):
         return default
+
+
+def set_in_dict(dct: Dict, keys: Union[str, List[str]], value: Any):
+    if isinstance(keys, str):
+        keys = keys.replace("[", ".").replace("]", "").split(".")
+    for k in keys[:-1]:
+        if k not in dct:
+            dct[k] = {}
+        dct = dct[k]
+    dct[keys[-1]] = value
