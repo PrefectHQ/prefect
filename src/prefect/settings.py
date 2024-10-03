@@ -345,10 +345,13 @@ def default_database_connection_url(settings: "Settings") -> SecretStr:
 
 def _get_profiles_path() -> Path:
     """Helper to get the profiles path"""
+
     if is_test_mode():
         return DEFAULT_PROFILES_PATH
     if env_path := os.getenv("PREFECT_PROFILES_PATH"):
         return Path(env_path)
+    if not (DEFAULT_PREFECT_HOME / "profiles.toml").exists():
+        return DEFAULT_PROFILES_PATH
     return DEFAULT_PREFECT_HOME / "profiles.toml"
 
 
