@@ -18,7 +18,11 @@ from pydantic import Field, PrivateAttr
 from typing_extensions import Self
 
 from prefect.context import ContextModel
-from prefect.exceptions import MissingContextError, SerializationError
+from prefect.exceptions import (
+    ConfigurationError,
+    MissingContextError,
+    SerializationError,
+)
 from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.records import RecordStore
 from prefect.records.base import TransactionRecord
@@ -27,7 +31,6 @@ from prefect.results import (
     ResultRecord,
     ResultStore,
     get_result_store,
-    should_persist_result,
 )
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.collections import AutoEnum
@@ -194,8 +197,10 @@ class Transaction(ContextModel):
             and self.key
             and not self.store.supports_isolation_level(self.isolation_level)
         ):
-            raise ValueError(
-                f"Isolation level {self.isolation_level.name} is not supported by provided result store."
+            raise ConfigurationError(
+                f"Isolation level {self.isolation_level.name} is not supported by provided "
+                "configuration. Please ensure you've provided a lock file directory or lock "
+                "manager when using the SERIALIZABLE isolation level."
             )
 
         # this needs to go before begin, which could set the state to committed
@@ -432,7 +437,7 @@ def transaction(
     commit_mode: Optional[CommitMode] = None,
     isolation_level: Optional[IsolationLevel] = None,
     overwrite: bool = False,
-    write_on_commit: Optional[bool] = None,
+    write_on_commit: bool = True,
     logger: Union[logging.Logger, logging.LoggerAdapter, None] = None,
 ) -> Generator[Transaction, None, None]:
     """
@@ -467,9 +472,7 @@ def transaction(
         commit_mode=commit_mode,
         isolation_level=isolation_level,
         overwrite=overwrite,
-        write_on_commit=write_on_commit
-        if write_on_commit is not None
-        else should_persist_result(),
+        write_on_commit=write_on_commit,
         logger=logger,
     ) as txn:
         yield txn

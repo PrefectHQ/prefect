@@ -40,7 +40,8 @@
   },
   "logo": {
     "dark": "/logos/logo-word-white.svg",
-    "light": "/logos/logo-word-black.svg"
+    "light": "/logos/logo-word-black.svg",
+    "href": "https://prefect.io"
   },
   "modeToggle": {
     "default": "light",
@@ -307,6 +308,13 @@
           "pages": [
             "integrations/prefect-ray/index",
             "integrations/prefect-ray/sdk"
+          ]
+        },
+        {
+          "group": "Redis",
+          "pages": [
+            "integrations/prefect-redis/index",
+            "integrations/prefect-redis/sdk"
           ]
         },
         {

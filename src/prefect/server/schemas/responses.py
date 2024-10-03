@@ -362,7 +362,16 @@ class DeploymentResponse(ORMBaseModel):
     )
     concurrency_limit: Optional[int] = Field(
         default=None,
-        description="The maximum number of flow runs that can be active at once.",
+        description="DEPRECATED: Prefer `global_concurrency_limit`. Will always be None for backwards compatibility. Will be removed after December 2024.",
+        deprecated=True,
+    )
+    global_concurrency_limit: Optional["GlobalConcurrencyLimitResponse"] = Field(
+        default=None,
+        description="The global concurrency limit object for enforcing the maximum number of flow runs that can be active at once.",
+    )
+    concurrency_options: Optional[schemas.core.ConcurrencyOptions] = Field(
+        default=None,
+        description="The concurrency options for the deployment.",
     )
     job_variables: Dict[str, Any] = Field(
         default_factory=dict,

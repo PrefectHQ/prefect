@@ -41,6 +41,7 @@ from prefect.cli._utilities import (
 )
 from prefect.cli.root import app, is_interactive
 from prefect.client.schemas.actions import DeploymentScheduleCreate
+from prefect.client.schemas.objects import ConcurrencyLimitConfig
 from prefect.client.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
@@ -242,6 +243,11 @@ async def deploy(
         "--concurrency-limit",
         help=("The maximum number of concurrent runs for this deployment."),
     ),
+    concurrency_limit_collision_strategy: str = typer.Option(
+        None,
+        "--collision-strategy",
+        help="Configure the behavior for runs once the concurrency limit is reached. Falls back to `ENQUEUE` if unset.",
+    ),
     work_pool_name: str = SettingsOption(
         PREFECT_DEFAULT_WORK_POOL_NAME,
         "-p",
@@ -371,12 +377,23 @@ async def deploy(
         job_variables = list()
     job_variables.extend(variables)
 
+    concurrency_limit_config = (
+        None
+        if concurrency_limit is None
+        else concurrency_limit
+        if concurrency_limit_collision_strategy is None
+        else ConcurrencyLimitConfig(
+            limit=concurrency_limit,
+            collision_strategy=concurrency_limit_collision_strategy,
+        ).model_dump()
+    )
+
     options = {
         "entrypoint": entrypoint,
         "description": description,
         "version": version,
         "tags": tags,
-        "concurrency_limit": concurrency_limit,
+        "concurrency_limit": concurrency_limit_config,
         "work_pool_name": work_pool_name,
         "work_queue_name": work_queue_name,
         "variables": job_variables,
@@ -493,7 +510,6 @@ async def _run_single_deploy(
     deploy_config["schedules"] = _construct_schedules(
         deploy_config,
     )
-
     # determine work pool
     work_pool_name = get_from_dict(deploy_config, "work_pool.name")
     if work_pool_name:
@@ -555,41 +571,51 @@ async def _run_single_deploy(
 
     work_pool = await client.read_work_pool(deploy_config["work_pool"]["name"])
 
-    if is_interactive() and not docker_build_step_exists and not build_step_set_to_null:
-        docker_based_infrastructure = "image" in work_pool.base_job_template.get(
-            "variables", {}
-        ).get("properties", {})
-        if docker_based_infrastructure:
-            build_docker_image_step = await prompt_build_custom_docker_image(
-                app.console, deploy_config
+    image_properties = (
+        work_pool.base_job_template.get("variables", {})
+        .get("properties", {})
+        .get("image", {})
+    )
+    image_is_configurable = (
+        "image"
+        in work_pool.base_job_template.get("variables", {}).get("properties", {})
+        and image_properties.get("type") == "string"
+        and not image_properties.get("enum")
+    )
+
+    if (
+        is_interactive()
+        and not docker_build_step_exists
+        and not build_step_set_to_null
+        and image_is_configurable
+    ):
+        build_docker_image_step = await prompt_build_custom_docker_image(
+            app.console, deploy_config
+        )
+        if build_docker_image_step is not None:
+            if not get_from_dict(deploy_config, "work_pool.job_variables.image"):
+                update_work_pool_image = True
+
+            (
+                push_docker_image_step,
+                updated_build_docker_image_step,
+            ) = await prompt_push_custom_docker_image(
+                app.console, deploy_config, build_docker_image_step
             )
-            if build_docker_image_step is not None:
-                work_pool_job_variables_image_not_found = not get_from_dict(
-                    deploy_config, "work_pool.job_variables.image"
-                )
-                if work_pool_job_variables_image_not_found:
-                    update_work_pool_image = True
 
-                (
-                    push_docker_image_step,
-                    updated_build_docker_image_step,
-                ) = await prompt_push_custom_docker_image(
-                    app.console, deploy_config, build_docker_image_step
-                )
+            if actions.get("build"):
+                actions["build"].append(updated_build_docker_image_step)
+            else:
+                actions["build"] = [updated_build_docker_image_step]
 
-                if actions.get("build"):
-                    actions["build"].append(updated_build_docker_image_step)
+            if push_docker_image_step is not None:
+                if actions.get("push"):
+                    actions["push"].append(push_docker_image_step)
                 else:
-                    actions["build"] = [updated_build_docker_image_step]
+                    actions["push"] = [push_docker_image_step]
 
-                if push_docker_image_step is not None:
-                    if actions.get("push"):
-                        actions["push"].append(push_docker_image_step)
-                    else:
-                        actions["push"] = [push_docker_image_step]
-
-            build_steps = deploy_config.get("build", actions.get("build")) or []
-            push_steps = deploy_config.get("push", actions.get("push")) or []
+        build_steps = deploy_config.get("build", actions.get("build")) or []
+        push_steps = deploy_config.get("push", actions.get("push")) or []
 
     docker_push_step_exists = any(
         any(step in action for step in docker_push_steps)
@@ -670,6 +696,16 @@ async def _run_single_deploy(
     deploy_config["parameter_openapi_schema"] = _parameter_schema
     deploy_config["schedules"] = _schedules
 
+    if isinstance(deploy_config.get("concurrency_limit"), dict):
+        deploy_config["concurrency_options"] = {
+            "collision_strategy": get_from_dict(
+                deploy_config, "concurrency_limit.collision_strategy"
+            )
+        }
+        deploy_config["concurrency_limit"] = get_from_dict(
+            deploy_config, "concurrency_limit.limit"
+        )
+
     pull_steps = apply_values(pull_steps, step_outputs, remove_notset=False)
 
     flow_id = await client.create_flow_from_name(deploy_config["flow_name"])
@@ -690,6 +726,7 @@ async def _run_single_deploy(
         description=deploy_config.get("description"),
         tags=deploy_config.get("tags", []),
         concurrency_limit=deploy_config.get("concurrency_limit"),
+        concurrency_options=deploy_config.get("concurrency_options"),
         entrypoint=deploy_config.get("entrypoint"),
         pull_steps=pull_steps,
         job_variables=get_from_dict(deploy_config, "work_pool.job_variables"),

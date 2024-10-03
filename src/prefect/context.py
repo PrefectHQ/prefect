@@ -9,10 +9,8 @@ For more user-accessible information about the current run, see [`prefect.runtim
 import os
 import sys
 import warnings
-import weakref
 from contextlib import ExitStack, asynccontextmanager, contextmanager
 from contextvars import ContextVar, Token
-from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -41,7 +39,7 @@ from prefect.client.schemas import FlowRun, TaskRun
 from prefect.events.worker import EventsWorker
 from prefect.exceptions import MissingContextError
 from prefect.results import ResultStore, get_default_persist_setting
-from prefect.settings import PREFECT_HOME, Profile, Settings
+from prefect.settings import Profile, Settings
 from prefect.states import State
 from prefect.task_runners import TaskRunner
 from prefect.utilities.services import start_client_metrics_server
@@ -167,11 +165,13 @@ class ContextModel(BaseModel):
         new._token = None
         return new
 
-    def serialize(self) -> Dict[str, Any]:
+    def serialize(self, include_secrets: bool = True) -> Dict[str, Any]:
         """
         Serialize the context model to a dictionary that can be pickled with cloudpickle.
         """
-        return self.model_dump(exclude_unset=True)
+        return self.model_dump(
+            exclude_unset=True, context={"include_secrets": include_secrets}
+        )
 
 
 class SyncClientContext(ContextModel):
@@ -353,10 +353,7 @@ class EngineContext(RunContext):
 
     # Tracking for result from task runs in this flow run for dependency tracking
     # Holds the ID of the object returned by the task run and task run state
-    # This is a weakref dictionary to avoid undermining garbage collection
-    task_run_results: Mapping[int, State] = Field(
-        default_factory=weakref.WeakValueDictionary
-    )
+    task_run_results: Mapping[int, State] = Field(default_factory=dict)
 
     # Events worker to emit events
     events: Optional[EventsWorker] = None
@@ -434,7 +431,7 @@ class TagsContext(ContextModel):
         # Return an empty `TagsContext` instead of `None` if no context exists
         return cls.__var__.get(TagsContext())
 
-    __var__ = ContextVar("tags")
+    __var__: ContextVar = ContextVar("tags")
 
 
 class SettingsContext(ContextModel):
@@ -451,7 +448,7 @@ class SettingsContext(ContextModel):
     profile: Profile
     settings: Settings
 
-    __var__ = ContextVar("settings")
+    __var__: ContextVar = ContextVar("settings")
 
     def __hash__(self) -> int:
         return hash(self.settings)
@@ -463,14 +460,11 @@ class SettingsContext(ContextModel):
         return_value = super().__enter__()
 
         try:
-            prefect_home = Path(self.settings.value_of(PREFECT_HOME))
+            prefect_home = self.settings.home
             prefect_home.mkdir(mode=0o0700, exist_ok=True)
         except OSError:
             warnings.warn(
-                (
-                    "Failed to create the Prefect home directory at "
-                    f"{self.settings.value_of(PREFECT_HOME)}"
-                ),
+                (f"Failed to create the Prefect home directory at {prefect_home}"),
                 stacklevel=2,
             )
 
@@ -613,12 +607,11 @@ def use_profile(
 
     # Create a copy of the profiles settings as we will mutate it
     profile_settings = profile.settings.copy()
-
     existing_context = SettingsContext.get()
     if existing_context and include_current_context:
         settings = existing_context.settings
     else:
-        settings = prefect.settings.get_settings_from_env()
+        settings = Settings()
 
     if not override_environment_variables:
         for key in os.environ:

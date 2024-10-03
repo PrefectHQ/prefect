@@ -13,8 +13,8 @@ You can add a schedule to a deployed flow in the Prefect UI, in the CLI through 
 There are several ways to create a schedule for a deployment:
 
 - Through the Prefect UI
-- With the `cron`, `interval`, or `rrule` parameters if building your deployment with the 
-[`serve` method](/3.0/develop/write-flows/#serving-a-flow) of the `Flow` object or 
+- With the `cron`, `interval`, or `rrule` parameters if building your deployment with the
+[`serve` method](/3.0/develop/write-flows/#serving-a-flow) of the `Flow` object or
 [the `serve` utility](/3.0/develop/write-flows/#serving-multiple-flows-at-once) for managing multiple flows simultaneously
 - If using [worker-based deployments](/3.0/deploy/infrastructure-concepts/workers/)
   - When you define a deployment with `flow.serve` or `flow.deploy`
@@ -24,23 +24,23 @@ There are several ways to create a schedule for a deployment:
 ### Create schedules in the UI
 
 You can add schedules in the **Schedules** section of a **Deployment** page in the UI.
-To add a schedule select the **+ Schedule** button. 
+To add a schedule select the **+ Schedule** button.
 Choose **Interval** or **Cron** to create a schedule.
 
 <Note>
 **What about RRule?**
-The UI does not support creating RRule schedules. 
+The UI does not support creating RRule schedules.
 However, the UI will display RRule schedules that you've created through the command line.
 </Note>
 
-The new schedule appears on the **Deployment** page where you created it. 
+The new schedule appears on the **Deployment** page where you created it.
 New scheduled flow runs are visible in the **Upcoming** tab of the **Deployment** page.
 
 To edit an existing schedule, select **Edit** from the three-dot menu next to a schedule on a **Deployment** page.
 
 ### Create schedules in Python
 
-Specify the schedule when you create a deployment in a Python file with `flow.serve()`, `serve`, `flow.deploy()`, or `deploy`. 
+Specify the schedule when you create a deployment in a Python file with `flow.serve()`, `serve`, `flow.deploy()`, or `deploy`.
 Just add the keyword argument `cron`, `interval`, or `rrule`.
 
 | Argument    | Description                                                                                                                                                                                                                                           |
@@ -54,6 +54,10 @@ Just add the keyword argument `cron`, `interval`, or `rrule`.
 The `serve` method below will create a deployment of `my_flow` with a cron schedule that creates runs every minute of every day:
 
 ```python
+from prefect import flow
+
+from myproject.flows import my_flow
+
 my_flow.serve(name="flowing", cron="* * * * *")
 ```
 
@@ -65,11 +69,17 @@ When `my_flow` is served with this interval schedule, it will run every 10 minut
 from datetime import timedelta, datetime
 from prefect.client.schemas.schedules import IntervalSchedule
 
+from myproject.flows import my_flow
+
 my_flow.serve(
   name="flowing",
-  schedule=IntervalSchedule(interval=timedelta(minutes=10),
-  anchor_date=datetime(2026, 1, 1, 0, 0),
-  timezone="America/Chicago")
+  schedules=[
+    IntervalSchedule(
+      interval=timedelta(minutes=10),
+      anchor_date=datetime(2026, 1, 1, 0, 0),
+      timezone="America/Chicago"
+    )
+  ]
 )
 ```
 
@@ -103,20 +113,20 @@ Prefect supports three types of schedules:
 
 - [`Cron`](#cron) is most appropriate for users who are already familiar with `cron` from previous use.
 - [`Interval`](#interval) is best suited for deployments that run at some consistent cadence that isn't related to absolute time.
-- [`RRule`](#rrule) is best suited for deployments that rely on calendar logic for simple recurring schedules, irregular intervals, exclusions, 
+- [`RRule`](#rrule) is best suited for deployments that rely on calendar logic for simple recurring schedules, irregular intervals, exclusions,
 or day-of-month adjustments.
 
 <Tip>
 **Schedules can be inactive**
 
-When you create or edit a schedule, you can set the `active` property to `False` in Python (or `false` in a YAML file) to 
+When you create or edit a schedule, you can set the `active` property to `False` in Python (or `false` in a YAML file) to
 deactivate the schedule.
 This is useful to keep the schedule configuration but temporarily stop the schedule from creating new flow runs.
 </Tip>
 
 ### Cron
 
-You can specify a schedule with a [`cron`](https://en.wikipedia.org/wiki/Cron) pattern. 
+You can specify a schedule with a [`cron`](https://en.wikipedia.org/wiki/Cron) pattern.
 You may also provide a timezone to enforce daylight saving time (DST) behaviors.
 
 Prefect uses [`croniter`](https://github.com/kiorky/croniter) to specify datetime iteration with a `cron`-like format.
@@ -124,7 +134,7 @@ Prefect uses [`croniter`](https://github.com/kiorky/croniter) to specify datetim
 <Tip>
 **Supported `croniter` features**
 
-While Prefect supports most features of `croniter` for creating `cron`-like schedules, it does not support "R" 
+While Prefect supports most features of `croniter` for creating `cron`-like schedules, it does not support "R"
 random or "H" hashed keyword expressions or the schedule jittering possible with those expressions.
 </Tip>
 
@@ -138,44 +148,44 @@ random or "H" hashed keyword expressions or the schedule jittering possible with
 
 #### How the `day_or` property works
 
-The `day_or` property defaults to `True`, matching the behavior of `cron`. 
+The `day_or` property defaults to `True`, matching the behavior of `cron`.
 
-In this mode, if you specify a `day` (of the month) 
-entry and a `day_of_week` entry, the schedule runs a flow on both the specified day of the month *and* on the specified day of the 
+In this mode, if you specify a `day` (of the month)
+entry and a `day_of_week` entry, the schedule runs a flow on both the specified day of the month *and* on the specified day of the
 week.
 
-The "or" in `day_or` refers to the two entries treated like an `OR` statement. The schedule should include 
+The "or" in `day_or` refers to the two entries treated like an `OR` statement. The schedule should include
 both, as in the SQL statement:
 
 ```sql
 SELECT * FROM employees WHERE first_name = 'Ford' OR last_name = 'Prefect';
 ```
 
-For example, with `day_or` set to `True`, the cron schedule `* * 3 1 2` runs a flow every minute on the third day of the month 
+For example, with `day_or` set to `True`, the cron schedule `* * 3 1 2` runs a flow every minute on the third day of the month
 and on Tuesday (the second day of the week) in January (the first month of the year).
 
-With `day_or` set to `False`, the `day` (of the month) and `day_of_week` entries are joined with the more restrictive `AND` 
+With `day_or` set to `False`, the `day` (of the month) and `day_of_week` entries are joined with the more restrictive `AND`
 operation, as in the SQL statement:
 
 ```sql
 SELECT * from employees WHERE first_name = 'Zaphod' AND last_name = 'Beeblebrox';
 ```
 
-For example, the same schedule, when `day_or` is `False`, runs a flow on every minute on the **third Tuesday** in January. 
+For example, the same schedule, when `day_or` is `False`, runs a flow on every minute on the **third Tuesday** in January.
 This behavior matches `fcron` instead of `cron`.
 
-<Note> 
+<Note>
 **Daylight saving time considerations**
 
 If the `timezone` is a DST-observing one, then the schedule adjusts itself appropriately.
 
-The `cron` rules for DST are based on schedule times, not intervals. This means that an hourly `cron` schedule fires on 
-every new schedule hour, not every elapsed hour. 
-For example, when clocks are set back, this results in a two-hour pause as the schedule will fire _the first time_ 1 AM is reached and _the first time_ 2 AM is reached, 120 minutes later. 
-    
+The `cron` rules for DST are based on schedule times, not intervals. This means that an hourly `cron` schedule fires on
+every new schedule hour, not every elapsed hour.
+For example, when clocks are set back, this results in a two-hour pause as the schedule will fire _the first time_ 1 AM is reached and _the first time_ 2 AM is reached, 120 minutes later.
+
 Longer schedules, such as one that fires at 9 AM every morning, adjust for DST automatically.
 </Note>
-  
+
 ### Interval
 
 An `Interval` schedule creates new flow runs on a regular interval measured in seconds. Intervals are computed using an optional `anchor_date`.
@@ -183,7 +193,7 @@ An `Interval` schedule creates new flow runs on a regular interval measured in s
 ```yaml
 schedule:
   interval: 600
-  timezone: America/Chicago 
+  timezone: America/Chicago
 ```
 
 `Interval` properties include:
@@ -194,34 +204,34 @@ schedule:
 | anchor_date | `datetime.datetime` indicating the starting or "anchor" date to begin the schedule. If no `anchor_date` is supplied, the current UTC time is used.                                 |
 | timezone    | String name of a time zone, used to enforce localization behaviors like DST boundaries. (See the [IANA Time Zone Database](https://www.iana.org/time-zones) for valid time zones.) |
 
-The `anchor_date` does not indicate a "start time" for the schedule, but a fixed point to 
+The `anchor_date` does not indicate a "start time" for the schedule, but a fixed point to
 compute intervals.
 If the anchor date is in the future, then schedule dates are computed by subtracting the `interval` from it.
-In this example, you import the [Pendulum](https://pendulum.eustace.io/) Python package for easy datetime manipulation. 
+In this example, you import the [Pendulum](https://pendulum.eustace.io/) Python package for easy datetime manipulation.
 Pendulum isn't required, but it's a useful tool for specifying dates.
 
-<Note> 
+<Note>
 **Daylight saving time considerations**
 
-If the schedule's `anchor_date` or `timezone` are provided with a DST-observing timezone, then the schedule adjusts itself 
+If the schedule's `anchor_date` or `timezone` are provided with a DST-observing timezone, then the schedule adjusts itself
 appropriately.
 Intervals greater than 24 hours will follow DST conventions, while intervals of less than 24 hours will follow UTC intervals.
 
-For example, an hourly schedule will fire every UTC hour, even across DST boundaries. When clocks are set back, this results in two runs that _appear_ to be scheduled for 1 AM local time, even though they are an hour apart in UTC time. 
-    
-For longer intervals, like a daily schedule, the interval schedule adjusts for DST boundaries so that the clock-hour remains constant. 
+For example, an hourly schedule will fire every UTC hour, even across DST boundaries. When clocks are set back, this results in two runs that _appear_ to be scheduled for 1 AM local time, even though they are an hour apart in UTC time.
+
+For longer intervals, like a daily schedule, the interval schedule adjusts for DST boundaries so that the clock-hour remains constant.
 This means that a daily schedule that always fires at 9 AM will observe DST and continue to fire at 9 AM in the local time zone.
 </Note>
 
 ### RRule
 
-An `RRule` scheduling supports [iCal recurrence rules](https://icalendar.org/iCalendar-RFC-5545/3-8-5-3-recurrence-rule.html) 
-(RRules), which provide convenient syntax for creating repetitive schedules. Schedules can repeat on a frequency from 
+An `RRule` scheduling supports [iCal recurrence rules](https://icalendar.org/iCalendar-RFC-5545/3-8-5-3-recurrence-rule.html)
+(RRules), which provide convenient syntax for creating repetitive schedules. Schedules can repeat on a frequency from
 yearly down to every minute.
 
 `RRule` uses the [dateutil rrule](https://dateutil.readthedocs.io/en/stable/rrule.html) module to specify iCal recurrence rules.
 
-RRules are appropriate for any kind of calendar-date manipulation, including simple repetition, irregular intervals, exclusions, 
+RRules are appropriate for any kind of calendar-date manipulation, including simple repetition, irregular intervals, exclusions,
 week day or day-of-month adjustments, and more. RRules can represent complex logic like:
 
 - The last weekday of each month
@@ -246,7 +256,7 @@ schedule:
 **RRule restrictions**
 The max supported character length of an `rrulestr` is 6,500 characters
 
-`COUNT` is not supported. Please use `UNTIL` or the `/deployments/{id}/runs` endpoint to schedule a fixed number of 
+`COUNT` is not supported. Please use `UNTIL` or the `/deployments/{id}/runs` endpoint to schedule a fixed number of
 flow runs.
 </Note>
 
@@ -254,13 +264,13 @@ flow runs.
 **Daylight saving time considerations**
 
 As a calendar-oriented standard, `RRules` are sensitive to the initial timezone provided.
-A 9 AM daily schedule with a DST-aware start date maintains a local 9 AM time through DST boundaries. A 9 AM daily schedule 
+A 9 AM daily schedule with a DST-aware start date maintains a local 9 AM time through DST boundaries. A 9 AM daily schedule
 with a UTC start date maintains a 9 AM UTC time.
 </Note>
 
 ## How scheduling works
 
-Prefect's `Scheduler` service evaluates each deployment's schedules and creates new runs appropriately. It starts 
+Prefect's `Scheduler` service evaluates each deployment's schedules and creates new runs appropriately. It starts
 automatically when `prefect server start` is run and it is a built-in service of Prefect Cloud.
 
 The `Scheduler` creates the fewest runs that satisfy the following constraints, in order:
@@ -270,7 +280,7 @@ The `Scheduler` creates the fewest runs that satisfy the following constraints, 
 - At least three runs will be scheduled.
 - Runs will be scheduled until at least one hour in the future.
 
-These behaviors are adjustable through the relevant settings with the `prefect config 
+These behaviors are adjustable through the relevant settings with the `prefect config
 view --show-defaults` command:
 
 ```bash
@@ -296,7 +306,7 @@ The Prefect `Scheduler` service only creates new flow runs and places them in `S
 It is not involved in flow or task execution.
 </Tip>
 
-If you change a schedule, previously scheduled flow runs that have not started are removed, and new scheduled flow runs are 
+If you change a schedule, previously scheduled flow runs that have not started are removed, and new scheduled flow runs are
 created to reflect the new schedule.
 
 To remove all scheduled runs for a flow deployment, you can remove the schedule.

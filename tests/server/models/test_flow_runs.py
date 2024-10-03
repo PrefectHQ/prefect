@@ -1271,3 +1271,59 @@ class TestDeleteFlowRun:
             )
             is None
         )
+
+    @pytest.mark.parametrize(
+        "state_type,expected_slots",
+        [
+            ("PENDING", 0),
+            ("RUNNING", 0),
+            ("CANCELLING", 0),
+            *[
+                (type, 1)
+                for type in schemas.states.StateType
+                if type not in ("PENDING", "RUNNING", "CANCELLING")
+            ],
+        ],
+    )
+    async def test_delete_flow_run_with_deployment_concurrency_limit(
+        self,
+        session,
+        flow,
+        deployment_with_concurrency_limit,
+        state_type,
+        expected_slots,
+    ):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                deployment_id=deployment_with_concurrency_limit.id,
+                state=schemas.states.State(
+                    type=state_type,
+                ),
+            ),
+        )
+
+        # Take one active slot
+        await models.concurrency_limits_v2.bulk_increment_active_slots(
+            session=session,
+            concurrency_limit_ids=[
+                deployment_with_concurrency_limit.concurrency_limit_id
+            ],
+            slots=1,
+        )
+
+        await session.commit()
+
+        concurrency_limit = await models.concurrency_limits_v2.read_concurrency_limit(
+            session=session,
+            concurrency_limit_id=deployment_with_concurrency_limit.concurrency_limit_id,
+        )
+        assert concurrency_limit.active_slots == 0
+
+        assert await models.flow_runs.delete_flow_run(
+            session=session, flow_run_id=flow_run.id
+        )
+
+        await session.refresh(concurrency_limit)
+        assert concurrency_limit.active_slots == expected_slots

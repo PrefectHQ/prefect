@@ -16,7 +16,11 @@ from prefect._internal.concurrency.services import (
     drain_on_exit_async,
 )
 from prefect._internal.concurrency.threads import wait_for_global_loop_exit
-from prefect.settings import PREFECT_LOGGING_INTERNAL_LEVEL, temporary_settings
+from prefect.settings import (
+    PREFECT_LOGGING_INTERNAL_LEVEL,
+    PREFECT_TEST_MODE,
+    temporary_settings,
+)
 
 
 class MockService(QueueService[int]):
@@ -429,7 +433,9 @@ def test_queue_service_item_failure_contains_traceback_only_at_debug(
         async def _handle(self, _):
             raise Exception(self.exception_msg)
 
-    with temporary_settings({PREFECT_LOGGING_INTERNAL_LEVEL: level}):
+    with temporary_settings(
+        {PREFECT_LOGGING_INTERNAL_LEVEL: level, PREFECT_TEST_MODE: False}
+    ):
         instance = ExceptionOnHandleService.instance()
         instance.send(1)
         instance.drain()
@@ -450,7 +456,9 @@ def test_batched_queue_service_item_failure_contains_traceback_only_at_debug(
         async def _handle_batch(self, _):
             raise Exception(self.exception_msg)
 
-    with temporary_settings({PREFECT_LOGGING_INTERNAL_LEVEL: level}):
+    with temporary_settings(
+        {PREFECT_LOGGING_INTERNAL_LEVEL: level, PREFECT_TEST_MODE: False}
+    ):
         instance = ExceptionOnHandleBatchService.instance()
         instance.send(1)
         instance.drain()
@@ -473,7 +481,9 @@ def test_queue_service_start_failure_contains_traceback_only_at_debug(
         async def _main_loop(self):
             raise Exception(self.exception_msg)
 
-    with temporary_settings({PREFECT_LOGGING_INTERNAL_LEVEL: level}):
+    with temporary_settings(
+        {PREFECT_LOGGING_INTERNAL_LEVEL: level, PREFECT_TEST_MODE: False}
+    ):
         instance = ExceptionOnHandleService.instance()
         instance.drain()
 

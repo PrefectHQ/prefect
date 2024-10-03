@@ -77,7 +77,7 @@ from prefect.states import (
     exception_to_failed_state,
     return_value_to_state,
 )
-from prefect.transactions import Transaction, transaction
+from prefect.transactions import IsolationLevel, Transaction, transaction
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.callables import call_with_parameters, parameters_to_args_kwargs
@@ -364,7 +364,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         new_state = Running()
 
         self.task_run.start_time = new_state.timestamp
-        self.task_run.run_count += 1
 
         flow_run_context = FlowRunContext.get()
         if flow_run_context and flow_run_context.flow_run:
@@ -411,6 +410,9 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         self.task_run.state_id = new_state.id
         self.task_run.state_type = new_state.type
         self.task_run.state_name = new_state.name
+
+        if new_state.is_running():
+            self.task_run.run_count += 1
 
         if new_state.is_final():
             if isinstance(state.data, BaseResult) and state.data.has_cached_object():
@@ -511,7 +513,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             else:
                 delay = None
                 new_state = Retrying()
-                self.task_run.run_count += 1
 
             self.logger.info(
                 "Task run failed with exception: %r - " "Retry %s/%s will start %s",
@@ -692,8 +693,9 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if scheduled_time := self.state.state_details.scheduled_time:
             sleep_time = (scheduled_time - pendulum.now("utc")).total_seconds()
             await anyio.sleep(sleep_time if sleep_time > 0 else 0)
+            new_state = Retrying() if self.state.name == "AwaitingRetry" else Running()
             self.set_state(
-                Retrying() if self.state.name == "AwaitingRetry" else Running(),
+                new_state,
                 force=True,
             )
 
@@ -725,12 +727,21 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             else PREFECT_TASKS_REFRESH_CACHE.value()
         )
 
+        isolation_level = (
+            IsolationLevel(self.task.cache_policy.isolation_level)
+            if self.task.cache_policy
+            and self.task.cache_policy is not NotSet
+            and self.task.cache_policy.isolation_level is not None
+            else None
+        )
+
         with transaction(
             key=self.compute_transaction_key(),
             store=get_result_store(),
             overwrite=overwrite,
             logger=self.logger,
             write_on_commit=should_persist_result(),
+            isolation_level=isolation_level,
         ) as txn:
             yield txn
 
@@ -874,7 +885,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         new_state = Running()
 
         self.task_run.start_time = new_state.timestamp
-        self.task_run.run_count += 1
 
         flow_run_context = FlowRunContext.get()
         if flow_run_context:
@@ -921,6 +931,9 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         self.task_run.state_id = new_state.id
         self.task_run.state_type = new_state.type
         self.task_run.state_name = new_state.name
+
+        if new_state.is_running():
+            self.task_run.run_count += 1
 
         if new_state.is_final():
             if (
@@ -1017,7 +1030,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             else:
                 delay = None
                 new_state = Retrying()
-                self.task_run.run_count += 1
 
             self.logger.info(
                 "Task run failed with exception: %r - " "Retry %s/%s will start %s",
@@ -1190,8 +1202,9 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if scheduled_time := self.state.state_details.scheduled_time:
             sleep_time = (scheduled_time - pendulum.now("utc")).total_seconds()
             await anyio.sleep(sleep_time if sleep_time > 0 else 0)
+            new_state = Retrying() if self.state.name == "AwaitingRetry" else Running()
             await self.set_state(
-                Retrying() if self.state.name == "AwaitingRetry" else Running(),
+                new_state,
                 force=True,
             )
 
@@ -1224,6 +1237,13 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             if self.task.refresh_cache is not None
             else PREFECT_TASKS_REFRESH_CACHE.value()
         )
+        isolation_level = (
+            IsolationLevel(self.task.cache_policy.isolation_level)
+            if self.task.cache_policy
+            and self.task.cache_policy is not NotSet
+            and self.task.cache_policy.isolation_level is not None
+            else None
+        )
 
         with transaction(
             key=self.compute_transaction_key(),
@@ -1231,6 +1251,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             overwrite=overwrite,
             logger=self.logger,
             write_on_commit=should_persist_result(),
+            isolation_level=isolation_level,
         ) as txn:
             yield txn
 

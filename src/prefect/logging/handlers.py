@@ -6,7 +6,7 @@ import traceback
 import uuid
 import warnings
 from contextlib import asynccontextmanager
-from typing import Any, Dict, List, Type, Union
+from typing import Any, Dict, List, Optional, Type, Union
 
 import pendulum
 from rich.console import Console
@@ -30,7 +30,6 @@ from prefect.settings import (
     PREFECT_LOGGING_MARKUP,
     PREFECT_LOGGING_TO_API_BATCH_INTERVAL,
     PREFECT_LOGGING_TO_API_BATCH_SIZE,
-    PREFECT_LOGGING_TO_API_ENABLED,
     PREFECT_LOGGING_TO_API_MAX_LOG_SIZE,
     PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW,
 )
@@ -134,7 +133,7 @@ class APILogHandler(logging.Handler):
         try:
             profile = prefect.context.get_settings_context()
 
-            if not PREFECT_LOGGING_TO_API_ENABLED.value_from(profile.settings):
+            if not profile.settings.logging_to_api_enabled:
                 return  # Respect the global settings toggle
             if not getattr(record, "send_to_api", True):
                 return  # Do not send records that have opted out
@@ -242,7 +241,7 @@ class PrefectConsoleHandler(logging.StreamHandler):
         self,
         stream=None,
         highlighter: Highlighter = PrefectConsoleHighlighter,
-        styles: Dict[str, str] = None,
+        styles: Optional[Dict[str, str]] = None,
         level: Union[int, str] = logging.NOTSET,
     ):
         """

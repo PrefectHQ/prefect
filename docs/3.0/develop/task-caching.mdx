@@ -186,6 +186,180 @@ def my_cached_task(x: int):
     return x + 1
 ```
 
+### Cache storage
+
+By default, cache records are collocated with task results and files containing task results will include metadata used for caching. 
+Configuring a cache policy with a `key_storage` argument allows cache records to be stored separately from task results. 
+
+When cache key storage is configured, persisted task results will only include the return value of your task and cache records can be deleted or modified 
+without effecting your task results.
+
+You can configure where cache records are stored by using the `.configure` method with a `key_storage` argument on a cache policy.
+The `key_storage` argument accepts either a path to a local directory or a storage block.
+
+For example:
+
+```python
+from prefect import task
+from prefect.cache_policies import TASK_SOURCE, INPUTS
+
+cache_policy = (TASK_SOURCE + INPUTS).configure(key_storage="/path/to/cache/storage")
+
+@task(cache_policy=cache_policy)
+def my_cached_task(x: int):
+    return x + 42
+```
+
+This task will store cache records in the specified directory.
+
+To store cache records in a remote object store such as S3, pass a storage block instead:
+
+```python
+from prefect import task
+from prefect.cache_policies import TASK_SOURCE, INPUTS
+
+from prefect_aws import S3Bucket
+
+cache_policy = (TASK_SOURCE + INPUTS).configure(key_storage=S3Bucket.load("my-bucket"))
+
+@task(cache_policy=cache_policy)
+def my_cached_task(x: int):
+    return x + 42
+```
+
+### Cache isolation
+
+Cache isolation controls how concurrent task runs interact with cache records. Prefect supports two isolation levels: `READ_COMMITTED` and `SERIALIZABLE`.
+
+By default, cache records operate with a `READ_COMMITTED` isolation level. This guarantees that reading a cache record will see the latest committed cache value,
+but allows multiple executions of the same task to occur simultaneously.
+
+Consider the following example:
+
+```python
+from prefect import task
+from prefect.cache_policies import INPUTS
+import threading
+
+
+cache_policy = INPUTS
+
+@task(cache_policy=cache_policy)
+def my_task_version_1(x: int):
+    print("my_task_version_1 running")
+    return x + 42
+
+@task(cache_policy=cache_policy)
+def my_task_version_2(x: int):
+    print("my_task_version_2 running")
+    return x + 43
+
+if __name__ == "__main__":
+    thread_1 = threading.Thread(target=my_task_version_1, args=(1,))
+    thread_2 = threading.Thread(target=my_task_version_2, args=(1,))
+
+    thread_1.start()
+    thread_2.start()
+
+    thread_1.join()
+    thread_2.join()
+```
+
+When running this script, both tasks will execute in parallel and perform work despite both tasks using the same cache key.
+
+This is evidenced by seeing both `my_task_version_1 running` and `my_task_version_2 running` in the output:
+
+```
+11:27:21.031 | INFO    | Task run 'my_task_version_2' - Created task run 'my_task_version_2' for task 'my_task_version_2'
+11:27:21.032 | INFO    | Task run 'my_task_version_1' - Created task run 'my_task_version_1' for task 'my_task_version_1'
+my_task_version_2 running
+my_task_version_1 running
+11:27:21.050 | INFO    | Task run 'my_task_version_2' - Finished in state Completed()
+11:27:21.051 | INFO    | Task run 'my_task_version_1' - Finished in state Completed()
+```
+
+For stricter isolation, you can use the `SERIALIZABLE` isolation level. This ensures that only one execution of a task occurs at a time for a given cache 
+record via a locking mechanism.
+
+To configure the isolation level, use the `.configure` method with an `isolation_level` argument on a cache policy. When using `SERIALIZABLE`, you must 
+also provide a `lock_manager` that implements locking logic for your system.
+
+Here's an updated version of the previous example that uses `SERIALIZABLE` isolation:
+
+```python
+import threading
+
+from prefect import task
+from prefect.cache_policies import INPUTS
+from prefect.locking.memory import MemoryLockManager
+from prefect.transactions import IsolationLevel
+
+cache_policy = INPUTS.configure(
+    isolation_level=IsolationLevel.SERIALIZABLE,
+    lock_manager=MemoryLockManager(),
+)
+
+
+@task(cache_policy=cache_policy)
+def my_task_version_1(x: int):
+    print("my_task_version_1 running")
+    return x + 42
+
+
+@task(cache_policy=cache_policy)
+def my_task_version_2(x: int):
+    print("my_task_version_2 running")
+    return x + 43
+
+
+if __name__ == "__main__":
+    thread_1 = threading.Thread(target=my_task_version_1, args=(2,))
+    thread_2 = threading.Thread(target=my_task_version_2, args=(2,))
+
+    thread_1.start()
+    thread_2.start()
+
+    thread_1.join()
+    thread_2.join()
+```
+
+In the updated script, only one of the tasks will run and the other will use the cached value.
+
+This is evidenced by seeing only one of `my_task_version_1 running` or `my_task_version_2 running` in the output:
+
+```
+11:34:00.383 | INFO    | Task run 'my_task_version_1' - Created task run 'my_task_version_1' for task 'my_task_version_1'
+11:34:00.383 | INFO    | Task run 'my_task_version_2' - Created task run 'my_task_version_2' for task 'my_task_version_2'
+my_task_version_1 running
+11:34:00.402 | INFO    | Task run 'my_task_version_1' - Finished in state Completed()
+11:34:00.405 | INFO    | Task run 'my_task_version_2' - Finished in state Cached(type=COMPLETED)
+```
+
+<Note>
+**Locking in a distributed setting**
+
+To manage locks in a distributed setting, you will need to use a storage system for locks that is accessible by all of your execution infrastructure.
+
+We recommend using the `RedisLockManager` provided by `prefect-redis` in conjunction with a shared Redis instance:
+
+```python
+from prefect import task
+from prefect.cache_policies import TASK_SOURCE, INPUTS
+from prefect.transactions import IsolationLevel
+
+from prefect_redis import RedisLockManager
+
+cache_policy = (INPUTS + TASK_SOURCE).configure(
+    isolation_level=IsolationLevel.SERIALIZABLE,
+    lock_manager=RedisLockManager(host="my-redis-host"),
+)
+
+@task(cache_policy=cache_policy)
+def my_cached_task(x: int):
+    return x + 42
+```
+</Note>
+
 ## Multi-task caching
 
 There are many situations in which multiple tasks need to always run together or not at all.

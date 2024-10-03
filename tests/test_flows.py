@@ -27,6 +27,7 @@ import prefect.exceptions
 from prefect import flow, runtime, tags, task
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
+from prefect.client.schemas.objects import ConcurrencyLimitConfig
 from prefect.client.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
@@ -194,6 +195,10 @@ class TestFlow:
     def test_invalid_name(self, name):
         with pytest.raises(InvalidNameError, match="contains an invalid character"):
             Flow(fn=lambda: 1, name=name)
+
+    def test_lambda_name_coerced_to_legal_characters(self):
+        f = Flow(fn=lambda: 42)
+        assert f.name == "unknown-lambda"
 
     def test_invalid_run_name(self):
         class InvalidFlowRunNameArg:
@@ -3984,6 +3989,17 @@ class TestFlowToDeployment:
         assert call_args["name"] == "test-deployment"
         assert call_args["flow_name"] == "new-name"
 
+    async def test_to_deployment_accepts_concurrency_limit(self):
+        concurrency_limit = ConcurrencyLimitConfig(
+            limit=42, collision_strategy="CANCEL_NEW"
+        )
+        deployment = await self.flow.to_deployment(
+            name="test", concurrency_limit=concurrency_limit
+        )
+
+        assert deployment.concurrency_limit == 42
+        assert deployment.concurrency_options.collision_strategy == "CANCEL_NEW"
+
 
 class TestFlowServe:
     @property
@@ -4020,6 +4036,7 @@ class TestFlowServe:
             version="alpha",
             enforce_parameter_schema=True,
             paused=True,
+            global_limit=42,
         )
 
         deployment = sync_prefect_client.read_deployment_by_name(name="test-flow/test")
@@ -4035,6 +4052,7 @@ class TestFlowServe:
         assert deployment.version == "alpha"
         assert deployment.enforce_parameter_schema
         assert deployment.paused
+        assert deployment.global_concurrency_limit.limit == 42
 
     def test_serve_can_user_a_module_path_entrypoint(self, sync_prefect_client):
         deployment = self.flow.serve(

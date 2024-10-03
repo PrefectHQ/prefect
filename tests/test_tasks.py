@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import inspect
+import json
 import time
 from asyncio import Event, sleep
 from functools import partial
@@ -17,12 +18,20 @@ import regex as re
 import prefect
 from prefect import flow, tags
 from prefect.blocks.core import Block
-from prefect.cache_policies import DEFAULT, INPUTS, NONE, TASK_SOURCE, CachePolicy
+from prefect.cache_policies import (
+    DEFAULT,
+    INPUTS,
+    NONE,
+    TASK_SOURCE,
+    CachePolicy,
+    Inputs,
+)
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.filters import LogFilter, LogFilterFlowRunId
 from prefect.client.schemas.objects import StateType, TaskRunResult
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.exceptions import (
+    ConfigurationError,
     MappingLengthMismatch,
     MappingMissingIterable,
     ParameterBindError,
@@ -30,12 +39,18 @@ from prefect.exceptions import (
 )
 from prefect.filesystems import LocalFileSystem
 from prefect.futures import PrefectDistributedFuture, PrefectFuture
+from prefect.locking.filesystem import FileSystemLockManager
+from prefect.locking.memory import MemoryLockManager
 from prefect.logging import get_run_logger
-from prefect.results import ResultStore, get_or_create_default_task_scheduling_storage
+from prefect.results import (
+    ResultStore,
+    get_or_create_default_task_scheduling_storage,
+)
 from prefect.runtime import task_run as task_run_ctx
 from prefect.server import models
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
+    PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_TASK_DEFAULT_RETRIES,
     PREFECT_TASKS_REFRESH_CACHE,
     PREFECT_UI_URL,
@@ -44,7 +59,13 @@ from prefect.settings import (
 from prefect.states import State
 from prefect.tasks import Task, task, task_input_hash
 from prefect.testing.utilities import exceptions_equal
-from prefect.transactions import CommitMode, Transaction, transaction
+from prefect.transactions import (
+    CommitMode,
+    IsolationLevel,
+    Transaction,
+    get_transaction,
+    transaction,
+)
 from prefect.utilities.annotations import allow_failure, unmapped
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import quote
@@ -1234,7 +1255,8 @@ class TestTaskRetries:
         run_counts = []
         start_times = []
 
-        @task(retries=3)
+        # Added retry_delay_seconds as a regression check for https://github.com/PrefectHQ/prefect/issues/15422
+        @task(retries=3, retry_delay_seconds=1)
         def flaky_function():
             ctx = TaskRunContext.get()
             state_names.append(ctx.task_run.state_name)
@@ -1869,6 +1891,83 @@ class TestTaskCaching:
             "Ignoring `cache_policy` because `persist_result` is False"
             not in caplog.text
         )
+
+    def test_cache_policy_storage_path(self, tmp_path):
+        cache_policy = Inputs().configure(key_storage=tmp_path)
+        expected_cache_key = cache_policy.compute_key(
+            task_ctx=None, inputs={"x": 1}, flow_parameters=None
+        )
+
+        @task(cache_policy=cache_policy)
+        def foo(x):
+            return x
+
+        foo(1)
+        assert (tmp_path / expected_cache_key).exists()
+
+    def test_cache_policy_storage_str(self, tmp_path):
+        cache_policy = Inputs().configure(key_storage=str(tmp_path))
+        expected_cache_key = cache_policy.compute_key(
+            task_ctx=None, inputs={"x": 1}, flow_parameters=None
+        )
+
+        @task(cache_policy=cache_policy)
+        def foo(x):
+            return x
+
+        foo(1)
+        assert (tmp_path / expected_cache_key).exists()
+
+    def test_cache_policy_storage_storage_block(self, tmp_path):
+        cache_policy = Inputs().configure(
+            key_storage=LocalFileSystem(basepath=str(tmp_path))
+        )
+        expected_cache_key = cache_policy.compute_key(
+            task_ctx=None, inputs={"x": 1}, flow_parameters=None
+        )
+
+        @task(cache_policy=cache_policy)
+        def foo(x):
+            return x
+
+        foo(1)
+        # make sure cache key file and result file are both created
+        assert (tmp_path / expected_cache_key).exists()
+        assert "prefect_version" in json.loads(
+            (tmp_path / expected_cache_key).read_text()
+        )
+        assert (PREFECT_LOCAL_STORAGE_PATH.value() / expected_cache_key).exists()
+
+    @pytest.mark.parametrize(
+        "isolation_level", [IsolationLevel.SERIALIZABLE, "SERIALIZABLE"]
+    )
+    def test_cache_policy_lock_manager(self, tmp_path, isolation_level):
+        cache_policy = Inputs().configure(
+            lock_manager=FileSystemLockManager(lock_files_directory=tmp_path),
+            isolation_level=IsolationLevel.SERIALIZABLE,
+        )
+        expected_cache_key = cache_policy.compute_key(
+            task_ctx=None, inputs={"x": 1}, flow_parameters=None
+        )
+
+        @task(cache_policy=cache_policy)
+        def foo(x):
+            assert (tmp_path / f"{expected_cache_key}.lock").exists()
+            return x
+
+        assert foo(1) == 1
+
+    def test_cache_policy_serializable_isolation_level_with_no_manager(self):
+        cache_policy = Inputs().configure(isolation_level=IsolationLevel.SERIALIZABLE)
+
+        @task(cache_policy=cache_policy)
+        def foo(x):
+            return x
+
+        with pytest.raises(
+            ConfigurationError, match="not supported by provided configuration"
+        ):
+            foo(1)
 
 
 class TestCacheFunctionBuiltins:
@@ -5111,6 +5210,27 @@ class TestTransactions:
         my_task()
 
         assert "Running rollback hook" not in caplog.text
+
+    def test_run_task_in_serializable_transaction(self):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/15503
+        """
+
+        @task
+        def my_task():
+            return get_transaction()
+
+        with transaction(
+            isolation_level=IsolationLevel.SERIALIZABLE,
+            store=ResultStore(lock_manager=MemoryLockManager()),
+        ):
+            task_txn = my_task()
+
+        assert task_txn is not None
+        assert isinstance(task_txn.store, ResultStore)
+        # make sure the task's result store gets the lock manager from the parent transaction
+        assert task_txn.store.lock_manager == MemoryLockManager()
+        assert task_txn.isolation_level == IsolationLevel.SERIALIZABLE
 
 
 class TestApplyAsync:

@@ -1,0 +1,19 @@
+pytest-markdown-docs @ git+https://github.com/PrefectHQ/pytest-markdown-docs@mdx-comment-support
+
+pandas
+prefect-aws
+prefect-azure[blob_storage]
+prefect-bitbucket
+prefect-dask
+prefect-databricks
+# prefect-dbt
+prefect-email
+prefect-gcp
+prefect-github
+prefect-gitlab
+prefect-kubernetes
+prefect-ray
+prefect-shell
+prefect-slack
+prefect-snowflake
+prefect-sqlalchemy

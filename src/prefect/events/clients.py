@@ -34,6 +34,7 @@ from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
+    PREFECT_DEBUG_MODE,
     PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
 )
 
@@ -65,6 +66,18 @@ EVENT_WEBSOCKET_CHECKPOINTS = Counter(
 )
 
 logger = get_logger(__name__)
+
+
+def http_to_ws(url: str):
+    return url.replace("https://", "wss://").replace("http://", "ws://").rstrip("/")
+
+
+def events_in_socket_from_api_url(url: str):
+    return http_to_ws(url) + "/events/in"
+
+
+def events_out_socket_from_api_url(url: str):
+    return http_to_ws(url) + "/events/out"
 
 
 def get_events_client(
@@ -251,12 +264,7 @@ class PrefectEventsClient(EventsClient):
                 "api_url must be provided or set in the Prefect configuration"
             )
 
-        self._events_socket_url = (
-            api_url.replace("https://", "wss://")
-            .replace("http://", "ws://")
-            .rstrip("/")
-            + "/events/in"
-        )
+        self._events_socket_url = events_in_socket_from_api_url(api_url)
         self._connect = connect(self._events_socket_url)
         self._websocket = None
         self._reconnection_attempts = reconnection_attempts
@@ -285,11 +293,26 @@ class PrefectEventsClient(EventsClient):
             self._websocket = None
             await self._connect.__aexit__(None, None, None)
 
-        self._websocket = await self._connect.__aenter__()
-
-        # make sure we have actually connected
-        pong = await self._websocket.ping()
-        await pong
+        try:
+            self._websocket = await self._connect.__aenter__()
+            # make sure we have actually connected
+            pong = await self._websocket.ping()
+            await pong
+        except Exception as e:
+            # The client is frequently run in a background thread
+            # so we log an additional warning to ensure
+            # surfacing the error to the user.
+            logger.warning(
+                "Unable to connect to %r. "
+                "Please check your network settings to ensure websocket connections "
+                "to the API are allowed. Otherwise event data (including task run data) may be lost. "
+                "Reason: %s. "
+                "Set PREFECT_DEBUG_MODE=1 to see the full error.",
+                self._events_socket_url,
+                str(e),
+                exc_info=PREFECT_DEBUG_MODE,
+            )
+            raise
 
         events_to_resend = self._unconfirmed_events
         # Clear the unconfirmed events here, because they are going back through emit
@@ -412,7 +435,6 @@ class PrefectCloudEventsClient(PrefectEventsClient):
             reconnection_attempts=reconnection_attempts,
             checkpoint_every=checkpoint_every,
         )
-
         self._connect = connect(
             self._events_socket_url,
             extra_headers={"Authorization": f"bearer {api_key}"},
@@ -468,11 +490,7 @@ class PrefectEventSubscriber:
         self._filter = filter or EventFilter()  # type: ignore[call-arg]
         self._seen_events = TTLCache(maxsize=SEEN_EVENTS_SIZE, ttl=SEEN_EVENTS_TTL)
 
-        socket_url = (
-            api_url.replace("https://", "wss://")
-            .replace("http://", "ws://")
-            .rstrip("/")
-        ) + "/events/out"
+        socket_url = events_out_socket_from_api_url(api_url)
 
         logger.debug("Connecting to %s", socket_url)
 
@@ -527,11 +545,11 @@ class PrefectEventSubscriber:
                 f"Reason: {e.args[0]}"
             )
         except ConnectionClosedError as e:
-            raise Exception(
-                "Unable to authenticate to the event stream. Please ensure the "
-                "provided api_key you are using is valid for this environment. "
-                f"Reason: {e.reason}"
-            ) from e
+            reason = getattr(e.rcvd, "reason", None)
+            msg = "Unable to authenticate to the event stream. Please ensure the "
+            msg += "provided api_key you are using is valid for this environment. "
+            msg += f"Reason: {reason}" if reason else ""
+            raise Exception(msg) from e
 
         from prefect.events.filters import EventOccurredFilter
 

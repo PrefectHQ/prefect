@@ -11,6 +11,7 @@ from prefect.utilities.urls import validate_restricted_url
 # Use a global HTTP transport to maintain a process-wide connection pool for
 # interservice requests
 _http_transport = AsyncHTTPTransport()
+_insecure_http_transport = AsyncHTTPTransport(verify=False)
 
 
 class Webhook(Block):
@@ -44,9 +45,16 @@ class Webhook(Block):
         default=True,
         description="Whether to allow notifications to private URLs. Defaults to True.",
     )
+    verify: bool = Field(
+        default=True,
+        description="Whether or not to enforce a secure connection to the webhook.",
+    )
 
     def block_initialization(self):
-        self._client = AsyncClient(transport=_http_transport)
+        if self.verify:
+            self._client = AsyncClient(transport=_http_transport)
+        else:
+            self._client = AsyncClient(transport=_insecure_http_transport)
 
     async def call(self, payload: Optional[dict] = None) -> Response:
         """

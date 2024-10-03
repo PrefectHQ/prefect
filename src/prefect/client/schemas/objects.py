@@ -141,6 +141,30 @@ class WorkQueueStatus(AutoEnum):
     PAUSED = AutoEnum.auto()
 
 
+class ConcurrencyLimitStrategy(AutoEnum):
+    """Enumeration of concurrency limit strategies."""
+
+    ENQUEUE = AutoEnum.auto()
+    CANCEL_NEW = AutoEnum.auto()
+
+
+class ConcurrencyOptions(PrefectBaseModel):
+    """
+    Class for storing the concurrency config in database.
+    """
+
+    collision_strategy: ConcurrencyLimitStrategy
+
+
+class ConcurrencyLimitConfig(PrefectBaseModel):
+    """
+    Class for storing the concurrency limit config in database.
+    """
+
+    limit: int
+    collision_strategy: ConcurrencyLimitStrategy = ConcurrencyLimitStrategy.ENQUEUE
+
+
 class StateDetails(PrefectBaseModel):
     flow_run_id: Optional[UUID] = None
     task_run_id: Optional[UUID] = None
@@ -207,7 +231,9 @@ class State(ObjectBaseModel, Generic[R]):
 
         Args:
             raise_on_failure: a boolean specifying whether to raise an exception
-                if the state is of type `FAILED` and the underlying data is an exception
+                if the state is of type `FAILED` and the underlying data is an exception. When flow
+                was run in a different memory space (using `run_deployment`), this will only raise
+                if `fetch` is `True`.
             fetch: a boolean specifying whether to resolve references to persisted
                 results into data. For synchronous users, this defaults to `True`.
                 For asynchronous users, this defaults to `False` for backwards
@@ -273,6 +299,15 @@ class State(ObjectBaseModel, Generic[R]):
             >>> state = await my_flow(return_state=True)
             >>> await state.result()
             hello
+
+            Get the result with `raise_on_failure` from a flow run in a different memory space
+
+            >>> @flow
+            >>> async def my_flow():
+            >>>     raise ValueError("oh no!")
+            >>> my_flow.deploy("my_deployment/my_flow")
+            >>> flow_run = run_deployment("my_deployment/my_flow")
+            >>> await flow_run.state.result(raise_on_failure=True, fetch=True) # Raises `ValueError("oh no!")`
         """
         from prefect.states import get_state_result
 

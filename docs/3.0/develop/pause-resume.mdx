@@ -10,7 +10,7 @@ When a flow run is suspended, code execution is stopped and so is the process.
 ### Pause a flow run
 
 Prefect enables pausing an in-progress flow run for manual approval.
-Prefect exposes this capability with the [`pause_flow_run`](https://prefect-python-sdk-docs.netlify.app/prefect/engine/#prefect.engine.pause_flow_run) 
+Prefect exposes this capability with the [`pause_flow_run`](https://prefect-python-sdk-docs.netlify.app/prefect/engine/#prefect.engine.pause_flow_run)
 and [`resume_flow_run`](https://prefect-python-sdk-docs.netlify.app/prefect/engine/#prefect.engine.resume_flow_run) functions.
 
 <Note>
@@ -59,7 +59,7 @@ def my_flow():
     terminal_state = task_one.submit(return_state=True)
     if terminal_state.type == StateType.COMPLETED:
         print("Task one succeeded! Pausing flow run..")
-        pause_flow_run(timeout=2) 
+        pause_flow_run(timeout=2)
     else:
         print("Task one failed. Skipping pause flow run..")
 ```
@@ -71,10 +71,13 @@ await inspiring_joke()
 > "a raft of ducks walk into a bar..."
 ```
 
-Resume paused flow runs by clicking **Resume** in the Prefect UI or 
+Resume paused flow runs by clicking **Resume** in the Prefect UI or
 calling the `resume_flow_run` utility through client code.
 
+{/* pmd-metadata: notest */}
 ```python
+from prefect import resume_flow_run
+
 resume_flow_run(FLOW_RUN_ID)
 ```
 
@@ -97,11 +100,11 @@ This is not the case with suspending a flow run.
 When you suspend a flow run, the flow exits completely and the infrastructure running it (for example, a Kubernetes Job) tears down.
 </Note>
 
-This means you can suspend flow runs to save costs instead of paying for long-running infrastructure. 
-However, when the flow run resumes, the flow code will execute again from the beginning of the flow. 
+This means you can suspend flow runs to save costs instead of paying for long-running infrastructure.
+However, when the flow run resumes, the flow code will execute again from the beginning of the flow.
 We recommend using [tasks](/3.0/develop/write-tasks/) and [task caching](/3.0/develop/task-caching) to avoid recomputing expensive operations.
 
-Prefect exposes this capability through the [`suspend_flow_run`](https://prefect-python-sdk-docs.netlify.app/prefect/engine/#prefect.engine.suspend_flow_run) and 
+Prefect exposes this capability through the [`suspend_flow_run`](https://prefect-python-sdk-docs.netlify.app/prefect/engine/#prefect.engine.suspend_flow_run) and
 [`resume_flow_run`](https://prefect-python-sdk-docs.netlify.app/prefect/engine/#prefect.engine.resume_flow_run) functions, as well as the Prefect UI.
 
 When called inside of a flow, `suspend_flow_run` immediately suspends execution of the flow run.
@@ -136,12 +139,15 @@ def noblock_pausing():
     omega = foo(wait_for=[x, y])
 ```
 
-You can suspend flow runs out-of-process by calling `suspend_flow_run(flow_run_id=<ID>)` or 
+You can suspend flow runs out-of-process by calling `suspend_flow_run(flow_run_id=<ID>)` or
 selecting the **Suspend** button in the Prefect UI or Prefect Cloud.
 
 Resume suspended flow runs can by clicking **Resume** in the Prefect UI or calling the `resume_flow_run` utility through client code.
 
+{/* pmd-metadata: notest */}
 ```python
+from prefect import resume_flow_run
+
 resume_flow_run(FLOW_RUN_ID)
 ```
 <Note>
@@ -172,8 +178,8 @@ If you encounter any issues, please let us know in Slack or with a GitHub issue.
 When pausing or suspending a flow run you may want to wait for input from a user.
 Prefect provides a way to do this by using the `pause_flow_run` and `suspend_flow_run` functions.
 These functions accept a `wait_for_input` argument, which should be a subclass of `prefect.input.RunInput`(a Pydantic model).
-When resuming the flow run, users are required to provide data for this model. After successful validation, 
-the flow run resumes, and the return value of the `pause_flow_run` or `suspend_flow_run` 
+When resuming the flow run, users are required to provide data for this model. After successful validation,
+the flow run resumes, and the return value of the `pause_flow_run` or `suspend_flow_run`
 is an instance of the model containing the provided data.
 
 Here is an example of a flow that pauses and waits for input from a user:
@@ -196,13 +202,13 @@ async def greet_user():
     print(f"Hello, {user_input.name}!")
 ```
 
-Running this flow creates a flow run. The flow run advances until code execution reaches `pause_flow_run`, 
+Running this flow creates a flow run. The flow run advances until code execution reaches `pause_flow_run`,
 at which point it moves into a `Paused` state.
 Execution blocks and waits for resumption.
 
 When resuming the flow run, users are prompted to provide a value for the `name` field of the `UserNameInput` model.
-After successful validation, the flow run resumes, and the return value of the `pause_flow_run` 
+After successful validation, the flow run resumes, and the return value of the `pause_flow_run`
 is an instance of the `UserNameInput` model containing the provided data.
 
-For more information on receiving input from users when pausing and suspending flow runs, 
+For more information on receiving input from users when pausing and suspending flow runs,
 see [Send and receive flow run inputs](/3.0/develop/inputs/).

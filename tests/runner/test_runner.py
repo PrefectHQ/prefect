@@ -24,13 +24,8 @@ import prefect.runner
 from prefect import __version__, flow, serve, task
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.actions import DeploymentScheduleCreate
-from prefect.client.schemas.objects import StateType
+from prefect.client.schemas.objects import ConcurrencyLimitConfig, StateType
 from prefect.client.schemas.schedules import CronSchedule, IntervalSchedule
-from prefect.concurrency.asyncio import (
-    AcquireConcurrencySlotTimeoutError,
-    _acquire_concurrency_slots,
-    _release_concurrency_slots,
-)
 from prefect.deployments.runner import (
     DeploymentApplyError,
     EntrypointType,
@@ -636,130 +631,6 @@ class TestRunner:
             flow_run = await prefect_client.read_flow_run(flow_run_id=bad_run.id)
             assert flow_run.state.is_completed()
 
-    @pytest.mark.usefixtures("use_hosted_api_server")
-    async def test_runner_enforces_deployment_concurrency_limits(
-        self, prefect_client: PrefectClient, caplog
-    ):
-        async def test(*args, **kwargs):
-            return 0
-
-        with mock.patch(
-            "prefect.concurrency.asyncio._acquire_concurrency_slots",
-            wraps=_acquire_concurrency_slots,
-        ) as acquire_spy:
-            with mock.patch(
-                "prefect.concurrency.asyncio._release_concurrency_slots",
-                wraps=_release_concurrency_slots,
-            ) as release_spy:
-                async with Runner(pause_on_shutdown=False) as runner:
-                    deployment = RunnerDeployment.from_flow(
-                        flow=dummy_flow_1,
-                        name=__file__,
-                        concurrency_limit=2,
-                    )
-
-                    deployment_id = await runner.add_deployment(deployment)
-
-                    flow_run = await prefect_client.create_flow_run_from_deployment(
-                        deployment_id=deployment_id
-                    )
-
-                    assert flow_run.state.is_scheduled()
-
-                    runner.run = test  # simulate running a flow
-
-                    await runner._get_and_submit_flow_runs()
-
-                acquire_spy.assert_called_once_with(
-                    [f"deployment:{deployment_id}"],
-                    1,
-                    timeout_seconds=None,
-                    create_if_missing=None,
-                    max_retries=0,
-                    strict=True,
-                )
-
-                names, occupy, occupy_seconds = release_spy.call_args[0]
-                assert names == [f"deployment:{deployment_id}"]
-                assert occupy == 1
-                assert occupy_seconds > 0
-
-    @pytest.mark.usefixtures("use_hosted_api_server")
-    async def test_runner_proposes_awaiting_concurrency_limit_state_name(
-        self, prefect_client: PrefectClient, caplog
-    ):
-        async def test(*args, **kwargs):
-            return 0
-
-        with mock.patch(
-            "prefect.concurrency.asyncio._acquire_concurrency_slots",
-            wraps=_acquire_concurrency_slots,
-        ) as acquire_spy:
-            # Simulate a Locked response from the API
-            acquire_spy.side_effect = AcquireConcurrencySlotTimeoutError
-
-            async with Runner(pause_on_shutdown=False) as runner:
-                deployment = RunnerDeployment.from_flow(
-                    flow=dummy_flow_1,
-                    name=__file__,
-                    concurrency_limit=2,
-                )
-
-                deployment_id = await runner.add_deployment(deployment)
-
-                flow_run = await prefect_client.create_flow_run_from_deployment(
-                    deployment_id=deployment_id
-                )
-
-                assert flow_run.state.is_scheduled()
-
-                runner.run = test  # simulate running a flow
-
-                await runner._get_and_submit_flow_runs()
-
-            acquire_spy.assert_called_once_with(
-                [f"deployment:{deployment_id}"],
-                1,
-                timeout_seconds=None,
-                create_if_missing=None,
-                max_retries=0,
-                strict=True,
-            )
-
-            flow_run = await prefect_client.read_flow_run(flow_run.id)
-            assert flow_run.state.name == "AwaitingConcurrencySlot"
-
-    @pytest.mark.usefixtures("use_hosted_api_server")
-    async def test_runner_does_not_attempt_to_acquire_limit_if_deployment_has_no_concurrency_limit(
-        self, prefect_client: PrefectClient, caplog
-    ):
-        async def test(*args, **kwargs):
-            return 0
-
-        with mock.patch(
-            "prefect.concurrency.asyncio._acquire_concurrency_slots",
-            wraps=_acquire_concurrency_slots,
-        ) as acquire_spy:
-            async with Runner(pause_on_shutdown=False) as runner:
-                deployment = RunnerDeployment.from_flow(
-                    flow=dummy_flow_1,
-                    name=__file__,
-                )
-
-                deployment_id = await runner.add_deployment(deployment)
-
-                flow_run = await prefect_client.create_flow_run_from_deployment(
-                    deployment_id=deployment_id
-                )
-
-                assert flow_run.state.is_scheduled()
-
-                runner.run = test  # simulate running a flow
-
-                await runner._get_and_submit_flow_runs()
-
-            acquire_spy.assert_not_called()
-
     async def test_handles_spaces_in_sys_executable(self, monkeypatch, prefect_client):
         """
         Regression test for https://github.com/PrefectHQ/prefect/issues/10820
@@ -1160,6 +1031,21 @@ class TestRunnerDeployment:
 
         assert deployment.paused is expected
 
+    async def test_from_flow_accepts_concurrency_limit_config(self):
+        concurrency_limit_config = ConcurrencyLimitConfig(
+            limit=42, collision_strategy="CANCEL_NEW"
+        )
+        deployment = RunnerDeployment.from_flow(
+            dummy_flow_1,
+            __file__,
+            concurrency_limit=concurrency_limit_config,
+        )
+        assert deployment.concurrency_limit == concurrency_limit_config.limit
+        assert (
+            deployment.concurrency_options.collision_strategy
+            == concurrency_limit_config.collision_strategy
+        )
+
     @pytest.mark.parametrize(
         "kwargs",
         [
@@ -1336,6 +1222,23 @@ class TestRunnerDeployment:
         assert deployment.schedules[2].schedule.interval == datetime.timedelta(days=2)
         assert deployment.schedules[2].active is False
 
+    async def test_from_entrypoint_accepts_concurrency_limit_config(
+        self, dummy_flow_1_entrypoint
+    ):
+        concurrency_limit_config = ConcurrencyLimitConfig(
+            limit=42, collision_strategy="CANCEL_NEW"
+        )
+        deployment = RunnerDeployment.from_entrypoint(
+            dummy_flow_1_entrypoint,
+            __file__,
+            concurrency_limit=concurrency_limit_config,
+        )
+        assert deployment.concurrency_limit == concurrency_limit_config.limit
+        assert (
+            deployment.concurrency_options.collision_strategy
+            == concurrency_limit_config.collision_strategy
+        )
+
     @pytest.mark.parametrize(
         "value,expected",
         [(True, True), (False, False), (None, False)],
@@ -1409,7 +1312,7 @@ class TestRunnerDeployment:
         assert deployment.enforce_parameter_schema
         assert deployment.job_variables == {}
         assert deployment.paused is False
-        assert deployment.concurrency_limit is None
+        assert deployment.global_concurrency_limit is None
 
     async def test_apply_with_work_pool(self, prefect_client: PrefectClient, work_pool):
         deployment = RunnerDeployment.from_flow(
@@ -1506,6 +1409,9 @@ class TestRunnerDeployment:
     async def test_create_runner_deployment_from_storage(
         self, temp_storage: MockStorage
     ):
+        concurrency_limit_config = ConcurrencyLimitConfig(
+            limit=42, collision_strategy="CANCEL_NEW"
+        )
         deployment = await RunnerDeployment.from_storage(
             storage=temp_storage,
             entrypoint="flows.py:test_flow",
@@ -1515,6 +1421,7 @@ class TestRunnerDeployment:
             tags=["tag1", "tag2"],
             version="1.0.0",
             enforce_parameter_schema=True,
+            concurrency_limit=concurrency_limit_config,
         )
 
         # Verify the created RunnerDeployment's attributes
@@ -1528,6 +1435,11 @@ class TestRunnerDeployment:
         assert deployment.version == "1.0.0"
         assert deployment.description == "Test Deployment Description"
         assert deployment.enforce_parameter_schema is True
+        assert deployment.concurrency_limit == concurrency_limit_config.limit
+        assert (
+            deployment.concurrency_options.collision_strategy
+            == concurrency_limit_config.collision_strategy
+        )
         assert deployment._path
         assert "$STORAGE_BASE_PATH" in deployment._path
         assert deployment.entrypoint == "flows.py:test_flow"

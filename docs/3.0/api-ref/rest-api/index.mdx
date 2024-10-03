@@ -12,7 +12,7 @@ Prefect Cloud and self-hosted Prefect server each provide a REST API.
     - [Finding your Prefect Cloud details](#finding-your-prefect-cloud-details)
 - Self-hosted Prefect server:
     - Interactive REST API documentation for self-hosted Prefect server is available under **Server API** on the sidebar navigation or at `http://localhost:4200/docs` or the `/docs` endpoint of the [PREFECT_API_URL](/3.0/manage/settings-and-profiles/) you have configured to access the server. You must have the server running with `prefect server start` to access the interactive documentation.
-    
+
 ## Interact with the REST API
 
 You can interact with the Prefect REST API in several ways:
@@ -20,7 +20,7 @@ You can interact with the Prefect REST API in several ways:
 - Create an instance of [`PrefectClient`](https://prefect-python-sdk-docs.netlify.app/prefect/client/orchestration/#prefect.client.orchestration.PrefectClient), which is part of the [Prefect Python SDK](/3.0/api-ref/python/).
 - Use your favorite Python HTTP library such as [Requests](https://requests.readthedocs.io/en/latest/) or [HTTPX](https://www.python-httpx.org/)
 - Use an HTTP library in your language of choice
-- Use [curl](https://curl.se/) from the command line 
+- Use [curl](https://curl.se/) from the command line
 
 ### PrefectClient with self-hosted Prefect server
 This example uses `PrefectClient` with self-hosted Prefect server:
@@ -60,6 +60,7 @@ lemur-facts 53f710e7-3b0f-4b2f-ab6b-44934111818c
 
 This example uses the Requests library with Prefect Cloud to return the five newest artifacts.
 
+{/* pmd-metadata: fixture:mock_post_200 */}
 ```python
 import requests
 
@@ -115,7 +116,7 @@ PREFECT_API_URL='https://api.prefect.cloud/api/accounts/abc-my-account-id-is-her
 PREFECT_API_KEY='123abc_my_api_key_is_here'
 ```
 
-Alternatively, view your Account ID and Workspace ID in your browser URL. For example: `https://app.prefect.cloud/account/abc-my-account-id-is-here/workspaces/123-my-workspace-id-is-here`. 
+Alternatively, view your Account ID and Workspace ID in your browser URL. For example: `https://app.prefect.cloud/account/abc-my-account-id-is-here/workspaces/123-my-workspace-id-is-here`.
 
 
 ## REST guidelines

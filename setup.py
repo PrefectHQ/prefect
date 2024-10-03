@@ -1,12 +1,19 @@
+from pathlib import Path
+
 import versioneer
 from setuptools import find_packages, setup
 
-client_requires = open("requirements-client.txt").read().strip().split("\n")
-# strip the first line since setup.py will not recognize '-r requirements-client.txt'
-install_requires = (
-    open("requirements.txt").read().strip().split("\n")[1:] + client_requires
-)
-dev_requires = open("requirements-dev.txt").read().strip().split("\n")
+
+def read_requirements(file):
+    requirements = []
+    if Path(file).exists():
+        requirements = open(file).read().strip().split("\n")
+    return requirements
+
+
+client_requires = read_requirements("requirements-client.txt")
+install_requires = read_requirements("requirements.txt")[1:] + client_requires
+dev_requires = read_requirements("requirements-dev.txt")
 
 setup(
     # Package metadata
@@ -61,7 +68,7 @@ setup(
         "dbt": "prefect-dbt>=0.6.0rc1",
         "snowflake": "prefect-snowflake>=0.28.0rc1",
         "sqlalchemy": "prefect-sqlalchemy>=0.5.0rc1",
-        "redis": "redis>=5.0.1",
+        "redis": "prefect-redis>=0.2.0",
         # Monitoring extras
         "email": "prefect-email>=0.4.0rc1",
         "slack": "prefect-slack>=0.3.0rc1",

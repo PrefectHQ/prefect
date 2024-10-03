@@ -10,6 +10,7 @@ from prefect_sqlalchemy.credentials import (
 from prefect_sqlalchemy.database import (
     SqlAlchemyConnector,
 )
+from sqlalchemy import URL
 from sqlalchemy import __version__ as SQLALCHEMY_VERSION
 from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.engine.cursor import CursorResult
@@ -122,6 +123,16 @@ class TestSqlAlchemyConnector:
         connection_url = "postgresql+psycopg2://myusername:mypass@localhost:1234/my.db"
         credentials_url = SqlAlchemyConnector(connection_info=connection_url)
         assert credentials_components._rendered_url == credentials_url._rendered_url
+
+    def test_connector_init_with_oracle_url(self):
+        connection_url = "oracle+cx_oracle://myusername:mypass@localhost:1234/my.db"
+        connector = SqlAlchemyConnector(connection_info=connection_url)
+        assert isinstance(connector._rendered_url, URL)
+        assert str(connector._rendered_url).startswith("oracle+cx_oracle://")
+
+    def test_connector_init_fails_with_invalid_url(self):
+        with pytest.raises(ValueError, match="Invalid URL"):
+            SqlAlchemyConnector(connection_info="plskeepmydata")
 
     @pytest.mark.parametrize("method", ["fetch_all", "execute"])
     def test_delay_start(self, caplog, method):

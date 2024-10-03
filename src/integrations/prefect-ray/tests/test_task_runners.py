@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import random
 import subprocess
 import sys
 import time
@@ -508,3 +509,32 @@ class TestRayTaskRunner:
         test_flow()
 
         assert "A future was garbage collected before it resolved" not in caplog.text
+
+    def test_can_run_many_tasks_without_crashing(self, task_runner):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/15539
+        """
+
+        @task
+        def random_integer(range_from: int = 0, range_to: int = 100) -> int:
+            """Task that returns a random integer."""
+
+            random_int = random.randint(range_from, range_to)
+
+            return random_int
+
+        @flow(task_runner=task_runner)
+        def add_random_integers(number_tasks: int = 50) -> int:
+            """Flow that submits some random_integer tasks and returns the sum of the results."""
+
+            futures = []
+            for _ in range(number_tasks):
+                futures.append(random_integer.submit())
+
+            sum = 0
+            for future in futures:
+                sum += future.result()
+
+            return sum
+
+        assert add_random_integers() > 0
