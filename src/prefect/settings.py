@@ -96,6 +96,11 @@ def env_var_to_attr_name(env_var: str) -> str:
     return env_var.replace("PREFECT_", "").lower()
 
 
+def is_test_mode() -> bool:
+    """Check if the current process is in test mode."""
+    return bool(os.getenv("PREFECT_TEST_MODE") or os.getenv("PREFECT_UNIT_TEST_MODE"))
+
+
 class Setting:
     """Mimics the old Setting object for compatibility with existing code."""
 
@@ -340,7 +345,7 @@ def default_database_connection_url(settings: "Settings") -> SecretStr:
 
 def _get_profiles_path() -> Path:
     """Helper to get the profiles path"""
-    if os.getenv("PREFECT_TEST_MODE"):
+    if is_test_mode():
         return DEFAULT_PROFILES_PATH
     if env_path := os.getenv("PREFECT_PROFILES_PATH"):
         return Path(env_path)
@@ -385,6 +390,9 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
 
     def __call__(self) -> Dict[str, Any]:
         """Called by pydantic to get the settings from our custom source"""
+        if is_test_mode():
+            print("not scooping from profile settings in unit tests")
+            return {}
         profile_settings: Dict[str, Any] = {}
         for field_name, field in self.settings_cls.model_fields.items():
             value, key, is_complex = self.get_field_value(field, field_name)
@@ -393,6 +401,7 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
                     field_name, field, value, is_complex
                 )
                 profile_settings[key] = prepared_value
+        print("WE BE SCOOPING FROM PROFILE SETTINGS")
         return profile_settings
 
 
