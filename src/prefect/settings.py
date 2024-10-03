@@ -17,11 +17,9 @@ from contextlib import contextmanager
 from datetime import timedelta
 from functools import partial
 from pathlib import Path
-from threading import Lock
 from typing import (
     Annotated,
     Any,
-    ClassVar,
     Dict,
     Generator,
     Iterable,
@@ -362,8 +360,6 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
     See https://docs.pydantic.dev/latest/concepts/pydantic_settings/#customise-settings-sources
     """
 
-    _lock: ClassVar[Lock] = Lock()
-
     def __init__(self, settings_cls: Type[BaseSettings]):
         super().__init__(settings_cls)
         self.settings_cls = settings_cls
@@ -372,17 +368,17 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
 
     def _load_profile_settings(self) -> Dict[str, Any]:
         """Helper method to load the profile settings from the profiles.toml file"""
-        with self._lock:
-            all_profile_data = toml.load(self.profiles_path)
-            active_profile = os.environ.get("PREFECT_PROFILE") or all_profile_data.get(
-                "active"
-            )
-            profiles_data = all_profile_data.get("profiles", {})
 
-            if not active_profile or active_profile not in profiles_data:
-                return {}
+        all_profile_data = toml.load(self.profiles_path)
+        active_profile = os.environ.get("PREFECT_PROFILE") or all_profile_data.get(
+            "active"
+        )
+        profiles_data = all_profile_data.get("profiles", {})
 
-            return profiles_data[active_profile]
+        if not active_profile or active_profile not in profiles_data:
+            return {}
+
+        return profiles_data[active_profile]
 
     def get_field_value(
         self, field: FieldInfo, field_name: str
@@ -418,6 +414,7 @@ class Settings(BaseSettings):
     """
 
     model_config = SettingsConfigDict(
+        env_file=".env",
         env_prefix="PREFECT_",
         extra="ignore",
     )
