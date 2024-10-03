@@ -219,7 +219,7 @@ class TaskSource(CachePolicy):
         except TypeError:
             lines = inspect.getsource(task_ctx.task.fn.__class__)
         except OSError as exc:
-            if "could not get source code" in str(exc):
+            if str(exc) in {"could not get source code", "source code not available"}:
                 lines = task_ctx.task.fn.__code__.co_code
             else:
                 raise
