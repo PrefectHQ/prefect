@@ -12,6 +12,7 @@ for settings, at which point we will not need to use the "after" model_validator
 
 import os
 import re
+import sys
 import warnings
 from contextlib import contextmanager
 from datetime import timedelta
@@ -51,7 +52,12 @@ from pydantic import (
     model_serializer,
     model_validator,
 )
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic.fields import FieldInfo
+from pydantic_settings import (
+    BaseSettings,
+    PydanticBaseSettingsSource,
+    SettingsConfigDict,
+)
 from typing_extensions import Literal, Self
 
 from prefect.exceptions import ProfileSettingsValidationError
@@ -60,6 +66,8 @@ from prefect.utilities.collections import visit_collection
 from prefect.utilities.pydantic import handle_secret_render
 
 T = TypeVar("T")
+
+DEFAULT_PREFECT_HOME = Path.home() / ".prefect"
 DEFAULT_PROFILES_PATH = Path(__file__).parent.joinpath("profiles.toml")
 _SECRET_TYPES: Tuple[Type, ...] = (Secret, SecretStr)
 
@@ -85,6 +93,11 @@ def env_var_to_attr_name(env_var: str) -> str:
     Convert an environment variable name to an attribute name.
     """
     return env_var.replace("PREFECT_", "").lower()
+
+
+def is_test_mode() -> bool:
+    """Check if the current process is in test mode."""
+    return bool(os.getenv("PREFECT_TEST_MODE") or os.getenv("PREFECT_UNIT_TEST_MODE"))
 
 
 class Setting:
@@ -326,14 +339,120 @@ def default_database_connection_url(settings: "Settings") -> SecretStr:
 
 
 ###########################################################################
+# Settings Loader
+
+
+def _get_profiles_path() -> Path:
+    """Helper to get the profiles path"""
+
+    if is_test_mode():
+        return DEFAULT_PROFILES_PATH
+    if env_path := os.getenv("PREFECT_PROFILES_PATH"):
+        return Path(env_path)
+    if not (DEFAULT_PREFECT_HOME / "profiles.toml").exists():
+        return DEFAULT_PROFILES_PATH
+    return DEFAULT_PREFECT_HOME / "profiles.toml"
+
+
+class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
+    """
+    Custom pydantic settings source to load profile settings from a toml file.
+
+    See https://docs.pydantic.dev/latest/concepts/pydantic_settings/#customise-settings-sources
+    """
+
+    def __init__(self, settings_cls: Type[BaseSettings]):
+        super().__init__(settings_cls)
+        self.settings_cls = settings_cls
+        self.profiles_path = _get_profiles_path()
+        self.profile_settings = self._load_profile_settings()
+
+    def _load_profile_settings(self) -> Dict[str, Any]:
+        """Helper method to load the profile settings from the profiles.toml file"""
+
+        all_profile_data = toml.load(self.profiles_path)
+
+        if (
+            sys.argv[0].endswith("/prefect")
+            and len(sys.argv) >= 3
+            and sys.argv[1] == "--profile"
+        ):
+            active_profile = sys.argv[2]
+
+        else:
+            active_profile = os.environ.get("PREFECT_PROFILE") or all_profile_data.get(
+                "active"
+            )
+
+        profiles_data = all_profile_data.get("profiles", {})
+
+        if not active_profile or active_profile not in profiles_data:
+            return {}
+
+        return profiles_data[active_profile]
+
+    def get_field_value(
+        self, field: FieldInfo, field_name: str
+    ) -> Tuple[Any, str, bool]:
+        """Concrete implementation to get the field value from the profile settings"""
+        value = self.profile_settings.get(f"PREFECT_{field_name.upper()}")
+        return value, field_name, self.field_is_complex(field)
+
+    def __call__(self) -> Dict[str, Any]:
+        """Called by pydantic to get the settings from our custom source"""
+        if is_test_mode():
+            return {}
+        profile_settings: Dict[str, Any] = {}
+        for field_name, field in self.settings_cls.model_fields.items():
+            value, key, is_complex = self.get_field_value(field, field_name)
+            if value is not None:
+                prepared_value = self.prepare_field_value(
+                    field_name, field, value, is_complex
+                )
+                profile_settings[key] = prepared_value
+        return profile_settings
+
+
+###########################################################################
 # Settings
 
 
 class Settings(BaseSettings):
+    """
+    Settings for Prefect using Pydantic settings.
+
+    See https://docs.pydantic.dev/latest/concepts/pydantic_settings
+    """
+
     model_config = SettingsConfigDict(
+        env_file=".env",
         env_prefix="PREFECT_",
         extra="ignore",
     )
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: Type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> Tuple[PydanticBaseSettingsSource, ...]:
+        """
+        Define an order for Prefect settings sources.
+
+        The order of the returned callables decides the priority of inputs; first item is the highest priority.
+
+        See https://docs.pydantic.dev/latest/concepts/pydantic_settings/#customise-settings-sources
+        """
+        return (
+            init_settings,
+            env_settings,
+            dotenv_settings,
+            file_secret_settings,
+            ProfileSettingsTomlLoader(settings_cls),
+        )
 
     ###########################################################################
     # CLI
@@ -474,7 +593,10 @@ class Settings(BaseSettings):
         Literal["postgresql+asyncpg", "sqlite+aiosqlite"]
     ] = Field(
         default=None,
-        description="The database driver to use when connecting to the database. If not set, the driver will be inferred from the connection URL.",
+        description=(
+            "The database driver to use when connecting to the database. "
+            "If not set, the driver will be inferred from the connection URL."
+        ),
     )
 
     api_database_host: Optional[str] = Field(
