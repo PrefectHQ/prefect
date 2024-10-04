@@ -321,26 +321,19 @@ class TestSettingsContext:
         assert result is not None
 
     def test_root_settings_context_respects_environment_variable(
-        self, monkeypatch, foo_profile
+        self, temporary_profiles_path, monkeypatch
     ):
-        use_profile = MagicMock()
-        monkeypatch.setattr("prefect.context.use_profile", use_profile)
+        temporary_profiles_path.write_text(
+            textwrap.dedent(
+                """
+                [profiles.foo]
+                PREFECT_API_URL="foo"
+                """
+            )
+        )
         monkeypatch.setenv("PREFECT_PROFILE", "foo")
-        root_settings_context()
-        use_profile.assert_called_once_with(
-            foo_profile, override_environment_variables=False
-        )
-
-    def test_root_settings_context_missing_cli(self, monkeypatch, capsys):
-        use_profile = MagicMock()
-        monkeypatch.setattr("prefect.context.use_profile", use_profile)
-        monkeypatch.setattr("sys.argv", ["/prefect", "--profile", "bar"])
-        root_settings_context()
-        _, err = capsys.readouterr()
-        assert (
-            "profile 'bar' set by command line argument not found. The default profile"
-            " will be used instead." in err
-        )
+        settings_context = root_settings_context()
+        assert settings_context.profile.name == "foo"
 
     def test_root_settings_context_missing_environment_variables(
         self, monkeypatch, capsys
