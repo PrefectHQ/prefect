@@ -426,6 +426,24 @@ To pass credentials explicitly to authenticate to your storage location, you can
 - Prefect integration library storage blocks, such as the `prefect-aws` library's `S3Bucket` block, which can use a `AWSCredentials` block when it is created.
 - Secret blocks
 
+<Note>
+If you use a storage block such as the `S3Bucket` block, you need to have the `prefect-aws` library available in the environment where your flow code runs.
+
+You can do any of the following to make the library available:
+
+1. Install the library into the execution environment directly
+1. Specify the library in the work pool's Base Job Template in the **Environment Variables** section like this:`{"EXTRA_PIP_PACKAGES":"prefect-aws"}`
+1. Specify the library in the environment variables of the `deploy` method as shown in the examples below
+1. Specify the library in a `requirements.txt` file and reference the file in the `pull` step of the `prefect.yaml` file like this:
+
+```yaml
+    - prefect.deployments.steps.pip_install_requirements:
+        directory: "{{ pull_code.directory }}" 
+        requirements_file: requirements.txt
+```
+
+</Note>
+
 The examples below show how to create a deployment with flow code in a cloud provider storage location.
 For each example, we show how to access code that is publicly available.
 The `prefect.yaml` example includes an additional line to reference a credentials block if authenticating to a private storage location through that option. 
@@ -448,7 +466,7 @@ We also include Python code that shows how to use an existing storage block and 
             entrypoint="my_file.py:my_flow",
         ).deploy(
             name="my-aws-s3-deployment",
-            work_pool_name="my-work-pool",
+            work_pool_name="my-work-pool"
         )
     ```
 
@@ -473,6 +491,7 @@ We also include Python code that shows how to use an existing storage block and 
         ).deploy(
             name="my-aws-s3-deployment", 
             work_pool_name="my-work-pool"
+            job_variables={"env": {"EXTRA_PIP_PACKAGES": "prefect-aws"} }, 
         )
     ```
 
@@ -533,11 +552,13 @@ We also include Python code that shows how to use an existing storage block and 
 
     if __name__ == "__main__":
         flow.from_source(
-            source="azure://my-container/my-folder",  TK check format
+            source="az://mycontainer/myfolder",
             entrypoint="my_file.py:my_flow",
         ).deploy(
             name="my-azure-deployment",
             work_pool_name="my-work-pool",
+            job_variables={"env": {"EXTRA_PIP_PACKAGES": "prefect-azure"} }, 
+        )
     ```
 
     ```python azure_blocks.py
@@ -619,10 +640,12 @@ We also include Python code that shows how to use an existing storage block and 
 
     if __name__ == "__main__":
         flow.from_source(
-            source="gcs://my-bucket/my-folder",  TK check format
+            source="gs://my-bucket/my-folder",  
             entrypoint="my_file.py:my_flow",
         ).deploy(
             name="my-gcs-deployment",
+            work_pool_name="my-work-pool"
+        )
     ```
 
     ```python gcs_blocks.py
@@ -646,7 +669,8 @@ We also include Python code that shows how to use an existing storage block and 
             entrypoint="my_file.py:my_flow",
         ).deploy(
             name="my-gcs-deployment",
-            work_pool_name="my_pool"
+            work_pool_name="my_pool",
+            job_variables={"env": {"EXTRA_PIP_PACKAGES": "prefect-gcp"} }, 
         )
     ```
 
