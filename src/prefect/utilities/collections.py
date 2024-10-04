@@ -526,8 +526,17 @@ def set_in_dict(dct: Dict, keys: Union[str, List[str]], value: Any):
 
 
 def deep_merge(dct: Dict, merge: Dict):
-    """Recursively merges dict2 into dict1."""
-    result = dct.copy()  # Start with keys and values from dict1
+    """
+    Recursively merges `merge` into `dct`.
+
+    Args:
+        dct: The dictionary to merge into.
+        merge: The dictionary to merge from.
+
+    Returns:
+        A new dictionary with the merged contents.
+    """
+    result = dct.copy()  # Start with keys and values from `dct`
     for key, value in merge.items():
         if key in result and isinstance(result[key], dict) and isinstance(value, dict):
             # If both values are dictionaries, merge them recursively
@@ -539,7 +548,15 @@ def deep_merge(dct: Dict, merge: Dict):
 
 
 def deep_merge_dicts(*dicts):
-    """Recursively merges multiple dictionaries."""
+    """
+    Recursively merges multiple dictionaries.
+
+    Args:
+        dicts: The dictionaries to merge.
+
+    Returns:
+        A new dictionary with the merged contents.
+    """
     result = {}
     for dictionary in dicts:
         result = deep_merge(result, dictionary)
