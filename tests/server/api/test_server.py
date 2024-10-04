@@ -1,6 +1,7 @@
 import contextlib
 import socket
 import sqlite3
+from time import sleep
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
@@ -139,21 +140,24 @@ async def test_retryable_exception_handler(exc):
 
 
 async def test_cors_middleware_settings():
-    with SubprocessASGIServer() as server:
-        health_response = httpx.options(
-            f"{server.api_url}/health",
-            headers={
-                "Origin": "http://example.com",
-                "Access-Control-Request-Method": "GET",
-            },
-        )
-        assert health_response.status_code == 200
-        assert health_response.headers["Access-Control-Allow-Origin"] == "*"
-        assert (
-            health_response.headers["Access-Control-Allow-Methods"]
-            == "DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT"
-        )
-        assert "Access-Control-Allow-Headers" not in health_response.headers
+    server = SubprocessASGIServer()
+    server.start()
+    health_response = httpx.options(
+        f"{server.api_url}/health",
+        headers={
+            "Origin": "http://example.com",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+    assert health_response.status_code == 200
+    assert health_response.headers["Access-Control-Allow-Origin"] == "*"
+    assert (
+        health_response.headers["Access-Control-Allow-Methods"]
+        == "DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT"
+    )
+    assert "Access-Control-Allow-Headers" not in health_response.headers
+
+    server.stop()
 
     with temporary_settings(
         {
@@ -162,26 +166,22 @@ async def test_cors_middleware_settings():
             PREFECT_SERVER_CORS_ALLOWED_HEADERS: "x-tra-header",
         }
     ):
-        with SubprocessASGIServer() as server:
-            health_response = httpx.options(
-                f"{server.api_url}/health",
-                headers={
-                    "Origin": "http://example.com",
-                    "Access-Control-Request-Method": "GET",
-                },
-            )
-            assert health_response.status_code == 200
-            assert (
-                health_response.headers["Access-Control-Allow-Origin"]
-                == "http://example.com"
-            )
-            assert (
-                health_response.headers["Access-Control-Allow-Methods"] == "GET, POST"
-            )
-            assert (
-                "x-tra-header"
-                in health_response.headers["Access-Control-Allow-Headers"]
-            )
+        server.start()
+        health_response = httpx.options(
+            f"{server.api_url}/health",
+            headers={
+                "Origin": "http://example.com",
+                "Access-Control-Request-Method": "GET",
+            },
+        )
+        assert health_response.status_code == 200
+        assert (
+            health_response.headers["Access-Control-Allow-Origin"]
+            == "http://example.com"
+        )
+        assert health_response.headers["Access-Control-Allow-Methods"] == "GET, POST"
+        assert "x-tra-header" in health_response.headers["Access-Control-Allow-Headers"]
+        server.stop()
 
 
 async def test_health_check_route(client):
@@ -420,6 +420,8 @@ class TestSubprocessASGIServer:
         assert health_response.status_code == 200
 
         server.stop()
+
+        sleep(0.2)
         with pytest.raises(httpx.RequestError):
             httpx.get(f"{server.api_url}/health")
 
@@ -428,6 +430,7 @@ class TestSubprocessASGIServer:
             health_response = httpx.get(f"{server.api_url}/health")
             assert health_response.status_code == 200
 
+        sleep(0.2)
         with pytest.raises(httpx.RequestError):
             httpx.get(f"{server.api_url}/health")
 
