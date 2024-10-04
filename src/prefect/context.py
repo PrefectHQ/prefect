@@ -640,14 +640,6 @@ def root_settings_context():
         active_name = os.environ["PREFECT_PROFILE"]
         profile_source = "by environment variable"
 
-    if (
-        sys.argv[0].endswith("/prefect")
-        and len(sys.argv) >= 3
-        and sys.argv[1] == "--profile"
-    ):
-        active_name = sys.argv[2]
-        profile_source = "by command line argument"
-
     if active_name not in profiles.names:
         print(
             (

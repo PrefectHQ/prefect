@@ -79,7 +79,7 @@ jobs:
 
       - name: Start server
         run: |
-          docker run -d -p 4200:4200 prefecthq/prefect:3-python3.12 prefect server start --host 0.0.0.0
+          PREFECT_HOME=$(pwd) prefect server start&
           PREFECT_API_URL="http://127.0.0.1:4200/api" ./scripts/wait-for-server.py
 
           # TODO: Replace `wait-for-server` with dedicated command

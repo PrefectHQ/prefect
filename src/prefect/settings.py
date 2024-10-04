@@ -12,6 +12,7 @@ for settings, at which point we will not need to use the "after" model_validator
 
 import os
 import re
+import sys
 import warnings
 from contextlib import contextmanager
 from datetime import timedelta
@@ -370,9 +371,19 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
         """Helper method to load the profile settings from the profiles.toml file"""
 
         all_profile_data = toml.load(self.profiles_path)
-        active_profile = os.environ.get("PREFECT_PROFILE") or all_profile_data.get(
-            "active"
-        )
+
+        if (
+            sys.argv[0].endswith("/prefect")
+            and len(sys.argv) >= 3
+            and sys.argv[1] == "--profile"
+        ):
+            active_profile = sys.argv[2]
+
+        else:
+            active_profile = os.environ.get("PREFECT_PROFILE") or all_profile_data.get(
+                "active"
+            )
+
         profiles_data = all_profile_data.get("profiles", {})
 
         if not active_profile or active_profile not in profiles_data:

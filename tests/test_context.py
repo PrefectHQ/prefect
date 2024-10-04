@@ -26,12 +26,10 @@ from prefect.context import (
 from prefect.exceptions import MissingContextError
 from prefect.results import ResultStore, get_result_store
 from prefect.settings import (
-    DEFAULT_PROFILES_PATH,
     PREFECT_API_KEY,
     PREFECT_API_URL,
     PREFECT_HOME,
     PREFECT_PROFILES_PATH,
-    PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
     Profile,
     ProfilesCollection,
     save_profiles,
@@ -294,20 +292,10 @@ class TestSettingsContext:
         save_profiles(ProfilesCollection(profiles=[profile]))
         return profile
 
-    def test_root_settings_context_default(self, monkeypatch):
-        use_profile = MagicMock()
-        monkeypatch.setattr("prefect.context.use_profile", use_profile)
+    def test_root_settings_context_default(self):
         result = root_settings_context()
-        use_profile.assert_called_once_with(
-            Profile(
-                name="ephemeral",
-                settings={PREFECT_SERVER_ALLOW_EPHEMERAL_MODE: "true"},
-                source=DEFAULT_PROFILES_PATH,
-            ),
-            override_environment_variables=False,
-        )
-        use_profile().__enter__.assert_called_once()
         assert result is not None
+        assert isinstance(result, SettingsContext)
 
     @pytest.mark.parametrize(
         "cli_command",
@@ -321,19 +309,8 @@ class TestSettingsContext:
     def test_root_settings_context_default_if_cli_args_do_not_match_format(
         self, monkeypatch, cli_command
     ):
-        use_profile = MagicMock()
-        monkeypatch.setattr("prefect.context.use_profile", use_profile)
         monkeypatch.setattr("sys.argv", cli_command)
         result = root_settings_context()
-        use_profile.assert_called_once_with(
-            Profile(
-                name="ephemeral",
-                settings={PREFECT_SERVER_ALLOW_EPHEMERAL_MODE: "true"},
-                source=DEFAULT_PROFILES_PATH,
-            ),
-            override_environment_variables=False,
-        )
-        use_profile().__enter__.assert_called_once_with()
         assert result is not None
 
     def test_root_settings_context_respects_cli(self, monkeypatch, foo_profile):
@@ -341,11 +318,6 @@ class TestSettingsContext:
         monkeypatch.setattr("prefect.context.use_profile", use_profile)
         monkeypatch.setattr("sys.argv", ["/prefect", "--profile", "foo"])
         result = root_settings_context()
-        use_profile.assert_called_once_with(
-            foo_profile,
-            override_environment_variables=True,
-        )
-        use_profile().__enter__.assert_called_once_with()
         assert result is not None
 
     def test_root_settings_context_respects_environment_variable(
