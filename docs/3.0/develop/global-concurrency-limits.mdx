@@ -162,7 +162,7 @@ async def process_data(x, y):
 
 
 @flow
-async def my_flow():
+def my_flow():
     for x, y in [(1, 2), (2, 3), (3, 4), (4, 5)]:
         process_data.submit(x, y)
 
