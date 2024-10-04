@@ -59,7 +59,6 @@ from prefect.exceptions import ProfileSettingsValidationError
 from prefect.types import ClientRetryExtraCodes, LogLevel
 from prefect.utilities.collections import (
     deep_merge_dicts,
-    get_from_dict,
     set_in_dict,
     visit_collection,
 )
@@ -1654,9 +1653,16 @@ class Profile(BaseModel):
         errors: List[Tuple[Setting, ValidationError]] = []
         for setting, value in self.settings.items():
             try:
-                TypeAdapter(
-                    get_from_dict(Settings.model_fields, setting.accessor).annotation
-                ).validate_python(value)
+                model_fields = Settings.model_fields
+                annotation = None
+                for section in setting.accessor.split("."):
+                    annotation = model_fields[section].annotation
+                    if inspect.isclass(annotation) and issubclass(
+                        annotation, BaseSettings
+                    ):
+                        model_fields = annotation.model_fields
+
+                TypeAdapter(annotation).validate_python(value)
             except ValidationError as e:
                 errors.append((setting, e))
         if errors:
