@@ -622,6 +622,66 @@ class TestTemporarySettings:
         assert PREFECT_TEST_MODE.value() is True
 
 
+class TestSettingsSources:
+    @pytest.fixture
+    def temporary_env_file(self):
+        original_env_content = None
+        env_file = Path(".env")
+
+        if env_file.exists():
+            original_env_content = env_file.read_text()
+
+        def _create_temp_env(content):
+            env_file.write_text(content)
+
+        yield _create_temp_env
+
+        if env_file.exists():
+            env_file.unlink()
+
+        if original_env_content is not None:
+            env_file.write_text(original_env_content)
+
+    def test_env_source(self, temporary_env_file):
+        temporary_env_file("PREFECT_CLIENT_RETRY_EXTRA_CODES=420,500")
+
+        assert Settings().client_retry_extra_codes == {420, 500}
+
+        os.unlink(".env")
+
+        assert Settings().client_retry_extra_codes == set()
+
+    def test_resolution_order(self, temporary_env_file, monkeypatch, tmp_path):
+        monkeypatch.delenv("PREFECT_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_UNIT_TEST_MODE", raising=False)
+        profiles_path = tmp_path / "profiles.toml"
+        monkeypatch.setenv("PREFECT_PROFILES_PATH", str(profiles_path))
+        profiles_path.write_text(
+            textwrap.dedent(
+                """
+                active = "foo"
+
+                [profiles.foo]
+                PREFECT_CLIENT_RETRY_EXTRA_CODES = "420,500"
+                """
+            )
+        )
+
+        assert Settings().client_retry_extra_codes == {420, 500}
+
+        temporary_env_file("PREFECT_CLIENT_RETRY_EXTRA_CODES=429,500")
+
+        assert Settings().client_retry_extra_codes == {429, 500}
+
+        os.unlink(".env")
+
+        assert Settings().client_retry_extra_codes == {420, 500}
+
+        monkeypatch.delenv("PREFECT_PROFILES_PATH", raising=True)
+
+        assert Settings().client_retry_extra_codes == set()
+
+
 class TestLoadProfiles:
     @pytest.fixture(autouse=True)
     def temporary_profiles_path(self, tmp_path):
