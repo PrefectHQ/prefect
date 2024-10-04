@@ -92,7 +92,7 @@ async def hosted_api_server(unused_tcp_port_factory):
     ) as process:
         api_url = f"http://localhost:{port}/api"
 
-        # # Wait for the server to be ready
+        # Wait for the server to be ready
         async with httpx.AsyncClient() as client:
             response = None
             with anyio.move_on_after(20):

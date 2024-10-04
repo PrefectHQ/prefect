@@ -516,6 +516,23 @@ def get_from_dict(dct: Dict, keys: Union[str, List[str]], default: Any = None) -
 
 
 def set_in_dict(dct: Dict, keys: Union[str, List[str]], value: Any):
+    """
+    Sets a value in a nested dictionary using a sequence of keys.
+
+    This function allows to set a value in a deeply nested structure
+    of dictionaries and lists using either a dot-separated string or a list
+    of keys. If a requested key does not exist, the function will create it as
+    a new dictionary.
+
+    Args:
+        dct: The dictionary to set the value in.
+        keys: The sequence of keys to use for access. Can be a
+            dot-separated string or a list of keys.
+        value: The value to set in the dictionary.
+
+    Returns:
+        The modified dictionary with the value set at the specified key path.
+    """
     if isinstance(keys, str):
         keys = keys.replace("[", ".").replace("]", "").split(".")
     for k in keys[:-1]:
