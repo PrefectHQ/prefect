@@ -629,7 +629,6 @@ def root_settings_context():
     Return the settings context that will exist as the root context for the module.
 
     The profile to use is determined with the following precedence
-    - Command line via 'prefect --profile <name>'
     - Environment variable via 'PREFECT_PROFILE'
     - Profiles file via the 'active' key
     """
