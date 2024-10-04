@@ -20,3 +20,10 @@ def handle_saving(*args, **kwargs):
 
 
 pytest_benchmark.session.BenchmarkSession.handle_saving = handle_saving
+
+
+@pytest.fixture(autouse=True)
+def disable_test_mode(monkeypatch):
+    monkeypatch.delenv("PREFECT_TEST_MODE", raising=False)
+    monkeypatch.delenv("PREFECT_UNIT_TEST_MODE", raising=False)
+    yield
