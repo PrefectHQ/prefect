@@ -652,10 +652,12 @@ class TestSettingsSources:
         assert Settings().client_retry_extra_codes == set()
 
     def test_resolution_order(self, temporary_env_file, monkeypatch, tmp_path):
+        profiles_path = tmp_path / "profiles.toml"
+
         monkeypatch.delenv("PREFECT_TEST_MODE", raising=False)
         monkeypatch.delenv("PREFECT_UNIT_TEST_MODE", raising=False)
-        profiles_path = tmp_path / "profiles.toml"
         monkeypatch.setenv("PREFECT_PROFILES_PATH", str(profiles_path))
+
         profiles_path.write_text(
             textwrap.dedent(
                 """
@@ -677,6 +679,8 @@ class TestSettingsSources:
 
         assert Settings().client_retry_extra_codes == {420, 500}
 
+        monkeypatch.setenv("PREFECT_TEST_MODE", "1")
+        monkeypatch.setenv("PREFECT_UNIT_TEST_MODE", "1")
         monkeypatch.delenv("PREFECT_PROFILES_PATH", raising=True)
 
         assert Settings().client_retry_extra_codes == set()

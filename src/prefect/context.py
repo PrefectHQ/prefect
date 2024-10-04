@@ -629,6 +629,7 @@ def root_settings_context():
     Return the settings context that will exist as the root context for the module.
 
     The profile to use is determined with the following precedence
+    - Command line via 'prefect --profile <name>'
     - Environment variable via 'PREFECT_PROFILE'
     - Profiles file via the 'active' key
     """
@@ -639,6 +640,14 @@ def root_settings_context():
     if "PREFECT_PROFILE" in os.environ:
         active_name = os.environ["PREFECT_PROFILE"]
         profile_source = "by environment variable"
+
+    if (
+        sys.argv[0].endswith("/prefect")
+        and len(sys.argv) >= 3
+        and sys.argv[1] == "--profile"
+    ):
+        active_name = sys.argv[2]
+        profile_source = "by command line argument"
 
     if active_name not in profiles.names:
         print(
