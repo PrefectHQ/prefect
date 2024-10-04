@@ -227,9 +227,19 @@ class ObjectNotFound(PrefectException):
     Raised when the client receives a 404 (not found) from the API.
     """
 
-    def __init__(self, http_exc: Exception, *args, **kwargs):
+    def __init__(
+        self,
+        http_exc: Exception,
+        help_message: Optional[str] = None,
+        *args,
+        **kwargs,
+    ):
         self.http_exc = http_exc
-        super().__init__(*args, **kwargs)
+        self.help_message = help_message
+        super().__init__(help_message, *args, **kwargs)
+
+    def __str__(self):
+        return self.help_message or super().__str__()
 
 
 class ObjectAlreadyExists(PrefectException):
