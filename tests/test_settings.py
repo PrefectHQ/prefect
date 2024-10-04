@@ -142,26 +142,28 @@ class TestSettingsClass:
 
     def test_settings_to_environment_exclude_unset_empty_if_none_set(self, monkeypatch):
         for key in SETTING_VARIABLES:
-            if not key.startswith("PREFECT_"):
+            if not key.startswith("PREFECT_") or key == "PREFECT_TEST_MODE":
                 continue
             monkeypatch.delenv(key, raising=False)
 
-        assert (
-            Settings().to_environment_variables(
-                exclude_unset=True,
-                exclude={SETTING_VARIABLES[key] for key in DEFAULT_DEPENDENT_SETTINGS},
-            )
-            == {}
-        )
+        assert Settings().to_environment_variables(
+            exclude_unset=True,
+            exclude={SETTING_VARIABLES[key] for key in DEFAULT_DEPENDENT_SETTINGS},
+        ) == {
+            "PREFECT_TEST_MODE": "True",
+        }
 
     def test_settings_to_environment_exclude_unset_only_includes_set(self, monkeypatch):
         for key in SETTING_VARIABLES:
+            if key == "PREFECT_TEST_MODE":
+                continue
             monkeypatch.delenv(key, raising=False)
 
         assert Settings(debug_mode=True, api_key="Hello").to_environment_variables(
             exclude_unset=True,
             exclude={SETTING_VARIABLES[key] for key in DEFAULT_DEPENDENT_SETTINGS},
         ) == {
+            "PREFECT_TEST_MODE": "True",
             "PREFECT_DEBUG_MODE": "True",
             "PREFECT_API_KEY": "Hello",
         }
@@ -618,6 +620,70 @@ class TestTemporarySettings:
 
         assert os.environ["PREFECT_TEST_MODE"] == "1", "Does not alter os environ."
         assert PREFECT_TEST_MODE.value() is True
+
+
+class TestSettingsSources:
+    @pytest.fixture
+    def temporary_env_file(self):
+        original_env_content = None
+        env_file = Path(".env")
+
+        if env_file.exists():
+            original_env_content = env_file.read_text()
+
+        def _create_temp_env(content):
+            env_file.write_text(content)
+
+        yield _create_temp_env
+
+        if env_file.exists():
+            env_file.unlink()
+
+        if original_env_content is not None:
+            env_file.write_text(original_env_content)
+
+    def test_env_source(self, temporary_env_file):
+        temporary_env_file("PREFECT_CLIENT_RETRY_EXTRA_CODES=420,500")
+
+        assert Settings().client_retry_extra_codes == {420, 500}
+
+        os.unlink(".env")
+
+        assert Settings().client_retry_extra_codes == set()
+
+    def test_resolution_order(self, temporary_env_file, monkeypatch, tmp_path):
+        profiles_path = tmp_path / "profiles.toml"
+
+        monkeypatch.delenv("PREFECT_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_UNIT_TEST_MODE", raising=False)
+        monkeypatch.setenv("PREFECT_PROFILES_PATH", str(profiles_path))
+
+        profiles_path.write_text(
+            textwrap.dedent(
+                """
+                active = "foo"
+
+                [profiles.foo]
+                PREFECT_CLIENT_RETRY_EXTRA_CODES = "420,500"
+                """
+            )
+        )
+
+        assert Settings().client_retry_extra_codes == {420, 500}
+
+        temporary_env_file("PREFECT_CLIENT_RETRY_EXTRA_CODES=429,500")
+
+        assert Settings().client_retry_extra_codes == {429, 500}
+
+        os.unlink(".env")
+
+        assert Settings().client_retry_extra_codes == {420, 500}
+
+        monkeypatch.setenv("PREFECT_TEST_MODE", "1")
+        monkeypatch.setenv("PREFECT_UNIT_TEST_MODE", "1")
+        monkeypatch.delenv("PREFECT_PROFILES_PATH", raising=True)
+
+        assert Settings().client_retry_extra_codes == set()
 
 
 class TestLoadProfiles:

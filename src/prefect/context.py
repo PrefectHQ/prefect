@@ -659,12 +659,7 @@ def root_settings_context():
         )
         active_name = "ephemeral"
 
-    with use_profile(
-        profiles[active_name],
-        # Override environment variables if the profile was set by the CLI
-        override_environment_variables=profile_source == "by command line argument",
-    ) as settings_context:
-        return settings_context
+    return SettingsContext(profile=profiles[active_name], settings=Settings())
 
     # Note the above context is exited and the global settings context is used by
     # an override in the `SettingsContext.get` method.

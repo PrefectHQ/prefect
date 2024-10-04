@@ -21420,7 +21420,8 @@
                 "description": "Enumerates return statuses for setting run states."
             },
             "Settings": {
-                "title": "Settings"
+                "title": "Settings",
+                "description": "Settings for Prefect using Pydantic settings.\n\nSee https://docs.pydantic.dev/latest/concepts/pydantic_settings"
             },
             "SimpleFlowRun": {
                 "properties": {
