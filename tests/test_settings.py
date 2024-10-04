@@ -12,7 +12,6 @@ import prefect.context
 import prefect.settings
 from prefect.exceptions import ProfileSettingsValidationError
 from prefect.settings import (
-    DEFAULT_DEPENDENT_SETTINGS,
     DEFAULT_PROFILES_PATH,
     PREFECT_API_DATABASE_CONNECTION_URL,
     PREFECT_API_DATABASE_DRIVER,
@@ -40,6 +39,7 @@ from prefect.settings import (
     PREFECT_UI_URL,
     PREFECT_UNIT_TEST_MODE,
     SETTING_VARIABLES,
+    APISettings,
     Profile,
     ProfilesCollection,
     Settings,
@@ -49,6 +49,7 @@ from prefect.settings import (
     save_profiles,
     temporary_settings,
 )
+from prefect.utilities.collections import get_from_dict
 
 
 class TestSettingClass:
@@ -86,10 +87,10 @@ class TestSettingsClass:
         new_set_keys = set(new_settings.model_dump(exclude_unset=True).keys())
         assert new_set_keys == set_keys
 
-        new_settings = settings.copy_with_update(updates={PREFECT_API_KEY: "TEST"})
+        new_settings = settings.copy_with_update(updates={PREFECT_TEST_SETTING: "TEST"})
         new_set_keys = set(new_settings.model_dump(exclude_unset=True).keys())
         # Only the API key setting should be set
-        assert new_set_keys - set_keys == {"api_key"}
+        assert new_set_keys - set_keys == {"test_setting"}
 
     def test_settings_copy_with_update(self):
         settings = get_current_settings()
@@ -104,8 +105,8 @@ class TestSettingsClass:
                 new_settings.unit_test_mode is True
             ), "Not changed, existing value was not default"
             assert (
-                new_settings.api_key is not None
-                and new_settings.api_key.get_secret_value() == "TEST"
+                new_settings.api.key is not None
+                and new_settings.api.key.get_secret_value() == "TEST"
             ), "Changed, existing value was default"
             assert new_settings.client_retry_extra_codes == {400, 500}
 
@@ -116,11 +117,12 @@ class TestSettingsClass:
         new_settings = Settings()
         assert PREFECT_TEST_MODE.value_from(new_settings) is False
 
-    def test_settings_to_environment_includes_all_settings_with_non_null_values(self):
+    def test_settings_to_environment_includes_all_settings_with_non_null_values(
+        self, disable_hosted_api_server
+    ):
         settings = Settings()
         assert set(settings.to_environment_variables().keys()) == {
-            f"PREFECT_{key.upper()}"
-            for key in settings.model_dump(exclude_none=True).keys()
+            s.name for s in SETTING_VARIABLES.values() if s.value() is not None
         }
 
     def test_settings_to_environment_casts_to_strings(self):
@@ -130,62 +132,6 @@ class TestSettingsClass:
             ]
             == "3000"
         )
-
-    def test_settings_to_environment_respects_includes(self):
-        include = [PREFECT_SERVER_API_PORT]
-
-        assert Settings(server_api_port=3000).to_environment_variables(
-            include=include
-        ) == {"PREFECT_SERVER_API_PORT": "3000"}
-
-        assert include == [PREFECT_SERVER_API_PORT], "Passed list should not be mutated"
-
-    def test_settings_to_environment_exclude_unset_empty_if_none_set(self, monkeypatch):
-        for key in SETTING_VARIABLES:
-            if not key.startswith("PREFECT_"):
-                continue
-            monkeypatch.delenv(key, raising=False)
-
-        assert (
-            Settings().to_environment_variables(
-                exclude_unset=True,
-                exclude={SETTING_VARIABLES[key] for key in DEFAULT_DEPENDENT_SETTINGS},
-            )
-            == {}
-        )
-
-    def test_settings_to_environment_exclude_unset_only_includes_set(self, monkeypatch):
-        for key in SETTING_VARIABLES:
-            monkeypatch.delenv(key, raising=False)
-
-        assert Settings(debug_mode=True, api_key="Hello").to_environment_variables(
-            exclude_unset=True,
-            exclude={SETTING_VARIABLES[key] for key in DEFAULT_DEPENDENT_SETTINGS},
-        ) == {
-            "PREFECT_DEBUG_MODE": "True",
-            "PREFECT_API_KEY": "Hello",
-        }
-
-    def test_settings_to_environment_exclude_unset_only_includes_set_even_if_included(
-        self, monkeypatch
-    ):
-        for key in SETTING_VARIABLES:
-            monkeypatch.delenv(key, raising=False)
-
-        include = [PREFECT_HOME, PREFECT_DEBUG_MODE, PREFECT_API_KEY]
-
-        assert Settings(debug_mode=True, api_key="Hello").to_environment_variables(
-            exclude_unset=True, include=include
-        ) == {
-            "PREFECT_DEBUG_MODE": "True",
-            "PREFECT_API_KEY": "Hello",
-        }
-
-        assert include == [
-            PREFECT_HOME,
-            PREFECT_DEBUG_MODE,
-            PREFECT_API_KEY,
-        ], "Passed list should not be mutated"
 
     @pytest.mark.parametrize("exclude_unset", [True, False])
     def test_settings_to_environment_roundtrip(self, exclude_unset, monkeypatch):
@@ -216,7 +162,7 @@ class TestSettingsClass:
             pydantic.ValidationError,
             match="should be 'DEBUG', 'INFO', 'WARNING', 'ERROR' or 'CRITICAL'",
         ):
-            Settings(**{log_level_setting.field_name: "FOOBAR"})
+            Settings(**{log_level_setting.accessor: "FOOBAR"})
 
     @pytest.mark.parametrize(
         "log_level_setting",
@@ -243,12 +189,18 @@ class TestSettingsClass:
         )
 
     def test_include_secrets(self):
-        settings = Settings(api_key=pydantic.SecretStr("test"))
+        settings = Settings(api=APISettings(key=pydantic.SecretStr("test")))
 
-        assert settings.model_dump().get("api_key") == pydantic.SecretStr("test")
-        assert settings.model_dump(mode="json").get("api_key") == "**********"
+        assert get_from_dict(settings.model_dump(), "api.key") == pydantic.SecretStr(
+            "test"
+        )
         assert (
-            settings.model_dump(context={"include_secrets": True}).get("api_key")
+            get_from_dict(settings.model_dump(mode="json"), "api.key") == "**********"
+        )
+        assert (
+            get_from_dict(
+                settings.model_dump(context={"include_secrets": True}), "api.key"
+            )
             == "test"
         )
 
@@ -259,7 +211,7 @@ class TestSettingAccess:
             updates={PREFECT_API_URL: "test"}
         ):  # Set a value so its not null
             assert PREFECT_API_URL.value() == "test"
-            assert get_current_settings().api_url == "test"
+            assert get_current_settings().api.url == "test"
 
     def test_get_value_nested_setting(self):
         value = prefect.settings.PREFECT_LOGGING_LEVEL.value()

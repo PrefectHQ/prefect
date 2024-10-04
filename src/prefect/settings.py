@@ -57,7 +57,12 @@ from typing_extensions import Literal, Self
 
 from prefect.exceptions import ProfileSettingsValidationError
 from prefect.types import ClientRetryExtraCodes, LogLevel
-from prefect.utilities.collections import get_from_dict, set_in_dict, visit_collection
+from prefect.utilities.collections import (
+    deep_merge_dicts,
+    get_from_dict,
+    set_in_dict,
+    visit_collection,
+)
 from prefect.utilities.pydantic import handle_secret_render
 
 T = TypeVar("T")
@@ -127,15 +132,19 @@ class Setting:
             else:
                 return None
 
-        current_value = get_from_dict(
-            get_current_settings().model_dump(), self.accessor
-        )
+        path = self.accessor.split(".")
+        current_value = get_current_settings()
+        for key in path:
+            current_value = getattr(current_value, key, None)
         if isinstance(current_value, _SECRET_TYPES):
             return current_value.get_secret_value()
         return current_value
 
     def value_from(self: Self, settings: "Settings") -> Any:
-        current_value = get_from_dict(settings.model_dump(), self.accessor)
+        path = self.accessor.split(".")
+        current_value = settings
+        for key in path:
+            current_value = getattr(current_value, key, None)
         if isinstance(current_value, _SECRET_TYPES):
             return current_value.get_secret_value()
         return current_value
@@ -351,6 +360,34 @@ class PrefectBaseSettings(BaseSettings):
                     f"{cls.model_config.get('env_prefix')}{field_name.upper()}"
                 )
         return settings_fields
+
+    def to_environment_variables(
+        self,
+        exclude_unset: bool = False,
+        include_secrets: bool = True,
+    ) -> Dict[str, str]:
+        """Convert the settings object to a dictionary of environment variables."""
+
+        env: Dict[str, Any] = self.model_dump(
+            exclude_unset=exclude_unset,
+            mode="json",
+            context={"include_secrets": include_secrets},
+        )
+        env_variables = {}
+        for key, value in env.items():
+            if isinstance(value, dict) and isinstance(
+                child_settings := getattr(self, key), PrefectBaseSettings
+            ):
+                child_env = child_settings.to_environment_variables(
+                    exclude_unset=exclude_unset,
+                    include_secrets=include_secrets,
+                )
+                env_variables.update(child_env)
+            elif value is not None:
+                env_variables[
+                    f"{self.model_config.get('env_prefix')}{key.upper()}"
+                ] = str(value)
+        return env_variables
 
 
 class APISettings(PrefectBaseSettings):
@@ -1450,7 +1487,9 @@ class Settings(PrefectBaseSettings):
         Returns:
             A new Settings object.
         """
-        restore_defaults_names = set(r.accessor for r in restore_defaults or [])
+        restore_defaults_obj = {}
+        for r in restore_defaults or []:
+            set_in_dict(restore_defaults_obj, r.accessor, True)
         updates = updates or {}
         set_defaults = set_defaults or {}
 
@@ -1463,9 +1502,11 @@ class Settings(PrefectBaseSettings):
             set_in_dict(updates_obj, setting.accessor, value)
 
         new_settings = self.__class__(
-            **set_defaults_obj
-            | self.model_dump(exclude_unset=True, exclude=restore_defaults_names)
-            | updates_obj
+            **deep_merge_dicts(
+                set_defaults_obj,
+                self.model_dump(exclude_unset=True, exclude=restore_defaults_obj),
+                updates_obj,
+            )
         )
         return new_settings
 
@@ -1476,37 +1517,6 @@ class Settings(PrefectBaseSettings):
         """
         env_variables = self.to_environment_variables()
         return str(hash(tuple((key, value) for key, value in env_variables.items())))
-
-    def to_environment_variables(
-        self,
-        include: Optional[Iterable[Setting]] = None,
-        exclude: Optional[Iterable[Setting]] = None,
-        exclude_unset: bool = False,
-        include_secrets: bool = True,
-    ) -> Dict[str, str]:
-        """Convert the settings object to a dictionary of environment variables."""
-        included_names = {s.accessor for s in include} if include else None
-        excluded_names = {s.accessor for s in exclude} if exclude else None
-
-        if exclude_unset:
-            if included_names is None:
-                included_names = set(self.model_dump(exclude_unset=True).keys())
-            else:
-                included_names.intersection_update(
-                    {key for key in self.model_dump(exclude_unset=True)}
-                )
-
-        env: Dict[str, Any] = self.model_dump(
-            include=included_names,
-            exclude=excluded_names,
-            mode="json",
-            context={"include_secrets": include_secrets},
-        )
-        return {
-            f"{self.model_config.get('env_prefix')}{key.upper()}": str(value)
-            for key, value in env.items()
-            if value is not None
-        }
 
     @model_serializer(
         mode="wrap", when_used="always"
@@ -1991,25 +2001,6 @@ def _collect_settings_fields(
             settings_fields[setting.name] = setting
             settings_fields[setting.accessor] = setting
     return settings_fields
-
-
-class _SettingsDict(dict):
-    """allow either `field_name` or `ENV_VAR_NAME` access
-    ```
-    d = _SettingsDict(Settings)
-    d["api_url"] == d["PREFECT_API_URL"]
-    ```
-    """
-
-    def __init__(self: Self, settings_cls: Type[BaseSettings]):
-        super().__init__()
-        for field_name, field in settings_cls.model_fields.items():
-            setting = Setting(
-                name=f"{settings_cls.model_config.get('env_prefix')}{field_name.upper()}",
-                default=field.default,
-                type_=field.annotation,
-            )
-            self[field_name] = self[setting.name] = setting
 
 
 SETTING_VARIABLES: dict[str, Setting] = _collect_settings_fields(Settings)

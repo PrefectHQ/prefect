@@ -519,7 +519,28 @@ def set_in_dict(dct: Dict, keys: Union[str, List[str]], value: Any):
     if isinstance(keys, str):
         keys = keys.replace("[", ".").replace("]", "").split(".")
     for k in keys[:-1]:
-        if k not in dct:
+        if k not in dct or not isinstance(dct[k], dict):
             dct[k] = {}
         dct = dct[k]
     dct[keys[-1]] = value
+
+
+def deep_merge(dct: Dict, merge: Dict):
+    """Recursively merges dict2 into dict1."""
+    result = dct.copy()  # Start with keys and values from dict1
+    for key, value in merge.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            # If both values are dictionaries, merge them recursively
+            result[key] = deep_merge(result[key], value)
+        else:
+            # Otherwise, overwrite with the new value
+            result[key] = value
+    return result
+
+
+def deep_merge_dicts(*dicts):
+    """Recursively merges multiple dictionaries."""
+    result = {}
+    for dictionary in dicts:
+        result = deep_merge(result, dictionary)
+    return result
