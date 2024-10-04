@@ -229,7 +229,7 @@ async def make_http_request():
 
 
 @flow
-async def my_flow():
+def my_flow():
     for _ in range(10):
         make_http_request.submit()
 
