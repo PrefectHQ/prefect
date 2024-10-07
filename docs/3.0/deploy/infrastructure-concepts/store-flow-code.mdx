@@ -73,7 +73,7 @@ If using the Python `deploy` method with a private repository that references a 
 
         github_repo = GitRepository(
             url="https://github.com/org/my-private-repo.git",
-            credentials=GitHubCredentials.load("my-github-credentials-block")
+            credentials=GitHubCredentials.load("my-github-credentials-block"),
         )
 
         flow.from_source(
@@ -95,7 +95,9 @@ If using the Python `deploy` method with a private repository that references a 
 
         github_repo = GitRepository(
             url="https://github.com/org/my-private-repo.git",
-            credentials=Secret.load("my-secret-block-with-my-gh-credentials")
+            credentials={
+                "access_token": Secret.load("my-secret-block-with-my-gh-credentials")
+            },
         )
 
         flow.from_source(
@@ -187,7 +189,9 @@ If using the Python `deploy` method with a private repository that references a 
     if __name__ == "__main__":
         github_repo=GitRepository(
             url="https://bitbucket.com/org/my-private-repo.git",
-            credentials=Secret.load("my-secret-block-with-my-bb-credentials")
+            credentials={
+                "access_token": Secret.load("my-secret-block-with-my-bb-credentials")
+            },
         )
         
         flow.from_source(
@@ -259,6 +263,7 @@ If using the Python `deploy` method with a private repository that references a 
         gitlab_repo = GitRepository(
             url="https://gitlab.com/org/my-private-repo.git",
             credentials=GitLabCredentials.load("my-gitlab-credentials-block")
+        )
         
         flow.from_source(
             source=gitlab_repo,
@@ -279,7 +284,9 @@ If using the Python `deploy` method with a private repository that references a 
     if __name__ == "__main__":
         gitlab_repo = GitRepository(
             url="https://gitlab.com/org/my-private-repo.git",
-            credentials=Secret.load("my-secret-block-with-my-gl-credentials")
+            credentials={
+                "access_token": Secret.load("my-secret-block-with-my-gl-credentials")
+            },
         )
 
         flow.from_source(   
@@ -318,6 +325,9 @@ If using the Python `deploy` method with a private repository that references a 
 
   </Tab>
 </Tabs>
+
+Note that you can specify a `branch` if creating a `GitRepository` object. 
+The default is `"main"`.
 
 <Warning>
 **Push your code**
@@ -470,7 +480,7 @@ We also include Python code that shows how to use an existing storage block and 
         )
     ```
 
-    ```python s3_blocks.py
+    ```python s3_block.py
 
     from prefect import flow
     from prefect_aws.s3 import S3Bucket
@@ -561,7 +571,7 @@ We also include Python code that shows how to use an existing storage block and 
         )
     ```
 
-    ```python azure_blocks.py
+    ```python azure_block.py
     from prefect import flow
     from prefect_azure import AzureBlobCredentials, AzureBlobStorage
 
@@ -648,7 +658,7 @@ We also include Python code that shows how to use an existing storage block and 
         )
     ```
 
-    ```python gcs_blocks.py
+    ```python gcs_block.py
     from prefect import flow
     from prefect_gcp import GcpCredentials, GCSBucket
 
