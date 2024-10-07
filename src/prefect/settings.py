@@ -411,7 +411,7 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
     ) -> Tuple[Any, str, bool]:
         """Concrete implementation to get the field value from the profile settings"""
         value = self.profile_settings.get(
-            f"{self.config.get('env_prefix',"")}{field_name.upper()}"
+            f"{self.config.get('env_prefix','')}{field_name.upper()}"
         )
         return value, field_name, self.field_is_complex(field)
 
