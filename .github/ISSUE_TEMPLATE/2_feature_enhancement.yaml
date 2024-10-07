@@ -36,6 +36,16 @@ body:
 
   - type: textarea
     attributes:
+      label: Version info (`prefect version` output)
+      description: >
+        Provide information about your Prefect version and environment. The easiest way to retrieve all of this information is by running the `prefect version` command.
+      placeholder: "# Copy output of the `prefect version` command here. Do not just include your Prefect version number."
+      render: Text
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
       label: Additional context
       description: Provide additional context about the use case here.
     validations:
