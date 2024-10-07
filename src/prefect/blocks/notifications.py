@@ -305,17 +305,13 @@ class PagerDutyWebHook(AbstractAppriseNotificationBlock):
         the body into the custom_details field. custom_details is part of the
         webhook url, so we need to update the url and restart the client.
         """
-        if self.custom_details:
+        if subject:
+            self.custom_details = self.custom_details or {}
             self.custom_details.update(
                 {"Prefect Notification Body": body.replace(" ", "%20")}
             )
-        else:
-            self.custom_details = {
-                "Prefect Notification Body": body.replace(" ", "%20")
-            }
-        body = " "
-
-        self.block_initialization()
+            body = " "
+            self.block_initialization()
 
         await super().notify(body, subject)
 
