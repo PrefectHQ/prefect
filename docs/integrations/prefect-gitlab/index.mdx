@@ -68,16 +68,19 @@ from prefect_gitlab import GitLabCredentials
 
 
 if __name__ == "__main__":
-    flow.from_source(
-        source=GitRepository(
+
+    source = GitRepository(
         url="https://gitlab.com/org/private-repo.git",
         credentials=GitLabCredentials.load("my-gitlab-credentials-block")
-    ),
-    entrypoint="my_file.py:my_flow",
+    )
+
+    source = GitRepository(
+    flow.from_source(
+        source=source,
+        entrypoint="my_file.py:my_flow",
     ).deploy(
         name="private-gitlab-deploy",
         work_pool_name="my_pool",
-        build=False
     )
 ```
 
@@ -96,6 +99,7 @@ The code below shows how to reference a particular branch or tag of a GitLab rep
 
 ```python
 from prefect_gitlab import GitLabRepository
+
 
 def save_private_gitlab_block():
     private_gitlab_block = GitLabRepository(

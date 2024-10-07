@@ -65,6 +65,7 @@ To deploy a flow using `flow.deploy` and Docker, follow these steps:
         ```python example.py
         from prefect import flow
 
+
         @flow(log_prints=True)
         def my_flow(name: str = "world"):
             print(f"Hello, {name}!")
@@ -75,9 +76,11 @@ To deploy a flow using `flow.deploy` and Docker, follow these steps:
         ```python example.py
         from prefect import flow
 
+
         @flow(log_prints=True)
         def my_flow(name: str = "world"):
             print(f"Hello, {name}!")
+
 
         if __name__ == "__main__":
             my_flow.deploy(
@@ -102,8 +105,7 @@ To deploy a flow using `flow.deploy` and Docker, follow these steps:
 </Steps>
 
 Building a Docker image for our flow allows us to have a consistent environment for our flow to run in. Workers for our work pool will use the image to run our flow.
-In this example, we set `push=False` to skip pushing the image to a registry. This is useful for local development, and you can push your image to a registry such as  
-Docker Hub in a production environment.
+In this example, we set `push=False` to skip pushing the image to a registry. This is useful for local development, and you can push your image to a registry such as Docker Hub in a production environment.
 
 <Note>
 **Where's the Dockerfile?**
@@ -145,9 +147,11 @@ To deploy a flow with a schedule, you can use one of the following options:
     from datetime import timedelta
     from prefect import flow
 
+
     @flow(log_prints=True)
     def my_flow(name: str = "world"):
         print(f"Hello, {name}!")
+
 
     if __name__ == "__main__":
         my_flow.deploy(
@@ -168,9 +172,11 @@ To deploy a flow with a schedule, you can use one of the following options:
     ```python cron.py
     from prefect import flow
 
+
     @flow(log_prints=True)
     def my_flow(name: str = "world"):
         print(f"Hello, {name}!")
+
 
     if __name__ == "__main__":
         my_flow.deploy(
@@ -192,9 +198,11 @@ To deploy a flow with a schedule, you can use one of the following options:
     ```python rrule.py
     from prefect import flow
 
+
     @flow(log_prints=True)
     def my_flow(name: str = "world"):
         print(f"Hello, {name}!")
+
 
     if __name__ == "__main__":
         my_flow.deploy(
@@ -221,9 +229,11 @@ To deploy a flow with a schedule, you can use one of the following options:
     from prefect import flow
     from prefect.client.schemas.schedules import IntervalSchedule
 
+
     @flow(log_prints=True)
     def my_flow(name: str = "world"):
         print(f"Hello, {name}!")
+
 
     if __name__ == "__main__":
         my_flow.deploy(
@@ -271,6 +281,7 @@ Here's an example of loading a flow from a Git repository and deploying it:
 ```python git-deploy.py
 from prefect import flow
 
+
 if __name__ == "__main__":
     flow.from_source(
         source="https://github.com/username/repository.git",
@@ -281,7 +292,7 @@ if __name__ == "__main__":
     )
 ```
 
-The `source` parameter can be a variety of remote storage options including:
+The `source` parameter can accept a variety of remote storage options including:
 
 - Git repositories
 - S3 buckets (using the `s3://` scheme)
@@ -290,7 +301,7 @@ The `source` parameter can be a variety of remote storage options including:
 
 The `entrypoint` parameter is the path to the flow function within your repository combined with the name of the flow function.
 
-Learn more about remote code storage [here](/3.0/deploy/infrastructure-concepts/store-flow-code).
+Learn more about remote code storage [here](/3.0/deploy/infrastructure-concepts/store-flow-code/).
 
 ## Set default parameters
 
@@ -299,9 +310,11 @@ You can set default parameters for a deployment using the `parameters` keyword a
 ```python default-parameters.py
 from prefect import flow
 
+
 @flow
 def my_flow(name: str = "world"):
     print(f"Hello, {name}!")
+
 
 if __name__ == "__main__":
     my_flow.deploy(
@@ -325,10 +338,12 @@ The job variables provided will override the values set on the work pool.
 import os
 from prefect import flow
 
+
 @flow
 def my_flow():
     name = os.getenv("NAME", "world")
     print(f"Hello, {name}!")
+
 
 if __name__ == "__main__":
     my_flow.deploy(
@@ -341,26 +356,28 @@ if __name__ == "__main__":
     )
 ```
 
-Job variables can be used to customize environment variables, resources limits, and other infrastructure options
- allowing fine-grained control over your infrastructure on a per-deployment or per-flow-run basis.
+Job variables can be used to customize environment variables, resources limits, and other infrastructure options, allowing fine-grained control over your infrastructure on a per-deployment or per-flow-run basis.
 Any variable defined in the base job template of the associated work pool can be overridden by a job variable.
 
 You can learn more about job variables [here](/3.0/deploy/infrastructure-concepts/customize).
 
 ## Deploy multiple flows
 
-If you want to deploy multiple flows at once, use the `deploy` function.
+To deploy multiple flows at once, use the `deploy` function.
 
 ```python multi-deploy.py
 from prefect import flow, deploy
+
 
 @flow
 def my_flow_1():
     print("I'm number one!")
 
+
 @flow
 def my_flow_2():
     print("Always second...")
+
 
 if __name__ == "__main__":
     deploy(

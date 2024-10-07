@@ -59,21 +59,21 @@ pull: null
 # deployment configurations
 deployments:
 - # base metadata
+  name: null
+  version: null
+  tags: []
+  description: null
+  schedule: null
+
+  # flow-specific fields
+  entrypoint: null
+  parameters: {}
+
+  # infra-specific fields
+  work_pool:
     name: null
-    version: null
-    tags: []
-    description: null
-    schedule: null
-
-    # flow-specific fields
-    entrypoint: null
-    parameters: {}
-
-    # infra-specific fields
-    work_pool:
-        name: null
-        work_queue_name: null
-        job_variables: {}
+    work_queue_name: null
+    job_variables: {}
 ```
 
 The metadata fields are always pre-populated for you. These fields are for bookkeeping purposes only. The other sections are 
@@ -95,10 +95,10 @@ Each action is defined as a list of steps executed in sequence. Each step has th
 ```yaml
 section:
 - prefect_package.path.to.importable.step:
-    id: "step-id" # optional
-    requires: "pip-installable-package-spec" # optional
-    kwarg1: value
-    kwarg2: more-values
+  id: "step-id" # optional
+  requires: "pip-installable-package-spec" # optional
+  kwarg1: value
+  kwarg2: more-values
 ```
 
 Every step optionally provides a `requires` field. Prefect uses this to auto-install if the step is not  
@@ -149,11 +149,11 @@ prefect init --recipe docker
 ```yaml
 build:
 - prefect_docker.deployments.steps.build_docker_image:
-    requires: prefect-docker>=0.3.0
-    image_name: my-repo/my-image
-    tag: my-tag
-    dockerfile: auto
-    push: true
+  requires: prefect-docker>=0.3.0
+  image_name: my-repo/my-image
+  tag: my-tag
+  dockerfile: auto
+  push: true
 ```
 </Tip>
 
@@ -176,18 +176,18 @@ additional required packages are auto-installed for you.
 Each deployment action can be composed of multiple steps. For example, if you wanted to build a Docker image tagged with the 
 current commit hash, you could use the `run_shell_script` step and feed the output into the `build_docker_image` step:
 
-    ```yaml
-    build:
-        - prefect.deployments.steps.run_shell_script:
-            id: get-commit-hash
-            script: git rev-parse --short HEAD
-            stream_output: false
-        - prefect_docker.deployments.steps.build_docker_image:
-            requires: prefect-docker
-            image_name: my-image
-            image_tag: "{{ get-commit-hash.stdout }}"
-            dockerfile: auto
-    ```
+```yaml
+build:
+- prefect.deployments.steps.run_shell_script:
+    id: get-commit-hash
+    script: git rev-parse --short HEAD
+    stream_output: false
+- prefect_docker.deployments.steps.build_docker_image:
+    requires: prefect-docker
+    image_name: my-image
+    image_tag: "{{ get-commit-hash.stdout }}"
+    dockerfile: auto
+```
 
 The `id` field is used in the `run_shell_script` step to reference its output in the next step.
 
@@ -309,17 +309,17 @@ build:
 <Warning>
 **Provided environment variables are not expanded by default**
 
-    To expand environment variables in your shell script, set `expand_env_vars: true` in your `run_shell_script` step. For example:
+To expand environment variables in your shell script, set `expand_env_vars: true` in your `run_shell_script` step. For example:
 
-    ```yaml
-    - prefect.deployments.steps.run_shell_script:
-        id: get-user
-        script: echo $USER
-        stream_output: true
-        expand_env_vars: true
-    ```
+```yaml
+- prefect.deployments.steps.run_shell_script:
+    id: get-user
+    script: echo $USER
+    stream_output: true
+    expand_env_vars: true
+```
 
-    Without `expand_env_vars: true`, the above step returns a literal string `$USER` instead of the current user.
+Without `expand_env_vars: true`, the above step returns a literal string `$USER` instead of the current user.
 </Warning>
 
 - `pip_install_requirements` installs dependencies from a `requirements.txt` file within a specified directory.
@@ -593,8 +593,7 @@ In the above example, YAML aliases reuse work pool, schedule, and build configur
 
 - `deployment-1` and `deployment-2` use the same work pool configuration
 - `deployment-1` and `deployment-3` use the same schedule
-- `deployment-1` and `deployment-2` use the same build deployment action, but `deployment-2` overrides the `dockerfile` 
-field to use a custom Dockerfile
+- `deployment-1` and `deployment-2` use the same build deployment action, but `deployment-2` overrides the `dockerfile` field to use a custom Dockerfile
 
 ### Deployment declaration reference
 
