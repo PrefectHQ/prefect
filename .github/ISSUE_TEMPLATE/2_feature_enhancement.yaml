@@ -13,6 +13,8 @@ body:
 
         3. I searched the Prefect documentation for this feature.
 
+        **Note:** Enhancements are only considered for Prefect 3.x. Prefect 2.x only receives bug fixes.
+
   - type: textarea
     attributes:
       label: Describe the current behavior
@@ -33,16 +35,6 @@ body:
       description: Provide an example of how end users could leverage that functionality
     validations:
       required: false
-
-  - type: textarea
-    attributes:
-      label: Version info (`prefect version` output)
-      description: >
-        Provide information about your Prefect version and environment. The easiest way to retrieve all of this information is by running the `prefect version` command.
-      placeholder: "# Copy output of the `prefect version` command here. Do not just include your Prefect version number."
-      render: Text
-    validations:
-      required: true
 
   - type: textarea
     attributes:
