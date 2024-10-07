@@ -10,7 +10,7 @@ class TestAwsClientParameters:
     @pytest.mark.parametrize(
         "params,result",
         [
-            (AwsClientParameters(), {}),
+            (AwsClientParameters(), {"use_ssl": True}),
             (
                 AwsClientParameters(
                     use_ssl=False, verify=False, endpoint_url="http://localhost:9000"
@@ -23,21 +23,17 @@ class TestAwsClientParameters:
             ),
             (
                 AwsClientParameters(endpoint_url="https://localhost:9000"),
-                {"endpoint_url": "https://localhost:9000"},
+                {"use_ssl": True, "endpoint_url": "https://localhost:9000"},
             ),
             (
                 AwsClientParameters(api_version="1.0.0"),
-                {"api_version": "1.0.0"},
+                {"use_ssl": True, "api_version": "1.0.0"},
             ),
         ],
     )
     def test_get_params_override_expected_output(
         self, params: AwsClientParameters, result: Dict[str, Any], tmp_path
     ):
-        if "use_ssl" not in result:
-            result["use_ssl"] = True
-        if "verify" not in result:
-            result["verify"] = True
         assert result == params.get_params_override()
 
     @pytest.mark.parametrize(
@@ -131,3 +127,27 @@ class TestAwsClientParameters:
             )
         override_params = params.get_params_override()
         assert override_params["verify"] == cert_path
+
+    def test_get_params_override_with_default_verify(self):
+        params = AwsClientParameters()
+        override_params = params.get_params_override()
+        assert (
+            "verify" not in override_params
+        ), "verify should not be in params_override when not explicitly set"
+
+    def test_get_params_override_with_explicit_verify(self):
+        params_true = AwsClientParameters(verify=True)
+        params_false = AwsClientParameters(verify=False)
+
+        override_params_true = params_true.get_params_override()
+        override_params_false = params_false.get_params_override()
+
+        assert (
+            "verify" in override_params_true
+        ), "verify should be in params_override when explicitly set to True"
+        assert override_params_true["verify"] is True
+
+        assert (
+            "verify" in override_params_false
+        ), "verify should be in params_override when explicitly set to False"
+        assert override_params_false["verify"] is False
