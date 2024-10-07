@@ -171,7 +171,7 @@ For example, you can install a private Python package from GCP's artifact regist
 1. Create a custom base Dockerfile.
 
    ```
-   FROM python:3.10
+   FROM python:3.12
 
    ARG AUTHED_ARTIFACT_REG_URL
    COPY ./requirements.txt /requirements.txt
@@ -266,94 +266,10 @@ if __name__ == "__main__":
 
 The `entrypoint` is the path to the file the flow is located in and the function name, separated by a colon.
 
-Alternatively, you could specify a git-based cloud storage URL for a Bitbucket or GitLab repository.
-
-<Note>
-    If you don't specify an image as part of your deployment creation, the image specified in the work pool
-    runs your flow.
-</Note>
-
-After creating a deployment, you may need to change your flow code.
-Generally, you can just push your code to GitHub, without rebuilding your deployment.
-The exception is if there is something the server needs to know about changes, such as the flow entrypoint parameters.
-Rerunning the Python script with `.deploy` updates your deployment on the server with the new flow code.
-
-If you need to provide additional configuration, such as specifying a private repository, you can provide a
-[`GitRepository`](https://prefect-python-sdk-docs.netlify.app/prefect/flows/#prefect.runner.storage.GitRepository) object instead of a URL:
-
-```python private_git_storage.py
-from prefect import flow
-from prefect.runner.storage import GitRepository
-from prefect.blocks.system import Secret
-
-if __name__ == "__main__":
-    flow.from_source(
-        source=GitRepository(
-            url="https://github.com/org/private-repo.git",
-            branch="dev",
-            credentials={
-                "access_token": Secret.load("github-access-token")
-            }
-        ),
-        entrypoint="flows/no-image.py:hello_world",
-    ).deploy(
-        name="private-git-storage-deployment",
-        work_pool_name="my-docker-pool",
-        build=False
-    )
-```
-
-Note the use of the Secret block to load the GitHub access token.
-Alternatively, you could provide a username and password to the `username` and `password` fields of the `credentials` argument.
-
-### Store your code in cloud provider storage
-
-Another option for flow code storage is any [fsspec](https://filesystem-spec.readthedocs.io/en/latest/)-supported
-storage location, such as AWS S3, GCP GCS, or Azure Blob Storage.
-
-For example, you can pass the S3 bucket path to `source`.
-
-```python s3_storage.py
-from prefect import flow
-
-if __name__ == "__main__":
-    flow.from_source(
-        source="s3://my-bucket/my-folder",
-        entrypoint="flows.py:my_flow",
-    ).deploy(
-        name="deployment-from-aws-flow",
-        work_pool_name="my-docker-pool",
-    )
-```
-
-In the example above, your credentials are auto-discovered from your deployment creation environment. Your credentials
-must be available in your runtime environment.
-
-If you need additional configuration for your cloud-based storage (for example, with a private S3 Bucket), we recommend using a
-[storage block](/3.0/develop/blocks/).
-A storage block also ensures your credentials are available in both your deployment creation environment and your execution
-environment.
-
-Here's an example that uses an `S3Bucket` block from the [prefect-aws library](https://prefecthq.github.io/prefect-aws/):
-
-```python s3_storage_auth.py
-from prefect import flow
-from prefect_aws.s3 import S3Bucket
-
-if __name__ == "__main__":
-    flow.from_source(
-        source=S3Bucket.load("my-code-storage"), entrypoint="my_file.py:my_flow"
-    ).deploy(name="test-s3", work_pool_name="my-docker-pool")
-```
-
-The deployment creation mechanics or `.serve` are similar to `.deploy`. `.deploy`
-just requires a work pool name and has a number of parameters dealing with flow code storage for Docker images.
-
-Unlike `.serve`, if you don't specify an image to use for your flow, you must to specify where to pull the flow code from at runtime with the `from_source` method; `from_source` is optional with `.serve`.
+See the [Store flow code](/3.0/deploy/infrastructure-concepts/store-flow-code/) guide for more flow code storage options.
 
 ### Additional configuration with `.deploy`
 
-The examples so far have explored options for where to store flow code.
 Next, see deployment configuration options.
 
 To pass parameters to your flow, you can use the `parameters` argument in the `.deploy` method. Just pass in a dictionary of
@@ -362,9 +278,11 @@ key-value pairs.
 ```python pass_params.py
 from prefect import flow
 
+
 @flow
 def hello_world(name: str):
     print(f"Hello, {name}!")
+
 
 if __name__ == "__main__":
     hello_world.deploy(
@@ -423,6 +341,7 @@ To create multiple work pool-based deployments at once, use the `deploy` functio
 ```python
 from prefect import deploy, flow
 
+
 @flow(log_prints=True)
 def buy():
     print("Buying securities")
@@ -443,9 +362,11 @@ Alternatively, you can create two deployments from different flows:
 ```python
 from prefect import deploy, flow
 
+
 @flow(log_prints=True)
 def buy():
     print("Buying securities.")
+
 
 @flow(log_prints=True)
 def sell():
@@ -474,6 +395,7 @@ from prefect import deploy, flow
 @flow(log_prints=True)
 def local_flow():
     print("I'm a flow!")
+
 
 if __name__ == "__main__":
     deploy(

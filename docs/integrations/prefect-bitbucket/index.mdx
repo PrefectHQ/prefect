@@ -52,8 +52,8 @@ Create a Bitbucket Credentials block:
 ```python
 from prefect_bitbucket import BitBucketCredentials
 
-bitbucket_credentials_block = BitBucketCredentials(token="x-token-auth:my-token")
 
+bitbucket_credentials_block = BitBucketCredentials(token="x-token-auth:my-token")
 bitbucket_credentials_block.save(name="my-bitbucket-credentials-block")
 ```
 
@@ -74,16 +74,18 @@ from prefect_bitbucket import BitBucketCredentials
 
 
 if __name__ == "__main__":
+    
+    source = GitRepository(
+        url="https://bitbucket.com/org/private-repo.git",
+        credentials=BitBucketCredentials.load("my-bitbucket-credentials-block")
+        )
+
     flow.from_source(
-        source=GitRepository(
-            url="https://bitbucket.com/org/private-repo.git",
-            credentials=BitBucketCredentials.load("my-bitbucket-credentials-block")
-        ),
-    entrypoint="my_file.py:my_flow",
+        source=source,
+        entrypoint="my_file.py:my_flow",
     ).deploy(
         name="private-bitbucket-deploy",
         work_pool_name="my_pool",
-        build=False
     )
 ```
 
@@ -102,6 +104,7 @@ The code below shows how to reference a particular branch or tag of a Bitbucket 
 
 ```python
 from prefect_bitbucket import BitbucketRepository
+
 
 def save_bitbucket_block():
     bitbucket_block = BitbucketRepository(
@@ -126,9 +129,11 @@ For example, download the repository contents with the `.get_directory()` method
 ```python
 from prefect_bitbucket.repositories import BitbucketRepository
 
+
 def fetch_repo():
     bitbucket_block = BitbucketRepository.load("my-bitbucket-block")
     bitbucket_block.get_directory()
+
 
 if __name__ == "__main__":
     fetch_repo()
