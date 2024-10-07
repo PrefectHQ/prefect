@@ -9,9 +9,6 @@ interface MyRouterContext {
 }
 
 export const Route = createRootRouteWithContext<MyRouterContext>()({
-  staticData: {
-    sideBar: false,
-  },
   component: () => (
     <MainLayout>
       <Outlet />

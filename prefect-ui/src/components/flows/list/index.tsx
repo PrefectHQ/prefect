@@ -1,5 +1,3 @@
-"use client"
-
 import { useState } from 'react'
 import {
   ColumnDef,
@@ -35,7 +33,7 @@ import { components } from '@/api/prefect'
 interface FlowRow {
   id: string
   name: string
-  createdDate: string
+  created: string
   lastRun: { status: 'success' | 'failure'; name: string }
   nextRun: string | null
   deployments: number
@@ -46,7 +44,7 @@ const mockFlows: FlowRow[] = [
   {
     id: '1',
     name: 'Production Deploy',
-    createdDate: '2023-05-15',
+    created: '2023-05-15',
     lastRun: { status: 'success', name: 'deploy-123' },
     nextRun: null,
     deployments: 5,
@@ -55,7 +53,7 @@ const mockFlows: FlowRow[] = [
   {
     id: '2',
     name: 'Staging Build',
-    createdDate: '2023-06-01',
+    created: '2023-06-01',
     lastRun: { status: 'failure', name: 'build-456' },
     nextRun: '2023-07-01',
     deployments: 0,
@@ -64,7 +62,7 @@ const mockFlows: FlowRow[] = [
   {
     id: '3',
     name: 'Development Test',
-    createdDate: '2023-06-15',
+    created: '2023-06-15',
     lastRun: { status: 'success', name: 'test-789' },
     nextRun: '2023-07-02',
     deployments: 3,
@@ -98,7 +96,7 @@ const mockFlows: FlowRow[] = [
       cell: ({ row }) => (
         <div>
           <div className="text-primary hover:underline cursor-pointer">{row.original.name}</div>
-          <div className="text-sm text-muted-foreground">Created {row.original.createdDate}</div>
+          <div className="text-sm text-muted-foreground">Created {row.original.created}</div>
         </div>
       ),
     },
@@ -176,12 +174,13 @@ const mockFlows: FlowRow[] = [
   ]
 
 export default function Component({
-    flows}: {
-    flows: components['schemas']['Flow'][]
+  flows,
+}: {
+  flows: components['schemas']['Flow'][] | undefined
 }) {
-  const [flowList] = useState<FlowRow[]>(mockFlows)
-  const [rowSelection, setRowSelection] = useState({})
-  const [sorting, setSorting] = useState<SortingState>([])
+  const [flowList] = useState<FlowRow[]>(mockFlows);
+  const [rowSelection, setRowSelection] = useState({});
+  const [sorting, setSorting] = useState<SortingState>([]);
 
 
   const table = useReactTable({
