@@ -105,8 +105,7 @@ To deploy a flow using `flow.deploy` and Docker, follow these steps:
 </Steps>
 
 Building a Docker image for our flow allows us to have a consistent environment for our flow to run in. Workers for our work pool will use the image to run our flow.
-In this example, we set `push=False` to skip pushing the image to a registry. This is useful for local development, and you can push your image to a registry such as  
-Docker Hub in a production environment.
+In this example, we set `push=False` to skip pushing the image to a registry. This is useful for local development, and you can push your image to a registry such as Docker Hub in a production environment.
 
 <Note>
 **Where's the Dockerfile?**
@@ -293,7 +292,7 @@ if __name__ == "__main__":
     )
 ```
 
-The `source` parameter can be a variety of remote storage options including:
+The `source` parameter can accept a variety of remote storage options including:
 
 - Git repositories
 - S3 buckets (using the `s3://` scheme)
@@ -302,7 +301,7 @@ The `source` parameter can be a variety of remote storage options including:
 
 The `entrypoint` parameter is the path to the flow function within your repository combined with the name of the flow function.
 
-Learn more about remote code storage [here](/3.0/deploy/infrastructure-concepts/store-flow-code).
+Learn more about remote code storage [here](/3.0/deploy/infrastructure-concepts/store-flow-code/).
 
 ## Set default parameters
 
@@ -357,15 +356,14 @@ if __name__ == "__main__":
     )
 ```
 
-Job variables can be used to customize environment variables, resources limits, and other infrastructure options
- allowing fine-grained control over your infrastructure on a per-deployment or per-flow-run basis.
+Job variables can be used to customize environment variables, resources limits, and other infrastructure options, allowing fine-grained control over your infrastructure on a per-deployment or per-flow-run basis.
 Any variable defined in the base job template of the associated work pool can be overridden by a job variable.
 
 You can learn more about job variables [here](/3.0/deploy/infrastructure-concepts/customize).
 
 ## Deploy multiple flows
 
-If you want to deploy multiple flows at once, use the `deploy` function.
+To deploy multiple flows at once, use the `deploy` function.
 
 ```python multi-deploy.py
 from prefect import flow, deploy

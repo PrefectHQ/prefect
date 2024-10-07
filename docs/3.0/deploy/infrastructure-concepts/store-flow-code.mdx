@@ -71,15 +71,15 @@ If using the Python `deploy` method with a private repository that references a 
 
     if __name__ == "__main__":
 
-        source = GitRepository(
+        github_repo = GitRepository(
             url="https://github.com/org/my-private-repo.git",
             credentials=GitHubCredentials.load("my-github-credentials-block")
         )
 
         flow.from_source(
-            source=source,
+            source=github_repo,
             entrypoint="gh_credentials_block.py:my_flow",
-            ).deploy(
+        ).deploy(
                 name="private-github-deploy",
             work_pool_name="my_pool",
         )
@@ -93,13 +93,13 @@ If using the Python `deploy` method with a private repository that references a 
 
     if __name__ == "__main__":
 
-        source = GitRepository(
+        github_repo = GitRepository(
             url="https://github.com/org/my-private-repo.git",
             credentials=Secret.load("my-secret-block-with-my-gh-credentials")
         )
 
         flow.from_source(
-            source=source,
+            source=github_repo,
             entrypoint="gh_secret_block.py:my_flow",
         ).deploy(
             name="private-github-deploy",
@@ -236,10 +236,10 @@ If using the Python `deploy` method with a private repository that references a 
 
 
     if __name__ == "__main__":
-        source = "https://gitlab.com/org/my-public-repo.git"
+        gitlab_repo = "https://gitlab.com/org/my-public-repo.git"
 
         flow.from_source(
-            source=source,
+            source=gitlab_repo,
             entrypoint="gl_no_block.py:my_flow"
         ).deploy(
             name="my-gitlab-deployment",
@@ -256,12 +256,12 @@ If using the Python `deploy` method with a private repository that references a 
 
     if __name__ == "__main__":
 
-        source = GitRepository(
+        gitlab_repo = GitRepository(
             url="https://gitlab.com/org/my-private-repo.git",
             credentials=GitLabCredentials.load("my-gitlab-credentials-block")
         
         flow.from_source(
-            source=source,
+            source=gitlab_repo,
             entrypoint="gl_credentials_block.py:my_flow",
         ).deploy(
             name="private-gitlab-deploy",
@@ -277,13 +277,13 @@ If using the Python `deploy` method with a private repository that references a 
 
 
     if __name__ == "__main__":
-        source = GitRepository(
+        gitlab_repo = GitRepository(
             url="https://gitlab.com/org/my-private-repo.git",
             credentials=Secret.load("my-secret-block-with-my-gl-credentials")
         )
 
         flow.from_source(   
-            source=source,
+            source=gitlab_repo,
             entrypoint="gl_secret_block.py:my_flow",
         ).deploy(
             name="private-gitlab-deploy",
@@ -476,17 +476,17 @@ We also include Python code that shows how to use an existing storage block and 
     from prefect_aws.s3 import S3Bucket
 
     if __name__ == "__main__":
-        source = S3Bucket.load("my-code-storage-block")
+        s3_bucket_block = S3Bucket.load("my-code-storage-block")
 
         # or:
-        # source = S3Bucket(
+        # s3_bucket_block = S3Bucket(
         #     bucket="my-bucket",
         #     folder="my-folder",
         #     credentials=AWSCredentials.load("my-credentials-block")
         # )
 
         flow.from_source(
-            source=source, 
+            source=s3_bucket_block, 
             entrypoint="my_file.py:my_flow"
         ).deploy(
             name="my-aws-s3-deployment", 
@@ -568,16 +568,16 @@ We also include Python code that shows how to use an existing storage block and 
 
     if __name__ == "__main__":
 
-        source = AzureBlobStorage.load("my-code-storage-block")
+        azure_blob_storage_block = AzureBlobStorage.load("my-code-storage-block")
 
         # or 
-        # source = AzureBlobStorage(   
+        # azure_blob_storage_block = AzureBlobStorage(   
         #     container="my-prefect-azure-container",
         #     folder="my-folder",
         #     credentials=AzureBlobCredentials.load("my-credentials-block")
         # )
 
-        flow.from_source(source=source, entrypoint="my_file.py:my_flow").deploy(
+        flow.from_source(source=azure_blob_storage_block, entrypoint="my_file.py:my_flow").deploy(
             name="my-azure-deployment", work_pool_name="my-work-pool"
         )
     ```
@@ -655,17 +655,17 @@ We also include Python code that shows how to use an existing storage block and 
 
     if __name__ == "__main__":
 
-        source = GCSBucket.load("my-code-storage-block")
+        gcs_bucket_block = GCSBucket.load("my-code-storage-block")
 
         # or 
-        # source = GCSBucket(
+        # gcs_bucket_block = GCSBucket(
         #     bucket="my-bucket",
         #     folder="my-folder",
         #     credentials=GcpCredentials.load("my-credentials-block")
         # )
 
         flow.from_source(
-            source=source,
+            source=gcs_bucket_block,
             entrypoint="my_file.py:my_flow",
         ).deploy(
             name="my-gcs-deployment",
