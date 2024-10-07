@@ -532,11 +532,16 @@ def set_in_dict(dct: Dict, keys: Union[str, List[str]], value: Any):
 
     Returns:
         The modified dictionary with the value set at the specified key path.
+
+    Raises:
+        KeyError: If the key path exists and is not a dictionary.
     """
     if isinstance(keys, str):
         keys = keys.replace("[", ".").replace("]", "").split(".")
     for k in keys[:-1]:
-        if k not in dct or not isinstance(dct[k], dict):
+        if not isinstance(dct.get(k, {}), dict):
+            raise KeyError(f"Key path exists and contains a non-dict value: {keys}")
+        if k not in dct:
             dct[k] = {}
         dct = dct[k]
     dct[keys[-1]] = value

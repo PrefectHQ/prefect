@@ -638,6 +638,12 @@ class TestSetInDict:
         set_in_dict(dct, keys, value)
         assert dct == expected
 
+    def test_set_in_dict_raises_key_error(self):
+        with pytest.raises(
+            KeyError, match="Key path exists and contains a non-dict value"
+        ):
+            set_in_dict({"a": {"b": [2]}}, ["a", "b", "c"], 1)
+
 
 class TestDeepMerge:
     @pytest.mark.parametrize(

@@ -410,7 +410,9 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
         self, field: FieldInfo, field_name: str
     ) -> Tuple[Any, str, bool]:
         """Concrete implementation to get the field value from the profile settings"""
-        value = self.profile_settings.get(f"PREFECT_{field_name.upper()}")
+        value = self.profile_settings.get(
+            f"{self.config.get('env_prefix',"")}{field_name.upper()}"
+        )
         return value, field_name, self.field_is_complex(field)
 
     def __call__(self) -> Dict[str, Any]:
@@ -431,6 +433,30 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
 ###########################################################################
 # Settings
 class PrefectBaseSettings(BaseSettings):
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: Type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> Tuple[PydanticBaseSettingsSource, ...]:
+        """
+        Define an order for Prefect settings sources.
+
+        The order of the returned callables decides the priority of inputs; first item is the highest priority.
+
+        See https://docs.pydantic.dev/latest/concepts/pydantic_settings/#customise-settings-sources
+        """
+        return (
+            init_settings,
+            env_settings,
+            dotenv_settings,
+            file_secret_settings,
+            ProfileSettingsTomlLoader(settings_cls),
+        )
+
     @classmethod
     def valid_setting_names(cls) -> Set[str]:
         """
@@ -483,7 +509,7 @@ class APISettings(PrefectBaseSettings):
     """
 
     model_config = SettingsConfigDict(
-        env_prefix="PREFECT_API_",
+        env_prefix="PREFECT_API_", env_file=".env", extra="ignore"
     )
     url: Optional[str] = Field(
         default=None,
@@ -525,32 +551,9 @@ class Settings(PrefectBaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         env_prefix="PREFECT_",
+        env_nested_delimiter=None,
         extra="ignore",
     )
-
-    @classmethod
-    def settings_customise_sources(
-        cls,
-        settings_cls: Type[BaseSettings],
-        init_settings: PydanticBaseSettingsSource,
-        env_settings: PydanticBaseSettingsSource,
-        dotenv_settings: PydanticBaseSettingsSource,
-        file_secret_settings: PydanticBaseSettingsSource,
-    ) -> Tuple[PydanticBaseSettingsSource, ...]:
-        """
-        Define an order for Prefect settings sources.
-
-        The order of the returned callables decides the priority of inputs; first item is the highest priority.
-
-        See https://docs.pydantic.dev/latest/concepts/pydantic_settings/#customise-settings-sources
-        """
-        return (
-            init_settings,
-            env_settings,
-            dotenv_settings,
-            file_secret_settings,
-            ProfileSettingsTomlLoader(settings_cls),
-        )
 
     ###########################################################################
     # CLI

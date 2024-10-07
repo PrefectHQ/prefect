@@ -635,6 +635,36 @@ class TestSettingsSources:
 
         assert Settings().client_retry_extra_codes == set()
 
+    def test_resolution_order_with_nested_settings(
+        self, temporary_env_file, monkeypatch, tmp_path
+    ):
+        profiles_path = tmp_path / "profiles.toml"
+
+        monkeypatch.delenv("PREFECT_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_UNIT_TEST_MODE", raising=False)
+        monkeypatch.setenv("PREFECT_PROFILES_PATH", str(profiles_path))
+
+        profiles_path.write_text(
+            textwrap.dedent(
+                """
+                active = "foo"
+
+                [profiles.foo]
+                PREFECT_API_URL = "http://example.com:4200"
+                """
+            )
+        )
+
+        assert Settings().api.url == "http://example.com:4200"
+
+        temporary_env_file("PREFECT_API_URL=http://localhost:4200")
+
+        assert Settings().api.url == "http://localhost:4200"
+
+        os.unlink(".env")
+
+        assert Settings().api.url == "http://example.com:4200"
+
 
 class TestLoadProfiles:
     @pytest.fixture(autouse=True)
