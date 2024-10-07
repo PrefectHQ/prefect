@@ -80,7 +80,7 @@ If using the Python `deploy` method with a private repository that references a 
             source=github_repo,
             entrypoint="gh_credentials_block.py:my_flow",
         ).deploy(
-                name="private-github-deploy",
+            name="private-github-deploy",
             work_pool_name="my_pool",
         )
     ```
@@ -344,7 +344,7 @@ Note that the `build` section is necessary if baking your flow code into a Docke
 
 <CodeGroup>
 
-```python my_docker_deploy.py
+```python docker_deploy.py
 from prefect import flow
 
 
@@ -515,19 +515,19 @@ We also include Python code that shows how to use an existing storage block and 
         credentials: "{{ prefect.blocks.aws-credentials.my-credentials-block }}" # if explicit authentication is required 
     
     deployments:
-        - name: my-aws-deployment
-        version: null
-        tags: []
-        concurrency_limit: null
-        description: null
-        entrypoint: my_file.py:my_flow
-        parameters: {}
-        work_pool:
-            name: my-work-pool
-            work_queue_name: null
-            job_variables: {}
-        enforce_parameter_schema: true
-        schedules: []
+    - name: my-aws-deployment
+      version: null
+      tags: []
+      concurrency_limit: null
+      description: null
+      entrypoint: my_file.py:my_flow
+      parameters: {}
+      work_pool:
+        name: my-work-pool
+        work_queue_name: null
+        job_variables: {}
+      enforce_parameter_schema: true
+      schedules: []
     ``` 
 
     </CodeGroup>
@@ -603,19 +603,19 @@ We also include Python code that shows how to use an existing storage block and 
         credentials: "{{ prefect.blocks.azure-blob-storage-credentials.my-credentials-block }}" # if explicit authentication is required
     
     deployments:
-        - name: my-azure-deployment
-        version: null
-        tags: []
-        concurrency_limit: null
-        description: null
-        entrypoint: my_file.py:my_flow
-        parameters: {}
-        work_pool:
-            name: my-work-pool
-            work_queue_name: null
-            job_variables: {}
-        enforce_parameter_schema: true
-        schedules: []
+    - name: my-azure-deployment
+      version: null
+      tags: []
+      concurrency_limit: null
+      description: null
+      entrypoint: my_file.py:my_flow
+      parameters: {}
+      work_pool:
+        name: my-work-pool
+        work_queue_name: null
+        job_variables: {}
+      enforce_parameter_schema: true
+      schedules: []
     ```
 
     </CodeGroup>
@@ -695,18 +695,18 @@ We also include Python code that shows how to use an existing storage block and 
     
     deployments:
     - name: my-gcs-deployment
-    version: null
-    tags: []
-    concurrency_limit: null
-    description: null
-    entrypoint: my_file.py:my_flow
-    parameters: {}
-    work_pool:
-        name: my-work-pool
-        work_queue_name: null
-        job_variables: {}
-    enforce_parameter_schema: true
-    schedules: []
+        version: null
+        tags: []
+        concurrency_limit: null
+        description: null
+        entrypoint: my_file.py:my_flow
+        parameters: {}
+        work_pool:
+          name: my-work-pool
+          work_queue_name: null
+          job_variables: {}
+        enforce_parameter_schema: true
+        schedules: []
     ```
     </CodeGroup>
     
@@ -761,23 +761,23 @@ build: null
 push: null
 
 pull:
-    - prefect.deployments.steps.set_working_directory:
-        directory: /my_directory
+- prefect.deployments.steps.set_working_directory:
+    directory: /my_directory
 
 deployments:
-    - name: local-process-deploy-local-code
-    version: null
-    tags: []
-    concurrency_limit: null
-    description: null
-    entrypoint: local_process_deploy_local_code.py:my_flow
-    parameters: {}
-    work_pool:
-        name: my-process-pool
-        work_queue_name: null
-        job_variables: {}
-    enforce_parameter_schema: true
-    schedules: []
+- name: local-process-deploy-local-code
+  version: null
+  tags: []
+  concurrency_limit: null
+  description: null
+  entrypoint: local_process_deploy_local_code.py:my_flow
+  parameters: {}
+  work_pool:
+    name: my-process-pool
+    work_queue_name: null
+    job_variables: {}
+  enforce_parameter_schema: true
+  schedules: []
 ```
 </CodeGroup>
 
