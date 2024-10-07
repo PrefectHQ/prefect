@@ -63,6 +63,30 @@ If using the Python `deploy` method with a private repository that references a 
         )
     ```
 
+    ```python secret_block.py
+    from prefect import flow
+    from prefect.runner.storage import GitRepository
+    from prefect.blocks.system import Secret
+
+
+    if __name__ == "__main__":
+
+        github_repo = GitRepository(
+            url="https://github.com/org/my-private-repo.git",
+            credentials={
+                "access_token": Secret.load("github-access-token")
+            }
+        )
+
+        flow.from_source(
+            source=github_repo,
+            entrypoint="gh_credentials_block.py:my_flow",
+        ).deploy(
+            name="private-github-deploy",
+            work_pool_name="my_pool",
+        )
+    ```
+
     ```python gh_credentials_block.py
     from prefect import flow
     from prefect.runner.storage import GitRepository
@@ -73,7 +97,7 @@ If using the Python `deploy` method with a private repository that references a 
 
         github_repo = GitRepository(
             url="https://github.com/org/my-private-repo.git",
-            credentials=GitHubCredentials.load("my-github-credentials-block")
+            credentials=GitHubCredentials.load("my-github-credentials-block"),
         )
 
         flow.from_source(
@@ -95,7 +119,9 @@ If using the Python `deploy` method with a private repository that references a 
 
         github_repo = GitRepository(
             url="https://github.com/org/my-private-repo.git",
-            credentials=Secret.load("my-secret-block-with-my-gh-credentials")
+            credentials={
+                "access_token": Secret.load("my-secret-block-with-my-gh-credentials")
+            },
         )
 
         flow.from_source(
@@ -259,6 +285,7 @@ If using the Python `deploy` method with a private repository that references a 
         gitlab_repo = GitRepository(
             url="https://gitlab.com/org/my-private-repo.git",
             credentials=GitLabCredentials.load("my-gitlab-credentials-block")
+        )
         
         flow.from_source(
             source=gitlab_repo,
@@ -318,6 +345,9 @@ If using the Python `deploy` method with a private repository that references a 
 
   </Tab>
 </Tabs>
+
+Note that you can specify a `branch` if creating a `GitRepository` object. 
+The default is `"main"`.
 
 <Warning>
 **Push your code**
