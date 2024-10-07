@@ -370,6 +370,9 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
     def _load_profile_settings(self) -> Dict[str, Any]:
         """Helper method to load the profile settings from the profiles.toml file"""
 
+        if not self.profiles_path.exists():
+            return {}
+
         all_profile_data = toml.load(self.profiles_path)
 
         if (
