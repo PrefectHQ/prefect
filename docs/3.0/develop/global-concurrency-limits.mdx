@@ -162,9 +162,9 @@ async def process_data(x, y):
 
 
 @flow
-async def my_flow():
+def my_flow():
     for x, y in [(1, 2), (2, 3), (3, 4), (4, 5)]:
-        await process_data.submit(x, y)
+        process_data.submit(x, y)
 
 
 if __name__ == "__main__":
@@ -229,9 +229,9 @@ async def make_http_request():
 
 
 @flow
-async def my_flow():
+def my_flow():
     for _ in range(10):
-        await make_http_request.submit()
+        make_http_request.submit()
 
 
 if __name__ == "__main__":

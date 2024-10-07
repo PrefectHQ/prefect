@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import time
-import warnings
 from textwrap import dedent
 from typing import Optional
 from unittest import mock
@@ -13,7 +12,6 @@ import pydantic
 import pytest
 
 from prefect import Flow, __development_base_path__, flow, task
-from prefect._internal.compatibility.experimental import ExperimentalFeature
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.client.schemas.objects import StateType
@@ -941,12 +939,6 @@ class TestFlowCrashDetection:
 
 
 class TestPauseFlowRun:
-    @pytest.fixture(autouse=True)
-    def ignore_experimental_warnings(self):
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", category=ExperimentalFeature)
-            yield
-
     async def test_tasks_cannot_be_paused(self):
         @task
         async def the_little_task_that_pauses():
@@ -1180,12 +1172,6 @@ class TestPauseFlowRun:
 
 
 class TestSuspendFlowRun:
-    @pytest.fixture(autouse=True)
-    def ignore_experimental_warnings(self):
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", category=ExperimentalFeature)
-            yield
-
     async def test_suspended_flow_runs_do_not_block_execution(
         self, prefect_client, deployment, session
     ):
