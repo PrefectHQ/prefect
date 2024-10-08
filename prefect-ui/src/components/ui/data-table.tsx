@@ -1,8 +1,7 @@
+
 import {
-  ColumnDef,
   flexRender,
-  getCoreRowModel,
-  useReactTable,
+  Table as TanstackTable,
 } from "@tanstack/react-table"
 import {
   Table,
@@ -13,23 +12,25 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
-interface DataTableProps<TData> {
-  columns: ColumnDef<TData, any>[]
-  data: TData[]
-}
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination"
+
 
 export function DataTable<TData>({
-  columns,
-  data,
-}: DataTableProps<TData>) {
-  const table = useReactTable({
-    data,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-  })
-
+  table,
+}: {
+  table: TanstackTable<TData>
+}) {
   return (
-    <div className="rounded-md border overflow-scroll">
+    <>
+    <div className="rounded-md border">
       <Table>
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
@@ -63,7 +64,7 @@ export function DataTable<TData>({
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={columns.length} className="h-24 text-center">
+              <TableCell colSpan={table.getAllColumns().length} className="h-24 text-center">
                 No results.
               </TableCell>
             </TableRow>
@@ -71,5 +72,47 @@ export function DataTable<TData>({
         </TableBody>
       </Table>
     </div>
+    <DataTablePagination
+      table={table}
+      onPageChange={(page) => {
+        table.setPageIndex(page - 1);
+      }}
+    />
+    </>
+  )
+}
+
+interface DataTablePaginationProps<TData> {
+  table: TanstackTable<TData>;
+  onPageChange: (page: number) => void;
+}
+
+export function DataTablePagination<TData>({
+  table,
+  onPageChange,
+}: DataTablePaginationProps<TData>) {
+  return (
+    <Pagination className="mt-4 justify-end">
+      <PaginationContent>
+        <PaginationItem>
+          <PaginationPrevious
+            onClick={() => onPageChange(Math.max(1, table.getState().pagination.pageIndex))}
+          />
+        </PaginationItem>
+        <PaginationItem>
+          <PaginationLink onClick={() => onPageChange(1)}>
+            1
+          </PaginationLink>
+        </PaginationItem>
+        <PaginationItem>
+          <PaginationEllipsis />
+        </PaginationItem>
+        <PaginationItem>
+          <PaginationNext
+            onClick={() => onPageChange(table.getState().pagination.pageIndex + 2)}
+          />
+        </PaginationItem>
+      </PaginationContent>
+    </Pagination>
   )
 }

@@ -7,16 +7,21 @@ import { useQueries } from "@tanstack/react-query";
 export default function FlowList({
   flows
 }: {
-  flows: (Omit<components['schemas']['Flow'], 'id'> & Required<Pick<components['schemas']['Flow'], 'id'>>)[] 
+  flows: components['schemas']['Flow'][]
 }) {
 
   const queryParams = useMemo(() => [
-    ...flows?.map(flow => deploymentsCountQueryParams(flow.id, { staleTime: 100 })),
-    ...flows?.map(flow => getLatestFlowRunsQueryParams(flow.id, 60, { staleTime: 100 })),
-    ...flows?.map(flow => getNextFlowRunsQueryParams(flow.id, 60, { staleTime: 100 })),
+    ...flows.map(flow => deploymentsCountQueryParams(flow.id as string, { staleTime: 100 })),
+    ...flows.map(flow => getLatestFlowRunsQueryParams(flow.id as string, 60, { staleTime: 100 })),
+    ...flows.map(flow => getNextFlowRunsQueryParams(flow.id as string, 60, { staleTime: 100 })),
   ], [flows])
 
   useQueries({queries: queryParams})
 
-  return <DataTable flows={flows} />
+
+  return (
+    <div className="container mx-auto">
+      <DataTable flows={flows} />
+    </div>
+  )
 }

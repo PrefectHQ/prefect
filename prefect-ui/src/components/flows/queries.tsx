@@ -53,7 +53,7 @@ export const getLatestFlowRunsQueryParams = (
     const response = await QueryService.POST('/flow_runs/filter', {
       body: {
         flows: { operator: 'and_' as const, id: { any_: [id] } },
-        flow_runs: { operator: 'and_' as const, 'start_time': { 'before_': format(new Date(), "yyyy-MM-dd'T'HH:mm:ss'Z'") } },
+        flow_runs: { operator: 'and_' as const, 'start_time': { 'before_': format(new Date(), "yyyy-MM-dd'T'HH:mm:ss'Z'") , 'is_null_': false } },
         offset: 0,
         limit: n,
         sort: 'START_TIME_DESC'

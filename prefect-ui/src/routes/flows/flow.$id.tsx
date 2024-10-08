@@ -3,49 +3,77 @@ import { z } from 'zod'
 import { useSuspenseQueries } from '@tanstack/react-query'
 import { FlowQuery } from '@/components/flows/queries'
 import FlowDetail from '@/components/flows/detail'
+import { zodSearchValidator } from '@tanstack/router-zod-adapter'
+import { components } from '@/api/prefect'
 
 
 export const searchParams = z
   .object({
-    'runs.page': z.number().int().positive().optional().default(1),
+    'tab': z.enum(['runs', 'deployments', 'details']).optional().default('runs'),
+    'runs.page': z.number().int().nonnegative().optional().default(0),
     'runs.limit': z.number().int().positive().max(100).optional().default(10),
     'runs.sort': z
       .enum([
-        'CREATED_DESC',
-        'CREATED_ASC',
         'START_TIME_DESC',
         'START_TIME_ASC',
         'EXPECTED_START_TIME_DESC'
       ])
       .optional()
-      .default('CREATED_DESC'),
+      .default('START_TIME_DESC'),
     'runs.flowRuns.nameLike': z.string().optional(),
-    'runs.flowRuns.state.name': z.string().optional(),
+    'runs.flowRuns.state.name': z.array(z.string()).optional(),
     'type': z.enum(['span', 'range']).optional(),
     'seconds': z.number().int().positive().optional(),
     'startDateTime': z.date().optional(),
     'endDateTime': z.date().optional(),
-    'deployments.page': z.number().int().positive().optional().default(1),
+    'deployments.page': z.number().int().nonnegative().optional().default(0),
     'deployments.limit': z.number().int().positive().optional().default(10),
   })
   .optional()
   .default({})
 
+
+const filterFlowRunsBySearchParams = (search: z.infer<typeof searchParams>) : components['schemas']['Body_read_flow_runs_flow_runs_filter_post'] => {
+  const filter: components['schemas']['Body_read_flow_runs_flow_runs_filter_post'] = {
+    'sort': search['runs.sort'],
+    'limit': search['runs.limit'],
+    'offset': search['runs.page']*search['runs.limit'],
+    'flow_runs': {
+      'operator': 'and_',
+      'state': {
+        'operator': 'and_',
+        'name': {
+          'any_': search['runs.flowRuns.state.name']
+        }
+      },
+      'name': {
+        'like_': search['runs.flowRuns.nameLike']
+      }
+    }
+  }
+  return filter
+}
+
+
+
 export const Route = createFileRoute('/flows/flow/$id')({
   component: () => {
     const { id } = Route.useParams()
+    const search = Route.useSearch()
     const flowQuery = new FlowQuery(id)
     const [ 
       { data: flow }, 
       { data: flowRuns },
       { data: flowRunsCount },
+      { data: activity },
       { data: deployments },
       { data: deploymentsCount },
     ] = useSuspenseQueries({'queries': [
       flowQuery.getQueryParams(),
-      flowQuery.getFlowRunsQueryParams({'sort': 'START_TIME_DESC', 'offset': 0, 'limit': 10}),
+      flowQuery.getFlowRunsQueryParams(filterFlowRunsBySearchParams(search)),
       flowQuery.getFlowRunsCountQueryParams(),
-      flowQuery.getDeploymentsQueryParams({'sort': 'CREATED_DESC', 'offset': 0, 'limit': 10}),
+      flowQuery.getLatestFlowRunsQueryParams(60),
+      flowQuery.getDeploymentsQueryParams({'sort': 'CREATED_DESC', 'offset': search['deployments.page']*search['deployments.limit'], 'limit': search['deployments.limit'] }),
       flowQuery.getDeploymentsCountQueryParams(),
     ]})
     
@@ -53,18 +81,23 @@ export const Route = createFileRoute('/flows/flow/$id')({
       <FlowDetail
         flow={flow}
         flowRuns={flowRuns}
+        flowRunsCount={flowRunsCount}
         deployments={deployments}
+        deploymentsCount={deploymentsCount}
+        activity={activity}
+        tab={search.tab}
       />
     )
   },
+  validateSearch: zodSearchValidator(searchParams),
   loaderDeps: ({ search }) => search,
-  loader: async ({ params: { id }, context }) => {
+  loader: async ({ params: { id }, context, deps}) => {
     const flow = new FlowQuery(id)
     return await Promise.all([
       context.queryClient.ensureQueryData(flow.getQueryParams()),
-      context.queryClient.ensureQueryData(flow.getFlowRunsQueryParams({'sort': 'START_TIME_DESC', 'offset': 0, 'limit': 10})),
+      context.queryClient.ensureQueryData(flow.getFlowRunsQueryParams(filterFlowRunsBySearchParams(deps))),
       context.queryClient.ensureQueryData(flow.getFlowRunsCountQueryParams()),
-      context.queryClient.ensureQueryData(flow.getDeploymentsQueryParams({'sort': 'CREATED_DESC', 'offset': 0, 'limit': 10})),
+      context.queryClient.ensureQueryData(flow.getDeploymentsQueryParams({'sort': 'CREATED_DESC', 'offset': deps['runs.page']*deps['runs.limit'], 'limit': deps['runs.limit'] })),
       context.queryClient.ensureQueryData(flow.getDeploymentsCountQueryParams()),
     ])
   },
