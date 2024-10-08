@@ -12,7 +12,6 @@ import prefect.context
 import prefect.settings
 from prefect.exceptions import ProfileSettingsValidationError
 from prefect.settings import (
-    DEFAULT_DEPENDENT_SETTINGS,
     DEFAULT_PROFILES_PATH,
     PREFECT_API_DATABASE_CONNECTION_URL,
     PREFECT_API_DATABASE_DRIVER,
@@ -148,7 +147,6 @@ class TestSettingsClass:
 
         assert Settings().to_environment_variables(
             exclude_unset=True,
-            exclude={SETTING_VARIABLES[key] for key in DEFAULT_DEPENDENT_SETTINGS},
         ) == {
             "PREFECT_TEST_MODE": "True",
         }
@@ -161,7 +159,6 @@ class TestSettingsClass:
 
         assert Settings(debug_mode=True, api_key="Hello").to_environment_variables(
             exclude_unset=True,
-            exclude={SETTING_VARIABLES[key] for key in DEFAULT_DEPENDENT_SETTINGS},
         ) == {
             "PREFECT_TEST_MODE": "True",
             "PREFECT_DEBUG_MODE": "True",
