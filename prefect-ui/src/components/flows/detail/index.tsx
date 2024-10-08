@@ -54,23 +54,19 @@ const SortComponent = () => {
 export default function FlowDetail({
     flow,
     flowRuns,
-    flowRunsCount,
     activity, 
     deployments,
-    deploymentsCount,
     tab = "runs"
 }: {
     flow: components['schemas']['Flow'],
     flowRuns: components['schemas']['FlowRun'][],
-    flowRunsCount: number,
     activity: components['schemas']['FlowRun'][],
     deployments: components['schemas']['DeploymentResponse'][],
-    deploymentsCount: number,
     tab: "runs" | "deployments" | "details"
 }): React.ReactElement {
 
   const navigate = useNavigate()
-  console.log(flowRunsCount, deploymentsCount, activity)
+  console.log(activity)
 
   const flowRunTable = useReactTable({
     data: flowRuns,

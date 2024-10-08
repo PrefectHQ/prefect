@@ -44,17 +44,42 @@ export const columns: ColumnDef<Deployment>[] = [
     header: "Schedules",
     cell: ({ row }) => (
       <div className="flex flex-col gap-1">
-        {row.original.schedules?.map((schedule, index) => (
-          <span key={index} className="text-xs">
-            {JSON.stringify(schedule.schedule)}
-          </span>
-        ))}
+        {row.original.schedules?.map((schedule, index) => {
+          if (schedule.schedule && typeof schedule.schedule === 'object' && 'cron' in schedule.schedule) {
+            const cronExpression = schedule.schedule.cron;
+            return (
+              <span key={index} className="text-xs">
+                Cron: {cronExpression}
+              </span>
+            );
+          } else if (schedule.schedule && typeof schedule.schedule === 'object' && 'interval' in schedule.schedule) {
+            return (
+              <span key={index} className="text-xs">
+                Interval: {schedule.schedule.interval} seconds
+              </span>
+            );
+          } else if (schedule.schedule && typeof schedule.schedule === 'object' && 'rrule' in schedule.schedule) {
+            return (
+              <span key={index} className="text-xs">
+                RRule: {schedule.schedule.rrule}
+              </span>
+            );
+          } else {
+            return (
+              <span key={index} className="text-xs">
+                {JSON.stringify(schedule.schedule)}
+              </span>
+            );
+          }
+        })}
       </div>
     ),
   },
   {
     id: "actions",
-    cell: () => {
+    cell: ({ row }) => {
+      if (!row.original.id) return null;
+
       return (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -66,7 +91,9 @@ export const columns: ColumnDef<Deployment>[] = [
           <DropdownMenuContent align="end">
             <DropdownMenuItem>Quick run</DropdownMenuItem>
             <DropdownMenuItem>Custom run</DropdownMenuItem>
-            <DropdownMenuItem>Copy ID</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigator.clipboard.writeText(row.original.id as string)}>
+              Copy ID
+            </DropdownMenuItem>
             <DropdownMenuItem>Edit</DropdownMenuItem>
             <DropdownMenuItem>Delete</DropdownMenuItem>
             <DropdownMenuItem>Duplicate</DropdownMenuItem>
@@ -75,6 +102,7 @@ export const columns: ColumnDef<Deployment>[] = [
           </DropdownMenuContent>
         </DropdownMenu>
       )
+    }
     },
-  },
+
 ]
