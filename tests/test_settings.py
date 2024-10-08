@@ -254,6 +254,23 @@ class TestSettingsClass:
             == "test"
         )
 
+    def test_loads_when_profile_path_does_not_exist(self, monkeypatch):
+        monkeypatch.setenv("PREFECT_PROFILES_PATH", str(Path.home() / "nonexistent"))
+        monkeypatch.delenv("PREFECT_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_UNIT_TEST_MODE", raising=False)
+        assert Settings().test_setting == "FOO"
+
+    def test_loads_when_profile_path_is_not_a_toml_file(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("PREFECT_PROFILES_PATH", str(tmp_path / "profiles.toml"))
+        monkeypatch.delenv("PREFECT_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_UNIT_TEST_MODE", raising=False)
+
+        with open(tmp_path / "profiles.toml", "w") as f:
+            f.write("Ceci n'est pas un fichier toml")
+
+        with pytest.warns(UserWarning, match="Failed to load profiles from"):
+            assert Settings().test_setting == "FOO"
+
 
 class TestSettingAccess:
     def test_get_value_root_setting(self):
