@@ -74,26 +74,20 @@ export const Route = createFileRoute('/flows/flow/$id')({
     const [ 
       { data: flow }, 
       { data: flowRuns },
-      { data: flowRunsCount },
       { data: activity },
       { data: deployments },
-      { data: deploymentsCount },
     ] = useSuspenseQueries({'queries': [
       flowQuery.getQueryParams(),
       flowQuery.getFlowRunsQueryParams(filterFlowRunsBySearchParams(search)),
-      flowQuery.getFlowRunsCountQueryParams(),
       flowQuery.getLatestFlowRunsQueryParams(60),
       flowQuery.getDeploymentsQueryParams({'sort': 'CREATED_DESC', 'offset': search['deployments.page']*search['deployments.limit'], 'limit': search['deployments.limit'] }),
-      flowQuery.getDeploymentsCountQueryParams(),
     ]})
     
     return (
       <FlowDetail
         flow={flow}
         flowRuns={flowRuns}
-        flowRunsCount={flowRunsCount}
         deployments={deployments}
-        deploymentsCount={deploymentsCount}
         activity={activity}
         tab={search.tab}
       />
