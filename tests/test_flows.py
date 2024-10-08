@@ -1502,6 +1502,21 @@ class TestFlowParameterTypes:
         instance = my_flow(Test())
         assert isinstance(instance, Test)
 
+    @pytest.mark.skipif(not HAS_PYDANTIC_V2, reason="the v1 backport only exists in v2")
+    def test_flow_signature_can_contain_pydantic_v1_SecretStr(self):
+        """regression test for https://github.com/PrefectHQ/prefect/issues/15603"""
+        from pydantic.v1 import SecretStr
+
+        @flow
+        def my_flow(secret: SecretStr):
+            return secret
+
+        assert my_flow(SecretStr("my secret")) == SecretStr("my secret")
+
+        assert my_flow.validate_parameters({"secret": "my secret"}) == {
+            "secret": SecretStr("my secret")
+        }
+
 
 class TestSubflowTaskInputs:
     async def test_subflow_with_one_upstream_task_future(self, prefect_client):

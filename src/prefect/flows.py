@@ -46,6 +46,7 @@ from prefect._internal.pydantic import HAS_PYDANTIC_V2
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
     from pydantic import ValidationError as V2ValidationError
+    from pydantic.errors import PydanticUserError
     from pydantic.v1 import BaseModel as V1BaseModel
     from pydantic.v1.decorator import ValidatedFunction as V1ValidatedFunction
 
@@ -58,6 +59,7 @@ if HAS_PYDANTIC_V2:
 else:
     import pydantic
     from pydantic.decorator import ValidatedFunction
+    from pydantic.errors import PydanticUserError
 
     V2ValidationError = None
 
@@ -339,6 +341,13 @@ class Flow(Generic[P, R]):
             # is not picklable in some environments
             try:
                 ValidatedFunction(self.fn, config={"arbitrary_types_allowed": True})
+            except PydanticUserError as exc:
+                if "`__modify_schema__` method is not supported" in str(exc):
+                    V1ValidatedFunction(
+                        self.fn, config={"arbitrary_types_allowed": True}
+                    )
+                else:
+                    raise
             except pydantic.ConfigError as exc:
                 raise ValueError(
                     "Flow function is not compatible with `validate_parameters`. "
@@ -522,7 +531,7 @@ class Flow(Generic[P, R]):
                     "Cannot mix Pydantic v1 and v2 types as arguments to a flow."
                 )
 
-            if has_v1_models:
+            if has_v1_models or not has_v2_types:
                 validated_fn = V1ValidatedFunction(
                     self.fn, config={"arbitrary_types_allowed": True}
                 )
