@@ -21,7 +21,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
             </ScrollArea>
           </div>
         </aside>
-        <main className="flex-1 p-8 ">
+        <main className="flex-1 overflow-auto">
           {children}
         </main>
       </div>

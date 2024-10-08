@@ -1,179 +1,115 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { QueryService } from '@/api/service'
-import { components } from '@/api/prefect'
+import { createFileRoute } from '@tanstack/react-router'  // Import createFileRoute function from @tanstack/react-router 
 import { z } from 'zod'
+import { useSuspenseQueries } from '@tanstack/react-query'
+import { FlowQuery } from '@/components/flows/queries'
+import FlowDetail from '@/components/flows/detail'
 import { zodSearchValidator } from '@tanstack/router-zod-adapter'
-import { useMutation, useSuspenseQueries } from '@tanstack/react-query'
+import { components } from '@/api/prefect'
 
-const searchParams = z
+// Route for /flows/flow/$id
+
+// This file contains the route definition and loader function for the /flows/flow/$id route.
+
+// 1. searchParams defined as a zod schema for validating and typechecking the search query.
+// 2. filterFlowRunsBySearchParams function that takes a search object and returns a filter for flow runs.
+// 3. Route definition using createFileRoute function:
+//    - It uses useSuspenseQueries to fetch data for the flow, flow runs, deployments, and related counts.
+//    - Passes the fetched data to the FlowDetail component.
+//    - Includes a loader function to prefetch data on the server side.
+
+export const searchParams = z
   .object({
-    'runs.page': z.number().int().positive().optional().default(1),
+    'tab': z.enum(['runs', 'deployments', 'details']).optional().default('runs'),
+    'runs.page': z.number().int().nonnegative().optional().default(0),
     'runs.limit': z.number().int().positive().max(100).optional().default(10),
     'runs.sort': z
       .enum([
-        'CREATED_DESC',
-        'CREATED_ASC',
         'START_TIME_DESC',
         'START_TIME_ASC',
+        'EXPECTED_START_TIME_DESC'
       ])
       .optional()
-      .default('CREATED_DESC'),
+      .default('START_TIME_DESC'),
     'runs.flowRuns.nameLike': z.string().optional(),
-    'runs.flowRuns.state.name': z.string().optional(),
+    'runs.flowRuns.state.name': z.array(z.string()).optional(),
     'type': z.enum(['span', 'range']).optional(),
     'seconds': z.number().int().positive().optional(),
     'startDateTime': z.date().optional(),
     'endDateTime': z.date().optional(),
-    'deployments.page': z.number().int().positive().optional().default(1),
+    'deployments.page': z.number().int().nonnegative().optional().default(0),
     'deployments.limit': z.number().int().positive().optional().default(10),
   })
   .optional()
   .default({})
 
-const flowQueryParams = (id: string) => ({
-  queryKey: ['flows', id],
-  queryFn: async () => await QueryService.GET('/flows/{id}', { params: { path: { id } } }),
-  staleTime: 1000, // Data will be considered stale after 1 second.
-})
 
-const flowRunsQueryParams = (id: string, search: z.infer<typeof searchParams>) => ({
-  queryKey: ['flowRun', JSON.stringify({'flowId': id, ...search})],
-  queryFn: async () =>
-    await QueryService.POST('/flow_runs/filter', {
-      body: {
-        flows: { operator: 'and_', id: { any_: [id] }, },
-        offset: (search?.['runs.page'] - 1) * search?.['runs.limit'],
-        limit: search?.['runs.limit'],
-        sort: 'START_TIME_DESC',
+const filterFlowRunsBySearchParams = (search: z.infer<typeof searchParams>) : components['schemas']['Body_read_flow_runs_flow_runs_filter_post'] => {
+  const filter: components['schemas']['Body_read_flow_runs_flow_runs_filter_post'] = {
+    'sort': search['runs.sort'],
+    'limit': search['runs.limit'],
+    'offset': search['runs.page']*search['runs.limit'],
+    'flow_runs': {
+      'operator': 'and_',
+      'state': {
+        'operator': 'and_',
+        'name': {
+          'any_': search['runs.flowRuns.state.name']
+        }
       },
-    }),
-  staleTime: 1000, // Data will be considered stale after 1 second.
-})
+      'name': {
+        'like_': search['runs.flowRuns.nameLike']
+      }
+    }
+  }
+  return filter
+}
 
-const flowRunsCountQueryParams = (id: string) => ({
-  queryKey: ['flowRunCount', JSON.stringify({'flowId': id})],
-  queryFn: async () =>
-    await QueryService.POST('/flow_runs/count', {
-      body: { flows: { operator: 'and_', id: { any_: [id] } } },
-    }),
-  staleTime: 1000, // Data will be considered stale after 1 second.
-})
 
-const deploymentsQueryParams = (id: string, search: z.infer<typeof searchParams>) => ({
-  queryKey: ['deployments', JSON.stringify({'flowId': id, ...search})],
-  queryFn: async () =>
-    await QueryService.POST('/deployments/filter', {
-      body: {
-        flows: { operator: 'and_', id: { any_: [id] } },
-        offset: (search['deployments.page'] - 1) * search['deployments.limit'],
-        limit: 10,
-        sort: 'CREATED_DESC',
-      },
-    }),
-  staleTime: 1000, // Data will be considered stale after 1 second.
-})
-
-const deploymentsCountQueryParams = (id: string) => ({
-  queryKey: ['deploymentsCount', JSON.stringify({'flowId': id})],
-  queryFn: async () =>
-    await QueryService.POST('/deployments/count', {
-      body: { flows: { operator: 'and_', id: { any_: [id] } } },
-    }),
-  staleTime: 1000, // Data will be considered stale after 1 second.
-})
 
 export const Route = createFileRoute('/flows/flow/$id')({
   component: () => {
     const { id } = Route.useParams()
     const search = Route.useSearch()
-    const query = useSuspenseQueries({'queries': [
-        flowQueryParams(id),
-        flowRunsQueryParams(id, search),
-        flowRunsCountQueryParams(id),
-        deploymentsQueryParams(id, search),
-        deploymentsCountQueryParams(id),
+    const flowQuery = new FlowQuery(id)
+    const [ 
+      { data: flow }, 
+      { data: flowRuns },
+      { data: flowRunsCount },
+      { data: activity },
+      { data: deployments },
+      { data: deploymentsCount },
+    ] = useSuspenseQueries({'queries': [
+      flowQuery.getQueryParams(),
+      flowQuery.getFlowRunsQueryParams(filterFlowRunsBySearchParams(search)),
+      flowQuery.getFlowRunsCountQueryParams(),
+      flowQuery.getLatestFlowRunsQueryParams(60),
+      flowQuery.getDeploymentsQueryParams({'sort': 'CREATED_DESC', 'offset': search['deployments.page']*search['deployments.limit'], 'limit': search['deployments.limit'] }),
+      flowQuery.getDeploymentsCountQueryParams(),
     ]})
     
     return (
       <FlowDetail
-        id = {id}
-        flow={query[0].data.data}
-        flowRuns={query[1].data.data}
-        flowRunsCount={query[2].data.data}
-        deployments={query[3].data.data}
-        deploymentsCount={query[4].data.data}
+        flow={flow}
+        flowRuns={flowRuns}
+        flowRunsCount={flowRunsCount}
+        deployments={deployments}
+        deploymentsCount={deploymentsCount}
+        activity={activity}
+        tab={search.tab}
       />
     )
   },
-  loaderDeps: ({ search }) => search,
-  loader: async ({ deps: search, params: { id }, context }) =>
-    await Promise.all([
-        context.queryClient.ensureQueryData(flowQueryParams(id)),
-        context.queryClient.ensureQueryData(flowRunsQueryParams(id, search)).then((data) => {
-          data?.data?.map(flowRun => context.queryClient.setQueryData(['flowRun', flowRun.id], flowRun))
-          return data
-        }),
-        context.queryClient.ensureQueryData(flowRunsCountQueryParams(id)),
-        context.queryClient.ensureQueryData(deploymentsQueryParams(id, search)).then((data) => {
-          data?.data?.map(deployment => context.queryClient.setQueryData(['deployment', deployment.id], deployment))
-          return data
-        }),
-        context.queryClient.ensureQueryData(deploymentsCountQueryParams(id)),
-    ]),
   validateSearch: zodSearchValidator(searchParams),
+  loaderDeps: ({ search }) => search,
+  loader: async ({ params: { id }, context, deps}) => {
+    const flow = new FlowQuery(id)
+    return await Promise.all([
+      context.queryClient.ensureQueryData(flow.getQueryParams()),
+      context.queryClient.ensureQueryData(flow.getFlowRunsQueryParams(filterFlowRunsBySearchParams(deps))),
+      context.queryClient.ensureQueryData(flow.getFlowRunsCountQueryParams()),
+      context.queryClient.ensureQueryData(flow.getDeploymentsQueryParams({'sort': 'CREATED_DESC', 'offset': deps['runs.page']*deps['runs.limit'], 'limit': deps['runs.limit'] })),
+      context.queryClient.ensureQueryData(flow.getDeploymentsCountQueryParams()),
+    ])
+  },
   wrapInSuspense: true,
 })
-
-function FlowDetail({
-  id,
-  flow,
-  flowRuns,
-  flowRunsCount,
-  deployments,
-  deploymentsCount,
-}: {
-  id: string,
-  flow: components['schemas']['Flow'] | undefined,
-  flowRuns: components['schemas']['FlowRun'][] | undefined,
-  flowRunsCount: number | undefined,
-  deployments: components['schemas']['DeploymentResponse'][] | undefined,
-  deploymentsCount: number | undefined
-}) {
-
-  const { mutate: deleteFlow } = useMutation({
-    mutationFn: async () => alert(id) //await QueryService.DELETE('/flows/{id}', { params: { path: { id: id } } })
-  })
-
-  return (
-
-
-    <div className="p-2">
-      <h3>Flow {flow?.name}</h3>
-      <ul>
-        Actions
-        <li>
-          <button
-            onClick={() => {
-              navigator.clipboard.writeText(flow?.id || '');
-              // You might want to add a toast or notification here
-            }}
-          >
-            Copy Id
-          </button>
-        </li>
-        <li><button onClick={() => deleteFlow()}>Delete</button></li>
-        <li><a href ={`/automations/create?from=flow&flowId=${flow?.id}`}>Automate</a></li>
-      </ul>
-      <ul>
-        Flow Runs: {flowRunsCount}
-        {flowRuns?.map((flowRun) => <li key={flowRun.id}>{flowRun.name}</li>)}
-      </ul>
-      <ul>
-        Deployments: {deploymentsCount}
-        {deployments?.map((deployment) => (
-          <li key={deployment.id}>{deployment.name}</li>
-        ))}
-      </ul>
-    </div>
-  )
-}
