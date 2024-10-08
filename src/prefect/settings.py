@@ -373,7 +373,13 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
         if not self.profiles_path.exists():
             return {}
 
-        all_profile_data = toml.load(self.profiles_path)
+        try:
+            all_profile_data = toml.load(self.profiles_path)
+        except toml.TomlDecodeError:
+            warnings.warn(
+                f"Failed to load profiles from {self.profiles_path}. Please ensure the file is valid TOML."
+            )
+            return {}
 
         if (
             sys.argv[0].endswith("/prefect")
