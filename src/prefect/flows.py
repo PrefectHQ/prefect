@@ -593,7 +593,7 @@ class Flow(Generic[P, R]):
         # Get the updated parameter dict with cast values from the model
         cast_parameters = {
             k: v
-            for k, v in dict(model).items()
+            for k, v in model.__dict__.items()
             if k in model.model_fields_set or model.model_fields[k].default_factory
         }
         return cast_parameters
