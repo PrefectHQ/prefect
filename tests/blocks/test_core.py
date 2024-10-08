@@ -408,9 +408,9 @@ class TestAPICompatibility:
 
         json_blockdoc = blockdoc.model_dump(mode="json")
         assert json_blockdoc["data"] == {
-            "w": "**********",
-            "x": "**********",
-            "y": "**********",
+            "w": "********",
+            "x": "********",
+            "y": "********",
             "z": "z",
         }
 
@@ -457,13 +457,13 @@ class TestAPICompatibility:
 
         json_blockdoc = json.loads(blockdoc.model_dump_json())
         assert json_blockdoc["data"] == {
-            "a": "**********",
+            "a": "********",
             "b": "b",
             # The child includes the type slug because it is not a block document
             "child": {
-                "a": "**********",
+                "a": "********",
                 "b": "b",
-                "c": "**********",
+                "c": "********",
                 "block_type_slug": "child",
             },
         }

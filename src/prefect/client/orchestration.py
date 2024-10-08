@@ -1813,7 +1813,35 @@ class PrefectClient:
             response = await self._client.get(f"/deployments/name/{name}")
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
-                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+                from prefect.utilities.text import fuzzy_match_string
+
+                deployments = await self.read_deployments()
+                flow_name_map = {
+                    flow.id: flow.name
+                    for flow in await asyncio.gather(
+                        *[
+                            self.read_flow(flow_id)
+                            for flow_id in {d.flow_id for d in deployments}
+                        ]
+                    )
+                }
+
+                raise prefect.exceptions.ObjectNotFound(
+                    http_exc=e,
+                    help_message=(
+                        f"Deployment {name!r} not found; did you mean {fuzzy_match!r}?"
+                        if (
+                            fuzzy_match := fuzzy_match_string(
+                                name,
+                                [
+                                    f"{flow_name_map[d.flow_id]}/{d.name}"
+                                    for d in deployments
+                                ],
+                            )
+                        )
+                        else f"Deployment {name!r} not found. Try `prefect deployment ls` to find available deployments."
+                    ),
+                ) from e
             else:
                 raise
 
@@ -2543,7 +2571,7 @@ class PrefectClient:
 
     async def read_logs(
         self,
-        log_filter: LogFilter = None,
+        log_filter: Optional[LogFilter] = None,
         limit: Optional[int] = None,
         offset: Optional[int] = None,
         sort: LogSort = LogSort.TIMESTAMP_ASC,

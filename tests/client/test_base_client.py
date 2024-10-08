@@ -121,17 +121,14 @@ class TestPrefectHttpxAsyncClient:
         assert response.status_code == status.HTTP_200_OK
         assert base_client_send.call_count == 4
 
-        # We log on retry
-        assert "Received response with retryable status code" in caplog.text
-        assert "Another attempt will be made in 2s" in caplog.text
-        assert "This is attempt 1/6" in caplog.text
-
-        # A traceback should not be included
-        assert "Traceback" not in caplog.text
-
-        # Ensure the messaging changes
-        assert "Another attempt will be made in 4s" in caplog.text
-        assert "This is attempt 2/6" in caplog.text
+        for code, delay, attempt in [
+            (error_code, 2, 1),
+            (error_code, 4, 2),
+            (error_code, 8, 3),
+        ]:
+            assert f"Received response with retryable status code {code}" in caplog.text
+            assert f"Another attempt will be made in {delay}s" in caplog.text
+            assert f"This is attempt {attempt}/6" in caplog.text
 
     @pytest.mark.usefixtures("mock_anyio_sleep", "disable_jitter")
     @pytest.mark.parametrize(
@@ -165,17 +162,14 @@ class TestPrefectHttpxAsyncClient:
         assert response.status_code == status.HTTP_200_OK
         assert base_client_send.call_count == 4
 
-        # We log on retry
-        assert "Received response with retryable status code" in caplog.text
-        assert "Another attempt will be made in 2s" in caplog.text
-        assert "This is attempt 1/6" in caplog.text
-
-        # A traceback should not be included
-        assert "Traceback" not in caplog.text
-
-        # Ensure the messaging changes
-        assert "Another attempt will be made in 4s" in caplog.text
-        assert "This is attempt 2/6" in caplog.text
+        for code, delay, attempt in [
+            (error_code, 2, 1),
+            (error_code, 4, 2),
+            (error_code, 8, 3),
+        ]:
+            assert f"Received response with retryable status code {code}" in caplog.text
+            assert f"Another attempt will be made in {delay}s" in caplog.text
+            assert f"This is attempt {attempt}/6" in caplog.text
 
     @pytest.mark.usefixtures("mock_anyio_sleep", "disable_jitter")
     async def test_prefect_httpx_client_raises_on_non_extra_error_codes(

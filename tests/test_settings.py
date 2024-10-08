@@ -1,6 +1,7 @@
 import copy
 import os
 import textwrap
+import warnings
 from pathlib import Path
 
 import pydantic
@@ -9,7 +10,9 @@ from sqlalchemy import make_url
 
 import prefect.context
 import prefect.settings
+from prefect.exceptions import ProfileSettingsValidationError
 from prefect.settings import (
+    DEFAULT_DEPENDENT_SETTINGS,
     DEFAULT_PROFILES_PATH,
     PREFECT_API_DATABASE_CONNECTION_URL,
     PREFECT_API_DATABASE_DRIVER,
@@ -34,12 +37,11 @@ from prefect.settings import (
     PREFECT_SERVER_API_PORT,
     PREFECT_TEST_MODE,
     PREFECT_TEST_SETTING,
-    PREFECT_UI_API_URL,
     PREFECT_UI_URL,
+    PREFECT_UNIT_TEST_MODE,
     SETTING_VARIABLES,
     Profile,
     ProfilesCollection,
-    Setting,
     Settings,
     get_current_settings,
     load_profile,
@@ -47,7 +49,6 @@ from prefect.settings import (
     save_profiles,
     temporary_settings,
 )
-from prefect.utilities.names import obfuscate
 
 
 class TestSettingClass:
@@ -76,59 +77,6 @@ class TestSettingClass:
     def test_setting_hash_is_consistent_after_deepcopy(self):
         assert hash(PREFECT_TEST_SETTING) == hash(copy.deepcopy(PREFECT_TEST_SETTING))
 
-    def test_deprecated_setting(self, monkeypatch):
-        monkeypatch.setattr(PREFECT_TEST_SETTING, "deprecated", True)
-        monkeypatch.setattr(PREFECT_TEST_SETTING, "deprecated_start_date", "Jan 2023")
-        monkeypatch.setattr(PREFECT_TEST_SETTING, "deprecated_help", "test help")
-
-        with pytest.warns(
-            DeprecationWarning,
-            match=(
-                "Setting 'PREFECT_TEST_SETTING' has been deprecated. It will not be"
-                " available in new releases after Jul 2023. test help"
-            ),
-        ):
-            PREFECT_TEST_SETTING.value()
-
-    def test_deprecated_setting_without_start_date_fails_at_init(self):
-        with pytest.raises(
-            ValueError, match="A start date is required if an end date is not provided."
-        ):
-            Setting(bool, deprecated=True)
-
-    def test_deprecated_setting_when(self, monkeypatch):
-        monkeypatch.setattr(PREFECT_TEST_SETTING, "deprecated", True)
-        monkeypatch.setattr(PREFECT_TEST_SETTING, "deprecated_start_date", "Jan 2023")
-        monkeypatch.setattr(
-            PREFECT_TEST_SETTING, "deprecated_when", lambda x: x == "foo"
-        )
-        monkeypatch.setattr(
-            PREFECT_TEST_SETTING, "deprecated_when_message", "the value is foo"
-        )
-
-        # Does not warn
-        PREFECT_TEST_SETTING.value()
-
-        with temporary_settings({PREFECT_TEST_SETTING: "foo"}):
-            with pytest.warns(
-                DeprecationWarning,
-                match=(
-                    "Setting 'PREFECT_TEST_SETTING' has been deprecated when the value"
-                    " is foo. It will not be available in new releases after Jul 2023."
-                ),
-            ):
-                PREFECT_TEST_SETTING.value()
-
-    def test_deprecated_setting_does_not_raise_when_callbacks_bypassed(
-        self, monkeypatch
-    ):
-        # i.e. for internal access to a deprecated setting
-        monkeypatch.setattr(PREFECT_TEST_SETTING, "deprecated", True)
-        monkeypatch.setattr(PREFECT_TEST_SETTING, "deprecated_start_date", "Jan 2023")
-
-        # Does not warn
-        PREFECT_TEST_SETTING.value(bypass_callback=True)
-
 
 class TestSettingsClass:
     def test_settings_copy_with_update_does_not_mark_unset_as_set(self):
@@ -141,24 +89,25 @@ class TestSettingsClass:
         new_settings = settings.copy_with_update(updates={PREFECT_API_KEY: "TEST"})
         new_set_keys = set(new_settings.model_dump(exclude_unset=True).keys())
         # Only the API key setting should be set
-        assert new_set_keys - set_keys == {"PREFECT_API_KEY"}
+        assert new_set_keys - set_keys == {"api_key"}
 
     def test_settings_copy_with_update(self):
         settings = get_current_settings()
-        assert settings.value_of(PREFECT_TEST_MODE) is True
+        assert settings.unit_test_mode is True
 
         with temporary_settings(restore_defaults={PREFECT_API_KEY}):
             new_settings = settings.copy_with_update(
-                updates={PREFECT_LOGGING_LEVEL: "ERROR"},
-                set_defaults={PREFECT_TEST_MODE: False, PREFECT_API_KEY: "TEST"},
+                updates={PREFECT_CLIENT_RETRY_EXTRA_CODES: "400,500"},
+                set_defaults={PREFECT_UNIT_TEST_MODE: False, PREFECT_API_KEY: "TEST"},
             )
             assert (
-                new_settings.value_of(PREFECT_TEST_MODE) is True
+                new_settings.unit_test_mode is True
             ), "Not changed, existing value was not default"
             assert (
-                new_settings.value_of(PREFECT_API_KEY) == "TEST"
+                new_settings.api_key is not None
+                and new_settings.api_key.get_secret_value() == "TEST"
             ), "Changed, existing value was default"
-            assert new_settings.value_of(PREFECT_LOGGING_LEVEL) == "ERROR"
+            assert new_settings.client_retry_extra_codes == {400, 500}
 
     def test_settings_loads_environment_variables_at_instantiation(self, monkeypatch):
         assert PREFECT_TEST_MODE.value() is True
@@ -170,12 +119,13 @@ class TestSettingsClass:
     def test_settings_to_environment_includes_all_settings_with_non_null_values(self):
         settings = Settings()
         assert set(settings.to_environment_variables().keys()) == {
-            key for key in SETTING_VARIABLES if getattr(settings, key) is not None
+            f"PREFECT_{key.upper()}"
+            for key in settings.model_dump(exclude_none=True).keys()
         }
 
     def test_settings_to_environment_casts_to_strings(self):
         assert (
-            Settings(PREFECT_SERVER_API_PORT=3000).to_environment_variables()[
+            Settings(server_api_port=3000).to_environment_variables()[
                 "PREFECT_SERVER_API_PORT"
             ]
             == "3000"
@@ -184,7 +134,7 @@ class TestSettingsClass:
     def test_settings_to_environment_respects_includes(self):
         include = [PREFECT_SERVER_API_PORT]
 
-        assert Settings(PREFECT_SERVER_API_PORT=3000).to_environment_variables(
+        assert Settings(server_api_port=3000).to_environment_variables(
             include=include
         ) == {"PREFECT_SERVER_API_PORT": "3000"}
 
@@ -192,17 +142,28 @@ class TestSettingsClass:
 
     def test_settings_to_environment_exclude_unset_empty_if_none_set(self, monkeypatch):
         for key in SETTING_VARIABLES:
+            if not key.startswith("PREFECT_") or key == "PREFECT_TEST_MODE":
+                continue
             monkeypatch.delenv(key, raising=False)
 
-        assert Settings().to_environment_variables(exclude_unset=True) == {}
+        assert Settings().to_environment_variables(
+            exclude_unset=True,
+            exclude={SETTING_VARIABLES[key] for key in DEFAULT_DEPENDENT_SETTINGS},
+        ) == {
+            "PREFECT_TEST_MODE": "True",
+        }
 
     def test_settings_to_environment_exclude_unset_only_includes_set(self, monkeypatch):
         for key in SETTING_VARIABLES:
+            if key == "PREFECT_TEST_MODE":
+                continue
             monkeypatch.delenv(key, raising=False)
 
-        assert Settings(
-            PREFECT_DEBUG_MODE=True, PREFECT_API_KEY="Hello"
-        ).to_environment_variables(exclude_unset=True) == {
+        assert Settings(debug_mode=True, api_key="Hello").to_environment_variables(
+            exclude_unset=True,
+            exclude={SETTING_VARIABLES[key] for key in DEFAULT_DEPENDENT_SETTINGS},
+        ) == {
+            "PREFECT_TEST_MODE": "True",
             "PREFECT_DEBUG_MODE": "True",
             "PREFECT_API_KEY": "Hello",
         }
@@ -215,9 +176,9 @@ class TestSettingsClass:
 
         include = [PREFECT_HOME, PREFECT_DEBUG_MODE, PREFECT_API_KEY]
 
-        assert Settings(
-            PREFECT_DEBUG_MODE=True, PREFECT_API_KEY="Hello"
-        ).to_environment_variables(exclude_unset=True, include=include) == {
+        assert Settings(debug_mode=True, api_key="Hello").to_environment_variables(
+            exclude_unset=True, include=include
+        ) == {
             "PREFECT_DEBUG_MODE": "True",
             "PREFECT_API_KEY": "Hello",
         }
@@ -237,15 +198,9 @@ class TestSettingsClass:
         new_settings = Settings()
         assert settings.model_dump() == new_settings.model_dump()
 
-    def test_settings_to_environment_does_not_use_value_callback(self):
-        settings = Settings(PREFECT_UI_API_URL=None)
-        # This would be cast to a non-null value if the value callback was used when
-        # generating the environment variables
-        assert "PREFECT_UI_API_URL" not in settings.to_environment_variables()
-
     def test_settings_hash_key(self):
-        settings = Settings(PREFECT_TEST_MODE=True)
-        diff_settings = Settings(PREFECT_TEST_MODE=False)
+        settings = Settings(test_mode=True)
+        diff_settings = Settings(test_mode=False)
 
         assert settings.hash_key() == settings.hash_key()
 
@@ -259,8 +214,11 @@ class TestSettingsClass:
         ],
     )
     def test_settings_validates_log_levels(self, log_level_setting):
-        with pytest.raises(pydantic.ValidationError, match="Unknown level"):
-            Settings(**{log_level_setting.name: "FOOBAR"})
+        with pytest.raises(
+            pydantic.ValidationError,
+            match="should be 'DEBUG', 'INFO', 'WARNING', 'ERROR' or 'CRITICAL'",
+        ):
+            Settings(**{log_level_setting.field_name: "FOOBAR"})
 
     @pytest.mark.parametrize(
         "log_level_setting",
@@ -286,22 +244,32 @@ class TestSettingsClass:
             settings.copy_with_update(updates={PREFECT_TEST_SETTING: "foo"}) != settings
         )
 
-    def test_with_obfuscated_secrets(self):
-        settings = get_current_settings()
-        original = settings.model_copy()
-        obfuscated = settings.with_obfuscated_secrets()
-        assert settings == original
-        assert original != obfuscated
-        for setting in SETTING_VARIABLES.values():
-            if setting.deprecated:
-                continue
+    def test_include_secrets(self):
+        settings = Settings(api_key=pydantic.SecretStr("test"))
 
-            if setting.is_secret:
-                assert obfuscated.value_of(setting) == obfuscate(
-                    original.value_of(setting)
-                )
-            else:
-                assert obfuscated.value_of(setting) == original.value_of(setting)
+        assert settings.model_dump().get("api_key") == pydantic.SecretStr("test")
+        assert settings.model_dump(mode="json").get("api_key") == "**********"
+        assert (
+            settings.model_dump(context={"include_secrets": True}).get("api_key")
+            == "test"
+        )
+
+    def test_loads_when_profile_path_does_not_exist(self, monkeypatch):
+        monkeypatch.setenv("PREFECT_PROFILES_PATH", str(Path.home() / "nonexistent"))
+        monkeypatch.delenv("PREFECT_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_UNIT_TEST_MODE", raising=False)
+        assert Settings().test_setting == "FOO"
+
+    def test_loads_when_profile_path_is_not_a_toml_file(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("PREFECT_PROFILES_PATH", str(tmp_path / "profiles.toml"))
+        monkeypatch.delenv("PREFECT_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_UNIT_TEST_MODE", raising=False)
+
+        with open(tmp_path / "profiles.toml", "w") as f:
+            f.write("Ceci n'est pas un fichier toml")
+
+        with pytest.warns(UserWarning, match="Failed to load profiles from"):
+            assert Settings().test_setting == "FOO"
 
 
 class TestSettingAccess:
@@ -309,14 +277,12 @@ class TestSettingAccess:
         with temporary_settings(
             updates={PREFECT_API_URL: "test"}
         ):  # Set a value so its not null
-            value = prefect.settings.PREFECT_API_URL.value()
-            value_of = get_current_settings().value_of(PREFECT_API_URL)
-            value_from = PREFECT_API_URL.value_from(get_current_settings())
-            assert value == value_of == value_from == "test"
+            assert PREFECT_API_URL.value() == "test"
+            assert get_current_settings().api_url == "test"
 
     def test_get_value_nested_setting(self):
         value = prefect.settings.PREFECT_LOGGING_LEVEL.value()
-        value_of = get_current_settings().value_of(PREFECT_LOGGING_LEVEL)
+        value_of = get_current_settings().logging_level
         value_from = PREFECT_LOGGING_LEVEL.value_from(get_current_settings())
         assert value == value_of == value_from
 
@@ -348,9 +314,6 @@ class TestSettingAccess:
             else:
                 assert False, "Not treated as truth"
 
-    def test_ui_api_url_from_defaults(self):
-        assert PREFECT_UI_API_URL.value() == "/api"
-
     @pytest.mark.parametrize(
         "value,expected",
         [
@@ -360,11 +323,11 @@ class TestSettingAccess:
         ],
     )
     def test_extra_loggers(self, value, expected):
-        settings = Settings(PREFECT_LOGGING_EXTRA_LOGGERS=value)
+        settings = Settings(logging_extra_loggers=value)
         assert PREFECT_LOGGING_EXTRA_LOGGERS.value_from(settings) == expected
 
     def test_prefect_home_expands_tilde_in_path(self):
-        settings = Settings(PREFECT_HOME="~/test")
+        settings = Settings(home="~/test")
         assert PREFECT_HOME.value_from(settings) == Path("~/test").expanduser()
 
     @pytest.mark.parametrize(
@@ -457,6 +420,23 @@ class TestSettingAccess:
             with temporary_settings({PREFECT_CLIENT_RETRY_EXTRA_CODES: extra_codes}):
                 PREFECT_CLIENT_RETRY_EXTRA_CODES.value()
 
+    def test_deprecated_ENV_VAR_attribute_access(self):
+        settings = Settings()
+        value = None
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+
+            value = settings.PREFECT_TEST_MODE
+
+            assert len(w) == 1
+            assert issubclass(w[-1].category, DeprecationWarning)
+            assert (
+                "Accessing `Settings().PREFECT_TEST_MODE` is deprecated. Use `Settings().test_mode` instead."
+                in str(w[-1].message)
+            )
+
+        assert value == settings.test_mode
+
 
 class TestDatabaseSettings:
     def test_database_connection_url_templates_password(self):
@@ -470,18 +450,19 @@ class TestDatabaseSettings:
         ):
             assert PREFECT_API_DATABASE_CONNECTION_URL.value() == "password/test"
 
-    def test_database_connection_url_templates_null_password(self):
+    def test_database_connection_url_raises_on_null_password(self):
         # Not exactly beautiful behavior here, but I think it's clear.
         # In the future, we may want to consider raising if attempting to template
         # a null value.
-        with temporary_settings(
-            {
-                PREFECT_API_DATABASE_CONNECTION_URL: (
-                    "${PREFECT_API_DATABASE_PASSWORD}/test"
-                )
-            }
-        ):
-            assert PREFECT_API_DATABASE_CONNECTION_URL.value() == "None/test"
+        with pytest.raises(ValueError, match="database password is None"):
+            with temporary_settings(
+                {
+                    PREFECT_API_DATABASE_CONNECTION_URL: (
+                        "${PREFECT_API_DATABASE_PASSWORD}/test"
+                    )
+                }
+            ):
+                pass
 
     def test_warning_if_database_password_set_without_template_string(self):
         with pytest.warns(
@@ -639,10 +620,12 @@ class TestTemporarySettings:
         assert new_set_keys == set_keys
 
     def test_temporary_settings_can_restore_to_defaults_values(self):
-        with temporary_settings(updates={PREFECT_TEST_SETTING: "FOO"}):
-            with temporary_settings(restore_defaults={PREFECT_TEST_SETTING}):
+        with temporary_settings(updates={PREFECT_API_DATABASE_PORT: 9001}):
+            assert PREFECT_API_DATABASE_PORT.value() == 9001
+            with temporary_settings(restore_defaults={PREFECT_API_DATABASE_PORT}):
                 assert (
-                    PREFECT_TEST_SETTING.value() == PREFECT_TEST_SETTING.field.default
+                    PREFECT_API_DATABASE_PORT.value()
+                    == PREFECT_API_DATABASE_PORT.default()
                 )
 
     def test_temporary_settings_restores_on_error(self):
@@ -654,6 +637,70 @@ class TestTemporarySettings:
 
         assert os.environ["PREFECT_TEST_MODE"] == "1", "Does not alter os environ."
         assert PREFECT_TEST_MODE.value() is True
+
+
+class TestSettingsSources:
+    @pytest.fixture
+    def temporary_env_file(self):
+        original_env_content = None
+        env_file = Path(".env")
+
+        if env_file.exists():
+            original_env_content = env_file.read_text()
+
+        def _create_temp_env(content):
+            env_file.write_text(content)
+
+        yield _create_temp_env
+
+        if env_file.exists():
+            env_file.unlink()
+
+        if original_env_content is not None:
+            env_file.write_text(original_env_content)
+
+    def test_env_source(self, temporary_env_file):
+        temporary_env_file("PREFECT_CLIENT_RETRY_EXTRA_CODES=420,500")
+
+        assert Settings().client_retry_extra_codes == {420, 500}
+
+        os.unlink(".env")
+
+        assert Settings().client_retry_extra_codes == set()
+
+    def test_resolution_order(self, temporary_env_file, monkeypatch, tmp_path):
+        profiles_path = tmp_path / "profiles.toml"
+
+        monkeypatch.delenv("PREFECT_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_UNIT_TEST_MODE", raising=False)
+        monkeypatch.setenv("PREFECT_PROFILES_PATH", str(profiles_path))
+
+        profiles_path.write_text(
+            textwrap.dedent(
+                """
+                active = "foo"
+
+                [profiles.foo]
+                PREFECT_CLIENT_RETRY_EXTRA_CODES = "420,500"
+                """
+            )
+        )
+
+        assert Settings().client_retry_extra_codes == {420, 500}
+
+        temporary_env_file("PREFECT_CLIENT_RETRY_EXTRA_CODES=429,500")
+
+        assert Settings().client_retry_extra_codes == {429, 500}
+
+        os.unlink(".env")
+
+        assert Settings().client_retry_extra_codes == {420, 500}
+
+        monkeypatch.setenv("PREFECT_TEST_MODE", "1")
+        monkeypatch.setenv("PREFECT_UNIT_TEST_MODE", "1")
+        monkeypatch.delenv("PREFECT_PROFILES_PATH", raising=True)
+
+        assert Settings().client_retry_extra_codes == set()
 
 
 class TestLoadProfiles:
@@ -757,7 +804,7 @@ class TestLoadProfiles:
                 """
             )
         )
-        with pytest.raises(UserWarning, match="Setting 'nested' is not recognized "):
+        with pytest.raises(UserWarning, match="Setting 'nested' is not recognized"):
             load_profile("foo")
 
     def test_load_profile_with_invalid_key(self, temporary_profiles_path):
@@ -811,10 +858,10 @@ class TestSaveProfiles:
             == textwrap.dedent(
                 """
                 [profiles.foo]
-                PREFECT_API_KEY = 1
+                PREFECT_API_KEY = "1"
 
                 [profiles.bar]
-                PREFECT_API_KEY = 2
+                PREFECT_API_KEY = "2"
                 """
             ).lstrip()
         )
@@ -827,7 +874,9 @@ class TestProfile:
 
     def test_validate_settings(self):
         profile = Profile(name="test", settings={PREFECT_SERVER_API_PORT: "foo"})
-        with pytest.raises(pydantic.ValidationError):
+        with pytest.raises(
+            ProfileSettingsValidationError, match="should be a valid integer"
+        ):
             profile.validate_settings()
 
     def test_validate_settings_ignores_environment_variables(self, monkeypatch):
@@ -837,7 +886,9 @@ class TestProfile:
         """
         monkeypatch.setenv("PREFECT_SERVER_API_PORT", "1234")
         profile = Profile(name="test", settings={PREFECT_SERVER_API_PORT: "foo"})
-        with pytest.raises(pydantic.ValidationError):
+        with pytest.raises(
+            ProfileSettingsValidationError, match="should be a valid integer"
+        ):
             profile.validate_settings()
 
 

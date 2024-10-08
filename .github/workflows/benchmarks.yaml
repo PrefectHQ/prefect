@@ -79,7 +79,7 @@ jobs:
 
       - name: Start server
         run: |
-          prefect server start&
+          PREFECT_HOME=$(pwd) prefect server start&
           PREFECT_API_URL="http://127.0.0.1:4200/api" ./scripts/wait-for-server.py
 
           # TODO: Replace `wait-for-server` with dedicated command

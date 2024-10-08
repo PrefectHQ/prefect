@@ -1,5 +1,3 @@
-from pytest_markdown_docs import plugin
-
 pytest-markdown-docs @ git+https://github.com/PrefectHQ/pytest-markdown-docs@mdx-comment-support
 
 pandas
@@ -8,7 +6,7 @@ prefect-azure[blob_storage]
 prefect-bitbucket
 prefect-dask
 prefect-databricks
-prefect-dbt
+# prefect-dbt
 prefect-email
 prefect-gcp
 prefect-github
@@ -18,4 +16,4 @@ prefect-ray
 prefect-shell
 prefect-slack
 prefect-snowflake
-prefect_sqlalchemy
+prefect-sqlalchemy

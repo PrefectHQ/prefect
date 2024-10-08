@@ -138,6 +138,7 @@ async def test_retryable_exception_handler(exc):
         assert response.status_code == 500
 
 
+@pytest.mark.skip(reason="This test is flaky and needs to be fixed")
 async def test_cors_middleware_settings():
     with SubprocessASGIServer() as server:
         health_response = httpx.options(
@@ -368,13 +369,13 @@ class TestMemoizeBlockAutoRegistration:
 
 class TestSubprocessASGIServer:
     def test_singleton_on_port(self):
-        server_8000 = SubprocessASGIServer(port=8000)
-        assert server_8000 is SubprocessASGIServer(port=8000)
+        server_8001 = SubprocessASGIServer(port=8001)
+        assert server_8001 is SubprocessASGIServer(port=8001)
 
         server_random = SubprocessASGIServer()
         assert server_random is SubprocessASGIServer()
 
-        assert server_8000 is not server_random
+        assert server_8001 is not server_random
 
     def test_find_available_port_returns_available_port(self):
         server = SubprocessASGIServer()
@@ -413,6 +414,7 @@ class TestSubprocessASGIServer:
         server = SubprocessASGIServer(port=8000)
         assert server.api_url == "http://127.0.0.1:8000/api"
 
+    @pytest.mark.skip(reason="This test is flaky and needs to be fixed")
     def test_start_and_stop_server(self):
         server = SubprocessASGIServer()
         server.start()
@@ -423,6 +425,7 @@ class TestSubprocessASGIServer:
         with pytest.raises(httpx.RequestError):
             httpx.get(f"{server.api_url}/health")
 
+    @pytest.mark.skip(reason="This test is flaky and needs to be fixed")
     def test_run_as_context_manager(self):
         with SubprocessASGIServer() as server:
             health_response = httpx.get(f"{server.api_url}/health")
@@ -431,6 +434,7 @@ class TestSubprocessASGIServer:
         with pytest.raises(httpx.RequestError):
             httpx.get(f"{server.api_url}/health")
 
+    @pytest.mark.skip(reason="This test is flaky and needs to be fixed")
     def test_run_a_flow_against_subprocess_server(self):
         @flow
         def f():

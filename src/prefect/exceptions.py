@@ -5,7 +5,7 @@ Prefect-specific exceptions.
 import inspect
 import traceback
 from types import ModuleType, TracebackType
-from typing import Callable, Dict, Iterable, List, Optional, Type
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type
 
 from httpx._exceptions import HTTPStatusError
 from pydantic import ValidationError
@@ -227,9 +227,19 @@ class ObjectNotFound(PrefectException):
     Raised when the client receives a 404 (not found) from the API.
     """
 
-    def __init__(self, http_exc: Exception, *args, **kwargs):
+    def __init__(
+        self,
+        http_exc: Exception,
+        help_message: Optional[str] = None,
+        *args,
+        **kwargs,
+    ):
         self.http_exc = http_exc
-        super().__init__(*args, **kwargs)
+        self.help_message = help_message
+        super().__init__(help_message, *args, **kwargs)
+
+    def __str__(self):
+        return self.help_message or super().__str__()
 
 
 class ObjectAlreadyExists(PrefectException):
@@ -424,3 +434,12 @@ class ConfigurationError(PrefectException):
     """
     Raised when a configuration is invalid.
     """
+
+
+class ProfileSettingsValidationError(PrefectException):
+    """
+    Raised when a profile settings are invalid.
+    """
+
+    def __init__(self, errors: List[Tuple[Any, ValidationError]]) -> None:
+        self.errors = errors
