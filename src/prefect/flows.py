@@ -45,11 +45,15 @@ from prefect._internal.pydantic import HAS_PYDANTIC_V2
 
 if HAS_PYDANTIC_V2:
     import pydantic.v1 as pydantic
+    from pydantic import BaseModel as V2BaseModel
     from pydantic import ValidationError as V2ValidationError
     from pydantic.v1 import BaseModel as V1BaseModel
     from pydantic.v1.decorator import ValidatedFunction as V1ValidatedFunction
 
-    from ._internal.pydantic.v2_schema import is_v2_type
+    from ._internal.pydantic.v2_schema import (
+        is_v1_type,
+        is_v2_type,
+    )
     from ._internal.pydantic.v2_validated_func import V2ValidatedFunction
     from ._internal.pydantic.v2_validated_func import (
         V2ValidatedFunction as ValidatedFunction,
@@ -339,6 +343,16 @@ class Flow(Generic[P, R]):
             # is not picklable in some environments
             try:
                 ValidatedFunction(self.fn, config={"arbitrary_types_allowed": True})
+            except TypeError as exc:
+                if (
+                    HAS_PYDANTIC_V2
+                    and "`__modify_schema__` method is not supported" in str(exc)
+                ):
+                    V1ValidatedFunction(
+                        self.fn, config={"arbitrary_types_allowed": True}
+                    )
+                else:
+                    raise
             except pydantic.ConfigError as exc:
                 raise ValueError(
                     "Flow function is not compatible with `validate_parameters`. "
@@ -510,19 +524,33 @@ class Flow(Generic[P, R]):
         args, kwargs = parameters_to_args_kwargs(self.fn, parameters)
 
         if HAS_PYDANTIC_V2:
-            has_v1_models = any(isinstance(o, V1BaseModel) for o in args) or any(
-                isinstance(o, V1BaseModel) for o in kwargs.values()
+            sig = inspect.signature(self.fn)
+
+            has_v1_types = any(
+                is_v1_type(param.annotation) for param in sig.parameters.values()
             )
-            has_v2_types = any(is_v2_type(o) for o in args) or any(
-                is_v2_type(o) for o in kwargs.values()
+            has_v1_models = any(
+                issubclass(param.annotation, V1BaseModel)
+                if isinstance(param.annotation, type)
+                else False
+                for param in sig.parameters.values()
+            )
+            has_v2_types = any(
+                is_v2_type(param.annotation) for param in sig.parameters.values()
+            )
+            has_v2_models = any(
+                issubclass(param.annotation, V2BaseModel)
+                if isinstance(param.annotation, type)
+                else False
+                for param in sig.parameters.values()
             )
 
-            if has_v1_models and has_v2_types:
+            if (has_v1_types and has_v2_types) or (has_v1_models and has_v2_models):
                 raise ParameterTypeError(
                     "Cannot mix Pydantic v1 and v2 types as arguments to a flow."
                 )
 
-            if has_v1_models:
+            if has_v1_models or has_v1_types:
                 validated_fn = V1ValidatedFunction(
                     self.fn, config={"arbitrary_types_allowed": True}
                 )
@@ -530,7 +558,6 @@ class Flow(Generic[P, R]):
                 validated_fn = V2ValidatedFunction(
                     self.fn, config={"arbitrary_types_allowed": True}
                 )
-
         else:
             validated_fn = ValidatedFunction(
                 self.fn, config={"arbitrary_types_allowed": True}

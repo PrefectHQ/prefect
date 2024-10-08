@@ -9,6 +9,8 @@ import pydantic
 from pydantic import BaseModel as V2BaseModel
 from pydantic import ConfigDict, PydanticUndefinedAnnotation, create_model
 from pydantic.type_adapter import TypeAdapter
+from pydantic.v1 import BaseModel as V1BaseModel
+from pydantic.v1 import SecretStr as V1SecretStr
 
 from prefect._internal.pydantic.annotations.pendulum import (
     PydanticPendulumDateTimeType,
@@ -30,12 +32,36 @@ def is_v2_model(v) -> bool:
     return False
 
 
+def is_v1_model(v) -> bool:
+    if isinstance(v, V1BaseModel):
+        return True
+    try:
+        if inspect.isclass(v) and issubclass(v, V1BaseModel):
+            return True
+    except TypeError:
+        pass
+
+    return False
+
+
 def is_v2_type(v) -> bool:
     if is_v2_model(v):
         return True
 
     try:
         return v.__module__.startswith("pydantic.types")
+    except AttributeError:
+        return False
+
+
+def is_v1_type(v) -> bool:
+    if is_v1_model(v):
+        return True
+
+    try:
+        return v.__module__.startswith("pydantic.v1.types") or isinstance(
+            v, V1SecretStr
+        )
     except AttributeError:
         return False
 
