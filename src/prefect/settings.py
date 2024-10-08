@@ -1932,6 +1932,7 @@ def _write_profiles_to(path: Path, profiles: ProfilesCollection) -> None:
     Any existing data not present in the given `profiles` will be deleted.
     """
     if not path.exists():
+        path.parent.mkdir(parents=True, exist_ok=True)
         path.touch(mode=0o600)
     path.write_text(toml.dumps(profiles.to_dict()))
 
