@@ -1735,6 +1735,15 @@ class TestFlowParameterTypes:
         instance = my_flow(Test())
         assert isinstance(instance, Test)
 
+    def test_flow_parameter_kwarg_can_be_literally_keys(self):
+        """regression test for https://github.com/PrefectHQ/prefect/issues/15610"""
+
+        @flow
+        def my_flow(keys: str):
+            return keys
+
+        assert my_flow(keys="hello") == "hello"
+
 
 class TestSubflowTaskInputs:
     async def test_subflow_with_one_upstream_task_future(self, prefect_client):
