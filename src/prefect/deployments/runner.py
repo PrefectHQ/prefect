@@ -997,23 +997,20 @@ async def deploy(
     console.print(table)
 
     if print_next_steps_message and not complete_failure:
-        if not work_pool.is_push_pool and not work_pool.is_managed_pool:
-            if not active_workers:
-                console.print(
-                    "\nTo execute flow runs from these deployments, start a worker in a"
-                    " separate terminal that pulls work from the"
-                    f" {work_pool_name!r} work pool:"
-                )
-                console.print(
-                    f"\n\t$ prefect worker start --pool {work_pool_name!r}",
-                    style="blue",
-                )
-        console.print(
-            "\nTo trigger any of these deployments, use the"
-            " following command:\n[blue]\n\t$ prefect deployment run"
-            " [DEPLOYMENT_NAME]\n[/]"
-        )
-
+        if (
+            not work_pool.is_push_pool
+            and not work_pool.is_managed_pool
+            and not active_workers
+        ):
+            console.print(
+                "\nTo execute flow runs from these deployments, start a worker in a"
+	                " separate terminal that pulls work from the"
+	                f" {work_pool_name!r} work pool:"
+	            )
+            console.print(
+                        f"\n\t$ prefect worker start --pool {work_pool_name!r}",
+	                style="blue",
+	            )
         if PREFECT_UI_URL:
             console.print(
                 "\nYou can also trigger your deployments via the Prefect UI:"
