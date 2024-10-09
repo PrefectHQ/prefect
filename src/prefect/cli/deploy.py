@@ -41,7 +41,7 @@ from prefect.cli._utilities import (
 )
 from prefect.cli.root import app, is_interactive
 from prefect.client.schemas.actions import DeploymentScheduleCreate
-from prefect.client.schemas.objects import ConcurrencyLimitConfig
+from prefect.client.schemas.objects import ConcurrencyLimitConfig, WorkerStatus
 from prefect.client.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
@@ -802,16 +802,19 @@ async def _run_single_deploy(
                         " YAML file."
                     ),
                 )
+    workers = await client.read_workers_for_work_pool(work_pool_name)
+    valid_worker = any(worker.status == WorkerStatus.ONLINE for worker in workers)
     if not work_pool.is_push_pool and not work_pool.is_managed_pool:
-        app.console.print(
-            "\nTo execute flow runs from this deployment, start a worker in a"
-            " separate terminal that pulls work from the"
-            f" {deploy_config['work_pool']['name']!r} work pool:"
-        )
-        app.console.print(
-            f"\n\t$ prefect worker start --pool {deploy_config['work_pool']['name']!r}",
-            style="blue",
-        )
+        if not valid_worker:
+            app.console.print(
+                "\nTo execute flow runs from this deployment, start a worker in a"
+                " separate terminal that pulls work from the"
+                f" {deploy_config['work_pool']['name']!r} work pool:"
+            )
+            app.console.print(
+                f"\n\t$ prefect worker start --pool {deploy_config['work_pool']['name']!r}",
+                style="blue",
+            )
     app.console.print(
         "\nTo schedule a run for this deployment, use the following command:"
     )
