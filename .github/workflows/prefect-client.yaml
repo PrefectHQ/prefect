@@ -58,10 +58,6 @@ jobs:
         env:
           TMPDIR: ${{ env.TMPDIR }}
 
-      - name: (DEBUG) Print versioneer output
-        run: python -c "import versioneer; print(versioneer.get_version())"
-        working-directory: ${{ env.TMPDIR }}
-
       - name: Build a binary wheel and a source tarball
         run: pip install wheel && python setup.py sdist bdist_wheel
         working-directory: ${{ env.TMPDIR }}
