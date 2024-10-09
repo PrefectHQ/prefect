@@ -52,13 +52,13 @@ To implement rate limiting, you can configure "slot decay", which determines how
 
 When you set up a concurrency limit with slot decay:
 1. Each time a slot is occupied, it becomes unavailable for other tasks to use.
-2. The slot eventually becomes available again over time, based on the slot decay rate (i.e. `slot_decay_per_second`).
+2. The slot eventually becomes available again over time, based on the slot decay rate (with `slot_decay_per_second`).
 3. This creates a "rate limiting" effect, limiting how often slots can be used.
 
 To configure slot decay, set the `slot_decay_per_second` parameter when creating or updating a concurrency limit. This value determines how quickly slots refresh:
 
-- A higher value (e.g., 5.0) means slots refresh quickly. Tasks can run more frequently, but with short pauses between them.
-- A lower value (e.g., 0.1) means slots refresh slowly. Tasks run less frequently, with longer pauses between them.
+- A higher value (for example, 5.0) means slots refresh quickly. Tasks can run more frequently, but with short pauses between them.
+- A lower value (for example, 0.1) means slots refresh slowly. Tasks run less frequently, with longer pauses between them.
 
 For example:
 
