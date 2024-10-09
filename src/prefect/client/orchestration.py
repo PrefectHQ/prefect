@@ -8,12 +8,14 @@ from typing import (
     Dict,
     Iterable,
     List,
+    Literal,
     NoReturn,
     Optional,
     Set,
     Tuple,
     TypeVar,
     Union,
+    overload,
 )
 from uuid import UUID, uuid4
 
@@ -176,6 +178,20 @@ class ServerType(AutoEnum):
             return True
 
         return PREFECT_EXPERIMENTAL_EVENTS and PREFECT_API_SERVICES_TRIGGERS_ENABLED
+
+
+@overload
+def get_client(
+    httpx_settings: Optional[Dict[str, Any]] = None, sync_client: Literal[False] = False
+) -> "PrefectClient":
+    ...
+
+
+@overload
+def get_client(
+    httpx_settings: Optional[Dict[str, Any]] = None, sync_client: Literal[True] = True
+) -> "SyncPrefectClient":
+    ...
 
 
 def get_client(
