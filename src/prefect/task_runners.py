@@ -278,11 +278,11 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture]):
 
         flow_run_ctx = FlowRunContext.get()
         if flow_run_ctx:
-            get_run_logger(flow_run_ctx).info(
+            get_run_logger(flow_run_ctx).debug(
                 f"Submitting task {task.name} to thread pool executor..."
             )
         else:
-            self.logger.info(f"Submitting task {task.name} to thread pool executor...")
+            self.logger.debug(f"Submitting task {task.name} to thread pool executor...")
 
         submit_kwargs = dict(
             task=task,
