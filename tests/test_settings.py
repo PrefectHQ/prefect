@@ -12,7 +12,6 @@ import prefect.context
 import prefect.settings
 from prefect.exceptions import ProfileSettingsValidationError
 from prefect.settings import (
-    DEFAULT_DEPENDENT_SETTINGS,
     DEFAULT_PROFILES_PATH,
     PREFECT_API_DATABASE_CONNECTION_URL,
     PREFECT_API_DATABASE_DRIVER,
@@ -148,7 +147,6 @@ class TestSettingsClass:
 
         assert Settings().to_environment_variables(
             exclude_unset=True,
-            exclude={SETTING_VARIABLES[key] for key in DEFAULT_DEPENDENT_SETTINGS},
         ) == {
             "PREFECT_TEST_MODE": "True",
         }
@@ -161,7 +159,6 @@ class TestSettingsClass:
 
         assert Settings(debug_mode=True, api_key="Hello").to_environment_variables(
             exclude_unset=True,
-            exclude={SETTING_VARIABLES[key] for key in DEFAULT_DEPENDENT_SETTINGS},
         ) == {
             "PREFECT_TEST_MODE": "True",
             "PREFECT_DEBUG_MODE": "True",
@@ -253,6 +250,23 @@ class TestSettingsClass:
             settings.model_dump(context={"include_secrets": True}).get("api_key")
             == "test"
         )
+
+    def test_loads_when_profile_path_does_not_exist(self, monkeypatch):
+        monkeypatch.setenv("PREFECT_PROFILES_PATH", str(Path.home() / "nonexistent"))
+        monkeypatch.delenv("PREFECT_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_UNIT_TEST_MODE", raising=False)
+        assert Settings().test_setting == "FOO"
+
+    def test_loads_when_profile_path_is_not_a_toml_file(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("PREFECT_PROFILES_PATH", str(tmp_path / "profiles.toml"))
+        monkeypatch.delenv("PREFECT_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_UNIT_TEST_MODE", raising=False)
+
+        with open(tmp_path / "profiles.toml", "w") as f:
+            f.write("Ceci n'est pas un fichier toml")
+
+        with pytest.warns(UserWarning, match="Failed to load profiles from"):
+            assert Settings().test_setting == "FOO"
 
 
 class TestSettingAccess:

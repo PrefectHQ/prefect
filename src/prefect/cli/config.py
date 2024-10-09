@@ -6,6 +6,7 @@ import os
 from typing import List, Optional
 
 import typer
+from dotenv import dotenv_values
 from typing_extensions import Literal
 
 import prefect.context
@@ -199,7 +200,7 @@ def view(
     def _process_setting(
         setting: prefect.settings.Setting,
         value: str,
-        source: Literal["env", "profile", "defaults"],
+        source: Literal["env", "profile", "defaults", ".env file"],
     ):
         display_value = "********" if setting.is_secret and not show_secrets else value
         source_blurb = f" (from {source})" if show_sources else ""
@@ -215,7 +216,7 @@ def view(
         )
         _process_setting(setting, value_and_source[0], value_and_source[1])
 
-    for setting_name in set(os.environ) & set(VALID_SETTING_NAMES):
+    for setting_name in VALID_SETTING_NAMES:
         setting = prefect.settings.SETTING_VARIABLES[setting_name]
         if setting.name in processed_settings:
             continue
@@ -223,6 +224,12 @@ def view(
             continue
         _process_setting(setting, env_value, "env")
 
+    for key, value in dotenv_values().items():
+        if key in VALID_SETTING_NAMES:
+            setting = prefect.settings.SETTING_VARIABLES[key]
+            if setting.name in processed_settings or value is None:
+                continue
+            _process_setting(setting, value, ".env file")
     if show_defaults:
         default_values = prefect.settings.Settings().model_dump(context=dump_context)
         for key, value in default_values.items():

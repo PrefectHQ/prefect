@@ -284,11 +284,14 @@ class Transaction(ContextModel):
         self.children.append(transaction)
 
     def get_parent(self) -> Optional["Transaction"]:
-        prev_var = getattr(self._token, "old_value")
-        if prev_var != Token.MISSING:
-            parent = prev_var
+        parent = None
+        if self._token:
+            prev_var = getattr(self._token, "old_value")
+            if prev_var != Token.MISSING:
+                parent = prev_var
         else:
-            parent = None
+            # `_token` has been reset so we need to get the active transaction from the context var
+            parent = self.get_active()
         return parent
 
     def commit(self) -> bool:

@@ -50,6 +50,7 @@ Code to create a GitHub Credentials block:
 ```python
 from prefect_github import GitHubCredentials
 
+
 github_credentials_block = GitHubCredentials(token="my_token")
 github_credentials_block.save(name="my-github-credentials-block")
 ```
@@ -65,16 +66,15 @@ from prefect_github import GitHubCredentials
 
 
 if __name__ == "__main__":
-    flow.from_source(
-        source=GitRepository(
+
+    source = GitRepository(
         url="https://github.com/org/private-repo.git",
         credentials=GitHubCredentials.load("my-github-credentials-block")
-    ),
-    entrypoint="my_file.py:my_flow",
-    ).deploy(
+    )
+
+    flow.from_source(source=source, entrypoint="my_file.py:my_flow").deploy(
         name="private-github-deploy",
         work_pool_name="my_pool",
-        build=False
     )
 ```
 
