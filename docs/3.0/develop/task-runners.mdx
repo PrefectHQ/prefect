@@ -79,6 +79,7 @@ If you don't specify a task runner for a flow and you call a task with `.submit(
 Prefect uses the default `ThreadPoolTaskRunner`.
 </Tip>
 
+The `max_workers` parameter of the `ThreadPoolTaskRunner` controls the number of threads that the task runner will use to execute tasks concurrently.
 
 ## Access results from submitted tasks
 
