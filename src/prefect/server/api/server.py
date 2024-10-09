@@ -774,7 +774,12 @@ class SubprocessASGIServer:
             if self.port is None:
                 self.port = self.find_available_port()
             assert self.port is not None, "Port must be provided or available"
-            subprocess_server_logger.info(f"Starting server on {self.address}")
+            help_message = (
+                f"Starting temporary server on {self.address}\nSee "
+                "https://docs.prefect.io/3.0/manage/self-host#self-host-a-prefect-server "
+                "for more information on running a dedicated Prefect server."
+            )
+            subprocess_server_logger.info(help_message)
             try:
                 self.running = True
                 self.server_process = self._run_uvicorn_command()
@@ -851,7 +856,9 @@ class SubprocessASGIServer:
 
     def stop(self):
         if self.server_process:
-            subprocess_server_logger.info(f"Stopping server on {self.address}")
+            subprocess_server_logger.info(
+                f"Stopping temporary server on {self.address}"
+            )
             self.server_process.terminate()
             try:
                 self.server_process.wait(timeout=5)
