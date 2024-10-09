@@ -10,6 +10,7 @@ on:
       - requirements.txt
       - requirements-client.txt
       - setup.cfg
+      - .github/workflows/prefect-client.yaml
   push:
     branches:
       - main
@@ -19,6 +20,7 @@ on:
       - requirements.txt
       - requirements-client.txt
       - setup.cfg
+      - .github/workflows/prefect-client.yaml
   workflow_call:
     inputs:
       upload-artifacts:
@@ -64,6 +66,13 @@ jobs:
         run: pip install dist/*.tar.gz
         working-directory: ${{ env.TMPDIR }}
 
+      - name: Get the version of built `prefect-client`
+        run: |
+          prefect_client_version=$(python -c "import prefect; print(prefect.__version__)")
+          echo "prefect_client_version=$prefect_client_version" >> $GITHUB_OUTPUT
+        working-directory: ${{ env.TMPDIR }}
+        id: prefect_client_version
+
       - name: Run the smoke test flow using the built client
         run: python client/client_flow.py
         working-directory: ${{ env.TMPDIR }}
@@ -74,8 +83,18 @@ jobs:
       - name: Install prefect from source
         run: pip install .
 
-      - name: (DEBUG) Check that prefect and prefect-client are installed
-        run: pip list | grep prefect
+      - name: Get the version of built `prefect`
+        run: |
+          prefect_version=$(prefect --version)
+          echo "prefect_version=$prefect_version" >> $GITHUB_OUTPUT
+        id: prefect_version
+
+      - name: Verify that the built `prefect` and `prefect-client` versions are the same
+        run: |
+          if [ "${{ steps.prefect_version.outputs.prefect_version }}" != "${{ steps.prefect_client_version.outputs.prefect_client_version }}" ]; then
+            echo "The built versions of prefect and prefect-client are not the same."
+            exit 1
+          fi
 
       - name: Run the smoke test flow again with prefect and prefect-client installed
         run: python client/client_flow.py

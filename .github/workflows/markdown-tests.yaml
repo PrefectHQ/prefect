@@ -95,7 +95,7 @@ jobs:
 
       - name: Start server
         run: |
-          prefect server start&
+          PREFECT_HOME=$(pwd) prefect server start&
           PREFECT_API_URL="http://127.0.0.1:4200/api" ./scripts/wait-for-server.py
 
       - name: Run tests
