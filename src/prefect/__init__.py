@@ -116,3 +116,8 @@ def __getattr__(attr_name: str) -> object:
     else:
         module = import_module(module_name, package=package)
         return getattr(module, attr_name)
+
+
+from . import _version
+
+__version__ = _version.get_versions()["version"]
