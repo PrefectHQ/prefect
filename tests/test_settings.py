@@ -125,6 +125,14 @@ class TestSettingsClass:
             s.name for s in SETTING_VARIABLES.values() if s.value() is not None
         }
 
+    def test_settings_to_environment_works_with_exclude_unset(self, monkeypatch):
+        for var in os.environ:
+            if var.startswith("PREFECT_"):
+                monkeypatch.delenv(var, raising=False)
+        assert Settings(server_api_port=3000).to_environment_variables(
+            exclude_unset=True
+        ) == {"PREFECT_SERVER_API_PORT": "3000"}
+
     def test_settings_to_environment_casts_to_strings(self):
         assert (
             Settings(server_api_port=3000).to_environment_variables()[

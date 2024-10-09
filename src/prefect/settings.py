@@ -1659,7 +1659,11 @@ class Settings(PrefectBaseSettings):
         ctx = info.context
         jsonable_self = handler(self)
         if ctx and ctx.get("include_secrets") is True:
-            dump_kwargs = dict(include=info.include, exclude=info.exclude)
+            dump_kwargs = dict(
+                include=info.include,
+                exclude=info.exclude,
+                exclude_unset=info.exclude_unset,
+            )
             jsonable_self.update(
                 {
                     field_name: visit_collection(
