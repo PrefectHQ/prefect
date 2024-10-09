@@ -10,6 +10,7 @@ on:
       - requirements.txt
       - requirements-client.txt
       - setup.cfg
+      - .github/workflows/prefect-client.yaml
   push:
     branches:
       - main
@@ -19,6 +20,7 @@ on:
       - requirements.txt
       - requirements-client.txt
       - setup.cfg
+      - .github/workflows/prefect-client.yaml
   workflow_call:
     inputs:
       upload-artifacts:
