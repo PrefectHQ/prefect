@@ -48,8 +48,8 @@ class AwsClientParameters(BaseModel):
     use_ssl: bool = Field(
         default=True, description="Whether or not to use SSL.", title="Use SSL"
     )
-    verify: Union[bool, FilePath] = Field(
-        default=True, description="Whether or not to verify SSL certificates."
+    verify: Union[bool, FilePath, None] = Field(
+        default=None, description="Whether or not to verify SSL certificates."
     )
     verify_cert_path: Optional[FilePath] = Field(
         default=None,
@@ -154,6 +154,9 @@ class AwsClientParameters(BaseModel):
                     params_override[key].signature_version = UNSIGNED
             elif key == "verify_cert_path":
                 params_override["verify"] = value
+            elif key == "verify":
+                if value is not None:
+                    params_override[key] = value
             else:
                 params_override[key] = value
         return params_override
