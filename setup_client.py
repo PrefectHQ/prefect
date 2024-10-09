@@ -8,7 +8,8 @@ original_cmdclass = versioneer.get_cmdclass()
 
 
 class CustomEggInfo(_egg_info):
-    def tag_build(self, version):
+    def tag_build(self):
+        version = self.distribution.get_version()
         # Remove .dirty suffix if present
         if version.endswith(".dirty"):
             return version[:-6]
