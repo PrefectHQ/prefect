@@ -68,7 +68,7 @@ jobs:
 
       - name: Get the version of built `prefect-client`
         run: |
-          prefect_client_version=$(python -c "import prefect_client; print(prefect_client.__version__)")
+          prefect_client_version=$(python -c "import prefect; print(prefect.__version__)")
           echo "prefect_client_version=$prefect_client_version" >> $GITHUB_OUTPUT
         working-directory: ${{ env.TMPDIR }}
         id: prefect_client_version
