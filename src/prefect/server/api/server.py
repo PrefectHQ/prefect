@@ -857,7 +857,7 @@ class SubprocessASGIServer:
     def stop(self):
         if self.server_process:
             subprocess_server_logger.info(
-                f"Stopping ephemeral server on {self.address}"
+                f"Stopping temporary server on {self.address}"
             )
             self.server_process.terminate()
             try:
