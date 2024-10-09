@@ -126,12 +126,19 @@ class TestSettingsClass:
         }
 
     def test_settings_to_environment_works_with_exclude_unset(self, monkeypatch):
-        for var in os.environ:
-            if var.startswith("PREFECT_"):
-                monkeypatch.delenv(var, raising=False)
+        # for var in os.environ:
+        #     if var.startswith("PREFECT_"):
+        #         monkeypatch.delenv(var, raising=False)
         assert Settings(server_api_port=3000).to_environment_variables(
             exclude_unset=True
-        ) == {"PREFECT_SERVER_API_PORT": "3000"}
+        ) == {
+            # From test settings
+            "PREFECT_LOGGING_SERVER_LEVEL": "DEBUG",
+            "PREFECT_TEST_MODE": "True",
+            "PREFECT_UNIT_TEST_MODE": "True",
+            # From init
+            "PREFECT_SERVER_API_PORT": "3000",
+        }
 
     def test_settings_to_environment_casts_to_strings(self):
         assert (
