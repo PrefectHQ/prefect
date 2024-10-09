@@ -13,6 +13,8 @@ body:
 
         3. I searched the Prefect documentation for this feature.
 
+        **Note:** Enhancements are only considered for Prefect 3.x. Prefect 2.x only receives bug fixes.
+
   - type: textarea
     attributes:
       label: Describe the current behavior
