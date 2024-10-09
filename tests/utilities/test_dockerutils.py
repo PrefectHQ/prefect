@@ -27,14 +27,14 @@ PYTHON_VERSION = f"{sys.version_info.major}.{sys.version_info.minor}"
             None,
             None,
             "conda",
-            f"prefecthq/prefect-dev:sha-{COMMIT_SHA}-python3.12-conda",
+            f"prefecthq/prefect-dev:sha-{COMMIT_SHA}-python{PYTHON_VERSION}-conda",
         ),
-        ("3.0.0", None, None, "prefecthq/prefect:3.0.0-python3.12"),
+        ("3.0.0", None, None, f"prefecthq/prefect:3.0.0-python{PYTHON_VERSION}"),
         (
             "3.0.0.post0.dev1",
             None,
             None,
-            f"prefecthq/prefect-dev:sha-{COMMIT_SHA}-python3.12",
+            f"prefecthq/prefect-dev:sha-{COMMIT_SHA}-python{PYTHON_VERSION}",
         ),
     ],
 )
