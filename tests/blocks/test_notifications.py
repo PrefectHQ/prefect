@@ -1,6 +1,6 @@
 import urllib
 from typing import Type
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 import cloudpickle
 import pytest
@@ -379,6 +379,33 @@ class TestPagerDutyWebhook:
                 body="test", title=None, notify_type=notify_type
             )
 
+    async def test_notify_async_with_subject(self):
+        with patch("apprise.Apprise", autospec=True) as AppriseMock:
+            apprise_instance_mock = AppriseMock.return_value
+            apprise_instance_mock.async_notify = AsyncMock()
+
+            block = PagerDutyWebHook(integration_key="int_key", api_key="api_key")
+            await block.notify("test", "test")
+
+            apprise_instance_mock.add.assert_has_calls(
+                [
+                    call(
+                        "pagerduty://int_key@api_key/Prefect/Notification?region=us"
+                        "&image=yes&format=text&overflow=upstream"
+                    ),
+                    call(
+                        "pagerduty://int_key@api_key/Prefect/Notification?region=us"
+                        "&image=yes&%2BPrefect+Notification+Body=test&format=text&overflow=upstream"
+                    ),
+                ],
+                any_order=False,
+            )
+
+            notify_type = "info"
+            apprise_instance_mock.async_notify.assert_awaited_once_with(
+                body=" ", title="test", notify_type=notify_type
+            )
+
     def test_notify_sync(self):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
             apprise_instance_mock = AppriseMock.return_value
@@ -401,6 +428,38 @@ class TestPagerDutyWebhook:
             notify_type = "info"
             apprise_instance_mock.async_notify.assert_awaited_once_with(
                 body="test", title=None, notify_type=notify_type
+            )
+
+    def test_notify_sync_with_subject(self):
+        with patch("apprise.Apprise", autospec=True) as AppriseMock:
+            apprise_instance_mock = AppriseMock.return_value
+            apprise_instance_mock.async_notify = AsyncMock()
+
+            block = PagerDutyWebHook(integration_key="int_key", api_key="api_key")
+
+            @flow
+            def test_flow():
+                block.notify("test", "test")
+
+            test_flow()
+
+            apprise_instance_mock.add.assert_has_calls(
+                [
+                    call(
+                        "pagerduty://int_key@api_key/Prefect/Notification?region=us"
+                        "&image=yes&format=text&overflow=upstream"
+                    ),
+                    call(
+                        "pagerduty://int_key@api_key/Prefect/Notification?region=us"
+                        "&image=yes&%2BPrefect+Notification+Body=test&format=text&overflow=upstream"
+                    ),
+                ],
+                any_order=False,
+            )
+
+            notify_type = "info"
+            apprise_instance_mock.async_notify.assert_awaited_once_with(
+                body=" ", title="test", notify_type=notify_type
             )
 
 
