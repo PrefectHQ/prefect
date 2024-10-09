@@ -802,8 +802,10 @@ async def _run_single_deploy(
                         " YAML file."
                     ),
                 )
-    workers = await client.read_workers_for_work_pool(work_pool_name)
-    valid_worker = any(worker.status == WorkerStatus.ONLINE for worker in workers)
+    valid_worker = False
+    if work_pool_name:
+        workers = await client.read_workers_for_work_pool(work_pool_name)
+        valid_worker = any(worker.status == WorkerStatus.ONLINE for worker in workers)
     if not work_pool.is_push_pool and not work_pool.is_managed_pool:
         if not valid_worker:
             app.console.print(
