@@ -116,7 +116,7 @@ class PrefectWrappedFuture(PrefectFuture, abc.ABC, Generic[R, F]):
         """The underlying future object wrapped by this Prefect future"""
         return self._wrapped_future
 
-    def add_done_callback(self, fn: Callable[[PrefectFuture], None]):
+    def add_done_callback(self, fn: Callable[[PrefectFuture[R]], None]):
         if not self._final_state:
 
             def call_with_self(future):
@@ -193,7 +193,7 @@ class PrefectDistributedFuture(PrefectFuture[R]):
     any task run scheduled in Prefect's API.
     """
 
-    done_callbacks: List[Callable[[PrefectFuture], None]] = []
+    done_callbacks: List[Callable[[PrefectFuture[R]], None]] = []
     waiter = None
 
     def wait(self, timeout: Optional[float] = None) -> None:
@@ -257,7 +257,7 @@ class PrefectDistributedFuture(PrefectFuture[R]):
             raise_on_failure=raise_on_failure, fetch=True
         )
 
-    def add_done_callback(self, fn: Callable[[PrefectFuture], None]):
+    def add_done_callback(self, fn: Callable[[PrefectFuture[R]], None]):
         if self._final_state:
             fn(self)
             return
@@ -331,9 +331,9 @@ class PrefectFutureList(list, Iterator, Generic[F]):
 
 
 def as_completed(
-    futures: List[PrefectFuture], timeout: Optional[float] = None
-) -> Generator[PrefectFuture, None]:
-    unique_futures: Set[PrefectFuture] = set(futures)
+    futures: List[PrefectFuture[R]], timeout: Optional[float] = None
+) -> Generator[PrefectFuture[R], None]:
+    unique_futures: Set[PrefectFuture[R]] = set(futures)
     total_futures = len(unique_futures)
     try:
         with timeout_context(timeout):
@@ -373,7 +373,7 @@ def as_completed(
 DoneAndNotDoneFutures = collections.namedtuple("DoneAndNotDoneFutures", "done not_done")
 
 
-def wait(futures: List[PrefectFuture], timeout=None) -> DoneAndNotDoneFutures:
+def wait(futures: List[PrefectFuture[R]], timeout=None) -> DoneAndNotDoneFutures:
     """
     Wait for the futures in the given sequence to complete.
 
@@ -404,10 +404,10 @@ def wait(futures: List[PrefectFuture], timeout=None) -> DoneAndNotDoneFutures:
             print(f"Not Done: {len(not_done)}")
         ```
     """
-    futures = set(futures)
-    done = {f for f in futures if f._final_state}
-    not_done = futures - done
-    if len(done) == len(futures):
+    _futures = set(futures)
+    done = {f for f in _futures if f._final_state}
+    not_done = _futures - done
+    if len(done) == len(_futures):
         return DoneAndNotDoneFutures(done, not_done)
     try:
         with timeout_context(timeout):
@@ -422,7 +422,7 @@ def wait(futures: List[PrefectFuture], timeout=None) -> DoneAndNotDoneFutures:
 
 
 def resolve_futures_to_states(
-    expr: Union[PrefectFuture, Any],
+    expr: Union[PrefectFuture[R], Any],
 ) -> Union[State, Any]:
     """
     Given a Python built-in collection, recursively find `PrefectFutures` and build a
@@ -431,7 +431,7 @@ def resolve_futures_to_states(
 
     Unsupported object types will be returned without modification.
     """
-    futures: Set[PrefectFuture] = set()
+    futures: Set[PrefectFuture[R]] = set()
 
     def _collect_futures(futures, expr, context):
         # Expressions inside quotes should not be traversed
