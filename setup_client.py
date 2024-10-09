@@ -1,23 +1,7 @@
 import versioneer
 from setuptools import find_packages, setup
-from setuptools.command.egg_info import egg_info as _egg_info
 
 install_requires = open("requirements-client.txt").read().strip().split("\n")
-
-original_cmdclass = versioneer.get_cmdclass()
-
-
-class CustomEggInfo(_egg_info):
-    def tag_build(self):
-        version = self.distribution.get_version()
-        # Remove .dirty suffix if present
-        if version.endswith(".dirty"):
-            return version[:-6]
-        return version
-
-
-cmdclass = original_cmdclass.copy()
-cmdclass.update({"egg_info": CustomEggInfo})
 
 setup(
     # Package metadata
@@ -36,7 +20,7 @@ setup(
     long_description_content_type="text/markdown",
     # Versioning
     version=versioneer.get_version(),
-    cmdclass=cmdclass,
+    cmdclass=versioneer.get_cmdclass(),
     # Package setup
     packages=find_packages(where="src"),
     package_dir={"": "src"},

@@ -58,6 +58,13 @@ jobs:
         env:
           TMPDIR: ${{ env.TMPDIR }}
 
+      - name: Temporary commit of file removal
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add .
+          git commit --amend --no-edit --no-verify
+
       - name: (DEBUG) Print versioneer output
         run: python -c "import versioneer; print(versioneer.get_version())"
         working-directory: ${{ env.TMPDIR }}
