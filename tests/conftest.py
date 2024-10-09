@@ -66,7 +66,6 @@ from prefect.settings import (
     PREFECT_SERVER_ANALYTICS_ENABLED,
     PREFECT_SERVER_CSRF_PROTECTION_ENABLED,
     PREFECT_UNIT_TEST_LOOP_DEBUG,
-    PREFECT_UNIT_TEST_MODE,
 )
 from prefect.utilities.dispatch import get_registry_for_type
 
@@ -301,6 +300,7 @@ def pytest_sessionstart(session):
     when tests are collected they respect the setting values.
     """
     global TEST_PREFECT_HOME, TEST_PROFILE_CTX
+
     TEST_PREFECT_HOME = tempfile.mkdtemp()
 
     profile = prefect.settings.Profile(
@@ -338,8 +338,6 @@ def pytest_sessionstart(session):
             PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION: False,
             # Disable auto-registration of block types as they can conflict
             PREFECT_API_BLOCKS_REGISTER_ON_START: False,
-            # Code is being executed in a unit test context
-            PREFECT_UNIT_TEST_MODE: True,
             # Events: disable the event persister and triggers service, which may
             # lock the DB during tests while writing events
             PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED: False,
@@ -415,7 +413,8 @@ async def generate_test_database_connection_url(
     if scheme == "sqlite+aiosqlite":
         # SQLite databases will be scoped by the PREFECT_HOME setting, which will
         # be in an isolated temporary directory
-        yield None
+        test_db_path = Path(PREFECT_HOME.value()) / f"prefect_{worker_id}.db"
+        yield f"sqlite+aiosqlite:///{test_db_path}"
         return
 
     elif scheme == "postgresql+asyncpg":

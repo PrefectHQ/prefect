@@ -26,12 +26,10 @@ from prefect.context import (
 from prefect.exceptions import MissingContextError
 from prefect.results import ResultStore, get_result_store
 from prefect.settings import (
-    DEFAULT_PROFILES_PATH,
     PREFECT_API_KEY,
     PREFECT_API_URL,
     PREFECT_HOME,
     PREFECT_PROFILES_PATH,
-    PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
     Profile,
     ProfilesCollection,
     save_profiles,
@@ -42,7 +40,7 @@ from prefect.task_runners import ThreadPoolTaskRunner
 
 
 class ExampleContext(ContextModel):
-    __var__ = ContextVar("test")
+    __var__: ContextVar = ContextVar("test")
 
     x: int
 
@@ -201,11 +199,11 @@ class TestSettingsContext:
     def test_settings_context_variable(self):
         with SettingsContext(
             profile=Profile(name="test", settings={}),
-            settings=prefect.settings.get_settings_from_env(),
+            settings=prefect.settings.get_current_settings(),
         ) as context:
             assert get_settings_context() is context
             assert context.profile == Profile(name="test", settings={})
-            assert context.settings == prefect.settings.get_settings_from_env()
+            assert context.settings == prefect.settings.get_current_settings()
 
     def test_get_settings_context_missing(self, monkeypatch):
         # It's kind of hard to actually exit the default profile, so we patch `get`
@@ -294,20 +292,10 @@ class TestSettingsContext:
         save_profiles(ProfilesCollection(profiles=[profile]))
         return profile
 
-    def test_root_settings_context_default(self, monkeypatch):
-        use_profile = MagicMock()
-        monkeypatch.setattr("prefect.context.use_profile", use_profile)
+    def test_root_settings_context_default(self):
         result = root_settings_context()
-        use_profile.assert_called_once_with(
-            Profile(
-                name="ephemeral",
-                settings={PREFECT_SERVER_ALLOW_EPHEMERAL_MODE: "true"},
-                source=DEFAULT_PROFILES_PATH,
-            ),
-            override_environment_variables=False,
-        )
-        use_profile().__enter__.assert_called_once()
         assert result is not None
+        assert isinstance(result, SettingsContext)
 
     @pytest.mark.parametrize(
         "cli_command",
@@ -321,19 +309,8 @@ class TestSettingsContext:
     def test_root_settings_context_default_if_cli_args_do_not_match_format(
         self, monkeypatch, cli_command
     ):
-        use_profile = MagicMock()
-        monkeypatch.setattr("prefect.context.use_profile", use_profile)
         monkeypatch.setattr("sys.argv", cli_command)
         result = root_settings_context()
-        use_profile.assert_called_once_with(
-            Profile(
-                name="ephemeral",
-                settings={PREFECT_SERVER_ALLOW_EPHEMERAL_MODE: "true"},
-                source=DEFAULT_PROFILES_PATH,
-            ),
-            override_environment_variables=False,
-        )
-        use_profile().__enter__.assert_called_once_with()
         assert result is not None
 
     def test_root_settings_context_respects_cli(self, monkeypatch, foo_profile):
@@ -341,34 +318,22 @@ class TestSettingsContext:
         monkeypatch.setattr("prefect.context.use_profile", use_profile)
         monkeypatch.setattr("sys.argv", ["/prefect", "--profile", "foo"])
         result = root_settings_context()
-        use_profile.assert_called_once_with(
-            foo_profile,
-            override_environment_variables=True,
-        )
-        use_profile().__enter__.assert_called_once_with()
         assert result is not None
 
     def test_root_settings_context_respects_environment_variable(
-        self, monkeypatch, foo_profile
+        self, temporary_profiles_path, monkeypatch
     ):
-        use_profile = MagicMock()
-        monkeypatch.setattr("prefect.context.use_profile", use_profile)
+        temporary_profiles_path.write_text(
+            textwrap.dedent(
+                """
+                [profiles.foo]
+                PREFECT_API_URL="foo"
+                """
+            )
+        )
         monkeypatch.setenv("PREFECT_PROFILE", "foo")
-        root_settings_context()
-        use_profile.assert_called_once_with(
-            foo_profile, override_environment_variables=False
-        )
-
-    def test_root_settings_context_missing_cli(self, monkeypatch, capsys):
-        use_profile = MagicMock()
-        monkeypatch.setattr("prefect.context.use_profile", use_profile)
-        monkeypatch.setattr("sys.argv", ["/prefect", "--profile", "bar"])
-        root_settings_context()
-        _, err = capsys.readouterr()
-        assert (
-            "profile 'bar' set by command line argument not found. The default profile"
-            " will be used instead." in err
-        )
+        settings_context = root_settings_context()
+        assert settings_context.profile.name == "foo"
 
     def test_root_settings_context_missing_environment_variables(
         self, monkeypatch, capsys
@@ -483,14 +448,8 @@ class TestSerializeContext:
                     "tags_context": {"current_tags": current_tags},
                     "settings_context": SettingsContext.get().serialize(),
                 }
-                assert (
-                    serialized["settings_context"]["settings"]["PREFECT_API_KEY"]
-                    == "test"
-                )
-                assert (
-                    serialized["settings_context"]["settings"]["PREFECT_API_URL"]
-                    == "test"
-                )
+                assert serialized["settings_context"]["settings"]["api_key"] == "test"
+                assert serialized["settings_context"]["settings"]["api_url"] == "test"
 
 
 class TestHydratedContext:
@@ -622,7 +581,7 @@ class TestHydratedContext:
             {
                 "settings_context": {
                     "profile": {"name": "test", "settings": {}, "source": None},
-                    "settings": {"PREFECT_API_KEY": "test", "PREFECT_API_URL": "test"},
+                    "settings": {"api_key": "test", "api_url": "test"},
                 },
             }
         ):
@@ -631,5 +590,9 @@ class TestHydratedContext:
                 settings={},
                 source=None,
             )
-            assert SettingsContext.get().settings.PREFECT_API_KEY == "test"
-            assert SettingsContext.get().settings.PREFECT_API_URL == "test"
+            settings = SettingsContext.get().settings
+            assert (
+                settings.api_key is not None
+                and settings.api_key.get_secret_value() == "test"
+            )
+            assert settings.api_url == "test"

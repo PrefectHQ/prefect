@@ -31,7 +31,6 @@ from prefect.results import (
     ResultRecord,
     ResultStore,
     get_result_store,
-    should_persist_result,
 )
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.collections import AutoEnum
@@ -285,11 +284,14 @@ class Transaction(ContextModel):
         self.children.append(transaction)
 
     def get_parent(self) -> Optional["Transaction"]:
-        prev_var = getattr(self._token, "old_value")
-        if prev_var != Token.MISSING:
-            parent = prev_var
+        parent = None
+        if self._token:
+            prev_var = getattr(self._token, "old_value")
+            if prev_var != Token.MISSING:
+                parent = prev_var
         else:
-            parent = None
+            # `_token` has been reset so we need to get the active transaction from the context var
+            parent = self.get_active()
         return parent
 
     def commit(self) -> bool:
@@ -438,7 +440,7 @@ def transaction(
     commit_mode: Optional[CommitMode] = None,
     isolation_level: Optional[IsolationLevel] = None,
     overwrite: bool = False,
-    write_on_commit: Optional[bool] = None,
+    write_on_commit: bool = True,
     logger: Union[logging.Logger, logging.LoggerAdapter, None] = None,
 ) -> Generator[Transaction, None, None]:
     """
@@ -473,9 +475,7 @@ def transaction(
         commit_mode=commit_mode,
         isolation_level=isolation_level,
         overwrite=overwrite,
-        write_on_commit=write_on_commit
-        if write_on_commit is not None
-        else should_persist_result(),
+        write_on_commit=write_on_commit,
         logger=logger,
     ) as txn:
         yield txn

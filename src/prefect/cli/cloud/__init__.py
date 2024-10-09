@@ -2,6 +2,7 @@
 Command line interface for interacting with Prefect Cloud
 """
 
+import os
 import signal
 import traceback
 import uuid
@@ -365,7 +366,7 @@ async def login(
 
     profiles = load_profiles()
     current_profile = get_settings_context().profile
-    env_var_api_key = PREFECT_API_KEY.value()
+    env_var_api_key = os.getenv("PREFECT_API_KEY")
     selected_workspace = None
 
     if env_var_api_key and key and env_var_api_key != key:
@@ -374,7 +375,7 @@ async def login(
             " environment variable that will override it."
         )
 
-    if env_var_api_key and env_var_api_key == key:
+    if key and env_var_api_key and env_var_api_key == key:
         is_valid_key = await check_key_is_valid_for_login(key)
         is_correct_key_format = key.startswith("pnu_") or key.startswith("pnb_")
         if not is_valid_key:
@@ -557,7 +558,12 @@ async def logout():
     exit_with_success("Logged out from Prefect Cloud.")
 
 
-@cloud_app.command()
+@cloud_app.command(
+    deprecated=True,
+    deprecated_name="prefect cloud open",
+    deprecated_start_date="Oct 2024",
+    deprecated_help="Use `prefect dashboard open` to open the Prefect UI.",
+)
 async def open():
     """
     Open the Prefect Cloud UI in the browser.
@@ -570,10 +576,9 @@ async def open():
             "There is no current profile set - set one with `prefect profile create"
             " <name>` and `prefect profile use <name>`."
         )
+    async with get_cloud_client() as client:
+        current_workspace = await client.read_current_workspace()
 
-    current_workspace = get_current_workspace(
-        await prefect.client.cloud.get_cloud_client().read_workspaces()
-    )
     if current_workspace is None:
         exit_with_error(
             "There is no current workspace set - set one with `prefect cloud workspace"

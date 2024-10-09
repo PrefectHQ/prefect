@@ -17,6 +17,7 @@ from prefect.client.schemas.objects import (
 from prefect.exceptions import ObjectNotFound, PrefectException
 from prefect.settings import (
     PREFECT_API_KEY,
+    PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
     PREFECT_UNIT_TEST_MODE,
 )
@@ -109,6 +110,14 @@ class CloudClient:
             await self.get("/me/workspaces")
         )
         return workspaces
+
+    async def read_current_workspace(self) -> Workspace:
+        workspaces = await self.read_workspaces()
+        current_api_url = PREFECT_API_URL.value()
+        for workspace in workspaces:
+            if workspace.api_url() == current_api_url.rstrip("/"):
+                return workspace
+        raise ValueError("Current workspace not found")
 
     async def read_worker_metadata(self) -> Dict[str, Any]:
         response = await self.get(

@@ -162,9 +162,9 @@ async def process_data(x, y):
 
 
 @flow
-async def my_flow():
+def my_flow():
     for x, y in [(1, 2), (2, 3), (3, 4), (4, 5)]:
-        await process_data.submit(x, y)
+        process_data.submit(x, y)
 
 
 if __name__ == "__main__":
@@ -229,9 +229,9 @@ async def make_http_request():
 
 
 @flow
-async def my_flow():
+def my_flow():
     for _ in range(10):
-        await make_http_request.submit()
+        make_http_request.submit()
 
 
 if __name__ == "__main__":
@@ -298,13 +298,13 @@ if __name__ == "__main__":
 
 Manage the maximum number of concurrent database connections to avoid exhausting database resources.
 
-This scenario uses a concurrency limit named `database`. It has a maximum concurrency limit that matches the maximum number 
-of database connections. The `concurrency` context manager controls the number of database connections 
+This scenario uses a concurrency limit named `database`. It has a maximum concurrency limit that matches the maximum number
+of database connections. The `concurrency` context manager controls the number of database connections
 allowed at any one time.
 
 ```python
 from prefect import flow, task, concurrency
-import psycopg2
+from myproject import db
 
 @task
 def database_query(query):
@@ -312,11 +312,7 @@ def database_query(query):
     # will block in the case that all of the database connections are in use
     # ensuring that we never exceed the maximum number of database connections.
     with concurrency("database", occupy=1):
-        connection = psycopg2.connect("<connection_string>")
-        cursor = connection.cursor()
-        cursor.execute(query)
-        result = cursor.fetchall()
-        connection.close()
+        result = db.execute(query)
         return result
 
 @flow
