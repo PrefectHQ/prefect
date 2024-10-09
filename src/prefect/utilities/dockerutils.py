@@ -59,7 +59,7 @@ def get_prefect_image_name(
     parsed_version = Version(prefect_version or prefect.__version__)
     is_prod_build = parsed_version.post is None
     prefect_version = (
-        parsed_version[0]
+        parsed_version.base_version
         if is_prod_build
         else "sha-" + prefect.__version_info__["full-revisionid"][:7]
     )
