@@ -775,7 +775,7 @@ class SubprocessASGIServer:
                 self.port = self.find_available_port()
             assert self.port is not None, "Port must be provided or available"
             help_message = (
-                f"Starting ephemeral server on {self.address} - see "
+                f"Starting temporary server on {self.address}\nSee "
                 "https://docs.prefect.io/3.0/manage/self-host#self-host-a-prefect-server "
                 "for more information on running a dedicated Prefect server."
             )
