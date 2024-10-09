@@ -2,9 +2,9 @@
   <div class="flow-stats">
     <div class="flow-stats__cards">
       <FlowRunHistoryCard :filter="flowRunsFilter" />
+
       <CumulativeTaskRunsCard :filter="taskRunsFilter" />
     </div>
-    <DateRangeSelect v-model="filter.range" small />
   </div>
 </template>
 
@@ -14,27 +14,29 @@
     FlowRunHistoryCard,
     subscriptionIntervalKey,
     mapper,
-    useWorkspaceDashboardFilterFromRoute,
-    DateRangeSelect
+    FlowStatsFilter,
+    WorkspaceDashboardFilter
   } from '@prefecthq/prefect-ui-library'
-  import { secondsInDay, secondsToMilliseconds } from 'date-fns'
+  import { secondsInWeek, secondsToMilliseconds } from 'date-fns'
   import { computed, provide, toRefs } from 'vue'
 
   const props = defineProps<{
     flowId: string,
   }>()
 
+  const filter: WorkspaceDashboardFilter = {
+    range: { type: 'span', seconds: -secondsInWeek },
+    tags: [],
+  }
+
   const { flowId } = toRefs(props)
 
-  const filter = useWorkspaceDashboardFilterFromRoute({
-    range: { type: 'span', seconds: -secondsInDay },
-    tags: [],
+  const flowStats = computed<FlowStatsFilter>(() => {
+    return {
+      flowId: flowId.value,
+      range: filter.range,
+    }
   })
-
-  const flowStats = computed(() => ({
-    flowId: flowId.value,
-    range: filter.range,
-  }))
 
   provide(subscriptionIntervalKey, {
     interval: secondsToMilliseconds(30),
@@ -57,6 +59,7 @@
   w-full
   grid
   gap-5
-  sm:grid-cols-2
+  sm:grid-cols-3
+  md:grid-cols-[2fr_1fr]
 }
 </style>
