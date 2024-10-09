@@ -467,6 +467,38 @@ class PrefectBaseSettings(BaseSettings):
                 )
         return settings_fields
 
+    @classmethod
+    def _get_settings_fields(
+        cls, accessor_prefix: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Get the settings fields for the settings object"""
+        settings_fields: Dict[str, Setting] = {}
+        for field_name, field in cls.model_fields.items():
+            if inspect.isclass(field.annotation) and issubclass(
+                field.annotation, BaseSettings
+            ):
+                accessor = (
+                    field_name
+                    if accessor_prefix is None
+                    else f"{accessor_prefix}.{field_name}"
+                )
+                settings_fields.update(field.annotation._get_settings_fields(accessor))
+            else:
+                accessor = (
+                    field_name
+                    if accessor_prefix is None
+                    else f"{accessor_prefix}.{field_name}"
+                )
+                setting = Setting(
+                    name=f"{cls.model_config.get('env_prefix')}{field_name.upper()}",
+                    default=field.default,
+                    type_=field.annotation,
+                    accessor=accessor,
+                )
+                settings_fields[setting.name] = setting
+                settings_fields[setting.accessor] = setting
+        return settings_fields
+
     def to_environment_variables(
         self,
         exclude_unset: bool = False,
@@ -534,6 +566,127 @@ class APISettings(PrefectBaseSettings):
     )
 
 
+class CLISettings(PrefectBaseSettings):
+    """
+    Settings for controlling CLI behavior
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="PREFECT_CLI_", env_file=".env", extra="ignore"
+    )
+
+    colors: bool = Field(
+        default=True,
+        description="If True, use colors in CLI output. If `False`, output will not include colors codes.",
+    )
+
+    prompt: Optional[bool] = Field(
+        default=None,
+        description="If `True`, use interactive prompts in CLI commands. If `False`, no interactive prompts will be used. If `None`, the value will be dynamically determined based on the presence of an interactive-enabled terminal.",
+    )
+
+    wrap_lines: bool = Field(
+        default=True,
+        description="If `True`, wrap text by inserting new lines in long lines in CLI output. If `False`, output will not be wrapped.",
+    )
+
+
+class ClientMetricsSettings(PrefectBaseSettings):
+    """
+    Settings for controlling metrics reporting from the client
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="PREFECT_CLIENT_METRICS_", env_file=".env", extra="ignore"
+    )
+
+    @classmethod
+    def valid_setting_names(cls) -> Set[str]:
+        settings_names = super().valid_setting_names()
+        settings_names.add("PREFECT_CLIENT_ENABLE_METRICS")
+        return settings_names
+
+    @classmethod
+    def _get_settings_fields(
+        cls, accessor_prefix: Optional[str] = None
+    ) -> Dict[str, Any]:
+        settings_fields = super()._get_settings_fields(accessor_prefix)
+        settings_fields["PREFECT_CLIENT_ENABLE_METRICS"] = Setting(
+            name="PREFECT_CLIENT_ENABLE_METRICS",
+            default=cls.model_fields["enabled"].default,
+            type_=cls.model_fields["enabled"].annotation,
+            accessor=f"{accessor_prefix}.enabled",
+        )
+        return settings_fields
+
+    enabled: bool = Field(
+        default=False,
+        description="Whether or not to enable Prometheus metrics in the client.",
+    )
+
+    port: int = Field(
+        default=4201, description="The port to expose the client Prometheus metrics on."
+    )
+
+
+class ClientSettings(PrefectBaseSettings):
+    """
+    Settings for controlling API client behavior
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="PREFECT_CLIENT_", env_file=".env", extra="ignore"
+    )
+
+    max_retries: int = Field(
+        default=5,
+        ge=0,
+        description="""
+        The maximum number of retries to perform on failed HTTP requests.
+        Defaults to 5. Set to 0 to disable retries.
+        See `PREFECT_CLIENT_RETRY_EXTRA_CODES` for details on which HTTP status codes are
+        retried.
+        """,
+    )
+
+    retry_jitter_factor: float = Field(
+        default=0.2,
+        ge=0.0,
+        description="""
+        A value greater than or equal to zero to control the amount of jitter added to retried
+        client requests. Higher values introduce larger amounts of jitter.
+        Set to 0 to disable jitter. See `clamped_poisson_interval` for details on the how jitter
+        can affect retry lengths.
+        """,
+    )
+
+    retry_extra_codes: ClientRetryExtraCodes = Field(
+        default_factory=set,
+        description="""
+        A list of extra HTTP status codes to retry on. Defaults to an empty list.
+        429, 502 and 503 are always retried. Please note that not all routes are idempotent and retrying
+        may result in unexpected behavior.
+        """,
+        examples=["404,429,503", "429", {404, 429, 503}],
+    )
+
+    csrf_support_enabled: bool = Field(
+        default=True,
+        description="""
+        Determines if CSRF token handling is active in the Prefect client for API
+        requests.
+
+        When enabled (`True`), the client automatically manages CSRF tokens by
+        retrieving, storing, and including them in applicable state-changing requests
+        """,
+    )
+
+    metrics: ClientMetricsSettings = Field(
+        default_factory=ClientMetricsSettings,
+        description="Settings for controlling metrics reporting from the client",
+    )
+
+
 class Settings(PrefectBaseSettings):
     """
     Settings for Prefect using Pydantic settings.
@@ -548,22 +701,19 @@ class Settings(PrefectBaseSettings):
         extra="ignore",
     )
 
-    ###########################################################################
-    # CLI
-
-    cli_colors: bool = Field(
-        default=True,
-        description="If True, use colors in CLI output. If `False`, output will not include colors codes.",
+    api: APISettings = Field(
+        default_factory=APISettings,
+        description="Settings for interacting with the Prefect API",
     )
 
-    cli_prompt: Optional[bool] = Field(
-        default=None,
-        description="If `True`, use interactive prompts in CLI commands. If `False`, no interactive prompts will be used. If `None`, the value will be dynamically determined based on the presence of an interactive-enabled terminal.",
+    cli: CLISettings = Field(
+        default_factory=CLISettings,
+        description="Settings for controlling CLI behavior",
     )
 
-    cli_wrap_lines: bool = Field(
-        default=True,
-        description="If `True`, wrap text by inserting new lines in long lines in CLI output. If `False`, output will not be wrapped.",
+    client: ClientSettings = Field(
+        default_factory=ClientSettings,
+        description="Settings for for controlling API client behavior",
     )
 
     ###########################################################################
@@ -603,12 +753,7 @@ class Settings(PrefectBaseSettings):
     )
 
     ###########################################################################
-    # API settings
-
-    api: APISettings = Field(
-        default_factory=APISettings,
-        description="Settings for interacting with the Prefect API",
-    )
+    # Backend API settings
 
     api_blocks_register_on_start: bool = Field(
         default=True,
@@ -1177,15 +1322,6 @@ class Settings(PrefectBaseSettings):
         description="The number of seconds to cache related resources for in the API.",
     )
 
-    client_enable_metrics: bool = Field(
-        default=False,
-        description="Whether or not to enable Prometheus metrics in the client.",
-    )
-
-    client_metrics_port: int = Field(
-        default=4201, description="The port to expose the client Prometheus metrics on."
-    )
-
     events_maximum_labels_per_resource: int = Field(
         default=500,
         description="The maximum number of labels a resource may have.",
@@ -1245,49 +1381,6 @@ class Settings(PrefectBaseSettings):
         If `True`, disable the warning when a user accidentally misconfigure its `PREFECT_API_URL`
         Sometimes when a user manually set `PREFECT_API_URL` to a custom url,reverse-proxy for example,
         we would like to silence this warning so we will set it to `FALSE`.
-        """,
-    )
-
-    client_max_retries: int = Field(
-        default=5,
-        ge=0,
-        description="""
-        The maximum number of retries to perform on failed HTTP requests.
-        Defaults to 5. Set to 0 to disable retries.
-        See `PREFECT_CLIENT_RETRY_EXTRA_CODES` for details on which HTTP status codes are
-        retried.
-        """,
-    )
-
-    client_retry_jitter_factor: float = Field(
-        default=0.2,
-        ge=0.0,
-        description="""
-        A value greater than or equal to zero to control the amount of jitter added to retried
-        client requests. Higher values introduce larger amounts of jitter.
-        Set to 0 to disable jitter. See `clamped_poisson_interval` for details on the how jitter
-        can affect retry lengths.
-        """,
-    )
-
-    client_retry_extra_codes: ClientRetryExtraCodes = Field(
-        default_factory=set,
-        description="""
-        A list of extra HTTP status codes to retry on. Defaults to an empty list.
-        429, 502 and 503 are always retried. Please note that not all routes are idempotent and retrying
-        may result in unexpected behavior.
-        """,
-        examples=["404,429,503", "429", {404, 429, 503}],
-    )
-
-    client_csrf_support_enabled: bool = Field(
-        default=True,
-        description="""
-        Determines if CSRF token handling is active in the Prefect client for API
-        requests.
-
-        When enabled (`True`), the client automatically manages CSRF tokens by
-        retrieving, storing, and including them in applicable state-changing requests
         """,
     )
 
@@ -2112,40 +2205,7 @@ def update_current_profile(
 
 ############################################################################
 # Allow traditional env var access
-
-
-def _collect_settings_fields(
-    settings_cls: Type[BaseSettings], accessor_prefix: Optional[str] = None
-) -> Dict[str, Setting]:
-    settings_fields: Dict[str, Setting] = {}
-    for field_name, field in settings_cls.model_fields.items():
-        if inspect.isclass(field.annotation) and issubclass(
-            field.annotation, BaseSettings
-        ):
-            accessor = (
-                field_name
-                if accessor_prefix is None
-                else f"{accessor_prefix}.{field_name}"
-            )
-            settings_fields.update(_collect_settings_fields(field.annotation, accessor))
-        else:
-            accessor = (
-                field_name
-                if accessor_prefix is None
-                else f"{accessor_prefix}.{field_name}"
-            )
-            setting = Setting(
-                name=f"{settings_cls.model_config.get('env_prefix')}{field_name.upper()}",
-                default=field.default,
-                type_=field.annotation,
-                accessor=accessor,
-            )
-            settings_fields[setting.name] = setting
-            settings_fields[setting.accessor] = setting
-    return settings_fields
-
-
-SETTING_VARIABLES: dict[str, Setting] = _collect_settings_fields(Settings)
+SETTING_VARIABLES: dict[str, Setting] = Settings._get_settings_fields()
 
 
 def __getattr__(name: str) -> Setting:
