@@ -10,6 +10,7 @@ After https://github.com/pydantic/pydantic/issues/9789 is resolved, we will be a
 for settings, at which point we will not need to use the "after" model_validator.
 """
 
+import inspect
 import os
 import re
 import sys
@@ -62,7 +63,11 @@ from typing_extensions import Literal, Self
 
 from prefect.exceptions import ProfileSettingsValidationError
 from prefect.types import ClientRetryExtraCodes, LogLevel
-from prefect.utilities.collections import visit_collection
+from prefect.utilities.collections import (
+    deep_merge_dicts,
+    set_in_dict,
+    visit_collection,
+)
 from prefect.utilities.pydantic import handle_secret_render
 
 T = TypeVar("T")
@@ -72,10 +77,12 @@ DEFAULT_PROFILES_PATH = Path(__file__).parent.joinpath("profiles.toml")
 _SECRET_TYPES: Tuple[Type, ...] = (Secret, SecretStr)
 
 
-def env_var_to_attr_name(env_var: str) -> str:
+def env_var_to_accessor(env_var: str) -> str:
     """
-    Convert an environment variable name to an attribute name.
+    Convert an environment variable name to a settings accessor.
     """
+    if SETTING_VARIABLES.get(env_var) is not None:
+        return SETTING_VARIABLES[env_var].accessor
     return env_var.replace("PREFECT_", "").lower()
 
 
@@ -87,18 +94,20 @@ def is_test_mode() -> bool:
 class Setting:
     """Mimics the old Setting object for compatibility with existing code."""
 
-    def __init__(self, name: str, default: Any, type_: Any):
+    def __init__(
+        self, name: str, default: Any, type_: Any, accessor: Optional[str] = None
+    ):
         self._name = name
         self._default = default
         self._type = type_
+        if accessor is None:
+            self.accessor = env_var_to_accessor(name)
+        else:
+            self.accessor = accessor
 
     @property
     def name(self):
         return self._name
-
-    @property
-    def field_name(self):
-        return env_var_to_attr_name(self.name)
 
     @property
     def is_secret(self):
@@ -119,13 +128,19 @@ class Setting:
             else:
                 return None
 
-        current_value = getattr(get_current_settings(), self.field_name)
+        path = self.accessor.split(".")
+        current_value = get_current_settings()
+        for key in path:
+            current_value = getattr(current_value, key, None)
         if isinstance(current_value, _SECRET_TYPES):
             return current_value.get_secret_value()
         return current_value
 
     def value_from(self: Self, settings: "Settings") -> Any:
-        current_value = getattr(settings, self.field_name)
+        path = self.accessor.split(".")
+        current_value = settings
+        for key in path:
+            current_value = getattr(current_value, key, None)
         if isinstance(current_value, _SECRET_TYPES):
             return current_value.get_secret_value()
         return current_value
@@ -157,7 +172,7 @@ def default_ui_url(settings: "Settings") -> Optional[str]:
         return value
 
     # Otherwise, infer a value from the API URL
-    ui_url = api_url = settings.api_url
+    ui_url = api_url = settings.api.url
 
     if not api_url:
         return None
@@ -243,7 +258,7 @@ def warn_on_misconfigured_api_url(values):
     """
     Validator for settings warning if the API URL is misconfigured.
     """
-    api_url = values["api_url"]
+    api_url = values.get("api", {}).get("url")
     if api_url is not None:
         misconfigured_mappings = {
             "app.prefect.cloud": (
@@ -388,7 +403,9 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
         self, field: FieldInfo, field_name: str
     ) -> Tuple[Any, str, bool]:
         """Concrete implementation to get the field value from the profile settings"""
-        value = self.profile_settings.get(f"PREFECT_{field_name.upper()}")
+        value = self.profile_settings.get(
+            f"{self.config.get('env_prefix','')}{field_name.upper()}"
+        )
         return value, field_name, self.field_is_complex(field)
 
     def __call__(self) -> Dict[str, Any]:
@@ -408,21 +425,7 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
 
 ###########################################################################
 # Settings
-
-
-class Settings(BaseSettings):
-    """
-    Settings for Prefect using Pydantic settings.
-
-    See https://docs.pydantic.dev/latest/concepts/pydantic_settings
-    """
-
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_prefix="PREFECT_",
-        extra="ignore",
-    )
-
+class PrefectBaseSettings(BaseSettings):
     @classmethod
     def settings_customise_sources(
         cls,
@@ -446,6 +449,104 @@ class Settings(BaseSettings):
             file_secret_settings,
             ProfileSettingsTomlLoader(settings_cls),
         )
+
+    @classmethod
+    def valid_setting_names(cls) -> Set[str]:
+        """
+        A set of valid setting names, e.g. "PREFECT_API_URL" or "PREFECT_API_KEY".
+        """
+        settings_fields = set()
+        for field_name, field in cls.model_fields.items():
+            if inspect.isclass(field.annotation) and issubclass(
+                field.annotation, PrefectBaseSettings
+            ):
+                settings_fields.update(field.annotation.valid_setting_names())
+            else:
+                settings_fields.add(
+                    f"{cls.model_config.get('env_prefix')}{field_name.upper()}"
+                )
+        return settings_fields
+
+    def to_environment_variables(
+        self,
+        exclude_unset: bool = False,
+        include_secrets: bool = True,
+    ) -> Dict[str, str]:
+        """Convert the settings object to a dictionary of environment variables."""
+
+        env: Dict[str, Any] = self.model_dump(
+            exclude_unset=exclude_unset,
+            mode="json",
+            context={"include_secrets": include_secrets},
+        )
+        env_variables = {}
+        for key, value in env.items():
+            if isinstance(value, dict) and isinstance(
+                child_settings := getattr(self, key), PrefectBaseSettings
+            ):
+                child_env = child_settings.to_environment_variables(
+                    exclude_unset=exclude_unset,
+                    include_secrets=include_secrets,
+                )
+                env_variables.update(child_env)
+            elif value is not None:
+                env_variables[
+                    f"{self.model_config.get('env_prefix')}{key.upper()}"
+                ] = str(value)
+        return env_variables
+
+
+class APISettings(PrefectBaseSettings):
+    """
+    Settings for interacting with the Prefect API
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="PREFECT_API_", env_file=".env", extra="ignore"
+    )
+    url: Optional[str] = Field(
+        default=None,
+        description="The URL of the Prefect API. If not set, the client will attempt to infer it.",
+    )
+    key: Optional[SecretStr] = Field(
+        default=None,
+        description="The API key used for authentication with the Prefect API. Should be kept secret.",
+    )
+    tls_insecure_skip_verify: bool = Field(
+        default=False,
+        description="If `True`, disables SSL checking to allow insecure requests. This is recommended only during development, e.g. when using self-signed certificates.",
+    )
+    ssl_cert_file: Optional[str] = Field(
+        default=os.environ.get("SSL_CERT_FILE"),
+        description="This configuration settings option specifies the path to an SSL certificate file.",
+    )
+    enable_http2: bool = Field(
+        default=False,
+        description="If true, enable support for HTTP/2 for communicating with an API. If the API does not support HTTP/2, this will have no effect and connections will be made via HTTP/1.1.",
+    )
+    request_timeout: float = Field(
+        default=60.0,
+        description="The default timeout for requests to the API",
+    )
+    default_limit: int = Field(
+        default=200,
+        description="The default limit applied to queries that can return multiple objects, such as `POST /flow_runs/filter`.",
+    )
+
+
+class Settings(PrefectBaseSettings):
+    """
+    Settings for Prefect using Pydantic settings.
+
+    See https://docs.pydantic.dev/latest/concepts/pydantic_settings
+    """
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_prefix="PREFECT_",
+        env_nested_delimiter=None,
+        extra="ignore",
+    )
 
     ###########################################################################
     # CLI
@@ -504,33 +605,9 @@ class Settings(BaseSettings):
     ###########################################################################
     # API settings
 
-    api_url: Optional[str] = Field(
-        default=None,
-        description="The URL of the Prefect API. If not set, the client will attempt to infer it.",
-    )
-    api_key: Optional[SecretStr] = Field(
-        default=None,
-        description="The API key used for authentication with the Prefect API. Should be kept secret.",
-    )
-
-    api_tls_insecure_skip_verify: bool = Field(
-        default=False,
-        description="If `True`, disables SSL checking to allow insecure requests. This is recommended only during development, e.g. when using self-signed certificates.",
-    )
-
-    api_ssl_cert_file: Optional[str] = Field(
-        default=os.environ.get("SSL_CERT_FILE"),
-        description="This configuration settings option specifies the path to an SSL certificate file.",
-    )
-
-    api_enable_http2: bool = Field(
-        default=False,
-        description="If true, enable support for HTTP/2 for communicating with an API. If the API does not support HTTP/2, this will have no effect and connections will be made via HTTP/1.1.",
-    )
-
-    api_request_timeout: float = Field(
-        default=60.0,
-        description="The default timeout for requests to the API",
+    api: APISettings = Field(
+        default_factory=APISettings,
+        description="Settings for interacting with the Prefect API",
     )
 
     api_blocks_register_on_start: bool = Field(
@@ -1429,7 +1506,7 @@ class Settings(BaseSettings):
 
     def __getattribute__(self, name: str) -> Any:
         if name.startswith("PREFECT_"):
-            field_name = env_var_to_attr_name(name)
+            field_name = env_var_to_accessor(name)
             warnings.warn(
                 f"Accessing `Settings().{name}` is deprecated. Use `Settings().{field_name}` instead.",
                 DeprecationWarning,
@@ -1456,8 +1533,10 @@ class Settings(BaseSettings):
             self.ui_url = default_ui_url(self)
             self.__pydantic_fields_set__.remove("ui_url")
         if self.ui_api_url is None:
-            if self.api_url:
-                self.ui_api_url = self.api_url
+            if self.api.url:
+                self.ui_api_url = self.api.url
+            if self.api.url:
+                self.ui_api_url = self.api.url
                 self.__pydantic_fields_set__.remove("ui_api_url")
             else:
                 self.ui_api_url = (
@@ -1521,16 +1600,6 @@ class Settings(BaseSettings):
     ##########################################################################
     # Settings methods
 
-    @classmethod
-    def valid_setting_names(cls) -> Set[str]:
-        """
-        A set of valid setting names, e.g. "PREFECT_API_URL" or "PREFECT_API_KEY".
-        """
-        return set(
-            f"{cls.model_config.get('env_prefix')}{key.upper()}"
-            for key in cls.model_fields.keys()
-        )
-
     def copy_with_update(
         self: Self,
         updates: Optional[Mapping[Setting, Any]] = None,
@@ -1550,14 +1619,26 @@ class Settings(BaseSettings):
         Returns:
             A new Settings object.
         """
-        restore_defaults_names = set(r.field_name for r in restore_defaults or [])
+        restore_defaults_obj = {}
+        for r in restore_defaults or []:
+            set_in_dict(restore_defaults_obj, r.accessor, True)
         updates = updates or {}
         set_defaults = set_defaults or {}
 
+        set_defaults_obj = {}
+        for setting, value in set_defaults.items():
+            set_in_dict(set_defaults_obj, setting.accessor, value)
+
+        updates_obj = {}
+        for setting, value in updates.items():
+            set_in_dict(updates_obj, setting.accessor, value)
+
         new_settings = self.__class__(
-            **{setting.field_name: value for setting, value in set_defaults.items()}
-            | self.model_dump(exclude_unset=True, exclude=restore_defaults_names)
-            | {setting.field_name: value for setting, value in updates.items()}
+            **deep_merge_dicts(
+                set_defaults_obj,
+                self.model_dump(exclude_unset=True, exclude=restore_defaults_obj),
+                updates_obj,
+            )
         )
         return new_settings
 
@@ -1569,37 +1650,6 @@ class Settings(BaseSettings):
         env_variables = self.to_environment_variables()
         return str(hash(tuple((key, value) for key, value in env_variables.items())))
 
-    def to_environment_variables(
-        self,
-        include: Optional[Iterable[Setting]] = None,
-        exclude: Optional[Iterable[Setting]] = None,
-        exclude_unset: bool = False,
-        include_secrets: bool = True,
-    ) -> Dict[str, str]:
-        """Convert the settings object to a dictionary of environment variables."""
-        included_names = {s.field_name for s in include} if include else None
-        excluded_names = {s.field_name for s in exclude} if exclude else None
-
-        if exclude_unset:
-            if included_names is None:
-                included_names = set(self.model_dump(exclude_unset=True).keys())
-            else:
-                included_names.intersection_update(
-                    {key for key in self.model_dump(exclude_unset=True)}
-                )
-
-        env: Dict[str, Any] = self.model_dump(
-            include=included_names,
-            exclude=excluded_names,
-            mode="json",
-            context={"include_secrets": include_secrets},
-        )
-        return {
-            f"{self.model_config.get('env_prefix')}{key.upper()}": str(value)
-            for key, value in env.items()
-            if value is not None
-        }
-
     @model_serializer(
         mode="wrap", when_used="always"
     )  # TODO: reconsider `when_used` default for more control
@@ -1609,7 +1659,11 @@ class Settings(BaseSettings):
         ctx = info.context
         jsonable_self = handler(self)
         if ctx and ctx.get("include_secrets") is True:
-            dump_kwargs = dict(include=info.include, exclude=info.exclude)
+            dump_kwargs = dict(
+                include=info.include,
+                exclude=info.exclude,
+                exclude_unset=info.exclude_unset,
+            )
             jsonable_self.update(
                 {
                     field_name: visit_collection(
@@ -1639,12 +1693,7 @@ def _cast_settings(
     for k, value in settings.items():
         try:
             if isinstance(k, str):
-                field = Settings.model_fields[env_var_to_attr_name(k)]
-                setting = Setting(
-                    name=k,
-                    default=field.default,
-                    type_=field.annotation,
-                )
+                setting = SETTING_VARIABLES[k]
             else:
                 setting = k
             casted_settings[setting] = value
@@ -1739,9 +1788,16 @@ class Profile(BaseModel):
         errors: List[Tuple[Setting, ValidationError]] = []
         for setting, value in self.settings.items():
             try:
-                TypeAdapter(
-                    Settings.model_fields[setting.field_name].annotation
-                ).validate_python(value)
+                model_fields = Settings.model_fields
+                annotation = None
+                for section in setting.accessor.split("."):
+                    annotation = model_fields[section].annotation
+                    if inspect.isclass(annotation) and issubclass(
+                        annotation, BaseSettings
+                    ):
+                        model_fields = annotation.model_fields
+
+                TypeAdapter(annotation).validate_python(value)
             except ValidationError as e:
                 errors.append((setting, e))
         if errors:
@@ -2058,26 +2114,38 @@ def update_current_profile(
 # Allow traditional env var access
 
 
-class _SettingsDict(dict):
-    """allow either `field_name` or `ENV_VAR_NAME` access
-    ```
-    d = _SettingsDict(Settings)
-    d["api_url"] == d["PREFECT_API_URL"]
-    ```
-    """
-
-    def __init__(self: Self, settings_cls: Type[BaseSettings]):
-        super().__init__()
-        for field_name, field in settings_cls.model_fields.items():
+def _collect_settings_fields(
+    settings_cls: Type[BaseSettings], accessor_prefix: Optional[str] = None
+) -> Dict[str, Setting]:
+    settings_fields: Dict[str, Setting] = {}
+    for field_name, field in settings_cls.model_fields.items():
+        if inspect.isclass(field.annotation) and issubclass(
+            field.annotation, BaseSettings
+        ):
+            accessor = (
+                field_name
+                if accessor_prefix is None
+                else f"{accessor_prefix}.{field_name}"
+            )
+            settings_fields.update(_collect_settings_fields(field.annotation, accessor))
+        else:
+            accessor = (
+                field_name
+                if accessor_prefix is None
+                else f"{accessor_prefix}.{field_name}"
+            )
             setting = Setting(
                 name=f"{settings_cls.model_config.get('env_prefix')}{field_name.upper()}",
                 default=field.default,
                 type_=field.annotation,
+                accessor=accessor,
             )
-            self[field_name] = self[setting.name] = setting
+            settings_fields[setting.name] = setting
+            settings_fields[setting.accessor] = setting
+    return settings_fields
 
 
-SETTING_VARIABLES: dict[str, Setting] = _SettingsDict(Settings)
+SETTING_VARIABLES: dict[str, Setting] = _collect_settings_fields(Settings)
 
 
 def __getattr__(name: str) -> Setting:
