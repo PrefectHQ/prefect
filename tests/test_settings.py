@@ -132,6 +132,10 @@ class TestSettingsClass:
         assert Settings(server_api_port=3000).to_environment_variables(
             exclude_unset=True
         ) == {
+            # From env
+            **{
+                var: os.environ[var] for var in os.environ if var.startswith("PREFECT_")
+            },
             # From test settings
             "PREFECT_LOGGING_SERVER_LEVEL": "DEBUG",
             "PREFECT_TEST_MODE": "True",
