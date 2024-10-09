@@ -362,3 +362,14 @@ async def main():
 if __name__ == "__main__":
     asyncio.run(main())
 ```
+
+## Other ways to limit concurrency
+
+In addition to global concurrency limits, Prefect provides several other ways to limit concurrency for fine-grained control. 
+
+Unlike global concurrency limits, which are a more general way to control concurrency for any Python-based operation, the following concurrency limit options are specific to Prefect objects:
+
+- [Work pool flow run concurrency limits](/3.0/deploy/infrastructure-concepts/work-pools#manage-concurrency)
+- [Work queue flow run concurrency limits](/3.0/deploy/infrastructure-concepts/work-pools#queue-concurrency-limits)
+- [Deployment flow run concurrency limits](/3.0/deploy/index#concurrency-limiting)
+- [Task run concurrency limits](/3.0/develop/task-run-limits)
