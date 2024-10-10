@@ -71,22 +71,6 @@ DEFAULT_PREFECT_HOME = Path.home() / ".prefect"
 DEFAULT_PROFILES_PATH = Path(__file__).parent.joinpath("profiles.toml")
 _SECRET_TYPES: Tuple[Type, ...] = (Secret, SecretStr)
 
-# see #https://github.com/pydantic/pydantic/issues/9789
-# these fields will show as "set" even though we are only setting them
-# to their default values in an after model validator
-DEFAULT_DEPENDENT_SETTINGS = [
-    "PREFECT_UI_URL",
-    "PREFECT_UI_API_URL",
-    "PREFECT_LOGGING_SETTINGS_PATH",
-    "PREFECT_API_DATABASE_CONNECTION_URL",
-    "PREFECT_LOCAL_STORAGE_PATH",
-    "PREFECT_LOGGING_INTERNAL_LEVEL",
-    "PREFECT_LOGGING_LEVEL",
-    "PREFECT_PROFILES_PATH",
-    "PREFECT_CLOUD_UI_URL",
-    "PREFECT_MEMO_STORE_PATH",
-]
-
 
 def env_var_to_attr_name(env_var: str) -> str:
     """
@@ -1458,37 +1442,50 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def post_hoc_settings(self) -> Self:
-        # TODO: refactor on resolution of https://github.com/pydantic/pydantic/issues/9789
+        """refactor on resolution of https://github.com/pydantic/pydantic/issues/9789
+
+        we should not be modifying __pydantic_fields_set__ directly, but until we can
+        define dependencies between defaults in a first-class way, we need clean up
+        post-hoc default assignments to keep set/unset fields correct after instantiation.
+        """
         if self.cloud_ui_url is None:
             self.cloud_ui_url = default_cloud_ui_url(self)
+            self.__pydantic_fields_set__.remove("cloud_ui_url")
+
         if self.ui_url is None:
             self.ui_url = default_ui_url(self)
+            self.__pydantic_fields_set__.remove("ui_url")
         if self.ui_api_url is None:
             if self.api_url:
                 self.ui_api_url = self.api_url
+                self.__pydantic_fields_set__.remove("ui_api_url")
             else:
                 self.ui_api_url = (
                     f"http://{self.server_api_host}:{self.server_api_port}"
                 )
-
+                self.__pydantic_fields_set__.remove("ui_api_url")
         if self.profiles_path is None or "PREFECT_HOME" in str(self.profiles_path):
             self.profiles_path = Path(f"{self.home}/profiles.toml")
+            self.__pydantic_fields_set__.remove("profiles_path")
         if self.local_storage_path is None:
             self.local_storage_path = Path(f"{self.home}/storage")
+            self.__pydantic_fields_set__.remove("local_storage_path")
         if self.memo_store_path is None:
             self.memo_store_path = Path(f"{self.home}/memo_store.toml")
-
+            self.__pydantic_fields_set__.remove("memo_store_path")
         if self.debug_mode or self.test_mode:
             self.logging_level = "DEBUG"
             self.logging_internal_level = "DEBUG"
+            self.__pydantic_fields_set__.remove("logging_level")
+            self.__pydantic_fields_set__.remove("logging_internal_level")
 
         if self.logging_settings_path is None:
             self.logging_settings_path = Path(f"{self.home}/logging.yml")
-
+            self.__pydantic_fields_set__.remove("logging_settings_path")
         # Set default database connection URL if not provided
         if self.api_database_connection_url is None:
             self.api_database_connection_url = default_database_connection_url(self)
-
+            self.__pydantic_fields_set__.remove("api_database_connection_url")
         if "PREFECT_API_DATABASE_PASSWORD" in (
             db_url := (
                 self.api_database_connection_url.get_secret_value()
@@ -1508,7 +1505,7 @@ class Settings(BaseSettings):
                 if self.api_database_password
                 else ""
             )
-
+            self.__pydantic_fields_set__.remove("api_database_connection_url")
         return self
 
     @model_validator(mode="after")
@@ -1703,9 +1700,7 @@ def temporary_settings(
     context = prefect.context.get_settings_context()
 
     if not restore_defaults:
-        restore_defaults = [
-            SETTING_VARIABLES[key] for key in DEFAULT_DEPENDENT_SETTINGS
-        ]
+        restore_defaults = []
 
     new_settings = context.settings.copy_with_update(
         updates=updates, set_defaults=set_defaults, restore_defaults=restore_defaults
@@ -1937,6 +1932,7 @@ def _write_profiles_to(path: Path, profiles: ProfilesCollection) -> None:
     Any existing data not present in the given `profiles` will be deleted.
     """
     if not path.exists():
+        path.parent.mkdir(parents=True, exist_ok=True)
         path.touch(mode=0o600)
     path.write_text(toml.dumps(profiles.to_dict()))
 

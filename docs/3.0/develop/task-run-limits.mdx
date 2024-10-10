@@ -10,10 +10,8 @@ Task run concurrency limits use [task tags](#tags). You can specify an optional 
 task runs in a `Running` state for tasks with a given tag.
 
 <Tip>
-Tag-based task concurrency is different from [Global Concurrency Limits](/3.0/develop/global-concurrency-limits), though they can be used to achieve similar outcomes. Global Concurrency Limits are a more general way to control concurrency for any python-based operation, whereas tag-based concurrency limits are specific to Prefect tasks.
+Tag-based task concurrency is different from [Global concurrency limits](/3.0/develop/global-concurrency-limits), though they can be used to achieve similar outcomes. Global concurrency limits are a more general way to control concurrency for any Python-based operation, whereas tag-based concurrency limits are specific to Prefect tasks.
 </Tip>
-
-
 
 If a task has multiple tags, it will run only if **_all_** tags have available concurrency.
 
@@ -30,7 +28,7 @@ and instructs the client to try entering a `Running` state again in 30 seconds
 ### Configure concurrency limits
 
 <Tip>
-**Flow run concurrency limits are set at a work pool and/or work queue level**
+**Flow run concurrency limits are set at a work pool, work queue, or deployment level**
 
 While task run concurrency limits are configured through tags (as shown below), [flow run concurrency limits](/3.0/develop/global-concurrency-limits) are configured through work pools and/or work queues.
 </Tip>

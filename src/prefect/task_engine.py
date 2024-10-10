@@ -658,7 +658,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
                     with self.setup_run_context():
                         # setup_run_context might update the task run name, so log creation here
-                        self.logger.info(
+                        self.logger.debug(
                             f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
                         )
                         yield self
@@ -1167,7 +1167,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
                     async with self.setup_run_context():
                         # setup_run_context might update the task run name, so log creation here
-                        self.logger.info(
+                        self.logger.debug(
                             f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
                         )
                         yield self

@@ -22,6 +22,7 @@ from typing import (
 from urllib.parse import urlsplit
 
 import pendulum
+from packaging.version import Version
 from typing_extensions import Self
 
 import prefect
@@ -55,10 +56,10 @@ def get_prefect_image_name(
             minor level e.g. '3.9'.
         flavor: An optional alternative image flavor to build, like 'conda'
     """
-    parsed_version = (prefect_version or prefect.__version__).split("+")
-    is_prod_build = len(parsed_version) == 1
+    parsed_version = Version(prefect_version or prefect.__version__)
+    is_prod_build = parsed_version.post is None
     prefect_version = (
-        parsed_version[0]
+        parsed_version.base_version
         if is_prod_build
         else "sha-" + prefect.__version_info__["full-revisionid"][:7]
     )
