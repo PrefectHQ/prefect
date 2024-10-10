@@ -4,25 +4,16 @@ sidebarTitle: Overview
 description: Learn how to use deployments to trigger flow runs remotely.
 ---
 
+Deployments allow you to run flows on a [schedule](/3.0/automate/add-schedules/) and trigger runs based on [events](/3.0/automate/events/automations-triggers/).
+
 [Deployments](/3.0/deploy/infrastructure-examples/docker/) are server-side representations of flows.
-They store the crucial metadata for remote orchestration including when, where, and
-how a workflow should run.
+They store the crucial metadata for remote orchestration including when, where, and how a workflow should run.
 
-Attributes of a deployment include:
+In addition to manually triggering and managing flow runs, deploying a flow exposes an API and UI that allow you to:
 
-- **Flow entrypoint**: path to your flow function
-- **Schedule** or **Trigger**: optional schedule or triggering rules for this deployment
-- **Tags**: optional text labels for organizing deployments
-
-Some of the most common reasons to use an orchestration tool such as Prefect are for
-[scheduling](/3.0/automate/add-schedules/) and [event-based triggering](/3.0/automate/events/automations-triggers/).
-In addition to manually triggering and managing flow runs, deploying a flow exposes an API and
-UI that allow you to:
-
-- trigger new runs, [cancel active runs](/3.0/develop/write-flows/#cancel-a-flow-run),
-pause scheduled runs, customize parameters, and more
-- remotely configure [schedules](/3.0/automate/add-schedules) and [automation rules](/3.0/automate/events/automations-triggers) for deployments
-- dynamically provision infrastructure with [work pools](/3.0/deploy/infrastructure-concepts/work-pools)
+- trigger new runs, [cancel active runs](/3.0/develop/write-flows/#cancel-a-flow-run), pause scheduled runs, customize parameters, and more
+- remotely configure [schedules](/3.0/automate/add-schedules) and [automation rules](/3.0/automate/events/automations-triggers)
+- dynamically provision infrastructure with [work pools](/3.0/deploy/infrastructure-concepts/work-pools) - optionally with templated guardrails for other users
 
 ## Create a deployment 
 
@@ -44,7 +35,7 @@ if __name__ == "__main__":
 ```
 
 The `serve` method creates a deployment from your flow and immediately begins listening for scheduled runs to execute. 
-This example also create a schedule so that the flow will run every minute of every day.
+Providing `cron="* * * * *"` to `.serve` associates a schedule with your flow so it will run every minute of every day.
 
 For more configuration, you can create a deployment that uses a work pool.
 Reasons to create a work-pool based deployment include:
@@ -89,7 +80,7 @@ To learn more about the `deploy` method, see [Deploy flows with Python](/3.0/dep
 
 If you'd rather take a declarative approach to defining a deployment through a YAML file, use a [`prefect.yaml` file](/3.0/deploy/infrastructure-concepts/prefect-yaml).
 
-Prefect provides an interactive CLI that walks you through creating a `prefect.yaml` file.
+Prefect provides an interactive CLI that walks you through creating a `prefect.yaml` file:
 
 ```bash
 prefect deploy
@@ -106,7 +97,7 @@ Prefect also provides [CI/CD options](/3.0/deploy/infrastructure-concepts/deploy
 [Work pools](/3.0/deploy/infrastructure-concepts/work-pools/) allow you to switch between different types of infrastructure and to create a template for deployments. 
 Data platform teams find work pools especially useful for managing infrastructure configuration across teams of data professionals.
 
-Common work pool types include [Docker](/3.0/deploy/infrastructure-examples/docker), [Kubernetes](/3.0/deploy/infrastructure-examples/kubernetes), and serverless options such as [AWS ECS](/integrations/prefect-aws/ecs_guide#ecs-worker-guide), [Azure ACI](/integrations/prefect-azure/aci_worker), and [GCP Cloud Run](/integrations/prefect-gcp/gcp-worker-guide). 
+Common work pool types include [Docker](/3.0/deploy/infrastructure-examples/docker), [Kubernetes](/3.0/deploy/infrastructure-examples/kubernetes), and serverless options such as [AWS ECS](/integrations/prefect-aws/ecs_guide#ecs-worker-guide), [Azure ACI](/integrations/prefect-azure/aci_worker), [GCP Vertex AI](/integrations/prefect-gcp/index#run-flows-on-google-cloud-run-or-vertex-ai), or [GCP Google Cloud Run](/integrations/prefect-gcp/gcp-worker-guide). 
 
 ### Work pool-based deployment requirements
 
@@ -384,7 +375,6 @@ my_flow.serve(
 ```
 
 </CodeGroup>
-
 
 ### Metadata for bookkeeping
 
