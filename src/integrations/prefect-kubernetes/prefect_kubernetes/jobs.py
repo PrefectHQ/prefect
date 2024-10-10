@@ -7,16 +7,19 @@ from typing import Any, Callable, Dict, Optional, Type, Union
 import yaml
 from kubernetes_asyncio.client.models import V1DeleteOptions, V1Job, V1JobList, V1Status
 from pydantic import Field
-from typing_extensions import Self
+from typing_extensions import Self, TypeAlias
 
 from prefect import task
 from prefect.blocks.abstract import JobBlock, JobRun
+from prefect.logging import get_logger
 from prefect.utilities.asyncutils import sync_compatible
 from prefect_kubernetes.credentials import KubernetesCredentials
 from prefect_kubernetes.exceptions import KubernetesJobTimeoutError
 from prefect_kubernetes.pods import list_namespaced_pod, read_namespaced_pod_log
 
-KubernetesManifest = Union[Dict, Path, str]
+KubernetesManifest: TypeAlias = Union[Dict, Path, str]
+
+logger = get_logger(__name__)
 
 
 @task
@@ -502,7 +505,8 @@ class KubernetesJob(JobBlock):
         examples=[{"pretty": "true"}],
     )
     credentials: KubernetesCredentials = Field(
-        default=..., description="The credentials to configure a client from."
+        default_factory=KubernetesCredentials,
+        description="The credentials to configure a client from.",
     )
     delete_after_completion: bool = Field(
         default=True,
