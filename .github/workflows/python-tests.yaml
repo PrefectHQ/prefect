@@ -145,6 +145,8 @@ jobs:
         # Do not run Kubernetes service tests, we do not have a cluster available
         # maxprocesses 6 is based on empirical testing; higher than 6 sees diminishing returns
       - name: Run tests
+        env:
+          PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS: "1"
         run: >
           pytest ${{ matrix.test-type.modules }}
           --numprocesses auto
@@ -303,6 +305,8 @@ jobs:
         # Do not run Kubernetes service tests, we do not have a cluster available
         # maxprocesses 6 is based on empirical testing; higher than 6 sees diminishing returns
       - name: Run tests
+        env:
+          PREFECT_EXPERIMENTAL_ENABLE_PYDANTIC_V2_INTERNALS: "1"
         run: >
           pytest tests
           --numprocesses auto
