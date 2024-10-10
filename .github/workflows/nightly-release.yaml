@@ -71,4 +71,4 @@ jobs:
           draft: false
           prerelease: true
           generate_release_notes: true
-          token: ${{ secrets.PREFECT_CONTENTS_PR_RW }}
+          token: ${{ secrets.UI_COMPONENTS_CONTENTS_PRS_RW }}
