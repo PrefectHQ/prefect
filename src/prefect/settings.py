@@ -41,6 +41,7 @@ import toml
 from pydantic import (
     AfterValidator,
     AliasChoices,
+    AliasPath,
     BaseModel,
     BeforeValidator,
     ConfigDict,
@@ -630,7 +631,9 @@ class ClientMetricsSettings(PrefectBaseSettings):
         # Using alias for backwards compatibility. Need to duplicate the prefix because
         # Pydantic does not allow the alias to be prefixed with the env_prefix.
         validation_alias=AliasChoices(
-            "prefect_client_metrics_enabled", "prefect_client_enable_metrics"
+            "prefect_client_metrics_enabled",
+            "prefect_client_enable_metrics",
+            AliasPath("enabled"),
         ),
     )
 
@@ -1736,8 +1739,8 @@ class Settings(PrefectBaseSettings):
         for setting, value in updates.items():
             set_in_dict(updates_obj, setting.accessor, value)
 
-        new_settings = self.__class__(
-            **deep_merge_dicts(
+        new_settings = self.__class__.model_validate(
+            deep_merge_dicts(
                 set_defaults_obj,
                 self.model_dump(exclude_unset=True, exclude=restore_defaults_obj),
                 updates_obj,

@@ -108,7 +108,7 @@ class TestSettingsClass:
                 new_settings.api.key is not None
                 and new_settings.api.key.get_secret_value() == "TEST"
             ), "Changed, existing value was default"
-            assert new_settings.client_retry_extra_codes == {400, 500}
+            assert new_settings.client.retry_extra_codes == {400, 500}
 
     def test_settings_loads_environment_variables_at_instantiation(self, monkeypatch):
         assert PREFECT_TEST_MODE.value() is True
@@ -121,9 +121,11 @@ class TestSettingsClass:
         self, disable_hosted_api_server
     ):
         settings = Settings()
-        assert set(settings.to_environment_variables().keys()) == {
+        expected_names = {
             s.name for s in SETTING_VARIABLES.values() if s.value() is not None
         }
+        expected_names.remove("PREFECT_CLIENT_ENABLE_METRICS")
+        assert set(settings.to_environment_variables().keys()) == expected_names
 
     def test_settings_to_environment_works_with_exclude_unset(self, monkeypatch):
         # for var in os.environ:
@@ -650,11 +652,11 @@ class TestSettingsSources:
     def test_env_source(self, temporary_env_file):
         temporary_env_file("PREFECT_CLIENT_RETRY_EXTRA_CODES=420,500")
 
-        assert Settings().client_retry_extra_codes == {420, 500}
+        assert Settings().client.retry_extra_codes == {420, 500}
 
         os.unlink(".env")
 
-        assert Settings().client_retry_extra_codes == set()
+        assert Settings().client.retry_extra_codes == set()
 
     def test_resolution_order(self, temporary_env_file, monkeypatch, tmp_path):
         profiles_path = tmp_path / "profiles.toml"
@@ -674,21 +676,21 @@ class TestSettingsSources:
             )
         )
 
-        assert Settings().client_retry_extra_codes == {420, 500}
+        assert Settings().client.retry_extra_codes == {420, 500}
 
         temporary_env_file("PREFECT_CLIENT_RETRY_EXTRA_CODES=429,500")
 
-        assert Settings().client_retry_extra_codes == {429, 500}
+        assert Settings().client.retry_extra_codes == {429, 500}
 
         os.unlink(".env")
 
-        assert Settings().client_retry_extra_codes == {420, 500}
+        assert Settings().client.retry_extra_codes == {420, 500}
 
         monkeypatch.setenv("PREFECT_TEST_MODE", "1")
         monkeypatch.setenv("PREFECT_UNIT_TEST_MODE", "1")
         monkeypatch.delenv("PREFECT_PROFILES_PATH", raising=True)
 
-        assert Settings().client_retry_extra_codes == set()
+        assert Settings().client.retry_extra_codes == set()
 
     def test_resolution_order_with_nested_settings(
         self, temporary_env_file, monkeypatch, tmp_path
