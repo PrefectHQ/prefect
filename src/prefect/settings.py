@@ -405,6 +405,19 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
         self, field: FieldInfo, field_name: str
     ) -> Tuple[Any, str, bool]:
         """Concrete implementation to get the field value from the profile settings"""
+        if field.validation_alias:
+            if isinstance(field.validation_alias, str):
+                value = self.profile_settings.get(field.validation_alias.upper())
+                if value is not None:
+                    return value, field_name, self.field_is_complex(field)
+            elif isinstance(field.validation_alias, AliasChoices):
+                for alias in field.validation_alias.choices:
+                    if not isinstance(alias, str):
+                        continue
+                    value = self.profile_settings.get(alias.upper())
+                    if value is not None:
+                        return value, field_name, self.field_is_complex(field)
+
         value = self.profile_settings.get(
             f"{self.config.get('env_prefix','')}{field_name.upper()}"
         )
