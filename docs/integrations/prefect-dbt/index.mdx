@@ -5,6 +5,9 @@ title: prefect-dbt
 With `prefect-dbt`, you can trigger and observe dbt Cloud jobs, execute dbt Core CLI commands, and incorporate other tools, such as [Snowflake](integrations/prefect-snowflake/index), into your dbt runs.
 Prefect provides a global view of the state of your workflows and allows you to take action based on state changes.
 
+Prefect integrations may provide pre-built [blocks](/latest/develop/blocks/), [flows](/latest/develop/flows/), or [tasks](/latest/develop/tasks/) for interacting with external systems.
+Block types in this library allow you to do things such as run a dbt Cloud job or execute a dbt Core command.
+
 ## Getting started
 
 ### Prerequisites
@@ -37,7 +40,7 @@ pip install -U "prefect-dbt[all_extras]"
 
 ### Register newly installed blocks types
 
-Register the block types in the prefect-dbt module to make them available for use.
+Register the block types in the `prefect-dbt` module to make them available for use.
 
 ```bash
 prefect block register -m prefect_dbt
@@ -49,7 +52,7 @@ If you have an existing dbt Cloud job, use the pre-built flow `run_dbt_cloud_job
 
 If some nodes fail, `run_dbt_cloud_job` efficiently retries the unsuccessful nodes.
 
-Prior to running this flow, [save your dbt Cloud credentials to a DbtCloudCredentials block](#save-credentials-to-a-block):
+Prior to running this flow, [save your dbt Cloud credentials to a DbtCloudCredentials block](#save-dbt-cloud-credentials-to-a-block):
 
 ```python
 from prefect import flow
@@ -70,7 +73,7 @@ run_dbt_job_flow()
 
 ### Save dbt Cloud credentials to a block
 
-Blocks can be [created through code](/3.0/develop/blocks/#saving-blocks) or through the UI.
+Blocks can be [created through code](/3.0/develop/blocks) or through the UI.
 
 To create a dbt Cloud Credentials block:
 
@@ -153,7 +156,7 @@ if __name__ == "__main__":
 ```
 
 
-If you are already using Prefect blocks such as the [Snowflake Connector block](integrations/prefect-snowflake/index#access-underlying-snowflake-connection), you can use those blocks to [create a new profiles.yml with a DbtCliProfile block](#create-a-new-profile-with-blocks). 
+If you are already using Prefect blocks such as the [Snowflake Connector block](integrations/prefect-snowflake), you can use those blocks to [create a new `profiles.yml` with a `DbtCliProfile` block](#create-a-new-profile-with-blocks). 
 
 
 #### Use environment variables with Prefect secret blocks
