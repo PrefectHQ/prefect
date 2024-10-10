@@ -216,7 +216,7 @@ class TestFunctionToSchema:
                 "type": "object",
                 "properties": {
                     "x": {
-                        "allOf": [{"$ref": "#/definitions/Color"}],
+                        "$ref": "#/definitions/Color",
                         "default": "RED",
                         "position": 0,
                         "title": "x",
@@ -255,7 +255,9 @@ class TestFunctionToSchema:
                 },
             }
 
-        assert schema.dict() == expected_schema
+        assert (
+            schema.dict() == expected_schema
+        ), f"Expected {expected_schema} but got {schema.dict()}"
 
     def test_function_with_generic_arguments(self):
         def f(
@@ -407,15 +409,21 @@ class TestFunctionToSchema:
             ...
 
         schema = callables.parameter_schema(f)
+
+        expected_ref = (
+            {"$ref": "#/definitions/Foo"}
+            if HAS_PYDANTIC_V2
+            else {"allOf": [{"$ref": "#/definitions/Foo"}]}
+        )
         assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
                 "foo": {
-                    "allOf": [{"$ref": "#/definitions/Foo"}],
                     "default": {"bar": "baz"},
                     "position": 0,
                     "title": "foo",
+                    **expected_ref,
                 }
             },
             "definitions": {
@@ -488,6 +496,19 @@ class TestFunctionToSchema:
             enum_schema.pop("type")
 
         schema = callables.parameter_schema(f)
+
+        expected_c_ref = (
+            {"$ref": "#/definitions/Color"}
+            if HAS_PYDANTIC_V2
+            else {"allOf": [{"$ref": "#/definitions/Color"}]}
+        )
+
+        expected_model_ref = (
+            {"$ref": "#/definitions/Foo"}
+            if HAS_PYDANTIC_V2
+            else {"allOf": [{"$ref": "#/definitions/Foo"}]}
+        )
+
         assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
@@ -500,14 +521,14 @@ class TestFunctionToSchema:
                     "type": "array",
                 },
                 "m": {
-                    "allOf": [{"$ref": "#/definitions/Foo"}],
+                    **expected_model_ref,
                     "position": 2,
                     "title": "m",
                 },
                 "i": {"default": 0, "position": 3, "title": "i", "type": "integer"},
                 "x": {"default": 1.0, "position": 4, "title": "x", "type": "number"},
                 "model": {
-                    "allOf": [{"$ref": "#/definitions/Foo"}],
+                    **expected_model_ref,
                     "default": {"bar": "bar"},
                     "position": 5,
                     "title": "model",
@@ -525,7 +546,7 @@ class TestFunctionToSchema:
                     "title": "c",
                     "default": "BLUE",
                     "position": 9,
-                    "allOf": [{"$ref": "#/definitions/Color"}],
+                    **expected_c_ref,
                 },
             },
             "required": ["a", "s", "m"],
@@ -635,7 +656,7 @@ class TestMethodToSchema:
                     "type": "object",
                     "properties": {
                         "color": {
-                            "allOf": [{"$ref": "#/definitions/Color"}],
+                            "$ref": "#/definitions/Color",
                             "default": "RED",
                             "position": 0,
                             "title": "color",
@@ -1188,7 +1209,7 @@ class TestEntrypointToSchema:
                 "type": "object",
                 "properties": {
                     "x": {
-                        "allOf": [{"$ref": "#/definitions/Color"}],
+                        "$ref": "#/definitions/Color",
                         "default": "RED",
                         "position": 0,
                         "title": "x",
@@ -1359,6 +1380,13 @@ class TestEntrypointToSchema:
 
         tmp_path.joinpath("test.py").write_text(source_code)
         schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
+
+        expected_ref = (
+            {"$ref": "#/definitions/Foo"}
+            if HAS_PYDANTIC_V2
+            else {"allOf": [{"$ref": "#/definitions/Foo"}]}
+        )
+
         assert schema.dict() == {
             "definitions": {
                 "Foo": {
@@ -1373,7 +1401,7 @@ class TestEntrypointToSchema:
             },
             "properties": {
                 "x": {
-                    "allOf": [{"$ref": "#/definitions/Foo"}],
+                    **expected_ref,
                     "title": "x",
                     "position": 0,
                 }
@@ -1400,15 +1428,22 @@ class TestEntrypointToSchema:
 
         tmp_path.joinpath("test.py").write_text(source_code)
         schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
+
+        expected_ref = (
+            {"$ref": "#/definitions/Foo"}
+            if HAS_PYDANTIC_V2
+            else {"allOf": [{"$ref": "#/definitions/Foo"}]}
+        )
+
         assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
                 "foo": {
-                    "allOf": [{"$ref": "#/definitions/Foo"}],
                     "default": {"bar": "baz"},
                     "position": 0,
                     "title": "foo",
+                    **expected_ref,
                 }
             },
             "definitions": {
@@ -1488,6 +1523,17 @@ class TestEntrypointToSchema:
         schema = tmp_path.joinpath("test.py").write_text(source_code)
         schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
 
+        expected_model_ref = (
+            {"$ref": "#/definitions/Foo"}
+            if HAS_PYDANTIC_V2
+            else {"allOf": [{"$ref": "#/definitions/Foo"}]}
+        )
+
+        expected_color_ref = (
+            {"$ref": "#/definitions/Color"}
+            if HAS_PYDANTIC_V2
+            else {"allOf": [{"$ref": "#/definitions/Color"}]}
+        )
         assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
@@ -1500,14 +1546,14 @@ class TestEntrypointToSchema:
                     "type": "array",
                 },
                 "m": {
-                    "allOf": [{"$ref": "#/definitions/Foo"}],
+                    **expected_model_ref,
                     "position": 2,
                     "title": "m",
                 },
                 "i": {"default": 0, "position": 3, "title": "i", "type": "integer"},
                 "x": {"default": 1.0, "position": 4, "title": "x", "type": "number"},
                 "model": {
-                    "allOf": [{"$ref": "#/definitions/Foo"}],
+                    **expected_model_ref,
                     "default": {"bar": "bar"},
                     "position": 5,
                     "title": "model",
@@ -1525,7 +1571,7 @@ class TestEntrypointToSchema:
                     "title": "c",
                     "default": "BLUE",
                     "position": 9,
-                    "allOf": [{"$ref": "#/definitions/Color"}],
+                    **expected_color_ref,
                 },
             },
             "required": ["a", "s", "m"],
@@ -1717,12 +1763,19 @@ class TestEntrypointToSchema:
         )
         tmp_path.joinpath("test.py").write_text(source_code)
         schema = callables.parameter_schema_from_entrypoint(f"{tmp_path}/test.py:f")
+
+        expected_ref = (
+            {"$ref": "#/definitions/MyModel"}
+            if HAS_PYDANTIC_V2
+            else {"allOf": [{"$ref": "#/definitions/MyModel"}]}
+        )
+
         assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
                 "param": {
-                    "allOf": [{"$ref": "#/definitions/MyModel"}],
+                    **expected_ref,
                     "position": 0,
                     "title": "param",
                 }
