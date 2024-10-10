@@ -11,15 +11,12 @@ from typing_extensions import Self, TypeAlias
 
 from prefect import task
 from prefect.blocks.abstract import JobBlock, JobRun
-from prefect.logging import get_logger
 from prefect.utilities.asyncutils import sync_compatible
 from prefect_kubernetes.credentials import KubernetesCredentials
 from prefect_kubernetes.exceptions import KubernetesJobTimeoutError
 from prefect_kubernetes.pods import list_namespaced_pod, read_namespaced_pod_log
 
 KubernetesManifest: TypeAlias = Union[Dict, Path, str]
-
-logger = get_logger(__name__)
 
 
 @task
