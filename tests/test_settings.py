@@ -406,6 +406,25 @@ class TestSettingAccess:
 
         assert value == settings.test_mode
 
+    def test_settings_with_serialization_alias(self, monkeypatch):
+        assert not Settings().client.metrics.enabled
+        # Use old value
+        monkeypatch.setenv("PREFECT_CLIENT_ENABLE_METRICS", "True")
+        assert Settings().client.metrics.enabled
+
+        monkeypatch.delenv("PREFECT_CLIENT_ENABLE_METRICS", raising=False)
+        assert not Settings().client.metrics.enabled
+
+        # Use new value
+        monkeypatch.setenv("PREFECT_CLIENT_METRICS_ENABLED", "True")
+        assert Settings().client.metrics.enabled
+
+        # Check both can be imported
+        from prefect.settings import (
+            PREFECT_CLIENT_ENABLE_METRICS,  # noqa
+            PREFECT_CLIENT_METRICS_ENABLED,  # noqa
+        )
+
 
 class TestDatabaseSettings:
     def test_database_connection_url_templates_password(self):

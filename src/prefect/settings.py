@@ -40,6 +40,7 @@ from urllib.parse import quote_plus, urlparse
 import toml
 from pydantic import (
     AfterValidator,
+    AliasChoices,
     BaseModel,
     BeforeValidator,
     ConfigDict,
@@ -462,9 +463,17 @@ class PrefectBaseSettings(BaseSettings):
             ):
                 settings_fields.update(field.annotation.valid_setting_names())
             else:
-                settings_fields.add(
-                    f"{cls.model_config.get('env_prefix')}{field_name.upper()}"
-                )
+                if field.validation_alias and isinstance(
+                    field.validation_alias, AliasChoices
+                ):
+                    for alias in field.validation_alias.choices:
+                        if not isinstance(alias, str):
+                            continue
+                        settings_fields.add(alias.upper())
+                else:
+                    settings_fields.add(
+                        f"{cls.model_config.get('env_prefix')}{field_name.upper()}"
+                    )
         return settings_fields
 
     @classmethod
@@ -475,7 +484,7 @@ class PrefectBaseSettings(BaseSettings):
         settings_fields: Dict[str, Setting] = {}
         for field_name, field in cls.model_fields.items():
             if inspect.isclass(field.annotation) and issubclass(
-                field.annotation, BaseSettings
+                field.annotation, PrefectBaseSettings
             ):
                 accessor = (
                     field_name
@@ -489,14 +498,29 @@ class PrefectBaseSettings(BaseSettings):
                     if accessor_prefix is None
                     else f"{accessor_prefix}.{field_name}"
                 )
-                setting = Setting(
-                    name=f"{cls.model_config.get('env_prefix')}{field_name.upper()}",
-                    default=field.default,
-                    type_=field.annotation,
-                    accessor=accessor,
-                )
-                settings_fields[setting.name] = setting
-                settings_fields[setting.accessor] = setting
+                if field.validation_alias and isinstance(
+                    field.validation_alias, AliasChoices
+                ):
+                    for alias in field.validation_alias.choices:
+                        if not isinstance(alias, str):
+                            continue
+                        setting = Setting(
+                            name=alias.upper(),
+                            default=field.default,
+                            type_=field.annotation,
+                            accessor=accessor,
+                        )
+                        settings_fields[setting.name] = setting
+                        settings_fields[setting.accessor] = setting
+                else:
+                    setting = Setting(
+                        name=f"{cls.model_config.get('env_prefix')}{field_name.upper()}",
+                        default=field.default,
+                        type_=field.annotation,
+                        accessor=accessor,
+                    )
+                    settings_fields[setting.name] = setting
+                    settings_fields[setting.accessor] = setting
         return settings_fields
 
     def to_environment_variables(
@@ -600,28 +624,14 @@ class ClientMetricsSettings(PrefectBaseSettings):
         env_prefix="PREFECT_CLIENT_METRICS_", env_file=".env", extra="ignore"
     )
 
-    @classmethod
-    def valid_setting_names(cls) -> Set[str]:
-        settings_names = super().valid_setting_names()
-        settings_names.add("PREFECT_CLIENT_ENABLE_METRICS")
-        return settings_names
-
-    @classmethod
-    def _get_settings_fields(
-        cls, accessor_prefix: Optional[str] = None
-    ) -> Dict[str, Any]:
-        settings_fields = super()._get_settings_fields(accessor_prefix)
-        settings_fields["PREFECT_CLIENT_ENABLE_METRICS"] = Setting(
-            name="PREFECT_CLIENT_ENABLE_METRICS",
-            default=cls.model_fields["enabled"].default,
-            type_=cls.model_fields["enabled"].annotation,
-            accessor=f"{accessor_prefix}.enabled",
-        )
-        return settings_fields
-
     enabled: bool = Field(
         default=False,
         description="Whether or not to enable Prometheus metrics in the client.",
+        # Using alias for backwards compatibility. Need to duplicate the prefix because
+        # Pydantic does not allow the alias to be prefixed with the env_prefix.
+        validation_alias=AliasChoices(
+            "prefect_client_metrics_enabled", "prefect_client_enable_metrics"
+        ),
     )
 
     port: int = Field(
