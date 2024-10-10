@@ -3,7 +3,7 @@ Command line interface for working with profiles
 """
 
 import os
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 import typer
 from dotenv import dotenv_values
@@ -207,18 +207,6 @@ def view(
         settings_output.append(f"{setting.name}='{display_value}'{source_blurb}")
         processed_settings.add(setting.name)
 
-    def _collect_defaults(default_values: Dict[str, Any], current_path: List[str] = []):
-        for key, value in default_values.items():
-            if isinstance(value, dict):
-                _collect_defaults(value, current_path + [key])
-            else:
-                setting = prefect.settings.SETTING_VARIABLES[
-                    ".".join(current_path + [key])
-                ]
-                if setting.name in processed_settings:
-                    continue
-                _process_setting(setting, value, "defaults")
-
     # Process settings from the current profile
     for setting, value in current_profile_settings.items():
         value_and_source = (
@@ -243,6 +231,11 @@ def view(
                 continue
             _process_setting(setting, value, ".env file")
     if show_defaults:
-        _collect_defaults(prefect.settings.Settings().model_dump(context=dump_context))
+        default_values = prefect.settings.Settings().model_dump(context=dump_context)
+        for key, value in default_values.items():
+            setting = prefect.settings.SETTING_VARIABLES[key]
+            if setting.name in processed_settings:
+                continue
+            _process_setting(setting, value, "defaults")
 
     app.console.print("\n".join(sorted(settings_output)), soft_wrap=True)

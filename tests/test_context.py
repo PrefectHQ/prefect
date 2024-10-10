@@ -448,12 +448,8 @@ class TestSerializeContext:
                     "tags_context": {"current_tags": current_tags},
                     "settings_context": SettingsContext.get().serialize(),
                 }
-                assert (
-                    serialized["settings_context"]["settings"]["api"]["key"] == "test"
-                )
-                assert (
-                    serialized["settings_context"]["settings"]["api"]["url"] == "test"
-                )
+                assert serialized["settings_context"]["settings"]["api_key"] == "test"
+                assert serialized["settings_context"]["settings"]["api_url"] == "test"
 
 
 class TestHydratedContext:
@@ -585,7 +581,7 @@ class TestHydratedContext:
             {
                 "settings_context": {
                     "profile": {"name": "test", "settings": {}, "source": None},
-                    "settings": {"api": {"key": "test", "url": "test"}},
+                    "settings": {"api_key": "test", "api_url": "test"},
                 },
             }
         ):
@@ -596,7 +592,7 @@ class TestHydratedContext:
             )
             settings = SettingsContext.get().settings
             assert (
-                settings.api.key is not None
-                and settings.api.key.get_secret_value() == "test"
+                settings.api_key is not None
+                and settings.api_key.get_secret_value() == "test"
             )
-            assert settings.api.url == "test"
+            assert settings.api_url == "test"
