@@ -392,7 +392,7 @@ def test_view_includes_unset_settings_with_show_defaults():
             value
             == (
                 expected_value
-                := f"'{expected_settings[prefect.settings.env_var_to_accessor(key)]}'"
+                := f"'{expected_settings[prefect.settings.env_var_to_attr_name(key)]}'"
             )
         ), f"Displayed setting does not match set value: {key} = {value} != {expected_value}"
 
