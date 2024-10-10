@@ -161,10 +161,6 @@ class MyWorkerConfiguration(BaseJobConfiguration):
     )
 ```
 
-<Tip>
-    If you're using `pydantic<2`, use `template="{{ memory_request }}Mi"` instead of `json_schema_extra`.
-</Tip>
-
 You changed the type of each attribute to `str` to accommodate the units and added a new `template` attribute 
 to each attribute. The `template` attribute populates the `job_configuration` section of the resulting base job template.
 
