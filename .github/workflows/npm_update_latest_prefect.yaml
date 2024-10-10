@@ -62,5 +62,5 @@
             --label development \
             --label ui
           env:
-            GITHUB_TOKEN: ${{ secrets.PREFECT_CONTENTS_PR_RW }}
+            GITHUB_TOKEN: ${{ secrets.UI_COMPONENTS_CONTENTS_PRS_RW }}
   
