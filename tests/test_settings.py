@@ -692,6 +692,27 @@ class TestSettingsSources:
 
         assert Settings().client.retry_extra_codes == set()
 
+    def test_read_legacy_setting_from_profile(self, monkeypatch, tmp_path):
+        Settings().client.metrics.enabled = False
+        profiles_path = tmp_path / "profiles.toml"
+
+        monkeypatch.delenv("PREFECT_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_UNIT_TEST_MODE", raising=False)
+        monkeypatch.setenv("PREFECT_PROFILES_PATH", str(profiles_path))
+
+        profiles_path.write_text(
+            textwrap.dedent(
+                """
+                active = "foo"
+
+                [profiles.foo]
+                PREFECT_CLIENT_ENABLE_METRICS = "True"
+                """
+            )
+        )
+
+        assert Settings().client.metrics.enabled is True
+
     def test_resolution_order_with_nested_settings(
         self, temporary_env_file, monkeypatch, tmp_path
     ):
