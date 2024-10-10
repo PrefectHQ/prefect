@@ -65,6 +65,7 @@ FROM
                 WHERE
                     fr.work_queue_id = wq.id
                     AND fr.state_type = 'SCHEDULED'
+                    AND (fr.empirical_policy->>'retry_type' IS NULL OR fr.empirical_policy->>'retry_type' != 'in_process')
                     {% if scheduled_after %}
                     AND fr.next_scheduled_start_time >= :scheduled_after
                     {% endif %}
