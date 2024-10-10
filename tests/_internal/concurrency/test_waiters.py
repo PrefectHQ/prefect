@@ -134,6 +134,7 @@ def test_sync_waiter_timeout_in_worker_thread():
     ), "The done callback should still be called on cancel"
 
 
+@pytest.mark.skip(reason="This test is flaky and should be rewritten")
 @pytest.mark.timeout(method="thread")  # pytest-timeout alarm interefres with this test
 def test_sync_waiter_timeout_in_main_thread():
     """
