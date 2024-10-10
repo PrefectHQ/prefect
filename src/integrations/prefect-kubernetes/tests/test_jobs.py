@@ -210,3 +210,9 @@ async def test_job_block_wait_never_called_raises(
         ValueError, match="The Kubernetes Job run is not in a completed state"
     ):
         await job_run.fetch_result()
+
+
+async def test_job_block_generates_default_credentials():
+    job_block = KubernetesJob(v1_job=dict(metadata=dict(name="test-job")))
+    assert job_block.credentials is not None
+    assert job_block.credentials.cluster_config is None
