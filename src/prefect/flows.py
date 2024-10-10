@@ -1171,6 +1171,7 @@ class Flow(Generic[P, R]):
         try:
             async with get_client() as client:
                 work_pool = await client.read_work_pool(work_pool_name)
+                workers = await client.read_workers_for_work_pool(work_pool_name)
         except ObjectNotFound as exc:
             raise ValueError(
                 f"Could not find work pool {work_pool_name!r}. Please create it before"
@@ -1207,7 +1208,7 @@ class Flow(Generic[P, R]):
             print_next_steps_message=False,
             ignore_warnings=ignore_warnings,
         )
-        workers = await client.read_workers_for_work_pool(work_pool_name)
+
         valid_worker = any(worker.status == WorkerStatus.RUNNING for worker in workers)
         if print_next_steps:
             console = Console()
