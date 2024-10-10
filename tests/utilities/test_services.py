@@ -5,7 +5,7 @@ import httpx
 import pytest
 
 from prefect.settings import (
-    PREFECT_CLIENT_ENABLE_METRICS,
+    PREFECT_CLIENT_METRICS_ENABLED,
     PREFECT_CLIENT_METRICS_PORT,
     temporary_settings,
 )
@@ -375,7 +375,7 @@ async def test_sleeps_for_interval(capsys: pytest.CaptureFixture, mock_anyio_sle
 def metrics_server_url(unused_tcp_port: int) -> Generator[str, None, None]:
     with temporary_settings(
         updates={
-            PREFECT_CLIENT_ENABLE_METRICS: True,
+            PREFECT_CLIENT_METRICS_ENABLED: True,
             PREFECT_CLIENT_METRICS_PORT: unused_tcp_port,
         }
     ):
