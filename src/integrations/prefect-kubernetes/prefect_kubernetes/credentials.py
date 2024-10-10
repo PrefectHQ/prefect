@@ -16,7 +16,7 @@ from kubernetes_asyncio.client import (
 )
 from kubernetes_asyncio.config.config_exception import ConfigException
 from pydantic.version import VERSION as PYDANTIC_VERSION
-from typing_extensions import Literal, Self
+from typing_extensions import Literal, Self, TypeAlias
 
 from prefect.blocks.core import Block
 from prefect.utilities.collections import listrepr
@@ -27,7 +27,7 @@ else:
     from pydantic import Field, validator
 
 
-KubernetesClient = Union[AppsV1Api, BatchV1Api, CoreV1Api]
+KubernetesClient: TypeAlias = Union[AppsV1Api, BatchV1Api, CoreV1Api]
 
 K8S_CLIENT_TYPES = {
     "apps": AppsV1Api,
@@ -193,7 +193,7 @@ class KubernetesCredentials(Block):
                 config.load_incluster_config(client_configuration=client_configuration)
             except config.ConfigException:
                 # If in-cluster config fails, load the local kubeconfig
-                config.load_kube_config(
+                await config.load_kube_config(
                     client_configuration=client_configuration,
                 )
         async with ApiClient(configuration=client_configuration) as api_client:

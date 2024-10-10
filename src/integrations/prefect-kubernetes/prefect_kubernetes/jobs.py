@@ -18,13 +18,13 @@ if PYDANTIC_VERSION.startswith("2."):
 else:
     from pydantic import Field
 
-from typing_extensions import Self
+from typing_extensions import Self, TypeAlias
 
 from prefect_kubernetes.credentials import KubernetesCredentials
 from prefect_kubernetes.exceptions import KubernetesJobTimeoutError
 from prefect_kubernetes.pods import list_namespaced_pod, read_namespaced_pod_log
 
-KubernetesManifest = Union[Dict, Path, str]
+KubernetesManifest: TypeAlias = Union[Dict, Path, str]
 
 
 @task
@@ -513,7 +513,8 @@ class KubernetesJob(JobBlock):
         examples=[{"pretty": "true"}],
     )
     credentials: KubernetesCredentials = Field(
-        default=..., description="The credentials to configure a client from."
+        default_factory=KubernetesCredentials,
+        description="The credentials to configure a client from.",
     )
     delete_after_completion: bool = Field(
         default=True,
