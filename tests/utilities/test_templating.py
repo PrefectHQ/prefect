@@ -7,6 +7,7 @@ from prefect.blocks.core import Block
 from prefect.blocks.system import JSON, DateTime, Secret, String
 from prefect.blocks.webhook import Webhook
 from prefect.client.orchestration import PrefectClient
+from prefect.client.schemas.objects import Deployment, Flow, FlowRun
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.templating import (
     PlaceholderType,
@@ -126,6 +127,72 @@ class TestFindPlaceholders:
         values = {"name": "Dan"}
         result = apply_values(template, values)
         assert result == expected
+
+
+class TestApplyValuesCtx:
+    @pytest.fixture
+    def simple_flow(self):
+        return Flow(name="flow-example")
+
+    @pytest.fixture
+    def simple_deployment(self, simple_flow):
+        return Deployment(
+            name="deployment-example", id=uuid.uuid4(), flow_id=simple_flow.id
+        )
+
+    @pytest.fixture
+    def simple_flow_run(self, simple_flow, simple_deployment):
+        return FlowRun(
+            name="flow-run-example",
+            id=uuid.uuid4(),
+            flow_id=simple_flow.id,
+            deployment_id=simple_deployment.id,
+        )
+
+    @pytest.fixture
+    def ctx(self, simple_flow, simple_flow_run, simple_deployment):
+        return dict(
+            flow=simple_flow.model_dump(),
+            flow_run=simple_flow_run.model_dump(),
+            deployment=simple_deployment.model_dump(),
+        )
+
+    def test_apply_values_simple_string_with_context(self, ctx):
+        assert (
+            apply_values(
+                "Hello, {{name}}! from: {{ctx.flow_run.name}}",
+                {"name": "Alice"},
+                ctx=ctx,
+            )
+            == "Hello, Alice! from: flow-run-example"
+        )
+
+    def test_apply_values_simple_string_with_context_missing(self):
+        assert (
+            apply_values(
+                "Hello, {{name}}! from: {{ctx.flow_run.name}}",
+                {"name": "Alice"},
+            )
+            == "Hello, Alice! from: "
+        )
+
+    def test_apply_values_simple_string_with_context_everything(self, ctx):
+        assert (
+            apply_values(
+                "Hello, {{name}}! from: {{ctx.flow_run.name}} {{ctx.deployment.name}} {{ctx.flow.name}}",
+                {"name": "Alice"},
+                ctx=ctx,
+            )
+            == "Hello, Alice! from: flow-run-example deployment-example flow-example"
+        )
+
+    def test_apply_values_simple_string_with_ctx_id(self, simple_flow, ctx):
+        assert (
+            apply_values(
+                "Hello, {{name}}! from: {{ctx.flow.id}}", {"name": "Alice"}, ctx=ctx
+            )
+            == f"Hello, Alice! from: {simple_flow.id}"
+        )
 
 
 class TestApplyValues:
