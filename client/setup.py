@@ -3,6 +3,11 @@ from setuptools import find_packages, setup
 
 install_requires = open("requirements-client.txt").read().strip().split("\n")
 
+
+def get_clean_version(dirty_version: str) -> str:
+    return dirty_version.replace(".dirty", "")
+
+
 setup(
     # Package metadata
     name="prefect-client",
@@ -19,7 +24,7 @@ setup(
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     # Versioning
-    version=versioneer.get_version(),
+    version=get_clean_version(versioneer.get_version()),
     cmdclass=versioneer.get_cmdclass(),
     # Package setup
     packages=find_packages(where="src"),
