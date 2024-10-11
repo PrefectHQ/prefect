@@ -380,12 +380,14 @@ async def deploy(
     concurrency_limit_config = (
         None
         if concurrency_limit is None
-        else concurrency_limit
-        if concurrency_limit_collision_strategy is None
-        else ConcurrencyLimitConfig(
-            limit=concurrency_limit,
-            collision_strategy=concurrency_limit_collision_strategy,
-        ).model_dump()
+        else (
+            concurrency_limit
+            if concurrency_limit_collision_strategy is None
+            else ConcurrencyLimitConfig(
+                limit=concurrency_limit,
+                collision_strategy=concurrency_limit_collision_strategy,
+            ).model_dump()
+        )
     )
 
     options = {
@@ -900,7 +902,6 @@ def _schedule_config_to_deployment_schedule(
     rrule = schedule_config.get("rrule")
     timezone = schedule_config.get("timezone")
     schedule_active = schedule_config.get("active", True)
-    max_active_runs = schedule_config.get("max_active_runs")
     catchup = schedule_config.get("catchup", False)
 
     if cron:
@@ -933,7 +934,6 @@ def _schedule_config_to_deployment_schedule(
     return DeploymentScheduleCreate(
         schedule=schedule,
         active=schedule_active,
-        max_active_runs=max_active_runs,
         catchup=catchup,
     )
 

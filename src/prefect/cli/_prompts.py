@@ -227,17 +227,6 @@ class CronTimezonePrompt(PromptBase[str]):
             raise InvalidResponse(self.validate_error_message)
 
 
-def prompt_for_schedule_max_active_runs(console) -> int:
-    """
-    Prompt the user for the maximum number of active runs for a schedule.
-    """
-    return prompt(
-        "Maximum number of active runs for this schedule (leave blank for unlimited)",
-        console=console,
-        default=None,
-    )
-
-
 def prompt_for_schedule_catchup(console) -> bool:
     """
     Prompt the user for whether to catchup on missed runs for a schedule.
@@ -375,14 +364,6 @@ def prompt_schedules(console) -> List[DeploymentScheduleCreate]:
                 "schedule": schedule,
                 "active": is_schedule_active,
             }
-
-            if PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY:
-                max_active_runs = prompt_for_schedule_max_active_runs(console)
-                catchup = prompt_for_schedule_catchup(console)
-
-                minimal_schedule_kwargs.update(
-                    {"max_active_runs": max_active_runs, "catchup": catchup}
-                )
 
             schedules.append(DeploymentScheduleCreate(**minimal_schedule_kwargs))
 
@@ -530,9 +511,9 @@ async def prompt_push_custom_docker_image(
                 import prefect_docker
 
             credentials_block = prefect_docker.DockerRegistryCredentials
-            push_step[
-                "credentials"
-            ] = "{{ prefect_docker.docker-registry-credentials.docker_registry_creds_name }}"
+            push_step["credentials"] = (
+                "{{ prefect_docker.docker-registry-credentials.docker_registry_creds_name }}"
+            )
             docker_registry_creds_name = f"deployment-{slugify(deployment_config['name'])}-{slugify(deployment_config['work_pool']['name'])}-registry-creds"
             create_new_block = False
             try:

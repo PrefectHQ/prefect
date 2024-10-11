@@ -85,10 +85,6 @@ class DeploymentScheduleCreate(ActionBaseModel):
     active: bool = Field(
         default=True, description="Whether or not the schedule is active."
     )
-    max_active_runs: Optional[PositiveInteger] = Field(
-        default=None,
-        description="The maximum number of active runs for the schedule.",
-    )
     max_scheduled_runs: Optional[PositiveInteger] = Field(
         default=None,
         description="The maximum number of scheduled runs for the schedule.",
@@ -114,19 +110,9 @@ class DeploymentScheduleUpdate(ActionBaseModel):
         default=True, description="Whether or not the schedule is active."
     )
 
-    max_active_runs: Optional[PositiveInteger] = Field(
-        default=None,
-        description="The maximum number of active runs for the schedule.",
-    )
-
     max_scheduled_runs: Optional[PositiveInteger] = Field(
         default=None,
         description="The maximum number of scheduled runs for the schedule.",
-    )
-
-    catchup: Optional[bool] = Field(
-        default=None,
-        description="Whether or not a worker should catch up on Late runs for the schedule.",
     )
 
     @field_validator("max_scheduled_runs")
