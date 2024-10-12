@@ -35,8 +35,8 @@ rm -rf server/utilities
 
 # replace old build files with client build files
 cd $TMPDIR
-cp client/setup.py .
-cp client/README.md .
+cp $CWD/client/setup.py .
+cp $CWD/client/README.md .
 
 # if running in GH Actions, this happens in external workflow steps
 # this is a convenience to simulate the full build locally
@@ -62,7 +62,7 @@ if [ -z ${CI} ];
         uv pip install dist/*.whl
 
         # Run the smoke test
-        python client/client_flow.py
+        python $CWD/client/client_flow.py
 
         echo "Build and smoke test completed successfully. Final results:"
         echo "$(du -sh .venv)"
