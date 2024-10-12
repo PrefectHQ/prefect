@@ -37,6 +37,7 @@ cp $CWD/client/setup.py .
 cp $CWD/client/README.md .
 cp $CWD/requirements-client.txt .
 cp $CWD/setup.cfg .
+cp $CWD/MANIFEST.in .
 
 # if running in GH Actions, this happens in external workflow steps
 # this is a convenience to simulate the full build locally
