@@ -14,6 +14,8 @@ fi
 mkdir -p $TMPDIR/src
 cp -rf ./src/prefect $TMPDIR/src/
 cd $TMPDIR/src/prefect
+cp $CWD/requirements*.txt .
+cp $CWD/setup.cfg .
 
 # delete the files we don't need
 rm -rf cli/
@@ -37,9 +39,6 @@ rm -rf server/utilities
 cd $TMPDIR
 cp $CWD/client/setup.py .
 cp $CWD/client/README.md .
-cp $CWD/requirements.txt .
-cp $CWD/requirements-client.txt .
-cp $CWD/setup.cfg .
 
 # if running in GH Actions, this happens in external workflow steps
 # this is a convenience to simulate the full build locally
