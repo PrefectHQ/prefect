@@ -1,10 +1,10 @@
 ---
-title: Override job variables
-description: Learn how to override job variables on a work pool for a given deployment.
+title: Override job configuration for specific deployments
+description: Learn how to override job variables on deployments, e.g. to set environment variables or use a different docker image
 ---
 
 There are two ways to deploy flows to work pools: with a [`prefect.yaml` file](/3.0/deploy/infrastructure-concepts/prefect-yaml) or using the [Python `deploy` method](/3.0/deploy/infrastructure-concepts/deploy-via-python). 
-In both cases, you can override job variables on a work pool for a given deployment.
+In both cases, you can add on (or "override") job variables to the work pool's defaults for a given deployment or flow run.
 
 This guide explores common patterns for overriding job variables in 
 both deployment methods.
@@ -15,12 +15,10 @@ Job variables are infrastructure-related values that are configurable on a work 
 You can override job variables on a per-deployment or 
 per-flow run basis. This allows you to dynamically change infrastructure from the work pools defaults.
 
-When you create or edit a work pool, you can specify a set of environment variables to set in the 
+For example, when you create or edit a work pool, you can specify a set of environment variables to set in the 
 runtime environment of the flow run.
 
-This example uses `env`, which is the only job variable that is configurable for all work pool types. 
-For example:
-
+You could set the following value in the `env` field of any work pool:
 ```json
 {
   "EXECUTION_ENV": "staging",
@@ -29,7 +27,7 @@ For example:
 ```
 
 Rather than hardcoding these values into your work pool in the UI (and making them available to all 
-deployments associated with that work pool), you can override these values on a per deployment basis.
+deployments associated with that work pool), you can override these values for a specific deployment.
 
 ## Override job variables on a deployment
 
