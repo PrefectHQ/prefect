@@ -14,15 +14,9 @@ fi
 mkdir -p $TMPDIR/src
 cp -rf ./src/prefect $TMPDIR/src/
 cd $TMPDIR/src/prefect
-cp $CWD/requirements*.txt .
-cp $CWD/setup.cfg .
-
-echo $(ls -la)
 
 # delete the files we don't need
 rm -rf cli/
-rm -rf deployments/recipes/
-rm -rf deployments/templates
 rm -rf server/__init__.py
 find ./server \
     -not -path "./server" \
