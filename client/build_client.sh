@@ -17,6 +17,8 @@ cd $TMPDIR/src/prefect
 cp $CWD/requirements*.txt .
 cp $CWD/setup.cfg .
 
+echo $(ls -la)
+
 # delete the files we don't need
 rm -rf cli/
 rm -rf deployments/recipes/
