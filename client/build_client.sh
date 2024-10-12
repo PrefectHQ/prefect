@@ -11,7 +11,8 @@ if [ -z ${TMPDIR+x} ];
 fi
 
 # init the workspace
-cp -rf ./ $TMPDIR
+mkdir -p $TMPDIR/src
+cp -rf ./src/prefect $TMPDIR/src/
 cd $TMPDIR/src/prefect
 
 # delete the files we don't need
@@ -46,16 +47,27 @@ if [ -z ${CI} ];
             "PREFECT_API_URL must be set and valid for a Prefect Cloud account.";
             exit 1;
         fi
-        python -m venv venv;
-        source venv/bin/activate;
-        pip install wheel;
-        python setup.py sdist bdist_wheel;
-        pip install dist/*.tar.gz;
-        python client/client_flow.py;
-        echo "Build and smoke test completed successfully. Final results:";
-        echo "$(du -sh $VIRTUAL_ENV)";
-        deactivate;
-    else echo "Skipping local build";
-fi
+
+        # Install uv
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+
+        # Create a new virtual environment and activate it
+        uv venv --python 3.12
+
+        # Use uv to install dependencies and build the package
+        uv pip install wheel build
+        uv build
+
+        # Install the built package
+        uv pip install dist/*.whl
+
+        # Run the smoke test
+        python client/client_flow.py
+
+        echo "Build and smoke test completed successfully. Final results:"
+        echo "$(du -sh .venv)"
+    else
+        echo "Skipping local build"
+    fi
 
 cd $CWD
