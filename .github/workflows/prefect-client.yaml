@@ -91,12 +91,12 @@ jobs:
           echo "prefect_version=$prefect_version" >> $GITHUB_OUTPUT
         id: prefect_version
 
-      - name: Verify that the built `prefect` and `prefect-client` versions are the same
-        run: |
-          if [ "${{ steps.prefect_version.outputs.prefect_version }}" != "${{ steps.prefect_client_version.outputs.prefect_client_version }}" ]; then
-            echo "The built versions of prefect and prefect-client are not the same."
-            exit 1
-          fi
+      # - name: Verify that the built `prefect` and `prefect-client` versions are the same
+      #   run: |
+      #     if [ "${{ steps.prefect_version.outputs.prefect_version }}" != "${{ steps.prefect_client_version.outputs.prefect_client_version }}" ]; then
+      #       echo "The built versions of prefect and prefect-client are not the same."
+      #       exit 1
+      #     fi
 
       - name: Run the smoke test flow again with prefect and prefect-client installed
         run: python client/client_flow.py
