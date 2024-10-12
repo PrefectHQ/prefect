@@ -37,6 +37,8 @@ rm -rf server/utilities
 cd $TMPDIR
 cp $CWD/client/setup.py .
 cp $CWD/client/README.md .
+cp $CWD/requirements*.txt .
+cp $CWD/setup.cfg .
 
 # if running in GH Actions, this happens in external workflow steps
 # this is a convenience to simulate the full build locally
@@ -55,7 +57,6 @@ if [ -z ${CI} ];
         uv venv --python 3.12
 
         # Use uv to install dependencies and build the package
-        uv pip install wheel build
         uv build
 
         # Install the built package
