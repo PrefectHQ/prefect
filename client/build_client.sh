@@ -37,7 +37,8 @@ rm -rf server/utilities
 cd $TMPDIR
 cp $CWD/client/setup.py .
 cp $CWD/client/README.md .
-cp $CWD/requirements*.txt .
+cp $CWD/requirements.txt .
+cp $CWD/requirements-client.txt .
 cp $CWD/setup.cfg .
 
 # if running in GH Actions, this happens in external workflow steps
