@@ -28,6 +28,7 @@ from typing_extensions import Self
 import prefect
 from prefect.utilities.importtools import lazy_import
 from prefect.utilities.slugify import slugify
+from prefect.utilities.versions import clean_version
 
 CONTAINER_LABELS = {
     "io.prefect.version": prefect.__version__,
@@ -56,7 +57,7 @@ def get_prefect_image_name(
             minor level e.g. '3.9'.
         flavor: An optional alternative image flavor to build, like 'conda'
     """
-    parsed_version = Version(prefect_version or prefect.__version__)
+    parsed_version = Version(clean_version(prefect_version or prefect.__version__))
     is_prod_build = parsed_version.post is None
     prefect_version = (
         parsed_version.base_version

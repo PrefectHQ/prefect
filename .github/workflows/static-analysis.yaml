@@ -55,6 +55,10 @@ jobs:
           python -m pip install -U uv pre-commit
           uv pip install --upgrade --system -e .[dev]
 
+      - name: Print Prefect Version
+        run: |
+          python -c "import prefect; from prefect.utilities.versions import clean_version; print(f'Raw version: {prefect.__version__}'); print(f'Cleaned version: {clean_version(prefect.__version__)}')"
+
       - name: Setup NodeJS
         uses: actions/setup-node@v4
         with:

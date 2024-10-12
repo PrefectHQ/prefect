@@ -1,7 +1,19 @@
+import os
+
 import versioneer
 from setuptools import find_packages, setup
 
-install_requires = open("requirements-client.txt").read().strip().split("\n")
+here = os.path.abspath(os.path.dirname(__file__))
+
+requirements_path = os.path.join(here, "requirements-client.txt")
+
+with open(requirements_path, "r") as f:
+    install_requires = f.read().strip().split("\n")
+
+
+def get_clean_version(dirty_version: str) -> str:
+    return dirty_version.replace(".dirty", "")
+
 
 setup(
     # Package metadata
@@ -19,7 +31,7 @@ setup(
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     # Versioning
-    version=versioneer.get_version(),
+    version=get_clean_version(versioneer.get_version()),
     cmdclass=versioneer.get_cmdclass(),
     # Package setup
     packages=find_packages(where="src"),

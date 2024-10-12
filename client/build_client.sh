@@ -11,13 +11,13 @@ if [ -z ${TMPDIR+x} ];
 fi
 
 # init the workspace
-cp -rf ./ $TMPDIR
+mkdir -p $TMPDIR/src
+cp -rf ./src/prefect $TMPDIR/src/
+cp -rf ./client $TMPDIR/
 cd $TMPDIR/src/prefect
 
 # delete the files we don't need
 rm -rf cli/
-rm -rf deployments/recipes/
-rm -rf deployments/templates
 rm -rf server/__init__.py
 find ./server \
     -not -path "./server" \
@@ -34,8 +34,12 @@ rm -rf server/utilities
 
 # replace old build files with client build files
 cd $TMPDIR
-cp client/setup.py .
-cp client/README.md .
+cp $CWD/client/setup.py .
+cp $CWD/client/README.md .
+cp $CWD/requirements-client.txt .
+cp $CWD/setup.cfg .
+cp $CWD/MANIFEST.in .
+cp $CWD/client/client_flow.py .
 
 # if running in GH Actions, this happens in external workflow steps
 # this is a convenience to simulate the full build locally
@@ -46,16 +50,26 @@ if [ -z ${CI} ];
             "PREFECT_API_URL must be set and valid for a Prefect Cloud account.";
             exit 1;
         fi
-        python -m venv venv;
-        source venv/bin/activate;
-        pip install wheel;
-        python setup.py sdist bdist_wheel;
-        pip install dist/*.tar.gz;
-        python client/client_flow.py;
-        echo "Build and smoke test completed successfully. Final results:";
-        echo "$(du -sh $VIRTUAL_ENV)";
-        deactivate;
-    else echo "Skipping local build";
-fi
+
+        # Install uv
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+
+        # Create a new virtual environment and activate it
+        uv venv --python 3.12
+
+        # Use uv to install dependencies and build the package
+        uv build
+
+        # Install the built package
+        uv pip install dist/*.whl
+
+        # Run the smoke test
+        python $CWD/client/client_flow.py
+
+        echo "Build and smoke test completed successfully. Final results:"
+        echo "$(du -sh .venv)"
+    else
+        echo "Skipping local build"
+    fi
 
 cd $CWD

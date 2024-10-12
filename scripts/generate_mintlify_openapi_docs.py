@@ -9,6 +9,7 @@ from packaging.version import Version
 
 import prefect
 from prefect.server.api.server import create_app
+from prefect.utilities.versions import clean_version
 
 Mint = dict[str, Any]
 Navigation = list[dict[str, Any]]
@@ -32,7 +33,7 @@ def current_version() -> str:
     Return a high-level version string for the current Prefect version,
     such as "3.1" or "3.1rc".
     """
-    version = Version(prefect.__version__)
+    version = Version(clean_version(prefect.__version__))
     return f"{version.major}.{version.minor}{version.pre[0] if version.pre else ''}"
 
 
