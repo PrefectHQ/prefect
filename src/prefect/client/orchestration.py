@@ -135,6 +135,7 @@ from prefect.settings import (
     PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
     PREFECT_UNIT_TEST_MODE,
 )
+from prefect.utilities.versions import clean_version
 
 if TYPE_CHECKING:
     from prefect.flows import Flow as FlowObject
@@ -3394,8 +3395,8 @@ class PrefectClient:
         except Exception as e:
             raise RuntimeError(f"Failed to reach API at {self.api_url}") from e
 
-        api_version = version.parse(api_version)
-        client_version = version.parse(self.client_version())
+        api_version = version.parse(clean_version(api_version))
+        client_version = version.parse(clean_version(self.client_version()))
 
         if api_version.major != client_version.major:
             raise RuntimeError(
