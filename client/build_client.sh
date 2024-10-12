@@ -13,6 +13,7 @@ fi
 # init the workspace
 mkdir -p $TMPDIR/src
 cp -rf ./src/prefect $TMPDIR/src/
+cp -rf ./client $TMPDIR/
 cd $TMPDIR/src/prefect
 
 # delete the files we don't need
