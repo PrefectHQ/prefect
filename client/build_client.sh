@@ -35,6 +35,7 @@ rm -rf server/utilities
 cd $TMPDIR
 cp $CWD/client/setup.py .
 cp $CWD/client/README.md .
+cp $CWD/requirements-client.txt .
 
 # if running in GH Actions, this happens in external workflow steps
 # this is a convenience to simulate the full build locally
