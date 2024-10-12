@@ -1,7 +1,14 @@
+import os
+
 import versioneer
 from setuptools import find_packages, setup
 
-install_requires = open("requirements-client.txt").read().strip().split("\n")
+here = os.path.abspath(os.path.dirname(__file__))
+
+requirements_path = os.path.join(here, "requirements-client.txt")
+
+with open(requirements_path, "r") as f:
+    install_requires = f.read().strip().split("\n")
 
 
 def get_clean_version(dirty_version: str) -> str:
