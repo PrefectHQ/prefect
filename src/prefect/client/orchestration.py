@@ -3714,8 +3714,8 @@ class SyncPrefectClient:
         except Exception as e:
             raise RuntimeError(f"Failed to reach API at {self.api_url}") from e
 
-        api_version = version.parse(api_version)
-        client_version = version.parse(self.client_version())
+        api_version = version.parse(clean_version(api_version))
+        client_version = version.parse(clean_version(self.client_version()))
 
         if api_version.major != client_version.major:
             raise RuntimeError(
