@@ -5,10 +5,25 @@
 from . import _version
 import importlib
 import pathlib
+import re
+from packaging.version import InvalidVersion, Version
 from typing import TYPE_CHECKING, Any
 
+
+def clean_version(version_string: str) -> str:
+    # Remove any post-release segments
+    cleaned = re.sub(r"\.post\d+", "", version_string)
+    # Remove any dev segments
+    cleaned = re.sub(r"\.dev\d+", "", cleaned)
+    try:
+        return str(Version(cleaned))
+    except InvalidVersion:
+        # If still invalid, fall back to the original string
+        return version_string
+
+
 __version_info__ = _version.get_versions()
-__version__ = __version_info__["version"]
+__version__ = clean_version(__version_info__["version"])
 
 # The absolute path to this module
 __module_path__ = pathlib.Path(__file__).parent
