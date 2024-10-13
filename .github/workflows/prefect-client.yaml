@@ -46,45 +46,59 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.9"
+          python-version: "3.12"
           cache: "pip"
           cache-dependency-path: "requirements-client.txt"
+
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
 
       - name: Create a temp dir to stage our build
         run: echo "TMPDIR=$(mktemp -d)" >> $GITHUB_ENV
 
-      - name: Prepare files for prefect-client build (omit the local build)
+      - name: Prepare files for prefect-client build
         run: sh client/build_client.sh
         env:
           TMPDIR: ${{ env.TMPDIR }}
+          CI: true
 
-      - name: Build a binary wheel and a source tarball
-        run: pip install wheel && python setup.py sdist bdist_wheel
+      - name: Build prefect-client package
+        run: |
+          . $TMPDIR/.venv/bin/activate
+          uv build
         working-directory: ${{ env.TMPDIR }}
 
-      - name: Install the built client from the locally built package
-        run: pip install dist/*.tar.gz
+      - name: Install the built client
+        run: |
+          . $TMPDIR/.venv/bin/activate
+          uv pip install dist/*.whl
         working-directory: ${{ env.TMPDIR }}
 
       - name: Get the version of built `prefect-client`
         run: |
+          . $TMPDIR/.venv/bin/activate
           prefect_client_version=$(python -c "import prefect; print(prefect.__version__)")
           echo "prefect_client_version=$prefect_client_version" >> $GITHUB_OUTPUT
         working-directory: ${{ env.TMPDIR }}
         id: prefect_client_version
 
       - name: Run the smoke test flow using the built client
-        run: python client/client_flow.py
+        run: |
+          . $TMPDIR/.venv/bin/activate
+          uv run client/client_flow.py
         working-directory: ${{ env.TMPDIR }}
         env:
           PREFECT_API_KEY: ${{ secrets.PREFECT_CLIENT_SA_API_KEY }}
-          PREFECT_API_URL: "https://api.prefect.cloud/api/accounts/9b649228-0419-40e1-9e0d-44954b5c0ab6/workspaces/96bd3cf8-85c9-4545-9713-b4e3c3e03466" # sandbox, prefect-client workspace
+          PREFECT_API_URL: "https://api.prefect.cloud/api/accounts/9b649228-0419-40e1-9e0d-44954b5c0ab6/workspaces/96bd3cf8-85c9-4545-9713-b4e3c3e03466"
 
       - name: Install prefect from source
-        run: pip install .
+        run: |
+          . $TMPDIR/.venv/bin/activate
+          pip install .
 
       - name: Get the version of built `prefect`
         run: |
+          . $TMPDIR/.venv/bin/activate
           prefect_version=$(prefect --version)
           echo "prefect_version=$prefect_version" >> $GITHUB_OUTPUT
         id: prefect_version
@@ -97,11 +111,13 @@ jobs:
           fi
 
       - name: Run the smoke test flow again with prefect and prefect-client installed
-        run: python client/client_flow.py
+        run: |
+          . $TMPDIR/.venv/bin/activate
+          python client/client_flow.py
         working-directory: ${{ env.TMPDIR }}
         env:
           PREFECT_API_KEY: ${{ secrets.PREFECT_CLIENT_SA_API_KEY }}
-          PREFECT_API_URL: "https://api.prefect.cloud/api/accounts/9b649228-0419-40e1-9e0d-44954b5c0ab6/workspaces/96bd3cf8-85c9-4545-9713-b4e3c3e03466" # sandbox, prefect-client workspace
+          PREFECT_API_URL: "https://api.prefect.cloud/api/accounts/9b649228-0419-40e1-9e0d-44954b5c0ab6/workspaces/96bd3cf8-85c9-4545-9713-b4e3c3e03466"
 
       - name: Publish build artifacts
         if: ${{ inputs.upload-artifacts }}

@@ -1,7 +1,12 @@
-import versioneer
+import os
+
 from setuptools import find_packages, setup
 
 install_requires = open("requirements-client.txt").read().strip().split("\n")
+
+version = os.getenv("CLEAN_PREFECT_VERSION")
+
+assert version, "CLEAN_PREFECT_VERSION environment variable must be set"
 
 setup(
     # Package metadata
@@ -19,8 +24,7 @@ setup(
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     # Versioning
-    version=versioneer.get_version(),
-    cmdclass=versioneer.get_cmdclass(),
+    version=version,
     # Package setup
     packages=find_packages(where="src"),
     package_dir={"": "src"},
