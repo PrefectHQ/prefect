@@ -1,7 +1,21 @@
+import re
 from pathlib import Path
 
 import versioneer
+from packaging.version import InvalidVersion, Version
 from setuptools import find_packages, setup
+
+
+def clean_version(version_string: str) -> str:
+    # Remove any post-release segments
+    cleaned = re.sub(r"\.post\d+", "", version_string)
+    # Remove any dev segments
+    cleaned = re.sub(r"\.dev\d+", "", cleaned)
+    try:
+        return str(Version(cleaned))
+    except InvalidVersion:
+        # If still invalid, fall back to the original string
+        return version_string
 
 
 def read_requirements(file):
@@ -14,6 +28,7 @@ def read_requirements(file):
 client_requires = read_requirements("requirements-client.txt")
 install_requires = read_requirements("requirements.txt")[1:] + client_requires
 dev_requires = read_requirements("requirements-dev.txt")
+
 
 setup(
     # Package metadata
@@ -31,7 +46,7 @@ setup(
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     # Versioning
-    version=versioneer.get_version(),
+    version=clean_version(versioneer.get_version()),
     cmdclass=versioneer.get_cmdclass(),
     # Package setup
     packages=find_packages(where="src"),
