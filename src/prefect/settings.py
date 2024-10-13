@@ -381,7 +381,7 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
 
         if not active_profile or active_profile not in profiles_data:
             return {}
-
+        print(profiles_data[active_profile])
         return profiles_data[active_profile]
 
     def get_field_value(
