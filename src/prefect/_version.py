@@ -49,7 +49,7 @@ def get_config() -> VersioneerConfig:
     # _version.py
     cfg = VersioneerConfig()
     cfg.VCS = "git"
-    cfg.style = "pep440-pre"
+    cfg.style = "pep440"
     cfg.tag_prefix = ""
     cfg.parentdir_prefix = ""
     cfg.versionfile_source = "src/prefect/_version.py"
@@ -431,8 +431,6 @@ def render_pep440(pieces: Dict[str, Any]) -> str:
         if pieces["distance"] or pieces["dirty"]:
             rendered += plus_or_dot(pieces)
             rendered += "%d.g%s" % (pieces["distance"], pieces["short"])
-            if pieces["dirty"]:
-                rendered += ".dirty"
     else:
         # exception #1
         rendered = "0+untagged.%d.g%s" % (pieces["distance"], pieces["short"])
@@ -611,6 +609,7 @@ def render_git_describe_long(pieces: Dict[str, Any]) -> str:
     Exceptions:
     1: no tags. HEX[-dirty]  (note: no 'g' prefix)
     """
+
     if pieces["closest-tag"]:
         rendered = pieces["closest-tag"]
         rendered += "-%d-g%s" % (pieces["distance"], pieces["short"])
