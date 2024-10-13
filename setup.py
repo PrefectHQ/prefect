@@ -2,7 +2,6 @@ import re
 from pathlib import Path
 
 import versioneer
-from packaging.version import InvalidVersion, Version
 from setuptools import find_packages, setup
 
 
@@ -11,11 +10,7 @@ def clean_version(version_string: str) -> str:
     cleaned = re.sub(r"\.post\d+", "", version_string)
     # Remove any dev segments
     cleaned = re.sub(r"\.dev\d+", "", cleaned)
-    try:
-        return str(Version(cleaned))
-    except InvalidVersion:
-        # If still invalid, fall back to the original string
-        return version_string
+    return cleaned
 
 
 def read_requirements(file):
