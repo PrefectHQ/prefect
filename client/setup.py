@@ -1,4 +1,3 @@
-import versioneer
 from setuptools import find_packages, setup
 
 install_requires = open("requirements-client.txt").read().strip().split("\n")
@@ -19,8 +18,7 @@ setup(
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     # Versioning
-    version=versioneer.get_version(),
-    cmdclass=versioneer.get_cmdclass(),
+    use_scm_version=True,
     # Package setup
     packages=find_packages(where="src"),
     package_dir={"": "src"},
@@ -29,6 +27,7 @@ setup(
     python_requires=">=3.9",
     install_requires=install_requires,
     extras_require={"notifications": ["apprise>=1.1.0, <2.0.0"]},
+    setup_requires=["setuptools_scm"],
     classifiers=[
         "Natural Language :: English",
         "Intended Audience :: Developers",
