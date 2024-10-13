@@ -1,3 +1,4 @@
+import versioneer
 from setuptools import find_packages, setup
 
 install_requires = open("requirements-client.txt").read().strip().split("\n")
@@ -18,7 +19,8 @@ setup(
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     # Versioning
-    use_scm_version=True,
+    version=versioneer.get_version(),
+    cmdclass=versioneer.get_cmdclass(),
     # Package setup
     packages=find_packages(where="src"),
     package_dir={"": "src"},
