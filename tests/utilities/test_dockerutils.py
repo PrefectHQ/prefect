@@ -31,7 +31,7 @@ PYTHON_VERSION = f"{sys.version_info.major}.{sys.version_info.minor}"
         ),
         ("3.0.0", None, None, f"prefecthq/prefect:3.0.0-python{PYTHON_VERSION}"),
         (
-            "3.0.0.post0.dev1",
+            f"3.0.0+1.g{COMMIT_SHA}",
             None,
             None,
             f"prefecthq/prefect-dev:sha-{COMMIT_SHA}-python{PYTHON_VERSION}",

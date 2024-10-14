@@ -57,7 +57,7 @@ def get_prefect_image_name(
         flavor: An optional alternative image flavor to build, like 'conda'
     """
     parsed_version = Version(prefect_version or prefect.__version__)
-    is_prod_build = parsed_version.post is None
+    is_prod_build = parsed_version.local is None
     prefect_version = (
         parsed_version.base_version
         if is_prod_build
