@@ -147,7 +147,7 @@ class PrefectRayFuture(PrefectWrappedFuture[R, "ray.ObjectRef"]):
         )
         # state.result is a `sync_compatible` function that may or may not return an awaitable
         # depending on whether the parent frame is sync or not
-        if inspect.isawaitable(_result):
+        if inspect.iscoroutine(_result):
             _result = run_coro_as_sync(_result)
         return _result
 

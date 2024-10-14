@@ -18,7 +18,7 @@ async def aidentity_flow(x):
 
 def test_async_flow_called_with_asyncio():
     coro = aidentity_flow(1)
-    assert inspect.isawaitable(coro)
+    assert inspect.iscoroutine(coro)
     assert asyncio.run(coro) == 1
 
 

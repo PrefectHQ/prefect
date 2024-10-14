@@ -335,7 +335,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     f" {state.name!r}"
                 )
                 result = hook(task, task_run, state)
-                if inspect.isawaitable(result):
+                if inspect.iscoroutine(result):
                     run_coro_as_sync(result)
             except Exception:
                 self.logger.error(
@@ -419,7 +419,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 # Avoid fetching the result unless it is cached, otherwise we defeat
                 # the purpose of disabling `cache_result_in_memory`
                 result = state.result(raise_on_failure=False, fetch=True)
-                if inspect.isawaitable(result):
+                if inspect.iscoroutine(result):
                     result = run_coro_as_sync(result)
             elif isinstance(state.data, ResultRecord):
                 result = state.data.result
@@ -443,7 +443,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             # if the return value is a BaseResult, we need to fetch it
             if isinstance(self._return_value, BaseResult):
                 _result = self._return_value.get()
-                if inspect.isawaitable(_result):
+                if inspect.iscoroutine(_result):
                     _result = run_coro_as_sync(_result)
                 return _result
             elif isinstance(self._return_value, ResultRecord):
