@@ -324,10 +324,14 @@ jobs:
       - name: Set coverage file name
         id: set_coverage_file_name
         run: |
-          sanitized_database="${{ matrix.database//:/- }}"
+          sanitized_test_type="${{ matrix.test-type.name }}"
+          sanitized_test_type="${sanitized_test_type// /_}"
+          sanitized_database="${{ matrix.database }}"
+          sanitized_database="${sanitized_database//:/\-}"
           sanitized_python_version="${{ matrix.python-version }}"
-          export COVERAGE_FILE=".coverage.docker.${sanitized_python_version}.${sanitized_database}"
+          export COVERAGE_FILE=".coverage.${sanitized_test_type}.${sanitized_python_version}.${sanitized_database}"
           echo "COVERAGE_FILE=${COVERAGE_FILE}" >> $GITHUB_ENV
+
 
       - name: Run tests
         env:
