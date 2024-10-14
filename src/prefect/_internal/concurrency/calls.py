@@ -352,7 +352,7 @@ class Call(Generic[T]):
                         self.kwargs = None
 
             # Return the coroutine for async execution
-            if inspect.isawaitable(result):
+            if inspect.iscoroutine(result):
                 return result
 
         except CancelledError:

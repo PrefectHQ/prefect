@@ -204,7 +204,7 @@ class AsyncWaiter(Waiter[T]):
                 # waiting never runs longer than the call
                 self._call.future.add_cancel_callback(callback.future.cancel)
                 retval = callback.run()
-                if inspect.isawaitable(retval):
+                if inspect.iscoroutine(retval):
                     tasks.append(retval)
 
                 del callback
