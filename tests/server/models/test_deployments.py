@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models, schemas
 from prefect.server.database import orm_models
-from prefect.server.schemas import filters
+from prefect.server.schemas import filters, states
 from prefect.server.schemas.states import StateType
 from prefect.settings import PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS
 
@@ -1333,6 +1333,63 @@ class TestUpdateDeployment:
         assert updated_deployment._concurrency_limit == 42
         assert updated_deployment.global_concurrency_limit.limit == 42
         assert updated_deployment.concurrency_options.collision_strategy == "CANCEL_NEW"
+
+    async def test_update_deployment_deletes_autoscheduled_flow_runs_in_scheduled(
+        self,
+        session,
+        deployment,
+        flow,
+    ):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                deployment_id=deployment.id,
+                state=states.Scheduled(),
+                auto_scheduled=True,
+            ),
+        )
+
+        await models.deployments.update_deployment(
+            session=session,
+            deployment_id=deployment.id,
+            deployment=schemas.actions.DeploymentUpdate(),
+        )
+
+        run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run.id
+        )
+
+        assert run is None
+
+    async def test_update_deployment_does_not_delete_autoscheduled_flow_reruns_in_scheduled(
+        self,
+        session,
+        deployment,
+        flow,
+    ):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                deployment_id=deployment.id,
+                state=states.Scheduled(),
+                auto_scheduled=True,
+                run_count=1,
+            ),
+        )
+
+        await models.deployments.update_deployment(
+            session=session,
+            deployment_id=deployment.id,
+            deployment=schemas.actions.DeploymentUpdate(),
+        )
+
+        run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run.id
+        )
+
+        assert run is not None
 
 
 @pytest.fixture
