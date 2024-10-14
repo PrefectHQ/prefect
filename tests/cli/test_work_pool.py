@@ -504,14 +504,23 @@ class TestResume:
 
 class TestDelete:
     async def test_delete(self, prefect_client, work_pool):
-        res = await run_sync_in_worker_thread(
+        await run_sync_in_worker_thread(
             invoke_and_assert,
             f"work-pool delete {work_pool.name}",
             user_input="y",
+            expected_code=0,
         )
-        assert res.exit_code == 0
         with pytest.raises(ObjectNotFound):
             await prefect_client.read_work_pool(work_pool.name)
+
+    async def test_delete_non_existent(self, prefect_client):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            "work-pool delete non-existent",
+            expected_code=1,
+            expected_output_contains="Work pool 'non-existent' does not exist.",
+            expected_output_does_not_contain="Are you sure you want to delete work pool with name 'non-existent'?",
+        )
 
 
 class TestLS:
