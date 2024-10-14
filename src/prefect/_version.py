@@ -609,7 +609,6 @@ def render_git_describe_long(pieces: Dict[str, Any]) -> str:
     Exceptions:
     1: no tags. HEX[-dirty]  (note: no 'g' prefix)
     """
-
     if pieces["closest-tag"]:
         rendered = pieces["closest-tag"]
         rendered += "-%d-g%s" % (pieces["distance"], pieces["short"])

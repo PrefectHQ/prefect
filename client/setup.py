@@ -29,7 +29,6 @@ setup(
     python_requires=">=3.9",
     install_requires=install_requires,
     extras_require={"notifications": ["apprise>=1.1.0, <2.0.0"]},
-    setup_requires=["setuptools_scm"],
     classifiers=[
         "Natural Language :: English",
         "Intended Audience :: Developers",
