@@ -814,7 +814,7 @@ class Task(Generic[P, R]):
                 extra_tags=TagsContext.get().current_tags,
             )
             # the new engine uses sync clients but old engines use async clients
-            if inspect.isawaitable(task_run):
+            if inspect.iscoroutine(task_run):
                 task_run = await task_run
 
             return task_run
