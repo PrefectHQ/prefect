@@ -271,7 +271,7 @@ class TestServe:
         log_level = "DEBUG"
 
         # Mock build_server to return a webserver mock object
-        with mock.patch("your_module.build_server") as mock_build_server:
+        with mock.patch("prefect.runner.server.build_server") as mock_build_server:
             webserver_mock = mock.MagicMock()
             mock_build_server.return_value = webserver_mock
 
