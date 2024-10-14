@@ -351,7 +351,7 @@ jobs:
       - name: Upload coverage data
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-data-docker-${{ matrix.python-version }}-${{ matrix.database//:/- }}
+          name: coverage-data-docker-${{ matrix.python-version }}-${{ matrix.database }}
           path: ${{ env.COVERAGE_FILE }}
 
       - name: Create and Upload failure flag
