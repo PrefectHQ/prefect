@@ -52,6 +52,7 @@ from prefect.settings import (
     save_profiles,
     temporary_settings,
 )
+from prefect.utilities.filesystem import tmpchdir
 
 SUPPORTED_SETTINGS = {
     "PREFECT_API_BLOCKS_REGISTER_ON_START": {"test_value": True},
@@ -223,23 +224,17 @@ SUPPORTED_SETTINGS = {
 
 
 @pytest.fixture
-def temporary_env_file():
-    original_env_content = None
-    env_file = Path(".env")
+def temporary_env_file(tmp_path):
+    with tmpchdir(tmp_path):
+        env_file = Path(".env")
 
-    if env_file.exists():
-        original_env_content = env_file.read_text()
+        def _create_temp_env(content):
+            env_file.write_text(content)
 
-    def _create_temp_env(content):
-        env_file.write_text(content)
+        yield _create_temp_env
 
-    yield _create_temp_env
-
-    if env_file.exists():
-        env_file.unlink()
-
-    if original_env_content is not None:
-        env_file.write_text(original_env_content)
+        if env_file.exists():
+            env_file.unlink()
 
 
 class TestSettingClass:
