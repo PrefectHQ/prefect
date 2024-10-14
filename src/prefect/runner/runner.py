@@ -32,7 +32,6 @@ Example:
 
 import asyncio
 import datetime
-import inspect
 import logging
 import os
 import shutil
@@ -1211,7 +1210,7 @@ class Runner:
                 task_status.started()
 
             result = fn(*args, **kwargs)
-            if inspect.iscoroutine(result):
+            if asyncio.iscoroutine(result):
                 await result
 
         await self._runs_task_group.start(wrapper)
