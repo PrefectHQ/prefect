@@ -128,7 +128,11 @@ def pytest_addoption(parser):
     )
 
 
-EXCLUDE_FROM_CLEAR_DB_AUTO_MARK = ["tests/utilities", "tests/agent"]
+EXCLUDE_FROM_CLEAR_DB_AUTO_MARK = [
+    "tests/utilities",
+    "tests/agent",
+    "tests/test_settings.py",
+]
 
 
 def pytest_collection_modifyitems(session, config, items):
