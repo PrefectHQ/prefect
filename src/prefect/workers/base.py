@@ -137,6 +137,10 @@ class BaseJobConfiguration(BaseModel):
         variables = cls._get_base_config_defaults(
             variables_schema.get("properties", {})
         )
+
+        if variables.get("env"):
+            job_config["env"] = variables.get("env")
+
         variables.update(values)
 
         # deep merge `env`
@@ -152,6 +156,7 @@ class BaseJobConfiguration(BaseModel):
         populated_configuration = await resolve_variables(
             template=populated_configuration, client=client
         )
+        print(populated_configuration)
         return cls(**populated_configuration)
 
     @classmethod
