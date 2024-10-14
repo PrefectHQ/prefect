@@ -342,11 +342,11 @@ Configure this setting as an environment variable or in a profile. See
 You can retrieve logs for a specific flow run ID using Prefect's CLI:
 
 ```bash
-prefect flow-run logs $ID
+prefect flow-run logs MY-FLOW-RUN-ID
 ```
 
 This can be particularly helpful if you want to access the logs as a local file:
 
 ```bash
-prefect flow-run logs $ID > flow.log
+prefect flow-run logs  MY-FLOW-RUN-ID > flow.log
 ```
