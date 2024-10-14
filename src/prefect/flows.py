@@ -1209,7 +1209,7 @@ class Flow(Generic[P, R]):
             ignore_warnings=ignore_warnings,
         )
 
-        valid_worker = any(worker.status == WorkerStatus.RUNNING for worker in workers)
+        valid_worker = any(worker.status == WorkerStatus.ONLINE for worker in workers)
         if print_next_steps:
             console = Console()
             if not work_pool.is_push_pool and not work_pool.is_managed_pool:
