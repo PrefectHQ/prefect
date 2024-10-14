@@ -336,3 +336,17 @@ and SciPy logging statements with your flow and task run logs, use:
 
 Configure this setting as an environment variable or in a profile. See
 [Settings](/3.0/manage/settings-and-profiles/) for more details about how to use settings.
+
+## Access logs from the command line
+
+You can retrieve logs for a specific flow run ID using Prefect's CLI:
+
+```bash
+prefect flow-run logs MY-FLOW-RUN-ID
+```
+
+This can be particularly helpful if you want to access the logs as a local file:
+
+```bash
+prefect flow-run logs  MY-FLOW-RUN-ID > flow.log
+```
