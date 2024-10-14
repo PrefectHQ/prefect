@@ -1579,7 +1579,7 @@ def render_pep440(pieces: Dict[str, Any]) -> str:
     """
     if pieces["closest-tag"]:
         rendered = pieces["closest-tag"]
-        if pieces["distance"] or pieces["dirty"]:
+        if pieces["distance"]:
             rendered += plus_or_dot(pieces)
             rendered += "%d.g%s" % (pieces["distance"], pieces["short"])
     else:
