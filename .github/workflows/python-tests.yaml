@@ -143,8 +143,10 @@ jobs:
       - name: Set coverage file name
         id: set_coverage_file_name
         run: |
-          sanitized_test_type="${{ matrix.test-type.name// /_ }}"
-          sanitized_database="${{ matrix.database//:/- }}"
+          sanitized_test_type="${{ matrix.test-type.name }}"
+          sanitized_test_type="${sanitized_test_type// /_}"
+          sanitized_database="${{ matrix.database }}"
+          sanitized_database="${sanitized_database//:/\-}"
           sanitized_python_version="${{ matrix.python-version }}"
           export COVERAGE_FILE=".coverage.${sanitized_test_type}.${sanitized_python_version}.${sanitized_database}"
           echo "COVERAGE_FILE=${COVERAGE_FILE}" >> $GITHUB_ENV
@@ -168,7 +170,7 @@ jobs:
       - name: Upload coverage data
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-data-${{ matrix.test-type.name// /_ }}-${{ matrix.python-version }}-${{ matrix.database//:/- }}
+          name: coverage-data-${{ matrix.test-type.name }}-${{ matrix.python-version }}-${{ matrix.database }}
           path: ${{ env.COVERAGE_FILE }}
 
       - name: Create and Upload failure flag
