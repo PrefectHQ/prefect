@@ -52,6 +52,7 @@ from prefect.settings import (
     save_profiles,
     temporary_settings,
 )
+from prefect.utilities.filesystem import tmpchdir
 
 SUPPORTED_SETTINGS = {
     "PREFECT_API_BLOCKS_REGISTER_ON_START": {"test_value": True},
@@ -220,6 +221,20 @@ SUPPORTED_SETTINGS = {
     "PREFECT_WORKER_WEBSERVER_HOST": {"test_value": "host"},
     "PREFECT_WORKER_WEBSERVER_PORT": {"test_value": 8080},
 }
+
+
+@pytest.fixture
+def temporary_env_file(tmp_path):
+    with tmpchdir(tmp_path):
+        env_file = Path(".env")
+
+        def _create_temp_env(content):
+            env_file.write_text(content)
+
+        yield _create_temp_env
+
+        if env_file.exists():
+            env_file.unlink()
 
 
 class TestSettingClass:
@@ -814,25 +829,6 @@ class TestTemporarySettings:
 
 
 class TestSettingsSources:
-    @pytest.fixture
-    def temporary_env_file(self):
-        original_env_content = None
-        env_file = Path(".env")
-
-        if env_file.exists():
-            original_env_content = env_file.read_text()
-
-        def _create_temp_env(content):
-            env_file.write_text(content)
-
-        yield _create_temp_env
-
-        if env_file.exists():
-            env_file.unlink()
-
-        if original_env_content is not None:
-            env_file.write_text(original_env_content)
-
     def test_env_source(self, temporary_env_file):
         temporary_env_file("PREFECT_CLIENT_RETRY_EXTRA_CODES=420,500")
 
@@ -1393,5 +1389,18 @@ class TestSettingValues:
                 },
                 f,
             )
+
+        self.check_setting_value(setting, value)
+
+    def test_set_via_dot_env_file(
+        self, setting_and_value, temporary_env_file, monkeypatch
+    ):
+        setting, value = setting_and_value
+        if setting == "PREFECT_PROFILES_PATH":
+            monkeypatch.delenv("PREFECT_PROFILES_PATH", raising=False)
+        if setting == "PREFECT_TEST_SETTING":
+            monkeypatch.setenv("PREFECT_TEST_MODE", "True")
+
+        temporary_env_file(f"{setting}={value}")
 
         self.check_setting_value(setting, value)
