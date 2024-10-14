@@ -156,7 +156,6 @@ class BaseJobConfiguration(BaseModel):
         populated_configuration = await resolve_variables(
             template=populated_configuration, client=client
         )
-        print(populated_configuration)
         return cls(**populated_configuration)
 
     @classmethod
