@@ -161,7 +161,7 @@ Once you confirm that these fields are set to their desired values, this step au
 the provided name and tag and pushes it to the repository referenced by the image name.  
 This step produces optional fields for future steps, or within `prefect.yaml` as template values.
 
-We recommend using the dynamic`{{ image }}` within `prefect.yaml` (specifically in the work pool's job variables section). 
+We recommend using a templated `{{ image }}` within `prefect.yaml` (specifically in the work pool's `job_variables` section). 
 By avoiding hardcoded values, the build step and deployment specification won't have mismatched values.  
 
 <Note>
