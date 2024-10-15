@@ -2,10 +2,13 @@ import copy
 import os
 import textwrap
 import warnings
+from datetime import timedelta
 from pathlib import Path
 
 import pydantic
 import pytest
+import toml
+from pydantic_core import to_jsonable_python
 from sqlalchemy import make_url
 
 import prefect.context
@@ -39,17 +42,199 @@ from prefect.settings import (
     PREFECT_UI_URL,
     PREFECT_UNIT_TEST_MODE,
     SETTING_VARIABLES,
-    APISettings,
     Profile,
     ProfilesCollection,
     Settings,
+    env_var_to_attr_name,
     get_current_settings,
     load_profile,
     load_profiles,
     save_profiles,
     temporary_settings,
 )
-from prefect.utilities.collections import get_from_dict
+from prefect.utilities.filesystem import tmpchdir
+
+SUPPORTED_SETTINGS = {
+    "PREFECT_API_BLOCKS_REGISTER_ON_START": {"test_value": True},
+    "PREFECT_API_DATABASE_CONNECTION_TIMEOUT": {"test_value": 10.0},
+    "PREFECT_API_DATABASE_CONNECTION_URL": {"test_value": "sqlite:///"},
+    "PREFECT_API_DATABASE_DRIVER": {"test_value": "sqlite+aiosqlite"},
+    "PREFECT_API_DATABASE_ECHO": {"test_value": True},
+    "PREFECT_API_DATABASE_HOST": {"test_value": "localhost"},
+    "PREFECT_API_DATABASE_MIGRATE_ON_START": {"test_value": True},
+    "PREFECT_API_DATABASE_NAME": {"test_value": "prefect"},
+    "PREFECT_API_DATABASE_PASSWORD": {"test_value": "password"},
+    "PREFECT_API_DATABASE_PORT": {"test_value": 5432},
+    "PREFECT_API_DATABASE_TIMEOUT": {"test_value": 10.0},
+    "PREFECT_API_DATABASE_USER": {"test_value": "user"},
+    "PREFECT_API_DEFAULT_LIMIT": {"test_value": 100},
+    "PREFECT_API_ENABLE_HTTP2": {"test_value": True},
+    "PREFECT_API_ENABLE_METRICS": {"test_value": True},
+    "PREFECT_API_EVENTS_RELATED_RESOURCE_CACHE_TTL": {
+        "test_value": timedelta(minutes=6)
+    },
+    "PREFECT_API_EVENTS_STREAM_OUT_ENABLED": {"test_value": True},
+    "PREFECT_API_KEY": {"test_value": "key"},
+    "PREFECT_API_LOG_RETRYABLE_ERRORS": {"test_value": True},
+    "PREFECT_API_MAX_FLOW_RUN_GRAPH_ARTIFACTS": {"test_value": 10},
+    "PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES": {"test_value": 100},
+    "PREFECT_API_REQUEST_TIMEOUT": {"test_value": 10.0},
+    "PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED": {"test_value": True},
+    "PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS": {"test_value": 10.0},
+    "PREFECT_API_SERVICES_EVENT_PERSISTER_BATCH_SIZE": {"test_value": 100},
+    "PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED": {"test_value": True},
+    "PREFECT_API_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL": {"test_value": 10.0},
+    "PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED": {"test_value": True},
+    "PREFECT_API_SERVICES_FOREMAN_DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS": {
+        "test_value": 10,
+    },
+    "PREFECT_API_SERVICES_FOREMAN_ENABLED": {"test_value": True},
+    "PREFECT_API_SERVICES_FOREMAN_FALLBACK_HEARTBEAT_INTERVAL_SECONDS": {
+        "test_value": 10,
+    },
+    "PREFECT_API_SERVICES_FOREMAN_INACTIVITY_HEARTBEAT_MULTIPLE": {"test_value": 2},
+    "PREFECT_API_SERVICES_FOREMAN_LOOP_SECONDS": {"test_value": 10.0},
+    "PREFECT_API_SERVICES_FOREMAN_WORK_QUEUE_LAST_POLLED_TIMEOUT_SECONDS": {
+        "test_value": 10,
+    },
+    "PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS": {
+        "test_value": timedelta(seconds=20)
+    },
+    "PREFECT_API_SERVICES_LATE_RUNS_ENABLED": {"test_value": True},
+    "PREFECT_API_SERVICES_LATE_RUNS_LOOP_SECONDS": {"test_value": 10.0},
+    "PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED": {"test_value": True},
+    "PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS": {"test_value": 10.0},
+    "PREFECT_API_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE": {"test_value": 10},
+    "PREFECT_API_SERVICES_SCHEDULER_ENABLED": {"test_value": True},
+    "PREFECT_API_SERVICES_SCHEDULER_INSERT_BATCH_SIZE": {"test_value": 10},
+    "PREFECT_API_SERVICES_SCHEDULER_LOOP_SECONDS": {"test_value": 10.0},
+    "PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS": {"test_value": 10},
+    "PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME": {
+        "test_value": timedelta(hours=10)
+    },
+    "PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS": {"test_value": 10},
+    "PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME": {
+        "test_value": timedelta(minutes=10)
+    },
+    "PREFECT_API_SERVICES_TASK_RUN_RECORDER_ENABLED": {"test_value": True},
+    "PREFECT_API_SERVICES_TRIGGERS_ENABLED": {"test_value": True},
+    "PREFECT_API_SSL_CERT_FILE": {"test_value": "/path/to/cert"},
+    "PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH": {"test_value": 10},
+    "PREFECT_API_TLS_INSECURE_SKIP_VERIFY": {"test_value": True},
+    "PREFECT_API_URL": {"test_value": "https://api.prefect.io"},
+    "PREFECT_ASYNC_FETCH_STATE_RESULT": {"test_value": True},
+    "PREFECT_CLIENT_CSRF_SUPPORT_ENABLED": {"test_value": True},
+    "PREFECT_CLIENT_ENABLE_METRICS": {"test_value": True},
+    "PREFECT_CLIENT_MAX_RETRIES": {"test_value": 3},
+    "PREFECT_CLIENT_METRICS_PORT": {"test_value": 9000},
+    "PREFECT_CLIENT_RETRY_EXTRA_CODES": {"test_value": "400"},
+    "PREFECT_CLIENT_RETRY_JITTER_FACTOR": {"test_value": 0.5},
+    "PREFECT_CLI_COLORS": {"test_value": True},
+    "PREFECT_CLI_PROMPT": {"test_value": True},
+    "PREFECT_CLI_WRAP_LINES": {"test_value": True},
+    "PREFECT_CLOUD_API_URL": {"test_value": "https://cloud.prefect.io"},
+    "PREFECT_CLOUD_UI_URL": {"test_value": "https://cloud.prefect.io"},
+    "PREFECT_DEBUG_MODE": {"test_value": True},
+    "PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE": {"test_value": "prefect"},
+    "PREFECT_DEFAULT_RESULT_STORAGE_BLOCK": {"test_value": "block"},
+    "PREFECT_DEFAULT_WORK_POOL_NAME": {"test_value": "default"},
+    "PREFECT_DEPLOYMENT_CONCURRENCY_SLOT_WAIT_SECONDS": {"test_value": 10.0},
+    "PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS": {"test_value": 10},
+    "PREFECT_EVENTS_EXPIRED_BUCKET_BUFFER": {"test_value": timedelta(seconds=60)},
+    "PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE": {"test_value": 10},
+    "PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES": {"test_value": 10},
+    "PREFECT_EVENTS_MAXIMUM_SIZE_BYTES": {"test_value": 10},
+    "PREFECT_EVENTS_MAXIMUM_WEBSOCKET_BACKFILL": {"test_value": timedelta(minutes=15)},
+    "PREFECT_EVENTS_PROACTIVE_GRANULARITY": {"test_value": timedelta(seconds=5)},
+    "PREFECT_EVENTS_RETENTION_PERIOD": {"test_value": timedelta(hours=7)},
+    "PREFECT_EVENTS_WEBSOCKET_BACKFILL_PAGE_SIZE": {"test_value": 10},
+    "PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY": {"test_value": True},
+    "PREFECT_EXPERIMENTAL_WARN": {"test_value": True},
+    "PREFECT_FLOW_DEFAULT_RETRIES": {"test_value": 10},
+    "PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS": {"test_value": 10},
+    "PREFECT_HOME": {"test_value": Path.home() / ".prefect" / "test"},
+    "PREFECT_LOCAL_STORAGE_PATH": {"test_value": Path("/path/to/storage")},
+    "PREFECT_LOGGING_COLORS": {"test_value": True},
+    "PREFECT_LOGGING_EXTRA_LOGGERS": {"test_value": "foo"},
+    "PREFECT_LOGGING_INTERNAL_LEVEL": {"test_value": "INFO"},
+    "PREFECT_LOGGING_LEVEL": {"test_value": "INFO"},
+    "PREFECT_LOGGING_LOG_PRINTS": {"test_value": True},
+    "PREFECT_LOGGING_MARKUP": {"test_value": True},
+    "PREFECT_LOGGING_SERVER_LEVEL": {"test_value": "INFO"},
+    "PREFECT_LOGGING_SETTINGS_PATH": {"test_value": Path("/path/to/settings.toml")},
+    "PREFECT_LOGGING_TO_API_BATCH_INTERVAL": {"test_value": 10.0},
+    "PREFECT_LOGGING_TO_API_BATCH_SIZE": {"test_value": 5_000_000},
+    "PREFECT_LOGGING_TO_API_ENABLED": {"test_value": True},
+    "PREFECT_LOGGING_TO_API_MAX_LOG_SIZE": {"test_value": 10},
+    "PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW": {"test_value": "ignore"},
+    "PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION": {"test_value": True},
+    "PREFECT_MEMO_STORE_PATH": {"test_value": Path("/path/to/memo")},
+    "PREFECT_MESSAGING_BROKER": {"test_value": "broker"},
+    "PREFECT_MESSAGING_CACHE": {"test_value": "cache"},
+    "PREFECT_PROFILES_PATH": {"test_value": Path("/path/to/profiles.toml")},
+    "PREFECT_RESULTS_DEFAULT_SERIALIZER": {"test_value": "serializer"},
+    "PREFECT_RESULTS_PERSIST_BY_DEFAULT": {"test_value": True},
+    "PREFECT_RUNNER_POLL_FREQUENCY": {"test_value": 10},
+    "PREFECT_RUNNER_PROCESS_LIMIT": {"test_value": 10},
+    "PREFECT_RUNNER_SERVER_ENABLE": {"test_value": True},
+    "PREFECT_RUNNER_SERVER_HOST": {"test_value": "host"},
+    "PREFECT_RUNNER_SERVER_LOG_LEVEL": {"test_value": "INFO"},
+    "PREFECT_RUNNER_SERVER_MISSED_POLLS_TOLERANCE": {"test_value": 10},
+    "PREFECT_RUNNER_SERVER_PORT": {"test_value": 8080},
+    "PREFECT_SERVER_ALLOW_EPHEMERAL_MODE": {"test_value": True},
+    "PREFECT_SERVER_ANALYTICS_ENABLED": {"test_value": True},
+    "PREFECT_SERVER_API_HOST": {"test_value": "host"},
+    "PREFECT_SERVER_API_KEEPALIVE_TIMEOUT": {"test_value": 10},
+    "PREFECT_SERVER_API_PORT": {"test_value": 4200},
+    "PREFECT_SERVER_CORS_ALLOWED_HEADERS": {"test_value": "foo"},
+    "PREFECT_SERVER_CORS_ALLOWED_METHODS": {"test_value": "foo"},
+    "PREFECT_SERVER_CORS_ALLOWED_ORIGINS": {"test_value": "foo"},
+    "PREFECT_SERVER_CSRF_PROTECTION_ENABLED": {"test_value": True},
+    "PREFECT_SERVER_CSRF_TOKEN_EXPIRATION": {"test_value": timedelta(seconds=10)},
+    "PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS": {"test_value": 10},
+    "PREFECT_SILENCE_API_URL_MISCONFIGURATION": {"test_value": True},
+    "PREFECT_SQLALCHEMY_MAX_OVERFLOW": {"test_value": 10},
+    "PREFECT_SQLALCHEMY_POOL_SIZE": {"test_value": 10},
+    "PREFECT_TASKS_REFRESH_CACHE": {"test_value": True},
+    "PREFECT_TASK_DEFAULT_RETRIES": {"test_value": 10},
+    "PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS": {"test_value": 10},
+    "PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS": {"test_value": 10},
+    "PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK": {"test_value": "block"},
+    "PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS": {"test_value": True},
+    "PREFECT_TASK_SCHEDULING_MAX_RETRY_QUEUE_SIZE": {"test_value": 10},
+    "PREFECT_TASK_SCHEDULING_MAX_SCHEDULED_QUEUE_SIZE": {"test_value": 10},
+    "PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT": {
+        "test_value": timedelta(seconds=10)
+    },
+    "PREFECT_TEST_MODE": {"test_value": True},
+    "PREFECT_TEST_SETTING": {"test_value": "bar"},
+    "PREFECT_UI_API_URL": {"test_value": "https://api.prefect.io"},
+    "PREFECT_UI_ENABLED": {"test_value": True},
+    "PREFECT_UI_SERVE_BASE": {"test_value": "/base"},
+    "PREFECT_UI_STATIC_DIRECTORY": {"test_value": "/path/to/static"},
+    "PREFECT_UI_URL": {"test_value": "https://ui.prefect.io"},
+    "PREFECT_UNIT_TEST_LOOP_DEBUG": {"test_value": True},
+    "PREFECT_UNIT_TEST_MODE": {"test_value": True},
+    "PREFECT_WORKER_HEARTBEAT_SECONDS": {"test_value": 10.0},
+    "PREFECT_WORKER_PREFETCH_SECONDS": {"test_value": 10.0},
+    "PREFECT_WORKER_QUERY_SECONDS": {"test_value": 10.0},
+    "PREFECT_WORKER_WEBSERVER_HOST": {"test_value": "host"},
+    "PREFECT_WORKER_WEBSERVER_PORT": {"test_value": 8080},
+}
+
+
+@pytest.fixture
+def temporary_env_file(tmp_path):
+    with tmpchdir(tmp_path):
+        env_file = Path(".env")
+
+        def _create_temp_env(content):
+            env_file.write_text(content)
+
+        yield _create_temp_env
+
+        if env_file.exists():
+            env_file.unlink()
 
 
 class TestSettingClass:
@@ -87,10 +272,10 @@ class TestSettingsClass:
         new_set_keys = set(new_settings.model_dump(exclude_unset=True).keys())
         assert new_set_keys == set_keys
 
-        new_settings = settings.copy_with_update(updates={PREFECT_TEST_SETTING: "TEST"})
+        new_settings = settings.copy_with_update(updates={PREFECT_API_KEY: "TEST"})
         new_set_keys = set(new_settings.model_dump(exclude_unset=True).keys())
         # Only the API key setting should be set
-        assert new_set_keys - set_keys == {"test_setting"}
+        assert new_set_keys - set_keys == {"api_key"}
 
     def test_settings_copy_with_update(self):
         settings = get_current_settings()
@@ -105,8 +290,8 @@ class TestSettingsClass:
                 new_settings.unit_test_mode is True
             ), "Not changed, existing value was not default"
             assert (
-                new_settings.api.key is not None
-                and new_settings.api.key.get_secret_value() == "TEST"
+                new_settings.api_key is not None
+                and new_settings.api_key.get_secret_value() == "TEST"
             ), "Changed, existing value was default"
             assert new_settings.client_retry_extra_codes == {400, 500}
 
@@ -117,31 +302,11 @@ class TestSettingsClass:
         new_settings = Settings()
         assert PREFECT_TEST_MODE.value_from(new_settings) is False
 
-    def test_settings_to_environment_includes_all_settings_with_non_null_values(
-        self, disable_hosted_api_server
-    ):
+    def test_settings_to_environment_includes_all_settings_with_non_null_values(self):
         settings = Settings()
         assert set(settings.to_environment_variables().keys()) == {
-            s.name for s in SETTING_VARIABLES.values() if s.value() is not None
-        }
-
-    def test_settings_to_environment_works_with_exclude_unset(self, monkeypatch):
-        # for var in os.environ:
-        #     if var.startswith("PREFECT_"):
-        #         monkeypatch.delenv(var, raising=False)
-        assert Settings(server_api_port=3000).to_environment_variables(
-            exclude_unset=True
-        ) == {
-            # From env
-            **{
-                var: os.environ[var] for var in os.environ if var.startswith("PREFECT_")
-            },
-            # From test settings
-            "PREFECT_LOGGING_SERVER_LEVEL": "DEBUG",
-            "PREFECT_TEST_MODE": "True",
-            "PREFECT_UNIT_TEST_MODE": "True",
-            # From init
-            "PREFECT_SERVER_API_PORT": "3000",
+            f"PREFECT_{key.upper()}"
+            for key in settings.model_dump(exclude_none=True).keys()
         }
 
     def test_settings_to_environment_casts_to_strings(self):
@@ -151,6 +316,62 @@ class TestSettingsClass:
             ]
             == "3000"
         )
+
+    def test_settings_to_environment_respects_includes(self):
+        include = [PREFECT_SERVER_API_PORT]
+
+        assert Settings(server_api_port=3000).to_environment_variables(
+            include=include
+        ) == {"PREFECT_SERVER_API_PORT": "3000"}
+
+        assert include == [PREFECT_SERVER_API_PORT], "Passed list should not be mutated"
+
+    def test_settings_to_environment_exclude_unset_empty_if_none_set(self, monkeypatch):
+        for key in SETTING_VARIABLES:
+            if not key.startswith("PREFECT_") or key == "PREFECT_TEST_MODE":
+                continue
+            monkeypatch.delenv(key, raising=False)
+
+        assert Settings().to_environment_variables(
+            exclude_unset=True,
+        ) == {
+            "PREFECT_TEST_MODE": "True",
+        }
+
+    def test_settings_to_environment_exclude_unset_only_includes_set(self, monkeypatch):
+        for key in SETTING_VARIABLES:
+            if key == "PREFECT_TEST_MODE":
+                continue
+            monkeypatch.delenv(key, raising=False)
+
+        assert Settings(debug_mode=True, api_key="Hello").to_environment_variables(
+            exclude_unset=True,
+        ) == {
+            "PREFECT_TEST_MODE": "True",
+            "PREFECT_DEBUG_MODE": "True",
+            "PREFECT_API_KEY": "Hello",
+        }
+
+    def test_settings_to_environment_exclude_unset_only_includes_set_even_if_included(
+        self, monkeypatch
+    ):
+        for key in SETTING_VARIABLES:
+            monkeypatch.delenv(key, raising=False)
+
+        include = [PREFECT_HOME, PREFECT_DEBUG_MODE, PREFECT_API_KEY]
+
+        assert Settings(debug_mode=True, api_key="Hello").to_environment_variables(
+            exclude_unset=True, include=include
+        ) == {
+            "PREFECT_DEBUG_MODE": "True",
+            "PREFECT_API_KEY": "Hello",
+        }
+
+        assert include == [
+            PREFECT_HOME,
+            PREFECT_DEBUG_MODE,
+            PREFECT_API_KEY,
+        ], "Passed list should not be mutated"
 
     @pytest.mark.parametrize("exclude_unset", [True, False])
     def test_settings_to_environment_roundtrip(self, exclude_unset, monkeypatch):
@@ -181,7 +402,7 @@ class TestSettingsClass:
             pydantic.ValidationError,
             match="should be 'DEBUG', 'INFO', 'WARNING', 'ERROR' or 'CRITICAL'",
         ):
-            Settings(**{log_level_setting.accessor: "FOOBAR"})
+            Settings(**{log_level_setting.field_name: "FOOBAR"})
 
     @pytest.mark.parametrize(
         "log_level_setting",
@@ -208,18 +429,12 @@ class TestSettingsClass:
         )
 
     def test_include_secrets(self):
-        settings = Settings(api=APISettings(key=pydantic.SecretStr("test")))
+        settings = Settings(api_key=pydantic.SecretStr("test"))
 
-        assert get_from_dict(settings.model_dump(), "api.key") == pydantic.SecretStr(
-            "test"
-        )
+        assert settings.model_dump().get("api_key") == pydantic.SecretStr("test")
+        assert settings.model_dump(mode="json").get("api_key") == "**********"
         assert (
-            get_from_dict(settings.model_dump(mode="json"), "api.key") == "**********"
-        )
-        assert (
-            get_from_dict(
-                settings.model_dump(context={"include_secrets": True}), "api.key"
-            )
+            settings.model_dump(context={"include_secrets": True}).get("api_key")
             == "test"
         )
 
@@ -240,6 +455,11 @@ class TestSettingsClass:
         with pytest.warns(UserWarning, match="Failed to load profiles from"):
             assert Settings().test_setting == "FOO"
 
+    def test_valid_setting_names_matches_supported_settings(self):
+        assert (
+            set(Settings().valid_setting_names()) == set(SUPPORTED_SETTINGS.keys())
+        ), "valid_setting_names output did not match supported settings. Please update SUPPORTED_SETTINGS if you are adding or removing a setting."
+
 
 class TestSettingAccess:
     def test_get_value_root_setting(self):
@@ -247,7 +467,7 @@ class TestSettingAccess:
             updates={PREFECT_API_URL: "test"}
         ):  # Set a value so its not null
             assert PREFECT_API_URL.value() == "test"
-            assert get_current_settings().api.url == "test"
+            assert get_current_settings().api_url == "test"
 
     def test_get_value_nested_setting(self):
         value = prefect.settings.PREFECT_LOGGING_LEVEL.value()
@@ -609,25 +829,6 @@ class TestTemporarySettings:
 
 
 class TestSettingsSources:
-    @pytest.fixture
-    def temporary_env_file(self):
-        original_env_content = None
-        env_file = Path(".env")
-
-        if env_file.exists():
-            original_env_content = env_file.read_text()
-
-        def _create_temp_env(content):
-            env_file.write_text(content)
-
-        yield _create_temp_env
-
-        if env_file.exists():
-            env_file.unlink()
-
-        if original_env_content is not None:
-            env_file.write_text(original_env_content)
-
     def test_env_source(self, temporary_env_file):
         temporary_env_file("PREFECT_CLIENT_RETRY_EXTRA_CODES=420,500")
 
@@ -670,36 +871,6 @@ class TestSettingsSources:
         monkeypatch.delenv("PREFECT_PROFILES_PATH", raising=True)
 
         assert Settings().client_retry_extra_codes == set()
-
-    def test_resolution_order_with_nested_settings(
-        self, temporary_env_file, monkeypatch, tmp_path
-    ):
-        profiles_path = tmp_path / "profiles.toml"
-
-        monkeypatch.delenv("PREFECT_TEST_MODE", raising=False)
-        monkeypatch.delenv("PREFECT_UNIT_TEST_MODE", raising=False)
-        monkeypatch.setenv("PREFECT_PROFILES_PATH", str(profiles_path))
-
-        profiles_path.write_text(
-            textwrap.dedent(
-                """
-                active = "foo"
-
-                [profiles.foo]
-                PREFECT_API_URL = "http://example.com:4200"
-                """
-            )
-        )
-
-        assert Settings().api.url == "http://example.com:4200"
-
-        temporary_env_file("PREFECT_API_URL=http://localhost:4200")
-
-        assert Settings().api.url == "http://localhost:4200"
-
-        os.unlink(".env")
-
-        assert Settings().api.url == "http://example.com:4200"
 
 
 class TestLoadProfiles:
@@ -1135,3 +1306,101 @@ class TestProfilesCollection:
                 Profile(name="bar", settings={}, source=Path("/new-path")),
             ]
         ), "Changed profile source should be inequal"
+
+
+class TestSettingValues:
+    @pytest.fixture(autouse=True)
+    def clear_env_vars(self, monkeypatch):
+        for env_var in os.environ:
+            if env_var.startswith("PREFECT_"):
+                monkeypatch.delenv(env_var, raising=False)
+
+    @pytest.fixture(scope="function", params=list(SUPPORTED_SETTINGS.keys()))
+    def setting_and_value(self, request):
+        setting = request.param
+        return setting, SUPPORTED_SETTINGS[setting]["test_value"]
+
+    @pytest.fixture(autouse=True)
+    def temporary_profiles_path(self, tmp_path, monkeypatch):
+        path = tmp_path / "profiles.toml"
+        monkeypatch.setenv("PREFECT_PROFILES_PATH", str(path))
+        yield path
+
+    def check_setting_value(self, setting, value):
+        # create new root context to pick up the env var changes
+        warnings.filterwarnings("ignore", category=UserWarning)
+        with prefect.context.root_settings_context():
+            field_name = env_var_to_attr_name(setting)
+            current_settings = get_current_settings()
+            # get value from settings object
+            settings_value = getattr(current_settings, field_name)
+
+            if isinstance(settings_value, pydantic.SecretStr):
+                settings_value = settings_value.get_secret_value()
+            if setting == "PREFECT_CLIENT_RETRY_EXTRA_CODES":
+                assert settings_value == {int(value)}
+                assert getattr(prefect.settings, setting).value() == {int(value)}
+                assert current_settings.to_environment_variables(exclude_unset=True)[
+                    setting
+                ] == str([int(value)])
+
+            elif setting == "PREFECT_LOGGING_EXTRA_LOGGERS":
+                assert settings_value == [value]
+                assert getattr(prefect.settings, setting).value() == [value]
+                assert current_settings.to_environment_variables(exclude_unset=True)[
+                    setting
+                ] == str([value])
+            else:
+                assert settings_value == value
+                # get value from legacy setting object
+                assert getattr(prefect.settings, setting).value() == value
+                # ensure the value gets added to the environment variables
+                assert current_settings.to_environment_variables(exclude_unset=True)[
+                    setting
+                ] == str(to_jsonable_python(value))
+
+    def test_set_via_env_var(self, setting_and_value, monkeypatch):
+        setting, value = setting_and_value
+
+        if setting == "PREFECT_TEST_SETTING":
+            monkeypatch.setenv("PREFECT_TEST_MODE", "True")
+
+        # mock set the env var
+        monkeypatch.setenv(setting, str(value))
+
+        self.check_setting_value(setting, value)
+
+    def test_set_via_profile(
+        self, temporary_profiles_path, setting_and_value, monkeypatch
+    ):
+        setting, value = setting_and_value
+        if setting == "PREFECT_PROFILES_PATH":
+            pytest.skip("Profiles path cannot be set via a profile")
+        if setting == "PREFECT_TEST_SETTING":
+            # PREFECT_TEST_MODE is used to set PREFECT_TEST_SETTING which messes
+            # with profile loading
+            pytest.skip("Can only set PREFECT_TEST_SETTING when in test mode")
+
+        with open(temporary_profiles_path, "w") as f:
+            toml.dump(
+                {
+                    "active": "test",
+                    "profiles": {"test": {setting: to_jsonable_python(value)}},
+                },
+                f,
+            )
+
+        self.check_setting_value(setting, value)
+
+    def test_set_via_dot_env_file(
+        self, setting_and_value, temporary_env_file, monkeypatch
+    ):
+        setting, value = setting_and_value
+        if setting == "PREFECT_PROFILES_PATH":
+            monkeypatch.delenv("PREFECT_PROFILES_PATH", raising=False)
+        if setting == "PREFECT_TEST_SETTING":
+            monkeypatch.setenv("PREFECT_TEST_MODE", "True")
+
+        temporary_env_file(f"{setting}={value}")
+
+        self.check_setting_value(setting, value)
