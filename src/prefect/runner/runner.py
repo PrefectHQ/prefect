@@ -400,37 +400,40 @@ class Runner:
         start_client_metrics_server()
 
         async with self as runner:
-            for storage in self._storage_objs:
-                if storage.pull_interval:
-                    self._runs_task_group.start_soon(
-                        partial(
-                            critical_service_loop,
-                            workload=storage.pull_code,
-                            interval=storage.pull_interval,
-                            run_once=run_once,
-                            jitter_range=0.3,
+            # This task group isn't included in the exit stack because we want to
+            # stay in this function until the runner is told to stop
+            async with self._loops_task_group as loops_task_group:
+                for storage in self._storage_objs:
+                    if storage.pull_interval:
+                        loops_task_group.start_soon(
+                            partial(
+                                critical_service_loop,
+                                workload=storage.pull_code,
+                                interval=storage.pull_interval,
+                                run_once=run_once,
+                                jitter_range=0.3,
+                            )
                         )
+                    else:
+                        loops_task_group.start_soon(storage.pull_code)
+                loops_task_group.start_soon(
+                    partial(
+                        critical_service_loop,
+                        workload=runner._get_and_submit_flow_runs,
+                        interval=self.query_seconds,
+                        run_once=run_once,
+                        jitter_range=0.3,
                     )
-                else:
-                    self._runs_task_group.start_soon(storage.pull_code)
-            self._runs_task_group.start_soon(
-                partial(
-                    critical_service_loop,
-                    workload=runner._get_and_submit_flow_runs,
-                    interval=self.query_seconds,
-                    run_once=run_once,
-                    jitter_range=0.3,
                 )
-            )
-            self._runs_task_group.start_soon(
-                partial(
-                    critical_service_loop,
-                    workload=runner._check_for_cancelled_flow_runs,
-                    interval=self.query_seconds * 2,
-                    run_once=run_once,
-                    jitter_range=0.3,
+                loops_task_group.start_soon(
+                    partial(
+                        critical_service_loop,
+                        workload=runner._check_for_cancelled_flow_runs,
+                        interval=self.query_seconds * 2,
+                        run_once=run_once,
+                        jitter_range=0.3,
+                    )
                 )
-            )
 
     def execute_in_background(self, func, *args, **kwargs):
         """
@@ -1268,13 +1271,13 @@ class Runner:
         await self._exit_stack.__aenter__()
 
         await self._exit_stack.enter_async_context(self._client)
+
         if not hasattr(self, "_runs_task_group") or not self._runs_task_group:
             self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
         await self._exit_stack.enter_async_context(self._runs_task_group)
 
         if not hasattr(self, "_loops_task_group") or not self._loops_task_group:
             self._loops_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
-        await self._exit_stack.enter_async_context(self._loops_task_group)
 
         self.started = True
         return self
@@ -1283,11 +1286,11 @@ class Runner:
         self._logger.debug("Stopping runner...")
         if self.pause_on_shutdown:
             await self._pause_schedules()
-        self.started = False
         for scope in self._scheduled_task_scopes:
             scope.cancel()
         await self._exit_stack.__aexit__(*exc_info)
         shutil.rmtree(str(self._tmp_dir))
+        self.started = False
         del self._runs_task_group, self._loops_task_group
 
     def __repr__(self):
