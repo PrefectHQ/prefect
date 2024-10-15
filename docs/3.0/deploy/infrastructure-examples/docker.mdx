@@ -8,11 +8,16 @@ You must have [Docker](https://docs.docker.com/engine/install/) installed and ru
 
 ### Create a work pool
 
-To set up a **Docker** type work pool, run:
+A work pool provides default infrastructure configurations that all jobs inherit and can override.
+You can adjust many defaults, such as the base Docker image, container cleanup behavior, and resource limits. 
+
+To set up a **Docker** type work pool with the default values, run:
 
 ```bash
 prefect work-pool create --type docker my-docker-pool
 ```
+
+Or create the work pool in the UI.
 
 To confirm the work pool creation was successful, run:
 
@@ -35,7 +40,6 @@ Workers are a lightweight polling process that kick off scheduled flow runs on a
 To start a worker on your local machine, open a new terminal and confirm that your virtual environment has `prefect` installed.
 
 Run the following command in this new terminal to start the worker:
-
 
 ```bash
 prefect worker start --pool my-docker-pool
