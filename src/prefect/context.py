@@ -645,6 +645,7 @@ def root_settings_context():
     if not (settings := Settings()).home.exists():
         try:
             settings.home.mkdir(mode=0o0700, exist_ok=True)
+            print(f"Created Prefect home directory at {settings.home}", file=sys.stdout)
         except OSError:
             warnings.warn(
                 (f"Failed to create the Prefect home directory at {settings.home}"),
