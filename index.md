@@ -4,7 +4,7 @@
 
 {% for integration in integrations %}
     <Card title="{{ integration['tag'] }}">
-        <a href="{{ integration['documentation'] }}"> <img src="{{ integration['iconUrl'] }}" alt="{{ integration['integrationName'] }}"/>
+        <a href="/integration/{{ integration['documentation'] }}"> <img src="{{ integration['iconUrl'] }}" alt="{{ integration['integrationName'] }}"/>
         </a>
         Maintained by <a href="{{ integration['authorUrl'] }}"> {{ integration['author'] }} </a>
     </Card>

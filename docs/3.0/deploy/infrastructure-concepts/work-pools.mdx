@@ -423,9 +423,6 @@ Learn more about [customizing job variables](/3.0/deploy/infrastructure-concepts
     capabilities in secure environments. For example, the `kubernetes` worker type allows users to specify a custom job template  
     to configure the manifest that workers use to create jobs for flow execution.
 
-    For more information and advanced configuration examples, see the [Kubernetes Worker](https://prefecthq.github.io/prefect-kubernetes/worker/) 
-    documentation.
-
     See more information about [overriding a work pool's job variables](/3.0/deploy/infrastructure-concepts/customize).
 </Tip>
 
@@ -433,7 +430,6 @@ Learn more about [customizing job variables](/3.0/deploy/infrastructure-concepts
 
 Work queues offer advanced control over how runs are executed. Each work pool has a "default" queue which is used if another  work queue name is not specified. 
 Add additional queues to a work pool to enable greater control over work delivery through fine-grained priority and concurrency. 
-
 
 
 #### Queue priority
@@ -471,7 +467,6 @@ from priority queue "critical", work from the "high" queue begins submission.
 If new flow runs are received on the "critical" queue while flow runs are still in scheduled on the "high" and "low" queues, flow run 
 submission goes back to ensuring all scheduled work is first satisfied. This happens from the highest priority queue, until it is empty, 
 in waterfall fashion.
-
 
 <Tip>
 **Work queue status**

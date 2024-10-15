@@ -544,7 +544,7 @@ We also include Python code that shows how to use an existing storage block and 
 
     To create an `AwsCredentials` block:
 
-    1. Install the [prefect-aws](https://prefecthq.github.io/prefect-aws/) library with `pip install -U prefect-aws`
+    1. Install the [prefect-aws](/integrations/prefect-aws) library with `pip install -U prefect-aws`
     1. Register the blocks in prefect-aws with `prefect block register -m prefect_aws` 
     1. Create a user with a role with read and write permissions to access the bucket. If using the UI, create an access key pair with *IAM -> Users -> Security credentials -> Access keys -> Create access key*. Choose *Use case -> Other* and then copy the *Access key* and *Secret access key* values.
     1. Create an [`AWSCredentials` block](/integrations/prefect-aws/index#save-credentials-to-an-aws-credentials-block) in code or the Prefect UI. In addition to the block name, most users will fill in the *AWS Access Key ID* and *AWS Access Key Secret* fields.
