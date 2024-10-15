@@ -1282,6 +1282,8 @@ class Runner:
         self._logger.debug("Stopping runner...")
         if self.pause_on_shutdown:
             await self._pause_schedules()
+        self.started = False
+
         for scope in self._scheduled_task_scopes:
             scope.cancel()
 
@@ -1291,7 +1293,6 @@ class Runner:
             await self._runs_task_group.__aexit__(*exc_info)
 
         shutil.rmtree(str(self._tmp_dir))
-        self.started = False
         del self._runs_task_group, self._loops_task_group
 
     def __repr__(self):
