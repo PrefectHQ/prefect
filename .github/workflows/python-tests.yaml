@@ -153,9 +153,11 @@ jobs:
           echo "artifact_name=coverage-data-${sanitized_test_type}-${{ matrix.python-version }}-${sanitized_database}" >> $GITHUB_OUTPUT
 
       - name: Run tests
+        env:
+          PYTHONUNBUFFERED: 1
         run: |
           echo "Using COVERAGE_FILE=$COVERAGE_FILE"
-          pytest ${{ matrix.test-type.modules }} \
+          pytest -vv ${{ matrix.test-type.modules }} \
           --numprocesses auto \
           --maxprocesses 6 \
           --dist worksteal \
