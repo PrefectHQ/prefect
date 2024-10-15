@@ -49,7 +49,7 @@ def run_flows(search_path: Union[str, Path]):
         print(stdout)
         print(stderr)
         if error:
-            print(f"Error: {error}")
+            raise error
         print("".center(90, "-") + "\n", flush=True)
         count += 1
 
