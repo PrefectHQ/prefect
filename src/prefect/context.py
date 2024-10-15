@@ -8,7 +8,6 @@ For more user-accessible information about the current run, see [`prefect.runtim
 
 import os
 import sys
-import warnings
 from contextlib import ExitStack, asynccontextmanager, contextmanager
 from contextvars import ContextVar, Token
 from typing import (
@@ -453,23 +452,6 @@ class SettingsContext(ContextModel):
     def __hash__(self) -> int:
         return hash(self.settings)
 
-    def __enter__(self):
-        """
-        Upon entrance, we ensure the home directory for the profile exists.
-        """
-        return_value = super().__enter__()
-
-        try:
-            prefect_home = self.settings.home
-            prefect_home.mkdir(mode=0o0700, exist_ok=True)
-        except OSError:
-            warnings.warn(
-                (f"Failed to create the Prefect home directory at {prefect_home}"),
-                stacklevel=2,
-            )
-
-        return return_value
-
     @classmethod
     def get(cls) -> "SettingsContext":
         # Return the global context instead of `None` if no context exists
@@ -567,9 +549,9 @@ def tags(*new_tags: str) -> Generator[Set[str], None, None]:
         {"a", "b", "c", "d", "e", "f"}
     """
     current_tags = TagsContext.get().current_tags
-    new_tags = current_tags.union(new_tags)
-    with TagsContext(current_tags=new_tags):
-        yield new_tags
+    _new_tags = current_tags.union(new_tags)
+    with TagsContext(current_tags=_new_tags):
+        yield _new_tags
 
 
 @contextmanager

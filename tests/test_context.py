@@ -213,14 +213,6 @@ class TestSettingsContext:
         with pytest.raises(MissingContextError, match="No settings context found"):
             get_settings_context()
 
-    def test_creates_home(self, tmp_path):
-        home = tmp_path / "home"
-        assert not home.exists()
-        with temporary_settings(updates={PREFECT_HOME: home}):
-            pass
-
-        assert home.exists()
-
     def test_settings_context_uses_settings(self, temporary_profiles_path):
         temporary_profiles_path.write_text(
             textwrap.dedent(

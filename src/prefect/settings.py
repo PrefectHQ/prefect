@@ -1508,13 +1508,25 @@ class Settings(BaseSettings):
         return self
 
     @model_validator(mode="after")
-    def emit_warnings(self):
+    def emit_warnings(self) -> Self:
         """More post-hoc validation of settings, including warnings for misconfigurations."""
         values = self.model_dump()
         values = max_log_size_smaller_than_batch_size(values)
         values = warn_on_database_password_value_without_usage(values)
         if not self.silence_api_url_misconfiguration:
             values = warn_on_misconfigured_api_url(values)
+        return self
+
+    @model_validator(mode="after")
+    def set_home(self) -> Self:
+        """Set the home directory for the settings."""
+        try:
+            self.home.mkdir(mode=0o0700, exist_ok=True)
+        except OSError:
+            warnings.warn(
+                (f"Failed to create the Prefect home directory at {self.home}"),
+                stacklevel=2,
+            )
         return self
 
     ##########################################################################
