@@ -148,7 +148,7 @@ jobs:
           sanitized_database="${{ matrix.database }}"
           sanitized_database="${sanitized_database//:/\-}"
           sanitized_python_version="${{ matrix.python-version }}"
-          export COVERAGE_FILE="coverage.${sanitized_test_type}.${sanitized_python_version}.${sanitized_database}"
+          export COVERAGE_FILE=".coverage.${sanitized_test_type}.${sanitized_python_version}.${sanitized_database}"
           echo "COVERAGE_FILE=${COVERAGE_FILE}" >> $GITHUB_ENV
           echo "artifact_name=coverage-data-${sanitized_test_type}-${{ matrix.python-version }}-${sanitized_database}" >> $GITHUB_OUTPUT
 
@@ -173,7 +173,7 @@ jobs:
         with:
           name: ${{ steps.set_coverage_and_artifact_name.outputs.artifact_name }}
           path: ${{ env.COVERAGE_FILE }}
-
+          include-hidden-files: true
       - name: Create and Upload failure flag
         if: ${{ failure() }}
         id: create_failure_flag
@@ -328,7 +328,7 @@ jobs:
           sanitized_database="${{ matrix.database }}"
           sanitized_database="${sanitized_database//:/\-}"
           sanitized_python_version="${{ matrix.python-version }}"
-          export COVERAGE_FILE="coverage.${sanitized_python_version}.${sanitized_database}"
+          export COVERAGE_FILE=".coverage.${sanitized_python_version}.${sanitized_database}"
           echo "COVERAGE_FILE=${COVERAGE_FILE}" >> $GITHUB_ENV
           echo "artifact_name=coverage-data-docker-${{ matrix.python-version }}-${sanitized_database}" >> $GITHUB_OUTPUT
 
@@ -352,6 +352,7 @@ jobs:
         with:
           name: ${{ steps.set_coverage_and_artifact_name.outputs.artifact_name }}
           path: ${{ env.COVERAGE_FILE }}
+          include-hidden-files: true
 
       - name: Create and Upload failure flag
         if: ${{ failure() }}
@@ -396,7 +397,6 @@ jobs:
       - name: Combine coverage data
         run: |
           coverage combine .coverage.*
-          coverage xml
           coverage html
 
       - name: Upload combined coverage report
@@ -404,11 +404,3 @@ jobs:
         with:
           name: combined-coverage-report
           path: htmlcov/
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          files: coverage.xml
-          flags: unittests
-          name: codecov-umbrella
-          fail_ci_if_error: true
