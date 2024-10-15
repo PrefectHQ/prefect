@@ -453,23 +453,6 @@ class SettingsContext(ContextModel):
     def __hash__(self) -> int:
         return hash(self.settings)
 
-    def __enter__(self):
-        """
-        Upon entrance, we ensure the home directory for the profile exists.
-        """
-        return_value = super().__enter__()
-
-        try:
-            prefect_home = self.settings.home
-            prefect_home.mkdir(mode=0o0700, exist_ok=True)
-        except OSError:
-            warnings.warn(
-                (f"Failed to create the Prefect home directory at {prefect_home}"),
-                stacklevel=2,
-            )
-
-        return return_value
-
     @classmethod
     def get(cls) -> "SettingsContext":
         # Return the global context instead of `None` if no context exists
@@ -567,9 +550,9 @@ def tags(*new_tags: str) -> Generator[Set[str], None, None]:
         {"a", "b", "c", "d", "e", "f"}
     """
     current_tags = TagsContext.get().current_tags
-    new_tags = current_tags.union(new_tags)
-    with TagsContext(current_tags=new_tags):
-        yield new_tags
+    _new_tags = current_tags.union(new_tags)
+    with TagsContext(current_tags=_new_tags):
+        yield _new_tags
 
 
 @contextmanager
@@ -659,7 +642,16 @@ def root_settings_context():
         )
         active_name = "ephemeral"
 
-    return SettingsContext(profile=profiles[active_name], settings=Settings())
+    if not (settings := Settings()).home.exists():
+        try:
+            settings.home.mkdir(mode=0o0700, exist_ok=True)
+        except OSError:
+            warnings.warn(
+                (f"Failed to create the Prefect home directory at {settings.home}"),
+                stacklevel=2,
+            )
+
+    return SettingsContext(profile=profiles[active_name], settings=settings)
 
     # Note the above context is exited and the global settings context is used by
     # an override in the `SettingsContext.get` method.
