@@ -150,7 +150,7 @@ jobs:
           sanitized_python_version="${{ matrix.python-version }}"
           export COVERAGE_FILE="coverage.${sanitized_test_type}.${sanitized_python_version}.${sanitized_database}"
           echo "COVERAGE_FILE=${COVERAGE_FILE}" >> $GITHUB_ENV
-          echo "artifact_name=coverage-data-${{ sanitized_test_type }}-${{ matrix.python-version }}-${{ sanitized_database }}" >> $GITHUB_OUTPUT
+          echo "artifact_name=coverage-data-${sanitized_test_type}-${{ matrix.python-version }}-${sanitized_database}" >> $GITHUB_OUTPUT
 
       - name: Run tests
         env:
@@ -330,7 +330,7 @@ jobs:
           sanitized_python_version="${{ matrix.python-version }}"
           export COVERAGE_FILE="coverage.${sanitized_python_version}.${sanitized_database}"
           echo "COVERAGE_FILE=${COVERAGE_FILE}" >> $GITHUB_ENV
-          echo "artifact_name=coverage-data-docker-${{ matrix.python-version }}-${{ sanitized_database }}" >> $GITHUB_OUTPUT
+          echo "artifact_name=coverage-data-docker-${{ matrix.python-version }}-${sanitized_database}" >> $GITHUB_OUTPUT
 
       - name: Run tests
         env:
