@@ -34,12 +34,11 @@ jobs:
       fail-fast: false
       matrix:
         server-version: [
-          # These versions correspond to Prefect image tags, the patch version is
-          # excluded to always pull the latest patch of each minor version.  The ref
-          # should generally be set to the latest patch release for that version.
-          {version: "2.19", ref: "2.19.2", image: "prefecthq/prefect:2.19-python3.10"},
-          {version: "main", ref: "main"},
-        ]
+            # These versions correspond to Prefect image tags, the patch version is
+            # excluded to always pull the latest patch of each minor version.  The ref
+            # should generally be set to the latest patch release for that version.
+            { version: "main", ref: "main" },
+          ]
 
     steps:
       - uses: actions/checkout@v4

@@ -1,10 +1,11 @@
 from prefect import flow, task
+from prefect.cache_policies import INPUTS, TASK_SOURCE
 
 flow_run_count = 0
 task_run_count = 0
 
 
-@task
+@task(cache_policy=INPUTS + TASK_SOURCE)
 def happy_task():
     global task_run_count
     task_run_count += 1

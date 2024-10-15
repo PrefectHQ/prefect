@@ -28,8 +28,13 @@ DEFAULT_PATH = prefect.__development_base_path__ / "flows"
 
 def run_script(script_path: str):
     print(f" {script_path} ".center(90, "-"), flush=True)
-    result = subprocess.run(["python", script_path], capture_output=True, text=True)
-    return result.stdout, result.stderr
+    try:
+        result = subprocess.run(
+            ["uv", "run", script_path], capture_output=True, text=True, check=True
+        )
+        return result.stdout, result.stderr, None
+    except subprocess.CalledProcessError as e:
+        return e.stdout, e.stderr, e
 
 
 def run_flows(search_path: Union[str, Path]):
@@ -39,10 +44,12 @@ def run_flows(search_path: Union[str, Path]):
     with ProcessPoolExecutor(max_workers=4) as executor:
         results = list(executor.map(run_script, scripts))
 
-    for script, (stdout, stderr) in zip(scripts, results):
+    for script, (stdout, stderr, error) in zip(scripts, results):
         print(f" {script.relative_to(search_path)} ".center(90, "-"), flush=True)
         print(stdout)
         print(stderr)
+        if error:
+            raise error
         print("".center(90, "-") + "\n", flush=True)
         count += 1
 
