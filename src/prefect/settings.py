@@ -1508,7 +1508,7 @@ class Settings(BaseSettings):
         return self
 
     @model_validator(mode="after")
-    def emit_warnings(self):
+    def emit_warnings(self) -> Self:
         """More post-hoc validation of settings, including warnings for misconfigurations."""
         values = self.model_dump()
         values = max_log_size_smaller_than_batch_size(values)
