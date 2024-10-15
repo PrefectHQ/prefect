@@ -166,6 +166,7 @@ jobs:
           --exclude-service docker \
           --durations 26 \
           --cov=prefect
+          --cov-branch
 
       - name: Upload coverage data
         uses: actions/upload-artifact@v4
@@ -344,6 +345,7 @@ jobs:
           --only-service docker \
           --durations 26 \
           --cov=prefect
+          --cov-branch
 
       - name: Upload coverage data
         uses: actions/upload-artifact@v4
