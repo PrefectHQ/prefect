@@ -175,6 +175,7 @@ jobs:
           name: ${{ steps.set_coverage_and_artifact_name.outputs.artifact_name }}
           path: ${{ env.COVERAGE_FILE }}
           include-hidden-files: true
+
       - name: Create and Upload failure flag
         if: ${{ failure() }}
         id: create_failure_flag
