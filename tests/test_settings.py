@@ -46,7 +46,7 @@ from prefect.settings import (
     Profile,
     ProfilesCollection,
     Settings,
-    env_var_to_attr_name,
+    env_var_to_accessor,
     get_current_settings,
     load_profile,
     load_profiles,
@@ -1332,10 +1332,10 @@ class TestSettingValues:
         # create new root context to pick up the env var changes
         warnings.filterwarnings("ignore", category=UserWarning)
         with prefect.context.root_settings_context():
-            field_name = env_var_to_attr_name(setting)
+            field_name = env_var_to_accessor(setting)
             current_settings = get_current_settings()
             # get value from settings object
-            settings_value = getattr(current_settings, field_name)
+            settings_value = get_from_dict(current_settings.model_dump(), field_name)
 
             if isinstance(settings_value, pydantic.SecretStr):
                 settings_value = settings_value.get_secret_value()
