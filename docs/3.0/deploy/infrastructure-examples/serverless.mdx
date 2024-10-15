@@ -261,7 +261,7 @@ run this command for your particular cloud provider:
     In your Azure account, this command creates a resource group, app registration, service account with necessary permission, 
     generates a secret for the app registration, and creates an Azure Container Registry, (if they don't already exist).
     In your Prefect workspace, this command creates an 
-    [`AzureContainerInstanceCredentials` block](https://prefecthq.github.io/prefect-azure/credentials/#prefect_azure.credentials.AzureContainerInstanceCredentials) 
+    [`AzureContainerInstanceCredentials` block](/integrations/prefect-azure) 
     to store the client secret value from the generated secret.
 
     Here's an abbreviated example output from running the command:
@@ -346,7 +346,7 @@ configures it to execute flows through Cloud Run.
 In your GCP project, this command activates the Cloud Run API, creates a service account, and creates a key for the 
 service account, (if they don't already exist).
 In your Prefect workspace, this command creates a 
-[`GCPCredentials` block](https://prefecthq.github.io/prefect-gcp/credentials/) to store the service account key.
+[`GCPCredentials` block](/integrations/prefect-gcp/index#authenticate-using-a-gcp-credentials-block) to store the service account key.
 
 Here's an abbreviated example output from running the command:
 
