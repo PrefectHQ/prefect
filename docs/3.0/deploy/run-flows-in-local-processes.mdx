@@ -3,8 +3,7 @@ title: Run flows in local processes
 description: Create a deployment for a flow by calling the `serve` method.
 ---
 
-The simplest way to create a [deployment](/3.0/deploy/infrastructure-examples/docker/) for your 
-flow is by calling its `serve` method.
+The simplest way to create a [deployment](/3.0/deploy/infrastructure-examples/docker/) for your flow is by calling its `serve` method.
 
 ## Serve a flow
 
@@ -29,9 +28,10 @@ if __name__ == "__main__":
     # generated on the server
 
     hello_world.serve(name="my-first-deployment",
-                      tags=["onboarding"],
-                      parameters={"goodbye": True},
-                      interval=60)
+        tags=["onboarding"],
+        parameters={"goodbye": True},
+        interval=60
+    )
 ```
 
 This interface provides the configuration for a deployment (with no 
@@ -156,8 +156,7 @@ Read more about our [hybrid model](https://www.prefect.io/security/overview/#hyb
 
 You can retrieve flows from remote storage with the `flow.from_source` method.
 
-`flow.from_source` accepts a git repository URL and an entrypoint pointing to the 
-flow to load from the repository:
+`flow.from_source` can accept a git repository URL and an entrypoint pointing to the flow to load from the repository:
 
 ```python load_from_url.py
 from prefect import flow
@@ -179,38 +178,14 @@ if __name__ == "__main__":
 16:40:34.706 | INFO    | Flow run 'muscular-perch' - Finished in state Completed()
 ```
 
-A flow entrypoint is the path to the file where the flow is located, and the name of the
-flow function separated by a colon.
+A flow entrypoint is the path to the file where the flow is located, and the name of the flow function separated by a colon.
 
-For additional configuration, such as specifying a private repository, 
-provide a `GitRepository` object instead of URL:
-
-```python load_from_storage.py
-from prefect import flow
-from prefect.runner.storage import GitRepository
-from prefect.blocks.system import Secret
-
-
-my_flow = flow.from_source(
-    source=GitRepository(
-        url="https://github.com/org/private-repo.git",
-        branch="dev",
-        credentials={
-            "access_token": Secret.load("github-access-token").get()
-        }
-    ),
-    entrypoint="flows.py:my_flow"
-)
-
-
-if __name__ == "__main__":
-    my_flow()
-```
+For more ways to store and access flow code, see the [Retrieve code from storage page](/3.0/deploy/infrastructure-concepts/store-flow-code).
 
 <Tip>
 **You can serve loaded flows**
 
-You can serve a flow loaded from remote storage with the same [`serve`](#serving-a-flow) method as a local flow:
+You can serve a flow loaded from remote storage with the same [`serve`](#serve-a-flow) method as a local flow:
 
 ```python serve_loaded_flow.py
 from prefect import flow
@@ -224,7 +199,19 @@ if __name__ == "__main__":
 ```
 </Tip>
 
-When you serve a flow loaded from remote storage, the serving process 
-periodically polls your remote storage for updates to the flow's code. 
-This pattern allows you to update your flow code without restarting the serving 
-process.
+When you serve a flow loaded from remote storage, the serving process periodically polls your remote storage for updates to the flow's code. 
+This pattern allows you to update your flow code without restarting the serving process.
+Note that if you change the parameters to your flow, you'll need to restart the serving process.
+
+## If you need dynamic infrastructure
+
+For more configuration, you can create a deployment that uses a work pool. 
+Reasons to create a work-pool based deployment include:
+
+- Wanting to run your flow on dynamically provisioned infrastructure
+- Needing more control over the execution environment on a per-flow run basis
+- Creating an infrastructure template to use across deployments
+
+Work pools are popular with data platform teams because they allow you to manage infrastructure configuration across an organization.
+
+Learn more about work-pool based deployments on the [Configure dynamic infrastructure with work pools page](/3.0/deploy/infrastructure-concepts/work-pools)

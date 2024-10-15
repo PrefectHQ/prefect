@@ -12,6 +12,7 @@ for settings, at which point we will not need to use the "after" model_validator
 
 import os
 import re
+import sys
 import warnings
 from contextlib import contextmanager
 from datetime import timedelta
@@ -51,7 +52,12 @@ from pydantic import (
     model_serializer,
     model_validator,
 )
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic.fields import FieldInfo
+from pydantic_settings import (
+    BaseSettings,
+    PydanticBaseSettingsSource,
+    SettingsConfigDict,
+)
 from typing_extensions import Literal, Self
 
 from prefect.exceptions import ProfileSettingsValidationError
@@ -60,24 +66,10 @@ from prefect.utilities.collections import visit_collection
 from prefect.utilities.pydantic import handle_secret_render
 
 T = TypeVar("T")
+
+DEFAULT_PREFECT_HOME = Path.home() / ".prefect"
 DEFAULT_PROFILES_PATH = Path(__file__).parent.joinpath("profiles.toml")
 _SECRET_TYPES: Tuple[Type, ...] = (Secret, SecretStr)
-
-# see #https://github.com/pydantic/pydantic/issues/9789
-# these fields will show as "set" even though we are only setting them
-# to their default values in an after model validator
-DEFAULT_DEPENDENT_SETTINGS = [
-    "PREFECT_UI_URL",
-    "PREFECT_UI_API_URL",
-    "PREFECT_LOGGING_SETTINGS_PATH",
-    "PREFECT_API_DATABASE_CONNECTION_URL",
-    "PREFECT_LOCAL_STORAGE_PATH",
-    "PREFECT_LOGGING_INTERNAL_LEVEL",
-    "PREFECT_LOGGING_LEVEL",
-    "PREFECT_PROFILES_PATH",
-    "PREFECT_CLOUD_UI_URL",
-    "PREFECT_MEMO_STORE_PATH",
-]
 
 
 def env_var_to_attr_name(env_var: str) -> str:
@@ -85,6 +77,11 @@ def env_var_to_attr_name(env_var: str) -> str:
     Convert an environment variable name to an attribute name.
     """
     return env_var.replace("PREFECT_", "").lower()
+
+
+def is_test_mode() -> bool:
+    """Check if the current process is in test mode."""
+    return bool(os.getenv("PREFECT_TEST_MODE") or os.getenv("PREFECT_UNIT_TEST_MODE"))
 
 
 class Setting:
@@ -326,14 +323,128 @@ def default_database_connection_url(settings: "Settings") -> SecretStr:
 
 
 ###########################################################################
+# Settings Loader
+
+
+def _get_profiles_path() -> Path:
+    """Helper to get the profiles path"""
+
+    if is_test_mode():
+        return DEFAULT_PROFILES_PATH
+    if env_path := os.getenv("PREFECT_PROFILES_PATH"):
+        return Path(env_path)
+    if not (DEFAULT_PREFECT_HOME / "profiles.toml").exists():
+        return DEFAULT_PROFILES_PATH
+    return DEFAULT_PREFECT_HOME / "profiles.toml"
+
+
+class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
+    """
+    Custom pydantic settings source to load profile settings from a toml file.
+
+    See https://docs.pydantic.dev/latest/concepts/pydantic_settings/#customise-settings-sources
+    """
+
+    def __init__(self, settings_cls: Type[BaseSettings]):
+        super().__init__(settings_cls)
+        self.settings_cls = settings_cls
+        self.profiles_path = _get_profiles_path()
+        self.profile_settings = self._load_profile_settings()
+
+    def _load_profile_settings(self) -> Dict[str, Any]:
+        """Helper method to load the profile settings from the profiles.toml file"""
+
+        if not self.profiles_path.exists():
+            return {}
+
+        try:
+            all_profile_data = toml.load(self.profiles_path)
+        except toml.TomlDecodeError:
+            warnings.warn(
+                f"Failed to load profiles from {self.profiles_path}. Please ensure the file is valid TOML."
+            )
+            return {}
+
+        if (
+            sys.argv[0].endswith("/prefect")
+            and len(sys.argv) >= 3
+            and sys.argv[1] == "--profile"
+        ):
+            active_profile = sys.argv[2]
+
+        else:
+            active_profile = os.environ.get("PREFECT_PROFILE") or all_profile_data.get(
+                "active"
+            )
+
+        profiles_data = all_profile_data.get("profiles", {})
+
+        if not active_profile or active_profile not in profiles_data:
+            return {}
+        return profiles_data[active_profile]
+
+    def get_field_value(
+        self, field: FieldInfo, field_name: str
+    ) -> Tuple[Any, str, bool]:
+        """Concrete implementation to get the field value from the profile settings"""
+        value = self.profile_settings.get(f"PREFECT_{field_name.upper()}")
+        return value, field_name, self.field_is_complex(field)
+
+    def __call__(self) -> Dict[str, Any]:
+        """Called by pydantic to get the settings from our custom source"""
+        if is_test_mode():
+            return {}
+        profile_settings: Dict[str, Any] = {}
+        for field_name, field in self.settings_cls.model_fields.items():
+            value, key, is_complex = self.get_field_value(field, field_name)
+            if value is not None:
+                prepared_value = self.prepare_field_value(
+                    field_name, field, value, is_complex
+                )
+                profile_settings[key] = prepared_value
+        return profile_settings
+
+
+###########################################################################
 # Settings
 
 
 class Settings(BaseSettings):
+    """
+    Settings for Prefect using Pydantic settings.
+
+    See https://docs.pydantic.dev/latest/concepts/pydantic_settings
+    """
+
     model_config = SettingsConfigDict(
+        env_file=".env",
         env_prefix="PREFECT_",
         extra="ignore",
     )
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: Type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> Tuple[PydanticBaseSettingsSource, ...]:
+        """
+        Define an order for Prefect settings sources.
+
+        The order of the returned callables decides the priority of inputs; first item is the highest priority.
+
+        See https://docs.pydantic.dev/latest/concepts/pydantic_settings/#customise-settings-sources
+        """
+        return (
+            init_settings,
+            env_settings,
+            dotenv_settings,
+            file_secret_settings,
+            ProfileSettingsTomlLoader(settings_cls),
+        )
 
     ###########################################################################
     # CLI
@@ -474,7 +585,10 @@ class Settings(BaseSettings):
         Literal["postgresql+asyncpg", "sqlite+aiosqlite"]
     ] = Field(
         default=None,
-        description="The database driver to use when connecting to the database. If not set, the driver will be inferred from the connection URL.",
+        description=(
+            "The database driver to use when connecting to the database. "
+            "If not set, the driver will be inferred from the connection URL."
+        ),
     )
 
     api_database_host: Optional[str] = Field(
@@ -1327,37 +1441,50 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def post_hoc_settings(self) -> Self:
-        # TODO: refactor on resolution of https://github.com/pydantic/pydantic/issues/9789
+        """refactor on resolution of https://github.com/pydantic/pydantic/issues/9789
+
+        we should not be modifying __pydantic_fields_set__ directly, but until we can
+        define dependencies between defaults in a first-class way, we need clean up
+        post-hoc default assignments to keep set/unset fields correct after instantiation.
+        """
         if self.cloud_ui_url is None:
             self.cloud_ui_url = default_cloud_ui_url(self)
+            self.__pydantic_fields_set__.remove("cloud_ui_url")
+
         if self.ui_url is None:
             self.ui_url = default_ui_url(self)
+            self.__pydantic_fields_set__.remove("ui_url")
         if self.ui_api_url is None:
             if self.api_url:
                 self.ui_api_url = self.api_url
+                self.__pydantic_fields_set__.remove("ui_api_url")
             else:
                 self.ui_api_url = (
                     f"http://{self.server_api_host}:{self.server_api_port}"
                 )
-
+                self.__pydantic_fields_set__.remove("ui_api_url")
         if self.profiles_path is None or "PREFECT_HOME" in str(self.profiles_path):
             self.profiles_path = Path(f"{self.home}/profiles.toml")
+            self.__pydantic_fields_set__.remove("profiles_path")
         if self.local_storage_path is None:
             self.local_storage_path = Path(f"{self.home}/storage")
+            self.__pydantic_fields_set__.remove("local_storage_path")
         if self.memo_store_path is None:
             self.memo_store_path = Path(f"{self.home}/memo_store.toml")
-
+            self.__pydantic_fields_set__.remove("memo_store_path")
         if self.debug_mode or self.test_mode:
             self.logging_level = "DEBUG"
             self.logging_internal_level = "DEBUG"
+            self.__pydantic_fields_set__.remove("logging_level")
+            self.__pydantic_fields_set__.remove("logging_internal_level")
 
         if self.logging_settings_path is None:
             self.logging_settings_path = Path(f"{self.home}/logging.yml")
-
+            self.__pydantic_fields_set__.remove("logging_settings_path")
         # Set default database connection URL if not provided
         if self.api_database_connection_url is None:
             self.api_database_connection_url = default_database_connection_url(self)
-
+            self.__pydantic_fields_set__.remove("api_database_connection_url")
         if "PREFECT_API_DATABASE_PASSWORD" in (
             db_url := (
                 self.api_database_connection_url.get_secret_value()
@@ -1377,11 +1504,11 @@ class Settings(BaseSettings):
                 if self.api_database_password
                 else ""
             )
-
+            self.__pydantic_fields_set__.remove("api_database_connection_url")
         return self
 
     @model_validator(mode="after")
-    def emit_warnings(self):
+    def emit_warnings(self) -> Self:
         """More post-hoc validation of settings, including warnings for misconfigurations."""
         values = self.model_dump()
         values = max_log_size_smaller_than_batch_size(values)
@@ -1572,9 +1699,7 @@ def temporary_settings(
     context = prefect.context.get_settings_context()
 
     if not restore_defaults:
-        restore_defaults = [
-            SETTING_VARIABLES[key] for key in DEFAULT_DEPENDENT_SETTINGS
-        ]
+        restore_defaults = []
 
     new_settings = context.settings.copy_with_update(
         updates=updates, set_defaults=set_defaults, restore_defaults=restore_defaults
@@ -1806,6 +1931,7 @@ def _write_profiles_to(path: Path, profiles: ProfilesCollection) -> None:
     Any existing data not present in the given `profiles` will be deleted.
     """
     if not path.exists():
+        path.parent.mkdir(parents=True, exist_ok=True)
         path.touch(mode=0o600)
     path.write_text(toml.dumps(profiles.to_dict()))
 

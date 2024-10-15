@@ -1155,7 +1155,7 @@ class BaseResult(BaseModel, abc.ABC, Generic[R]):
             try:
                 subcls = lookup_type(cls, dispatch_key=kwargs["type"])
             except KeyError as exc:
-                raise ValidationError(errors=[exc], model=cls)
+                raise ValueError(f"Invalid type: {kwargs['type']}") from exc
             return super().__new__(subcls)
         else:
             return super().__new__(cls)

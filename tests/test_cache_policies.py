@@ -210,18 +210,17 @@ class TestTaskSourcePolicy:
         task_ctx_a = TaskRunContext.model_construct(task=mock_task_a)
         task_ctx_b = TaskRunContext.model_construct(task=mock_task_b)
 
-        with patch(
-            "inspect.getsource", side_effect=OSError("could not get source code")
-        ):
-            fallback_key_a = policy.compute_key(
-                task_ctx=task_ctx_a, inputs=None, flow_parameters=None
-            )
-            fallback_key_b = policy.compute_key(
-                task_ctx=task_ctx_b, inputs=None, flow_parameters=None
-            )
+        for os_error_msg in {"could not get source code", "source code not available"}:
+            with patch("inspect.getsource", side_effect=OSError(os_error_msg)):
+                fallback_key_a = policy.compute_key(
+                    task_ctx=task_ctx_a, inputs=None, flow_parameters=None
+                )
+                fallback_key_b = policy.compute_key(
+                    task_ctx=task_ctx_b, inputs=None, flow_parameters=None
+                )
 
-        assert fallback_key_a and fallback_key_b
-        assert fallback_key_a != fallback_key_b
+            assert fallback_key_a and fallback_key_b
+            assert fallback_key_a != fallback_key_b
 
 
 class TestDefaultPolicy:

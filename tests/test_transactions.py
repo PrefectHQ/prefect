@@ -1,5 +1,6 @@
 import threading
 import uuid
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -84,6 +85,26 @@ class TestGetParent:
             with Transaction(key="inner") as inner:
                 assert inner.get_parent() == outer
             assert outer.get_parent() is None
+
+    def test_get_parent_works_in_rollback_hook_after_success(self):
+        """
+        This is a regression test for https://github.com/PrefectHQ/prefect/issues/15593
+        """
+        spy = MagicMock()
+
+        def hook(txn):
+            spy(txn.get_parent())
+
+        try:
+            with Transaction() as outer:
+                with Transaction(key="inner_with_rollback") as inner_with_rollback:
+                    inner_with_rollback.stage("foo", on_rollback_hooks=[hook])
+                with Transaction(key="inner_trouble_maker"):
+                    raise ValueError("I'm acting out because I'm misunderstood.")
+        except ValueError:
+            pass
+
+        spy.assert_called_once_with(outer)
 
 
 class TestCommitMode:

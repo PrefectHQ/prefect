@@ -3,14 +3,11 @@ title: Configure settings and profiles
 description: Prefect settings let you customize your workflow environment, including your Cloud and self-hosted server preferences.
 ---
 
-Many of Prefect's features - especially interactions with the API - require configuration.
-Configuration can be set through two mechanisms:
-- **environment variables**: Prefect settings are always prefixed with `PREFECT_`. Using environment variables
-is most useful when configuring the runtime environment of a workflow or when updating settings temporarily
-for a single session.
-- **Prefect profiles**: Prefect profiles store your preferred settings locally, and allow you to switch
-between common groups of configuration. For example, you can switch between a self-hosted Prefect server instance and a
-Prefect Cloud account.
+Many of Prefect's features—especially interactions with the API—require configuration. You can configure settings through the following methods:
+
+- **Environment Variables**: All Prefect settings can be set using environment variables prefixed with `PREFECT_`. Environment variables are useful for temporarily overriding settings or configuring the runtime environment of a workflow. They take precedence over profile settings, making them ideal for adjustments that should only apply to a single session or process. These can also be set in a `.env` file, which will be automatically applied when using `prefect` in that directory.
+
+- **Profiles**: Prefect profiles store sets of settings locally on your machine. When you activate a profile, its settings are applied, allowing you to switch easily between different configurations. For example, you might use one profile for a self-hosted Prefect server and another for Prefect Cloud.
 
 To view all available settings and their active values from the command line, run:
 
@@ -18,17 +15,41 @@ To view all available settings and their active values from the command line, ru
 prefect config view --show-defaults
 ```
 
-These settings are type-validated and [documented](https://prefect-python-sdk-docs.netlify.app/prefect/settings/).
+These settings are type-validated and you may verify your setup at any time with:
+
+```bash
+prefect config validate
+```
 
 ## Manage profiles
 
 Prefect profiles are persisted groups of settings on your local machine. 
 By default these settings are stored in a [TOML](https://toml.io/en/) file located at `~/.prefect/profiles.toml`.
-This location can be configured through the setting `PREFECT_PROFILES_PATH`. 
-One and only one profile can be active at any time.
-Initially, a `default` profile is active and contains no settings overrides.
+This location can be configured by setting `PREFECT_PROFILES_PATH`.
 
-The `prefect profile` CLI commands enable you to create, review, and manage profiles.
+One and only one profile can be active at any time.
+
+Immediately after installation, the `ephemeral` profile will be used, which only has 1 setting configured:
+```bash
+» docker run -it prefecthq/prefect:3-latest
+  ___ ___ ___ ___ ___ ___ _____
+ | _ \ _ \ __| __| __/ __|_   _|
+ |  _/   / _|| _|| _| (__  | |
+ |_| |_|_\___|_| |___\___| |_|
+
+
+root@e56e34ab8934:/opt/prefect $ prefect config view
+PREFECT_PROFILE='ephemeral'
+PREFECT_SERVER_ALLOW_EPHEMERAL_MODE='True' (from profile)
+```
+
+<Tip>
+**What is `PREFECT_SERVER_ALLOW_EPHEMERAL_MODE`?**
+
+This setting allows a Prefect server to be run ephemerally as needed without explicitly starting a server process.
+</Tip>
+
+The `prefect profile` CLI commands enable you to create, review, and manage profiles:
 
 | Command | Description |
 | --- | --- |
@@ -40,7 +61,12 @@ The `prefect profile` CLI commands enable you to create, review, and manage prof
 | `use` | Switch the active profile. |
 | `populate-defaults` | Populate your `profiles.toml` file with opinionated stock profiles. |
 
-### Configure settings
+... or you may edit your `profiles.toml` file directly:
+```bash
+vim ~/.prefect/profiles.toml
+```
+
+### Configure settings for the active profile
 
 The `prefect config` CLI commands enable you to manage the settings within the currently active profile.
 
@@ -50,30 +76,40 @@ The `prefect config` CLI commands enable you to manage the settings within the c
 | unset | Restore the default value for a setting. |
 | view | Display the current settings. |
 
-For example, the following CLI commands set configuration in the `default` profile and then create a new
+For example, the following CLI commands set configuration in the `ephemeral` profile and then create a new
 profile with new settings:
 
 ```bash
-prefect profile use default
+prefect profile use ephemeral
 prefect config set PREFECT_API_URL=http://127.0.0.1:4200/api
 
-prefect profile create new-profile --from default
+prefect profile create new-profile --from ephemeral
 prefect profile use new-profile
 prefect config set PREFECT_RESULTS_PERSIST_BY_DEFAULT=true PREFECT_LOGGING_LEVEL="ERROR"
 
 prefect profile inspect
-prefect config unset PREFECT_LOGGING_LEVEL="ERROR" -y
+prefect config unset PREFECT_LOGGING_LEVEL -y
 ```
 
-### Use Environment variables
+### Use environment variables
 
-All settings have keys that match the name of the environment variable that can be used to override them.
+All settings can be overridden by setting the environment variable directly.
 
+#### Override a setting for a single command
 For example, we can temporarily set the logging level through an environment variable so that it 
 only lasts for the duration of the command:
 
 ```bash
 PREFECT_LOGGING_LEVEL="CRITICAL" prefect config view --show-sources
+```
+
+#### Override settings in a `.env` file
+
+You can also set environment variables in a `.env` file, which will be automatically applied when using `prefect` in that directory.
+
+```bash
+echo 'PREFECT_LOGGING_LEVEL="CRITICAL"' > .env
+prefect config view --show-sources
 ```
 
 <Tip>
@@ -90,9 +126,9 @@ This section describes some commonly configured settings.
 
 ### Prefect Cloud
 
-- **`PREFECT_API_KEY`**: the `PREFECT_API_KEY` value specifies the 
+- **`PREFECT_API_KEY`**: this setting specifies the 
 [API key](/3.0/manage/cloud/manage-users/api-keys/) used to authenticate with Prefect Cloud.
-- **`PREFECT_API_URL`**: the `PREFECT_API_URL` value specifies the API endpoint of your 
+- **`PREFECT_API_URL`**: this setting specifies the API endpoint of your 
 Prefect Cloud workspace or a self-hosted Prefect server instance.
 
 <Tip>
