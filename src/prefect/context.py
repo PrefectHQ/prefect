@@ -8,6 +8,7 @@ For more user-accessible information about the current run, see [`prefect.runtim
 
 import os
 import sys
+import warnings
 from contextlib import ExitStack, asynccontextmanager, contextmanager
 from contextvars import ContextVar, Token
 from typing import (
@@ -641,7 +642,16 @@ def root_settings_context():
         )
         active_name = "ephemeral"
 
-    return SettingsContext(profile=profiles[active_name], settings=Settings())
+    if not (settings := Settings()).home.exists():
+        try:
+            settings.home.mkdir(mode=0o0700, exist_ok=True)
+        except OSError:
+            warnings.warn(
+                (f"Failed to create the Prefect home directory at {settings.home}"),
+                stacklevel=2,
+            )
+
+    return SettingsContext(profile=profiles[active_name], settings=settings)
 
     # Note the above context is exited and the global settings context is used by
     # an override in the `SettingsContext.get` method.

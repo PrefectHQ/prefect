@@ -1517,18 +1517,6 @@ class Settings(BaseSettings):
             values = warn_on_misconfigured_api_url(values)
         return self
 
-    @model_validator(mode="after")
-    def set_home(self) -> Self:
-        """Set the home directory for the settings."""
-        try:
-            self.home.mkdir(mode=0o0700, exist_ok=True)
-        except OSError:
-            warnings.warn(
-                (f"Failed to create the Prefect home directory at {self.home}"),
-                stacklevel=2,
-            )
-        return self
-
     ##########################################################################
     # Settings methods
 

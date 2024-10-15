@@ -460,11 +460,6 @@ class TestSettingsClass:
             set(Settings().valid_setting_names()) == set(SUPPORTED_SETTINGS.keys())
         ), "valid_setting_names output did not match supported settings. Please update SUPPORTED_SETTINGS if you are adding or removing a setting."
 
-    def test_instantiation_creates_home(self, tmp_path):
-        settings = Settings(home=tmp_path)
-        assert settings.home == tmp_path
-        assert settings.home.exists()
-
 
 class TestSettingAccess:
     def test_get_value_root_setting(self):

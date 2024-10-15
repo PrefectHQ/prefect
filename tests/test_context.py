@@ -231,6 +231,12 @@ class TestSettingsContext:
                 source=temporary_profiles_path,
             )
 
+    def test_settings_context_creates_home(self, tmpdir, monkeypatch):
+        monkeypatch.setenv("PREFECT_HOME", str(tmpdir / "testing"))
+        with root_settings_context() as ctx:
+            assert ctx.settings.home == tmpdir / "testing"
+            assert ctx.settings.home.exists()
+
     def test_settings_context_does_not_setup_logging(self, monkeypatch):
         setup_logging = MagicMock()
         monkeypatch.setattr(
