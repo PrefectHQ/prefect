@@ -9,8 +9,9 @@ You must have [Docker](https://docs.docker.com/engine/install/) installed and ru
 ### Create a work pool
 
 A work pool provides default infrastructure configurations that all jobs inherit and can override.
+You can adjust many defaults, such as the base Docker image, container cleanup behavior, and resource limits. 
 
-To set up a **Docker** type work pool, run:
+To set up a **Docker** type work pool with the default values, run:
 
 ```bash
 prefect work-pool create --type docker my-docker-pool
