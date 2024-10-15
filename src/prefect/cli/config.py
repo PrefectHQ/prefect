@@ -207,7 +207,7 @@ def view(
         settings_output.append(f"{setting.name}='{display_value}'{source_blurb}")
         processed_settings.add(setting.name)
 
-    def _collect_defaults(default_values: Dict[str, Any], current_path: List[str] = []):
+    def _collect_defaults(default_values: Dict[str, Any], current_path: List[str]):
         for key, value in default_values.items():
             if isinstance(value, dict):
                 _collect_defaults(value, current_path + [key])
@@ -243,6 +243,9 @@ def view(
                 continue
             _process_setting(setting, value, ".env file")
     if show_defaults:
-        _collect_defaults(prefect.settings.Settings().model_dump(context=dump_context))
+        _collect_defaults(
+            prefect.settings.Settings().model_dump(context=dump_context),
+            current_path=[],
+        )
 
     app.console.print("\n".join(sorted(settings_output)), soft_wrap=True)

@@ -640,7 +640,7 @@ class TestSetInDict:
 
     def test_set_in_dict_raises_key_error(self):
         with pytest.raises(
-            KeyError, match="Key path exists and contains a non-dict value"
+            TypeError, match="Key path exists and contains a non-dict value"
         ):
             set_in_dict({"a": {"b": [2]}}, ["a", "b", "c"], 1)
 
