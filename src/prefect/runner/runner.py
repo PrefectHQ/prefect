@@ -41,7 +41,6 @@ import subprocess
 import sys
 import tempfile
 import threading
-from contextlib import AsyncExitStack
 from copy import deepcopy
 from functools import partial
 from pathlib import Path
@@ -186,7 +185,6 @@ class Runner:
         self.query_seconds = query_seconds or PREFECT_RUNNER_POLL_FREQUENCY.value()
         self._prefetch_seconds = prefetch_seconds
 
-        self._exit_stack = AsyncExitStack()
         self._limiter: Optional[anyio.CapacityLimiter] = None
         self._client = get_client()
         self._submitting_flow_run_ids = set()
@@ -1268,13 +1266,11 @@ class Runner:
         if not hasattr(self, "_loop") or not self._loop:
             self._loop = asyncio.get_event_loop()
 
-        await self._exit_stack.__aenter__()
-
-        await self._exit_stack.enter_async_context(self._client)
+        await self._client.__aenter__()
 
         if not hasattr(self, "_runs_task_group") or not self._runs_task_group:
             self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
-        await self._exit_stack.enter_async_context(self._runs_task_group)
+        await self._runs_task_group.__aenter__()
 
         if not hasattr(self, "_loops_task_group") or not self._loops_task_group:
             self._loops_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
@@ -1288,7 +1284,12 @@ class Runner:
             await self._pause_schedules()
         for scope in self._scheduled_task_scopes:
             scope.cancel()
-        await self._exit_stack.__aexit__(*exc_info)
+
+        if self._client:
+            await self._client.__aexit__(*exc_info)
+        if self._runs_task_group:
+            await self._runs_task_group.__aexit__(*exc_info)
+
         shutil.rmtree(str(self._tmp_dir))
         self.started = False
         del self._runs_task_group, self._loops_task_group
