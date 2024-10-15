@@ -34,7 +34,7 @@ graph TD
 ```
 
 <Tip>
-Notice above that the worker is in charge of provisioning the _flow run infrastructure_.
+Notice above that the worker is in charge of provisioning the _flow run infrastructure_.   
 </Tip>
 
 ### Worker types
@@ -44,12 +44,12 @@ Below is a list of available worker types. Most worker types require installatio
 | Worker Type | Description | Required Package |
 | --- | --- | --- |
 | [`process`](https://prefect-python-sdk-docs.netlify.app/prefect/workers/process/) | Executes flow runs in subprocesses | |
-| [`kubernetes`](https://prefecthq.github.io/prefect-kubernetes/worker/) | Executes flow runs as Kubernetes jobs | `prefect-kubernetes` |
-| [`docker`](https://prefecthq.github.io/prefect-docker/worker/) | Executes flow runs within Docker containers | `prefect-docker` |
-| [`ecs`](https://prefecthq.github.io/prefect-aws/ecs_worker/) | Executes flow runs as ECS tasks | `prefect-aws` |
-| [`cloud-run`](https://prefecthq.github.io/prefect-gcp/cloud_run_worker/) | Executes flow runs as Google Cloud Run jobs | `prefect-gcp` |
-| [`vertex-ai`](https://prefecthq.github.io/prefect-gcp/vertex_worker/) | Executes flow runs as Google Cloud Vertex AI jobs | `prefect-gcp` |
-| [`azure-container-instance`](https://prefecthq.github.io/prefect-azure/container_instance_worker/) | Execute flow runs in ACI containers | `prefect-azure` |
+| [`kubernetes`](https://prefect-python-sdk-docs.netlify.app/prefect_kubernetes/worker/) | Executes flow runs as Kubernetes jobs | `prefect-kubernetes` |
+| [`docker`](https://prefect-python-sdk-docs.netlify.app/prefect_docker/worker/) | Executes flow runs within Docker containers | `prefect-docker` |
+| [`ecs`](https://prefect-python-sdk-docs.netlify.app/prefect_aws/workers/ecs_worker/) | Executes flow runs as ECS tasks | `prefect-aws` |
+| [`cloud-run v2`](https://prefect-python-sdk-docs.netlify.app/prefect_gcp/workers/cloud_run_v2/) | Executes flow runs as Google Cloud Run jobs | `prefect-gcp` |
+| [`vertex-ai`](https://prefect-python-sdk-docs.netlify.app/prefect_gcp/workers/vertex/) | Executes flow runs as Google Cloud Vertex AI jobs | `prefect-gcp` |
+| [`azure-container-instance`](https://prefect-python-sdk-docs.netlify.app/prefect_azure/workers/container_instance/) | Execute flow runs in ACI containers | `prefect-azure` |
 
 If you don't see a worker type that meets your needs, consider 
 [developing a new worker type](/contribute/develop-a-new-worker-type/).
