@@ -13,7 +13,7 @@
     "@prefecthq/prefect-design": "2.13.2",
     "@prefecthq/prefect-ui-library": "3.11.2",
     "@prefecthq/vue-charts": "2.0.5",
-    "@prefecthq/vue-compositions": "1.11.4",
+    "@prefecthq/vue-compositions": "1.11.5",
     "@types/lodash.debounce": "4.0.9",
     "axios": "1.7.4",
     "lodash.debounce": "4.0.8",
