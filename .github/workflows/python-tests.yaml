@@ -162,7 +162,7 @@ jobs:
       - name: Run tests
         run: |
           echo "Using COVERAGE_FILE=$COVERAGE_FILE"
-          pytest ${{ matrix.test-type.modules }} \
+          pytest -vv ${{ matrix.test-type.modules }} \
           --numprocesses auto \
           --maxprocesses 6 \
           --dist worksteal \
@@ -391,6 +391,10 @@ jobs:
       - run-tests
       - run-docker-tests
     steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         id: setup_python
