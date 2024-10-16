@@ -398,9 +398,7 @@ jobs:
           python-version: "3.12"
 
       - name: Download coverage data artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: coverage-data-Client_Tests-3.9-postgres-14
+        uses: actions/download-artifact@v4
 
       - name: Install coverage
         run: pip install coverage
