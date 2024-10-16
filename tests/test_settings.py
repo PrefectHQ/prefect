@@ -222,6 +222,7 @@ SUPPORTED_SETTINGS = {
     "PREFECT_WORKER_QUERY_SECONDS": {"test_value": 10.0},
     "PREFECT_WORKER_WEBSERVER_HOST": {"test_value": "host"},
     "PREFECT_WORKER_WEBSERVER_PORT": {"test_value": 8080},
+    "PREFECT_THREAD_POOL_TASK_RUNNER_MAX_WORKERS": {"test_value": 5},
 }
 
 
