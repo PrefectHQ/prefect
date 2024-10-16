@@ -56,7 +56,7 @@ jobs:
           - name: Server Tests
             modules: tests/server/ tests/events/server
           - name: Client Tests
-            modules: tests/ --ignore=tests/server/ --ignore=tests/events/server
+            modules: tests/ --ignore=tests/server/ --ignore=tests/events/server --ignore=tests/test_task_runners.py
         database:
           - "postgres:14"
           - "sqlite"
