@@ -399,6 +399,8 @@ jobs:
 
       - name: Download coverage data artifacts
         uses: actions/download-artifact@v4
+        with:
+          pattern: coverage-data-*
 
       - name: Install coverage
         run: pip install coverage
