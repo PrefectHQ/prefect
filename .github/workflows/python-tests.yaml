@@ -399,9 +399,11 @@ jobs:
 
       - name: Download coverage data artifacts
         uses: actions/download-artifact@v3
+        with:
+          name: coverage-data-Client_Tests-3.9-postgres-14
 
       - name: Install coverage
-        run: uv pip install coverage
+        run: pip install coverage
 
       - name: Combine coverage data
         run: |
