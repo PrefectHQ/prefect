@@ -398,7 +398,6 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
 
         if not active_profile or active_profile not in profiles_data:
             return {}
-
         return profiles_data[active_profile]
 
     def get_field_value(
@@ -550,20 +549,45 @@ class PrefectBaseSettings(BaseSettings):
             context={"include_secrets": include_secrets},
         )
         env_variables = {}
-        for key, value in env.items():
-            if isinstance(value, dict) and isinstance(
-                child_settings := getattr(self, key), PrefectBaseSettings
-            ):
+        for key in self.model_fields.keys():
+            if isinstance(child_settings := getattr(self, key), PrefectBaseSettings):
                 child_env = child_settings.to_environment_variables(
                     exclude_unset=exclude_unset,
                     include_secrets=include_secrets,
                 )
                 env_variables.update(child_env)
-            elif value is not None:
+            elif (value := env.get(key)) is not None:
                 env_variables[
                     f"{self.model_config.get('env_prefix')}{key.upper()}"
                 ] = str(value)
         return env_variables
+
+    @model_serializer(
+        mode="wrap", when_used="always"
+    )  # TODO: reconsider `when_used` default for more control
+    def ser_model(
+        self, handler: SerializerFunctionWrapHandler, info: SerializationInfo
+    ) -> Any:
+        ctx = info.context
+        jsonable_self = handler(self)
+        if ctx and ctx.get("include_secrets") is True:
+            dump_kwargs = dict(
+                include=info.include,
+                exclude=info.exclude,
+                exclude_unset=info.exclude_unset,
+            )
+            jsonable_self.update(
+                {
+                    field_name: visit_collection(
+                        expr=getattr(self, field_name),
+                        visit_fn=partial(handle_secret_render, context=ctx),
+                        return_data=True,
+                    )
+                    for field_name in set(self.model_dump(**dump_kwargs).keys())  # type: ignore
+                }
+            )
+
+        return jsonable_self
 
 
 class APISettings(PrefectBaseSettings):
@@ -1707,7 +1731,7 @@ class Settings(PrefectBaseSettings):
         return self
 
     @model_validator(mode="after")
-    def emit_warnings(self):
+    def emit_warnings(self) -> Self:
         """More post-hoc validation of settings, including warnings for misconfigurations."""
         values = self.model_dump()
         values = max_log_size_smaller_than_batch_size(values)
@@ -1768,32 +1792,6 @@ class Settings(PrefectBaseSettings):
         """
         env_variables = self.to_environment_variables()
         return str(hash(tuple((key, value) for key, value in env_variables.items())))
-
-    @model_serializer(
-        mode="wrap", when_used="always"
-    )  # TODO: reconsider `when_used` default for more control
-    def ser_model(
-        self, handler: SerializerFunctionWrapHandler, info: SerializationInfo
-    ) -> Any:
-        ctx = info.context
-        jsonable_self = handler(self)
-        if ctx and ctx.get("include_secrets") is True:
-            dump_kwargs = dict(
-                include=info.include,
-                exclude=info.exclude,
-                exclude_unset=info.exclude_unset,
-            )
-            jsonable_self.update(
-                {
-                    field_name: visit_collection(
-                        expr=getattr(self, field_name),
-                        visit_fn=partial(handle_secret_render, context=ctx),
-                        return_data=True,
-                    )
-                    for field_name in set(self.model_dump(**dump_kwargs).keys())  # type: ignore
-                }
-            )
-        return jsonable_self
 
 
 ############################################################################

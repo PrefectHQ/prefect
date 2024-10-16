@@ -540,7 +540,7 @@ def set_in_dict(dct: Dict, keys: Union[str, List[str]], value: Any):
         keys = keys.replace("[", ".").replace("]", "").split(".")
     for k in keys[:-1]:
         if not isinstance(dct.get(k, {}), dict):
-            raise KeyError(f"Key path exists and contains a non-dict value: {keys}")
+            raise TypeError(f"Key path exists and contains a non-dict value: {keys}")
         if k not in dct:
             dct[k] = {}
         dct = dct[k]
