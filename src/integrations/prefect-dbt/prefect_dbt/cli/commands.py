@@ -131,9 +131,6 @@ async def trigger_dbt_cli_command(
     if profiles_dir is None:
         profiles_dir = os.getenv("DBT_PROFILES_DIR", str(Path.home()) + "/.dbt")
 
-    if command.startswith("dbt"):
-        command = command.split(" ", 1)[1]
-
     # https://docs.getdbt.com/dbt-cli/configure-your-profile
     # Note that the file always needs to be called profiles.yml,
     # regardless of which directory it is in.
@@ -160,7 +157,7 @@ async def trigger_dbt_cli_command(
         )
 
     # append the options
-    cli_args = [command]
+    cli_args = [arg for arg in command.split() if arg != "dbt"]
     cli_args.append("--profiles-dir")
     cli_args.append(profiles_dir)
     if project_dir is not None:
