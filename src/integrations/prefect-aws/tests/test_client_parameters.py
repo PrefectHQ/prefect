@@ -87,7 +87,7 @@ class TestAwsClientParameters:
         assert params.verify
         assert not params.verify_cert_path
         override_params = params.get_params_override()
-        override_params["verify"] == cert_path
+        assert override_params["verify"] == cert_path
 
     def test_get_params_override_with_config(self, tmp_path):
         cert_path = tmp_path / "ca-bundle.crt"
@@ -100,8 +100,8 @@ class TestAwsClientParameters:
             verify_cert_path=cert_path,
         )
         override_params = params.get_params_override()
-        override_params["config"].region_name == "eu_west_1"
-        override_params["config"].retries == {
+        assert override_params["config"].region_name == "eu_west_1"
+        assert override_params["config"].retries == {
             "max_attempts": 10,
             "mode": "standard",
         }

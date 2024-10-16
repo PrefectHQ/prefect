@@ -117,16 +117,16 @@ class AwsClientParameters(BaseModel):
         """
         If verify_cert_path is set but verify is False, raise a warning.
         """
-        verify = values.get("verify", True)
+        verify = values.get("verify")
         verify_cert_path = values.get("verify_cert_path")
 
-        if not verify and verify_cert_path:
+        if verify is False and verify_cert_path:
             warnings.warn(
                 "verify_cert_path is set but verify is False. "
                 "verify_cert_path will be ignored."
             )
             values["verify_cert_path"] = None
-        elif not isinstance(verify, bool) and verify_cert_path:
+        elif verify is not None and not isinstance(verify, bool) and verify_cert_path:
             warnings.warn(
                 "verify_cert_path is set but verify is also set as a file path. "
                 "verify_cert_path will take precedence."
