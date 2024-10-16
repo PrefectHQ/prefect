@@ -857,7 +857,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     f" {state.name!r}"
                 )
                 result = hook(task, task_run, state)
-                if asyncio.iscoroutine(result):
+                if inspect.isawaitable(result):
                     await result
             except Exception:
                 self.logger.error(

@@ -1,4 +1,5 @@
 import asyncio
+import inspect
 import uuid
 from typing import Any, Dict, List, Optional, Union, overload
 
@@ -146,7 +147,7 @@ async def submit_to_runner(
             flow_run = await _submit_flow_to_runner(
                 prefect_callable, p, retry_failed_submissions
             )
-            if asyncio.iscoroutine(flow_run):
+            if inspect.isawaitable(flow_run):
                 flow_run = await flow_run
             submitted_runs.append(flow_run)
         except httpx.ConnectError as exc:
