@@ -399,7 +399,7 @@ jobs:
 
       - name: Combine coverage data
         run: |
-          coverage combine .coverage.*
+          coverage combine
           coverage html
 
       - name: Upload combined coverage report
