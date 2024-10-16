@@ -30,7 +30,7 @@ if __name__ == "__main__":
     assert task_state.result() == "Hello!"
     assert task_state.state_details.task_run_id is not None
 
-    time.sleep(0.3)  # wait for task run state to propagate
+    time.sleep(3)  # wait for task run state to propagate
 
     api_state = anyio.run(get_state_from_api, task_state.state_details.task_run_id)
 
