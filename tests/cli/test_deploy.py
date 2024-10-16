@@ -2807,7 +2807,7 @@ class TestSchedules:
         assert deployment_schedule.schedule.cron == "0 4 * * *"
         assert deployment_schedule.schedule.timezone == "America/Chicago"
 
-@pytest.mark.usefixtures("project_dir")
+    @pytest.mark.usefixtures("project_dir")
     async def test_yaml_null_schedules(self, prefect_client, work_pool):
         prefect_yaml_content = f"""
         deployments:

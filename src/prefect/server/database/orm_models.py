@@ -446,7 +446,8 @@ class Run(Base):
             )
             # add a correlate statement so this can reuse the `FROM` clause
             # of any parent query
-            .correlate(cls).label("estimated_run_time")
+            .correlate(cls)
+            .label("estimated_run_time")
         )
 
     @hybrid_property
@@ -883,18 +884,18 @@ class Deployment(Base):
         sa.ForeignKey("concurrency_limit_v2.id", ondelete="SET NULL"),
         nullable=True,
     )
-    global_concurrency_limit: Mapped[Union["ConcurrencyLimitV2", None]] = (
-        sa.orm.relationship(
-            lazy="selectin",
-        )
+    global_concurrency_limit: Mapped[
+        Union["ConcurrencyLimitV2", None]
+    ] = sa.orm.relationship(
+        lazy="selectin",
     )
-    concurrency_options: Mapped[Union[schemas.core.ConcurrencyOptions, None]] = (
-        mapped_column(
-            Pydantic(schemas.core.ConcurrencyOptions),
-            server_default=None,
-            nullable=True,
-            default=None,
-        )
+    concurrency_options: Mapped[
+        Union[schemas.core.ConcurrencyOptions, None]
+    ] = mapped_column(
+        Pydantic(schemas.core.ConcurrencyOptions),
+        server_default=None,
+        nullable=True,
+        default=None,
     )
 
     tags: Mapped[List[str]] = mapped_column(

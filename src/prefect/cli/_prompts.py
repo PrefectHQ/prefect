@@ -34,9 +34,6 @@ from prefect.deployments.base import (
 )
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 from prefect.flows import load_flow_from_entrypoint
-from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY,
-)
 from prefect.utilities import urls
 from prefect.utilities.processutils import get_sys_executable, run_process
 from prefect.utilities.slugify import slugify
@@ -511,9 +508,9 @@ async def prompt_push_custom_docker_image(
                 import prefect_docker
 
             credentials_block = prefect_docker.DockerRegistryCredentials
-            push_step["credentials"] = (
-                "{{ prefect_docker.docker-registry-credentials.docker_registry_creds_name }}"
-            )
+            push_step[
+                "credentials"
+            ] = "{{ prefect_docker.docker-registry-credentials.docker_registry_creds_name }}"
             docker_registry_creds_name = f"deployment-{slugify(deployment_config['name'])}-{slugify(deployment_config['work_pool']['name'])}-registry-creds"
             create_new_block = False
             try:
