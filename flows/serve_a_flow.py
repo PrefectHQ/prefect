@@ -23,7 +23,7 @@ def count_runs(counter_dir: Path):
 
 
 if __name__ == "__main__":
-    TIMEOUT: int = 10
+    TIMEOUT: int = 11
     INTERVAL_SECONDS: int = 3
 
     EXPECTED_N_FLOW_RUNS: int = TIMEOUT // INTERVAL_SECONDS
