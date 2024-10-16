@@ -29,7 +29,7 @@ from prefect.futures import (
     PrefectFutureList,
 )
 from prefect.logging.loggers import get_logger, get_run_logger
-from prefect.settings import PREFECT_THREAD_POOL_TASK_RUNNER_MAX_WORKERS
+from prefect.settings import PREFECT_TASK_RUNNER_THREAD_POOL_MAX_WORKERS
 from prefect.utilities.annotations import allow_failure, quote, unmapped
 from prefect.utilities.callables import (
     collapse_variadic_parameters,
@@ -222,7 +222,7 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture]):
         super().__init__()
         self._executor: Optional[ThreadPoolExecutor] = None
         self._max_workers = (
-            (PREFECT_THREAD_POOL_TASK_RUNNER_MAX_WORKERS.value() or sys.maxsize)
+            (PREFECT_TASK_RUNNER_THREAD_POOL_MAX_WORKERS.value() or sys.maxsize)
             if max_workers is None
             else max_workers
         )
