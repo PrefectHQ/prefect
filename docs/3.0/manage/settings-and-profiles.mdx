@@ -9,7 +9,6 @@ Many of Prefect's features—especially interactions with the API—require conf
 
 - **Profiles**: Prefect profiles store sets of settings locally on your machine. When you activate a profile, its settings are applied, allowing you to switch easily between different configurations. For example, you might use one profile for a self-hosted Prefect server and another for Prefect Cloud.
 
-
 To view all available settings and their active values from the command line, run:
 
 ```bash
@@ -26,7 +25,8 @@ prefect config validate
 
 Prefect profiles are persisted groups of settings on your local machine. 
 By default these settings are stored in a [TOML](https://toml.io/en/) file located at `~/.prefect/profiles.toml`.
-This location can be configured through the setting `PREFECT_PROFILES_PATH`. 
+This location can be configured by setting `PREFECT_PROFILES_PATH`.
+
 One and only one profile can be active at any time.
 
 Immediately after installation, the `ephemeral` profile will be used, which only has 1 setting configured:
@@ -76,7 +76,7 @@ The `prefect config` CLI commands enable you to manage the settings within the c
 | unset | Restore the default value for a setting. |
 | view | Display the current settings. |
 
-For example, the following CLI commands set configuration in the `default` profile and then create a new
+For example, the following CLI commands set configuration in the `ephemeral` profile and then create a new
 profile with new settings:
 
 ```bash
@@ -94,7 +94,6 @@ prefect config unset PREFECT_LOGGING_LEVEL -y
 ### Use environment variables
 
 All settings can be overridden by setting the environment variable directly.
-
 
 #### Override a setting for a single command
 For example, we can temporarily set the logging level through an environment variable so that it 
