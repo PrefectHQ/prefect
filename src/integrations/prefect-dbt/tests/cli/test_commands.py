@@ -250,6 +250,7 @@ def dbt_runner_freshness_success(monkeypatch, mock_dbt_runner_freshness_success)
     monkeypatch.setattr(
         "dbt.cli.main.dbtRunner.invoke", _mock_dbt_runner_freshness_success
     )
+    return _mock_dbt_runner_freshness_success
 
 
 @pytest.fixture
@@ -281,6 +282,23 @@ def test_trigger_dbt_cli_command(profiles_dir, dbt_cli_profile_bare):
 
     result = test_flow()
     assert isinstance(result, dbtRunnerResult)
+
+
+def test_trigger_dbt_cli_command_cli_argument_list(
+    profiles_dir, dbt_cli_profile_bare, dbt_runner_freshness_success
+):
+    @flow
+    def test_flow():
+        return trigger_dbt_cli_command(
+            command="dbt source freshness",
+            profiles_dir=profiles_dir,
+            dbt_cli_profile=dbt_cli_profile_bare,
+        )
+
+    test_flow()
+    dbt_runner_freshness_success.assert_called_with(
+        ["source", "freshness", "--profiles-dir", profiles_dir]
+    )
 
 
 @pytest.mark.usefixtures("dbt_runner_freshness_error")
