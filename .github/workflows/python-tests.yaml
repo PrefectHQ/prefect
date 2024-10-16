@@ -57,6 +57,8 @@ jobs:
             modules: tests/server/ tests/events/server
           - name: Client Tests
             modules: tests/ --ignore=tests/server/ --ignore=tests/events/server --deselect=tests/test_task_runners.py::TestPrefectTaskRunner
+          - name: Task Runner Tests
+            modules: tests/test_task_runners.py::TestPrefectTaskRunner
         database:
           - "postgres:14"
           - "sqlite"
@@ -70,6 +72,10 @@ jobs:
             test-type:
               name: Client Tests
               modules: tests/ --ignore=tests/server/ --ignore=tests/events/server --deselect=tests/test_task_runners.py::TestPrefectTaskRunner
+          - database: "sqlite"
+            test-type:
+              name: Task Runner Tests
+              modules: tests/test_task_runners.py::TestPrefectTaskRunner
 
       fail-fast: true
 
@@ -234,7 +240,6 @@ jobs:
           SHORT_SHA=$(git rev-parse --short=7 HEAD)
           tmp="sha-$SHORT_SHA-python${{ matrix.python-version }}"
           echo "image_tag=${tmp}" >> $GITHUB_OUTPUT
-
 
       - name: Login to DockerHub
         uses: docker/login-action@v3
