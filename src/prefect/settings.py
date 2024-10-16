@@ -958,7 +958,9 @@ class Settings(PrefectBaseSettings):
 
     logging_extra_loggers: Annotated[
         Union[str, list[str], None],
-        AfterValidator(lambda v: [n.strip() for n in v.split(",")] if v else []),
+        AfterValidator(
+            lambda v: [n.strip() for n in v.split(",")] if isinstance(v, str) else v or []
+        ),
     ] = Field(
         default=None,
         description="Additional loggers to attach to Prefect logging at runtime.",
