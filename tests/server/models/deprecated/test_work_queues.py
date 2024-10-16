@@ -6,6 +6,7 @@ import pendulum
 import pytest
 
 from prefect.server import models, schemas
+from prefect.server.database import orm_models
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models.deployments import check_work_queues_for_deployment
 from prefect.server.utilities.database import get_dialect
@@ -50,12 +51,14 @@ class TestUpdateWorkQueue:
         )
         assert result
 
+        queue = await session.get(
+            orm_models.WorkQueue, work_queue.id, populate_existing=True
+        )
         updated_queue = schemas.core.WorkQueue.model_validate(
-            await models.work_queues.read_work_queue(
-                session=session, work_queue_id=work_queue.id
-            ),
+            queue,
             from_attributes=True,
         )
+
         assert updated_queue.id == work_queue.id
 
         with pytest.warns(DeprecationWarning):
