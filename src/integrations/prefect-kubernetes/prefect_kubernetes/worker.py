@@ -1048,6 +1048,20 @@ class KubernetesWorker(BaseWorker):
         if not first_container_status:
             logger.error(f"Job {job_name!r}: No pods found for job.")
             return -1
+
+        # In some cases, the pod will still be running at this point.
+        # We can assume that the job is still running and return 0 to prevent marking the flow run as crashed
+        elif first_container_status.state and (
+            first_container_status.state.running is not None
+            or first_container_status.state.waiting is not None
+        ):
+            logger.warning(
+                f"The worker's watch for job {job_name!r} has exited early. Check the logs for more information."
+                " The job is still running, but the worker will not wait for it to complete."
+            )
+            # Return 0 to prevent marking the flow run as crashed
+            return 0
+
         # In some cases, such as spot instance evictions, the pod will be forcibly
         # terminated and not report a status correctly.
         elif (
