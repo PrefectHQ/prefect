@@ -126,8 +126,11 @@ SUPPORTED_SETTINGS = {
     "PREFECT_API_URL": {"test_value": "https://api.prefect.io"},
     "PREFECT_ASYNC_FETCH_STATE_RESULT": {"test_value": True},
     "PREFECT_CLIENT_CSRF_SUPPORT_ENABLED": {"test_value": True},
-    "PREFECT_CLIENT_ENABLE_METRICS": {"test_value": True},
+    "PREFECT_CLIENT_ENABLE_METRICS": {"test_value": True, "legacy": True},
     "PREFECT_CLIENT_MAX_RETRIES": {"test_value": 3},
+    "PREFECT_CLIENT_METRICS_ENABLED": {
+        "test_value": True,
+    },
     "PREFECT_CLIENT_METRICS_PORT": {"test_value": 9000},
     "PREFECT_CLIENT_RETRY_EXTRA_CODES": {"test_value": "400"},
     "PREFECT_CLIENT_RETRY_JITTER_FACTOR": {"test_value": 0.5},
@@ -1398,10 +1401,12 @@ class TestSettingValues:
                 assert settings_value == value
                 # get value from legacy setting object
                 assert getattr(prefect.settings, setting).value() == value
-                # ensure the value gets added to the environment variables
-                assert current_settings.to_environment_variables(exclude_unset=True)[
-                    setting
-                ] == str(to_jsonable_python(value))
+                # ensure the value gets added to the environment variables, but "legacy" will use
+                # their updated name
+                if not SUPPORTED_SETTINGS[setting].get("legacy"):
+                    assert current_settings.to_environment_variables(
+                        exclude_unset=True
+                    )[setting] == str(to_jsonable_python(value))
 
     def test_set_via_env_var(self, setting_and_value, monkeypatch):
         setting, value = setting_and_value
