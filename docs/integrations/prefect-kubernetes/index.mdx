@@ -74,6 +74,10 @@ def kubernetes_orchestrator():
     # run the flow and send logs to the parent flow run's logger
     logger = get_run_logger()
     run_namespaced_job(job, print_func=logger.info)
+
+
+if __name__ == "__main__":
+    kubernetes_orchestrator()
 ```
 
 As with all Prefect flows and tasks, you can call the underlying function directly if you don't need Prefect features:
