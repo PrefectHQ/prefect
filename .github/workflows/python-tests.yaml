@@ -401,6 +401,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           pattern: coverage-data-*
+          merge-multiple: true
 
       - name: Install coverage
         run: pip install coverage
