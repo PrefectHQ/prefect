@@ -19,6 +19,15 @@ from prefect_kubernetes.pods import list_namespaced_pod, read_namespaced_pod_log
 KubernetesManifest: TypeAlias = Union[Dict, Path, str]
 
 
+def _get_pod_selector(v1_job: V1Job) -> str:
+    try:
+        return (
+            f"controller-uid={v1_job.spec.template.metadata.labels['controller-uid']}"
+        )
+    except (AttributeError, KeyError):
+        raise ValueError("Unable to determine pod selector for job. ")
+
+
 @task
 async def create_namespaced_job(
     kubernetes_credentials: KubernetesCredentials,
@@ -413,9 +422,7 @@ class KubernetesJobRun(JobRun[Dict[str, Any]]):
                 namespace=self._kubernetes_job.namespace,
                 **self._kubernetes_job.api_kwargs,
             )
-            pod_selector = (
-                "controller-uid=" f"{v1_job.metadata.labels['controller-uid']}"
-            )
+            pod_selector = _get_pod_selector(v1_job)
             v1_pod_list = await list_namespaced_pod.fn(
                 kubernetes_credentials=self._kubernetes_job.credentials,
                 namespace=self._kubernetes_job.namespace,
