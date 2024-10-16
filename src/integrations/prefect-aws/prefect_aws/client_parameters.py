@@ -53,8 +53,8 @@ class AwsClientParameters(BaseModel):
     use_ssl: bool = Field(
         default=True, description="Whether or not to use SSL.", title="Use SSL"
     )
-    verify: Union[bool, FilePath] = Field(
-        default=True, description="Whether or not to verify SSL certificates."
+    verify: Union[bool, FilePath, None] = Field(
+        default=None, description="Whether or not to verify SSL certificates."
     )
     verify_cert_path: Optional[FilePath] = Field(
         default=None,
@@ -117,16 +117,16 @@ class AwsClientParameters(BaseModel):
         """
         If verify_cert_path is set but verify is False, raise a warning.
         """
-        verify = values.get("verify", True)
+        verify = values.get("verify")
         verify_cert_path = values.get("verify_cert_path")
 
-        if not verify and verify_cert_path:
+        if verify is False and verify_cert_path:
             warnings.warn(
                 "verify_cert_path is set but verify is False. "
                 "verify_cert_path will be ignored."
             )
             values["verify_cert_path"] = None
-        elif not isinstance(verify, bool) and verify_cert_path:
+        elif verify is not None and not isinstance(verify, bool) and verify_cert_path:
             warnings.warn(
                 "verify_cert_path is set but verify is also set as a file path. "
                 "verify_cert_path will take precedence."
@@ -156,6 +156,9 @@ class AwsClientParameters(BaseModel):
                     params_override[key].signature_version = UNSIGNED
             elif key == "verify_cert_path":
                 params_override["verify"] = value
+            elif key == "verify":
+                if value is not None:
+                    params_override[key] = value
             else:
                 params_override[key] = value
         return params_override
