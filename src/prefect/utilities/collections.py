@@ -513,3 +513,73 @@ def get_from_dict(dct: Dict, keys: Union[str, List[str]], default: Any = None) -
         return dct
     except (TypeError, KeyError, IndexError):
         return default
+
+
+def set_in_dict(dct: Dict, keys: Union[str, List[str]], value: Any):
+    """
+    Sets a value in a nested dictionary using a sequence of keys.
+
+    This function allows to set a value in a deeply nested structure
+    of dictionaries and lists using either a dot-separated string or a list
+    of keys. If a requested key does not exist, the function will create it as
+    a new dictionary.
+
+    Args:
+        dct: The dictionary to set the value in.
+        keys: The sequence of keys to use for access. Can be a
+            dot-separated string or a list of keys.
+        value: The value to set in the dictionary.
+
+    Returns:
+        The modified dictionary with the value set at the specified key path.
+
+    Raises:
+        KeyError: If the key path exists and is not a dictionary.
+    """
+    if isinstance(keys, str):
+        keys = keys.replace("[", ".").replace("]", "").split(".")
+    for k in keys[:-1]:
+        if not isinstance(dct.get(k, {}), dict):
+            raise TypeError(f"Key path exists and contains a non-dict value: {keys}")
+        if k not in dct:
+            dct[k] = {}
+        dct = dct[k]
+    dct[keys[-1]] = value
+
+
+def deep_merge(dct: Dict, merge: Dict):
+    """
+    Recursively merges `merge` into `dct`.
+
+    Args:
+        dct: The dictionary to merge into.
+        merge: The dictionary to merge from.
+
+    Returns:
+        A new dictionary with the merged contents.
+    """
+    result = dct.copy()  # Start with keys and values from `dct`
+    for key, value in merge.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            # If both values are dictionaries, merge them recursively
+            result[key] = deep_merge(result[key], value)
+        else:
+            # Otherwise, overwrite with the new value
+            result[key] = value
+    return result
+
+
+def deep_merge_dicts(*dicts):
+    """
+    Recursively merges multiple dictionaries.
+
+    Args:
+        dicts: The dictionaries to merge.
+
+    Returns:
+        A new dictionary with the merged contents.
+    """
+    result = {}
+    for dictionary in dicts:
+        result = deep_merge(result, dictionary)
+    return result

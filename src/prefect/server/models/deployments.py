@@ -38,8 +38,8 @@ async def _delete_scheduled_runs(
     auto_scheduled_only: bool = False,
 ) -> None:
     """
-    This utility function deletes all of a deployment's scheduled runs that are
-    still in a Scheduled state It should be run any time a deployment is created or
+    This utility function deletes all of a deployment's runs that are in a Scheduled state
+    and haven't run yet. It should be run any time a deployment is created or
     modified in order to ensure that future runs comply with the deployment's latest values.
 
     Args:
@@ -49,6 +49,7 @@ async def _delete_scheduled_runs(
     delete_query = sa.delete(orm_models.FlowRun).where(
         orm_models.FlowRun.deployment_id == deployment_id,
         orm_models.FlowRun.state_type == schemas.states.StateType.SCHEDULED.value,
+        orm_models.FlowRun.run_count == 0,
     )
 
     if auto_scheduled_only:
