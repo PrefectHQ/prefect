@@ -31,6 +31,7 @@ on:
 
 permissions:
   contents: read
+  actions: write
 
 # Limit concurrency by workflow/branch combination.
 #
@@ -389,13 +390,17 @@ jobs:
       - run-tests
       - run-docker-tests
     steps:
-      - uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        id: setup_python
+        with:
+          python-version: "3.12"
 
       - name: Download coverage data artifacts
         uses: actions/download-artifact@v3
 
       - name: Install coverage
-        run: pip install coverage
+        run: uv pip install coverage
 
       - name: Combine coverage data
         run: |
