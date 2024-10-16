@@ -311,11 +311,11 @@ async def assess_sequence_automation():
 
 if __name__ == "__main__":
     if os.getenv("SERVER_VERSION") == "9.9.9+for.the.tests":
-        raise NotImplementedError(
-            "Prefect Cloud has its own automation assessment integration test."
+        print(
+            "Prefect Cloud has its own automation assessment integration test, skipping"
         )
-
-    asyncio.run(assess_reactive_automation())
-    asyncio.run(assess_proactive_automation())
-    asyncio.run(assess_compound_automation())
-    asyncio.run(assess_sequence_automation())
+    else:
+        asyncio.run(assess_reactive_automation())
+        asyncio.run(assess_proactive_automation())
+        asyncio.run(assess_compound_automation())
+        asyncio.run(assess_sequence_automation())
