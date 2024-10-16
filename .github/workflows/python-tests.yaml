@@ -56,9 +56,9 @@ jobs:
           - name: Server Tests
             modules: tests/server/ tests/events/server
           - name: Client Tests
-            modules: tests/ --ignore=tests/server/ --ignore=tests/events/server --deselect=tests/test_task_runners.py::TestPrefectTaskRunner
-          - name: Task Runner Tests
-            modules: tests/test_task_runners.py::TestPrefectTaskRunner
+            modules: tests/ --ignore=tests/server/ --ignore=tests/events/server --ignore=tests/test_task_runners.py --ignore=tests/runner --ignore=tests/workers
+          - name: Runner and Worker Tests
+            modules: tests/test_task_runners.py tests/runner tests/workers
         database:
           - "postgres:14"
           - "sqlite"
@@ -71,11 +71,11 @@ jobs:
           - database: "sqlite"
             test-type:
               name: Client Tests
-              modules: tests/ --ignore=tests/server/ --ignore=tests/events/server --deselect=tests/test_task_runners.py::TestPrefectTaskRunner
+              modules: tests/ --ignore=tests/server/ --ignore=tests/events/server --ignore=tests/test_task_runners.py --ignore=tests/runner --ignore=tests/workers
           - database: "sqlite"
             test-type:
-              name: Task Runner Tests
-              modules: tests/test_task_runners.py::TestPrefectTaskRunner
+              name: Runner and Worker Tests
+              modules: tests/test_task_runners.py tests/runner tests/workers
 
       fail-fast: true
 
