@@ -642,16 +642,17 @@ def root_settings_context():
         )
         active_name = "ephemeral"
 
-    if not (settings := Settings()).home.exists():
-        try:
-            settings.home.mkdir(mode=0o0700, exist_ok=True)
-        except OSError:
-            warnings.warn(
-                (f"Failed to create the Prefect home directory at {settings.home}"),
-                stacklevel=2,
-            )
+    with use_profile(profiles[active_name], include_current_context=False) as ctx:
+        if not ctx.settings.home.exists():
+            try:
+                ctx.settings.home.mkdir(mode=0o0700, exist_ok=True)
+            except OSError:
+                warnings.warn(
+                    f"Failed to create the Prefect home directory at {ctx.settings.home}",
+                    stacklevel=2,
+                )
 
-    return SettingsContext(profile=profiles[active_name], settings=settings)
+    return ctx
 
     # Note the above context is exited and the global settings context is used by
     # an override in the `SettingsContext.get` method.
