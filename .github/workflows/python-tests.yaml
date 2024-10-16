@@ -48,7 +48,7 @@ concurrency:
 jobs:
   run-tests:
     runs-on:
-      group:
+      group: oss-larger-runners
     name: ${{ matrix.test-type.name }} - python:${{ matrix.python-version }}, ${{ matrix.database }}
     strategy:
       matrix:
