@@ -6,6 +6,7 @@ waits for the result of the call.
 import abc
 import asyncio
 import contextlib
+import inspect
 import queue
 import threading
 from collections import deque
@@ -203,7 +204,7 @@ class AsyncWaiter(Waiter[T]):
                 # waiting never runs longer than the call
                 self._call.future.add_cancel_callback(callback.future.cancel)
                 retval = callback.run()
-                if asyncio.iscoroutine(retval):
+                if inspect.isawaitable(retval):
                     tasks.append(retval)
 
                 del callback

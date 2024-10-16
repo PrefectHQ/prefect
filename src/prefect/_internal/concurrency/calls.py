@@ -9,6 +9,7 @@ import concurrent.futures
 import contextlib
 import contextvars
 import dataclasses
+import inspect
 import threading
 import weakref
 from concurrent.futures._base import (
@@ -351,7 +352,7 @@ class Call(Generic[T]):
                         self.kwargs = None
 
             # Return the coroutine for async execution
-            if asyncio.iscoroutine(result):
+            if inspect.isawaitable(result):
                 return result
 
         except CancelledError:
