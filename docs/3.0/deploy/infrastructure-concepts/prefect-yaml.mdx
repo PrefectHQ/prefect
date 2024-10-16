@@ -159,10 +159,10 @@ build:
 
 Once you confirm that these fields are set to their desired values, this step automatically builds a Docker image with 
 the provided name and tag and pushes it to the repository referenced by the image name.  
-As the [`prefect-docker` package documentation explains](https://prefecthq.github.io/prefect-docker/deployments/steps/#prefect_docker.deployments.steps.BuildDockerImageResult), 
-this step produces optional fields for future steps, or within `prefect.yaml` as template values.  
-We recommend using `{{ image }}` within `prefect.yaml` (specifically the work pool's job variables section). This is so  
-you don't risk your build step and deployment specification get out of sync with hardcoded values.  
+This step produces optional fields for future steps, or within `prefect.yaml` as template values.
+
+We recommend using a templated `{{ image }}` within `prefect.yaml` (specifically in the work pool's `job_variables` section). 
+By avoiding hardcoded values, the build step and deployment specification won't have mismatched values.  
 
 <Note>
 **Some steps require Prefect integrations**
@@ -173,8 +173,8 @@ additional required packages are auto-installed for you.
 
 **Pass output to downstream steps**
 
-Each deployment action can be composed of multiple steps. For example, if you wanted to build a Docker image tagged with the 
-current commit hash, you could use the `run_shell_script` step and feed the output into the `build_docker_image` step:
+Each deployment action can be composed of multiple steps. For example, to build a Docker image tagged with the 
+current commit hash, use the `run_shell_script` step and feed the output into the `build_docker_image` step:
 
 ```yaml
 build:
