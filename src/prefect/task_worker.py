@@ -102,7 +102,7 @@ class TaskWorker:
                 "TaskWorker must be initialized within an async context."
             )
 
-        self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
+        self._runs_task_group: Optional[anyio.abc.TaskGroup] = None
         self._executor = ThreadPoolExecutor(max_workers=limit if limit else None)
         self._limiter = anyio.CapacityLimiter(limit) if limit else None
 
@@ -230,6 +230,9 @@ class TaskWorker:
 
             token_acquired = await self._acquire_token(task_run.id)
             if token_acquired:
+                assert (
+                    self._runs_task_group is not None
+                ), "Task group was not initialized"
                 self._runs_task_group.start_soon(
                     self._safe_submit_scheduled_task_run, task_run
                 )
@@ -349,7 +352,9 @@ class TaskWorker:
 
         if self._client._closed:
             self._client = get_client()
+        self._runs_task_group = anyio.create_task_group()
 
+        await self._exit_stack.__aenter__()
         await self._exit_stack.enter_async_context(self._client)
         await self._exit_stack.enter_async_context(self._runs_task_group)
         self._exit_stack.enter_context(self._executor)
