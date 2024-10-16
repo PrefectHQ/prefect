@@ -1245,7 +1245,7 @@ class Flow(Generic[P, R]):
     @overload
     def __call__(
         self: "Flow[P, Coroutine[Any, Any, T]]", *args: P.args, **kwargs: P.kwargs
-    ) -> Awaitable[T]:
+    ) -> Coroutine[Any, Any, T]:
         ...
 
     @overload

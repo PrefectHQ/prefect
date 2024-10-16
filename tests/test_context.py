@@ -213,14 +213,6 @@ class TestSettingsContext:
         with pytest.raises(MissingContextError, match="No settings context found"):
             get_settings_context()
 
-    def test_creates_home(self, tmp_path):
-        home = tmp_path / "home"
-        assert not home.exists()
-        with temporary_settings(updates={PREFECT_HOME: home}):
-            pass
-
-        assert home.exists()
-
     def test_settings_context_uses_settings(self, temporary_profiles_path):
         temporary_profiles_path.write_text(
             textwrap.dedent(
@@ -238,6 +230,12 @@ class TestSettingsContext:
                 settings={PREFECT_API_URL: "test"},
                 source=temporary_profiles_path,
             )
+
+    def test_root_settings_context_creates_home(self, tmpdir, monkeypatch):
+        monkeypatch.setenv("PREFECT_HOME", str(tmpdir / "testing"))
+        with root_settings_context() as ctx:
+            assert ctx.settings.home == tmpdir / "testing"
+            assert ctx.settings.home.exists()
 
     def test_settings_context_does_not_setup_logging(self, monkeypatch):
         setup_logging = MagicMock()
@@ -448,8 +446,12 @@ class TestSerializeContext:
                     "tags_context": {"current_tags": current_tags},
                     "settings_context": SettingsContext.get().serialize(),
                 }
-                assert serialized["settings_context"]["settings"]["api_key"] == "test"
-                assert serialized["settings_context"]["settings"]["api_url"] == "test"
+                assert (
+                    serialized["settings_context"]["settings"]["api"]["key"] == "test"
+                )
+                assert (
+                    serialized["settings_context"]["settings"]["api"]["url"] == "test"
+                )
 
 
 class TestHydratedContext:
@@ -581,7 +583,7 @@ class TestHydratedContext:
             {
                 "settings_context": {
                     "profile": {"name": "test", "settings": {}, "source": None},
-                    "settings": {"api_key": "test", "api_url": "test"},
+                    "settings": {"api": {"key": "test", "url": "test"}},
                 },
             }
         ):
@@ -592,7 +594,7 @@ class TestHydratedContext:
             )
             settings = SettingsContext.get().settings
             assert (
-                settings.api_key is not None
-                and settings.api_key.get_secret_value() == "test"
+                settings.api.key is not None
+                and settings.api.key.get_secret_value() == "test"
             )
-            assert settings.api_url == "test"
+            assert settings.api.url == "test"
