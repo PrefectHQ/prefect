@@ -15,7 +15,7 @@ def may_i_take_your_hat_sir(item: str, counter_dir: Path):
 
 
 def timeout_handler(signum, frame):
-    raise TimeoutError("Timeout reached. Shutting down gracefully.")
+    raise KeyboardInterrupt("Simulated KeyboardInterrupt")
 
 
 def count_runs(counter_dir: Path):
@@ -41,7 +41,7 @@ if __name__ == "__main__":
                     interval=timedelta(seconds=INTERVAL_SECONDS),
                     parameters={"item": "hat", "counter_dir": counter_dir},
                 )
-            except TimeoutError as e:
+            except KeyboardInterrupt as e:
                 print(str(e))
             finally:
                 signal.alarm(0)
