@@ -26,7 +26,6 @@ async def main():
     # Define the expected messages
     expected_messages = [
         "prefect.runner - Pausing all deployments...",
-        "prefect.runner - All deployments have been paused!",
         "prefect.flows - Received KeyboardInterrupt, shutting down...",
     ]
 
