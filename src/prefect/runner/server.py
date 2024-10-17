@@ -298,4 +298,15 @@ def start_webserver(runner: "Runner", log_level: Optional[str] = None) -> None:
     port = PREFECT_RUNNER_SERVER_PORT.value()
     log_level = log_level or PREFECT_RUNNER_SERVER_LOG_LEVEL.value()
     webserver = build_server(runner)
-    uvicorn.run(webserver, host=host, port=port, log_level=log_level)
+    uvicorn.run(
+        webserver, host=host, port=port, log_level=log_level.lower()
+    )  # Uvicorn supports only lowercase log_level
+    # From the Uvicorn config file:
+    # LOG_LEVELS: dict[str, int] = {
+    #     "critical": logging.CRITICAL,
+    #     "error": logging.ERROR,
+    #     "warning": logging.WARNING,
+    #     "info": logging.INFO,
+    #     "debug": logging.DEBUG,
+    #     "trace": TRACE_LOG_LEVEL,
+    # }
