@@ -413,7 +413,7 @@ Any pip packages specified in a `requirements.txt` file will be included in the 
 
 In the examples above, we elected not to push the image to a remote registry.
 
-To push the image to a remote registry, pass `push=True` in the Python `deploy` method or change `push: true` in the `prefect.yaml` file.
+To push the image to a remote registry, pass `push=True` in the Python `deploy` method or add a `push_docker_image` step to the `push` section of the `prefect.yaml` file.
 
 ### Custom Docker image
 
