@@ -1,4 +1,4 @@
-import inspect
+import asyncio
 import logging
 import os
 import time
@@ -244,7 +244,7 @@ class FlowRunEngine(Generic[P, R]):
             else:
                 _result = self._return_value
 
-            if inspect.isawaitable(_result):
+            if asyncio.iscoroutine(_result):
                 # getting the value for a BaseResult may return an awaitable
                 # depending on whether the parent frame is sync or not
                 _result = run_coro_as_sync(_result)
@@ -263,7 +263,7 @@ class FlowRunEngine(Generic[P, R]):
         _result = self.state.result(raise_on_failure=raise_on_failure, fetch=True)  # type: ignore
         # state.result is a `sync_compatible` function that may or may not return an awaitable
         # depending on whether the parent frame is sync or not
-        if inspect.isawaitable(_result):
+        if asyncio.iscoroutine(_result):
             _result = run_coro_as_sync(_result)
         return _result
 
@@ -477,7 +477,7 @@ class FlowRunEngine(Generic[P, R]):
                     f" {state.name!r}"
                 )
                 result = hook(flow, flow_run, state)
-                if inspect.isawaitable(result):
+                if asyncio.iscoroutine(result):
                     run_coro_as_sync(result)
             except Exception:
                 self.logger.error(

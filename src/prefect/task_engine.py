@@ -1,3 +1,4 @@
+import asyncio
 import inspect
 import logging
 import threading
@@ -291,7 +292,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 data=exc,
                 message=f"Task run encountered unexpected exception: {repr(exc)}",
             )
-            if inspect.iscoroutinefunction(retry_condition):
+            if asyncio.iscoroutinefunction(retry_condition):
                 should_retry = run_coro_as_sync(
                     retry_condition(self.task, self.task_run, state)
                 )
@@ -335,7 +336,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     f" {state.name!r}"
                 )
                 result = hook(task, task_run, state)
-                if inspect.isawaitable(result):
+                if asyncio.iscoroutine(result):
                     run_coro_as_sync(result)
             except Exception:
                 self.logger.error(
@@ -419,7 +420,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 # Avoid fetching the result unless it is cached, otherwise we defeat
                 # the purpose of disabling `cache_result_in_memory`
                 result = state.result(raise_on_failure=False, fetch=True)
-                if inspect.isawaitable(result):
+                if asyncio.iscoroutine(result):
                     result = run_coro_as_sync(result)
             elif isinstance(state.data, ResultRecord):
                 result = state.data.result
@@ -443,7 +444,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             # if the return value is a BaseResult, we need to fetch it
             if isinstance(self._return_value, BaseResult):
                 _result = self._return_value.get()
-                if inspect.isawaitable(_result):
+                if asyncio.iscoroutine(_result):
                     _result = run_coro_as_sync(_result)
                 return _result
             elif isinstance(self._return_value, ResultRecord):
@@ -813,7 +814,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 data=exc,
                 message=f"Task run encountered unexpected exception: {repr(exc)}",
             )
-            if inspect.iscoroutinefunction(retry_condition):
+            if asyncio.iscoroutinefunction(retry_condition):
                 should_retry = await retry_condition(self.task, self.task_run, state)
             elif inspect.isfunction(retry_condition):
                 should_retry = retry_condition(self.task, self.task_run, state)

@@ -2,7 +2,7 @@
 Injected database interface dependencies
 """
 
-import inspect
+import asyncio
 from contextlib import ExitStack, contextmanager
 from functools import wraps
 from typing import Callable, Type, TypeVar
@@ -129,7 +129,7 @@ def inject_db(fn: Callable) -> Callable:
         inject(kwargs)
         return fn(*args, **kwargs)
 
-    if inspect.iscoroutinefunction(fn):
+    if asyncio.iscoroutinefunction(fn):
         return async_wrapper
 
     return sync_wrapper
@@ -167,7 +167,7 @@ def db_injector(
         db = provide_database_interface()
         return await func(db, *args, **kwargs)  # type: ignore
 
-    if inspect.iscoroutinefunction(func):
+    if asyncio.iscoroutinefunction(func):
         return async_wrapper  # type: ignore
     else:
         return sync_wrapper

@@ -1,5 +1,5 @@
+import asyncio
 import datetime
-import inspect
 from uuid import UUID
 
 import pytest
@@ -170,7 +170,7 @@ async def test_inject_db(db):
         async def return_1(self, db):
             return 1
 
-    assert inspect.iscoroutinefunction(Returner().return_1)
+    assert asyncio.iscoroutinefunction(Returner().return_1)
 
 
 async def test_inject_interface_class():

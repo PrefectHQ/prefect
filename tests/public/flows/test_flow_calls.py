@@ -1,5 +1,4 @@
 import asyncio
-import inspect
 
 import anyio
 
@@ -18,7 +17,7 @@ async def aidentity_flow(x):
 
 def test_async_flow_called_with_asyncio():
     coro = aidentity_flow(1)
-    assert inspect.isawaitable(coro)
+    assert asyncio.iscoroutine(coro)
     assert asyncio.run(coro) == 1
 
 
@@ -28,7 +27,7 @@ def test_async_flow_called_with_anyio():
 
 async def test_async_flow_called_with_running_loop():
     coro = aidentity_flow(1)
-    assert inspect.isawaitable(coro)
+    assert asyncio.iscoroutine(coro)
     assert await coro == 1
 
 

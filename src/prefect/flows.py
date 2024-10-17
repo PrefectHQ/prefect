@@ -286,7 +286,7 @@ class Flow(Generic[P, R]):
 
         # the flow is considered async if its function is async or an async
         # generator
-        self.isasync = inspect.iscoroutinefunction(
+        self.isasync = asyncio.iscoroutinefunction(
             self.fn
         ) or inspect.isasyncgenfunction(self.fn)
 
