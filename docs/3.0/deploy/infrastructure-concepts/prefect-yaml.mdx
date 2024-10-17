@@ -153,7 +153,6 @@ build:
   image_name: my-repo/my-image
   tag: my-tag
   dockerfile: auto
-  push: true
 ```
 </Tip>
 
@@ -386,11 +385,17 @@ Here's a `prefect.yaml` file as an example:
 build:
 - prefect_docker.deployments.steps.build_docker_image:
     id: build-image
-    requires: prefect-docker>=0.3.0
+    requires: prefect-docker>=0.6.0
     image_name: my-repo/my-image
     tag: my-tag
     dockerfile: auto
-    push: true
+
+push:
+- prefect_docker.deployments.steps.push_docker_image:
+    requires: prefect-docker>=0.6.0
+    image_name: my-repo/my-image
+    tag: my-tag
+    credentials: "{{ prefect.blocks.docker-registry-credentials.dev-registry }}"
 
 deployments:
 - # base metadata
@@ -560,7 +565,13 @@ definitions:
                 image_name: my-example-image
                 tag: dev
                 dockerfile: auto
-                push: true
+        
+        docker_push: &docker_push
+            - prefect_docker.deployments.steps.push_docker_image: &docker_push_config
+                requires: prefect-docker>=0.6.0
+                image_name: my-example-image
+                tag: dev
+                credentials: "{{ prefect.blocks.docker-registry-credentials.dev-registry }}"
 
 deployments:
 - name: deployment-1
@@ -571,6 +582,7 @@ deployments:
         message: Don't panic!
     work_pool: *my_docker_work_pool
     build: *docker_build # Uses the full docker_build action with no overrides
+    push: *docker_push
 
 - name: deployment-2
     entrypoint: flows/goodbye.py:my_other_flow
@@ -579,6 +591,7 @@ deployments:
         - prefect_docker.deployments.steps.build_docker_image:
             <<: *docker_build_config # Uses the docker_build_config alias and overrides the dockerfile field
             dockerfile: Dockerfile.custom
+    push: *docker_push
 
 - name: deployment-3
     entrypoint: flows/hello.py:yet_another_flow
