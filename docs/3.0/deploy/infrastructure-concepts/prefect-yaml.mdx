@@ -386,11 +386,17 @@ Here's a `prefect.yaml` file as an example:
 build:
 - prefect_docker.deployments.steps.build_docker_image:
     id: build-image
-    requires: prefect-docker>=0.3.0
+    requires: prefect-docker>=0.6.0
     image_name: my-repo/my-image
     tag: my-tag
     dockerfile: auto
-    push: true
+
+push:
+- prefect_docker.deployments.steps.push_docker_image:
+    requires: prefect-docker>=0.6.0
+    image_name: my-repo/my-image
+    tag: my-tag
+    credentials: "{{ prefect.blocks.docker-registry-credentials.dev-registry }}"
 
 deployments:
 - # base metadata
