@@ -89,10 +89,6 @@ class DeploymentScheduleCreate(ActionBaseModel):
         default=None,
         description="The maximum number of scheduled runs for the schedule.",
     )
-    catchup: bool = Field(
-        default=False,
-        description="Whether or not a worker should catch up on Late runs for the schedule.",
-    )
 
     @field_validator("max_scheduled_runs")
     @classmethod

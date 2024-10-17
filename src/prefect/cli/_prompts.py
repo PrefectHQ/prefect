@@ -224,17 +224,6 @@ class CronTimezonePrompt(PromptBase[str]):
             raise InvalidResponse(self.validate_error_message)
 
 
-def prompt_for_schedule_catchup(console) -> bool:
-    """
-    Prompt the user for whether to catchup on missed runs for a schedule.
-    """
-    return Confirm.ask(
-        "[bold][green]?[/] Catch up on late flow runs?",
-        console=console,
-        default=False,
-    )
-
-
 def prompt_cron_schedule(console):
     """
     Prompt the user for a cron string and timezone.

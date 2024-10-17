@@ -902,7 +902,6 @@ def _schedule_config_to_deployment_schedule(
     rrule = schedule_config.get("rrule")
     timezone = schedule_config.get("timezone")
     schedule_active = schedule_config.get("active", True)
-    catchup = schedule_config.get("catchup", False)
 
     if cron:
         cron_kwargs = {"cron": cron, "timezone": timezone}
@@ -934,7 +933,6 @@ def _schedule_config_to_deployment_schedule(
     return DeploymentScheduleCreate(
         schedule=schedule,
         active=schedule_active,
-        catchup=catchup,
     )
 
 
