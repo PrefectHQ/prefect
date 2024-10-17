@@ -270,6 +270,9 @@ jobs:
 
       - name: Build test image
         uses: docker/build-push-action@v6
+        env:
+          DOCKER_BUILD_SUMMARY: false
+          DOCKER_RECORD_UPLOAD: false
         with:
           context: .
           build-args: |
@@ -413,13 +416,19 @@ jobs:
         run: pip install coverage
 
       - name: Combine coverage data
-        run: |
-          coverage combine
-          coverage html
-          coverage report --format=markdown >> $GITHUB_STEP_SUMMARY
+        run: coverage combine
+
+      - name: Generate HTML coverage report
+        run: coverage html
 
       - name: Upload combined coverage report
         uses: actions/upload-artifact@v4
         with:
           name: combined-coverage-report
           path: htmlcov/
+
+      - name: Publish coverage markdown report
+        run: |
+          echo "## Coverage Report" >> $GITHUB_STEP_SUMMARY
+          echo "[Detailed Report](${{ steps.upload_combined_coverage_report.outputs.artifact_url }})" >> $GITHUB_STEP_SUMMARY
+          coverage report --format=markdown >> $GITHUB_STEP_SUMMARY
