@@ -102,17 +102,20 @@ __all__ = [
 def __getattr__(attr_name: str) -> object:
     if attr_name in _slots:
         return _slots[attr_name]
+    try:
+        dynamic_attr = _public_api.get(attr_name)
+        if dynamic_attr is None:
+            return importlib.import_module(f".{attr_name}", package=__name__)
 
-    dynamic_attr = _public_api.get(attr_name)
-    if dynamic_attr is None:
-        return importlib.import_module(f".{attr_name}", package=__name__)
+        package, module_name = dynamic_attr
 
-    package, module_name = dynamic_attr
+        from importlib import import_module
 
-    from importlib import import_module
-
-    if module_name == "__module__":
-        return import_module(f".{attr_name}", package=package)
-    else:
-        module = import_module(module_name, package=package)
-        return getattr(module, attr_name)
+        if module_name == "__module__":
+            return import_module(f".{attr_name}", package=package)
+        else:
+            module = import_module(module_name, package=package)
+            return getattr(module, attr_name)
+    except ModuleNotFoundError as ex:
+        module, _, attribute = ex.name.rpartition(".")
+        raise AttributeError(f"module {module} has no attribute {attribute}") from ex
