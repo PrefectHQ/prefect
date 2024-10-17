@@ -492,7 +492,7 @@ class PrefectBaseSettings(BaseSettings):
     @classmethod
     def _get_settings_fields(
         cls, accessor_prefix: Optional[str] = None
-    ) -> Dict[str, Any]:
+    ) -> Dict[str, Setting]:
         """Get the settings fields for the settings object"""
         settings_fields: Dict[str, Setting] = {}
         for field_name, field in cls.model_fields.items():
