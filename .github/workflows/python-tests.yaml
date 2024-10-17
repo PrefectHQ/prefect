@@ -56,7 +56,9 @@ jobs:
           - name: Server Tests
             modules: tests/server/ tests/events/server
           - name: Client Tests
-            modules: tests/ --ignore=tests/server/ --ignore=tests/events/server
+            modules: tests/ --ignore=tests/server/ --ignore=tests/events/server --ignore=tests/test_task_runners.py --ignore=tests/runner --ignore=tests/workers
+          - name: Runner and Worker Tests
+            modules: tests/test_task_runners.py tests/runner tests/workers
         database:
           - "postgres:14"
           - "sqlite"
@@ -69,7 +71,11 @@ jobs:
           - database: "sqlite"
             test-type:
               name: Client Tests
-              modules: tests/ --ignore=tests/server/ --ignore=tests/events/server
+              modules: tests/ --ignore=tests/server/ --ignore=tests/events/server --ignore=tests/test_task_runners.py --ignore=tests/runner --ignore=tests/workers
+          - database: "sqlite"
+            test-type:
+              name: Runner and Worker Tests
+              modules: tests/test_task_runners.py tests/runner tests/workers
 
       fail-fast: true
 
@@ -235,9 +241,9 @@ jobs:
           tmp="sha-$SHORT_SHA-python${{ matrix.python-version }}"
           echo "image_tag=${tmp}" >> $GITHUB_OUTPUT
 
-
       - name: Login to DockerHub
         uses: docker/login-action@v3
+        if: github.event.pull_request.head.repo.full_name == github.repository
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
