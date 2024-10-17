@@ -297,5 +297,7 @@ def start_webserver(runner: "Runner", log_level: Optional[str] = None) -> None:
     host = PREFECT_RUNNER_SERVER_HOST.value()
     port = PREFECT_RUNNER_SERVER_PORT.value()
     log_level = log_level or PREFECT_RUNNER_SERVER_LOG_LEVEL.value()
+    assert log_level is not None
     webserver = build_server(runner)
-    uvicorn.run(webserver, host=host, port=port, log_level=log_level)
+    # uvicorn keeps its mapping of log levels in lowercase
+    uvicorn.run(webserver, host=host, port=port, log_level=log_level.lower())
