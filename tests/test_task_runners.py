@@ -14,6 +14,7 @@ from prefect.futures import PrefectFuture, PrefectWrappedFuture
 from prefect.results import _default_storages
 from prefect.settings import (
     PREFECT_DEFAULT_RESULT_STORAGE_BLOCK,
+    PREFECT_TASK_RUNNER_THREAD_POOL_MAX_WORKERS,
     PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK,
     temporary_settings,
 )
@@ -93,6 +94,11 @@ class TestThreadPoolTaskRunner:
     def test_set_max_workers(self):
         with ThreadPoolTaskRunner(max_workers=2) as runner:
             assert runner._executor._max_workers == 2
+
+    def test_set_max_workers_through_settings(self):
+        with temporary_settings({PREFECT_TASK_RUNNER_THREAD_POOL_MAX_WORKERS: 5}):
+            with ThreadPoolTaskRunner() as runner:
+                assert runner._executor._max_workers == 5
 
     def test_submit_sync_task(self):
         with ThreadPoolTaskRunner() as runner:
