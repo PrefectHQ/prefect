@@ -5,6 +5,7 @@ import re
 import signal
 import sys
 import tempfile
+import threading
 import time
 import warnings
 from itertools import combinations
@@ -265,6 +266,33 @@ class TestServe:
         serve(deployment)
 
         mock_runner_start.assert_awaited_once()
+
+
+class TestFlowServeUtility:
+    def test_serve_utility_catches_keyboard_interrupt(self, capsys):
+        @flow
+        def test_flow():
+            pass
+
+        # Function to send SIGINT to the current process after a delay
+        def send_sigint_after_delay():
+            time.sleep(0.2)
+            os.kill(os.getpid(), signal.SIGINT)
+
+        # Start a thread to send SIGINT after a delay
+        sigint_thread = threading.Thread(target=send_sigint_after_delay)
+        sigint_thread.start()
+
+        try:
+            serve(test_flow.to_deployment("test"))
+        except KeyboardInterrupt:
+            pass  # Expected and handled exception
+        finally:
+            sigint_thread.join()  # Ensure the thread has finished
+
+        captured = capsys.readouterr()
+
+        assert "KeyboardInterrupt" not in captured.out
 
 
 class TestRunner:

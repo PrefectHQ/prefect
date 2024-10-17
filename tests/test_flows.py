@@ -24,7 +24,7 @@ import regex as re
 
 import prefect
 import prefect.exceptions
-from prefect import flow, runtime, serve, tags, task
+from prefect import flow, runtime, tags, task
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas.objects import ConcurrencyLimitConfig
@@ -4162,33 +4162,6 @@ class TestFlowServe:
         runner_mock.assert_called_once_with(
             name="test", pause_on_shutdown=ANY, limit=limit
         )
-
-
-class TestServeUtility:
-    def test_serve_utility_catches_keyboard_interrupt(self, capsys):
-        @flow
-        def test_flow():
-            pass
-
-        # Function to send SIGINT to the current process after a delay
-        def send_sigint_after_delay():
-            time.sleep(0.2)
-            os.kill(os.getpid(), signal.SIGINT)
-
-        # Start a thread to send SIGINT after a delay
-        sigint_thread = threading.Thread(target=send_sigint_after_delay)
-        sigint_thread.start()
-
-        try:
-            serve(test_flow.to_deployment("test"))
-        except KeyboardInterrupt:
-            pass  # Expected and handled exception
-        finally:
-            sigint_thread.join()  # Ensure the thread has finished
-
-        captured = capsys.readouterr()
-
-        assert "KeyboardInterrupt" not in captured.out
 
 
 class MockStorage:
