@@ -14,8 +14,8 @@ def may_i_take_your_hat_sir(item: str, counter_dir: Path):
     return f"May I take your {item}?"
 
 
-def timeout_handler(signum, frame):
-    raise KeyboardInterrupt("Simulated KeyboardInterrupt")
+def _handler(signum, frame):
+    raise KeyboardInterrupt("Simulating user interruption")
 
 
 def count_runs(counter_dir: Path):
@@ -28,7 +28,7 @@ if __name__ == "__main__":
 
     MINIMUM_EXPECTED_N_FLOW_RUNS: int = 3
 
-    signal.signal(signal.SIGALRM, timeout_handler)
+    signal.signal(signal.SIGALRM, _handler)
     signal.alarm(TIMEOUT)
 
     with tempfile.TemporaryDirectory() as tmp_dir:
