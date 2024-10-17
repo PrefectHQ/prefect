@@ -189,3 +189,30 @@ class TestGitHubRepository:
 
                 assert set(os.listdir(tmp_dst)) == set([sub_dir_name])
                 assert set(os.listdir(Path(tmp_dst) / sub_dir_name)) == child_contents
+
+    async def test_get_directory_clones_a_repo(self):
+        """Check that `get_directory` is able to clone a repo"""
+
+        with TemporaryDirectory() as tmp_dst:
+            g = GitHubRepository(
+                repository_url="https://github.com/PrefectHQ/prefect-operator",
+            )
+            await g.get_directory(local_path=tmp_dst)
+
+            dir_list = set(os.listdir(tmp_dst))
+            assert ".git" in dir_list
+
+    async def test_get_directory_clones_a_private_repo(self):
+        """Check that `get_directory` is able to clone a private repo"""
+
+        credential = GitHubCredentials(token="XYZ")
+        with TemporaryDirectory() as tmp_dst:
+            g = GitHubRepository(
+                repository_url="https://github.com/PrefectHQ/prefect-operator",
+                credentials=credential,
+            )
+            await g.get_directory(local_path=tmp_dst)
+
+            dir_list = set(os.listdir(tmp_dst))
+            assert "README.md" in dir_list
+            assert ".git" in dir_list
