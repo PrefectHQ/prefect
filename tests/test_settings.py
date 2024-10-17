@@ -39,6 +39,7 @@ from prefect.settings import (
     PREFECT_SERVER_API_PORT,
     PREFECT_TEST_MODE,
     PREFECT_TEST_SETTING,
+    PREFECT_UI_API_URL,
     PREFECT_UI_URL,
     PREFECT_UNIT_TEST_MODE,
     SETTING_VARIABLES,
@@ -126,8 +127,11 @@ SUPPORTED_SETTINGS = {
     "PREFECT_API_URL": {"test_value": "https://api.prefect.io"},
     "PREFECT_ASYNC_FETCH_STATE_RESULT": {"test_value": True},
     "PREFECT_CLIENT_CSRF_SUPPORT_ENABLED": {"test_value": True},
-    "PREFECT_CLIENT_ENABLE_METRICS": {"test_value": True},
+    "PREFECT_CLIENT_ENABLE_METRICS": {"test_value": True, "legacy": True},
     "PREFECT_CLIENT_MAX_RETRIES": {"test_value": 3},
+    "PREFECT_CLIENT_METRICS_ENABLED": {
+        "test_value": True,
+    },
     "PREFECT_CLIENT_METRICS_PORT": {"test_value": 9000},
     "PREFECT_CLIENT_RETRY_EXTRA_CODES": {"test_value": "400"},
     "PREFECT_CLIENT_RETRY_JITTER_FACTOR": {"test_value": 0.5},
@@ -295,7 +299,7 @@ class TestSettingsClass:
                 new_settings.api.key is not None
                 and new_settings.api.key.get_secret_value() == "TEST"
             ), "Changed, existing value was default"
-            assert new_settings.client_retry_extra_codes == {400, 500}
+            assert new_settings.client.retry_extra_codes == {400, 500}
 
     def test_settings_loads_environment_variables_at_instantiation(self, monkeypatch):
         assert PREFECT_TEST_MODE.value() is True
@@ -308,9 +312,11 @@ class TestSettingsClass:
         self, disable_hosted_api_server
     ):
         settings = Settings()
-        assert set(settings.to_environment_variables().keys()) == {
+        expected_names = {
             s.name for s in SETTING_VARIABLES.values() if s.value() is not None
         }
+        expected_names.remove("PREFECT_CLIENT_ENABLE_METRICS")
+        assert set(settings.to_environment_variables().keys()) == expected_names
 
     def test_settings_to_environment_works_with_exclude_unset(self, monkeypatch):
         # for var in os.environ:
@@ -551,6 +557,21 @@ class TestSettingAccess:
         with temporary_settings({PREFECT_CLOUD_UI_URL: "test"}):
             assert PREFECT_CLOUD_UI_URL.value() == "test"
 
+    def test_ui_api_url_inferred_from_api_url(self):
+        with temporary_settings({PREFECT_API_URL: "http://my-domain/api"}):
+            assert PREFECT_UI_API_URL.value() == "http://my-domain/api"
+
+    def test_ui_api_url_set_directly(self):
+        with temporary_settings({PREFECT_UI_API_URL: "http://my-foo-domain/api"}):
+            assert PREFECT_UI_API_URL.value() == "http://my-foo-domain/api"
+
+    def test_ui_api_url_default(self):
+        default_api_url = PREFECT_API_URL.value()
+        assert PREFECT_UI_API_URL.value() == default_api_url
+
+        assert default_api_url.startswith("http://localhost")
+        assert default_api_url.endswith("/api")
+
     @pytest.mark.parametrize(
         "extra_codes,expected",
         [
@@ -597,6 +618,25 @@ class TestSettingAccess:
             )
 
         assert value == settings.test_mode
+
+    def test_settings_with_serialization_alias(self, monkeypatch):
+        assert not Settings().client.metrics.enabled
+        # Use old value
+        monkeypatch.setenv("PREFECT_CLIENT_ENABLE_METRICS", "True")
+        assert Settings().client.metrics.enabled
+
+        monkeypatch.delenv("PREFECT_CLIENT_ENABLE_METRICS", raising=False)
+        assert not Settings().client.metrics.enabled
+
+        # Use new value
+        monkeypatch.setenv("PREFECT_CLIENT_METRICS_ENABLED", "True")
+        assert Settings().client.metrics.enabled
+
+        # Check both can be imported
+        from prefect.settings import (
+            PREFECT_CLIENT_ENABLE_METRICS,  # noqa
+            PREFECT_CLIENT_METRICS_ENABLED,  # noqa
+        )
 
 
 class TestDatabaseSettings:
@@ -804,11 +844,11 @@ class TestSettingsSources:
     def test_env_source(self, temporary_env_file):
         temporary_env_file("PREFECT_CLIENT_RETRY_EXTRA_CODES=420,500")
 
-        assert Settings().client_retry_extra_codes == {420, 500}
+        assert Settings().client.retry_extra_codes == {420, 500}
 
         os.unlink(".env")
 
-        assert Settings().client_retry_extra_codes == set()
+        assert Settings().client.retry_extra_codes == set()
 
     def test_resolution_order(self, temporary_env_file, monkeypatch, tmp_path):
         profiles_path = tmp_path / "profiles.toml"
@@ -828,21 +868,42 @@ class TestSettingsSources:
             )
         )
 
-        assert Settings().client_retry_extra_codes == {420, 500}
+        assert Settings().client.retry_extra_codes == {420, 500}
 
         temporary_env_file("PREFECT_CLIENT_RETRY_EXTRA_CODES=429,500")
 
-        assert Settings().client_retry_extra_codes == {429, 500}
+        assert Settings().client.retry_extra_codes == {429, 500}
 
         os.unlink(".env")
 
-        assert Settings().client_retry_extra_codes == {420, 500}
+        assert Settings().client.retry_extra_codes == {420, 500}
 
         monkeypatch.setenv("PREFECT_TEST_MODE", "1")
         monkeypatch.setenv("PREFECT_UNIT_TEST_MODE", "1")
         monkeypatch.delenv("PREFECT_PROFILES_PATH", raising=True)
 
-        assert Settings().client_retry_extra_codes == set()
+        assert Settings().client.retry_extra_codes == set()
+
+    def test_read_legacy_setting_from_profile(self, monkeypatch, tmp_path):
+        Settings().client.metrics.enabled = False
+        profiles_path = tmp_path / "profiles.toml"
+
+        monkeypatch.delenv("PREFECT_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_UNIT_TEST_MODE", raising=False)
+        monkeypatch.setenv("PREFECT_PROFILES_PATH", str(profiles_path))
+
+        profiles_path.write_text(
+            textwrap.dedent(
+                """
+                active = "foo"
+
+                [profiles.foo]
+                PREFECT_CLIENT_ENABLE_METRICS = "True"
+                """
+            )
+        )
+
+        assert Settings().client.metrics.enabled is True
 
     def test_resolution_order_with_nested_settings(
         self, temporary_env_file, monkeypatch, tmp_path
@@ -1356,10 +1417,12 @@ class TestSettingValues:
                 assert settings_value == value
                 # get value from legacy setting object
                 assert getattr(prefect.settings, setting).value() == value
-                # ensure the value gets added to the environment variables
-                assert current_settings.to_environment_variables(exclude_unset=True)[
-                    setting
-                ] == str(to_jsonable_python(value))
+                # ensure the value gets added to the environment variables, but "legacy" will use
+                # their updated name
+                if not SUPPORTED_SETTINGS[setting].get("legacy"):
+                    assert current_settings.to_environment_variables(
+                        exclude_unset=True
+                    )[setting] == str(to_jsonable_python(value))
 
     def test_set_via_env_var(self, setting_and_value, monkeypatch):
         setting, value = setting_and_value
