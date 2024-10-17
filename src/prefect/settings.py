@@ -1559,12 +1559,10 @@ class Settings(PrefectBaseSettings):
         if self.ui_api_url is None:
             if self.api.url:
                 self.ui_api_url = self.api.url
-            if self.api.url:
-                self.ui_api_url = self.api.url
                 self.__pydantic_fields_set__.remove("ui_api_url")
             else:
                 self.ui_api_url = (
-                    f"http://{self.server_api_host}:{self.server_api_port}"
+                    f"http://{self.server_api_host}:{self.server_api_port}/api"
                 )
                 self.__pydantic_fields_set__.remove("ui_api_url")
         if self.profiles_path is None or "PREFECT_HOME" in str(self.profiles_path):
