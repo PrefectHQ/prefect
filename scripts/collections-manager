@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import asyncio
 import glob
-import inspect
 import os
 import subprocess
 import sys
@@ -92,7 +91,7 @@ def run_function(function_path: str):
     function = getattr(module, function_name)
 
     for collection_path in collection_paths():
-        if inspect.iscoroutinefunction(function):
+        if asyncio.iscoroutinefunction(function):
             asyncio.run(function(collection_path))
         else:
             function(collection_path)

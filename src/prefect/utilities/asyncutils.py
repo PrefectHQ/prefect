@@ -83,7 +83,7 @@ def is_async_fn(
     while hasattr(func, "__wrapped__"):
         func = func.__wrapped__
 
-    return inspect.iscoroutinefunction(func)
+    return asyncio.iscoroutinefunction(func)
 
 
 def is_async_gen_fn(func):

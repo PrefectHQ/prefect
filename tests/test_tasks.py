@@ -2438,7 +2438,7 @@ class TestTaskInputs:
             # because it runs on the main thread with an active event loop. We need to update
             # result retrieval to be sync.
             result = upstream_state.result()
-            if inspect.isawaitable(result):
+            if asyncio.iscoroutine(result):
                 result = run_coro_as_sync(result)
             downstream_state = downstream(result, return_state=True)
             return upstream_state, downstream_state

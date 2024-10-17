@@ -1,5 +1,5 @@
 import abc
-import inspect
+import asyncio
 import threading
 from contextlib import AsyncExitStack
 from functools import partial
@@ -1078,7 +1078,7 @@ class BaseWorker(abc.ABC):
                 task_status.started()
 
             result = fn(*args, **kwargs)
-            if inspect.iscoroutine(result):
+            if asyncio.iscoroutine(result):
                 await result
 
         await self._runs_task_group.start(wrapper)
