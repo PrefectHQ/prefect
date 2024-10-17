@@ -1,6 +1,7 @@
 import asyncio
 from typing import Dict, List, Optional
 
+import aiohttp
 import kubernetes_asyncio
 import kubernetes_asyncio.watch
 from kubernetes_asyncio.client import ApiClient, V1Pod
@@ -81,6 +82,7 @@ class KubernetesEventsReplicator:
                 namespace=self._namespace,
                 label_selector=f"job-name={self._job_name}",
                 timeout_seconds=self._timeout_seconds,
+                _request_timeout=aiohttp.ClientTimeout(),
             ):
                 phase = event["object"].status.phase
 
