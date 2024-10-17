@@ -1289,7 +1289,7 @@ class Settings(PrefectBaseSettings):
     )
 
     server_ephemeral_startup_timeout_seconds: int = Field(
-        default=10,
+        default=20,
         description="""
         The number of seconds to wait for the server to start when ephemeral mode is enabled.
         Defaults to `10`.
