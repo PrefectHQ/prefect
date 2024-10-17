@@ -77,11 +77,11 @@ GcpCredentials(
 
 The advantage of using `service_account_info`, instead of `service_account_file`, is that it is accessible across containers.
 
-If `service_account_file` is used, the provided file path *must be available* in the container executing the flow.
+If `service_account_file` is used, the provided path *must be available* in the container executing the flow.
 </Warning>
 
 Alternatively, GCP can authenticate without storing credentials in a block.
-See the [Third-pary Secrets docs](/latest/resources/secrets) for an analogous example that uses AWS Secrets Manager and Snowflake.
+See the [Third-party Secrets docs](/latest/resources/secrets) for an analogous example that uses AWS Secrets Manager and Snowflake.
 
 ## Run flows on Google Cloud Run or Vertex AI
 
@@ -143,7 +143,7 @@ Interact with Google Cloud Storage.
 
 Be sure to [install](#install-prefect-gcp) `prefect-gcp` with the Cloud Storage extra.
 
-The code below uses `prefect_gcp` to upload a file to a Google Cloud Storage bucket and download the same file under a different file name.
+The code below uses `prefect_gcp` to upload a file to a Google Cloud Storage bucket and download the same file under a different filename.
 
 ```python
 from pathlib import Path
