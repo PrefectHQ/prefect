@@ -1848,10 +1848,15 @@ def serve(
         else:
             raise
 
-    if loop is not None:
-        loop.run_until_complete(runner.start())
-    else:
-        asyncio.run(runner.start())
+    try:
+        if loop is not None:
+            loop.run_until_complete(runner.start())
+        else:
+            asyncio.run(runner.start())
+    except (KeyboardInterrupt, TerminationSignal) as exc:
+        logger.info(f"Received {type(exc).__name__}, shutting down...")
+        if loop is not None:
+            loop.stop()
 
 
 @client_injector
