@@ -1644,6 +1644,12 @@ class Settings(PrefectBaseSettings):
         description="Which cache implementation to use for the events system.  Should point to a module that exports a Cache class.",
     )
 
+    task_runner_thread_pool_max_workers: Optional[int] = Field(
+        default=None,
+        gt=0,
+        description="The maximum number of workers for ThreadPoolTaskRunner.",
+    )
+
     ###########################################################################
     # allow deprecated access to PREFECT_SOME_SETTING_NAME
 
