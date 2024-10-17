@@ -35,7 +35,7 @@ classifiers = [
 dev = [
   "coverage",
   # Dask and its distributed scheduler follow the same release schedule and version,
-  # so here we apply the same restrictions as for the distributed packge up above in
+  # so here we apply the same restrictions as for the distributed package up above in
   # project.dependencies
   "dask[dataframe]>=2022.5.0,!=2023.3.2,!=2023.3.2.1,!=2023.4.*,!=2023.5.*",
   "interrogate",
