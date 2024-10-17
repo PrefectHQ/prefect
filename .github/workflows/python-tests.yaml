@@ -162,7 +162,7 @@ jobs:
       - name: Run tests
         run: |
           echo "Using COVERAGE_FILE=$COVERAGE_FILE"
-          pytest -vv ${{ matrix.test-type.modules }} \
+          pytest ${{ matrix.test-type.modules }} \
           --numprocesses auto \
           --maxprocesses 6 \
           --dist worksteal \
@@ -180,6 +180,7 @@ jobs:
           name: ${{ steps.set_coverage_and_artifact_name.outputs.artifact_name }}
           path: ${{ env.COVERAGE_FILE }}
           include-hidden-files: true
+          retention-days: 1
 
       - name: Create and Upload failure flag
         if: ${{ failure() }}
@@ -360,6 +361,7 @@ jobs:
           name: ${{ steps.set_coverage_and_artifact_name.outputs.artifact_name }}
           path: ${{ env.COVERAGE_FILE }}
           include-hidden-files: true
+          retention-days: 1
 
       - name: Create and Upload failure flag
         if: ${{ failure() }}
@@ -414,6 +416,7 @@ jobs:
         run: |
           coverage combine
           coverage html
+          coverage report --format=markdown >> $GITHUB_STEP_SUMMARY
 
       - name: Upload combined coverage report
         uses: actions/upload-artifact@v4
