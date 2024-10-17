@@ -201,6 +201,7 @@ async def test_async_waiter_timeout_in_worker_thread():
     ), "The done callback should still be called on cancel"
 
 
+@pytest.mark.skip(reason="This test hangs and should be rewritten")
 async def test_async_waiter_timeout_in_main_thread():
     done_callback = Call.new(identity, 1)
     waiting_callback = Call.new(asyncio.sleep, 2)

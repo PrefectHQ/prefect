@@ -10,7 +10,7 @@ import anyio
 import httpx
 
 from prefect.logging.loggers import get_logger
-from prefect.settings import PREFECT_CLIENT_ENABLE_METRICS, PREFECT_CLIENT_METRICS_PORT
+from prefect.settings import PREFECT_CLIENT_METRICS_ENABLED, PREFECT_CLIENT_METRICS_PORT
 from prefect.utilities.collections import distinct
 from prefect.utilities.math import clamped_poisson_interval
 
@@ -160,8 +160,8 @@ _metrics_server: Optional[Tuple[WSGIServer, threading.Thread]] = None
 
 def start_client_metrics_server():
     """Start the process-wide Prometheus metrics server for client metrics (if enabled
-    with `PREFECT_CLIENT_ENABLE_METRICS`) on the port `PREFECT_CLIENT_METRICS_PORT`."""
-    if not PREFECT_CLIENT_ENABLE_METRICS:
+    with `PREFECT_CLIENT_METRICS_ENABLED`) on the port `PREFECT_CLIENT_METRICS_PORT`."""
+    if not PREFECT_CLIENT_METRICS_ENABLED:
         return
 
     global _metrics_server
