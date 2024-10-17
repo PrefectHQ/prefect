@@ -907,6 +907,7 @@ class KubernetesWorker(BaseWorker):
                         func=batch_client.list_namespaced_job,
                         namespace=namespace,
                         field_selector=f"metadata.name={job_name}",
+                        _request_timeout=aiohttp.ClientTimeout(),
                         **watch_kwargs,
                     ):
                         yield event
@@ -915,6 +916,7 @@ class KubernetesWorker(BaseWorker):
                         job_list = await batch_client.list_namespaced_job(
                             namespace=namespace,
                             field_selector=f"metadata.name={job_name}",
+                            _request_timeout=aiohttp.ClientTimeout(),
                         )
 
                         resource_version = job_list.metadata.resource_version
@@ -1118,6 +1120,7 @@ class KubernetesWorker(BaseWorker):
                 namespace=configuration.namespace,
                 label_selector=f"job-name={job_name}",
                 timeout_seconds=configuration.pod_watch_timeout_seconds,
+                _request_timeout=aiohttp.ClientTimeout(),
             ):
                 pod: V1Pod = event["object"]
                 last_pod_name = pod.metadata.name
