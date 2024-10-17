@@ -144,35 +144,6 @@ def mock_create_namespaced_job(monkeypatch):
 
 
 @pytest.fixture
-def mock_read_namespaced_job_status(monkeypatch):
-    mock_v1_job_status = AsyncMock(
-        return_value=models.V1Job(
-            metadata=models.V1ObjectMeta(
-                name="test", labels={"controller-uid": "test"}
-            ),
-            spec=models.V1JobSpec(
-                template=models.V1PodTemplateSpec(
-                    spec=models.V1PodSpec(containers=[models.V1Container(name="test")])
-                )
-            ),
-            status=models.V1JobStatus(
-                active=0,
-                failed=0,
-                succeeded=1,
-                conditions=[
-                    models.V1JobCondition(type="Complete", status="True"),
-                ],
-            ),
-        )
-    )
-    monkeypatch.setattr(
-        "kubernetes_asyncio.client.BatchV1Api.read_namespaced_job_status",
-        mock_v1_job_status,
-    )
-    return mock_v1_job_status
-
-
-@pytest.fixture
 def mock_delete_namespaced_job(monkeypatch):
     mock_v1_job = AsyncMock(
         return_value=models.V1Job(metadata=models.V1ObjectMeta(name="test"))
@@ -239,3 +210,33 @@ def valid_kubernetes_job_block(kubernetes_credentials):
         credentials=kubernetes_credentials,
         v1_job=job_dict,
     )
+
+
+@pytest.fixture
+def mock_read_namespaced_job(monkeypatch):
+    mock_v1_job = AsyncMock(
+        return_value=models.V1Job(
+            metadata=models.V1ObjectMeta(
+                name="test",
+            ),
+            spec=models.V1JobSpec(
+                template=models.V1PodTemplateSpec(
+                    metadata=models.V1ObjectMeta(labels={"controller-uid": "test-uid"}),
+                    spec=models.V1PodSpec(containers=[models.V1Container(name="test")]),
+                )
+            ),
+            status=models.V1JobStatus(
+                active=0,
+                failed=0,
+                succeeded=1,
+                conditions=[
+                    models.V1JobCondition(type="Complete", status="True"),
+                ],
+            ),
+        )
+    )
+    monkeypatch.setattr(
+        "kubernetes_asyncio.client.BatchV1Api.read_namespaced_job",
+        mock_v1_job,
+    )
+    return mock_v1_job

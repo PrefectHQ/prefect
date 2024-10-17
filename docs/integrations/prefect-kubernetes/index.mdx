@@ -54,6 +54,7 @@ customized_run_namespaced_job = run_namespaced_job.with_options(
 ### Specify and run a Kubernetes Job from a YAML file
 
 ```python
+from prefect import flow, get_run_logger
 from prefect_kubernetes.credentials import KubernetesCredentials
 from prefect_kubernetes.flows import run_namespaced_job # this is a flow
 from prefect_kubernetes.jobs import KubernetesJob
@@ -68,9 +69,21 @@ job = KubernetesJob.from_yaml_file( # or create in the UI with a dict manifest
 job.save("my-k8s-job", overwrite=True)
 
 
+@flow
+def kubernetes_orchestrator():
+    # run the flow and send logs to the parent flow run's logger
+    logger = get_run_logger()
+    run_namespaced_job(job, print_func=logger.info)
+
+
 if __name__ == "__main__":
-    # run the flow
-    run_namespaced_job(job)
+    kubernetes_orchestrator()
+```
+
+As with all Prefect flows and tasks, you can call the underlying function directly if you don't need Prefect features:
+
+```python
+run_namespaced_job.fn(job, print_func=print)
 ```
 
 ### Generate a resource-specific client from `KubernetesClusterConfig`
@@ -104,32 +117,6 @@ def kubernetes_orchestrator():
     )
 ```
 
-### Patch an existing Kubernetes deployment
-
-```python
-from kubernetes.client.models import V1Deployment
-
-from prefect import flow
-from prefect_kubernetes.credentials import KubernetesCredentials
-from prefect_kubernetes.deployments import patch_namespaced_deployment
-from prefect_kubernetes.utilities import convert_manifest_to_model
-
-
-@flow
-def kubernetes_orchestrator():
-
-    v1_deployment_updates = convert_manifest_to_model(
-        manifest="path/to/manifest.yaml",
-        v1_model_name="V1Deployment",
-    )
-
-    v1_deployment = patch_namespaced_deployment(
-        kubernetes_credentials=KubernetesCredentials.load("k8s-creds"),
-        deployment_name="my-deployment",
-        deployment_updates=v1_deployment_updates,
-        namespace="my-namespace"
-    )
-```
 
 For assistance using Kubernetes, consult the [Kubernetes documentation](https://kubernetes.io/).
 
