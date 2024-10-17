@@ -39,6 +39,7 @@ from prefect.settings import (
     PREFECT_SERVER_API_PORT,
     PREFECT_TEST_MODE,
     PREFECT_TEST_SETTING,
+    PREFECT_UI_API_URL,
     PREFECT_UI_URL,
     PREFECT_UNIT_TEST_MODE,
     SETTING_VARIABLES,
@@ -550,6 +551,21 @@ class TestSettingAccess:
     def test_cloud_ui_url_set_directly(self):
         with temporary_settings({PREFECT_CLOUD_UI_URL: "test"}):
             assert PREFECT_CLOUD_UI_URL.value() == "test"
+
+    def test_ui_api_url_inferred_from_api_url(self):
+        with temporary_settings({PREFECT_API_URL: "http://my-domain/api"}):
+            assert PREFECT_UI_API_URL.value() == "http://my-domain/api"
+
+    def test_ui_api_url_set_directly(self):
+        with temporary_settings({PREFECT_UI_API_URL: "http://my-foo-domain/api"}):
+            assert PREFECT_UI_API_URL.value() == "http://my-foo-domain/api"
+
+    def test_ui_api_url_default(self):
+        default_api_url = PREFECT_API_URL.value()
+        assert PREFECT_UI_API_URL.value() == default_api_url
+
+        assert default_api_url.startswith("http://localhost")
+        assert default_api_url.endswith("/api")
 
     @pytest.mark.parametrize(
         "extra_codes,expected",
