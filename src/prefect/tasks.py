@@ -4,6 +4,7 @@ Module containing the base workflow task class and decorator - for most use case
 # This file requires type-checking with pyright because mypy does not yet support PEP612
 # See https://github.com/python/mypy/issues/8645
 
+import asyncio
 import datetime
 import inspect
 from copy import copy
@@ -370,7 +371,7 @@ class Task(Generic[P, R]):
 
         # the task is considered async if its function is async or an async
         # generator
-        self.isasync = inspect.iscoroutinefunction(
+        self.isasync = asyncio.iscoroutinefunction(
             self.fn
         ) or inspect.isasyncgenfunction(self.fn)
 
