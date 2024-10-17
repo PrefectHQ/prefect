@@ -550,6 +550,30 @@ class TestFlowRetryingRule:
         assert ctx.response_status == SetStateStatus.ACCEPT
         assert ctx.validated_state_type == states.StateType.FAILED
 
+    async def test_sets_retry_type(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        retry_policy = [RetryFailedFlows]
+        initial_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.FAILED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        ctx.run.run_count = 2
+        ctx.run_settings.retries = 3
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in retry_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+            await ctx.validate_proposed_state()
+
+        assert ctx.run.empirical_policy.retry_type == "in_process"
+
 
 class TestManualFlowRetries:
     async def test_can_manual_retry_with_arbitrary_state_name(
@@ -654,6 +678,37 @@ class TestManualFlowRetries:
 
         assert ctx.response_status == SetStateStatus.ACCEPT
         assert ctx.run.run_count == 3
+
+    @pytest.mark.parametrize(
+        "proposed_state_type",
+        [states.StateType.SCHEDULED, states.StateType.FAILED],
+    )
+    async def test_manual_retry_updates_retry_type(
+        self,
+        session,
+        initialize_orchestration,
+        proposed_state_type,
+    ):
+        manual_retry_policy = [HandleFlowTerminalStateTransitions]
+        initial_state_type = states.StateType.FAILED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        ctx.proposed_state.name = "AwaitingRetry"
+        ctx.run.deployment_id = uuid4()
+        ctx.run.run_count = 2
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in manual_retry_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+
+        if proposed_state_type == states.StateType.SCHEDULED:
+            assert ctx.run.empirical_policy.retry_type == "reschedule"
+        else:
+            assert ctx.run.empirical_policy.retry_type is None
 
 
 class TestUpdatingFlowRunTrackerOnTasks:
