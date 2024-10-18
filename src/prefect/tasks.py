@@ -1172,7 +1172,7 @@ class Task(Generic[P, R]):
 
     @overload
     def map(
-        self: "Task[P, Coroutine[Any, Any, R]]",
+        self: "Task[P, R]",
         *args: Any,
         return_state: Literal[True],
         wait_for: Optional[Iterable[Union[PrefectFuture[T], T]]] = ...,
@@ -1183,7 +1183,7 @@ class Task(Generic[P, R]):
 
     @overload
     def map(
-        self: "Task[P, Coroutine[Any, Any, R]]",
+        self: "Task[P, R]",
         *args: Any,
         wait_for: Optional[Iterable[Union[PrefectFuture[T], T]]] = ...,
         deferred: bool = ...,
@@ -1213,13 +1213,13 @@ class Task(Generic[P, R]):
         ...
 
     def map(
-        self,
+        self: "Task[P, R]",
         *args: Any,
         return_state: bool = False,
         wait_for: Optional[Iterable[Union[PrefectFuture[T], T]]] = None,
         deferred: bool = False,
         **kwargs: Any,
-    ) -> Union[PrefectFutureList[R], List[State[R]]]:
+    ):
         """
         Submit a mapped run of the task to a worker.
 
