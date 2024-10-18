@@ -804,6 +804,62 @@ class DeploymentsSettings(PrefectBaseSettings):
     )
 
 
+class LoggingSettings(PrefectBaseSettings):
+    """
+    Settings for controlling logging behavior
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="PREFECT_LOGGING_", env_file=".env", extra="ignore"
+    )
+
+    level: LogLevel = Field(
+        default="INFO",
+        description="The default logging level for Prefect loggers.",
+    )
+
+    config_path: Optional[Path] = Field(
+        default=None,
+        description="The path to a custom YAML logging configuration file.",
+        validation_alias=AliasChoices(
+            "prefect_logging_config_path",
+            "prefect_logging_settings_path",
+            AliasPath("config_path"),
+        ),
+    )
+
+    extra_loggers: Annotated[
+        Union[str, list[str], None],
+        AfterValidator(lambda v: [n.strip() for n in v.split(",")] if v else []),
+    ] = Field(
+        default=None,
+        description="Additional loggers to attach to Prefect logging at runtime.",
+    )
+
+    log_prints: bool = Field(
+        default=False,
+        description="If `True`, `print` statements in flows and tasks will be redirected to the Prefect logger for the given run.",
+    )
+
+    colors: bool = Field(
+        default=True,
+        description="If `True`, use colors in CLI output. If `False`, output will not include colors codes.",
+    )
+
+    markup: bool = Field(
+        default=False,
+        description="""
+        Whether to interpret strings wrapped in square brackets as a style.
+        This allows styles to be conveniently added to log messages, e.g.
+        `[red]This is a red message.[/red]`. However, the downside is, if enabled,
+        strings that contain square brackets may be inaccurately interpreted and
+        lead to incomplete output, e.g.
+        `[red]This is a red message.[/red]` may be interpreted as
+        `[red]This is a red message.[/red]`.
+        """,
+    )
+
+
 class Settings(PrefectBaseSettings):
     """
     Settings for Prefect using Pydantic settings.
@@ -841,6 +897,11 @@ class Settings(PrefectBaseSettings):
     deployments: DeploymentsSettings = Field(
         default_factory=DeploymentsSettings,
         description="Settings for configuring deployments defaults",
+    )
+
+    logging: LoggingSettings = Field(
+        default_factory=LoggingSettings,
+        description="Settings for controlling logging behavior",
     )
 
     ###########################################################################
@@ -1171,11 +1232,6 @@ class Settings(PrefectBaseSettings):
     ###########################################################################
     # Logging settings
 
-    logging_level: LogLevel = Field(
-        default="INFO",
-        description="The default logging level for Prefect loggers.",
-    )
-
     logging_internal_level: LogLevel = Field(
         default="ERROR",
         description="The default logging level for Prefect's internal machinery loggers.",
@@ -1184,24 +1240,6 @@ class Settings(PrefectBaseSettings):
     logging_server_level: LogLevel = Field(
         default="WARNING",
         description="The default logging level for the Prefect API server.",
-    )
-
-    logging_settings_path: Optional[Path] = Field(
-        default=None,
-        description="The path to a custom YAML logging configuration file.",
-    )
-
-    logging_extra_loggers: Annotated[
-        Union[str, list[str], None],
-        AfterValidator(lambda v: [n.strip() for n in v.split(",")] if v else []),
-    ] = Field(
-        default=None,
-        description="Additional loggers to attach to Prefect logging at runtime.",
-    )
-
-    logging_log_prints: bool = Field(
-        default=False,
-        description="If `True`, `print` statements in flows and tasks will be redirected to the Prefect logger for the given run.",
     )
 
     logging_to_api_enabled: bool = Field(
@@ -1239,24 +1277,6 @@ class Settings(PrefectBaseSettings):
         - "warn": Log a warning message.
         - "error": Raise an error.
         - "ignore": Do not log a warning message or raise an error.
-        """,
-    )
-
-    logging_colors: bool = Field(
-        default=True,
-        description="If `True`, use colors in CLI output. If `False`, output will not include colors codes.",
-    )
-
-    logging_markup: bool = Field(
-        default=False,
-        description="""
-        Whether to interpret strings wrapped in square brackets as a style.
-        This allows styles to be conveniently added to log messages, e.g.
-        `[red]This is a red message.[/red]`. However, the downside is, if enabled,
-        strings that contain square brackets may be inaccurately interpreted and
-        lead to incomplete output, e.g.
-        `[red]This is a red message.[/red]` may be interpreted as
-        `[red]This is a red message.[/red]`.
         """,
     )
 
@@ -1688,16 +1708,6 @@ class Settings(PrefectBaseSettings):
         description="The `block-type/block-document` slug of a block to use as the default result storage.",
     )
 
-    default_work_pool_name: Optional[str] = Field(
-        default=None,
-        description="The default work pool to deploy to.",
-    )
-
-    default_docker_build_namespace: Optional[str] = Field(
-        default=None,
-        description="The default Docker namespace to use when building images.",
-    )
-
     messaging_broker: str = Field(
         default="prefect.server.utilities.messaging.memory",
         description="Which message broker implementation to use for the messaging system, should point to a module that exports a Publisher and Consumer class.",
@@ -1754,14 +1764,14 @@ class Settings(PrefectBaseSettings):
             self.memo_store_path = Path(f"{self.home}/memo_store.toml")
             self.__pydantic_fields_set__.remove("memo_store_path")
         if self.debug_mode or self.test_mode:
-            self.logging_level = "DEBUG"
+            self.logging.level = "DEBUG"
             self.logging_internal_level = "DEBUG"
-            self.__pydantic_fields_set__.remove("logging_level")
+            self.logging.__pydantic_fields_set__.remove("level")
             self.__pydantic_fields_set__.remove("logging_internal_level")
 
-        if self.logging_settings_path is None:
-            self.logging_settings_path = Path(f"{self.home}/logging.yml")
-            self.__pydantic_fields_set__.remove("logging_settings_path")
+        if self.logging.config_path is None:
+            self.logging.config_path = Path(f"{self.home}/logging.yml")
+            self.logging.__pydantic_fields_set__.remove("config_path")
         # Set default database connection URL if not provided
         if self.api_database_connection_url is None:
             self.api_database_connection_url = default_database_connection_url(self)
