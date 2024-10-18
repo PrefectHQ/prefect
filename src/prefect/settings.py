@@ -804,6 +804,37 @@ class DeploymentsSettings(PrefectBaseSettings):
     )
 
 
+class FlowsSettings(PrefectBaseSettings):
+    """
+    Settings for controlling flow behavior
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="PREFECT_FLOWS_", env_file=".env", extra="ignore"
+    )
+
+    default_retries: int = Field(
+        default=0,
+        ge=0,
+        description="This value sets the default number of retries for all flows.",
+        validation_alias=AliasChoices(
+            "prefect_flows_default_retries",
+            "prefect_flow_default_retries",
+            AliasPath("default_retries"),
+        ),
+    )
+
+    default_retry_delay_seconds: Union[int, float, list[float]] = Field(
+        default=0,
+        description="This value sets the default retry delay seconds for all flows.",
+        validation_alias=AliasChoices(
+            "prefect_flows_default_retry_delay_seconds",
+            "prefect_flow_default_retry_delay_seconds",
+            AliasPath("default_retry_delay_seconds"),
+        ),
+    )
+
+
 class LoggingToAPISettings(PrefectBaseSettings):
     """
     Settings for controlling logging to the API
@@ -957,6 +988,11 @@ class Settings(PrefectBaseSettings):
     deployments: DeploymentsSettings = Field(
         default_factory=DeploymentsSettings,
         description="Settings for configuring deployments defaults",
+    )
+
+    flows: FlowsSettings = Field(
+        default_factory=FlowsSettings,
+        description="Settings for controlling flow behavior",
     )
 
     logging: LoggingSettings = Field(
@@ -1570,17 +1606,6 @@ class Settings(PrefectBaseSettings):
         default=30,
         ge=0,
         description="The number of seconds to wait before retrying when a task run cannot secure a concurrency slot from the server.",
-    )
-
-    flow_default_retries: int = Field(
-        default=0,
-        ge=0,
-        description="This value sets the default number of retries for all flows.",
-    )
-
-    flow_default_retry_delay_seconds: Union[int, float] = Field(
-        default=0,
-        description="This value sets the retry delay seconds for all flows.",
     )
 
     local_storage_path: Optional[Path] = Field(
