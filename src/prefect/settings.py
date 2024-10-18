@@ -991,6 +991,41 @@ class ResultsSettings(PrefectBaseSettings):
     )
 
 
+class RunnerServerSettings(PrefectBaseSettings):
+    """
+    Settings for controlling runner server behavior
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="PREFECT_RUNNER_SERVER_", env_file=".env", extra="ignore"
+    )
+
+    enable: bool = Field(
+        default=False,
+        description="Whether or not to enable the runner's webserver.",
+    )
+
+    host: str = Field(
+        default="localhost",
+        description="The host address the runner's webserver should bind to.",
+    )
+
+    port: int = Field(
+        default=8080,
+        description="The port the runner's webserver should bind to.",
+    )
+
+    log_level: LogLevel = Field(
+        default="error",
+        description="The log level of the runner's webserver.",
+    )
+
+    missed_polls_tolerance: int = Field(
+        default=2,
+        description="Number of missed polls before a runner is considered unhealthy by its webserver.",
+    )
+
+
 class RunnerSettings(PrefectBaseSettings):
     """
     Settings for controlling runner behavior
@@ -1008,6 +1043,11 @@ class RunnerSettings(PrefectBaseSettings):
     poll_frequency: int = Field(
         default=10,
         description="Number of seconds a runner should wait between queries for scheduled work.",
+    )
+
+    server: RunnerServerSettings = Field(
+        default_factory=RunnerServerSettings,
+        description="Settings for controlling runner server behavior",
     )
 
 
@@ -1696,31 +1736,6 @@ class Settings(PrefectBaseSettings):
         per call by passing  `fetch=True` or toggle this setting to change the behavior
         globally.
         """,
-    )
-
-    runner_server_missed_polls_tolerance: int = Field(
-        default=2,
-        description="Number of missed polls before a runner is considered unhealthy by its webserver.",
-    )
-
-    runner_server_host: str = Field(
-        default="localhost",
-        description="The host address the runner's webserver should bind to.",
-    )
-
-    runner_server_port: int = Field(
-        default=8080,
-        description="The port the runner's webserver should bind to.",
-    )
-
-    runner_server_log_level: LogLevel = Field(
-        default="error",
-        description="The log level of the runner's webserver.",
-    )
-
-    runner_server_enable: bool = Field(
-        default=False,
-        description="Whether or not to enable the runner's webserver.",
     )
 
     deployment_concurrency_slot_wait_seconds: float = Field(
