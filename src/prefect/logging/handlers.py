@@ -133,7 +133,7 @@ class APILogHandler(logging.Handler):
         try:
             profile = prefect.context.get_settings_context()
 
-            if not profile.settings.logging_to_api_enabled:
+            if not profile.settings.logging.to_api.enabled:
                 return  # Respect the global settings toggle
             if not getattr(record, "send_to_api", True):
                 return  # Do not send records that have opted out
