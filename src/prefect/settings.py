@@ -991,6 +991,26 @@ class ResultsSettings(PrefectBaseSettings):
     )
 
 
+class RunnerSettings(PrefectBaseSettings):
+    """
+    Settings for controlling runner behavior
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="PREFECT_RUNNER_", env_file=".env", extra="ignore"
+    )
+
+    process_limit: int = Field(
+        default=5,
+        description="Maximum number of processes a runner will execute in parallel.",
+    )
+
+    poll_frequency: int = Field(
+        default=10,
+        description="Number of seconds a runner should wait between queries for scheduled work.",
+    )
+
+
 class Settings(PrefectBaseSettings):
     """
     Settings for Prefect using Pydantic settings.
@@ -1043,6 +1063,11 @@ class Settings(PrefectBaseSettings):
     results: ResultsSettings = Field(
         default_factory=ResultsSettings,
         description="Settings for controlling result storage behavior",
+    )
+
+    runner: RunnerSettings = Field(
+        default_factory=RunnerSettings,
+        description="Settings for controlling runner behavior",
     )
 
     ###########################################################################
@@ -1671,16 +1696,6 @@ class Settings(PrefectBaseSettings):
         per call by passing  `fetch=True` or toggle this setting to change the behavior
         globally.
         """,
-    )
-
-    runner_process_limit: int = Field(
-        default=5,
-        description="Maximum number of processes a runner will execute in parallel.",
-    )
-
-    runner_poll_frequency: int = Field(
-        default=10,
-        description="Number of seconds a runner should wait between queries for scheduled work.",
     )
 
     runner_server_missed_polls_tolerance: int = Field(
