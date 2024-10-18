@@ -180,7 +180,7 @@ def default_ui_url(settings: "Settings") -> Optional[str]:
         return None
 
     cloud_url = settings.cloud.api_url
-    cloud_ui_url = settings.cloud_ui_url
+    cloud_ui_url = settings.cloud.ui_url
     if api_url.startswith(cloud_url):
         ui_url = ui_url.replace(cloud_url, cloud_ui_url)
 
@@ -198,13 +198,13 @@ def default_ui_url(settings: "Settings") -> Optional[str]:
     return ui_url
 
 
-def default_cloud_ui_url(settings) -> Optional[str]:
-    value = settings.cloud_ui_url
+def default_cloud_ui_url(settings: "CloudSettings") -> Optional[str]:
+    value = settings.ui_url
     if value is not None:
         return value
 
     # Otherwise, infer a value from the API URL
-    ui_url = api_url = settings.cloud.api_url
+    ui_url = api_url = settings.api_url
 
     if re.match(r"^https://api[\.\w]*.prefect.[^\.]+/", api_url):
         ui_url = ui_url.replace("https://api", "https://app", 1)
@@ -766,7 +766,7 @@ class CloudSettings(PrefectBaseSettings):
         """
         if self.ui_url is None:
             self.ui_url = default_cloud_ui_url(self)
-            self.__pydantic_fields_set__.remove("cloud_ui_url")
+            self.__pydantic_fields_set__.remove("ui_url")
         return self
 
 
