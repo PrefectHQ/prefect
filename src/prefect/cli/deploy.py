@@ -810,15 +810,12 @@ async def _run_single_deploy(
         )
 
     if not work_pool.is_push_pool and not work_pool.is_managed_pool:
-<<<<<<< HEAD
         if (
             not work_pool.is_push_pool
             and not work_pool.is_managed_pool
             and not active_workers
         ):
-=======
-        if not active_workers:
->>>>>>> 7a834b0d57 (adds worker status filter)
+
             app.console.print(
                 "\nTo execute flow runs from these deployments, start a worker in a"
                 " separate terminal that pulls work from the"
