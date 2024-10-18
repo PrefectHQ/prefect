@@ -58,6 +58,7 @@ from pydantic import (
 from pydantic.fields import FieldInfo
 from pydantic_settings import (
     BaseSettings,
+    EnvSettingsSource,
     PydanticBaseSettingsSource,
     SettingsConfigDict,
 )
@@ -233,24 +234,25 @@ def warn_on_database_password_value_without_usage(values):
     """
     db_password = (
         v.get_secret_value()
-        if (v := values["api_database_password"]) and hasattr(v, "get_secret_value")
+        if (v := values["password"]) and hasattr(v, "get_secret_value")
         else None
     )
     api_db_connection_url = (
-        values["api_database_connection_url"].get_secret_value()
-        if hasattr(values["api_database_connection_url"], "get_secret_value")
-        else values["api_database_connection_url"]
+        values["connection_url"].get_secret_value()
+        if hasattr(values["connection_url"], "get_secret_value")
+        else values["connection_url"]
     )
     if (
         db_password
         and api_db_connection_url is not None
-        and ("PREFECT_API_DATABASE_PASSWORD" not in api_db_connection_url)
+        and "PREFECT_API_DATABASE_PASSWORD" not in api_db_connection_url
+        and "PREFECT_SERVER_DATABASE_PASSWORD" not in api_db_connection_url
         and db_password not in api_db_connection_url
         and quote_plus(db_password) not in api_db_connection_url
     ):
         warnings.warn(
-            "PREFECT_API_DATABASE_PASSWORD is set but not included in the "
-            "PREFECT_API_DATABASE_CONNECTION_URL. "
+            "PREFECT_SERVER_DATABASE_PASSWORD is set but not included in the "
+            "PREFECT_SERVER_DATABASE_CONNECTION_URL. "
             "The provided password will be ignored."
         )
     return values
@@ -297,14 +299,16 @@ def warn_on_misconfigured_api_url(values):
 
 def default_database_connection_url(settings: "Settings") -> SecretStr:
     value = None
-    if settings.api_database_driver == "postgresql+asyncpg":
+    if settings.server.database.driver == "postgresql+asyncpg":
         required = [
-            "api_database_host",
-            "api_database_user",
-            "api_database_name",
-            "api_database_password",
+            "host",
+            "user",
+            "name",
+            "password",
         ]
-        missing = [attr for attr in required if getattr(settings, attr) is None]
+        missing = [
+            attr for attr in required if getattr(settings.server.database, attr) is None
+        ]
         if missing:
             raise ValueError(
                 f"Missing required database connection settings: {', '.join(missing)}"
@@ -313,27 +317,31 @@ def default_database_connection_url(settings: "Settings") -> SecretStr:
         from sqlalchemy import URL
 
         return URL(
-            drivername=settings.api_database_driver,
-            host=settings.api_database_host,
-            port=settings.api_database_port or 5432,
-            username=settings.api_database_user,
+            drivername=settings.server.database.driver,
+            host=settings.server.database.host,
+            port=settings.server.database.port or 5432,
+            username=settings.server.database.user,
             password=(
-                settings.api_database_password.get_secret_value()
-                if settings.api_database_password
+                settings.server.database.password.get_secret_value()
+                if settings.server.database.password
                 else None
             ),
-            database=settings.api_database_name,
+            database=settings.server.database.name,
             query=[],  # type: ignore
         ).render_as_string(hide_password=False)
 
-    elif settings.api_database_driver == "sqlite+aiosqlite":
-        if settings.api_database_name:
-            value = f"{settings.api_database_driver}:///{settings.api_database_name}"
+    elif settings.server.database.driver == "sqlite+aiosqlite":
+        if settings.server.database.name:
+            value = (
+                f"{settings.server.database.driver}:///{settings.server.database.name}"
+            )
         else:
             value = f"sqlite+aiosqlite:///{settings.home}/prefect.db"
 
-    elif settings.api_database_driver:
-        raise ValueError(f"Unsupported database driver: {settings.api_database_driver}")
+    elif settings.server.database.driver:
+        raise ValueError(
+            f"Unsupported database driver: {settings.server.database.driver}"
+        )
 
     value = value if value else f"sqlite+aiosqlite:///{settings.home}/prefect.db"
     return SecretStr(value)
@@ -353,6 +361,38 @@ def _get_profiles_path() -> Path:
     if not (DEFAULT_PREFECT_HOME / "profiles.toml").exists():
         return DEFAULT_PROFILES_PATH
     return DEFAULT_PREFECT_HOME / "profiles.toml"
+
+
+class EnvFilterSettingsSource(EnvSettingsSource):
+    """
+    Custom pydantic settings source to filter out specific environment variables.
+    """
+
+    def __init__(
+        self,
+        settings_cls: type[BaseSettings],
+        case_sensitive: Optional[bool] = None,
+        env_prefix: Optional[str] = None,
+        env_nested_delimiter: Optional[str] = None,
+        env_ignore_empty: Optional[bool] = None,
+        env_parse_none_str: Optional[str] = None,
+        env_parse_enums: Optional[bool] = None,
+        env_filter: Optional[List[str]] = None,
+    ) -> None:
+        super().__init__(
+            settings_cls,
+            case_sensitive,
+            env_prefix,
+            env_nested_delimiter,
+            env_ignore_empty,
+            env_parse_none_str,
+            env_parse_enums,
+        )
+        self.env_vars = {
+            key: value
+            for key, value in self.env_vars.items()
+            if key.lower() not in env_filter
+        }
 
 
 class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
@@ -1127,6 +1167,182 @@ class ServerAPISettings(PrefectBaseSettings):
     )
 
 
+class ServerDatabaseSettings(PrefectBaseSettings):
+    """
+    Settings for controlling server database behavior
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="PREFECT_SERVER_DATABASE_",
+        env_file=".env",
+        extra="ignore",
+    )
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: Type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> Tuple[PydanticBaseSettingsSource, ...]:
+        """
+        Define an order for Prefect settings sources.
+
+        The order of the returned callables decides the priority of inputs; first item is the highest priority.
+
+        See https://docs.pydantic.dev/latest/concepts/pydantic_settings/#customise-settings-sources
+        """
+        return (
+            init_settings,
+            EnvFilterSettingsSource(
+                settings_cls,
+                case_sensitive=cls.model_config.get("case_sensitive"),
+                env_prefix=cls.model_config.get("env_prefix"),
+                env_nested_delimiter=cls.model_config.get("env_nested_delimiter"),
+                env_ignore_empty=cls.model_config.get("env_ignore_empty"),
+                env_parse_none_str=cls.model_config.get("env_parse_none_str"),
+                env_parse_enums=cls.model_config.get("env_parse_enums"),
+                env_filter=["user"],
+            ),
+            dotenv_settings,
+            file_secret_settings,
+            ProfileSettingsTomlLoader(settings_cls),
+        )
+
+    connection_url: Optional[SecretStr] = Field(
+        default=None,
+        description="""
+        A database connection URL in a SQLAlchemy-compatible
+        format. Prefect currently supports SQLite and Postgres. Note that all
+        Prefect database engines must use an async driver - for SQLite, use
+        `sqlite+aiosqlite` and for Postgres use `postgresql+asyncpg`.
+
+        SQLite in-memory databases can be used by providing the url
+        `sqlite+aiosqlite:///file::memory:?cache=shared&uri=true&check_same_thread=false`,
+        which will allow the database to be accessed by multiple threads. Note
+        that in-memory databases can not be accessed from multiple processes and
+        should only be used for simple tests.
+        """,
+        validation_alias=AliasChoices(
+            AliasPath("connection_url"),
+            "prefect_server_database_connection_url",
+            "prefect_api_database_connection_url",
+        ),
+    )
+
+    driver: Optional[Literal["postgresql+asyncpg", "sqlite+aiosqlite"]] = Field(
+        default=None,
+        description=(
+            "The database driver to use when connecting to the database. "
+            "If not set, the driver will be inferred from the connection URL."
+        ),
+        validation_alias=AliasChoices(
+            AliasPath("driver"),
+            "prefect_server_database_driver",
+            "prefect_api_database_driver",
+        ),
+    )
+
+    host: Optional[str] = Field(
+        default=None,
+        description="The database server host.",
+        validation_alias=AliasChoices(
+            AliasPath("host"),
+            "prefect_server_database_host",
+            "prefect_api_database_host",
+        ),
+    )
+
+    port: Optional[int] = Field(
+        default=None,
+        description="The database server port.",
+        validation_alias=AliasChoices(
+            AliasPath("port"),
+            "prefect_server_database_port",
+            "prefect_api_database_port",
+        ),
+    )
+
+    user: Optional[str] = Field(
+        default=None,
+        description="The user to use when connecting to the database.",
+        validation_alias=AliasChoices(
+            AliasPath("user"),
+            "prefect_server_database_user",
+            "prefect_api_database_user",
+        ),
+    )
+
+    name: Optional[str] = Field(
+        default=None,
+        description="The name of the Prefect database on the remote server, or the path to the database file for SQLite.",
+        validation_alias=AliasChoices(
+            AliasPath("name"),
+            "prefect_server_database_name",
+            "prefect_api_database_name",
+        ),
+    )
+
+    password: Optional[SecretStr] = Field(
+        default=None,
+        description="The password to use when connecting to the database. Should be kept secret.",
+        validation_alias=AliasChoices(
+            AliasPath("password"),
+            "prefect_server_database_password",
+            "prefect_api_database_password",
+        ),
+    )
+
+    echo: bool = Field(
+        default=False,
+        description="If `True`, SQLAlchemy will log all SQL issued to the database. Defaults to `False`.",
+        validation_alias=AliasChoices(
+            AliasPath("echo"),
+            "prefect_server_database_echo",
+            "prefect_api_database_echo",
+        ),
+    )
+
+    migrate_on_start: bool = Field(
+        default=True,
+        description="If `True`, the database will be migrated on application startup.",
+        validation_alias=AliasChoices(
+            AliasPath("migrate_on_start"),
+            "prefect_server_database_migrate_on_start",
+            "prefect_api_database_migrate_on_start",
+        ),
+    )
+
+    timeout: Optional[float] = Field(
+        default=10.0,
+        description="A statement timeout, in seconds, applied to all database interactions made by the API. Defaults to 10 seconds.",
+        validation_alias=AliasChoices(
+            AliasPath("timeout"),
+            "prefect_server_database_timeout",
+            "prefect_api_database_timeout",
+        ),
+    )
+
+    connection_timeout: Optional[float] = Field(
+        default=5,
+        description="A connection timeout, in seconds, applied to database connections. Defaults to `5`.",
+        validation_alias=AliasChoices(
+            AliasPath("connection_timeout"),
+            "prefect_server_database_connection_timeout",
+            "prefect_api_database_connection_timeout",
+        ),
+    )
+
+    @model_validator(mode="after")
+    def emit_warnings(self) -> Self:
+        """More post-hoc validation of settings, including warnings for misconfigurations."""
+        values = self.model_dump()
+        values = warn_on_database_password_value_without_usage(values)
+        return self
+
+
 class ServerSettings(PrefectBaseSettings):
     """
     Settings for controlling server behavior
@@ -1217,6 +1433,11 @@ class ServerSettings(PrefectBaseSettings):
     api: ServerAPISettings = Field(
         default_factory=ServerAPISettings,
         description="Settings for controlling API server behavior",
+    )
+
+    database: ServerDatabaseSettings = Field(
+        default_factory=ServerDatabaseSettings,
+        description="Settings for controlling server database behavior",
     )
 
 
@@ -1328,80 +1549,6 @@ class Settings(PrefectBaseSettings):
     api_max_flow_run_graph_artifacts: int = Field(
         default=10000,
         description="The maximum number of artifacts to show on a flow run graph on the v2 API",
-    )
-
-    ###########################################################################
-    # API Database settings
-
-    api_database_connection_url: Optional[SecretStr] = Field(
-        default=None,
-        description="""
-        A database connection URL in a SQLAlchemy-compatible
-        format. Prefect currently supports SQLite and Postgres. Note that all
-        Prefect database engines must use an async driver - for SQLite, use
-        `sqlite+aiosqlite` and for Postgres use `postgresql+asyncpg`.
-
-        SQLite in-memory databases can be used by providing the url
-        `sqlite+aiosqlite:///file::memory:?cache=shared&uri=true&check_same_thread=false`,
-        which will allow the database to be accessed by multiple threads. Note
-        that in-memory databases can not be accessed from multiple processes and
-        should only be used for simple tests.
-        """,
-    )
-
-    api_database_driver: Optional[
-        Literal["postgresql+asyncpg", "sqlite+aiosqlite"]
-    ] = Field(
-        default=None,
-        description=(
-            "The database driver to use when connecting to the database. "
-            "If not set, the driver will be inferred from the connection URL."
-        ),
-    )
-
-    api_database_host: Optional[str] = Field(
-        default=None,
-        description="The database server host.",
-    )
-
-    api_database_port: Optional[int] = Field(
-        default=None,
-        description="The database server port.",
-    )
-
-    api_database_user: Optional[str] = Field(
-        default=None,
-        description="The user to use when connecting to the database.",
-    )
-
-    api_database_name: Optional[str] = Field(
-        default=None,
-        description="The name of the Prefect database on the remote server, or the path to the database file for SQLite.",
-    )
-
-    api_database_password: Optional[SecretStr] = Field(
-        default=None,
-        description="The password to use when connecting to the database. Should be kept secret.",
-    )
-
-    api_database_echo: bool = Field(
-        default=False,
-        description="If `True`, SQLAlchemy will log all SQL issued to the database. Defaults to `False`.",
-    )
-
-    api_database_migrate_on_start: bool = Field(
-        default=True,
-        description="If `True`, the database will be migrated on application startup.",
-    )
-
-    api_database_timeout: Optional[float] = Field(
-        default=10.0,
-        description="A statement timeout, in seconds, applied to all database interactions made by the API. Defaults to 10 seconds.",
-    )
-
-    api_database_connection_timeout: Optional[float] = Field(
-        default=5,
-        description="A connection timeout, in seconds, applied to database connections. Defaults to `5`.",
     )
 
     ###########################################################################
@@ -1954,36 +2101,42 @@ class Settings(PrefectBaseSettings):
             self.logging.config_path = Path(f"{self.home}/logging.yml")
             self.logging.__pydantic_fields_set__.remove("config_path")
         # Set default database connection URL if not provided
-        if self.api_database_connection_url is None:
-            self.api_database_connection_url = default_database_connection_url(self)
-            self.__pydantic_fields_set__.remove("api_database_connection_url")
-        if "PREFECT_API_DATABASE_PASSWORD" in (
-            db_url := (
-                self.api_database_connection_url.get_secret_value()
-                if isinstance(self.api_database_connection_url, SecretStr)
-                else self.api_database_connection_url
-            )
+        if self.server.database.connection_url is None:
+            self.server.database.connection_url = default_database_connection_url(self)
+            self.server.database.__pydantic_fields_set__.remove("connection_url")
+        db_url = (
+            self.server.database.connection_url.get_secret_value()
+            if isinstance(self.server.database.connection_url, SecretStr)
+            else self.server.database.connection_url
+        )
+        if (
+            "PREFECT_API_DATABASE_PASSWORD" in db_url
+            or "PREFECT_SERVER_DATABASE_PASSWORD" in db_url
         ):
-            if self.api_database_password is None:
+            if self.server.database.password is None:
                 raise ValueError(
-                    "database password is None - please set PREFECT_API_DATABASE_PASSWORD"
+                    "database password is None - please set PREFECT_SERVER_DATABASE_PASSWORD"
                 )
-            self.api_database_connection_url = SecretStr(
-                db_url.replace(
-                    "${PREFECT_API_DATABASE_PASSWORD}",
-                    self.api_database_password.get_secret_value(),
-                )
-                if self.api_database_password
-                else ""
+            db_url = db_url.replace(
+                "${PREFECT_API_DATABASE_PASSWORD}",
+                self.server.database.password.get_secret_value()
+                if self.server.database.password
+                else "",
             )
-            self.__pydantic_fields_set__.remove("api_database_connection_url")
+            db_url = db_url.replace(
+                "${PREFECT_SERVER_DATABASE_PASSWORD}",
+                self.server.database.password.get_secret_value()
+                if self.server.database.password
+                else "",
+            )
+            self.server.database.connection_url = SecretStr(db_url)
+            self.server.database.__pydantic_fields_set__.remove("connection_url")
         return self
 
     @model_validator(mode="after")
     def emit_warnings(self) -> Self:
         """More post-hoc validation of settings, including warnings for misconfigurations."""
         values = self.model_dump()
-        values = warn_on_database_password_value_without_usage(values)
         if not self.silence_api_url_misconfiguration:
             values = warn_on_misconfigured_api_url(values)
         return self
