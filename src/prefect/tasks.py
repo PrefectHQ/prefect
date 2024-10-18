@@ -1060,7 +1060,7 @@ class Task(Generic[P, R]):
         task runner. This call only blocks execution while the task is being submitted,
         once it is submitted, the flow function will continue executing.
 
-        This method is always used synchronously, even if the underlying user function is asynchronous.
+        This method is always synchronous, even if the underlying user function is asynchronous.
 
         Args:
             *args: Arguments to run the task with
@@ -1212,8 +1212,30 @@ class Task(Generic[P, R]):
     ) -> PrefectFutureList[R]:
         ...
 
+    @overload
     def map(
-        self: "Task[P, R]",
+        self: "Task[P, Coroutine[Any, Any, R]]",
+        *args: Any,
+        return_state: Literal[True],
+        wait_for: Optional[Iterable[Union[PrefectFuture[T], T]]] = ...,
+        deferred: bool = ...,
+        **kwargs: Any,
+    ) -> List[State[R]]:
+        ...
+
+    @overload
+    def map(
+        self: "Task[P, Coroutine[Any, Any, R]]",
+        *args: Any,
+        return_state: Literal[False],
+        wait_for: Optional[Iterable[Union[PrefectFuture[T], T]]] = ...,
+        deferred: bool = ...,
+        **kwargs: Any,
+    ) -> PrefectFutureList[R]:
+        ...
+
+    def map(
+        self,
         *args: Any,
         return_state: bool = False,
         wait_for: Optional[Iterable[Union[PrefectFuture[T], T]]] = None,
@@ -1237,7 +1259,7 @@ class Task(Generic[P, R]):
         also blocks while the tasks are being submitted, once they are
         submitted, the flow function will continue executing.
 
-        This method is always used synchronously, even if the underlying user function is asynchronous.
+        This method is always synchronous, even if the underlying user function is asynchronous.
 
         Args:
             *args: Iterable and static arguments to run the tasks with
