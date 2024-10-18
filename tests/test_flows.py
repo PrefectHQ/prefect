@@ -27,7 +27,7 @@ import prefect.exceptions
 from prefect import flow, runtime, tags, task
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
-from prefect.client.schemas.objects import ConcurrencyLimitConfig
+from prefect.client.schemas.objects import ConcurrencyLimitConfig, Worker, WorkerStatus
 from prefect.client.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
@@ -4444,6 +4444,28 @@ class TestFlowDeploy:
             name="test",
             work_pool_name=push_work_pool.name,
             image="my-repo/my-image",
+        )
+
+        assert "prefect worker start" not in capsys.readouterr().out
+
+    async def test_no_worker_command_for_active_workers(
+        self, mock_deploy, local_flow, work_pool, capsys, monkeypatch
+    ):
+        mock_read_workers_for_work_pool = AsyncMock(
+            return_value=[
+                Worker(
+                    name="test-worker",
+                    work_pool_id=work_pool.id,
+                    status=WorkerStatus.ONLINE,
+                )
+            ]
+        )
+        monkeypatch.setattr(
+            "prefect.client.orchestration.PrefectClient.read_workers_for_work_pool",
+            mock_read_workers_for_work_pool,
+        )
+        await local_flow.deploy(
+            name="test", work_pool_name=work_pool.name, image="my-repo/my-image"
         )
 
         assert "prefect worker start" not in capsys.readouterr().out
