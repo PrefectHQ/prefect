@@ -48,6 +48,8 @@ from prefect.settings import (
     LoggingSettings,
     Profile,
     ProfilesCollection,
+    ServerAPISettings,
+    ServerSettings,
     Settings,
     env_var_to_accessor,
     get_current_settings,
@@ -210,11 +212,16 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SERVER_API_HOST": {"test_value": "host"},
     "PREFECT_SERVER_API_KEEPALIVE_TIMEOUT": {"test_value": 10},
     "PREFECT_SERVER_API_PORT": {"test_value": 4200},
+    "PREFECT_SERVER_API_CSRF_TOKEN_EXPIRATION": {"test_value": timedelta(seconds=10)},
+    "PREFECT_SERVER_API_CSRF_PROTECTION_ENABLED": {"test_value": True},
     "PREFECT_SERVER_CORS_ALLOWED_HEADERS": {"test_value": "foo"},
     "PREFECT_SERVER_CORS_ALLOWED_METHODS": {"test_value": "foo"},
     "PREFECT_SERVER_CORS_ALLOWED_ORIGINS": {"test_value": "foo"},
-    "PREFECT_SERVER_CSRF_PROTECTION_ENABLED": {"test_value": True},
-    "PREFECT_SERVER_CSRF_TOKEN_EXPIRATION": {"test_value": timedelta(seconds=10)},
+    "PREFECT_SERVER_CSRF_PROTECTION_ENABLED": {"test_value": True, "legacy": True},
+    "PREFECT_SERVER_CSRF_TOKEN_EXPIRATION": {
+        "test_value": timedelta(seconds=10),
+        "legacy": True,
+    },
     "PREFECT_SERVER_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS": {"test_value": 10},
     "PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS": {"test_value": 10},
     "PREFECT_SERVER_LOG_RETRYABLE_ERRORS": {"test_value": True},
@@ -350,9 +357,9 @@ class TestSettingsClass:
         # for var in os.environ:
         #     if var.startswith("PREFECT_"):
         #         monkeypatch.delenv(var, raising=False)
-        assert Settings(server_api_port=3000).to_environment_variables(
-            exclude_unset=True
-        ) == {
+        assert Settings(
+            server=ServerSettings(api=ServerAPISettings(port=3000))
+        ).to_environment_variables(exclude_unset=True) == {
             # From env
             **{
                 var: os.environ[var] for var in os.environ if var.startswith("PREFECT_")
@@ -367,9 +374,9 @@ class TestSettingsClass:
 
     def test_settings_to_environment_casts_to_strings(self):
         assert (
-            Settings(server_api_port=3000).to_environment_variables()[
-                "PREFECT_SERVER_API_PORT"
-            ]
+            Settings(
+                server=ServerSettings(api=ServerAPISettings(port=3000))
+            ).to_environment_variables()["PREFECT_SERVER_API_PORT"]
             == "3000"
         )
 
