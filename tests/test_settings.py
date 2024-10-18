@@ -44,6 +44,7 @@ from prefect.settings import (
     PREFECT_UNIT_TEST_MODE,
     SETTING_VARIABLES,
     APISettings,
+    LoggingSettings,
     Profile,
     ProfilesCollection,
     Settings,
@@ -54,7 +55,7 @@ from prefect.settings import (
     save_profiles,
     temporary_settings,
 )
-from prefect.utilities.collections import get_from_dict
+from prefect.utilities.collections import get_from_dict, set_in_dict
 from prefect.utilities.filesystem import tmpchdir
 
 SUPPORTED_SETTINGS = {
@@ -141,11 +142,13 @@ SUPPORTED_SETTINGS = {
     "PREFECT_CLOUD_API_URL": {"test_value": "https://cloud.prefect.io"},
     "PREFECT_CLOUD_UI_URL": {"test_value": "https://cloud.prefect.io"},
     "PREFECT_DEBUG_MODE": {"test_value": True},
-    "PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE": {"test_value": "prefect"},
+    "PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE": {"test_value": "prefect", "legacy": True},
     "PREFECT_DEFAULT_RESULT_STORAGE_BLOCK": {"test_value": "block"},
-    "PREFECT_DEFAULT_WORK_POOL_NAME": {"test_value": "default"},
+    "PREFECT_DEFAULT_WORK_POOL_NAME": {"test_value": "default", "legacy": True},
     "PREFECT_DEPLOYMENT_CONCURRENCY_SLOT_WAIT_SECONDS": {"test_value": 10.0},
     "PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS": {"test_value": 10},
+    "PREFECT_DEPLOYMENTS_DEFAULT_DOCKER_BUILD_NAMESPACE": {"test_value": "prefect"},
+    "PREFECT_DEPLOYMENTS_DEFAULT_WORK_POOL_NAME": {"test_value": "default"},
     "PREFECT_EVENTS_EXPIRED_BUCKET_BUFFER": {"test_value": timedelta(seconds=60)},
     "PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE": {"test_value": 10},
     "PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES": {"test_value": 10},
@@ -161,13 +164,17 @@ SUPPORTED_SETTINGS = {
     "PREFECT_HOME": {"test_value": Path.home() / ".prefect" / "test"},
     "PREFECT_LOCAL_STORAGE_PATH": {"test_value": Path("/path/to/storage")},
     "PREFECT_LOGGING_COLORS": {"test_value": True},
+    "PREFECT_LOGGING_CONFIG_PATH": {"test_value": Path("/path/to/settings.yaml")},
     "PREFECT_LOGGING_EXTRA_LOGGERS": {"test_value": "foo"},
     "PREFECT_LOGGING_INTERNAL_LEVEL": {"test_value": "INFO"},
     "PREFECT_LOGGING_LEVEL": {"test_value": "INFO"},
     "PREFECT_LOGGING_LOG_PRINTS": {"test_value": True},
     "PREFECT_LOGGING_MARKUP": {"test_value": True},
     "PREFECT_LOGGING_SERVER_LEVEL": {"test_value": "INFO"},
-    "PREFECT_LOGGING_SETTINGS_PATH": {"test_value": Path("/path/to/settings.toml")},
+    "PREFECT_LOGGING_SETTINGS_PATH": {
+        "test_value": Path("/path/to/settings.toml"),
+        "legacy": True,
+    },
     "PREFECT_LOGGING_TO_API_BATCH_INTERVAL": {"test_value": 10.0},
     "PREFECT_LOGGING_TO_API_BATCH_SIZE": {"test_value": 5_000_000},
     "PREFECT_LOGGING_TO_API_ENABLED": {"test_value": True},
@@ -316,7 +323,9 @@ class TestSettingsClass:
         expected_names = {
             s.name for s in SETTING_VARIABLES.values() if s.value() is not None
         }
-        expected_names.remove("PREFECT_CLIENT_ENABLE_METRICS")
+        for name, metadata in SUPPORTED_SETTINGS.items():
+            if metadata.get("legacy") and name in expected_names:
+                expected_names.remove(name)
         assert set(settings.to_environment_variables().keys()) == expected_names
 
     def test_settings_to_environment_works_with_exclude_unset(self, monkeypatch):
@@ -375,7 +384,9 @@ class TestSettingsClass:
             pydantic.ValidationError,
             match="should be 'DEBUG', 'INFO', 'WARNING', 'ERROR' or 'CRITICAL'",
         ):
-            Settings(**{log_level_setting.accessor: "FOOBAR"})
+            kwargs = {}
+            set_in_dict(kwargs, log_level_setting.accessor, "FOOBAR")
+            Settings(**kwargs)
 
     @pytest.mark.parametrize(
         "log_level_setting",
@@ -450,7 +461,7 @@ class TestSettingAccess:
 
     def test_get_value_nested_setting(self):
         value = prefect.settings.PREFECT_LOGGING_LEVEL.value()
-        value_of = get_current_settings().logging_level
+        value_of = get_current_settings().logging.level
         value_from = PREFECT_LOGGING_LEVEL.value_from(get_current_settings())
         assert value == value_of == value_from
 
@@ -491,7 +502,7 @@ class TestSettingAccess:
         ],
     )
     def test_extra_loggers(self, value, expected):
-        settings = Settings(logging_extra_loggers=value)
+        settings = Settings(logging=LoggingSettings(extra_loggers=value))
         assert PREFECT_LOGGING_EXTRA_LOGGERS.value_from(settings) == expected
 
     def test_prefect_home_expands_tilde_in_path(self):

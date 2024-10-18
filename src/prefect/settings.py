@@ -179,8 +179,8 @@ def default_ui_url(settings: "Settings") -> Optional[str]:
     if not api_url:
         return None
 
-    cloud_url = settings.cloud_api_url
-    cloud_ui_url = settings.cloud_ui_url
+    cloud_url = settings.cloud.api_url
+    cloud_ui_url = settings.cloud.ui_url
     if api_url.startswith(cloud_url):
         ui_url = ui_url.replace(cloud_url, cloud_ui_url)
 
@@ -198,13 +198,13 @@ def default_ui_url(settings: "Settings") -> Optional[str]:
     return ui_url
 
 
-def default_cloud_ui_url(settings) -> Optional[str]:
-    value = settings.cloud_ui_url
+def default_cloud_ui_url(settings: "CloudSettings") -> Optional[str]:
+    value = settings.ui_url
     if value is not None:
         return value
 
     # Otherwise, infer a value from the API URL
-    ui_url = api_url = settings.cloud_api_url
+    ui_url = api_url = settings.api_url
 
     if re.match(r"^https://api[\.\w]*.prefect.[^\.]+/", api_url):
         ui_url = ui_url.replace("https://api", "https://app", 1)
@@ -219,7 +219,7 @@ def max_log_size_smaller_than_batch_size(values):
     """
     Validator for settings asserting the batch size and match log size are compatible
     """
-    if values["logging_to_api_batch_size"] < values["logging_to_api_max_log_size"]:
+    if values["batch_size"] < values["max_log_size"]:
         raise ValueError(
             "`PREFECT_LOGGING_TO_API_MAX_LOG_SIZE` cannot be larger than"
             " `PREFECT_LOGGING_TO_API_BATCH_SIZE`"
@@ -737,6 +737,189 @@ class ClientSettings(PrefectBaseSettings):
     )
 
 
+class CloudSettings(PrefectBaseSettings):
+    """
+    Settings for interacting with Prefect Cloud
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="PREFECT_CLOUD_", env_file=".env", extra="ignore"
+    )
+
+    api_url: str = Field(
+        default="https://api.prefect.cloud/api",
+        description="API URL for Prefect Cloud. Used for authentication with Prefect Cloud.",
+    )
+
+    ui_url: Optional[str] = Field(
+        default=None,
+        description="The URL of the Prefect Cloud UI. If not set, the client will attempt to infer it.",
+    )
+
+    @model_validator(mode="after")
+    def post_hoc_settings(self) -> Self:
+        """refactor on resolution of https://github.com/pydantic/pydantic/issues/9789
+
+        we should not be modifying __pydantic_fields_set__ directly, but until we can
+        define dependencies between defaults in a first-class way, we need clean up
+        post-hoc default assignments to keep set/unset fields correct after instantiation.
+        """
+        if self.ui_url is None:
+            self.ui_url = default_cloud_ui_url(self)
+            self.__pydantic_fields_set__.remove("ui_url")
+        return self
+
+
+class DeploymentsSettings(PrefectBaseSettings):
+    """
+    Settings for configuring deployments defaults
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="PREFECT_DEPLOYMENTS_", env_file=".env", extra="ignore"
+    )
+
+    default_work_pool_name: Optional[str] = Field(
+        default=None,
+        description="The default work pool to use when creating deployments.",
+        validation_alias=AliasChoices(
+            "prefect_deployments_default_work_pool_name",
+            "prefect_default_work_pool_name",
+            AliasPath("default_work_pool_name"),
+        ),
+    )
+
+    default_docker_build_namespace: Optional[str] = Field(
+        default=None,
+        description="The default Docker namespace to use when building images.",
+        validation_alias=AliasChoices(
+            "prefect_deployments_default_docker_build_namespace",
+            "prefect_default_docker_build_namespace",
+            AliasPath("default_docker_build_namespace"),
+        ),
+        examples=[
+            "my-dockerhub-registry",
+            "4999999999999.dkr.ecr.us-east-2.amazonaws.com/my-ecr-repo",
+        ],
+    )
+
+
+class LoggingToAPISettings(PrefectBaseSettings):
+    """
+    Settings for controlling logging to the API
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="PREFECT_LOGGING_TO_API_", env_file=".env", extra="ignore"
+    )
+
+    enabled: bool = Field(
+        default=True,
+        description="If `True`, logs will be sent to the API.",
+    )
+
+    batch_interval: float = Field(
+        default=2.0,
+        description="The number of seconds between batched writes of logs to the API.",
+    )
+
+    batch_size: int = Field(
+        default=4_000_000,
+        description="The number of logs to batch before sending to the API.",
+    )
+
+    max_log_size: int = Field(
+        default=1_000_000,
+        description="The maximum size in bytes for a single log.",
+    )
+
+    when_missing_flow: Literal["warn", "error", "ignore"] = Field(
+        default="warn",
+        description="""
+        Controls the behavior when loggers attempt to send logs to the API handler from outside of a flow.
+        
+        All logs sent to the API must be associated with a flow run. The API log handler can
+        only be used outside of a flow by manually providing a flow run identifier. Logs
+        that are not associated with a flow run will not be sent to the API. This setting can
+        be used to determine if a warning or error is displayed when the identifier is missing.
+
+        The following options are available:
+
+        - "warn": Log a warning message.
+        - "error": Raise an error.
+        - "ignore": Do not log a warning message or raise an error.
+        """,
+    )
+
+    @model_validator(mode="after")
+    def emit_warnings(self) -> Self:
+        """Emits warnings for misconfiguration of logging settings."""
+        values = self.model_dump()
+        values = max_log_size_smaller_than_batch_size(values)
+        return self
+
+
+class LoggingSettings(PrefectBaseSettings):
+    """
+    Settings for controlling logging behavior
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="PREFECT_LOGGING_", env_file=".env", extra="ignore"
+    )
+
+    level: LogLevel = Field(
+        default="INFO",
+        description="The default logging level for Prefect loggers.",
+    )
+
+    config_path: Optional[Path] = Field(
+        default=None,
+        description="The path to a custom YAML logging configuration file.",
+        validation_alias=AliasChoices(
+            "prefect_logging_config_path",
+            "prefect_logging_settings_path",
+            AliasPath("config_path"),
+        ),
+    )
+
+    extra_loggers: Annotated[
+        Union[str, list[str], None],
+        AfterValidator(lambda v: [n.strip() for n in v.split(",")] if v else []),
+    ] = Field(
+        default=None,
+        description="Additional loggers to attach to Prefect logging at runtime.",
+    )
+
+    log_prints: bool = Field(
+        default=False,
+        description="If `True`, `print` statements in flows and tasks will be redirected to the Prefect logger for the given run.",
+    )
+
+    colors: bool = Field(
+        default=True,
+        description="If `True`, use colors in CLI output. If `False`, output will not include colors codes.",
+    )
+
+    markup: bool = Field(
+        default=False,
+        description="""
+        Whether to interpret strings wrapped in square brackets as a style.
+        This allows styles to be conveniently added to log messages, e.g.
+        `[red]This is a red message.[/red]`. However, the downside is, if enabled,
+        strings that contain square brackets may be inaccurately interpreted and
+        lead to incomplete output, e.g.
+        `[red]This is a red message.[/red]` may be interpreted as
+        `[red]This is a red message.[/red]`.
+        """,
+    )
+
+    to_api: LoggingToAPISettings = Field(
+        default_factory=LoggingToAPISettings,
+        description="Settings for controlling logging to the API",
+    )
+
+
 class Settings(PrefectBaseSettings):
     """
     Settings for Prefect using Pydantic settings.
@@ -764,6 +947,21 @@ class Settings(PrefectBaseSettings):
     client: ClientSettings = Field(
         default_factory=ClientSettings,
         description="Settings for for controlling API client behavior",
+    )
+
+    cloud: CloudSettings = Field(
+        default_factory=CloudSettings,
+        description="Settings for interacting with Prefect Cloud",
+    )
+
+    deployments: DeploymentsSettings = Field(
+        default_factory=DeploymentsSettings,
+        description="Settings for configuring deployments defaults",
+    )
+
+    logging: LoggingSettings = Field(
+        default_factory=LoggingSettings,
+        description="Settings for controlling logging behavior",
     )
 
     ###########################################################################
@@ -1092,25 +1290,7 @@ class Settings(PrefectBaseSettings):
     )
 
     ###########################################################################
-    # Cloud settings
-
-    cloud_api_url: str = Field(
-        default="https://api.prefect.cloud/api",
-        description="API URL for Prefect Cloud. Used for authentication.",
-    )
-
-    cloud_ui_url: Optional[str] = Field(
-        default=None,
-        description="The URL of the Prefect Cloud UI. If not set, the client will attempt to infer it.",
-    )
-
-    ###########################################################################
     # Logging settings
-
-    logging_level: LogLevel = Field(
-        default="INFO",
-        description="The default logging level for Prefect loggers.",
-    )
 
     logging_internal_level: LogLevel = Field(
         default="ERROR",
@@ -1120,80 +1300,6 @@ class Settings(PrefectBaseSettings):
     logging_server_level: LogLevel = Field(
         default="WARNING",
         description="The default logging level for the Prefect API server.",
-    )
-
-    logging_settings_path: Optional[Path] = Field(
-        default=None,
-        description="The path to a custom YAML logging configuration file.",
-    )
-
-    logging_extra_loggers: Annotated[
-        Union[str, list[str], None],
-        AfterValidator(lambda v: [n.strip() for n in v.split(",")] if v else []),
-    ] = Field(
-        default=None,
-        description="Additional loggers to attach to Prefect logging at runtime.",
-    )
-
-    logging_log_prints: bool = Field(
-        default=False,
-        description="If `True`, `print` statements in flows and tasks will be redirected to the Prefect logger for the given run.",
-    )
-
-    logging_to_api_enabled: bool = Field(
-        default=True,
-        description="If `True`, logs will be sent to the API.",
-    )
-
-    logging_to_api_batch_interval: float = Field(
-        default=2.0,
-        description="The number of seconds between batched writes of logs to the API.",
-    )
-
-    logging_to_api_batch_size: int = Field(
-        default=4_000_000,
-        description="The number of logs to batch before sending to the API.",
-    )
-
-    logging_to_api_max_log_size: int = Field(
-        default=1_000_000,
-        description="The maximum size in bytes for a single log.",
-    )
-
-    logging_to_api_when_missing_flow: Literal["warn", "error", "ignore"] = Field(
-        default="warn",
-        description="""
-        Controls the behavior when loggers attempt to send logs to the API handler from outside of a flow.
-        
-        All logs sent to the API must be associated with a flow run. The API log handler can
-        only be used outside of a flow by manually providing a flow run identifier. Logs
-        that are not associated with a flow run will not be sent to the API. This setting can
-        be used to determine if a warning or error is displayed when the identifier is missing.
-
-        The following options are available:
-
-        - "warn": Log a warning message.
-        - "error": Raise an error.
-        - "ignore": Do not log a warning message or raise an error.
-        """,
-    )
-
-    logging_colors: bool = Field(
-        default=True,
-        description="If `True`, use colors in CLI output. If `False`, output will not include colors codes.",
-    )
-
-    logging_markup: bool = Field(
-        default=False,
-        description="""
-        Whether to interpret strings wrapped in square brackets as a style.
-        This allows styles to be conveniently added to log messages, e.g.
-        `[red]This is a red message.[/red]`. However, the downside is, if enabled,
-        strings that contain square brackets may be inaccurately interpreted and
-        lead to incomplete output, e.g.
-        `[red]This is a red message.[/red]` may be interpreted as
-        `[red]This is a red message.[/red]`.
-        """,
     )
 
     ###########################################################################
@@ -1624,16 +1730,6 @@ class Settings(PrefectBaseSettings):
         description="The `block-type/block-document` slug of a block to use as the default result storage.",
     )
 
-    default_work_pool_name: Optional[str] = Field(
-        default=None,
-        description="The default work pool to deploy to.",
-    )
-
-    default_docker_build_namespace: Optional[str] = Field(
-        default=None,
-        description="The default Docker namespace to use when building images.",
-    )
-
     messaging_broker: str = Field(
         default="prefect.server.utilities.messaging.memory",
         description="Which message broker implementation to use for the messaging system, should point to a module that exports a Publisher and Consumer class.",
@@ -1674,10 +1770,6 @@ class Settings(PrefectBaseSettings):
         define dependencies between defaults in a first-class way, we need clean up
         post-hoc default assignments to keep set/unset fields correct after instantiation.
         """
-        if self.cloud_ui_url is None:
-            self.cloud_ui_url = default_cloud_ui_url(self)
-            self.__pydantic_fields_set__.remove("cloud_ui_url")
-
         if self.ui_url is None:
             self.ui_url = default_ui_url(self)
             self.__pydantic_fields_set__.remove("ui_url")
@@ -1700,14 +1792,14 @@ class Settings(PrefectBaseSettings):
             self.memo_store_path = Path(f"{self.home}/memo_store.toml")
             self.__pydantic_fields_set__.remove("memo_store_path")
         if self.debug_mode or self.test_mode:
-            self.logging_level = "DEBUG"
+            self.logging.level = "DEBUG"
             self.logging_internal_level = "DEBUG"
-            self.__pydantic_fields_set__.remove("logging_level")
+            self.logging.__pydantic_fields_set__.remove("level")
             self.__pydantic_fields_set__.remove("logging_internal_level")
 
-        if self.logging_settings_path is None:
-            self.logging_settings_path = Path(f"{self.home}/logging.yml")
-            self.__pydantic_fields_set__.remove("logging_settings_path")
+        if self.logging.config_path is None:
+            self.logging.config_path = Path(f"{self.home}/logging.yml")
+            self.logging.__pydantic_fields_set__.remove("config_path")
         # Set default database connection URL if not provided
         if self.api_database_connection_url is None:
             self.api_database_connection_url = default_database_connection_url(self)
@@ -1738,7 +1830,6 @@ class Settings(PrefectBaseSettings):
     def emit_warnings(self) -> Self:
         """More post-hoc validation of settings, including warnings for misconfigurations."""
         values = self.model_dump()
-        values = max_log_size_smaller_than_batch_size(values)
         values = warn_on_database_password_value_without_usage(values)
         if not self.silence_api_url_misconfiguration:
             values = warn_on_misconfigured_api_url(values)
