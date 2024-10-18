@@ -770,6 +770,40 @@ class CloudSettings(PrefectBaseSettings):
         return self
 
 
+class DeploymentsSettings(PrefectBaseSettings):
+    """
+    Settings for configuring deployments defaults
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="PREFECT_DEPLOYMENTS_", env_file=".env", extra="ignore"
+    )
+
+    default_work_pool_name: Optional[str] = Field(
+        default=None,
+        description="The default work pool to use when creating deployments.",
+        validation_alias=AliasChoices(
+            "prefect_deployments_default_work_pool_name",
+            "prefect_default_work_pool_name",
+            AliasPath("default_work_pool_name"),
+        ),
+    )
+
+    default_docker_build_namespace: Optional[str] = Field(
+        default=None,
+        description="The default Docker namespace to use when building images.",
+        validation_alias=AliasChoices(
+            "prefect_deployments_default_docker_build_namespace",
+            "prefect_default_docker_build_namespace",
+            AliasPath("default_docker_build_namespace"),
+        ),
+        examples=[
+            "my-dockerhub-registry",
+            "4999999999999.dkr.ecr.us-east-2.amazonaws.com/my-ecr-repo",
+        ],
+    )
+
+
 class Settings(PrefectBaseSettings):
     """
     Settings for Prefect using Pydantic settings.
@@ -802,6 +836,11 @@ class Settings(PrefectBaseSettings):
     cloud: CloudSettings = Field(
         default_factory=CloudSettings,
         description="Settings for interacting with Prefect Cloud",
+    )
+
+    deployments: DeploymentsSettings = Field(
+        default_factory=DeploymentsSettings,
+        description="Settings for configuring deployments defaults",
     )
 
     ###########################################################################
