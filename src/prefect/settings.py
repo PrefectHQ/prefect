@@ -58,6 +58,7 @@ from pydantic import (
 from pydantic.fields import FieldInfo
 from pydantic_settings import (
     BaseSettings,
+    EnvSettingsSource,
     PydanticBaseSettingsSource,
     SettingsConfigDict,
 )
@@ -233,24 +234,25 @@ def warn_on_database_password_value_without_usage(values):
     """
     db_password = (
         v.get_secret_value()
-        if (v := values["api_database_password"]) and hasattr(v, "get_secret_value")
+        if (v := values["password"]) and hasattr(v, "get_secret_value")
         else None
     )
     api_db_connection_url = (
-        values["api_database_connection_url"].get_secret_value()
-        if hasattr(values["api_database_connection_url"], "get_secret_value")
-        else values["api_database_connection_url"]
+        values["connection_url"].get_secret_value()
+        if hasattr(values["connection_url"], "get_secret_value")
+        else values["connection_url"]
     )
     if (
         db_password
         and api_db_connection_url is not None
-        and ("PREFECT_API_DATABASE_PASSWORD" not in api_db_connection_url)
+        and "PREFECT_API_DATABASE_PASSWORD" not in api_db_connection_url
+        and "PREFECT_SERVER_DATABASE_PASSWORD" not in api_db_connection_url
         and db_password not in api_db_connection_url
         and quote_plus(db_password) not in api_db_connection_url
     ):
         warnings.warn(
-            "PREFECT_API_DATABASE_PASSWORD is set but not included in the "
-            "PREFECT_API_DATABASE_CONNECTION_URL. "
+            "PREFECT_SERVER_DATABASE_PASSWORD is set but not included in the "
+            "PREFECT_SERVER_DATABASE_CONNECTION_URL. "
             "The provided password will be ignored."
         )
     return values
@@ -297,14 +299,16 @@ def warn_on_misconfigured_api_url(values):
 
 def default_database_connection_url(settings: "Settings") -> SecretStr:
     value = None
-    if settings.api_database_driver == "postgresql+asyncpg":
+    if settings.server.database.driver == "postgresql+asyncpg":
         required = [
-            "api_database_host",
-            "api_database_user",
-            "api_database_name",
-            "api_database_password",
+            "host",
+            "user",
+            "name",
+            "password",
         ]
-        missing = [attr for attr in required if getattr(settings, attr) is None]
+        missing = [
+            attr for attr in required if getattr(settings.server.database, attr) is None
+        ]
         if missing:
             raise ValueError(
                 f"Missing required database connection settings: {', '.join(missing)}"
@@ -313,27 +317,31 @@ def default_database_connection_url(settings: "Settings") -> SecretStr:
         from sqlalchemy import URL
 
         return URL(
-            drivername=settings.api_database_driver,
-            host=settings.api_database_host,
-            port=settings.api_database_port or 5432,
-            username=settings.api_database_user,
+            drivername=settings.server.database.driver,
+            host=settings.server.database.host,
+            port=settings.server.database.port or 5432,
+            username=settings.server.database.user,
             password=(
-                settings.api_database_password.get_secret_value()
-                if settings.api_database_password
+                settings.server.database.password.get_secret_value()
+                if settings.server.database.password
                 else None
             ),
-            database=settings.api_database_name,
+            database=settings.server.database.name,
             query=[],  # type: ignore
         ).render_as_string(hide_password=False)
 
-    elif settings.api_database_driver == "sqlite+aiosqlite":
-        if settings.api_database_name:
-            value = f"{settings.api_database_driver}:///{settings.api_database_name}"
+    elif settings.server.database.driver == "sqlite+aiosqlite":
+        if settings.server.database.name:
+            value = (
+                f"{settings.server.database.driver}:///{settings.server.database.name}"
+            )
         else:
             value = f"sqlite+aiosqlite:///{settings.home}/prefect.db"
 
-    elif settings.api_database_driver:
-        raise ValueError(f"Unsupported database driver: {settings.api_database_driver}")
+    elif settings.server.database.driver:
+        raise ValueError(
+            f"Unsupported database driver: {settings.server.database.driver}"
+        )
 
     value = value if value else f"sqlite+aiosqlite:///{settings.home}/prefect.db"
     return SecretStr(value)
@@ -353,6 +361,38 @@ def _get_profiles_path() -> Path:
     if not (DEFAULT_PREFECT_HOME / "profiles.toml").exists():
         return DEFAULT_PROFILES_PATH
     return DEFAULT_PREFECT_HOME / "profiles.toml"
+
+
+class EnvFilterSettingsSource(EnvSettingsSource):
+    """
+    Custom pydantic settings source to filter out specific environment variables.
+    """
+
+    def __init__(
+        self,
+        settings_cls: type[BaseSettings],
+        case_sensitive: Optional[bool] = None,
+        env_prefix: Optional[str] = None,
+        env_nested_delimiter: Optional[str] = None,
+        env_ignore_empty: Optional[bool] = None,
+        env_parse_none_str: Optional[str] = None,
+        env_parse_enums: Optional[bool] = None,
+        env_filter: Optional[List[str]] = None,
+    ) -> None:
+        super().__init__(
+            settings_cls,
+            case_sensitive,
+            env_prefix,
+            env_nested_delimiter,
+            env_ignore_empty,
+            env_parse_none_str,
+            env_parse_enums,
+        )
+        self.env_vars = {
+            key: value
+            for key, value in self.env_vars.items()
+            if key.lower() not in env_filter
+        }
 
 
 class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
@@ -666,11 +706,12 @@ class ClientMetricsSettings(PrefectBaseSettings):
         default=False,
         description="Whether or not to enable Prometheus metrics in the client.",
         # Using alias for backwards compatibility. Need to duplicate the prefix because
-        # Pydantic does not allow the alias to be prefixed with the env_prefix.
+        # Pydantic does not allow the alias to be prefixed with the env_prefix. The AliasPath
+        # needs to be first to ensure that init kwargs take precedence over env vars.
         validation_alias=AliasChoices(
+            AliasPath("enabled"),
             "prefect_client_metrics_enabled",
             "prefect_client_enable_metrics",
-            AliasPath("enabled"),
         ),
     )
 
@@ -783,9 +824,9 @@ class DeploymentsSettings(PrefectBaseSettings):
         default=None,
         description="The default work pool to use when creating deployments.",
         validation_alias=AliasChoices(
+            AliasPath("default_work_pool_name"),
             "prefect_deployments_default_work_pool_name",
             "prefect_default_work_pool_name",
-            AliasPath("default_work_pool_name"),
         ),
     )
 
@@ -793,9 +834,9 @@ class DeploymentsSettings(PrefectBaseSettings):
         default=None,
         description="The default Docker namespace to use when building images.",
         validation_alias=AliasChoices(
+            AliasPath("default_docker_build_namespace"),
             "prefect_deployments_default_docker_build_namespace",
             "prefect_default_docker_build_namespace",
-            AliasPath("default_docker_build_namespace"),
         ),
         examples=[
             "my-dockerhub-registry",
@@ -818,9 +859,9 @@ class FlowsSettings(PrefectBaseSettings):
         ge=0,
         description="This value sets the default number of retries for all flows.",
         validation_alias=AliasChoices(
+            AliasPath("default_retries"),
             "prefect_flows_default_retries",
             "prefect_flow_default_retries",
-            AliasPath("default_retries"),
         ),
     )
 
@@ -828,9 +869,9 @@ class FlowsSettings(PrefectBaseSettings):
         default=0,
         description="This value sets the default retry delay seconds for all flows.",
         validation_alias=AliasChoices(
+            AliasPath("default_retry_delay_seconds"),
             "prefect_flows_default_retry_delay_seconds",
             "prefect_flow_default_retry_delay_seconds",
-            AliasPath("default_retry_delay_seconds"),
         ),
     )
 
@@ -908,9 +949,9 @@ class LoggingSettings(PrefectBaseSettings):
         default=None,
         description="The path to a custom YAML logging configuration file.",
         validation_alias=AliasChoices(
+            AliasPath("config_path"),
             "prefect_logging_config_path",
             "prefect_logging_settings_path",
-            AliasPath("config_path"),
         ),
     )
 
@@ -974,9 +1015,9 @@ class ResultsSettings(PrefectBaseSettings):
         default=None,
         description="The `block-type/block-document` slug of a block to use as the default result storage.",
         validation_alias=AliasChoices(
+            AliasPath("default_storage_block"),
             "prefect_results_default_storage_block",
             "prefect_default_result_storage_block",
-            AliasPath("default_storage_block"),
         ),
     )
 
@@ -984,9 +1025,9 @@ class ResultsSettings(PrefectBaseSettings):
         default=None,
         description="The path to a directory to store results in.",
         validation_alias=AliasChoices(
+            AliasPath("local_storage_path"),
             "prefect_results_local_storage_path",
             "prefect_local_storage_path",
-            AliasPath("local_storage_path"),
         ),
     )
 
@@ -1051,6 +1092,355 @@ class RunnerSettings(PrefectBaseSettings):
     )
 
 
+class ServerAPISettings(PrefectBaseSettings):
+    """
+    Settings for controlling API server behavior
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="PREFECT_SERVER_API_", env_file=".env", extra="ignore"
+    )
+
+    host: str = Field(
+        default="127.0.0.1",
+        description="The API's host address (defaults to `127.0.0.1`).",
+    )
+
+    port: int = Field(
+        default=4200,
+        description="The API's port address (defaults to `4200`).",
+    )
+
+    keepalive_timeout: int = Field(
+        default=5,
+        description="""
+        The API's keep alive timeout (defaults to `5`).
+        Refer to https://www.uvicorn.org/settings/#timeouts for details.
+
+        When the API is hosted behind a load balancer, you may want to set this to a value
+        greater than the load balancer's idle timeout.
+
+        Note this setting only applies when calling `prefect server start`; if hosting the
+        API with another tool you will need to configure this there instead.
+        """,
+    )
+
+    csrf_protection_enabled: bool = Field(
+        default=False,
+        description="""
+        Controls the activation of CSRF protection for the Prefect server API.
+
+        When enabled (`True`), the server enforces CSRF validation checks on incoming
+        state-changing requests (POST, PUT, PATCH, DELETE), requiring a valid CSRF
+        token to be included in the request headers or body. This adds a layer of
+        security by preventing unauthorized or malicious sites from making requests on
+        behalf of authenticated users.
+
+        It is recommended to enable this setting in production environments where the
+        API is exposed to web clients to safeguard against CSRF attacks.
+
+        Note: Enabling this setting requires corresponding support in the client for
+        CSRF token management. See PREFECT_CLIENT_CSRF_SUPPORT_ENABLED for more.
+        """,
+        validation_alias=AliasChoices(
+            AliasPath("csrf_protection_enabled"),
+            "prefect_server_api_csrf_protection_enabled",
+            "prefect_server_csrf_protection_enabled",
+        ),
+    )
+
+    csrf_token_expiration: timedelta = Field(
+        default=timedelta(hours=1),
+        description="""
+        Specifies the duration for which a CSRF token remains valid after being issued
+        by the server.
+
+        The default expiration time is set to 1 hour, which offers a reasonable
+        compromise. Adjust this setting based on your specific security requirements
+        and usage patterns.
+        """,
+        validation_alias=AliasChoices(
+            AliasPath("csrf_token_expiration"),
+            "prefect_server_api_csrf_token_expiration",
+            "prefect_server_csrf_token_expiration",
+        ),
+    )
+
+
+class ServerDatabaseSettings(PrefectBaseSettings):
+    """
+    Settings for controlling server database behavior
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="PREFECT_SERVER_DATABASE_",
+        env_file=".env",
+        extra="ignore",
+    )
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: Type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> Tuple[PydanticBaseSettingsSource, ...]:
+        """
+        Define an order for Prefect settings sources.
+
+        The order of the returned callables decides the priority of inputs; first item is the highest priority.
+
+        See https://docs.pydantic.dev/latest/concepts/pydantic_settings/#customise-settings-sources
+        """
+        return (
+            init_settings,
+            EnvFilterSettingsSource(
+                settings_cls,
+                case_sensitive=cls.model_config.get("case_sensitive"),
+                env_prefix=cls.model_config.get("env_prefix"),
+                env_nested_delimiter=cls.model_config.get("env_nested_delimiter"),
+                env_ignore_empty=cls.model_config.get("env_ignore_empty"),
+                env_parse_none_str=cls.model_config.get("env_parse_none_str"),
+                env_parse_enums=cls.model_config.get("env_parse_enums"),
+                env_filter=["user"],
+            ),
+            dotenv_settings,
+            file_secret_settings,
+            ProfileSettingsTomlLoader(settings_cls),
+        )
+
+    connection_url: Optional[SecretStr] = Field(
+        default=None,
+        description="""
+        A database connection URL in a SQLAlchemy-compatible
+        format. Prefect currently supports SQLite and Postgres. Note that all
+        Prefect database engines must use an async driver - for SQLite, use
+        `sqlite+aiosqlite` and for Postgres use `postgresql+asyncpg`.
+
+        SQLite in-memory databases can be used by providing the url
+        `sqlite+aiosqlite:///file::memory:?cache=shared&uri=true&check_same_thread=false`,
+        which will allow the database to be accessed by multiple threads. Note
+        that in-memory databases can not be accessed from multiple processes and
+        should only be used for simple tests.
+        """,
+        validation_alias=AliasChoices(
+            AliasPath("connection_url"),
+            "prefect_server_database_connection_url",
+            "prefect_api_database_connection_url",
+        ),
+    )
+
+    driver: Optional[Literal["postgresql+asyncpg", "sqlite+aiosqlite"]] = Field(
+        default=None,
+        description=(
+            "The database driver to use when connecting to the database. "
+            "If not set, the driver will be inferred from the connection URL."
+        ),
+        validation_alias=AliasChoices(
+            AliasPath("driver"),
+            "prefect_server_database_driver",
+            "prefect_api_database_driver",
+        ),
+    )
+
+    host: Optional[str] = Field(
+        default=None,
+        description="The database server host.",
+        validation_alias=AliasChoices(
+            AliasPath("host"),
+            "prefect_server_database_host",
+            "prefect_api_database_host",
+        ),
+    )
+
+    port: Optional[int] = Field(
+        default=None,
+        description="The database server port.",
+        validation_alias=AliasChoices(
+            AliasPath("port"),
+            "prefect_server_database_port",
+            "prefect_api_database_port",
+        ),
+    )
+
+    user: Optional[str] = Field(
+        default=None,
+        description="The user to use when connecting to the database.",
+        validation_alias=AliasChoices(
+            AliasPath("user"),
+            "prefect_server_database_user",
+            "prefect_api_database_user",
+        ),
+    )
+
+    name: Optional[str] = Field(
+        default=None,
+        description="The name of the Prefect database on the remote server, or the path to the database file for SQLite.",
+        validation_alias=AliasChoices(
+            AliasPath("name"),
+            "prefect_server_database_name",
+            "prefect_api_database_name",
+        ),
+    )
+
+    password: Optional[SecretStr] = Field(
+        default=None,
+        description="The password to use when connecting to the database. Should be kept secret.",
+        validation_alias=AliasChoices(
+            AliasPath("password"),
+            "prefect_server_database_password",
+            "prefect_api_database_password",
+        ),
+    )
+
+    echo: bool = Field(
+        default=False,
+        description="If `True`, SQLAlchemy will log all SQL issued to the database. Defaults to `False`.",
+        validation_alias=AliasChoices(
+            AliasPath("echo"),
+            "prefect_server_database_echo",
+            "prefect_api_database_echo",
+        ),
+    )
+
+    migrate_on_start: bool = Field(
+        default=True,
+        description="If `True`, the database will be migrated on application startup.",
+        validation_alias=AliasChoices(
+            AliasPath("migrate_on_start"),
+            "prefect_server_database_migrate_on_start",
+            "prefect_api_database_migrate_on_start",
+        ),
+    )
+
+    timeout: Optional[float] = Field(
+        default=10.0,
+        description="A statement timeout, in seconds, applied to all database interactions made by the API. Defaults to 10 seconds.",
+        validation_alias=AliasChoices(
+            AliasPath("timeout"),
+            "prefect_server_database_timeout",
+            "prefect_api_database_timeout",
+        ),
+    )
+
+    connection_timeout: Optional[float] = Field(
+        default=5,
+        description="A connection timeout, in seconds, applied to database connections. Defaults to `5`.",
+        validation_alias=AliasChoices(
+            AliasPath("connection_timeout"),
+            "prefect_server_database_connection_timeout",
+            "prefect_api_database_connection_timeout",
+        ),
+    )
+
+    @model_validator(mode="after")
+    def emit_warnings(self) -> Self:
+        """More post-hoc validation of settings, including warnings for misconfigurations."""
+        values = self.model_dump()
+        values = warn_on_database_password_value_without_usage(values)
+        return self
+
+
+class ServerSettings(PrefectBaseSettings):
+    """
+    Settings for controlling server behavior
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="PREFECT_SERVER_", env_file=".env", extra="ignore"
+    )
+
+    logging_level: LogLevel = Field(
+        default="WARNING",
+        description="The default logging level for the Prefect API server.",
+        validation_alias=AliasChoices(
+            AliasPath("logging_level"),
+            "prefect_server_logging_level",
+            "prefect_logging_server_level",
+        ),
+    )
+
+    analytics_enabled: bool = Field(
+        default=True,
+        description="""
+        When enabled, Prefect sends anonymous data (e.g. count of flow runs, package version)
+        on server startup to help us improve our product.
+        """,
+    )
+
+    metrics_enabled: bool = Field(
+        default=False,
+        description="Whether or not to enable Prometheus metrics in the API.",
+        validation_alias=AliasChoices(
+            AliasPath("metrics_enabled"),
+            "prefect_server_metrics_enabled",
+            "prefect_api_enable_metrics",
+        ),
+    )
+
+    log_retryable_errors: bool = Field(
+        default=False,
+        description="If `True`, log retryable errors in the API and it's services.",
+        validation_alias=AliasChoices(
+            AliasPath("log_retryable_errors"),
+            "prefect_server_log_retryable_errors",
+            "prefect_api_log_retryable_errors",
+        ),
+    )
+
+    register_blocks_on_start: bool = Field(
+        default=True,
+        description="If set, any block types that have been imported will be registered with the backend on application startup. If not set, block types must be manually registered.",
+        validation_alias=AliasChoices(
+            AliasPath("register_blocks_on_start"),
+            "prefect_server_register_blocks_on_start",
+            "prefect_api_blocks_register_on_start",
+        ),
+    )
+
+    memoize_block_auto_registration: bool = Field(
+        default=True,
+        description="Controls whether or not block auto-registration on start",
+        validation_alias=AliasChoices(
+            AliasPath("memoize_block_auto_registration"),
+            "prefect_server_memoize_block_auto_registration",
+            "prefect_memoize_block_auto_registration",
+        ),
+    )
+
+    memo_store_path: Optional[Path] = Field(
+        default=None,
+        description="The path to the memo store file.",
+        validation_alias=AliasChoices(
+            AliasPath("memo_store_path"),
+            "prefect_server_memo_store_path",
+            "prefect_memo_store_path",
+        ),
+    )
+
+    deployment_schedule_max_scheduled_runs: int = Field(
+        default=50,
+        description="The maximum number of scheduled runs to create for a deployment.",
+        validation_alias=AliasChoices(
+            AliasPath("deployment_schedule_max_scheduled_runs"),
+            "prefect_server_deployment_schedule_max_scheduled_runs",
+            "prefect_deployment_schedule_max_scheduled_runs",
+        ),
+    )
+
+    api: ServerAPISettings = Field(
+        default_factory=ServerAPISettings,
+        description="Settings for controlling API server behavior",
+    )
+
+    database: ServerDatabaseSettings = Field(
+        default_factory=ServerDatabaseSettings,
+        description="Settings for controlling server database behavior",
+    )
+
+
 class Settings(PrefectBaseSettings):
     """
     Settings for Prefect using Pydantic settings.
@@ -1110,6 +1500,11 @@ class Settings(PrefectBaseSettings):
         description="Settings for controlling runner behavior",
     )
 
+    server: ServerSettings = Field(
+        default_factory=ServerSettings,
+        description="Settings for controlling server behavior",
+    )
+
     ###########################################################################
     # Testing
 
@@ -1136,16 +1531,6 @@ class Settings(PrefectBaseSettings):
     ###########################################################################
     # Backend API settings
 
-    api_blocks_register_on_start: bool = Field(
-        default=True,
-        description="If set, any block types that have been imported will be registered with the backend on application startup. If not set, block types must be manually registered.",
-    )
-
-    api_log_retryable_errors: bool = Field(
-        default=False,
-        description="If `True`, log retryable errors in the API and it's services.",
-    )
-
     api_default_limit: int = Field(
         default=200,
         description="The default limit applied to queries that can return multiple objects, such as `POST /flow_runs/filter`.",
@@ -1164,80 +1549,6 @@ class Settings(PrefectBaseSettings):
     api_max_flow_run_graph_artifacts: int = Field(
         default=10000,
         description="The maximum number of artifacts to show on a flow run graph on the v2 API",
-    )
-
-    ###########################################################################
-    # API Database settings
-
-    api_database_connection_url: Optional[SecretStr] = Field(
-        default=None,
-        description="""
-        A database connection URL in a SQLAlchemy-compatible
-        format. Prefect currently supports SQLite and Postgres. Note that all
-        Prefect database engines must use an async driver - for SQLite, use
-        `sqlite+aiosqlite` and for Postgres use `postgresql+asyncpg`.
-
-        SQLite in-memory databases can be used by providing the url
-        `sqlite+aiosqlite:///file::memory:?cache=shared&uri=true&check_same_thread=false`,
-        which will allow the database to be accessed by multiple threads. Note
-        that in-memory databases can not be accessed from multiple processes and
-        should only be used for simple tests.
-        """,
-    )
-
-    api_database_driver: Optional[
-        Literal["postgresql+asyncpg", "sqlite+aiosqlite"]
-    ] = Field(
-        default=None,
-        description=(
-            "The database driver to use when connecting to the database. "
-            "If not set, the driver will be inferred from the connection URL."
-        ),
-    )
-
-    api_database_host: Optional[str] = Field(
-        default=None,
-        description="The database server host.",
-    )
-
-    api_database_port: Optional[int] = Field(
-        default=None,
-        description="The database server port.",
-    )
-
-    api_database_user: Optional[str] = Field(
-        default=None,
-        description="The user to use when connecting to the database.",
-    )
-
-    api_database_name: Optional[str] = Field(
-        default=None,
-        description="The name of the Prefect database on the remote server, or the path to the database file for SQLite.",
-    )
-
-    api_database_password: Optional[SecretStr] = Field(
-        default=None,
-        description="The password to use when connecting to the database. Should be kept secret.",
-    )
-
-    api_database_echo: bool = Field(
-        default=False,
-        description="If `True`, SQLAlchemy will log all SQL issued to the database. Defaults to `False`.",
-    )
-
-    api_database_migrate_on_start: bool = Field(
-        default=True,
-        description="If `True`, the database will be migrated on application startup.",
-    )
-
-    api_database_timeout: Optional[float] = Field(
-        default=10.0,
-        description="A statement timeout, in seconds, applied to all database interactions made by the API. Defaults to 10 seconds.",
-    )
-
-    api_database_connection_timeout: Optional[float] = Field(
-        default=5,
-        description="A connection timeout, in seconds, applied to database connections. Defaults to `5`.",
     )
 
     ###########################################################################
@@ -1430,68 +1741,8 @@ class Settings(PrefectBaseSettings):
         description="The default logging level for Prefect's internal machinery loggers.",
     )
 
-    logging_server_level: LogLevel = Field(
-        default="WARNING",
-        description="The default logging level for the Prefect API server.",
-    )
-
     ###########################################################################
     # Server settings
-
-    server_api_host: str = Field(
-        default="127.0.0.1",
-        description="The API's host address (defaults to `127.0.0.1`).",
-    )
-
-    server_api_port: int = Field(
-        default=4200,
-        description="The API's port address (defaults to `4200`).",
-    )
-
-    server_api_keepalive_timeout: int = Field(
-        default=5,
-        description="""
-        The API's keep alive timeout (defaults to `5`).
-        Refer to https://www.uvicorn.org/settings/#timeouts for details.
-
-        When the API is hosted behind a load balancer, you may want to set this to a value
-        greater than the load balancer's idle timeout.
-
-        Note this setting only applies when calling `prefect server start`; if hosting the
-        API with another tool you will need to configure this there instead.
-        """,
-    )
-
-    server_csrf_protection_enabled: bool = Field(
-        default=False,
-        description="""
-        Controls the activation of CSRF protection for the Prefect server API.
-
-        When enabled (`True`), the server enforces CSRF validation checks on incoming
-        state-changing requests (POST, PUT, PATCH, DELETE), requiring a valid CSRF
-        token to be included in the request headers or body. This adds a layer of
-        security by preventing unauthorized or malicious sites from making requests on
-        behalf of authenticated users.
-
-        It is recommended to enable this setting in production environments where the
-        API is exposed to web clients to safeguard against CSRF attacks.
-
-        Note: Enabling this setting requires corresponding support in the client for
-        CSRF token management. See PREFECT_CLIENT_CSRF_SUPPORT_ENABLED for more.
-        """,
-    )
-
-    server_csrf_token_expiration: timedelta = Field(
-        default=timedelta(hours=1),
-        description="""
-        Specifies the duration for which a CSRF token remains valid after being issued
-        by the server.
-
-        The default expiration time is set to 1 hour, which offers a reasonable
-        compromise. Adjust this setting based on your specific security requirements
-        and usage patterns.
-        """,
-    )
 
     server_cors_allowed_origins: str = Field(
         default="*",
@@ -1532,14 +1783,6 @@ class Settings(PrefectBaseSettings):
         description="""
         The number of seconds to wait for the server to start when ephemeral mode is enabled.
         Defaults to `10`.
-        """,
-    )
-
-    server_analytics_enabled: bool = Field(
-        default=True,
-        description="""
-        When enabled, Prefect sends anonymous data (e.g. count of flow runs, package version)
-        on server startup to help us improve our product.
         """,
     )
 
@@ -1599,11 +1842,6 @@ class Settings(PrefectBaseSettings):
     api_events_stream_out_enabled: bool = Field(
         default=True,
         description="Whether or not to stream events out to the API via websockets.",
-    )
-
-    api_enable_metrics: bool = Field(
-        default=False,
-        description="Whether or not to enable Prometheus metrics in the API.",
     )
 
     api_events_related_resource_cache_ttl: timedelta = Field(
@@ -1705,16 +1943,6 @@ class Settings(PrefectBaseSettings):
         description="The number of seconds to wait before retrying when a task run cannot secure a concurrency slot from the server.",
     )
 
-    memo_store_path: Optional[Path] = Field(
-        default=None,
-        description="The path to the memo store file.",
-    )
-
-    memoize_block_auto_registration: bool = Field(
-        default=True,
-        description="Controls whether or not block auto-registration on start",
-    )
-
     sqlalchemy_pool_size: Optional[int] = Field(
         default=None,
         description="Controls connection pool size when using a PostgreSQL database with the Prefect API. If not set, the default SQLAlchemy pool size will be used.",
@@ -1745,11 +1973,6 @@ class Settings(PrefectBaseSettings):
             "The number of seconds to wait before retrying when a deployment flow run"
             " cannot secure a concurrency slot from the server."
         ),
-    )
-
-    deployment_schedule_max_scheduled_runs: int = Field(
-        default=50,
-        description="The maximum number of scheduled runs to create for a deployment.",
     )
 
     worker_heartbeat_seconds: float = Field(
@@ -1850,7 +2073,7 @@ class Settings(PrefectBaseSettings):
                 self.__pydantic_fields_set__.remove("ui_api_url")
             else:
                 self.ui_api_url = (
-                    f"http://{self.server_api_host}:{self.server_api_port}/api"
+                    f"http://{self.server.api.host}:{self.server.api.port}/api"
                 )
                 self.__pydantic_fields_set__.remove("ui_api_url")
         if self.profiles_path is None or "PREFECT_HOME" in str(self.profiles_path):
@@ -1859,9 +2082,9 @@ class Settings(PrefectBaseSettings):
         if self.results.local_storage_path is None:
             self.results.local_storage_path = Path(f"{self.home}/storage")
             self.results.__pydantic_fields_set__.remove("local_storage_path")
-        if self.memo_store_path is None:
-            self.memo_store_path = Path(f"{self.home}/memo_store.toml")
-            self.__pydantic_fields_set__.remove("memo_store_path")
+        if self.server.memo_store_path is None:
+            self.server.memo_store_path = Path(f"{self.home}/memo_store.toml")
+            self.server.__pydantic_fields_set__.remove("memo_store_path")
         if self.debug_mode or self.test_mode:
             self.logging.level = "DEBUG"
             self.logging_internal_level = "DEBUG"
@@ -1872,36 +2095,42 @@ class Settings(PrefectBaseSettings):
             self.logging.config_path = Path(f"{self.home}/logging.yml")
             self.logging.__pydantic_fields_set__.remove("config_path")
         # Set default database connection URL if not provided
-        if self.api_database_connection_url is None:
-            self.api_database_connection_url = default_database_connection_url(self)
-            self.__pydantic_fields_set__.remove("api_database_connection_url")
-        if "PREFECT_API_DATABASE_PASSWORD" in (
-            db_url := (
-                self.api_database_connection_url.get_secret_value()
-                if isinstance(self.api_database_connection_url, SecretStr)
-                else self.api_database_connection_url
-            )
+        if self.server.database.connection_url is None:
+            self.server.database.connection_url = default_database_connection_url(self)
+            self.server.database.__pydantic_fields_set__.remove("connection_url")
+        db_url = (
+            self.server.database.connection_url.get_secret_value()
+            if isinstance(self.server.database.connection_url, SecretStr)
+            else self.server.database.connection_url
+        )
+        if (
+            "PREFECT_API_DATABASE_PASSWORD" in db_url
+            or "PREFECT_SERVER_DATABASE_PASSWORD" in db_url
         ):
-            if self.api_database_password is None:
+            if self.server.database.password is None:
                 raise ValueError(
-                    "database password is None - please set PREFECT_API_DATABASE_PASSWORD"
+                    "database password is None - please set PREFECT_SERVER_DATABASE_PASSWORD"
                 )
-            self.api_database_connection_url = SecretStr(
-                db_url.replace(
-                    "${PREFECT_API_DATABASE_PASSWORD}",
-                    self.api_database_password.get_secret_value(),
-                )
-                if self.api_database_password
-                else ""
+            db_url = db_url.replace(
+                "${PREFECT_API_DATABASE_PASSWORD}",
+                self.server.database.password.get_secret_value()
+                if self.server.database.password
+                else "",
             )
-            self.__pydantic_fields_set__.remove("api_database_connection_url")
+            db_url = db_url.replace(
+                "${PREFECT_SERVER_DATABASE_PASSWORD}",
+                self.server.database.password.get_secret_value()
+                if self.server.database.password
+                else "",
+            )
+            self.server.database.connection_url = SecretStr(db_url)
+            self.server.database.__pydantic_fields_set__.remove("connection_url")
         return self
 
     @model_validator(mode="after")
     def emit_warnings(self) -> Self:
         """More post-hoc validation of settings, including warnings for misconfigurations."""
         values = self.model_dump()
-        values = warn_on_database_password_value_without_usage(values)
         if not self.silence_api_url_misconfiguration:
             values = warn_on_misconfigured_api_url(values)
         return self

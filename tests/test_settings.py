@@ -37,6 +37,7 @@ from prefect.settings import (
     PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
     PREFECT_SERVER_API_HOST,
     PREFECT_SERVER_API_PORT,
+    PREFECT_SERVER_LOGGING_LEVEL,
     PREFECT_TEST_MODE,
     PREFECT_TEST_SETTING,
     PREFECT_UI_API_URL,
@@ -47,6 +48,8 @@ from prefect.settings import (
     LoggingSettings,
     Profile,
     ProfilesCollection,
+    ServerAPISettings,
+    ServerSettings,
     Settings,
     env_var_to_accessor,
     get_current_settings,
@@ -59,27 +62,27 @@ from prefect.utilities.collections import get_from_dict, set_in_dict
 from prefect.utilities.filesystem import tmpchdir
 
 SUPPORTED_SETTINGS = {
-    "PREFECT_API_BLOCKS_REGISTER_ON_START": {"test_value": True},
-    "PREFECT_API_DATABASE_CONNECTION_TIMEOUT": {"test_value": 10.0},
-    "PREFECT_API_DATABASE_CONNECTION_URL": {"test_value": "sqlite:///"},
-    "PREFECT_API_DATABASE_DRIVER": {"test_value": "sqlite+aiosqlite"},
-    "PREFECT_API_DATABASE_ECHO": {"test_value": True},
-    "PREFECT_API_DATABASE_HOST": {"test_value": "localhost"},
-    "PREFECT_API_DATABASE_MIGRATE_ON_START": {"test_value": True},
-    "PREFECT_API_DATABASE_NAME": {"test_value": "prefect"},
-    "PREFECT_API_DATABASE_PASSWORD": {"test_value": "password"},
-    "PREFECT_API_DATABASE_PORT": {"test_value": 5432},
-    "PREFECT_API_DATABASE_TIMEOUT": {"test_value": 10.0},
-    "PREFECT_API_DATABASE_USER": {"test_value": "user"},
+    "PREFECT_API_BLOCKS_REGISTER_ON_START": {"test_value": True, "legacy": True},
+    "PREFECT_API_DATABASE_CONNECTION_TIMEOUT": {"test_value": 10.0, "legacy": True},
+    "PREFECT_API_DATABASE_CONNECTION_URL": {"test_value": "sqlite:///", "legacy": True},
+    "PREFECT_API_DATABASE_DRIVER": {"test_value": "sqlite+aiosqlite", "legacy": True},
+    "PREFECT_API_DATABASE_ECHO": {"test_value": True, "legacy": True},
+    "PREFECT_API_DATABASE_HOST": {"test_value": "localhost", "legacy": True},
+    "PREFECT_API_DATABASE_MIGRATE_ON_START": {"test_value": True, "legacy": True},
+    "PREFECT_API_DATABASE_NAME": {"test_value": "prefect", "legacy": True},
+    "PREFECT_API_DATABASE_PASSWORD": {"test_value": "password", "legacy": True},
+    "PREFECT_API_DATABASE_PORT": {"test_value": 5432, "legacy": True},
+    "PREFECT_API_DATABASE_TIMEOUT": {"test_value": 10.0, "legacy": True},
+    "PREFECT_API_DATABASE_USER": {"test_value": "user", "legacy": True},
     "PREFECT_API_DEFAULT_LIMIT": {"test_value": 100},
     "PREFECT_API_ENABLE_HTTP2": {"test_value": True},
-    "PREFECT_API_ENABLE_METRICS": {"test_value": True},
+    "PREFECT_API_ENABLE_METRICS": {"test_value": True, "legacy": True},
     "PREFECT_API_EVENTS_RELATED_RESOURCE_CACHE_TTL": {
         "test_value": timedelta(minutes=6)
     },
     "PREFECT_API_EVENTS_STREAM_OUT_ENABLED": {"test_value": True},
     "PREFECT_API_KEY": {"test_value": "key"},
-    "PREFECT_API_LOG_RETRYABLE_ERRORS": {"test_value": True},
+    "PREFECT_API_LOG_RETRYABLE_ERRORS": {"test_value": True, "legacy": True},
     "PREFECT_API_MAX_FLOW_RUN_GRAPH_ARTIFACTS": {"test_value": 10},
     "PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES": {"test_value": 100},
     "PREFECT_API_REQUEST_TIMEOUT": {"test_value": 10.0},
@@ -146,7 +149,10 @@ SUPPORTED_SETTINGS = {
     "PREFECT_DEFAULT_RESULT_STORAGE_BLOCK": {"test_value": "block", "legacy": True},
     "PREFECT_DEFAULT_WORK_POOL_NAME": {"test_value": "default", "legacy": True},
     "PREFECT_DEPLOYMENT_CONCURRENCY_SLOT_WAIT_SECONDS": {"test_value": 10.0},
-    "PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS": {"test_value": 10},
+    "PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS": {
+        "test_value": 10,
+        "legacy": True,
+    },
     "PREFECT_DEPLOYMENTS_DEFAULT_DOCKER_BUILD_NAMESPACE": {"test_value": "prefect"},
     "PREFECT_DEPLOYMENTS_DEFAULT_WORK_POOL_NAME": {"test_value": "default"},
     "PREFECT_EVENTS_EXPIRED_BUCKET_BUFFER": {"test_value": timedelta(seconds=60)},
@@ -175,7 +181,7 @@ SUPPORTED_SETTINGS = {
     "PREFECT_LOGGING_LEVEL": {"test_value": "INFO"},
     "PREFECT_LOGGING_LOG_PRINTS": {"test_value": True},
     "PREFECT_LOGGING_MARKUP": {"test_value": True},
-    "PREFECT_LOGGING_SERVER_LEVEL": {"test_value": "INFO"},
+    "PREFECT_LOGGING_SERVER_LEVEL": {"test_value": "INFO", "legacy": True},
     "PREFECT_LOGGING_SETTINGS_PATH": {
         "test_value": Path("/path/to/settings.toml"),
         "legacy": True,
@@ -185,8 +191,8 @@ SUPPORTED_SETTINGS = {
     "PREFECT_LOGGING_TO_API_ENABLED": {"test_value": True},
     "PREFECT_LOGGING_TO_API_MAX_LOG_SIZE": {"test_value": 10},
     "PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW": {"test_value": "ignore"},
-    "PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION": {"test_value": True},
-    "PREFECT_MEMO_STORE_PATH": {"test_value": Path("/path/to/memo")},
+    "PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION": {"test_value": True, "legacy": True},
+    "PREFECT_MEMO_STORE_PATH": {"test_value": Path("/path/to/memo"), "legacy": True},
     "PREFECT_MESSAGING_BROKER": {"test_value": "broker"},
     "PREFECT_MESSAGING_CACHE": {"test_value": "cache"},
     "PREFECT_PROFILES_PATH": {"test_value": Path("/path/to/profiles.toml")},
@@ -206,12 +212,35 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SERVER_API_HOST": {"test_value": "host"},
     "PREFECT_SERVER_API_KEEPALIVE_TIMEOUT": {"test_value": 10},
     "PREFECT_SERVER_API_PORT": {"test_value": 4200},
+    "PREFECT_SERVER_API_CSRF_TOKEN_EXPIRATION": {"test_value": timedelta(seconds=10)},
+    "PREFECT_SERVER_API_CSRF_PROTECTION_ENABLED": {"test_value": True},
     "PREFECT_SERVER_CORS_ALLOWED_HEADERS": {"test_value": "foo"},
     "PREFECT_SERVER_CORS_ALLOWED_METHODS": {"test_value": "foo"},
     "PREFECT_SERVER_CORS_ALLOWED_ORIGINS": {"test_value": "foo"},
-    "PREFECT_SERVER_CSRF_PROTECTION_ENABLED": {"test_value": True},
-    "PREFECT_SERVER_CSRF_TOKEN_EXPIRATION": {"test_value": timedelta(seconds=10)},
+    "PREFECT_SERVER_CSRF_PROTECTION_ENABLED": {"test_value": True, "legacy": True},
+    "PREFECT_SERVER_CSRF_TOKEN_EXPIRATION": {
+        "test_value": timedelta(seconds=10),
+        "legacy": True,
+    },
+    "PREFECT_SERVER_DATABASE_CONNECTION_TIMEOUT": {"test_value": 10.0},
+    "PREFECT_SERVER_DATABASE_CONNECTION_URL": {"test_value": "sqlite:///"},
+    "PREFECT_SERVER_DATABASE_DRIVER": {"test_value": "sqlite+aiosqlite"},
+    "PREFECT_SERVER_DATABASE_ECHO": {"test_value": True},
+    "PREFECT_SERVER_DATABASE_HOST": {"test_value": "localhost"},
+    "PREFECT_SERVER_DATABASE_MIGRATE_ON_START": {"test_value": True},
+    "PREFECT_SERVER_DATABASE_NAME": {"test_value": "prefect"},
+    "PREFECT_SERVER_DATABASE_PASSWORD": {"test_value": "password"},
+    "PREFECT_SERVER_DATABASE_PORT": {"test_value": 5432},
+    "PREFECT_SERVER_DATABASE_TIMEOUT": {"test_value": 10.0},
+    "PREFECT_SERVER_DATABASE_USER": {"test_value": "user"},
+    "PREFECT_SERVER_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS": {"test_value": 10},
     "PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS": {"test_value": 10},
+    "PREFECT_SERVER_LOG_RETRYABLE_ERRORS": {"test_value": True},
+    "PREFECT_SERVER_LOGGING_LEVEL": {"test_value": "INFO"},
+    "PREFECT_SERVER_MEMO_STORE_PATH": {"test_value": Path("/path/to/memo")},
+    "PREFECT_SERVER_MEMOIZE_BLOCK_AUTO_REGISTRATION": {"test_value": True},
+    "PREFECT_SERVER_METRICS_ENABLED": {"test_value": True},
+    "PREFECT_SERVER_REGISTER_BLOCKS_ON_START": {"test_value": True},
     "PREFECT_SILENCE_API_URL_MISCONFIGURATION": {"test_value": True},
     "PREFECT_SQLALCHEMY_MAX_OVERFLOW": {"test_value": 10},
     "PREFECT_SQLALCHEMY_POOL_SIZE": {"test_value": 10},
@@ -334,19 +363,16 @@ class TestSettingsClass:
                 expected_names.remove(name)
         assert set(settings.to_environment_variables().keys()) == expected_names
 
-    def test_settings_to_environment_works_with_exclude_unset(self, monkeypatch):
-        # for var in os.environ:
-        #     if var.startswith("PREFECT_"):
-        #         monkeypatch.delenv(var, raising=False)
-        assert Settings(server_api_port=3000).to_environment_variables(
-            exclude_unset=True
-        ) == {
+    def test_settings_to_environment_works_with_exclude_unset(self):
+        assert Settings(
+            server=ServerSettings(api=ServerAPISettings(port=3000))
+        ).to_environment_variables(exclude_unset=True) == {
             # From env
             **{
                 var: os.environ[var] for var in os.environ if var.startswith("PREFECT_")
             },
             # From test settings
-            "PREFECT_LOGGING_SERVER_LEVEL": "DEBUG",
+            "PREFECT_SERVER_LOGGING_LEVEL": "DEBUG",
             "PREFECT_TEST_MODE": "True",
             "PREFECT_UNIT_TEST_MODE": "True",
             # From init
@@ -355,9 +381,9 @@ class TestSettingsClass:
 
     def test_settings_to_environment_casts_to_strings(self):
         assert (
-            Settings(server_api_port=3000).to_environment_variables()[
-                "PREFECT_SERVER_API_PORT"
-            ]
+            Settings(
+                server=ServerSettings(api=ServerAPISettings(port=3000))
+            ).to_environment_variables()["PREFECT_SERVER_API_PORT"]
             == "3000"
         )
 
@@ -382,10 +408,11 @@ class TestSettingsClass:
         "log_level_setting",
         [
             PREFECT_LOGGING_LEVEL,
+            PREFECT_SERVER_LOGGING_LEVEL,
             PREFECT_LOGGING_SERVER_LEVEL,
         ],
     )
-    def test_settings_validates_log_levels(self, log_level_setting):
+    def test_settings_validates_log_levels(self, log_level_setting, monkeypatch):
         with pytest.raises(
             pydantic.ValidationError,
             match="should be 'DEBUG', 'INFO', 'WARNING', 'ERROR' or 'CRITICAL'",
@@ -398,7 +425,7 @@ class TestSettingsClass:
         "log_level_setting",
         [
             PREFECT_LOGGING_LEVEL,
-            PREFECT_LOGGING_SERVER_LEVEL,
+            PREFECT_SERVER_LOGGING_LEVEL,
         ],
     )
     def test_settings_uppercases_log_levels(self, log_level_setting):
@@ -687,8 +714,8 @@ class TestDatabaseSettings:
         with pytest.warns(
             UserWarning,
             match=(
-                "PREFECT_API_DATABASE_PASSWORD is set but not included in the "
-                "PREFECT_API_DATABASE_CONNECTION_URL. "
+                "PREFECT_SERVER_DATABASE_PASSWORD is set but not included in the "
+                "PREFECT_SERVER_DATABASE_CONNECTION_URL. "
                 "The provided password will be ignored."
             ),
         ):
