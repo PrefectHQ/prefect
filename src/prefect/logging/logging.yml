@@ -88,7 +88,7 @@ loggers:
         handlers: [api]
 
     prefect.server:
-        level: "${PREFECT_LOGGING_SERVER_LEVEL}"
+        level: "${PREFECT_SERVER_LOGGING_LEVEL}"
 
     prefect.client:
         level: "${PREFECT_LOGGING_LEVEL}"
@@ -102,10 +102,10 @@ loggers:
         handlers: [debug]
 
     uvicorn:
-        level: "${PREFECT_LOGGING_SERVER_LEVEL}"
+        level: "${PREFECT_SERVER_LOGGING_LEVEL}"
 
     fastapi:
-        level: "${PREFECT_LOGGING_SERVER_LEVEL}"
+        level: "${PREFECT_SERVER_LOGGING_LEVEL}"
 
 # The root logger: any logger without propagation disabled sends to here as well
 root:
