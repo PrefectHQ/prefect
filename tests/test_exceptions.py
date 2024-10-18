@@ -117,3 +117,13 @@ class TestSignatureMismatchError:
         unpickled = cloudpickle.loads(pickled)
         assert str(sme) == str(unpickled)
         assert sme.args == unpickled.args
+
+
+class TestPrefectModuleGetattr:
+    def test_attributeerror_on_getattr(self):
+        import prefect
+
+        with pytest.raises(
+            AttributeError, match=r"module prefect has no attribute FOO"
+        ):
+            prefect.FOO
