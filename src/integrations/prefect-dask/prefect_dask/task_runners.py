@@ -71,7 +71,7 @@ Example:
     ```
 """
 
-import inspect
+import asyncio
 from contextlib import ExitStack
 from typing import (
     Any,
@@ -145,7 +145,7 @@ class PrefectDaskFuture(PrefectWrappedFuture[R, distributed.Future]):
         )
         # state.result is a `sync_compatible` function that may or may not return an awaitable
         # depending on whether the parent frame is sync or not
-        if inspect.isawaitable(_result):
+        if asyncio.iscoroutine(_result):
             _result = run_coro_as_sync(_result)
         return _result
 
@@ -439,7 +439,7 @@ class DaskTaskRunner(TaskRunner):
 
             if self.adapt_kwargs:
                 maybe_coro = self._cluster.adapt(**self.adapt_kwargs)
-                if inspect.isawaitable(maybe_coro):
+                if asyncio.iscoroutine(maybe_coro):
                     run_coro_as_sync(maybe_coro)
 
         self._client = exit_stack.enter_context(

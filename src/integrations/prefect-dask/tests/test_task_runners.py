@@ -2,7 +2,9 @@ import asyncio
 import time
 from typing import List
 
+import dask.dataframe as dd
 import distributed
+import pandas as pd
 import pytest
 from distributed import LocalCluster
 from prefect_dask import DaskTaskRunner
@@ -372,6 +374,33 @@ class TestDaskTaskRunner:
         test_flow()
 
         assert "A future was garbage collected before it resolved" not in caplog.text
+
+    async def test_successful_dataframe_flow_run(self, task_runner):
+        @task
+        def task_a():
+            return dd.DataFrame.from_dict(
+                {"x": [1, 1, 1], "y": [2, 2, 2]}, npartitions=1
+            )
+
+        @task
+        def task_b(ddf):
+            return ddf.sum()
+
+        @task
+        def task_c(ddf):
+            return ddf.compute()
+
+        @flow(version="test", task_runner=task_runner)
+        def test_flow():
+            a = task_a.submit()
+            b = task_b.submit(a)
+            c = task_c.submit(b)
+
+            return c.result()
+
+        result = test_flow()
+
+        assert result.equals(pd.Series([3, 6], index=["x", "y"]))
 
     class TestInputArguments:
         async def test_dataclasses_can_be_passed_to_task_runners(self, task_runner):
