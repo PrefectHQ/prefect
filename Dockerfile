@@ -101,7 +101,7 @@ RUN apt-get update && \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Pin the pip version
-RUN python -m pip install --no-cache-dir pip==23.3.1
+RUN python -m pip install --no-cache-dir pip==24.2
 
 # Install the base requirements separately so they cache
 COPY requirements-client.txt requirements.txt ./
@@ -113,6 +113,9 @@ COPY --from=python-builder /opt/prefect/dist ./dist
 # Extras to include during `pip install`. Must be wrapped in brackets, e.g. "[dev]"
 ARG PREFECT_EXTRAS=${PREFECT_EXTRAS:-""}
 RUN pip install --no-cache-dir "./dist/prefect.tar.gz${PREFECT_EXTRAS}"
+
+# Remove setuptools from the image
+RUN pip uninstall -y setuptools
 
 ARG EXTRA_PIP_PACKAGES=${EXTRA_PIP_PACKAGES:-""}
 RUN [ -z "${EXTRA_PIP_PACKAGES}" ] || pip install --no-cache-dir "${EXTRA_PIP_PACKAGES}"
