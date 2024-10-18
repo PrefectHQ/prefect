@@ -137,6 +137,12 @@ class BaseJobConfiguration(BaseModel):
         variables = cls._get_base_config_defaults(
             variables_schema.get("properties", {})
         )
+
+        # copy variable defaults for `env` to job config before they're replaced by
+        # deployment overrides
+        if variables.get("env"):
+            job_config["env"] = variables.get("env")
+
         variables.update(values)
 
         # deep merge `env`
