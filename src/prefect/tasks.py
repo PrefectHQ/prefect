@@ -1060,6 +1060,8 @@ class Task(Generic[P, R]):
         task runner. This call only blocks execution while the task is being submitted,
         once it is submitted, the flow function will continue executing.
 
+        This method is always used synchronously, even if the underlying user function is asynchronous.
+
         Args:
             *args: Arguments to run the task with
             return_state: Return the result of the flow run wrapped in a
@@ -1112,7 +1114,7 @@ class Task(Generic[P, R]):
             >>>
             >>> @flow
             >>> async def my_flow():
-            >>>     await my_async_task.submit()
+            >>>     my_async_task.submit()
 
             Run a sync task in an async flow
 
@@ -1217,7 +1219,7 @@ class Task(Generic[P, R]):
         wait_for: Optional[Iterable[PrefectFuture[T]]] = None,
         deferred: bool = False,
         **kwargs: Any,
-    ):
+    ) -> Union[PrefectFutureList[R], List[State[R]]]:
         """
         Submit a mapped run of the task to a worker.
 
@@ -1234,6 +1236,8 @@ class Task(Generic[P, R]):
         call blocks if given a future as input while the future is resolved. It
         also blocks while the tasks are being submitted, once they are
         submitted, the flow function will continue executing.
+
+        This method is always used synchronously, even if the underlying user function is asynchronous.
 
         Args:
             *args: Iterable and static arguments to run the tasks with
