@@ -1215,13 +1215,16 @@ class Flow(Generic[P, R]):
 
         if print_next_steps:
             console = Console()
-            if not work_pool.is_push_pool and not work_pool.is_managed_pool:
-                if not active_workers:
-                    console.print(
-                        "\nTo execute flow runs from this deployment, start a worker in a"
-                        " separate terminal that pulls work from the"
-                        f" {work_pool_name!r} work pool:"
-                    )
+            if (
+                not work_pool.is_push_pool
+                and not work_pool.is_managed_pool
+                and not active_workers
+            ):
+                console.print(
+                    "\nTo execute flow runs from this deployment, start a worker in a"
+                    " separate terminal that pulls work from the"
+                    f" {work_pool_name!r} work pool:"
+                )
                 console.print(
                     f"\n\t$ prefect worker start --pool {work_pool_name!r}",
                     style="blue",
