@@ -85,6 +85,9 @@ T = TypeVar("T")  # Generic type var for capturing the inner return type of asyn
 R = TypeVar("R")  # The return type of the user's function
 P = ParamSpec("P")  # The parameters of the task
 
+A1 = TypeVar("A1")
+A2 = TypeVar("A2")
+
 NUM_CHARS_DYNAMIC_KEY = 8
 
 logger = get_logger("tasks")
@@ -1170,44 +1173,44 @@ class Task(Generic[P, R]):
 
     @overload
     def map(
-        self: "Task[P, NoReturn]",
-        *args: P.args,
-        **kwargs: P.kwargs,
-    ) -> PrefectFutureList[PrefectFuture[NoReturn]]:
-        ...
-
-    @overload
-    def map(
-        self: "Task[P, Coroutine[Any, Any, T]]",
-        *args: P.args,
-        **kwargs: P.kwargs,
-    ) -> PrefectFutureList[PrefectFuture[T]]:
-        ...
-
-    @overload
-    def map(
-        self: "Task[P, T]",
-        *args: P.args,
-        **kwargs: P.kwargs,
-    ) -> PrefectFutureList[PrefectFuture[T]]:
-        ...
-
-    @overload
-    def map(
-        self: "Task[P, Coroutine[Any, Any, T]]",
-        *args: P.args,
+        self: "Task[P, Coroutine[Any, Any, R]]",
+        *args: Any,
         return_state: Literal[True],
-        **kwargs: P.kwargs,
-    ) -> PrefectFutureList[State[T]]:
+        wait_for: Optional[Iterable[PrefectFuture[T]]] = ...,
+        deferred: bool = ...,
+        **kwargs: Any,
+    ) -> List[State[R]]:
         ...
 
     @overload
     def map(
-        self: "Task[P, T]",
-        *args: P.args,
+        self: "Task[P, Coroutine[Any, Any, R]]",
+        *args: Any,
+        wait_for: Optional[Iterable[PrefectFuture]] = ...,
+        deferred: bool = ...,
+        **kwargs: Any,
+    ) -> PrefectFutureList[R]:
+        ...
+
+    @overload
+    def map(
+        self: "Task[P, R]",
+        *args: Any,
         return_state: Literal[True],
-        **kwargs: P.kwargs,
-    ) -> PrefectFutureList[State[T]]:
+        wait_for: Optional[Iterable[PrefectFuture]] = ...,
+        deferred: bool = ...,
+        **kwargs: Any,
+    ) -> List[State[R]]:
+        ...
+
+    @overload
+    def map(
+        self: "Task[P, R]",
+        *args: Any,
+        wait_for: Optional[Iterable[PrefectFuture]] = ...,
+        deferred: bool = ...,
+        **kwargs: Any,
+    ) -> PrefectFutureList[R]:
         ...
 
     def map(
