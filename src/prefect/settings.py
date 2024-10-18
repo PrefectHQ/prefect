@@ -951,6 +951,46 @@ class LoggingSettings(PrefectBaseSettings):
     )
 
 
+class ResultsSettings(PrefectBaseSettings):
+    """
+    Settings for controlling result storage behavior
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="PREFECT_RESULTS_", env_file=".env", extra="ignore"
+    )
+
+    default_serializer: str = Field(
+        default="pickle",
+        description="The default serializer to use when not otherwise specified.",
+    )
+
+    persist_by_default: bool = Field(
+        default=False,
+        description="The default setting for persisting results when not otherwise specified.",
+    )
+
+    default_storage_block: Optional[str] = Field(
+        default=None,
+        description="The `block-type/block-document` slug of a block to use as the default result storage.",
+        validation_alias=AliasChoices(
+            "prefect_results_default_storage_block",
+            "prefect_default_result_storage_block",
+            AliasPath("default_storage_block"),
+        ),
+    )
+
+    local_storage_path: Optional[Path] = Field(
+        default=None,
+        description="The path to a directory to store results in.",
+        validation_alias=AliasChoices(
+            "prefect_results_local_storage_path",
+            "prefect_local_storage_path",
+            AliasPath("local_storage_path"),
+        ),
+    )
+
+
 class Settings(PrefectBaseSettings):
     """
     Settings for Prefect using Pydantic settings.
@@ -1000,6 +1040,11 @@ class Settings(PrefectBaseSettings):
         description="Settings for controlling logging behavior",
     )
 
+    results: ResultsSettings = Field(
+        default_factory=ResultsSettings,
+        description="Settings for controlling result storage behavior",
+    )
+
     ###########################################################################
     # Testing
 
@@ -1021,19 +1066,6 @@ class Settings(PrefectBaseSettings):
     test_setting: Optional[Any] = Field(
         default="FOO",
         description="This setting only exists to facilitate unit testing. If in test mode, this setting will return its value. Otherwise, it returns `None`.",
-    )
-
-    ###########################################################################
-    # Results settings
-
-    results_default_serializer: str = Field(
-        default="pickle",
-        description="The default serializer to use when not otherwise specified.",
-    )
-
-    results_persist_by_default: bool = Field(
-        default=False,
-        description="The default setting for persisting results when not otherwise specified.",
     )
 
     ###########################################################################
@@ -1608,11 +1640,6 @@ class Settings(PrefectBaseSettings):
         description="The number of seconds to wait before retrying when a task run cannot secure a concurrency slot from the server.",
     )
 
-    local_storage_path: Optional[Path] = Field(
-        default=None,
-        description="The path to a block storage directory to store things in.",
-    )
-
     memo_store_path: Optional[Path] = Field(
         default=None,
         description="The path to the memo store file.",
@@ -1750,11 +1777,6 @@ class Settings(PrefectBaseSettings):
         description="Whether or not to enable concurrency for scheduled tasks.",
     )
 
-    default_result_storage_block: Optional[str] = Field(
-        default=None,
-        description="The `block-type/block-document` slug of a block to use as the default result storage.",
-    )
-
     messaging_broker: str = Field(
         default="prefect.server.utilities.messaging.memory",
         description="Which message broker implementation to use for the messaging system, should point to a module that exports a Publisher and Consumer class.",
@@ -1810,9 +1832,9 @@ class Settings(PrefectBaseSettings):
         if self.profiles_path is None or "PREFECT_HOME" in str(self.profiles_path):
             self.profiles_path = Path(f"{self.home}/profiles.toml")
             self.__pydantic_fields_set__.remove("profiles_path")
-        if self.local_storage_path is None:
-            self.local_storage_path = Path(f"{self.home}/storage")
-            self.__pydantic_fields_set__.remove("local_storage_path")
+        if self.results.local_storage_path is None:
+            self.results.local_storage_path = Path(f"{self.home}/storage")
+            self.results.__pydantic_fields_set__.remove("local_storage_path")
         if self.memo_store_path is None:
             self.memo_store_path = Path(f"{self.home}/memo_store.toml")
             self.__pydantic_fields_set__.remove("memo_store_path")
