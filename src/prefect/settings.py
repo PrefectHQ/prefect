@@ -219,7 +219,7 @@ def max_log_size_smaller_than_batch_size(values):
     """
     Validator for settings asserting the batch size and match log size are compatible
     """
-    if values["logging_to_api_batch_size"] < values["logging_to_api_max_log_size"]:
+    if values["batch_size"] < values["max_log_size"]:
         raise ValueError(
             "`PREFECT_LOGGING_TO_API_MAX_LOG_SIZE` cannot be larger than"
             " `PREFECT_LOGGING_TO_API_BATCH_SIZE`"
@@ -804,6 +804,61 @@ class DeploymentsSettings(PrefectBaseSettings):
     )
 
 
+class LoggingToAPISettings(PrefectBaseSettings):
+    """
+    Settings for controlling logging to the API
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="PREFECT_LOGGING_TO_API_", env_file=".env", extra="ignore"
+    )
+
+    enabled: bool = Field(
+        default=True,
+        description="If `True`, logs will be sent to the API.",
+    )
+
+    batch_interval: float = Field(
+        default=2.0,
+        description="The number of seconds between batched writes of logs to the API.",
+    )
+
+    batch_size: int = Field(
+        default=4_000_000,
+        description="The number of logs to batch before sending to the API.",
+    )
+
+    max_log_size: int = Field(
+        default=1_000_000,
+        description="The maximum size in bytes for a single log.",
+    )
+
+    when_missing_flow: Literal["warn", "error", "ignore"] = Field(
+        default="warn",
+        description="""
+        Controls the behavior when loggers attempt to send logs to the API handler from outside of a flow.
+        
+        All logs sent to the API must be associated with a flow run. The API log handler can
+        only be used outside of a flow by manually providing a flow run identifier. Logs
+        that are not associated with a flow run will not be sent to the API. This setting can
+        be used to determine if a warning or error is displayed when the identifier is missing.
+
+        The following options are available:
+
+        - "warn": Log a warning message.
+        - "error": Raise an error.
+        - "ignore": Do not log a warning message or raise an error.
+        """,
+    )
+
+    @model_validator(mode="after")
+    def emit_warnings(self) -> Self:
+        """Emits warnings for misconfiguration of logging settings."""
+        values = self.model_dump()
+        values = max_log_size_smaller_than_batch_size(values)
+        return self
+
+
 class LoggingSettings(PrefectBaseSettings):
     """
     Settings for controlling logging behavior
@@ -857,6 +912,11 @@ class LoggingSettings(PrefectBaseSettings):
         `[red]This is a red message.[/red]` may be interpreted as
         `[red]This is a red message.[/red]`.
         """,
+    )
+
+    to_api: LoggingToAPISettings = Field(
+        default_factory=LoggingToAPISettings,
+        description="Settings for controlling logging to the API",
     )
 
 
@@ -1240,44 +1300,6 @@ class Settings(PrefectBaseSettings):
     logging_server_level: LogLevel = Field(
         default="WARNING",
         description="The default logging level for the Prefect API server.",
-    )
-
-    logging_to_api_enabled: bool = Field(
-        default=True,
-        description="If `True`, logs will be sent to the API.",
-    )
-
-    logging_to_api_batch_interval: float = Field(
-        default=2.0,
-        description="The number of seconds between batched writes of logs to the API.",
-    )
-
-    logging_to_api_batch_size: int = Field(
-        default=4_000_000,
-        description="The number of logs to batch before sending to the API.",
-    )
-
-    logging_to_api_max_log_size: int = Field(
-        default=1_000_000,
-        description="The maximum size in bytes for a single log.",
-    )
-
-    logging_to_api_when_missing_flow: Literal["warn", "error", "ignore"] = Field(
-        default="warn",
-        description="""
-        Controls the behavior when loggers attempt to send logs to the API handler from outside of a flow.
-        
-        All logs sent to the API must be associated with a flow run. The API log handler can
-        only be used outside of a flow by manually providing a flow run identifier. Logs
-        that are not associated with a flow run will not be sent to the API. This setting can
-        be used to determine if a warning or error is displayed when the identifier is missing.
-
-        The following options are available:
-
-        - "warn": Log a warning message.
-        - "error": Raise an error.
-        - "ignore": Do not log a warning message or raise an error.
-        """,
     )
 
     ###########################################################################
@@ -1802,7 +1824,6 @@ class Settings(PrefectBaseSettings):
     def emit_warnings(self) -> Self:
         """More post-hoc validation of settings, including warnings for misconfigurations."""
         values = self.model_dump()
-        values = max_log_size_smaller_than_batch_size(values)
         values = warn_on_database_password_value_without_usage(values)
         if not self.silence_api_url_misconfiguration:
             values = warn_on_misconfigured_api_url(values)
