@@ -59,12 +59,12 @@ from prefect.settings import (
     PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_LOGGING_INTERNAL_LEVEL,
     PREFECT_LOGGING_LEVEL,
-    PREFECT_LOGGING_SERVER_LEVEL,
     PREFECT_LOGGING_TO_API_ENABLED,
     PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION,
     PREFECT_PROFILES_PATH,
     PREFECT_SERVER_ANALYTICS_ENABLED,
     PREFECT_SERVER_CSRF_PROTECTION_ENABLED,
+    PREFECT_SERVER_LOGGING_LEVEL,
     PREFECT_UNIT_TEST_LOOP_DEBUG,
 )
 from prefect.utilities.dispatch import get_registry_for_type
@@ -326,7 +326,7 @@ def pytest_sessionstart(session):
             # Enable debug logging
             PREFECT_LOGGING_LEVEL: "DEBUG",
             PREFECT_LOGGING_INTERNAL_LEVEL: "DEBUG",
-            PREFECT_LOGGING_SERVER_LEVEL: "DEBUG",
+            PREFECT_SERVER_LOGGING_LEVEL: "DEBUG",
             # Disable shipping logs to the API;
             # can be enabled by the `enable_api_log_handler` mark
             PREFECT_LOGGING_TO_API_ENABLED: False,
