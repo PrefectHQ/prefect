@@ -85,9 +85,6 @@ T = TypeVar("T")  # Generic type var for capturing the inner return type of asyn
 R = TypeVar("R")  # The return type of the user's function
 P = ParamSpec("P")  # The parameters of the task
 
-A1 = TypeVar("A1")
-A2 = TypeVar("A2")
-
 NUM_CHARS_DYNAMIC_KEY = 8
 
 logger = get_logger("tasks")
@@ -1186,7 +1183,7 @@ class Task(Generic[P, R]):
     def map(
         self: "Task[P, Coroutine[Any, Any, R]]",
         *args: Any,
-        wait_for: Optional[Iterable[PrefectFuture]] = ...,
+        wait_for: Optional[Iterable[PrefectFuture[T]]] = ...,
         deferred: bool = ...,
         **kwargs: Any,
     ) -> PrefectFutureList[R]:
@@ -1197,7 +1194,7 @@ class Task(Generic[P, R]):
         self: "Task[P, R]",
         *args: Any,
         return_state: Literal[True],
-        wait_for: Optional[Iterable[PrefectFuture]] = ...,
+        wait_for: Optional[Iterable[PrefectFuture[T]]] = ...,
         deferred: bool = ...,
         **kwargs: Any,
     ) -> List[State[R]]:
@@ -1207,7 +1204,7 @@ class Task(Generic[P, R]):
     def map(
         self: "Task[P, R]",
         *args: Any,
-        wait_for: Optional[Iterable[PrefectFuture]] = ...,
+        wait_for: Optional[Iterable[PrefectFuture[T]]] = ...,
         deferred: bool = ...,
         **kwargs: Any,
     ) -> PrefectFutureList[R]:
@@ -1217,7 +1214,7 @@ class Task(Generic[P, R]):
         self,
         *args: Any,
         return_state: bool = False,
-        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        wait_for: Optional[Iterable[PrefectFuture[T]]] = None,
         deferred: bool = False,
         **kwargs: Any,
     ):
