@@ -1188,6 +1188,48 @@ class ServerAPISettings(PrefectBaseSettings):
         ),
     )
 
+    cors_allowed_origins: str = Field(
+        default="*",
+        description="""
+        A comma-separated list of origins that are authorized to make cross-origin requests to the API.
+
+        By default, this is set to `*`, which allows requests from all origins.
+        """,
+        validation_alias=AliasChoices(
+            AliasPath("cors_allowed_origins"),
+            "prefect_server_api_cors_allowed_origins",
+            "prefect_server_cors_allowed_origins",
+        ),
+    )
+
+    cors_allowed_methods: str = Field(
+        default="*",
+        description="""
+        A comma-separated list of methods that are authorized to make cross-origin requests to the API.
+
+        By default, this is set to `*`, which allows requests from all methods.
+        """,
+        validation_alias=AliasChoices(
+            AliasPath("cors_allowed_methods"),
+            "prefect_server_api_cors_allowed_methods",
+            "prefect_server_cors_allowed_methods",
+        ),
+    )
+
+    cors_allowed_headers: str = Field(
+        default="*",
+        description="""
+        A comma-separated list of headers that are authorized to make cross-origin requests to the API.
+
+        By default, this is set to `*`, which allows requests from all headers.
+        """,
+        validation_alias=AliasChoices(
+            AliasPath("cors_allowed_headers"),
+            "prefect_server_api_cors_allowed_headers",
+            "prefect_server_cors_allowed_headers",
+        ),
+    )
+
 
 class ServerDatabaseSettings(PrefectBaseSettings):
     """
@@ -1332,6 +1374,36 @@ class ServerDatabaseSettings(PrefectBaseSettings):
         return self
 
 
+class ServerEphemeralSettings(PrefectBaseSettings):
+    """
+    Settings for controlling ephemeral server behavior
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="PREFECT_SERVER_EPHEMERAL_", env_file=".env", extra="ignore"
+    )
+
+    enabled: bool = Field(
+        default=False,
+        description="""
+        Controls whether or not a subprocess server can be started when no API URL is provided.
+        """,
+        validation_alias=AliasChoices(
+            AliasPath("enabled"),
+            "prefect_server_ephemeral_enabled",
+            "prefect_server_allow_ephemeral_mode",
+        ),
+    )
+
+    startup_timeout_seconds: int = Field(
+        default=20,
+        description="""
+        The number of seconds to wait for the server to start when ephemeral mode is enabled.
+        Defaults to `10`.
+        """,
+    )
+
+
 class ServerSettings(PrefectBaseSettings):
     """
     Settings for controlling server behavior
@@ -1427,6 +1499,10 @@ class ServerSettings(PrefectBaseSettings):
     database: ServerDatabaseSettings = Field(
         default_factory=ServerDatabaseSettings,
         description="Settings for controlling server database behavior",
+    )
+    ephemeral: ServerEphemeralSettings = Field(
+        default_factory=ServerEphemeralSettings,
+        description="Settings for controlling ephemeral server behavior",
     )
 
 
@@ -1728,51 +1804,6 @@ class Settings(PrefectBaseSettings):
     logging_internal_level: LogLevel = Field(
         default="ERROR",
         description="The default logging level for Prefect's internal machinery loggers.",
-    )
-
-    ###########################################################################
-    # Server settings
-
-    server_cors_allowed_origins: str = Field(
-        default="*",
-        description="""
-        A comma-separated list of origins that are authorized to make cross-origin requests to the API.
-
-        By default, this is set to `*`, which allows requests from all origins.
-        """,
-    )
-
-    server_cors_allowed_methods: str = Field(
-        default="*",
-        description="""
-        A comma-separated list of methods that are authorized to make cross-origin requests to the API.
-
-        By default, this is set to `*`, which allows requests from all methods.
-        """,
-    )
-
-    server_cors_allowed_headers: str = Field(
-        default="*",
-        description="""
-        A comma-separated list of headers that are authorized to make cross-origin requests to the API.
-
-        By default, this is set to `*`, which allows requests from all headers.
-        """,
-    )
-
-    server_allow_ephemeral_mode: bool = Field(
-        default=False,
-        description="""
-        Controls whether or not a subprocess server can be started when no API URL is provided.
-        """,
-    )
-
-    server_ephemeral_startup_timeout_seconds: int = Field(
-        default=20,
-        description="""
-        The number of seconds to wait for the server to start when ephemeral mode is enabled.
-        Defaults to `10`.
-        """,
     )
 
     ###########################################################################
