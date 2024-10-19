@@ -558,7 +558,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 message = f"Task run exceeded timeout of {self.task.timeout_seconds} second(s)"
             else:
                 message = f"Task run failed due to timeout: {exc!r}"
-            self.logger.error(message)
+            self.logger.error(message, exc_info=exc)
             state = Failed(
                 data=exc,
                 message=message,
@@ -1072,7 +1072,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 message = f"Task run exceeded timeout of {self.task.timeout_seconds} second(s)"
             else:
                 message = f"Task run failed due to timeout: {exc!r}"
-            self.logger.error(message)
+            self.logger.error(message, exc_info=exc)
             state = Failed(
                 data=exc,
                 message=message,
