@@ -366,6 +366,11 @@ def _get_profiles_path() -> Path:
 class EnvFilterSettingsSource(EnvSettingsSource):
     """
     Custom pydantic settings source to filter out specific environment variables.
+
+    All validation aliases are loaded from environment variables by default. We use
+    `AliasPath` to maintain the ability set fields via model initialization, but those
+    shouldn't be loaded from environment variables. This loader allows use to say which
+    environment variables should be ignored.
     """
 
     def __init__(
@@ -496,9 +501,26 @@ class PrefectBaseSettings(BaseSettings):
 
         See https://docs.pydantic.dev/latest/concepts/pydantic_settings/#customise-settings-sources
         """
+        env_filter = set()
+        for field in settings_cls.model_fields.values():
+            if field.validation_alias is not None and isinstance(
+                field.validation_alias, AliasChoices
+            ):
+                for alias in field.validation_alias.choices:
+                    if isinstance(alias, AliasPath) and len(alias.path) > 0:
+                        env_filter.add(alias.path[0])
         return (
             init_settings,
-            env_settings,
+            EnvFilterSettingsSource(
+                settings_cls,
+                case_sensitive=cls.model_config.get("case_sensitive"),
+                env_prefix=cls.model_config.get("env_prefix"),
+                env_nested_delimiter=cls.model_config.get("env_nested_delimiter"),
+                env_ignore_empty=cls.model_config.get("env_ignore_empty"),
+                env_parse_none_str=cls.model_config.get("env_parse_none_str"),
+                env_parse_enums=cls.model_config.get("env_parse_enums"),
+                env_filter=list(env_filter),
+            ),
             dotenv_settings,
             file_secret_settings,
             ProfileSettingsTomlLoader(settings_cls),
@@ -1177,39 +1199,6 @@ class ServerDatabaseSettings(PrefectBaseSettings):
         env_file=".env",
         extra="ignore",
     )
-
-    @classmethod
-    def settings_customise_sources(
-        cls,
-        settings_cls: Type[BaseSettings],
-        init_settings: PydanticBaseSettingsSource,
-        env_settings: PydanticBaseSettingsSource,
-        dotenv_settings: PydanticBaseSettingsSource,
-        file_secret_settings: PydanticBaseSettingsSource,
-    ) -> Tuple[PydanticBaseSettingsSource, ...]:
-        """
-        Define an order for Prefect settings sources.
-
-        The order of the returned callables decides the priority of inputs; first item is the highest priority.
-
-        See https://docs.pydantic.dev/latest/concepts/pydantic_settings/#customise-settings-sources
-        """
-        return (
-            init_settings,
-            EnvFilterSettingsSource(
-                settings_cls,
-                case_sensitive=cls.model_config.get("case_sensitive"),
-                env_prefix=cls.model_config.get("env_prefix"),
-                env_nested_delimiter=cls.model_config.get("env_nested_delimiter"),
-                env_ignore_empty=cls.model_config.get("env_ignore_empty"),
-                env_parse_none_str=cls.model_config.get("env_parse_none_str"),
-                env_parse_enums=cls.model_config.get("env_parse_enums"),
-                env_filter=["user"],
-            ),
-            dotenv_settings,
-            file_secret_settings,
-            ProfileSettingsTomlLoader(settings_cls),
-        )
 
     connection_url: Optional[SecretStr] = Field(
         default=None,

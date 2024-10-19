@@ -16,7 +16,6 @@ import prefect.settings
 from prefect.exceptions import ProfileSettingsValidationError
 from prefect.settings import (
     DEFAULT_PROFILES_PATH,
-    PREFECT_API_DATABASE_CONNECTION_URL,
     PREFECT_API_DATABASE_DRIVER,
     PREFECT_API_DATABASE_HOST,
     PREFECT_API_DATABASE_NAME,
@@ -37,6 +36,7 @@ from prefect.settings import (
     PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
     PREFECT_SERVER_API_HOST,
     PREFECT_SERVER_API_PORT,
+    PREFECT_SERVER_DATABASE_CONNECTION_URL,
     PREFECT_SERVER_LOGGING_LEVEL,
     PREFECT_TEST_MODE,
     PREFECT_TEST_SETTING,
@@ -689,13 +689,13 @@ class TestDatabaseSettings:
     def test_database_connection_url_templates_password(self):
         with temporary_settings(
             {
-                PREFECT_API_DATABASE_CONNECTION_URL: (
+                PREFECT_SERVER_DATABASE_CONNECTION_URL: (
                     "${PREFECT_API_DATABASE_PASSWORD}/test"
                 ),
                 PREFECT_API_DATABASE_PASSWORD: "password",
             }
         ):
-            assert PREFECT_API_DATABASE_CONNECTION_URL.value() == "password/test"
+            assert PREFECT_SERVER_DATABASE_CONNECTION_URL.value() == "password/test"
 
     def test_database_connection_url_raises_on_null_password(self):
         # Not exactly beautiful behavior here, but I think it's clear.
@@ -704,7 +704,7 @@ class TestDatabaseSettings:
         with pytest.raises(ValueError, match="database password is None"):
             with temporary_settings(
                 {
-                    PREFECT_API_DATABASE_CONNECTION_URL: (
+                    PREFECT_SERVER_DATABASE_CONNECTION_URL: (
                         "${PREFECT_API_DATABASE_PASSWORD}/test"
                     )
                 }
@@ -722,7 +722,7 @@ class TestDatabaseSettings:
         ):
             with temporary_settings(
                 {
-                    PREFECT_API_DATABASE_CONNECTION_URL: "test",
+                    PREFECT_SERVER_DATABASE_CONNECTION_URL: "test",
                     PREFECT_API_DATABASE_PASSWORD: "password",
                 }
             ):
@@ -731,7 +731,7 @@ class TestDatabaseSettings:
     def test_postgres_database_settings_may_be_set_individually(self):
         with temporary_settings(
             {
-                PREFECT_API_DATABASE_CONNECTION_URL: None,
+                PREFECT_SERVER_DATABASE_CONNECTION_URL: None,
                 PREFECT_API_DATABASE_DRIVER: "postgresql+asyncpg",
                 PREFECT_API_DATABASE_HOST: "the-database-server.example.com",
                 PREFECT_API_DATABASE_PORT: 15432,
@@ -740,7 +740,7 @@ class TestDatabaseSettings:
                 PREFECT_API_DATABASE_PASSWORD: "the-password",
             }
         ):
-            url = make_url(PREFECT_API_DATABASE_CONNECTION_URL.value())
+            url = make_url(PREFECT_SERVER_DATABASE_CONNECTION_URL.value())
             assert url.drivername == "postgresql+asyncpg"
             assert url.host == "the-database-server.example.com"
             assert url.port == 15432
@@ -751,7 +751,7 @@ class TestDatabaseSettings:
     def test_postgres_password_is_quoted(self):
         with temporary_settings(
             {
-                PREFECT_API_DATABASE_CONNECTION_URL: None,
+                PREFECT_SERVER_DATABASE_CONNECTION_URL: None,
                 PREFECT_API_DATABASE_DRIVER: "postgresql+asyncpg",
                 PREFECT_API_DATABASE_HOST: "the-database-server.example.com",
                 PREFECT_API_DATABASE_PORT: 15432,
@@ -760,7 +760,7 @@ class TestDatabaseSettings:
                 PREFECT_API_DATABASE_PASSWORD: "the-password:has:funky!@stuff",
             }
         ):
-            url = make_url(PREFECT_API_DATABASE_CONNECTION_URL.value())
+            url = make_url(PREFECT_SERVER_DATABASE_CONNECTION_URL.value())
             assert url.drivername == "postgresql+asyncpg"
             assert url.host == "the-database-server.example.com"
             assert url.port == 15432
@@ -771,7 +771,7 @@ class TestDatabaseSettings:
     def test_postgres_database_settings_defaults_port(self):
         with temporary_settings(
             {
-                PREFECT_API_DATABASE_CONNECTION_URL: None,
+                PREFECT_SERVER_DATABASE_CONNECTION_URL: None,
                 PREFECT_API_DATABASE_DRIVER: "postgresql+asyncpg",
                 PREFECT_API_DATABASE_HOST: "the-database-server.example.com",
                 PREFECT_API_DATABASE_USER: "the-user",
@@ -779,7 +779,7 @@ class TestDatabaseSettings:
                 PREFECT_API_DATABASE_PASSWORD: "the-password",
             }
         ):
-            url = make_url(PREFECT_API_DATABASE_CONNECTION_URL.value())
+            url = make_url(PREFECT_SERVER_DATABASE_CONNECTION_URL.value())
             assert url.drivername == "postgresql+asyncpg"
             assert url.host == "the-database-server.example.com"
             assert url.port == 5432
@@ -790,23 +790,23 @@ class TestDatabaseSettings:
     def test_sqlite_database_settings_may_be_set_individually(self):
         with temporary_settings(
             {
-                PREFECT_API_DATABASE_CONNECTION_URL: None,
+                PREFECT_SERVER_DATABASE_CONNECTION_URL: None,
                 PREFECT_API_DATABASE_DRIVER: "sqlite+aiosqlite",
                 PREFECT_API_DATABASE_NAME: "/the/database/file/path.db",
             }
         ):
-            url = make_url(PREFECT_API_DATABASE_CONNECTION_URL.value())
+            url = make_url(PREFECT_SERVER_DATABASE_CONNECTION_URL.value())
             assert url.drivername == "sqlite+aiosqlite"
             assert url.database == "/the/database/file/path.db"
 
     def test_sqlite_database_driver_uses_default_path(self):
         with temporary_settings(
             {
-                PREFECT_API_DATABASE_CONNECTION_URL: None,
+                PREFECT_SERVER_DATABASE_CONNECTION_URL: None,
                 PREFECT_API_DATABASE_DRIVER: "sqlite+aiosqlite",
             }
         ):
-            url = make_url(PREFECT_API_DATABASE_CONNECTION_URL.value())
+            url = make_url(PREFECT_SERVER_DATABASE_CONNECTION_URL.value())
             assert url.drivername == "sqlite+aiosqlite"
             assert url.database == f"{PREFECT_HOME.value()}/prefect.db"
 
@@ -814,7 +814,7 @@ class TestDatabaseSettings:
         with pytest.raises(pydantic.ValidationError, match="literal_error"):
             with temporary_settings(
                 {
-                    PREFECT_API_DATABASE_CONNECTION_URL: None,
+                    PREFECT_SERVER_DATABASE_CONNECTION_URL: None,
                     PREFECT_API_DATABASE_DRIVER: "wat",
                 }
             ):
@@ -829,7 +829,7 @@ class TestDatabaseSettings:
         """
         with temporary_settings(
             {
-                PREFECT_API_DATABASE_CONNECTION_URL: (
+                PREFECT_SERVER_DATABASE_CONNECTION_URL: (
                     "postgresql+asyncpg://"
                     "the-user:the-$password@"
                     "the-database-server.example.com:5432"
@@ -838,7 +838,7 @@ class TestDatabaseSettings:
                 PREFECT_API_DATABASE_USER: "the-user",
             }
         ):
-            url = make_url(PREFECT_API_DATABASE_CONNECTION_URL.value())
+            url = make_url(PREFECT_SERVER_DATABASE_CONNECTION_URL.value())
             assert url.drivername == "postgresql+asyncpg"
             assert url.host == "the-database-server.example.com"
             assert url.port == 5432

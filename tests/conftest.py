@@ -40,7 +40,6 @@ import prefect.settings
 from prefect.logging.configuration import setup_logging
 from prefect.settings import (
     PREFECT_API_BLOCKS_REGISTER_ON_START,
-    PREFECT_API_DATABASE_CONNECTION_URL,
     PREFECT_API_LOG_RETRYABLE_ERRORS,
     PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED,
     PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED,
@@ -64,6 +63,7 @@ from prefect.settings import (
     PREFECT_PROFILES_PATH,
     PREFECT_SERVER_ANALYTICS_ENABLED,
     PREFECT_SERVER_CSRF_PROTECTION_ENABLED,
+    PREFECT_SERVER_DATABASE_CONNECTION_URL,
     PREFECT_SERVER_LOGGING_LEVEL,
     PREFECT_UNIT_TEST_LOOP_DEBUG,
 )
@@ -408,7 +408,7 @@ async def generate_test_database_connection_url(
     server for each test worker, using the provided connection URL as the starting
     point.  Requires that the given database user has permission to connect to the
     server and create new databases."""
-    original_url = PREFECT_API_DATABASE_CONNECTION_URL.value()
+    original_url = PREFECT_SERVER_DATABASE_CONNECTION_URL.value()
     if not original_url:
         yield None
         return
@@ -489,7 +489,7 @@ def test_database_connection_url(generate_test_database_connection_url):
     if url is None:
         yield None
     else:
-        with temporary_settings({PREFECT_API_DATABASE_CONNECTION_URL: url}):
+        with temporary_settings({PREFECT_SERVER_DATABASE_CONNECTION_URL: url}):
             yield url
 
 
