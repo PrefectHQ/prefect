@@ -228,20 +228,21 @@ def max_log_size_smaller_than_batch_size(values):
     return values
 
 
-def warn_on_database_password_value_without_usage(values):
+def warn_on_database_password_value_without_usage(settings: "ServerDatabaseSettings"):
     """
     Validator for settings warning if the database password is set but not used.
     """
     db_password = (
-        v.get_secret_value()
-        if (v := values["password"]) and hasattr(v, "get_secret_value")
+        settings.password.get_secret_value()
+        if isinstance(settings.password, SecretStr)
         else None
     )
     api_db_connection_url = (
-        values["connection_url"].get_secret_value()
-        if hasattr(values["connection_url"], "get_secret_value")
-        else values["connection_url"]
+        settings.connection_url.get_secret_value()
+        if isinstance(settings.connection_url, SecretStr)
+        else settings.connection_url
     )
+
     if (
         db_password
         and api_db_connection_url is not None
@@ -255,7 +256,7 @@ def warn_on_database_password_value_without_usage(values):
             "PREFECT_SERVER_DATABASE_CONNECTION_URL. "
             "The provided password will be ignored."
         )
-    return values
+    return settings
 
 
 def warn_on_misconfigured_api_url(values):
@@ -393,11 +394,12 @@ class EnvFilterSettingsSource(EnvSettingsSource):
             env_parse_none_str,
             env_parse_enums,
         )
-        self.env_vars = {
-            key: value
-            for key, value in self.env_vars.items()
-            if key.lower() not in env_filter
-        }
+        if env_filter:
+            self.env_vars = {
+                key: value
+                for key, value in self.env_vars.items()
+                if key.lower() not in env_filter
+            }
 
 
 class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
@@ -1369,8 +1371,7 @@ class ServerDatabaseSettings(PrefectBaseSettings):
     @model_validator(mode="after")
     def emit_warnings(self) -> Self:
         """More post-hoc validation of settings, including warnings for misconfigurations."""
-        values = self.model_dump()
-        values = warn_on_database_password_value_without_usage(values)
+        warn_on_database_password_value_without_usage(self)
         return self
 
 
