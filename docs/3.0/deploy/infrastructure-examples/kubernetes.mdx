@@ -193,9 +193,17 @@ Switch to the Prefect Cloud UI to create a new Kubernetes work pool.
 (Alternatively, you could use the Prefect CLI to create a work pool.)
 
 1. Click on the **Work Pools** tab on the left sidebar
-1. Click the **+** button at the top of the page
-1. Select **Kubernetes** as the work pool type
-1. Click **Next** to configure the work pool settings
+2. Click the **+** button at the top of the page
+3. Select **Kubernetes** as the work pool type
+4. Click **Next** to configure the work pool settings
+5. Set the `namespace` field to `prefect`
+
+<Note>
+If you set a different namespace, use your selected namespace instead of `prefect` in all commands below.
+</Note>
+
+
+You may come back to this page to configure the work pool options at any time.
 
 ### Configure work pool options
 
