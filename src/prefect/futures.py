@@ -298,10 +298,10 @@ class PrefectFutureList(list, Iterator, Generic[F]):
         wait(self, timeout=timeout)
 
     def result(
-        self,
+        self: "PrefectFutureList[R]",
         timeout: Optional[float] = None,
         raise_on_failure: bool = True,
-    ) -> List:
+    ) -> List[R]:
         """
         Get the results of all task runs associated with the futures in the list.
 
