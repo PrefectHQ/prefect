@@ -71,7 +71,7 @@ jobs:
         if: ${{ matrix.server-version.version != 'main' }}
         env:
           PREFECT_API_URL: http://127.0.0.1:4200/api
-          PREFECT_LOGGING_SERVER_LEVEL: DEBUG
+          PREFECT_SERVER_LOGGING_LEVEL: DEBUG
           PREFECT_EXPERIMENTAL_EVENTS: "true"
         run: >
           docker run \
@@ -79,8 +79,7 @@ jobs:
             -d \
             -p 4200:4200 \
             -e PREFECT_API_URL=${{ env.PREFECT_API_URL }} \
-            -e PREFECT_LOGGING_SERVER_LEVEL=${{ env.PREFECT_LOGGING_SERVER_LEVEL }} \
-            -e PREFECT_EXPERIMENTAL_EVENTS=${{ env.PREFECT_EXPERIMENTAL_EVENTS }} \
+            -e PREFECT_SERVER_LOGGING_LEVEL=${{ env.PREFECT_SERVER_LOGGING_LEVEL }} \
             ${{ matrix.server-version.image }} \
             prefect server start --analytics-off --host 0.0.0.0
 
@@ -93,7 +92,7 @@ jobs:
         if: ${{ matrix.server-version.version == 'main' }}
         env:
           PREFECT_API_URL: http://127.0.0.1:4200/api
-          PREFECT_LOGGING_SERVER_LEVEL: DEBUG
+          PREFECT_SERVER_LOGGING_LEVEL: DEBUG
         run: >
           prefect server start --analytics-off --host 0.0.0.0 2>&1 > server.log &
 
