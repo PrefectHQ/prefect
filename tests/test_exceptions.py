@@ -117,3 +117,23 @@ class TestSignatureMismatchError:
         unpickled = cloudpickle.loads(pickled)
         assert str(sme) == str(unpickled)
         assert sme.args == unpickled.args
+
+
+class TestPrefectModuleImportExceptions:
+    def test_attribute_error_on_getattr(self):
+        import prefect
+
+        with pytest.raises(
+            AttributeError, match=r"module prefect has no attribute foo"
+        ):
+            prefect.foo
+
+    def test_import_error_on_from_import(self):
+        with pytest.raises(
+            ImportError, match=r"cannot import name 'foo' from 'prefect' \(.*\)"
+        ):
+            from prefect import foo  # noqa
+
+    def test_module_not_found_erorr_on_import(self):
+        with pytest.raises(ModuleNotFoundError, match=r"No module named 'prefect.foo'"):
+            import prefect.foo  # noqa
