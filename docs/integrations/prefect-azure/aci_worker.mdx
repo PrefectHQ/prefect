@@ -117,7 +117,7 @@ az container create \
     --name <work-pool-name> \
     --resource-group $RG_NAME \
     --assign-identity $IDENTITY_ID \
-    --image "prefecthq/prefect:2-python3.11" \
+    --image "prefecthq/prefect:3-python3.12" \
     --secure-environment-variables PREFECT_API_URL=$PREFECT_API_URL PREFECT_API_KEY=$PREFECT_API_KEY \
     --command-line "/bin/bash -c 'pip install prefect-azure && prefect worker start --pool <work-pool-name> --type azure-container-instance'" 
 ```
