@@ -25,11 +25,11 @@ from prefect.settings import (
     PREFECT_API_SERVICES_SCHEDULER_ENABLED,
     PREFECT_API_URL,
     PREFECT_HOME,
-    PREFECT_LOGGING_SERVER_LEVEL,
     PREFECT_SERVER_ANALYTICS_ENABLED,
     PREFECT_SERVER_API_HOST,
     PREFECT_SERVER_API_KEEPALIVE_TIMEOUT,
     PREFECT_SERVER_API_PORT,
+    PREFECT_SERVER_LOGGING_LEVEL,
     PREFECT_UI_ENABLED,
     Profile,
     load_current_profile,
@@ -204,7 +204,7 @@ async def start(
     host: str = SettingsOption(PREFECT_SERVER_API_HOST),
     port: int = SettingsOption(PREFECT_SERVER_API_PORT),
     keep_alive_timeout: int = SettingsOption(PREFECT_SERVER_API_KEEPALIVE_TIMEOUT),
-    log_level: str = SettingsOption(PREFECT_LOGGING_SERVER_LEVEL),
+    log_level: str = SettingsOption(PREFECT_SERVER_LOGGING_LEVEL),
     scheduler: bool = SettingsOption(PREFECT_API_SERVICES_SCHEDULER_ENABLED),
     analytics: bool = SettingsOption(
         PREFECT_SERVER_ANALYTICS_ENABLED, "--analytics-on/--analytics-off"
@@ -231,7 +231,7 @@ async def start(
     server_env["PREFECT_API_SERVICES_LATE_RUNS_ENABLED"] = str(late_runs)
     server_env["PREFECT_API_SERVICES_UI"] = str(ui)
     server_env["PREFECT_UI_ENABLED"] = str(ui)
-    server_env["PREFECT_LOGGING_SERVER_LEVEL"] = log_level
+    server_env["PREFECT_SERVER_LOGGING_LEVEL"] = log_level
 
     pid_file = anyio.Path(PREFECT_HOME.value() / PID_FILE)
     # check if port is already in use
