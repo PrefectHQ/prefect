@@ -1724,6 +1724,11 @@ class TestBaseWorkerStart:
         "try_overwrite_with_empty_str",
     ],
 )
+@pytest.mark.parametrize(
+    "use_variable_defaults",
+    [True, False],
+    ids=["with_defaults", "without_defaults"],
+)
 async def test_env_merge_logic_is_deep(
     prefect_client,
     session,
@@ -1733,16 +1738,27 @@ async def test_env_merge_logic_is_deep(
     deployment_env,
     flow_run_env,
     expected_env,
+    use_variable_defaults,
 ):
     if work_pool_env:
+        base_job_template = (
+            {
+                "job_configuration": {"env": "{{ env }}"},
+                "variables": {
+                    "properties": {"env": {"type": "object", "default": work_pool_env}}
+                },
+            }
+            if use_variable_defaults
+            else {
+                "job_configuration": {"env": work_pool_env},
+                "variables": {"properties": {"env": {"type": "object"}}},
+            }
+        )
         await models.workers.update_work_pool(
             session=session,
             work_pool_id=work_pool.id,
             work_pool=ServerWorkPoolUpdate(
-                base_job_template={
-                    "job_configuration": {"env": work_pool_env},
-                    "variables": {"properties": {"env": {"type": "object"}}},
-                },
+                base_job_template=base_job_template,
                 description="test",
                 is_paused=False,
                 concurrency_limit=None,
