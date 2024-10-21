@@ -1,7 +1,7 @@
 import abc
+import asyncio
 import collections
 import concurrent.futures
-import inspect
 import threading
 import uuid
 from collections.abc import Generator, Iterator
@@ -166,7 +166,7 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[R, concurrent.futures.Future]
         )
         # state.result is a `sync_compatible` function that may or may not return an awaitable
         # depending on whether the parent frame is sync or not
-        if inspect.isawaitable(_result):
+        if asyncio.iscoroutine(_result):
             _result = run_coro_as_sync(_result)
         return _result
 
@@ -298,10 +298,10 @@ class PrefectFutureList(list, Iterator, Generic[F]):
         wait(self, timeout=timeout)
 
     def result(
-        self,
+        self: "PrefectFutureList[R]",
         timeout: Optional[float] = None,
         raise_on_failure: bool = True,
-    ) -> List:
+    ) -> List[R]:
         """
         Get the results of all task runs associated with the futures in the list.
 

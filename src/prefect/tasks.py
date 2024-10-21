@@ -4,6 +4,7 @@ Module containing the base workflow task class and decorator - for most use case
 # This file requires type-checking with pyright because mypy does not yet support PEP612
 # See https://github.com/python/mypy/issues/8645
 
+import asyncio
 import datetime
 import inspect
 from copy import copy
@@ -370,7 +371,7 @@ class Task(Generic[P, R]):
 
         # the task is considered async if its function is async or an async
         # generator
-        self.isasync = inspect.iscoroutinefunction(
+        self.isasync = asyncio.iscoroutinefunction(
             self.fn
         ) or inspect.isasyncgenfunction(self.fn)
 
@@ -1059,6 +1060,8 @@ class Task(Generic[P, R]):
         task runner. This call only blocks execution while the task is being submitted,
         once it is submitted, the flow function will continue executing.
 
+        This method is always synchronous, even if the underlying user function is asynchronous.
+
         Args:
             *args: Arguments to run the task with
             return_state: Return the result of the flow run wrapped in a
@@ -1111,7 +1114,7 @@ class Task(Generic[P, R]):
             >>>
             >>> @flow
             >>> async def my_flow():
-            >>>     await my_async_task.submit()
+            >>>     my_async_task.submit()
 
             Run a sync task in an async flow
 
@@ -1169,51 +1172,73 @@ class Task(Generic[P, R]):
 
     @overload
     def map(
-        self: "Task[P, NoReturn]",
-        *args: P.args,
-        **kwargs: P.kwargs,
-    ) -> PrefectFutureList[PrefectFuture[NoReturn]]:
-        ...
-
-    @overload
-    def map(
-        self: "Task[P, Coroutine[Any, Any, T]]",
-        *args: P.args,
-        **kwargs: P.kwargs,
-    ) -> PrefectFutureList[PrefectFuture[T]]:
-        ...
-
-    @overload
-    def map(
-        self: "Task[P, T]",
-        *args: P.args,
-        **kwargs: P.kwargs,
-    ) -> PrefectFutureList[PrefectFuture[T]]:
-        ...
-
-    @overload
-    def map(
-        self: "Task[P, Coroutine[Any, Any, T]]",
-        *args: P.args,
+        self: "Task[P, R]",
+        *args: Any,
         return_state: Literal[True],
-        **kwargs: P.kwargs,
-    ) -> PrefectFutureList[State[T]]:
+        wait_for: Optional[Iterable[Union[PrefectFuture[T], T]]] = ...,
+        deferred: bool = ...,
+        **kwargs: Any,
+    ) -> List[State[R]]:
         ...
 
     @overload
     def map(
-        self: "Task[P, T]",
-        *args: P.args,
+        self: "Task[P, R]",
+        *args: Any,
+        wait_for: Optional[Iterable[Union[PrefectFuture[T], T]]] = ...,
+        deferred: bool = ...,
+        **kwargs: Any,
+    ) -> PrefectFutureList[R]:
+        ...
+
+    @overload
+    def map(
+        self: "Task[P, R]",
+        *args: Any,
         return_state: Literal[True],
-        **kwargs: P.kwargs,
-    ) -> PrefectFutureList[State[T]]:
+        wait_for: Optional[Iterable[Union[PrefectFuture[T], T]]] = ...,
+        deferred: bool = ...,
+        **kwargs: Any,
+    ) -> List[State[R]]:
+        ...
+
+    @overload
+    def map(
+        self: "Task[P, R]",
+        *args: Any,
+        wait_for: Optional[Iterable[Union[PrefectFuture[T], T]]] = ...,
+        deferred: bool = ...,
+        **kwargs: Any,
+    ) -> PrefectFutureList[R]:
+        ...
+
+    @overload
+    def map(
+        self: "Task[P, Coroutine[Any, Any, R]]",
+        *args: Any,
+        return_state: Literal[True],
+        wait_for: Optional[Iterable[Union[PrefectFuture[T], T]]] = ...,
+        deferred: bool = ...,
+        **kwargs: Any,
+    ) -> List[State[R]]:
+        ...
+
+    @overload
+    def map(
+        self: "Task[P, Coroutine[Any, Any, R]]",
+        *args: Any,
+        return_state: Literal[False],
+        wait_for: Optional[Iterable[Union[PrefectFuture[T], T]]] = ...,
+        deferred: bool = ...,
+        **kwargs: Any,
+    ) -> PrefectFutureList[R]:
         ...
 
     def map(
         self,
         *args: Any,
         return_state: bool = False,
-        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        wait_for: Optional[Iterable[Union[PrefectFuture[T], T]]] = None,
         deferred: bool = False,
         **kwargs: Any,
     ):
@@ -1233,6 +1258,8 @@ class Task(Generic[P, R]):
         call blocks if given a future as input while the future is resolved. It
         also blocks while the tasks are being submitted, once they are
         submitted, the flow function will continue executing.
+
+        This method is always synchronous, even if the underlying user function is asynchronous.
 
         Args:
             *args: Iterable and static arguments to run the tasks with

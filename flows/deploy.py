@@ -1,5 +1,7 @@
+import shutil
 import subprocess
 import sys
+from pathlib import Path
 
 import anyio
 
@@ -49,9 +51,13 @@ def main():
 
     finally:
         subprocess.check_call(
-            ["prefect", "work-pool", "delete", "test-pool"],
+            ["prefect", "--no-prompt", "work-pool", "delete", "test-pool"],
             stdout=sys.stdout,
             stderr=sys.stderr,
+        )
+
+        shutil.rmtree(
+            Path(__file__).parent.parent / "prefect-recipes", ignore_errors=True
         )
 
 
