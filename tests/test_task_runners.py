@@ -1,4 +1,3 @@
-import asyncio
 import time
 import uuid
 from concurrent.futures import Future
@@ -7,7 +6,7 @@ from uuid import UUID
 
 import pytest
 
-from prefect._internal.concurrency.api import create_call, from_async
+from prefect.client.orchestration import PrefectClient
 from prefect.context import TagsContext, tags
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import flow
@@ -15,12 +14,13 @@ from prefect.futures import PrefectFuture, PrefectWrappedFuture
 from prefect.results import _default_storages
 from prefect.settings import (
     PREFECT_DEFAULT_RESULT_STORAGE_BLOCK,
+    PREFECT_TASK_RUNNER_THREAD_POOL_MAX_WORKERS,
     PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK,
     temporary_settings,
 )
 from prefect.states import Completed, Running
 from prefect.task_runners import PrefectTaskRunner, ThreadPoolTaskRunner
-from prefect.task_worker import serve
+from prefect.task_worker import TaskWorker
 from prefect.tasks import task
 
 
@@ -94,6 +94,11 @@ class TestThreadPoolTaskRunner:
     def test_set_max_workers(self):
         with ThreadPoolTaskRunner(max_workers=2) as runner:
             assert runner._executor._max_workers == 2
+
+    def test_set_max_workers_through_settings(self):
+        with temporary_settings({PREFECT_TASK_RUNNER_THREAD_POOL_MAX_WORKERS: 5}):
+            with ThreadPoolTaskRunner() as runner:
+                assert runner._executor._max_workers == 5
 
     def test_submit_sync_task(self):
         with ThreadPoolTaskRunner() as runner:
@@ -234,19 +239,12 @@ class TestPrefectTaskRunner:
 
     @pytest.fixture
     async def task_worker(self, use_hosted_api_server):
-        call = from_async.call_soon_in_new_thread(
-            create_call(
-                serve,
-                my_test_task,
-                my_test_async_task,
-                context_matters,
-                context_matters_async,
-            )
+        return TaskWorker(
+            my_test_task,
+            my_test_async_task,
+            context_matters,
+            context_matters_async,
         )
-        # Give the server time to start
-        await asyncio.sleep(1)
-        yield
-        call.cancel()
 
     def test_duplicate(self):
         runner = PrefectTaskRunner()
@@ -259,56 +257,79 @@ class TestPrefectTaskRunner:
         with pytest.raises(RuntimeError, match="Task runner is not started"):
             runner.submit(my_test_task, {})
 
-    @pytest.mark.usefixtures("task_worker")
-    def test_submit_sync_task(self, events_pipeline):
+    async def test_submit_sync_task(
+        self, events_pipeline, task_worker: TaskWorker, prefect_client: PrefectClient
+    ):
         with PrefectTaskRunner() as runner:
             parameters = {"param1": 1, "param2": 2}
             future = runner.submit(my_test_task, parameters)
             assert isinstance(future, PrefectFuture)
             assert isinstance(future.task_run_id, UUID)
 
-            events_pipeline.process_events(min_events=4)
+            task_run = await prefect_client.read_task_run(future.task_run_id)
+            await task_worker.execute_task_run(task_run)
+            await events_pipeline.process_events()
+            updated_task_run = await prefect_client.read_task_run(future.task_run_id)
+            assert updated_task_run.state.is_completed()
 
             assert future.result(timeout=10) == (1, 2)
 
-    @pytest.mark.usefixtures("task_worker")
-    def test_submit_async_task(self, events_pipeline):
+    async def test_submit_async_task(
+        self, events_pipeline, task_worker: TaskWorker, prefect_client: PrefectClient
+    ):
         with PrefectTaskRunner() as runner:
             parameters = {"param1": 1, "param2": 2}
             future = runner.submit(my_test_async_task, parameters)
             assert isinstance(future, PrefectFuture)
             assert isinstance(future.task_run_id, UUID)
 
-            events_pipeline.process_events(min_events=4)
+            task_run = await prefect_client.read_task_run(future.task_run_id)
+            await task_worker.execute_task_run(task_run)
+            await events_pipeline.process_events()
+            updated_task_run = await prefect_client.read_task_run(future.task_run_id)
+            assert updated_task_run.state.is_completed()
 
             assert future.result(timeout=10) == (1, 2)
 
-    @pytest.mark.usefixtures("task_worker")
-    def test_submit_sync_task_receives_context(self, events_pipeline):
+    async def test_submit_sync_task_receives_context(
+        self, events_pipeline, task_worker: TaskWorker, prefect_client: PrefectClient
+    ):
         with tags("tag1", "tag2"):
             with PrefectTaskRunner() as runner:
                 future = runner.submit(context_matters, {})
                 assert isinstance(future, PrefectFuture)
                 assert isinstance(future.task_run_id, UUID)
 
-                events_pipeline.process_events(min_events=4)
+                task_run = await prefect_client.read_task_run(future.task_run_id)
+                await task_worker.execute_task_run(task_run)
+                await events_pipeline.process_events()
+                updated_task_run = await prefect_client.read_task_run(
+                    future.task_run_id
+                )
+                assert updated_task_run.state.is_completed()
 
                 assert future.result(timeout=10) == {"tag1", "tag2"}
 
-    @pytest.mark.usefixtures("task_worker")
-    def test_submit_async_task_receives_context(self, events_pipeline):
+    async def test_submit_async_task_receives_context(
+        self, events_pipeline, task_worker: TaskWorker, prefect_client: PrefectClient
+    ):
         with tags("tag1", "tag2"):
             with PrefectTaskRunner() as runner:
                 future = runner.submit(context_matters_async, {})
                 assert isinstance(future, PrefectFuture)
                 assert isinstance(future.task_run_id, UUID)
 
-                events_pipeline.process_events(min_events=4)
+                task_run = await prefect_client.read_task_run(future.task_run_id)
+                await task_worker.execute_task_run(task_run)
+                await events_pipeline.process_events()
+                updated_task_run = await prefect_client.read_task_run(
+                    future.task_run_id
+                )
+                assert updated_task_run.state.is_completed()
 
                 assert future.result(timeout=10) == {"tag1", "tag2"}
 
-    @pytest.mark.usefixtures("task_worker")
-    def test_map_sync_task(self, events_pipeline):
+    async def test_map_sync_task(self, events_pipeline, prefect_client: PrefectClient):
         with PrefectTaskRunner() as runner:
             parameters = {"param1": [1, 2, 3], "param2": [4, 5, 6]}
             futures = runner.map(my_test_task, parameters)
@@ -316,14 +337,24 @@ class TestPrefectTaskRunner:
             assert all(isinstance(future, PrefectFuture) for future in futures)
             assert all(isinstance(future.task_run_id, UUID) for future in futures)
 
-            # 3 task runs * 4 events each = 12 events
-            events_pipeline.process_events(min_events=12)
+            for future in futures:
+                task_run = await prefect_client.read_task_run(future.task_run_id)
+                await TaskWorker(my_test_task).execute_task_run(task_run)
+
+            await events_pipeline.process_events()
+
+            for future in futures:
+                updated_task_run = await prefect_client.read_task_run(
+                    future.task_run_id
+                )
+                assert updated_task_run.state.is_completed()
 
             results = [future.result(timeout=10) for future in futures]
             assert results == [(1, 4), (2, 5), (3, 6)]
 
-    @pytest.mark.usefixtures("task_worker")
-    def test_map_async_task(self, events_pipeline):
+    async def test_map_async_task(
+        self, events_pipeline, task_worker: TaskWorker, prefect_client: PrefectClient
+    ):
         with PrefectTaskRunner() as runner:
             parameters = {"param1": [1, 2, 3], "param2": [4, 5, 6]}
             futures = runner.map(my_test_async_task, parameters)
@@ -331,14 +362,24 @@ class TestPrefectTaskRunner:
             assert all(isinstance(future, PrefectFuture) for future in futures)
             assert all(isinstance(future.task_run_id, UUID) for future in futures)
 
-            # 3 task runs * 4 events each = 12 events
-            events_pipeline.process_events(min_events=12)
+            for future in futures:
+                task_run = await prefect_client.read_task_run(future.task_run_id)
+                await task_worker.execute_task_run(task_run)
+
+            await events_pipeline.process_events()
+
+            for future in futures:
+                updated_task_run = await prefect_client.read_task_run(
+                    future.task_run_id
+                )
+                assert updated_task_run.state.is_completed()
 
             results = [future.result(timeout=10) for future in futures]
             assert results == [(1, 4), (2, 5), (3, 6)]
 
-    @pytest.mark.usefixtures("task_worker")
-    def test_map_sync_task_with_context(self, events_pipeline):
+    async def test_map_sync_task_with_context(
+        self, events_pipeline, prefect_client: PrefectClient
+    ):
         with tags("tag1", "tag2"):
             with PrefectTaskRunner() as runner:
                 parameters = {"param1": [1, 2, 3], "param2": [4, 5, 6]}
@@ -347,14 +388,24 @@ class TestPrefectTaskRunner:
                 assert all(isinstance(future, PrefectFuture) for future in futures)
                 assert all(isinstance(future.task_run_id, UUID) for future in futures)
 
-                # 3 task runs * 4 events each = 12 events
-                events_pipeline.process_events(min_events=12)
+            for future in futures:
+                task_run = await prefect_client.read_task_run(future.task_run_id)
+                await TaskWorker(context_matters).execute_task_run(task_run)
+
+            await events_pipeline.process_events()
+
+            for future in futures:
+                updated_task_run = await prefect_client.read_task_run(
+                    future.task_run_id
+                )
+                assert updated_task_run.state.is_completed()
 
                 results = [future.result(timeout=10) for future in futures]
                 assert results == [{"tag1", "tag2"}] * 3
 
-    @pytest.mark.usefixtures("task_worker")
-    def test_map_async_task_with_context(self, events_pipeline):
+    async def test_map_async_task_with_context(
+        self, events_pipeline, task_worker: TaskWorker, prefect_client: PrefectClient
+    ):
         with tags("tag1", "tag2"):
             with PrefectTaskRunner() as runner:
                 parameters = {"param1": [1, 2, 3], "param2": [4, 5, 6]}
@@ -363,14 +414,24 @@ class TestPrefectTaskRunner:
                 assert all(isinstance(future, PrefectFuture) for future in futures)
                 assert all(isinstance(future.task_run_id, UUID) for future in futures)
 
-                # 3 task runs * 4 events each = 12 events
-                events_pipeline.process_events(min_events=12)
+                for future in futures:
+                    task_run = await prefect_client.read_task_run(future.task_run_id)
+                    await task_worker.execute_task_run(task_run)
+
+                await events_pipeline.process_events()
+
+                for future in futures:
+                    updated_task_run = await prefect_client.read_task_run(
+                        future.task_run_id
+                    )
+                    assert updated_task_run.state.is_completed()
 
                 results = [future.result(timeout=10) for future in futures]
                 assert results == [{"tag1", "tag2"}] * 3
 
-    @pytest.mark.usefixtures("task_worker")
-    def test_map_with_future_resolved_to_list(self, events_pipeline):
+    async def test_map_with_future_resolved_to_list(
+        self, events_pipeline, prefect_client: PrefectClient
+    ):
         with PrefectTaskRunner() as runner:
             future = MockFuture(data=[1, 2, 3])
             parameters = {"param1": future, "param2": future}
@@ -379,8 +440,17 @@ class TestPrefectTaskRunner:
             assert all(isinstance(future, PrefectFuture) for future in futures)
             assert all(isinstance(future.task_run_id, UUID) for future in futures)
 
-            # 3 task runs * 4 events each = 12 events
-            events_pipeline.process_events(min_events=12)
+            for future in futures:
+                task_run = await prefect_client.read_task_run(future.task_run_id)
+                await TaskWorker(my_test_task).execute_task_run(task_run)
+
+            await events_pipeline.process_events()
+
+            for future in futures:
+                updated_task_run = await prefect_client.read_task_run(
+                    future.task_run_id
+                )
+                assert updated_task_run.state.is_completed()
 
             results = [future.result(timeout=10) for future in futures]
             assert results == [(1, 1), (2, 2), (3, 3)]
