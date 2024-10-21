@@ -137,7 +137,7 @@ jobs:
 
           ./scripts/wait-for-healthy-container.sh postgres 30
 
-          echo "PREFECT_API_DATABASE_CONNECTION_URL=postgresql+asyncpg://prefect:prefect@localhost/prefect" >> $GITHUB_ENV
+          echo "PREFECT_SERVER_DATABASE_CONNECTION_URL=postgresql+asyncpg://prefect:prefect@localhost/prefect" >> $GITHUB_ENV
 
       - name: Start redis
         run: >
@@ -316,7 +316,7 @@ jobs:
 
           ./scripts/wait-for-healthy-container.sh postgres 30
 
-          echo "PREFECT_API_DATABASE_CONNECTION_URL=postgresql+asyncpg://prefect:prefect@localhost/prefect" >> $GITHUB_ENV
+          echo "PREFECT_SERVER_DATABASE_CONNECTION_URL=postgresql+asyncpg://prefect:prefect@localhost/prefect" >> $GITHUB_ENV
 
       - name: Start docker registry
         run: >
