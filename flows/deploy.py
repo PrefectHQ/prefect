@@ -56,7 +56,9 @@ def main():
             stderr=sys.stderr,
         )
 
-        shutil.rmtree(Path(__file__).parent.parent / "prefect-recipes")
+        shutil.rmtree(
+            Path(__file__).parent.parent / "prefect-recipes", ignore_errors=True
+        )
 
 
 if __name__ == "__main__":
