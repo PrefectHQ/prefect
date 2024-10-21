@@ -2303,11 +2303,11 @@ class PrefectClient:
     async def read_task_runs(
         self,
         *,
-        flow_filter: FlowFilter = None,
-        flow_run_filter: FlowRunFilter = None,
-        task_run_filter: TaskRunFilter = None,
-        deployment_filter: DeploymentFilter = None,
-        sort: TaskRunSort = None,
+        flow_filter: Optional[FlowFilter] = None,
+        flow_run_filter: Optional[FlowRunFilter] = None,
+        task_run_filter: Optional[TaskRunFilter] = None,
+        deployment_filter: Optional[DeploymentFilter] = None,
+        sort: Optional[TaskRunSort] = None,
         limit: Optional[int] = None,
         offset: int = 0,
     ) -> List[TaskRun]:
