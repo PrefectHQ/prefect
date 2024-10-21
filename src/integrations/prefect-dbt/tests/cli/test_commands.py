@@ -561,7 +561,7 @@ class TestDbtCoreOperation:
 async def test_run_dbt_build_creates_artifact(profiles_dir, dbt_cli_profile_bare):
     @flow
     async def test_flow():
-        return await run_dbt_build(
+        return run_dbt_build(
             profiles_dir=profiles_dir,
             dbt_cli_profile=dbt_cli_profile_bare,
             summary_artifact_key="foo",
@@ -580,7 +580,7 @@ async def test_run_dbt_build_creates_artifact(profiles_dir, dbt_cli_profile_bare
 async def test_run_dbt_test_creates_artifact(profiles_dir, dbt_cli_profile_bare):
     @flow
     async def test_flow():
-        return await run_dbt_test(
+        return run_dbt_test(
             profiles_dir=profiles_dir,
             dbt_cli_profile=dbt_cli_profile_bare,
             summary_artifact_key="foo",
@@ -599,7 +599,7 @@ async def test_run_dbt_test_creates_artifact(profiles_dir, dbt_cli_profile_bare)
 async def test_run_dbt_snapshot_creates_artifact(profiles_dir, dbt_cli_profile_bare):
     @flow
     async def test_flow():
-        return await run_dbt_snapshot(
+        return run_dbt_snapshot(
             profiles_dir=profiles_dir,
             dbt_cli_profile=dbt_cli_profile_bare,
             summary_artifact_key="foo",
@@ -618,7 +618,7 @@ async def test_run_dbt_snapshot_creates_artifact(profiles_dir, dbt_cli_profile_b
 async def test_run_dbt_seed_creates_artifact(profiles_dir, dbt_cli_profile_bare):
     @flow
     async def test_flow():
-        return await run_dbt_seed(
+        return run_dbt_seed(
             profiles_dir=profiles_dir,
             dbt_cli_profile=dbt_cli_profile_bare,
             summary_artifact_key="foo",
@@ -637,7 +637,7 @@ async def test_run_dbt_seed_creates_artifact(profiles_dir, dbt_cli_profile_bare)
 async def test_run_dbt_model_creates_artifact(profiles_dir, dbt_cli_profile_bare):
     @flow
     async def test_flow():
-        return await run_dbt_model(
+        return run_dbt_model(
             profiles_dir=profiles_dir,
             dbt_cli_profile=dbt_cli_profile_bare,
             summary_artifact_key="foo",
@@ -658,7 +658,7 @@ async def test_run_dbt_source_freshness_creates_artifact(
 ):
     @flow
     async def test_flow():
-        return await run_dbt_source_freshness(
+        return run_dbt_source_freshness(
             profiles_dir=profiles_dir,
             dbt_cli_profile=dbt_cli_profile_bare,
             summary_artifact_key="foo",
@@ -685,7 +685,7 @@ async def test_run_dbt_model_creates_unsuccessful_artifact(
 ):
     @flow
     async def test_flow():
-        return await run_dbt_model(
+        return run_dbt_model(
             profiles_dir=profiles_dir,
             dbt_cli_profile=dbt_cli_profile_bare,
             summary_artifact_key="foo",
@@ -709,7 +709,7 @@ async def test_run_dbt_source_freshness_creates_unsuccessful_artifact(
 ):
     @flow
     async def test_flow():
-        return await run_dbt_source_freshness(
+        return run_dbt_source_freshness(
             profiles_dir=profiles_dir,
             dbt_cli_profile=dbt_cli_profile_bare,
             summary_artifact_key="foo",
@@ -731,7 +731,7 @@ async def test_run_dbt_source_freshness_creates_unsuccessful_artifact(
 async def test_run_dbt_model_throws_error(profiles_dir, dbt_cli_profile_bare):
     @flow
     async def test_flow():
-        return await run_dbt_model(
+        return run_dbt_model(
             profiles_dir=profiles_dir,
             dbt_cli_profile=dbt_cli_profile_bare,
             summary_artifact_key="foo",
