@@ -397,8 +397,8 @@ class DbtCoreOperation(ShellOperation):
         return super(type(self), modified_self)._compile_kwargs(**open_kwargs)
 
 
-@task
 @sync_compatible
+@task
 async def run_dbt_build(
     profiles_dir: Optional[Union[Path, str]] = None,
     project_dir: Optional[Union[Path, str]] = None,
@@ -471,8 +471,8 @@ async def run_dbt_build(
     return results
 
 
-@task
 @sync_compatible
+@task
 async def run_dbt_model(
     profiles_dir: Optional[Union[Path, str]] = None,
     project_dir: Optional[Union[Path, str]] = None,
@@ -546,8 +546,8 @@ async def run_dbt_model(
     return results
 
 
-@task
 @sync_compatible
+@task
 async def run_dbt_test(
     profiles_dir: Optional[Union[Path, str]] = None,
     project_dir: Optional[Union[Path, str]] = None,
@@ -621,8 +621,8 @@ async def run_dbt_test(
     return results
 
 
-@task
 @sync_compatible
+@task
 async def run_dbt_snapshot(
     profiles_dir: Optional[Union[Path, str]] = None,
     project_dir: Optional[Union[Path, str]] = None,
@@ -696,8 +696,8 @@ async def run_dbt_snapshot(
     return results
 
 
-@task
 @sync_compatible
+@task
 async def run_dbt_seed(
     profiles_dir: Optional[Union[Path, str]] = None,
     project_dir: Optional[Union[Path, str]] = None,
@@ -771,8 +771,8 @@ async def run_dbt_seed(
     return results
 
 
-@task
 @sync_compatible
+@task
 async def run_dbt_source_freshness(
     profiles_dir: Optional[Union[Path, str]] = None,
     project_dir: Optional[Union[Path, str]] = None,
