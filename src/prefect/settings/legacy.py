@@ -1,6 +1,6 @@
 import inspect
 import os
-from typing import Any, Dict, Optional, get_args
+from typing import Any, Dict, Optional, Set, get_args
 
 from pydantic import AliasChoices
 from pydantic_settings import BaseSettings
@@ -80,15 +80,51 @@ def _env_var_to_accessor(env_var: str) -> str:
     """
     Convert an environment variable name to a settings accessor.
     """
-    if SETTING_VARIABLES.get(env_var) is not None:
-        return SETTING_VARIABLES[env_var].accessor
+    if (field := _get_settings_fields(Settings).get(env_var)) is not None:
+        return field.accessor
     return env_var.replace("PREFECT_", "").lower()
+
+
+_cached_setting_variables: Dict[type[BaseSettings], Dict[str, "Setting"]] = {}
+_cached_valid_setting_names: Dict[type[BaseSettings], Set[str]] = {}
+
+
+def _get_valid_setting_names(cls) -> Set[str]:
+    """
+    A set of valid setting names, e.g. "PREFECT_API_URL" or "PREFECT_API_KEY".
+    """
+    if cls in _cached_valid_setting_names:
+        return _cached_valid_setting_names[cls]
+
+    settings_fields = set()
+    for field_name, field in cls.model_fields.items():
+        if inspect.isclass(field.annotation) and issubclass(
+            field.annotation, PrefectBaseSettings
+        ):
+            settings_fields.update(_get_valid_setting_names(field.annotation))
+        else:
+            if field.validation_alias and isinstance(
+                field.validation_alias, AliasChoices
+            ):
+                for alias in field.validation_alias.choices:
+                    if not isinstance(alias, str):
+                        continue
+                    settings_fields.add(alias.upper())
+            else:
+                settings_fields.add(
+                    f"{cls.model_config.get('env_prefix')}{field_name.upper()}"
+                )
+    _cached_valid_setting_names[cls] = settings_fields
+    return settings_fields
 
 
 def _get_settings_fields(
     settings: type[BaseSettings], accessor_prefix: Optional[str] = None
 ) -> Dict[str, "Setting"]:
     """Get the settings fields for the settings object"""
+    if settings in _cached_setting_variables:
+        return _cached_setting_variables[settings]
+
     settings_fields: Dict[str, Setting] = {}
     for field_name, field in settings.model_fields.items():
         if inspect.isclass(field.annotation) and issubclass(
@@ -129,7 +165,6 @@ def _get_settings_fields(
                 )
                 settings_fields[setting.name] = setting
                 settings_fields[setting.accessor] = setting
+
+    _cached_setting_variables[settings] = settings_fields
     return settings_fields
-
-
-SETTING_VARIABLES: dict[str, "Setting"] = _get_settings_fields(Settings)

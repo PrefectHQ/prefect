@@ -52,7 +52,11 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.settings.constants import DEFAULT_PROFILES_PATH
-from prefect.settings.legacy import SETTING_VARIABLES, _env_var_to_accessor
+from prefect.settings.legacy import (
+    _env_var_to_accessor,
+    _get_settings_fields,
+    _get_valid_setting_names,
+)
 from prefect.settings.models.api import APISettings
 from prefect.settings.models.logging import LoggingSettings
 from prefect.settings.models.server import ServerSettings
@@ -493,7 +497,9 @@ class TestSettingsClass:
     ):
         settings = Settings()
         expected_names = {
-            s.name for s in SETTING_VARIABLES.values() if s.value() is not None
+            s.name
+            for s in _get_settings_fields(Settings).values()
+            if s.value() is not None
         }
         for name, metadata in SUPPORTED_SETTINGS.items():
             if metadata.get("legacy") and name in expected_names:
@@ -617,7 +623,7 @@ class TestSettingsClass:
 
     def test_valid_setting_names_matches_supported_settings(self):
         assert (
-            set(Settings().valid_setting_names()) == set(SUPPORTED_SETTINGS.keys())
+            set(_get_valid_setting_names(Settings)) == set(SUPPORTED_SETTINGS.keys())
         ), "valid_setting_names output did not match supported settings. Please update SUPPORTED_SETTINGS if you are adding or removing a setting."
 
 
