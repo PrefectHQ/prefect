@@ -11,6 +11,7 @@ from .api import ServerAPISettings
 from .database import ServerDatabaseSettings
 from .ephemeral import ServerEphemeralSettings
 from .events import ServerEventsSettings
+from .flow_run_graph import ServerFlowRunGraphSettings
 
 
 class ServerSettings(PrefectBaseSettings):
@@ -116,4 +117,8 @@ class ServerSettings(PrefectBaseSettings):
     events: ServerEventsSettings = Field(
         default_factory=ServerEventsSettings,
         description="Settings for controlling server events behavior",
+    )
+    flow_run_graph: ServerFlowRunGraphSettings = Field(
+        default_factory=ServerFlowRunGraphSettings,
+        description="Settings for controlling flow run graph behavior",
     )

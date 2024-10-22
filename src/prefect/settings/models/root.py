@@ -135,16 +135,6 @@ class Settings(PrefectBaseSettings):
         description="The maximum number of characters allowed for a task run cache key.",
     )
 
-    api_max_flow_run_graph_nodes: int = Field(
-        default=10000,
-        description="The maximum size of a flow run graph on the v2 API",
-    )
-
-    api_max_flow_run_graph_artifacts: int = Field(
-        default=10000,
-        description="The maximum number of artifacts to show on a flow run graph on the v2 API",
-    )
-
     ###########################################################################
     # API Services settings
 
