@@ -15,7 +15,6 @@ import prefect.context
 import prefect.settings
 from prefect.exceptions import ProfileSettingsValidationError
 from prefect.settings import (
-    DEFAULT_PROFILES_PATH,
     PREFECT_API_DATABASE_DRIVER,
     PREFECT_API_DATABASE_HOST,
     PREFECT_API_DATABASE_NAME,
@@ -43,21 +42,21 @@ from prefect.settings import (
     PREFECT_UI_API_URL,
     PREFECT_UI_URL,
     PREFECT_UNIT_TEST_MODE,
-    SETTING_VARIABLES,
-    APISettings,
-    LoggingSettings,
     Profile,
     ProfilesCollection,
-    ServerAPISettings,
-    ServerSettings,
     Settings,
-    env_var_to_accessor,
     get_current_settings,
     load_profile,
     load_profiles,
     save_profiles,
     temporary_settings,
 )
+from prefect.settings.constants import DEFAULT_PROFILES_PATH
+from prefect.settings.legacy import SETTING_VARIABLES, _env_var_to_accessor
+from prefect.settings.models.api import APISettings
+from prefect.settings.models.logging import LoggingSettings
+from prefect.settings.models.server import ServerSettings
+from prefect.settings.models.server.api import ServerAPISettings
 from prefect.utilities.collections import get_from_dict, set_in_dict
 from prefect.utilities.filesystem import tmpchdir
 
@@ -1443,7 +1442,7 @@ class TestSettingValues:
         # create new root context to pick up the env var changes
         warnings.filterwarnings("ignore", category=UserWarning)
         with prefect.context.root_settings_context():
-            field_name = env_var_to_accessor(setting)
+            field_name = _env_var_to_accessor(setting)
             current_settings = get_current_settings()
             # get value from settings object
             settings_value = get_from_dict(current_settings.model_dump(), field_name)
