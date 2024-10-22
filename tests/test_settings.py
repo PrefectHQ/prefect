@@ -86,45 +86,90 @@ SUPPORTED_SETTINGS = {
     "PREFECT_API_MAX_FLOW_RUN_GRAPH_ARTIFACTS": {"test_value": 10, "legacy": True},
     "PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES": {"test_value": 100, "legacy": True},
     "PREFECT_API_REQUEST_TIMEOUT": {"test_value": 10.0},
-    "PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED": {"test_value": True},
-    "PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS": {"test_value": 10.0},
-    "PREFECT_API_SERVICES_EVENT_PERSISTER_BATCH_SIZE": {"test_value": 100},
-    "PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED": {"test_value": True},
-    "PREFECT_API_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL": {"test_value": 10.0},
-    "PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED": {"test_value": True},
+    "PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED": {
+        "test_value": True,
+        "legacy": True,
+    },
+    "PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS": {
+        "test_value": 10.0,
+        "legacy": True,
+    },
+    "PREFECT_API_SERVICES_EVENT_PERSISTER_BATCH_SIZE": {
+        "test_value": 100,
+        "legacy": True,
+    },
+    "PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED": {
+        "test_value": True,
+        "legacy": True,
+    },
+    "PREFECT_API_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL": {
+        "test_value": 10.0,
+        "legacy": True,
+    },
+    "PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED": {
+        "test_value": True,
+        "legacy": True,
+    },
     "PREFECT_API_SERVICES_FOREMAN_DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS": {
         "test_value": 10,
+        "legacy": True,
     },
-    "PREFECT_API_SERVICES_FOREMAN_ENABLED": {"test_value": True},
+    "PREFECT_API_SERVICES_FOREMAN_ENABLED": {"test_value": True, "legacy": True},
     "PREFECT_API_SERVICES_FOREMAN_FALLBACK_HEARTBEAT_INTERVAL_SECONDS": {
         "test_value": 10,
+        "legacy": True,
     },
-    "PREFECT_API_SERVICES_FOREMAN_INACTIVITY_HEARTBEAT_MULTIPLE": {"test_value": 2},
-    "PREFECT_API_SERVICES_FOREMAN_LOOP_SECONDS": {"test_value": 10.0},
+    "PREFECT_API_SERVICES_FOREMAN_INACTIVITY_HEARTBEAT_MULTIPLE": {
+        "test_value": 2,
+        "legacy": True,
+    },
+    "PREFECT_API_SERVICES_FOREMAN_LOOP_SECONDS": {"test_value": 10.0, "legacy": True},
     "PREFECT_API_SERVICES_FOREMAN_WORK_QUEUE_LAST_POLLED_TIMEOUT_SECONDS": {
         "test_value": 10,
+        "legacy": True,
     },
     "PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS": {
-        "test_value": timedelta(seconds=20)
+        "test_value": timedelta(seconds=20),
+        "legacy": True,
     },
-    "PREFECT_API_SERVICES_LATE_RUNS_ENABLED": {"test_value": True},
-    "PREFECT_API_SERVICES_LATE_RUNS_LOOP_SECONDS": {"test_value": 10.0},
-    "PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED": {"test_value": True},
-    "PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS": {"test_value": 10.0},
-    "PREFECT_API_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE": {"test_value": 10},
-    "PREFECT_API_SERVICES_SCHEDULER_ENABLED": {"test_value": True},
-    "PREFECT_API_SERVICES_SCHEDULER_INSERT_BATCH_SIZE": {"test_value": 10},
-    "PREFECT_API_SERVICES_SCHEDULER_LOOP_SECONDS": {"test_value": 10.0},
-    "PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS": {"test_value": 10},
+    "PREFECT_API_SERVICES_LATE_RUNS_ENABLED": {"test_value": True, "legacy": True},
+    "PREFECT_API_SERVICES_LATE_RUNS_LOOP_SECONDS": {"test_value": 10.0, "legacy": True},
+    "PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED": {
+        "test_value": True,
+        "legacy": True,
+    },
+    "PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS": {
+        "test_value": 10.0,
+        "legacy": True,
+    },
+    "PREFECT_API_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE": {
+        "test_value": 10,
+        "legacy": True,
+    },
+    "PREFECT_API_SERVICES_SCHEDULER_ENABLED": {"test_value": True, "legacy": True},
+    "PREFECT_API_SERVICES_SCHEDULER_INSERT_BATCH_SIZE": {
+        "test_value": 10,
+        "legacy": True,
+    },
+    "PREFECT_API_SERVICES_SCHEDULER_LOOP_SECONDS": {
+        "test_value": 10.0,
+        "legacy": True,
+    },
+    "PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS": {"test_value": 10, "legacy": True},
     "PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME": {
-        "test_value": timedelta(hours=10)
+        "test_value": timedelta(hours=10),
+        "legacy": True,
     },
-    "PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS": {"test_value": 10},
+    "PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS": {"test_value": 10, "legacy": True},
     "PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME": {
-        "test_value": timedelta(minutes=10)
+        "test_value": timedelta(minutes=10),
+        "legacy": True,
     },
-    "PREFECT_API_SERVICES_TASK_RUN_RECORDER_ENABLED": {"test_value": True},
-    "PREFECT_API_SERVICES_TRIGGERS_ENABLED": {"test_value": True},
+    "PREFECT_API_SERVICES_TASK_RUN_RECORDER_ENABLED": {
+        "test_value": True,
+        "legacy": True,
+    },
+    "PREFECT_API_SERVICES_TRIGGERS_ENABLED": {"test_value": True, "legacy": True},
     "PREFECT_API_SSL_CERT_FILE": {"test_value": "/path/to/cert"},
     "PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH": {"test_value": 10},
     "PREFECT_API_TLS_INSECURE_SKIP_VERIFY": {"test_value": True},
@@ -277,6 +322,51 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SERVER_MEMOIZE_BLOCK_AUTO_REGISTRATION": {"test_value": True},
     "PREFECT_SERVER_METRICS_ENABLED": {"test_value": True},
     "PREFECT_SERVER_REGISTER_BLOCKS_ON_START": {"test_value": True},
+    "PREFECT_SERVER_SERVICES_CANCELLATION_CLEANUP_ENABLED": {"test_value": True},
+    "PREFECT_SERVER_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS": {
+        "test_value": timedelta(seconds=10)
+    },
+    "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_BATCH_SIZE": {"test_value": 10},
+    "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_ENABLED": {"test_value": True},
+    "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL": {
+        "test_value": timedelta(seconds=10)
+    },
+    "PREFECT_SERVER_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED": {"test_value": True},
+    "PREFECT_SERVER_SERVICES_FOREMAN_DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS": {
+        "test_value": timedelta(seconds=10)
+    },
+    "PREFECT_SERVER_SERVICES_FOREMAN_ENABLED": {"test_value": True},
+    "PREFECT_SERVER_SERVICES_FOREMAN_FALLBACK_HEARTBEAT_INTERVAL_SECONDS": {
+        "test_value": timedelta(seconds=10)
+    },
+    "PREFECT_SERVER_SERVICES_FOREMAN_INACTIVITY_HEARTBEAT_MULTIPLE": {"test_value": 10},
+    "PREFECT_SERVER_SERVICES_FOREMAN_LOOP_SECONDS": {"test_value": 10.0},
+    "PREFECT_SERVER_SERVICES_FOREMAN_WORK_QUEUE_LAST_POLLED_TIMEOUT_SECONDS": {
+        "test_value": timedelta(seconds=10)
+    },
+    "PREFECT_SERVER_SERVICES_LATE_RUNS_AFTER_SECONDS": {
+        "test_value": timedelta(seconds=15)
+    },
+    "PREFECT_SERVER_SERVICES_LATE_RUNS_ENABLED": {"test_value": True},
+    "PREFECT_SERVER_SERVICES_LATE_RUNS_LOOP_SECONDS": {"test_value": 10.0},
+    "PREFECT_SERVER_SERVICES_PAUSE_EXPIRATIONS_ENABLED": {"test_value": True},
+    "PREFECT_SERVER_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS": {
+        "test_value": timedelta(seconds=10)
+    },
+    "PREFECT_SERVER_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE": {"test_value": 10},
+    "PREFECT_SERVER_SERVICES_SCHEDULER_ENABLED": {"test_value": True},
+    "PREFECT_SERVER_SERVICES_SCHEDULER_INSERT_BATCH_SIZE": {"test_value": 10},
+    "PREFECT_SERVER_SERVICES_SCHEDULER_LOOP_SECONDS": {"test_value": 10.0},
+    "PREFECT_SERVER_SERVICES_SCHEDULER_MAX_RUNS": {"test_value": 10},
+    "PREFECT_SERVER_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME": {
+        "test_value": timedelta(hours=10)
+    },
+    "PREFECT_SERVER_SERVICES_SCHEDULER_MIN_RUNS": {"test_value": 10},
+    "PREFECT_SERVER_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME": {
+        "test_value": timedelta(minutes=10)
+    },
+    "PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_ENABLED": {"test_value": True},
+    "PREFECT_SERVER_SERVICES_TRIGGERS_ENABLED": {"test_value": True},
     "PREFECT_SILENCE_API_URL_MISCONFIGURATION": {"test_value": True},
     "PREFECT_SQLALCHEMY_MAX_OVERFLOW": {"test_value": 10},
     "PREFECT_SQLALCHEMY_POOL_SIZE": {"test_value": 10},
