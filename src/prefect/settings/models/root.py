@@ -17,18 +17,19 @@ from pydantic_settings import SettingsConfigDict
 from typing_extensions import Self
 
 from prefect.settings.base import PrefectBaseSettings
-from prefect.settings.models.api import APISettings
-from prefect.settings.models.cli import CLISettings
-from prefect.settings.models.client import ClientSettings
-from prefect.settings.models.cloud import CloudSettings
-from prefect.settings.models.deployments import DeploymentsSettings
-from prefect.settings.models.flows import FlowsSettings
-from prefect.settings.models.logging import LoggingSettings
-from prefect.settings.models.results import ResultsSettings
-from prefect.settings.models.runner import RunnerSettings
-from prefect.settings.models.server import ServerSettings
 from prefect.types import LogLevel
 from prefect.utilities.collections import deep_merge_dicts, set_in_dict
+
+from .api import APISettings
+from .cli import CLISettings
+from .client import ClientSettings
+from .cloud import CloudSettings
+from .deployments import DeploymentsSettings
+from .flows import FlowsSettings
+from .logging import LoggingSettings
+from .results import ResultsSettings
+from .runner import RunnerSettings
+from .server import ServerSettings
 
 if TYPE_CHECKING:
     from prefect.settings.legacy import Setting
@@ -362,9 +363,6 @@ class Settings(PrefectBaseSettings):
         description="The directory to serve static files from. This should be used when running into permissions issues when attempting to serve the UI from the default directory (for example when running in a Docker container).",
     )
 
-    ###########################################################################
-    # Events settings
-
     api_services_triggers_enabled: bool = Field(
         default=True,
         description="Whether or not to start the triggers service in the server application.",
@@ -385,57 +383,6 @@ class Settings(PrefectBaseSettings):
         default=5,
         gt=0.0,
         description="The maximum number of seconds between flushes of the event persister.",
-    )
-
-    api_events_stream_out_enabled: bool = Field(
-        default=True,
-        description="Whether or not to stream events out to the API via websockets.",
-    )
-
-    api_events_related_resource_cache_ttl: timedelta = Field(
-        default=timedelta(minutes=5),
-        description="The number of seconds to cache related resources for in the API.",
-    )
-
-    events_maximum_labels_per_resource: int = Field(
-        default=500,
-        description="The maximum number of labels a resource may have.",
-    )
-
-    events_maximum_related_resources: int = Field(
-        default=500,
-        description="The maximum number of related resources an Event may have.",
-    )
-
-    events_maximum_size_bytes: int = Field(
-        default=1_500_000,
-        description="The maximum size of an Event when serialized to JSON",
-    )
-
-    events_expired_bucket_buffer: timedelta = Field(
-        default=timedelta(seconds=60),
-        description="The amount of time to retain expired automation buckets",
-    )
-
-    events_proactive_granularity: timedelta = Field(
-        default=timedelta(seconds=5),
-        description="How frequently proactive automations are evaluated",
-    )
-
-    events_retention_period: timedelta = Field(
-        default=timedelta(days=7),
-        description="The amount of time to retain events in the database.",
-    )
-
-    events_maximum_websocket_backfill: timedelta = Field(
-        default=timedelta(minutes=15),
-        description="The maximum range to look back for backfilling events for a websocket subscriber.",
-    )
-
-    events_websocket_backfill_page_size: int = Field(
-        default=250,
-        gt=0,
-        description="The page size for the queries to backfill events for websocket subscribers.",
     )
 
     ###########################################################################
@@ -576,16 +523,6 @@ class Settings(PrefectBaseSettings):
     experimental_enable_schedule_concurrency: bool = Field(
         default=False,
         description="Whether or not to enable concurrency for scheduled tasks.",
-    )
-
-    messaging_broker: str = Field(
-        default="prefect.server.utilities.messaging.memory",
-        description="Which message broker implementation to use for the messaging system, should point to a module that exports a Publisher and Consumer class.",
-    )
-
-    messaging_cache: str = Field(
-        default="prefect.server.utilities.messaging.memory",
-        description="Which cache implementation to use for the events system.  Should point to a module that exports a Cache class.",
     )
 
     task_runner_thread_pool_max_workers: Optional[int] = Field(
