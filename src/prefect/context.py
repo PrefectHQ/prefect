@@ -40,6 +40,7 @@ from prefect.events.worker import EventsWorker
 from prefect.exceptions import MissingContextError
 from prefect.results import ResultStore, get_default_persist_setting
 from prefect.settings import Profile, Settings
+from prefect.settings.legacy import _get_settings_fields
 from prefect.states import State
 from prefect.task_runners import TaskRunner
 from prefect.utilities.services import start_client_metrics_server
@@ -598,8 +599,8 @@ def use_profile(
 
     if not override_environment_variables:
         for key in os.environ:
-            if key in prefect.settings.SETTING_VARIABLES:
-                profile_settings.pop(prefect.settings.SETTING_VARIABLES[key], None)
+            if key in _get_settings_fields(Settings):
+                profile_settings.pop(_get_settings_fields(Settings)[key], None)
 
     new_settings = settings.copy_with_update(updates=profile_settings)
 
