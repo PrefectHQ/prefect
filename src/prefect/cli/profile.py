@@ -322,7 +322,7 @@ def populate_defaults():
         if name not in user_profiles:
             user_profiles.add_profile(profile)
 
-    prefect.settings._write_profiles_to(user_path, user_profiles)
+    prefect.settings.profiles._write_profiles_to(user_path, user_profiles)
     app.console.print(f"\nProfiles updated in [green]{user_path}[/green]")
     app.console.print(
         "\nUse with [green]prefect profile use[/green] [blue][PROFILE-NAME][/blue]"
