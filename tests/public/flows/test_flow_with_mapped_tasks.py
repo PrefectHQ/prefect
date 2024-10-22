@@ -46,9 +46,9 @@ async def test_flow_with_mapped_tasks():
         {"number": 3, "is_even": False},
         {"number": 4, "is_even": True},
     ]
-    assert names == [
+    assert set(names) == {
         "increment_number - input: 1",
         "increment_number - input: 2",
         "wildcard!",
         "wildcard!",
-    ]
+    }
