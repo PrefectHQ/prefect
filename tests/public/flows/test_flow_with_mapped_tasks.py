@@ -8,8 +8,8 @@ from prefect.context import get_run_context
 from prefect.runtime import task_run
 
 
-def generate_task_run_name() -> str:
-    return f'{task_run.task_name} - input: {task_run.parameters["input"]["number"]}'
+def generate_task_run_name(parameters: dict) -> str:
+    return f'{task_run.task_name} - input: {parameters["input"]["number"]}'
 
 
 @task(log_prints=True, task_run_name=generate_task_run_name)
