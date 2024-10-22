@@ -15,11 +15,11 @@ from prefect.settings import (
     PREFECT_PROFILES_PATH,
     Profile,
     ProfilesCollection,
-    _read_profiles_from,
     load_profiles,
     save_profiles,
     temporary_settings,
 )
+from prefect.settings.profiles import _read_profiles_from
 from prefect.testing.cli import invoke_and_assert
 
 

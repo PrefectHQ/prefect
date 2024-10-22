@@ -14,7 +14,7 @@ include requirements-dev.txt
 include requirements-client.txt
 include src/prefect/_version.py
 include src/prefect/py.typed
-include src/prefect/profiles.toml
+include src/prefect/settings/profiles.toml
 include src/prefect/deployments/recipes/*/*.yaml
 include src/prefect/deployments/templates/*.yaml
 include src/prefect/.prefectignore
