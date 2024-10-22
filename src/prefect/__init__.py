@@ -38,11 +38,11 @@ if TYPE_CHECKING:
         Transaction,
         unmapped,
         serve,
-        deploy,
         pause_flow_run,
         resume_flow_run,
         suspend_flow_run,
     )
+    from .deployments import deploy
 
 _slots: dict[str, Any] = {
     "__version_info__": __version_info__,
@@ -66,7 +66,7 @@ _public_api: dict[str, tuple[str, str]] = {
     "Transaction": (__spec__.parent, ".main"),
     "unmapped": (__spec__.parent, ".main"),
     "serve": (__spec__.parent, ".main"),
-    "deploy": (__spec__.parent, ".main"),
+    "deploy": (__spec__.parent, ".deployments"),
     "pause_flow_run": (__spec__.parent, ".main"),
     "resume_flow_run": (__spec__.parent, ".main"),
     "suspend_flow_run": (__spec__.parent, ".main"),
