@@ -49,7 +49,6 @@ from typing_extensions import Literal, ParamSpec, Self
 
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect.blocks.core import Block
-from prefect.client.orchestration import get_client
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.objects import ConcurrencyLimitConfig, FlowRun
 from prefect.client.schemas.objects import Flow as FlowSchema
@@ -1167,6 +1166,8 @@ class Flow(Generic[P, R]):
                 "No work pool name provided. Please provide a `work_pool_name` or set the"
                 " `PREFECT_DEFAULT_WORK_POOL_NAME` environment variable."
             )
+
+        from prefect.orchestration.client import get_client
 
         try:
             async with get_client() as client:
