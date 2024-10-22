@@ -1,4 +1,5 @@
 # Import user-facing API
+from prefect.deployments import deploy
 from prefect.states import State
 from prefect.logging import get_run_logger
 from prefect.flows import flow, Flow, serve
@@ -78,6 +79,7 @@ __all__ = [
     "Transaction",
     "unmapped",
     "serve",
+    "deploy",
     "pause_flow_run",
     "resume_flow_run",
     "suspend_flow_run",
