@@ -13,6 +13,7 @@ from .ephemeral import ServerEphemeralSettings
 from .events import ServerEventsSettings
 from .flow_run_graph import ServerFlowRunGraphSettings
 from .services import ServerServicesSettings
+from .tasks import ServerTasksSettings
 
 
 class ServerSettings(PrefectBaseSettings):
@@ -126,4 +127,8 @@ class ServerSettings(PrefectBaseSettings):
     services: ServerServicesSettings = Field(
         default_factory=ServerServicesSettings,
         description="Settings for controlling server services behavior",
+    )
+    tasks: ServerTasksSettings = Field(
+        default_factory=ServerTasksSettings,
+        description="Settings for controlling server tasks behavior",
     )

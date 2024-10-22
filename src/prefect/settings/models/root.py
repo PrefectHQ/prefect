@@ -1,5 +1,4 @@
 import warnings
-from datetime import timedelta
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -130,11 +129,6 @@ class Settings(PrefectBaseSettings):
         description="The default limit applied to queries that can return multiple objects, such as `POST /flow_runs/filter`.",
     )
 
-    api_task_cache_key_max_length: int = Field(
-        default=2000,
-        description="The maximum number of characters allowed for a task run cache key.",
-    )
-
     ###########################################################################
     # Logging settings
 
@@ -218,12 +212,6 @@ class Settings(PrefectBaseSettings):
         description="This value sets the default retry delay seconds for all tasks.",
     )
 
-    task_run_tag_concurrency_slot_wait_seconds: int = Field(
-        default=30,
-        ge=0,
-        description="The number of seconds to wait before retrying when a task run cannot secure a concurrency slot from the server.",
-    )
-
     sqlalchemy_pool_size: Optional[int] = Field(
         default=None,
         description="Controls connection pool size when using a PostgreSQL database with the Prefect API. If not set, the default SQLAlchemy pool size will be used.",
@@ -289,21 +277,6 @@ class Settings(PrefectBaseSettings):
     task_scheduling_delete_failed_submissions: bool = Field(
         default=True,
         description="Whether or not to delete failed task submissions from the database.",
-    )
-
-    task_scheduling_max_scheduled_queue_size: int = Field(
-        default=1000,
-        description="The maximum number of scheduled tasks to queue for submission.",
-    )
-
-    task_scheduling_max_retry_queue_size: int = Field(
-        default=100,
-        description="The maximum number of retries to queue for submission.",
-    )
-
-    task_scheduling_pending_task_timeout: timedelta = Field(
-        default=timedelta(0),
-        description="How long before a PENDING task are made available to another task worker.",
     )
 
     experimental_enable_schedule_concurrency: bool = Field(
