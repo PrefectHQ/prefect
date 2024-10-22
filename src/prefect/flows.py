@@ -1167,7 +1167,7 @@ class Flow(Generic[P, R]):
                 " `PREFECT_DEFAULT_WORK_POOL_NAME` environment variable."
             )
 
-        from prefect.orchestration.client import get_client
+        from prefect.client.orchestration import get_client
 
         try:
             async with get_client() as client:
