@@ -39,7 +39,3 @@ class APISettings(PrefectBaseSettings):
         default=60.0,
         description="The default timeout for requests to the API",
     )
-    default_limit: int = Field(
-        default=200,
-        description="The default limit applied to queries that can return multiple objects, such as `POST /flow_runs/filter`.",
-    )

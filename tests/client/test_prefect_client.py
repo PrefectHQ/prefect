@@ -77,7 +77,7 @@ from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_CLIENT_CSRF_SUPPORT_ENABLED,
     PREFECT_CLOUD_API_URL,
-    PREFECT_UNIT_TEST_MODE,
+    PREFECT_TESTING_UNIT_TEST_MODE,
     temporary_settings,
 )
 from prefect.states import Completed, Pending, Running, Scheduled, State
@@ -2312,7 +2312,7 @@ async def test_prefect_client_follow_redirects():
         assert client._client.follow_redirects is False
 
     # follow redirects by default
-    with temporary_settings({PREFECT_UNIT_TEST_MODE: False}):
+    with temporary_settings({PREFECT_TESTING_UNIT_TEST_MODE: False}):
         async with PrefectClient(api=app) as client:
             assert client._client.follow_redirects is True
 

@@ -25,6 +25,16 @@ class ServerAPISettings(PrefectBaseSettings):
         description="The API's port address (defaults to `4200`).",
     )
 
+    default_limit: int = Field(
+        default=200,
+        description="The default limit applied to queries that can return multiple objects, such as `POST /flow_runs/filter`.",
+        validation_alias=AliasChoices(
+            AliasPath("default_limit"),
+            "prefect_server_api_default_limit",
+            "prefect_api_default_limit",
+        ),
+    )
+
     keepalive_timeout: int = Field(
         default=5,
         description="""

@@ -44,9 +44,15 @@ class Setting:
         return self._default
 
     def value(self: Self) -> Any:
-        if self.name == "PREFECT_TEST_SETTING":
-            if "PREFECT_TEST_MODE" in os.environ:
-                return get_current_settings().test_setting
+        if (
+            self.name == "PREFECT_TEST_SETTING"
+            or self.name == "PREFECT_TESTING_TEST_SETTING"
+        ):
+            if (
+                "PREFECT_TEST_MODE" in os.environ
+                or "PREFECT_TESTING_TEST_MODE" in os.environ
+            ):
+                return get_current_settings().testing.test_setting
             else:
                 return None
 

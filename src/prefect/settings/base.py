@@ -89,22 +89,42 @@ class PrefectBaseSettings(BaseSettings):
     def ser_model(
         self, handler: SerializerFunctionWrapHandler, info: SerializationInfo
     ) -> Any:
-        ctx = info.context
         jsonable_self = handler(self)
-        if ctx and ctx.get("include_secrets") is True:
-            dump_kwargs = dict(
-                include=info.include,
-                exclude=info.exclude,
-                exclude_unset=info.exclude_unset,
-            )
+        # iterate over fields to ensure child models that have been updated are also included
+        for key in self.model_fields.keys():
+            if info.exclude and key in info.exclude:
+                continue
+            if info.include and key not in info.include:
+                continue
+
+            child_include = None
+            child_exclude = None
+            if info.include and key in info.include and isinstance(info.include, dict):
+                child_include = info.include[key]
+
+            if isinstance(child_settings := getattr(self, key), PrefectBaseSettings):
+                child_jsonable = child_settings.model_dump(
+                    mode=info.mode,
+                    include=child_include,
+                    exclude=child_exclude,
+                    exclude_unset=info.exclude_unset,
+                    context=info.context,
+                    by_alias=info.by_alias,
+                    exclude_none=info.exclude_none,
+                    exclude_defaults=info.exclude_defaults,
+                    serialize_as_any=info.serialize_as_any,
+                )
+                if child_jsonable:
+                    jsonable_self[key] = child_jsonable
+        if info.context and info.context.get("include_secrets") is True:
             jsonable_self.update(
                 {
                     field_name: visit_collection(
                         expr=getattr(self, field_name),
-                        visit_fn=partial(handle_secret_render, context=ctx),
+                        visit_fn=partial(handle_secret_render, context=info.context),
                         return_data=True,
                     )
-                    for field_name in set(self.model_dump(**dump_kwargs).keys())  # type: ignore
+                    for field_name in set(jsonable_self.keys())  # type: ignore
                 }
             )
 

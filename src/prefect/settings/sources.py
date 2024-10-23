@@ -142,7 +142,12 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
 
 def _is_test_mode() -> bool:
     """Check if the current process is in test mode."""
-    return bool(os.getenv("PREFECT_TEST_MODE") or os.getenv("PREFECT_UNIT_TEST_MODE"))
+    return bool(
+        os.getenv("PREFECT_TEST_MODE")
+        or os.getenv("PREFECT_UNIT_TEST_MODE")
+        or os.getenv("PREFECT_TESTING_UNIT_TEST_MODE")
+        or os.getenv("PREFECT_TESTING_TEST_MODE")
+    )
 
 
 def _get_profiles_path() -> Path:

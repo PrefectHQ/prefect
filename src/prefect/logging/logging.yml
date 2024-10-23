@@ -97,7 +97,7 @@ loggers:
         level: "${PREFECT_LOGGING_LEVEL}"
 
     prefect._internal:
-        level: "${PREFECT_LOGGING_INTERNAL_LEVEL}"
+        level: "${PREFECT_INTERNAL_LOGGING_LEVEL}"
         propagate: false
         handlers: [debug]
 

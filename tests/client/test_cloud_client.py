@@ -6,7 +6,11 @@ import respx
 from respx.patterns import M
 
 from prefect.client.cloud import get_cloud_client
-from prefect.settings import PREFECT_API_URL, PREFECT_UNIT_TEST_MODE, temporary_settings
+from prefect.settings import (
+    PREFECT_API_URL,
+    PREFECT_TESTING_UNIT_TEST_MODE,
+    temporary_settings,
+)
 
 mock_work_pool_types_response = {
     "prefect": {
@@ -61,7 +65,7 @@ async def test_cloud_client_follow_redirects():
         assert client._client.follow_redirects is False
 
     # follow redirects by default
-    with temporary_settings({PREFECT_UNIT_TEST_MODE: False}):
+    with temporary_settings({PREFECT_TESTING_UNIT_TEST_MODE: False}):
         async with get_cloud_client() as client:
             assert client._client.follow_redirects is True
 
