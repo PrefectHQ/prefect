@@ -1824,6 +1824,9 @@ class WorkerFilter(PrefectOperatorFilterBaseModel):
         if self.last_heartbeat_time is not None:
             filters.append(self.last_heartbeat_time.as_sql_filter())
 
+        if self.status is not None:
+            filters.append(self.status.as_sql_filter())
+
         return filters
 
 

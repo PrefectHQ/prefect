@@ -607,7 +607,7 @@ async def worker_heartbeat(
 @router.post("/{work_pool_name}/workers/filter")
 async def read_workers(
     work_pool_name: str = Path(..., description="The work pool name"),
-    workers: schemas.filters.WorkerFilter = None,
+    workers: Optional[schemas.filters.WorkerFilter] = None,
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
