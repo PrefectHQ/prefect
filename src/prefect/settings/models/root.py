@@ -46,8 +46,8 @@ class Settings(PrefectBaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         env_prefix="PREFECT_",
-        env_nested_delimiter=None,
         extra="ignore",
+        toml_file="prefect.toml",
     )
 
     home: Annotated[Path, BeforeValidator(lambda x: Path(x).expanduser())] = Field(

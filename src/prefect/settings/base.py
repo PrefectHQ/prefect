@@ -8,7 +8,11 @@ from pydantic import (
     SerializerFunctionWrapHandler,
     model_serializer,
 )
-from pydantic_settings import BaseSettings, PydanticBaseSettingsSource
+from pydantic_settings import (
+    BaseSettings,
+    PydanticBaseSettingsSource,
+    TomlConfigSettingsSource,
+)
 
 from prefect.settings.sources import EnvFilterSettingsSource, ProfileSettingsTomlLoader
 from prefect.utilities.collections import visit_collection
@@ -54,6 +58,7 @@ class PrefectBaseSettings(BaseSettings):
             ),
             dotenv_settings,
             file_secret_settings,
+            TomlConfigSettingsSource(settings_cls),
             ProfileSettingsTomlLoader(settings_cls),
         )
 
