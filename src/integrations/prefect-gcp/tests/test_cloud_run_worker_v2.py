@@ -203,3 +203,68 @@ class TestCloudRunWorkerJobV2Configuration:
                 {"network": "projects/my_project/global/networks/my-network"}
             ],
         }
+
+    def test_configure_cloudsql_volumes_no_instances(
+        self, cloud_run_worker_v2_job_config
+    ):
+        cloud_run_worker_v2_job_config.cloudsql_instances = []
+        cloud_run_worker_v2_job_config._configure_cloudsql_volumes()
+
+        template = cloud_run_worker_v2_job_config.job_body["template"]["template"]
+
+        assert "volumes" not in template
+        assert "volumeMounts" not in template["containers"][0]
+
+    def test_configure_cloudsql_volumes_preserves_existing_volumes(
+        self, cloud_run_worker_v2_job_config
+    ):
+        template = cloud_run_worker_v2_job_config.job_body["template"]["template"]
+        template["volumes"] = [{"name": "existing-volume", "emptyDir": {}}]
+        template["containers"][0]["volumeMounts"] = [
+            {"name": "existing-volume", "mountPath": "/existing"}
+        ]
+
+        cloud_run_worker_v2_job_config.cloudsql_instances = ["project:region:instance1"]
+        cloud_run_worker_v2_job_config._configure_cloudsql_volumes()
+
+        assert len(template["volumes"]) == 2
+        assert template["volumes"][0] == {"name": "existing-volume", "emptyDir": {}}
+        assert template["volumes"][1] == {
+            "name": "cloudsql",
+            "cloudSqlInstance": ["project:region:instance1"],
+        }
+
+        assert len(template["containers"][0]["volumeMounts"]) == 2
+        assert template["containers"][0]["volumeMounts"][0] == {
+            "name": "existing-volume",
+            "mountPath": "/existing",
+        }
+        assert template["containers"][0]["volumeMounts"][1] == {
+            "name": "cloudsql",
+            "mountPath": "/cloudsql",
+        }
+
+    def test_prepare_for_flow_run_configures_cloudsql(
+        self, cloud_run_worker_v2_job_config
+    ):
+        cloud_run_worker_v2_job_config.cloudsql_instances = ["project:region:instance1"]
+
+        class MockFlowRun:
+            id = "test-id"
+            name = "test-run"
+
+        cloud_run_worker_v2_job_config.prepare_for_flow_run(
+            flow_run=MockFlowRun(), deployment=None, flow=None
+        )
+
+        template = cloud_run_worker_v2_job_config.job_body["template"]["template"]
+
+        assert any(
+            vol["name"] == "cloudsql"
+            and vol["cloudSqlInstance"] == ["project:region:instance1"]
+            for vol in template["volumes"]
+        )
+        assert any(
+            mount["name"] == "cloudsql" and mount["mountPath"] == "/cloudsql"
+            for mount in template["containers"][0]["volumeMounts"]
+        )
