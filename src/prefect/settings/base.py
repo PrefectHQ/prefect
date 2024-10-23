@@ -1,6 +1,5 @@
-import inspect
 from functools import partial
-from typing import Any, Dict, Set, Tuple, Type
+from typing import Any, Dict, Tuple, Type
 
 from pydantic import (
     AliasChoices,
@@ -57,31 +56,6 @@ class PrefectBaseSettings(BaseSettings):
             file_secret_settings,
             ProfileSettingsTomlLoader(settings_cls),
         )
-
-    @classmethod
-    def valid_setting_names(cls) -> Set[str]:
-        """
-        A set of valid setting names, e.g. "PREFECT_API_URL" or "PREFECT_API_KEY".
-        """
-        settings_fields = set()
-        for field_name, field in cls.model_fields.items():
-            if inspect.isclass(field.annotation) and issubclass(
-                field.annotation, PrefectBaseSettings
-            ):
-                settings_fields.update(field.annotation.valid_setting_names())
-            else:
-                if field.validation_alias and isinstance(
-                    field.validation_alias, AliasChoices
-                ):
-                    for alias in field.validation_alias.choices:
-                        if not isinstance(alias, str):
-                            continue
-                        settings_fields.add(alias.upper())
-                else:
-                    settings_fields.add(
-                        f"{cls.model_config.get('env_prefix')}{field_name.upper()}"
-                    )
-        return settings_fields
 
     def to_environment_variables(
         self,

@@ -5,10 +5,15 @@ from pydantic import AliasChoices, AliasPath, Field
 from pydantic_settings import SettingsConfigDict
 
 from prefect.settings.base import PrefectBaseSettings
-from prefect.settings.models.server.api import ServerAPISettings
-from prefect.settings.models.server.database import ServerDatabaseSettings
-from prefect.settings.models.server.ephemeral import ServerEphemeralSettings
 from prefect.types import LogLevel
+
+from .api import ServerAPISettings
+from .database import ServerDatabaseSettings
+from .ephemeral import ServerEphemeralSettings
+from .events import ServerEventsSettings
+from .flow_run_graph import ServerFlowRunGraphSettings
+from .services import ServerServicesSettings
+from .tasks import ServerTasksSettings
 
 
 class ServerSettings(PrefectBaseSettings):
@@ -110,4 +115,20 @@ class ServerSettings(PrefectBaseSettings):
     ephemeral: ServerEphemeralSettings = Field(
         default_factory=ServerEphemeralSettings,
         description="Settings for controlling ephemeral server behavior",
+    )
+    events: ServerEventsSettings = Field(
+        default_factory=ServerEventsSettings,
+        description="Settings for controlling server events behavior",
+    )
+    flow_run_graph: ServerFlowRunGraphSettings = Field(
+        default_factory=ServerFlowRunGraphSettings,
+        description="Settings for controlling flow run graph behavior",
+    )
+    services: ServerServicesSettings = Field(
+        default_factory=ServerServicesSettings,
+        description="Settings for controlling server services behavior",
+    )
+    tasks: ServerTasksSettings = Field(
+        default_factory=ServerTasksSettings,
+        description="Settings for controlling server tasks behavior",
     )

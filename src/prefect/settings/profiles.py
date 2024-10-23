@@ -17,7 +17,7 @@ from pydantic_settings import BaseSettings
 from prefect.exceptions import ProfileSettingsValidationError
 from prefect.settings.constants import DEFAULT_PROFILES_PATH
 from prefect.settings.context import get_current_settings
-from prefect.settings.legacy import SETTING_VARIABLES, Setting
+from prefect.settings.legacy import Setting, _get_settings_fields
 from prefect.settings.models.root import Settings
 
 
@@ -31,7 +31,7 @@ def _cast_settings(
     for k, value in settings.items():
         try:
             if isinstance(k, str):
-                setting = SETTING_VARIABLES[k]
+                setting = _get_settings_fields(Settings)[k]
             else:
                 setting = k
             casted_settings[setting] = value
