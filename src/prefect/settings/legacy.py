@@ -1,7 +1,7 @@
 import inspect
 import os
 from functools import cache
-from typing import Any, Dict, Optional, Set, get_args
+from typing import Any, Dict, Optional, Set, Type, get_args
 
 from pydantic import AliasChoices
 from pydantic_settings import BaseSettings
@@ -114,7 +114,7 @@ def _get_valid_setting_names(cls: type[BaseSettings]) -> Set[str]:
 
 @cache
 def _get_settings_fields(
-    settings: type[BaseSettings], accessor_prefix: Optional[str] = None
+    settings: Type[BaseSettings], accessor_prefix: Optional[str] = None
 ) -> Dict[str, "Setting"]:
     """Get the settings fields for the settings object"""
     settings_fields: Dict[str, Setting] = {}
