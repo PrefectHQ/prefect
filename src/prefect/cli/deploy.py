@@ -815,7 +815,6 @@ async def _run_single_deploy(
             and not work_pool.is_managed_pool
             and not active_workers
         ):
-
             app.console.print(
                 "\nTo execute flow runs from these deployments, start a worker in a"
                 " separate terminal that pulls work from the"
