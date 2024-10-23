@@ -1003,10 +1003,7 @@ async def deploy(
                     "\nTo execute flow runs from these deployments, start a worker in a"
                     " separate terminal that pulls work from the"
                     f" {work_pool_name!r} work pool:"
-                )
-                console.print(
-                    f"\n\t$ prefect worker start --pool {work_pool_name!r}",
-                    style="blue",
+                    f"\n\t[blue]$ prefect worker start --pool {work_pool_name!r}[/]",
                 )
         console.print(
             "\nTo trigger any of these deployments, use the"
