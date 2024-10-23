@@ -744,10 +744,11 @@ async def _run_single_deploy(
     )
 
     if PREFECT_UI_URL:
-        app.console.print(
+        message = (
             "\nView Deployment in UI:"
             f" {PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}\n"
         )
+        app.console.print(message, soft_wrap=True)
 
     identical_deployment_exists_in_prefect_file = (
         _check_if_identical_deployment_in_prefect_file(
