@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import inspect
 import os
 import signal
 import time
@@ -684,7 +685,15 @@ def _resolve_custom_flow_run_name(flow: Flow, parameters: Dict[str, Any]) -> str
 
 def _resolve_custom_task_run_name(task: Task, parameters: Dict[str, Any]) -> str:
     if callable(task.task_run_name):
-        task_run_name = task.task_run_name()
+        sig = inspect.signature(task.task_run_name)
+
+        # If the callable accepts a 'parameters' kwarg, pass the entire parameters dict
+        if "parameters" in sig.parameters:
+            task_run_name = task.task_run_name(parameters=parameters)
+        else:
+            # If it doesn't expect parameters, call it without arguments
+            task_run_name = task.task_run_name()
+
         if not isinstance(task_run_name, str):
             raise TypeError(
                 f"Callable {task.task_run_name} for 'task_run_name' returned type"
