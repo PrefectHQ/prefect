@@ -65,7 +65,7 @@ if __name__=="__main__":
 Fire up the Prefect UI to see what happened:
 
 ```bash
-prefect server start
+perfect server start
 ```
 
 To run your workflow on a schedule, turn it into a deployment and schedule it to run every minute by changing the last line of your script to the following:
