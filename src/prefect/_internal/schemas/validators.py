@@ -721,7 +721,8 @@ def base_image_xor_dockerfile(values: Mapping[str, Any]):
 
 
 def validate_settings(value: dict) -> dict:
-    from prefect.settings import SETTING_VARIABLES, Setting
+    from prefect.settings import Setting, Settings
+    from prefect.settings.legacy import _get_settings_fields
 
     if value is None:
         return value
@@ -729,8 +730,9 @@ def validate_settings(value: dict) -> dict:
     # Cast string setting names to variables
     validated = {}
     for setting, val in value.items():
-        if isinstance(setting, str) and setting in SETTING_VARIABLES:
-            validated[SETTING_VARIABLES[setting]] = val
+        settings_fields = _get_settings_fields(Settings)
+        if isinstance(setting, str) and setting in settings_fields:
+            validated[settings_fields[setting]] = val
         elif isinstance(setting, Setting):
             validated[setting] = val
         else:

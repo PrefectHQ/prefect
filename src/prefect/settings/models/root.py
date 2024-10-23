@@ -1,5 +1,4 @@
 import warnings
-from datetime import timedelta
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -17,18 +16,19 @@ from pydantic_settings import SettingsConfigDict
 from typing_extensions import Self
 
 from prefect.settings.base import PrefectBaseSettings
-from prefect.settings.models.api import APISettings
-from prefect.settings.models.cli import CLISettings
-from prefect.settings.models.client import ClientSettings
-from prefect.settings.models.cloud import CloudSettings
-from prefect.settings.models.deployments import DeploymentsSettings
-from prefect.settings.models.flows import FlowsSettings
-from prefect.settings.models.logging import LoggingSettings
-from prefect.settings.models.results import ResultsSettings
-from prefect.settings.models.runner import RunnerSettings
-from prefect.settings.models.server import ServerSettings
 from prefect.types import LogLevel
 from prefect.utilities.collections import deep_merge_dicts, set_in_dict
+
+from .api import APISettings
+from .cli import CLISettings
+from .client import ClientSettings
+from .cloud import CloudSettings
+from .deployments import DeploymentsSettings
+from .flows import FlowsSettings
+from .logging import LoggingSettings
+from .results import ResultsSettings
+from .runner import RunnerSettings
+from .server import ServerSettings
 
 if TYPE_CHECKING:
     from prefect.settings.legacy import Setting
@@ -129,203 +129,6 @@ class Settings(PrefectBaseSettings):
         description="The default limit applied to queries that can return multiple objects, such as `POST /flow_runs/filter`.",
     )
 
-    api_task_cache_key_max_length: int = Field(
-        default=2000,
-        description="The maximum number of characters allowed for a task run cache key.",
-    )
-
-    api_max_flow_run_graph_nodes: int = Field(
-        default=10000,
-        description="The maximum size of a flow run graph on the v2 API",
-    )
-
-    api_max_flow_run_graph_artifacts: int = Field(
-        default=10000,
-        description="The maximum number of artifacts to show on a flow run graph on the v2 API",
-    )
-
-    ###########################################################################
-    # API Services settings
-
-    api_services_scheduler_enabled: bool = Field(
-        default=True,
-        description="Whether or not to start the scheduler service in the server application.",
-    )
-
-    api_services_scheduler_loop_seconds: float = Field(
-        default=60,
-        description="""
-        The scheduler loop interval, in seconds. This determines
-        how often the scheduler will attempt to schedule new flow runs, but has no
-        impact on how quickly either flow runs or task runs are actually executed.
-        Defaults to `60`.
-        """,
-    )
-
-    api_services_scheduler_deployment_batch_size: int = Field(
-        default=100,
-        description="""
-        The number of deployments the scheduler will attempt to
-        schedule in a single batch. If there are more deployments than the batch
-        size, the scheduler immediately attempts to schedule the next batch; it
-        does not sleep for `scheduler_loop_seconds` until it has visited every
-        deployment once. Defaults to `100`.
-        """,
-    )
-
-    api_services_scheduler_max_runs: int = Field(
-        default=100,
-        description="""
-        The scheduler will attempt to schedule up to this many
-        auto-scheduled runs in the future. Note that runs may have fewer than
-        this many scheduled runs, depending on the value of
-        `scheduler_max_scheduled_time`.  Defaults to `100`.
-        """,
-    )
-
-    api_services_scheduler_min_runs: int = Field(
-        default=3,
-        description="""
-        The scheduler will attempt to schedule at least this many
-        auto-scheduled runs in the future. Note that runs may have more than
-        this many scheduled runs, depending on the value of
-        `scheduler_min_scheduled_time`.  Defaults to `3`.
-        """,
-    )
-
-    api_services_scheduler_max_scheduled_time: timedelta = Field(
-        default=timedelta(days=100),
-        description="""
-        The scheduler will create new runs up to this far in the
-        future. Note that this setting will take precedence over
-        `scheduler_max_runs`: if a flow runs once a month and
-        `scheduler_max_scheduled_time` is three months, then only three runs will be
-        scheduled. Defaults to 100 days (`8640000` seconds).
-        """,
-    )
-
-    api_services_scheduler_min_scheduled_time: timedelta = Field(
-        default=timedelta(hours=1),
-        description="""
-        The scheduler will create new runs at least this far in the
-        future. Note that this setting will take precedence over `scheduler_min_runs`:
-        if a flow runs every hour and `scheduler_min_scheduled_time` is three hours,
-        then three runs will be scheduled even if `scheduler_min_runs` is 1. Defaults to
-        """,
-    )
-
-    api_services_scheduler_insert_batch_size: int = Field(
-        default=500,
-        description="""
-        The number of runs the scheduler will attempt to insert in a single batch.
-        Defaults to `500`.
-        """,
-    )
-
-    api_services_late_runs_enabled: bool = Field(
-        default=True,
-        description="Whether or not to start the late runs service in the server application.",
-    )
-
-    api_services_late_runs_loop_seconds: float = Field(
-        default=5,
-        description="""
-        The late runs service will look for runs to mark as late this often. Defaults to `5`.
-        """,
-    )
-
-    api_services_late_runs_after_seconds: timedelta = Field(
-        default=timedelta(seconds=15),
-        description="""
-        The late runs service will mark runs as late after they have exceeded their scheduled start time by this many seconds. Defaults to `5` seconds.
-        """,
-    )
-
-    api_services_pause_expirations_loop_seconds: float = Field(
-        default=5,
-        description="""
-        The pause expiration service will look for runs to mark as failed this often. Defaults to `5`.
-        """,
-    )
-
-    api_services_cancellation_cleanup_enabled: bool = Field(
-        default=True,
-        description="Whether or not to start the cancellation cleanup service in the server application.",
-    )
-
-    api_services_cancellation_cleanup_loop_seconds: float = Field(
-        default=20,
-        description="""
-        The cancellation cleanup service will look non-terminal tasks and subflows this often. Defaults to `20`.
-        """,
-    )
-
-    api_services_foreman_enabled: bool = Field(
-        default=True,
-        description="Whether or not to start the Foreman service in the server application.",
-    )
-
-    api_services_foreman_loop_seconds: float = Field(
-        default=15,
-        description="""
-        The number of seconds to wait between each iteration of the Foreman loop which checks
-        for offline workers and updates work pool status. Defaults to `15`.
-        """,
-    )
-
-    api_services_foreman_inactivity_heartbeat_multiple: int = Field(
-        default=3,
-        description="""
-        The number of heartbeats that must be missed before a worker is marked as offline. Defaults to `3`.
-        """,
-    )
-
-    api_services_foreman_fallback_heartbeat_interval_seconds: int = Field(
-        default=30,
-        description="""
-        The number of seconds to use for online/offline evaluation if a worker's heartbeat
-        interval is not set. Defaults to `30`.
-        """,
-    )
-
-    api_services_foreman_deployment_last_polled_timeout_seconds: int = Field(
-        default=60,
-        description="""
-        The number of seconds before a deployment is marked as not ready if it has not been
-        polled. Defaults to `60`.
-        """,
-    )
-
-    api_services_foreman_work_queue_last_polled_timeout_seconds: int = Field(
-        default=60,
-        description="""
-        The number of seconds before a work queue is marked as not ready if it has not been
-        polled. Defaults to `60`.
-        """,
-    )
-
-    api_services_task_run_recorder_enabled: bool = Field(
-        default=True,
-        description="Whether or not to start the task run recorder service in the server application.",
-    )
-
-    api_services_flow_run_notifications_enabled: bool = Field(
-        default=True,
-        description="""
-        Whether or not to start the flow run notifications service in the server application.
-        If disabled, you will need to run this service separately to send flow run notifications.
-        """,
-    )
-
-    api_services_pause_expirations_enabled: bool = Field(
-        default=True,
-        description="""
-        Whether or not to start the paused flow run expiration service in the server
-        application. If disabled, paused flows that have timed out will remain in a Paused state
-        until a resume attempt.
-        """,
-    )
-
     ###########################################################################
     # Logging settings
 
@@ -360,82 +163,6 @@ class Settings(PrefectBaseSettings):
     ui_static_directory: Optional[str] = Field(
         default=None,
         description="The directory to serve static files from. This should be used when running into permissions issues when attempting to serve the UI from the default directory (for example when running in a Docker container).",
-    )
-
-    ###########################################################################
-    # Events settings
-
-    api_services_triggers_enabled: bool = Field(
-        default=True,
-        description="Whether or not to start the triggers service in the server application.",
-    )
-
-    api_services_event_persister_enabled: bool = Field(
-        default=True,
-        description="Whether or not to start the event persister service in the server application.",
-    )
-
-    api_services_event_persister_batch_size: int = Field(
-        default=20,
-        gt=0,
-        description="The number of events the event persister will attempt to insert in one batch.",
-    )
-
-    api_services_event_persister_flush_interval: float = Field(
-        default=5,
-        gt=0.0,
-        description="The maximum number of seconds between flushes of the event persister.",
-    )
-
-    api_events_stream_out_enabled: bool = Field(
-        default=True,
-        description="Whether or not to stream events out to the API via websockets.",
-    )
-
-    api_events_related_resource_cache_ttl: timedelta = Field(
-        default=timedelta(minutes=5),
-        description="The number of seconds to cache related resources for in the API.",
-    )
-
-    events_maximum_labels_per_resource: int = Field(
-        default=500,
-        description="The maximum number of labels a resource may have.",
-    )
-
-    events_maximum_related_resources: int = Field(
-        default=500,
-        description="The maximum number of related resources an Event may have.",
-    )
-
-    events_maximum_size_bytes: int = Field(
-        default=1_500_000,
-        description="The maximum size of an Event when serialized to JSON",
-    )
-
-    events_expired_bucket_buffer: timedelta = Field(
-        default=timedelta(seconds=60),
-        description="The amount of time to retain expired automation buckets",
-    )
-
-    events_proactive_granularity: timedelta = Field(
-        default=timedelta(seconds=5),
-        description="How frequently proactive automations are evaluated",
-    )
-
-    events_retention_period: timedelta = Field(
-        default=timedelta(days=7),
-        description="The amount of time to retain events in the database.",
-    )
-
-    events_maximum_websocket_backfill: timedelta = Field(
-        default=timedelta(minutes=15),
-        description="The maximum range to look back for backfilling events for a websocket subscriber.",
-    )
-
-    events_websocket_backfill_page_size: int = Field(
-        default=250,
-        gt=0,
-        description="The page size for the queries to backfill events for websocket subscribers.",
     )
 
     ###########################################################################
@@ -483,12 +210,6 @@ class Settings(PrefectBaseSettings):
     task_default_retry_delay_seconds: Union[int, float, list[float]] = Field(
         default=0,
         description="This value sets the default retry delay seconds for all tasks.",
-    )
-
-    task_run_tag_concurrency_slot_wait_seconds: int = Field(
-        default=30,
-        ge=0,
-        description="The number of seconds to wait before retrying when a task run cannot secure a concurrency slot from the server.",
     )
 
     sqlalchemy_pool_size: Optional[int] = Field(
@@ -558,34 +279,9 @@ class Settings(PrefectBaseSettings):
         description="Whether or not to delete failed task submissions from the database.",
     )
 
-    task_scheduling_max_scheduled_queue_size: int = Field(
-        default=1000,
-        description="The maximum number of scheduled tasks to queue for submission.",
-    )
-
-    task_scheduling_max_retry_queue_size: int = Field(
-        default=100,
-        description="The maximum number of retries to queue for submission.",
-    )
-
-    task_scheduling_pending_task_timeout: timedelta = Field(
-        default=timedelta(0),
-        description="How long before a PENDING task are made available to another task worker.",
-    )
-
     experimental_enable_schedule_concurrency: bool = Field(
         default=False,
         description="Whether or not to enable concurrency for scheduled tasks.",
-    )
-
-    messaging_broker: str = Field(
-        default="prefect.server.utilities.messaging.memory",
-        description="Which message broker implementation to use for the messaging system, should point to a module that exports a Publisher and Consumer class.",
-    )
-
-    messaging_cache: str = Field(
-        default="prefect.server.utilities.messaging.memory",
-        description="Which cache implementation to use for the events system.  Should point to a module that exports a Cache class.",
     )
 
     task_runner_thread_pool_max_workers: Optional[int] = Field(

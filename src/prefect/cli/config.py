@@ -15,12 +15,13 @@ from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app, is_interactive
 from prefect.exceptions import ProfileSettingsValidationError
+from prefect.settings.legacy import _get_settings_fields, _get_valid_setting_names
 from prefect.utilities.collections import listrepr
 
 help_message = """
     View and set Prefect profiles.
 """
-VALID_SETTING_NAMES = prefect.settings.Settings.valid_setting_names()
+VALID_SETTING_NAMES = _get_valid_setting_names(prefect.settings.Settings)
 config_app = PrefectTyper(name="config", help=help_message)
 app.add_typer(config_app)
 
@@ -104,7 +105,7 @@ def unset(setting_names: List[str], confirm: bool = typer.Option(False, "--yes",
         if setting_name not in VALID_SETTING_NAMES:
             exit_with_error(f"Unknown setting name {setting_name!r}.")
         # Cast to settings objects
-        parsed.add(prefect.settings.SETTING_VARIABLES[setting_name])
+        parsed.add(_get_settings_fields(prefect.settings.Settings)[setting_name])
 
     for setting in parsed:
         if setting not in profile.settings:
@@ -212,7 +213,7 @@ def view(
             if isinstance(value, dict):
                 _collect_defaults(value, current_path + [key])
             else:
-                setting = prefect.settings.SETTING_VARIABLES[
+                setting = _get_settings_fields(prefect.settings.Settings)[
                     ".".join(current_path + [key])
                 ]
                 if setting.name in processed_settings:
@@ -229,16 +230,15 @@ def view(
         _process_setting(setting, value_and_source[0], value_and_source[1])
 
     for setting_name in VALID_SETTING_NAMES:
-        setting = prefect.settings.SETTING_VARIABLES[setting_name]
+        setting = _get_settings_fields(prefect.settings.Settings)[setting_name]
         if setting.name in processed_settings:
             continue
         if (env_value := os.getenv(setting.name)) is None:
             continue
         _process_setting(setting, env_value, "env")
-
     for key, value in dotenv_values().items():
         if key in VALID_SETTING_NAMES:
-            setting = prefect.settings.SETTING_VARIABLES[key]
+            setting = _get_settings_fields(prefect.settings.Settings)[key]
             if setting.name in processed_settings or value is None:
                 continue
             _process_setting(setting, value, ".env file")
