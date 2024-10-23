@@ -310,7 +310,9 @@ class Task(Generic[P, R]):
             Callable[["TaskRunContext", Dict[str, Any]], Optional[str]]
         ] = None,
         cache_expiration: Optional[datetime.timedelta] = None,
-        task_run_name: Optional[Union[Callable[[], str], str]] = None,
+        task_run_name: Optional[
+            Union[Callable[[], str], Callable[[Dict[str, Any]], str], str]
+        ] = None,
         retries: Optional[int] = None,
         retry_delay_seconds: Optional[
             Union[
@@ -531,7 +533,9 @@ class Task(Generic[P, R]):
         cache_key_fn: Optional[
             Callable[["TaskRunContext", Dict[str, Any]], Optional[str]]
         ] = None,
-        task_run_name: Optional[Union[Callable[[], str], str, Type[NotSet]]] = NotSet,
+        task_run_name: Optional[
+            Union[Callable[[], str], Callable[[Dict[str, Any]], str], str, Type[NotSet]]
+        ] = NotSet,
         cache_expiration: Optional[datetime.timedelta] = None,
         retries: Union[int, Type[NotSet]] = NotSet,
         retry_delay_seconds: Union[
@@ -1583,7 +1587,9 @@ def task(
         Callable[["TaskRunContext", Dict[str, Any]], Optional[str]]
     ] = None,
     cache_expiration: Optional[datetime.timedelta] = None,
-    task_run_name: Optional[Union[Callable[[], str], str]] = None,
+    task_run_name: Optional[
+        Union[Callable[[], str], Callable[[Dict[str, Any]], str], str]
+    ] = None,
     retries: int = 0,
     retry_delay_seconds: Union[
         float,
@@ -1620,7 +1626,9 @@ def task(
         Callable[["TaskRunContext", Dict[str, Any]], Optional[str]], None
     ] = None,
     cache_expiration: Optional[datetime.timedelta] = None,
-    task_run_name: Optional[Union[Callable[[], str], str]] = None,
+    task_run_name: Optional[
+        Union[Callable[[], str], Callable[[Dict[str, Any]], str], str]
+    ] = None,
     retries: Optional[int] = None,
     retry_delay_seconds: Union[
         float, int, List[float], Callable[[int], List[float]], None
