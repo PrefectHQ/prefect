@@ -54,7 +54,11 @@ from prefect._internal.schemas.validators import (
 )
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.actions import DeploymentScheduleCreate
-from prefect.client.schemas.objects import ConcurrencyLimitConfig, ConcurrencyOptions
+from prefect.client.schemas.filters import WorkerFilter, WorkerFilterStatus
+from prefect.client.schemas.objects import (
+    ConcurrencyLimitConfig,
+    ConcurrencyOptions,
+)
 from prefect.client.schemas.schedules import (
     SCHEDULE_TYPES,
     construct_schedule,
@@ -867,6 +871,10 @@ async def deploy(
     try:
         async with get_client() as client:
             work_pool = await client.read_work_pool(work_pool_name)
+            active_workers = await client.read_workers_for_work_pool(
+                work_pool_name,
+                worker_filter=WorkerFilter(status=WorkerFilterStatus(any_=["ONLINE"])),
+            )
     except ObjectNotFound as exc:
         raise ValueError(
             f"Could not find work pool {work_pool_name!r}. Please create it before"
@@ -990,15 +998,16 @@ async def deploy(
     console.print(table)
 
     if print_next_steps_message and not complete_failure:
-        if not work_pool.is_push_pool and not work_pool.is_managed_pool:
+        if (
+            not work_pool.is_push_pool
+            and not work_pool.is_managed_pool
+            and not active_workers
+        ):
             console.print(
                 "\nTo execute flow runs from these deployments, start a worker in a"
                 " separate terminal that pulls work from the"
                 f" {work_pool_name!r} work pool:"
-            )
-            console.print(
-                f"\n\t$ prefect worker start --pool {work_pool_name!r}",
-                style="blue",
+                f"\n\t[blue]$ prefect worker start --pool {work_pool_name!r}[/]",
             )
         console.print(
             "\nTo trigger any of these deployments, use the"

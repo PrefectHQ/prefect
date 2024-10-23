@@ -26,7 +26,7 @@ from prefect.cli.deploy import (
 )
 from prefect.client.orchestration import PrefectClient, ServerType
 from prefect.client.schemas.actions import WorkPoolCreate
-from prefect.client.schemas.objects import WorkPool
+from prefect.client.schemas.objects import Worker, WorkerStatus, WorkPool
 from prefect.client.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
@@ -295,6 +295,33 @@ class TestProjectDeploy:
         assert deployment.tags == ["foo-bar"]
         assert deployment.job_variables == {"env": "prod"}
         assert deployment.enforce_parameter_schema
+
+    async def test_deploy_with_active_workers(
+        self, project_dir, work_pool, prefect_client, monkeypatch
+    ):
+        mock_read_workers_for_work_pool = AsyncMock(
+            return_value=[
+                Worker(
+                    name="test-worker",
+                    work_pool_id=work_pool.id,
+                    status=WorkerStatus.ONLINE,
+                )
+            ]
+        )
+        monkeypatch.setattr(
+            "prefect.client.orchestration.PrefectClient.read_workers_for_work_pool",
+            mock_read_workers_for_work_pool,
+        )
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                f"deploy ./wrapped-flow-project/flow.py:test_flow -n test-name -p {work_pool.name}"
+            ),
+            expected_code=0,
+            expected_output_does_not_contain=[
+                f"prefect worker start --pool '{work_pool.name}'",
+            ],
+        )
 
     async def test_deploy_with_wrapped_flow_decorator(
         self, project_dir, work_pool, prefect_client

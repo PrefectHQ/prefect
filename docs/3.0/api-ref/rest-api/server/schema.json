@@ -14065,7 +14065,14 @@
             "Body_read_workers_work_pools__work_pool_name__workers_filter_post": {
                 "properties": {
                     "workers": {
-                        "$ref": "#/components/schemas/WorkerFilter"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkerFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     },
                     "offset": {
                         "type": "integer",
