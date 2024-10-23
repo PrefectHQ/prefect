@@ -809,17 +809,20 @@ async def _run_single_deploy(
             work_pool_name, worker_filter=WorkerFilter(status={"any_": ["ONLINE"]})
         )
 
-    if not work_pool.is_push_pool and not work_pool.is_managed_pool:
-        if not active_workers:
-            app.console.print(
-                "\nTo execute flow runs from these deployments, start a worker in a"
-                " separate terminal that pulls work from the"
-                f" {work_pool_name!r} work pool:"
-            )
-            app.console.print(
-                f"\n\t$ prefect worker start --pool {work_pool_name!r}",
-                style="blue",
-            )
+    if (
+        not work_pool.is_push_pool
+        and not work_pool.is_managed_pool
+        and not active_workers
+    ):
+        app.console.print(
+            "\nTo execute flow runs from these deployments, start a worker in a"
+            " separate terminal that pulls work from the"
+            f" {work_pool_name!r} work pool:"
+        )
+        app.console.print(
+            f"\n\t$ prefect worker start --pool {work_pool_name!r}",
+            style="blue",
+        )
     app.console.print(
         "\nTo schedule a run for this deployment, use the following command:"
     )
