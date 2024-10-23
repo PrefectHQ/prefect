@@ -61,7 +61,7 @@ jobs:
       - name: Install packages
         run: |
           python -m pip install -U uv
-          uv pip install --upgrade --system -e .[dev]
+          uv pip install --upgrade --system .[dev]
 
       - name: Start server
         run: |

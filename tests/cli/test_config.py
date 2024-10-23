@@ -19,6 +19,7 @@ from prefect.settings import (
     save_profiles,
     temporary_settings,
 )
+from prefect.settings.legacy import _get_valid_setting_names
 from prefect.testing.cli import invoke_and_assert
 
 # Source strings displayed by `prefect config view`
@@ -333,7 +334,7 @@ def test_unset_multiple_settings():
 
 def test_view_excludes_unset_settings_without_show_defaults_flag(monkeypatch):
     # Clear the environment
-    for key in prefect.settings.Settings.valid_setting_names():
+    for key in _get_valid_setting_names(prefect.settings.Settings):
         monkeypatch.delenv(key, raising=False)
 
     monkeypatch.setenv("PREFECT_API_DATABASE_CONNECTION_TIMEOUT", "2.5")
@@ -357,7 +358,7 @@ def test_view_excludes_unset_settings_without_show_defaults_flag(monkeypatch):
     assert "PREFECT_PROFILE='foo'" in lines
 
     assert len(expected) < len(
-        prefect.settings.Settings.valid_setting_names()
+        _get_valid_setting_names(prefect.settings.Settings)
     ), "All settings were not expected; we should only have a subset."
 
 
@@ -378,8 +379,8 @@ def test_view_includes_unset_settings_with_show_defaults():
         ), f"Setting displayed multiple times: {setting}"
         printed_settings[setting] = value
 
-    assert (
-        printed_settings.keys() == prefect.settings.Settings.valid_setting_names()
+    assert printed_settings.keys() == _get_valid_setting_names(
+        prefect.settings.Settings
     ), "All settings should be displayed"
 
     for key, value in printed_settings.items():

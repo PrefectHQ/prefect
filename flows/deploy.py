@@ -17,7 +17,7 @@ async def read_flow_run(flow_run_id):
 def main():
     try:
         subprocess.check_call(
-            ["prefect", "work-pool", "create", "test-pool", "-t", "process"],
+            ["prefect", "work-pool", "create", "test-deploy-pool", "-t", "process"],
             stdout=sys.stdout,
             stderr=sys.stderr,
         )
@@ -29,7 +29,7 @@ def main():
 
         flow_instance.deploy(
             name="demo-deployment",
-            work_pool_name="test-pool",
+            work_pool_name="test-deploy-pool",
             parameters={"name": "world"},
         )
 
@@ -51,7 +51,7 @@ def main():
 
     finally:
         subprocess.check_call(
-            ["prefect", "--no-prompt", "work-pool", "delete", "test-pool"],
+            ["prefect", "--no-prompt", "work-pool", "delete", "test-deploy-pool"],
             stdout=sys.stdout,
             stderr=sys.stderr,
         )

@@ -1,6 +1,7 @@
 import inspect
 import os
-from typing import Any, Dict, Optional, get_args
+from functools import cache
+from typing import Any, Dict, Optional, Set, Type, get_args
 
 from pydantic import AliasChoices
 from pydantic_settings import BaseSettings
@@ -80,13 +81,40 @@ def _env_var_to_accessor(env_var: str) -> str:
     """
     Convert an environment variable name to a settings accessor.
     """
-    if SETTING_VARIABLES.get(env_var) is not None:
-        return SETTING_VARIABLES[env_var].accessor
+    if (field := _get_settings_fields(Settings).get(env_var)) is not None:
+        return field.accessor
     return env_var.replace("PREFECT_", "").lower()
 
 
+@cache
+def _get_valid_setting_names(cls: type[BaseSettings]) -> Set[str]:
+    """
+    A set of valid setting names, e.g. "PREFECT_API_URL" or "PREFECT_API_KEY".
+    """
+    settings_fields = set()
+    for field_name, field in cls.model_fields.items():
+        if inspect.isclass(field.annotation) and issubclass(
+            field.annotation, PrefectBaseSettings
+        ):
+            settings_fields.update(_get_valid_setting_names(field.annotation))
+        else:
+            if field.validation_alias and isinstance(
+                field.validation_alias, AliasChoices
+            ):
+                for alias in field.validation_alias.choices:
+                    if not isinstance(alias, str):
+                        continue
+                    settings_fields.add(alias.upper())
+            else:
+                settings_fields.add(
+                    f"{cls.model_config.get('env_prefix')}{field_name.upper()}"
+                )
+    return settings_fields
+
+
+@cache
 def _get_settings_fields(
-    settings: type[BaseSettings], accessor_prefix: Optional[str] = None
+    settings: Type[BaseSettings], accessor_prefix: Optional[str] = None
 ) -> Dict[str, "Setting"]:
     """Get the settings fields for the settings object"""
     settings_fields: Dict[str, Setting] = {}
@@ -129,7 +157,5 @@ def _get_settings_fields(
                 )
                 settings_fields[setting.name] = setting
                 settings_fields[setting.accessor] = setting
+
     return settings_fields
-
-
-SETTING_VARIABLES: dict[str, "Setting"] = _get_settings_fields(Settings)

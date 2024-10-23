@@ -47,11 +47,15 @@ class EnvFilterSettingsSource(EnvSettingsSource):
             env_parse_enums,
         )
         if env_filter:
-            self.env_vars = {
-                key: value
-                for key, value in self.env_vars.items()
-                if key.lower() not in env_filter
-            }
+            if isinstance(self.env_vars, dict):
+                for key in env_filter:
+                    self.env_vars.pop(key, None)
+            else:
+                self.env_vars = {
+                    key: value
+                    for key, value in self.env_vars.items()
+                    if key.lower() not in env_filter
+                }
 
 
 class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
