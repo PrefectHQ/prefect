@@ -42,22 +42,27 @@ class BaseDeploymentTrigger(PrefectBaseModel, abc.ABC, extra="ignore"):  # type:
     # Fields from Automation
 
     name: Optional[str] = Field(
-        None, description="The name to give to the automation created for this trigger."
+        default=None,
+        description="The name to give to the automation created for this trigger.",
     )
-    description: str = Field("", description="A longer description of this automation")
-    enabled: bool = Field(True, description="Whether this automation will be evaluated")
+    description: str = Field(
+        default="", description="A longer description of this automation"
+    )
+    enabled: bool = Field(
+        default=True, description="Whether this automation will be evaluated"
+    )
 
     # Fields from the RunDeployment action
 
     parameters: Optional[Dict[str, Any]] = Field(
-        None,
+        default=None,
         description=(
             "The parameters to pass to the deployment, or None to use the "
             "deployment's default parameters"
         ),
     )
     job_variables: Optional[Dict[str, Any]] = Field(
-        None,
+        default=None,
         description=(
             "Job variables to pass to the deployment, or None to use the "
             "deployment's default job variables"
