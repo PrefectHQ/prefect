@@ -72,7 +72,11 @@ To run your workflow on a schedule, turn it into a deployment and schedule it to
 
 ```python
 if __name__ == "__main__":
-    github_stars.serve(name="first-deployment", cron="* * * * *", parameters={ "repos": ["PrefectHQ/prefect"] })
+    github_stars.serve(
+        name="first-deployment",
+        cron="* * * * *",
+        parameters={"repos": ["PrefectHQ/prefect"]}
+    )
 ```
 
 You now have a server running locally that is looking for scheduled deployments!
