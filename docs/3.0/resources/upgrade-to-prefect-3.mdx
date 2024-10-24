@@ -260,3 +260,41 @@ async def my_flow():
 </CodeGroup>
 
 See the [Futures interface section](#futures-interface) for more information on this particular gotcha.
+
+#### `TypeError: Flow.deploy() got an unexpected keyword argument 'schedule'`
+
+In Prefect 3.0, the `schedule` argument has been removed in favor of the `schedules` argument.
+
+This applies to both the `Flow.serve` and `Flow.deploy` methods.
+
+<CodeGroup>
+```python Prefect 2.0 {11}
+from datetime import timedelta
+from prefect import flow
+from prefect.client.schemas.schedules import IntervalSchedule
+
+@flow
+def my_flow():
+    pass
+
+my_flow.serve(
+    name="my-flow",
+    schedule=IntervalSchedule(interval=timedelta(minutes=1))
+)
+```
+
+```python Prefect 3.0 {11}
+from datetime import timedelta
+from prefect import flow
+from prefect.client.schemas.schedules import IntervalSchedule
+
+@flow
+def my_flow():
+    pass
+
+my_flow.serve(
+    name="my-flow",
+    schedules=[IntervalSchedule(interval=timedelta(minutes=1))]
+)
+```
+</CodeGroup>

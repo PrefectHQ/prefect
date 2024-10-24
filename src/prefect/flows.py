@@ -50,6 +50,7 @@ from typing_extensions import Literal, ParamSpec, Self
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect.blocks.core import Block
 from prefect.client.schemas.actions import DeploymentScheduleCreate
+from prefect.client.schemas.filters import WorkerFilter
 from prefect.client.schemas.objects import ConcurrencyLimitConfig, FlowRun
 from prefect.client.schemas.objects import Flow as FlowSchema
 from prefect.client.utilities import client_injector
@@ -1172,6 +1173,10 @@ class Flow(Generic[P, R]):
         try:
             async with get_client() as client:
                 work_pool = await client.read_work_pool(work_pool_name)
+                active_workers = await client.read_workers_for_work_pool(
+                    work_pool_name,
+                    worker_filter=WorkerFilter(status={"any_": ["ONLINE"]}),
+                )
         except ObjectNotFound as exc:
             raise ValueError(
                 f"Could not find work pool {work_pool_name!r}. Please create it before"
@@ -1211,7 +1216,11 @@ class Flow(Generic[P, R]):
 
         if print_next_steps:
             console = Console()
-            if not work_pool.is_push_pool and not work_pool.is_managed_pool:
+            if (
+                not work_pool.is_push_pool
+                and not work_pool.is_managed_pool
+                and not active_workers
+            ):
                 console.print(
                     "\nTo execute flow runs from this deployment, start a worker in a"
                     " separate terminal that pulls work from the"

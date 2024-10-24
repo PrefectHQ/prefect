@@ -41,6 +41,7 @@ from prefect.cli._utilities import (
 )
 from prefect.cli.root import app, is_interactive
 from prefect.client.schemas.actions import DeploymentScheduleCreate
+from prefect.client.schemas.filters import WorkerFilter
 from prefect.client.schemas.objects import ConcurrencyLimitConfig
 from prefect.client.schemas.schedules import (
     CronSchedule,
@@ -743,10 +744,11 @@ async def _run_single_deploy(
     )
 
     if PREFECT_UI_URL:
-        app.console.print(
+        message = (
             "\nView Deployment in UI:"
             f" {PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}\n"
         )
+        app.console.print(message, soft_wrap=True)
 
     identical_deployment_exists_in_prefect_file = (
         _check_if_identical_deployment_in_prefect_file(
@@ -802,14 +804,24 @@ async def _run_single_deploy(
                         " YAML file."
                     ),
                 )
-    if not work_pool.is_push_pool and not work_pool.is_managed_pool:
+    active_workers = []
+    if work_pool_name:
+        active_workers = await client.read_workers_for_work_pool(
+            work_pool_name, worker_filter=WorkerFilter(status={"any_": ["ONLINE"]})
+        )
+
+    if (
+        not work_pool.is_push_pool
+        and not work_pool.is_managed_pool
+        and not active_workers
+    ):
         app.console.print(
-            "\nTo execute flow runs from this deployment, start a worker in a"
+            "\nTo execute flow runs from these deployments, start a worker in a"
             " separate terminal that pulls work from the"
-            f" {deploy_config['work_pool']['name']!r} work pool:"
+            f" {work_pool_name!r} work pool:"
         )
         app.console.print(
-            f"\n\t$ prefect worker start --pool {deploy_config['work_pool']['name']!r}",
+            f"\n\t$ prefect worker start --pool {work_pool_name!r}",
             style="blue",
         )
     app.console.print(
