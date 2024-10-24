@@ -7,7 +7,6 @@ from typing import (
     Iterable,
     Mapping,
     Optional,
-    Union,
 )
 from urllib.parse import urlparse
 
@@ -16,7 +15,9 @@ from pydantic_settings import SettingsConfigDict
 from typing_extensions import Self
 
 from prefect.settings.base import PrefectBaseSettings
-from prefect.types import LogLevel
+from prefect.settings.models.tasks import TasksSettings
+from prefect.settings.models.testing import TestingSettings
+from prefect.settings.models.worker import WorkerSettings
 from prefect.utilities.collections import deep_merge_dicts, set_in_dict
 
 from .api import APISettings
@@ -25,6 +26,7 @@ from .client import ClientSettings
 from .cloud import CloudSettings
 from .deployments import DeploymentsSettings
 from .flows import FlowsSettings
+from .internal import InternalSettings
 from .logging import LoggingSettings
 from .results import ResultsSettings
 from .runner import RunnerSettings
@@ -46,6 +48,21 @@ class Settings(PrefectBaseSettings):
         env_prefix="PREFECT_",
         env_nested_delimiter=None,
         extra="ignore",
+    )
+
+    home: Annotated[Path, BeforeValidator(lambda x: Path(x).expanduser())] = Field(
+        default=Path("~") / ".prefect",
+        description="The path to the Prefect home directory. Defaults to ~/.prefect",
+    )
+
+    profiles_path: Optional[Path] = Field(
+        default=None,
+        description="The path to a profiles configuration file.",
+    )
+
+    debug_mode: bool = Field(
+        default=False,
+        description="If True, enables debug mode which may provide additional logging and debugging features.",
     )
 
     api: APISettings = Field(
@@ -78,6 +95,11 @@ class Settings(PrefectBaseSettings):
         description="Settings for controlling flow behavior",
     )
 
+    internal: InternalSettings = Field(
+        default_factory=InternalSettings,
+        description="Settings for internal Prefect machinery",
+    )
+
     logging: LoggingSettings = Field(
         default_factory=LoggingSettings,
         description="Settings for controlling logging behavior",
@@ -98,83 +120,24 @@ class Settings(PrefectBaseSettings):
         description="Settings for controlling server behavior",
     )
 
-    ###########################################################################
-    # Testing
-
-    test_mode: bool = Field(
-        default=False,
-        description="If `True`, places the API in test mode. This may modify behavior to facilitate testing.",
+    tasks: TasksSettings = Field(
+        default_factory=TasksSettings,
+        description="Settings for controlling task behavior",
     )
 
-    unit_test_mode: bool = Field(
-        default=False,
-        description="This setting only exists to facilitate unit testing. If `True`, code is executing in a unit test context. Defaults to `False`.",
+    testing: TestingSettings = Field(
+        default_factory=TestingSettings,
+        description="Settings used during testing",
     )
 
-    unit_test_loop_debug: bool = Field(
-        default=True,
-        description="If `True` turns on debug mode for the unit testing event loop.",
-    )
-
-    test_setting: Optional[Any] = Field(
-        default="FOO",
-        description="This setting only exists to facilitate unit testing. If in test mode, this setting will return its value. Otherwise, it returns `None`.",
-    )
-
-    ###########################################################################
-    # Backend API settings
-
-    api_default_limit: int = Field(
-        default=200,
-        description="The default limit applied to queries that can return multiple objects, such as `POST /flow_runs/filter`.",
-    )
-
-    ###########################################################################
-    # Logging settings
-
-    logging_internal_level: LogLevel = Field(
-        default="ERROR",
-        description="The default logging level for Prefect's internal machinery loggers.",
-    )
-
-    ###########################################################################
-    # UI settings
-
-    ui_enabled: bool = Field(
-        default=True,
-        description="Whether or not to serve the Prefect UI.",
+    worker: WorkerSettings = Field(
+        default_factory=WorkerSettings,
+        description="Settings for controlling worker behavior",
     )
 
     ui_url: Optional[str] = Field(
         default=None,
         description="The URL of the Prefect UI. If not set, the client will attempt to infer it.",
-    )
-
-    ui_api_url: Optional[str] = Field(
-        default=None,
-        description="The connection url for communication from the UI to the API. Defaults to `PREFECT_API_URL` if set. Otherwise, the default URL is generated from `PREFECT_SERVER_API_HOST` and `PREFECT_SERVER_API_PORT`.",
-    )
-
-    ui_serve_base: str = Field(
-        default="/",
-        description="The base URL path to serve the Prefect UI from.",
-    )
-
-    ui_static_directory: Optional[str] = Field(
-        default=None,
-        description="The directory to serve static files from. This should be used when running into permissions issues when attempting to serve the UI from the default directory (for example when running in a Docker container).",
-    )
-
-    ###########################################################################
-    # uncategorized
-
-    home: Annotated[Path, BeforeValidator(lambda x: Path(x).expanduser())] = Field(
-        default=Path("~") / ".prefect",
-        description="The path to the Prefect home directory. Defaults to ~/.prefect",
-    )
-    debug_mode: bool = Field(
-        default=False,
-        description="If True, enables debug mode which may provide additional logging and debugging features.",
     )
 
     silence_api_url_misconfiguration: bool = Field(
@@ -191,37 +154,7 @@ class Settings(PrefectBaseSettings):
         description="If `True`, warn on usage of experimental features.",
     )
 
-    profiles_path: Optional[Path] = Field(
-        default=None,
-        description="The path to a profiles configuration file.",
-    )
-
-    tasks_refresh_cache: bool = Field(
-        default=False,
-        description="If `True`, enables a refresh of cached results: re-executing the task will refresh the cached results.",
-    )
-
-    task_default_retries: int = Field(
-        default=0,
-        ge=0,
-        description="This value sets the default number of retries for all tasks.",
-    )
-
-    task_default_retry_delay_seconds: Union[int, float, list[float]] = Field(
-        default=0,
-        description="This value sets the default retry delay seconds for all tasks.",
-    )
-
-    sqlalchemy_pool_size: Optional[int] = Field(
-        default=None,
-        description="Controls connection pool size when using a PostgreSQL database with the Prefect API. If not set, the default SQLAlchemy pool size will be used.",
-    )
-
-    sqlalchemy_max_overflow: Optional[int] = Field(
-        default=None,
-        description="Controls maximum overflow of the connection pool when using a PostgreSQL database with the Prefect API. If not set, the default SQLAlchemy maximum overflow value will be used.",
-    )
-
+    # this setting needs to be removed
     async_fetch_state_result: bool = Field(
         default=False,
         description="""
@@ -235,59 +168,9 @@ class Settings(PrefectBaseSettings):
         """,
     )
 
-    deployment_concurrency_slot_wait_seconds: float = Field(
-        default=30.0,
-        ge=0.0,
-        description=(
-            "The number of seconds to wait before retrying when a deployment flow run"
-            " cannot secure a concurrency slot from the server."
-        ),
-    )
-
-    worker_heartbeat_seconds: float = Field(
-        default=30,
-        description="Number of seconds a worker should wait between sending a heartbeat.",
-    )
-
-    worker_query_seconds: float = Field(
-        default=10,
-        description="Number of seconds a worker should wait between queries for scheduled work.",
-    )
-
-    worker_prefetch_seconds: float = Field(
-        default=10,
-        description="The number of seconds into the future a worker should query for scheduled work.",
-    )
-
-    worker_webserver_host: str = Field(
-        default="0.0.0.0",
-        description="The host address the worker's webserver should bind to.",
-    )
-
-    worker_webserver_port: int = Field(
-        default=8080,
-        description="The port the worker's webserver should bind to.",
-    )
-
-    task_scheduling_default_storage_block: Optional[str] = Field(
-        default=None,
-        description="The `block-type/block-document` slug of a block to use as the default storage for autonomous tasks.",
-    )
-
-    task_scheduling_delete_failed_submissions: bool = Field(
-        default=True,
-        description="Whether or not to delete failed task submissions from the database.",
-    )
-
     experimental_enable_schedule_concurrency: bool = Field(
         default=False,
         description="Whether or not to enable concurrency for scheduled tasks.",
-    )
-
-    task_runner_thread_pool_max_workers: Optional[int] = Field(
-        default=None,
-        gt=0,
-        description="The maximum number of workers for ThreadPoolTaskRunner.",
     )
 
     ###########################################################################
@@ -297,13 +180,17 @@ class Settings(PrefectBaseSettings):
         from prefect.settings.legacy import _env_var_to_accessor
 
         if name.startswith("PREFECT_"):
-            field_name = _env_var_to_accessor(name)
+            accessor = _env_var_to_accessor(name)
             warnings.warn(
-                f"Accessing `Settings().{name}` is deprecated. Use `Settings().{field_name}` instead.",
+                f"Accessing `Settings().{name}` is deprecated. Use `Settings().{accessor}` instead.",
                 DeprecationWarning,
                 stacklevel=2,
             )
-            return super().__getattribute__(field_name)
+            path = accessor.split(".")
+            value = super().__getattribute__(path[0])
+            for key in path[1:]:
+                value = getattr(value, key)
+            return value
         return super().__getattribute__(name)
 
     ###########################################################################
@@ -319,15 +206,15 @@ class Settings(PrefectBaseSettings):
         if self.ui_url is None:
             self.ui_url = _default_ui_url(self)
             self.__pydantic_fields_set__.remove("ui_url")
-        if self.ui_api_url is None:
+        if self.server.ui.api_url is None:
             if self.api.url:
-                self.ui_api_url = self.api.url
-                self.__pydantic_fields_set__.remove("ui_api_url")
+                self.server.ui.api_url = self.api.url
+                self.server.ui.__pydantic_fields_set__.remove("api_url")
             else:
-                self.ui_api_url = (
+                self.server.ui.api_url = (
                     f"http://{self.server.api.host}:{self.server.api.port}/api"
                 )
-                self.__pydantic_fields_set__.remove("ui_api_url")
+                self.server.ui.__pydantic_fields_set__.remove("api_url")
         if self.profiles_path is None or "PREFECT_HOME" in str(self.profiles_path):
             self.profiles_path = Path(f"{self.home}/profiles.toml")
             self.__pydantic_fields_set__.remove("profiles_path")
@@ -337,11 +224,11 @@ class Settings(PrefectBaseSettings):
         if self.server.memo_store_path is None:
             self.server.memo_store_path = Path(f"{self.home}/memo_store.toml")
             self.server.__pydantic_fields_set__.remove("memo_store_path")
-        if self.debug_mode or self.test_mode:
+        if self.debug_mode or self.testing.test_mode:
             self.logging.level = "DEBUG"
-            self.logging_internal_level = "DEBUG"
+            self.internal.logging_level = "DEBUG"
             self.logging.__pydantic_fields_set__.remove("level")
-            self.__pydantic_fields_set__.remove("logging_internal_level")
+            self.internal.__pydantic_fields_set__.remove("logging_level")
 
         if self.logging.config_path is None:
             self.logging.config_path = Path(f"{self.home}/logging.yml")
@@ -382,9 +269,8 @@ class Settings(PrefectBaseSettings):
     @model_validator(mode="after")
     def emit_warnings(self) -> Self:
         """More post-hoc validation of settings, including warnings for misconfigurations."""
-        values = self.model_dump()
         if not self.silence_api_url_misconfiguration:
-            values = _warn_on_misconfigured_api_url(values)
+            _warn_on_misconfigured_api_url(self)
         return self
 
     ##########################################################################
@@ -472,11 +358,11 @@ def _default_ui_url(settings: "Settings") -> Optional[str]:
     return ui_url
 
 
-def _warn_on_misconfigured_api_url(values):
+def _warn_on_misconfigured_api_url(settings: "Settings"):
     """
     Validator for settings warning if the API URL is misconfigured.
     """
-    api_url = values.get("api", {}).get("url")
+    api_url = settings.api.url
     if api_url is not None:
         misconfigured_mappings = {
             "app.prefect.cloud": (
@@ -508,7 +394,7 @@ def _warn_on_misconfigured_api_url(values):
 
             warnings.warn("\n".join(warnings_list), stacklevel=2)
 
-    return values
+    return settings
 
 
 def _default_database_connection_url(settings: "Settings") -> SecretStr:

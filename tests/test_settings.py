@@ -77,7 +77,7 @@ SUPPORTED_SETTINGS = {
     "PREFECT_API_DATABASE_PORT": {"test_value": 5432, "legacy": True},
     "PREFECT_API_DATABASE_TIMEOUT": {"test_value": 10.0, "legacy": True},
     "PREFECT_API_DATABASE_USER": {"test_value": "user", "legacy": True},
-    "PREFECT_API_DEFAULT_LIMIT": {"test_value": 100},
+    "PREFECT_API_DEFAULT_LIMIT": {"test_value": 100, "legacy": True},
     "PREFECT_API_ENABLE_HTTP2": {"test_value": True},
     "PREFECT_API_ENABLE_METRICS": {"test_value": True, "legacy": True},
     "PREFECT_API_EVENTS_RELATED_RESOURCE_CACHE_TTL": {
@@ -197,7 +197,10 @@ SUPPORTED_SETTINGS = {
     "PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE": {"test_value": "prefect", "legacy": True},
     "PREFECT_DEFAULT_RESULT_STORAGE_BLOCK": {"test_value": "block", "legacy": True},
     "PREFECT_DEFAULT_WORK_POOL_NAME": {"test_value": "default", "legacy": True},
-    "PREFECT_DEPLOYMENT_CONCURRENCY_SLOT_WAIT_SECONDS": {"test_value": 10.0},
+    "PREFECT_DEPLOYMENT_CONCURRENCY_SLOT_WAIT_SECONDS": {
+        "test_value": 10.0,
+        "legacy": True,
+    },
     "PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS": {
         "test_value": 10,
         "legacy": True,
@@ -231,6 +234,7 @@ SUPPORTED_SETTINGS = {
     "PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS": {"test_value": 10, "legacy": True},
     "PREFECT_FLOWS_DEFAULT_RETRY_DELAY_SECONDS": {"test_value": 10},
     "PREFECT_HOME": {"test_value": Path.home() / ".prefect" / "test"},
+    "PREFECT_INTERNAL_LOGGING_LEVEL": {"test_value": "INFO"},
     "PREFECT_LOCAL_STORAGE_PATH": {
         "test_value": Path("/path/to/storage"),
         "legacy": True,
@@ -238,7 +242,7 @@ SUPPORTED_SETTINGS = {
     "PREFECT_LOGGING_COLORS": {"test_value": True},
     "PREFECT_LOGGING_CONFIG_PATH": {"test_value": Path("/path/to/settings.yaml")},
     "PREFECT_LOGGING_EXTRA_LOGGERS": {"test_value": "foo"},
-    "PREFECT_LOGGING_INTERNAL_LEVEL": {"test_value": "INFO"},
+    "PREFECT_LOGGING_INTERNAL_LEVEL": {"test_value": "INFO", "legacy": True},
     "PREFECT_LOGGING_LEVEL": {"test_value": "INFO"},
     "PREFECT_LOGGING_LOG_PRINTS": {"test_value": True},
     "PREFECT_LOGGING_MARKUP": {"test_value": True},
@@ -275,6 +279,7 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SERVER_API_CORS_ALLOWED_ORIGINS": {"test_value": "foo"},
     "PREFECT_SERVER_API_CSRF_TOKEN_EXPIRATION": {"test_value": timedelta(seconds=10)},
     "PREFECT_SERVER_API_CSRF_PROTECTION_ENABLED": {"test_value": True},
+    "PREFECT_SERVER_API_DEFAULT_LIMIT": {"test_value": 10},
     "PREFECT_SERVER_API_HOST": {"test_value": "host"},
     "PREFECT_SERVER_API_KEEPALIVE_TIMEOUT": {"test_value": 10},
     "PREFECT_SERVER_API_PORT": {"test_value": 4200},
@@ -295,8 +300,11 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SERVER_DATABASE_NAME": {"test_value": "prefect"},
     "PREFECT_SERVER_DATABASE_PASSWORD": {"test_value": "password"},
     "PREFECT_SERVER_DATABASE_PORT": {"test_value": 5432},
+    "PREFECT_SERVER_DATABASE_SQLALCHEMY_MAX_OVERFLOW": {"test_value": 10},
+    "PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_SIZE": {"test_value": 10},
     "PREFECT_SERVER_DATABASE_TIMEOUT": {"test_value": 10.0},
     "PREFECT_SERVER_DATABASE_USER": {"test_value": "user"},
+    "PREFECT_SERVER_DEPLOYMENTS_CONCURRENCY_SLOT_WAIT_SECONDS": {"test_value": 10.0},
     "PREFECT_SERVER_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS": {"test_value": 10},
     "PREFECT_SERVER_EPHEMERAL_ENABLED": {"test_value": True},
     "PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS": {"test_value": 10},
@@ -374,18 +382,33 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SERVER_TASKS_TAG_CONCURRENCY_SLOT_WAIT_SECONDS": {
         "test_value": 10.0,
     },
+    "PREFECT_SERVER_UI_API_URL": {"test_value": "https://api.prefect.io"},
+    "PREFECT_SERVER_UI_ENABLED": {"test_value": True},
+    "PREFECT_SERVER_UI_SERVE_BASE": {"test_value": "/base"},
+    "PREFECT_SERVER_UI_STATIC_DIRECTORY": {"test_value": "/path/to/static"},
     "PREFECT_SILENCE_API_URL_MISCONFIGURATION": {"test_value": True},
-    "PREFECT_SQLALCHEMY_MAX_OVERFLOW": {"test_value": 10},
-    "PREFECT_SQLALCHEMY_POOL_SIZE": {"test_value": 10},
+    "PREFECT_SQLALCHEMY_MAX_OVERFLOW": {"test_value": 10, "legacy": True},
+    "PREFECT_SQLALCHEMY_POOL_SIZE": {"test_value": 10, "legacy": True},
+    "PREFECT_TASKS_DEFAULT_RETRIES": {"test_value": 10},
+    "PREFECT_TASKS_DEFAULT_RETRY_DELAY_SECONDS": {"test_value": 10},
     "PREFECT_TASKS_REFRESH_CACHE": {"test_value": True},
-    "PREFECT_TASK_DEFAULT_RETRIES": {"test_value": 10},
-    "PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS": {"test_value": 10},
+    "PREFECT_TASKS_RUNNER_THREAD_POOL_MAX_WORKERS": {"test_value": 5},
+    "PREFECT_TASKS_SCHEDULING_DEFAULT_STORAGE_BLOCK": {"test_value": "block"},
+    "PREFECT_TASKS_SCHEDULING_DELETE_FAILED_SUBMISSIONS": {"test_value": True},
+    "PREFECT_TASK_DEFAULT_RETRIES": {"test_value": 10, "legacy": True},
+    "PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS": {"test_value": 10, "legacy": True},
     "PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS": {
         "test_value": 10,
         "legacy": True,
     },
-    "PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK": {"test_value": "block"},
-    "PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS": {"test_value": True},
+    "PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK": {
+        "test_value": "block",
+        "legacy": True,
+    },
+    "PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS": {
+        "test_value": True,
+        "legacy": True,
+    },
     "PREFECT_TASK_SCHEDULING_MAX_RETRY_QUEUE_SIZE": {"test_value": 10, "legacy": True},
     "PREFECT_TASK_SCHEDULING_MAX_SCHEDULED_QUEUE_SIZE": {
         "test_value": 10,
@@ -395,21 +418,25 @@ SUPPORTED_SETTINGS = {
         "test_value": timedelta(seconds=10),
         "legacy": True,
     },
-    "PREFECT_TEST_MODE": {"test_value": True},
-    "PREFECT_TEST_SETTING": {"test_value": "bar"},
-    "PREFECT_UI_API_URL": {"test_value": "https://api.prefect.io"},
-    "PREFECT_UI_ENABLED": {"test_value": True},
-    "PREFECT_UI_SERVE_BASE": {"test_value": "/base"},
-    "PREFECT_UI_STATIC_DIRECTORY": {"test_value": "/path/to/static"},
+    "PREFECT_TESTING_TEST_MODE": {"test_value": True},
+    "PREFECT_TESTING_TEST_SETTING": {"test_value": "bar"},
+    "PREFECT_TESTING_UNIT_TEST_LOOP_DEBUG": {"test_value": True},
+    "PREFECT_TESTING_UNIT_TEST_MODE": {"test_value": True},
+    "PREFECT_TEST_MODE": {"test_value": True, "legacy": True},
+    "PREFECT_TEST_SETTING": {"test_value": "bar", "legacy": True},
+    "PREFECT_UI_API_URL": {"test_value": "https://api.prefect.io", "legacy": True},
+    "PREFECT_UI_ENABLED": {"test_value": True, "legacy": True},
+    "PREFECT_UI_SERVE_BASE": {"test_value": "/base", "legacy": True},
+    "PREFECT_UI_STATIC_DIRECTORY": {"test_value": "/path/to/static", "legacy": True},
     "PREFECT_UI_URL": {"test_value": "https://ui.prefect.io"},
-    "PREFECT_UNIT_TEST_LOOP_DEBUG": {"test_value": True},
-    "PREFECT_UNIT_TEST_MODE": {"test_value": True},
+    "PREFECT_UNIT_TEST_LOOP_DEBUG": {"test_value": True, "legacy": True},
+    "PREFECT_UNIT_TEST_MODE": {"test_value": True, "legacy": True},
     "PREFECT_WORKER_HEARTBEAT_SECONDS": {"test_value": 10.0},
     "PREFECT_WORKER_PREFETCH_SECONDS": {"test_value": 10.0},
     "PREFECT_WORKER_QUERY_SECONDS": {"test_value": 10.0},
     "PREFECT_WORKER_WEBSERVER_HOST": {"test_value": "host"},
     "PREFECT_WORKER_WEBSERVER_PORT": {"test_value": 8080},
-    "PREFECT_TASK_RUNNER_THREAD_POOL_MAX_WORKERS": {"test_value": 5},
+    "PREFECT_TASK_RUNNER_THREAD_POOL_MAX_WORKERS": {"test_value": 5, "legacy": True},
 }
 
 
@@ -464,12 +491,17 @@ class TestSettingsClass:
 
         new_settings = settings.copy_with_update(updates={PREFECT_TEST_SETTING: "TEST"})
         new_set_keys = set(new_settings.model_dump(exclude_unset=True).keys())
-        # Only the API key setting should be set
-        assert new_set_keys - set_keys == {"test_setting"}
+        assert new_set_keys == set_keys
+
+        set_testing_keys = set(settings.testing.model_dump(exclude_unset=True).keys())
+        new_set_testing_keys = set(
+            new_settings.testing.model_dump(exclude_unset=True).keys()
+        )
+        assert new_set_testing_keys - set_testing_keys == {"test_setting"}
 
     def test_settings_copy_with_update(self):
         settings = get_current_settings()
-        assert settings.unit_test_mode is True
+        assert settings.testing.unit_test_mode is True
 
         with temporary_settings(restore_defaults={PREFECT_API_KEY}):
             new_settings = settings.copy_with_update(
@@ -477,7 +509,7 @@ class TestSettingsClass:
                 set_defaults={PREFECT_UNIT_TEST_MODE: False, PREFECT_API_KEY: "TEST"},
             )
             assert (
-                new_settings.unit_test_mode is True
+                new_settings.testing.unit_test_mode is True
             ), "Not changed, existing value was not default"
             assert (
                 new_settings.api.key is not None
@@ -488,7 +520,7 @@ class TestSettingsClass:
     def test_settings_loads_environment_variables_at_instantiation(self, monkeypatch):
         assert PREFECT_TEST_MODE.value() is True
 
-        monkeypatch.setenv("PREFECT_TEST_MODE", "0")
+        monkeypatch.setenv("PREFECT_TESTING_TEST_MODE", "0")
         new_settings = Settings()
         assert PREFECT_TEST_MODE.value_from(new_settings) is False
 
@@ -516,8 +548,8 @@ class TestSettingsClass:
             },
             # From test settings
             "PREFECT_SERVER_LOGGING_LEVEL": "DEBUG",
-            "PREFECT_TEST_MODE": "True",
-            "PREFECT_UNIT_TEST_MODE": "True",
+            "PREFECT_TESTING_TEST_MODE": "True",
+            "PREFECT_TESTING_UNIT_TEST_MODE": "True",
             # From init
             "PREFECT_SERVER_API_PORT": "3000",
         }
@@ -540,8 +572,8 @@ class TestSettingsClass:
         assert settings.model_dump() == new_settings.model_dump()
 
     def test_settings_hash_key(self):
-        settings = Settings(test_mode=True)
-        diff_settings = Settings(test_mode=False)
+        settings = Settings(testing=dict(test_mode=True))
+        diff_settings = Settings(testing=dict(test_mode=False))
 
         assert settings.hash_key() == settings.hash_key()
 
@@ -606,20 +638,20 @@ class TestSettingsClass:
 
     def test_loads_when_profile_path_does_not_exist(self, monkeypatch):
         monkeypatch.setenv("PREFECT_PROFILES_PATH", str(Path.home() / "nonexistent"))
-        monkeypatch.delenv("PREFECT_TEST_MODE", raising=False)
-        monkeypatch.delenv("PREFECT_UNIT_TEST_MODE", raising=False)
-        assert Settings().test_setting == "FOO"
+        monkeypatch.delenv("PREFECT_TESTING_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_TESTING_UNIT_TEST_MODE", raising=False)
+        assert Settings().testing.test_setting == "FOO"
 
     def test_loads_when_profile_path_is_not_a_toml_file(self, monkeypatch, tmp_path):
         monkeypatch.setenv("PREFECT_PROFILES_PATH", str(tmp_path / "profiles.toml"))
-        monkeypatch.delenv("PREFECT_TEST_MODE", raising=False)
-        monkeypatch.delenv("PREFECT_UNIT_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_TESTING_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_TESTING_UNIT_TEST_MODE", raising=False)
 
         with open(tmp_path / "profiles.toml", "w") as f:
             f.write("Ceci n'est pas un fichier toml")
 
         with pytest.warns(UserWarning, match="Failed to load profiles from"):
-            assert Settings().test_setting == "FOO"
+            assert Settings().testing.test_setting == "FOO"
 
     def test_valid_setting_names_matches_supported_settings(self):
         assert (
@@ -801,11 +833,11 @@ class TestSettingAccess:
             assert len(w) == 1
             assert issubclass(w[-1].category, DeprecationWarning)
             assert (
-                "Accessing `Settings().PREFECT_TEST_MODE` is deprecated. Use `Settings().test_mode` instead."
+                "Accessing `Settings().PREFECT_TEST_MODE` is deprecated. Use `Settings().testing.test_mode` instead."
                 in str(w[-1].message)
             )
 
-        assert value == settings.test_mode
+        assert value == settings.testing.test_mode
 
     def test_settings_with_serialization_alias(self, monkeypatch):
         assert not Settings().client.metrics.enabled
@@ -1024,7 +1056,9 @@ class TestTemporarySettings:
             with temporary_settings(updates={PREFECT_TEST_MODE: False}):
                 raise ValueError()
 
-        assert os.environ["PREFECT_TEST_MODE"] == "1", "Does not alter os environ."
+        assert (
+            os.environ["PREFECT_TESTING_TEST_MODE"] == "1"
+        ), "Does not alter os environ."
         assert PREFECT_TEST_MODE.value() is True
 
 
@@ -1041,8 +1075,8 @@ class TestSettingsSources:
     def test_resolution_order(self, temporary_env_file, monkeypatch, tmp_path):
         profiles_path = tmp_path / "profiles.toml"
 
-        monkeypatch.delenv("PREFECT_TEST_MODE", raising=False)
-        monkeypatch.delenv("PREFECT_UNIT_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_TESTING_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_TESTING_UNIT_TEST_MODE", raising=False)
         monkeypatch.setenv("PREFECT_PROFILES_PATH", str(profiles_path))
 
         profiles_path.write_text(
@@ -1067,7 +1101,7 @@ class TestSettingsSources:
         assert Settings().client.retry_extra_codes == {420, 500}
 
         monkeypatch.setenv("PREFECT_TEST_MODE", "1")
-        monkeypatch.setenv("PREFECT_UNIT_TEST_MODE", "1")
+        monkeypatch.setenv("PREFECT_TESTING_UNIT_TEST_MODE", "1")
         monkeypatch.delenv("PREFECT_PROFILES_PATH", raising=True)
 
         assert Settings().client.retry_extra_codes == set()
@@ -1076,8 +1110,8 @@ class TestSettingsSources:
         Settings().client.metrics.enabled = False
         profiles_path = tmp_path / "profiles.toml"
 
-        monkeypatch.delenv("PREFECT_TEST_MODE", raising=False)
-        monkeypatch.delenv("PREFECT_UNIT_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_TESTING_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_TESTING_UNIT_TEST_MODE", raising=False)
         monkeypatch.setenv("PREFECT_PROFILES_PATH", str(profiles_path))
 
         profiles_path.write_text(
@@ -1098,8 +1132,8 @@ class TestSettingsSources:
     ):
         profiles_path = tmp_path / "profiles.toml"
 
-        monkeypatch.delenv("PREFECT_TEST_MODE", raising=False)
-        monkeypatch.delenv("PREFECT_UNIT_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_TESTING_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_TESTING_UNIT_TEST_MODE", raising=False)
         monkeypatch.setenv("PREFECT_PROFILES_PATH", str(profiles_path))
 
         profiles_path.write_text(
@@ -1615,7 +1649,10 @@ class TestSettingValues:
     def test_set_via_env_var(self, setting_and_value, monkeypatch):
         setting, value = setting_and_value
 
-        if setting == "PREFECT_TEST_SETTING":
+        if (
+            setting == "PREFECT_TEST_SETTING"
+            or setting == "PREFECT_TESTING_TEST_SETTING"
+        ):
             monkeypatch.setenv("PREFECT_TEST_MODE", "True")
 
         # mock set the env var
@@ -1629,10 +1666,13 @@ class TestSettingValues:
         setting, value = setting_and_value
         if setting == "PREFECT_PROFILES_PATH":
             pytest.skip("Profiles path cannot be set via a profile")
-        if setting == "PREFECT_TEST_SETTING":
+        if (
+            setting == "PREFECT_TEST_SETTING"
+            or setting == "PREFECT_TESTING_TEST_SETTING"
+        ):
             # PREFECT_TEST_MODE is used to set PREFECT_TEST_SETTING which messes
             # with profile loading
-            pytest.skip("Can only set PREFECT_TEST_SETTING when in test mode")
+            pytest.skip("Can only set PREFECT_TESTING_TEST_SETTING when in test mode")
 
         with open(temporary_profiles_path, "w") as f:
             toml.dump(
@@ -1651,7 +1691,10 @@ class TestSettingValues:
         setting, value = setting_and_value
         if setting == "PREFECT_PROFILES_PATH":
             monkeypatch.delenv("PREFECT_PROFILES_PATH", raising=False)
-        if setting == "PREFECT_TEST_SETTING":
+        if (
+            setting == "PREFECT_TEST_SETTING"
+            or setting == "PREFECT_TESTING_TEST_SETTING"
+        ):
             monkeypatch.setenv("PREFECT_TEST_MODE", "True")
 
         temporary_env_file(f"{setting}={value}")

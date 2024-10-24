@@ -74,8 +74,8 @@ from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
     PREFECT_FLOW_DEFAULT_RETRIES,
     PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS,
+    PREFECT_TESTING_UNIT_TEST_MODE,
     PREFECT_UI_URL,
-    PREFECT_UNIT_TEST_MODE,
 )
 from prefect.states import State
 from prefect.task_runners import TaskRunner, ThreadPoolTaskRunner
@@ -1380,7 +1380,7 @@ class Flow(Generic[P, R]):
             visualize_task_dependencies,
         )
 
-        if not PREFECT_UNIT_TEST_MODE:
+        if not PREFECT_TESTING_UNIT_TEST_MODE:
             warnings.warn(
                 "`flow.visualize()` will execute code inside of your flow that is not"
                 " decorated with `@task` or `@flow`."
