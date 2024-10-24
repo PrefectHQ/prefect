@@ -53,6 +53,7 @@ scheduled_flow_runs AS (
                 ROW_NUMBER() OVER (PARTITION BY work_queue_id ORDER BY next_scheduled_start_time) AS work_queue_rank
             FROM flow_run fr
             WHERE fr.state_type = 'SCHEDULED'
+            AND (json_extract(fr.empirical_policy, '$.retry_type') IS NULL OR json_extract(fr.empirical_policy, '$.retry_type') != 'in_process')
             {% if scheduled_after %}
             AND fr.next_scheduled_start_time >= :scheduled_after
             {% endif %}
