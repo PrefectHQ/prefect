@@ -44,15 +44,25 @@ def test_highlight_name(name, lower):
     ]
 
 
-@pytest.mark.parametrize("state", ["completed", "cancelled", "failed", "crashed"])
+@pytest.mark.parametrize(
+    "state", ["completed", "cancelled", "failed", "crashed", "cached"]
+)
 def test_highlight_state(state):
-    keyword = state.title()
-    text = Text(f"Flow run 'polite-jackal' - Finished in state {keyword}()")
+    if state == "cached":
+        text = Text(
+            "Flow run 'polite-jackal' - Finished in state Cached(type=COMPLETED)"
+        )
+        expected_span = Span(
+            45, 51, "state.cached_state"
+        )  # Only "Cached" is highlighted
+    else:
+        keyword = state.title()
+        text = Text(f"Flow run 'polite-jackal' - Finished in state {keyword}()")
+        expected_span = Span(45, 45 + len(keyword), f"state.{state}_state")
+
     highlighter = StateHighlighter()
     highlighter.highlight(text)
-    assert text.spans == [
-        Span(45, 45 + len(keyword), f"state.{state}_state"),
-    ]
+    assert text.spans == [expected_span]
 
 
 def test_highlight_console():

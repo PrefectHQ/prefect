@@ -47,6 +47,8 @@ class StateHighlighter(RegexHighlighter):
     highlights = [
         rf"(?P<{state.value.lower()}_state>{state.value.title()})"
         for state in StateType
+    ] + [
+        r"(?P<cached_state>Cached)(?=\(type=COMPLETED\))"  # Highlight only "Cached"
     ]
 
 
