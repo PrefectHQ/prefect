@@ -14,15 +14,11 @@ FlexibleScheduleList = Sequence[
 def create_deployment_schedule_create(
     schedule: "SCHEDULE_TYPES",
     active: Optional[bool] = True,
-    max_active_runs: Optional[int] = None,
-    catchup: bool = False,
 ) -> DeploymentScheduleCreate:
     """Create a DeploymentScheduleCreate object from common schedule parameters."""
     return DeploymentScheduleCreate(
         schedule=schedule,
         active=active if active is not None else True,
-        max_active_runs=max_active_runs,
-        catchup=catchup,
     )
 
 
