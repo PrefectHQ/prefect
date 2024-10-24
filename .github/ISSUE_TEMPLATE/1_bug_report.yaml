@@ -17,7 +17,7 @@ body:
         4. Additional details that may help us reproduce your issue.
 
 
-        For usage questions, please check out Prefect's [Community Slack](https://www.prefect.io/slack/).
+        For usage questions, please open a [discussion](https://github.com/PrefectHQ/prefect/discussions).
 
   - type: textarea
     attributes:
@@ -41,10 +41,28 @@ body:
 
   - type: textarea
     attributes:
-      label: Version info (`prefect version` output)
-      description: >
-        Provide information about your Prefect version and environment. The easiest way to retrieve all of this information is by running the `prefect version` command.
-      placeholder: "# Copy output of the `prefect version` command here. Do not just include your Prefect version number."
+      label: Version info
+      description: |
+        Provide information about your Prefect version and environment. 
+        
+        Please run `prefect version` and paste the output below.
+      placeholder: |
+        Provide the output of `prefect version` here.
+
+        Should look something like this:
+
+          Version:             3.0.10
+          API version:         0.8.4
+          Python version:      3.12.5
+          Git commit:          3aa2d893
+          Built:               Tue, Oct 15, 2024 1:31 PM
+          OS/Arch:             darwin/arm64
+          Profile:             local
+          Server type:         server
+          Pydantic version:    2.9.2
+          Integrations:
+            prefect-kubernetes: 0.5.2
+
       render: Text
     validations:
       required: true
