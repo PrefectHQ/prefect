@@ -2630,7 +2630,7 @@ class PrefectClient:
         response = await self._client.post(
             f"/work_pools/{work_pool_name}/workers/filter",
             json={
-                "worker_filter": (
+                "workers": (
                     worker_filter.model_dump(mode="json", exclude_unset=True)
                     if worker_filter
                     else None
