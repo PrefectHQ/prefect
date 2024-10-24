@@ -147,7 +147,7 @@ class EventTrigger(ResourceTrigger):
         ),
     )
     posture: Literal[Posture.Reactive, Posture.Proactive] = Field(  # type: ignore[valid-type]
-        Posture.Reactive,
+        default=Posture.Reactive,
         description=(
             "The posture of this trigger, either Reactive or Proactive.  Reactive "
             "triggers respond to the _presence_ of the expected events, while "
@@ -155,7 +155,7 @@ class EventTrigger(ResourceTrigger):
         ),
     )
     threshold: int = Field(
-        1,
+        default=1,
         description=(
             "The number of events required for this trigger to fire (for "
             "Reactive triggers), or the number of events expected (for Proactive "
@@ -163,7 +163,7 @@ class EventTrigger(ResourceTrigger):
         ),
     )
     within: timedelta = Field(
-        timedelta(seconds=0),
+        default=timedelta(seconds=0),
         ge=timedelta(seconds=0),
         description=(
             "The time period over which the events must occur.  For Reactive triggers, "
