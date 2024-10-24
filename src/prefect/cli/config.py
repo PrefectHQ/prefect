@@ -235,15 +235,6 @@ def view(
                     continue
                 _process_setting(setting, value, "prefect.toml")
 
-    # Process settings from the current profile
-    for setting, value in current_profile_settings.items():
-        value_and_source = (
-            (value, "profile")
-            if not (env_value := os.getenv(setting.name))
-            else (env_value, "env")
-        )
-        _process_setting(setting, value_and_source[0], value_and_source[1])
-
     for setting_name in VALID_SETTING_NAMES:
         setting = _get_settings_fields(prefect.settings.Settings)[setting_name]
         if setting.name in processed_settings:
@@ -261,6 +252,11 @@ def view(
     if Path("prefect.toml").exists():
         toml_settings = toml.load(Path("prefect.toml"))
         _process_toml_settings(toml_settings, base_path=[])
+
+    # Process settings from the current profile
+    for setting, value in current_profile_settings.items():
+        if setting.name not in processed_settings:
+            _process_setting(setting, value, "profile")
 
     if show_defaults:
         _collect_defaults(
