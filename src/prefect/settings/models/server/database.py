@@ -144,6 +144,26 @@ class ServerDatabaseSettings(PrefectBaseSettings):
         ),
     )
 
+    sqlalchemy_pool_size: Optional[int] = Field(
+        default=None,
+        description="Controls connection pool size when using a PostgreSQL database with the Prefect API. If not set, the default SQLAlchemy pool size will be used.",
+        validation_alias=AliasChoices(
+            AliasPath("sqlalchemy_pool_size"),
+            "prefect_server_database_sqlalchemy_pool_size",
+            "prefect_sqlalchemy_pool_size",
+        ),
+    )
+
+    sqlalchemy_max_overflow: Optional[int] = Field(
+        default=None,
+        description="Controls maximum overflow of the connection pool when using a PostgreSQL database with the Prefect API. If not set, the default SQLAlchemy maximum overflow value will be used.",
+        validation_alias=AliasChoices(
+            AliasPath("sqlalchemy_max_overflow"),
+            "prefect_server_database_sqlalchemy_max_overflow",
+            "prefect_sqlalchemy_max_overflow",
+        ),
+    )
+
     @model_validator(mode="after")
     def emit_warnings(self) -> Self:  # noqa: F821
         """More post-hoc validation of settings, including warnings for misconfigurations."""

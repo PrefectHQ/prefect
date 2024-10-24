@@ -19,7 +19,7 @@ from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
-    PREFECT_UNIT_TEST_MODE,
+    PREFECT_TESTING_UNIT_TEST_MODE,
 )
 
 PARSE_API_URL_REGEX = re.compile(r"accounts/(.{36})/workspaces/(.{36})")
@@ -68,7 +68,7 @@ class CloudClient:
         httpx_settings["headers"].setdefault("Authorization", f"Bearer {api_key}")
 
         httpx_settings.setdefault("base_url", host)
-        if not PREFECT_UNIT_TEST_MODE.value():
+        if not PREFECT_TESTING_UNIT_TEST_MODE.value():
             httpx_settings.setdefault("follow_redirects", True)
         self._client = PrefectHttpxAsyncClient(
             **httpx_settings, enable_csrf_support=False

@@ -22,11 +22,11 @@ def reload_prefect_base_model(
     import prefect.server.utilities.schemas.bases
 
     original_base_model = prefect.server.utilities.schemas.bases.PrefectBaseModel
-    original_environment = os.environ.get("PREFECT_TEST_MODE")
+    original_environment = os.environ.get("PREFECT_TESTING_TEST_MODE")
     if test_mode_value is not None:
-        os.environ["PREFECT_TEST_MODE"] = test_mode_value
+        os.environ["PREFECT_TESTING_TEST_MODE"] = test_mode_value
     else:
-        os.environ.pop("PREFECT_TEST_MODE")
+        os.environ.pop("PREFECT_TESTING_TEST_MODE")
 
     try:
         # We must re-execute the module since the setting is configured at base model
@@ -38,9 +38,9 @@ def reload_prefect_base_model(
         yield PrefectBaseModel
     finally:
         if original_environment is None:
-            os.environ.pop("PREFECT_TEST_MODE")
+            os.environ.pop("PREFECT_TESTING_TEST_MODE")
         else:
-            os.environ["PREFECT_TEST_MODE"] = original_environment
+            os.environ["PREFECT_TESTING_TEST_MODE"] = original_environment
 
         # We must restore this type or `isinstance` checks will fail later
         prefect.server.utilities.schemas.bases.PrefectBaseModel = original_base_model

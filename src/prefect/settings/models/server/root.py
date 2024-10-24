@@ -9,11 +9,13 @@ from prefect.types import LogLevel
 
 from .api import ServerAPISettings
 from .database import ServerDatabaseSettings
+from .deployments import ServerDeploymentsSettings
 from .ephemeral import ServerEphemeralSettings
 from .events import ServerEventsSettings
 from .flow_run_graph import ServerFlowRunGraphSettings
 from .services import ServerServicesSettings
 from .tasks import ServerTasksSettings
+from .ui import ServerUISettings
 
 
 class ServerSettings(PrefectBaseSettings):
@@ -107,10 +109,13 @@ class ServerSettings(PrefectBaseSettings):
         default_factory=ServerAPISettings,
         description="Settings for controlling API server behavior",
     )
-
     database: ServerDatabaseSettings = Field(
         default_factory=ServerDatabaseSettings,
         description="Settings for controlling server database behavior",
+    )
+    deployments: ServerDeploymentsSettings = Field(
+        default_factory=ServerDeploymentsSettings,
+        description="Settings for controlling server deployments behavior",
     )
     ephemeral: ServerEphemeralSettings = Field(
         default_factory=ServerEphemeralSettings,
@@ -131,4 +136,8 @@ class ServerSettings(PrefectBaseSettings):
     tasks: ServerTasksSettings = Field(
         default_factory=ServerTasksSettings,
         description="Settings for controlling server tasks behavior",
+    )
+    ui: ServerUISettings = Field(
+        default_factory=ServerUISettings,
+        description="Settings for controlling server UI behavior",
     )
