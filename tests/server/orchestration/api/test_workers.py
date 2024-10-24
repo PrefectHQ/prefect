@@ -1502,6 +1502,43 @@ class TestWorkerProcess:
         assert workers_response.json()[0]["status"] == "OFFLINE"
 
 
+class TestReadWorkers:
+    @pytest.fixture
+    async def setup_workers(self, session, db, work_pool):
+        # Create an ONLINE worker via heartbeat
+        await models.workers.worker_heartbeat(
+            session=session,
+            work_pool_id=work_pool.id,
+            worker_name="online-worker",
+        )
+
+        insert_stmt = db.insert(db.Worker).values(
+            name="offline-worker",
+            work_pool_id=work_pool.id,
+            status="OFFLINE",
+        )
+        await session.execute(insert_stmt)
+
+        await session.commit()
+
+    async def test_read_workers(self, client, work_pool):
+        response = await client.post(f"/work_pools/{work_pool.name}/workers/filter")
+        assert response.status_code == status.HTTP_200_OK
+
+    @pytest.mark.usefixtures("setup_workers")
+    @pytest.mark.parametrize("worker_status", ["ONLINE", "OFFLINE"])
+    async def test_read_workers_filter_by_status(
+        self, client, work_pool, worker_status
+    ):
+        response = await client.post(
+            f"/work_pools/{work_pool.name}/workers/filter",
+            json=dict(workers=dict(status=dict(any_=[worker_status]))),
+        )
+        assert response.status_code == status.HTTP_200_OK, response.text
+        assert len(data := response.json()) == 1, data
+        assert data[0]["status"] == worker_status
+
+
 class TestDeleteWorker:
     async def test_delete_worker(self, client, work_pool, session, db):
         work_pool_id = work_pool.id
