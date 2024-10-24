@@ -268,7 +268,7 @@ In Prefect 3.0, the `schedule` argument has been removed in favor of the `schedu
 This applies to both the `Flow.serve` and `Flow.deploy` methods.
 
 <CodeGroup>
-```python Prefect 2.0
+```python Prefect 2.0 {11}
 from datetime import timedelta
 from prefect import flow
 from prefect.client.schemas.schedules import IntervalSchedule
@@ -283,7 +283,7 @@ my_flow.serve(
 )
 ```
 
-```python Prefect 3.0
+```python Prefect 3.0 {11}
 from datetime import timedelta
 from prefect import flow
 from prefect.client.schemas.schedules import IntervalSchedule
