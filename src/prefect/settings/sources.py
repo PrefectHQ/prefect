@@ -174,6 +174,8 @@ class PrefectTomlConfigSettingsSource(
         """Concrete implementation to get the field value from toml data"""
         value = self.toml_data.get(field_name)
         if isinstance(value, dict):
+            # if the value is a dict, it is likely a nested settings object and a nested
+            # source will handle it
             value = None
         return value, field_name, self.field_is_complex(field)
 

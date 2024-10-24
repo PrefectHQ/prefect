@@ -1107,11 +1107,21 @@ class TestSettingsSources:
 
         assert Settings().client.retry_extra_codes == {420, 500}
 
+        toml_data = {"client": {"retry_extra_codes": "300"}}
+        with open("prefect.toml", "w") as f:
+            toml.dump(toml_data, f)
+
+        assert Settings().client.retry_extra_codes == {300}
+
         temporary_env_file("PREFECT_CLIENT_RETRY_EXTRA_CODES=429,500")
 
         assert Settings().client.retry_extra_codes == {429, 500}
 
         os.unlink(".env")
+
+        assert Settings().client.retry_extra_codes == {300}
+
+        os.unlink("prefect.toml")
 
         assert Settings().client.retry_extra_codes == {420, 500}
 
