@@ -44,7 +44,9 @@ def test_highlight_name(name, lower):
     ]
 
 
-@pytest.mark.parametrize("state", ["completed", "cancelled", "failed", "crashed"])
+@pytest.mark.parametrize(
+    "state", ["completed", "cancelled", "failed", "crashed", "cached"]
+)
 def test_highlight_state(state):
     keyword = state.title()
     text = Text(f"Flow run 'polite-jackal' - Finished in state {keyword}()")
