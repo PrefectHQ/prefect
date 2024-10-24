@@ -22,7 +22,7 @@ prometheus-client >= 0.20.0
 pydantic >= 2.7, < 3.0.0
 pydantic_core >= 2.12.0, < 3.0.0
 pydantic_extra_types >= 2.8.2, < 3.0.0
-pydantic_settings
+pydantic_settings > 2.2.1
 python_dateutil >= 2.8.2, < 3.0.0
 python-slugify >= 5.0, < 9.0
 pyyaml >= 5.4.1, < 7.0.0
