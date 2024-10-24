@@ -265,10 +265,11 @@ See the [Futures interface section](#futures-interface) for more information on 
 
 In Prefect 3.0, the `schedule` argument has been removed in favor of the `schedules` argument.
 
-This applies to both the `Flow.deploy` and `Flow.serve` methods.
+This applies to both the `Flow.serve` and `Flow.deploy` methods.
 
 <CodeGroup>
 ```python Prefect 2.0
+from datetime import timedelta
 from prefect import flow
 from prefect.client.schemas.schedules import IntervalSchedule
 
@@ -276,13 +277,14 @@ from prefect.client.schemas.schedules import IntervalSchedule
 def my_flow():
     pass
 
-my_flow.deploy(
+my_flow.serve(
     name="my-flow",
     schedule=IntervalSchedule(interval=timedelta(minutes=1))
 )
 ```
 
 ```python Prefect 3.0
+from datetime import timedelta
 from prefect import flow
 from prefect.client.schemas.schedules import IntervalSchedule
 
@@ -290,7 +292,7 @@ from prefect.client.schemas.schedules import IntervalSchedule
 def my_flow():
     pass
 
-my_flow.deploy(
+my_flow.serve(
     name="my-flow",
     schedules=[IntervalSchedule(interval=timedelta(minutes=1))]
 )
