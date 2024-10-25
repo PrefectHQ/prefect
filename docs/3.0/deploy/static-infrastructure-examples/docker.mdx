@@ -19,7 +19,7 @@ You will need to have [Docker](https://docs.docker.com/engine/install/) installe
 
 Say we have a flow that retrieves the number of stars for a GitHub repository:
 
-```python serve_retrieve_github_stars.py
+```python serve_retrieve_github_stars.py {16-20}
 import httpx
 from prefect import flow, task
 
@@ -51,6 +51,20 @@ python serve_retrieve_github_stars.py
 ... but how can we package this up so we can run it on other machines?
 
 ## Writing the Dockerfile
+
+Assuming we have our python requirements defined in a file:
+
+```txt requirements.txt
+prefect
+```
+
+and a directory structure like:
+
+```
+├── Dockerfile
+├── requirements.txt
+└── serve_retrieve_github_stars.py
+```
 
 We can package up our flow into a Docker container using a `Dockerfile`.
 
