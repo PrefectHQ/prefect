@@ -2,10 +2,9 @@ from pathlib import Path
 from typing import Annotated, Literal, Optional, Union
 
 from pydantic import AfterValidator, AliasChoices, AliasPath, Field, model_validator
-from pydantic_settings import SettingsConfigDict
 from typing_extensions import Self
 
-from prefect.settings.base import PrefectBaseSettings
+from prefect.settings.base import PrefectBaseSettings, PrefectSettingsConfigDict
 from prefect.types import LogLevel
 
 
@@ -26,8 +25,12 @@ class LoggingToAPISettings(PrefectBaseSettings):
     Settings for controlling logging to the API
     """
 
-    model_config = SettingsConfigDict(
-        env_prefix="PREFECT_LOGGING_TO_API_", env_file=".env", extra="ignore"
+    model_config = PrefectSettingsConfigDict(
+        env_prefix="PREFECT_LOGGING_TO_API_",
+        env_file=".env",
+        extra="ignore",
+        toml_file="prefect.toml",
+        prefect_toml_table_header=("logging", "to_api"),
     )
 
     enabled: bool = Field(
@@ -81,8 +84,12 @@ class LoggingSettings(PrefectBaseSettings):
     Settings for controlling logging behavior
     """
 
-    model_config = SettingsConfigDict(
-        env_prefix="PREFECT_LOGGING_", env_file=".env", extra="ignore"
+    model_config = PrefectSettingsConfigDict(
+        env_prefix="PREFECT_LOGGING_",
+        env_file=".env",
+        extra="ignore",
+        toml_file="prefect.toml",
+        prefect_toml_table_header=("logging",),
     )
 
     level: LogLevel = Field(
