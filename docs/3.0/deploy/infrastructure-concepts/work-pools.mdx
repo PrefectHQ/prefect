@@ -59,7 +59,7 @@ deployment that is polled by a worker and executes a flow run based on that depl
 }%%
 
 flowchart LR
-    A(Flow Code)
+
     B(Deployment Definition)
 
     subgraph Server [Prefect API]
@@ -67,7 +67,7 @@ flowchart LR
     end
 
     subgraph Remote Storage [Remote Storage]
-        D(Flow)
+        D(Flow Code)
     end
 
     E(Worker)
@@ -76,7 +76,6 @@ flowchart LR
         F((Flow Run))
     end
 
-    A --> B
     B --> C
     B -.-> D
     C --> E

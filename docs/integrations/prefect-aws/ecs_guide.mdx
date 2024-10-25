@@ -30,15 +30,14 @@ For details on how workers and work pools are implemented for ECS, see the diagr
 flowchart TB
     subgraph ecs_cluster[ECS Cluster]
         subgraph ecs_service[ECS Service]
-            td_worker[Worker Task Definition] --> |defines| prefect_worker((Prefect Worker))
+            td_worker[Worker Task Definition] --> |defines| prefect_worker[Prefect Worker]
         end
 
         prefect_worker -->|kicks off| ecs_task
     
         fr_task_definition[Flow Run Task Definition]
 
-        subgraph ecs_task["ECS Task Execution"]
-        style ecs_task text-align:center,display:flex
+        subgraph ecs_task[ECS Task Execution]
             flow_run((Flow Run))
         end
 
@@ -46,18 +45,16 @@ flowchart TB
     end
 
     subgraph prefect_cloud[Prefect Cloud]
-        subgraph prefect_workpool[ECS Work Pool]
-            workqueue[Work Queue]
-        end
+        work_pool[ECS Work Pool]
     end
 
-    subgraph github["ECR"]
-        flow_code{{"Flow Code"}}
+    subgraph github[ECR]
+        flow_code["Flow Code"]
     end
 
     flow_code --> |pulls| ecs_task
-    prefect_worker -->|polls| workqueue
-    prefect_workpool -->|configures| fr_task_definition
+    prefect_worker -->|polls| work_pool
+    work_pool -->|configures| fr_task_definition
 ```
 
 ## ECS and Prefect
