@@ -272,8 +272,6 @@ def _format_deployment_for_saving_to_prefect_file(
                 schedule_config = deployment_schedule.schedule.model_dump()
 
             schedule_config["active"] = deployment_schedule.active
-            schedule_config["max_active_runs"] = deployment_schedule.max_active_runs
-            schedule_config["catchup"] = deployment_schedule.catchup
             schedules.append(schedule_config)
 
         deployment["schedules"] = schedules
