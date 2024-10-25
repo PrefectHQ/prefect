@@ -13,7 +13,11 @@ from urllib.parse import urlparse
 from pydantic import BeforeValidator, Field, SecretStr, model_validator
 from typing_extensions import Self
 
-from prefect.settings.base import PrefectBaseSettings, PrefectSettingsConfigDict
+from prefect.settings.base import (
+    COMMON_CONFIG_DICT,
+    PrefectBaseSettings,
+    PrefectSettingsConfigDict,
+)
 from prefect.settings.models.tasks import TasksSettings
 from prefect.settings.models.testing import TestingSettings
 from prefect.settings.models.worker import WorkerSettings
@@ -43,10 +47,8 @@ class Settings(PrefectBaseSettings):
     """
 
     model_config = PrefectSettingsConfigDict(
-        env_file=".env",
+        **COMMON_CONFIG_DICT,
         env_prefix="PREFECT_",
-        extra="ignore",
-        toml_file="prefect.toml",
     )
 
     home: Annotated[Path, BeforeValidator(lambda x: Path(x).expanduser())] = Field(

@@ -5,7 +5,11 @@ from urllib.parse import quote_plus
 from pydantic import AliasChoices, AliasPath, Field, SecretStr, model_validator
 from typing_extensions import Literal, Self
 
-from prefect.settings.base import PrefectBaseSettings, PrefectSettingsConfigDict
+from prefect.settings.base import (
+    COMMON_CONFIG_DICT,
+    PrefectBaseSettings,
+    PrefectSettingsConfigDict,
+)
 
 
 class ServerDatabaseSettings(PrefectBaseSettings):
@@ -14,10 +18,8 @@ class ServerDatabaseSettings(PrefectBaseSettings):
     """
 
     model_config = PrefectSettingsConfigDict(
+        **COMMON_CONFIG_DICT,
         env_prefix="PREFECT_SERVER_DATABASE_",
-        env_file=".env",
-        extra="ignore",
-        toml_file="prefect.toml",
         prefect_toml_table_header=("server", "database"),
     )
 
