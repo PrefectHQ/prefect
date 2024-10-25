@@ -65,6 +65,11 @@ def generate_property_docs(
         for constraint in constraints:
             docs.append(f"- {constraint}")
 
+    if "supported_environment_variables" in prop_info:
+        docs.append("\n**Supported environment variables**:")
+        for env_var in prop_info["supported_environment_variables"]:
+            docs.append(f"- `{env_var}`")
+
     return "\n".join(docs) + "\n"
 
 
