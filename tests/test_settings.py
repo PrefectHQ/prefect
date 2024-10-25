@@ -227,7 +227,6 @@ SUPPORTED_SETTINGS = {
         "legacy": True,
     },
     "PREFECT_EVENTS_WEBSOCKET_BACKFILL_PAGE_SIZE": {"test_value": 10, "legacy": True},
-    "PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY": {"test_value": True},
     "PREFECT_EXPERIMENTAL_WARN": {"test_value": True},
     "PREFECT_FLOW_DEFAULT_RETRIES": {"test_value": 10, "legacy": True},
     "PREFECT_FLOWS_DEFAULT_RETRIES": {"test_value": 10},

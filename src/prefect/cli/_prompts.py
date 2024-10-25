@@ -34,9 +34,6 @@ from prefect.deployments.base import (
 )
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 from prefect.flows import load_flow_from_entrypoint
-from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY,
-)
 from prefect.utilities import urls
 from prefect.utilities.processutils import get_sys_executable, run_process
 from prefect.utilities.slugify import slugify
@@ -227,28 +224,6 @@ class CronTimezonePrompt(PromptBase[str]):
             raise InvalidResponse(self.validate_error_message)
 
 
-def prompt_for_schedule_max_active_runs(console) -> int:
-    """
-    Prompt the user for the maximum number of active runs for a schedule.
-    """
-    return prompt(
-        "Maximum number of active runs for this schedule (leave blank for unlimited)",
-        console=console,
-        default=None,
-    )
-
-
-def prompt_for_schedule_catchup(console) -> bool:
-    """
-    Prompt the user for whether to catchup on missed runs for a schedule.
-    """
-    return Confirm.ask(
-        "[bold][green]?[/] Catch up on late flow runs?",
-        console=console,
-        default=False,
-    )
-
-
 def prompt_cron_schedule(console):
     """
     Prompt the user for a cron string and timezone.
@@ -375,14 +350,6 @@ def prompt_schedules(console) -> List[DeploymentScheduleCreate]:
                 "schedule": schedule,
                 "active": is_schedule_active,
             }
-
-            if PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY:
-                max_active_runs = prompt_for_schedule_max_active_runs(console)
-                catchup = prompt_for_schedule_catchup(console)
-
-                minimal_schedule_kwargs.update(
-                    {"max_active_runs": max_active_runs, "catchup": catchup}
-                )
 
             schedules.append(DeploymentScheduleCreate(**minimal_schedule_kwargs))
 
