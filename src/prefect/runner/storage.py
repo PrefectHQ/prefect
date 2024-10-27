@@ -87,6 +87,8 @@ class GitRepository:
         pull_interval: The interval in seconds at which to pull contents from
             remote storage to local storage. If None, remote storage will perform
             a one-time sync.
+        directories: Specify directories you wish to checkout, uses sparse checkout
+        cone_mode: Use cone mode for sparse checkout, only applies if directories are set
 
     Examples:
         Pull the contents of a private git repository to the local filesystem:
@@ -111,6 +113,8 @@ class GitRepository:
         branch: Optional[str] = None,
         include_submodules: bool = False,
         pull_interval: Optional[int] = 60,
+        directories: Optional[list] = None,
+        cone_mode: bool = True,
     ):
         if credentials is None:
             credentials = {}
@@ -134,6 +138,12 @@ class GitRepository:
         self._logger = get_logger(f"runner.storage.git-repository.{self._name}")
         self._storage_base_path = Path.cwd()
         self._pull_interval = pull_interval
+
+        # if the directories are populated then set sparse-checkout mode to true
+        self._sparse_checkout_mode = True if directories else False
+
+        self._sparse_checkout_directories = directories
+        self._sparse_checkout_cone_mode = cone_mode
 
     @property
     def destination(self) -> Path:
@@ -178,6 +188,28 @@ class GitRepository:
 
         return repository_url
 
+    async def sparse_checkout(self):
+        """
+        Uses sparse-checkout on repository
+        """
+
+        cmd = ["git", "sparse-checkout", "init"]
+
+        if self._cone_mode:
+            cmd += ["--cone"]
+
+        await run_process(
+            cmd,
+            cwd=str(self.destination),
+        )
+
+        cmd = ["git", "sparse-checkout", "add", " ".join(self._directories)]
+
+        await run_process(
+            cmd,
+            cwd=str(self.destination),
+        )
+
     async def pull_code(self):
         """
         Pulls the contents of the configured repository to the local filesystem.
@@ -205,6 +237,10 @@ class GitRepository:
                     f"The existing repository at {str(self.destination)} "
                     f"does not match the configured repository {self._url}"
                 )
+
+            # If we have specified directories use sparse-checkout before pulling latest changes
+            if self.sparse_checkout:
+                self.sparse_checkout()
 
             self._logger.debug("Pulling latest changes from origin/%s", self._branch)
             # Update the existing repository
@@ -242,21 +278,39 @@ class GitRepository:
         ]
         if self._branch:
             cmd += ["--branch", self._branch]
-        if self._include_submodules:
-            cmd += ["--recurse-submodules"]
 
-        # Limit git history and set path to clone to
-        cmd += ["--depth", "1", str(self.destination)]
+        # For sparse-checkout it is recommended to use --filter=blob:none to reduce disk-space
+        if self._sparse_checkout_mode:
+            cmd += ["--filter=blob:none", "--sparse", str(self.destination)]
 
-        try:
-            await run_process(cmd)
-        except subprocess.CalledProcessError as exc:
-            # Hide the command used to avoid leaking the access token
-            exc_chain = None if self._credentials else exc
-            raise RuntimeError(
-                f"Failed to clone repository {self._url!r} with exit code"
-                f" {exc.returncode}."
-            ) from exc_chain
+            try:
+                await run_process(cmd)
+            except subprocess.CalledProcessError as exc:
+                # Hide the command used to avoid leaking the access token
+                exc_chain = None if self._credentials else exc
+                raise RuntimeError(
+                    f"Failed to clone repository {self._url!r} with exit code"
+                    f" {exc.returncode}."
+                ) from exc_chain
+
+            self.sparse_checkout()
+
+        else:
+            if self._include_submodules:
+                cmd += ["--recurse-submodules"]
+
+            # Limit git history and set path to clone to
+            cmd += ["--depth", "1", str(self.destination)]
+
+            try:
+                await run_process(cmd)
+            except subprocess.CalledProcessError as exc:
+                # Hide the command used to avoid leaking the access token
+                exc_chain = None if self._credentials else exc
+                raise RuntimeError(
+                    f"Failed to clone repository {self._url!r} with exit code"
+                    f" {exc.returncode}."
+                ) from exc_chain
 
     def __eq__(self, __value) -> bool:
         if isinstance(__value, GitRepository):
