@@ -207,8 +207,7 @@ class GitRepository:
             "git",
             "sparse-checkout",
             "add",
-            " ".join(self._sparse_checkout_directories),
-        ]
+        ] + self._sparse_checkout_directories
 
         await run_process(
             cmd,
