@@ -176,7 +176,4 @@ class TestRunShellProcess:
             popen_kwargs={"env": custom_env, "cwd": str(tmp_path)},
         )
 
-        with open(tmp_path / "output.txt") as f:
-            content = f.read().strip()
-
-        assert content == "hello"
+        assert (tmp_path / "output.txt").read_text().strip() == "hello"
