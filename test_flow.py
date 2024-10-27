@@ -10,5 +10,5 @@ def task_hello_world():
 
 @flow(name="test flow")
 def test_flow():
-    sleep(15)
     task_hello_world()
+    sleep(500)

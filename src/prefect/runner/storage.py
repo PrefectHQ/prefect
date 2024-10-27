@@ -209,7 +209,6 @@ class GitRepository:
             "add",
             " ".join(self._sparse_checkout_directories),
         ]
-        self._logger.info(cmd)
 
         await run_process(
             cmd,
