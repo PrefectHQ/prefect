@@ -195,7 +195,7 @@ class GitRepository:
 
         cmd = ["git", "sparse-checkout", "init"]
 
-        if self._cone_mode:
+        if self._sparse_checkout_cone_mode:
             cmd += ["--cone"]
 
         await run_process(
@@ -203,7 +203,13 @@ class GitRepository:
             cwd=str(self.destination),
         )
 
-        cmd = ["git", "sparse-checkout", "add", " ".join(self._directories)]
+        cmd = [
+            "git",
+            "sparse-checkout",
+            "add",
+            " ".join(self._sparse_checkout_directories),
+        ]
+        self._logger.info(cmd)
 
         await run_process(
             cmd,
@@ -239,8 +245,8 @@ class GitRepository:
                 )
 
             # If we have specified directories use sparse-checkout before pulling latest changes
-            if self.sparse_checkout:
-                self.sparse_checkout()
+            if self._sparse_checkout_mode:
+                await self.sparse_checkout()
 
             self._logger.debug("Pulling latest changes from origin/%s", self._branch)
             # Update the existing repository
@@ -293,7 +299,7 @@ class GitRepository:
                     f" {exc.returncode}."
                 ) from exc_chain
 
-            self.sparse_checkout()
+            await self.sparse_checkout()
 
         else:
             if self._include_submodules:
