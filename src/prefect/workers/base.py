@@ -4,7 +4,7 @@ import threading
 from contextlib import AsyncExitStack
 from functools import partial
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Type, Union
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import anyio
 import anyio.abc
@@ -29,6 +29,7 @@ from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logg
 from prefect.plugins import load_prefect_collections
 from prefect.settings import (
     PREFECT_API_URL,
+    PREFECT_EXPERIMENT_WORKER_LOGGING_TO_API_ENABLED,
     PREFECT_TEST_MODE,
     PREFECT_WORKER_HEARTBEAT_SECONDS,
     PREFECT_WORKER_PREFETCH_SECONDS,
@@ -421,6 +422,7 @@ class BaseWorker(abc.ABC):
             heartbeat_interval_seconds or PREFECT_WORKER_HEARTBEAT_SECONDS.value()
         )
 
+        self._remote_id: Optional[UUID] = None
         self._work_pool: Optional[WorkPool] = None
         self._exit_stack: AsyncExitStack = AsyncExitStack()
         self._runs_task_group: Optional[anyio.abc.TaskGroup] = None
@@ -710,12 +712,20 @@ class BaseWorker(abc.ABC):
 
         self._work_pool = work_pool
 
-    async def _send_worker_heartbeat(self):
+    async def _send_worker_heartbeat(
+        self, get_worker_id: bool = False
+    ) -> Optional[UUID]:
+        """
+        Sends a heartbeat to the API.
+
+        If `get_worker_id` is True, the worker ID will be retrieved from the API.
+        """
         if self._work_pool:
-            await self._client.send_worker_heartbeat(
+            return await self._client.send_worker_heartbeat(
                 work_pool_name=self._work_pool_name,
                 worker_name=self.name,
                 heartbeat_interval_seconds=self.heartbeat_interval_seconds,
+                get_worker_id=get_worker_id,
             )
 
     async def sync_with_backend(self):
@@ -725,9 +735,23 @@ class BaseWorker(abc.ABC):
         """
         await self._update_local_work_pool_info()
 
-        await self._send_worker_heartbeat()
+        if PREFECT_EXPERIMENT_WORKER_LOGGING_TO_API_ENABLED and self._remote_id is None:
+            get_worker_id = True
+        else:
+            get_worker_id = False
 
-        self._logger.debug("Worker synchronized with the Prefect API server.")
+        remote_id = await self._send_worker_heartbeat(get_worker_id=get_worker_id)
+
+        if get_worker_id and remote_id is None:
+            self._logger.warning(
+                "Failed to retrieve worker ID from the Prefect API server."
+            )
+        else:
+            self._remote_id = remote_id
+
+        self._logger.debug(
+            f"Worker synchronized with the Prefect API server. Remote ID: {self._remote_id}"
+        )
 
     async def _get_scheduled_flow_runs(
         self,

@@ -23,6 +23,7 @@ from prefect.server.schemas.core import Deployment, Flow, WorkPool
 from prefect.server.schemas.responses import DeploymentResponse
 from prefect.settings import (
     PREFECT_API_URL,
+    PREFECT_EXPERIMENT_WORKER_LOGGING_TO_API_ENABLED,
     PREFECT_TEST_MODE,
     PREFECT_WORKER_PREFETCH_SECONDS,
     get_current_settings,
@@ -77,6 +78,14 @@ async def variables(prefect_client: PrefectClient):
 @pytest.fixture
 def no_api_url():
     with temporary_settings(updates={PREFECT_TEST_MODE: False, PREFECT_API_URL: None}):
+        yield
+
+
+@pytest.fixture
+def experimental_logging_enabled():
+    with temporary_settings(
+        updates={PREFECT_EXPERIMENT_WORKER_LOGGING_TO_API_ENABLED: True}
+    ):
         yield
 
 
@@ -159,6 +168,43 @@ async def test_worker_sends_heartbeat_messages(
         )
         second_heartbeat = workers[0].last_heartbeat_time
         assert second_heartbeat > first_heartbeat
+
+
+async def test_worker_sends_heartbeat_gets_id(
+    experimental_logging_enabled,
+):
+
+    async with WorkerTestImpl(name="test", work_pool_name="test-work-pool") as worker:
+        mock = AsyncMock(return_value="test")
+        setattr(
+            worker._client,"send_worker_heartbeat",mock
+        )
+        await worker.sync_with_backend()
+
+        send_worker_heartbeat_kwargs = mock.await_args_list[0].kwargs
+
+        assert worker._remote_id == 'test'
+        mock.assert_called()
+        assert send_worker_heartbeat_kwargs['get_worker_id'] == True
+
+async def test_worker_sends_heartbeat_only_gets_id_once(
+    experimental_logging_enabled,
+):
+
+    async with WorkerTestImpl(name="test", work_pool_name="test-work-pool") as worker:
+        mock = AsyncMock(return_value="test")
+        setattr(
+            worker._client,"send_worker_heartbeat",mock
+        )
+        await worker.sync_with_backend()
+        await worker.sync_with_backend()
+
+        second_call = mock.await_args_list[1]
+
+        assert worker._remote_id == 'test'
+        assert second_call.kwargs['get_worker_id'] == False
+
+
 
 
 async def test_worker_with_work_pool(

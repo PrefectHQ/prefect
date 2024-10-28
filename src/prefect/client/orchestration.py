@@ -2594,21 +2594,29 @@ class PrefectClient:
         work_pool_name: str,
         worker_name: str,
         heartbeat_interval_seconds: Optional[float] = None,
-    ):
+        get_worker_id: bool = False,
+    ) -> Optional[UUID]:
         """
         Sends a worker heartbeat for a given work pool.
 
         Args:
             work_pool_name: The name of the work pool to heartbeat against.
             worker_name: The name of the worker sending the heartbeat.
+            return_id: Whether to return the worker ID.
         """
-        await self._client.post(
+        resp = await self._client.post(
             f"/work_pools/{work_pool_name}/workers/heartbeat",
             json={
                 "name": worker_name,
                 "heartbeat_interval_seconds": heartbeat_interval_seconds,
+                "return_id": get_worker_id,
             },
         )
+
+        if get_worker_id and resp.status_code == 200:
+            return UUID(resp.text)
+        else:
+            return None
 
     async def read_workers_for_work_pool(
         self,
