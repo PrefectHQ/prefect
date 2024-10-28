@@ -12,6 +12,7 @@ from pydantic_settings import (
     EnvSettingsSource,
     PydanticBaseSettingsSource,
 )
+from pydantic_settings.sources import ConfigFileSourceMixin
 
 from prefect.settings.constants import DEFAULT_PREFECT_HOME, DEFAULT_PROFILES_PATH
 
@@ -53,7 +54,7 @@ class EnvFilterSettingsSource(EnvSettingsSource):
             else:
                 self.env_vars = {
                     key: value
-                    for key, value in self.env_vars.items()
+                    for key, value in self.env_vars.items()  # type: ignore
                     if key.lower() not in env_filter
                 }
 
@@ -138,6 +139,57 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
                 )
                 profile_settings[key] = prepared_value
         return profile_settings
+
+
+DEFAULT_PREFECT_TOML_PATH = Path("prefect.toml")
+
+
+class PrefectTomlConfigSettingsSource(
+    PydanticBaseSettingsSource, ConfigFileSourceMixin
+):
+    """Custom pydantic settings source to load settings from a prefect.toml file"""
+
+    def __init__(
+        self,
+        settings_cls: Type[BaseSettings],
+    ):
+        super().__init__(settings_cls)
+        self.settings_cls = settings_cls
+        self.toml_file_path = settings_cls.model_config.get(
+            "toml_file", DEFAULT_PREFECT_TOML_PATH
+        )
+        self.toml_data = self._read_files(self.toml_file_path)
+        self.toml_table_header = settings_cls.model_config.get(
+            "prefect_toml_table_header", tuple()
+        )
+        for key in self.toml_table_header:
+            self.toml_data = self.toml_data.get(key, {})
+
+    def _read_file(self, path: Path) -> Dict[str, Any]:
+        return toml.load(path)
+
+    def get_field_value(
+        self, field: FieldInfo, field_name: str
+    ) -> Tuple[Any, str, bool]:
+        """Concrete implementation to get the field value from toml data"""
+        value = self.toml_data.get(field_name)
+        if isinstance(value, dict):
+            # if the value is a dict, it is likely a nested settings object and a nested
+            # source will handle it
+            value = None
+        return value, field_name, self.field_is_complex(field)
+
+    def __call__(self) -> Dict[str, Any]:
+        """Called by pydantic to get the settings from our custom source"""
+        toml_setings: Dict[str, Any] = {}
+        for field_name, field in self.settings_cls.model_fields.items():
+            value, key, is_complex = self.get_field_value(field, field_name)
+            if value is not None:
+                prepared_value = self.prepare_field_value(
+                    field_name, field, value, is_complex
+                )
+                toml_setings[key] = prepared_value
+        return toml_setings
 
 
 def _is_test_mode() -> bool:
