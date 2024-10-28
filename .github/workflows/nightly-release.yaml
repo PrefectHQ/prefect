@@ -19,7 +19,15 @@ jobs:
       - name: Get latest tag
         id: get_latest_tag
         run: |
-          latest_tag=$(git tag -l | grep -E '^[0-9]+\.[0-9]+\.[0-9]+(\.dev[0-9]+)?$' | grep -Ev 'rc|alpha|beta|post' | sort -V | tail -n1)
+          # Retrieve the latest tag by:
+          # 1. Listing all tags
+          # 2. Filtering for tags matching the pattern `[0-9]+\.[0-9]+\.[0-9]+(\.dev[0-9]+)?$`
+          # 3. Filtering out tags containing `rc`, `alpha`, `beta`, or `post`
+          # 4. Replacing `.dev` with `~dev` for sorting purposes
+          # 5. Sorting the tags in version order
+          # 6. Replacing `~dev` with `.dev`
+          # 7. Taking the last tag
+          latest_tag=$(git tag -l | grep -E '^[0-9]+\.[0-9]+\.[0-9]+(\.dev[0-9]+)?$' | grep -Ev 'rc|alpha|beta|post' | sed 's/\.dev/~dev/' | sort --version-sort | sed 's/~dev/.dev/' | tail -n1)
           if [ -z "$latest_tag" ]; then
             echo "No matching tags found."
             exit 1
