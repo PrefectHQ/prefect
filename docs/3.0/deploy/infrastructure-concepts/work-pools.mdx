@@ -51,38 +51,36 @@ deployment that is polled by a worker and executes a flow run based on that depl
 ```mermaid
 %%{
   init: {
-    'theme': 'base',
+    'theme': 'neutral',
     'themeVariables': {
-      'fontSize': '19px'
+      'margin': '10px'
     }
   }
 }%%
 
 flowchart LR
-    F("<div style='margin: 5px 10px 5px 5px;'>Flow Code</div>"):::yellow -.-> A("<div style='margin: 5px 10px 5px 5px;'>Deployment Definition</div>"):::gold
-    subgraph Server ["<div style='width: 150px; text-align: center; margin-top: 5px;'>Prefect API</div>"]
-        D("<div style='margin: 5px 10px 5px 5px;'>Deployment</div>"):::green
-    end
-    subgraph Remote Storage ["<div style='width: 160px; text-align: center; margin-top: 5px;'>Remote Storage</div>"]
-        B("<div style='margin: 5px 6px 5px 5px;'>Flow</div>"):::yellow
-    end
-    subgraph Infrastructure ["<div style='width: 150px; text-align: center; margin-top: 5px;'>Infrastructure</div>"]
-        G("<div style='margin: 5px 10px 5px 5px;'>Flow Run</div>"):::blue
+
+    B(Deployment Definition)
+
+    subgraph Server [Prefect API]
+        C(Deployment)
     end
 
-    A --> D
-    D --> E("<div style='margin: 5px 10px 5px 5px;'>Worker</div>"):::red
-    B -.-> E
-    A -.-> B
-    E -.-> G
+    subgraph Remote Storage [Remote Storage]
+        D(Flow Code)
+    end
 
-    classDef gold fill:goldenrod,stroke:goldenrod,stroke-width:4px,color:black
-    classDef yellow fill:gold,stroke:gold,stroke-width:4px,color:black
-    classDef gray fill:lightgray,stroke:lightgray,stroke-width:4px
-    classDef blue fill:blue,stroke:blue,stroke-width:4px,color:white
-    classDef green fill:green,stroke:green,stroke-width:4px,color:white
-    classDef red fill:red,stroke:red,stroke-width:4px,color:white
-    classDef dkgray fill:darkgray,stroke:darkgray,stroke-width:4px,color:white
+    E(Worker)
+
+    subgraph Infrastructure [Infrastructure]
+        F((Flow Run))
+    end
+
+    B --> C
+    B -.-> D
+    C --> E
+    D -.-> E
+    E -.-> F
 ```
 
 ### Work pool configuration
