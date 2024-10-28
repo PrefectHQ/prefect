@@ -81,18 +81,22 @@ def run_shell_process(
 
     logger = get_run_logger() if log_output else logging.getLogger("prefect")
 
+    # Default Popen kwargs that can be overridden
+    kwargs = {
+        "stdout": subprocess.PIPE,
+        "stderr": subprocess.PIPE,
+        "shell": True,
+        "text": True,
+        "bufsize": 1,
+        "universal_newlines": True,
+    }
+
+    if popen_kwargs:
+        kwargs |= popen_kwargs
+
     # Containers for log batching
     stdout_container, stderr_container = [], []
-    with subprocess.Popen(
-        command,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        shell=True,
-        text=True,
-        bufsize=1,
-        universal_newlines=True,
-        **(popen_kwargs or {}),
-    ) as proc:
+    with subprocess.Popen(command, **kwargs) as proc:
         # Create threads for collecting stdout and stderr
         if stream_stdout:
             stdout_logger = logger.info
