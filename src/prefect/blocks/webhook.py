@@ -3,6 +3,7 @@ from typing import Optional
 from httpx import AsyncClient, AsyncHTTPTransport, Response
 
 from prefect._internal.pydantic import HAS_PYDANTIC_V2
+from prefect.utilities.urls import validate_restricted_url
 
 if HAS_PYDANTIC_V2:
     from pydantic.v1 import Field, SecretStr
@@ -38,7 +39,10 @@ class Webhook(Block):
         description="The webhook URL.",
         examples=["https://hooks.slack.com/XXX"],
     )
-
+    allow_private_urls: bool = Field(
+        default=True,
+        description="Whether to allow notifications to private URLs. Defaults to True.",
+    )
     headers: SecretDict = Field(
         default_factory=lambda: SecretDict(dict()),
         title="Webhook Headers",
@@ -55,6 +59,9 @@ class Webhook(Block):
         Args:
             payload: an optional payload to send when calling the webhook.
         """
+        if not self.allow_private_urls:
+            validate_restricted_url(self.url.get_secret_value())
+
         async with self._client:
             return await self._client.request(
                 method=self.method,
