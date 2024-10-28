@@ -9,15 +9,15 @@ In this example, you will set up:
 - a Docker [**worker**](/3.0/deploy/infrastructure-concepts/workers/): process that polls the Prefect API for flow runs to execute as Docker containers
 - a [**deployment**](/3.0/deploy/index/): a flow that should run according to the configuration on your Docker work pool
 
-and then you may execute your deployment via the Prefect API (i.e. SDK, CLI, UI, etc).
+Then you can execute your deployment via the Prefect API (through the SDK, CLI, UI, etc).
 
 You must have [Docker](https://docs.docker.com/engine/install/) installed and running on your machine.
 
 <Note>
-**Want to run flows in a long-lived container?**
+**Executing flows in a long-lived container**
 
-This guide shows you how to run a flows in ephemeral containers that are cleaned up after the flow run completes.
-To learn how to run flows in a static, long-lived container, see [this](/3.0/deploy/static-infrastructure-examples/docker/) guide.
+This guide shows how to run a flow in an ephemeral container that is removed after the flow run completes.
+To instead learn how to run flows in a static, long-lived container, see [this](/3.0/deploy/static-infrastructure-examples/docker/) guide.
 
 </Note>
 
