@@ -1632,12 +1632,6 @@
             "description": "\n        Determines whether `State.result()` fetches results automatically or not.\n        In Prefect 2.6.0, the `State.result()` method was updated to be async\n        to facilitate automatic retrieval of results from storage which means when\n        writing async code you must `await` the call. For backwards compatibility,\n        the result is not retrieved by default for async users. You may opt into this\n        per call by passing  `fetch=True` or toggle this setting to change the behavior\n        globally.\n        ",
             "title": "Async Fetch State Result",
             "type": "boolean"
-        },
-        "experimental_enable_schedule_concurrency": {
-            "default": false,
-            "description": "Whether or not to enable concurrency for scheduled tasks.",
-            "title": "Experimental Enable Schedule Concurrency",
-            "type": "boolean"
         }
     },
     "title": "Prefect Settings",
