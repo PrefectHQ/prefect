@@ -9,8 +9,24 @@ def extract_extras_require(setup_py_content):
     match = re.search(r"extras_require\s*=\s*(\{.*?\})", setup_py_content, re.DOTALL)
     if match:
         extras_require_str = match.group(1)
+        # Define the context for eval
+        client_requires = []
+        install_requires = []
+        dev_requires = []
+        markdown_requirements = []
+        markdown_tests_requires = []
+
         # Evaluate the dictionary string to a Python dictionary
-        extras_require = eval(extras_require_str, {"dev_requires": ""})
+        extras_require = eval(
+            extras_require_str,
+            {
+                "client_requires": client_requires,
+                "install_requires": install_requires,
+                "dev_requires": dev_requires,
+                "markdown_requirements": markdown_requirements,
+                "markdown_tests_requires": markdown_tests_requires,
+            },
+        )
         return extras_require
     return {}
 

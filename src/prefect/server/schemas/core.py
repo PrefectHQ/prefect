@@ -48,8 +48,13 @@ from prefect.types import (
     PositiveInteger,
     StrictVariableValue,
 )
-from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict, listrepr
-from prefect.utilities.names import generate_slug, obfuscate, obfuscate_string
+from prefect.utilities.collections import (
+    AutoEnum,
+    dict_to_flatdict,
+    flatdict_to_dict,
+    listrepr,
+)
+from prefect.utilities.names import generate_slug, obfuscate
 
 if TYPE_CHECKING:
     from prefect.server.database import orm_models
@@ -144,6 +149,23 @@ class UpdatedBy(BaseModel):
     display_value: Optional[str] = Field(
         default=None, description="The display value for the updater."
     )
+
+
+class ConcurrencyLimitStrategy(AutoEnum):
+    """
+    Enumeration of concurrency collision strategies.
+    """
+
+    ENQUEUE = AutoEnum.auto()
+    CANCEL_NEW = AutoEnum.auto()
+
+
+class ConcurrencyOptions(BaseModel):
+    """
+    Class for storing the concurrency config in database.
+    """
+
+    collision_strategy: ConcurrencyLimitStrategy
 
 
 class FlowRun(ORMBaseModel):
@@ -504,17 +526,9 @@ class DeploymentSchedule(ORMBaseModel):
     active: bool = Field(
         default=True, description="Whether or not the schedule is active."
     )
-    max_active_runs: Optional[PositiveInteger] = Field(
-        default=None,
-        description="The maximum number of active runs for the schedule.",
-    )
     max_scheduled_runs: Optional[PositiveInteger] = Field(
         default=None,
         description="The maximum number of scheduled runs for the schedule.",
-    )
-    catchup: bool = Field(
-        default=False,
-        description="Whether or not a worker should catch up on Late runs for the schedule.",
     )
 
     @field_validator("max_scheduled_runs")
@@ -540,17 +554,17 @@ class Deployment(ORMBaseModel):
     flow_id: UUID = Field(
         default=..., description="The flow id associated with the deployment."
     )
-    schedule: Optional[schedules.SCHEDULE_TYPES] = Field(
-        default=None, description="A schedule for the deployment."
-    )
-    is_schedule_active: bool = Field(
-        default=True, description="Whether or not the deployment schedule is active."
-    )
     paused: bool = Field(
         default=False, description="Whether or not the deployment is paused."
     )
     schedules: List[DeploymentSchedule] = Field(
         default_factory=list, description="A list of schedules for the deployment."
+    )
+    concurrency_limit: Optional[NonNegativeInteger] = Field(
+        default=None, description="The concurrency limit for the deployment."
+    )
+    concurrency_options: Optional[ConcurrencyOptions] = Field(
+        default=None, description="The concurrency options for the deployment."
     )
     job_variables: Dict[str, Any] = Field(
         default_factory=dict,
@@ -784,7 +798,7 @@ class BlockDocument(ORMBaseModel):
             ):
                 secret_key = tuple(secret_field.split("."))
                 if flat_data.get(secret_key) is not None:
-                    flat_data[secret_key] = obfuscate_string(flat_data[secret_key])
+                    flat_data[secret_key] = obfuscate(flat_data[secret_key])
                 # If a wildcard (*) is in the current secret key path, we take the portion
                 # of the path before the wildcard and compare it to the same level of each
                 # key. A match means that the field is nested under the secret key and should

@@ -31,7 +31,7 @@ define the push and pull steps for a specific deployment.
 !!! note
     Azure Storage account needs to have Hierarchical Namespace disabled.
 
-For more information about using deployment steps, check out out the Prefect [docs](https://docs.prefect.io/latest/concepts/projects/#the-prefect-yaml-file).
+For more information about using deployment steps, check out out the Prefect [docs](https://docs.prefect.io/latest/deploy/).
 """  # noqa
 
 from pathlib import Path, PurePosixPath

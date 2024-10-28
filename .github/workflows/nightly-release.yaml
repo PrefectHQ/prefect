@@ -1,0 +1,74 @@
+name: Nightly Development Release
+
+on:
+  schedule:
+    - cron: "0 8 * * *" # Run every day at 12AM PST (8AM UTC)
+  workflow_dispatch:
+
+jobs:
+  nightly-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Get latest tag
+        id: get_latest_tag
+        run: |
+          latest_tag=$(git tag -l | grep -E '^[0-9]+\.[0-9]+\.[0-9]+(\.dev[0-9]+)?$' | grep -Ev 'rc|alpha|beta|post' | sort -V | tail -n1)
+          if [ -z "$latest_tag" ]; then
+            echo "No matching tags found."
+            exit 1
+          fi
+          echo "latest_tag=$latest_tag" >> $GITHUB_OUTPUT
+
+      - name: Check for changes since latest tag
+        id: check_changes
+        run: |
+          latest_tag=${{ steps.get_latest_tag.outputs.latest_tag }}
+          if git diff --exit-code $latest_tag HEAD -- '*.py' setup.py requirements.txt requirements-client.txt ui; then
+            echo "SHOULD_CREATE_RELEASE=false" >> $GITHUB_OUTPUT
+            echo "No changes in .py files or dependencies since the latest tag."
+          else
+            echo "SHOULD_CREATE_RELEASE=true" >> $GITHUB_OUTPUT
+            echo "Changes detected since the latest tag."
+          fi
+
+      - name: Determine next development release tag
+        id: next_dev_version
+        if: steps.check_changes.outputs.SHOULD_CREATE_RELEASE == 'true'
+        run: |
+          latest_tag=${{ steps.get_latest_tag.outputs.latest_tag }}
+
+          # Extract the components of the latest tag
+          components=$(echo $latest_tag | sed -nE 's/^([0-9]+)\.([0-9]+)\.([0-9]+)(\.dev([0-9]+))?$/\1 \2 \3 \5/p')
+          read -r major minor micro prev_counter <<< "$components"
+
+          if [ -z "$prev_counter" ]; then
+            # This is the dev first release for the next version
+            micro=$((micro + 1))
+            counter=1
+          else
+            # There have been dev releases for this version
+            counter=$((prev_counter + 1))
+          fi
+
+          next_tag=${major}.${minor}.${micro}.dev${counter}
+          echo "next_tag=$next_tag" >> $GITHUB_OUTPUT
+          echo "Next tag is $next_tag"
+
+      - name: Create development release
+        id: create_development_release
+        if: steps.check_changes.outputs.SHOULD_CREATE_RELEASE == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "${{ steps.next_dev_version.outputs.next_tag }}: Nightly Development Release"
+          tag_name: ${{ steps.next_dev_version.outputs.next_tag }}
+          draft: false
+          prerelease: true
+          generate_release_notes: true
+          token: ${{ secrets.UI_COMPONENTS_CONTENTS_PRS_RW }}

@@ -1,4 +1,5 @@
 import uuid
+from pathlib import Path
 
 import pytest
 
@@ -6,9 +7,11 @@ from prefect import flow
 from prefect.exceptions import CancelledRun, CrashedRun, FailedRun
 from prefect.results import (
     PersistedResult,
-    ResultFactory,
-    UnpersistedResult,
+    ResultRecord,
+    ResultRecordMetadata,
+    ResultStore,
 )
+from prefect.serializers import JSONSerializer
 from prefect.states import (
     Cancelled,
     Completed,
@@ -133,50 +136,54 @@ class TestRaiseStateException:
 
 class TestReturnValueToState:
     @pytest.fixture
-    async def factory(self, prefect_client):
-        return await ResultFactory.default_factory(client=prefect_client)
+    async def store(self):
+        return ResultStore()
 
-    async def test_returns_single_state_unaltered(self, factory):
+    async def test_returns_single_state_unaltered(self, store):
         state = Completed(data="hello!")
-        assert await return_value_to_state(state, factory) is state
+        assert await return_value_to_state(state, store) is state
 
-    async def test_returns_single_state_with_null_data_and_persist_off(
-        self, prefect_client
-    ):
-        factory = await ResultFactory.default_factory(
-            client=prefect_client, persist_result=False
-        )
+    async def test_returns_single_state_with_null_data_and_persist_off(self):
+        store = ResultStore()
         state = Completed(data=None)
-        result_state = await return_value_to_state(state, factory)
+        result_state = await return_value_to_state(state, store)
         assert result_state is state
-        assert isinstance(result_state.data, UnpersistedResult)
+        assert isinstance(result_state.data, ResultRecord)
+        assert not Path(result_state.data.metadata.storage_key).exists()
         assert await result_state.result() is None
 
-    async def test_returns_single_state_with_data_to_persist(self, prefect_client):
-        factory = await ResultFactory.default_factory(
-            client=prefect_client, persist_result=True
-        )
+    async def test_returns_single_state_with_data_to_persist(self):
+        store = ResultStore()
         state = Completed(data=1)
-        result_state = await return_value_to_state(state, factory)
+        result_state = await return_value_to_state(state, store, write_result=True)
         assert result_state is state
-        assert isinstance(result_state.data, PersistedResult)
+        assert isinstance(result_state.data, ResultRecord)
+        assert Path(result_state.data.metadata.storage_key).exists()
         assert await result_state.result() == 1
 
-    async def test_returns_persisted_results_unaltered(self, prefect_client):
-        factory = await ResultFactory.default_factory(
-            client=prefect_client, persist_result=True
-        )
-        result = await factory.create_result(42)
-        result_state = await return_value_to_state(result, factory)
+    async def test_returns_persisted_results_unaltered(
+        self, ignore_prefect_deprecation_warnings
+    ):
+        # TODO: This test will be removed in a future release when PersistedResult is removed
+        store = ResultStore(persist_result=True)
+        result = await store.create_result(42)
+        result_state = await return_value_to_state(result, store)
         assert result_state.data == result
         assert await result_state.result() == 42
 
+    async def test_returns_persisted_result_records_unaltered(self):
+        store = ResultStore()
+        record = store.create_result_record(42)
+        result_state = await return_value_to_state(record, store)
+        assert result_state.data == record
+        assert await result_state.result() == 42
+
     async def test_returns_single_state_unaltered_with_user_created_reference(
-        self, factory
+        self, store
     ):
-        result = await factory.create_result("test")
+        result = store.create_result_record("test")
         state = Completed(data=result)
-        result_state = await return_value_to_state(state, factory)
+        result_state = await return_value_to_state(state, store)
         assert result_state is state
         # Pydantic makes a copy of the result type during state so we cannot assert that
         # it is the original `result` object but we can assert there is not a copy in
@@ -185,9 +192,9 @@ class TestReturnValueToState:
         assert result_state.data == result
         assert await result_state.result() == "test"
 
-    async def test_all_completed_states(self, factory):
+    async def test_all_completed_states(self, store):
         states = [Completed(message="hi"), Completed(message="bye")]
-        result_state = await return_value_to_state(states, factory)
+        result_state = await return_value_to_state(states, store)
         # States have been stored as data
         assert await result_state.result() == states
         # Message explains aggregate
@@ -195,13 +202,13 @@ class TestReturnValueToState:
         # Aggregate type is completed
         assert result_state.is_completed()
 
-    async def test_some_failed_states(self, factory):
+    async def test_some_failed_states(self, store):
         states = [
             Completed(message="hi"),
             Failed(message="bye"),
             Failed(message="err"),
         ]
-        result_state = await return_value_to_state(states, factory)
+        result_state = await return_value_to_state(states, store)
         # States have been stored as data
         assert await result_state.result(raise_on_failure=False) == states
         # Message explains aggregate
@@ -209,13 +216,13 @@ class TestReturnValueToState:
         # Aggregate type is failed
         assert result_state.is_failed()
 
-    async def test_some_unfinal_states(self, factory):
+    async def test_some_unfinal_states(self, store):
         states = [
             Completed(message="hi"),
             Running(message="bye"),
             Pending(message="err"),
         ]
-        result_state = await return_value_to_state(states, factory)
+        result_state = await return_value_to_state(states, store)
         # States have been stored as data
         assert await result_state.result(raise_on_failure=False) == states
         # Message explains aggregate
@@ -224,16 +231,16 @@ class TestReturnValueToState:
         assert result_state.is_failed()
 
     @pytest.mark.parametrize("run_identifier", ["task_run_id", "flow_run_id"])
-    async def test_single_state_in_future_is_processed(self, run_identifier, factory):
+    async def test_single_state_in_future_is_processed(self, run_identifier, store):
         state = Completed(data="test", state_details={run_identifier: uuid.uuid4()})
         # The engine is responsible for resolving the futures
-        result_state = await return_value_to_state(state, factory)
+        result_state = await return_value_to_state(state, store)
         assert await result_state.result() == state
         assert result_state.is_completed()
         assert result_state.message == "All states completed."
 
-    async def test_non_prefect_types_return_completed_state(self, factory):
-        result_state = await return_value_to_state("foo", factory)
+    async def test_non_prefect_types_return_completed_state(self, store):
+        result_state = await return_value_to_state("foo", store)
         assert result_state.is_completed()
         assert await result_state.result() == "foo"
 
@@ -373,3 +380,27 @@ class TestStateGroup:
         assert "'FAILED'=1" in counts_message
         assert "'CRASHED'=1" in counts_message
         assert "'RUNNING'=2" in counts_message
+
+
+def test_state_returns_expected_result(ignore_prefect_deprecation_warnings):
+    """
+    Regression test for https://github.com/PrefectHQ/prefect/issues/14927
+    """
+    state = Completed(data="test")
+    assert state.result() == "test"
+
+    state = Completed(
+        data=ResultRecord(
+            result="test",
+            metadata=ResultRecordMetadata(
+                serializer=JSONSerializer(), storage_key="test"
+            ),
+        )
+    )
+    assert state.result() == "test"
+
+    # legacy case
+    result = PersistedResult(serializer_type="pickle", storage_key="test")
+    result._cache = "test"
+    state = Completed(data=result)
+    assert state.result() == "test"

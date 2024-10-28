@@ -19,7 +19,6 @@ import prefect
 import prefect.logging.configuration
 import prefect.settings
 from prefect import flow, task
-from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.exceptions import MissingContextError
@@ -55,6 +54,7 @@ from prefect.settings import (
     PREFECT_LOGGING_TO_API_ENABLED,
     PREFECT_LOGGING_TO_API_MAX_LOG_SIZE,
     PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW,
+    PREFECT_TEST_MODE,
     temporary_settings,
 )
 from prefect.testing.cli import temporary_console_width
@@ -199,7 +199,9 @@ def test_get_logger_does_not_duplicate_prefect_prefix():
 
 
 def test_default_level_is_applied_to_interpolated_yaml_values(dictConfigMock):
-    with temporary_settings({PREFECT_LOGGING_LEVEL: "WARNING"}):
+    with temporary_settings(
+        {PREFECT_LOGGING_LEVEL: "WARNING", PREFECT_TEST_MODE: False}
+    ):
         expected_config = load_logging_config(DEFAULT_LOGGING_SETTINGS_PATH)
         expected_config["incremental"] = False
 
@@ -420,23 +422,6 @@ class TestAPILogHandler:
     def test_does_not_send_logs_that_opt_out(self, logger, mock_log_worker, task_run):
         with TaskRunContext.model_construct(task_run=task_run):
             logger.info("test", extra={"send_to_api": False})
-
-        mock_log_worker.instance().send.assert_not_called()
-
-    def test_does_not_send_logs_that_opt_out_deprecated(
-        self, logger, mock_log_worker, task_run
-    ):
-        with TaskRunContext.model_construct(task_run=task_run):
-            with pytest.warns(
-                PrefectDeprecationWarning,
-                match=(
-                    'The "send_to_orion" option has been deprecated. It will not be'
-                    ' available after Nov 2023. Use "send_to_api" instead.'
-                ),
-            ):
-                PrefectLogAdapter(logger, extra={}).info(
-                    "test", extra={"send_to_orion": False}
-                )
 
         mock_log_worker.instance().send.assert_not_called()
 
@@ -687,9 +672,8 @@ class TestAPILogWorker:
             )
         assert len(set(log.message for log in logs)) == count, "Each log is unique"
 
-    @pytest.mark.parametrize("exiting", [True, False])
     async def test_send_logs_writes_exceptions_to_stderr(
-        self, log_dict, capsys, monkeypatch, exiting, worker
+        self, log_dict, capsys, monkeypatch, worker
     ):
         monkeypatch.setattr(
             "prefect.client.orchestration.PrefectClient.create_logs",
@@ -1001,7 +985,7 @@ async def test_run_logger_in_nested_flow(prefect_client):
     }
 
 
-async def test_run_logger_in_task(prefect_client):
+async def test_run_logger_in_task(prefect_client, events_pipeline):
     @task
     def test_task():
         return get_run_logger()
@@ -1013,6 +997,9 @@ async def test_run_logger_in_task(prefect_client):
     flow_state = test_flow(return_state=True)
     flow_run = await prefect_client.read_flow_run(flow_state.state_details.flow_run_id)
     task_state = await flow_state.result()
+
+    await events_pipeline.process_events()
+
     task_run = await prefect_client.read_task_run(task_state.state_details.task_run_id)
     logger = await task_state.result()
     assert logger.name == "prefect.task_runs"

@@ -23,11 +23,12 @@ from pendulum.datetime import DateTime
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import Literal, TypeAlias
 
+from prefect._internal.retries import retry_async_fn
 from prefect.logging import get_logger
 from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.events import messaging
-from prefect.server.events.actions import ActionTypes
+from prefect.server.events.actions import ServerActionTypes
 from prefect.server.events.models.automations import (
     automations_session,
     read_automation,
@@ -82,18 +83,39 @@ async def evaluate(
     each automation, and will fire the associated action if it has met the threshold."""
     automation = trigger.automation
 
+    logging_context = {
+        "automation": automation.id,
+        "trigger": trigger.id,
+        "bucketing_key": bucket.bucketing_key,
+        "bucket_start": bucket.start,
+        "bucket_end": bucket.end,
+        "bucket_initial_count": bucket.count,
+        "bucket_last_operation": bucket.last_operation,
+        "now": now,
+        "triggering_event": (
+            {
+                "id": triggering_event.id,
+                "event": triggering_event.event,
+            }
+            if triggering_event
+            else None
+        ),
+    }
+
     # Implementation notes:
     #
     # This triggering algorithm maintains an invariant that there is exactly one
     # time-based "bucket" open and collecting events for each automation at a time. When
-    # an event comes in that matches the automation, one of three things can happen:
+    # an event comes in that matches the automation, one of four things can happen:
     #
     # 1. The event would have matched an older bucket that has either expired or has
     #    already filled up, and thus is no longer relevant;
-    # 2. The event matches the current bucket, but the bucket does not meet it's
+    # 2. The event matches the current bucket, but the bucket does not meet its
     #    threshold yet;
     # 3. The event matches the current bucket, causes it to meet the the threshold, so
-    #    we act immediately and advance the bucket to the next time period.
+    #    we fire immediately and advance the bucket to the next time period.
+    # 4. The event matches the current bucket, but the event is for a future time after
+    #    the current bucket has expired, so we will start the new bucket and re-evaluate
     #
     # Automations are also evaluated proactively without an event to see if they have
     # met their proactive threshold (where not enough events have happened in the time
@@ -106,7 +128,16 @@ async def evaluate(
     if now < bucket.start:
         # This is an older out-of-order message or a redundant event for a reactive
         # trigger that has has already fired, so it should not should not affect the
-        # current bucket.  We can safely ignore this event/timestamp entirely.
+        # current bucket.  We can safely ignore this event/timestamp entirely.  Case #1
+        # from the implementation notes above.
+        logger.debug(
+            "Automation %s (%r) trigger %s got a late event for keys (%r)",
+            automation.id,
+            automation.name,
+            trigger.id,
+            bucket.bucketing_key,
+            extra=logging_context,
+        )
         return bucket
 
     if count and (trigger.immediate or bucket.start <= now < bucket.end):
@@ -125,9 +156,10 @@ async def evaluate(
     # automation _not_ to fire.
 
     ready_to_fire = trigger.posture == Posture.Reactive or bucket.end <= now
+    meets_threshold = trigger.meets_threshold(bucket.count)
 
-    if ready_to_fire and trigger.meets_threshold(bucket.count):
-        logger.info(
+    if ready_to_fire and meets_threshold:
+        logger.debug(
             (
                 "Automation %s (%r) trigger %s triggered for keys (%r) %s, "
                 "having occurred %s times between %s and %s"
@@ -140,19 +172,7 @@ async def evaluate(
             bucket.count,
             bucket.start,
             bucket.end,
-            extra={
-                "automation": automation.id,
-                "trigger": trigger.id,
-                "bucketing_key": bucket.bucketing_key,
-                "triggering_event": (
-                    {
-                        "id": triggering_event.id,
-                        "event": triggering_event.event,
-                    }
-                    if triggering_event
-                    else None
-                ),
-            },
+            extra=logging_context,
         )
 
         firing = Firing(
@@ -175,8 +195,36 @@ async def evaluate(
 
     elif now < bucket.end:
         # We didn't fire this time, and also the bucket still has more time, so leave
-        # before setting up a new future bucket
+        # before setting up a new future bucket.  Case #2 from the implementation notes
+        # above.
+        logger.debug(
+            "Automation %s (%r) trigger %s has more time for keys (%r)",
+            automation.id,
+            automation.name,
+            trigger.id,
+            bucket.bucketing_key,
+            extra={
+                **logging_context,
+                "ready_to_fire": ready_to_fire,
+                "meets_threshold": meets_threshold,
+            },
+        )
         return bucket
+    else:
+        # Case #2 from the implementation notes above.
+        logger.debug(
+            "Automation %s (%r) trigger %s not ready to fire for keys (%r)",
+            automation.id,
+            automation.name,
+            trigger.id,
+            bucket.bucketing_key,
+            extra={
+                **logging_context,
+                "ready_to_fire": ready_to_fire,
+                "meets_threshold": meets_threshold,
+                "bucket_current_count": bucket.count,
+            },
+        )
 
     # We are now outside of the automation's time period or we triggered this
     # time.  That means it's time to start a new bucket for the next possible time
@@ -190,14 +238,33 @@ async def evaluate(
             return None
 
         start = pendulum.instance(max(bucket.end, now))
-        return await start_new_bucket(
-            session,
-            trigger,
-            bucketing_key=bucket.bucketing_key,
-            start=start,
-            end=start + trigger.within,
-            count=count,
-        )
+        end = start + trigger.within
+
+        # If we're processing a reactive trigger and leaving the function with a count
+        # that we've just spent in the bucket for the next time window, it means that we
+        # just processed an event that was in the future. It's possible that this event
+        # was sufficient enough to cause the trigger to fire, so we need to evaluate one
+        # more time to see if that's the case.  This is case #4 from the implementation
+        # notes above.
+        if trigger.posture == Posture.Reactive and count > 0:
+            bucket = await start_new_bucket(
+                session,
+                trigger,
+                bucketing_key=bucket.bucketing_key,
+                start=start,
+                end=end,
+                count=0,
+            )
+            return await evaluate(session, trigger, bucket, now, triggering_event)
+        else:
+            return await start_new_bucket(
+                session,
+                trigger,
+                bucketing_key=bucket.bucketing_key,
+                start=start,
+                end=end,
+                count=count,
+            )
 
 
 async def fire(session: AsyncSession, firing: Firing):
@@ -306,7 +373,7 @@ async def act(firing: Firing):
     await messaging.publish(state_change_events.values())
 
     # By default, all `automation.actions` are fired
-    source_actions: List[Tuple[Optional[ReceivedEvent], ActionTypes]] = [
+    source_actions: List[Tuple[Optional[ReceivedEvent], ServerActionTypes]] = [
         (firing.triggering_event, action) for action in automation.actions
     ]
 
@@ -513,6 +580,13 @@ async def reactive_evaluation(event: ReceivedEvent, depth: int = 0):
                     await session.commit()
 
 
+# retry on operational errors to account for db flakiness with sqlite
+@retry_async_fn(max_attempts=3, retry_on_exceptions=(sa.exc.OperationalError,))
+async def get_lost_followers():
+    """Get followers that have been sitting around longer than our lookback"""
+    return await causal_ordering().get_lost_followers()
+
+
 async def periodic_evaluation(now: DateTime):
     """Periodic tasks that should be run regularly, but not as often as every event"""
     offset = await get_events_clock_offset()
@@ -523,7 +597,7 @@ async def periodic_evaluation(now: DateTime):
     # Any followers that have been sitting around longer than our lookback are never
     # going to see their leader event (maybe it was lost or took too long to arrive).
     # These events can just be evaluated now in the order they occurred.
-    for event in await causal_ordering().get_lost_followers():
+    for event in await get_lost_followers():
         await reactive_evaluation(event)
 
     async with automations_session() as session:

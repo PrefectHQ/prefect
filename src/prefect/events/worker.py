@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 from contextvars import Context, copy_context
-from typing import Any, Dict, Optional, Tuple, Type
+from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple, Type
 from uuid import UUID
 
 from typing_extensions import Self
@@ -17,11 +17,13 @@ from .clients import (
     EventsClient,
     NullEventsClient,
     PrefectCloudEventsClient,
-    PrefectEphemeralEventsClient,
     PrefectEventsClient,
 )
 from .related import related_resources_from_run_context
 from .schemas.events import Event
+
+if TYPE_CHECKING:
+    from prefect.client.orchestration import PrefectClient
 
 
 def should_emit_events() -> bool:
@@ -56,14 +58,18 @@ class EventsWorker(QueueService[Event]):
         self.client_type = client_type
         self.client_options = client_options
         self._client: EventsClient
+        self._orchestration_client: "PrefectClient"
         self._context_cache: Dict[UUID, Context] = {}
 
     @asynccontextmanager
     async def _lifespan(self):
         self._client = self.client_type(**{k: v for k, v in self.client_options})
+        from prefect.client.orchestration import get_client
 
+        self._orchestration_client = get_client()
         async with self._client:
-            yield
+            async with self._orchestration_client:
+                yield
 
     def _prepare_item(self, event: Event) -> Event:
         self._context_cache[event.id] = copy_context()
@@ -78,7 +84,9 @@ class EventsWorker(QueueService[Event]):
 
     async def attach_related_resources_from_context(self, event: Event):
         exclude = {resource.id for resource in event.involved_resources}
-        event.related += await related_resources_from_run_context(exclude=exclude)
+        event.related += await related_resources_from_run_context(
+            client=self._orchestration_client, exclude=exclude
+        )
 
     @classmethod
     def instance(
@@ -97,7 +105,15 @@ class EventsWorker(QueueService[Event]):
             elif should_emit_events_to_running_server():
                 client_type = PrefectEventsClient
             elif should_emit_events_to_ephemeral_server():
-                client_type = PrefectEphemeralEventsClient
+                # create an ephemeral API if none was provided
+                from prefect.server.api.server import SubprocessASGIServer
+
+                server = SubprocessASGIServer()
+                server.start()
+                assert server.server_process is not None, "Server process did not start"
+
+                client_kwargs = {"api_url": server.api_url}
+                client_type = PrefectEventsClient
             else:
                 client_type = NullEventsClient
 

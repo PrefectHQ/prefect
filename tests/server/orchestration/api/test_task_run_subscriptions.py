@@ -396,7 +396,7 @@ class TestTaskWorkerTracking:
         task_keys,
         expected_workers,
         client_id,
-        prefect_client,
+        test_client,
     ):
         for _ in range(num_connections):
             with authenticated_socket(app) as socket:
@@ -404,7 +404,7 @@ class TestTaskWorkerTracking:
                     {"type": "subscribe", "keys": task_keys, "client_id": client_id}
                 )
 
-            response = await prefect_client._client.post("/task_workers/filter")
+            response = test_client.post("api/task_workers/filter")
             assert response.status_code == 200
             tracked_workers = response.json()
             assert len(tracked_workers) == expected_workers

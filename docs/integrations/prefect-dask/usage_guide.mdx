@@ -84,6 +84,8 @@ warnings and errors.
 If you don't provide the `address` of a Dask scheduler, Prefect creates a temporary local cluster automatically. The number of workers used is based on the number of cores available to your execution environment. The default provides a mix of processes and threads that should work well for most workloads. If you want to specify this explicitly, you can pass values for `n_workers` or `threads_per_worker` to `cluster_kwargs`.
 
 ```python
+from prefect_dask import DaskTaskRunner
+
 # Use 4 worker processes, each with 2 threads
 DaskTaskRunner(
     cluster_kwargs={"n_workers": 4, "threads_per_worker": 2}
@@ -277,7 +279,7 @@ def my_flow():
         future = show(0)  # this task requires 1 GPU resource on a worker
 
     with dask.annotate(resources={'process': 1}):
-        # These tasks each require 1 process on a worker; because we've 
+        # These tasks each require 1 process on a worker; because we've
         # specified that our cluster has 1 process per worker and 1 worker,
         # these tasks will run sequentially
         future = show(1)

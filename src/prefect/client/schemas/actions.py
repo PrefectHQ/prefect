@@ -11,7 +11,6 @@ from prefect._internal.schemas.bases import ActionBaseModel
 from prefect._internal.schemas.validators import (
     convert_to_strings,
     remove_old_deployment_fields,
-    return_none_schedule,
     validate_artifact_key,
     validate_block_document_name,
     validate_block_type_slug,
@@ -39,7 +38,7 @@ from prefect.utilities.collections import listrepr
 from prefect.utilities.pydantic import get_class_fields_only
 
 if TYPE_CHECKING:
-    from prefect.results import BaseResult
+    from prefect.results import BaseResult, ResultRecordMetadata
 
 R = TypeVar("R")
 
@@ -51,7 +50,7 @@ class StateCreate(ActionBaseModel):
     name: Optional[str] = Field(default=None)
     message: Optional[str] = Field(default=None, examples=["Run started"])
     state_details: StateDetails = Field(default_factory=StateDetails)
-    data: Union["BaseResult[R]", Any] = Field(
+    data: Union["BaseResult[R]", "ResultRecordMetadata", Any] = Field(
         default=None,
     )
 
@@ -86,17 +85,9 @@ class DeploymentScheduleCreate(ActionBaseModel):
     active: bool = Field(
         default=True, description="Whether or not the schedule is active."
     )
-    max_active_runs: Optional[PositiveInteger] = Field(
-        default=None,
-        description="The maximum number of active runs for the schedule.",
-    )
     max_scheduled_runs: Optional[PositiveInteger] = Field(
         default=None,
         description="The maximum number of scheduled runs for the schedule.",
-    )
-    catchup: bool = Field(
-        default=False,
-        description="Whether or not a worker should catch up on Late runs for the schedule.",
     )
 
     @field_validator("max_scheduled_runs")
@@ -115,19 +106,9 @@ class DeploymentScheduleUpdate(ActionBaseModel):
         default=True, description="Whether or not the schedule is active."
     )
 
-    max_active_runs: Optional[PositiveInteger] = Field(
-        default=None,
-        description="The maximum number of active runs for the schedule.",
-    )
-
     max_scheduled_runs: Optional[PositiveInteger] = Field(
         default=None,
         description="The maximum number of scheduled runs for the schedule.",
-    )
-
-    catchup: Optional[bool] = Field(
-        default=None,
-        description="Whether or not a worker should catch up on Late runs for the schedule.",
     )
 
     @field_validator("max_scheduled_runs")
@@ -153,11 +134,18 @@ class DeploymentCreate(ActionBaseModel):
 
     name: str = Field(..., description="The name of the deployment.")
     flow_id: UUID = Field(..., description="The ID of the flow to deploy.")
-    is_schedule_active: Optional[bool] = Field(None)
     paused: Optional[bool] = Field(None)
     schedules: List[DeploymentScheduleCreate] = Field(
         default_factory=list,
         description="A list of schedules for the deployment.",
+    )
+    concurrency_limit: Optional[int] = Field(
+        default=None,
+        description="The concurrency limit for the deployment.",
+    )
+    concurrency_options: Optional[objects.ConcurrencyOptions] = Field(
+        default=None,
+        description="The concurrency options for the deployment.",
     )
     enforce_parameter_schema: Optional[bool] = Field(
         default=None,
@@ -181,7 +169,6 @@ class DeploymentCreate(ActionBaseModel):
     )
     storage_document_id: Optional[UUID] = Field(None)
     infrastructure_document_id: Optional[UUID] = Field(None)
-    schedule: Optional[SCHEDULE_TYPES] = Field(None)
     description: Optional[str] = Field(None)
     path: Optional[str] = Field(None)
     version: Optional[str] = Field(None)
@@ -219,18 +206,26 @@ class DeploymentUpdate(ActionBaseModel):
     def remove_old_fields(cls, values):
         return remove_old_deployment_fields(values)
 
-    @field_validator("schedule")
-    @classmethod
-    def validate_none_schedule(cls, v):
-        return return_none_schedule(v)
-
     version: Optional[str] = Field(None)
-    schedule: Optional[SCHEDULE_TYPES] = Field(None)
     description: Optional[str] = Field(None)
-    is_schedule_active: bool = Field(None)
     parameters: Optional[Dict[str, Any]] = Field(
         default=None,
         description="Parameters for flow runs scheduled by the deployment.",
+    )
+    paused: Optional[bool] = Field(
+        default=None, description="Whether or not the deployment is paused."
+    )
+    schedules: Optional[List[DeploymentScheduleCreate]] = Field(
+        default=None,
+        description="A list of schedules for the deployment.",
+    )
+    concurrency_limit: Optional[int] = Field(
+        default=None,
+        description="The concurrency limit for the deployment.",
+    )
+    concurrency_options: Optional[objects.ConcurrencyOptions] = Field(
+        default=None,
+        description="The concurrency options for the deployment.",
     )
     tags: List[str] = Field(default_factory=list)
     work_queue_name: Optional[str] = Field(None)
@@ -610,11 +605,11 @@ class WorkQueueCreate(ActionBaseModel):
         default=False,
         description="Whether the work queue is paused.",
     )
-    concurrency_limit: Optional[int] = Field(
+    concurrency_limit: Optional[NonNegativeInteger] = Field(
         default=None,
         description="A concurrency limit for the work queue.",
     )
-    priority: Optional[int] = Field(
+    priority: Optional[PositiveInteger] = Field(
         default=None,
         description=(
             "The queue's priority. Lower values are higher priority (1 is the highest)."
@@ -638,8 +633,10 @@ class WorkQueueUpdate(ActionBaseModel):
     is_paused: bool = Field(
         default=False, description="Whether or not the work queue is paused."
     )
-    concurrency_limit: Optional[int] = Field(None)
-    priority: Optional[int] = Field(None)
+    concurrency_limit: Optional[NonNegativeInteger] = Field(None)
+    priority: Optional[PositiveInteger] = Field(
+        None, description="The queue's priority."
+    )
     last_polled: Optional[DateTime] = Field(None)
 
     # DEPRECATED

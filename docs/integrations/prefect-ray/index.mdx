@@ -4,32 +4,29 @@ description: Accelerate your workflows by running tasks in parallel with Ray
 ---
 
 [Ray](https://docs.ray.io/en/latest/index.html) can run your tasks in parallel by distributing them over multiple machines.
-The `prefect-ray` integration makes it easy to accelerate your flow runs with Ray. 
+The `prefect-ray` integration makes it easy to accelerate your flow runs with Ray.
 
 ## Install `prefect-ray`
 
+The following command will install a version of `prefect-ray` compatible with your installed version of `prefect`.
+If you don't already have `prefect` installed, it will install the newest version of `prefect` as well.
 
-Install or update to the latest version of the prefect-ray library and dependencies.
+```bash
+pip install "prefect[ray]"
+```
 
-<Tabs>
-    <Tab title="Prefect 2">
-    ```bash
-    pip install -U prefect-ray
-    ```
-    </Tab>
-    <Tab title="Prefect 3">
-    ```bash
-    pip install -U -pre prefect-ray
-    ```
-    </Tab>
-</Tabs>
+Upgrade to the latest versions of `prefect` and `prefect-ray`:
 
-<Warning> 
+```bash
+pip install -U "prefect[ray]"
+```
+
+<Warning>
 **Ray limitations**
 
 There are a few limitations with Ray:
 
-- Ray support for Python 3.11 is [experimental](https://docs.ray.io/en/latest/ray-overview/installation.html#install-nightlies).
+- Ray support for Python 3.12 is [experimental](https://docs.ray.io/en/latest/ray-overview/installation.html#install-nightlies).
 - Ray support for non-x86/64 architectures such as ARM/M1 processors with installation from `pip` alone and will be skipped during installation of Prefect. It is possible to manually install the blocking component with `conda`. See the [Ray documentation](https://docs.ray.io/en/latest/ray-overview/installation.html#m1-mac-apple-silicon-support) for instructions.
 - Ray support for Windows is currently in beta.
 
@@ -90,7 +87,7 @@ from prefect_ray.task_runners import RayTaskRunner
 
 @flow(task_runner=RayTaskRunner())
 def my_flow():
-    ... 
+    ...
 ```
 
 This flow uses the `RayTaskRunner` configured to access an existing Ray instance at `ray://192.0.2.255:8786`.
@@ -116,12 +113,12 @@ def my_flow():
 | address | Address of a currently running Ray instance, starting with the [ray://](https://docs.ray.io/en/master/cluster/ray-client.html) URI. |
 | init_kwargs | Additional kwargs to use when calling `ray.init`. |
 
-The Ray client uses the [ray://](https://docs.ray.io/en/master/cluster/ray-client.html) URI to indicate the address of a Ray instance. 
+The Ray client uses the [ray://](https://docs.ray.io/en/master/cluster/ray-client.html) URI to indicate the address of a Ray instance.
 If you don't provide the `address` of a Ray instance, Prefect creates a temporary instance automatically.
 
 ## Run tasks on a remote Ray cluster
 
-When using the `RayTaskRunner` with a remote Ray cluster, you may run into issues that are not seen when using a local Ray instance. 
+When using the `RayTaskRunner` with a remote Ray cluster, you may run into issues that are not seen when using a local Ray instance.
 To resolve these issues, we recommend taking the following steps when working with a remote Ray cluster:
 
 1. By default, Prefect will not persist any data to the filesystem of the remote ray worker. However, if you want to take advantage of Prefect's caching ability, you will need to configure a remote result storage to persist results across task runs.
@@ -135,8 +132,8 @@ from typing import List
 
 from prefect import flow, task
 from prefect.logging import get_run_logger
-from prefect.filesystems import S3
 from prefect.tasks import task_input_hash
+from prefect_aws import S3Bucket
 from prefect_ray.task_runners import RayTaskRunner
 
 
@@ -192,6 +189,7 @@ from prefect import flow, task
 from prefect_ray.task_runners import RayTaskRunner
 from prefect_ray.context import remote_options
 
+
 @task
 def process(x):
     return x + 1
@@ -206,6 +204,6 @@ def my_flow():
 
 ## Resources
 
-Refer to the `prefect-ray` API documentation to explore all the capabilities of the prefect-ray library.
+Refer to the `prefect-ray` SDK documentation to explore all the capabilities of the `prefect-ray` library.
 
 For further assistance using Ray, consult the [Ray documentation](https://docs.ray.io/en/latest/index.html).

@@ -1,5 +1,3 @@
-import asyncio
-
 import pytest
 
 from prefect.blocks import system
@@ -37,28 +35,40 @@ async def install_system_block_types(session):
 def test_register_blocks_from_module_with_ui_url():
     with temporary_settings(set_defaults={PREFECT_UI_URL: "https://app.prefect.cloud"}):
         invoke_and_assert(
-            ["block", "register", "-m", "prefect.blocks.core"],
+            ["block", "register", "-m", "prefect.blocks.system"],
             expected_code=0,
             expected_output_contains=[
                 "Successfully registered",
                 "blocks",
-                "Prefect UI: https://app.prefect.cloud/blocks/catalog",
             ],
         )
 
 
-def test_register_blocks_from_module_without_ui_url():
+def test_register_blocks_from_module_without_ui_url(
+    disable_hosted_api_server, enable_ephemeral_server
+):
     with temporary_settings(set_defaults={PREFECT_UI_URL: None}):
         invoke_and_assert(
-            ["block", "register", "-m", "prefect.blocks.core"],
+            ["block", "register", "-m", "prefect.blocks.system"],
             expected_code=0,
             expected_output_contains=[
                 "Successfully registered",
                 "blocks",
-                "Prefect UI.",
+                "Prefect UI",
             ],
             expected_output_does_not_contain=["Prefect UI: https://"],
         )
+
+
+def test_register_blocks_no_blocks_found_to_register():
+    invoke_and_assert(
+        ["block", "register", "-m", "prefect.blocks.core"],
+        expected_code=1,
+        expected_output_contains=[
+            "No blocks were registered from module 'prefect.blocks.core'",
+            "Please make sure the module 'prefect.blocks.core' contains valid blocks",
+        ],
+    )
 
 
 def test_register_blocks_from_nonexistent_module():
@@ -83,14 +93,15 @@ def test_register_blocks_from_invalid_module():
     )
 
 
-def test_register_blocks_from_file(tmp_path, prefect_client: PrefectClient):
+async def test_register_blocks_from_file(tmp_path, prefect_client: PrefectClient):
     test_file_path = tmp_path / "test.py"
 
     with open(test_file_path, "w") as f:
         f.write(TEST_BLOCK_CODE)
 
     with temporary_settings(set_defaults={PREFECT_UI_URL: "https://app.prefect.cloud"}):
-        invoke_and_assert(
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
             ["block", "register", "-f", str(test_file_path)],
             expected_code=0,
             expected_output_contains=[
@@ -99,9 +110,7 @@ def test_register_blocks_from_file(tmp_path, prefect_client: PrefectClient):
             ],
         )
 
-    block_type = asyncio.run(
-        prefect_client.read_block_type_by_slug(slug="testforfileregister")
-    )
+    block_type = prefect_client.read_block_type_by_slug(slug="testforfileregister")
     assert block_type is not None
 
 
@@ -185,18 +194,21 @@ def test_listing_blocks_when_none_are_registered():
 
 
 async def test_listing_blocks_after_saving_a_block():
-    block_id = await system.JSON(value="a casual test block").save("wildblock")
+    block_id = await system.Secret(value="a casual test block").save("wildblock")
 
     await run_sync_in_worker_thread(
         invoke_and_assert,
         command=["block", "ls"],
-        expected_output_contains=f"""
-            ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┓
-            ┃ ID                                   ┃ Type ┃ Name      ┃ Slug           ┃
-            ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━━━━━┩
-            │ {block_id} │ JSON │ wildblock │ json/wildblock │
-            └──────────────────────────────────────┴──────┴───────────┴────────────────┘
-            """,
+        expected_output_contains=[
+            "ID",
+            "Type",
+            "Name",
+            "Slug",
+            str(block_id),
+            "Secret",
+            "wildblock",
+            "secret/wildblock",
+        ],
     )
 
 
@@ -221,7 +233,7 @@ def test_listing_system_block_types(register_block_types):
     )
 
 
-async def test_inspecting_a_block():
+async def test_inspecting_a_block(ignore_prefect_deprecation_warnings):
     await system.JSON(value="a simple json blob").save("jsonblob")
 
     expected_output = ("Block Type", "Block id", "value", "a simple json blob")
@@ -243,18 +255,18 @@ def test_inspecting_a_block_malformed_slug():
 
 
 async def test_deleting_a_block():
-    await system.JSON(value="don't delete me please").save("pleasedonterase")
+    await system.Secret(value="don't delete me please").save("pleasedonterase")
 
     await run_sync_in_worker_thread(
         invoke_and_assert,
-        ["block", "delete", "json/pleasedonterase"],
+        ["block", "delete", "secret/pleasedonterase"],
         user_input="y",
         expected_code=0,
     )
 
     await run_sync_in_worker_thread(
         invoke_and_assert,
-        ["block", "inspect", "json/pleasedonterase"],
+        ["block", "inspect", "secret/pleasedonterase"],
         expected_code=1,
     )
 
@@ -297,14 +309,15 @@ def test_inspecting_a_block_type(tmp_path):
     )
 
 
-def test_deleting_a_block_type(tmp_path, prefect_client):
+async def test_deleting_a_block_type(tmp_path, prefect_client):
     test_file_path = tmp_path / "test.py"
 
     with open(test_file_path, "w") as f:
         f.write(TEST_BLOCK_CODE)
 
-    invoke_and_assert(
-        ["block", "register", "-f", str(test_file_path)],
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=["block", "register", "-f", str(test_file_path)],
         expected_code=0,
         expected_output_contains="Successfully registered 1 block",
     )
@@ -314,15 +327,16 @@ def test_deleting_a_block_type(tmp_path, prefect_client):
         "testforfileregister",
     ]
 
-    invoke_and_assert(
-        ["block", "type", "delete", "testforfileregister"],
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=["block", "type", "delete", "testforfileregister"],
         expected_code=0,
         user_input="y",
         expected_output_contains=expected_output,
     )
 
     with pytest.raises(ObjectNotFound):
-        asyncio.run(prefect_client.read_block_type_by_slug(slug="testforfileregister"))
+        await prefect_client.read_block_type_by_slug(slug="testforfileregister")
 
 
 def test_deleting_a_protected_block_type(

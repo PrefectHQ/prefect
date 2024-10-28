@@ -1,0 +1,17 @@
+# This is a template for profile configuration for Prefect.
+# You can modify these profiles or create new ones to suit your needs.
+
+active = "ephemeral"
+
+[profiles.ephemeral]
+PREFECT_SERVER_ALLOW_EPHEMERAL_MODE = "true"
+
+[profiles.local]
+# You will need to set these values appropriately for your local development environment
+PREFECT_API_URL = "http://127.0.0.1:4200/api"
+
+[profiles.test]
+PREFECT_SERVER_ALLOW_EPHEMERAL_MODE = "true"
+PREFECT_API_DATABASE_CONNECTION_URL = "sqlite+aiosqlite:///:memory:"
+
+[profiles.cloud]

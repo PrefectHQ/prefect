@@ -424,6 +424,36 @@ class FlowRunFilterStartTime(PrefectFilterBaseModel):
         return filters
 
 
+class FlowRunFilterEndTime(PrefectFilterBaseModel):
+    """Filter by `FlowRun.end_time`."""
+
+    before_: Optional[DateTime] = Field(
+        default=None,
+        description="Only include flow runs ending at or before this time",
+    )
+    after_: Optional[DateTime] = Field(
+        default=None,
+        description="Only include flow runs ending at or after this time",
+    )
+    is_null_: Optional[bool] = Field(
+        default=None, description="If true, only return flow runs without an end time"
+    )
+
+    def _get_filter_list(self) -> List:
+        filters = []
+        if self.before_ is not None:
+            filters.append(orm_models.FlowRun.end_time <= self.before_)
+        if self.after_ is not None:
+            filters.append(orm_models.FlowRun.end_time >= self.after_)
+        if self.is_null_ is not None:
+            filters.append(
+                orm_models.FlowRun.end_time.is_(None)
+                if self.is_null_
+                else orm_models.FlowRun.end_time.is_not(None)
+            )
+        return filters
+
+
 class FlowRunFilterExpectedStartTime(PrefectFilterBaseModel):
     """Filter by `FlowRun.expected_start_time`."""
 
@@ -568,6 +598,9 @@ class FlowRunFilter(PrefectOperatorFilterBaseModel):
     start_time: Optional[FlowRunFilterStartTime] = Field(
         default=None, description="Filter criteria for `FlowRun.start_time`"
     )
+    end_time: Optional[FlowRunFilterEndTime] = Field(
+        default=None, description="Filter criteria for `FlowRun.end_time`"
+    )
     expected_start_time: Optional[FlowRunFilterExpectedStartTime] = Field(
         default=None, description="Filter criteria for `FlowRun.expected_start_time`"
     )
@@ -596,6 +629,7 @@ class FlowRunFilter(PrefectOperatorFilterBaseModel):
             and self.state is None
             and self.flow_version is None
             and self.start_time is None
+            and self.end_time is None
             and self.expected_start_time is None
             and self.next_scheduled_start_time is None
             and self.parent_flow_run_id is None
@@ -622,6 +656,8 @@ class FlowRunFilter(PrefectOperatorFilterBaseModel):
             filters.append(self.state.as_sql_filter())
         if self.start_time is not None:
             filters.append(self.start_time.as_sql_filter())
+        if self.end_time is not None:
+            filters.append(self.end_time.as_sql_filter())
         if self.expected_start_time is not None:
             filters.append(self.expected_start_time.as_sql_filter())
         if self.next_scheduled_start_time is not None:
@@ -996,20 +1032,27 @@ class DeploymentFilterWorkQueueName(PrefectFilterBaseModel):
         return filters
 
 
-class DeploymentFilterIsScheduleActive(PrefectFilterBaseModel):
-    """Legacy filter to filter by `Deployment.is_schedule_active` which
-    is always the opposite of `Deployment.paused`."""
+class DeploymentFilterConcurrencyLimit(PrefectFilterBaseModel):
+    """DEPRECATED: Prefer `Deployment.concurrency_limit_id` over `Deployment.concurrency_limit`."""
 
-    eq_: Optional[bool] = Field(
+    ge_: Optional[int] = Field(
         default=None,
-        description="Only returns where deployment schedule is/is not active",
+        description="Only include deployments with a concurrency limit greater than or equal to this value",
+    )
+
+    le_: Optional[int] = Field(
+        default=None,
+        description="Only include deployments with a concurrency limit less than or equal to this value",
+    )
+    is_null_: Optional[bool] = Field(
+        default=None,
+        description="If true, only include deployments without a concurrency limit",
     )
 
     def _get_filter_list(self) -> List:
-        filters = []
-        if self.eq_ is not None:
-            filters.append(orm_models.Deployment.paused.is_not(self.eq_))
-        return filters
+        # This used to filter on an `int` column that was moved to a `ForeignKey` relationship
+        # This filter is now deprecated rather than support filtering on the new relationship
+        return []
 
 
 class DeploymentFilterTags(PrefectOperatorFilterBaseModel):
@@ -1057,19 +1100,20 @@ class DeploymentFilter(PrefectOperatorFilterBaseModel):
     paused: Optional[DeploymentFilterPaused] = Field(
         default=None, description="Filter criteria for `Deployment.paused`"
     )
-    is_schedule_active: Optional[DeploymentFilterIsScheduleActive] = Field(
-        default=None, description="Filter criteria for `Deployment.is_schedule_active`"
-    )
     tags: Optional[DeploymentFilterTags] = Field(
         default=None, description="Filter criteria for `Deployment.tags`"
     )
     work_queue_name: Optional[DeploymentFilterWorkQueueName] = Field(
         default=None, description="Filter criteria for `Deployment.work_queue_name`"
     )
+    concurrency_limit: Optional[DeploymentFilterConcurrencyLimit] = Field(
+        default=None,
+        description="DEPRECATED: Prefer `Deployment.concurrency_limit_id` over `Deployment.concurrency_limit`. If provided, will be ignored for backwards-compatibility. Will be removed after December 2024.",
+        deprecated=True,
+    )
 
     def _get_filter_list(self) -> List:
         filters = []
-
         if self.id is not None:
             filters.append(self.id.as_sql_filter())
         if self.name is not None:
@@ -1078,8 +1122,6 @@ class DeploymentFilter(PrefectOperatorFilterBaseModel):
             filters.append(self.flow_or_deployment_name.as_sql_filter())
         if self.paused is not None:
             filters.append(self.paused.as_sql_filter())
-        if self.is_schedule_active is not None:
-            filters.append(self.is_schedule_active.as_sql_filter())
         if self.tags is not None:
             filters.append(self.tags.as_sql_filter())
         if self.work_queue_name is not None:
@@ -1201,10 +1243,21 @@ class LogFilterTaskRunId(PrefectFilterBaseModel):
         default=None, description="A list of task run IDs to include"
     )
 
+    is_null_: Optional[bool] = Field(
+        default=None,
+        description="If true, only include logs without a task run id",
+    )
+
     def _get_filter_list(self) -> List:
         filters = []
         if self.any_ is not None:
             filters.append(orm_models.Log.task_run_id.in_(self.any_))
+        if self.is_null_ is not None:
+            filters.append(
+                orm_models.Log.task_run_id.is_(None)
+                if self.is_null_
+                else orm_models.Log.task_run_id.is_not(None)
+            )
         return filters
 
 
@@ -1770,6 +1823,9 @@ class WorkerFilter(PrefectOperatorFilterBaseModel):
 
         if self.last_heartbeat_time is not None:
             filters.append(self.last_heartbeat_time.as_sql_filter())
+
+        if self.status is not None:
+            filters.append(self.status.as_sql_filter())
 
         return filters
 

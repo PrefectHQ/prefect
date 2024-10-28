@@ -113,6 +113,12 @@ class CancelFlowRun(Action):
     type: Literal["cancel-flow-run"] = "cancel-flow-run"
 
 
+class ResumeFlowRun(Action):
+    """Resumes a flow run associated with the trigger"""
+
+    type: Literal["resume-flow-run"] = "resume-flow-run"
+
+
 class SuspendFlowRun(Action):
     """Suspends a flow run associated with the trigger"""
 

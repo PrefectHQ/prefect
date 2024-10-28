@@ -1,5 +1,5 @@
 import asyncio
-from contextlib import AsyncExitStack, asynccontextmanager
+from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator, Dict, Optional
 from uuid import UUID
 
@@ -118,50 +118,38 @@ def task_run_from_event(event: ReceivedEvent) -> TaskRun:
     )
 
 
-async def record_task_run_event(event: ReceivedEvent, depth: int = 0):
+async def record_task_run_event(event: ReceivedEvent):
+    task_run = task_run_from_event(event)
+
+    task_run_attributes = task_run.model_dump_for_orm(
+        exclude={
+            "state_id",
+            "state",
+            "created",
+            "estimated_run_time",
+            "estimated_start_time_delta",
+        },
+        exclude_unset=True,
+    )
+
+    assert task_run.state
+
+    denormalized_state_attributes = {
+        "state_id": task_run.state.id,
+        "state_type": task_run.state.type,
+        "state_name": task_run.state.name,
+        "state_timestamp": task_run.state.timestamp,
+    }
+
     db = provide_database_interface()
-
-    async with AsyncExitStack() as stack:
-        await stack.enter_async_context(
-            (
-                causal_ordering().preceding_event_confirmed(
-                    record_task_run_event, event, depth=depth
-                )
-            )
-        )
-
-        task_run = task_run_from_event(event)
-
-        task_run_attributes = task_run.model_dump_for_orm(
-            exclude={
-                "state_id",
-                "state",
-                "created",
-                "estimated_run_time",
-                "estimated_start_time_delta",
-            },
-            exclude_unset=True,
-        )
-
-        assert task_run.state
-
-        denormalized_state_attributes = {
-            "state_id": task_run.state.id,
-            "state_type": task_run.state.type,
-            "state_name": task_run.state.name,
-            "state_timestamp": task_run.state.timestamp,
-        }
-        session = await stack.enter_async_context(
-            db.session_context(begin_transaction=True)
-        )
-
+    async with db.session_context(begin_transaction=True) as session:
         await _insert_task_run(session, task_run, task_run_attributes)
         await _insert_task_run_state(session, task_run)
         await _update_task_run_with_state(
             session, task_run, denormalized_state_attributes
         )
 
-    logger.info(
+    logger.debug(
         "Recorded task run state change",
         extra={
             "task_run_id": task_run.id,
@@ -187,8 +175,11 @@ async def consumer() -> AsyncGenerator[MessageHandler, None]:
         if not event.resource.get("prefect.orchestration") == "client":
             return
 
-        logger.info(
-            f"Received event: {event.event} with id: {event.id} for resource: {event.resource.get('prefect.resource.id')}"
+        logger.debug(
+            "Received event: %s with id: %s for resource: %s",
+            event.event,
+            event.id,
+            event.resource.get("prefect.resource.id"),
         )
 
         try:

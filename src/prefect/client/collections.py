@@ -29,6 +29,6 @@ def get_collections_metadata_client(
     """
     orchestration_client = get_client(httpx_settings=httpx_settings)
     if orchestration_client.server_type == ServerType.CLOUD:
-        return get_cloud_client(httpx_settings=httpx_settings)
+        return get_cloud_client(httpx_settings=httpx_settings, infer_cloud_url=True)
     else:
         return orchestration_client

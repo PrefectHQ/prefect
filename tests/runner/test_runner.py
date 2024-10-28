@@ -22,9 +22,14 @@ from starlette import status
 
 import prefect.runner
 from prefect import __version__, flow, serve, task
-from prefect.client.orchestration import PrefectClient
+from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.actions import DeploymentScheduleCreate
-from prefect.client.schemas.objects import StateType
+from prefect.client.schemas.objects import (
+    ConcurrencyLimitConfig,
+    StateType,
+    Worker,
+    WorkerStatus,
+)
 from prefect.client.schemas.schedules import CronSchedule, IntervalSchedule
 from prefect.deployments.runner import (
     DeploymentApplyError,
@@ -38,7 +43,7 @@ from prefect.events.worker import EventsWorker
 from prefect.flows import load_flow_from_entrypoint
 from prefect.logging.loggers import flow_run_logger
 from prefect.runner.runner import Runner
-from prefect.runner.server import perform_health_check
+from prefect.runner.server import perform_health_check, start_webserver
 from prefect.settings import (
     PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE,
     PREFECT_DEFAULT_WORK_POOL_NAME,
@@ -234,15 +239,15 @@ class TestServe:
 
     def test_serve_can_create_multiple_deployments(
         self,
-        prefect_client: PrefectClient,
+        sync_prefect_client: SyncPrefectClient,
     ):
         deployment_1 = dummy_flow_1.to_deployment(__file__, interval=3600)
         deployment_2 = dummy_flow_2.to_deployment(__file__, cron="* * * * *")
 
         serve(deployment_1, deployment_2)
 
-        deployment = asyncio.run(
-            prefect_client.read_deployment_by_name(name="dummy-flow-1/test_runner")
+        deployment = sync_prefect_client.read_deployment_by_name(
+            name="dummy-flow-1/test_runner"
         )
 
         assert deployment is not None
@@ -250,8 +255,8 @@ class TestServe:
             seconds=3600
         )
 
-        deployment = asyncio.run(
-            prefect_client.read_deployment_by_name(name="dummy-flow-2/test_runner")
+        deployment = sync_prefect_client.read_deployment_by_name(
+            name="dummy-flow-2/test_runner"
         )
 
         assert deployment is not None
@@ -265,6 +270,26 @@ class TestServe:
         serve(deployment)
 
         mock_runner_start.assert_awaited_once()
+
+    def test_log_level_lowercasing(self, monkeypatch):
+        runner_mock = mock.MagicMock()
+        log_level = "DEBUG"
+
+        # Mock build_server to return a webserver mock object
+        with mock.patch("prefect.runner.server.build_server") as mock_build_server:
+            webserver_mock = mock.MagicMock()
+            mock_build_server.return_value = webserver_mock
+
+            # Patch uvicorn.run to verify it's called with the correct arguments
+            with mock.patch("uvicorn.run") as mock_uvicorn:
+                start_webserver(runner_mock, log_level=log_level)
+                # Assert build_server was called once with the runner
+                mock_build_server.assert_called_once_with(runner_mock)
+
+                # Assert uvicorn.run was called with the lowercase log_level and the webserver mock
+                mock_uvicorn.assert_called_once_with(
+                    webserver_mock, host=mock.ANY, port=mock.ANY, log_level="debug"
+                )
 
 
 class TestRunner:
@@ -299,7 +324,6 @@ class TestRunner:
                     {"interval": 3600},
                     {"cron": "* * * * *"},
                     {"rrule": "FREQ=MINUTELY"},
-                    {"schedule": CronSchedule(cron="* * * * *")},
                     {
                         "schedules": [
                             DeploymentScheduleCreate(
@@ -316,7 +340,9 @@ class TestRunner:
         with warnings.catch_warnings():
             # `schedule` parameter is deprecated and will raise a warning
             warnings.filterwarnings("ignore", category=DeprecationWarning)
-            expected_message = "Only one of interval, cron, rrule, schedule, or schedules can be provided."
+            expected_message = (
+                "Only one of interval, cron, rrule, or schedules can be provided."
+            )
             runner = Runner()
             with pytest.raises(ValueError, match=expected_message):
                 await runner.add_flow(dummy_flow_1, __file__, **kwargs)
@@ -362,9 +388,9 @@ class TestRunner:
             name="dummy-flow-2/test_runner"
         )
 
-        assert deployment_1.is_schedule_active
+        assert not deployment_1.paused
 
-        assert deployment_2.is_schedule_active
+        assert not deployment_2.paused
 
         await runner.start(run_once=True)
 
@@ -375,9 +401,9 @@ class TestRunner:
             name="dummy-flow-2/test_runner"
         )
 
-        assert not deployment_1.is_schedule_active
+        assert deployment_1.paused
 
-        assert not deployment_2.is_schedule_active
+        assert deployment_2.paused
 
         assert "Pausing all deployments" in caplog.text
         assert "All deployments have been paused" in caplog.text
@@ -659,7 +685,7 @@ class TestRunner:
 
         # Previously the command would have been
         # ["C:/Program", "Files/Python38/python.exe", "-m", "prefect.engine"]
-        assert mock_run_process_call.call_args[0][0] == [
+        assert mock_run_process_call.call_args[1]["command"] == [
             "C:/Program Files/Python38/python.exe",
             "-m",
             "prefect.engine",
@@ -910,6 +936,7 @@ class TestRunnerDeployment:
             version="alpha",
             description="Deployment descriptions",
             enforce_parameter_schema=True,
+            concurrency_limit=42,
         )
 
         assert deployment.name == "test_runner"
@@ -918,8 +945,9 @@ class TestRunnerDeployment:
         assert deployment.description == "Deployment descriptions"
         assert deployment.version == "alpha"
         assert deployment.tags == ["test"]
-        assert deployment.is_schedule_active is True
+        assert deployment.paused is False
         assert deployment.enforce_parameter_schema
+        assert deployment.concurrency_limit == 42
 
     async def test_from_flow_can_produce_a_module_path_entrypoint(self):
         deployment = RunnerDeployment.from_flow(
@@ -1027,19 +1055,21 @@ class TestRunnerDeployment:
         deployment = RunnerDeployment.from_flow(dummy_flow_1, __file__, paused=value)
 
         assert deployment.paused is expected
-        # `is_schedule_active` is the opposite of `paused`
-        assert deployment.is_schedule_active is not expected
 
-    @pytest.mark.parametrize(
-        "value,expected",
-        [(True, True), (False, False), (None, True)],
-    )
-    def test_from_flow_accepts_is_schedule_active(self, value, expected):
-        deployment = RunnerDeployment.from_flow(
-            dummy_flow_1, __file__, is_schedule_active=value
+    async def test_from_flow_accepts_concurrency_limit_config(self):
+        concurrency_limit_config = ConcurrencyLimitConfig(
+            limit=42, collision_strategy="CANCEL_NEW"
         )
-
-        assert deployment.is_schedule_active is expected
+        deployment = RunnerDeployment.from_flow(
+            dummy_flow_1,
+            __file__,
+            concurrency_limit=concurrency_limit_config,
+        )
+        assert deployment.concurrency_limit == concurrency_limit_config.limit
+        assert (
+            deployment.concurrency_options.collision_strategy
+            == concurrency_limit_config.collision_strategy
+        )
 
     @pytest.mark.parametrize(
         "kwargs",
@@ -1050,7 +1080,6 @@ class TestRunnerDeployment:
                     {"interval": 3600},
                     {"cron": "* * * * *"},
                     {"rrule": "FREQ=MINUTELY"},
-                    {"schedule": CronSchedule(cron="* * * * *")},
                     {
                         "schedules": [
                             DeploymentScheduleCreate(
@@ -1065,7 +1094,7 @@ class TestRunnerDeployment:
     )
     def test_from_flow_raises_on_multiple_schedule_parameters(self, kwargs):
         expected_message = (
-            "Only one of interval, cron, rrule, schedule, or schedules can be provided."
+            "Only one of interval, cron, rrule, or schedules can be provided."
         )
         with pytest.raises(ValueError, match=expected_message):
             RunnerDeployment.from_flow(dummy_flow_1, __file__, **kwargs)
@@ -1128,6 +1157,7 @@ class TestRunnerDeployment:
         assert deployment.version == "alpha"
         assert deployment.tags == ["test"]
         assert deployment.enforce_parameter_schema
+        assert deployment.concurrency_limit is None
 
     def test_from_entrypoint_accepts_interval(self, dummy_flow_1_entrypoint):
         deployment = RunnerDeployment.from_entrypoint(
@@ -1217,6 +1247,23 @@ class TestRunnerDeployment:
         assert deployment.schedules[2].schedule.interval == datetime.timedelta(days=2)
         assert deployment.schedules[2].active is False
 
+    async def test_from_entrypoint_accepts_concurrency_limit_config(
+        self, dummy_flow_1_entrypoint
+    ):
+        concurrency_limit_config = ConcurrencyLimitConfig(
+            limit=42, collision_strategy="CANCEL_NEW"
+        )
+        deployment = RunnerDeployment.from_entrypoint(
+            dummy_flow_1_entrypoint,
+            __file__,
+            concurrency_limit=concurrency_limit_config,
+        )
+        assert deployment.concurrency_limit == concurrency_limit_config.limit
+        assert (
+            deployment.concurrency_options.collision_strategy
+            == concurrency_limit_config.collision_strategy
+        )
+
     @pytest.mark.parametrize(
         "value,expected",
         [(True, True), (False, False), (None, False)],
@@ -1229,21 +1276,6 @@ class TestRunnerDeployment:
         )
 
         assert deployment.paused is expected
-        # `is_schedule_active` is the opposite of `paused`
-        assert deployment.is_schedule_active is not expected
-
-    @pytest.mark.parametrize(
-        "value,expected",
-        [(True, True), (False, False), (None, True)],
-    )
-    def test_from_entrypoint_accepts_is_schedule_active(
-        self, dummy_flow_1_entrypoint, value, expected
-    ):
-        deployment = RunnerDeployment.from_entrypoint(
-            dummy_flow_1_entrypoint, __file__, is_schedule_active=value
-        )
-
-        assert deployment.is_schedule_active is expected
 
     @pytest.mark.parametrize(
         "kwargs",
@@ -1254,7 +1286,6 @@ class TestRunnerDeployment:
                     {"interval": 3600},
                     {"cron": "* * * * *"},
                     {"rrule": "FREQ=MINUTELY"},
-                    {"schedule": CronSchedule(cron="* * * * *")},
                     {
                         "schedules": [
                             DeploymentScheduleCreate(
@@ -1271,7 +1302,7 @@ class TestRunnerDeployment:
         self, dummy_flow_1_entrypoint, kwargs
     ):
         expected_message = (
-            "Only one of interval, cron, rrule, schedule, or schedules can be provided."
+            "Only one of interval, cron, rrule, or schedules can be provided."
         )
         with pytest.raises(ValueError, match=expected_message):
             RunnerDeployment.from_entrypoint(
@@ -1305,7 +1336,8 @@ class TestRunnerDeployment:
         assert deployment.path == "."
         assert deployment.enforce_parameter_schema
         assert deployment.job_variables == {}
-        assert deployment.is_schedule_active is True
+        assert deployment.paused is False
+        assert deployment.global_concurrency_limit is None
 
     async def test_apply_with_work_pool(self, prefect_client: PrefectClient, work_pool):
         deployment = RunnerDeployment.from_flow(
@@ -1326,16 +1358,16 @@ class TestRunnerDeployment:
         }
         assert deployment.work_queue_name == "default"
 
-    async def test_apply_inactive_schedule(self, prefect_client: PrefectClient):
+    async def test_apply_paused(self, prefect_client: PrefectClient):
         deployment = RunnerDeployment.from_flow(
-            dummy_flow_1, __file__, interval=3600, is_schedule_active=False
+            dummy_flow_1, __file__, interval=3600, paused=True
         )
 
         deployment_id = await deployment.apply()
 
         deployment = await prefect_client.read_deployment(deployment_id)
 
-        assert deployment.is_schedule_active is False
+        assert deployment.paused is True
 
     @pytest.mark.parametrize(
         "from_flow_kwargs, apply_kwargs, expected_message",
@@ -1402,6 +1434,9 @@ class TestRunnerDeployment:
     async def test_create_runner_deployment_from_storage(
         self, temp_storage: MockStorage
     ):
+        concurrency_limit_config = ConcurrencyLimitConfig(
+            limit=42, collision_strategy="CANCEL_NEW"
+        )
         deployment = await RunnerDeployment.from_storage(
             storage=temp_storage,
             entrypoint="flows.py:test_flow",
@@ -1411,6 +1446,7 @@ class TestRunnerDeployment:
             tags=["tag1", "tag2"],
             version="1.0.0",
             enforce_parameter_schema=True,
+            concurrency_limit=concurrency_limit_config,
         )
 
         # Verify the created RunnerDeployment's attributes
@@ -1424,6 +1460,11 @@ class TestRunnerDeployment:
         assert deployment.version == "1.0.0"
         assert deployment.description == "Test Deployment Description"
         assert deployment.enforce_parameter_schema is True
+        assert deployment.concurrency_limit == concurrency_limit_config.limit
+        assert (
+            deployment.concurrency_options.collision_strategy
+            == concurrency_limit_config.collision_strategy
+        )
         assert deployment._path
         assert "$STORAGE_BASE_PATH" in deployment._path
         assert deployment.entrypoint == "flows.py:test_flow"
@@ -1468,15 +1509,14 @@ class TestRunnerDeployment:
         )
 
         assert deployment.paused is expected
-        assert deployment.is_schedule_active is not expected
 
-    async def test_init_runner_deployment_with_schedule(self):
+    async def test_init_runner_deployment_with_schedules(self):
         schedule = CronSchedule(cron="* * * * *")
 
         deployment = RunnerDeployment(
             flow=dummy_flow_1,
             name="test-deployment",
-            schedule=schedule,
+            schedules=[schedule],
         )
 
         assert deployment.schedules
@@ -1652,6 +1692,73 @@ class TestDeploy:
                 in console_output
             )
             assert "prefect deployment run [DEPLOYMENT_NAME]" in console_output
+
+    async def test_deploy_with_active_workers(
+        self,
+        mock_build_image,
+        mock_docker_client,
+        mock_generate_default_dockerfile,
+        work_pool_with_image_variable,
+        prefect_client: PrefectClient,
+        capsys,
+        temp_storage: MockStorage,
+        monkeypatch,
+    ):
+        mock_read_workers_for_work_pool = AsyncMock(
+            return_value=[
+                Worker(
+                    name="test-worker",
+                    work_pool_id=work_pool_with_image_variable.id,
+                    status=WorkerStatus.ONLINE,
+                )
+            ]
+        )
+        monkeypatch.setattr(
+            "prefect.client.orchestration.PrefectClient.read_workers_for_work_pool",
+            mock_read_workers_for_work_pool,
+        )
+        deployment_ids = await deploy(
+            await dummy_flow_1.to_deployment(__file__),
+            await (
+                await flow.from_source(
+                    source=temp_storage, entrypoint="flows.py:test_flow"
+                )
+            ).to_deployment(__file__),
+            work_pool_name=work_pool_with_image_variable.name,
+            image=DockerImage(
+                name="test-registry/test-image",
+                tag="test-tag",
+            ),
+        )
+        assert len(deployment_ids) == 2
+        mock_generate_default_dockerfile.assert_called_once()
+        mock_build_image.assert_called_once_with(
+            tag="test-registry/test-image:test-tag", context=Path.cwd(), pull=True
+        )
+        mock_docker_client.api.push.assert_called_once_with(
+            repository="test-registry/test-image",
+            tag="test-tag",
+            stream=True,
+            decode=True,
+        )
+
+        deployment_1 = await prefect_client.read_deployment_by_name(
+            f"{dummy_flow_1.name}/test_runner"
+        )
+        assert deployment_1.id == deployment_ids[0]
+
+        deployment_2 = await prefect_client.read_deployment_by_name(
+            "test-flow/test_runner"
+        )
+        assert deployment_2.id == deployment_ids[1]
+        assert deployment_2.pull_steps == [{"prefect.fake.module": {}}]
+
+        console_output = capsys.readouterr().out
+        assert (
+            f"prefect worker start --pool {work_pool_with_image_variable.name!r}"
+            not in console_output
+        )
+        assert "prefect deployment run [DEPLOYMENT_NAME]" in console_output
 
     async def test_deploy_non_existent_work_pool(self):
         with pytest.raises(

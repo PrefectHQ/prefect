@@ -30,7 +30,6 @@ import anyio.abc
 import anyio.from_thread
 import anyio.to_thread
 import sniffio
-import wrapt
 from typing_extensions import Literal, ParamSpec, TypeGuard
 
 from prefect._internal.concurrency.api import _cast_to_call, from_sync
@@ -84,7 +83,7 @@ def is_async_fn(
     while hasattr(func, "__wrapped__"):
         func = func.__wrapped__
 
-    return inspect.iscoroutinefunction(func)
+    return asyncio.iscoroutinefunction(func)
 
 
 def is_async_gen_fn(func):
@@ -210,11 +209,6 @@ def run_coro_as_sync(
     Returns:
         The result of the coroutine if wait_for_result is True, otherwise None.
     """
-    if not asyncio.iscoroutine(coroutine):
-        if isinstance(coroutine, wrapt.ObjectProxy):
-            return coroutine.__wrapped__
-        else:
-            raise TypeError("`coroutine` must be a coroutine object")
 
     async def coroutine_wrapper() -> Union[R, None]:
         """
@@ -320,20 +314,20 @@ def in_async_main_thread() -> bool:
 
 @overload
 def sync_compatible(
-    async_fn: Callable[..., Coroutine[Any, Any, R]], force_sync: bool = False
+    async_fn: Callable[..., Coroutine[Any, Any, R]],
 ) -> Callable[..., R]:
     ...
 
 
 @overload
 def sync_compatible(
-    async_fn: Callable[..., Coroutine[Any, Any, R]], force_sync: bool = False
+    async_fn: Callable[..., Coroutine[Any, Any, R]],
 ) -> Callable[..., Coroutine[Any, Any, R]]:
     ...
 
 
 def sync_compatible(
-    async_fn: Callable[..., Coroutine[Any, Any, R]], force_sync: bool = False
+    async_fn: Callable[..., Coroutine[Any, Any, R]],
 ) -> Callable[..., Union[R, Coroutine[Any, Any, R]]]:
     """
     Converts an async function into a dual async and sync function.
@@ -347,6 +341,13 @@ def sync_compatible(
         will submit the async method to the event loop.
     - If we cannot find an event loop, we will create a new one and run the async method
         then tear down the loop.
+
+    Note: Type checkers will infer functions decorated with `@sync_compatible` are synchronous. If
+    you want to use the decorated function in an async context, you will need to ignore the types
+    and "cast" the return type to a coroutine. For example:
+    ```
+    python result: Coroutine = sync_compatible(my_async_function)(arg1, arg2) # type: ignore
+    ```
     """
 
     @wraps(async_fn)
@@ -409,7 +410,7 @@ def sync_compatible(
 
 
 @asynccontextmanager
-async def asyncnullcontext(value=None):
+async def asyncnullcontext(value=None, *args, **kwargs):
     yield value
 
 

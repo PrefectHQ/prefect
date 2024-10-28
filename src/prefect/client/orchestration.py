@@ -24,6 +24,7 @@ import httpx
 import pendulum
 import pydantic
 from asgi_lifespan import LifespanManager
+from packaging import version
 from starlette import status
 from typing_extensions import ParamSpec
 
@@ -85,8 +86,8 @@ from prefect.client.schemas.objects import (
     BlockSchema,
     BlockType,
     ConcurrencyLimit,
+    ConcurrencyOptions,
     Constant,
-    Deployment,
     DeploymentSchedule,
     Flow,
     FlowRunInput,
@@ -94,7 +95,6 @@ from prefect.client.schemas.objects import (
     FlowRunPolicy,
     Log,
     Parameter,
-    QueueFilter,
     TaskRunPolicy,
     TaskRunResult,
     Variable,
@@ -132,9 +132,9 @@ from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_CLIENT_CSRF_SUPPORT_ENABLED,
     PREFECT_CLOUD_API_URL,
-    PREFECT_UNIT_TEST_MODE,
+    PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
+    PREFECT_TESTING_UNIT_TEST_MODE,
 )
-from prefect.utilities.collections import AutoEnum
 
 if TYPE_CHECKING:
     from prefect.flows import Flow as FlowObject
@@ -144,18 +144,12 @@ from prefect.client.base import (
     ASGIApp,
     PrefectHttpxAsyncClient,
     PrefectHttpxSyncClient,
-    PrefectHttpxSyncEphemeralClient,
+    ServerType,
     app_lifespan_context,
 )
 
 P = ParamSpec("P")
 R = TypeVar("R")
-
-
-class ServerType(AutoEnum):
-    EPHEMERAL = AutoEnum.auto()
-    SERVER = AutoEnum.auto()
-    CLOUD = AutoEnum.auto()
 
 
 @overload
@@ -194,8 +188,6 @@ def get_client(
     """
     import prefect.context
 
-    settings_ctx = prefect.context.get_settings_context()
-
     # try to load clients from a client context, if possible
     # only load clients that match the provided config / loop
     try:
@@ -217,24 +209,36 @@ def get_client(
                 return client_ctx.client
 
     api = PREFECT_API_URL.value()
+    server_type = None
 
-    if not api:
+    if not api and PREFECT_SERVER_ALLOW_EPHEMERAL_MODE:
         # create an ephemeral API if none was provided
-        from prefect.server.api.server import create_app
+        from prefect.server.api.server import SubprocessASGIServer
 
-        api = create_app(settings_ctx.settings, ephemeral=True)
+        server = SubprocessASGIServer()
+        server.start()
+        assert server.server_process is not None, "Server process did not start"
+
+        api = server.api_url
+        server_type = ServerType.EPHEMERAL
+    elif not api and not PREFECT_SERVER_ALLOW_EPHEMERAL_MODE:
+        raise ValueError(
+            "No Prefect API URL provided. Please set PREFECT_API_URL to the address of a running Prefect server."
+        )
 
     if sync_client:
         return SyncPrefectClient(
             api,
             api_key=PREFECT_API_KEY.value(),
             httpx_settings=httpx_settings,
+            server_type=server_type,
         )
     else:
         return PrefectClient(
             api,
             api_key=PREFECT_API_KEY.value(),
             httpx_settings=httpx_settings,
+            server_type=server_type,
         )
 
 
@@ -271,6 +275,7 @@ class PrefectClient:
         api_key: Optional[str] = None,
         api_version: Optional[str] = None,
         httpx_settings: Optional[Dict[str, Any]] = None,
+        server_type: Optional[ServerType] = None,
     ) -> None:
         httpx_settings = httpx_settings.copy() if httpx_settings else {}
         httpx_settings.setdefault("headers", {})
@@ -333,11 +338,14 @@ class PrefectClient:
             # client will use a standard HTTP/1.1 connection instead.
             httpx_settings.setdefault("http2", PREFECT_API_ENABLE_HTTP2.value())
 
-            self.server_type = (
-                ServerType.CLOUD
-                if api.startswith(PREFECT_CLOUD_API_URL.value())
-                else ServerType.SERVER
-            )
+            if server_type:
+                self.server_type = server_type
+            else:
+                self.server_type = (
+                    ServerType.CLOUD
+                    if api.startswith(PREFECT_CLOUD_API_URL.value())
+                    else ServerType.SERVER
+                )
 
         # Connect to an in-process application
         elif isinstance(api, ASGIApp):
@@ -377,7 +385,7 @@ class PrefectClient:
             ),
         )
 
-        if not PREFECT_UNIT_TEST_MODE:
+        if not PREFECT_TESTING_UNIT_TEST_MODE:
             httpx_settings.setdefault("follow_redirects", True)
 
         enable_csrf_support = (
@@ -932,10 +940,60 @@ class PrefectClient:
             else:
                 raise
 
+    async def increment_v1_concurrency_slots(
+        self,
+        names: List[str],
+        task_run_id: UUID,
+    ) -> httpx.Response:
+        """
+        Increment concurrency limit slots for the specified limits.
+
+        Args:
+            names (List[str]): A list of limit names for which to increment limits.
+            task_run_id (UUID): The task run ID incrementing the limits.
+        """
+        data = {
+            "names": names,
+            "task_run_id": str(task_run_id),
+        }
+
+        return await self._client.post(
+            "/concurrency_limits/increment",
+            json=data,
+        )
+
+    async def decrement_v1_concurrency_slots(
+        self,
+        names: List[str],
+        task_run_id: UUID,
+        occupancy_seconds: float,
+    ) -> httpx.Response:
+        """
+        Decrement concurrency limit slots for the specified limits.
+
+        Args:
+            names (List[str]): A list of limit names to decrement.
+            task_run_id (UUID): The task run ID that incremented the limits.
+            occupancy_seconds (float): The duration in seconds that the limits
+                were held.
+
+        Returns:
+            httpx.Response: The HTTP response from the server.
+        """
+        data = {
+            "names": names,
+            "task_run_id": str(task_run_id),
+            "occupancy_seconds": occupancy_seconds,
+        }
+
+        return await self._client.post(
+            "/concurrency_limits/decrement",
+            json=data,
+        )
+
     async def create_work_queue(
         self,
         name: str,
-        tags: Optional[List[str]] = None,
         description: Optional[str] = None,
         is_paused: Optional[bool] = None,
         concurrency_limit: Optional[int] = None,
@@ -947,8 +1005,6 @@ class PrefectClient:
 
         Args:
             name: a unique name for the work queue
-            tags: DEPRECATED: an optional list of tags to filter on; only work scheduled with these tags
-                will be included in the queue. This option will be removed on 2023-02-23.
             description: An optional description for the work queue.
             is_paused: Whether or not the work queue is paused.
             concurrency_limit: An optional concurrency limit for the work queue.
@@ -962,18 +1018,7 @@ class PrefectClient:
         Returns:
             The created work queue
         """
-        if tags:
-            warnings.warn(
-                (
-                    "The use of tags for creating work queue filters is deprecated."
-                    " This option will be removed on 2023-02-23."
-                ),
-                DeprecationWarning,
-            )
-            filter = QueueFilter(tags=tags)
-        else:
-            filter = None
-        create_model = WorkQueueCreate(name=name, filter=filter)
+        create_model = WorkQueueCreate(name=name, filter=None)
         if description is not None:
             create_model.description = description
         if is_paused is not None:
@@ -1266,15 +1311,17 @@ class PrefectClient:
                 `SecretBytes` fields. Note Blocks may not work as expected if
                 this is set to `False`.
         """
+        block_document_data = block_document.model_dump(
+            mode="json",
+            exclude_unset=True,
+            exclude={"id", "block_schema", "block_type"},
+            context={"include_secrets": include_secrets},
+            serialize_as_any=True,
+        )
         try:
             response = await self._client.post(
                 "/block_documents/",
-                json=block_document.model_dump(
-                    mode="json",
-                    exclude_unset=True,
-                    exclude={"id", "block_schema", "block_type"},
-                    context={"include_secrets": include_secrets},
-                ),
+                json=block_document_data,
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_409_CONFLICT:
@@ -1591,8 +1638,9 @@ class PrefectClient:
         flow_id: UUID,
         name: str,
         version: Optional[str] = None,
-        schedule: Optional[SCHEDULE_TYPES] = None,
         schedules: Optional[List[DeploymentScheduleCreate]] = None,
+        concurrency_limit: Optional[int] = None,
+        concurrency_options: Optional[ConcurrencyOptions] = None,
         parameters: Optional[Dict[str, Any]] = None,
         description: Optional[str] = None,
         work_queue_name: Optional[str] = None,
@@ -1603,7 +1651,6 @@ class PrefectClient:
         entrypoint: Optional[str] = None,
         infrastructure_document_id: Optional[UUID] = None,
         parameter_openapi_schema: Optional[Dict[str, Any]] = None,
-        is_schedule_active: Optional[bool] = None,
         paused: Optional[bool] = None,
         pull_steps: Optional[List[dict]] = None,
         enforce_parameter_schema: Optional[bool] = None,
@@ -1616,7 +1663,6 @@ class PrefectClient:
             flow_id: the flow ID to create a deployment for
             name: the name of the deployment
             version: an optional version string for the deployment
-            schedule: an optional schedule to apply to the deployment
             tags: an optional list of tags to apply to the deployment
             storage_document_id: an reference to the storage block document
                 used for the deployed flow
@@ -1650,10 +1696,10 @@ class PrefectClient:
             infrastructure_document_id=infrastructure_document_id,
             job_variables=dict(job_variables or {}),
             parameter_openapi_schema=parameter_openapi_schema,
-            is_schedule_active=is_schedule_active,
             paused=paused,
-            schedule=schedule,
             schedules=schedules or [],
+            concurrency_limit=concurrency_limit,
+            concurrency_options=concurrency_options,
             pull_steps=pull_steps,
             enforce_parameter_schema=enforce_parameter_schema,
         )
@@ -1667,9 +1713,6 @@ class PrefectClient:
             for field in ["work_pool_name", "work_queue_name"]
             if field not in deployment_create.model_fields_set
         }
-
-        if deployment_create.is_schedule_active is None:
-            exclude.add("is_schedule_active")
 
         if deployment_create.paused is None:
             exclude.add("paused")
@@ -1691,12 +1734,6 @@ class PrefectClient:
 
         return UUID(deployment_id)
 
-    async def update_schedule(self, deployment_id: UUID, active: bool = True):
-        path = "set_schedule_active" if active else "set_schedule_inactive"
-        await self._client.post(
-            f"/deployments/{deployment_id}/{path}",
-        )
-
     async def set_deployment_paused_state(self, deployment_id: UUID, paused: bool):
         await self._client.patch(
             f"/deployments/{deployment_id}", json={"paused": paused}
@@ -1704,40 +1741,12 @@ class PrefectClient:
 
     async def update_deployment(
         self,
-        deployment: Deployment,
-        schedule: SCHEDULE_TYPES = None,
-        is_schedule_active: Optional[bool] = None,
+        deployment_id: UUID,
+        deployment: DeploymentUpdate,
     ):
-        deployment_update = DeploymentUpdate(
-            version=deployment.version,
-            schedule=schedule if schedule is not None else deployment.schedule,
-            is_schedule_active=(
-                is_schedule_active
-                if is_schedule_active is not None
-                else deployment.is_schedule_active
-            ),
-            description=deployment.description,
-            work_queue_name=deployment.work_queue_name,
-            tags=deployment.tags,
-            path=deployment.path,
-            entrypoint=deployment.entrypoint,
-            parameters=deployment.parameters,
-            storage_document_id=deployment.storage_document_id,
-            infrastructure_document_id=deployment.infrastructure_document_id,
-            job_variables=deployment.job_variables,
-            enforce_parameter_schema=deployment.enforce_parameter_schema,
-        )
-
-        if getattr(deployment, "work_pool_name", None) is not None:
-            deployment_update.work_pool_name = deployment.work_pool_name
-
-        exclude = set()
-        if deployment.enforce_parameter_schema is None:
-            exclude.add("enforce_parameter_schema")
-
         await self._client.patch(
-            f"/deployments/{deployment.id}",
-            json=deployment_update.model_dump(mode="json", exclude=exclude),
+            f"/deployments/{deployment_id}",
+            json=deployment.model_dump(mode="json", exclude_unset=True),
         )
 
     async def _create_deployment_from_schema(self, schema: DeploymentCreate) -> UUID:
@@ -1768,6 +1777,12 @@ class PrefectClient:
         Returns:
             a [Deployment model][prefect.client.schemas.objects.Deployment] representation of the deployment
         """
+        if not isinstance(deployment_id, UUID):
+            try:
+                deployment_id = UUID(deployment_id)
+            except ValueError:
+                raise ValueError(f"Invalid deployment ID: {deployment_id}")
+
         try:
             response = await self._client.get(f"/deployments/{deployment_id}")
         except httpx.HTTPStatusError as e:
@@ -1798,7 +1813,35 @@ class PrefectClient:
             response = await self._client.get(f"/deployments/name/{name}")
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
-                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+                from prefect.utilities.text import fuzzy_match_string
+
+                deployments = await self.read_deployments()
+                flow_name_map = {
+                    flow.id: flow.name
+                    for flow in await asyncio.gather(
+                        *[
+                            self.read_flow(flow_id)
+                            for flow_id in {d.flow_id for d in deployments}
+                        ]
+                    )
+                }
+
+                raise prefect.exceptions.ObjectNotFound(
+                    http_exc=e,
+                    help_message=(
+                        f"Deployment {name!r} not found; did you mean {fuzzy_match!r}?"
+                        if (
+                            fuzzy_match := fuzzy_match_string(
+                                name,
+                                [
+                                    f"{flow_name_map[d.flow_id]}/{d.name}"
+                                    for d in deployments
+                                ],
+                            )
+                        )
+                        else f"Deployment {name!r} not found. Try `prefect deployment ls` to find available deployments."
+                    ),
+                ) from e
             else:
                 raise
 
@@ -2131,7 +2174,10 @@ class PrefectClient:
         try:
             response = await self._client.post(
                 f"/flow_runs/{flow_run_id}/set_state",
-                json=dict(state=state_create.model_dump(mode="json"), force=force),
+                json=dict(
+                    state=state_create.model_dump(mode="json", serialize_as_any=True),
+                    force=force,
+                ),
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
@@ -2525,7 +2571,7 @@ class PrefectClient:
 
     async def read_logs(
         self,
-        log_filter: LogFilter = None,
+        log_filter: Optional[LogFilter] = None,
         limit: Optional[int] = None,
         offset: Optional[int] = None,
         sort: LogSort = LogSort.TIMESTAMP_ASC,
@@ -2584,7 +2630,7 @@ class PrefectClient:
         response = await self._client.post(
             f"/work_pools/{work_pool_name}/workers/filter",
             json={
-                "worker_filter": (
+                "workers": (
                     worker_filter.model_dump(mode="json", exclude_unset=True)
                     if worker_filter
                     else None
@@ -2647,6 +2693,7 @@ class PrefectClient:
     async def create_work_pool(
         self,
         work_pool: WorkPoolCreate,
+        overwrite: bool = False,
     ) -> WorkPool:
         """
         Creates a work pool with the provided configuration.
@@ -2664,7 +2711,24 @@ class PrefectClient:
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_409_CONFLICT:
-                raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
+                if overwrite:
+                    existing_work_pool = await self.read_work_pool(
+                        work_pool_name=work_pool.name
+                    )
+                    if existing_work_pool.type != work_pool.type:
+                        warnings.warn(
+                            "Overwriting work pool type is not supported. Ignoring provided type.",
+                            category=UserWarning,
+                        )
+                    await self.update_work_pool(
+                        work_pool_name=work_pool.name,
+                        work_pool=WorkPoolUpdate.model_validate(
+                            work_pool.model_dump(exclude={"name", "type"})
+                        ),
+                    )
+                    response = await self._client.get(f"/work_pools/{work_pool.name}")
+                else:
+                    raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
             else:
                 raise
 
@@ -3010,7 +3074,11 @@ class PrefectClient:
         return response.json()
 
     async def increment_concurrency_slots(
-        self, names: List[str], slots: int, mode: str, create_if_missing: Optional[bool]
+        self,
+        names: List[str],
+        slots: int,
+        mode: str,
+        create_if_missing: Optional[bool] = None,
     ) -> httpx.Response:
         return await self._client.post(
             "/v2/concurrency_limits/increment",
@@ -3018,13 +3086,26 @@ class PrefectClient:
                 "names": names,
                 "slots": slots,
                 "mode": mode,
-                "create_if_missing": create_if_missing,
+                "create_if_missing": create_if_missing if create_if_missing else False,
             },
         )
 
     async def release_concurrency_slots(
         self, names: List[str], slots: int, occupancy_seconds: float
     ) -> httpx.Response:
+        """
+        Release concurrency slots for the specified limits.
+
+        Args:
+            names (List[str]): A list of limit names for which to release slots.
+            slots (int): The number of concurrency slots to release.
+            occupancy_seconds (float): The duration in seconds that the slots
+                were occupied.
+
+        Returns:
+            httpx.Response: The HTTP response from the server.
+        """
+
         return await self._client.post(
             "/v2/concurrency_limits/decrement",
             json={
@@ -3081,6 +3162,30 @@ class PrefectClient:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
+
+    async def upsert_global_concurrency_limit_by_name(self, name: str, limit: int):
+        """Creates a global concurrency limit with the given name and limit if one does not already exist.
+
+        If one does already exist matching the name then update it's limit if it is different.
+
+        Note: This is not done atomically.
+        """
+        try:
+            existing_limit = await self.read_global_concurrency_limit_by_name(name)
+        except prefect.exceptions.ObjectNotFound:
+            existing_limit = None
+
+        if not existing_limit:
+            await self.create_global_concurrency_limit(
+                GlobalConcurrencyLimitCreate(
+                    name=name,
+                    limit=limit,
+                )
+            )
+        elif existing_limit.limit != limit:
+            await self.update_global_concurrency_limit(
+                name, GlobalConcurrencyLimitUpdate(limit=limit)
+            )
 
     async def read_global_concurrency_limits(
         self, limit: int = 10, offset: int = 0
@@ -3178,7 +3283,7 @@ class PrefectClient:
         return pydantic.TypeAdapter(List[Automation]).validate_python(response.json())
 
     async def find_automation(
-        self, id_or_name: Union[str, UUID], exit_if_not_found: bool = True
+        self, id_or_name: Union[str, UUID]
     ) -> Optional[Automation]:
         if isinstance(id_or_name, str):
             try:
@@ -3271,6 +3376,32 @@ class PrefectClient:
 
     async def delete_resource_owned_automations(self, resource_id: str):
         await self._client.delete(f"/automations/owned-by/{resource_id}")
+
+    async def api_version(self) -> str:
+        res = await self._client.get("/admin/version")
+        return res.json()
+
+    def client_version(self) -> str:
+        return prefect.__version__
+
+    async def raise_for_api_version_mismatch(self):
+        # Cloud is always compatible as a server
+        if self.server_type == ServerType.CLOUD:
+            return
+
+        try:
+            api_version = await self.api_version()
+        except Exception as e:
+            raise RuntimeError(f"Failed to reach API at {self.api_url}") from e
+
+        api_version = version.parse(api_version)
+        client_version = version.parse(self.client_version())
+
+        if api_version.major != client_version.major:
+            raise RuntimeError(
+                f"Found incompatible versions: client: {client_version}, server: {api_version}. "
+                f"Major versions must match."
+            )
 
     async def __aenter__(self):
         """
@@ -3373,6 +3504,7 @@ class SyncPrefectClient:
         api_key: Optional[str] = None,
         api_version: Optional[str] = None,
         httpx_settings: Optional[Dict[str, Any]] = None,
+        server_type: Optional[ServerType] = None,
     ) -> None:
         httpx_settings = httpx_settings.copy() if httpx_settings else {}
         httpx_settings.setdefault("headers", {})
@@ -3431,11 +3563,14 @@ class SyncPrefectClient:
             # client will use a standard HTTP/1.1 connection instead.
             httpx_settings.setdefault("http2", PREFECT_API_ENABLE_HTTP2.value())
 
-            self.server_type = (
-                ServerType.CLOUD
-                if api.startswith(PREFECT_CLOUD_API_URL.value())
-                else ServerType.SERVER
-            )
+            if server_type:
+                self.server_type = server_type
+            else:
+                self.server_type = (
+                    ServerType.CLOUD
+                    if api.startswith(PREFECT_CLOUD_API_URL.value())
+                    else ServerType.SERVER
+                )
 
         # Connect to an in-process application
         elif isinstance(api, ASGIApp):
@@ -3459,7 +3594,7 @@ class SyncPrefectClient:
             ),
         )
 
-        if not PREFECT_UNIT_TEST_MODE:
+        if not PREFECT_TESTING_UNIT_TEST_MODE:
             httpx_settings.setdefault("follow_redirects", True)
 
         enable_csrf_support = (
@@ -3467,14 +3602,9 @@ class SyncPrefectClient:
             and PREFECT_CLIENT_CSRF_SUPPORT_ENABLED.value()
         )
 
-        if self.server_type == ServerType.EPHEMERAL:
-            self._client = PrefectHttpxSyncEphemeralClient(
-                api, base_url="http://ephemeral-prefect/api"
-            )
-        else:
-            self._client = PrefectHttpxSyncClient(
-                **httpx_settings, enable_csrf_support=enable_csrf_support
-            )
+        self._client = PrefectHttpxSyncClient(
+            **httpx_settings, enable_csrf_support=enable_csrf_support
+        )
 
         # See https://www.python-httpx.org/advanced/#custom-transports
         #
@@ -3565,6 +3695,32 @@ class SyncPrefectClient:
         Send a GET request to /hello for testing purposes.
         """
         return self._client.get("/hello")
+
+    def api_version(self) -> str:
+        res = self._client.get("/admin/version")
+        return res.json()
+
+    def client_version(self) -> str:
+        return prefect.__version__
+
+    def raise_for_api_version_mismatch(self):
+        # Cloud is always compatible as a server
+        if self.server_type == ServerType.CLOUD:
+            return
+
+        try:
+            api_version = self.api_version()
+        except Exception as e:
+            raise RuntimeError(f"Failed to reach API at {self.api_url}") from e
+
+        api_version = version.parse(api_version)
+        client_version = version.parse(self.client_version())
+
+        if api_version.major != client_version.major:
+            raise RuntimeError(
+                f"Found incompatible versions: client: {client_version}, server: {api_version}. "
+                f"Major versions must match."
+            )
 
     def create_flow(self, flow: "FlowObject") -> UUID:
         """
@@ -3825,7 +3981,10 @@ class SyncPrefectClient:
         try:
             response = self._client.post(
                 f"/flow_runs/{flow_run_id}/set_state",
-                json=dict(state=state_create.model_dump(mode="json"), force=force),
+                json=dict(
+                    state=state_create.model_dump(mode="json", serialize_as_any=True),
+                    force=force,
+                ),
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
@@ -4049,6 +4208,33 @@ class SyncPrefectClient:
                 raise
         return DeploymentResponse.model_validate(response.json())
 
+    def read_deployment_by_name(
+        self,
+        name: str,
+    ) -> DeploymentResponse:
+        """
+        Query the Prefect API for a deployment by name.
+
+        Args:
+            name: A deployed flow's name: <FLOW_NAME>/<DEPLOYMENT_NAME>
+
+        Raises:
+            prefect.exceptions.ObjectNotFound: If request returns 404
+            httpx.RequestError: If request fails
+
+        Returns:
+            a Deployment model representation of the deployment
+        """
+        try:
+            response = self._client.get(f"/deployments/name/{name}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
+        return DeploymentResponse.model_validate(response.json())
+
     def create_artifact(
         self,
         artifact: ArtifactCreate,
@@ -4064,7 +4250,55 @@ class SyncPrefectClient:
 
         response = self._client.post(
             "/artifacts/",
-            json=artifact.model_dump_json(exclude_unset=True),
+            json=artifact.model_dump(mode="json", exclude_unset=True),
         )
 
         return Artifact.model_validate(response.json())
+
+    def release_concurrency_slots(
+        self, names: List[str], slots: int, occupancy_seconds: float
+    ) -> httpx.Response:
+        """
+        Release concurrency slots for the specified limits.
+
+        Args:
+            names (List[str]): A list of limit names for which to release slots.
+            slots (int): The number of concurrency slots to release.
+            occupancy_seconds (float): The duration in seconds that the slots
+                were occupied.
+
+        Returns:
+            httpx.Response: The HTTP response from the server.
+        """
+        return self._client.post(
+            "/v2/concurrency_limits/decrement",
+            json={
+                "names": names,
+                "slots": slots,
+                "occupancy_seconds": occupancy_seconds,
+            },
+        )
+
+    def decrement_v1_concurrency_slots(
+        self, names: List[str], occupancy_seconds: float, task_run_id: UUID
+    ) -> httpx.Response:
+        """
+        Release the specified concurrency limits.
+
+        Args:
+            names (List[str]): A list of limit names to decrement.
+            occupancy_seconds (float): The duration in seconds that the slots
+                were held.
+            task_run_id (UUID): The task run ID that incremented the limits.
+
+        Returns:
+            httpx.Response: The HTTP response from the server.
+        """
+        return self._client.post(
+            "/concurrency_limits/decrement",
+            json={
+                "names": names,
+                "occupancy_seconds": occupancy_seconds,
+                "task_run_id": str(task_run_id),
+            },
+        )

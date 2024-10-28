@@ -29,6 +29,7 @@ from prefect.futures import (
     PrefectFutureList,
 )
 from prefect.logging.loggers import get_logger, get_run_logger
+from prefect.settings import PREFECT_TASK_RUNNER_THREAD_POOL_MAX_WORKERS
 from prefect.utilities.annotations import allow_failure, quote, unmapped
 from prefect.utilities.callables import (
     collapse_variadic_parameters,
@@ -220,7 +221,11 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture]):
     def __init__(self, max_workers: Optional[int] = None):
         super().__init__()
         self._executor: Optional[ThreadPoolExecutor] = None
-        self._max_workers = sys.maxsize if max_workers is None else max_workers
+        self._max_workers = (
+            (PREFECT_TASK_RUNNER_THREAD_POOL_MAX_WORKERS.value() or sys.maxsize)
+            if max_workers is None
+            else max_workers
+        )
         self._cancel_events: Dict[uuid.UUID, threading.Event] = {}
 
     def duplicate(self) -> "ThreadPoolTaskRunner":
@@ -278,11 +283,11 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture]):
 
         flow_run_ctx = FlowRunContext.get()
         if flow_run_ctx:
-            get_run_logger(flow_run_ctx).info(
+            get_run_logger(flow_run_ctx).debug(
                 f"Submitting task {task.name} to thread pool executor..."
             )
         else:
-            self.logger.info(f"Submitting task {task.name} to thread pool executor...")
+            self.logger.debug(f"Submitting task {task.name} to thread pool executor...")
 
         submit_kwargs = dict(
             task=task,

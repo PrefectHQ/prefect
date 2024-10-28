@@ -13,11 +13,13 @@ from uuid import UUID, uuid4
 import anyio
 import pytest
 
-from prefect import Task, flow, task
+from prefect import Task, flow, tags, task
 from prefect.cache_policies import FLOW_PARAMETERS
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.objects import StateType
-from prefect.concurrency.asyncio import (
+from prefect.concurrency.asyncio import concurrency as aconcurrency
+from prefect.concurrency.sync import concurrency
+from prefect.concurrency.v1.asyncio import (
     _acquire_concurrency_slots,
     _release_concurrency_slots,
 )
@@ -27,13 +29,12 @@ from prefect.context import (
     TaskRunContext,
     get_run_context,
 )
-from prefect.events.worker import EventsWorker
 from prefect.exceptions import CrashedRun, MissingResult
 from prefect.filesystems import LocalFileSystem
 from prefect.logging import get_run_logger
-from prefect.results import PersistedResult, ResultFactory, UnpersistedResult
+from prefect.results import ResultRecord, ResultStore
+from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION,
     PREFECT_TASK_DEFAULT_RETRIES,
     temporary_settings,
 )
@@ -46,19 +47,9 @@ from prefect.task_engine import (
 )
 from prefect.task_runners import ThreadPoolTaskRunner
 from prefect.testing.utilities import exceptions_equal
+from prefect.transactions import transaction
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.engine import propose_state
-
-
-@pytest.fixture(autouse=True, params=[False, True])
-def enable_client_side_task_run_orchestration(
-    request, asserting_events_worker: EventsWorker
-):
-    enabled = request.param
-    with temporary_settings(
-        {PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION: enabled}
-    ):
-        yield enabled
 
 
 @task
@@ -135,13 +126,13 @@ class TestRunTask:
         test_task_runner = ThreadPoolTaskRunner()
         flow_run = await prefect_client.create_flow_run(f)
         await propose_state(prefect_client, Running(), flow_run_id=flow_run.id)
-        result_factory = await ResultFactory.from_flow(f)
+        result_store = await ResultStore().update_for_flow(f)
         flow_run_context = EngineContext(
             flow=f,
             flow_run=flow_run,
             client=prefect_client,
             task_runner=test_task_runner,
-            result_factory=result_factory,
+            result_store=result_store,
             parameters={"x": "y"},
         )
 
@@ -183,13 +174,13 @@ class TestTaskRunsAsync:
         test_task_runner = ThreadPoolTaskRunner()
         flow_run = await prefect_client.create_flow_run(f)
         await propose_state(prefect_client, Running(), flow_run_id=flow_run.id)
-        result_factory = await ResultFactory.from_flow(f)
+        result_store = await ResultStore().update_for_flow(f)
         flow_run_context = EngineContext(
             flow=f,
             flow_run=flow_run,
             client=prefect_client,
             task_runner=test_task_runner,
-            result_factory=result_factory,
+            result_store=result_store,
             parameters={"x": "y"},
         )
 
@@ -270,7 +261,8 @@ class TestTaskRunsAsync:
         result = await run_task_async(my_log_task)
 
         assert result is None
-        record = caplog.records[0]
+        record = next((r for r in caplog.records if r.message == "hey yall"), None)
+        assert record is not None, "Couldn't find expected log record"
 
         assert record.task_name == "my_log_task"
         assert record.task_run_name == "test-run"
@@ -592,7 +584,8 @@ class TestTaskRunsSync:
         result = run_task_sync(my_log_task)
 
         assert result is None
-        record = caplog.records[0]
+        record = next((r for r in caplog.records if r.message == "hey yall"), None)
+        assert record is not None, "Couldn't find expected log record"
 
         assert record.task_name == "my_log_task"
         assert record.task_run_name == "test-run"
@@ -1504,13 +1497,13 @@ class TestRunCountTracking:
         flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert flow_run.run_count == 1
 
-        result_factory = await ResultFactory.from_flow(f)
+        result_store = await ResultStore().update_for_flow(f)
         return EngineContext(
             flow=f,
             flow_run=flow_run,
             client=prefect_client,
             task_runner=test_task_runner,
-            result_factory=result_factory,
+            result_store=result_store,
             parameters={"x": "y"},
         )
 
@@ -1619,28 +1612,55 @@ class TestTimeout:
         with pytest.raises(TimeoutError, match=".*timed out after 0.1 second(s)*"):
             run_task_sync(sync_task)
 
+    async def test_timeout_concurrency_slot_released_sync(
+        self, concurrency_limit_v2: ConcurrencyLimitV2, prefect_client: PrefectClient
+    ):
+        @task(timeout_seconds=0.5)
+        def expensive_task():
+            with concurrency(concurrency_limit_v2.name):
+                time.sleep(1)
+
+        with pytest.raises(TimeoutError):
+            expensive_task()
+
+        response = await prefect_client.read_global_concurrency_limit_by_name(
+            concurrency_limit_v2.name
+        )
+        assert response.active_slots == 0
+
+    async def test_timeout_concurrency_slot_released_async(
+        self, concurrency_limit_v2: ConcurrencyLimitV2, prefect_client: PrefectClient
+    ):
+        @task(timeout_seconds=0.5)
+        async def expensive_task():
+            async with aconcurrency(concurrency_limit_v2.name):
+                await asyncio.sleep(1)
+
+        with pytest.raises(TimeoutError):
+            await expensive_task()
+
+        response = await prefect_client.read_global_concurrency_limit_by_name(
+            concurrency_limit_v2.name
+        )
+        assert response.active_slots == 0
+
 
 class TestPersistence:
-    async def test_task_can_return_persisted_result(self, prefect_client):
+    async def test_task_can_return_result_record(self):
         @task
         async def async_task():
-            factory = await ResultFactory.default_factory(
-                client=prefect_client, persist_result=True
-            )
-            result = await factory.create_result(42)
-            return result
+            store = ResultStore()
+            record = store.create_result_record(42)
+            store.persist_result_record(record)
+            return record
 
         assert await async_task() == 42
         state = await async_task(return_state=True)
         assert await state.result() == 42
 
-    async def test_task_loads_result_if_exists_using_result_storage_key(
-        self, prefect_client
-    ):
-        factory = await ResultFactory.default_factory(
-            client=prefect_client, persist_result=True
-        )
-        await factory.create_result(-92, key="foo-bar")
+    async def test_task_loads_result_if_exists_using_result_storage_key(self):
+        store = ResultStore()
+        store.write(obj=-92, key="foo-bar")
 
         @task(result_storage_key="foo-bar", persist_result=True)
         async def async_task():
@@ -1649,29 +1669,23 @@ class TestPersistence:
         state = await run_task_async(async_task, return_type="state")
         assert state.is_completed()
         assert await state.result() == -92
-        assert isinstance(state.data, PersistedResult)
-        assert state.data.storage_key == "foo-bar"
+        assert isinstance(state.data, ResultRecord)
+        key_path = Path(state.data.metadata.storage_key)
+        assert key_path.name == "foo-bar"
 
-    async def test_task_result_persistence_references_absolute_path(
-        self, enable_client_side_task_run_orchestration
-    ):
-        # temporarily use a dynamic key to avoid conflicts
-        # from running this test twice in a row
-        # with enable_client_side_task_run_orchestration
-        key = f"test-absolute-path-{enable_client_side_task_run_orchestration}"
-
-        @task(result_storage_key=key, persist_result=True)
+    async def test_task_result_persistence_references_absolute_path(self):
+        @task(result_storage_key="test-absolute-path", persist_result=True)
         async def async_task():
             return 42
 
         state = await run_task_async(async_task, return_type="state")
         assert state.is_completed()
         assert await state.result() == 42
-        assert isinstance(state.data, PersistedResult)
+        assert isinstance(state.data, ResultRecord)
 
-        key_path = Path(state.data.storage_key)
+        key_path = Path(state.data.metadata.storage_key)
         assert key_path.is_absolute()
-        assert key_path.name == key
+        assert key_path.name == "test-absolute-path"
 
 
 class TestCachePolicy:
@@ -1689,7 +1703,7 @@ class TestCachePolicy:
 
         assert state.is_completed()
         assert await state.result() == 1800
-        assert Path(state.data.storage_key).name == key
+        assert Path(state.data.metadata.storage_key).name == key
 
     async def test_cache_expiration_is_respected(self, advance_time, tmp_path):
         fs = LocalFileSystem(basepath=tmp_path)
@@ -1758,7 +1772,8 @@ class TestCachePolicy:
 
         assert state.is_completed()
         assert await state.result() == 1800
-        assert isinstance(state.data, UnpersistedResult)
+        assert isinstance(state.data, ResultRecord)
+        assert not Path(state.data.metadata.storage_key).exists()
 
     async def test_none_return_value_does_persist(self, prefect_client, tmp_path):
         fs = LocalFileSystem(basepath=tmp_path)
@@ -2252,82 +2267,183 @@ class TestAsyncGenerators:
 
 
 class TestTaskConcurrencyLimits:
-    async def test_tag_concurrency(self, enable_client_side_task_run_orchestration):
+    async def test_tag_concurrency(self):
+        task_run_id = None
+
         @task(tags=["limit-tag"])
         async def bar():
+            nonlocal task_run_id
+            task_run_id = TaskRunContext.get().task_run.id
             return 42
 
         with mock.patch(
-            "prefect.concurrency.asyncio._acquire_concurrency_slots",
+            "prefect.concurrency.v1.asyncio._acquire_concurrency_slots",
             wraps=_acquire_concurrency_slots,
         ) as acquire_spy:
             with mock.patch(
-                "prefect.concurrency.asyncio._release_concurrency_slots",
+                "prefect.concurrency.v1.asyncio._release_concurrency_slots",
                 wraps=_release_concurrency_slots,
             ) as release_spy:
                 await bar()
 
-                if enable_client_side_task_run_orchestration:
-                    acquire_spy.assert_called_once_with(
-                        ["limit-tag"], 1, timeout_seconds=None, create_if_missing=False
-                    )
+                acquire_spy.assert_called_once_with(
+                    ["limit-tag"], task_run_id=task_run_id, timeout_seconds=None
+                )
 
-                    names, occupy, occupy_seconds = release_spy.call_args[0]
-                    assert names == ["limit-tag"]
-                    assert occupy == 1
-                    assert occupy_seconds > 0
-                else:
-                    assert acquire_spy.call_count == 0
+                names, _task_run_id, occupy_seconds = release_spy.call_args[0]
+                assert names == ["limit-tag"]
+                assert _task_run_id == task_run_id
+                assert occupy_seconds > 0
 
-    def test_tag_concurrency_sync(self, enable_client_side_task_run_orchestration):
+    def test_tag_concurrency_sync(self):
+        task_run_id = None
+
         @task(tags=["limit-tag"])
         def bar():
+            nonlocal task_run_id
+            task_run_id = TaskRunContext.get().task_run.id
             return 42
 
         with mock.patch(
-            "prefect.concurrency.sync._acquire_concurrency_slots",
+            "prefect.concurrency.v1.sync._acquire_concurrency_slots",
             wraps=_acquire_concurrency_slots,
         ) as acquire_spy:
             with mock.patch(
-                "prefect.concurrency.sync._release_concurrency_slots",
+                "prefect.concurrency.v1.sync._release_concurrency_slots",
                 wraps=_release_concurrency_slots,
             ) as release_spy:
                 bar()
 
-                if enable_client_side_task_run_orchestration:
-                    acquire_spy.assert_called_once_with(
-                        ["limit-tag"], 1, timeout_seconds=None, create_if_missing=False
-                    )
+                acquire_spy.assert_called_once_with(
+                    ["limit-tag"],
+                    task_run_id=task_run_id,
+                    timeout_seconds=None,
+                    _sync=True,
+                )
 
-                    names, occupy, occupy_seconds = release_spy.call_args[0]
-                    assert names == ["limit-tag"]
-                    assert occupy == 1
-                    assert occupy_seconds > 0
-                else:
-                    assert acquire_spy.call_count == 0
+                names, _task_run_id, occupy_seconds = release_spy.call_args[0]
+                assert names == ["limit-tag"]
+                assert _task_run_id == task_run_id
+                assert occupy_seconds > 0
 
-    async def test_tag_concurrency_does_not_create_limits(
-        self, enable_client_side_task_run_orchestration, prefect_client
-    ):
-        @task(tags=["limit-tag"])
+    def test_tag_concurrency_sync_with_tags_context(self):
+        task_run_id = None
+
+        @task
+        def bar():
+            nonlocal task_run_id
+            task_run_id = TaskRunContext.get().task_run.id
+            return 42
+
+        with mock.patch(
+            "prefect.concurrency.v1.sync._acquire_concurrency_slots",
+            wraps=_acquire_concurrency_slots,
+        ) as acquire_spy:
+            with mock.patch(
+                "prefect.concurrency.v1.sync._release_concurrency_slots",
+                wraps=_release_concurrency_slots,
+            ) as release_spy:
+                with tags("limit-tag"):
+                    bar()
+
+                acquire_spy.assert_called_once_with(
+                    ["limit-tag"],
+                    task_run_id=task_run_id,
+                    timeout_seconds=None,
+                    _sync=True,
+                )
+
+                names, _task_run_id, occupy_seconds = release_spy.call_args[0]
+                assert names == ["limit-tag"]
+                assert _task_run_id == task_run_id
+                assert occupy_seconds > 0
+
+    async def test_tag_concurrency_with_tags_context(self):
+        task_run_id = None
+
+        @task
+        async def bar():
+            nonlocal task_run_id
+            task_run_id = TaskRunContext.get().task_run.id
+            return 42
+
+        with mock.patch(
+            "prefect.concurrency.v1.asyncio._acquire_concurrency_slots",
+            wraps=_acquire_concurrency_slots,
+        ) as acquire_spy:
+            with mock.patch(
+                "prefect.concurrency.v1.asyncio._release_concurrency_slots",
+                wraps=_release_concurrency_slots,
+            ) as release_spy:
+                with tags("limit-tag"):
+                    await bar()
+
+                acquire_spy.assert_called_once_with(
+                    ["limit-tag"], task_run_id=task_run_id, timeout_seconds=None
+                )
+
+                names, _task_run_id, occupy_seconds = release_spy.call_args[0]
+                assert names == ["limit-tag"]
+                assert _task_run_id == task_run_id
+                assert occupy_seconds > 0
+
+    async def test_no_tags_no_concurrency(self):
+        @task
         async def bar():
             return 42
 
         with mock.patch(
-            "prefect.concurrency.asyncio._acquire_concurrency_slots",
+            "prefect.concurrency.v1.asyncio._acquire_concurrency_slots",
+            wraps=_acquire_concurrency_slots,
+        ) as acquire_spy:
+            with mock.patch(
+                "prefect.concurrency.v1.asyncio._release_concurrency_slots",
+                wraps=_release_concurrency_slots,
+            ) as release_spy:
+                await bar()
+
+                assert acquire_spy.call_count == 0
+                assert release_spy.call_count == 0
+
+    def test_no_tags_no_concurrency_sync(self):
+        @task
+        def bar():
+            return 42
+
+        with mock.patch(
+            "prefect.concurrency.v1.sync._acquire_concurrency_slots",
+            wraps=_acquire_concurrency_slots,
+        ) as acquire_spy:
+            with mock.patch(
+                "prefect.concurrency.v1.sync._release_concurrency_slots",
+                wraps=_release_concurrency_slots,
+            ) as release_spy:
+                bar()
+
+                assert acquire_spy.call_count == 0
+                assert release_spy.call_count == 0
+
+    async def test_tag_concurrency_does_not_create_limits(self, prefect_client):
+        task_run_id = None
+
+        @task(tags=["limit-tag"])
+        async def bar():
+            nonlocal task_run_id
+            task_run_id = TaskRunContext.get().task_run.id
+            return 42
+
+        with mock.patch(
+            "prefect.concurrency.v1.asyncio._acquire_concurrency_slots",
             wraps=_acquire_concurrency_slots,
         ) as acquire_spy:
             await bar()
 
-            if enable_client_side_task_run_orchestration:
-                acquire_spy.assert_called_once_with(
-                    ["limit-tag"], 1, timeout_seconds=None, create_if_missing=False
-                )
+            acquire_spy.assert_called_once_with(
+                ["limit-tag"], task_run_id=task_run_id, timeout_seconds=None
+            )
 
-                limits = await prefect_client.read_concurrency_limits(10, 0)
-                assert len(limits) == 0
-            else:
-                assert acquire_spy.call_count == 0
+            limits = await prefect_client.read_concurrency_limits(10, 0)
+            assert len(limits) == 0
 
 
 class TestRunStateIsDenormalized:
@@ -2538,3 +2654,155 @@ class TestRunStateIsDenormalized:
             return proof_that_i_ran
 
         assert the_flow() == proof_that_i_ran
+
+
+class TestTransactionHooks:
+    async def test_task_transitions_to_rolled_back_on_transaction_rollback(
+        self,
+        events_pipeline,
+        prefect_client,
+    ):
+        task_run_state = None
+
+        @task
+        def foo():
+            pass
+
+        @foo.on_rollback
+        def rollback(txn):
+            pass
+
+        @flow
+        def txn_flow():
+            with transaction():
+                nonlocal task_run_state
+                task_run_state = foo(return_state=True)
+                raise ValueError("txn failed")
+
+        txn_flow(return_state=True)
+
+        task_run_id = task_run_state.state_details.task_run_id
+
+        await events_pipeline.process_events()
+        task_run_states = await prefect_client.read_task_run_states(task_run_id)
+
+        state_names = [state.name for state in task_run_states]
+        assert state_names == [
+            "Pending",
+            "Running",
+            "Completed",
+            "RolledBack",
+        ]
+
+    async def test_task_transitions_to_rolled_back_on_transaction_rollback_async(
+        self,
+        events_pipeline,
+        prefect_client,
+    ):
+        task_run_state = None
+
+        @task
+        async def foo():
+            pass
+
+        @foo.on_rollback
+        def rollback(txn):
+            pass
+
+        @flow
+        async def txn_flow():
+            with transaction():
+                nonlocal task_run_state
+                task_run_state = await foo(return_state=True)
+                raise ValueError("txn failed")
+
+        await txn_flow(return_state=True)
+
+        task_run_id = task_run_state.state_details.task_run_id
+
+        await events_pipeline.process_events()
+        task_run_states = await prefect_client.read_task_run_states(task_run_id)
+
+        state_names = [state.name for state in task_run_states]
+        assert state_names == [
+            "Pending",
+            "Running",
+            "Completed",
+            "RolledBack",
+        ]
+
+    def test_rollback_errors_are_logged(self, caplog):
+        @task
+        def foo():
+            pass
+
+        @foo.on_rollback
+        def rollback(txn):
+            raise RuntimeError("whoops!")
+
+        @flow
+        def txn_flow():
+            with transaction():
+                foo()
+                raise ValueError("txn failed")
+
+        txn_flow(return_state=True)
+        assert "An error was encountered while running rollback hook" in caplog.text
+        assert "RuntimeError" in caplog.text
+        assert "whoops!" in caplog.text
+
+    def test_rollback_hook_execution_and_completion_are_logged(self, caplog):
+        @task
+        def foo():
+            pass
+
+        @foo.on_rollback
+        def rollback(txn):
+            pass
+
+        @flow
+        def txn_flow():
+            with transaction():
+                foo()
+                raise ValueError("txn failed")
+
+        txn_flow(return_state=True)
+        assert "Running rollback hook 'rollback'" in caplog.text
+        assert "Rollback hook 'rollback' finished running successfully" in caplog.text
+
+    def test_commit_errors_are_logged(self, caplog):
+        @task
+        def foo():
+            pass
+
+        @foo.on_commit
+        def rollback(txn):
+            raise RuntimeError("whoops!")
+
+        @flow
+        def txn_flow():
+            with transaction():
+                foo()
+
+        txn_flow(return_state=True)
+        assert "An error was encountered while running commit hook" in caplog.text
+        assert "RuntimeError" in caplog.text
+        assert "whoops!" in caplog.text
+
+    def test_commit_hook_execution_and_completion_are_logged(self, caplog):
+        @task
+        def foo():
+            pass
+
+        @foo.on_commit
+        def commit(txn):
+            pass
+
+        @flow
+        def txn_flow():
+            with transaction():
+                foo()
+
+        txn_flow(return_state=True)
+        assert "Running commit hook 'commit'" in caplog.text
+        assert "Commit hook 'commit' finished running successfully" in caplog.text

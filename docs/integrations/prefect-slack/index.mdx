@@ -8,33 +8,24 @@ title: prefect-slack
 
 ## Getting started
 
-### Python setup
+### Prerequisites
 
-Requires an installation of Python 3.9+
-
-We recommend using a Python virtual environment manager such as pipenv, conda or virtualenv.
-
-These tasks are designed to work with Prefect 3. 
+A Slack account with permissions to create a Slack app and install it in your workspace.
 
 ### Installation
 
-Install `prefect-slack`
+The following command will install a version of `prefect-slack` compatible with your installed version of `prefect`. 
+If you don't already have `prefect` installed, it will install the newest version of `prefect` as well.
 
+```bash
+pip install "prefect[slack]"
+```
 
-Install or update to the latest version of the prefect-slack library and dependencies.
+Upgrade to the latest versions of `prefect` and `prefect-slack`:
 
-<Tabs>
-    <Tab title="Prefect 2">
-    ```bash
-    pip install -U prefect-slack
-    ```
-    </Tab>
-    <Tab title="Prefect 3">
-    ```bash
-    pip install -U -pre prefect-slack
-    ```
-    </Tab>
-</Tabs>
+```bash
+pip install -U "prefect[slack]"
+```
 
 ### Slack setup
 
@@ -71,3 +62,9 @@ def example_send_message_flow():
 if __name__ == "__main__":
     example_send_message_flow()
 ```
+
+## Resources
+
+Refer to the `prefect-slack` SDK documentation linked in the sidebar to explore all the capabilities of the `prefect-slack` library.
+
+For further assistance developing with Slack, consult the [Slack documentation](https://api.slack.com/).

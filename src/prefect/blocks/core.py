@@ -2,6 +2,7 @@ import hashlib
 import html
 import inspect
 import sys
+import uuid
 import warnings
 from abc import ABC
 from functools import partial
@@ -23,9 +24,7 @@ from typing import (
 )
 from uuid import UUID, uuid4
 
-from griffe.dataclasses import Docstring
-from griffe.docstrings.dataclasses import DocstringSection, DocstringSectionKind
-from griffe.docstrings.parsers import Parser, parse
+from griffe import Docstring, DocstringSection, DocstringSectionKind, Parser, parse
 from packaging.version import InvalidVersion, Version
 from pydantic import (
     BaseModel,
@@ -41,7 +40,6 @@ from pydantic import (
 from pydantic.json_schema import GenerateJsonSchema
 from typing_extensions import Literal, ParamSpec, Self, get_args
 
-import prefect
 import prefect.exceptions
 from prefect.client.schemas import (
     DEFAULT_BLOCK_SCHEMA_VERSION,
@@ -53,6 +51,7 @@ from prefect.client.schemas import (
 from prefect.client.utilities import inject_client
 from prefect.events import emit_event
 from prefect.logging.loggers import disable_logger
+from prefect.plugins import load_prefect_collections
 from prefect.types import SecretDict
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.collections import listrepr, remove_nested_keys, visit_collection
@@ -87,7 +86,7 @@ class InvalidBlockRegistration(Exception):
     """
 
 
-def _collect_nested_reference_strings(obj: Dict):
+def _collect_nested_reference_strings(obj: Dict) -> List[str]:
     """
     Collects all nested reference strings (e.g. #/definitions/Model) from a given object.
     """
@@ -129,7 +128,9 @@ def _is_subclass(cls, parent_cls) -> bool:
     Checks if a given class is a subclass of another class. Unlike issubclass,
     this will not throw an exception if cls is an instance instead of a type.
     """
-    return inspect.isclass(cls) and issubclass(cls, parent_cls)
+    # For python<=3.11 inspect.isclass() will return True for parametrized types (e.g. list[str])
+    # so we need to check for get_origin() to avoid TypeError for issubclass.
+    return inspect.isclass(cls) and not get_origin(cls) and issubclass(cls, parent_cls)
 
 
 def _collect_secret_fields(
@@ -137,19 +138,23 @@ def _collect_secret_fields(
 ) -> None:
     """
     Recursively collects all secret fields from a given type and adds them to the
-    secrets list, supporting nested Union / BaseModel fields. Also, note, this function
-    mutates the input secrets list, thus does not return anything.
+    secrets list, supporting nested Union / Dict / Tuple / List / BaseModel fields.
+    Also, note, this function mutates the input secrets list, thus does not return anything.
     """
-    if get_origin(type_) is Union:
-        for union_type in get_args(type_):
-            _collect_secret_fields(name, union_type, secrets)
+    if get_origin(type_) in (Union, dict, list, tuple):
+        for nested_type in get_args(type_):
+            _collect_secret_fields(name, nested_type, secrets)
         return
     elif _is_subclass(type_, BaseModel):
         for field_name, field in type_.model_fields.items():
             _collect_secret_fields(f"{name}.{field_name}", field.annotation, secrets)
         return
 
-    if type_ in (SecretStr, SecretBytes):
+    if type_ in (SecretStr, SecretBytes) or (
+        isinstance(type_, type)
+        and getattr(type_, "__module__", None) == "pydantic.types"
+        and getattr(type_, "__name__", None) == "Secret"
+    ):
         secrets.append(name)
     elif type_ == SecretDict:
         # Append .* to field name to signify that all values under this
@@ -231,21 +236,25 @@ def schema_extra(schema: Dict[str, Any], model: Type["Block"]):
 
     # create block schema references
     refs = schema["block_schema_references"] = {}
+
+    def collect_block_schema_references(field_name: str, annotation: type) -> None:
+        """Walk through the annotation and collect block schemas for any nested blocks."""
+        if Block.is_block_class(annotation):
+            if isinstance(refs.get(field_name), list):
+                refs[field_name].append(annotation._to_block_schema_reference_dict())
+            elif isinstance(refs.get(field_name), dict):
+                refs[field_name] = [
+                    refs[field_name],
+                    annotation._to_block_schema_reference_dict(),
+                ]
+            else:
+                refs[field_name] = annotation._to_block_schema_reference_dict()
+        if get_origin(annotation) in (Union, list, tuple, dict):
+            for type_ in get_args(annotation):
+                collect_block_schema_references(field_name, type_)
+
     for name, field in model.model_fields.items():
-        if Block.is_block_class(field.annotation):
-            refs[name] = field.annotation._to_block_schema_reference_dict()
-        if get_origin(field.annotation) in [Union, list]:
-            for type_ in get_args(field.annotation):
-                if Block.is_block_class(type_):
-                    if isinstance(refs.get(name), list):
-                        refs[name].append(type_._to_block_schema_reference_dict())
-                    elif isinstance(refs.get(name), dict):
-                        refs[name] = [
-                            refs[name],
-                            type_._to_block_schema_reference_dict(),
-                        ]
-                    else:
-                        refs[name] = type_._to_block_schema_reference_dict()
+        collect_block_schema_references(name, field.annotation)
 
 
 @register_base_type
@@ -546,10 +555,9 @@ class Block(BaseModel, ABC):
         `<module>:11: No type or annotation for parameter 'write_json'`
         because griffe is unable to parse the types from pydantic.BaseModel.
         """
-        with disable_logger("griffe.docstrings.google"):
-            with disable_logger("griffe.agents.nodes"):
-                docstring = Docstring(cls.__doc__)
-                parsed = parse(docstring, Parser.google)
+        with disable_logger("griffe"):
+            docstring = Docstring(cls.__doc__)
+            parsed = parse(docstring, Parser.google)
         return parsed
 
     @classmethod
@@ -731,9 +739,10 @@ class Block(BaseModel, ABC):
         """
         Retrieve the block class implementation given a key.
         """
+
         # Ensure collections are imported and have the opportunity to register types
-        # before looking up the block class
-        prefect.plugins.load_prefect_collections()
+        # before looking up the block class, but only do this once
+        load_prefect_collections()
 
         return lookup_type(cls, key)
 
@@ -789,6 +798,33 @@ class Block(BaseModel, ABC):
             ) from e
 
         return block_document, block_document_name
+
+    @classmethod
+    @sync_compatible
+    @inject_client
+    async def _get_block_document_by_id(
+        cls,
+        block_document_id: Union[str, uuid.UUID],
+        client: Optional["PrefectClient"] = None,
+    ):
+        if isinstance(block_document_id, str):
+            try:
+                block_document_id = UUID(block_document_id)
+            except ValueError:
+                raise ValueError(
+                    f"Block document ID {block_document_id!r} is not a valid UUID"
+                )
+
+        try:
+            block_document = await client.read_block_document(
+                block_document_id=block_document_id
+            )
+        except prefect.exceptions.ObjectNotFound:
+            raise ValueError(
+                f"Unable to find block document with ID {block_document_id!r}"
+            )
+
+        return block_document, block_document.name
 
     @classmethod
     @sync_compatible
@@ -874,8 +910,108 @@ class Block(BaseModel, ABC):
             loaded_block.save("my-custom-message", overwrite=True)
             ```
         """
-        block_document, block_document_name = await cls._get_block_document(name)
+        block_document, block_document_name = await cls._get_block_document(
+            name, client=client
+        )
 
+        return cls._load_from_block_document(block_document, validate=validate)
+
+    @classmethod
+    @sync_compatible
+    @inject_client
+    async def load_from_ref(
+        cls,
+        ref: Union[str, UUID, Dict[str, Any]],
+        validate: bool = True,
+        client: Optional["PrefectClient"] = None,
+    ) -> "Self":
+        """
+        Retrieves data from the block document by given reference for the block type
+        that corresponds with the current class and returns an instantiated version of
+        the current class with the data stored in the block document.
+
+        Provided reference can be a block document ID, or a reference data in dictionary format.
+        Supported dictionary reference formats are:
+        - {"block_document_id": <block_document_id>}
+        - {"block_document_slug": <block_document_slug>}
+
+        If a block document for a given block type is saved with a different schema
+        than the current class calling `load`, a warning will be raised.
+
+        If the current class schema is a subset of the block document schema, the block
+        can be loaded as normal using the default `validate = True`.
+
+        If the current class schema is a superset of the block document schema, `load`
+        must be called with `validate` set to False to prevent a validation error. In
+        this case, the block attributes will default to `None` and must be set manually
+        and saved to a new block document before the block can be used as expected.
+
+        Args:
+            ref: The reference to the block document. This can be a block document ID,
+                or one of supported dictionary reference formats.
+            validate: If False, the block document will be loaded without Pydantic
+                validating the block schema. This is useful if the block schema has
+                changed client-side since the block document referred to by `name` was saved.
+            client: The client to use to load the block document. If not provided, the
+                default client will be injected.
+
+        Raises:
+            ValueError: If invalid reference format is provided.
+            ValueError: If the requested block document is not found.
+
+        Returns:
+            An instance of the current class hydrated with the data stored in the
+            block document with the specified name.
+
+        """
+        block_document = None
+        if isinstance(ref, (str, UUID)):
+            block_document, _ = await cls._get_block_document_by_id(ref)
+        elif isinstance(ref, dict):
+            if block_document_id := ref.get("block_document_id"):
+                block_document, _ = await cls._get_block_document_by_id(
+                    block_document_id
+                )
+            elif block_document_slug := ref.get("block_document_slug"):
+                block_document, _ = await cls._get_block_document(block_document_slug)
+
+        if not block_document:
+            raise ValueError(f"Invalid reference format {ref!r}.")
+
+        return cls._load_from_block_document(block_document, validate=validate)
+
+    @classmethod
+    def _load_from_block_document(
+        cls, block_document: BlockDocument, validate: bool = True
+    ) -> "Self":
+        """
+        Loads a block from a given block document.
+
+        If a block document for a given block type is saved with a different schema
+        than the current class calling `load`, a warning will be raised.
+
+        If the current class schema is a subset of the block document schema, the block
+        can be loaded as normal using the default `validate = True`.
+
+        If the current class schema is a superset of the block document schema, `load`
+        must be called with `validate` set to False to prevent a validation error. In
+        this case, the block attributes will default to `None` and must be set manually
+        and saved to a new block document before the block can be used as expected.
+
+        Args:
+            block_document: The block document used to instantiate a block.
+            validate: If False, the block document will be loaded without Pydantic
+                validating the block schema. This is useful if the block schema has
+                changed client-side since the block document referred to by `name` was saved.
+
+        Raises:
+            ValueError: If the requested block document is not found.
+
+        Returns:
+            An instance of the current class hydrated with the data stored in the
+            block document with the specified name.
+
+        """
         try:
             return cls._from_block_document(block_document)
         except ValidationError as e:
@@ -883,18 +1019,18 @@ class Block(BaseModel, ABC):
                 missing_fields = tuple(err["loc"][0] for err in e.errors())
                 missing_block_data = {field: None for field in missing_fields}
                 warnings.warn(
-                    f"Could not fully load {block_document_name!r} of block type"
+                    f"Could not fully load {block_document.name!r} of block type"
                     f" {cls.get_block_type_slug()!r} - this is likely because one or more"
                     " required fields were added to the schema for"
                     f" {cls.__name__!r} that did not exist on the class when this block"
                     " was last saved. Please specify values for new field(s):"
                     f" {listrepr(missing_fields)}, then run"
-                    f' `{cls.__name__}.save("{block_document_name}", overwrite=True)`,'
+                    f' `{cls.__name__}.save("{block_document.name}", overwrite=True)`,'
                     " and load this block again before attempting to use it."
                 )
                 return cls.model_construct(**block_document.data, **missing_block_data)
             raise RuntimeError(
-                f"Unable to load {block_document_name!r} of block type"
+                f"Unable to load {block_document.name!r} of block type"
                 f" {cls.get_block_type_slug()!r} due to failed validation. To load without"
                 " validation, try loading again with `validate=False`."
             ) from e
@@ -918,7 +1054,7 @@ class Block(BaseModel, ABC):
     @classmethod
     @sync_compatible
     @inject_client
-    async def register_type_and_schema(cls, client: "PrefectClient" = None):
+    async def register_type_and_schema(cls, client: Optional["PrefectClient"] = None):
         """
         Makes block available for configuration with current Prefect API.
         Recursively registers all nested blocks. Registration is idempotent.
@@ -939,13 +1075,16 @@ class Block(BaseModel, ABC):
                 "subclass and not on a Block interface class directly."
             )
 
+        async def register_blocks_in_annotation(annotation: type) -> None:
+            """Walk through the annotation and register any nested blocks."""
+            if Block.is_block_class(annotation):
+                await annotation.register_type_and_schema(client=client)
+            elif get_origin(annotation) in (Union, tuple, list, dict):
+                for inner_annotation in get_args(annotation):
+                    await register_blocks_in_annotation(inner_annotation)
+
         for field in cls.model_fields.values():
-            if Block.is_block_class(field.annotation):
-                await field.annotation.register_type_and_schema(client=client)
-            if get_origin(field.annotation) is Union:
-                for annotation in get_args(field.annotation):
-                    if Block.is_block_class(annotation):
-                        await annotation.register_type_and_schema(client=client)
+            await register_blocks_in_annotation(field.annotation)
 
         try:
             block_type = await client.read_block_type_by_slug(

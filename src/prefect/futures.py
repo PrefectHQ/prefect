@@ -1,7 +1,7 @@
 import abc
+import asyncio
 import collections
 import concurrent.futures
-import inspect
 import threading
 import uuid
 from collections.abc import Generator, Iterator
@@ -10,7 +10,6 @@ from typing import Any, Callable, Generic, List, Optional, Set, Union, cast
 
 from typing_extensions import TypeVar
 
-from prefect._internal.compatibility.deprecated import deprecated_async_method
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import TaskRun
 from prefect.exceptions import ObjectNotFound
@@ -117,7 +116,7 @@ class PrefectWrappedFuture(PrefectFuture, abc.ABC, Generic[R, F]):
         """The underlying future object wrapped by this Prefect future"""
         return self._wrapped_future
 
-    def add_done_callback(self, fn: Callable[[PrefectFuture], None]):
+    def add_done_callback(self, fn: Callable[[PrefectFuture[R]], None]):
         if not self._final_state:
 
             def call_with_self(future):
@@ -135,7 +134,6 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[R, concurrent.futures.Future]
     when the task run is submitted to a ThreadPoolExecutor.
     """
 
-    @deprecated_async_method
     def wait(self, timeout: Optional[float] = None) -> None:
         try:
             result = self._wrapped_future.result(timeout=timeout)
@@ -144,7 +142,6 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[R, concurrent.futures.Future]
         if isinstance(result, State):
             self._final_state = result
 
-    @deprecated_async_method
     def result(
         self,
         timeout: Optional[float] = None,
@@ -169,7 +166,7 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[R, concurrent.futures.Future]
         )
         # state.result is a `sync_compatible` function that may or may not return an awaitable
         # depending on whether the parent frame is sync or not
-        if inspect.isawaitable(_result):
+        if asyncio.iscoroutine(_result):
             _result = run_coro_as_sync(_result)
         return _result
 
@@ -182,7 +179,8 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[R, concurrent.futures.Future]
             local_logger = logger
         local_logger.warning(
             "A future was garbage collected before it resolved."
-            " Please call `.wait()` or `.result()` on futures to ensure they resolve.",
+            " Please call `.wait()` or `.result()` on futures to ensure they resolve."
+            "\nSee https://docs.prefect.io/latest/develop/task-runners for more details.",
         )
 
 
@@ -195,10 +193,9 @@ class PrefectDistributedFuture(PrefectFuture[R]):
     any task run scheduled in Prefect's API.
     """
 
-    done_callbacks: List[Callable[[PrefectFuture], None]] = []
+    done_callbacks: List[Callable[[PrefectFuture[R]], None]] = []
     waiter = None
 
-    @deprecated_async_method
     def wait(self, timeout: Optional[float] = None) -> None:
         return run_coro_as_sync(self.wait_async(timeout=timeout))
 
@@ -235,7 +232,6 @@ class PrefectDistributedFuture(PrefectFuture[R]):
                 self._final_state = task_run.state
             return
 
-    @deprecated_async_method
     def result(
         self,
         timeout: Optional[float] = None,
@@ -261,7 +257,7 @@ class PrefectDistributedFuture(PrefectFuture[R]):
             raise_on_failure=raise_on_failure, fetch=True
         )
 
-    def add_done_callback(self, fn: Callable[[PrefectFuture], None]):
+    def add_done_callback(self, fn: Callable[[PrefectFuture[R]], None]):
         if self._final_state:
             fn(self)
             return
@@ -302,10 +298,10 @@ class PrefectFutureList(list, Iterator, Generic[F]):
         wait(self, timeout=timeout)
 
     def result(
-        self,
+        self: "PrefectFutureList[R]",
         timeout: Optional[float] = None,
         raise_on_failure: bool = True,
-    ) -> List:
+    ) -> List[R]:
         """
         Get the results of all task runs associated with the futures in the list.
 
@@ -335,9 +331,9 @@ class PrefectFutureList(list, Iterator, Generic[F]):
 
 
 def as_completed(
-    futures: List[PrefectFuture], timeout: Optional[float] = None
-) -> Generator[PrefectFuture, None]:
-    unique_futures: Set[PrefectFuture] = set(futures)
+    futures: List[PrefectFuture[R]], timeout: Optional[float] = None
+) -> Generator[PrefectFuture[R], None]:
+    unique_futures: Set[PrefectFuture[R]] = set(futures)
     total_futures = len(unique_futures)
     try:
         with timeout_context(timeout):
@@ -377,7 +373,7 @@ def as_completed(
 DoneAndNotDoneFutures = collections.namedtuple("DoneAndNotDoneFutures", "done not_done")
 
 
-def wait(futures: List[PrefectFuture], timeout=None) -> DoneAndNotDoneFutures:
+def wait(futures: List[PrefectFuture[R]], timeout=None) -> DoneAndNotDoneFutures:
     """
     Wait for the futures in the given sequence to complete.
 
@@ -408,10 +404,10 @@ def wait(futures: List[PrefectFuture], timeout=None) -> DoneAndNotDoneFutures:
             print(f"Not Done: {len(not_done)}")
         ```
     """
-    futures = set(futures)
-    done = {f for f in futures if f._final_state}
-    not_done = futures - done
-    if len(done) == len(futures):
+    _futures = set(futures)
+    done = {f for f in _futures if f._final_state}
+    not_done = _futures - done
+    if len(done) == len(_futures):
         return DoneAndNotDoneFutures(done, not_done)
     try:
         with timeout_context(timeout):
@@ -426,7 +422,7 @@ def wait(futures: List[PrefectFuture], timeout=None) -> DoneAndNotDoneFutures:
 
 
 def resolve_futures_to_states(
-    expr: Union[PrefectFuture, Any],
+    expr: Union[PrefectFuture[R], Any],
 ) -> Union[State, Any]:
     """
     Given a Python built-in collection, recursively find `PrefectFutures` and build a
@@ -435,7 +431,7 @@ def resolve_futures_to_states(
 
     Unsupported object types will be returned without modification.
     """
-    futures: Set[PrefectFuture] = set()
+    futures: Set[PrefectFuture[R]] = set()
 
     def _collect_futures(futures, expr, context):
         # Expressions inside quotes should not be traversed

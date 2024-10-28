@@ -20,6 +20,7 @@ import yaml
 from ruamel.yaml import YAML
 
 from prefect.client.schemas.actions import DeploymentScheduleCreate
+from prefect.client.schemas.objects import ConcurrencyLimitStrategy
 from prefect.client.schemas.schedules import IntervalSchedule
 from prefect.logging import get_logger
 from prefect.settings import PREFECT_DEBUG_MODE
@@ -258,15 +259,6 @@ def _format_deployment_for_saving_to_prefect_file(
     # Only want entrypoint to avoid errors
     deployment.pop("flow_name", None)
 
-    if deployment.get("schedule"):
-        if isinstance(deployment["schedule"], IntervalSchedule):
-            deployment["schedule"] = _interval_schedule_to_dict(deployment["schedule"])
-        else:  # all valid SCHEDULE_TYPES are subclasses of BaseModel
-            deployment["schedule"] = deployment["schedule"].model_dump()
-
-        if "is_schedule_active" in deployment:
-            deployment["schedule"]["active"] = deployment.pop("is_schedule_active")
-
     if deployment.get("schedules"):
         schedules = []
         for deployment_schedule in cast(
@@ -280,11 +272,20 @@ def _format_deployment_for_saving_to_prefect_file(
                 schedule_config = deployment_schedule.schedule.model_dump()
 
             schedule_config["active"] = deployment_schedule.active
-            schedule_config["max_active_runs"] = deployment_schedule.max_active_runs
-            schedule_config["catchup"] = deployment_schedule.catchup
             schedules.append(schedule_config)
 
         deployment["schedules"] = schedules
+
+    if deployment.get("concurrency_limit"):
+        concurrency_limit = deployment["concurrency_limit"]
+        if isinstance(concurrency_limit, dict):
+            if isinstance(
+                concurrency_limit["collision_strategy"], ConcurrencyLimitStrategy
+            ):
+                concurrency_limit["collision_strategy"] = str(
+                    concurrency_limit["collision_strategy"].value
+                )
+        deployment["concurrency_limit"] = concurrency_limit
 
     return deployment
 

@@ -5,7 +5,7 @@ from typing import Any, Dict, Optional
 
 import anyio
 import fsspec
-from pydantic import Field, SecretStr, field_validator
+from pydantic import BaseModel, Field, SecretStr, field_validator
 
 from prefect._internal.schemas.validators import (
     stringify_path,
@@ -84,7 +84,7 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
     _block_type_name = "Local File System"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/ad39089fa66d273b943394a68f003f7a19aa850e-48x48.png"
     _documentation_url = (
-        "https://docs.prefect.io/concepts/filesystems/#local-filesystem"
+        "https://docs.prefect.io/latest/develop/results#specifying-a-default-filesystem"
     )
 
     basepath: Optional[str] = Field(
@@ -260,7 +260,7 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
     _block_type_name = "Remote File System"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/e86b41bc0f9c99ba9489abeee83433b43d5c9365-48x48.png"
     _documentation_url = (
-        "https://docs.prefect.io/concepts/filesystems/#remote-file-system"
+        "https://docs.prefect.io/latest/develop/results#specifying-a-default-filesystem"
     )
 
     basepath: str = Field(
@@ -433,7 +433,9 @@ class SMB(WritableFileSystem, WritableDeploymentStorage):
 
     _block_type_name = "SMB"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/3f624663f7beb97d011d011bffd51ecf6c499efc-195x195.png"
-    _documentation_url = "https://docs.prefect.io/concepts/filesystems/#smb"
+    _documentation_url = (
+        "https://docs.prefect.io/latest/develop/results#specifying-a-default-filesystem"
+    )
 
     share_path: str = Field(
         default=...,
@@ -515,6 +517,31 @@ class SMB(WritableFileSystem, WritableDeploymentStorage):
     @sync_compatible
     async def write_path(self, path: str, content: bytes) -> str:
         return await self.filesystem.write_path(path=path, content=content)
+
+
+class NullFileSystem(BaseModel):
+    """
+    A file system that does not store any data.
+    """
+
+    async def read_path(self, path: str) -> None:
+        pass
+
+    async def write_path(self, path: str, content: bytes) -> None:
+        pass
+
+    async def get_directory(
+        self, from_path: Optional[str] = None, local_path: Optional[str] = None
+    ) -> None:
+        pass
+
+    async def put_directory(
+        self,
+        local_path: Optional[str] = None,
+        to_path: Optional[str] = None,
+        ignore_file: Optional[str] = None,
+    ) -> None:
+        pass
 
 
 __getattr__ = getattr_migration(__name__)

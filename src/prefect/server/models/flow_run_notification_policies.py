@@ -4,11 +4,12 @@ Intended for internal use by the Prefect REST API.
 """
 
 import textwrap
-from typing import Optional
+from typing import Optional, Sequence, Union
 from uuid import UUID
 
 import sqlalchemy as sa
 from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.schemas as schemas
 from prefect.server.database import orm_models
@@ -28,14 +29,14 @@ DEFAULT_MESSAGE_TEMPLATE = textwrap.dedent(
 
 
 async def create_flow_run_notification_policy(
-    session: sa.orm.Session,
+    session: AsyncSession,
     flow_run_notification_policy: schemas.core.FlowRunNotificationPolicy,
-):
+) -> orm_models.FlowRunNotificationPolicy:
     """
     Creates a FlowRunNotificationPolicy.
 
     Args:
-        session (sa.orm.Session): a database session
+        session (AsyncSession): a database session
         flow_run_notification_policy (schemas.core.FlowRunNotificationPolicy): a FlowRunNotificationPolicy model
 
     Returns:
@@ -52,14 +53,14 @@ async def create_flow_run_notification_policy(
 
 
 async def read_flow_run_notification_policy(
-    session: sa.orm.Session,
+    session: AsyncSession,
     flow_run_notification_policy_id: UUID,
-):
+) -> Union[orm_models.FlowRunNotificationPolicy, None]:
     """
     Reads a FlowRunNotificationPolicy by id.
 
     Args:
-        session (sa.orm.Session): A database session
+        session (AsyncSession): A database session
         flow_run_notification_policy_id (str): a FlowRunNotificationPolicy id
 
     Returns:
@@ -72,18 +73,18 @@ async def read_flow_run_notification_policy(
 
 
 async def read_flow_run_notification_policies(
-    session: sa.orm.Session,
+    session: AsyncSession,
     flow_run_notification_policy_filter: Optional[
         schemas.filters.FlowRunNotificationPolicyFilter
     ] = None,
     offset: Optional[int] = None,
     limit: Optional[int] = None,
-):
+) -> Sequence[orm_models.FlowRunNotificationPolicy]:
     """
     Read notification policies.
 
     Args:
-        session (sa.orm.Session): A database session
+        session (AsyncSession): A database session
         offset (int): Query offset
         limit(int): Query limit
 
@@ -108,7 +109,7 @@ async def read_flow_run_notification_policies(
 
 
 async def update_flow_run_notification_policy(
-    session: sa.orm.Session,
+    session: AsyncSession,
     flow_run_notification_policy_id: UUID,
     flow_run_notification_policy: schemas.actions.FlowRunNotificationPolicyUpdate,
 ) -> bool:
@@ -116,7 +117,7 @@ async def update_flow_run_notification_policy(
     Update a FlowRunNotificationPolicy by id.
 
     Args:
-        session (sa.orm.Session): A database session
+        session (AsyncSession): A database session
         flow_run_notification_policy: the flow run notification policy data
         flow_run_notification_policy_id (str): a FlowRunNotificationPolicy id
 
@@ -139,14 +140,14 @@ async def update_flow_run_notification_policy(
 
 
 async def delete_flow_run_notification_policy(
-    session: sa.orm.Session,
+    session: AsyncSession,
     flow_run_notification_policy_id: UUID,
 ) -> bool:
     """
     Delete a FlowRunNotificationPolicy by id.
 
     Args:
-        session (sa.orm.Session): A database session
+        session (AsyncSession): A database session
         flow_run_notification_policy_id (str): a FlowRunNotificationPolicy id
 
     Returns:
@@ -164,9 +165,9 @@ async def delete_flow_run_notification_policy(
 @db_injector
 async def queue_flow_run_notifications(
     db: PrefectDBInterface,
-    session: sa.orm.session,
-    flow_run: schemas.core.FlowRun,
-):
+    session: AsyncSession,
+    flow_run: Union[schemas.core.FlowRun, orm_models.FlowRun],
+) -> None:
     await db.queries.queue_flow_run_notifications(
         session=session, flow_run=flow_run, db=db
     )

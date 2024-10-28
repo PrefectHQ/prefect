@@ -6,6 +6,7 @@ from starlette import status
 
 from prefect import flow, task
 from prefect.concurrency.asyncio import (
+    ConcurrencySlotAcquisitionError,
     _acquire_concurrency_slots,
     _release_concurrency_slots,
     concurrency,
@@ -37,7 +38,12 @@ async def test_concurrency_orchestrates_api(concurrency_limit: ConcurrencyLimitV
             await resource_heavy()
 
             acquire_spy.assert_called_once_with(
-                ["test"], 1, timeout_seconds=None, create_if_missing=True
+                ["test"],
+                1,
+                timeout_seconds=None,
+                create_if_missing=None,
+                max_retries=None,
+                strict=False,
             )
 
             # On release we calculate how many seconds the slots were occupied
@@ -74,29 +80,20 @@ async def test_concurrency_can_be_used_within_a_flow(
     assert executed
 
 
-@pytest.mark.skip(
-    reason="New engine does not support calling async from sync",
-)
-def test_concurrency_mixed_sync_async(
-    concurrency_limit: ConcurrencyLimitV2,
-):
-    executed = False
-
+async def test_concurrency_can_be_used_within_a_flow_strictly():
     @task
     async def resource_heavy():
-        nonlocal executed
-        async with concurrency("test", occupy=1):
-            executed = True
+        async with concurrency("santa-clause", occupy=1, strict=True):
+            return
 
     @flow
-    def my_flow():
-        resource_heavy()
+    async def my_flow():
+        await resource_heavy()
 
-    assert not executed
-
-    my_flow()
-
-    assert executed
+    state = await my_flow(return_state=True)
+    assert state.is_failed()
+    with pytest.raises(ConcurrencySlotAcquisitionError):
+        await state.result()
 
 
 async def test_concurrency_emits_events(
@@ -204,6 +201,13 @@ async def test_concurrency_respects_timeout():
             print("should not be executed")
 
 
+@pytest.mark.usefixtures("mock_increment_concurrency_slots")
+async def test_concurrency_respects_max_retries():
+    with pytest.raises(ConcurrencySlotAcquisitionError):
+        async with concurrency("test", occupy=1, max_retries=0, timeout_seconds=5):
+            print("should not be executed")
+
+
 async def test_rate_limit_orchestrates_api(
     concurrency_limit_with_decay: ConcurrencyLimitV2,
 ):
@@ -231,7 +235,8 @@ async def test_rate_limit_orchestrates_api(
                 1,
                 mode="rate_limit",
                 timeout_seconds=None,
-                create_if_missing=True,
+                create_if_missing=None,
+                strict=False,
             )
 
             # When used as a rate limit concurrency slots are not explicitly
@@ -263,29 +268,20 @@ async def test_rate_limit_can_be_used_within_a_flow(
     assert executed
 
 
-@pytest.mark.skip(
-    reason="New engine does not support calling async from sync",
-)
-def test_rate_limit_mixed_sync_async(
-    concurrency_limit_with_decay: ConcurrencyLimitV2,
-):
-    executed = False
-
+async def test_rate_limit_can_be_used_within_a_flow_with_strict():
     @task
     async def resource_heavy():
-        nonlocal executed
-        await rate_limit("test", occupy=1)
-        executed = True
+        await rate_limit("easter-bunny", occupy=1, strict=True)
+        return
 
     @flow
-    def my_flow():
-        resource_heavy()
+    async def my_flow():
+        await resource_heavy()
 
-    assert not executed
-
-    my_flow()
-
-    assert executed
+    state = await my_flow(return_state=True)
+    assert state.is_failed()
+    with pytest.raises(ConcurrencySlotAcquisitionError):
+        await state.result()
 
 
 async def test_rate_limit_emits_events(
@@ -365,8 +361,35 @@ async def test_rate_limit_emits_events(
     }
 
 
+@pytest.mark.parametrize("names", [[], None])
+async def test_rate_limit_without_limit_names(names):
+    executed = False
+
+    async def resource_heavy():
+        nonlocal executed
+        await rate_limit(names=names, occupy=1)
+        executed = True
+
+    assert not executed
+
+    with mock.patch(
+        "prefect.concurrency.asyncio._acquire_concurrency_slots",
+        wraps=lambda *args, **kwargs: None,
+    ) as acquire_spy:
+        with mock.patch(
+            "prefect.concurrency.asyncio._release_concurrency_slots",
+            wraps=lambda *args, **kwargs: None,
+        ) as release_spy:
+            await resource_heavy()
+
+            acquire_spy.assert_not_called()
+            release_spy.assert_not_called()
+
+    assert executed
+
+
 async def test_concurrency_creates_new_limits_if_requested(
-    concurrency_limit: ConcurrencyLimitV2,
+    concurrency_limit: ConcurrencyLimitV2, ignore_prefect_deprecation_warnings
 ):
     executed = False
 
@@ -388,7 +411,12 @@ async def test_concurrency_creates_new_limits_if_requested(
             await resource_heavy()
 
             acquire_spy.assert_called_once_with(
-                ["test"], 1, timeout_seconds=None, create_if_missing=True
+                ["test"],
+                1,
+                timeout_seconds=None,
+                create_if_missing=True,
+                max_retries=None,
+                strict=False,
             )
 
             # On release we calculate how many seconds the slots were occupied
@@ -399,5 +427,32 @@ async def test_concurrency_creates_new_limits_if_requested(
             assert names == ["test"]
             assert occupy == 1
             assert occupy_seconds > 0
+
+    assert executed
+
+
+@pytest.mark.parametrize("names", [[], None])
+async def test_concurrency_without_limit_names(names):
+    executed = False
+
+    async def resource_heavy():
+        nonlocal executed
+        async with concurrency(names=names, occupy=1):
+            executed = True
+
+    assert not executed
+
+    with mock.patch(
+        "prefect.concurrency.asyncio._acquire_concurrency_slots",
+        wraps=lambda *args, **kwargs: None,
+    ) as acquire_spy:
+        with mock.patch(
+            "prefect.concurrency.asyncio._release_concurrency_slots",
+            wraps=lambda *args, **kwargs: None,
+        ) as release_spy:
+            await resource_heavy()
+
+            acquire_spy.assert_not_called()
+            release_spy.assert_not_called()
 
     assert executed

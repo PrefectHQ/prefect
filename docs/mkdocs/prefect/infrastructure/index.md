@@ -1,3 +1,0 @@
-# prefect.infrastructure
-
-::: prefect.infrastructure

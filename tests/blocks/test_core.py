@@ -2,8 +2,8 @@ import abc
 import json
 import warnings
 from textwrap import dedent
-from typing import Any, Dict, List, Type, Union
-from unittest.mock import Mock
+from typing import Any, Dict, List, Tuple, Type, Union
+from unittest.mock import patch
 from uuid import UUID, uuid4
 
 import pytest
@@ -14,7 +14,7 @@ from pydantic_core import to_json
 
 import prefect
 from prefect.blocks.core import Block, InvalidBlockRegistration
-from prefect.blocks.system import JSON, Secret
+from prefect.blocks.system import Secret
 from prefect.client.orchestration import PrefectClient
 from prefect.exceptions import PrefectHTTPStatusError
 from prefect.server import models
@@ -408,9 +408,9 @@ class TestAPICompatibility:
 
         json_blockdoc = blockdoc.model_dump(mode="json")
         assert json_blockdoc["data"] == {
-            "w": "**********",
-            "x": "**********",
-            "y": "**********",
+            "w": "********",
+            "x": "********",
+            "y": "********",
             "z": "z",
         }
 
@@ -457,13 +457,13 @@ class TestAPICompatibility:
 
         json_blockdoc = json.loads(blockdoc.model_dump_json())
         assert json_blockdoc["data"] == {
-            "a": "**********",
+            "a": "********",
             "b": "b",
             # The child includes the type slug because it is not a block document
             "child": {
-                "a": "**********",
+                "a": "********",
                 "b": "b",
-                "c": "**********",
+                "c": "********",
                 "block_type_slug": "child",
             },
         }
@@ -884,8 +884,12 @@ class TestAPICompatibility:
             },
         }
 
-    async def test_block_load(self, test_block, block_document):
-        my_block = await test_block.load(block_document.name)
+    async def test_block_load(
+        self, test_block, block_document, in_memory_prefect_client
+    ):
+        my_block = await test_block.load(
+            block_document.name, client=in_memory_prefect_client
+        )
 
         assert my_block._block_document_name == block_document.name
         assert my_block._block_document_id == block_document.id
@@ -893,15 +897,18 @@ class TestAPICompatibility:
         assert my_block._block_schema_id == block_document.block_schema_id
         assert my_block.foo == "bar"
 
-    async def test_block_load_loads__collections(
-        self, test_block, block_document: BlockDocument, monkeypatch
+    @patch("prefect.blocks.core.load_prefect_collections")
+    async def test_block_load_loads_collections(
+        self,
+        mock_load_prefect_collections,
+        test_block,
+        block_document: BlockDocument,
+        in_memory_prefect_client,
     ):
-        mock_load_prefect_collections = Mock()
-        monkeypatch.setattr(
-            prefect.plugins, "load_prefect_collections", mock_load_prefect_collections
+        await Block.load(
+            block_document.block_type.slug + "/" + block_document.name,
+            client=in_memory_prefect_client,
         )
-
-        await Block.load(block_document.block_type.slug + "/" + block_document.name)
         mock_load_prefect_collections.assert_called_once()
 
     async def test_load_from_block_base_class(self):
@@ -914,7 +921,7 @@ class TestAPICompatibility:
         loaded_block = await Block.load("custom/my-custom-block")
         assert loaded_block.message == "hello"
 
-    async def test_load_nested_block(self, session):
+    async def test_load_nested_block(self, session, in_memory_prefect_client):
         class B(Block):
             _block_schema_type = "abc"
 
@@ -1011,7 +1018,9 @@ class TestAPICompatibility:
 
         await session.commit()
 
-        block_instance = await E.load("outer-block-document")
+        block_instance = await E.load(
+            "outer-block-document", client=in_memory_prefect_client
+        )
         assert isinstance(block_instance, E)
         assert isinstance(block_instance.c, C)
         assert isinstance(block_instance.d, D)
@@ -1062,7 +1071,9 @@ class TestAPICompatibility:
         block = await Test.load("test")
         assert block.a == "foo"
 
-    async def test_save_protected_block_with_new_block_schema_version(self, session):
+    async def test_save_protected_block_with_new_block_schema_version(
+        self, session, prefect_client: PrefectClient
+    ):
         """
         This testcase would fail when block protection was enabled for block type
         updates and block schema creation.
@@ -1074,13 +1085,11 @@ class TestAPICompatibility:
             uuid4().hex
         )  # represents a version that does not exist on the server
 
-        JSON._block_schema_version = mock_version
+        Secret._block_schema_version = mock_version
 
-        block_document_id = await JSON(value={"the_answer": 42}).save("test")
+        block_document_id = await Secret(value="secret").save("test")
 
-        block_document = await models.block_documents.read_block_document_by_id(
-            session=session, block_document_id=block_document_id
-        )
+        block_document = await prefect_client.read_block_document(block_document_id)
         assert block_document.block_schema.version == mock_version
 
 
@@ -1255,6 +1264,173 @@ class TestRegisterBlockTypeAndSchema:
             checksum=Umbrella._calculate_schema_checksum()
         )
         assert umbrella_block_schema is not None
+
+    async def test_register_nested_block_list(self, prefect_client: PrefectClient):
+        class A(Block):
+            a: str
+
+        class B(Block):
+            b: str
+
+        class ListCollection(Block):
+            a_list: list[A]
+            b_list: List[B]
+
+        await ListCollection.register_type_and_schema()
+
+        a_block_type = await prefect_client.read_block_type_by_slug(slug="a")
+        assert a_block_type is not None
+        b_block_type = await prefect_client.read_block_type_by_slug(slug="b")
+        assert b_block_type is not None
+
+        list_collection_block_type = await prefect_client.read_block_type_by_slug(
+            slug="listcollection"
+        )
+        assert list_collection_block_type is not None
+
+        a_block_schema = await prefect_client.read_block_schema_by_checksum(
+            checksum=A._calculate_schema_checksum()
+        )
+        assert a_block_schema is not None
+        b_block_schema = await prefect_client.read_block_schema_by_checksum(
+            checksum=B._calculate_schema_checksum()
+        )
+        assert b_block_schema is not None
+
+        list_collection_block_type = await prefect_client.read_block_schema_by_checksum(
+            checksum=ListCollection._calculate_schema_checksum()
+        )
+        assert list_collection_block_type is not None
+
+    async def test_register_nested_block_tuple(self, prefect_client: PrefectClient):
+        class A(Block):
+            a: str
+
+        class B(Block):
+            b: str
+
+        class C(Block):
+            c: str
+
+        class TupleCollection(Block):
+            a_tuple: tuple[A]
+            b_tuple: tuple[B, ...]
+            c_tuple: Tuple[C, ...]
+
+        await TupleCollection.register_type_and_schema()
+
+        a_block_type = await prefect_client.read_block_type_by_slug(slug="a")
+        assert a_block_type is not None
+        b_block_type = await prefect_client.read_block_type_by_slug(slug="b")
+        assert b_block_type is not None
+        c_block_type = await prefect_client.read_block_type_by_slug(slug="c")
+        assert c_block_type is not None
+
+        tuple_collection_block_type = await prefect_client.read_block_type_by_slug(
+            slug="tuplecollection"
+        )
+        assert tuple_collection_block_type is not None
+
+        a_block_schema = await prefect_client.read_block_schema_by_checksum(
+            checksum=A._calculate_schema_checksum()
+        )
+        assert a_block_schema is not None
+        b_block_schema = await prefect_client.read_block_schema_by_checksum(
+            checksum=B._calculate_schema_checksum()
+        )
+        assert b_block_schema is not None
+        c_block_schema = await prefect_client.read_block_schema_by_checksum(
+            checksum=C._calculate_schema_checksum()
+        )
+        assert c_block_schema is not None
+
+        tuple_collection_block_type = (
+            await prefect_client.read_block_schema_by_checksum(
+                checksum=TupleCollection._calculate_schema_checksum()
+            )
+        )
+        assert tuple_collection_block_type is not None
+
+    async def test_register_nested_block_dict(self, prefect_client: PrefectClient):
+        class A(Block):
+            a: str
+
+        class B(Block):
+            b: str
+
+        class DictCollection(Block):
+            block_dict: dict[A, B]
+
+        await DictCollection.register_type_and_schema()
+
+        a_block_type = await prefect_client.read_block_type_by_slug(slug="a")
+        assert a_block_type is not None
+        b_block_type = await prefect_client.read_block_type_by_slug(slug="b")
+        assert b_block_type is not None
+
+        dict_collection_block_type = await prefect_client.read_block_type_by_slug(
+            slug="dictcollection"
+        )
+        assert dict_collection_block_type is not None
+
+        a_block_schema = await prefect_client.read_block_schema_by_checksum(
+            checksum=A._calculate_schema_checksum()
+        )
+        assert a_block_schema is not None
+        b_block_schema = await prefect_client.read_block_schema_by_checksum(
+            checksum=B._calculate_schema_checksum()
+        )
+        assert b_block_schema is not None
+
+        dict_collection_block_type = await prefect_client.read_block_schema_by_checksum(
+            checksum=DictCollection._calculate_schema_checksum()
+        )
+        assert dict_collection_block_type is not None
+
+    async def test_register_nested_block_type_nested(
+        self, prefect_client: PrefectClient
+    ):
+        class A(Block):
+            a: str
+
+        class B(Block):
+            b: str
+
+        class C(Block):
+            c: str
+
+        class Depth(Block):
+            depths: List[Union[A, List[Union[B, Tuple[C, ...]]]]]
+
+        await Depth.register_type_and_schema()
+
+        a_block_type = await prefect_client.read_block_type_by_slug(slug="a")
+        assert a_block_type is not None
+        b_block_type = await prefect_client.read_block_type_by_slug(slug="b")
+        assert b_block_type is not None
+        c_block_type = await prefect_client.read_block_type_by_slug(slug="c")
+        assert c_block_type is not None
+
+        depth_block_type = await prefect_client.read_block_type_by_slug(slug="depth")
+        assert depth_block_type is not None
+
+        a_block_schema = await prefect_client.read_block_schema_by_checksum(
+            checksum=A._calculate_schema_checksum()
+        )
+        assert a_block_schema is not None
+        b_block_schema = await prefect_client.read_block_schema_by_checksum(
+            checksum=B._calculate_schema_checksum()
+        )
+        assert b_block_schema is not None
+        c_block_schema = await prefect_client.read_block_schema_by_checksum(
+            checksum=C._calculate_schema_checksum()
+        )
+        assert c_block_schema is not None
+
+        depth_block_type = await prefect_client.read_block_schema_by_checksum(
+            checksum=Depth._calculate_schema_checksum()
+        )
+        assert depth_block_type is not None
 
     async def test_register_raises_block_base_class(self):
         with pytest.raises(
@@ -1538,7 +1714,9 @@ class TestSaveBlock:
         assert loaded_outer_block.contents._block_document_id is None
         assert loaded_outer_block.contents._block_document_name is None
 
-    async def test_save_and_load_block_with_secrets_includes_secret_data(self, session):
+    async def test_save_and_load_block_with_secrets_includes_secret_data(
+        self, prefect_client: PrefectClient
+    ):
         class SecretBlockB(Block):
             w: SecretDict
             x: SecretStr
@@ -1548,27 +1726,27 @@ class TestSaveBlock:
         block = SecretBlockB(w=dict(secret="value"), x="x", y=b"y", z="z")
         await block.save("secret-block")
 
-        # read from DB without secrets
-        db_block_without_secrets = (
-            await models.block_documents.read_block_document_by_id(
-                session=session,
-                block_document_id=block._block_document_id,
-            )
+        # read from API without secrets
+        api_block = await prefect_client.read_block_document(
+            block._block_document_id, include_secrets=False
         )
-        assert db_block_without_secrets.data == {
+        assert api_block.data == {
             "w": {"secret": "********"},
             "x": "********",
             "y": "********",
             "z": "z",
         }
 
-        # read from DB with secrets
-        db_block = await models.block_documents.read_block_document_by_id(
-            session=session,
-            block_document_id=block._block_document_id,
-            include_secrets=True,
+        # read from API with secrets
+        api_block = await prefect_client.read_block_document(
+            block._block_document_id, include_secrets=True
         )
-        assert db_block.data == {"w": {"secret": "value"}, "x": "x", "y": "y", "z": "z"}
+        assert api_block.data == {
+            "w": {"secret": "value"},
+            "x": "x",
+            "y": "y",
+            "z": "z",
+        }
 
         # load block with secrets
         api_block = await SecretBlockB.load("secret-block")
@@ -1578,7 +1756,7 @@ class TestSaveBlock:
         assert api_block.z == "z"
 
     async def test_save_and_load_nested_block_with_secrets_hardcoded_child(
-        self, session
+        self, prefect_client: PrefectClient
     ):
         class Child(Block):
             a: SecretStr
@@ -1593,14 +1771,11 @@ class TestSaveBlock:
         block = Parent(a="a", b="b", child=dict(a="a", b="b", c=dict(secret="value")))
         await block.save("secret-block")
 
-        # read from DB without secrets
-        db_block_without_secrets = (
-            await models.block_documents.read_block_document_by_id(
-                session=session,
-                block_document_id=block._block_document_id,
-            )
+        # read from API without secrets
+        api_block = await prefect_client.read_block_document(
+            block._block_document_id, include_secrets=False
         )
-        assert db_block_without_secrets.data == {
+        assert api_block.data == {
             "a": "********",
             "b": "b",
             "child": {
@@ -1611,13 +1786,11 @@ class TestSaveBlock:
             },
         }
 
-        # read from DB with secrets
-        db_block = await models.block_documents.read_block_document_by_id(
-            session=session,
-            block_document_id=block._block_document_id,
-            include_secrets=True,
+        # read from API with secrets
+        api_block = await prefect_client.read_block_document(
+            block._block_document_id, include_secrets=True
         )
-        assert db_block.data == {
+        assert api_block.data == {
             "a": "a",
             "b": "b",
             "child": {
@@ -1636,7 +1809,9 @@ class TestSaveBlock:
         assert api_block.child.b == "b"
         assert api_block.child.c.get_secret_value() == {"secret": "value"}
 
-    async def test_save_and_load_nested_block_with_secrets_saved_child(self, session):
+    async def test_save_and_load_nested_block_with_secrets_saved_child(
+        self, prefect_client: PrefectClient
+    ):
         class Child(Block):
             a: SecretStr
             b: str
@@ -1652,14 +1827,11 @@ class TestSaveBlock:
         block = Parent(a="a", b="b", child=child)
         await block.save("parent-block")
 
-        # read from DB without secrets
-        db_block_without_secrets = (
-            await models.block_documents.read_block_document_by_id(
-                session=session,
-                block_document_id=block._block_document_id,
-            )
+        # read from API without secrets
+        api_block = await prefect_client.read_block_document(
+            block._block_document_id, include_secrets=False
         )
-        assert db_block_without_secrets.data == {
+        assert api_block.data == {
             "a": "********",
             "b": "b",
             "child": {
@@ -1669,13 +1841,11 @@ class TestSaveBlock:
             },
         }
 
-        # read from DB with secrets
-        db_block = await models.block_documents.read_block_document_by_id(
-            session=session,
-            block_document_id=block._block_document_id,
-            include_secrets=True,
+        # read from API with secrets
+        api_block = await prefect_client.read_block_document(
+            block._block_document_id, include_secrets=True
         )
-        assert db_block.data == {
+        assert api_block.data == {
             "a": "a",
             "b": "b",
             "child": {"a": "a", "b": "b", "c": {"secret": "value"}},

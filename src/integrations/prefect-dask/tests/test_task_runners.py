@@ -2,10 +2,13 @@ import asyncio
 import time
 from typing import List
 
+import dask.dataframe as dd
 import distributed
+import pandas as pd
 import pytest
 from distributed import LocalCluster
 from prefect_dask import DaskTaskRunner
+from prefect_dask.task_runners import PrefectDaskFuture
 
 from prefect import flow, task
 from prefect.futures import as_completed
@@ -372,6 +375,33 @@ class TestDaskTaskRunner:
 
         assert "A future was garbage collected before it resolved" not in caplog.text
 
+    async def test_successful_dataframe_flow_run(self, task_runner):
+        @task
+        def task_a():
+            return dd.DataFrame.from_dict(
+                {"x": [1, 1, 1], "y": [2, 2, 2]}, npartitions=1
+            )
+
+        @task
+        def task_b(ddf):
+            return ddf.sum()
+
+        @task
+        def task_c(ddf):
+            return ddf.compute()
+
+        @flow(version="test", task_runner=task_runner)
+        def test_flow():
+            a = task_a.submit()
+            b = task_b.submit(a)
+            c = task_c.submit(b)
+
+            return c.result()
+
+        result = test_flow()
+
+        assert result.equals(pd.Series([3, 6], index=["x", "y"]))
+
     class TestInputArguments:
         async def test_dataclasses_can_be_passed_to_task_runners(self, task_runner):
             """
@@ -403,3 +433,22 @@ class TestDaskTaskRunner:
             results = test_dask_flow()
 
             assert results == [Foo(value=i) for i in range(3)] + [Foo(value=0)]
+
+    def test_nested_task_submission(self, task_runner):
+        @task
+        def nested_task():
+            return "nested task"
+
+        @task
+        def parent_task():
+            nested_task_future = nested_task.submit()
+            assert isinstance(nested_task_future, PrefectDaskFuture)
+            return nested_task_future.result()
+
+        @flow(task_runner=task_runner)
+        def umbrella_flow():
+            future = parent_task.submit()
+            assert isinstance(future, PrefectDaskFuture)
+            return future.result()
+
+        assert umbrella_flow() == "nested task"

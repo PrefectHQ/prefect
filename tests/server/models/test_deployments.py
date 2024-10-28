@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models, schemas
 from prefect.server.database import orm_models
-from prefect.server.schemas import filters
+from prefect.server.schemas import filters, states
 from prefect.server.schemas.states import StateType
 from prefect.settings import PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS
 
@@ -30,6 +30,7 @@ class TestCreateDeployment:
         assert deployment.flow_id == flow.id
         assert deployment.parameters == {"foo": "bar"}
         assert deployment.tags == ["foo", "bar"]
+        assert deployment.global_concurrency_limit is None
 
     async def test_creating_a_deployment_with_existing_work_queue_is_ok(
         self, session, flow, work_queue
@@ -131,8 +132,7 @@ class TestCreateDeployment:
             deployment=schemas.core.Deployment(
                 name="My Deployment",
                 flow_id=flow.id,
-                schedule=schedule,
-                is_schedule_active=False,
+                schedules=[schemas.core.DeploymentSchedule(schedule=schedule)],
                 parameters={"foo": "bar"},
                 parameter_openapi_schema=openapi_schema,
                 tags=["foo", "bar"],
@@ -141,8 +141,9 @@ class TestCreateDeployment:
 
         assert deployment.name == "My Deployment"
         assert deployment.flow_id == flow.id
-        assert not deployment.is_schedule_active
-        assert deployment.schedule == schedule
+        assert not deployment.paused
+        assert len(deployment.schedules) == 1
+        assert deployment.schedules[0].schedule == schedule
         assert deployment.parameters == {"foo": "bar"}
         assert deployment.parameter_openapi_schema == openapi_schema
         assert deployment.tags == ["foo", "bar"]
@@ -157,12 +158,13 @@ class TestCreateDeployment:
             deployment=schemas.core.Deployment(
                 name="My Deployment",
                 flow_id=flow.id,
-                schedule=schedule,
+                schedules=[schemas.core.DeploymentSchedule(schedule=schedule)],
             ),
         )
         assert deployment.name == "My Deployment"
         assert deployment.flow_id == flow.id
-        assert deployment.schedule == schedule
+        assert len(deployment.schedules) == 1
+        assert deployment.schedules[0].schedule == schedule
 
     async def test_create_deployment_with_created_by(self, session, flow):
         created_by = schemas.core.CreatedBy(
@@ -241,6 +243,117 @@ class TestCreateDeployment:
             updated_deployment.updated_by.display_value == new_updated_by.display_value
         )
         assert updated_deployment.updated_by.type == new_updated_by.type
+
+    async def test_create_deployment_with_concurrency_limit(
+        self, session: AsyncSession, flow: orm_models.Flow
+    ):
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                flow_id=flow.id,
+                concurrency_limit=2,
+            ),
+        )
+        assert deployment is not None
+        assert deployment._concurrency_limit == 2
+
+        assert deployment.global_concurrency_limit is not None
+        assert deployment.global_concurrency_limit.limit == 2
+
+    async def test_create_deployment_retains_concurrency_limit_if_not_provided_on_upsert(
+        self,
+        session: AsyncSession,
+        deployment: orm_models.Deployment,
+    ):
+        """Ensure that old prefect clients that don't know about concurrency limits can still use them server-side.
+        This means that if a deployment has a concurrency limit (possibly created through the Cloud UI), but the client
+        is an old version that doesn't know about concurrency limits, then when using `prefect deploy`, the old client
+        should not remove the concurrency limit from the existing deployment.
+        """
+        await models.deployments.update_deployment(
+            session,
+            deployment.id,
+            schemas.actions.DeploymentUpdate(concurrency_limit=5),
+        )
+        await session.commit()
+        await session.refresh(deployment)
+        gcl_id = deployment.concurrency_limit_id
+
+        updated_deployment = await models.deployments.create_deployment(
+            session,
+            schemas.core.Deployment(
+                id=deployment.id,
+                name=deployment.name,
+                flow_id=deployment.flow_id,
+                # no explicit concurrency_limit set
+            ),
+        )
+
+        assert updated_deployment is not None
+        assert updated_deployment.global_concurrency_limit is not None
+        assert updated_deployment.global_concurrency_limit.limit == 5
+        assert updated_deployment.concurrency_limit_id == gcl_id
+        assert updated_deployment._concurrency_limit == 5
+
+        assert (
+            await models.concurrency_limits_v2.read_concurrency_limit(session, gcl_id)
+            is not None
+        ), "Expected the concurrency limit to still exist, but it does not"
+
+    async def test_create_deployment_can_remove_concurrency_limit_on_upsert(
+        self,
+        session: AsyncSession,
+        deployment: orm_models.Deployment,
+    ):
+        await models.deployments.update_deployment(
+            session,
+            deployment.id,
+            schemas.actions.DeploymentUpdate(concurrency_limit=5),
+        )
+        await session.commit()
+        assert deployment.global_concurrency_limit is not None
+        assert deployment.global_concurrency_limit.limit == 5
+        gcl_id = deployment.concurrency_limit_id
+
+        updated_deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                id=deployment.id,
+                name=deployment.name,
+                flow_id=deployment.flow_id,
+                concurrency_limit=None,
+            ),
+        )
+
+        assert updated_deployment.global_concurrency_limit is None
+        assert updated_deployment.concurrency_limit_id is None
+        assert updated_deployment._concurrency_limit is None
+
+        assert (
+            await models.concurrency_limits_v2.read_concurrency_limit(session, gcl_id)
+            is None
+        ), "Expected the concurrency limit to be deleted, but it was not"
+
+    async def test_create_deployment_with_concurrency_options(self, session, flow):
+        concurrency_options = schemas.core.ConcurrencyOptions(
+            collision_strategy="ENQUEUE",
+        )
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                flow_id=flow.id,
+                concurrency_limit=42,
+                concurrency_options=concurrency_options,
+            ),
+        )
+        assert deployment._concurrency_limit == 42
+        assert deployment.global_concurrency_limit.limit == 42
+        assert (
+            deployment.concurrency_options.collision_strategy
+            == concurrency_options.collision_strategy
+        )
 
 
 class TestReadDeployment:
@@ -359,7 +472,6 @@ class TestReadDeployments:
                 name="My Deployment",
                 flow_id=flow.id,
                 paused=False,
-                is_schedule_active=True,
             ),
         )
         await models.deployments.create_deployment(
@@ -370,7 +482,6 @@ class TestReadDeployments:
                 flow_id=flow.id,
                 tags=["tb12"],
                 paused=False,
-                is_schedule_active=True,
             ),
         )
         await models.deployments.create_deployment(
@@ -381,7 +492,6 @@ class TestReadDeployments:
                 flow_id=flow.id,
                 tags=["tb12", "goat"],
                 paused=True,
-                is_schedule_active=False,
             ),
         )
 
@@ -437,17 +547,6 @@ class TestReadDeployments:
             session=session,
             deployment_filter=filters.DeploymentFilter(
                 paused=filters.DeploymentFilterPaused(eq_=True)
-            ),
-        )
-        assert {res.id for res in result} == {deployment_id_3}
-
-    async def test_read_deployment_filters_by_schedule_active(
-        self, filter_data, deployment_id_3, session
-    ):
-        result = await models.deployments.read_deployments(
-            session=session,
-            deployment_filter=filters.DeploymentFilter(
-                is_schedule_active=filters.DeploymentFilterIsScheduleActive(eq_=False)
             ),
         )
         assert {res.id for res in result} == {deployment_id_3}
@@ -571,6 +670,38 @@ class TestDeleteDeployment:
             session=session, deployment_id=str(uuid4())
         )
         assert result is False
+
+    async def test_delete_deployment_with_concurrency_limit(self, session, flow):
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                flow_id=flow.id,
+                concurrency_limit=2,
+            ),
+        )
+        assert deployment is not None
+        assert deployment._concurrency_limit == 2
+
+        assert deployment.global_concurrency_limit is not None
+        assert deployment.global_concurrency_limit.limit == 2
+
+        assert await models.deployments.delete_deployment(
+            session=session, deployment_id=deployment.id
+        )
+        await session.commit()
+
+        # make sure the deployment is deleted
+        result = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment.id
+        )
+        assert result is None
+
+        # make sure the concurrency limit is deleted
+        result = await models.concurrency_limits_v2.read_concurrency_limit(
+            session, deployment.concurrency_limit_id
+        )
+        assert result is None
 
 
 class TestScheduledRuns:
@@ -893,9 +1024,13 @@ class TestScheduledRuns:
             deployment=schemas.core.Deployment(
                 name="My second deployment",
                 flow_id=flow.id,
-                schedule=schemas.schedules.IntervalSchedule(
-                    interval=datetime.timedelta(days=1)
-                ),
+                schedules=[
+                    schemas.core.DeploymentSchedule(
+                        schedule=schemas.schedules.IntervalSchedule(
+                            interval=datetime.timedelta(days=1)
+                        )
+                    )
+                ],
             ),
         )
 
@@ -1075,6 +1210,186 @@ class TestUpdateDeployment:
         )
         assert wq is not None
         assert wq.work_pool == work_pool
+
+    async def test_update_deployment_with_concurrency_limit(
+        self,
+        session,
+        deployment,
+    ):
+        assert deployment.global_concurrency_limit is None
+
+        await models.deployments.update_deployment(
+            session=session,
+            deployment_id=deployment.id,
+            deployment=schemas.actions.DeploymentUpdate(
+                concurrency_limit=5,
+            ),
+        )
+        await session.commit()
+
+        updated_deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment.id
+        )
+        assert updated_deployment
+        assert updated_deployment._concurrency_limit == 5
+        assert updated_deployment.global_concurrency_limit.limit == 5
+
+    async def test_update_deployment_can_remove_concurrency_limit(
+        self,
+        session,
+        deployment,
+    ):
+        # Given a deployment with a concurrency limit
+        await models.deployments.update_deployment(
+            session=session,
+            deployment_id=deployment.id,
+            deployment=schemas.actions.DeploymentUpdate(
+                concurrency_limit=5,
+            ),
+        )
+        await session.commit()
+        await session.refresh(deployment)
+        assert deployment.global_concurrency_limit is not None
+        gcl_id = deployment.concurrency_limit_id
+
+        # update it to remove the concurrency limit
+        await models.deployments.update_deployment(
+            session=session,
+            deployment_id=deployment.id,
+            deployment=schemas.actions.DeploymentUpdate(
+                concurrency_limit=None,
+            ),
+        )
+        await session.commit()
+
+        updated_deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment.id
+        )
+        assert updated_deployment
+        assert updated_deployment._concurrency_limit is None
+        assert updated_deployment.concurrency_limit_id is None
+        assert updated_deployment.global_concurrency_limit is None
+
+        assert (
+            await models.concurrency_limits_v2.read_concurrency_limit(session, gcl_id)
+            is None
+        ), "Expected the concurrency limit to be deleted, but it was not"
+
+    async def test_update_deployment_retains_concurrency_limit_if_not_provided(
+        self,
+        session: AsyncSession,
+        deployment: orm_models.Deployment,
+    ):
+        # Given a deployment with a concurrency limit
+        await models.deployments.update_deployment(
+            session=session,
+            deployment_id=deployment.id,
+            deployment=schemas.actions.DeploymentUpdate(
+                concurrency_limit=5,
+            ),
+        )
+        await session.commit()
+        await session.refresh(deployment)
+        assert deployment.global_concurrency_limit is not None
+        assert deployment.global_concurrency_limit.limit == 5
+        gcl_id = deployment.concurrency_limit_id
+
+        # Update it but omit the concurrency limit
+        await models.deployments.update_deployment(
+            session=session,
+            deployment_id=deployment.id,
+            deployment=schemas.actions.DeploymentUpdate(version="1.0.1"),
+        )
+        await session.commit()
+
+        await session.refresh(deployment)
+        assert deployment.global_concurrency_limit is not None
+        assert deployment.global_concurrency_limit.limit == 5
+        assert deployment.concurrency_limit_id == gcl_id
+
+        assert (
+            await models.concurrency_limits_v2.read_concurrency_limit(session, gcl_id)
+            is not None
+        ), "Expected the concurrency limit to still exist, but it does not"
+
+    async def test_update_deployment_with_concurrency_options(
+        self,
+        session,
+        deployment,
+    ):
+        await models.deployments.update_deployment(
+            session=session,
+            deployment_id=deployment.id,
+            deployment=schemas.actions.DeploymentUpdate(
+                concurrency_limit=42,
+                concurrency_options=schemas.core.ConcurrencyOptions(
+                    collision_strategy="CANCEL_NEW"
+                ),
+            ),
+        )
+        updated_deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment.id
+        )
+        assert updated_deployment._concurrency_limit == 42
+        assert updated_deployment.global_concurrency_limit.limit == 42
+        assert updated_deployment.concurrency_options.collision_strategy == "CANCEL_NEW"
+
+    async def test_update_deployment_deletes_autoscheduled_flow_runs_in_scheduled(
+        self,
+        session,
+        deployment,
+        flow,
+    ):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                deployment_id=deployment.id,
+                state=states.Scheduled(),
+                auto_scheduled=True,
+            ),
+        )
+
+        await models.deployments.update_deployment(
+            session=session,
+            deployment_id=deployment.id,
+            deployment=schemas.actions.DeploymentUpdate(),
+        )
+
+        run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run.id
+        )
+
+        assert run is None
+
+    async def test_update_deployment_does_not_delete_autoscheduled_flow_reruns_in_scheduled(
+        self,
+        session,
+        deployment,
+        flow,
+    ):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                deployment_id=deployment.id,
+                state=states.Scheduled(),
+                auto_scheduled=True,
+                run_count=1,
+            ),
+        )
+
+        await models.deployments.update_deployment(
+            session=session,
+            deployment_id=deployment.id,
+            deployment=schemas.actions.DeploymentUpdate(),
+        )
+
+        run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run.id
+        )
+
+        assert run is not None
 
 
 @pytest.fixture

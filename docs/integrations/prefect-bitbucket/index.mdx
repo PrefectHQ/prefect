@@ -2,43 +2,36 @@
 title: prefect-bitbucket
 ---
 
-The prefect-bitbucket library makes it easy to interact with Bitbucket repositories and credentials.
+The `prefect-bitbucket` library makes it easy to interact with Bitbucket repositories and credentials.
 
 ## Getting started
 
 ### Prerequisites
 
-- [Prefect installed](/3.0rc/get-started/install/).
 - A [Bitbucket account](https://bitbucket.org/product).
 
-### Install prefect-bitbucket
+### Install `prefect-bitbucket`
 
+The following command will install a version of `prefect-bitbucket` compatible with your installed version of `prefect`.
+If you don't already have `prefect` installed, it will install the newest version of `prefect` as well.
 
-Install or update to the latest version of the prefect-bitbucket library and dependencies.
+```bash
+pip install "prefect[bitbucket]"
+```
 
-<Tabs>
-    <Tab title="Prefect 2">
-    ```bash
-    pip install -U prefect-bitbucket
-    ```
-    </Tab>
-    <Tab title="Prefect 3">
-    ```bash
-    pip install -U -pre prefect-bitbucket
-    ```
-    </Tab>
-</Tabs>
+Upgrade to the latest versions of `prefect` and `prefect-bitbucket`:
 
+```bash
+pip install -U "prefect[bitbucket]"
+```
 
 ### Register newly installed block types
 
-Register the block types in the prefect-bitbucket module to make them available for use.
-
+Register the block types in the `prefect-bitbucket` module to make them available for use.
 
 ```bash
 prefect block register -m prefect_bitbucket
 ```
-
 
 ## Examples
 
@@ -47,24 +40,24 @@ Alternatively, blocks can be created through the Prefect UI.
 
 ## Store deployment flow code in a private Bitbucket repository
 
-To create a deployment and run a deployment where the flow code is stored in a private Bitbucket repository, you can use the `BitbucketCredentials` block.
+To create a deployment and run a deployment where the flow code is stored in a private Bitbucket repository, you can use the `BitBucketCredentials` block.
 
 A deployment can use flow code stored in a Bitbucket repository without using this library in either of the following cases:
 
 - The repository is public
-- The deployment uses a [Secret block](/3.0rc/resources/secrets) to store the token
+- The deployment uses a [Secret block](/latest/resources/secrets) to store the token
 
 Create a Bitbucket Credentials block:
 
 ```python
-from prefect_bitbucket import BitbucketCredentials
+from prefect_bitbucket import BitBucketCredentials
 
-bitbucket_credentials_block = BitbucketCredentials(token="x-token-auth:my-token")
 
+bitbucket_credentials_block = BitBucketCredentials(token="x-token-auth:my-token")
 bitbucket_credentials_block.save(name="my-bitbucket-credentials-block")
 ```
 
-<Info> 
+<Info>
 **Difference between Bitbucket Server and Bitbucket Cloud authentication**
 
 If using a token to authenticate to Bitbucket Cloud, only set the `token` to authenticate. Do not include a value in the `username` field or authentication will fail. If using Bitbucket Server, provide both the `token` and `username` values.
@@ -77,20 +70,22 @@ Use the credentials block you created above to pass the Bitbucket access token d
 ```python
 from prefect import flow
 from prefect.runner.storage import GitRepository
-from prefect_bitbucket import BitbucketCredentials
+from prefect_bitbucket import BitBucketCredentials
 
 
 if __name__ == "__main__":
+    
+    source = GitRepository(
+        url="https://bitbucket.com/org/private-repo.git",
+        credentials=BitBucketCredentials.load("my-bitbucket-credentials-block")
+        )
+
     flow.from_source(
-        source=GitRepository(
-            url="https://bitbucket.com/org/private-repo.git",
-            credentials=BitbucketCredentials.load("my-bitbucket-credentials-block")
-        ),
-    entrypoint="my_file.py:my_flow",
+        source=source,
+        entrypoint="my_file.py:my_flow",
     ).deploy(
         name="private-bitbucket-deploy",
         work_pool_name="my_pool",
-        build=False
     )
 ```
 
@@ -110,6 +105,7 @@ The code below shows how to reference a particular branch or tag of a Bitbucket 
 ```python
 from prefect_bitbucket import BitbucketRepository
 
+
 def save_bitbucket_block():
     bitbucket_block = BitbucketRepository(
         repository="https://bitbucket.org/testing/my-repository.git",
@@ -124,7 +120,7 @@ if __name__ == "__main__":
 ```
 
 Exclude the `reference` field to use the default branch.
-Reference a BitbucketCredentials block for authentication if the repository is private.
+Reference a BitBucketCredentials block for authentication if the repository is private.
 
 Use the newly created block to interact with the Bitbucket repository.
 
@@ -133,9 +129,11 @@ For example, download the repository contents with the `.get_directory()` method
 ```python
 from prefect_bitbucket.repositories import BitbucketRepository
 
+
 def fetch_repo():
     bitbucket_block = BitbucketRepository.load("my-bitbucket-block")
     bitbucket_block.get_directory()
+
 
 if __name__ == "__main__":
     fetch_repo()
@@ -145,4 +143,4 @@ if __name__ == "__main__":
 
 For assistance using Bitbucket, consult the [Bitbucket documentation](https://bitbucket.org/product/guides).
 
-Refer to the prefect-bitbucket API documentation linked in the sidebar to explore all the capabilities of the prefect-bitbucket library.
+Refer to the `prefect-bitbucket` SDK documentation linked in the sidebar to explore all the capabilities of the `prefect-bitbucket` library.

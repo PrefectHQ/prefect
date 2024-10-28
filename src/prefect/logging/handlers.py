@@ -6,7 +6,7 @@ import traceback
 import uuid
 import warnings
 from contextlib import asynccontextmanager
-from typing import Any, Dict, List, Type, Union
+from typing import Any, Dict, List, Optional, Type, Union
 
 import pendulum
 from rich.console import Console
@@ -30,7 +30,6 @@ from prefect.settings import (
     PREFECT_LOGGING_MARKUP,
     PREFECT_LOGGING_TO_API_BATCH_INTERVAL,
     PREFECT_LOGGING_TO_API_BATCH_SIZE,
-    PREFECT_LOGGING_TO_API_ENABLED,
     PREFECT_LOGGING_TO_API_MAX_LOG_SIZE,
     PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW,
 )
@@ -134,12 +133,10 @@ class APILogHandler(logging.Handler):
         try:
             profile = prefect.context.get_settings_context()
 
-            if not PREFECT_LOGGING_TO_API_ENABLED.value_from(profile.settings):
+            if not profile.settings.logging.to_api.enabled:
                 return  # Respect the global settings toggle
             if not getattr(record, "send_to_api", True):
                 return  # Do not send records that have opted out
-            if not getattr(record, "send_to_orion", True):
-                return  # Backwards compatibility
 
             log = self.prepare(record)
             APILogWorker.instance().send(log)
@@ -157,7 +154,10 @@ class APILogHandler(logging.Handler):
             if log_handling_when_missing_flow == "warn":
                 # Warn when a logger is used outside of a run context, the stack level here
                 # gets us to the user logging call
-                warnings.warn(str(exc), stacklevel=8)
+                warnings.warn(
+                    f"{exc} Set PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW=ignore to suppress this warning.",
+                    stacklevel=8,
+                )
                 return
             elif log_handling_when_missing_flow == "ignore":
                 return
@@ -241,7 +241,7 @@ class PrefectConsoleHandler(logging.StreamHandler):
         self,
         stream=None,
         highlighter: Highlighter = PrefectConsoleHighlighter,
-        styles: Dict[str, str] = None,
+        styles: Optional[Dict[str, str]] = None,
         level: Union[int, str] = logging.NOTSET,
     ):
         """

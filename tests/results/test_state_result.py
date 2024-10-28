@@ -10,10 +10,13 @@ import pytest
 import prefect.states
 from prefect.exceptions import UnfinishedRun
 from prefect.filesystems import LocalFileSystem, WritableFileSystem
-from prefect.results import PersistedResult, PersistedResultBlob, UnpersistedResult
+from prefect.results import (
+    ResultRecord,
+    ResultRecordMetadata,
+    ResultStore,
+)
 from prefect.serializers import JSONSerializer
 from prefect.states import State, StateType
-from prefect.utilities.annotations import NotSet
 
 
 @pytest.mark.parametrize(
@@ -24,8 +27,7 @@ from prefect.utilities.annotations import NotSet
 async def test_unfinished_states_raise_on_result_retrieval(
     state_type: StateType, raise_on_failure: bool
 ):
-    # We'll even attach a result to the state, but it shouldn't matter
-    state = State(type=state_type, data=await UnpersistedResult.create("test"))
+    state = State(type=state_type)
 
     with pytest.raises(UnfinishedRun):
         # raise_on_failure should have no effect here
@@ -37,7 +39,8 @@ async def test_unfinished_states_raise_on_result_retrieval(
     [StateType.CRASHED, StateType.COMPLETED, StateType.FAILED, StateType.CANCELLED],
 )
 async def test_finished_states_allow_result_retrieval(state_type: StateType):
-    state = State(type=state_type, data=await UnpersistedResult.create("test"))
+    store = ResultStore()
+    state = State(type=state_type, data=store.create_result_record("test"))
 
     assert await state.result(raise_on_failure=False) == "test"
 
@@ -58,26 +61,24 @@ async def storage_block(tmp_path):
 
 
 @pytest.fixture
-async def a_real_result(storage_block: WritableFileSystem) -> PersistedResult:
-    return await PersistedResult.create(
-        "test-graceful-retry",
-        storage_block_id=storage_block._block_document_id,
-        storage_block=storage_block,
-        storage_key_fn=lambda: "test-graceful-retry-path",
+def store(storage_block: WritableFileSystem) -> ResultStore:
+    return ResultStore(
+        result_storage=storage_block,
         serializer=JSONSerializer(),
-        defer_persistence=True,
+        storage_key_fn=lambda: "test-graceful-retry-path",
     )
 
 
 @pytest.fixture
-def completed_state(a_real_result: PersistedResult) -> State[str]:
-    assert a_real_result.has_cached_object()
+async def a_real_result(store) -> ResultRecord:
+    return store.create_result_record(
+        "test-graceful-retry",
+    )
 
-    result_copy = a_real_result.model_copy()
-    result_copy._cache = NotSet
-    assert not result_copy.has_cached_object()
 
-    return State(type=StateType.COMPLETED, data=result_copy)
+@pytest.fixture
+def completed_state(a_real_result: ResultRecord) -> State[str]:
+    return State(type=StateType.COMPLETED, data=a_real_result.metadata)
 
 
 async def test_graceful_retries_are_finite_while_retrieving_missing_results(
@@ -128,13 +129,20 @@ async def test_graceful_retries_reraise_last_error_while_retrieving_missing_resu
 
 async def test_graceful_retries_eventually_succeed_while(
     shorter_result_retries: None,
-    a_real_result: PersistedResult,
+    a_real_result: ResultRecord,
     completed_state: State[str],
+    store: ResultStore,
 ):
     # now write the result so it's available
-    await a_real_result.write()
-    expected_blob = await a_real_result._read_blob()
-    assert isinstance(expected_blob, PersistedResultBlob)
+    await store.apersist_result_record(a_real_result)
+    expected_record = ResultRecord(
+        result="test-graceful-retry",
+        metadata=ResultRecordMetadata(
+            storage_key=a_real_result.metadata.storage_key,
+            expiration=a_real_result.metadata.expiration,
+            serializer=JSONSerializer(),
+        ),
+    )
 
     # even if it misses a couple times, it will eventually return the data
     now = time.monotonic()
@@ -144,7 +152,7 @@ async def test_graceful_retries_eventually_succeed_while(
             side_effect=[
                 FileNotFoundError,
                 TimeoutError,
-                expected_blob.model_dump_json().encode(),
+                expected_record.serialize(),
             ]
         ),
     ) as m:

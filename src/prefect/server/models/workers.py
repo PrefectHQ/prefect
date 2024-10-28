@@ -11,6 +11,7 @@ from typing import (
     List,
     Optional,
     Sequence,
+    Union,
 )
 from uuid import UUID, uuid4
 
@@ -27,6 +28,7 @@ from prefect.server.events.clients import PrefectServerEventsClient
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models.events import work_pool_status_event
 from prefect.server.schemas.statuses import WorkQueueStatus
+from prefect.server.utilities.database import UUID as PrefectUUID
 
 DEFAULT_AGENT_WORK_POOL_NAME = "default-agent-pool"
 
@@ -41,7 +43,7 @@ DEFAULT_AGENT_WORK_POOL_NAME = "default-agent-pool"
 
 async def create_work_pool(
     session: AsyncSession,
-    work_pool: schemas.core.WorkPool,
+    work_pool: Union[schemas.core.WorkPool, schemas.actions.WorkPoolCreate],
 ) -> orm_models.WorkPool:
     """
     Creates a work pool.
@@ -76,7 +78,7 @@ async def create_work_pool(
         ),
     )
 
-    pool.default_queue_id = default_queue.id
+    pool.default_queue_id = default_queue.id  # type: ignore
     await session.flush()
 
     return pool
@@ -176,7 +178,7 @@ async def count_work_pools(
         query = query.where(work_pool_filter.as_sql_filter())
 
     result = await session.execute(query)
-    return result.scalar()
+    return result.scalar_one()
 
 
 async def update_work_pool(
@@ -188,7 +190,7 @@ async def update_work_pool(
             [UUID, pendulum.DateTime, orm_models.WorkPool, orm_models.WorkPool],
             Awaitable[None],
         ]
-    ],
+    ] = None,
 ) -> bool:
     """
     Update a WorkPool by id.
@@ -287,10 +289,10 @@ async def delete_work_pool(session: AsyncSession, work_pool_id: UUID) -> bool:
 async def get_scheduled_flow_runs(
     db: PrefectDBInterface,
     session: AsyncSession,
-    work_pool_ids: List[UUID] = None,
-    work_queue_ids: List[UUID] = None,
-    scheduled_before: datetime.datetime = None,
-    scheduled_after: datetime.datetime = None,
+    work_pool_ids: Optional[List[UUID]] = None,
+    work_queue_ids: Optional[List[UUID]] = None,
+    scheduled_before: Optional[datetime.datetime] = None,
+    scheduled_after: Optional[datetime.datetime] = None,
     limit: Optional[int] = None,
     respect_queue_priorities: Optional[bool] = None,
 ) -> Sequence[schemas.responses.WorkerFlowRunResponse]:
@@ -495,7 +497,7 @@ async def read_work_queues(
 
 async def read_work_queue(
     session: AsyncSession,
-    work_queue_id: UUID,
+    work_queue_id: Union[UUID, PrefectUUID],
 ) -> Optional[orm_models.WorkQueue]:
     """
     Read a specific work pool queue.
@@ -610,6 +612,7 @@ async def update_work_queue(
     if updated:
         if "priority" in update_values or "status" in update_values:
             updated_work_queue = await session.get(orm_models.WorkQueue, work_queue_id)
+            assert updated_work_queue
 
             if "priority" in update_values:
                 await bulk_update_work_queue_priorities(
@@ -619,7 +622,7 @@ async def update_work_queue(
                 )
 
             if "status" in update_values and emit_status_change:
-                await emit_status_change(work_queue=updated_work_queue)
+                await emit_status_change(updated_work_queue)
 
     return updated
 
@@ -673,7 +676,7 @@ async def delete_work_queue(
 async def read_workers(
     session: AsyncSession,
     work_pool_id: UUID,
-    worker_filter: schemas.filters.WorkerFilter = None,
+    worker_filter: Optional[schemas.filters.WorkerFilter] = None,
     limit: Optional[int] = None,
     offset: Optional[int] = None,
 ) -> Sequence[orm_models.Worker]:
@@ -781,7 +784,7 @@ async def emit_work_pool_status_event(
     occurred: pendulum.DateTime,
     pre_update_work_pool: Optional[orm_models.WorkPool],
     work_pool: orm_models.WorkPool,
-):
+) -> None:
     if not work_pool.status:
         return
 

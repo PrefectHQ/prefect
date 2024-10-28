@@ -47,16 +47,12 @@ from pydantic.v1.errors import ConfigError  # TODO
 from rich.console import Console
 from typing_extensions import Literal, ParamSpec, Self
 
-from prefect._internal.compatibility.deprecated import (
-    deprecated_parameter,
-)
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect.blocks.core import Block
-from prefect.client.orchestration import get_client
 from prefect.client.schemas.actions import DeploymentScheduleCreate
+from prefect.client.schemas.filters import WorkerFilter
+from prefect.client.schemas.objects import ConcurrencyLimitConfig, FlowRun
 from prefect.client.schemas.objects import Flow as FlowSchema
-from prefect.client.schemas.objects import FlowRun
-from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.client.utilities import client_injector
 from prefect.docker.docker_image import DockerImage
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
@@ -66,6 +62,7 @@ from prefect.exceptions import (
     ObjectNotFound,
     ParameterTypeError,
     ScriptError,
+    TerminationSignal,
     UnspecifiedFlowError,
 )
 from prefect.filesystems import LocalFileSystem, ReadableDeploymentStorage
@@ -77,8 +74,8 @@ from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
     PREFECT_FLOW_DEFAULT_RETRIES,
     PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS,
+    PREFECT_TESTING_UNIT_TEST_MODE,
     PREFECT_UI_URL,
-    PREFECT_UNIT_TEST_MODE,
 )
 from prefect.states import State
 from prefect.task_runners import TaskRunner, ThreadPoolTaskRunner
@@ -95,7 +92,7 @@ from prefect.utilities.callables import (
     parameters_to_args_kwargs,
     raise_for_reserved_arguments,
 )
-from prefect.utilities.collections import listrepr
+from prefect.utilities.collections import listrepr, visit_collection
 from prefect.utilities.filesystem import relative_path_to_current_platform
 from prefect.utilities.hashing import file_hash
 from prefect.utilities.importtools import import_object, safe_load_namespace
@@ -261,11 +258,11 @@ class Flow(Generic[P, R]):
         if not callable(fn):
             raise TypeError("'fn' must be callable")
 
-        # Validate name if given
-        if name:
-            _raise_on_name_with_banned_characters(name)
-
-        self.name = name or fn.__name__.replace("_", "-")
+        self.name = name or fn.__name__.replace("_", "-").replace(
+            "<lambda>",
+            "unknown-lambda",  # prefect API will not accept "<" or ">" in flow names
+        )
+        _raise_on_name_with_banned_characters(self.name)
 
         if flow_run_name is not None:
             if not isinstance(flow_run_name, str) and not callable(flow_run_name):
@@ -289,7 +286,7 @@ class Flow(Generic[P, R]):
 
         # the flow is considered async if its function is async or an async
         # generator
-        self.isasync = inspect.iscoroutinefunction(
+        self.isasync = asyncio.iscoroutinefunction(
             self.fn
         ) or inspect.isasyncgenfunction(self.fn)
 
@@ -535,6 +532,21 @@ class Flow(Generic[P, R]):
         Raises:
             ParameterTypeError: if the provided parameters are not valid
         """
+
+        def resolve_block_reference(data: Any) -> Any:
+            if isinstance(data, dict) and "$ref" in data:
+                return Block.load_from_ref(data["$ref"], _sync=True)
+            return data
+
+        try:
+            parameters = visit_collection(
+                parameters, resolve_block_reference, return_data=True
+            )
+        except (ValueError, RuntimeError) as exc:
+            raise ParameterTypeError(
+                "Failed to resolve block references in parameters."
+            ) from exc
+
         args, kwargs = parameters_to_args_kwargs(self.fn, parameters)
 
         with warnings.catch_warnings():
@@ -581,7 +593,7 @@ class Flow(Generic[P, R]):
         # Get the updated parameter dict with cast values from the model
         cast_parameters = {
             k: v
-            for k, v in dict(model).items()
+            for k, v in dict(iter(model)).items()
             if k in model.model_fields_set or model.model_fields[k].default_factory
         }
         return cast_parameters
@@ -599,30 +611,23 @@ class Flow(Generic[P, R]):
             # do not serialize the bound self object
             if self.ismethod and value is self.fn.__prefect_self__:
                 continue
+            if isinstance(value, (PrefectFuture, State)):
+                # Don't call jsonable_encoder() on a PrefectFuture or State to
+                # avoid triggering a __getitem__ call
+                serialized_parameters[key] = f"<{type(value).__name__}>"
+                continue
             try:
                 serialized_parameters[key] = jsonable_encoder(value)
             except (TypeError, ValueError):
                 logger.debug(
-                    f"Parameter {key!r} for flow {self.name!r} is of unserializable "
-                    f"type {type(value).__name__!r} and will not be stored "
+                    f"Parameter {key!r} for flow {self.name!r} is unserializable. "
+                    f"Type {type(value).__name__!r} and will not be stored "
                     "in the backend."
                 )
                 serialized_parameters[key] = f"<{type(value).__name__}>"
         return serialized_parameters
 
     @sync_compatible
-    @deprecated_parameter(
-        "schedule",
-        start_date="Mar 2024",
-        when=lambda p: p is not None,
-        help="Use `schedules` instead.",
-    )
-    @deprecated_parameter(
-        "is_schedule_active",
-        start_date="Mar 2024",
-        when=lambda p: p is not None,
-        help="Use `paused` instead.",
-    )
     async def to_deployment(
         self,
         name: str,
@@ -637,9 +642,8 @@ class Flow(Generic[P, R]):
         cron: Optional[Union[Iterable[str], str]] = None,
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
-        schedules: Optional[List["FlexibleScheduleList"]] = None,
-        schedule: Optional[SCHEDULE_TYPES] = None,
-        is_schedule_active: Optional[bool] = None,
+        schedules: Optional["FlexibleScheduleList"] = None,
+        concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
         parameters: Optional[dict] = None,
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
@@ -663,10 +667,7 @@ class Flow(Generic[P, R]):
             paused: Whether or not to set this deployment as paused.
             schedules: A list of schedule objects defining when to execute runs of this deployment.
                 Used to define multiple schedules or additional scheduling options such as `timezone`.
-            schedule: A schedule object defining when to execute runs of this deployment.
-            is_schedule_active: Whether or not to set the schedule for this deployment as active. If
-                not provided when creating a deployment, the schedule will be set as active. If not
-                provided when updating a deployment, the schedule's activation will not be changed.
+            concurrency_limit: The maximum number of runs of this deployment that can run at the same time.
             parameters: A dictionary of default parameter values to pass to runs of this deployment.
             triggers: A list of triggers that will kick off runs of this deployment.
             description: A description for the created deployment. Defaults to the flow's
@@ -714,13 +715,13 @@ class Flow(Generic[P, R]):
                 storage=self._storage,
                 entrypoint=self._entrypoint,
                 name=name,
+                flow_name=self.name,
                 interval=interval,
                 cron=cron,
                 rrule=rrule,
                 paused=paused,
                 schedules=schedules,
-                schedule=schedule,
-                is_schedule_active=is_schedule_active,
+                concurrency_limit=concurrency_limit,
                 tags=tags,
                 triggers=triggers,
                 parameters=parameters or {},
@@ -730,18 +731,17 @@ class Flow(Generic[P, R]):
                 work_pool_name=work_pool_name,
                 work_queue_name=work_queue_name,
                 job_variables=job_variables,
-            )
+            )  # type: ignore # TODO: remove sync_compatible
         else:
             return RunnerDeployment.from_flow(
-                self,
+                flow=self,
                 name=name,
                 interval=interval,
                 cron=cron,
                 rrule=rrule,
                 paused=paused,
                 schedules=schedules,
-                schedule=schedule,
-                is_schedule_active=is_schedule_active,
+                concurrency_limit=concurrency_limit,
                 tags=tags,
                 triggers=triggers,
                 parameters=parameters or {},
@@ -799,8 +799,7 @@ class Flow(Generic[P, R]):
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
-        schedule: Optional[SCHEDULE_TYPES] = None,
-        is_schedule_active: Optional[bool] = None,
+        global_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         parameters: Optional[dict] = None,
         description: Optional[str] = None,
@@ -830,11 +829,7 @@ class Flow(Generic[P, R]):
             paused: Whether or not to set this deployment as paused.
             schedules: A list of schedule objects defining when to execute runs of this deployment.
                 Used to define multiple schedules or additional scheduling options like `timezone`.
-            schedule: A schedule object defining when to execute runs of this deployment. Used to
-                define additional scheduling options such as `timezone`.
-            is_schedule_active: Whether or not to set the schedule for this deployment as active. If
-                not provided when creating a deployment, the schedule will be set as active. If not
-                provided when updating a deployment, the schedule's activation will not be changed.
+            global_limit: The maximum number of concurrent runs allowed across all served flow instances associated with the same deployment.
             parameters: A dictionary of default parameter values to pass to runs of this deployment.
             description: A description for the created deployment. Defaults to the flow's
                 description if not provided.
@@ -846,7 +841,7 @@ class Flow(Generic[P, R]):
             pause_on_shutdown: If True, provided schedule will be paused when the serve function is stopped.
                 If False, the schedules will continue running.
             print_starting_message: Whether or not to print the starting message when flow is served.
-            limit: The maximum number of runs that can be executed concurrently.
+            limit: The maximum number of runs that can be executed concurrently by the created runner; only applies to this served flow. To apply a limit across multiple served flows, use `global_limit`.
             webserver: Whether or not to start a monitoring webserver for this flow.
             entrypoint_type: Type of entrypoint to use for the deployment. When using a module path
                 entrypoint, ensure that the module will be importable in the execution environment.
@@ -898,8 +893,7 @@ class Flow(Generic[P, R]):
             rrule=rrule,
             paused=paused,
             schedules=schedules,
-            schedule=schedule,
-            is_schedule_active=is_schedule_active,
+            concurrency_limit=global_limit,
             parameters=parameters,
             description=description,
             tags=tags,
@@ -931,10 +925,15 @@ class Flow(Generic[P, R]):
             else:
                 raise
 
-        if loop is not None:
-            loop.run_until_complete(runner.start(webserver=webserver))
-        else:
-            asyncio.run(runner.start(webserver=webserver))
+        try:
+            if loop is not None:
+                loop.run_until_complete(runner.start(webserver=webserver))
+            else:
+                asyncio.run(runner.start(webserver=webserver))
+        except (KeyboardInterrupt, TerminationSignal) as exc:
+            logger.info(f"Received {type(exc).__name__}, shutting down...")
+            if loop is not None:
+                loop.stop()
 
     @classmethod
     @sync_compatible
@@ -1037,8 +1036,6 @@ class Flow(Generic[P, R]):
             if not isinstance(storage, LocalStorage):
                 storage.set_base_path(Path(tmpdir))
                 await storage.pull_code()
-            storage.set_base_path(Path(tmpdir))
-            await storage.pull_code()
 
             full_entrypoint = str(storage.destination / entrypoint)
             flow: Flow = await from_async.wait_for_call_in_new_thread(
@@ -1064,8 +1061,7 @@ class Flow(Generic[P, R]):
         rrule: Optional[str] = None,
         paused: Optional[bool] = None,
         schedules: Optional[List[DeploymentScheduleCreate]] = None,
-        schedule: Optional[SCHEDULE_TYPES] = None,
-        is_schedule_active: Optional[bool] = None,
+        concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         parameters: Optional[dict] = None,
         description: Optional[str] = None,
@@ -1112,11 +1108,7 @@ class Flow(Generic[P, R]):
             paused: Whether or not to set this deployment as paused.
             schedules: A list of schedule objects defining when to execute runs of this deployment.
                 Used to define multiple schedules or additional scheduling options like `timezone`.
-            schedule: A schedule object defining when to execute runs of this deployment. Used to
-                define additional scheduling options like `timezone`.
-            is_schedule_active: Whether or not to set the schedule for this deployment as active. If
-                not provided when creating a deployment, the schedule will be set as active. If not
-                provided when updating a deployment, the schedule's activation will not be changed.
+            concurrency_limit: The maximum number of runs that can be executed concurrently.
             parameters: A dictionary of default parameter values to pass to runs of this deployment.
             description: A description for the created deployment. Defaults to the flow's
                 description if not provided.
@@ -1176,9 +1168,15 @@ class Flow(Generic[P, R]):
                 " `PREFECT_DEFAULT_WORK_POOL_NAME` environment variable."
             )
 
+        from prefect.client.orchestration import get_client
+
         try:
             async with get_client() as client:
                 work_pool = await client.read_work_pool(work_pool_name)
+                active_workers = await client.read_workers_for_work_pool(
+                    work_pool_name,
+                    worker_filter=WorkerFilter(status={"any_": ["ONLINE"]}),
+                )
         except ObjectNotFound as exc:
             raise ValueError(
                 f"Could not find work pool {work_pool_name!r}. Please create it before"
@@ -1191,9 +1189,8 @@ class Flow(Generic[P, R]):
             cron=cron,
             rrule=rrule,
             schedules=schedules,
+            concurrency_limit=concurrency_limit,
             paused=paused,
-            schedule=schedule,
-            is_schedule_active=is_schedule_active,
             triggers=triggers,
             parameters=parameters,
             description=description,
@@ -1219,7 +1216,11 @@ class Flow(Generic[P, R]):
 
         if print_next_steps:
             console = Console()
-            if not work_pool.is_push_pool and not work_pool.is_managed_pool:
+            if (
+                not work_pool.is_push_pool
+                and not work_pool.is_managed_pool
+                and not active_workers
+            ):
                 console.print(
                     "\nTo execute flow runs from this deployment, start a worker in a"
                     " separate terminal that pulls work from the"
@@ -1254,7 +1255,7 @@ class Flow(Generic[P, R]):
     @overload
     def __call__(
         self: "Flow[P, Coroutine[Any, Any, T]]", *args: P.args, **kwargs: P.kwargs
-    ) -> Awaitable[T]:
+    ) -> Coroutine[Any, Any, T]:
         ...
 
     @overload
@@ -1263,6 +1264,15 @@ class Flow(Generic[P, R]):
         *args: P.args,
         **kwargs: P.kwargs,
     ) -> T:
+        ...
+
+    @overload
+    def __call__(
+        self: "Flow[P, Coroutine[Any, Any, T]]",
+        *args: P.args,
+        return_state: Literal[True],
+        **kwargs: P.kwargs,
+    ) -> Awaitable[State[T]]:
         ...
 
     @overload
@@ -1370,7 +1380,7 @@ class Flow(Generic[P, R]):
             visualize_task_dependencies,
         )
 
-        if not PREFECT_UNIT_TEST_MODE:
+        if not PREFECT_TESTING_UNIT_TEST_MODE:
             warnings.warn(
                 "`flow.visualize()` will execute code inside of your flow that is not"
                 " decorated with `@task` or `@flow`."
@@ -1635,7 +1645,7 @@ def flow(
         )
 
 
-def _raise_on_name_with_banned_characters(name: str) -> str:
+def _raise_on_name_with_banned_characters(name: Optional[str]) -> Optional[str]:
     """
     Raise an InvalidNameError if the given name contains any invalid
     characters.
@@ -1734,14 +1744,13 @@ def load_flow_from_entrypoint(
         raise MissingFlowError(
             f"Flow function with name {func_name!r} not found in {path!r}. "
         ) from exc
-    except ScriptError as exc:
+    except ScriptError:
         # If the flow has dependencies that are not installed in the current
-        # environment, fallback to loading the flow via AST parsing. The
-        # drawback of this approach is that we're unable to actually load the
-        # function, so we create a placeholder flow that will re-raise this
-        # exception when called.
+        # environment, fallback to loading the flow via AST parsing.
         if use_placeholder_flow:
-            flow = load_placeholder_flow(entrypoint=entrypoint, raises=exc)
+            flow = safe_load_flow_from_entrypoint(entrypoint)
+            if flow is None:
+                raise
         else:
             raise
 
@@ -1849,10 +1858,15 @@ def serve(
         else:
             raise
 
-    if loop is not None:
-        loop.run_until_complete(runner.start())
-    else:
-        asyncio.run(runner.start())
+    try:
+        if loop is not None:
+            loop.run_until_complete(runner.start())
+        else:
+            asyncio.run(runner.start())
+    except (KeyboardInterrupt, TerminationSignal) as exc:
+        logger.info(f"Received {type(exc).__name__}, shutting down...")
+        if loop is not None:
+            loop.stop()
 
 
 @client_injector
@@ -1976,6 +1990,147 @@ def load_placeholder_flow(entrypoint: str, raises: Exception):
     return Flow(**arguments)
 
 
+def safe_load_flow_from_entrypoint(entrypoint: str) -> Optional[Flow]:
+    """
+    Load a flow from an entrypoint and return None if an exception is raised.
+
+    Args:
+        entrypoint: a string in the format `<path_to_script>:<flow_func_name>`
+          or a module path to a flow function
+    """
+    func_def, source_code = _entrypoint_definition_and_source(entrypoint)
+    path = None
+    if ":" in entrypoint:
+        path = entrypoint.rsplit(":")[0]
+    namespace = safe_load_namespace(source_code, filepath=path)
+    if func_def.name in namespace:
+        return namespace[func_def.name]
+    else:
+        # If the function is not in the namespace, if may be due to missing dependencies
+        # for the function. We will attempt to compile each annotation and default value
+        # and remove them from the function definition to see if the function can be
+        # compiled without them.
+
+        return _sanitize_and_load_flow(func_def, namespace)
+
+
+def _sanitize_and_load_flow(
+    func_def: Union[ast.FunctionDef, ast.AsyncFunctionDef], namespace: Dict[str, Any]
+) -> Optional[Flow]:
+    """
+    Attempt to load a flow from the function definition after sanitizing the annotations
+    and defaults that can't be compiled.
+
+    Args:
+        func_def: the function definition
+        namespace: the namespace to load the function into
+
+    Returns:
+        The loaded function or None if the function can't be loaded
+        after sanitizing the annotations and defaults.
+    """
+    args = func_def.args.posonlyargs + func_def.args.args + func_def.args.kwonlyargs
+    if func_def.args.vararg:
+        args.append(func_def.args.vararg)
+    if func_def.args.kwarg:
+        args.append(func_def.args.kwarg)
+    # Remove annotations that can't be compiled
+    for arg in args:
+        if arg.annotation is not None:
+            try:
+                code = compile(
+                    ast.Expression(arg.annotation),
+                    filename="<ast>",
+                    mode="eval",
+                )
+                exec(code, namespace)
+            except Exception as e:
+                logger.debug(
+                    "Failed to evaluate annotation for argument %s due to the following error. Ignoring annotation.",
+                    arg.arg,
+                    exc_info=e,
+                )
+                arg.annotation = None
+
+    # Remove defaults that can't be compiled
+    new_defaults = []
+    for default in func_def.args.defaults:
+        try:
+            code = compile(ast.Expression(default), "<ast>", "eval")
+            exec(code, namespace)
+            new_defaults.append(default)
+        except Exception as e:
+            logger.debug(
+                "Failed to evaluate default value %s due to the following error. Ignoring default.",
+                default,
+                exc_info=e,
+            )
+            new_defaults.append(
+                ast.Constant(
+                    value=None, lineno=default.lineno, col_offset=default.col_offset
+                )
+            )
+    func_def.args.defaults = new_defaults
+
+    # Remove kw_defaults that can't be compiled
+    new_kw_defaults = []
+    for default in func_def.args.kw_defaults:
+        if default is not None:
+            try:
+                code = compile(ast.Expression(default), "<ast>", "eval")
+                exec(code, namespace)
+                new_kw_defaults.append(default)
+            except Exception as e:
+                logger.debug(
+                    "Failed to evaluate default value %s due to the following error. Ignoring default.",
+                    default,
+                    exc_info=e,
+                )
+                new_kw_defaults.append(
+                    ast.Constant(
+                        value=None,
+                        lineno=default.lineno,
+                        col_offset=default.col_offset,
+                    )
+                )
+        else:
+            new_kw_defaults.append(
+                ast.Constant(
+                    value=None,
+                    lineno=func_def.lineno,
+                    col_offset=func_def.col_offset,
+                )
+            )
+    func_def.args.kw_defaults = new_kw_defaults
+
+    if func_def.returns is not None:
+        try:
+            code = compile(
+                ast.Expression(func_def.returns), filename="<ast>", mode="eval"
+            )
+            exec(code, namespace)
+        except Exception as e:
+            logger.debug(
+                "Failed to evaluate return annotation due to the following error. Ignoring annotation.",
+                exc_info=e,
+            )
+            func_def.returns = None
+
+    # Attempt to compile the function without annotations and defaults that
+    # can't be compiled
+    try:
+        code = compile(
+            ast.Module(body=[func_def], type_ignores=[]),
+            filename="<ast>",
+            mode="exec",
+        )
+        exec(code, namespace)
+    except Exception as e:
+        logger.debug("Failed to compile: %s", e)
+    else:
+        return namespace.get(func_def.name)
+
+
 def load_flow_arguments_from_entrypoint(
     entrypoint: str, arguments: Optional[Union[List[str], Set[str]]] = None
 ) -> dict[str, Any]:
@@ -1991,6 +2146,9 @@ def load_flow_arguments_from_entrypoint(
     """
 
     func_def, source_code = _entrypoint_definition_and_source(entrypoint)
+    path = None
+    if ":" in entrypoint:
+        path = entrypoint.rsplit(":")[0]
 
     if arguments is None:
         # If no arguments are provided default to known arguments that are of
@@ -2026,7 +2184,7 @@ def load_flow_arguments_from_entrypoint(
 
                 # if the arg value is not a raw str (i.e. a variable or expression),
                 # then attempt to evaluate it
-                namespace = safe_load_namespace(source_code)
+                namespace = safe_load_namespace(source_code, filepath=path)
                 literal_arg_value = ast.get_source_segment(source_code, keyword.value)
                 cleaned_value = (
                     literal_arg_value.replace("\n", "") if literal_arg_value else ""

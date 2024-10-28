@@ -77,7 +77,6 @@ async def take_a_picture(session: AsyncSession) -> Deployment:
         deployment=Deployment(
             name="Take a picture on demand",
             flow_id=snap_a_pic.id,
-            is_schedule_active=True,
             paused=False,
             work_queue_id=work_pool.default_queue_id,
         ),
@@ -474,10 +473,10 @@ async def test_success_event(
     (new_flow_run,) = runs
 
     assert AssertingEventsClient.last
-    (event,) = AssertingEventsClient.last.events
+    (triggered_event, executed_event) = AssertingEventsClient.last.events
 
-    assert event.event == "prefect.automation.action.executed"
-    assert event.related == [
+    assert triggered_event.event == "prefect.automation.action.triggered"
+    assert triggered_event.related == [
         RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.deployment.{take_a_picture.id}",
@@ -487,12 +486,34 @@ async def test_success_event(
         RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.flow-run.{new_flow_run.id}",
+                "prefect.resource.name": new_flow_run.name,
                 "prefect.resource.role": "flow-run",
-                "prefect.resource.name": f"{new_flow_run.name}",
             }
         ),
     ]
-    assert event.payload == {
+    assert triggered_event.payload == {
+        "action_index": 0,
+        "action_type": "run-deployment",
+        "invocation": str(snap_that_naughty_woodchuck.id),
+    }
+
+    assert executed_event.event == "prefect.automation.action.executed"
+    assert executed_event.related == [
+        RelatedResource.model_validate(
+            {
+                "prefect.resource.id": f"prefect.deployment.{take_a_picture.id}",
+                "prefect.resource.role": "target",
+            }
+        ),
+        RelatedResource.model_validate(
+            {
+                "prefect.resource.id": f"prefect.flow-run.{new_flow_run.id}",
+                "prefect.resource.name": new_flow_run.name,
+                "prefect.resource.role": "flow-run",
+            }
+        ),
+    ]
+    assert executed_event.payload == {
         "action_index": 0,
         "action_type": "run-deployment",
         "invocation": str(snap_that_naughty_woodchuck.id),

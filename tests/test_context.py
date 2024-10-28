@@ -7,6 +7,7 @@ from pendulum.datetime import DateTime
 
 import prefect.settings
 from prefect import flow, task
+from prefect.client.orchestration import PrefectClient
 from prefect.context import (
     GLOBAL_SETTINGS_CONTEXT,
     ContextModel,
@@ -23,9 +24,8 @@ from prefect.context import (
     use_profile,
 )
 from prefect.exceptions import MissingContextError
-from prefect.results import ResultFactory
+from prefect.results import ResultStore, get_result_store
 from prefect.settings import (
-    DEFAULT_PROFILES_PATH,
     PREFECT_API_KEY,
     PREFECT_API_URL,
     PREFECT_HOME,
@@ -35,11 +35,12 @@ from prefect.settings import (
     save_profiles,
     temporary_settings,
 )
+from prefect.states import Running
 from prefect.task_runners import ThreadPoolTaskRunner
 
 
 class ExampleContext(ContextModel):
-    __var__ = ContextVar("test")
+    __var__: ContextVar = ContextVar("test")
 
     x: int
 
@@ -93,14 +94,14 @@ async def test_flow_run_context(prefect_client):
 
     test_task_runner = ThreadPoolTaskRunner()
     flow_run = await prefect_client.create_flow_run(foo)
-    result_factory = await ResultFactory.from_flow(foo)
+    result_store = await ResultStore().update_for_flow(foo)
 
     with FlowRunContext(
         flow=foo,
         flow_run=flow_run,
         client=prefect_client,
         task_runner=test_task_runner,
-        result_factory=result_factory,
+        result_store=result_store,
         parameters={"x": "y"},
     ):
         ctx = FlowRunContext.get()
@@ -108,7 +109,7 @@ async def test_flow_run_context(prefect_client):
         assert ctx.flow_run == flow_run
         assert ctx.client is prefect_client
         assert ctx.task_runner is test_task_runner
-        assert ctx.result_factory == result_factory
+        assert ctx.result_store == result_store
         assert isinstance(ctx.start_time, DateTime)
         assert ctx.parameters == {"x": "y"}
 
@@ -119,19 +120,19 @@ async def test_task_run_context(prefect_client, flow_run):
         pass
 
     task_run = await prefect_client.create_task_run(foo, flow_run.id, dynamic_key="")
-    result_factory = await ResultFactory.default_factory()
+    result_store = ResultStore()
 
     with TaskRunContext(
         task=foo,
         task_run=task_run,
         client=prefect_client,
-        result_factory=result_factory,
+        result_store=result_store,
         parameters={"foo": "bar"},
     ):
         ctx = TaskRunContext.get()
         assert ctx.task is foo
         assert ctx.task_run == task_run
-        assert ctx.result_factory == result_factory
+        assert ctx.result_store == result_store
         assert isinstance(ctx.start_time, DateTime)
         assert ctx.parameters == {"foo": "bar"}
 
@@ -169,7 +170,7 @@ async def test_get_run_context(prefect_client, local_filesystem):
         flow_run=flow_run,
         client=prefect_client,
         task_runner=test_task_runner,
-        result_factory=await ResultFactory.from_flow(foo, client=prefect_client),
+        result_store=await ResultStore().update_for_flow(foo),
         parameters={"x": "y"},
     ) as flow_ctx:
         assert get_run_context() is flow_ctx
@@ -178,7 +179,7 @@ async def test_get_run_context(prefect_client, local_filesystem):
             task=bar,
             task_run=task_run,
             client=prefect_client,
-            result_factory=await ResultFactory.from_task(bar, client=prefect_client),
+            result_store=await get_result_store().update_for_task(bar, _sync=False),
             parameters={"foo": "bar"},
         ) as task_ctx:
             assert get_run_context() is task_ctx, "Task context takes precedence"
@@ -198,11 +199,11 @@ class TestSettingsContext:
     def test_settings_context_variable(self):
         with SettingsContext(
             profile=Profile(name="test", settings={}),
-            settings=prefect.settings.get_settings_from_env(),
+            settings=prefect.settings.get_current_settings(),
         ) as context:
             assert get_settings_context() is context
             assert context.profile == Profile(name="test", settings={})
-            assert context.settings == prefect.settings.get_settings_from_env()
+            assert context.settings == prefect.settings.get_current_settings()
 
     def test_get_settings_context_missing(self, monkeypatch):
         # It's kind of hard to actually exit the default profile, so we patch `get`
@@ -211,14 +212,6 @@ class TestSettingsContext:
         )
         with pytest.raises(MissingContextError, match="No settings context found"):
             get_settings_context()
-
-    def test_creates_home(self, tmp_path):
-        home = tmp_path / "home"
-        assert not home.exists()
-        with temporary_settings(updates={PREFECT_HOME: home}):
-            pass
-
-        assert home.exists()
 
     def test_settings_context_uses_settings(self, temporary_profiles_path):
         temporary_profiles_path.write_text(
@@ -238,12 +231,18 @@ class TestSettingsContext:
                 source=temporary_profiles_path,
             )
 
+    def test_root_settings_context_creates_home(self, tmpdir, monkeypatch):
+        monkeypatch.setenv("PREFECT_HOME", str(tmpdir / "testing"))
+        with root_settings_context() as ctx:
+            assert ctx.settings.home == tmpdir / "testing"
+            assert ctx.settings.home.exists()
+
     def test_settings_context_does_not_setup_logging(self, monkeypatch):
         setup_logging = MagicMock()
         monkeypatch.setattr(
             "prefect.logging.configuration.setup_logging", setup_logging
         )
-        with use_profile("default"):
+        with use_profile("ephemeral"):
             setup_logging.assert_not_called()
 
     def test_settings_context_nesting(self, temporary_profiles_path):
@@ -291,16 +290,10 @@ class TestSettingsContext:
         save_profiles(ProfilesCollection(profiles=[profile]))
         return profile
 
-    def test_root_settings_context_default(self, monkeypatch):
-        use_profile = MagicMock()
-        monkeypatch.setattr("prefect.context.use_profile", use_profile)
+    def test_root_settings_context_default(self):
         result = root_settings_context()
-        use_profile.assert_called_once_with(
-            Profile(name="default", settings={}, source=DEFAULT_PROFILES_PATH),
-            override_environment_variables=False,
-        )
-        use_profile().__enter__.assert_called_once_with()
         assert result is not None
+        assert isinstance(result, SettingsContext)
 
     @pytest.mark.parametrize(
         "cli_command",
@@ -314,15 +307,8 @@ class TestSettingsContext:
     def test_root_settings_context_default_if_cli_args_do_not_match_format(
         self, monkeypatch, cli_command
     ):
-        use_profile = MagicMock()
-        monkeypatch.setattr("prefect.context.use_profile", use_profile)
         monkeypatch.setattr("sys.argv", cli_command)
         result = root_settings_context()
-        use_profile.assert_called_once_with(
-            Profile(name="default", settings={}, source=DEFAULT_PROFILES_PATH),
-            override_environment_variables=False,
-        )
-        use_profile().__enter__.assert_called_once_with()
         assert result is not None
 
     def test_root_settings_context_respects_cli(self, monkeypatch, foo_profile):
@@ -330,34 +316,22 @@ class TestSettingsContext:
         monkeypatch.setattr("prefect.context.use_profile", use_profile)
         monkeypatch.setattr("sys.argv", ["/prefect", "--profile", "foo"])
         result = root_settings_context()
-        use_profile.assert_called_once_with(
-            foo_profile,
-            override_environment_variables=True,
-        )
-        use_profile().__enter__.assert_called_once_with()
         assert result is not None
 
     def test_root_settings_context_respects_environment_variable(
-        self, monkeypatch, foo_profile
+        self, temporary_profiles_path, monkeypatch
     ):
-        use_profile = MagicMock()
-        monkeypatch.setattr("prefect.context.use_profile", use_profile)
+        temporary_profiles_path.write_text(
+            textwrap.dedent(
+                """
+                [profiles.foo]
+                PREFECT_API_URL="foo"
+                """
+            )
+        )
         monkeypatch.setenv("PREFECT_PROFILE", "foo")
-        root_settings_context()
-        use_profile.assert_called_once_with(
-            foo_profile, override_environment_variables=False
-        )
-
-    def test_root_settings_context_missing_cli(self, monkeypatch, capsys):
-        use_profile = MagicMock()
-        monkeypatch.setattr("prefect.context.use_profile", use_profile)
-        monkeypatch.setattr("sys.argv", ["/prefect", "--profile", "bar"])
-        root_settings_context()
-        _, err = capsys.readouterr()
-        assert (
-            "profile 'bar' set by command line argument not found. The default profile"
-            " will be used instead." in err
-        )
+        settings_context = root_settings_context()
+        assert settings_context.profile.name == "foo"
 
     def test_root_settings_context_missing_environment_variables(
         self, monkeypatch, capsys
@@ -408,14 +382,14 @@ class TestSerializeContext:
 
         test_task_runner = ThreadPoolTaskRunner()
         flow_run = await prefect_client.create_flow_run(foo)
-        result_factory = await ResultFactory.from_flow(foo)
+        result_store = await ResultStore().update_for_flow(foo)
 
         with FlowRunContext(
             flow=foo,
             flow_run=flow_run,
             client=prefect_client,
             task_runner=test_task_runner,
-            result_factory=result_factory,
+            result_store=result_store,
             parameters={"x": "y"},
         ) as flow_run_context:
             serialized = serialize_context()
@@ -439,7 +413,7 @@ class TestSerializeContext:
             task=bar,
             task_run=task_run,
             client=prefect_client,
-            result_factory=await ResultFactory.from_task(bar, client=prefect_client),
+            result_store=await get_result_store().update_for_task(bar),
             parameters={"foo": "bar"},
         ) as task_ctx:
             serialized = serialize_context()
@@ -473,12 +447,10 @@ class TestSerializeContext:
                     "settings_context": SettingsContext.get().serialize(),
                 }
                 assert (
-                    serialized["settings_context"]["settings"]["PREFECT_API_KEY"]
-                    == "test"
+                    serialized["settings_context"]["settings"]["api"]["key"] == "test"
                 )
                 assert (
-                    serialized["settings_context"]["settings"]["PREFECT_API_URL"]
-                    == "test"
+                    serialized["settings_context"]["settings"]["api"]["url"] == "test"
                 )
 
 
@@ -498,13 +470,13 @@ class TestHydratedContext:
 
         test_task_runner = ThreadPoolTaskRunner()
         flow_run = await prefect_client.create_flow_run(foo)
-        result_factory = await ResultFactory.from_flow(foo)
+        result_store = await ResultStore().update_for_flow(foo)
         flow_run_context = FlowRunContext(
             flow=foo,
             flow_run=flow_run,
             client=prefect_client,
             task_runner=test_task_runner,
-            result_factory=result_factory,
+            result_store=result_store,
             parameters={"x": "y"},
         )
 
@@ -523,10 +495,52 @@ class TestHydratedContext:
                 hydrated_flow_run_context.task_runner is not None
             )  # this won't be the same object as the original task runner
             assert (
-                hydrated_flow_run_context.result_factory is not None
-            )  # this won't be the same object as the original result factory
+                hydrated_flow_run_context.result_store is not None
+            )  # this won't be the same object as the original result store
             assert isinstance(hydrated_flow_run_context.start_time, DateTime)
             assert hydrated_flow_run_context.parameters == {"x": "y"}
+
+    async def test_task_runner_started_when_hydrating_context(
+        self, prefect_client: PrefectClient
+    ):
+        """
+        This test ensures the task runner for a flow run context is started when
+        the context is hydrated. This enables calling .submit and .map on tasks
+        running in remote environments like Dask and Ray.
+
+        Regression test for https://github.com/PrefectHQ/prefect/issues/14788
+        """
+
+        @flow
+        def foo():
+            pass
+
+        @task
+        def bar():
+            return 42
+
+        test_task_runner = ThreadPoolTaskRunner()
+        flow_run = await prefect_client.create_flow_run(foo, state=Running())
+        result_store = await ResultStore().update_for_flow(foo)
+        flow_run_context = FlowRunContext(
+            flow=foo,
+            flow_run=flow_run,
+            client=prefect_client,
+            task_runner=test_task_runner,
+            result_store=result_store,
+            parameters={"x": "y"},
+        )
+
+        with hydrated_context(
+            {
+                "flow_run_context": flow_run_context.serialize(),
+            }
+        ):
+            hydrated_flow_run_context = FlowRunContext.get()
+            assert hydrated_flow_run_context
+
+            future = hydrated_flow_run_context.task_runner.submit(bar, parameters={})
+            assert future.result() == 42
 
     async def test_with_task_run_context(self, prefect_client, flow_run):
         @task
@@ -540,7 +554,7 @@ class TestHydratedContext:
             task=bar,
             task_run=task_run,
             client=prefect_client,
-            result_factory=await ResultFactory.from_task(bar, client=prefect_client),
+            result_store=await get_result_store().update_for_task(bar),
             parameters={"foo": "bar"},
         )
 
@@ -552,7 +566,7 @@ class TestHydratedContext:
             hydrated_task_ctx = TaskRunContext.get()
             assert hydrated_task_ctx.task is bar
             assert hydrated_task_ctx.task_run == task_run
-            assert hydrated_task_ctx.result_factory is not None
+            assert hydrated_task_ctx.result_store is not None
             assert isinstance(hydrated_task_ctx.start_time, DateTime)
             assert hydrated_task_ctx.parameters == {"foo": "bar"}
 
@@ -569,7 +583,7 @@ class TestHydratedContext:
             {
                 "settings_context": {
                     "profile": {"name": "test", "settings": {}, "source": None},
-                    "settings": {"PREFECT_API_KEY": "test", "PREFECT_API_URL": "test"},
+                    "settings": {"api": {"key": "test", "url": "test"}},
                 },
             }
         ):
@@ -578,5 +592,9 @@ class TestHydratedContext:
                 settings={},
                 source=None,
             )
-            assert SettingsContext.get().settings.PREFECT_API_KEY == "test"
-            assert SettingsContext.get().settings.PREFECT_API_URL == "test"
+            settings = SettingsContext.get().settings
+            assert (
+                settings.api.key is not None
+                and settings.api.key.get_secret_value() == "test"
+            )
+            assert settings.api.url == "test"

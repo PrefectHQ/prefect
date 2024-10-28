@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import time
-import warnings
 from textwrap import dedent
 from typing import Optional
 from unittest import mock
@@ -13,12 +12,17 @@ import pydantic
 import pytest
 
 from prefect import Flow, __development_base_path__, flow, task
-from prefect._internal.compatibility.experimental import ExperimentalFeature
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.sorting import FlowRunSort
-from prefect.context import FlowRunContext, TaskRunContext, get_run_context
+from prefect.concurrency.asyncio import concurrency as aconcurrency
+from prefect.concurrency.sync import concurrency
+from prefect.context import (
+    FlowRunContext,
+    TaskRunContext,
+    get_run_context,
+)
 from prefect.exceptions import (
     CrashedRun,
     FlowPauseTimeout,
@@ -36,6 +40,7 @@ from prefect.flow_runs import pause_flow_run, resume_flow_run, suspend_flow_run
 from prefect.input.actions import read_flow_run_input
 from prefect.input.run_input import RunInput
 from prefect.logging import get_run_logger
+from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.server.schemas.core import FlowRun as ServerFlowRun
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.callables import get_call_parameters
@@ -217,7 +222,8 @@ class TestFlowRunsAsync:
         result = await run_flow(my_log_flow)
 
         assert result is None
-        record = caplog.records[0]
+        record = next((r for r in caplog.records if r.message == "hey yall"), None)
+        assert record is not None, "Couldn't find expected log record"
 
         assert record.flow_name == "my-log-flow"
         assert record.flow_run_name == "test-run"
@@ -387,7 +393,8 @@ class TestFlowRunsSync:
         result = run_flow_sync(my_log_flow)
 
         assert result is None
-        record = caplog.records[0]
+        record = next((r for r in caplog.records if r.message == "hey yall"), None)
+        assert record is not None, "Couldn't find expected log record"
 
         assert record.flow_name == "my-log-flow"
         assert record.flow_run_name == "test-run"
@@ -932,12 +939,6 @@ class TestFlowCrashDetection:
 
 
 class TestPauseFlowRun:
-    @pytest.fixture(autouse=True)
-    def ignore_experimental_warnings(self):
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", category=ExperimentalFeature)
-            yield
-
     async def test_tasks_cannot_be_paused(self):
         @task
         async def the_little_task_that_pauses():
@@ -977,7 +978,9 @@ class TestPauseFlowRun:
         pausing_flow(return_state=True)
         assert not completed
 
-    async def test_paused_flows_block_execution_in_async_flows(self, prefect_client):
+    async def test_paused_flows_block_execution_in_async_flows(
+        self, prefect_client, events_pipeline
+    ):
         @task
         async def foo():
             return 42
@@ -991,12 +994,13 @@ class TestPauseFlowRun:
 
         flow_run_state = await pausing_flow(return_state=True)
         flow_run_id = flow_run_state.state_details.flow_run_id
+        await events_pipeline.process_events()
         task_runs = await prefect_client.read_task_runs(
             flow_run_filter=FlowRunFilter(id={"any_": [flow_run_id]})
         )
         assert len(task_runs) == 2, "only two tasks should have completed"
 
-    async def test_paused_flows_can_be_resumed(self, prefect_client):
+    async def test_paused_flows_can_be_resumed(self, prefect_client, events_pipeline):
         @task
         async def foo():
             return 42
@@ -1022,6 +1026,7 @@ class TestPauseFlowRun:
             flow_resumer(),
         )
         flow_run_id = flow_run_state.state_details.flow_run_id
+        await events_pipeline.process_events()
         task_runs = await prefect_client.read_task_runs(
             flow_run_filter=FlowRunFilter(id={"any_": [flow_run_id]})
         )
@@ -1126,6 +1131,9 @@ class TestPauseFlowRun:
         )
         assert schema is not None
 
+    @pytest.mark.xfail(
+        reason="Client-side task run orchestration does not prevent tasks from running in paused flows yet"
+    )
     async def test_paused_task_polling(self, prefect_client):
         sleeper = AsyncMock(side_effect=[None, None, None, None, None])
 
@@ -1164,12 +1172,6 @@ class TestPauseFlowRun:
 
 
 class TestSuspendFlowRun:
-    @pytest.fixture(autouse=True)
-    def ignore_experimental_warnings(self):
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", category=ExperimentalFeature)
-            yield
-
     async def test_suspended_flow_runs_do_not_block_execution(
         self, prefect_client, deployment, session
     ):
@@ -1495,7 +1497,7 @@ class TestGenerators:
             next(gen)
 
     async def test_generator_flow_with_exception_is_failed(
-        self, prefect_client: PrefectClient
+        self, prefect_client: PrefectClient, events_pipeline
     ):
         @task
         def g():
@@ -1506,6 +1508,8 @@ class TestGenerators:
         tr_id = next(gen)
         with pytest.raises(ValueError, match="xyz"):
             next(gen)
+
+        await events_pipeline.process_events()
         tr = await prefect_client.read_task_run(tr_id)
         assert tr.state.is_failed()
 
@@ -1764,3 +1768,37 @@ class TestLoadFlowAndFlowRun:
         assert flow_run.id == api_flow_run.id
 
         assert await flow() == "bar"
+
+
+class TestConcurrencyRelease:
+    async def test_timeout_concurrency_slot_released_sync(
+        self, concurrency_limit_v2: ConcurrencyLimitV2, prefect_client: PrefectClient
+    ):
+        @flow(timeout_seconds=0.5)
+        def expensive_flow():
+            with concurrency(concurrency_limit_v2.name):
+                time.sleep(1)
+
+        with pytest.raises(TimeoutError):
+            expensive_flow()
+
+        response = await prefect_client.read_global_concurrency_limit_by_name(
+            concurrency_limit_v2.name
+        )
+        assert response.active_slots == 0
+
+    async def test_timeout_concurrency_slot_released_async(
+        self, concurrency_limit_v2: ConcurrencyLimitV2, prefect_client: PrefectClient
+    ):
+        @flow(timeout_seconds=0.5)
+        async def expensive_flow():
+            async with aconcurrency(concurrency_limit_v2.name):
+                await asyncio.sleep(1)
+
+        with pytest.raises(TimeoutError):
+            await expensive_flow()
+
+        response = await prefect_client.read_global_concurrency_limit_by_name(
+            concurrency_limit_v2.name
+        )
+        assert response.active_slots == 0

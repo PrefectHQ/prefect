@@ -8,15 +8,23 @@ description: Prefect integrations are PyPI packages you can install to help you 
 
 Install an integration package with `pip`.
 
-For example, to use `prefect-aws`:
+For example, to install `prefect-aws` you can:
 
+- install the package directly:
 ```bash
-pip install -U prefect-aws
+pip install prefect-aws
 ```
+
+- install the corresponding extra:
+```bash
+pip install 'prefect[aws]'
+```
+
+See [the `setup.py`](https://github.com/PrefectHQ/prefect/blob/main/setup.py) for the full list of extras and the versions they specify.
 
 ## Register blocks from an integration
 
-Once the packages is installed, [register the blocks](/3.0rc/develop/blocks/#registering-blocks-for-use-in-the-prefect-ui) within the integration to view them in the Prefect Cloud UI:
+Once the packages is installed, [register the blocks](/latest/develop/blocks/#registering-blocks-for-use-in-the-prefect-ui) within the integration to view them in the Prefect Cloud UI:
 
 For example, to register the blocks available in `prefect-aws`:
 
@@ -24,7 +32,7 @@ For example, to register the blocks available in `prefect-aws`:
 prefect block register -m prefect_aws
 ```
 
-To use a block's `load` method, you must have a block [saved](/3.0rc/develop/blocks/#saving-blocks). [Learn more about blocks](/3.0rc/develop/blocks).
+To use a block's `load` method, you must have a block [saved](/latest/develop/blocks/#saving-blocks). [Learn more about blocks](/latest/develop/blocks).
 
 ## Use tasks and flows from an Integration
 

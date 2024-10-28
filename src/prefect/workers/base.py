@@ -1,5 +1,5 @@
 import abc
-import inspect
+import asyncio
 import threading
 from contextlib import AsyncExitStack
 from functools import partial
@@ -35,7 +35,11 @@ from prefect.settings import (
     PREFECT_WORKER_QUERY_SECONDS,
     get_current_settings,
 )
-from prefect.states import Crashed, Pending, exception_to_failed_state
+from prefect.states import (
+    Crashed,
+    Pending,
+    exception_to_failed_state,
+)
 from prefect.utilities.dispatch import get_registry_for_type, register_base_type
 from prefect.utilities.engine import propose_state
 from prefect.utilities.services import critical_service_loop
@@ -133,7 +137,19 @@ class BaseJobConfiguration(BaseModel):
         variables = cls._get_base_config_defaults(
             variables_schema.get("properties", {})
         )
+
+        # copy variable defaults for `env` to job config before they're replaced by
+        # deployment overrides
+        if variables.get("env"):
+            job_config["env"] = variables.get("env")
+
         variables.update(values)
+
+        # deep merge `env`
+        if isinstance(job_config.get("env"), dict) and (
+            hardcoded_env := variables.get("env")
+        ):
+            job_config["env"] = hardcoded_env | job_config.get("env")
 
         populated_configuration = apply_values(template=job_config, values=variables)
         populated_configuration = await resolve_block_document_references(
@@ -204,7 +220,7 @@ class BaseJobConfiguration(BaseModel):
         env = {
             **self._base_environment(),
             **self._base_flow_run_environment(flow_run),
-            **self.env,
+            **(self.env if isinstance(self.env, dict) else {}),
         }
         self.env = {key: value for key, value in env.items() if value is not None}
         self.labels = {
@@ -654,6 +670,7 @@ class BaseWorker(abc.ABC):
             work_pool = await self._client.read_work_pool(
                 work_pool_name=self._work_pool_name
             )
+
         except ObjectNotFound:
             if self._create_pool_if_not_found:
                 wp = WorkPoolCreate(
@@ -747,11 +764,10 @@ class BaseWorker(abc.ABC):
         for execution by the worker.
         """
         submittable_flow_runs = [entry.flow_run for entry in flow_run_response]
-        submittable_flow_runs.sort(key=lambda run: run.next_scheduled_start_time)
+
         for flow_run in submittable_flow_runs:
             if flow_run.id in self._submitting_flow_run_ids:
                 continue
-
             try:
                 if self._limiter:
                     self._limiter.acquire_on_behalf_of_nowait(flow_run.id)
@@ -796,8 +812,6 @@ class BaseWorker(abc.ABC):
                     " Please use an agent to execute this flow run."
                 )
 
-            #
-
     async def _submit_run(self, flow_run: "FlowRun") -> None:
         """
         Submits a given flow run for execution by the worker.
@@ -837,14 +851,14 @@ class BaseWorker(abc.ABC):
                         "not be cancellable."
                     )
 
-            run_logger.info(f"Completed submission of flow run '{flow_run.id}'")
+                run_logger.info(f"Completed submission of flow run '{flow_run.id}'")
 
-        else:
-            # If the run is not ready to submit, release the concurrency slot
-            if self._limiter:
-                self._limiter.release_on_behalf_of(flow_run.id)
+            else:
+                # If the run is not ready to submit, release the concurrency slot
+                if self._limiter:
+                    self._limiter.release_on_behalf_of(flow_run.id)
 
-        self._submitting_flow_run_ids.remove(flow_run.id)
+            self._submitting_flow_run_ids.remove(flow_run.id)
 
     async def _submit_run_and_capture_errors(
         self, flow_run: "FlowRun", task_status: Optional[anyio.abc.TaskStatus] = None
@@ -924,13 +938,23 @@ class BaseWorker(abc.ABC):
     async def _get_configuration(
         self,
         flow_run: "FlowRun",
+        deployment: Optional["DeploymentResponse"] = None,
     ) -> BaseJobConfiguration:
-        deployment = await self._client.read_deployment(flow_run.deployment_id)
+        deployment = (
+            deployment
+            if deployment
+            else await self._client.read_deployment(flow_run.deployment_id)
+        )
         flow = await self._client.read_flow(flow_run.flow_id)
 
         deployment_vars = deployment.job_variables or {}
         flow_run_vars = flow_run.job_variables or {}
-        job_variables = {**deployment_vars, **flow_run_vars}
+        job_variables = {**deployment_vars}
+
+        # merge environment variables carefully, otherwise full override
+        if isinstance(job_variables.get("env"), dict):
+            job_variables["env"].update(flow_run_vars.pop("env", {}))
+        job_variables.update(flow_run_vars)
 
         configuration = await self.job_configuration.from_template_and_values(
             base_job_template=self._work_pool.base_job_template,
@@ -1060,7 +1084,7 @@ class BaseWorker(abc.ABC):
                 task_status.started()
 
             result = fn(*args, **kwargs)
-            if inspect.iscoroutine(result):
+            if asyncio.iscoroutine(result):
                 await result
 
         await self._runs_task_group.start(wrapper)

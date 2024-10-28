@@ -1,17 +1,19 @@
 import urllib
 from typing import Type
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 import cloudpickle
 import pytest
 import respx
 
+from prefect.blocks.abstract import NotificationError
 from prefect.blocks.notifications import (
     PREFECT_NOTIFY_TYPE_DEFAULT,
     AppriseNotificationBlock,
     CustomWebhookNotificationBlock,
     DiscordWebhook,
     MattermostWebhook,
+    MicrosoftTeamsWebhook,
     OpsgenieWebhook,
     PagerDutyWebHook,
     SendgridEmail,
@@ -22,8 +24,48 @@ from prefect.testing.utilities import AsyncMock
 
 # A list of the notification classes Pytest should use as parameters to each method in TestAppriseNotificationBlock
 notification_classes = sorted(
-    AppriseNotificationBlock.__subclasses__(), key=lambda cls: cls.__name__
+    [
+        cls
+        for cls in AppriseNotificationBlock.__subclasses__()
+        if cls != MicrosoftTeamsWebhook
+    ],
+    key=lambda cls: cls.__name__,
 )
+
+RESTRICTED_URLS = [
+    ("", ""),
+    (" ", ""),
+    ("[]", ""),
+    ("not a url", ""),
+    ("http://", ""),
+    ("https://", ""),
+    ("ftp://example.com", "HTTP and HTTPS"),
+    ("gopher://example.com", "HTTP and HTTPS"),
+    ("https://localhost", "private address"),
+    ("https://127.0.0.1", "private address"),
+    ("https://[::1]", "private address"),
+    ("https://[fc00:1234:5678:9abc::10]", "private address"),
+    ("https://[fd12:3456:789a:1::1]", "private address"),
+    ("https://[fe80::1234:5678:9abc]", "private address"),
+    ("https://10.0.0.1", "private address"),
+    ("https://10.255.255.255", "private address"),
+    ("https://172.16.0.1", "private address"),
+    ("https://172.31.255.255", "private address"),
+    ("https://192.168.1.1", "private address"),
+    ("https://192.168.1.255", "private address"),
+    ("https://169.254.0.1", "private address"),
+    ("https://169.254.169.254", "private address"),
+    ("https://169.254.254.255", "private address"),
+    # These will resolve to a private address in production, but not in tests,
+    # so we'll use "resolve" as the reason to catch both cases
+    ("https://metadata.google.internal", "resolve"),
+    ("https://anything.privatecloud", "resolve"),
+    ("https://anything.privatecloud.svc", "resolve"),
+    ("https://anything.privatecloud.svc.cluster.local", "resolve"),
+    ("https://cluster-internal", "resolve"),
+    ("https://network-internal.cloud.svc", "resolve"),
+    ("https://private-internal.cloud.svc.cluster.local", "resolve"),
+]
 
 
 @pytest.mark.parametrize("block_class", notification_classes)
@@ -44,10 +86,8 @@ class TestAppriseNotificationBlock:
             apprise_instance_mock.add.assert_called_once_with(
                 block.url.get_secret_value()
             )
-
-            notify_type = PREFECT_NOTIFY_TYPE_DEFAULT
             apprise_instance_mock.async_notify.assert_awaited_once_with(
-                body="test", title=None, notify_type=notify_type
+                body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
             )
 
     def test_notify_sync(self, block_class: Type[AppriseNotificationBlock]):
@@ -72,10 +112,40 @@ class TestAppriseNotificationBlock:
             )
 
     def test_is_picklable(self, block_class: Type[AppriseNotificationBlock]):
-        block = block_class(url="http://example.com/notification")
+        block = block_class(url="https://example.com/notification")
         pickled = cloudpickle.dumps(block)
         unpickled = cloudpickle.loads(pickled)
         assert isinstance(unpickled, block_class)
+
+    @pytest.mark.parametrize("value, reason", RESTRICTED_URLS)
+    async def test_notification_can_prevent_restricted_urls(
+        self, block_class, value: str, reason: str
+    ):
+        notification = block_class(url=value, allow_private_urls=False)
+
+        with pytest.raises(ValueError, match=f"is not a valid URL.*{reason}"):
+            await notification.notify(subject="example", body="example")
+
+    async def test_raises_on_url_validation_failure(self, block_class):
+        """
+        When within a raise_on_failure block, we want URL validation errors to be
+        wrapped and captured as NotificationErrors for reporting back to users.
+        """
+        block = block_class(url="https://127.0.0.1/foo/bar", allow_private_urls=False)
+
+        # outside of a raise_on_failure block, we get a ValueError directly
+        with pytest.raises(ValueError, match="not a valid URL") as captured:
+            await block.notify(subject="Test", body="Test")
+
+        # inside of a raise_on_failure block, we get a NotificationError
+        with block.raise_on_failure():
+            with pytest.raises(NotificationError) as captured:
+                await block.notify(subject="Test", body="Test")
+
+        assert captured.value.log == (
+            "'https://127.0.0.1/foo/bar' is not a valid URL.  It resolves to the "
+            "private address 127.0.0.1."
+        )
 
 
 class TestMattermostWebhook:
@@ -94,7 +164,7 @@ class TestMattermostWebhook:
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once_with(
                 f"mmost://{mm_block.hostname}/{mm_block.token.get_secret_value()}/"
-                "?image=yes&format=text&overflow=upstream&rto=4.0&cto=4.0&verify=yes"
+                "?image=yes&format=text&overflow=upstream"
             )
             apprise_instance_mock.async_notify.assert_awaited_once_with(
                 body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
@@ -116,7 +186,7 @@ class TestMattermostWebhook:
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once_with(
                 f"mmost://{mm_block.hostname}/{mm_block.token.get_secret_value()}/"
-                "?image=no&format=text&overflow=upstream&rto=4.0&cto=4.0&verify=yes"
+                "?image=no&format=text&overflow=upstream"
             )
             apprise_instance_mock.async_notify.assert_called_once_with(
                 body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
@@ -142,7 +212,7 @@ class TestMattermostWebhook:
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once_with(
                 f"mmost://{mm_block.hostname}/{mm_block.token.get_secret_value()}/"
-                "?image=no&format=text&overflow=upstream&rto=4.0&cto=4.0&verify=yes"
+                "?image=no&format=text&overflow=upstream"
                 "&channel=death-metal-anonymous%2Cgeneral"
             )
 
@@ -172,7 +242,7 @@ class TestDiscordWebhook:
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once_with(
                 f"discord://{discord_block.webhook_id.get_secret_value()}/{discord_block.webhook_token.get_secret_value()}/"
-                "?tts=no&avatar=no&footer=no&footer_logo=yes&image=no&fields=yes&format=text&overflow=upstream&rto=4.0&cto=4.0&verify=yes"
+                "?tts=no&avatar=no&footer=no&footer_logo=yes&image=no&fields=yes&format=text&overflow=upstream"
             )
             apprise_instance_mock.async_notify.assert_awaited_once_with(
                 body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
@@ -196,7 +266,7 @@ class TestDiscordWebhook:
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once_with(
                 f"discord://{discord_block.webhook_id.get_secret_value()}/{discord_block.webhook_token.get_secret_value()}/"
-                "?tts=no&avatar=no&footer=no&footer_logo=yes&image=no&fields=yes&format=text&overflow=upstream&rto=4.0&cto=4.0&verify=yes"
+                "?tts=no&avatar=no&footer=no&footer_logo=yes&image=no&fields=yes&format=text&overflow=upstream"
             )
             apprise_instance_mock.async_notify.assert_called_once_with(
                 body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
@@ -222,8 +292,9 @@ class TestOpsgenieWebhook:
 
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once_with(
-                f"opsgenie://{self.API_KEY}//?region=us&priority=normal&batch=no&"
-                "format=text&overflow=upstream&rto=4.0&cto=4.0&verify=yes"
+                f"opsgenie://{self.API_KEY}//?action=map&region=us&priority=normal&"
+                "batch=no&%3Ainfo=note&%3Asuccess=close&%3Awarning=new&%3Afailure="
+                "new&format=text&overflow=upstream"
             )
 
             apprise_instance_mock.async_notify.assert_awaited_once_with(
@@ -233,7 +304,7 @@ class TestOpsgenieWebhook:
     def _test_notify_sync(self, targets="", params=None, **kwargs):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
             if params is None:
-                params = "region=us&priority=normal&batch=no"
+                params = "action=map&region=us&priority=normal&batch=no"
 
             apprise_instance_mock = AppriseMock.return_value
             apprise_instance_mock.async_notify = AsyncMock()
@@ -249,7 +320,7 @@ class TestOpsgenieWebhook:
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once_with(
                 f"opsgenie://{self.API_KEY}/{targets}/?{params}"
-                "&format=text&overflow=upstream&rto=4.0&cto=4.0&verify=yes"
+                "&%3Ainfo=note&%3Asuccess=close&%3Awarning=new&%3Afailure=new&format=text&overflow=upstream"
             )
 
             apprise_instance_mock.async_notify.assert_awaited_once_with(
@@ -260,7 +331,7 @@ class TestOpsgenieWebhook:
         self._test_notify_sync()
 
     def test_notify_sync_params(self):
-        params = "region=eu&priority=low&batch=yes"
+        params = "action=map&region=eu&priority=low&batch=yes"
         self._test_notify_sync(params=params, region_name="eu", priority=1, batch=True)
 
     def test_notify_sync_targets(self):
@@ -278,7 +349,7 @@ class TestOpsgenieWebhook:
         self._test_notify_sync(targets=targets, target_user=["user1", "user2"])
 
     def test_notify_sync_details(self):
-        params = "region=us&priority=normal&batch=no&%2Bkey1=value1&%2Bkey2=value2"
+        params = "action=map&region=us&priority=normal&batch=no&%2Bkey1=value1&%2Bkey2=value2"
         self._test_notify_sync(
             params=params,
             details={
@@ -300,12 +371,39 @@ class TestPagerDutyWebhook:
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once_with(
                 "pagerduty://int_key@api_key/Prefect/Notification?region=us&"
-                "image=yes&format=text&overflow=upstream&rto=4.0&cto=4.0&verify=yes"
+                "image=yes&format=text&overflow=upstream"
             )
 
             notify_type = "info"
             apprise_instance_mock.async_notify.assert_awaited_once_with(
                 body="test", title=None, notify_type=notify_type
+            )
+
+    async def test_notify_async_with_subject(self):
+        with patch("apprise.Apprise", autospec=True) as AppriseMock:
+            apprise_instance_mock = AppriseMock.return_value
+            apprise_instance_mock.async_notify = AsyncMock()
+
+            block = PagerDutyWebHook(integration_key="int_key", api_key="api_key")
+            await block.notify("test", "test")
+
+            apprise_instance_mock.add.assert_has_calls(
+                [
+                    call(
+                        "pagerduty://int_key@api_key/Prefect/Notification?region=us"
+                        "&image=yes&format=text&overflow=upstream"
+                    ),
+                    call(
+                        "pagerduty://int_key@api_key/Prefect/Notification?region=us"
+                        "&image=yes&%2BPrefect+Notification+Body=test&format=text&overflow=upstream"
+                    ),
+                ],
+                any_order=False,
+            )
+
+            notify_type = "info"
+            apprise_instance_mock.async_notify.assert_awaited_once_with(
+                body=" ", title="test", notify_type=notify_type
             )
 
     def test_notify_sync(self):
@@ -324,12 +422,44 @@ class TestPagerDutyWebhook:
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once_with(
                 "pagerduty://int_key@api_key/Prefect/Notification?region=us&"
-                "image=yes&format=text&overflow=upstream&rto=4.0&cto=4.0&verify=yes"
+                "image=yes&format=text&overflow=upstream"
             )
 
             notify_type = "info"
             apprise_instance_mock.async_notify.assert_awaited_once_with(
                 body="test", title=None, notify_type=notify_type
+            )
+
+    def test_notify_sync_with_subject(self):
+        with patch("apprise.Apprise", autospec=True) as AppriseMock:
+            apprise_instance_mock = AppriseMock.return_value
+            apprise_instance_mock.async_notify = AsyncMock()
+
+            block = PagerDutyWebHook(integration_key="int_key", api_key="api_key")
+
+            @flow
+            def test_flow():
+                block.notify("test", "test")
+
+            test_flow()
+
+            apprise_instance_mock.add.assert_has_calls(
+                [
+                    call(
+                        "pagerduty://int_key@api_key/Prefect/Notification?region=us"
+                        "&image=yes&format=text&overflow=upstream"
+                    ),
+                    call(
+                        "pagerduty://int_key@api_key/Prefect/Notification?region=us"
+                        "&image=yes&%2BPrefect+Notification+Body=test&format=text&overflow=upstream"
+                    ),
+                ],
+                any_order=False,
+            )
+
+            notify_type = "info"
+            apprise_instance_mock.async_notify.assert_awaited_once_with(
+                body=" ", title="test", notify_type=notify_type
             )
 
 
@@ -340,7 +470,7 @@ class TestTwilioSMS:
             "twilio://ACabcdefabcdefabcdefabcdef"
             ":XXXXXXXXXXXXXXXXXXXXXXXX"
             "@%2B15555555555/%2B15555555556/%2B15555555557/"
-            "?format=text&overflow=upstream&rto=4.0&cto=4.0&verify=yes"
+            "?format=text&overflow=upstream"
         )
 
     async def test_twilio_notify_async(self, valid_apprise_url):
@@ -418,6 +548,7 @@ class TestCustomWebhook:
     async def test_notify_async(self):
         with respx.mock as xmock:
             xmock.post("https://example.com/")
+            xmock.route(host="localhost").pass_through()
 
             custom_block = CustomWebhookNotificationBlock(
                 name="test name",
@@ -440,6 +571,7 @@ class TestCustomWebhook:
     def test_notify_sync(self):
         with respx.mock as xmock:
             xmock.post("https://example.com/")
+            xmock.route(host="localhost").pass_through()
 
             custom_block = CustomWebhookNotificationBlock(
                 name="test name",
@@ -448,11 +580,7 @@ class TestCustomWebhook:
                 secrets={"token": "someSecretToken"},
             )
 
-            @flow
-            def test_flow():
-                custom_block.notify("test", "subject")
-
-            test_flow()
+            custom_block.notify("test", "subject")
 
             last_req = xmock.calls.last.request
             assert last_req.headers["user-agent"] == "Prefect Notifications"
@@ -617,12 +745,6 @@ class TestSendgridEmail:
         "format": "html",
         # default overflow mode
         "overflow": "upstream",
-        # socket read timeout
-        "rto": 4.0,
-        # socket connect timeout
-        "cto": 4.0,
-        # ssl certificate authority verification
-        "verify": "yes",
     }
 
     async def test_notify_async(self):
@@ -694,3 +816,54 @@ class TestSendgridEmail:
         pickled = cloudpickle.dumps(block)
         unpickled = cloudpickle.loads(pickled)
         assert isinstance(unpickled, SendgridEmail)
+
+
+class TestMicrosoftTeamsWebhook:
+    SAMPLE_URL = "https://prod-NO.LOCATION.logic.azure.com:443/workflows/WFID/triggers/manual/paths/invoke?sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=SIGNATURE"
+
+    async def test_notify_async(self):
+        with patch("apprise.Apprise", autospec=True) as AppriseMock:
+            apprise_instance_mock = AppriseMock.return_value
+            apprise_instance_mock.async_notify = AsyncMock()
+
+            block = MicrosoftTeamsWebhook(url=self.SAMPLE_URL)
+            await block.notify("test")
+
+            AppriseMock.assert_called_once()
+            apprise_instance_mock.add.assert_called_once_with(
+                "workflow://prod-NO.LOCATION.logic.azure.com:443/WFID/SIGNATURE/"
+                "?image=yes&wrap=yes"
+                "&format=markdown&overflow=upstream"
+            )
+            apprise_instance_mock.async_notify.assert_awaited_once_with(
+                body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
+            )
+
+    def test_notify_sync(self):
+        with patch("apprise.Apprise", autospec=True) as AppriseMock:
+            apprise_instance_mock = AppriseMock.return_value
+            apprise_instance_mock.async_notify = AsyncMock()
+
+            block = MicrosoftTeamsWebhook(url=self.SAMPLE_URL)
+
+            @flow
+            def test_flow():
+                block.notify("test")
+
+            test_flow()
+
+            AppriseMock.assert_called_once()
+            apprise_instance_mock.add.assert_called_once_with(
+                "workflow://prod-NO.LOCATION.logic.azure.com:443/WFID/SIGNATURE/"
+                "?image=yes&wrap=yes"
+                "&format=markdown&overflow=upstream"
+            )
+            apprise_instance_mock.async_notify.assert_called_once_with(
+                body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
+            )
+
+    def test_is_picklable(self):
+        block = MicrosoftTeamsWebhook(url=self.SAMPLE_URL)
+        pickled = cloudpickle.dumps(block)
+        unpickled = cloudpickle.loads(pickled)
+        assert isinstance(unpickled, MicrosoftTeamsWebhook)

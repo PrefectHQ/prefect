@@ -7,8 +7,8 @@ from pydantic_extra_types.pendulum_dt import DateTime
 
 from .clients import (
     AssertingEventsClient,
+    AssertingPassthroughEventsClient,
     PrefectCloudEventsClient,
-    PrefectEphemeralEventsClient,
     PrefectEventsClient,
 )
 from .schemas.events import Event, RelatedResource
@@ -50,10 +50,10 @@ def emit_event(
         return None
 
     operational_clients = [
+        AssertingPassthroughEventsClient,
         AssertingEventsClient,
         PrefectCloudEventsClient,
         PrefectEventsClient,
-        PrefectEphemeralEventsClient,
     ]
     worker_instance = EventsWorker.instance()
 

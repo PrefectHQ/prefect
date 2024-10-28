@@ -10,6 +10,7 @@ from prefect.logging import LogEavesdropper
 from prefect.types import SecretDict
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.templating import apply_values, find_placeholders
+from prefect.utilities.urls import validate_restricted_url
 
 PREFECT_NOTIFY_TYPE_DEFAULT = "prefect_default"
 
@@ -73,13 +74,33 @@ class AppriseNotificationBlock(AbstractAppriseNotificationBlock, ABC):
     A base class for sending notifications using Apprise, through webhook URLs.
     """
 
-    _documentation_url = "https://docs.prefect.io/ui/notifications/"
+    _documentation_url = "https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations"
     url: SecretStr = Field(
         default=...,
         title="Webhook URL",
         description="Incoming webhook URL used to send notifications.",
         examples=["https://hooks.example.com/XXX"],
     )
+    allow_private_urls: bool = Field(
+        default=True,
+        description="Whether to allow notifications to private URLs. Defaults to True.",
+    )
+
+    @sync_compatible
+    async def notify(
+        self,
+        body: str,
+        subject: Optional[str] = None,
+    ):
+        if not self.allow_private_urls:
+            try:
+                validate_restricted_url(self.url.get_secret_value())
+            except ValueError as exc:
+                if self._raise_on_failure:
+                    raise NotificationError(str(exc))
+                raise
+
+        await super().notify(body, subject)
 
 
 # TODO: Move to prefect-slack once collection block auto-registration is
@@ -100,7 +121,7 @@ class SlackWebhook(AppriseNotificationBlock):
 
     _block_type_name = "Slack Webhook"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/c1965ecbf8704ee1ea20d77786de9a41ce1087d1-500x500.png"
-    _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.SlackWebhook"
+    _documentation_url = "https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations"
 
     url: SecretStr = Field(
         default=...,
@@ -126,16 +147,39 @@ class MicrosoftTeamsWebhook(AppriseNotificationBlock):
     _block_type_name = "Microsoft Teams Webhook"
     _block_type_slug = "ms-teams-webhook"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/817efe008a57f0a24f3587414714b563e5e23658-250x250.png"
-    _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.MicrosoftTeamsWebhook"
+    _documentation_url = "https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations"
 
     url: SecretStr = Field(
-        ...,
+        default=...,
         title="Webhook URL",
-        description="The Teams incoming webhook URL used to send notifications.",
+        description="The Microsoft Power Automate (Workflows) URL used to send notifications to Teams.",
         examples=[
-            "https://your-org.webhook.office.com/webhookb2/XXX/IncomingWebhook/YYY/ZZZ"
+            "https://prod-NO.LOCATION.logic.azure.com:443/workflows/WFID/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=SIGNATURE"
         ],
     )
+
+    include_image: bool = Field(
+        default=True,
+        description="Include an image with the notification.",
+    )
+
+    wrap: bool = Field(
+        default=True,
+        description="Wrap the notification text.",
+    )
+
+    def block_initialization(self) -> None:
+        """see https://github.com/caronc/apprise/pull/1172"""
+        from apprise.plugins.workflows import NotifyWorkflows
+
+        if not (
+            parsed_url := NotifyWorkflows.parse_native_url(self.url.get_secret_value())
+        ):
+            raise ValueError("Invalid Microsoft Teams Workflow URL provided.")
+
+        parsed_url |= {"include_image": self.include_image, "wrap": self.wrap}
+
+        self._start_apprise_client(SecretStr(NotifyWorkflows(**parsed_url).url()))
 
 
 class PagerDutyWebHook(AbstractAppriseNotificationBlock):
@@ -158,7 +202,7 @@ class PagerDutyWebHook(AbstractAppriseNotificationBlock):
     _block_type_name = "Pager Duty Webhook"
     _block_type_slug = "pager-duty-webhook"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/8dbf37d17089c1ce531708eac2e510801f7b3aee-250x250.png"
-    _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.PagerDutyWebHook"
+    _documentation_url = "https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations"
 
     # The default cannot be prefect_default because NotifyPagerDuty's
     # PAGERDUTY_SEVERITY_MAP only has these notify types defined as keys
@@ -250,6 +294,27 @@ class PagerDutyWebHook(AbstractAppriseNotificationBlock):
         )
         self._start_apprise_client(url)
 
+    @sync_compatible
+    async def notify(
+        self,
+        body: str,
+        subject: Optional[str] = None,
+    ):
+        """
+        Apprise will combine subject and body by default, so we need to move
+        the body into the custom_details field. custom_details is part of the
+        webhook url, so we need to update the url and restart the client.
+        """
+        if subject:
+            self.custom_details = self.custom_details or {}
+            self.custom_details.update(
+                {"Prefect Notification Body": body.replace(" ", "%20")}
+            )
+            body = " "
+            self.block_initialization()
+
+        await super().notify(body, subject)
+
 
 class TwilioSMS(AbstractAppriseNotificationBlock):
     """Enables sending notifications via Twilio SMS.
@@ -268,7 +333,7 @@ class TwilioSMS(AbstractAppriseNotificationBlock):
     _block_type_name = "Twilio SMS"
     _block_type_slug = "twilio-sms"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/8bd8777999f82112c09b9c8d57083ac75a4a0d65-250x250.png"  # noqa
-    _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.TwilioSMS"
+    _documentation_url = "https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations"
 
     account_sid: str = Field(
         default=...,
@@ -337,7 +402,7 @@ class OpsgenieWebhook(AbstractAppriseNotificationBlock):
     _block_type_name = "Opsgenie Webhook"
     _block_type_slug = "opsgenie-webhook"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/d8b5bc6244ae6cd83b62ec42f10d96e14d6e9113-280x280.png"
-    _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.OpsgenieWebhook"
+    _documentation_url = "https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations"
 
     apikey: SecretStr = Field(
         default=...,
@@ -455,7 +520,7 @@ class MattermostWebhook(AbstractAppriseNotificationBlock):
     _block_type_name = "Mattermost Webhook"
     _block_type_slug = "mattermost-webhook"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/1350a147130bf82cbc799a5f868d2c0116207736-250x250.png"
-    _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.MattermostWebhook"
+    _documentation_url = "https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations"
 
     hostname: str = Field(
         default=...,
@@ -536,7 +601,7 @@ class DiscordWebhook(AbstractAppriseNotificationBlock):
     _block_type_name = "Discord Webhook"
     _block_type_slug = "discord-webhook"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/9e94976c80ef925b66d24e5d14f0d47baa6b8f88-250x250.png"
-    _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.DiscordWebhook"
+    _documentation_url = "https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations"
 
     webhook_id: SecretStr = Field(
         default=...,
@@ -635,7 +700,7 @@ class CustomWebhookNotificationBlock(NotificationBlock):
 
     _block_type_name = "Custom Webhook"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/c7247cb359eb6cf276734d4b1fbf00fb8930e89e-250x250.png"
-    _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.CustomWebhookNotificationBlock"
+    _documentation_url = "https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations"
 
     name: str = Field(title="Name", description="Name of the webhook.")
 
@@ -766,7 +831,7 @@ class SendgridEmail(AbstractAppriseNotificationBlock):
     _block_type_name = "Sendgrid Email"
     _block_type_slug = "sendgrid-email"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/82bc6ed16ca42a2252a5512c72233a253b8a58eb-250x250.png"
-    _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.SendgridEmail"
+    _documentation_url = "https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations"
 
     api_key: SecretStr = Field(
         default=...,

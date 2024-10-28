@@ -26,6 +26,7 @@ from typing_extensions import Literal
 
 from prefect.utilities.dispatch import get_dispatch_key, lookup_type, register_base_type
 from prefect.utilities.importtools import from_qualified_name, to_qualified_name
+from prefect.utilities.names import obfuscate
 
 D = TypeVar("D", bound=Any)
 M = TypeVar("M", bound=BaseModel)
@@ -371,7 +372,7 @@ def handle_secret_render(value: object, context: dict[str, Any]) -> object:
         return (
             cast(Secret[object], value).get_secret_value()
             if context.get("include_secrets", False)
-            else "**********"
+            else obfuscate(value)
         )
     elif isinstance(value, BaseModel):
         return value.model_dump(context=context)
