@@ -211,7 +211,7 @@ class GitRepository:
 
         await run_process(
             cmd,
-            cwd=str(self.destination),
+            cwd=self.destination,
         )
 
     async def pull_code(self):
