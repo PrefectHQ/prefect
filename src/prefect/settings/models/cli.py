@@ -1,9 +1,8 @@
 from typing import Optional
 
 from pydantic import Field
-from pydantic_settings import SettingsConfigDict
 
-from prefect.settings.base import PrefectBaseSettings
+from prefect.settings.base import PrefectBaseSettings, PrefectSettingsConfigDict
 
 
 class CLISettings(PrefectBaseSettings):
@@ -11,8 +10,12 @@ class CLISettings(PrefectBaseSettings):
     Settings for controlling CLI behavior
     """
 
-    model_config = SettingsConfigDict(
-        env_prefix="PREFECT_CLI_", env_file=".env", extra="ignore"
+    model_config = PrefectSettingsConfigDict(
+        env_prefix="PREFECT_CLI_",
+        env_file=".env",
+        extra="ignore",
+        toml_file="prefect.toml",
+        prefect_toml_table_header=("cli",),
     )
 
     colors: bool = Field(
