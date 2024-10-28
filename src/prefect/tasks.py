@@ -4,6 +4,7 @@ Module containing the base workflow task class and decorator - for most use case
 # This file requires type-checking with pyright because mypy does not yet support PEP612
 # See https://github.com/python/mypy/issues/8645
 
+import asyncio
 import datetime
 import inspect
 from copy import copy
@@ -33,9 +34,6 @@ from uuid import UUID, uuid4
 from typing_extensions import Literal, ParamSpec
 
 import prefect.states
-from prefect._internal.compatibility.deprecated import (
-    deprecated_async_method,
-)
 from prefect.cache_policies import DEFAULT, NONE, CachePolicy
 from prefect.client.orchestration import get_client
 from prefect.client.schemas import TaskRun
@@ -53,9 +51,13 @@ from prefect.context import (
 )
 from prefect.futures import PrefectDistributedFuture, PrefectFuture, PrefectFutureList
 from prefect.logging.loggers import get_logger
-from prefect.results import ResultFactory, ResultSerializer, ResultStorage
+from prefect.results import (
+    ResultSerializer,
+    ResultStorage,
+    ResultStore,
+    get_or_create_default_task_scheduling_storage,
+)
 from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION,
     PREFECT_TASK_DEFAULT_RETRIES,
     PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
 )
@@ -205,8 +207,17 @@ def _generate_task_key(fn: Callable[..., Any]) -> str:
 
     qualname = fn.__qualname__.split(".")[-1]
 
+    try:
+        code_obj = getattr(fn, "__code__", None)
+        if code_obj is None:
+            code_obj = fn.__call__.__code__
+    except AttributeError:
+        raise AttributeError(
+            f"{fn} is not a standard Python function object and could not be converted to a task."
+        ) from None
+
     code_hash = (
-        h[:NUM_CHARS_DYNAMIC_KEY] if (h := hash_objects(fn.__code__)) else "unknown"
+        h[:NUM_CHARS_DYNAMIC_KEY] if (h := hash_objects(code_obj)) else "unknown"
     )
 
     return f"{qualname}-{code_hash}"
@@ -299,7 +310,9 @@ class Task(Generic[P, R]):
             Callable[["TaskRunContext", Dict[str, Any]], Optional[str]]
         ] = None,
         cache_expiration: Optional[datetime.timedelta] = None,
-        task_run_name: Optional[Union[Callable[[], str], str]] = None,
+        task_run_name: Optional[
+            Union[Callable[[], str], Callable[[Dict[str, Any]], str], str]
+        ] = None,
         retries: Optional[int] = None,
         retry_delay_seconds: Optional[
             Union[
@@ -360,7 +373,7 @@ class Task(Generic[P, R]):
 
         # the task is considered async if its function is async or an async
         # generator
-        self.isasync = inspect.iscoroutinefunction(
+        self.isasync = asyncio.iscoroutinefunction(
             self.fn
         ) or inspect.isasyncgenfunction(self.fn)
 
@@ -520,7 +533,9 @@ class Task(Generic[P, R]):
         cache_key_fn: Optional[
             Callable[["TaskRunContext", Dict[str, Any]], Optional[str]]
         ] = None,
-        task_run_name: Optional[Union[Callable[[], str], str, Type[NotSet]]] = NotSet,
+        task_run_name: Optional[
+            Union[Callable[[], str], Callable[[Dict[str, Any]], str], str, Type[NotSet]]
+        ] = NotSet,
         cache_expiration: Optional[datetime.timedelta] = None,
         retries: Union[int, Type[NotSet]] = NotSet,
         retry_delay_seconds: Union[
@@ -756,14 +771,16 @@ class Task(Generic[P, R]):
                 # TODO: Improve use of result storage for parameter storage / reference
                 self.persist_result = True
 
-                factory = await ResultFactory.from_autonomous_task(self, client=client)
+                store = await ResultStore(
+                    result_storage=await get_or_create_default_task_scheduling_storage()
+                ).update_for_task(self)
                 context = serialize_context()
                 data: Dict[str, Any] = {"context": context}
                 if parameters:
                     data["parameters"] = parameters
                 if wait_for:
                     data["wait_for"] = wait_for
-                await factory.store_parameters(parameters_id, data)
+                await store.store_parameters(parameters_id, data)
 
             # collect task inputs
             task_inputs = {
@@ -817,14 +834,7 @@ class Task(Generic[P, R]):
         wait_for: Optional[Iterable[PrefectFuture]] = None,
         extra_task_inputs: Optional[Dict[str, Set[TaskRunInput]]] = None,
         deferred: bool = False,
-        task_run_name: Optional[str] = None,
     ) -> TaskRun:
-        if not PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
-            raise RuntimeError(
-                "Cannot call `Task.create_local_run` unless "
-                "PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION is True"
-            )
-
         from prefect.utilities.engine import (
             _dynamic_key_for_task_run,
             collect_task_run_inputs_sync,
@@ -842,12 +852,12 @@ class Task(Generic[P, R]):
         async with client:
             if not flow_run_context:
                 dynamic_key = f"{self.task_key}-{str(uuid4().hex)}"
-                task_run_name = task_run_name or self.name
+                task_run_name = self.name
             else:
                 dynamic_key = _dynamic_key_for_task_run(
-                    context=flow_run_context, task=self
+                    context=flow_run_context, task=self, stable=False
                 )
-                task_run_name = task_run_name or f"{self.name}-{dynamic_key}"
+                task_run_name = f"{self.name}-{dynamic_key[:3]}"
 
             if deferred:
                 state = Scheduled()
@@ -864,14 +874,16 @@ class Task(Generic[P, R]):
                 # TODO: Improve use of result storage for parameter storage / reference
                 self.persist_result = True
 
-                factory = await ResultFactory.from_autonomous_task(self, client=client)
+                store = await ResultStore(
+                    result_storage=await get_or_create_default_task_scheduling_storage()
+                ).update_for_task(task)
                 context = serialize_context()
                 data: Dict[str, Any] = {"context": context}
                 if parameters:
                     data["parameters"] = parameters
                 if wait_for:
                     data["wait_for"] = wait_for
-                await factory.store_parameters(parameters_id, data)
+                await store.store_parameters(parameters_id, data)
 
             # collect task inputs
             task_inputs = {
@@ -1038,7 +1050,6 @@ class Task(Generic[P, R]):
     ) -> State[T]:
         ...
 
-    @deprecated_async_method
     def submit(
         self,
         *args: Any,
@@ -1052,6 +1063,8 @@ class Task(Generic[P, R]):
         Will create a new task run in the backing API and submit the task to the flow's
         task runner. This call only blocks execution while the task is being submitted,
         once it is submitted, the flow function will continue executing.
+
+        This method is always synchronous, even if the underlying user function is asynchronous.
 
         Args:
             *args: Arguments to run the task with
@@ -1105,7 +1118,7 @@ class Task(Generic[P, R]):
             >>>
             >>> @flow
             >>> async def my_flow():
-            >>>     await my_async_task.submit()
+            >>>     my_async_task.submit()
 
             Run a sync task in an async flow
 
@@ -1163,52 +1176,73 @@ class Task(Generic[P, R]):
 
     @overload
     def map(
-        self: "Task[P, NoReturn]",
-        *args: P.args,
-        **kwargs: P.kwargs,
-    ) -> PrefectFutureList[PrefectFuture[NoReturn]]:
-        ...
-
-    @overload
-    def map(
-        self: "Task[P, Coroutine[Any, Any, T]]",
-        *args: P.args,
-        **kwargs: P.kwargs,
-    ) -> PrefectFutureList[PrefectFuture[T]]:
-        ...
-
-    @overload
-    def map(
-        self: "Task[P, T]",
-        *args: P.args,
-        **kwargs: P.kwargs,
-    ) -> PrefectFutureList[PrefectFuture[T]]:
-        ...
-
-    @overload
-    def map(
-        self: "Task[P, Coroutine[Any, Any, T]]",
-        *args: P.args,
+        self: "Task[P, R]",
+        *args: Any,
         return_state: Literal[True],
-        **kwargs: P.kwargs,
-    ) -> PrefectFutureList[State[T]]:
+        wait_for: Optional[Iterable[Union[PrefectFuture[T], T]]] = ...,
+        deferred: bool = ...,
+        **kwargs: Any,
+    ) -> List[State[R]]:
         ...
 
     @overload
     def map(
-        self: "Task[P, T]",
-        *args: P.args,
-        return_state: Literal[True],
-        **kwargs: P.kwargs,
-    ) -> PrefectFutureList[State[T]]:
+        self: "Task[P, R]",
+        *args: Any,
+        wait_for: Optional[Iterable[Union[PrefectFuture[T], T]]] = ...,
+        deferred: bool = ...,
+        **kwargs: Any,
+    ) -> PrefectFutureList[R]:
         ...
 
-    @deprecated_async_method
+    @overload
+    def map(
+        self: "Task[P, R]",
+        *args: Any,
+        return_state: Literal[True],
+        wait_for: Optional[Iterable[Union[PrefectFuture[T], T]]] = ...,
+        deferred: bool = ...,
+        **kwargs: Any,
+    ) -> List[State[R]]:
+        ...
+
+    @overload
+    def map(
+        self: "Task[P, R]",
+        *args: Any,
+        wait_for: Optional[Iterable[Union[PrefectFuture[T], T]]] = ...,
+        deferred: bool = ...,
+        **kwargs: Any,
+    ) -> PrefectFutureList[R]:
+        ...
+
+    @overload
+    def map(
+        self: "Task[P, Coroutine[Any, Any, R]]",
+        *args: Any,
+        return_state: Literal[True],
+        wait_for: Optional[Iterable[Union[PrefectFuture[T], T]]] = ...,
+        deferred: bool = ...,
+        **kwargs: Any,
+    ) -> List[State[R]]:
+        ...
+
+    @overload
+    def map(
+        self: "Task[P, Coroutine[Any, Any, R]]",
+        *args: Any,
+        return_state: Literal[False],
+        wait_for: Optional[Iterable[Union[PrefectFuture[T], T]]] = ...,
+        deferred: bool = ...,
+        **kwargs: Any,
+    ) -> PrefectFutureList[R]:
+        ...
+
     def map(
         self,
         *args: Any,
         return_state: bool = False,
-        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        wait_for: Optional[Iterable[Union[PrefectFuture[T], T]]] = None,
         deferred: bool = False,
         **kwargs: Any,
     ):
@@ -1228,6 +1262,8 @@ class Task(Generic[P, R]):
         call blocks if given a future as input while the future is resolved. It
         also blocks while the tasks are being submitted, once they are
         submitted, the flow function will continue executing.
+
+        This method is always synchronous, even if the underlying user function is asynchronous.
 
         Args:
             *args: Iterable and static arguments to run the tasks with
@@ -1455,6 +1491,15 @@ class Task(Generic[P, R]):
             )
         )  # type: ignore
 
+        from prefect.utilities.engine import emit_task_run_state_change_event
+
+        # emit a `SCHEDULED` event for the task run
+        emit_task_run_state_change_event(
+            task_run=task_run,
+            initial_state=None,
+            validated_state=task_run.state,
+        )
+
         if task_run_url := url_for(task_run):
             logger.info(
                 f"Created task run {task_run.name!r}. View it in the UI at {task_run_url!r}"
@@ -1542,7 +1587,9 @@ def task(
         Callable[["TaskRunContext", Dict[str, Any]], Optional[str]]
     ] = None,
     cache_expiration: Optional[datetime.timedelta] = None,
-    task_run_name: Optional[Union[Callable[[], str], str]] = None,
+    task_run_name: Optional[
+        Union[Callable[[], str], Callable[[Dict[str, Any]], str], str]
+    ] = None,
     retries: int = 0,
     retry_delay_seconds: Union[
         float,
@@ -1579,7 +1626,9 @@ def task(
         Callable[["TaskRunContext", Dict[str, Any]], Optional[str]], None
     ] = None,
     cache_expiration: Optional[datetime.timedelta] = None,
-    task_run_name: Optional[Union[Callable[[], str], str]] = None,
+    task_run_name: Optional[
+        Union[Callable[[], str], Callable[[Dict[str, Any]], str], str]
+    ] = None,
     retries: Optional[int] = None,
     retry_delay_seconds: Union[
         float, int, List[float], Callable[[int], List[float]], None

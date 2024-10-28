@@ -32,10 +32,8 @@ Example:
 
 import asyncio
 import datetime
-import inspect
 import logging
 import os
-import shlex
 import shutil
 import signal
 import subprocess
@@ -65,9 +63,17 @@ from prefect.client.schemas.filters import (
     FlowRunFilterStateName,
     FlowRunFilterStateType,
 )
+from prefect.client.schemas.objects import (
+    ConcurrencyLimitConfig,
+    FlowRun,
+    State,
+    StateType,
+)
 from prefect.client.schemas.objects import Flow as APIFlow
-from prefect.client.schemas.objects import FlowRun, State, StateType
-from prefect.client.schemas.schedules import SCHEDULE_TYPES
+from prefect.concurrency.asyncio import (
+    AcquireConcurrencySlotTimeoutError,
+    ConcurrencySlotAcquisitionError,
+)
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.events.related import tags_as_related_resources
 from prefect.events.schemas.events import RelatedResource
@@ -83,7 +89,11 @@ from prefect.settings import (
     PREFECT_RUNNER_SERVER_ENABLE,
     get_current_settings,
 )
-from prefect.states import Crashed, Pending, exception_to_failed_state
+from prefect.states import (
+    Crashed,
+    Pending,
+    exception_to_failed_state,
+)
 from prefect.types.entrypoint import EntrypointType
 from prefect.utilities.asyncutils import (
     asyncnullcontext,
@@ -91,8 +101,15 @@ from prefect.utilities.asyncutils import (
     sync_compatible,
 )
 from prefect.utilities.engine import propose_state
-from prefect.utilities.processutils import _register_signal, run_process
-from prefect.utilities.services import critical_service_loop
+from prefect.utilities.processutils import (
+    _register_signal,
+    get_sys_executable,
+    run_process,
+)
+from prefect.utilities.services import (
+    critical_service_loop,
+    start_client_metrics_server,
+)
 from prefect.utilities.slugify import slugify
 
 if TYPE_CHECKING:
@@ -221,8 +238,7 @@ class Runner:
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
-        schedule: Optional[SCHEDULE_TYPES] = None,
-        is_schedule_active: Optional[bool] = None,
+        concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
         parameters: Optional[dict] = None,
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
@@ -245,11 +261,10 @@ class Runner:
                 or a timedelta object. If a number is given, it will be interpreted as seconds.
             cron: A cron schedule of when to execute runs of this flow.
             rrule: An rrule schedule of when to execute runs of this flow.
-            schedule: A schedule object of when to execute runs of this flow. Used for
-                advanced scheduling options like timezone.
-            is_schedule_active: Whether or not to set the schedule for this deployment as active. If
-                not provided when creating a deployment, the schedule will be set as active. If not
-                provided when updating a deployment, the schedule's activation will not be changed.
+            paused: Whether or not to set the created deployment as paused.
+            schedules: A list of schedule objects defining when to execute runs of this flow.
+                Used to define multiple schedules or additional scheduling options like `timezone`.
+            concurrency_limit: The maximum number of concurrent runs of this flow to allow.
             triggers: A list of triggers that should kick of a run of this flow.
             parameters: A dictionary of default parameter values to pass to runs of this flow.
             description: A description for the created deployment. Defaults to the flow's
@@ -274,9 +289,7 @@ class Runner:
             cron=cron,
             rrule=rrule,
             schedules=schedules,
-            schedule=schedule,
             paused=paused,
-            is_schedule_active=is_schedule_active,
             triggers=triggers,
             parameters=parameters,
             description=description,
@@ -284,6 +297,7 @@ class Runner:
             version=version,
             enforce_parameter_schema=enforce_parameter_schema,
             entrypoint_type=entrypoint_type,
+            concurrency_limit=concurrency_limit,
         )
         return await self.add_deployment(deployment)
 
@@ -380,11 +394,15 @@ class Runner:
             )
             server_thread.start()
 
+        start_client_metrics_server()
+
         async with self as runner:
-            async with self._loops_task_group as tg:
+            # This task group isn't included in the exit stack because we want to
+            # stay in this function until the runner is told to stop
+            async with self._loops_task_group as loops_task_group:
                 for storage in self._storage_objs:
                     if storage.pull_interval:
-                        tg.start_soon(
+                        loops_task_group.start_soon(
                             partial(
                                 critical_service_loop,
                                 workload=storage.pull_code,
@@ -394,8 +412,8 @@ class Runner:
                             )
                         )
                     else:
-                        tg.start_soon(storage.pull_code)
-                tg.start_soon(
+                        loops_task_group.start_soon(storage.pull_code)
+                loops_task_group.start_soon(
                     partial(
                         critical_service_loop,
                         workload=runner._get_and_submit_flow_runs,
@@ -404,7 +422,7 @@ class Runner:
                         jitter_range=0.3,
                     )
                 )
-                tg.start_soon(
+                loops_task_group.start_soon(
                     partial(
                         critical_service_loop,
                         workload=runner._check_for_cancelled_flow_runs,
@@ -532,7 +550,7 @@ class Runner:
             task_status: anyio task status used to send a message to the caller
                 than the flow run process has started.
         """
-        command = f"{shlex.quote(sys.executable)} -m prefect.engine"
+        command = [get_sys_executable(), "-m", "prefect.engine"]
 
         flow_run_logger = self._get_flow_run_logger(flow_run)
 
@@ -579,7 +597,7 @@ class Runner:
                 setattr(storage, "last_adhoc_pull", datetime.datetime.now())
 
         process = await run_process(
-            shlex.split(command),
+            command=command,
             stream_output=True,
             task_status=task_status,
             env=env,
@@ -961,6 +979,7 @@ class Runner:
         """
         submittable_flow_runs = flow_run_response
         submittable_flow_runs.sort(key=lambda run: run.next_scheduled_start_time)
+
         for i, flow_run in enumerate(submittable_flow_runs):
             if flow_run.id in self._submitting_flow_run_ids:
                 continue
@@ -1033,6 +1052,22 @@ class Runner:
                 task_status=task_status,
                 entrypoint=entrypoint,
             )
+        except (
+            AcquireConcurrencySlotTimeoutError,
+            ConcurrencySlotAcquisitionError,
+        ) as exc:
+            self._logger.info(
+                (
+                    "Deployment %s reached its concurrency limit when attempting to execute flow run %s. Will attempt to execute later."
+                ),
+                flow_run.deployment_id,
+                flow_run.name,
+            )
+            await self._propose_scheduled_state(flow_run)
+
+            if not task_status._future.done():
+                task_status.started(exc)
+            return exc
         except Exception as exc:
             if not task_status._future.done():
                 # This flow run was being submitted and did not start successfully
@@ -1177,7 +1212,7 @@ class Runner:
                 task_status.started()
 
             result = fn(*args, **kwargs)
-            if inspect.iscoroutine(result):
+            if asyncio.iscoroutine(result):
                 await result
 
         await self._runs_task_group.start(wrapper)
@@ -1230,14 +1265,14 @@ class Runner:
         if not hasattr(self, "_loop") or not self._loop:
             self._loop = asyncio.get_event_loop()
 
+        await self._client.__aenter__()
+
         if not hasattr(self, "_runs_task_group") or not self._runs_task_group:
             self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
+        await self._runs_task_group.__aenter__()
 
         if not hasattr(self, "_loops_task_group") or not self._loops_task_group:
             self._loops_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
-
-        await self._client.__aenter__()
-        await self._runs_task_group.__aenter__()
 
         self.started = True
         return self
@@ -1247,13 +1282,18 @@ class Runner:
         if self.pause_on_shutdown:
             await self._pause_schedules()
         self.started = False
+
         for scope in self._scheduled_task_scopes:
             scope.cancel()
+
         if self._runs_task_group:
             await self._runs_task_group.__aexit__(*exc_info)
+
         if self._client:
             await self._client.__aexit__(*exc_info)
+
         shutil.rmtree(str(self._tmp_dir))
+        del self._runs_task_group, self._loops_task_group
 
     def __repr__(self):
         return f"Runner(name={self.name!r})"

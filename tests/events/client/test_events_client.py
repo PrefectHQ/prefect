@@ -1,20 +1,21 @@
+import logging
 from typing import Type
 from unittest import mock
 
 import pytest
 from websockets.exceptions import ConnectionClosed
 
-from prefect.client.base import PrefectHttpxAsyncClient
 from prefect.events import Event, get_events_client
 from prefect.events.clients import (
     PrefectCloudEventsClient,
-    PrefectEphemeralEventsClient,
     PrefectEventsClient,
+    get_events_subscriber,
 )
 from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
+    PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
     temporary_settings,
 )
 from prefect.testing.fixtures import Puppeteer, Recorder
@@ -27,13 +28,27 @@ def ephemeral_settings():
             PREFECT_API_URL: None,
             PREFECT_API_KEY: None,
             PREFECT_CLOUD_API_URL: "https://cloudy/api",
+            PREFECT_SERVER_ALLOW_EPHEMERAL_MODE: True,
         }
     ):
         yield
 
 
-async def test_constructs_ephemeral_client(ephemeral_settings):
-    assert isinstance(get_events_client(), PrefectEphemeralEventsClient)
+async def test_constructs_client_when_ephemeral_enabled(ephemeral_settings):
+    assert isinstance(get_events_client(), PrefectEventsClient)
+
+
+def test_errors_when_missing_api_url_and_ephemeral_disabled():
+    with temporary_settings(
+        {
+            PREFECT_API_URL: None,
+            PREFECT_API_KEY: None,
+            PREFECT_CLOUD_API_URL: "https://cloudy/api",
+            PREFECT_SERVER_ALLOW_EPHEMERAL_MODE: False,
+        }
+    ):
+        with pytest.raises(ValueError, match="PREFECT_API_URL"):
+            get_events_client()
 
 
 @pytest.fixture
@@ -68,30 +83,19 @@ async def test_constructs_cloud_client(cloud_settings):
     assert isinstance(get_events_client(), PrefectCloudEventsClient)
 
 
-async def test_ephemeral_events_client_can_emit(
+async def test_events_client_can_emit_when_ephemeral_enabled(
     example_event_1: Event, monkeypatch: pytest.MonkeyPatch, ephemeral_settings
 ):
-    mock_http_client = mock.MagicMock(
-        spec=PrefectHttpxAsyncClient, name="PrefectHttpxAsyncClient"
-    )
-    mock_http_client.return_value.__aenter__ = mock.AsyncMock(
-        return_value=mock_http_client
-    )
-    mock_http_client.return_value.post = mock.AsyncMock()
-    monkeypatch.setattr(
-        "prefect.events.clients.PrefectHttpxAsyncClient", mock_http_client
-    )
-
     assert not PREFECT_API_URL.value()
     assert not PREFECT_API_KEY.value()
 
-    async with PrefectEphemeralEventsClient() as client:
-        await client.emit(example_event_1)
+    async with get_events_subscriber() as events_subscriber:
+        async with get_events_client() as events_client:
+            await events_client.emit(example_event_1)
 
-    mock_http_client().post.assert_called_once_with(
-        "/events",
-        json=[example_event_1.model_dump(mode="json")],
-    )
+            async for event in events_subscriber:
+                assert event == example_event_1
+                break
 
 
 def pytest_generate_tests(metafunc: pytest.Metafunc):
@@ -339,3 +343,29 @@ async def test_recovers_from_long_lasting_error_reconnecting(
         # event 2 never made it because we cause that error during reconnection
         # event 3 never made it because we told the server to refuse future connects
     ]
+
+
+async def test_events_client_warn_if_connect_fails(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+):
+    class MockConnect:
+        async def __aenter__(self):
+            raise Exception("Connection failed")
+
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+
+    def mock_connect(*args, **kwargs):
+        return MockConnect()
+
+    monkeypatch.setattr("prefect.events.clients.connect", mock_connect)
+
+    with caplog.at_level(logging.WARNING):
+        with pytest.raises(Exception, match="Connection failed"):
+            async with PrefectEventsClient("ws://localhost"):
+                pass
+
+    assert any(
+        "Unable to connect to 'ws" in record.message for record in caplog.records
+    )

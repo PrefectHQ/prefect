@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import socket
@@ -16,12 +17,17 @@ from websockets.exceptions import ConnectionClosed
 from websockets.legacy.server import WebSocketServer, WebSocketServerProtocol, serve
 
 from prefect.events import Event
-from prefect.events.clients import AssertingEventsClient
+from prefect.events.clients import (
+    AssertingEventsClient,
+    AssertingPassthroughEventsClient,
+)
 from prefect.events.filters import EventFilter
 from prefect.events.worker import EventsWorker
+from prefect.server.api.server import SubprocessASGIServer
 from prefect.server.events.pipeline import EventsPipeline
 from prefect.settings import (
     PREFECT_API_URL,
+    PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
     PREFECT_SERVER_CSRF_PROTECTION_ENABLED,
     get_current_settings,
     temporary_settings,
@@ -61,8 +67,10 @@ async def hosted_api_server(unused_tcp_port_factory):
         The API URL
     """
     port = unused_tcp_port_factory()
+    print(f"Running hosted API server on port {port}")
 
     # Will connect to the same database as normal test clients
+    settings = get_current_settings().to_environment_variables(exclude_unset=True)
     async with open_process(
         command=[
             "uvicorn",
@@ -79,7 +87,7 @@ async def hosted_api_server(unused_tcp_port_factory):
         stderr=sys.stderr,
         env={
             **os.environ,
-            **get_current_settings().to_environment_variables(exclude_unset=True),
+            **settings,
         },
     ) as process:
         api_url = f"http://localhost:{port}/api"
@@ -124,7 +132,7 @@ async def hosted_api_server(unused_tcp_port_factory):
             pass
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def use_hosted_api_server(hosted_api_server):
     """
     Sets `PREFECT_API_URL` to the test session's hosted API endpoint.
@@ -136,6 +144,34 @@ def use_hosted_api_server(hosted_api_server):
         }
     ):
         yield hosted_api_server
+
+
+@pytest.fixture
+def disable_hosted_api_server():
+    """
+    Disables the hosted API server by setting `PREFECT_API_URL` to `None`.
+    """
+    with temporary_settings(
+        {
+            PREFECT_API_URL: None,
+        }
+    ):
+        yield hosted_api_server
+
+
+@pytest.fixture
+def enable_ephemeral_server(disable_hosted_api_server):
+    """
+    Enables the ephemeral server by setting `PREFECT_SERVER_ALLOW_EPHEMERAL_MODE` to `True`.
+    """
+    with temporary_settings(
+        {
+            PREFECT_SERVER_ALLOW_EPHEMERAL_MODE: True,
+        }
+    ):
+        yield hosted_api_server
+
+    SubprocessASGIServer().stop()
 
 
 @pytest.fixture
@@ -255,7 +291,8 @@ async def events_server(
 ) -> AsyncGenerator[WebSocketServer, None]:
     server: WebSocketServer
 
-    async def handler(socket: WebSocketServerProtocol, path: str) -> None:
+    async def handler(socket: WebSocketServerProtocol) -> None:
+        path = socket.path
         recorder.connections += 1
         if puppeteer.refuse_any_further_connections:
             raise ValueError("nope")
@@ -349,16 +386,65 @@ def asserting_events_worker(monkeypatch) -> Generator[EventsWorker, None, None]:
 
 
 @pytest.fixture
+def asserting_and_emitting_events_worker(
+    monkeypatch,
+) -> Generator[EventsWorker, None, None]:
+    worker = EventsWorker.instance(AssertingPassthroughEventsClient)
+    # Always yield the asserting worker when new instances are retrieved
+    monkeypatch.setattr(EventsWorker, "instance", lambda *_: worker)
+    try:
+        yield worker
+    finally:
+        worker.drain()
+
+
+@pytest.fixture
 async def events_pipeline(asserting_events_worker: EventsWorker):
     class AssertingEventsPipeline(EventsPipeline):
         @sync_compatible
-        async def process_events(self):
-            asserting_events_worker.wait_until_empty()
-            events = asserting_events_worker._client.pop_events()
+        async def process_events(
+            self,
+            dequeue_events: bool = True,
+            min_events: int = 0,
+            timeout: int = 10,
+        ):
+            async def wait_for_min_events():
+                while len(asserting_events_worker._client.events) < min_events:
+                    await asyncio.sleep(0.1)
+
+            if min_events:
+                try:
+                    await asyncio.wait_for(wait_for_min_events(), timeout=timeout)
+                except TimeoutError:
+                    raise TimeoutError(
+                        f"Timed out waiting for {min_events} events after {timeout} seconds. Only observed {len(asserting_events_worker._client.events)} events."
+                    )
+            else:
+                asserting_events_worker.wait_until_empty()
+
+            if dequeue_events:
+                events = asserting_events_worker._client.pop_events()
+            else:
+                events = asserting_events_worker._client.events
+
             messages = self.events_to_messages(events)
             await self.process_messages(messages)
 
     yield AssertingEventsPipeline()
+
+
+@pytest.fixture
+async def emitting_events_pipeline(asserting_and_emitting_events_worker: EventsWorker):
+    class AssertingAndEmittingEventsPipeline(EventsPipeline):
+        @sync_compatible
+        async def process_events(self):
+            asserting_and_emitting_events_worker.wait_until_empty()
+            events = asserting_and_emitting_events_worker._client.pop_events()
+
+            messages = self.events_to_messages(events)
+            await self.process_messages(messages)
+
+    yield AssertingAndEmittingEventsPipeline()
 
 
 @pytest.fixture

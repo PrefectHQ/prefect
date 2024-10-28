@@ -1,3 +1,0 @@
-# prefect.workers
-
-::: prefect.workers

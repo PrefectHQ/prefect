@@ -18,13 +18,20 @@ from prefect.exceptions import (
     CancelledRun,
     CrashedRun,
     FailedRun,
+    MissingContextError,
     MissingResult,
     PausedRun,
     TerminationSignal,
     UnfinishedRun,
 )
-from prefect.logging.loggers import get_logger
-from prefect.results import BaseResult, R, ResultFactory
+from prefect.logging.loggers import get_logger, get_run_logger
+from prefect.results import (
+    BaseResult,
+    R,
+    ResultRecord,
+    ResultRecordMetadata,
+    ResultStore,
+)
 from prefect.settings import PREFECT_ASYNC_FETCH_STATE_RESULT
 from prefect.utilities.annotations import BaseAnnotation
 from prefect.utilities.asyncutils import in_async_main_thread, sync_compatible
@@ -91,7 +98,11 @@ async def _get_state_result_data_with_retries(
 
     for i in range(1, max_attempts + 1):
         try:
-            return await state.data.get()
+            if isinstance(state.data, ResultRecordMetadata):
+                record = await ResultRecord._from_metadata(state.data)
+                return record.result
+            else:
+                return await state.data.get()
         except Exception as e:
             if i == max_attempts:
                 raise
@@ -126,10 +137,12 @@ async def _get_state_result(
     ):
         raise await get_state_exception(state)
 
-    if isinstance(state.data, BaseResult):
+    if isinstance(state.data, (BaseResult, ResultRecordMetadata)):
         result = await _get_state_result_data_with_retries(
             state, retry_result_failure=retry_result_failure
         )
+    elif isinstance(state.data, ResultRecord):
+        result = state.data.result
 
     elif state.data is None:
         if state.is_failed() or state.is_crashed() or state.is_cancelled():
@@ -166,7 +179,7 @@ def format_exception(exc: BaseException, tb: TracebackType = None) -> str:
 
 async def exception_to_crashed_state(
     exc: BaseException,
-    result_factory: Optional[ResultFactory] = None,
+    result_store: Optional[ResultStore] = None,
 ) -> State:
     """
     Takes an exception that occurs _outside_ of user code and converts it to a
@@ -205,8 +218,8 @@ async def exception_to_crashed_state(
             f" {format_exception(exc)}"
         )
 
-    if result_factory:
-        data = await result_factory.create_result(exc)
+    if result_store:
+        data = result_store.create_result_record(exc)
     else:
         # Attach the exception for local usage, will not be available when retrieved
         # from the API
@@ -217,12 +230,18 @@ async def exception_to_crashed_state(
 
 async def exception_to_failed_state(
     exc: Optional[BaseException] = None,
-    result_factory: Optional[ResultFactory] = None,
+    result_store: Optional[ResultStore] = None,
+    write_result: bool = False,
     **kwargs,
 ) -> State:
     """
     Convenience function for creating `Failed` states from exceptions
     """
+    try:
+        local_logger = get_run_logger()
+    except MissingContextError:
+        local_logger = logger
+
     if not exc:
         _, exc, _ = sys.exc_info()
         if exc is None:
@@ -232,8 +251,16 @@ async def exception_to_failed_state(
     else:
         pass
 
-    if result_factory:
-        data = await result_factory.create_result(exc)
+    if result_store:
+        data = result_store.create_result_record(exc)
+        if write_result:
+            try:
+                await result_store.apersist_result_record(data)
+            except Exception as exc:
+                local_logger.warning(
+                    "Failed to write result: %s Execution will continue, but the result has not been written",
+                    exc,
+                )
     else:
         # Attach the exception for local usage, will not be available when retrieved
         # from the API
@@ -255,10 +282,10 @@ async def exception_to_failed_state(
 
 async def return_value_to_state(
     retval: R,
-    result_factory: ResultFactory,
+    result_store: ResultStore,
     key: Optional[str] = None,
     expiration: Optional[datetime.datetime] = None,
-    defer_persistence: bool = False,
+    write_result: bool = False,
 ) -> State[R]:
     """
     Given a return value from a user's function, create a `State` the run should
@@ -280,6 +307,10 @@ async def return_value_to_state(
     Callers should resolve all futures into states before passing return values to this
     function.
     """
+    try:
+        local_logger = get_run_logger()
+    except MissingContextError:
+        local_logger = logger
 
     if (
         isinstance(retval, State)
@@ -288,16 +319,23 @@ async def return_value_to_state(
         and not retval.state_details.task_run_id
     ):
         state = retval
-        # Unless the user has already constructed a result explicitly, use the factory
+        # Unless the user has already constructed a result explicitly, use the store
         # to update the data to the correct type
-        if not isinstance(state.data, BaseResult):
-            state.data = await result_factory.create_result(
+        if not isinstance(state.data, (BaseResult, ResultRecord, ResultRecordMetadata)):
+            result_record = result_store.create_result_record(
                 state.data,
                 key=key,
                 expiration=expiration,
-                defer_persistence=defer_persistence,
             )
-
+            if write_result:
+                try:
+                    await result_store.apersist_result_record(result_record)
+                except Exception as exc:
+                    local_logger.warning(
+                        "Encountered an error while persisting result: %s Execution will continue, but the result has not been persisted",
+                        exc,
+                    )
+            state.data = result_record
         return state
 
     # Determine a new state from the aggregate of contained states
@@ -333,15 +371,23 @@ async def return_value_to_state(
         # TODO: We may actually want to set the data to a `StateGroup` object and just
         #       allow it to be unpacked into a tuple and such so users can interact with
         #       it
+        result_record = result_store.create_result_record(
+            retval,
+            key=key,
+            expiration=expiration,
+        )
+        if write_result:
+            try:
+                await result_store.apersist_result_record(result_record)
+            except Exception as exc:
+                local_logger.warning(
+                    "Encountered an error while persisting result: %s Execution will continue, but the result has not been persisted",
+                    exc,
+                )
         return State(
             type=new_state_type,
             message=message,
-            data=await result_factory.create_result(
-                retval,
-                key=key,
-                expiration=expiration,
-                defer_persistence=defer_persistence,
-            ),
+            data=result_record,
         )
 
     # Generators aren't portable, implicitly convert them to a list.
@@ -351,17 +397,23 @@ async def return_value_to_state(
         data = retval
 
     # Otherwise, they just gave data and this is a completed retval
-    if isinstance(data, BaseResult):
+    if isinstance(data, (BaseResult, ResultRecord)):
         return Completed(data=data)
     else:
-        return Completed(
-            data=await result_factory.create_result(
-                data,
-                key=key,
-                expiration=expiration,
-                defer_persistence=defer_persistence,
-            )
+        result_record = result_store.create_result_record(
+            data,
+            key=key,
+            expiration=expiration,
         )
+        if write_result:
+            try:
+                await result_store.apersist_result_record(result_record)
+            except Exception as exc:
+                local_logger.warning(
+                    "Encountered an error while persisting result: %s Execution will continue, but the result has not been persisted",
+                    exc,
+                )
+        return Completed(data=result_record)
 
 
 @sync_compatible
@@ -402,6 +454,11 @@ async def get_state_exception(state: State) -> BaseException:
 
     if isinstance(state.data, BaseResult):
         result = await _get_state_result_data_with_retries(state)
+    elif isinstance(state.data, ResultRecord):
+        result = state.data.result
+    elif isinstance(state.data, ResultRecordMetadata):
+        record = await ResultRecord._from_metadata(state.data)
+        result = record.result
     elif state.data is None:
         result = None
     else:
@@ -681,6 +738,21 @@ def AwaitingRetry(
     """
     return Scheduled(
         cls=cls, scheduled_time=scheduled_time, name="AwaitingRetry", **kwargs
+    )
+
+
+def AwaitingConcurrencySlot(
+    cls: Type[State[R]] = State,
+    scheduled_time: Optional[datetime.datetime] = None,
+    **kwargs: Any,
+) -> State[R]:
+    """Convenience function for creating `AwaitingConcurrencySlot` states.
+
+    Returns:
+        State: a AwaitingConcurrencySlot state
+    """
+    return Scheduled(
+        cls=cls, scheduled_time=scheduled_time, name="AwaitingConcurrencySlot", **kwargs
     )
 
 

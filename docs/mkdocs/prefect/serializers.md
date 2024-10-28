@@ -1,3 +1,0 @@
-# prefect.serializers
-
-::: prefect.serializers

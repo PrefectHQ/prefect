@@ -9,10 +9,8 @@ For more user-accessible information about the current run, see [`prefect.runtim
 import os
 import sys
 import warnings
-import weakref
 from contextlib import ExitStack, asynccontextmanager, contextmanager
 from contextvars import ContextVar, Token
-from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -40,11 +38,12 @@ from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_c
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.events.worker import EventsWorker
 from prefect.exceptions import MissingContextError
-from prefect.results import ResultFactory
-from prefect.settings import PREFECT_HOME, Profile, Settings
+from prefect.results import ResultStore, get_default_persist_setting
+from prefect.settings import Profile, Settings
+from prefect.settings.legacy import _get_settings_fields
 from prefect.states import State
 from prefect.task_runners import TaskRunner
-from prefect.utilities.asyncutils import run_coro_as_sync
+from prefect.utilities.services import start_client_metrics_server
 
 T = TypeVar("T")
 
@@ -90,23 +89,19 @@ def hydrated_context(
             client = client or get_client(sync_client=True)
             if flow_run_context := serialized_context.get("flow_run_context"):
                 flow = flow_run_context["flow"]
+                task_runner = stack.enter_context(flow.task_runner.duplicate())
                 flow_run_context = FlowRunContext(
                     **flow_run_context,
                     client=client,
-                    result_factory=run_coro_as_sync(ResultFactory.from_flow(flow)),
-                    task_runner=flow.task_runner.duplicate(),
+                    task_runner=task_runner,
                     detached=True,
                 )
                 stack.enter_context(flow_run_context)
             # Set up parent task run context
             if parent_task_run_context := serialized_context.get("task_run_context"):
-                parent_task = parent_task_run_context["task"]
                 task_run_context = TaskRunContext(
                     **parent_task_run_context,
                     client=client,
-                    result_factory=run_coro_as_sync(
-                        ResultFactory.from_autonomous_task(parent_task)
-                    ),
                 )
                 stack.enter_context(task_run_context)
             # Set up tags context
@@ -129,7 +124,7 @@ class ContextModel(BaseModel):
         extra="forbid",
     )
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         if self._token is not None:
             raise RuntimeError(
                 "Context already entered. Context enter calls cannot be nested."
@@ -171,11 +166,13 @@ class ContextModel(BaseModel):
         new._token = None
         return new
 
-    def serialize(self) -> Dict[str, Any]:
+    def serialize(self, include_secrets: bool = True) -> Dict[str, Any]:
         """
         Serialize the context model to a dictionary that can be pickled with cloudpickle.
         """
-        return self.model_dump(exclude_unset=True)
+        return self.model_dump(
+            exclude_unset=True, context={"include_secrets": include_secrets}
+        )
 
 
 class SyncClientContext(ContextModel):
@@ -214,6 +211,7 @@ class SyncClientContext(ContextModel):
         self._context_stack += 1
         if self._context_stack == 1:
             self.client.__enter__()
+            self.client.raise_for_api_version_mismatch()
             return super().__enter__()
         else:
             return self
@@ -271,6 +269,7 @@ class AsyncClientContext(ContextModel):
         self._context_stack += 1
         if self._context_stack == 1:
             await self.client.__aenter__()
+            await self.client.raise_for_api_version_mismatch()
             return super().__enter__()
         else:
             return self
@@ -288,7 +287,7 @@ class AsyncClientContext(ContextModel):
         if ctx:
             yield ctx
         else:
-            with cls() as ctx:
+            async with cls() as ctx:
                 yield ctx
 
 
@@ -301,6 +300,11 @@ class RunContext(ContextModel):
         start_time: The time the run context was entered
         client: The Prefect client instance being used for API communication
     """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        start_client_metrics_server()
 
     start_time: DateTime = Field(default_factory=lambda: pendulum.now("UTC"))
     input_keyset: Optional[Dict[str, Dict[str, str]]] = None
@@ -339,7 +343,8 @@ class EngineContext(RunContext):
     detached: bool = False
 
     # Result handling
-    result_factory: ResultFactory
+    result_store: ResultStore
+    persist_result: bool = Field(default_factory=get_default_persist_setting)
 
     # Counter for task calls allowing unique
     task_run_dynamic_keys: Dict[str, int] = Field(default_factory=dict)
@@ -349,12 +354,9 @@ class EngineContext(RunContext):
 
     # Tracking for result from task runs in this flow run for dependency tracking
     # Holds the ID of the object returned by the task run and task run state
-    # This is a weakref dictionary to avoid undermining garbage collection
-    task_run_results: Mapping[int, State] = Field(
-        default_factory=weakref.WeakValueDictionary
-    )
+    task_run_results: Mapping[int, State] = Field(default_factory=dict)
 
-    # Events worker to emit events to Prefect Cloud
+    # Events worker to emit events
     events: Optional[EventsWorker] = None
 
     __var__: ContextVar = ContextVar("flow_run")
@@ -368,6 +370,8 @@ class EngineContext(RunContext):
                 "log_prints",
                 "start_time",
                 "input_keyset",
+                "result_store",
+                "persist_result",
             },
             exclude_unset=True,
         )
@@ -392,7 +396,8 @@ class TaskRunContext(RunContext):
     parameters: Dict[str, Any]
 
     # Result handling
-    result_factory: ResultFactory
+    result_store: ResultStore
+    persist_result: bool = Field(default_factory=get_default_persist_setting)
 
     __var__ = ContextVar("task_run")
 
@@ -405,6 +410,8 @@ class TaskRunContext(RunContext):
                 "log_prints",
                 "start_time",
                 "input_keyset",
+                "result_store",
+                "persist_result",
             },
             exclude_unset=True,
         )
@@ -425,7 +432,7 @@ class TagsContext(ContextModel):
         # Return an empty `TagsContext` instead of `None` if no context exists
         return cls.__var__.get(TagsContext())
 
-    __var__ = ContextVar("tags")
+    __var__: ContextVar = ContextVar("tags")
 
 
 class SettingsContext(ContextModel):
@@ -442,30 +449,10 @@ class SettingsContext(ContextModel):
     profile: Profile
     settings: Settings
 
-    __var__ = ContextVar("settings")
+    __var__: ContextVar = ContextVar("settings")
 
     def __hash__(self) -> int:
         return hash(self.settings)
-
-    def __enter__(self):
-        """
-        Upon entrance, we ensure the home directory for the profile exists.
-        """
-        return_value = super().__enter__()
-
-        try:
-            prefect_home = Path(self.settings.value_of(PREFECT_HOME))
-            prefect_home.mkdir(mode=0o0700, exist_ok=True)
-        except OSError:
-            warnings.warn(
-                (
-                    "Failed to create the Prefect home directory at "
-                    f"{self.settings.value_of(PREFECT_HOME)}"
-                ),
-                stacklevel=2,
-            )
-
-        return return_value
 
     @classmethod
     def get(cls) -> "SettingsContext":
@@ -564,9 +551,9 @@ def tags(*new_tags: str) -> Generator[Set[str], None, None]:
         {"a", "b", "c", "d", "e", "f"}
     """
     current_tags = TagsContext.get().current_tags
-    new_tags = current_tags.union(new_tags)
-    with TagsContext(current_tags=new_tags):
-        yield new_tags
+    _new_tags = current_tags.union(new_tags)
+    with TagsContext(current_tags=_new_tags):
+        yield _new_tags
 
 
 @contextmanager
@@ -604,17 +591,16 @@ def use_profile(
 
     # Create a copy of the profiles settings as we will mutate it
     profile_settings = profile.settings.copy()
-
     existing_context = SettingsContext.get()
     if existing_context and include_current_context:
         settings = existing_context.settings
     else:
-        settings = prefect.settings.get_settings_from_env()
+        settings = Settings()
 
     if not override_environment_variables:
         for key in os.environ:
-            if key in prefect.settings.SETTING_VARIABLES:
-                profile_settings.pop(prefect.settings.SETTING_VARIABLES[key], None)
+            if key in _get_settings_fields(Settings):
+                profile_settings.pop(_get_settings_fields(Settings)[key], None)
 
     new_settings = settings.copy_with_update(updates=profile_settings)
 
@@ -655,14 +641,18 @@ def root_settings_context():
             ),
             file=sys.stderr,
         )
-        active_name = "default"
+        active_name = "ephemeral"
 
-    with use_profile(
-        profiles[active_name],
-        # Override environment variables if the profile was set by the CLI
-        override_environment_variables=profile_source == "by command line argument",
-    ) as settings_context:
-        return settings_context
+    if not (settings := Settings()).home.exists():
+        try:
+            settings.home.mkdir(mode=0o0700, exist_ok=True)
+        except OSError:
+            warnings.warn(
+                (f"Failed to create the Prefect home directory at {settings.home}"),
+                stacklevel=2,
+            )
+
+    return SettingsContext(profile=profiles[active_name], settings=settings)
 
     # Note the above context is exited and the global settings context is used by
     # an override in the `SettingsContext.get` method.

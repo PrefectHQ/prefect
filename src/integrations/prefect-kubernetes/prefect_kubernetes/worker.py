@@ -113,8 +113,10 @@ from typing import (
     Any,
     AsyncGenerator,
     Dict,
+    List,
     Optional,
     Tuple,
+    Union,
 )
 
 import aiohttp
@@ -124,7 +126,6 @@ from kubernetes_asyncio import config
 from kubernetes_asyncio.client import (
     ApiClient,
     BatchV1Api,
-    Configuration,
     CoreV1Api,
     V1Job,
     V1Pod,
@@ -136,12 +137,12 @@ from kubernetes_asyncio.client.models import (
     V1ObjectMeta,
     V1Secret,
 )
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 from tenacity import retry, stop_after_attempt, wait_fixed, wait_random
 from typing_extensions import Literal, Self
 
 import prefect
-from prefect.client.schemas import FlowRun
+from prefect.client.schemas.objects import FlowRun
 from prefect.exceptions import (
     InfrastructureError,
 )
@@ -160,6 +161,7 @@ from prefect.workers.base import (
 from prefect_kubernetes.credentials import KubernetesClusterConfig
 from prefect_kubernetes.events import KubernetesEventsReplicator
 from prefect_kubernetes.utilities import (
+    KeepAliveClientRequest,
     _slugify_label_key,
     _slugify_label_value,
     _slugify_name,
@@ -270,6 +272,10 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
     pod_watch_timeout_seconds: int = Field(default=60)
     stream_output: bool = Field(default=True)
 
+    env: Union[Dict[str, Optional[str]], List[Dict[str, Any]]] = Field(
+        default_factory=dict
+    )
+
     # internal-use only
     _api_dns_name: Optional[str] = None  # Replaces 'localhost' in API URL
 
@@ -316,6 +322,13 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
             )
 
         return self
+
+    @field_validator("env", mode="before")
+    @classmethod
+    def _coerce_env(cls, v):
+        if isinstance(v, list):
+            return v
+        return {k: str(v) if v is not None else None for k, v in v.items()}
 
     @staticmethod
     def _base_flow_run_labels(flow_run: "FlowRun") -> Dict[str, str]:
@@ -641,23 +654,24 @@ class KubernetesWorker(BaseWorker):
         if configuration.cluster_config:
             config_dict = configuration.cluster_config.config
             context = configuration.cluster_config.context_name
-
-            # Use Configuration to load configuration from a dictionary
-            client_configuration = Configuration()
-            await config.load_kube_config(
+            client = await config.new_client_from_config_dict(
                 config_dict=config_dict,
                 context=context,
-                client_configuration=client_configuration,
             )
-            client = ApiClient(configuration=client_configuration)
         else:
             # Try to load in-cluster configuration
             try:
-                await config.load_incluster_config()
+                config.load_incluster_config()
                 client = ApiClient()
             except config.ConfigException:
                 # If in-cluster config fails, load the local kubeconfig
                 client = await config.new_client_from_config()
+
+        if os.environ.get(
+            "PREFECT_KUBERNETES_WORKER_ADD_TCP_KEEPALIVE", "TRUE"
+        ).strip().lower() in ("true", "1"):
+            client.rest_client.pool_manager._request_class = KeepAliveClientRequest
+
         try:
             yield client
         finally:
@@ -893,6 +907,7 @@ class KubernetesWorker(BaseWorker):
                         func=batch_client.list_namespaced_job,
                         namespace=namespace,
                         field_selector=f"metadata.name={job_name}",
+                        _request_timeout=aiohttp.ClientTimeout(),
                         **watch_kwargs,
                     ):
                         yield event
@@ -901,6 +916,7 @@ class KubernetesWorker(BaseWorker):
                         job_list = await batch_client.list_namespaced_job(
                             namespace=namespace,
                             field_selector=f"metadata.name={job_name}",
+                            _request_timeout=aiohttp.ClientTimeout(),
                         )
 
                         resource_version = job_list.metadata.resource_version
@@ -1034,6 +1050,20 @@ class KubernetesWorker(BaseWorker):
         if not first_container_status:
             logger.error(f"Job {job_name!r}: No pods found for job.")
             return -1
+
+        # In some cases, the pod will still be running at this point.
+        # We can assume that the job is still running and return 0 to prevent marking the flow run as crashed
+        elif first_container_status.state and (
+            first_container_status.state.running is not None
+            or first_container_status.state.waiting is not None
+        ):
+            logger.warning(
+                f"The worker's watch for job {job_name!r} has exited early. Check the logs for more information."
+                " The job is still running, but the worker will not wait for it to complete."
+            )
+            # Return 0 to prevent marking the flow run as crashed
+            return 0
+
         # In some cases, such as spot instance evictions, the pod will be forcibly
         # terminated and not report a status correctly.
         elif (
@@ -1090,6 +1120,7 @@ class KubernetesWorker(BaseWorker):
                 namespace=configuration.namespace,
                 label_selector=f"job-name={job_name}",
                 timeout_seconds=configuration.pod_watch_timeout_seconds,
+                _request_timeout=aiohttp.ClientTimeout(),
             ):
                 pod: V1Pod = event["object"]
                 last_pod_name = pod.metadata.name

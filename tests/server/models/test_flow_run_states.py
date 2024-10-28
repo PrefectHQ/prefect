@@ -83,6 +83,7 @@ class TestSetFlowRunState:
                 )
 
         class TestPolicy1(BaseOrchestrationPolicy):
+            @staticmethod
             def priority():
                 return [
                     TestRule1,
@@ -90,6 +91,7 @@ class TestSetFlowRunState:
                 ]
 
         class TestPolicy2(BaseOrchestrationPolicy):
+            @staticmethod
             def priority():
                 return [
                     TestRule2,
@@ -217,6 +219,7 @@ class TestCreateFlowRunState:
 
     async def test_no_orchestration_with_injected_empty_policy(self, flow_run, session):
         class EmptyPolicy(BaseOrchestrationPolicy):
+            @staticmethod
             def priority():
                 return []
 
@@ -253,6 +256,7 @@ class TestCreateFlowRunState:
                     await self.abort_transition("wow, aborting this transition")
 
         class AbortingPolicy(BaseOrchestrationPolicy):
+            @staticmethod
             def priority():
                 return [AbortingRule]
 

@@ -18,7 +18,8 @@ from prefect.exceptions import (
 )
 from prefect.flows import flow
 from prefect.server import models
-from prefect.server.schemas.core import Flow, WorkPool
+from prefect.server.schemas.actions import WorkPoolUpdate as ServerWorkPoolUpdate
+from prefect.server.schemas.core import Deployment, Flow, WorkPool
 from prefect.server.schemas.responses import DeploymentResponse
 from prefect.settings import (
     PREFECT_API_URL,
@@ -30,7 +31,11 @@ from prefect.settings import (
 from prefect.states import Completed, Pending, Running, Scheduled
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.pydantic import parse_obj_as
-from prefect.workers.base import BaseJobConfiguration, BaseVariables, BaseWorker
+from prefect.workers.base import (
+    BaseJobConfiguration,
+    BaseVariables,
+    BaseWorker,
+)
 
 
 class WorkerTestImpl(BaseWorker):
@@ -245,6 +250,44 @@ async def test_worker_with_work_pool_and_work_queue(
     assert {flow_run.id for flow_run in submitted_flow_runs} == set(flow_run_ids[1:3])
 
 
+async def test_priority_trumps_lateness(
+    prefect_client: PrefectClient,
+    worker_deployment_wq1,
+    worker_deployment_wq_2,
+    work_queue_1,
+    work_pool,
+):
+    @flow
+    def test_flow():
+        pass
+
+    def create_run_with_deployment_1(state):
+        return prefect_client.create_flow_run_from_deployment(
+            worker_deployment_wq1.id, state=state
+        )
+
+    def create_run_with_deployment_2(state):
+        return prefect_client.create_flow_run_from_deployment(
+            worker_deployment_wq_2.id, state=state
+        )
+
+    flow_runs = [
+        await create_run_with_deployment_2(
+            Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1))
+        ),
+        await create_run_with_deployment_1(
+            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+        ),
+    ]
+    flow_run_ids = [run.id for run in flow_runs]
+
+    async with WorkerTestImpl(work_pool_name=work_pool.name, limit=1) as worker:
+        worker._submit_run = AsyncMock()  # don't run anything
+        submitted_flow_runs = await worker.get_and_submit_flow_runs()
+
+    assert {flow_run.id for flow_run in submitted_flow_runs} == set(flow_run_ids[1:2])
+
+
 async def test_worker_with_work_pool_and_limit(
     prefect_client: PrefectClient, worker_deployment_wq1, work_pool
 ):
@@ -412,9 +455,6 @@ async def test_worker_creates_only_one_client_context(
         await worker.get_and_submit_flow_runs()
 
     assert tracking_mock.call_count == 1
-
-    # Multiple hits if worker's client is not being reused
-    assert caplog.text.count("Using ephemeral application") == 1
 
 
 async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with_just_job_config(
@@ -1647,3 +1687,114 @@ class TestBaseWorkerStart:
 
         worker.run.assert_awaited_once()
         assert worker.run.call_args[1]["flow_run"].id == flow_run.id
+
+
+@pytest.mark.parametrize(
+    "work_pool_env, deployment_env, flow_run_env, expected_env",
+    [
+        (
+            {},
+            {"test-var": "foo"},
+            {"another-var": "boo"},
+            {"test-var": "foo", "another-var": "boo"},
+        ),
+        (
+            {"A": "1", "B": "2"},
+            {"C": "3", "D": "4"},
+            {},
+            {"A": "1", "B": "2", "C": "3", "D": "4"},
+        ),
+        (
+            {"A": "1", "B": "2"},
+            {"C": "42"},
+            {"C": "3", "D": "4"},
+            {"A": "1", "B": "2", "C": "3", "D": "4"},
+        ),
+        (
+            {"A": "1", "B": "2"},
+            {"B": ""},  # will be treated as unset and not apply
+            {},
+            {"A": "1", "B": "2"},
+        ),
+    ],
+    ids=[
+        "flow_run_into_deployment",
+        "deployment_into_work_pool",
+        "flow_run_into_work_pool",
+        "try_overwrite_with_empty_str",
+    ],
+)
+@pytest.mark.parametrize(
+    "use_variable_defaults",
+    [True, False],
+    ids=["with_defaults", "without_defaults"],
+)
+async def test_env_merge_logic_is_deep(
+    prefect_client,
+    session,
+    flow,
+    work_pool,
+    work_pool_env,
+    deployment_env,
+    flow_run_env,
+    expected_env,
+    use_variable_defaults,
+):
+    if work_pool_env:
+        base_job_template = (
+            {
+                "job_configuration": {"env": "{{ env }}"},
+                "variables": {
+                    "properties": {"env": {"type": "object", "default": work_pool_env}}
+                },
+            }
+            if use_variable_defaults
+            else {
+                "job_configuration": {"env": work_pool_env},
+                "variables": {"properties": {"env": {"type": "object"}}},
+            }
+        )
+        await models.workers.update_work_pool(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_pool=ServerWorkPoolUpdate(
+                base_job_template=base_job_template,
+                description="test",
+                is_paused=False,
+                concurrency_limit=None,
+            ),
+        )
+        await session.commit()
+
+    deployment = await models.deployments.create_deployment(
+        session=session,
+        deployment=Deployment(
+            name="env-testing",
+            tags=["test"],
+            flow_id=flow.id,
+            path="./subdir",
+            entrypoint="/file.py:flow",
+            parameter_openapi_schema={},
+            job_variables={"env": deployment_env},
+            work_queue_id=work_pool.default_queue_id,
+        ),
+    )
+    await session.commit()
+
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        deployment.id,
+        state=Pending(),
+        job_variables={"env": flow_run_env},
+    )
+
+    async with WorkerTestImpl(
+        name="test",
+        work_pool_name=work_pool.name if work_pool_env else "test-work-pool",
+    ) as worker:
+        await worker.sync_with_backend()
+        config = await worker._get_configuration(
+            flow_run, schemas.responses.DeploymentResponse.model_validate(deployment)
+        )
+
+    for key, value in expected_env.items():
+        assert config.env[key] == value

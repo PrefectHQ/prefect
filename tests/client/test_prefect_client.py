@@ -65,7 +65,7 @@ from prefect.client.schemas.responses import (
     OrchestrationResult,
     SetStateStatus,
 )
-from prefect.client.schemas.schedules import CronSchedule, IntervalSchedule, NoSchedule
+from prefect.client.schemas.schedules import CronSchedule, IntervalSchedule
 from prefect.client.utilities import inject_client
 from prefect.events import AutomationCore, EventTrigger, Posture
 from prefect.server.api.server import create_app
@@ -77,7 +77,7 @@ from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_CLIENT_CSRF_SUPPORT_ENABLED,
     PREFECT_CLOUD_API_URL,
-    PREFECT_UNIT_TEST_MODE,
+    PREFECT_TESTING_UNIT_TEST_MODE,
     temporary_settings,
 )
 from prefect.states import Completed, Pending, Running, Scheduled, State
@@ -99,6 +99,25 @@ class TestGetClient:
             new_client = get_client()
             assert isinstance(new_client, PrefectClient)
             assert new_client is not client
+
+    def test_get_client_starts_subprocess_server_when_enabled(
+        self, enable_ephemeral_server, monkeypatch
+    ):
+        subprocess_server_mock = MagicMock()
+
+        monkeypatch.setattr(
+            prefect.server.api.server, "SubprocessASGIServer", subprocess_server_mock
+        )
+
+        get_client()
+        assert subprocess_server_mock.call_count == 1
+        assert subprocess_server_mock.return_value.start.call_count == 1
+
+    def test_get_client_rasises_error_when_no_api_url_and_no_ephemeral_mode(
+        self, disable_hosted_api_server
+    ):
+        with pytest.raises(ValueError, match="API URL"):
+            get_client()
 
 
 class TestClientProxyAwareness:
@@ -620,6 +639,7 @@ async def test_create_then_read_deployment(prefect_client, storage_document_id):
         name="test-deployment",
         version="git-commit-hash",
         schedules=[schedule],
+        concurrency_limit=42,
         parameters={"foo": "bar"},
         tags=["foo", "bar"],
         storage_document_id=storage_document_id,
@@ -630,52 +650,69 @@ async def test_create_then_read_deployment(prefect_client, storage_document_id):
     assert isinstance(lookup, DeploymentResponse)
     assert lookup.name == "test-deployment"
     assert lookup.version == "git-commit-hash"
-    assert lookup.schedule == schedule.schedule
     assert len(lookup.schedules) == 1
     assert lookup.schedules[0].schedule == schedule.schedule
     assert lookup.schedules[0].active == schedule.active
     assert lookup.schedules[0].deployment_id == deployment_id
+    assert lookup.global_concurrency_limit.limit == 42
     assert lookup.parameters == {"foo": "bar"}
     assert lookup.tags == ["foo", "bar"]
     assert lookup.storage_document_id == storage_document_id
     assert lookup.parameter_openapi_schema == {}
 
 
-async def test_updating_deployment(prefect_client, storage_document_id):
+async def test_read_deployment_errors_on_invalid_uuid(prefect_client):
+    with pytest.raises(
+        ValueError, match="Invalid deployment ID: not-a-real-deployment"
+    ):
+        await prefect_client.read_deployment("not-a-real-deployment")
+
+
+async def test_update_deployment(prefect_client, storage_document_id):
     @flow
     def foo():
         pass
 
     flow_id = await prefect_client.create_flow(foo)
-    schedule = IntervalSchedule(interval=timedelta(days=1))
 
     deployment_id = await prefect_client.create_deployment(
         flow_id=flow_id,
         name="test-deployment",
         version="git-commit-hash",
-        schedule=schedule,
         parameters={"foo": "bar"},
         tags=["foo", "bar"],
+        paused=True,
         storage_document_id=storage_document_id,
         parameter_openapi_schema={},
     )
 
-    initial_lookup = await prefect_client.read_deployment(deployment_id)
-    assert initial_lookup.is_schedule_active
-    assert initial_lookup.schedule == schedule
-
-    updated_schedule = IntervalSchedule(interval=timedelta(seconds=86399))  # rude
+    deployment = await prefect_client.read_deployment(deployment_id)
 
     await prefect_client.update_deployment(
-        initial_lookup, schedule=updated_schedule, is_schedule_active=False
+        deployment_id=deployment_id,
+        deployment=client_schemas.actions.DeploymentUpdate(
+            tags=["new", "tags"], concurrency_limit=42
+        ),
     )
 
-    second_lookup = await prefect_client.read_deployment(deployment_id)
-    assert not second_lookup.is_schedule_active
-    assert second_lookup.schedule == updated_schedule
+    updated_deployment = await prefect_client.read_deployment(deployment_id)
+    # tags and concurrency should be updated
+    assert updated_deployment.tags == ["new", "tags"]
+    assert updated_deployment.global_concurrency_limit.limit == 42
+    # everything else should be the same
+    assert updated_deployment.id == deployment.id
+    assert updated_deployment.name == deployment.name
+    assert updated_deployment.version == deployment.version
+    assert updated_deployment.parameters == deployment.parameters
+    assert updated_deployment.paused == deployment.paused
+    assert updated_deployment.storage_document_id == deployment.storage_document_id
+    assert (
+        updated_deployment.parameter_openapi_schema
+        == deployment.parameter_openapi_schema
+    )
 
 
-async def test_updating_deployment_and_removing_schedule(
+async def test_update_deployment_to_remove_schedules(
     prefect_client, storage_document_id
 ):
     @flow
@@ -683,32 +720,31 @@ async def test_updating_deployment_and_removing_schedule(
         pass
 
     flow_id = await prefect_client.create_flow(foo)
-    schedule = IntervalSchedule(interval=timedelta(days=1))
+    schedule = DeploymentScheduleCreate(
+        schedule=IntervalSchedule(interval=timedelta(days=1))
+    )
 
     deployment_id = await prefect_client.create_deployment(
         flow_id=flow_id,
         name="test-deployment",
         version="git-commit-hash",
-        schedule=schedule,
+        schedules=[schedule],
         parameters={"foo": "bar"},
         tags=["foo", "bar"],
         storage_document_id=storage_document_id,
         parameter_openapi_schema={},
     )
 
-    initial_lookup = await prefect_client.read_deployment(deployment_id)
-    assert initial_lookup.is_schedule_active
-    assert initial_lookup.schedule == schedule
-
-    updated_schedule = NoSchedule()
+    deployment = await prefect_client.read_deployment(deployment_id)
+    assert len(deployment.schedules) == 1
 
     await prefect_client.update_deployment(
-        initial_lookup, schedule=updated_schedule, is_schedule_active=False
+        deployment_id=deployment_id,
+        deployment=client_schemas.actions.DeploymentUpdate(schedules=[]),
     )
 
-    second_lookup = await prefect_client.read_deployment(deployment_id)
-    assert not second_lookup.is_schedule_active
-    assert second_lookup.schedule is None
+    updated_deployment = await prefect_client.read_deployment(deployment_id)
+    assert len(updated_deployment.schedules) == 0
 
 
 async def test_read_deployment_by_name(prefect_client):
@@ -717,19 +753,37 @@ async def test_read_deployment_by_name(prefect_client):
         pass
 
     flow_id = await prefect_client.create_flow(foo)
-    schedule = IntervalSchedule(interval=timedelta(days=1))
 
     deployment_id = await prefect_client.create_deployment(
         flow_id=flow_id,
         name="test-deployment",
-        schedule=schedule,
     )
 
     lookup = await prefect_client.read_deployment_by_name("foo/test-deployment")
     assert isinstance(lookup, DeploymentResponse)
     assert lookup.id == deployment_id
     assert lookup.name == "test-deployment"
-    assert lookup.schedule == schedule
+
+
+async def test_read_deployment_by_name_fails_with_helpful_suggestion(prefect_client):
+    """this is a regression test for https://github.com/PrefectHQ/prefect/issues/15571"""
+
+    @flow
+    def moo_deng():
+        pass
+
+    flow_id = await prefect_client.create_flow(moo_deng)
+
+    await prefect_client.create_deployment(
+        flow_id=flow_id,
+        name="moisturized-deployment",
+    )
+
+    with pytest.raises(
+        prefect.exceptions.ObjectNotFound,
+        match="Deployment 'moo_deng/moisturized-deployment' not found; did you mean 'moo-deng/moisturized-deployment'?",
+    ):
+        await prefect_client.read_deployment_by_name("moo_deng/moisturized-deployment")
 
 
 async def test_create_then_delete_deployment(prefect_client):
@@ -738,12 +792,10 @@ async def test_create_then_delete_deployment(prefect_client):
         pass
 
     flow_id = await prefect_client.create_flow(foo)
-    schedule = IntervalSchedule(interval=timedelta(days=1))
 
     deployment_id = await prefect_client.create_deployment(
         flow_id=flow_id,
         name="test-deployment",
-        schedule=schedule,
     )
 
     await prefect_client.delete_deployment(deployment_id)
@@ -1342,8 +1394,9 @@ async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_true(monkeypa
     mock.assert_called_once_with(
         headers=ANY,
         verify=False,
-        transport=ANY,
         base_url=ANY,
+        limits=ANY,
+        http2=ANY,
         timeout=ANY,
         enable_csrf_support=ANY,
     )
@@ -1360,8 +1413,9 @@ async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_false(monkeyp
     mock.assert_called_once_with(
         headers=ANY,
         verify=ANY,
-        transport=ANY,
         base_url=ANY,
+        limits=ANY,
+        http2=ANY,
         timeout=ANY,
         enable_csrf_support=ANY,
     )
@@ -1374,8 +1428,9 @@ async def test_prefect_api_tls_insecure_skip_verify_default_setting(monkeypatch)
     mock.assert_called_once_with(
         headers=ANY,
         verify=ANY,
-        transport=ANY,
         base_url=ANY,
+        limits=ANY,
+        http2=ANY,
         timeout=ANY,
         enable_csrf_support=ANY,
     )
@@ -1397,8 +1452,9 @@ async def test_prefect_api_ssl_cert_file_setting_explicitly_set(monkeypatch):
     mock.assert_called_once_with(
         headers=ANY,
         verify="my_cert.pem",
-        transport=ANY,
         base_url=ANY,
+        limits=ANY,
+        http2=ANY,
         timeout=ANY,
         enable_csrf_support=ANY,
     )
@@ -1420,8 +1476,9 @@ async def test_prefect_api_ssl_cert_file_default_setting(monkeypatch):
     mock.assert_called_once_with(
         headers=ANY,
         verify="my_cert.pem",
-        transport=ANY,
         base_url=ANY,
+        limits=ANY,
+        http2=ANY,
         timeout=ANY,
         enable_csrf_support=ANY,
     )
@@ -1443,8 +1500,9 @@ async def test_prefect_api_ssl_cert_file_default_setting_fallback(monkeypatch):
     mock.assert_called_once_with(
         headers=ANY,
         verify=certifi.where(),
-        transport=ANY,
         base_url=ANY,
+        limits=ANY,
+        http2=ANY,
         timeout=ANY,
         enable_csrf_support=ANY,
     )
@@ -1604,7 +1662,7 @@ class TestClientWorkQueues:
         deployment_id = await prefect_client.create_deployment(
             flow_id=flow_id,
             name="test-deployment",
-            schedule=schedule,
+            schedules=[DeploymentScheduleCreate(schedule=schedule)],
             parameters={"foo": "bar"},
             work_queue_name="wq",
         )
@@ -1663,10 +1721,6 @@ class TestClientWorkQueues:
     async def test_read_nonexistant_work_queue(self, prefect_client):
         with pytest.raises(prefect.exceptions.ObjectNotFound):
             await prefect_client.read_work_queue_by_name("foo")
-
-    async def test_create_work_queue_with_tags_deprecated(self, prefect_client):
-        with pytest.deprecated_call():
-            await prefect_client.create_work_queue(name="test-queue", tags=["a"])
 
     async def test_get_runs_from_queue_includes(self, prefect_client, deployment):
         wq_1 = await prefect_client.read_work_queue_by_name(name="wq")
@@ -1733,7 +1787,8 @@ async def test_delete_flow_run(prefect_client, flow_run):
         await prefect_client.delete_flow_run(flow_run.id)
 
 
-def test_server_type_ephemeral(prefect_client):
+def test_server_type_ephemeral(enable_ephemeral_server):
+    prefect_client = get_client()
     assert prefect_client.server_type == ServerType.EPHEMERAL
 
 
@@ -1748,9 +1803,9 @@ async def test_server_type_cloud():
 
 
 @pytest.mark.parametrize(
-    "on_create, expected_value", [(True, True), (False, False), (None, True)]
+    "on_create, expected_value", [(True, True), (False, False), (None, False)]
 )
-async def test_update_deployment_schedule_active_does_not_overwrite_when_not_provided(
+async def test_update_deployment_does_not_overwrite_paused_when_not_provided(
     prefect_client, flow_run, on_create, expected_value
 ):
     deployment_id = await prefect_client.create_deployment(
@@ -1758,17 +1813,18 @@ async def test_update_deployment_schedule_active_does_not_overwrite_when_not_pro
         name="test-deployment",
         parameters={"foo": "bar"},
         work_queue_name="wq",
-        is_schedule_active=on_create,
+        paused=on_create,
     )
-    # Check that is_schedule_active is created as expected
+    # Check that paused is created as expected
     deployment = await prefect_client.read_deployment(deployment_id)
-    assert deployment.is_schedule_active == expected_value
+    assert deployment.paused == expected_value
 
-    # Check that updating the deployment without providing is_schedule_active does not modify the value
-    schedule = IntervalSchedule(interval=timedelta(days=1))
-    await prefect_client.update_deployment(deployment, schedule=schedule)
+    # Only updating tags should not effect paused
+    await prefect_client.update_deployment(
+        deployment_id, client_schemas.actions.DeploymentUpdate(tags=["new-tag"])
+    )
     deployment = await prefect_client.read_deployment(deployment_id)
-    assert deployment.is_schedule_active == expected_value
+    assert deployment.paused == expected_value
 
 
 @pytest.mark.parametrize(
@@ -1776,10 +1832,10 @@ async def test_update_deployment_schedule_active_does_not_overwrite_when_not_pro
     [
         (False, False, True, True),
         (True, True, False, False),
-        (None, True, False, False),
+        (None, False, True, True),
     ],
 )
-async def test_update_deployment_schedule_active_overwrites_when_provided(
+async def test_update_deployment_paused(
     prefect_client,
     flow_run,
     on_create,
@@ -1792,14 +1848,16 @@ async def test_update_deployment_schedule_active_overwrites_when_provided(
         name="test-deployment",
         parameters={"foo": "bar"},
         work_queue_name="wq",
-        is_schedule_active=on_create,
+        paused=on_create,
     )
     deployment = await prefect_client.read_deployment(deployment_id)
-    assert deployment.is_schedule_active == after_create
+    assert deployment.paused == after_create
 
-    await prefect_client.update_deployment(deployment, is_schedule_active=on_update)
+    await prefect_client.update_deployment(
+        deployment_id, client_schemas.actions.DeploymentUpdate(paused=on_update)
+    )
     deployment = await prefect_client.read_deployment(deployment_id)
-    assert deployment.is_schedule_active == after_update
+    assert deployment.paused == after_update
 
 
 class TestWorkPools:
@@ -1826,6 +1884,39 @@ class TestWorkPools:
             work_pool_1.id,
             work_pool_2.id,
         }
+
+    async def test_create_work_pool_overwriting_existing_work_pool(
+        self, prefect_client, work_pool
+    ):
+        await prefect_client.create_work_pool(
+            work_pool=WorkPoolCreate(
+                name=work_pool.name,
+                type=work_pool.type,
+                description="new description",
+            ),
+            overwrite=True,
+        )
+
+        updated_work_pool = await prefect_client.read_work_pool(work_pool.name)
+        assert updated_work_pool.description == "new description"
+
+    async def test_create_work_pool_with_attempt_to_overwrite_type(
+        self, prefect_client, work_pool
+    ):
+        with pytest.warns(
+            UserWarning, match="Overwriting work pool type is not supported"
+        ):
+            await prefect_client.create_work_pool(
+                work_pool=WorkPoolCreate(
+                    name=work_pool.name,
+                    type="kubernetes",
+                    description=work_pool.description,
+                ),
+                overwrite=True,
+            )
+
+        updated_work_pool = await prefect_client.read_work_pool(work_pool.name)
+        assert updated_work_pool.type == work_pool.type
 
     async def test_update_work_pool(self, prefect_client):
         work_pool = await prefect_client.create_work_pool(
@@ -2221,7 +2312,7 @@ async def test_prefect_client_follow_redirects():
         assert client._client.follow_redirects is False
 
     # follow redirects by default
-    with temporary_settings({PREFECT_UNIT_TEST_MODE: False}):
+    with temporary_settings({PREFECT_TESTING_UNIT_TEST_MODE: False}):
         async with PrefectClient(api=app) as client:
             assert client._client.follow_redirects is True
 
@@ -2322,7 +2413,7 @@ class TestPrefectClientDeploymentSchedules:
         deployment_id = await prefect_client.create_deployment(
             flow_id=flow_id,
             name="test-deployment",
-            schedule=schedule,
+            schedules=[DeploymentScheduleCreate(schedule=schedule)],
             parameters={"foo": "bar"},
             work_queue_name="wq",
         )
@@ -2467,7 +2558,8 @@ class TestPrefectClientDeploymentSchedules:
 
 
 class TestPrefectClientCsrfSupport:
-    def test_enabled_ephemeral(self, prefect_client: PrefectClient):
+    def test_enabled_ephemeral(self, enable_ephemeral_server):
+        prefect_client = get_client()
         assert prefect_client.server_type == ServerType.EPHEMERAL
         assert prefect_client._client.enable_csrf_support
 
@@ -2488,6 +2580,57 @@ class TestPrefectClientCsrfSupport:
                 assert not prefect_client._client.enable_csrf_support
 
 
+class TestPrefectClientRaiseForAPIVersionMismatch:
+    async def test_raise_for_api_version_mismatch(self, prefect_client):
+        await prefect_client.raise_for_api_version_mismatch()
+
+    async def test_raise_for_api_version_mismatch_when_api_unreachable(
+        self, prefect_client, monkeypatch
+    ):
+        async def something_went_wrong(*args, **kwargs):
+            raise httpx.ConnectError
+
+        monkeypatch.setattr(prefect_client, "api_version", something_went_wrong)
+        with pytest.raises(RuntimeError) as e:
+            await prefect_client.raise_for_api_version_mismatch()
+
+        assert "Failed to reach API" in str(e.value)
+
+    async def test_raise_for_api_version_mismatch_against_cloud(
+        self, prefect_client, monkeypatch
+    ):
+        # manually set the server type to cloud
+        monkeypatch.setattr(prefect_client, "server_type", ServerType.CLOUD)
+
+        api_version_mock = AsyncMock()
+        monkeypatch.setattr(prefect_client, "api_version", api_version_mock)
+
+        await prefect_client.raise_for_api_version_mismatch()
+
+        api_version_mock.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "client_version, api_version", [("3.0.0", "2.0.0"), ("2.0.0", "3.0.0")]
+    )
+    async def test_raise_for_api_version_mismatch_with_incompatible_versions(
+        self, prefect_client, monkeypatch, client_version, api_version
+    ):
+        monkeypatch.setattr(
+            prefect_client, "api_version", AsyncMock(return_value=api_version)
+        )
+        monkeypatch.setattr(
+            prefect_client, "client_version", Mock(return_value=client_version)
+        )
+
+        with pytest.raises(RuntimeError) as e:
+            await prefect_client.raise_for_api_version_mismatch()
+
+        assert (
+            f"Found incompatible versions: client: {client_version}, server: {api_version}. "
+            in str(e.value)
+        )
+
+
 class TestSyncClient:
     def test_get_sync_client(self):
         client = get_client(sync_client=True)
@@ -2499,3 +2642,59 @@ class TestSyncClient:
     def test_hello(self, sync_prefect_client):
         response = sync_prefect_client.hello()
         assert response.json() == "👋"
+
+    def test_api_version(self, sync_prefect_client):
+        version = sync_prefect_client.api_version()
+        assert prefect.__version__
+        assert version == prefect.__version__
+
+
+class TestSyncClientRaiseForAPIVersionMismatch:
+    def test_raise_for_api_version_mismatch(self, sync_prefect_client):
+        sync_prefect_client.raise_for_api_version_mismatch()
+
+    def test_raise_for_api_version_mismatch_when_api_unreachable(
+        self, sync_prefect_client, monkeypatch
+    ):
+        def something_went_wrong(*args, **kwargs):
+            raise httpx.ConnectError
+
+        monkeypatch.setattr(sync_prefect_client, "api_version", something_went_wrong)
+        with pytest.raises(RuntimeError) as e:
+            sync_prefect_client.raise_for_api_version_mismatch()
+
+        assert "Failed to reach API" in str(e.value)
+
+    def test_raise_for_api_version_mismatch_against_cloud(
+        self, sync_prefect_client, monkeypatch
+    ):
+        # manually set the server type to cloud
+        monkeypatch.setattr(sync_prefect_client, "server_type", ServerType.CLOUD)
+
+        api_version_mock = Mock()
+        monkeypatch.setattr(sync_prefect_client, "api_version", api_version_mock)
+
+        sync_prefect_client.raise_for_api_version_mismatch()
+
+        api_version_mock.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "client_version, api_version", [("3.0.0", "2.0.0"), ("2.0.0", "3.0.0")]
+    )
+    def test_raise_for_api_version_mismatch_with_incompatible_versions(
+        self, sync_prefect_client, monkeypatch, client_version, api_version
+    ):
+        monkeypatch.setattr(
+            sync_prefect_client, "api_version", Mock(return_value=api_version)
+        )
+        monkeypatch.setattr(
+            sync_prefect_client, "client_version", Mock(return_value=client_version)
+        )
+
+        with pytest.raises(RuntimeError) as e:
+            sync_prefect_client.raise_for_api_version_mismatch()
+
+        assert (
+            f"Found incompatible versions: client: {client_version}, server: {api_version}. "
+            in str(e.value)
+        )

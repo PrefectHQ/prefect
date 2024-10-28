@@ -1,34 +1,31 @@
-# prefect-sqlalchemy
+---
+title: prefect-sqlalchemy
+---
 
-The prefect-sqlalchemy helps you connect to a database in your Prefect flows. 
+# Welcome!
+
+`prefect-sqlalchemy` helps you connect to a database in your Prefect flows. 
 
 ## Getting started
 
-### Prerequisites
-
-- [Prefect installed](/3.0rc/get-started/install/).
-
 ### Install `prefect-sqlalchemy`
 
+The following command will install a version of `prefect-sqlalchemy` compatible with your installed version of `prefect`. 
+If you don't already have `prefect` installed, it will install the newest version of `prefect` as well.
 
-Install or update to the latest version of the prefect-sqlalchemy library and dependencies.
+```bash
+pip install "prefect[sqlalchemy]"
+```
 
-<Tabs>
-    <Tab title="Prefect 2">
-    ```bash
-    pip install -U prefect-sqlalchemy
-    ```
-    </Tab>
-    <Tab title="Prefect 3">
-    ```bash
-    pip install -U -pre prefect-sqlalchemy
-    ```
-    </Tab>
-</Tabs>
+Upgrade to the latest versions of `prefect` and `prefect-sqlalchemy`:
+
+```bash
+pip install -U "prefect[sqlalchemy]"
+```
 
 ### Register newly installed block types
 
-Register the block types in the prefect-sqlalchemy module to make them available for use.
+Register the block types in the `prefect-sqlalchemy` module to make them available for use.
 
 
 ```bash
@@ -40,7 +37,6 @@ prefect block register -m prefect_sqlalchemy
 ### Save credentials to a block
 
 To use the `load` method on Blocks, you must have a block saved through code or saved through the UI.
-
 
 ```python
 from prefect_sqlalchemy import SqlAlchemyConnector, ConnectionComponents, SyncDriver
@@ -157,6 +153,7 @@ def sqlalchemy_flow(block_name: str) -> list:
     all_rows = fetch_data(block_name)
     return all_rows
 
+
 if __name__ == "__main__":
     sqlalchemy_flow("BLOCK-NAME-PLACEHOLDER")
 ```
@@ -219,6 +216,6 @@ if __name__ == "__main__":
 
 ## Resources
 
-Refer to the prefect-sqlalchemy SDK documentation linked in the sidebar to explore all the capabilities of the prefect-sqlalchemy library.
+Refer to the `prefect-sqlalchemy` SDK documentation linked in the sidebar to explore all the capabilities of the `prefect-sqlalchemy` library.
 
 For assistance using SQLAlchemy, consult the [SQLAlchemy documentation](https://www.sqlalchemy.org/).

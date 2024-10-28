@@ -149,6 +149,14 @@ async def create_handler(
             return
 
         event = ReceivedEvent.model_validate_json(message.data)
+
+        logger.debug(
+            "Received event: %s with id: %s for resource: %s",
+            event.event,
+            event.id,
+            event.resource.get("prefect.resource.id"),
+        )
+
         await queue.put(event)
 
         if queue.qsize() >= batch_size:

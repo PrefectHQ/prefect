@@ -1,6 +1,6 @@
 """
 Interface and implementations of the Ray Task Runner.
-[Task Runners](https://docs.prefect.io/api-ref/prefect/task-runners/)
+[Task Runners](https://docs.prefect.io/latest/develop/task-runners/)
 in Prefect are responsible for managing the execution of Prefect task runs.
 Generally speaking, users are not expected to interact with
 task runners outside of configuring and initializing them for a flow.
@@ -72,8 +72,8 @@ Example:
 """
 
 import asyncio  # noqa: I001
-import inspect
 from typing import (
+    TYPE_CHECKING,
     Any,
     Coroutine,
     Dict,
@@ -86,9 +86,6 @@ from typing import (
 from typing_extensions import ParamSpec
 from uuid import UUID, uuid4
 
-import ray
-from ray.exceptions import GetTimeoutError
-
 from prefect.client.schemas.objects import TaskRunInput
 from prefect.context import serialize_context
 from prefect.futures import PrefectFuture, PrefectFutureList, PrefectWrappedFuture
@@ -99,7 +96,13 @@ from prefect.task_runners import TaskRunner
 from prefect.tasks import Task
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import visit_collection
+from prefect.utilities.importtools import lazy_import
 from prefect_ray.context import RemoteOptionsContext
+
+if TYPE_CHECKING:
+    import ray
+
+ray = lazy_import("ray")
 
 logger = get_logger(__name__)
 
@@ -109,11 +112,11 @@ F = TypeVar("F", bound=PrefectFuture)
 R = TypeVar("R")
 
 
-class PrefectRayFuture(PrefectWrappedFuture[R, ray.ObjectRef]):
+class PrefectRayFuture(PrefectWrappedFuture[R, "ray.ObjectRef"]):
     def wait(self, timeout: Optional[float] = None) -> None:
         try:
             result = ray.get(self.wrapped_future, timeout=timeout)
-        except GetTimeoutError:
+        except ray.exceptions.GetTimeoutError:
             return
         except Exception as exc:
             result = run_coro_as_sync(exception_to_crashed_state(exc))
@@ -128,7 +131,7 @@ class PrefectRayFuture(PrefectWrappedFuture[R, ray.ObjectRef]):
         if not self._final_state:
             try:
                 object_ref_result = ray.get(self.wrapped_future, timeout=timeout)
-            except GetTimeoutError as exc:
+            except ray.exceptions.GetTimeoutError as exc:
                 raise TimeoutError(
                     f"Task run {self.task_run_id} did not complete within {timeout} seconds"
                 ) from exc
@@ -143,7 +146,7 @@ class PrefectRayFuture(PrefectWrappedFuture[R, ray.ObjectRef]):
         )
         # state.result is a `sync_compatible` function that may or may not return an awaitable
         # depending on whether the parent frame is sync or not
-        if inspect.isawaitable(_result):
+        if asyncio.iscoroutine(_result):
             _result = run_coro_as_sync(_result)
         return _result
 
@@ -164,7 +167,7 @@ class PrefectRayFuture(PrefectWrappedFuture[R, ray.ObjectRef]):
         try:
             ray.get(self.wrapped_future, timeout=0)
             return
-        except GetTimeoutError:
+        except ray.exceptions.GetTimeoutError:
             pass
 
         try:
@@ -391,17 +394,17 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture]):
     def __enter__(self):
         super().__enter__()
 
-        if self.address and self.address != "auto":
-            self.logger.info(
-                f"Connecting to an existing Ray instance at {self.address}"
-            )
-            init_args = (self.address,)
-        elif ray.is_initialized():
+        if ray.is_initialized():
             self.logger.info(
                 "Local Ray instance is already initialized. "
                 "Using existing local instance."
             )
             return self
+        elif self.address and self.address != "auto":
+            self.logger.info(
+                f"Connecting to an existing Ray instance at {self.address}"
+            )
+            init_args = (self.address,)
         else:
             self.logger.info("Creating a local Ray instance")
             init_args = ()
@@ -423,8 +426,12 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture]):
 
     def __exit__(self, *exc_info):
         """
-        Shuts down the cluster.
+        Shuts down the driver/cluster.
         """
-        self.logger.debug("Shutting down Ray cluster...")
-        ray.shutdown()
+        # Check if we are running on the driver. Calling ray.shutdown() when running on a
+        # worker will crash the worker.
+        if ray.get_runtime_context().worker.mode == 0:
+            # Running on the driver. Will shutdown cluster if started by this task runner.
+            self.logger.debug("Shutting down Ray driver...")
+            ray.shutdown()
         super().__exit__(*exc_info)

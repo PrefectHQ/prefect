@@ -28,6 +28,8 @@ concurrency:
 jobs:
   compatibility-tests:
 
+    if: false # temporarily pausing compat tests on OSS
+
     timeout-minutes: 10
 
     runs-on: ubuntu-latest

@@ -14,11 +14,11 @@ from prefect_gcp import GcpCredentials
 from prefect_snowflake import SnowflakeConnector, SnowflakeCredentials
 from prefect_sqlalchemy import (
     ConnectionComponents,
-    DatabaseCredentials,
     SqlAlchemyConnector,
     SyncDriver,
 )
 
+from prefect.settings import PREFECT_API_SERVICES_TRIGGERS_ENABLED, temporary_settings
 from prefect.testing.utilities import prefect_test_harness
 
 
@@ -32,8 +32,9 @@ def prefect_db():
     """
     Sets up test harness for temporary DB during test runs.
     """
-    with prefect_test_harness():
-        yield
+    with temporary_settings({PREFECT_API_SERVICES_TRIGGERS_ENABLED: False}):
+        with prefect_test_harness():
+            yield
 
 
 @pytest.fixture(autouse=True)
@@ -158,7 +159,7 @@ def snowflake_target_configs():
 
 @pytest.fixture
 def postgres_target_configs():
-    credentials = DatabaseCredentials(
+    credentials = ConnectionComponents(
         driver=SyncDriver.POSTGRESQL_PSYCOPG2,
         username="prefect",
         password="prefect_password",

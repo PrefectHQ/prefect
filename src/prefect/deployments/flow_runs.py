@@ -5,11 +5,12 @@ from uuid import UUID
 import anyio
 import pendulum
 
-from prefect._internal.compatibility.deprecated import deprecated_parameter
+import prefect
 from prefect.client.schemas import FlowRun
 from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.logging import get_logger
+from prefect.results import BaseResult, ResultRecordMetadata
 from prefect.states import Pending, Scheduled
 from prefect.tasks import Task
 from prefect.utilities.asyncutils import sync_compatible
@@ -19,16 +20,17 @@ if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
     from prefect.client.schemas.objects import FlowRun
 
+prefect.client.schemas.StateCreate.model_rebuild(
+    _types_namespace={
+        "BaseResult": BaseResult,
+        "ResultRecordMetadata": ResultRecordMetadata,
+    }
+)
 
 logger = get_logger(__name__)
 
 
 @sync_compatible
-@deprecated_parameter(
-    "infra_overrides",
-    start_date="Apr 2024",
-    help="Use `job_variables` instead.",
-)
 @inject_client
 async def run_deployment(
     name: Union[str, UUID],
@@ -42,7 +44,6 @@ async def run_deployment(
     idempotency_key: Optional[str] = None,
     work_queue_name: Optional[str] = None,
     as_subflow: Optional[bool] = True,
-    infra_overrides: Optional[dict] = None,
     job_variables: Optional[dict] = None,
 ) -> "FlowRun":
     """

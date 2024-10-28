@@ -60,7 +60,7 @@ def interactive_console(monkeypatch):
 
 class TestCreate:
     @pytest.mark.usefixtures("mock_collection_registry")
-    async def test_create_work_pool(self, prefect_client, mock_collection_registry):
+    async def test_create_work_pool(self, prefect_client):
         pool_name = "my-pool"
         res = await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -149,8 +149,7 @@ class TestCreate:
             f"work-pool create {pool_name} -t process",
             expected_code=1,
             expected_output_contains=[
-                f"Work pool named {pool_name!r} already exists. Please try creating"
-                " your work pool again with a different name."
+                f"Work pool named {pool_name!r} already exists. Use --overwrite to update it."
             ],
         )
 
@@ -389,6 +388,44 @@ class TestCreate:
             ],
         )
 
+    @pytest.mark.usefixtures("mock_collection_registry")
+    async def test_create_work_pool_with_overwrite(self, prefect_client):
+        pool_name = "overwrite-pool"
+
+        # Create initial work pool
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            f"work-pool create {pool_name} --type process",
+            expected_code=0,
+            expected_output_contains=[f"Created work pool {pool_name!r}"],
+        )
+
+        initial_pool = await prefect_client.read_work_pool(pool_name)
+        assert initial_pool.name == pool_name
+        assert not initial_pool.is_paused
+
+        # Attempt to overwrite the work pool (updating is_paused)
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            f"work-pool create {pool_name} --paused --overwrite",
+            expected_code=0,
+            expected_output_contains=[f"Updated work pool {pool_name!r}"],
+        )
+
+        updated_pool = await prefect_client.read_work_pool(pool_name)
+        assert updated_pool.name == pool_name
+        assert updated_pool.id == initial_pool.id
+        assert updated_pool.is_paused
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            f"work-pool create {pool_name} --paused",
+            expected_code=1,
+            expected_output_contains=[
+                f"Work pool named {pool_name!r} already exists. Use --overwrite to update it."
+            ],
+        )
+
 
 class TestInspect:
     async def test_inspect(self, prefect_client, work_pool):
@@ -467,14 +504,23 @@ class TestResume:
 
 class TestDelete:
     async def test_delete(self, prefect_client, work_pool):
-        res = await run_sync_in_worker_thread(
+        await run_sync_in_worker_thread(
             invoke_and_assert,
             f"work-pool delete {work_pool.name}",
             user_input="y",
+            expected_code=0,
         )
-        assert res.exit_code == 0
         with pytest.raises(ObjectNotFound):
             await prefect_client.read_work_pool(work_pool.name)
+
+    async def test_delete_non_existent(self, prefect_client):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            "work-pool delete non-existent",
+            expected_code=1,
+            expected_output_contains="Work pool 'non-existent' does not exist.",
+            expected_output_does_not_contain="Are you sure you want to delete work pool with name 'non-existent'?",
+        )
 
 
 class TestLS:

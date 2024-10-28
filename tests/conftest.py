@@ -17,7 +17,6 @@ WARNING: Prefect settings cannot be modified in async fixtures.
     the settings context change. See `test_database_connection_url` for example.
 """
 
-import asyncio
 import logging
 import pathlib
 import shutil
@@ -29,6 +28,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 import asyncpg
 import pytest
+from pytest_asyncio import is_async_test
 from sqlalchemy.dialects.postgresql.asyncpg import dialect as postgres_dialect
 
 # Improve diff display for assertions in utilities
@@ -40,7 +40,6 @@ import prefect.settings
 from prefect.logging.configuration import setup_logging
 from prefect.settings import (
     PREFECT_API_BLOCKS_REGISTER_ON_START,
-    PREFECT_API_DATABASE_CONNECTION_URL,
     PREFECT_API_LOG_RETRYABLE_ERRORS,
     PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED,
     PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED,
@@ -49,6 +48,7 @@ from prefect.settings import (
     PREFECT_API_SERVICES_LATE_RUNS_ENABLED,
     PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED,
     PREFECT_API_SERVICES_SCHEDULER_ENABLED,
+    PREFECT_API_SERVICES_TASK_RUN_RECORDER_ENABLED,
     PREFECT_API_SERVICES_TRIGGERS_ENABLED,
     PREFECT_API_URL,
     PREFECT_ASYNC_FETCH_STATE_RESULT,
@@ -58,14 +58,14 @@ from prefect.settings import (
     PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_LOGGING_INTERNAL_LEVEL,
     PREFECT_LOGGING_LEVEL,
-    PREFECT_LOGGING_SERVER_LEVEL,
     PREFECT_LOGGING_TO_API_ENABLED,
     PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION,
     PREFECT_PROFILES_PATH,
     PREFECT_SERVER_ANALYTICS_ENABLED,
     PREFECT_SERVER_CSRF_PROTECTION_ENABLED,
+    PREFECT_SERVER_DATABASE_CONNECTION_URL,
+    PREFECT_SERVER_LOGGING_LEVEL,
     PREFECT_UNIT_TEST_LOOP_DEBUG,
-    PREFECT_UNIT_TEST_MODE,
 )
 from prefect.utilities.dispatch import get_registry_for_type
 
@@ -128,13 +128,25 @@ def pytest_addoption(parser):
     )
 
 
-EXCLUDE_FROM_CLEAR_DB_AUTO_MARK = ["tests/utilities", "tests/agent"]
+EXCLUDE_FROM_CLEAR_DB_AUTO_MARK = [
+    "tests/utilities",
+    "tests/agent",
+    "tests/test_settings.py",
+    "tests/_internal",
+    "tests/server/orchestration/test_rules.py",
+]
 
 
 def pytest_collection_modifyitems(session, config, items):
     """
     Update tests to skip in accordance with service requests
     """
+    # Ensure that all async tests are run with the session loop scope
+    pytest_asyncio_tests = [item for item in items if is_async_test(item)]
+    session_scope_marker = pytest.mark.asyncio(loop_scope="session")
+    for async_test in pytest_asyncio_tests:
+        async_test.add_marker(session_scope_marker, append=False)
+
     exclude_all_services = config.getoption("--exclude-services")
     if exclude_all_services:
         for item in items:
@@ -207,38 +219,40 @@ def pytest_collection_modifyitems(session, config, items):
 
 
 @pytest.fixture(scope="session")
-def event_loop(request):
-    """
-    Redefine the event loop to support session/module-scoped fixtures;
-    see https://github.com/pytest-dev/pytest-asyncio/issues/68
-
-    When running on Windows we need to use a non-default loop for subprocess support.
-    """
+def event_loop_policy():
     if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+    return asyncio.get_event_loop_policy()
 
-    policy = asyncio.get_event_loop_policy()
 
-    loop = policy.new_event_loop()
+@pytest.fixture(scope="session", autouse=True)
+async def setup_loop_debugging():
+    loop = asyncio.get_event_loop()
 
     # configure asyncio logging to capture long running tasks
     asyncio_logger = logging.getLogger("asyncio")
     asyncio_logger.setLevel("WARNING")
     asyncio_logger.addHandler(logging.StreamHandler())
 
-    if PREFECT_UNIT_TEST_LOOP_DEBUG.value():
-        loop.set_debug(True)
-
     loop.slow_callback_duration = 0.25
 
-    try:
-        yield loop
-    finally:
-        loop.close()
+    if PREFECT_UNIT_TEST_LOOP_DEBUG:
+        loop.set_debug(True)
 
-    # Workaround for failures in pytest_asyncio 0.17;
-    # see https://github.com/pytest-dev/pytest-asyncio/issues/257
-    policy.set_event_loop(loop)
+
+@pytest.fixture(scope="function", autouse=True)
+async def restore_loop_after_each_test():
+    """
+    Any test that calls `asyncio.run` or `anyio.run` will have replaced (and also then
+    later removed) the event loop on the MainThread, but we have pytest-asyncio set to
+    use a session-scoped event loop to allow for async fixtures sharing objects with
+    tests.  Here, we restore the session-scoped loop after each test.
+    """
+    loop = asyncio.get_event_loop()
+
+    yield
+
+    asyncio.set_event_loop(loop)
 
 
 @pytest.fixture(scope="session")
@@ -292,6 +306,7 @@ def pytest_sessionstart(session):
     when tests are collected they respect the setting values.
     """
     global TEST_PREFECT_HOME, TEST_PROFILE_CTX
+
     TEST_PREFECT_HOME = tempfile.mkdtemp()
 
     profile = prefect.settings.Profile(
@@ -312,7 +327,7 @@ def pytest_sessionstart(session):
             # Enable debug logging
             PREFECT_LOGGING_LEVEL: "DEBUG",
             PREFECT_LOGGING_INTERNAL_LEVEL: "DEBUG",
-            PREFECT_LOGGING_SERVER_LEVEL: "DEBUG",
+            PREFECT_SERVER_LOGGING_LEVEL: "DEBUG",
             # Disable shipping logs to the API;
             # can be enabled by the `enable_api_log_handler` mark
             PREFECT_LOGGING_TO_API_ENABLED: False,
@@ -329,12 +344,12 @@ def pytest_sessionstart(session):
             PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION: False,
             # Disable auto-registration of block types as they can conflict
             PREFECT_API_BLOCKS_REGISTER_ON_START: False,
-            # Code is being executed in a unit test context
-            PREFECT_UNIT_TEST_MODE: True,
             # Events: disable the event persister and triggers service, which may
             # lock the DB during tests while writing events
             PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED: False,
             PREFECT_API_SERVICES_TRIGGERS_ENABLED: False,
+            # Disable the task run recorder service
+            PREFECT_API_SERVICES_TASK_RUN_RECORDER_ENABLED: False,
         },
         source=__file__,
     )
@@ -394,7 +409,7 @@ async def generate_test_database_connection_url(
     server for each test worker, using the provided connection URL as the starting
     point.  Requires that the given database user has permission to connect to the
     server and create new databases."""
-    original_url = PREFECT_API_DATABASE_CONNECTION_URL.value()
+    original_url = PREFECT_SERVER_DATABASE_CONNECTION_URL.value()
     if not original_url:
         yield None
         return
@@ -404,7 +419,8 @@ async def generate_test_database_connection_url(
     if scheme == "sqlite+aiosqlite":
         # SQLite databases will be scoped by the PREFECT_HOME setting, which will
         # be in an isolated temporary directory
-        yield None
+        test_db_path = Path(PREFECT_HOME.value()) / f"prefect_{worker_id}.db"
+        yield f"sqlite+aiosqlite:///{test_db_path}"
         return
 
     elif scheme == "postgresql+asyncpg":
@@ -474,7 +490,7 @@ def test_database_connection_url(generate_test_database_connection_url):
     if url is None:
         yield None
     else:
-        with temporary_settings({PREFECT_API_DATABASE_CONNECTION_URL: url}):
+        with temporary_settings({PREFECT_SERVER_DATABASE_CONNECTION_URL: url}):
             yield url
 
 

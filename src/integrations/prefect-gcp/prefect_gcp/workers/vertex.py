@@ -16,7 +16,7 @@ prefect worker start --pool 'my-vertex-pool'
 
 ## Configuration
 Read more about configuring work pools
-[here](https://docs.prefect.io/latest/concepts/work-pools/#work-pool-overview).
+[here](https://docs.prefect.io/3.0/deploy/infrastructure-concepts/work-pools).
 """
 
 import asyncio
@@ -477,6 +477,10 @@ class VertexAIWorker(BaseWorker):
             )
         )
         scheduling = Scheduling(timeout=timeout)
+
+        if "service_account_name" in configuration.job_spec:
+            service_account_name = configuration.job_spec.pop("service_account_name")
+            configuration.job_spec["service_account"] = service_account_name
 
         # construct the final job spec that we will provide to Vertex AI
         job_spec = CustomJobSpec(

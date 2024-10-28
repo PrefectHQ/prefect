@@ -26,7 +26,7 @@ from prefect.cli.deploy import (
 )
 from prefect.client.orchestration import PrefectClient, ServerType
 from prefect.client.schemas.actions import WorkPoolCreate
-from prefect.client.schemas.objects import WorkPool
+from prefect.client.schemas.objects import Worker, WorkerStatus, WorkPool
 from prefect.client.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
@@ -51,7 +51,6 @@ from prefect.server.schemas.actions import (
 )
 from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
-    PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY,
     PREFECT_UI_URL,
     temporary_settings,
 )
@@ -61,12 +60,6 @@ from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.filesystem import tmpchdir
 
 TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
-
-
-@pytest.fixture
-def enable_schedule_concurrency():
-    with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY: True}):
-        yield
 
 
 @pytest.fixture
@@ -269,7 +262,7 @@ class TestProjectDeploy:
         )
         return uninitialized_project_dir_with_git_no_remote
 
-    async def test_project_deploy(self, project_dir, prefect_client):
+    async def test_project_deploy(self, project_dir, prefect_client: PrefectClient):
         await prefect_client.create_work_pool(
             WorkPoolCreate(name="test-pool", type="test")
         )
@@ -295,6 +288,77 @@ class TestProjectDeploy:
         assert deployment.tags == ["foo-bar"]
         assert deployment.job_variables == {"env": "prod"}
         assert deployment.enforce_parameter_schema
+
+    async def test_deploy_with_active_workers(
+        self, project_dir, work_pool, prefect_client, monkeypatch
+    ):
+        mock_read_workers_for_work_pool = AsyncMock(
+            return_value=[
+                Worker(
+                    name="test-worker",
+                    work_pool_id=work_pool.id,
+                    status=WorkerStatus.ONLINE,
+                )
+            ]
+        )
+        monkeypatch.setattr(
+            "prefect.client.orchestration.PrefectClient.read_workers_for_work_pool",
+            mock_read_workers_for_work_pool,
+        )
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                f"deploy ./wrapped-flow-project/flow.py:test_flow -n test-name -p {work_pool.name}"
+            ),
+            expected_code=0,
+            expected_output_does_not_contain=[
+                f"prefect worker start --pool '{work_pool.name}'",
+            ],
+        )
+
+    async def test_deploy_with_wrapped_flow_decorator(
+        self, project_dir, work_pool, prefect_client
+    ):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                f"deploy ./wrapped-flow-project/flow.py:test_flow -n test-name -p {work_pool.name}"
+            ),
+            expected_code=0,
+            expected_output_does_not_contain=["test-flow"],
+            expected_output_contains=[
+                "wrapped-flow/test-name",
+                f"prefect worker start --pool '{work_pool.name}'",
+            ],
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "wrapped-flow/test-name"
+        )
+        assert deployment.name == "test-name"
+        assert deployment.work_pool_name == work_pool.name
+
+    async def test_deploy_with_missing_imports(
+        self, project_dir, work_pool, prefect_client
+    ):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                f"deploy ./wrapped-flow-project/missing_imports.py:bloop_flow -n test-name -p {work_pool.name}"
+            ),
+            expected_code=0,
+            expected_output_does_not_contain=["test-flow"],
+            expected_output_contains=[
+                "wrapped-flow/test-name",
+                f"prefect worker start --pool '{work_pool.name}'",
+            ],
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "wrapped-flow/test-name"
+        )
+        assert deployment.name == "test-name"
+        assert deployment.work_pool_name == work_pool.name
 
     async def test_project_deploy_with_default_work_pool(
         self, project_dir, prefect_client
@@ -400,6 +464,96 @@ class TestProjectDeploy:
                 " storage location when running this flow?"
             ],
         )
+
+    @pytest.mark.parametrize(
+        "cli_options,expected_limit,expected_strategy",
+        [
+            pytest.param("-cl 42", 42, None, id="limit-only"),
+            pytest.param(
+                "-cl 42 --collision-strategy CANCEL_NEW",
+                42,
+                "CANCEL_NEW",
+                id="limit-and-strategy",
+            ),
+            pytest.param(
+                "--collision-strategy CANCEL_NEW",
+                None,
+                None,
+                id="strategy-only",
+            ),
+        ],
+    )
+    @pytest.mark.usefixtures("interactive_console", "uninitialized_project_dir")
+    async def test_deploy_with_concurrency_limit_and_options(
+        self,
+        project_dir,
+        prefect_client: PrefectClient,
+        cli_options,
+        expected_limit,
+        expected_strategy,
+    ):
+        await prefect_client.create_work_pool(
+            WorkPoolCreate(name="test-pool", type="test")
+        )
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                "deploy ./flows/hello.py:my_flow -n test-deploy-concurrency-limit -p test-pool "
+                + "--interval 60 "
+                + cli_options
+                # "-cl 42 --collision-strategy CANCEL_NEW"
+            ),
+            expected_code=0,
+            user_input=(
+                # Decline pulling from remote storage
+                "n"
+                + readchar.key.ENTER
+                +
+                # Accept saving the deployment configuration
+                "y"
+                + readchar.key.ENTER
+            ),
+            expected_output_contains=[
+                "prefect deployment run 'An important name/test-deploy-concurrency-limit'"
+            ],
+        )
+
+        prefect_file = Path("prefect.yaml")
+        assert prefect_file.exists()
+
+        with open(prefect_file, "r") as f:
+            config = yaml.safe_load(f)
+
+        if expected_limit is not None:
+            if expected_strategy is not None:
+                assert config["deployments"][0]["concurrency_limit"] == {
+                    "limit": expected_limit,
+                    "collision_strategy": expected_strategy,
+                }
+            else:
+                assert config["deployments"][0]["concurrency_limit"] == expected_limit
+        else:
+            assert config["deployments"][0]["concurrency_limit"] is None
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-deploy-concurrency-limit"
+        )
+        assert deployment.name == "test-deploy-concurrency-limit"
+        assert deployment.work_pool_name == "test-pool"
+
+        if expected_limit is not None:
+            assert deployment.global_concurrency_limit is not None
+            assert deployment.global_concurrency_limit.limit == expected_limit
+        else:
+            assert deployment.global_concurrency_limit is None
+
+        if expected_strategy is not None:
+            assert deployment.concurrency_options is not None
+            assert (
+                deployment.concurrency_options.collision_strategy == expected_strategy
+            )
+        else:
+            assert deployment.concurrency_options is None
 
     class TestGeneratedPullAction:
         async def test_project_deploy_generates_pull_action(
@@ -759,7 +913,7 @@ class TestProjectDeploy:
                 invoke_and_assert,
                 command=(
                     "deploy ./flows/hello.py:my_flow -n test-name -p"
-                    f" {work_pool.name} --version 1.0.0 -v env=prod -t foo-bar"
+                    f" {work_pool.name} --version 1.0.0 -jv env=prod -t foo-bar"
                     " --interval 60"
                 ),
                 expected_code=0,
@@ -1865,7 +2019,7 @@ class TestProjectDeploy:
         deployment = await prefect_client.read_deployment_by_name(
             "An important name/test-name"
         )
-        assert deployment.schedule is None
+        assert len(deployment.schedules) == 0
 
     @pytest.mark.parametrize("build_value", [None, {}])
     @pytest.mark.usefixtures("project_dir", "interactive_console")
@@ -2178,8 +2332,10 @@ class TestSchedules:
         deployment = await prefect_client.read_deployment_by_name(
             "An important name/test-name"
         )
-        assert deployment.schedule.cron == "0 4 * * *"
-        assert deployment.schedule.timezone == "Europe/Berlin"
+        assert len(deployment.schedules) == 1
+        schedule = deployment.schedules[0].schedule
+        assert schedule.cron == "0 4 * * *"
+        assert schedule.timezone == "Europe/Berlin"
 
     @pytest.mark.usefixtures("project_dir")
     async def test_passing_interval_schedules_to_deploy(
@@ -2198,9 +2354,11 @@ class TestSchedules:
         deployment = await prefect_client.read_deployment_by_name(
             "An important name/test-name"
         )
-        assert deployment.schedule.interval == timedelta(seconds=42)
-        assert deployment.schedule.anchor_date == pendulum.parse("2040-02-02")
-        assert deployment.schedule.timezone == "America/New_York"
+        assert len(deployment.schedules) == 1
+        schedule = deployment.schedules[0].schedule
+        assert schedule.interval == timedelta(seconds=42)
+        assert schedule.anchor_date == pendulum.parse("2040-02-02")
+        assert schedule.timezone == "America/New_York"
 
     @pytest.mark.usefixtures("project_dir")
     async def test_interval_schedule_deployment_yaml(self, prefect_client, work_pool):
@@ -2227,9 +2385,11 @@ class TestSchedules:
         deployment = await prefect_client.read_deployment_by_name(
             "An important name/test-name"
         )
-        assert deployment.schedule.interval == timedelta(seconds=42)
-        assert deployment.schedule.anchor_date == pendulum.parse("2040-02-02")
-        assert deployment.schedule.timezone == "America/Chicago"
+        assert len(deployment.schedules) == 1
+        schedule = deployment.schedules[0].schedule
+        assert schedule.interval == timedelta(seconds=42)
+        assert schedule.anchor_date == pendulum.parse("2040-02-02")
+        assert schedule.timezone == "America/Chicago"
 
     @pytest.mark.usefixtures("project_dir")
     async def test_parsing_rrule_schedule_string_literal(
@@ -2248,8 +2408,9 @@ class TestSchedules:
         deployment = await prefect_client.read_deployment_by_name(
             "An important name/test-name"
         )
+        schedule = deployment.schedules[0].schedule
         assert (
-            deployment.schedule.rrule
+            schedule.rrule
             == "DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17"
         )
 
@@ -2279,8 +2440,9 @@ class TestSchedules:
         deployment = await prefect_client.read_deployment_by_name(
             "An important name/test-name"
         )
+        schedule = deployment.schedules[0].schedule
         assert (
-            deployment.schedule.rrule
+            schedule.rrule
             == "DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17"
         )
 
@@ -2632,7 +2794,7 @@ class TestSchedules:
         deployment = await prefect_client.read_deployment_by_name(
             "An important name/test-name"
         )
-        assert deployment.schedule is None
+        assert len(deployment.schedules) == 0
 
     @pytest.mark.usefixtures("project_dir")
     async def test_deploy_with_inactive_schedule(self, work_pool, prefect_client):
@@ -2665,31 +2827,19 @@ class TestSchedules:
         assert deployment_schedule.schedule.cron == "0 4 * * *"
         assert deployment_schedule.schedule.timezone == "America/Chicago"
 
-    @pytest.mark.usefixtures("project_dir", "enable_schedule_concurrency")
-    async def test_deploy_with_max_active_runs_and_catchup_provided_for_schedule(
-        self, work_pool, prefect_client
-    ):
-        prefect_file = Path("prefect.yaml")
-        with prefect_file.open(mode="r") as f:
-            deploy_config = yaml.safe_load(f)
+    @pytest.mark.usefixtures("project_dir")
+    async def test_yaml_null_schedules(self, prefect_client, work_pool):
+        prefect_yaml_content = f"""
+        deployments:
+          - name: test-name
+            entrypoint: flows/hello.py:my_flow
+            work_pool:
+              name: {work_pool.name}
+            schedules: null
+        """
 
-        deploy_config["deployments"] = [
-            {
-                "name": "test-name",
-                "entrypoint": "flows/hello.py:my_flow",
-                "work_pool": {"name": work_pool.name},
-                "schedules": [
-                    {
-                        "interval": 42,
-                        "max_active_runs": 5,
-                        "catchup": True,
-                    }
-                ],
-            }
-        ]
-
-        with prefect_file.open(mode="w") as f:
-            yaml.safe_dump(deploy_config, f)
+        with open("prefect.yaml", "w") as f:
+            f.write(prefect_yaml_content)
 
         await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -2701,51 +2851,7 @@ class TestSchedules:
             "An important name/test-name"
         )
 
-        assert deployment.schedules[0].max_active_runs == 5
-        assert deployment.schedules[0].catchup is True
-
-    @pytest.mark.usefixtures(
-        "project_dir", "interactive_console", "enable_schedule_concurrency"
-    )
-    async def test_deploy_with_max_active_runs_and_catchup_interactive(
-        self, work_pool, prefect_client
-    ):
-        await run_sync_in_worker_thread(
-            invoke_and_assert,
-            command=(
-                f"deploy ./flows/hello.py:my_flow -n test-name --pool {work_pool.name}"
-            ),
-            user_input=(
-                # Confirm schedule creation
-                readchar.key.ENTER
-                # Select interval schedule
-                + readchar.key.ENTER
-                # Enter interval
-                + "42"
-                + readchar.key.ENTER
-                # accept schedule being active
-                + readchar.key.ENTER
-                # Enter max active runs
-                + "5"
-                + readchar.key.ENTER
-                # Enter catchup
-                + "y"
-                + readchar.key.ENTER
-                # decline adding another schedule
-                + readchar.key.ENTER
-                # decline save
-                + "n"
-                + readchar.key.ENTER
-            ),
-            expected_code=0,
-        )
-
-        deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
-        )
-
-        assert deployment.schedules[0].max_active_runs == 5
-        assert deployment.schedules[0].catchup is True
+        assert deployment.schedules == []
 
 
 class TestMultiDeploy:
@@ -2975,7 +3081,8 @@ class TestMultiDeploy:
 
         assert deployment.name == "test-name-1"
         assert deployment.work_pool_name == work_pool.name
-        assert deployment.schedule == CronSchedule(cron="0 * * * *")
+        assert len(deployment.schedules) == 1
+        assert deployment.schedules[0].schedule == CronSchedule(cron="0 * * * *")
 
         # Check if the second deployment was not created
         with pytest.raises(ObjectNotFound):
@@ -3036,11 +3143,11 @@ class TestMultiDeploy:
 
         assert deployment1.name == "test-name-1"
         assert deployment1.work_pool_name == work_pool.name
-        assert deployment1.schedule is None
+        assert len(deployment1.schedules) == 0
 
         assert deployment2.name == "test-name-2"
         assert deployment2.work_pool_name == work_pool.name
-        assert deployment2.schedule is None
+        assert len(deployment2.schedules) == 0
 
     async def test_deploy_with_cli_option_name(
         self, project_dir, prefect_client, work_pool
@@ -4056,6 +4163,43 @@ class TestDeployPattern:
             ],
         )
 
+    @pytest.mark.usefixtures("project_dir")
+    async def test_concurrency_limit_config_deployment_yaml(
+        self, work_pool, prefect_client: PrefectClient
+    ):
+        concurrency_limit_config = {"limit": 42, "collision_strategy": "CANCEL_NEW"}
+
+        prefect_yaml = Path("prefect.yaml")
+        with prefect_yaml.open(mode="r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        deploy_config["deployments"][0]["name"] = "test-name"
+        deploy_config["deployments"][0]["concurrency_limit"] = concurrency_limit_config
+
+        with prefect_yaml.open(mode="w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(f"deploy ./flows/hello.py:my_flow --pool {work_pool.name}"),
+        )
+        assert result.exit_code == 0
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+
+        assert deployment.global_concurrency_limit is not None
+        assert (
+            deployment.global_concurrency_limit.limit
+            == concurrency_limit_config["limit"]
+        )
+        assert deployment.concurrency_options is not None
+        assert (
+            deployment.concurrency_options.collision_strategy
+            == concurrency_limit_config["collision_strategy"]
+        )
+
     @pytest.mark.usefixtures("interactive_console", "project_dir")
     async def test_deploy_select_from_existing_deployments(
         self, work_pool, prefect_client
@@ -4290,8 +4434,6 @@ class TestSaveUserInputs:
             "day_or": True,
             "timezone": "UTC",
             "active": True,
-            "max_active_runs": None,
-            "catchup": False,
         }
 
     def test_deploy_existing_deployment_with_no_changes_does_not_prompt_save(self):
@@ -4335,8 +4477,6 @@ class TestSaveUserInputs:
             "day_or": True,
             "timezone": "UTC",
             "active": True,
-            "max_active_runs": None,
-            "catchup": False,
         }
 
         invoke_and_assert(
@@ -4368,8 +4508,6 @@ class TestSaveUserInputs:
             "day_or": True,
             "timezone": "UTC",
             "active": True,
-            "max_active_runs": None,
-            "catchup": False,
         }
 
     def test_deploy_existing_deployment_with_changes_prompts_save(self):
@@ -4517,8 +4655,6 @@ class TestSaveUserInputs:
             "rrule": "FREQ=MINUTELY",
             "timezone": "UTC",
             "active": True,
-            "max_active_runs": None,
-            "catchup": False,
         }
 
     async def test_save_user_inputs_with_actions(self):
@@ -4617,6 +4753,7 @@ class TestSaveUserInputs:
             "name": "existing_deployment",
             "entrypoint": "flows/existing_flow.py:my_flow",
             "schedule": None,
+            "concurrency_limit": 42,
             "work_pool": {"name": "new_pool"},
             "parameter_openapi_schema": None,
         }
@@ -4630,6 +4767,10 @@ class TestSaveUserInputs:
         assert len(config["deployments"]) == 2
         assert config["deployments"][1]["name"] == new_deployment["name"]
         assert config["deployments"][1]["entrypoint"] == new_deployment["entrypoint"]
+        assert (
+            config["deployments"][1]["concurrency_limit"]
+            == new_deployment["concurrency_limit"]
+        )
         assert (
             config["deployments"][1]["work_pool"]["name"]
             == new_deployment["work_pool"]["name"]
@@ -4810,11 +4951,12 @@ class TestSaveUserInputs:
 
     @pytest.mark.usefixtures("project_dir", "interactive_console")
     async def test_deploy_resolves_block_references_in_deployments_section(
-        self, prefect_client, work_pool
+        self, prefect_client, work_pool, ignore_prefect_deprecation_warnings
     ):
         """
         Ensure block references are resolved in deployments section of prefect.yaml
         """
+        # TODO: Remove this test when `JSON` block is removed
         await JSON(value={"work_pool_name": work_pool.name}).save(
             name="test-json-block"
         )
@@ -6241,6 +6383,31 @@ class TestDeployDockerBuildSteps:
             "job_variables": {"image": "original-image"},
         }
 
+    async def test_deploying_managed_work_pool_does_not_prompt_to_build_image(
+        self, managed_work_pool
+    ):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                "deploy ./flows/hello.py:my_flow -n test-name --interval 3600"
+                f" -p {managed_work_pool.name}"
+            ),
+            user_input=(
+                # Decline remote storage
+                "n"
+                + readchar.key.ENTER
+                # Decline save configuration
+                + "n"
+                + readchar.key.ENTER
+            ),
+            expected_output_contains=[
+                "$ prefect deployment run 'An important name/test-name'",
+            ],
+            expected_output_does_not_contain=[
+                "Would you like to build a custom Docker image?",
+            ],
+        )
+
 
 class TestDeployInfraOverrides:
     @pytest.fixture
@@ -6254,7 +6421,7 @@ class TestDeployInfraOverrides:
             invoke_and_assert,
             command=(
                 "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
-                " 1.0.0 -v env=prod -t foo-bar --variable"
+                " 1.0.0 -v env=prod -t foo-bar --job-variable"
                 ' \'{"resources":{"limits":{"cpu": 1}}}\''
             ),
             expected_code=0,
@@ -6281,7 +6448,7 @@ class TestDeployInfraOverrides:
             invoke_and_assert,
             command=(
                 "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
-                " 1.0.0 -v env=prod -t foo-bar --variable 'my-variable'"
+                " 1.0.0 -v env=prod -t foo-bar --job-variable 'my-variable'"
             ),
             expected_code=1,
             expected_output_contains=[
@@ -6294,7 +6461,7 @@ class TestDeployInfraOverrides:
             invoke_and_assert,
             command=(
                 "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
-                " 1.0.0 -v env=prod -t foo-bar --variable ['my-variable']"
+                " 1.0.0 -v env=prod -t foo-bar --job-variable ['my-variable']"
             ),
             expected_code=1,
             expected_output_contains=[
@@ -6307,7 +6474,7 @@ class TestDeployInfraOverrides:
             invoke_and_assert,
             command=(
                 "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
-                " 1.0.0 -v env=prod -t foo-bar --variable "
+                " 1.0.0 -v env=prod -t foo-bar --job-variable "
                 ' \'{"resources":{"limits":{"cpu"}\''
             ),
             expected_code=1,

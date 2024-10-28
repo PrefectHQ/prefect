@@ -23,6 +23,7 @@ class TestPoliciesRespectOrdering:
                 "we don't talk about fight club"
 
         class FightClub(BaseOrchestrationPolicy):
+            @staticmethod
             def priority():
                 return [
                     FirstRuleOfFightClub,
@@ -30,6 +31,7 @@ class TestPoliciesRespectOrdering:
                 ]
 
         class CopyCatClub(BaseOrchestrationPolicy):
+            @staticmethod
             def priority():
                 return [
                     FirstRuleOfFightClub,
@@ -37,6 +39,7 @@ class TestPoliciesRespectOrdering:
                 ]
 
         class DefinitelyADifferentClub(BaseOrchestrationPolicy):
+            @staticmethod
             def priority():
                 return [
                     SecondRuleOfFightClub,
@@ -66,6 +69,7 @@ class TestPoliciesRespectOrdering:
             FROM_STATES = ALL_ORCHESTRATION_STATES
 
         class Bureaucracy(BaseOrchestrationPolicy):
+            @staticmethod
             def priority():
                 return [
                     UselessRule,

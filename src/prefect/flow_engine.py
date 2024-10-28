@@ -1,4 +1,4 @@
-import inspect
+import asyncio
 import logging
 import os
 import time
@@ -29,6 +29,8 @@ from prefect.client.orchestration import SyncPrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.filters import FlowRunFilter
 from prefect.client.schemas.sorting import FlowRunSort
+from prefect.concurrency.context import ConcurrencyContext
+from prefect.concurrency.v1.context import ConcurrencyContext as ConcurrencyContextV1
 from prefect.context import FlowRunContext, SyncClientContext, TagsContext
 from prefect.exceptions import (
     Abort,
@@ -45,7 +47,12 @@ from prefect.logging.loggers import (
     get_run_logger,
     patch_print,
 )
-from prefect.results import BaseResult, ResultFactory
+from prefect.results import (
+    BaseResult,
+    ResultStore,
+    get_result_store,
+    should_persist_result,
+)
 from prefect.settings import PREFECT_DEBUG_MODE
 from prefect.states import (
     Failed,
@@ -200,9 +207,12 @@ class FlowRunEngine(Generic[P, R]):
                 self.handle_exception(
                     exc,
                     msg=message,
-                    result_factory=run_coro_as_sync(ResultFactory.from_flow(self.flow)),
+                    result_store=get_result_store().update_for_flow(
+                        self.flow, _sync=True
+                    ),
                 )
                 self.short_circuit = True
+                self.call_hooks()
 
         new_state = Running()
         state = self.set_state(new_state)
@@ -234,7 +244,7 @@ class FlowRunEngine(Generic[P, R]):
             else:
                 _result = self._return_value
 
-            if inspect.isawaitable(_result):
+            if asyncio.iscoroutine(_result):
                 # getting the value for a BaseResult may return an awaitable
                 # depending on whether the parent frame is sync or not
                 _result = run_coro_as_sync(_result)
@@ -253,19 +263,20 @@ class FlowRunEngine(Generic[P, R]):
         _result = self.state.result(raise_on_failure=raise_on_failure, fetch=True)  # type: ignore
         # state.result is a `sync_compatible` function that may or may not return an awaitable
         # depending on whether the parent frame is sync or not
-        if inspect.isawaitable(_result):
+        if asyncio.iscoroutine(_result):
             _result = run_coro_as_sync(_result)
         return _result
 
     def handle_success(self, result: R) -> R:
-        result_factory = getattr(FlowRunContext.get(), "result_factory", None)
-        if result_factory is None:
-            raise ValueError("Result factory is not set")
+        result_store = getattr(FlowRunContext.get(), "result_store", None)
+        if result_store is None:
+            raise ValueError("Result store is not set")
         resolved_result = resolve_futures_to_states(result)
         terminal_state = run_coro_as_sync(
             return_value_to_state(
                 resolved_result,
-                result_factory=result_factory,
+                result_store=result_store,
+                write_result=should_persist_result(),
             )
         )
         self.set_state(terminal_state)
@@ -276,16 +287,19 @@ class FlowRunEngine(Generic[P, R]):
         self,
         exc: Exception,
         msg: Optional[str] = None,
-        result_factory: Optional[ResultFactory] = None,
+        result_store: Optional[ResultStore] = None,
     ) -> State:
         context = FlowRunContext.get()
-        terminal_state = run_coro_as_sync(
-            exception_to_failed_state(
-                exc,
-                message=msg or "Flow run encountered an exception:",
-                result_factory=result_factory
-                or getattr(context, "result_factory", None),
-            )
+        terminal_state = cast(
+            State,
+            run_coro_as_sync(
+                exception_to_failed_state(
+                    exc,
+                    message=msg or "Flow run encountered an exception:",
+                    result_store=result_store or getattr(context, "result_store", None),
+                    write_result=True,
+                )
+            ),
         )
         state = self.set_state(terminal_state)
         if self.state.is_scheduled():
@@ -463,7 +477,7 @@ class FlowRunEngine(Generic[P, R]):
                     f" {state.name!r}"
                 )
                 result = hook(flow, flow_run, state)
-                if inspect.isawaitable(result):
+                if asyncio.iscoroutine(result):
                     run_coro_as_sync(result)
             except Exception:
                 self.logger.error(
@@ -501,10 +515,18 @@ class FlowRunEngine(Generic[P, R]):
                     flow_run=self.flow_run,
                     parameters=self.parameters,
                     client=client,
-                    result_factory=run_coro_as_sync(ResultFactory.from_flow(self.flow)),
+                    result_store=get_result_store().update_for_flow(
+                        self.flow, _sync=True
+                    ),
                     task_runner=task_runner,
+                    persist_result=self.flow.persist_result
+                    if self.flow.persist_result is not None
+                    else should_persist_result(),
                 )
             )
+            stack.enter_context(ConcurrencyContextV1())
+            stack.enter_context(ConcurrencyContext())
+
             # set the logger to the flow run logger
             self.logger = flow_run_logger(flow_run=self.flow_run, flow=self.flow)
 

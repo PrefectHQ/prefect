@@ -127,34 +127,54 @@ class Action(PrefectBaseModel, abc.ABC):
 
         automation_resource_id = f"prefect.automation.{automation.id}"
 
+        action_details = {
+            "action_index": action_index,
+            "action_type": action.type,
+            "invocation": str(triggered_action.id),
+        }
+        resource = Resource(
+            {
+                "prefect.resource.id": automation_resource_id,
+                "prefect.resource.name": automation.name,
+                "prefect.trigger-type": automation.trigger.type,
+            }
+        )
+        if isinstance(automation.trigger, EventTrigger):
+            resource["prefect.posture"] = automation.trigger.posture
+
         logger.warning(
             "Action failed: %r",
             reason,
             extra={**self.logging_context(triggered_action)},
         )
-        event = Event(
-            occurred=pendulum.now("UTC"),
-            event="prefect.automation.action.failed",
-            resource={
-                "prefect.resource.id": automation_resource_id,
-                "prefect.resource.name": automation.name,
-                "prefect.trigger-type": automation.trigger.type,
-            },
-            related=self._resulting_related_resources,
-            payload={
-                "action_index": action_index,
-                "action_type": action.type,
-                "invocation": str(triggered_action.id),
-                "reason": reason,
-                **self._result_details,
-            },
-            id=uuid4(),
-        )
-        if isinstance(automation.trigger, EventTrigger):
-            event.resource["prefect.posture"] = automation.trigger.posture
 
         async with PrefectServerEventsClient() as events:
-            await events.emit(event)
+            triggered_event_id = uuid4()
+            await events.emit(
+                Event(
+                    occurred=triggered_action.triggered,
+                    event="prefect.automation.action.triggered",
+                    resource=resource,
+                    related=self._resulting_related_resources,
+                    payload=action_details,
+                    id=triggered_event_id,
+                )
+            )
+            await events.emit(
+                Event(
+                    occurred=pendulum.now("UTC"),
+                    event="prefect.automation.action.failed",
+                    resource=resource,
+                    related=self._resulting_related_resources,
+                    payload={
+                        **action_details,
+                        "reason": reason,
+                        **self._result_details,
+                    },
+                    follows=triggered_event_id,
+                    id=uuid4(),
+                )
+            )
 
     async def succeed(self, triggered_action: "TriggeredAction") -> None:
         from prefect.server.events.schemas.automations import EventTrigger
@@ -165,28 +185,55 @@ class Action(PrefectBaseModel, abc.ABC):
 
         automation_resource_id = f"prefect.automation.{automation.id}"
 
-        event = Event(
-            occurred=pendulum.now("UTC"),
-            event="prefect.automation.action.executed",
-            resource={
+        action_details = {
+            "action_index": action_index,
+            "action_type": action.type,
+            "invocation": str(triggered_action.id),
+        }
+        resource = Resource(
+            {
                 "prefect.resource.id": automation_resource_id,
                 "prefect.resource.name": automation.name,
                 "prefect.trigger-type": automation.trigger.type,
-            },
-            related=self._resulting_related_resources,
-            payload={
-                "action_index": action_index,
-                "action_type": action.type,
-                "invocation": str(triggered_action.id),
-                **self._result_details,
-            },
-            id=uuid4(),
+            }
         )
         if isinstance(automation.trigger, EventTrigger):
-            event.resource["prefect.posture"] = automation.trigger.posture
+            resource["prefect.posture"] = automation.trigger.posture
 
         async with PrefectServerEventsClient() as events:
-            await events.emit(event)
+            triggered_event_id = uuid4()
+            await events.emit(
+                Event(
+                    occurred=triggered_action.triggered,
+                    event="prefect.automation.action.triggered",
+                    resource={
+                        "prefect.resource.id": automation_resource_id,
+                        "prefect.resource.name": automation.name,
+                        "prefect.trigger-type": automation.trigger.type,
+                    },
+                    related=self._resulting_related_resources,
+                    payload=action_details,
+                    id=triggered_event_id,
+                )
+            )
+            await events.emit(
+                Event(
+                    occurred=pendulum.now("UTC"),
+                    event="prefect.automation.action.executed",
+                    resource={
+                        "prefect.resource.id": automation_resource_id,
+                        "prefect.resource.name": automation.name,
+                        "prefect.trigger-type": automation.trigger.type,
+                    },
+                    related=self._resulting_related_resources,
+                    payload={
+                        **action_details,
+                        **self._result_details,
+                    },
+                    id=uuid4(),
+                    follows=triggered_event_id,
+                )
+            )
 
     def logging_context(self, triggered_action: "TriggeredAction") -> Dict[str, Any]:
         """Common logging context for all actions"""
@@ -918,10 +965,10 @@ class ResumeDeployment(DeploymentCommandAction):
         return await orchestration.resume_deployment(deployment_id)
 
 
-class FlowRunStateChangeAction(ExternalDataAction):
-    """Changes the state of a flow run associated with the trigger"""
+class FlowRunAction(ExternalDataAction):
+    """An action that operates on a flow run"""
 
-    async def flow_run_to_change(self, triggered_action: "TriggeredAction") -> UUID:
+    async def flow_run(self, triggered_action: "TriggeredAction") -> UUID:
         # Proactive triggers won't have an event, but they might be tracking
         # buckets per-resource, so check for that first
         labels = triggered_action.triggering_labels
@@ -936,12 +983,16 @@ class FlowRunStateChangeAction(ExternalDataAction):
 
         raise ActionFailed("No flow run could be inferred")
 
+
+class FlowRunStateChangeAction(FlowRunAction):
+    """Changes the state of a flow run associated with the trigger"""
+
     @abc.abstractmethod
     async def new_state(self, triggered_action: "TriggeredAction") -> StateCreate:
         """Return the new state for the flow run"""
 
     async def act(self, triggered_action: "TriggeredAction") -> None:
-        flow_run_id = await self.flow_run_to_change(triggered_action)
+        flow_run_id = await self.flow_run(triggered_action)
 
         self._resulting_related_resources.append(
             RelatedResource.model_validate(
@@ -1034,6 +1085,40 @@ class SuspendFlowRun(FlowRunStateChangeAction):
             message=state.message,
             state_details=state.state_details,
         )
+
+
+class ResumeFlowRun(FlowRunAction):
+    """Resumes a paused or suspended flow run associated with the trigger"""
+
+    type: Literal["resume-flow-run"] = "resume-flow-run"
+
+    async def act(self, triggered_action: "TriggeredAction") -> None:
+        flow_run_id = await self.flow_run(triggered_action)
+
+        self._resulting_related_resources.append(
+            RelatedResource.model_validate(
+                {
+                    "prefect.resource.id": f"prefect.flow-run.{flow_run_id}",
+                    "prefect.resource.role": "target",
+                }
+            )
+        )
+
+        logger.debug(
+            "Resuming flow run",
+            extra={
+                "flow_run_id": str(flow_run_id),
+                **self.logging_context(triggered_action),
+            },
+        )
+
+        async with await self.orchestration_client(triggered_action) as orchestration:
+            result = await orchestration.resume_flow_run(flow_run_id)
+
+            if not isinstance(result.details, StateAcceptDetails):
+                raise ActionFailed(
+                    f"Failed to resume flow run: {result.details.reason}"
+                )
 
 
 class CallWebhook(JinjaTemplateAction):
@@ -1575,7 +1660,7 @@ class ResumeAutomation(AutomationCommandAction):
 # The actual action types that we support.  It's important to update this
 # Union when adding new subclasses of Action so that they are available for clients
 # and in the OpenAPI docs
-ActionTypes: TypeAlias = Union[
+ServerActionTypes: TypeAlias = Union[
     DoNothing,
     RunDeployment,
     PauseDeployment,
@@ -1589,6 +1674,7 @@ ActionTypes: TypeAlias = Union[
     PauseAutomation,
     ResumeAutomation,
     SuspendFlowRun,
+    ResumeFlowRun,
     PauseWorkPool,
     ResumeWorkPool,
 ]

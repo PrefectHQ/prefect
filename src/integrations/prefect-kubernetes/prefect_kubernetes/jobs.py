@@ -7,7 +7,7 @@ from typing import Any, Callable, Dict, Optional, Type, Union
 import yaml
 from kubernetes_asyncio.client.models import V1DeleteOptions, V1Job, V1JobList, V1Status
 from pydantic import Field
-from typing_extensions import Self
+from typing_extensions import Self, TypeAlias
 
 from prefect import task
 from prefect.blocks.abstract import JobBlock, JobRun
@@ -16,7 +16,16 @@ from prefect_kubernetes.credentials import KubernetesCredentials
 from prefect_kubernetes.exceptions import KubernetesJobTimeoutError
 from prefect_kubernetes.pods import list_namespaced_pod, read_namespaced_pod_log
 
-KubernetesManifest = Union[Dict, Path, str]
+KubernetesManifest: TypeAlias = Union[Dict, Path, str]
+
+
+def _get_pod_selector(v1_job: V1Job) -> str:
+    try:
+        return (
+            f"controller-uid={v1_job.spec.template.metadata.labels['controller-uid']}"
+        )
+    except (AttributeError, KeyError):
+        raise ValueError("Unable to determine pod selector for job. ")
 
 
 @task
@@ -356,6 +365,14 @@ class KubernetesJobRun(JobRun[Dict[str, Any]]):
         self._kubernetes_job = kubernetes_job
         self._v1_job_model = v1_job_model
 
+    @property
+    def v1_job_model(self) -> dict[str, Any]:
+        return (
+            self._v1_job_model
+            if isinstance(self._v1_job_model, dict)
+            else self._v1_job_model.to_dict()
+        )
+
     async def _cleanup(self):
         """Deletes the Kubernetes job resource."""
         job_name = self._v1_job_model.get("metadata", {}).get("name")
@@ -399,15 +416,13 @@ class KubernetesJobRun(JobRun[Dict[str, Any]]):
                     f"Job timed out after {elapsed_time} seconds."
                 )
 
-            v1_job_status = await read_namespaced_job_status.fn(
+            v1_job = await read_namespaced_job.fn(
                 kubernetes_credentials=self._kubernetes_job.credentials,
-                job_name=self._v1_job_model.get("metadata", {}).get("name"),
+                job_name=self.v1_job_model.get("metadata", {}).get("name"),
                 namespace=self._kubernetes_job.namespace,
                 **self._kubernetes_job.api_kwargs,
             )
-            pod_selector = (
-                "controller-uid=" f"{v1_job_status.metadata.labels['controller-uid']}"
-            )
+            pod_selector = _get_pod_selector(v1_job)
             v1_pod_list = await list_namespaced_pod.fn(
                 kubernetes_credentials=self._kubernetes_job.credentials,
                 namespace=self._kubernetes_job.namespace,
@@ -426,36 +441,36 @@ class KubernetesJobRun(JobRun[Dict[str, Any]]):
                 self.pod_logs[pod_name] = await read_namespaced_pod_log.fn(
                     kubernetes_credentials=self._kubernetes_job.credentials,
                     pod_name=pod_name,
-                    container=v1_job_status.spec.template.spec.containers[0].name,
+                    container=v1_job.spec.template.spec.containers[0].name,
                     namespace=self._kubernetes_job.namespace,
                     print_func=print_func,
                     **self._kubernetes_job.api_kwargs,
                 )
 
-            if v1_job_status.status.active:
+            if v1_job.status.active:
                 await sleep(self._kubernetes_job.interval_seconds)
                 if self._kubernetes_job.timeout_seconds:
                     elapsed_time += self._kubernetes_job.interval_seconds
-            elif v1_job_status.status.conditions:
+            elif v1_job.status.conditions:
                 final_completed_conditions = [
                     condition.type == "Complete"
-                    for condition in v1_job_status.status.conditions
+                    for condition in v1_job.status.conditions
                     if condition.status == "True"
                 ]
                 if final_completed_conditions and any(final_completed_conditions):
                     self._completed = True
                     self.logger.info(
-                        f"Job {v1_job_status.metadata.name!r} has "
-                        f"completed with {v1_job_status.status.succeeded} pods."
+                        f"Job {v1_job.metadata.name!r} has "
+                        f"completed with {v1_job.status.succeeded} pods."
                     )
                 elif final_completed_conditions:
                     failed_conditions = [
                         condition.reason
-                        for condition in v1_job_status.status.conditions
+                        for condition in v1_job.status.conditions
                         if condition.type == "Failed"
                     ]
                     raise RuntimeError(
-                        f"Job {v1_job_status.metadata.name!r} failed due to "
+                        f"Job {v1_job.metadata.name!r} failed due to "
                         f"{failed_conditions}, check the Kubernetes pod logs "
                         f"for more information."
                     )
@@ -502,7 +517,8 @@ class KubernetesJob(JobBlock):
         examples=[{"pretty": "true"}],
     )
     credentials: KubernetesCredentials = Field(
-        default=..., description="The credentials to configure a client from."
+        default_factory=KubernetesCredentials,
+        description="The credentials to configure a client from.",
     )
     delete_after_completion: bool = Field(
         default=True,

@@ -4,7 +4,7 @@ import type { Config } from 'tailwindcss'
 const config: Config = {
   content: [
     './index.html',
-    './**/*.{vue,js,ts,jsx,tsx}',
+    './src/**/*.vue',
   ],
   presets: [prefectDesignTailwindConfig],
 }

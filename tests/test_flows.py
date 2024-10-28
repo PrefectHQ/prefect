@@ -17,6 +17,7 @@ from unittest import mock
 from unittest.mock import ANY, MagicMock, call, create_autospec
 
 import anyio
+import pendulum
 import pydantic
 import pytest
 import regex as re
@@ -25,14 +26,15 @@ import prefect
 import prefect.exceptions
 from prefect import flow, runtime, tags, task
 from prefect.blocks.core import Block
-from prefect.client.orchestration import PrefectClient, get_client
+from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
+from prefect.client.schemas.objects import ConcurrencyLimitConfig, Worker, WorkerStatus
 from prefect.client.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
     RRuleSchedule,
 )
 from prefect.context import FlowRunContext, get_run_context
-from prefect.deployments.runner import RunnerDeployment
+from prefect.deployments.runner import RunnerDeployment, RunnerStorage
 from prefect.docker.docker_image import DockerImage
 from prefect.events import DeploymentEventTrigger, Posture
 from prefect.exceptions import (
@@ -49,9 +51,10 @@ from prefect.flows import (
     load_flow_arguments_from_entrypoint,
     load_flow_from_entrypoint,
     load_flow_from_flow_run,
+    safe_load_flow_from_entrypoint,
 )
 from prefect.logging import get_run_logger
-from prefect.results import PersistedResultBlob
+from prefect.results import ResultRecord
 from prefect.runtime import flow_run as flow_run_ctx
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.filters import FlowFilter, FlowRunFilter
@@ -75,7 +78,7 @@ from prefect.testing.utilities import (
     exceptions_equal,
     get_most_recent_flow_run,
 )
-from prefect.transactions import transaction
+from prefect.transactions import get_transaction, transaction
 from prefect.types.entrypoint import EntrypointType
 from prefect.utilities.annotations import allow_failure, quote
 from prefect.utilities.callables import parameter_schema
@@ -192,6 +195,10 @@ class TestFlow:
     def test_invalid_name(self, name):
         with pytest.raises(InvalidNameError, match="contains an invalid character"):
             Flow(fn=lambda: 1, name=name)
+
+    def test_lambda_name_coerced_to_legal_characters(self):
+        f = Flow(fn=lambda: 42)
+        assert f.name == "unknown-lambda"
 
     def test_invalid_run_name(self):
         class InvalidFlowRunNameArg:
@@ -1728,6 +1735,15 @@ class TestFlowParameterTypes:
         instance = my_flow(Test())
         assert isinstance(instance, Test)
 
+    def test_flow_parameter_kwarg_can_be_literally_keys(self):
+        """regression test for https://github.com/PrefectHQ/prefect/issues/15610"""
+
+        @flow
+        def my_flow(keys: str):
+            return keys
+
+        assert my_flow(keys="hello") == "hello"
+
 
 class TestSubflowTaskInputs:
     async def test_subflow_with_one_upstream_task_future(self, prefect_client):
@@ -2609,9 +2625,8 @@ class TestLoadFlowFromEntrypoint:
         assert flow.name == "dog"
         assert flow.description == "Says woof!"
 
-        # But if the flow is called, it should raise the ScriptError
-        with pytest.raises(ScriptError):
-            flow.fn()
+        # Should still be callable
+        assert flow() == "woof!"
 
     @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
     async def test_handling_script_with_unprotected_call_in_flow_script(
@@ -2663,8 +2678,7 @@ class TestLoadFlowFromEntrypoint:
         # Test with use_placeholder_flow=True (default behavior)
         flow = load_flow_from_entrypoint(f"{fpath}:dog")
         assert isinstance(flow, Flow)
-        with pytest.raises(ScriptError):
-            flow.fn()
+        assert flow() == "woof!"
 
         # Test with use_placeholder_flow=False
         with pytest.raises(ScriptError):
@@ -3182,6 +3196,20 @@ class TestFlowHooksOnFailure:
         state = my_flow(return_state=True)
         assert state.type == StateType.FAILED
         assert my_mock.call_args_list == [call(), call()]
+
+    def test_on_failure_hooks_run_on_bad_parameters(self):
+        my_mock = MagicMock()
+
+        def failure_hook(flow, flow_run, state):
+            my_mock("failure_hook")
+
+        @flow(on_failure=[failure_hook])
+        def my_flow(x: int):
+            pass
+
+        state = my_flow(x="x", return_state=True)
+        assert state.type == StateType.FAILED
+        assert my_mock.call_args_list == [call("failure_hook")]
 
 
 class TestFlowHooksOnCancellation:
@@ -3823,6 +3851,7 @@ class TestFlowToDeployment:
             name="test",
             tags=["price", "luggage"],
             parameters={"name": "Arthur"},
+            concurrency_limit=42,
             description="This is a test",
             version="alpha",
             enforce_parameter_schema=True,
@@ -3844,6 +3873,7 @@ class TestFlowToDeployment:
         assert deployment.name == "test"
         assert deployment.tags == ["price", "luggage"]
         assert deployment.parameters == {"name": "Arthur"}
+        assert deployment.concurrency_limit == 42
         assert deployment.description == "This is a test"
         assert deployment.version == "alpha"
         assert deployment.enforce_parameter_schema
@@ -3902,7 +3932,6 @@ class TestFlowToDeployment:
                     {"interval": 3600},
                     {"cron": "* * * * *"},
                     {"rrule": "FREQ=MINUTELY"},
-                    {"schedule": CronSchedule(cron="* * * * *")},
                 ],
                 2,
             )
@@ -3912,9 +3941,73 @@ class TestFlowToDeployment:
         with warnings.catch_warnings():
             # `schedule` parameter is deprecated and will raise a warning
             warnings.filterwarnings("ignore", category=DeprecationWarning)
-            expected_message = "Only one of interval, cron, rrule, schedule, or schedules can be provided."
+            expected_message = (
+                "Only one of interval, cron, rrule, or schedules can be provided."
+            )
             with pytest.raises(ValueError, match=expected_message):
                 await self.flow.to_deployment(__file__, **kwargs)
+
+    async def test_to_deployment_respects_with_options_name_from_flow(self):
+        """regression test for https://github.com/PrefectHQ/prefect/issues/15380"""
+
+        @flow(name="original-name")
+        def test_flow():
+            pass
+
+        flow_with_new_name = test_flow.with_options(name="new-name")
+        deployment = await flow_with_new_name.to_deployment(name="test-deployment")
+
+        assert isinstance(deployment, RunnerDeployment)
+        assert deployment.name == "test-deployment"
+        assert deployment.flow_name == "new-name"
+
+    async def test_to_deployment_respects_with_options_name_from_storage(
+        self, monkeypatch
+    ):
+        """regression test for https://github.com/PrefectHQ/prefect/issues/15380"""
+
+        @flow(name="original-name")
+        def test_flow():
+            pass
+
+        flow_with_new_name = test_flow.with_options(name="new-name")
+
+        mock_storage = MagicMock(spec=RunnerStorage)
+        mock_entrypoint = "fake_module:test_flow"
+        mock_from_storage = AsyncMock(
+            return_value=RunnerDeployment(
+                name="test-deployment", flow_name="new-name", entrypoint=mock_entrypoint
+            )
+        )
+        monkeypatch.setattr(RunnerDeployment, "from_storage", mock_from_storage)
+
+        flow_with_new_name._storage = mock_storage
+        flow_with_new_name._entrypoint = mock_entrypoint
+
+        deployment = await flow_with_new_name.to_deployment(name="test-deployment")
+
+        assert isinstance(deployment, RunnerDeployment)
+        assert deployment.name == "test-deployment"
+        assert deployment.flow_name == "new-name"
+        assert deployment.entrypoint == mock_entrypoint
+
+        mock_from_storage.assert_awaited_once()
+        call_args = mock_from_storage.call_args[1]
+        assert call_args["storage"] == mock_storage
+        assert call_args["entrypoint"] == mock_entrypoint
+        assert call_args["name"] == "test-deployment"
+        assert call_args["flow_name"] == "new-name"
+
+    async def test_to_deployment_accepts_concurrency_limit(self):
+        concurrency_limit = ConcurrencyLimitConfig(
+            limit=42, collision_strategy="CANCEL_NEW"
+        )
+        deployment = await self.flow.to_deployment(
+            name="test", concurrency_limit=concurrency_limit
+        )
+
+        assert deployment.concurrency_limit == 42
+        assert deployment.concurrency_options.collision_strategy == "CANCEL_NEW"
 
 
 class TestFlowServe:
@@ -3943,7 +4036,7 @@ class TestFlowServe:
         )
         assert "$ prefect deployment run 'test-flow/test'" in captured.out
 
-    def test_serve_creates_deployment(self, prefect_client: PrefectClient):
+    def test_serve_creates_deployment(self, sync_prefect_client: SyncPrefectClient):
         self.flow.serve(
             name="test",
             tags=["price", "luggage"],
@@ -3952,11 +4045,10 @@ class TestFlowServe:
             version="alpha",
             enforce_parameter_schema=True,
             paused=True,
+            global_limit=42,
         )
 
-        deployment = asyncio.run(
-            prefect_client.read_deployment_by_name(name="test-flow/test")
-        )
+        deployment = sync_prefect_client.read_deployment_by_name(name="test-flow/test")
 
         assert deployment is not None
         # Flow.serve should created deployments without a work queue or work pool
@@ -3969,66 +4061,63 @@ class TestFlowServe:
         assert deployment.version == "alpha"
         assert deployment.enforce_parameter_schema
         assert deployment.paused
-        assert not deployment.is_schedule_active
+        assert deployment.global_concurrency_limit.limit == 42
 
-    def test_serve_can_user_a_module_path_entrypoint(self, prefect_client):
+    def test_serve_can_user_a_module_path_entrypoint(self, sync_prefect_client):
         deployment = self.flow.serve(
             name="test", entrypoint_type=EntrypointType.MODULE_PATH
         )
-        deployment = asyncio.run(
-            prefect_client.read_deployment_by_name(name="test-flow/test")
-        )
+        deployment = sync_prefect_client.read_deployment_by_name(name="test-flow/test")
 
         assert deployment.entrypoint == f"{self.flow.__module__}.{self.flow.__name__}"
 
-    def test_serve_handles__file__(self, prefect_client: PrefectClient):
+    def test_serve_handles__file__(self, sync_prefect_client: SyncPrefectClient):
         self.flow.serve(__file__)
 
-        deployment = asyncio.run(
-            prefect_client.read_deployment_by_name(name="test-flow/test_flows")
+        deployment = sync_prefect_client.read_deployment_by_name(
+            name="test-flow/test_flows"
         )
 
         assert deployment.name == "test_flows"
 
     def test_serve_creates_deployment_with_interval_schedule(
-        self, prefect_client: PrefectClient
+        self, sync_prefect_client: SyncPrefectClient
     ):
         self.flow.serve(
             "test",
             interval=3600,
         )
 
-        deployment = asyncio.run(
-            prefect_client.read_deployment_by_name(name="test-flow/test")
-        )
+        deployment = sync_prefect_client.read_deployment_by_name(name="test-flow/test")
 
         assert deployment is not None
-        assert isinstance(deployment.schedule, IntervalSchedule)
-        assert deployment.schedule.interval == datetime.timedelta(seconds=3600)
+        assert len(deployment.schedules) == 1
+        assert isinstance(deployment.schedules[0].schedule, IntervalSchedule)
+        assert deployment.schedules[0].schedule.interval == datetime.timedelta(
+            seconds=3600
+        )
 
     def test_serve_creates_deployment_with_cron_schedule(
-        self, prefect_client: PrefectClient
+        self, sync_prefect_client: SyncPrefectClient
     ):
         self.flow.serve("test", cron="* * * * *")
 
-        deployment = asyncio.run(
-            prefect_client.read_deployment_by_name(name="test-flow/test")
-        )
+        deployment = sync_prefect_client.read_deployment_by_name(name="test-flow/test")
 
         assert deployment is not None
-        assert deployment.schedule == CronSchedule(cron="* * * * *")
+        assert len(deployment.schedules) == 1
+        assert deployment.schedules[0].schedule == CronSchedule(cron="* * * * *")
 
     def test_serve_creates_deployment_with_rrule_schedule(
-        self, prefect_client: PrefectClient
+        self, sync_prefect_client: SyncPrefectClient
     ):
         self.flow.serve("test", rrule="FREQ=MINUTELY")
 
-        deployment = asyncio.run(
-            prefect_client.read_deployment_by_name(name="test-flow/test")
-        )
+        deployment = sync_prefect_client.read_deployment_by_name(name="test-flow/test")
 
         assert deployment is not None
-        assert deployment.schedule == RRuleSchedule(rrule="FREQ=MINUTELY")
+        assert len(deployment.schedules) == 1
+        assert deployment.schedules[0].schedule == RRuleSchedule(rrule="FREQ=MINUTELY")
 
     @pytest.mark.parametrize(
         "kwargs",
@@ -4039,7 +4128,6 @@ class TestFlowServe:
                     {"interval": 3600},
                     {"cron": "* * * * *"},
                     {"rrule": "FREQ=MINUTELY"},
-                    {"schedule": CronSchedule(cron="* * * * *")},
                 ],
                 2,
             )
@@ -4049,7 +4137,9 @@ class TestFlowServe:
         with warnings.catch_warnings():
             # `schedule` parameter is deprecated and will raise a warning
             warnings.filterwarnings("ignore", category=DeprecationWarning)
-            expected_message = "Only one of interval, cron, rrule, schedule, or schedules can be provided."
+            expected_message = (
+                "Only one of interval, cron, rrule, or schedules can be provided."
+            )
             with pytest.raises(ValueError, match=expected_message):
                 self.flow.serve(__file__, **kwargs)
 
@@ -4202,6 +4292,21 @@ class TestFlowFromSource:
     def test_load_flow_from_source_on_flow_function(self):
         assert hasattr(flow, "from_source")
 
+    async def test_no_pull_for_local_storage(self, monkeypatch):
+        from prefect.runner.storage import LocalStorage
+
+        storage = LocalStorage(path="/tmp/test")
+
+        mock_load_flow = AsyncMock(return_value=MagicMock(spec=Flow))
+        monkeypatch.setattr("prefect.flows.load_flow_from_entrypoint", mock_load_flow)
+
+        pull_code_spy = AsyncMock()
+        monkeypatch.setattr(LocalStorage, "pull_code", pull_code_spy)
+
+        await Flow.from_source(entrypoint="flows.py:test_flow", source=storage)
+
+        pull_code_spy.assert_not_called()
+
 
 class TestFlowDeploy:
     @pytest.fixture
@@ -4235,6 +4340,7 @@ class TestFlowDeploy:
             name="test",
             tags=["price", "luggage"],
             parameters={"name": "Arthur"},
+            concurrency_limit=42,
             description="This is a test",
             version="alpha",
             work_pool_name=work_pool.name,
@@ -4252,6 +4358,7 @@ class TestFlowDeploy:
                 name="test",
                 tags=["price", "luggage"],
                 parameters={"name": "Arthur"},
+                concurrency_limit=42,
                 description="This is a test",
                 version="alpha",
                 work_queue_name="line",
@@ -4341,6 +4448,28 @@ class TestFlowDeploy:
 
         assert "prefect worker start" not in capsys.readouterr().out
 
+    async def test_no_worker_command_for_active_workers(
+        self, mock_deploy, local_flow, work_pool, capsys, monkeypatch
+    ):
+        mock_read_workers_for_work_pool = AsyncMock(
+            return_value=[
+                Worker(
+                    name="test-worker",
+                    work_pool_id=work_pool.id,
+                    status=WorkerStatus.ONLINE,
+                )
+            ]
+        )
+        monkeypatch.setattr(
+            "prefect.client.orchestration.PrefectClient.read_workers_for_work_pool",
+            mock_read_workers_for_work_pool,
+        )
+        await local_flow.deploy(
+            name="test", work_pool_name=work_pool.name, image="my-repo/my-image"
+        )
+
+        assert "prefect worker start" not in capsys.readouterr().out
+
     async def test_suppress_console_output(
         self, mock_deploy, local_flow, work_pool, capsys
     ):
@@ -4419,6 +4548,37 @@ class TestTransactions:
 
         assert data2["called"] is True
         assert data1["called"] is True
+
+    def test_isolated_shared_state_on_txn_between_tasks(self):
+        data1, data2 = {}, {}
+
+        @task
+        def task1():
+            get_transaction().set("task", 1)
+
+        @task1.on_rollback
+        def rollback(txn):
+            data1["hook"] = txn.get("task")
+
+        @task
+        def task2():
+            get_transaction().set("task", 2)
+
+        @task2.on_rollback
+        def rollback2(txn):
+            data2["hook"] = txn.get("task")
+
+        @flow
+        def main():
+            with transaction():
+                task1()
+                task2()
+                raise ValueError("oopsie")
+
+        main(return_state=True)
+
+        assert data2["hook"] == 2
+        assert data1["hook"] == 1
 
     def test_task_failure_causes_previous_to_rollback(self):
         data1, data2 = {}, {}
@@ -4514,8 +4674,8 @@ class TestTransactions:
         assert isinstance(val, ValueError)
         assert "does not exist" in str(val)
         content = result_storage.read_path("task1-result-A", _sync=True)
-        blob = PersistedResultBlob.model_validate_json(content)
-        assert blob.load() == {"some": "data"}
+        record = ResultRecord.deserialize(content)
+        assert record.result == {"some": "data"}
 
     def test_commit_isnt_called_on_rollback(self):
         data = {}
@@ -4757,3 +4917,311 @@ class TestLoadFlowArgumentFromEntrypoint:
 
         with pytest.raises(ValueError, match="Could not find flow"):
             load_flow_arguments_from_entrypoint(entrypoint)
+
+
+class TestSafeLoadFlowFromEntrypoint:
+    def test_flow_not_found(self, tmp_path: Path):
+        source_code = dedent(
+            """
+        from prefect import flow
+
+        @flow
+        def f():
+            pass
+        """
+        )
+        tmp_path.joinpath("test.py").write_text(source_code)
+
+        with pytest.raises(ValueError):
+            safe_load_flow_from_entrypoint(f"{tmp_path}/test.py:g")
+
+    def test_basic_operation(self, tmp_path: Path):
+        flow_source = dedent(
+            '''
+
+        from prefect import flow
+
+        @flow(name="My custom name")
+        def flow_function(name: str) -> str:
+            """
+            My docstring
+
+            Args:
+                name (str): A name
+            """
+            return name
+        '''
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = safe_load_flow_from_entrypoint(entrypoint)
+
+        assert result is not None
+        assert isinstance(result, Flow)
+        assert result.name == "My custom name"
+        assert result("marvin") == "marvin"
+        assert result.__doc__ is not None
+        assert "My docstring" in result.__doc__
+        assert "Args:" in result.__doc__
+        assert "name (str): A name" in result.__doc__
+
+    def test_get_parameter_schema_from_safe_loaded_flow(self, tmp_path: Path):
+        flow_source = dedent(
+            """
+
+        from prefect import flow
+
+        @flow
+        def flow_function(name: str) -> str:
+            return name
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = safe_load_flow_from_entrypoint(entrypoint)
+
+        assert result is not None
+        assert parameter_schema(result).model_dump() == {
+            "definitions": {},
+            "properties": {"name": {"position": 0, "title": "name", "type": "string"}},
+            "required": ["name"],
+            "title": "Parameters",
+            "type": "object",
+        }
+
+    def test_dynamic_name_fstring(self, tmp_path: Path):
+        flow_source = dedent(
+            """
+
+        from prefect import flow
+
+        version = "1.0"
+
+        @flow(name=f"flow-function-{version}")
+        def flow_function(name: str) -> str:
+            return name
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = safe_load_flow_from_entrypoint(entrypoint)
+
+        assert result is not None
+        assert result.name == "flow-function-1.0"
+
+    def test_dynamic_name_function(self, tmp_path: Path):
+        flow_source = dedent(
+            """
+
+        from prefect import flow
+
+        def get_name():
+            return "from-a-function"
+
+        @flow(name=get_name())
+        def flow_function(name: str) -> str:
+            return name
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = safe_load_flow_from_entrypoint(entrypoint)
+
+        assert result is not None
+
+    def test_dynamic_name_depends_on_missing_import(self, tmp_path: Path):
+        flow_source = dedent(
+            """
+
+        from prefect import flow
+
+        from non_existent import get_name
+
+        @flow(name=get_name())
+        def flow_function(name: str) -> str:
+            return name
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = safe_load_flow_from_entrypoint(entrypoint)
+
+        # We expect this to be None because the flow function cannot be loaded
+        assert result is None
+
+    def test_annotations_and_defaults_rely_on_imports(self, tmp_path: Path):
+        source_code = dedent(
+            """
+        import pendulum
+        import datetime
+        from prefect import flow
+
+        @flow
+        def f(
+            x: datetime.datetime,
+            y: pendulum.DateTime = pendulum.datetime(2025, 1, 1),
+            z: datetime.timedelta = datetime.timedelta(seconds=5),
+        ):
+            return x, y, z
+        """
+        )
+        tmp_path.joinpath("test.py").write_text(source_code)
+        result = safe_load_flow_from_entrypoint(f"{tmp_path}/test.py:f")
+        assert result is not None
+        assert result(datetime.datetime(2025, 1, 1)) == (
+            datetime.datetime(2025, 1, 1),
+            pendulum.datetime(2025, 1, 1),
+            datetime.timedelta(seconds=5),
+        )
+
+    def test_annotations_rely_on_missing_import(self, tmp_path: Path):
+        """
+        This test ensures missing types for annotations are handled gracefully
+        for all argument types (positional-only, positional-or-keyword,
+        keyword-only, varargs, and varkwargs).
+        """
+        flow_source = dedent(
+            """
+
+        from prefect import flow
+        from typing import Dict, Tuple
+
+        from non_existent import Type1, Type2, Type3, Type4, Type5
+
+        @flow
+        def flow_function(x: Type1, /, y: Type2, *args: Type4, z: Type3, **kwargs: Type5) -> str:
+            return x, y, z, args, kwargs
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = safe_load_flow_from_entrypoint(entrypoint)
+        assert result is not None
+        assert result(1, 2, 4, z=3, a=5) == (1, 2, 3, (4,), {"a": 5})
+
+    def test_defaults_rely_on_missing_import(self, tmp_path: Path):
+        flow_source = dedent(
+            """
+
+        from prefect import flow
+
+        from non_existent import DEFAULT_NAME, DEFAULT_AGE
+
+        @flow
+        def flow_function(name = DEFAULT_NAME, age = DEFAULT_AGE) -> str:
+            return name, age
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = safe_load_flow_from_entrypoint(entrypoint)
+        assert result is not None
+        assert result() == (None, None)
+
+    def test_function_with_enum_argument(self, tmp_path: Path):
+        class Color(enum.Enum):
+            RED = "RED"
+            GREEN = "GREEN"
+            BLUE = "BLUE"
+
+        source_code = dedent(
+            """
+        from enum import Enum
+
+        from prefect import flow
+
+        class Color(Enum):
+            RED = "RED"
+            GREEN = "GREEN"
+            BLUE = "BLUE"
+
+        @flow
+        def f(x: Color = Color.RED):
+            return x
+        """
+        )
+        tmp_path.joinpath("test.py").write_text(source_code)
+
+        entrypoint = f"{tmp_path.joinpath('test.py')}:f"
+
+        result = safe_load_flow_from_entrypoint(entrypoint)
+        assert result is not None
+        assert result().value == Color.RED.value
+
+    def test_handles_dynamically_created_models(self, tmp_path: Path):
+        source_code = dedent(
+            """
+            from typing import Optional
+            from prefect import flow
+            from pydantic import BaseModel, create_model, Field
+
+
+            def get_model() -> BaseModel:
+                return create_model(
+                    "MyModel",
+                    param=(
+                        int,
+                        Field(
+                            title="param",
+                            default=1,
+                        ),
+                    ),
+                )
+
+
+            MyModel = get_model()
+
+
+            @flow
+            def f(
+                param: Optional[MyModel] = None,
+            ) -> None:
+                return MyModel()
+            """
+        )
+        tmp_path.joinpath("test.py").write_text(source_code)
+        entrypoint = f"{tmp_path.joinpath('test.py')}:f"
+
+        result = safe_load_flow_from_entrypoint(entrypoint)
+        assert result is not None
+        assert result().param == 1
+
+    def test_raises_name_error_when_loaded_flow_cannot_run(self, tmp_path):
+        source_code = dedent(
+            """
+        from not_a_module import not_a_function
+
+        from prefect import flow
+
+        @flow(description="Says woof!")
+        def dog():
+            return not_a_function('dog')
+            """
+        )
+
+        tmp_path.joinpath("test.py").write_text(source_code)
+        entrypoint = f"{tmp_path.joinpath('test.py')}:dog"
+
+        with pytest.raises(NameError, match="name 'not_a_function' is not defined"):
+            safe_load_flow_from_entrypoint(entrypoint)()

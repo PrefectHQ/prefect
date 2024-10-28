@@ -71,7 +71,7 @@ Example:
     ```
 """
 
-import inspect
+import asyncio
 from contextlib import ExitStack
 from typing import (
     Any,
@@ -145,7 +145,7 @@ class PrefectDaskFuture(PrefectWrappedFuture[R, distributed.Future]):
         )
         # state.result is a `sync_compatible` function that may or may not return an awaitable
         # depending on whether the parent frame is sync or not
-        if inspect.isawaitable(_result):
+        if asyncio.iscoroutine(_result):
             _result = run_coro_as_sync(_result)
         return _result
 
@@ -402,6 +402,18 @@ class DaskTaskRunner(TaskRunner):
         - Creates a cluster if an external address is not set.
         - Creates a client to connect to the cluster.
         """
+        in_dask = False
+        try:
+            client = distributed.get_client()
+            if client.cluster is not None:
+                self._cluster = client.cluster
+            elif client.scheduler is not None:
+                self.address = client.scheduler.address
+            else:
+                raise RuntimeError("No global client found and no address provided")
+            in_dask = True
+        except ValueError:
+            pass
         super().__enter__()
         exit_stack = self._exit_stack.__enter__()
         if self._cluster:
@@ -427,14 +439,14 @@ class DaskTaskRunner(TaskRunner):
 
             if self.adapt_kwargs:
                 maybe_coro = self._cluster.adapt(**self.adapt_kwargs)
-                if inspect.isawaitable(maybe_coro):
+                if asyncio.iscoroutine(maybe_coro):
                     run_coro_as_sync(maybe_coro)
 
         self._client = exit_stack.enter_context(
             PrefectDaskClient(self._connect_to, **self.client_kwargs)
         )
 
-        if self._client.dashboard_link:
+        if self._client.dashboard_link and not in_dask:
             self.logger.info(
                 f"The Dask dashboard is available at {self._client.dashboard_link}",
             )

@@ -8,7 +8,7 @@ from typing import Any, List, Optional
 import pytest
 
 from prefect import task
-from prefect.exceptions import FailedRun, MissingResult
+from prefect.exceptions import MissingResult
 from prefect.futures import (
     PrefectConcurrentFuture,
     PrefectDistributedFuture,
@@ -76,7 +76,6 @@ class TestUtilityFunctions:
             exc_info.value.args[0] == f"1 (of {len(mock_futures)}) futures unfinished"
         )
 
-    # @pytest.mark.timeout(method="thread")
     @pytest.mark.usefixtures("use_hosted_api_server")
     def test_as_completed_yields_correct_order(self):
         @task
@@ -96,11 +95,12 @@ class TestUtilityFunctions:
                 future.parameters = parameters
                 futures.append(future)
             results = []
+
             for future in as_completed(futures):
                 results.append(future.result())
             assert results == timings
 
-    def test_as_completed_timeout(self, caplog):
+    def test_as_completed_timeout(self):
         @task
         def my_test_task(seconds):
             import time
@@ -123,8 +123,7 @@ class TestUtilityFunctions:
                     results.append(future.result())
             assert exc_info.value.args[0] == f"2 (of {len(timings)}) futures unfinished"
 
-    @pytest.mark.skip("Currently failing inconsistently")
-    async def test_as_completed_yields_correct_order_dist(self, task_run):
+    async def test_as_completed_yields_correct_order_dist(self, events_pipeline):
         @task
         async def my_task(seconds):
             import time
@@ -134,12 +133,13 @@ class TestUtilityFunctions:
 
         futures = []
         timings = [1, 5, 10]
+        task_runs = []
         for i in reversed(timings):
             task_run = await my_task.create_run(parameters={"seconds": i})
             future = PrefectDistributedFuture(task_run_id=task_run.id)
 
             futures.append(future)
-            asyncio.create_task(
+            task_run = asyncio.create_task(
                 run_task_async(
                     task=my_task,
                     task_run_id=future.task_run_id,
@@ -148,6 +148,11 @@ class TestUtilityFunctions:
                     return_type="state",
                 )
             )
+            task_runs.append(task_run)
+        await asyncio.gather(*task_runs)
+
+        await events_pipeline.process_events()
+
         results = []
         with pytest.raises(MissingResult):
             for future in as_completed(futures):
@@ -292,7 +297,7 @@ class TestPrefectDistributedFuture:
         future.wait(timeout=0.25)
         assert future.state.is_pending()
 
-    async def test_wait_without_timeout(self):
+    async def test_wait_without_timeout(self, events_pipeline):
         @task
         def my_task():
             return 42
@@ -309,10 +314,12 @@ class TestPrefectDistributedFuture:
         )
         assert state.is_completed()
 
+        await events_pipeline.process_events()
+
         future.wait()
         assert future.state.is_completed()
 
-    async def test_result_with_final_state(self):
+    async def test_result_with_final_state(self, events_pipeline):
         @task(persist_result=True)
         def my_task():
             return 42
@@ -328,6 +335,9 @@ class TestPrefectDistributedFuture:
             return_type="state",
         )
         assert state.is_completed()
+
+        await events_pipeline.process_events()
+
         assert await state.result() == 42
 
         # When this test is run as a suite and the task uses default result
@@ -335,7 +345,7 @@ class TestPrefectDistributedFuture:
         # exists.
         assert future.result() == 42
 
-    async def test_final_state_without_result(self):
+    async def test_final_state_without_result(self, events_pipeline):
         @task(persist_result=False)
         def my_task():
             return 42
@@ -352,11 +362,13 @@ class TestPrefectDistributedFuture:
         )
         assert state.is_completed()
 
+        await events_pipeline.process_events()
+
         with pytest.raises(MissingResult):
             future.result()
 
-    async def test_result_with_final_state_and_raise_on_failure(self):
-        @task(persist_result=False)
+    async def test_result_with_final_state_and_raise_on_failure(self, events_pipeline):
+        @task(persist_result=True)
         def my_task():
             raise ValueError("oops")
 
@@ -372,10 +384,12 @@ class TestPrefectDistributedFuture:
         )
         assert state.is_failed()
 
-        with pytest.raises(FailedRun, match="oops"):
+        await events_pipeline.process_events()
+
+        with pytest.raises(ValueError, match="oops"):
             future.result(raise_on_failure=True)
 
-    async def test_final_state_missing_result(self):
+    async def test_final_state_missing_result(self, events_pipeline):
         @task(persist_result=False)
         def my_task():
             return 42
@@ -392,7 +406,9 @@ class TestPrefectDistributedFuture:
         )
         assert state.is_completed()
 
-        with pytest.raises(MissingResult, match="State data is missing"):
+        await events_pipeline.process_events()
+
+        with pytest.raises(MissingResult):
             future.result()
 
 

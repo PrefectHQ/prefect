@@ -15,10 +15,10 @@ from typing import (
 )
 from uuid import UUID
 
-import httpx
 import orjson
 import pendulum
 from cachetools import TTLCache
+from prometheus_client import Counter
 from typing_extensions import Self
 from websockets import Subprotocol
 from websockets.client import WebSocketClientProtocol, connect
@@ -28,20 +28,61 @@ from websockets.exceptions import (
     ConnectionClosedOK,
 )
 
-from prefect.client.base import PrefectHttpxAsyncClient
 from prefect.events import Event
 from prefect.logging import get_logger
-from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL, PREFECT_CLOUD_API_URL
+from prefect.settings import (
+    PREFECT_API_KEY,
+    PREFECT_API_URL,
+    PREFECT_CLOUD_API_URL,
+    PREFECT_DEBUG_MODE,
+    PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
+)
 
 if TYPE_CHECKING:
     from prefect.events.filters import EventFilter
 
+EVENTS_EMITTED = Counter(
+    "prefect_events_emitted",
+    "The number of events emitted by Prefect event clients",
+    labelnames=["client"],
+)
+EVENTS_OBSERVED = Counter(
+    "prefect_events_observed",
+    "The number of events observed by Prefect event subscribers",
+    labelnames=["client"],
+)
+EVENT_WEBSOCKET_CONNECTIONS = Counter(
+    "prefect_event_websocket_connections",
+    (
+        "The number of times Prefect event clients have connected to an event stream, "
+        "broken down by direction (in/out) and connection (initial/reconnect)"
+    ),
+    labelnames=["client", "direction", "connection"],
+)
+EVENT_WEBSOCKET_CHECKPOINTS = Counter(
+    "prefect_event_websocket_checkpoints",
+    "The number of checkpoints performed by Prefect event clients",
+    labelnames=["client"],
+)
+
 logger = get_logger(__name__)
+
+
+def http_to_ws(url: str):
+    return url.replace("https://", "wss://").replace("http://", "ws://").rstrip("/")
+
+
+def events_in_socket_from_api_url(url: str):
+    return http_to_ws(url) + "/events/in"
+
+
+def events_out_socket_from_api_url(url: str):
+    return http_to_ws(url) + "/events/out"
 
 
 def get_events_client(
     reconnection_attempts: int = 10,
-    checkpoint_every: int = 20,
+    checkpoint_every: int = 700,
 ) -> "EventsClient":
     api_url = PREFECT_API_URL.value()
     if isinstance(api_url, str) and api_url.startswith(PREFECT_CLOUD_API_URL.value()):
@@ -49,13 +90,25 @@ def get_events_client(
             reconnection_attempts=reconnection_attempts,
             checkpoint_every=checkpoint_every,
         )
-    elif PREFECT_API_URL:
+    elif api_url:
         return PrefectEventsClient(
             reconnection_attempts=reconnection_attempts,
             checkpoint_every=checkpoint_every,
         )
+    elif PREFECT_SERVER_ALLOW_EPHEMERAL_MODE:
+        from prefect.server.api.server import SubprocessASGIServer
+
+        server = SubprocessASGIServer()
+        server.start()
+        return PrefectEventsClient(
+            api_url=server.api_url,
+            reconnection_attempts=reconnection_attempts,
+            checkpoint_every=checkpoint_every,
+        )
     else:
-        return PrefectEphemeralEventsClient()
+        raise ValueError(
+            "No Prefect API URL provided. Please set PREFECT_API_URL to the address of a running Prefect server."
+        )
 
 
 def get_events_subscriber(
@@ -63,24 +116,37 @@ def get_events_subscriber(
     reconnection_attempts: int = 10,
 ) -> "PrefectEventSubscriber":
     api_url = PREFECT_API_URL.value()
-    if not api_url:
-        raise ValueError(
-            "A Prefect server or Prefect Cloud is required to start an event "
-            "subscriber.  Please check the PREFECT_API_URL setting in your profile."
-        )
 
     if isinstance(api_url, str) and api_url.startswith(PREFECT_CLOUD_API_URL.value()):
         return PrefectCloudEventSubscriber(
             filter=filter, reconnection_attempts=reconnection_attempts
         )
-    else:
+    elif api_url:
         return PrefectEventSubscriber(
             filter=filter, reconnection_attempts=reconnection_attempts
+        )
+    elif PREFECT_SERVER_ALLOW_EPHEMERAL_MODE:
+        from prefect.server.api.server import SubprocessASGIServer
+
+        server = SubprocessASGIServer()
+        server.start()
+        return PrefectEventSubscriber(
+            api_url=server.api_url,
+            filter=filter,
+            reconnection_attempts=reconnection_attempts,
+        )
+    else:
+        raise ValueError(
+            "No Prefect API URL provided. Please set PREFECT_API_URL to the address of a running Prefect server."
         )
 
 
 class EventsClient(abc.ABC):
     """The abstract interface for all Prefect Events clients"""
+
+    @property
+    def client_name(self) -> str:
+        return self.__class__.__name__
 
     async def emit(self, event: Event) -> None:
         """Emit a single event"""
@@ -89,7 +155,11 @@ class EventsClient(abc.ABC):
                 "Events may only be emitted while this client is being used as a "
                 "context manager"
             )
-        return await self._emit(event)
+
+        try:
+            return await self._emit(event)
+        finally:
+            EVENTS_EMITTED.labels(self.client_name).inc()
 
     @abc.abstractmethod
     async def _emit(self, event: Event) -> None:  # pragma: no cover
@@ -168,47 +238,6 @@ def _get_api_url_and_key(
     return api_url, api_key
 
 
-class PrefectEphemeralEventsClient(EventsClient):
-    """A Prefect Events client that sends events to an ephemeral Prefect server"""
-
-    def __init__(self):
-        if PREFECT_API_KEY.value():
-            raise ValueError(
-                "PrefectEphemeralEventsClient cannot be used when PREFECT_API_KEY is set."
-                " Please use PrefectEventsClient or PrefectCloudEventsClient instead."
-            )
-        from prefect.server.api.server import create_app
-
-        app = create_app(ephemeral=True)
-
-        self._http_client = PrefectHttpxAsyncClient(
-            transport=httpx.ASGITransport(app=app, raise_app_exceptions=False),
-            base_url="http://ephemeral-prefect/api",
-            enable_csrf_support=False,
-        )
-
-    async def __aenter__(self) -> Self:
-        await super().__aenter__()
-        await self._http_client.__aenter__()
-        return self
-
-    async def __aexit__(
-        self,
-        exc_type: Optional[Type[Exception]],
-        exc_val: Optional[Exception],
-        exc_tb: Optional[TracebackType],
-    ) -> None:
-        self._websocket = None
-        await self._http_client.__aexit__(exc_type, exc_val, exc_tb)
-        return await super().__aexit__(exc_type, exc_val, exc_tb)
-
-    async def _emit(self, event: Event) -> None:
-        await self._http_client.post(
-            "/events",
-            json=[event.model_dump(mode="json")],
-        )
-
-
 class PrefectEventsClient(EventsClient):
     """A Prefect Events client that streams events to a Prefect server"""
 
@@ -219,7 +248,7 @@ class PrefectEventsClient(EventsClient):
         self,
         api_url: Optional[str] = None,
         reconnection_attempts: int = 10,
-        checkpoint_every: int = 20,
+        checkpoint_every: int = 700,
     ):
         """
         Args:
@@ -235,12 +264,7 @@ class PrefectEventsClient(EventsClient):
                 "api_url must be provided or set in the Prefect configuration"
             )
 
-        self._events_socket_url = (
-            api_url.replace("https://", "wss://")
-            .replace("http://", "ws://")
-            .rstrip("/")
-            + "/events/in"
-        )
+        self._events_socket_url = events_in_socket_from_api_url(api_url)
         self._connect = connect(self._events_socket_url)
         self._websocket = None
         self._reconnection_attempts = reconnection_attempts
@@ -269,11 +293,26 @@ class PrefectEventsClient(EventsClient):
             self._websocket = None
             await self._connect.__aexit__(None, None, None)
 
-        self._websocket = await self._connect.__aenter__()
-
-        # make sure we have actually connected
-        pong = await self._websocket.ping()
-        await pong
+        try:
+            self._websocket = await self._connect.__aenter__()
+            # make sure we have actually connected
+            pong = await self._websocket.ping()
+            await pong
+        except Exception as e:
+            # The client is frequently run in a background thread
+            # so we log an additional warning to ensure
+            # surfacing the error to the user.
+            logger.warning(
+                "Unable to connect to %r. "
+                "Please check your network settings to ensure websocket connections "
+                "to the API are allowed. Otherwise event data (including task run data) may be lost. "
+                "Reason: %s. "
+                "Set PREFECT_DEBUG_MODE=1 to see the full error.",
+                self._events_socket_url,
+                str(e),
+                exc_info=PREFECT_DEBUG_MODE,
+            )
+            raise
 
         events_to_resend = self._unconfirmed_events
         # Clear the unconfirmed events here, because they are going back through emit
@@ -298,6 +337,8 @@ class PrefectEventsClient(EventsClient):
         # we had enqueued prior to that.  There could be more that came in after, so
         # don't clear the list, just the ones that we are sure of.
         self._unconfirmed_events = self._unconfirmed_events[unconfirmed_count:]
+
+        EVENT_WEBSOCKET_CHECKPOINTS.labels(self.client_name).inc()
 
     async def _emit(self, event: Event) -> None:
         for i in range(self._reconnection_attempts + 1):
@@ -328,6 +369,47 @@ class PrefectEventsClient(EventsClient):
                     await asyncio.sleep(1)
 
 
+class AssertingPassthroughEventsClient(PrefectEventsClient):
+    """A Prefect Events client that BOTH records all events sent to it for inspection
+    during tests AND sends them to a Prefect server."""
+
+    last: ClassVar["Optional[AssertingPassthroughEventsClient]"] = None
+    all: ClassVar[List["AssertingPassthroughEventsClient"]] = []
+
+    args: Tuple
+    kwargs: Dict[str, Any]
+    events: List[Event]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        AssertingPassthroughEventsClient.last = self
+        AssertingPassthroughEventsClient.all.append(self)
+        self.args = args
+        self.kwargs = kwargs
+
+    @classmethod
+    def reset(cls) -> None:
+        cls.last = None
+        cls.all = []
+
+    def pop_events(self) -> List[Event]:
+        events = self.events
+        self.events = []
+        return events
+
+    async def _emit(self, event: Event) -> None:
+        # actually send the event to the server
+        await super()._emit(event)
+
+        # record the event for inspection
+        self.events.append(event)
+
+    async def __aenter__(self) -> Self:
+        await super().__aenter__()
+        self.events = []
+        return self
+
+
 class PrefectCloudEventsClient(PrefectEventsClient):
     """A Prefect Events client that streams events to a Prefect Cloud Workspace"""
 
@@ -336,7 +418,7 @@ class PrefectCloudEventsClient(PrefectEventsClient):
         api_url: Optional[str] = None,
         api_key: Optional[str] = None,
         reconnection_attempts: int = 10,
-        checkpoint_every: int = 20,
+        checkpoint_every: int = 700,
     ):
         """
         Args:
@@ -353,7 +435,6 @@ class PrefectCloudEventsClient(PrefectEventsClient):
             reconnection_attempts=reconnection_attempts,
             checkpoint_every=checkpoint_every,
         )
-
         self._connect = connect(
             self._events_socket_url,
             extra_headers={"Authorization": f"bearer {api_key}"},
@@ -400,20 +481,16 @@ class PrefectEventSubscriber:
             reconnection_attempts: When the client is disconnected, how many times
                 the client should attempt to reconnect
         """
+        self._api_key = None
         if not api_url:
             api_url = cast(str, PREFECT_API_URL.value())
-            self._api_key = None
 
         from prefect.events.filters import EventFilter
 
         self._filter = filter or EventFilter()  # type: ignore[call-arg]
         self._seen_events = TTLCache(maxsize=SEEN_EVENTS_SIZE, ttl=SEEN_EVENTS_TTL)
 
-        socket_url = (
-            api_url.replace("https://", "wss://")
-            .replace("http://", "ws://")
-            .rstrip("/")
-        ) + "/events/out"
+        socket_url = events_out_socket_from_api_url(api_url)
 
         logger.debug("Connecting to %s", socket_url)
 
@@ -426,10 +503,17 @@ class PrefectEventSubscriber:
         if self._reconnection_attempts < 0:
             raise ValueError("reconnection_attempts must be a non-negative integer")
 
+    @property
+    def client_name(self) -> str:
+        return self.__class__.__name__
+
     async def __aenter__(self) -> Self:
         # Don't handle any errors in the initial connection, because these are most
         # likely a permission or configuration issue that should propagate
-        await self._reconnect()
+        try:
+            await self._reconnect()
+        finally:
+            EVENT_WEBSOCKET_CONNECTIONS.labels(self.client_name, "out", "initial")
         return self
 
     async def _reconnect(self) -> None:
@@ -461,11 +545,11 @@ class PrefectEventSubscriber:
                 f"Reason: {e.args[0]}"
             )
         except ConnectionClosedError as e:
-            raise Exception(
-                "Unable to authenticate to the event stream. Please ensure the "
-                "provided api_key you are using is valid for this environment. "
-                f"Reason: {e.reason}"
-            ) from e
+            reason = getattr(e.rcvd, "reason", None)
+            msg = "Unable to authenticate to the event stream. Please ensure the "
+            msg += "provided api_key you are using is valid for this environment. "
+            msg += f"Reason: {reason}" if reason else ""
+            raise Exception(msg) from e
 
         from prefect.events.filters import EventOccurredFilter
 
@@ -503,7 +587,12 @@ class PrefectEventSubscriber:
                 # Otherwise, after the first time through this loop, we're recovering
                 # from a ConnectionClosed, so reconnect now.
                 if not self._websocket or i > 0:
-                    await self._reconnect()
+                    try:
+                        await self._reconnect()
+                    finally:
+                        EVENT_WEBSOCKET_CONNECTIONS.labels(
+                            self.client_name, "out", "reconnect"
+                        )
                     assert self._websocket
 
                 while True:
@@ -514,7 +603,10 @@ class PrefectEventSubscriber:
                         continue
                     self._seen_events[event.id] = True
 
-                    return event
+                    try:
+                        return event
+                    finally:
+                        EVENTS_OBSERVED.labels(self.client_name).inc()
             except ConnectionClosedOK:
                 logger.debug('Connection closed with "OK" status')
                 raise StopAsyncIteration

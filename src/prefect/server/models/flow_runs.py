@@ -6,7 +6,7 @@ Intended for internal use by the Prefect REST API.
 import contextlib
 import datetime
 from itertools import chain
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Type, TypeVar, Union
 from uuid import UUID
 
 import pendulum
@@ -14,6 +14,7 @@ import sqlalchemy as sa
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import load_only, selectinload
+from sqlalchemy.sql import Select
 
 import prefect.server.models as models
 import prefect.server.schemas as schemas
@@ -35,6 +36,8 @@ from prefect.settings import (
     PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES,
 )
 
+T = TypeVar("T", bound=tuple)
+
 
 @db_injector
 async def create_flow_run(
@@ -55,6 +58,7 @@ async def create_flow_run(
         orm_models.FlowRun: the newly-created flow run
     """
     now = pendulum.now("UTC")
+    # model: Union[orm_models.FlowRun, None] = None
 
     flow_run_dict = dict(
         **flow_run.model_dump_for_orm(
@@ -104,7 +108,7 @@ async def create_flow_run(
             )
         )
         result = await session.execute(query)
-        model = result.scalar()
+        model = result.scalar_one()
 
     # if the flow run was created in this function call then we need to set the
     # state. If it was created idempotently, the created time won't match.
@@ -179,14 +183,14 @@ async def read_flow_run(
 
 
 async def _apply_flow_run_filters(
-    query,
-    flow_filter: schemas.filters.FlowFilter = None,
-    flow_run_filter: schemas.filters.FlowRunFilter = None,
-    task_run_filter: schemas.filters.TaskRunFilter = None,
-    deployment_filter: schemas.filters.DeploymentFilter = None,
-    work_pool_filter: schemas.filters.WorkPoolFilter = None,
-    work_queue_filter: schemas.filters.WorkQueueFilter = None,
-):
+    query: Select[T],
+    flow_filter: Optional[schemas.filters.FlowFilter] = None,
+    flow_run_filter: Optional[schemas.filters.FlowRunFilter] = None,
+    task_run_filter: Optional[schemas.filters.TaskRunFilter] = None,
+    deployment_filter: Optional[schemas.filters.DeploymentFilter] = None,
+    work_pool_filter: Optional[schemas.filters.WorkPoolFilter] = None,
+    work_queue_filter: Optional[schemas.filters.WorkQueueFilter] = None,
+) -> Select[T]:
     """
     Applies filters to a flow run query as a combination of EXISTS subqueries.
     """
@@ -195,64 +199,69 @@ async def _apply_flow_run_filters(
         query = query.where(flow_run_filter.as_sql_filter())
 
     if deployment_filter:
-        exists_clause = select(orm_models.Deployment).where(
+        deployment_exists_clause = select(orm_models.Deployment).where(
             orm_models.Deployment.id == orm_models.FlowRun.deployment_id,
             deployment_filter.as_sql_filter(),
         )
-        query = query.where(exists_clause.exists())
+        query = query.where(deployment_exists_clause.exists())
 
     if work_pool_filter:
-        exists_clause = select(orm_models.WorkPool).where(
+        work_pool_exists_clause = select(orm_models.WorkPool).where(
             orm_models.WorkQueue.id == orm_models.FlowRun.work_queue_id,
             orm_models.WorkPool.id == orm_models.WorkQueue.work_pool_id,
             work_pool_filter.as_sql_filter(),
         )
 
-        query = query.where(exists_clause.exists())
+        query = query.where(work_pool_exists_clause.exists())
 
     if work_queue_filter:
-        exists_clause = select(orm_models.WorkQueue).where(
+        work_queue_exists_clause = select(orm_models.WorkQueue).where(
             orm_models.WorkQueue.id == orm_models.FlowRun.work_queue_id,
             work_queue_filter.as_sql_filter(),
         )
-        query = query.where(exists_clause.exists())
+        query = query.where(work_queue_exists_clause.exists())
 
     if flow_filter or task_run_filter:
+        flow_or_task_run_exists_clause: Union[
+            Select[Tuple[orm_models.Flow]],
+            Select[Tuple[orm_models.TaskRun]],
+        ]
+
         if flow_filter:
-            exists_clause = select(orm_models.Flow).where(
+            flow_or_task_run_exists_clause = select(orm_models.Flow).where(
                 orm_models.Flow.id == orm_models.FlowRun.flow_id,
                 flow_filter.as_sql_filter(),
             )
 
         if task_run_filter:
             if not flow_filter:
-                exists_clause = select(orm_models.TaskRun).where(
+                flow_or_task_run_exists_clause = select(orm_models.TaskRun).where(
                     orm_models.TaskRun.flow_run_id == orm_models.FlowRun.id
                 )
             else:
-                exists_clause = exists_clause.join(
+                flow_or_task_run_exists_clause = flow_or_task_run_exists_clause.join(
                     orm_models.TaskRun,
                     orm_models.TaskRun.flow_run_id == orm_models.FlowRun.id,
                 )
-            exists_clause = exists_clause.where(
+            flow_or_task_run_exists_clause = flow_or_task_run_exists_clause.where(
                 orm_models.FlowRun.id == orm_models.TaskRun.flow_run_id,
                 task_run_filter.as_sql_filter(),
             )
 
-        query = query.where(exists_clause.exists())
+        query = query.where(flow_or_task_run_exists_clause.exists())
 
     return query
 
 
 async def read_flow_runs(
     session: AsyncSession,
-    columns: List = None,
-    flow_filter: schemas.filters.FlowFilter = None,
-    flow_run_filter: schemas.filters.FlowRunFilter = None,
-    task_run_filter: schemas.filters.TaskRunFilter = None,
-    deployment_filter: schemas.filters.DeploymentFilter = None,
-    work_pool_filter: schemas.filters.WorkPoolFilter = None,
-    work_queue_filter: schemas.filters.WorkQueueFilter = None,
+    columns: Optional[List] = None,
+    flow_filter: Optional[schemas.filters.FlowFilter] = None,
+    flow_run_filter: Optional[schemas.filters.FlowRunFilter] = None,
+    task_run_filter: Optional[schemas.filters.TaskRunFilter] = None,
+    deployment_filter: Optional[schemas.filters.DeploymentFilter] = None,
+    work_pool_filter: Optional[schemas.filters.WorkPoolFilter] = None,
+    work_queue_filter: Optional[schemas.filters.WorkQueueFilter] = None,
     offset: Optional[int] = None,
     limit: Optional[int] = None,
     sort: schemas.sorting.FlowRunSort = schemas.sorting.FlowRunSort.ID_DESC,
@@ -307,11 +316,40 @@ async def read_flow_runs(
     return result.scalars().unique().all()
 
 
+async def cleanup_flow_run_concurrency_slots(
+    session: AsyncSession,
+    flow_run: orm_models.FlowRun,
+):
+    """
+    Cleanup flow run related resources, such as releasing concurrency slots.
+    All operations should be idempotent and safe to call multiple times.
+    IMPORTANT: This run may no longer exist in the database when this operation occurs.
+    """
+
+    if (
+        flow_run.deployment_id
+        and flow_run.state
+        and flow_run.state.type
+        in (
+            schemas.states.StateType.PENDING,
+            schemas.states.StateType.RUNNING,
+            schemas.states.StateType.CANCELLING,
+        )
+    ):
+        deployment = await models.deployments.read_deployment(
+            session, flow_run.deployment_id
+        )
+        if deployment and deployment.concurrency_limit_id:
+            await models.concurrency_limits_v2.bulk_decrement_active_slots(
+                session, [deployment.concurrency_limit_id], 1
+            )
+
+
 class DependencyResult(PrefectBaseModel):
     id: UUID
     name: str
     upstream_dependencies: List[TaskRunResult]
-    state: State
+    state: Optional[State]
     expected_start_time: Optional[datetime.datetime]
     start_time: Optional[datetime.datetime]
     end_time: Optional[datetime.datetime]
@@ -350,18 +388,18 @@ async def read_task_run_dependencies(
             else task_run.state.state_details.untrackable_result
         )
         dependency_graph.append(
-            {
-                "id": task_run.id,
-                "upstream_dependencies": inputs,
-                "state": task_run.state,
-                "expected_start_time": task_run.expected_start_time,
-                "name": task_run.name,
-                "start_time": task_run.start_time,
-                "end_time": task_run.end_time,
-                "total_run_time": task_run.total_run_time,
-                "estimated_run_time": task_run.estimated_run_time,
-                "untrackable_result": untrackable_result_status,
-            }
+            DependencyResult(
+                id=task_run.id,
+                upstream_dependencies=inputs,
+                state=task_run.state,
+                expected_start_time=task_run.expected_start_time,
+                name=task_run.name,
+                start_time=task_run.start_time,
+                end_time=task_run.end_time,
+                total_run_time=task_run.total_run_time,
+                estimated_run_time=task_run.estimated_run_time,
+                untrackable_result=untrackable_result_status,
+            )
         )
 
     return dependency_graph
@@ -369,12 +407,12 @@ async def read_task_run_dependencies(
 
 async def count_flow_runs(
     session: AsyncSession,
-    flow_filter: schemas.filters.FlowFilter = None,
-    flow_run_filter: schemas.filters.FlowRunFilter = None,
-    task_run_filter: schemas.filters.TaskRunFilter = None,
-    deployment_filter: schemas.filters.DeploymentFilter = None,
-    work_pool_filter: schemas.filters.WorkPoolFilter = None,
-    work_queue_filter: schemas.filters.WorkQueueFilter = None,
+    flow_filter: Optional[schemas.filters.FlowFilter] = None,
+    flow_run_filter: Optional[schemas.filters.FlowRunFilter] = None,
+    task_run_filter: Optional[schemas.filters.TaskRunFilter] = None,
+    deployment_filter: Optional[schemas.filters.DeploymentFilter] = None,
+    work_pool_filter: Optional[schemas.filters.WorkPoolFilter] = None,
+    work_queue_filter: Optional[schemas.filters.WorkQueueFilter] = None,
 ) -> int:
     """
     Count flow runs.
@@ -403,12 +441,12 @@ async def count_flow_runs(
     )
 
     result = await session.execute(query)
-    return result.scalar()
+    return result.scalar_one()
 
 
 async def delete_flow_run(session: AsyncSession, flow_run_id: UUID) -> bool:
     """
-    Delete a flow run by flow_run_id.
+    Delete a flow run by flow_run_id, handling concurrency limits if applicable.
 
     Args:
         session: A database session
@@ -417,10 +455,20 @@ async def delete_flow_run(session: AsyncSession, flow_run_id: UUID) -> bool:
     Returns:
         bool: whether or not the flow run was deleted
     """
+    flow_run = await read_flow_run(session, flow_run_id)
+    if not flow_run:
+        return False
 
+    deployment_id = flow_run.deployment_id
+
+    if deployment_id:
+        await cleanup_flow_run_concurrency_slots(session=session, flow_run=flow_run)
+
+    # Delete the flow run
     result = await session.execute(
         delete(orm_models.FlowRun).where(orm_models.FlowRun.id == flow_run_id)
     )
+
     return result.rowcount > 0
 
 
@@ -429,7 +477,7 @@ async def set_flow_run_state(
     flow_run_id: UUID,
     state: schemas.states.State,
     force: bool = False,
-    flow_policy: BaseOrchestrationPolicy = None,
+    flow_policy: Optional[Type[BaseOrchestrationPolicy]] = None,
     orchestration_parameters: Optional[Dict[str, Any]] = None,
 ) -> OrchestrationResult:
     """
@@ -472,7 +520,7 @@ async def set_flow_run_state(
     if force or flow_policy is None:
         flow_policy = MinimalFlowPolicy
 
-    orchestration_rules = flow_policy.compile_transition_rules(*intended_transition)
+    orchestration_rules = flow_policy.compile_transition_rules(*intended_transition)  # type: ignore
     global_rules = GlobalFlowPolicy.compile_transition_rules(*intended_transition)
 
     context = FlowOrchestrationContext(

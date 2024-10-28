@@ -14,7 +14,7 @@ from prefect.logging import get_logger
 from prefect.server.schemas.actions import DeploymentFlowRunCreate, StateCreate
 from prefect.server.schemas.core import WorkPool
 from prefect.server.schemas.filters import VariableFilter, VariableFilterName
-from prefect.server.schemas.responses import DeploymentResponse
+from prefect.server.schemas.responses import DeploymentResponse, OrchestrationResult
 from prefect.types import StrictVariableValue
 
 logger = get_logger(__name__)
@@ -78,6 +78,13 @@ class OrchestrationClient(BaseClient):
 
     async def read_task_run_raw(self, task_run_id: UUID) -> Response:
         return await self._http_client.get(f"/task_runs/{task_run_id}")
+
+    async def resume_flow_run(self, flow_run_id: UUID) -> OrchestrationResult:
+        response = await self._http_client.post(
+            f"/flow_runs/{flow_run_id}/resume",
+        )
+        response.raise_for_status()
+        return OrchestrationResult.model_validate(response.json())
 
     async def pause_deployment(self, deployment_id: UUID) -> Response:
         return await self._http_client.post(

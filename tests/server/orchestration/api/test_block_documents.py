@@ -1416,7 +1416,7 @@ class TestSecretBlockDocuments:
         assert blocks[0].data["z"] == Z
 
     async def test_nested_block_secrets_are_obfuscated_when_all_blocks_are_saved(
-        self, client, session
+        self, hosted_api_client, session
     ):
         class ChildBlock(Block):
             x: SecretStr
@@ -1435,7 +1435,9 @@ class TestSecretBlockDocuments:
         block = ParentBlock(a=3, b="b", child=child)
         await block.save("nested-test")
         await session.commit()
-        response = await client.get(f"/block_documents/{block._block_document_id}")
+        response = await hosted_api_client.get(
+            f"/block_documents/{block._block_document_id}"
+        )
         block = schemas.core.BlockDocument.model_validate(response.json())
         assert block.data["a"] == 3
         assert block.data["b"] == obfuscate_string("b")
@@ -1443,7 +1445,7 @@ class TestSecretBlockDocuments:
         assert block.data["child"]["y"] == Y
         assert block.data["child"]["z"] == {"secret": obfuscate_string(Z)}
 
-    async def test_nested_block_secrets_are_returned(self, client):
+    async def test_nested_block_secrets_are_returned(self, hosted_api_client):
         class ChildBlock(Block):
             x: SecretStr
             y: str
@@ -1457,7 +1459,7 @@ class TestSecretBlockDocuments:
         block = ParentBlock(a=3, b="b", child=ChildBlock(x=X, y=Y, z=dict(secret=Z)))
         await block.save("nested-test")
 
-        response = await client.get(
+        response = await hosted_api_client.get(
             f"/block_documents/{block._block_document_id}",
             params=dict(include_secrets=True),
         )

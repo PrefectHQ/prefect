@@ -1,6 +1,7 @@
 import itertools
 from dataclasses import dataclass
 from typing import Callable
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -13,6 +14,7 @@ from prefect.cache_policies import (
     TaskSource,
     _None,
 )
+from prefect.context import TaskRunContext
 
 
 class TestBaseClass:
@@ -136,8 +138,14 @@ class TestCompoundPolicy:
 
     def test_creation_via_subtraction(self):
         one = RunId()
-        policy = one - "foo"
+        policy = one - "y"
         assert isinstance(policy, CompoundCachePolicy)
+
+        assert policy.compute_key(
+            task_ctx=None, inputs={"x": 42, "y": "foo"}, flow_parameters=None
+        ) == (RunId() + Inputs(exclude=["y"])).compute_key(
+            task_ctx=None, inputs={"x": 42, "y": "foo"}, flow_parameters=None
+        )
 
     def test_nones_are_ignored(self):
         one, two = _None(), _None()
@@ -183,6 +191,36 @@ class TestTaskSourcePolicy:
         )
 
         assert key != new_key
+
+    def test_source_fallback_behavior(self):
+        policy = TaskSource()
+
+        def task_a_fn():
+            pass
+
+        def task_b_fn():
+            return 1
+
+        mock_task_a = MagicMock()
+        mock_task_b = MagicMock()
+
+        mock_task_a.fn = task_a_fn
+        mock_task_b.fn = task_b_fn
+
+        task_ctx_a = TaskRunContext.model_construct(task=mock_task_a)
+        task_ctx_b = TaskRunContext.model_construct(task=mock_task_b)
+
+        for os_error_msg in {"could not get source code", "source code not available"}:
+            with patch("inspect.getsource", side_effect=OSError(os_error_msg)):
+                fallback_key_a = policy.compute_key(
+                    task_ctx=task_ctx_a, inputs=None, flow_parameters=None
+                )
+                fallback_key_b = policy.compute_key(
+                    task_ctx=task_ctx_b, inputs=None, flow_parameters=None
+                )
+
+            assert fallback_key_a and fallback_key_b
+            assert fallback_key_a != fallback_key_b
 
 
 class TestDefaultPolicy:
@@ -257,3 +295,72 @@ class TestDefaultPolicy:
         )
 
         assert key_one != key_two
+
+
+class TestPolicyConfiguration:
+    def test_configure_changes_storage(self):
+        policy = Inputs().configure(key_storage="/path/to/storage")
+        assert policy.key_storage == "/path/to/storage"
+
+    def test_configure_changes_locks(self):
+        policy = Inputs().configure(lock_manager="/path/to/locks")
+        assert policy.lock_manager == "/path/to/locks"
+
+    def test_configure_changes_isolation_level(self):
+        policy = Inputs().configure(isolation_level="SERIALIZABLE")
+        assert policy.isolation_level == "SERIALIZABLE"
+
+    def test_configure_changes_all_attributes(self):
+        policy = Inputs().configure(
+            key_storage="/path/to/storage",
+            lock_manager="/path/to/locks",
+            isolation_level="SERIALIZABLE",
+        )
+        assert policy.key_storage == "/path/to/storage"
+        assert policy.lock_manager == "/path/to/locks"
+        assert policy.isolation_level == "SERIALIZABLE"
+
+    def test_configure_with_none_is_noop(self):
+        policy = Inputs().configure(
+            key_storage=None, lock_manager=None, isolation_level=None
+        )
+        assert policy == Inputs()
+
+    def test_add_policy_with_configuration(self):
+        policy = Inputs() + TaskSource().configure(
+            lock_manager="/path/to/locks",
+            isolation_level="SERIALIZABLE",
+            key_storage="/path/to/storage",
+        )
+        assert policy.lock_manager == "/path/to/locks"
+        assert policy.isolation_level == "SERIALIZABLE"
+        assert policy.key_storage == "/path/to/storage"
+
+    def test_add_policy_with_conflict_raises(self):
+        policy = Inputs() + TaskSource().configure(
+            lock_manager="original_locks",
+            key_storage="original_storage",
+            isolation_level="SERIALIZABLE",
+        )
+        with pytest.raises(
+            ValueError,
+            match="Cannot add CachePolicies with different lock implementations.",
+        ):
+            _policy = policy + TaskSource().configure(lock_manager="other_locks")
+
+        with pytest.raises(
+            ValueError,
+            match="Cannot add CachePolicies with different storage locations.",
+        ):
+            _policy = policy + TaskSource().configure(key_storage="other_storage")
+
+        with pytest.raises(
+            ValueError,
+            match="Cannot add CachePolicies with different isolation levels.",
+        ):
+            _policy = policy + TaskSource().configure(isolation_level="READ_COMMITTED")
+
+    def test_configure_returns_new_policy(self):
+        policy = Inputs()
+        new_policy = policy.configure(key_storage="new_storage")
+        assert policy is not new_policy

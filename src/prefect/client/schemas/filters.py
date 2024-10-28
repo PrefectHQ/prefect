@@ -489,15 +489,6 @@ class DeploymentFilterWorkQueueName(PrefectBaseModel):
     )
 
 
-class DeploymentFilterIsScheduleActive(PrefectBaseModel):
-    """Filter by `Deployment.is_schedule_active`."""
-
-    eq_: Optional[bool] = Field(
-        default=None,
-        description="Only returns where deployment schedule is/is not active",
-    )
-
-
 class DeploymentFilterTags(PrefectBaseModel, OperatorMixin):
     """Filter by `Deployment.tags`."""
 
@@ -514,6 +505,23 @@ class DeploymentFilterTags(PrefectBaseModel, OperatorMixin):
     )
 
 
+class DeploymentFilterConcurrencyLimit(PrefectBaseModel):
+    """DEPRECATED: Prefer `Deployment.concurrency_limit_id` over `Deployment.concurrency_limit`."""
+
+    ge_: Optional[int] = Field(
+        default=None,
+        description="Only include deployments with a concurrency limit greater than or equal to this value",
+    )
+    le_: Optional[int] = Field(
+        default=None,
+        description="Only include deployments with a concurrency limit less than or equal to this value",
+    )
+    is_null_: Optional[bool] = Field(
+        default=None,
+        description="If true, only include deployments without a concurrency limit",
+    )
+
+
 class DeploymentFilter(PrefectBaseModel, OperatorMixin):
     """Filter for deployments. Only deployments matching all criteria will be returned."""
 
@@ -523,14 +531,16 @@ class DeploymentFilter(PrefectBaseModel, OperatorMixin):
     name: Optional[DeploymentFilterName] = Field(
         default=None, description="Filter criteria for `Deployment.name`"
     )
-    is_schedule_active: Optional[DeploymentFilterIsScheduleActive] = Field(
-        default=None, description="Filter criteria for `Deployment.is_schedule_active`"
-    )
     tags: Optional[DeploymentFilterTags] = Field(
         default=None, description="Filter criteria for `Deployment.tags`"
     )
     work_queue_name: Optional[DeploymentFilterWorkQueueName] = Field(
         default=None, description="Filter criteria for `Deployment.work_queue_name`"
+    )
+    concurrency_limit: Optional[DeploymentFilterConcurrencyLimit] = Field(
+        default=None,
+        description="DEPRECATED: Prefer `Deployment.concurrency_limit_id` over `Deployment.concurrency_limit`. If provided, will be ignored for backwards-compatibility. Will be removed after December 2024.",
+        deprecated=True,
     )
 
 
@@ -902,6 +912,17 @@ class WorkerFilterLastHeartbeatTime(PrefectBaseModel):
     )
 
 
+class WorkerFilterStatus(PrefectBaseModel):
+    """Filter by `Worker.status`."""
+
+    any_: Optional[List[str]] = Field(
+        default=None, description="A list of worker statuses to include"
+    )
+    not_any_: Optional[List[str]] = Field(
+        default=None, description="A list of worker statuses to exclude"
+    )
+
+
 class WorkerFilter(PrefectBaseModel, OperatorMixin):
     # worker_config_id: Optional[WorkerFilterWorkPoolId] = Field(
     #     default=None, description="Filter criteria for `Worker.worker_config_id`"
@@ -910,6 +931,9 @@ class WorkerFilter(PrefectBaseModel, OperatorMixin):
     last_heartbeat_time: Optional[WorkerFilterLastHeartbeatTime] = Field(
         default=None,
         description="Filter criteria for `Worker.last_heartbeat_time`",
+    )
+    status: Optional[WorkerFilterStatus] = Field(
+        default=None, description="Filter criteria for `Worker.status`"
     )
 
 

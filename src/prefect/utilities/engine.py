@@ -44,14 +44,12 @@ from prefect.exceptions import (
 )
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture
-from prefect.futures import PrefectFuture as NewPrefectFuture
 from prefect.logging.loggers import (
     get_logger,
     task_run_logger,
 )
-from prefect.results import BaseResult
+from prefect.results import BaseResult, ResultRecord, should_persist_result
 from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION,
     PREFECT_LOGGING_LOG_PRINTS,
 )
 from prefect.states import (
@@ -123,7 +121,7 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> Set[TaskRun
 
 
 def collect_task_run_inputs_sync(
-    expr: Any, future_cls: Any = NewPrefectFuture, max_depth: int = -1
+    expr: Any, future_cls: Any = PrefectFuture, max_depth: int = -1
 ) -> Set[TaskRunInput]:
     """
     This function recurses through an expression to generate a set of any discernible
@@ -132,7 +130,7 @@ def collect_task_run_inputs_sync(
 
     Examples:
         >>> task_inputs = {
-        >>>    k: collect_task_run_inputs(v) for k, v in parameters.items()
+        >>>    k: collect_task_run_inputs_sync(v) for k, v in parameters.items()
         >>> }
     """
     # TODO: This function needs to be updated to detect parameters and constants
@@ -402,6 +400,8 @@ async def propose_state(
             # Avoid fetching the result unless it is cached, otherwise we defeat
             # the purpose of disabling `cache_result_in_memory`
             result = await state.result(raise_on_failure=False, fetch=True)
+        elif isinstance(state.data, ResultRecord):
+            result = state.data.result
         else:
             result = state.data
 
@@ -503,8 +503,10 @@ def propose_state_sync(
             # Avoid fetching the result unless it is cached, otherwise we defeat
             # the purpose of disabling `cache_result_in_memory`
             result = state.result(raise_on_failure=False, fetch=True)
-            if inspect.isawaitable(result):
+            if asyncio.iscoroutine(result):
                 result = run_coro_as_sync(result)
+        elif isinstance(state.data, ResultRecord):
+            result = state.data.result
         else:
             result = state.data
 
@@ -559,8 +561,12 @@ def propose_state_sync(
         )
 
 
-def _dynamic_key_for_task_run(context: FlowRunContext, task: Task) -> Union[int, str]:
-    if context.detached:  # this task is running on remote infrastructure
+def _dynamic_key_for_task_run(
+    context: FlowRunContext, task: Task, stable: bool = True
+) -> Union[int, str]:
+    if (
+        stable is False or context.detached
+    ):  # this task is running on remote infrastructure
         return str(uuid4())
     elif context.flow_run is None:  # this is an autonomous task run
         context.task_run_dynamic_keys[task.task_key] = getattr(
@@ -621,6 +627,9 @@ def link_state_to_result(state: State, result: Any) -> None:
     """
 
     flow_run_context = FlowRunContext.get()
+    # Drop the data field to avoid holding a strong reference to the result
+    # Holding large user objects in memory can cause memory bloat
+    linked_state = state.model_copy(update={"data": None})
 
     def link_if_trackable(obj: Any) -> None:
         """Track connection between a task run result and its associated state if it has a unique ID.
@@ -637,7 +646,7 @@ def link_state_to_result(state: State, result: Any) -> None:
         ):
             state.state_details.untrackable_result = True
             return
-        flow_run_context.task_run_results[id(obj)] = state
+        flow_run_context.task_run_results[id(obj)] = linked_state
 
     if flow_run_context:
         visit_collection(expr=result, visit_fn=link_if_trackable, max_depth=1)
@@ -676,7 +685,15 @@ def _resolve_custom_flow_run_name(flow: Flow, parameters: Dict[str, Any]) -> str
 
 def _resolve_custom_task_run_name(task: Task, parameters: Dict[str, Any]) -> str:
     if callable(task.task_run_name):
-        task_run_name = task.task_run_name()
+        sig = inspect.signature(task.task_run_name)
+
+        # If the callable accepts a 'parameters' kwarg, pass the entire parameters dict
+        if "parameters" in sig.parameters:
+            task_run_name = task.task_run_name(parameters=parameters)
+        else:
+            # If it doesn't expect parameters, call it without arguments
+            task_run_name = task.task_run_name()
+
         if not isinstance(task_run_name, str):
             raise TypeError(
                 f"Callable {task.task_run_name} for 'task_run_name' returned type"
@@ -729,6 +746,13 @@ def emit_task_run_state_change_event(
 ) -> Event:
     state_message_truncation_length = 100_000
 
+    if isinstance(validated_state.data, ResultRecord) and should_persist_result():
+        data = validated_state.data.metadata.model_dump(mode="json")
+    elif isinstance(validated_state.data, BaseResult):
+        data = validated_state.data.model_dump(mode="json")
+    else:
+        data = None
+
     return emit_event(
         id=validated_state.id,
         occurred=validated_state.timestamp,
@@ -767,9 +791,7 @@ def emit_task_run_state_change_event(
                     exclude_unset=True,
                     exclude={"flow_run_id", "task_run_id"},
                 ),
-                "data": validated_state.data.model_dump(mode="json")
-                if isinstance(validated_state.data, BaseResult)
-                else None,
+                "data": data,
             },
             "task_run": task_run.model_dump(
                 mode="json",
@@ -783,6 +805,9 @@ def emit_task_run_state_change_event(
                     "state_type",
                     "state_name",
                     "state",
+                    # server materialized fields
+                    "estimated_start_time_delta",
+                    "estimated_run_time",
                 },
             ),
         },
@@ -799,9 +824,7 @@ def emit_task_run_state_change_event(
                 else ""
             ),
             "prefect.state-type": str(validated_state.type.value),
-            "prefect.orchestration": "client"
-            if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION
-            else "server",
+            "prefect.orchestration": "client",
         },
         follows=follows,
     )
@@ -818,7 +841,7 @@ def resolve_to_final_result(expr, context):
     if isinstance(context.get("annotation"), quote):
         raise StopVisiting()
 
-    if isinstance(expr, NewPrefectFuture):
+    if isinstance(expr, PrefectFuture):
         upstream_task_run = context.get("current_task_run")
         upstream_task = context.get("current_task")
         if (
@@ -855,7 +878,7 @@ def resolve_to_final_result(expr, context):
         )
 
     _result = state.result(raise_on_failure=False, fetch=True)
-    if inspect.isawaitable(_result):
+    if asyncio.iscoroutine(_result):
         _result = run_coro_as_sync(_result)
     return _result
 

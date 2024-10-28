@@ -2,12 +2,14 @@
 Internal utilities for tests.
 """
 
+import atexit
+import shutil
 import warnings
 from contextlib import ExitStack, contextmanager
 from pathlib import Path
 from pprint import pprint
-from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Dict, List, Union
+from tempfile import mkdtemp
+from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
 import prefect.context
 import prefect.settings
@@ -15,8 +17,15 @@ from prefect.blocks.core import Block
 from prefect.client.orchestration import get_client
 from prefect.client.schemas import sorting
 from prefect.client.utilities import inject_client
-from prefect.results import PersistedResult
+from prefect.logging.handlers import APILogWorker
+from prefect.results import (
+    ResultRecord,
+    ResultRecordMetadata,
+    ResultStore,
+    get_default_result_storage,
+)
 from prefect.serializers import Serializer
+from prefect.server.api.server import SubprocessASGIServer
 from prefect.states import State
 
 if TYPE_CHECKING:
@@ -99,9 +108,14 @@ def assert_does_not_warn(ignore_warnings=[]):
 
 
 @contextmanager
-def prefect_test_harness():
+def prefect_test_harness(server_startup_timeout: Optional[int] = 30):
     """
     Temporarily run flows against a local SQLite database for testing.
+
+    Args:
+        server_startup_timeout: The maximum time to wait for the server to start.
+            Defaults to 30 seconds. If set to `None`, the value of
+            `PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS` will be used.
 
     Examples:
         >>> from prefect import flow
@@ -118,24 +132,45 @@ def prefect_test_harness():
     from prefect.server.database.dependencies import temporary_database_interface
 
     # create temp directory for the testing database
-    with TemporaryDirectory() as temp_dir:
-        with ExitStack() as stack:
-            # temporarily override any database interface components
-            stack.enter_context(temporary_database_interface())
+    temp_dir = mkdtemp()
 
-            DB_PATH = "sqlite+aiosqlite:///" + str(Path(temp_dir) / "prefect-test.db")
-            stack.enter_context(
-                prefect.settings.temporary_settings(
-                    # Clear the PREFECT_API_URL
-                    restore_defaults={prefect.settings.PREFECT_API_URL},
-                    # Use a temporary directory for the database
-                    updates={
-                        prefect.settings.PREFECT_API_DATABASE_CONNECTION_URL: DB_PATH,
-                        prefect.settings.PREFECT_API_URL: None,
-                    },
-                )
+    def cleanup_temp_dir(temp_dir):
+        shutil.rmtree(temp_dir)
+
+    atexit.register(cleanup_temp_dir, temp_dir)
+
+    with ExitStack() as stack:
+        # temporarily override any database interface components
+        stack.enter_context(temporary_database_interface())
+
+        DB_PATH = "sqlite+aiosqlite:///" + str(Path(temp_dir) / "prefect-test.db")
+        stack.enter_context(
+            prefect.settings.temporary_settings(
+                # Use a temporary directory for the database
+                updates={
+                    prefect.settings.PREFECT_API_DATABASE_CONNECTION_URL: DB_PATH,
+                },
             )
-            yield
+        )
+        # start a subprocess server to test against
+        test_server = SubprocessASGIServer()
+        test_server.start(
+            timeout=server_startup_timeout
+            if server_startup_timeout is not None
+            else prefect.settings.PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS.value()
+        )
+        stack.enter_context(
+            prefect.settings.temporary_settings(
+                # Use a temporary directory for the database
+                updates={
+                    prefect.settings.PREFECT_API_URL: test_server.api_url,
+                },
+            )
+        )
+        yield
+        # drain the logs before stopping the server to avoid connection errors on shutdown
+        APILogWorker.instance().drain()
+        test_server.stop()
 
 
 async def get_most_recent_flow_run(client: "PrefectClient" = None):
@@ -167,17 +202,35 @@ def assert_blocks_equal(
 
 
 async def assert_uses_result_serializer(
-    state: State, serializer: Union[str, Serializer]
+    state: State, serializer: Union[str, Serializer], client: "PrefectClient"
 ):
-    assert isinstance(state.data, PersistedResult)
+    assert isinstance(state.data, (ResultRecord, ResultRecordMetadata))
+    if isinstance(state.data, ResultRecord):
+        result_serializer = state.data.metadata.serializer
+        storage_block_id = state.data.metadata.storage_block_id
+        storage_key = state.data.metadata.storage_key
+    else:
+        result_serializer = state.data.serializer
+        storage_block_id = state.data.storage_block_id
+        storage_key = state.data.storage_key
+
     assert (
-        state.data.serializer_type == serializer
+        result_serializer.type == serializer
         if isinstance(serializer, str)
         else serializer.type
     )
-    blob = await state.data._read_blob()
+    if storage_block_id is not None:
+        block = Block._from_block_document(
+            await client.read_block_document(storage_block_id)
+        )
+    else:
+        block = await get_default_result_storage()
+
+    blob = await ResultStore(result_storage=block, serializer=result_serializer).aread(
+        storage_key
+    )
     assert (
-        blob.serializer == serializer
+        blob.metadata.serializer == serializer
         if isinstance(serializer, Serializer)
         else Serializer(type=serializer)
     )
@@ -187,17 +240,29 @@ async def assert_uses_result_serializer(
 async def assert_uses_result_storage(
     state: State, storage: Union[str, "ReadableFileSystem"], client: "PrefectClient"
 ):
-    assert isinstance(state.data, PersistedResult)
-    assert_blocks_equal(
-        Block._from_block_document(
-            await client.read_block_document(state.data.storage_block_id)
-        ),
-        (
-            storage
-            if isinstance(storage, Block)
-            else await Block.load(storage, client=client)
-        ),
-    )
+    assert isinstance(state.data, (ResultRecord, ResultRecordMetadata))
+    if isinstance(state.data, ResultRecord):
+        assert_blocks_equal(
+            Block._from_block_document(
+                await client.read_block_document(state.data.metadata.storage_block_id)
+            ),
+            (
+                storage
+                if isinstance(storage, Block)
+                else await Block.load(storage, client=client)
+            ),
+        )
+    else:
+        assert_blocks_equal(
+            Block._from_block_document(
+                await client.read_block_document(state.data.storage_block_id)
+            ),
+            (
+                storage
+                if isinstance(storage, Block)
+                else await Block.load(storage, client=client)
+            ),
+        )
 
 
 def a_test_step(**kwargs):

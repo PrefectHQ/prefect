@@ -24,20 +24,19 @@ from prefect.cache_policies import DEFAULT, NONE
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import TaskRun
 from prefect.client.subscriptions import Subscription
-from prefect.exceptions import Abort, PrefectHTTPStatusError
 from prefect.logging.loggers import get_logger
-from prefect.results import ResultFactory
+from prefect.results import ResultStore, get_or_create_default_task_scheduling_storage
 from prefect.settings import (
     PREFECT_API_URL,
-    PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION,
     PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS,
 )
 from prefect.states import Pending
 from prefect.task_engine import run_task_async, run_task_sync
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
-from prefect.utilities.engine import emit_task_run_state_change_event, propose_state
+from prefect.utilities.engine import emit_task_run_state_change_event
 from prefect.utilities.processutils import _register_signal
+from prefect.utilities.services import start_client_metrics_server
 from prefect.utilities.urls import url_for
 
 logger = get_logger("task_worker")
@@ -50,7 +49,7 @@ class StopTaskWorker(Exception):
 
 
 def should_try_to_read_parameters(task: Task, task_run: TaskRun) -> bool:
-    """Determines whether a task run should read parameters from the result factory."""
+    """Determines whether a task run should read parameters from the result store."""
     new_enough_state_details = hasattr(
         task_run.state.state_details, "task_parameters_id"
     )
@@ -103,7 +102,7 @@ class TaskWorker:
                 "TaskWorker must be initialized within an async context."
             )
 
-        self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
+        self._runs_task_group: Optional[anyio.abc.TaskGroup] = None
         self._executor = ThreadPoolExecutor(max_workers=limit if limit else None)
         self._limiter = anyio.CapacityLimiter(limit) if limit else None
 
@@ -157,6 +156,8 @@ class TaskWorker:
         Starts a task worker, which runs the tasks provided in the constructor.
         """
         _register_signal(signal.SIGTERM, self.handle_sigterm)
+
+        start_client_metrics_server()
 
         async with asyncnullcontext() if self.started else self:
             logger.info("Starting task worker...")
@@ -229,6 +230,9 @@ class TaskWorker:
 
             token_acquired = await self._acquire_token(task_run.id)
             if token_acquired:
+                assert (
+                    self._runs_task_group is not None
+                ), "Task group was not initialized"
                 self._runs_task_group.start_soon(
                     self._safe_submit_scheduled_task_run, task_run
                 )
@@ -272,9 +276,11 @@ class TaskWorker:
         if should_try_to_read_parameters(task, task_run):
             parameters_id = task_run.state.state_details.task_parameters_id
             task.persist_result = True
-            factory = await ResultFactory.from_autonomous_task(task)
+            store = await ResultStore(
+                result_storage=await get_or_create_default_task_scheduling_storage()
+            ).update_for_task(task)
             try:
-                run_data = await factory.read_parameters(parameters_id)
+                run_data = await store.read_parameters(parameters_id)
                 parameters = run_data.get("parameters", {})
                 wait_for = run_data.get("wait_for", [])
                 run_context = run_data.get("context", None)
@@ -290,44 +296,17 @@ class TaskWorker:
                     await self._client._client.delete(f"/task_runs/{task_run.id}")
                 return
 
-        if PREFECT_EXPERIMENTAL_ENABLE_CLIENT_SIDE_TASK_ORCHESTRATION:
-            new_state = Pending()
-            new_state.state_details.deferred = True
-            new_state.state_details.task_run_id = task_run.id
-            new_state.state_details.flow_run_id = task_run.flow_run_id
-            state = new_state
-        else:
-            try:
-                new_state = Pending()
-                new_state.state_details.deferred = True
-                state = await propose_state(
-                    client=get_client(),  # TODO prove that we cannot use self._client here
-                    state=new_state,
-                    task_run_id=task_run.id,
-                )
-            except Abort as exc:
-                logger.exception(
-                    f"Failed to submit task run {task_run.id!r} to engine", exc_info=exc
-                )
-                return
-            except PrefectHTTPStatusError as exc:
-                if exc.response.status_code == 404:
-                    logger.warning(
-                        f"Task run {task_run.id!r} not found. It may have been deleted."
-                    )
-                    return
-                raise
-
-        if not state.is_pending():
-            logger.warning(
-                f"Cancelling submission of task run {task_run.id!r} -"
-                f" server returned a non-pending state {state.type.value!r}."
-            )
-            return
+        initial_state = task_run.state
+        new_state = Pending()
+        new_state.state_details.deferred = True
+        new_state.state_details.task_run_id = task_run.id
+        new_state.state_details.flow_run_id = task_run.flow_run_id
+        state = new_state
+        task_run.state = state
 
         emit_task_run_state_change_event(
             task_run=task_run,
-            initial_state=task_run.state,
+            initial_state=initial_state,
             validated_state=state,
         )
 
@@ -373,7 +352,9 @@ class TaskWorker:
 
         if self._client._closed:
             self._client = get_client()
+        self._runs_task_group = anyio.create_task_group()
 
+        await self._exit_stack.__aenter__()
         await self._exit_stack.enter_async_context(self._client)
         await self._exit_stack.enter_async_context(self._runs_task_group)
         self._exit_stack.enter_context(self._executor)

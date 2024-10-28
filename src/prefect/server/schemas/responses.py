@@ -354,17 +354,24 @@ class DeploymentResponse(ORMBaseModel):
     flow_id: UUID = Field(
         default=..., description="The flow id associated with the deployment."
     )
-    schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = Field(
-        default=None, description="A schedule for the deployment."
-    )
-    is_schedule_active: bool = Field(
-        default=True, description="Whether or not the deployment schedule is active."
-    )
     paused: bool = Field(
         default=False, description="Whether or not the deployment is paused."
     )
     schedules: List[schemas.core.DeploymentSchedule] = Field(
         default_factory=list, description="A list of schedules for the deployment."
+    )
+    concurrency_limit: Optional[int] = Field(
+        default=None,
+        description="DEPRECATED: Prefer `global_concurrency_limit`. Will always be None for backwards compatibility. Will be removed after December 2024.",
+        deprecated=True,
+    )
+    global_concurrency_limit: Optional["GlobalConcurrencyLimitResponse"] = Field(
+        default=None,
+        description="The global concurrency limit object for enforcing the maximum number of flow runs that can be active at once.",
+    )
+    concurrency_options: Optional[schemas.core.ConcurrencyOptions] = Field(
+        default=None,
+        description="The concurrency options for the deployment.",
     )
     job_variables: Dict[str, Any] = Field(
         default_factory=dict,
@@ -458,18 +465,6 @@ class DeploymentResponse(ORMBaseModel):
                 response.work_queue_name = obj.work_queue.name
                 if obj.work_queue.work_pool:
                     response.work_pool_name = obj.work_queue.work_pool.name
-
-            # Populate `schedule` and `is_schedule_active` for backwards
-            # compatibility with clients that do not support multiple
-            # schedules. The order of the schedules is determined by the
-            # relationship on Deployment.schedules, so we just take the first
-            # schedule as the primary schedule.
-            if obj.schedules:
-                response.schedule = obj.schedules[0].schedule
-            else:
-                response.schedule = None
-
-            response.is_schedule_active = not bool(obj.paused)
 
         return response
 

@@ -3,11 +3,12 @@ Functions for interacting with saved search ORM objects.
 Intended for internal use by the Prefect REST API.
 """
 
-from typing import Optional
+from typing import Optional, Sequence, Union
 from uuid import UUID
 
 import sqlalchemy as sa
 from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.schemas as schemas
 from prefect.server.database import orm_models
@@ -18,16 +19,16 @@ from prefect.server.database.interface import PrefectDBInterface
 @db_injector
 async def create_saved_search(
     db: PrefectDBInterface,
-    session: sa.orm.Session,
+    session: AsyncSession,
     saved_search: schemas.core.SavedSearch,
-):
+) -> orm_models.SavedSearch:
     """
     Upserts a SavedSearch.
 
     If a SavedSearch with the same name exists, all properties will be updated.
 
     Args:
-        session (sa.orm.Session): a database session
+        session (AsyncSession): a database session
         saved_search (schemas.core.SavedSearch): a SavedSearch model
 
     Returns:
@@ -53,17 +54,19 @@ async def create_saved_search(
         .execution_options(populate_existing=True)
     )
     result = await session.execute(query)
-    model = result.scalar()
+    model = result.scalar_one()
 
     return model
 
 
-async def read_saved_search(session: sa.orm.Session, saved_search_id: UUID):
+async def read_saved_search(
+    session: AsyncSession, saved_search_id: UUID
+) -> Union[orm_models.SavedSearch, None]:
     """
     Reads a SavedSearch by id.
 
     Args:
-        session (sa.orm.Session): A database session
+        session (AsyncSession): A database session
         saved_search_id (str): a SavedSearch id
 
     Returns:
@@ -73,12 +76,14 @@ async def read_saved_search(session: sa.orm.Session, saved_search_id: UUID):
     return await session.get(orm_models.SavedSearch, saved_search_id)
 
 
-async def read_saved_search_by_name(session: sa.orm.Session, name: str):
+async def read_saved_search_by_name(
+    session: AsyncSession, name: str
+) -> Union[orm_models.SavedSearch, None]:
     """
     Reads a SavedSearch by name.
 
     Args:
-        session (sa.orm.Session): A database session
+        session (AsyncSession): A database session
         name (str): a SavedSearch name
 
     Returns:
@@ -93,15 +98,15 @@ async def read_saved_search_by_name(session: sa.orm.Session, name: str):
 
 
 async def read_saved_searches(
-    session: sa.orm.Session,
+    session: AsyncSession,
     offset: Optional[int] = None,
     limit: Optional[int] = None,
-):
+) -> Sequence[orm_models.SavedSearch]:
     """
     Read SavedSearches.
 
     Args:
-        session (sa.orm.Session): A database session
+        session (AsyncSession): A database session
         offset (int): Query offset
         limit(int): Query limit
 
@@ -120,12 +125,12 @@ async def read_saved_searches(
     return result.scalars().unique().all()
 
 
-async def delete_saved_search(session: sa.orm.Session, saved_search_id: UUID) -> bool:
+async def delete_saved_search(session: AsyncSession, saved_search_id: UUID) -> bool:
     """
     Delete a SavedSearch by id.
 
     Args:
-        session (sa.orm.Session): A database session
+        session (AsyncSession): A database session
         saved_search_id (str): a SavedSearch id
 
     Returns:

@@ -21,11 +21,11 @@ from sqlalchemy.sql.functions import coalesce
 
 import prefect
 import prefect.server.schemas as schemas
-from prefect.server.events.actions import ActionTypes
+from prefect.server.events.actions import ServerActionTypes
 from prefect.server.events.schemas.automations import (
     AutomationSort,
     Firing,
-    TriggerTypes,
+    ServerTriggerTypes,
 )
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.schemas.statuses import (
@@ -113,7 +113,7 @@ class Base(DeclarativeBase):
         default=uuid.uuid4,
     )
 
-    created = sa.Column(
+    created: Mapped[pendulum.DateTime] = mapped_column(
         Timestamp(),
         nullable=False,
         server_default=now(),
@@ -396,7 +396,7 @@ class Run(Base):
 
     __abstract__ = True
 
-    name = sa.Column(
+    name: Mapped[str] = mapped_column(
         sa.String,
         default=lambda: generate_slug(2),
         nullable=False,
@@ -404,13 +404,15 @@ class Run(Base):
     )
     state_type = sa.Column(sa.Enum(schemas.states.StateType, name="state_type"))
     state_name = sa.Column(sa.String, nullable=True)
-    state_timestamp = sa.Column(Timestamp(), nullable=True)
+    state_timestamp: Mapped[Union[pendulum.DateTime, None]] = mapped_column(
+        Timestamp(), nullable=True
+    )
     run_count = sa.Column(sa.Integer, server_default="0", default=0, nullable=False)
-    expected_start_time = sa.Column(Timestamp())
+    expected_start_time: Mapped[pendulum.DateTime] = mapped_column(Timestamp())
     next_scheduled_start_time = sa.Column(Timestamp())
-    start_time = sa.Column(Timestamp())
-    end_time = sa.Column(Timestamp())
-    total_run_time = sa.Column(
+    start_time: Mapped[pendulum.DateTime] = mapped_column(Timestamp())
+    end_time: Mapped[pendulum.DateTime] = mapped_column(Timestamp())
+    total_run_time: Mapped[datetime.timedelta] = mapped_column(
         sa.Interval(),
         server_default="0",
         default=datetime.timedelta(0),
@@ -824,9 +826,7 @@ class DeploymentSchedule(Base):
 
     schedule = sa.Column(Pydantic(schemas.schedules.SCHEDULE_TYPES), nullable=False)
     active = sa.Column(sa.Boolean, nullable=False, default=True)
-    max_active_runs = sa.Column(sa.Integer, nullable=True)
     max_scheduled_runs = sa.Column(sa.Integer, nullable=True)
-    catchup = sa.Column(sa.Boolean, nullable=False, default=False)
 
 
 class Deployment(Base):
@@ -865,11 +865,6 @@ class Deployment(Base):
         nullable=True,
         index=True,
     )
-
-    schedule = sa.Column(Pydantic(schemas.schedules.SCHEDULE_TYPES))
-    is_schedule_active = sa.Column(
-        sa.Boolean, nullable=False, server_default="1", default=True
-    )
     paused = sa.Column(
         sa.Boolean, nullable=False, server_default="0", default=False, index=True
     )
@@ -878,6 +873,29 @@ class Deployment(Base):
         "DeploymentSchedule",
         lazy="selectin",
         order_by=sa.desc(sa.text("updated")),
+    )
+
+    # deprecated in favor of `concurrency_limit_id` FK
+    _concurrency_limit: Mapped[Union[int, None]] = mapped_column(
+        sa.Integer, default=None, nullable=True, name="concurrency_limit"
+    )
+    concurrency_limit_id: Mapped[Union[uuid.UUID, None]] = mapped_column(
+        UUID,
+        sa.ForeignKey("concurrency_limit_v2.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    global_concurrency_limit: Mapped[
+        Union["ConcurrencyLimitV2", None]
+    ] = sa.orm.relationship(
+        lazy="selectin",
+    )
+    concurrency_options: Mapped[
+        Union[schemas.core.ConcurrencyOptions, None]
+    ] = mapped_column(
+        Pydantic(schemas.core.ConcurrencyOptions),
+        server_default=None,
+        nullable=True,
+        default=None,
     )
 
     tags: Mapped[List[str]] = mapped_column(
@@ -943,7 +961,7 @@ class Log(Base):
 
     name = sa.Column(sa.String, nullable=False)
     level = sa.Column(sa.SmallInteger, nullable=False, index=True)
-    flow_run_id = sa.Column(UUID(), nullable=False, index=True)
+    flow_run_id = sa.Column(UUID(), nullable=True, index=True)
     task_run_id = sa.Column(UUID(), nullable=True, index=True)
     message = sa.Column(sa.Text, nullable=False)
 
@@ -973,7 +991,7 @@ class ConcurrencyLimitV2(Base):
     active = sa.Column(sa.Boolean, nullable=False, default=True)
     name = sa.Column(sa.String, nullable=False)
     limit = sa.Column(sa.Integer, nullable=False)
-    active_slots = sa.Column(sa.Integer, nullable=False)
+    active_slots = sa.Column(sa.Integer, nullable=False, default=0)
     denied_slots = sa.Column(sa.Integer, nullable=False, default=0)
 
     slot_decay_per_second = sa.Column(sa.Float, default=0.0, nullable=False)
@@ -1012,7 +1030,7 @@ class BlockSchema(Base):
         nullable=False,
     )
 
-    block_type_id = sa.Column(
+    block_type_id: Mapped[UUID] = mapped_column(
         UUID(),
         sa.ForeignKey("block_type.id", ondelete="cascade"),
         nullable=False,
@@ -1098,15 +1116,15 @@ class BlockDocument(Base):
 
 
 class BlockDocumentReference(Base):
-    name = sa.Column(sa.String, nullable=False)
+    name: Mapped[str] = mapped_column(sa.String, nullable=False)
 
-    parent_block_document_id = sa.Column(
+    parent_block_document_id: Mapped[UUID] = mapped_column(
         UUID(),
         sa.ForeignKey("block_document.id", ondelete="cascade"),
         nullable=False,
     )
 
-    reference_block_document_id = sa.Column(
+    reference_block_document_id: Mapped[UUID] = mapped_column(
         UUID(),
         sa.ForeignKey("block_document.id", ondelete="cascade"),
         nullable=False,
@@ -1147,13 +1165,16 @@ class WorkQueue(Base):
     )
     description = sa.Column(sa.String, nullable=False, default="", server_default="")
     is_paused = sa.Column(sa.Boolean, nullable=False, server_default="0", default=False)
-    concurrency_limit = sa.Column(
+    concurrency_limit: Mapped[int] = mapped_column(
         sa.Integer,
         nullable=True,
     )
-    priority = sa.Column(sa.Integer, index=True, nullable=False)
+    priority: Mapped[int] = mapped_column(sa.Integer, index=True, nullable=False)
 
-    last_polled = sa.Column(Timestamp(), nullable=True)
+    last_polled: Mapped[Union[pendulum.DateTime, None]] = mapped_column(
+        Timestamp(),
+        nullable=True,
+    )
     status = sa.Column(
         sa.Enum(WorkQueueStatus, name="work_queue_status"),
         nullable=False,
@@ -1182,16 +1203,18 @@ class WorkPool(Base):
 
     name = sa.Column(sa.String, nullable=False)
     description = sa.Column(sa.String)
-    type = sa.Column(sa.String)
+    type: Mapped[str] = mapped_column(sa.String)
     base_job_template = sa.Column(JSON, nullable=False, server_default="{}", default={})
-    is_paused = sa.Column(sa.Boolean, nullable=False, server_default="0", default=False)
-    default_queue_id = sa.Column(UUID, nullable=True)
+    is_paused: Mapped[bool] = mapped_column(
+        sa.Boolean, nullable=False, server_default="0", default=False
+    )
+    default_queue_id: Mapped[UUID] = mapped_column(UUID, nullable=True)
     concurrency_limit = sa.Column(
         sa.Integer,
         nullable=True,
     )
 
-    status = sa.Column(
+    status: Mapped[WorkPoolStatus] = mapped_column(
         sa.Enum(WorkPoolStatus, name="work_pool_status"),
         nullable=False,
         default=WorkPoolStatus.NOT_READY,
@@ -1320,14 +1343,20 @@ class Automation(Base):
 
     enabled = sa.Column(sa.Boolean, nullable=False, server_default="1", default=True)
 
-    trigger = sa.Column(Pydantic(TriggerTypes), nullable=False)
+    trigger = sa.Column(Pydantic(ServerTriggerTypes), nullable=False)
 
-    actions = sa.Column(Pydantic(List[ActionTypes]), nullable=False)
+    actions = sa.Column(Pydantic(List[ServerActionTypes]), nullable=False)
     actions_on_trigger = sa.Column(
-        Pydantic(List[ActionTypes]), server_default="[]", default=list, nullable=False
+        Pydantic(List[ServerActionTypes]),
+        server_default="[]",
+        default=list,
+        nullable=False,
     )
     actions_on_resolve = sa.Column(
-        Pydantic(List[ActionTypes]), server_default="[]", default=list, nullable=False
+        Pydantic(List[ServerActionTypes]),
+        server_default="[]",
+        default=list,
+        nullable=False,
     )
 
     related_resources = sa.orm.relationship(

@@ -11,11 +11,14 @@ from prefect.utilities.annotations import BaseAnnotation, quote
 from prefect.utilities.collections import (
     AutoEnum,
     StopVisiting,
+    deep_merge,
+    deep_merge_dicts,
     dict_to_flatdict,
     flatdict_to_dict,
     get_from_dict,
     isiterable,
     remove_nested_keys,
+    set_in_dict,
     visit_collection,
 )
 
@@ -613,3 +616,74 @@ class TestGetFromDict:
     )
     def test_get_from_dict(self, dct, keys, expected, default):
         assert get_from_dict(dct, keys, default) == expected
+
+
+class TestSetInDict:
+    @pytest.mark.parametrize(
+        "dct, keys, value, expected",
+        [
+            ({}, "a.b.c", 1, {"a": {"b": {"c": 1}}}),
+            ({"a": {"b": {"c": 1}}}, "a.b.c", 2, {"a": {"b": {"c": 2}}}),
+            ({"a": {"b": {"c": 1}}}, "a.b.d", 2, {"a": {"b": {"c": 1, "d": 2}}}),
+            ({"a": {"b": {"c": 1}}}, "a", 2, {"a": 2}),
+            (
+                {"a": {"b": {"c": 1}}},
+                ["a", "b", "d"],
+                2,
+                {"a": {"b": {"c": 1, "d": 2}}},
+            ),
+        ],
+    )
+    def test_set_in_dict(self, dct, keys, value, expected):
+        set_in_dict(dct, keys, value)
+        assert dct == expected
+
+    def test_set_in_dict_raises_key_error(self):
+        with pytest.raises(
+            TypeError, match="Key path exists and contains a non-dict value"
+        ):
+            set_in_dict({"a": {"b": [2]}}, ["a", "b", "c"], 1)
+
+
+class TestDeepMerge:
+    @pytest.mark.parametrize(
+        "dct, merge, expected",
+        [
+            ({"a": 1}, {"b": 2}, {"a": 1, "b": 2}),
+            ({"a": 1}, {"a": 2}, {"a": 2}),
+            ({"a": {"b": 1}}, {"a": {"c": 2}}, {"a": {"b": 1, "c": 2}}),
+            ({"a": {"b": 2}}, {"a": {"c": {"d": 1}}}, {"a": {"b": 2, "c": {"d": 1}}}),
+        ],
+    )
+    def test_deep_merge(self, dct, merge, expected):
+        assert deep_merge(dct, merge) == expected
+
+
+class TestDeepMergeDicts:
+    @pytest.mark.parametrize(
+        "dicts, expected",
+        [
+            (
+                [{"a": 1}, {"b": 2}],
+                {"a": 1, "b": 2},
+            ),
+            (
+                [{"a": 1}, {"a": 2}],
+                {"a": 2},
+            ),
+            (
+                [{"a": {"b": 1}}, {"a": {"c": 2}}],
+                {"a": {"b": 1, "c": 2}},
+            ),
+            (
+                [{"a": {"b": 2}}, {"a": {"c": {"d": 1}}}],
+                {"a": {"b": 2, "c": {"d": 1}}},
+            ),
+            (
+                [{"a": {"b": 2}}, {"a": {"c": {"d": 1}}}, {"a": {"c": {"d": 3}}}],
+                {"a": {"b": 2, "c": {"d": 3}}},
+            ),
+        ],
+    )
+    def test_deep_merge_dicts(self, dicts, expected):
+        assert deep_merge_dicts(*dicts) == expected

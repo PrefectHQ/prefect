@@ -4,7 +4,9 @@ import socket
 import sys
 from typing import Optional, TypeVar
 
-from kubernetes_asyncio.client import ApiClient
+from aiohttp import ClientResponse
+from aiohttp.client_reqrep import ClientRequest
+from aiohttp.connector import Connection
 from slugify import slugify
 
 # Note: `dict(str, str)` is the Kubernetes API convention for
@@ -14,34 +16,35 @@ base_types = {"str", "int", "float", "bool", "list[str]", "dict(str, str)", "obj
 V1KubernetesModel = TypeVar("V1KubernetesModel")
 
 
-def enable_socket_keep_alive(client: ApiClient) -> None:
+class KeepAliveClientRequest(ClientRequest):
     """
-    Setting the keep-alive flags on the kubernetes client object.
-    Unfortunately neither the kubernetes library nor the urllib3 library which
-    kubernetes is using internally offer the functionality to enable keep-alive
-    messages. Thus the flags are added to be used on the underlying sockets.
+    aiohttp only directly implements socket keepalive for incoming connections
+    in its RequestHandler. For client connections, we need to set the keepalive
+    ourselves.
+
+    Refer to https://github.com/aio-libs/aiohttp/issues/3904#issuecomment-759205696
     """
 
-    socket_options = [(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)]
+    async def send(self, conn: Connection) -> ClientResponse:
+        sock = conn.protocol.transport.get_extra_info("socket")
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
 
-    if hasattr(socket, "TCP_KEEPINTVL"):
-        socket_options.append((socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 30))
+        if hasattr(socket, "TCP_KEEPIDLE"):
+            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 30)
 
-    if hasattr(socket, "TCP_KEEPCNT"):
-        socket_options.append((socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 6))
+        if hasattr(socket, "TCP_KEEPINTVL"):
+            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 6)
 
-    if hasattr(socket, "TCP_KEEPIDLE"):
-        socket_options.append((socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 6))
+        if hasattr(socket, "TCP_KEEPCNT"):
+            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 6)
 
-    if sys.platform == "darwin":
-        # TCP_KEEP_ALIVE not available on socket module in macOS, but defined in
-        # https://github.com/apple/darwin-xnu/blob/2ff845c2e033bd0ff64b5b6aa6063a1f8f65aa32/bsd/netinet/tcp.h#L215
-        TCP_KEEP_ALIVE = 0x10
-        socket_options.append((socket.IPPROTO_TCP, TCP_KEEP_ALIVE, 30))
+        if sys.platform == "darwin":
+            # TCP_KEEP_ALIVE not available on socket module in macOS, but defined in
+            # https://github.com/apple/darwin-xnu/blob/2ff845c2e033bd0ff64b5b6aa6063a1f8f65aa32/bsd/netinet/tcp.h#L215
+            TCP_KEEP_ALIVE = 0x10
+            sock.setsockopt(socket.IPPROTO_TCP, TCP_KEEP_ALIVE, 30)
 
-    client.rest_client.pool_manager.connection_pool_kw[
-        "socket_options"
-    ] = socket_options
+        return await super().send(conn)
 
 
 def _slugify_name(name: str, max_length: int = 45) -> Optional[str]:

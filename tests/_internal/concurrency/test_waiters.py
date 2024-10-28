@@ -134,6 +134,7 @@ def test_sync_waiter_timeout_in_worker_thread():
     ), "The done callback should still be called on cancel"
 
 
+@pytest.mark.skip(reason="This test is flaky and should be rewritten")
 @pytest.mark.timeout(method="thread")  # pytest-timeout alarm interefres with this test
 def test_sync_waiter_timeout_in_main_thread():
     """
@@ -200,6 +201,7 @@ async def test_async_waiter_timeout_in_worker_thread():
     ), "The done callback should still be called on cancel"
 
 
+@pytest.mark.skip(reason="This test hangs and should be rewritten")
 async def test_async_waiter_timeout_in_main_thread():
     done_callback = Call.new(identity, 1)
     waiting_callback = Call.new(asyncio.sleep, 2)

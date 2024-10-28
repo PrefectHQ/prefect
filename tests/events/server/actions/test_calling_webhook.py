@@ -72,7 +72,6 @@ async def take_a_picture_deployment(
         deployment=Deployment(
             name="Take a picture on demand",
             flow_id=take_a_picture.flow_id,
-            is_schedule_active=True,
             paused=False,
         ),
     )
@@ -93,9 +92,9 @@ async def take_a_picture_work_queue(
 
 
 @pytest.fixture
-async def webhook_block_id() -> UUID:
+async def webhook_block_id(in_memory_prefect_client) -> UUID:
     block = Webhook(method="POST", url="https://example.com", headers={"foo": "bar"})
-    return await block.save(name="webhook-test")
+    return await block.save(name="webhook-test", client=in_memory_prefect_client)
 
 
 @pytest.fixture
@@ -357,10 +356,10 @@ async def test_success_event(
     await action.succeed(call_webhook)
 
     assert AssertingEventsClient.last
-    (event,) = AssertingEventsClient.last.events
+    (triggered_event, executed_event) = AssertingEventsClient.last.events
 
-    assert event.event == "prefect.automation.action.executed"
-    assert event.related == [
+    assert triggered_event.event == "prefect.automation.action.triggered"
+    assert triggered_event.related == [
         RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.block-document.{webhook_block_id}",
@@ -375,7 +374,29 @@ async def test_success_event(
             }
         ),
     ]
-    assert event.payload == {
+    assert triggered_event.payload == {
+        "action_index": 0,
+        "action_type": "call-webhook",
+        "invocation": str(call_webhook.id),
+    }
+
+    assert executed_event.event == "prefect.automation.action.executed"
+    assert executed_event.related == [
+        RelatedResource.model_validate(
+            {
+                "prefect.resource.id": f"prefect.block-document.{webhook_block_id}",
+                "prefect.resource.role": "block",
+                "prefect.resource.name": "webhook-test",
+            }
+        ),
+        RelatedResource.model_validate(
+            {
+                "prefect.resource.id": "prefect.block-type.webhook",
+                "prefect.resource.role": "block-type",
+            }
+        ),
+    ]
+    assert executed_event.payload == {
         "action_index": 0,
         "action_type": "call-webhook",
         "invocation": str(call_webhook.id),
@@ -399,7 +420,7 @@ async def test_migrating_to_templates():
     assert isinstance(action.payload, str)
     assert action.payload == '{\n  "message": "hello world"\n}'
 
-    actions_adapter = TypeAdapter(actions.ActionTypes)
+    actions_adapter = TypeAdapter(actions.ServerActionTypes)
 
     # The form it will be when read from the database
     action = actions_adapter.validate_python(

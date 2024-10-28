@@ -150,7 +150,7 @@ async def bulk_increment_active_slots(
     slots: int = Body(..., gt=0),
     names: List[str] = Body(..., min_items=1),
     mode: Literal["concurrency", "rate_limit"] = Body("concurrency"),
-    create_if_missing: bool = Body(True),
+    create_if_missing: Optional[bool] = Body(None),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[MinimalConcurrencyLimitResponse]:
     async with db.session_context(begin_transaction=True) as session:
