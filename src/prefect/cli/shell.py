@@ -8,7 +8,7 @@ import logging
 import subprocess
 import sys
 import threading
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 import typer
 from typing_extensions import Annotated
@@ -62,6 +62,7 @@ def run_shell_process(
     log_output: bool = True,
     stream_stdout: bool = False,
     log_stderr: bool = False,
+    popen_kwargs: Optional[Dict[str, Any]] = None,
 ):
     """
     Asynchronously executes the specified shell command and logs its output.
@@ -70,28 +71,32 @@ def run_shell_process(
     It handles both the execution of the command and the collection of its output for logging purposes.
 
     Args:
-        command (str): The shell command to execute.
-        log_output (bool, optional): If True, the output of the command (both stdout and stderr) is logged to Prefect.
-                                     Defaults to True
-        stream_stdout (bool, optional): If True, the stdout of the command is streamed to Prefect logs. Defaults to False.
-        log_stderr (bool, optional): If True, the stderr of the command is logged to Prefect logs. Defaults to False.
-
+        command: The shell command to execute.
+        log_output: If True, the output of the command (both stdout and stderr) is logged to Prefect.
+        stream_stdout: If True, the stdout of the command is streamed to Prefect logs.
+        log_stderr: If True, the stderr of the command is logged to Prefect logs.
+        popen_kwargs: Additional keyword arguments to pass to the `subprocess.Popen` call.
 
     """
 
     logger = get_run_logger() if log_output else logging.getLogger("prefect")
 
+    # Default Popen kwargs that can be overridden
+    kwargs = {
+        "stdout": subprocess.PIPE,
+        "stderr": subprocess.PIPE,
+        "shell": True,
+        "text": True,
+        "bufsize": 1,
+        "universal_newlines": True,
+    }
+
+    if popen_kwargs:
+        kwargs |= popen_kwargs
+
     # Containers for log batching
     stdout_container, stderr_container = [], []
-    with subprocess.Popen(
-        command,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        shell=True,
-        text=True,
-        bufsize=1,
-        universal_newlines=True,
-    ) as proc:
+    with subprocess.Popen(command, **kwargs) as proc:
         # Create threads for collecting stdout and stderr
         if stream_stdout:
             stdout_logger = logger.info
