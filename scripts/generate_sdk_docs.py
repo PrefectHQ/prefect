@@ -34,8 +34,6 @@ def main():
                 continue
             modules.append(submodule)
 
-        print(modules)
-
         package_docs = docs_path() / "mkdocs"
 
         for module in sorted(modules):
