@@ -134,12 +134,19 @@
           "version": "3.0"
         },
         {
-          "group": "Infrastructure-specific examples",
+          "group": "Dynamic infrastructure examples",
           "pages": [
             "3.0/deploy/infrastructure-examples/managed",
             "3.0/deploy/infrastructure-examples/serverless",
             "3.0/deploy/infrastructure-examples/docker",
             "3.0/deploy/infrastructure-examples/kubernetes"
+          ],
+          "version": "3.0"
+        },
+        {
+          "group": "Static infrastructure examples",
+          "pages": [
+            "3.0/deploy/static-infrastructure-examples/docker"
           ],
           "version": "3.0"
         }
