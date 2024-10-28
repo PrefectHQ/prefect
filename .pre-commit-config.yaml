@@ -45,3 +45,17 @@ repos:
               src/prefect/server/events/.*|
               scripts/generate_mintlify_openapi_docs.py
           )$
+
+  - repo: local
+    hooks:
+      - id: generate-settings-schema
+        name: Generating Settings Schema
+        language: system
+        entry: uv run --with 'pydantic>=2.9.0' ./scripts/generate_settings_schema.py
+        pass_filenames: false
+        files: |
+          (?x)^(
+              .pre-commit-config.yaml|
+              src/prefect/settings/models/.*|
+              scripts/generate_settings_schema.py
+          )$

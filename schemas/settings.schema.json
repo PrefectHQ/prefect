@@ -1,0 +1,1641 @@
+{
+    "$defs": {
+        "APISettings": {
+            "description": "Settings for interacting with the Prefect API",
+            "properties": {
+                "url": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "The URL of the Prefect API. If not set, the client will attempt to infer it.",
+                    "title": "Url"
+                },
+                "key": {
+                    "anyOf": [
+                        {
+                            "format": "password",
+                            "type": "string",
+                            "writeOnly": true
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "The API key used for authentication with the Prefect API. Should be kept secret.",
+                    "title": "Key"
+                },
+                "tls_insecure_skip_verify": {
+                    "default": false,
+                    "description": "If `True`, disables SSL checking to allow insecure requests. This is recommended only during development, e.g. when using self-signed certificates.",
+                    "title": "Tls Insecure Skip Verify",
+                    "type": "boolean"
+                },
+                "ssl_cert_file": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "This configuration settings option specifies the path to an SSL certificate file.",
+                    "title": "Ssl Cert File"
+                },
+                "enable_http2": {
+                    "default": false,
+                    "description": "If true, enable support for HTTP/2 for communicating with an API. If the API does not support HTTP/2, this will have no effect and connections will be made via HTTP/1.1.",
+                    "title": "Enable Http2",
+                    "type": "boolean"
+                },
+                "request_timeout": {
+                    "default": 60.0,
+                    "description": "The default timeout for requests to the API",
+                    "title": "Request Timeout",
+                    "type": "number"
+                }
+            },
+            "title": "APISettings",
+            "type": "object"
+        },
+        "CLISettings": {
+            "description": "Settings for controlling CLI behavior",
+            "properties": {
+                "colors": {
+                    "default": true,
+                    "description": "If True, use colors in CLI output. If `False`, output will not include colors codes.",
+                    "title": "Colors",
+                    "type": "boolean"
+                },
+                "prompt": {
+                    "anyOf": [
+                        {
+                            "type": "boolean"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "If `True`, use interactive prompts in CLI commands. If `False`, no interactive prompts will be used. If `None`, the value will be dynamically determined based on the presence of an interactive-enabled terminal.",
+                    "title": "Prompt"
+                },
+                "wrap_lines": {
+                    "default": true,
+                    "description": "If `True`, wrap text by inserting new lines in long lines in CLI output. If `False`, output will not be wrapped.",
+                    "title": "Wrap Lines",
+                    "type": "boolean"
+                }
+            },
+            "title": "CLISettings",
+            "type": "object"
+        },
+        "ClientMetricsSettings": {
+            "description": "Settings for controlling metrics reporting from the client",
+            "properties": {
+                "enabled": {
+                    "default": false,
+                    "description": "Whether or not to enable Prometheus metrics in the client.",
+                    "title": "Enabled",
+                    "type": "boolean"
+                },
+                "port": {
+                    "default": 4201,
+                    "description": "The port to expose the client Prometheus metrics on.",
+                    "title": "Port",
+                    "type": "integer"
+                }
+            },
+            "title": "ClientMetricsSettings",
+            "type": "object"
+        },
+        "ClientSettings": {
+            "description": "Settings for controlling API client behavior",
+            "properties": {
+                "max_retries": {
+                    "default": 5,
+                    "description": "\n        The maximum number of retries to perform on failed HTTP requests.\n        Defaults to 5. Set to 0 to disable retries.\n        See `PREFECT_CLIENT_RETRY_EXTRA_CODES` for details on which HTTP status codes are\n        retried.\n        ",
+                    "minimum": 0,
+                    "title": "Max Retries",
+                    "type": "integer"
+                },
+                "retry_jitter_factor": {
+                    "default": 0.2,
+                    "description": "\n        A value greater than or equal to zero to control the amount of jitter added to retried\n        client requests. Higher values introduce larger amounts of jitter.\n        Set to 0 to disable jitter. See `clamped_poisson_interval` for details on the how jitter\n        can affect retry lengths.\n        ",
+                    "minimum": 0.0,
+                    "title": "Retry Jitter Factor",
+                    "type": "number"
+                },
+                "retry_extra_codes": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "maximum": 599,
+                            "minimum": 100,
+                            "type": "integer"
+                        },
+                        {
+                            "items": {
+                                "maximum": 599,
+                                "minimum": 100,
+                                "type": "integer"
+                            },
+                            "type": "array",
+                            "uniqueItems": true
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "\n        A list of extra HTTP status codes to retry on. Defaults to an empty list.\n        429, 502 and 503 are always retried. Please note that not all routes are idempotent and retrying\n        may result in unexpected behavior.\n        ",
+                    "examples": [
+                        "404,429,503",
+                        "429",
+                        [
+                            404,
+                            429,
+                            503
+                        ]
+                    ],
+                    "title": "Retry Extra Codes"
+                },
+                "csrf_support_enabled": {
+                    "default": true,
+                    "description": "\n        Determines if CSRF token handling is active in the Prefect client for API\n        requests.\n\n        When enabled (`True`), the client automatically manages CSRF tokens by\n        retrieving, storing, and including them in applicable state-changing requests\n        ",
+                    "title": "Csrf Support Enabled",
+                    "type": "boolean"
+                },
+                "metrics": {
+                    "$ref": "#/$defs/ClientMetricsSettings"
+                }
+            },
+            "title": "ClientSettings",
+            "type": "object"
+        },
+        "CloudSettings": {
+            "description": "Settings for interacting with Prefect Cloud",
+            "properties": {
+                "api_url": {
+                    "default": "https://api.prefect.cloud/api",
+                    "description": "API URL for Prefect Cloud. Used for authentication with Prefect Cloud.",
+                    "title": "Api Url",
+                    "type": "string"
+                },
+                "ui_url": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "The URL of the Prefect Cloud UI. If not set, the client will attempt to infer it.",
+                    "title": "Ui Url"
+                }
+            },
+            "title": "CloudSettings",
+            "type": "object"
+        },
+        "DeploymentsSettings": {
+            "description": "Settings for configuring deployments defaults",
+            "properties": {
+                "default_work_pool_name": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "The default work pool to use when creating deployments.",
+                    "title": "Default Work Pool Name"
+                },
+                "default_docker_build_namespace": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "The default Docker namespace to use when building images.",
+                    "examples": [
+                        "my-dockerhub-registry",
+                        "4999999999999.dkr.ecr.us-east-2.amazonaws.com/my-ecr-repo"
+                    ],
+                    "title": "Default Docker Build Namespace"
+                }
+            },
+            "title": "DeploymentsSettings",
+            "type": "object"
+        },
+        "FlowsSettings": {
+            "description": "Settings for controlling flow behavior",
+            "properties": {
+                "default_retries": {
+                    "default": 0,
+                    "description": "This value sets the default number of retries for all flows.",
+                    "minimum": 0,
+                    "title": "Default Retries",
+                    "type": "integer"
+                },
+                "default_retry_delay_seconds": {
+                    "anyOf": [
+                        {
+                            "type": "integer"
+                        },
+                        {
+                            "type": "number"
+                        },
+                        {
+                            "items": {
+                                "type": "number"
+                            },
+                            "type": "array"
+                        }
+                    ],
+                    "default": 0,
+                    "description": "This value sets the default retry delay seconds for all flows.",
+                    "title": "Default Retry Delay Seconds"
+                }
+            },
+            "title": "FlowsSettings",
+            "type": "object"
+        },
+        "InternalSettings": {
+            "properties": {
+                "logging_level": {
+                    "default": "ERROR",
+                    "description": "The default logging level for Prefect's internal machinery loggers.",
+                    "enum": [
+                        "DEBUG",
+                        "INFO",
+                        "WARNING",
+                        "ERROR",
+                        "CRITICAL"
+                    ],
+                    "title": "Logging Level",
+                    "type": "string"
+                }
+            },
+            "title": "InternalSettings",
+            "type": "object"
+        },
+        "LoggingSettings": {
+            "description": "Settings for controlling logging behavior",
+            "properties": {
+                "level": {
+                    "default": "INFO",
+                    "description": "The default logging level for Prefect loggers.",
+                    "enum": [
+                        "DEBUG",
+                        "INFO",
+                        "WARNING",
+                        "ERROR",
+                        "CRITICAL"
+                    ],
+                    "title": "Level",
+                    "type": "string"
+                },
+                "config_path": {
+                    "anyOf": [
+                        {
+                            "format": "path",
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "The path to a custom YAML logging configuration file.",
+                    "title": "Config Path"
+                },
+                "extra_loggers": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "items": {
+                                "type": "string"
+                            },
+                            "type": "array"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "Additional loggers to attach to Prefect logging at runtime.",
+                    "title": "Extra Loggers"
+                },
+                "log_prints": {
+                    "default": false,
+                    "description": "If `True`, `print` statements in flows and tasks will be redirected to the Prefect logger for the given run.",
+                    "title": "Log Prints",
+                    "type": "boolean"
+                },
+                "colors": {
+                    "default": true,
+                    "description": "If `True`, use colors in CLI output. If `False`, output will not include colors codes.",
+                    "title": "Colors",
+                    "type": "boolean"
+                },
+                "markup": {
+                    "default": false,
+                    "description": "\n        Whether to interpret strings wrapped in square brackets as a style.\n        This allows styles to be conveniently added to log messages, e.g.\n        `[red]This is a red message.[/red]`. However, the downside is, if enabled,\n        strings that contain square brackets may be inaccurately interpreted and\n        lead to incomplete output, e.g.\n        `[red]This is a red message.[/red]` may be interpreted as\n        `[red]This is a red message.[/red]`.\n        ",
+                    "title": "Markup",
+                    "type": "boolean"
+                },
+                "to_api": {
+                    "$ref": "#/$defs/LoggingToAPISettings"
+                }
+            },
+            "title": "LoggingSettings",
+            "type": "object"
+        },
+        "LoggingToAPISettings": {
+            "description": "Settings for controlling logging to the API",
+            "properties": {
+                "enabled": {
+                    "default": true,
+                    "description": "If `True`, logs will be sent to the API.",
+                    "title": "Enabled",
+                    "type": "boolean"
+                },
+                "batch_interval": {
+                    "default": 2.0,
+                    "description": "The number of seconds between batched writes of logs to the API.",
+                    "title": "Batch Interval",
+                    "type": "number"
+                },
+                "batch_size": {
+                    "default": 4000000,
+                    "description": "The number of logs to batch before sending to the API.",
+                    "title": "Batch Size",
+                    "type": "integer"
+                },
+                "max_log_size": {
+                    "default": 1000000,
+                    "description": "The maximum size in bytes for a single log.",
+                    "title": "Max Log Size",
+                    "type": "integer"
+                },
+                "when_missing_flow": {
+                    "default": "warn",
+                    "description": "\n        Controls the behavior when loggers attempt to send logs to the API handler from outside of a flow.\n        \n        All logs sent to the API must be associated with a flow run. The API log handler can\n        only be used outside of a flow by manually providing a flow run identifier. Logs\n        that are not associated with a flow run will not be sent to the API. This setting can\n        be used to determine if a warning or error is displayed when the identifier is missing.\n\n        The following options are available:\n\n        - \"warn\": Log a warning message.\n        - \"error\": Raise an error.\n        - \"ignore\": Do not log a warning message or raise an error.\n        ",
+                    "enum": [
+                        "warn",
+                        "error",
+                        "ignore"
+                    ],
+                    "title": "When Missing Flow",
+                    "type": "string"
+                }
+            },
+            "title": "LoggingToAPISettings",
+            "type": "object"
+        },
+        "ResultsSettings": {
+            "description": "Settings for controlling result storage behavior",
+            "properties": {
+                "default_serializer": {
+                    "default": "pickle",
+                    "description": "The default serializer to use when not otherwise specified.",
+                    "title": "Default Serializer",
+                    "type": "string"
+                },
+                "persist_by_default": {
+                    "default": false,
+                    "description": "The default setting for persisting results when not otherwise specified.",
+                    "title": "Persist By Default",
+                    "type": "boolean"
+                },
+                "default_storage_block": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "The `block-type/block-document` slug of a block to use as the default result storage.",
+                    "title": "Default Storage Block"
+                },
+                "local_storage_path": {
+                    "anyOf": [
+                        {
+                            "format": "path",
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "The path to a directory to store results in.",
+                    "title": "Local Storage Path"
+                }
+            },
+            "title": "ResultsSettings",
+            "type": "object"
+        },
+        "RunnerServerSettings": {
+            "description": "Settings for controlling runner server behavior",
+            "properties": {
+                "enable": {
+                    "default": false,
+                    "description": "Whether or not to enable the runner's webserver.",
+                    "title": "Enable",
+                    "type": "boolean"
+                },
+                "host": {
+                    "default": "localhost",
+                    "description": "The host address the runner's webserver should bind to.",
+                    "title": "Host",
+                    "type": "string"
+                },
+                "port": {
+                    "default": 8080,
+                    "description": "The port the runner's webserver should bind to.",
+                    "title": "Port",
+                    "type": "integer"
+                },
+                "log_level": {
+                    "default": "error",
+                    "description": "The log level of the runner's webserver.",
+                    "enum": [
+                        "DEBUG",
+                        "INFO",
+                        "WARNING",
+                        "ERROR",
+                        "CRITICAL"
+                    ],
+                    "title": "Log Level",
+                    "type": "string"
+                },
+                "missed_polls_tolerance": {
+                    "default": 2,
+                    "description": "Number of missed polls before a runner is considered unhealthy by its webserver.",
+                    "title": "Missed Polls Tolerance",
+                    "type": "integer"
+                }
+            },
+            "title": "RunnerServerSettings",
+            "type": "object"
+        },
+        "RunnerSettings": {
+            "description": "Settings for controlling runner behavior",
+            "properties": {
+                "process_limit": {
+                    "default": 5,
+                    "description": "Maximum number of processes a runner will execute in parallel.",
+                    "title": "Process Limit",
+                    "type": "integer"
+                },
+                "poll_frequency": {
+                    "default": 10,
+                    "description": "Number of seconds a runner should wait between queries for scheduled work.",
+                    "title": "Poll Frequency",
+                    "type": "integer"
+                },
+                "server": {
+                    "$ref": "#/$defs/RunnerServerSettings"
+                }
+            },
+            "title": "RunnerSettings",
+            "type": "object"
+        },
+        "ServerAPISettings": {
+            "description": "Settings for controlling API server behavior",
+            "properties": {
+                "host": {
+                    "default": "127.0.0.1",
+                    "description": "The API's host address (defaults to `127.0.0.1`).",
+                    "title": "Host",
+                    "type": "string"
+                },
+                "port": {
+                    "default": 4200,
+                    "description": "The API's port address (defaults to `4200`).",
+                    "title": "Port",
+                    "type": "integer"
+                },
+                "default_limit": {
+                    "default": 200,
+                    "description": "The default limit applied to queries that can return multiple objects, such as `POST /flow_runs/filter`.",
+                    "title": "Default Limit",
+                    "type": "integer"
+                },
+                "keepalive_timeout": {
+                    "default": 5,
+                    "description": "\n        The API's keep alive timeout (defaults to `5`).\n        Refer to https://www.uvicorn.org/settings/#timeouts for details.\n\n        When the API is hosted behind a load balancer, you may want to set this to a value\n        greater than the load balancer's idle timeout.\n\n        Note this setting only applies when calling `prefect server start`; if hosting the\n        API with another tool you will need to configure this there instead.\n        ",
+                    "title": "Keepalive Timeout",
+                    "type": "integer"
+                },
+                "csrf_protection_enabled": {
+                    "default": false,
+                    "description": "\n        Controls the activation of CSRF protection for the Prefect server API.\n\n        When enabled (`True`), the server enforces CSRF validation checks on incoming\n        state-changing requests (POST, PUT, PATCH, DELETE), requiring a valid CSRF\n        token to be included in the request headers or body. This adds a layer of\n        security by preventing unauthorized or malicious sites from making requests on\n        behalf of authenticated users.\n\n        It is recommended to enable this setting in production environments where the\n        API is exposed to web clients to safeguard against CSRF attacks.\n\n        Note: Enabling this setting requires corresponding support in the client for\n        CSRF token management. See PREFECT_CLIENT_CSRF_SUPPORT_ENABLED for more.\n        ",
+                    "title": "Csrf Protection Enabled",
+                    "type": "boolean"
+                },
+                "csrf_token_expiration": {
+                    "default": "PT1H",
+                    "description": "\n        Specifies the duration for which a CSRF token remains valid after being issued\n        by the server.\n\n        The default expiration time is set to 1 hour, which offers a reasonable\n        compromise. Adjust this setting based on your specific security requirements\n        and usage patterns.\n        ",
+                    "format": "duration",
+                    "title": "Csrf Token Expiration",
+                    "type": "string"
+                },
+                "cors_allowed_origins": {
+                    "default": "*",
+                    "description": "\n        A comma-separated list of origins that are authorized to make cross-origin requests to the API.\n\n        By default, this is set to `*`, which allows requests from all origins.\n        ",
+                    "title": "Cors Allowed Origins",
+                    "type": "string"
+                },
+                "cors_allowed_methods": {
+                    "default": "*",
+                    "description": "\n        A comma-separated list of methods that are authorized to make cross-origin requests to the API.\n\n        By default, this is set to `*`, which allows requests from all methods.\n        ",
+                    "title": "Cors Allowed Methods",
+                    "type": "string"
+                },
+                "cors_allowed_headers": {
+                    "default": "*",
+                    "description": "\n        A comma-separated list of headers that are authorized to make cross-origin requests to the API.\n\n        By default, this is set to `*`, which allows requests from all headers.\n        ",
+                    "title": "Cors Allowed Headers",
+                    "type": "string"
+                }
+            },
+            "title": "ServerAPISettings",
+            "type": "object"
+        },
+        "ServerDatabaseSettings": {
+            "description": "Settings for controlling server database behavior",
+            "properties": {
+                "connection_url": {
+                    "anyOf": [
+                        {
+                            "format": "password",
+                            "type": "string",
+                            "writeOnly": true
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "\n        A database connection URL in a SQLAlchemy-compatible\n        format. Prefect currently supports SQLite and Postgres. Note that all\n        Prefect database engines must use an async driver - for SQLite, use\n        `sqlite+aiosqlite` and for Postgres use `postgresql+asyncpg`.\n\n        SQLite in-memory databases can be used by providing the url\n        `sqlite+aiosqlite:///file::memory:?cache=shared&uri=true&check_same_thread=false`,\n        which will allow the database to be accessed by multiple threads. Note\n        that in-memory databases can not be accessed from multiple processes and\n        should only be used for simple tests.\n        ",
+                    "title": "Connection Url"
+                },
+                "driver": {
+                    "anyOf": [
+                        {
+                            "enum": [
+                                "postgresql+asyncpg",
+                                "sqlite+aiosqlite"
+                            ],
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "The database driver to use when connecting to the database. If not set, the driver will be inferred from the connection URL.",
+                    "title": "Driver"
+                },
+                "host": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "The database server host.",
+                    "title": "Host"
+                },
+                "port": {
+                    "anyOf": [
+                        {
+                            "type": "integer"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "The database server port.",
+                    "title": "Port"
+                },
+                "user": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "The user to use when connecting to the database.",
+                    "title": "User"
+                },
+                "name": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "The name of the Prefect database on the remote server, or the path to the database file for SQLite.",
+                    "title": "Name"
+                },
+                "password": {
+                    "anyOf": [
+                        {
+                            "format": "password",
+                            "type": "string",
+                            "writeOnly": true
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "The password to use when connecting to the database. Should be kept secret.",
+                    "title": "Password"
+                },
+                "echo": {
+                    "default": false,
+                    "description": "If `True`, SQLAlchemy will log all SQL issued to the database. Defaults to `False`.",
+                    "title": "Echo",
+                    "type": "boolean"
+                },
+                "migrate_on_start": {
+                    "default": true,
+                    "description": "If `True`, the database will be migrated on application startup.",
+                    "title": "Migrate On Start",
+                    "type": "boolean"
+                },
+                "timeout": {
+                    "anyOf": [
+                        {
+                            "type": "number"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": 10.0,
+                    "description": "A statement timeout, in seconds, applied to all database interactions made by the API. Defaults to 10 seconds.",
+                    "title": "Timeout"
+                },
+                "connection_timeout": {
+                    "anyOf": [
+                        {
+                            "type": "number"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": 5,
+                    "description": "A connection timeout, in seconds, applied to database connections. Defaults to `5`.",
+                    "title": "Connection Timeout"
+                },
+                "sqlalchemy_pool_size": {
+                    "anyOf": [
+                        {
+                            "type": "integer"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "Controls connection pool size when using a PostgreSQL database with the Prefect API. If not set, the default SQLAlchemy pool size will be used.",
+                    "title": "Sqlalchemy Pool Size"
+                },
+                "sqlalchemy_max_overflow": {
+                    "anyOf": [
+                        {
+                            "type": "integer"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "Controls maximum overflow of the connection pool when using a PostgreSQL database with the Prefect API. If not set, the default SQLAlchemy maximum overflow value will be used.",
+                    "title": "Sqlalchemy Max Overflow"
+                }
+            },
+            "title": "ServerDatabaseSettings",
+            "type": "object"
+        },
+        "ServerDeploymentsSettings": {
+            "properties": {
+                "concurrency_slot_wait_seconds": {
+                    "default": 30.0,
+                    "description": "The number of seconds to wait before retrying when a deployment flow run cannot secure a concurrency slot from the server.",
+                    "minimum": 0.0,
+                    "title": "Concurrency Slot Wait Seconds",
+                    "type": "number"
+                }
+            },
+            "title": "ServerDeploymentsSettings",
+            "type": "object"
+        },
+        "ServerEphemeralSettings": {
+            "description": "Settings for controlling ephemeral server behavior",
+            "properties": {
+                "enabled": {
+                    "default": false,
+                    "description": "\n        Controls whether or not a subprocess server can be started when no API URL is provided.\n        ",
+                    "title": "Enabled",
+                    "type": "boolean"
+                },
+                "startup_timeout_seconds": {
+                    "default": 20,
+                    "description": "\n        The number of seconds to wait for the server to start when ephemeral mode is enabled.\n        Defaults to `10`.\n        ",
+                    "title": "Startup Timeout Seconds",
+                    "type": "integer"
+                }
+            },
+            "title": "ServerEphemeralSettings",
+            "type": "object"
+        },
+        "ServerEventsSettings": {
+            "description": "Settings for controlling behavior of the events subsystem",
+            "properties": {
+                "stream_out_enabled": {
+                    "default": true,
+                    "description": "Whether or not to stream events out to the API via websockets.",
+                    "title": "Stream Out Enabled",
+                    "type": "boolean"
+                },
+                "related_resource_cache_ttl": {
+                    "default": "PT5M",
+                    "description": "The number of seconds to cache related resources for in the API.",
+                    "format": "duration",
+                    "title": "Related Resource Cache Ttl",
+                    "type": "string"
+                },
+                "maximum_labels_per_resource": {
+                    "default": 500,
+                    "description": "The maximum number of labels a resource may have.",
+                    "title": "Maximum Labels Per Resource",
+                    "type": "integer"
+                },
+                "maximum_related_resources": {
+                    "default": 500,
+                    "description": "The maximum number of related resources an Event may have.",
+                    "title": "Maximum Related Resources",
+                    "type": "integer"
+                },
+                "maximum_size_bytes": {
+                    "default": 1500000,
+                    "description": "The maximum size of an Event when serialized to JSON",
+                    "title": "Maximum Size Bytes",
+                    "type": "integer"
+                },
+                "expired_bucket_buffer": {
+                    "default": "PT1M",
+                    "description": "The amount of time to retain expired automation buckets",
+                    "format": "duration",
+                    "title": "Expired Bucket Buffer",
+                    "type": "string"
+                },
+                "proactive_granularity": {
+                    "default": "PT5S",
+                    "description": "How frequently proactive automations are evaluated",
+                    "format": "duration",
+                    "title": "Proactive Granularity",
+                    "type": "string"
+                },
+                "retention_period": {
+                    "default": "P7D",
+                    "description": "The amount of time to retain events in the database.",
+                    "format": "duration",
+                    "title": "Retention Period",
+                    "type": "string"
+                },
+                "maximum_websocket_backfill": {
+                    "default": "PT15M",
+                    "description": "The maximum range to look back for backfilling events for a websocket subscriber.",
+                    "format": "duration",
+                    "title": "Maximum Websocket Backfill",
+                    "type": "string"
+                },
+                "websocket_backfill_page_size": {
+                    "default": 250,
+                    "description": "The page size for the queries to backfill events for websocket subscribers.",
+                    "exclusiveMinimum": 0,
+                    "title": "Websocket Backfill Page Size",
+                    "type": "integer"
+                },
+                "messaging_broker": {
+                    "default": "prefect.server.utilities.messaging.memory",
+                    "description": "Which message broker implementation to use for the messaging system, should point to a module that exports a Publisher and Consumer class.",
+                    "title": "Messaging Broker",
+                    "type": "string"
+                },
+                "messaging_cache": {
+                    "default": "prefect.server.utilities.messaging.memory",
+                    "description": "Which cache implementation to use for the events system.  Should point to a module that exports a Cache class.",
+                    "title": "Messaging Cache",
+                    "type": "string"
+                }
+            },
+            "title": "ServerEventsSettings",
+            "type": "object"
+        },
+        "ServerFlowRunGraphSettings": {
+            "description": "Settings for controlling behavior of the flow run graph",
+            "properties": {
+                "max_nodes": {
+                    "default": 10000,
+                    "description": "The maximum size of a flow run graph on the v2 API",
+                    "title": "Max Nodes",
+                    "type": "integer"
+                },
+                "max_artifacts": {
+                    "default": 10000,
+                    "description": "The maximum number of artifacts to show on a flow run graph on the v2 API",
+                    "title": "Max Artifacts",
+                    "type": "integer"
+                }
+            },
+            "title": "ServerFlowRunGraphSettings",
+            "type": "object"
+        },
+        "ServerServicesCancellationCleanupSettings": {
+            "description": "Settings for controlling the cancellation cleanup service",
+            "properties": {
+                "enabled": {
+                    "default": true,
+                    "description": "Whether or not to start the cancellation cleanup service in the server application.",
+                    "title": "Enabled",
+                    "type": "boolean"
+                },
+                "loop_seconds": {
+                    "default": 20,
+                    "description": "The cancellation cleanup service will look for non-terminal tasks and subflows this often. Defaults to `20`.",
+                    "title": "Loop Seconds",
+                    "type": "number"
+                }
+            },
+            "title": "ServerServicesCancellationCleanupSettings",
+            "type": "object"
+        },
+        "ServerServicesEventPersisterSettings": {
+            "description": "Settings for controlling the event persister service",
+            "properties": {
+                "enabled": {
+                    "default": true,
+                    "description": "Whether or not to start the event persister service in the server application.",
+                    "title": "Enabled",
+                    "type": "boolean"
+                },
+                "batch_size": {
+                    "default": 20,
+                    "description": "The number of events the event persister will attempt to insert in one batch.",
+                    "exclusiveMinimum": 0,
+                    "title": "Batch Size",
+                    "type": "integer"
+                },
+                "flush_interval": {
+                    "default": 5,
+                    "description": "The maximum number of seconds between flushes of the event persister.",
+                    "exclusiveMinimum": 0.0,
+                    "title": "Flush Interval",
+                    "type": "number"
+                }
+            },
+            "title": "ServerServicesEventPersisterSettings",
+            "type": "object"
+        },
+        "ServerServicesFlowRunNotificationsSettings": {
+            "description": "Settings for controlling the flow run notifications service",
+            "properties": {
+                "enabled": {
+                    "default": true,
+                    "description": "Whether or not to start the flow run notifications service in the server application.",
+                    "title": "Enabled",
+                    "type": "boolean"
+                }
+            },
+            "title": "ServerServicesFlowRunNotificationsSettings",
+            "type": "object"
+        },
+        "ServerServicesForemanSettings": {
+            "description": "Settings for controlling the foreman service",
+            "properties": {
+                "enabled": {
+                    "default": true,
+                    "description": "Whether or not to start the foreman service in the server application.",
+                    "title": "Enabled",
+                    "type": "boolean"
+                },
+                "loop_seconds": {
+                    "default": 15,
+                    "description": "The foreman service will check for offline workers this often. Defaults to `15`.",
+                    "title": "Loop Seconds",
+                    "type": "number"
+                },
+                "inactivity_heartbeat_multiple": {
+                    "default": 3,
+                    "description": "\n        The number of heartbeats that must be missed before a worker is marked as offline. Defaults to `3`.\n        ",
+                    "title": "Inactivity Heartbeat Multiple",
+                    "type": "integer"
+                },
+                "fallback_heartbeat_interval_seconds": {
+                    "default": 30,
+                    "description": "\n        The number of seconds to use for online/offline evaluation if a worker's heartbeat\n        interval is not set. Defaults to `30`.\n        ",
+                    "title": "Fallback Heartbeat Interval Seconds",
+                    "type": "integer"
+                },
+                "deployment_last_polled_timeout_seconds": {
+                    "default": 60,
+                    "description": "\n        The number of seconds before a deployment is marked as not ready if it has not been\n        polled. Defaults to `60`.\n        ",
+                    "title": "Deployment Last Polled Timeout Seconds",
+                    "type": "integer"
+                },
+                "work_queue_last_polled_timeout_seconds": {
+                    "default": 60,
+                    "description": "\n        The number of seconds before a work queue is marked as not ready if it has not been\n        polled. Defaults to `60`.\n        ",
+                    "title": "Work Queue Last Polled Timeout Seconds",
+                    "type": "integer"
+                }
+            },
+            "title": "ServerServicesForemanSettings",
+            "type": "object"
+        },
+        "ServerServicesLateRunsSettings": {
+            "description": "Settings for controlling the late runs service",
+            "properties": {
+                "enabled": {
+                    "default": true,
+                    "description": "Whether or not to start the late runs service in the server application.",
+                    "title": "Enabled",
+                    "type": "boolean"
+                },
+                "loop_seconds": {
+                    "default": 5,
+                    "description": "\n        The late runs service will look for runs to mark as late this often. Defaults to `5`.\n        ",
+                    "title": "Loop Seconds",
+                    "type": "number"
+                },
+                "after_seconds": {
+                    "default": "PT15S",
+                    "description": "\n        The late runs service will mark runs as late after they have exceeded their scheduled start time by this many seconds. Defaults to `5` seconds.\n        ",
+                    "format": "duration",
+                    "title": "After Seconds",
+                    "type": "string"
+                }
+            },
+            "title": "ServerServicesLateRunsSettings",
+            "type": "object"
+        },
+        "ServerServicesPauseExpirationsSettings": {
+            "description": "Settings for controlling the pause expiration service",
+            "properties": {
+                "enabled": {
+                    "default": true,
+                    "description": "\n        Whether or not to start the paused flow run expiration service in the server\n        application. If disabled, paused flows that have timed out will remain in a Paused state\n        until a resume attempt.\n        ",
+                    "title": "Enabled",
+                    "type": "boolean"
+                },
+                "loop_seconds": {
+                    "default": 5,
+                    "description": "\n        The pause expiration service will look for runs to mark as failed this often. Defaults to `5`.\n        ",
+                    "title": "Loop Seconds",
+                    "type": "number"
+                }
+            },
+            "title": "ServerServicesPauseExpirationsSettings",
+            "type": "object"
+        },
+        "ServerServicesSchedulerSettings": {
+            "description": "Settings for controlling the scheduler service",
+            "properties": {
+                "enabled": {
+                    "default": true,
+                    "description": "Whether or not to start the scheduler service in the server application.",
+                    "title": "Enabled",
+                    "type": "boolean"
+                },
+                "loop_seconds": {
+                    "default": 60,
+                    "description": "\n        The scheduler loop interval, in seconds. This determines\n        how often the scheduler will attempt to schedule new flow runs, but has no\n        impact on how quickly either flow runs or task runs are actually executed.\n        Defaults to `60`.\n        ",
+                    "title": "Loop Seconds",
+                    "type": "number"
+                },
+                "deployment_batch_size": {
+                    "default": 100,
+                    "description": "\n        The number of deployments the scheduler will attempt to\n        schedule in a single batch. If there are more deployments than the batch\n        size, the scheduler immediately attempts to schedule the next batch; it\n        does not sleep for `scheduler_loop_seconds` until it has visited every\n        deployment once. Defaults to `100`.\n        ",
+                    "title": "Deployment Batch Size",
+                    "type": "integer"
+                },
+                "max_runs": {
+                    "default": 100,
+                    "description": "\n        The scheduler will attempt to schedule up to this many\n        auto-scheduled runs in the future. Note that runs may have fewer than\n        this many scheduled runs, depending on the value of\n        `scheduler_max_scheduled_time`.  Defaults to `100`.\n        ",
+                    "title": "Max Runs",
+                    "type": "integer"
+                },
+                "min_runs": {
+                    "default": 3,
+                    "description": "\n        The scheduler will attempt to schedule at least this many\n        auto-scheduled runs in the future. Note that runs may have more than\n        this many scheduled runs, depending on the value of\n        `scheduler_min_scheduled_time`.  Defaults to `3`.\n        ",
+                    "title": "Min Runs",
+                    "type": "integer"
+                },
+                "max_scheduled_time": {
+                    "default": "P100D",
+                    "description": "\n        The scheduler will create new runs up to this far in the\n        future. Note that this setting will take precedence over\n        `scheduler_max_runs`: if a flow runs once a month and\n        `scheduler_max_scheduled_time` is three months, then only three runs will be\n        scheduled. Defaults to 100 days (`8640000` seconds).\n        ",
+                    "format": "duration",
+                    "title": "Max Scheduled Time",
+                    "type": "string"
+                },
+                "min_scheduled_time": {
+                    "default": "PT1H",
+                    "description": "\n        The scheduler will create new runs at least this far in the\n        future. Note that this setting will take precedence over `scheduler_min_runs`:\n        if a flow runs every hour and `scheduler_min_scheduled_time` is three hours,\n        then three runs will be scheduled even if `scheduler_min_runs` is 1. Defaults to\n        ",
+                    "format": "duration",
+                    "title": "Min Scheduled Time",
+                    "type": "string"
+                },
+                "insert_batch_size": {
+                    "default": 500,
+                    "description": "\n        The number of runs the scheduler will attempt to insert in a single batch.\n        Defaults to `500`.\n        ",
+                    "title": "Insert Batch Size",
+                    "type": "integer"
+                }
+            },
+            "title": "ServerServicesSchedulerSettings",
+            "type": "object"
+        },
+        "ServerServicesSettings": {
+            "description": "Settings for controlling server services",
+            "properties": {
+                "cancellation_cleanup": {
+                    "$ref": "#/$defs/ServerServicesCancellationCleanupSettings"
+                },
+                "event_persister": {
+                    "$ref": "#/$defs/ServerServicesEventPersisterSettings"
+                },
+                "flow_run_notifications": {
+                    "$ref": "#/$defs/ServerServicesFlowRunNotificationsSettings"
+                },
+                "foreman": {
+                    "$ref": "#/$defs/ServerServicesForemanSettings"
+                },
+                "late_runs": {
+                    "$ref": "#/$defs/ServerServicesLateRunsSettings"
+                },
+                "scheduler": {
+                    "$ref": "#/$defs/ServerServicesSchedulerSettings"
+                },
+                "pause_expirations": {
+                    "$ref": "#/$defs/ServerServicesPauseExpirationsSettings"
+                },
+                "task_run_recorder": {
+                    "$ref": "#/$defs/ServerServicesTaskRunRecorderSettings"
+                },
+                "triggers": {
+                    "$ref": "#/$defs/ServerServicesTriggersSettings"
+                }
+            },
+            "title": "ServerServicesSettings",
+            "type": "object"
+        },
+        "ServerServicesTaskRunRecorderSettings": {
+            "description": "Settings for controlling the task run recorder service",
+            "properties": {
+                "enabled": {
+                    "default": true,
+                    "description": "Whether or not to start the task run recorder service in the server application.",
+                    "title": "Enabled",
+                    "type": "boolean"
+                }
+            },
+            "title": "ServerServicesTaskRunRecorderSettings",
+            "type": "object"
+        },
+        "ServerServicesTriggersSettings": {
+            "description": "Settings for controlling the triggers service",
+            "properties": {
+                "enabled": {
+                    "default": true,
+                    "description": "Whether or not to start the triggers service in the server application.",
+                    "title": "Enabled",
+                    "type": "boolean"
+                }
+            },
+            "title": "ServerServicesTriggersSettings",
+            "type": "object"
+        },
+        "ServerSettings": {
+            "description": "Settings for controlling server behavior",
+            "properties": {
+                "logging_level": {
+                    "default": "WARNING",
+                    "description": "The default logging level for the Prefect API server.",
+                    "enum": [
+                        "DEBUG",
+                        "INFO",
+                        "WARNING",
+                        "ERROR",
+                        "CRITICAL"
+                    ],
+                    "title": "Logging Level",
+                    "type": "string"
+                },
+                "analytics_enabled": {
+                    "default": true,
+                    "description": "\n        When enabled, Prefect sends anonymous data (e.g. count of flow runs, package version)\n        on server startup to help us improve our product.\n        ",
+                    "title": "Analytics Enabled",
+                    "type": "boolean"
+                },
+                "metrics_enabled": {
+                    "default": false,
+                    "description": "Whether or not to enable Prometheus metrics in the API.",
+                    "title": "Metrics Enabled",
+                    "type": "boolean"
+                },
+                "log_retryable_errors": {
+                    "default": false,
+                    "description": "If `True`, log retryable errors in the API and it's services.",
+                    "title": "Log Retryable Errors",
+                    "type": "boolean"
+                },
+                "register_blocks_on_start": {
+                    "default": true,
+                    "description": "If set, any block types that have been imported will be registered with the backend on application startup. If not set, block types must be manually registered.",
+                    "title": "Register Blocks On Start",
+                    "type": "boolean"
+                },
+                "memoize_block_auto_registration": {
+                    "default": true,
+                    "description": "Controls whether or not block auto-registration on start",
+                    "title": "Memoize Block Auto Registration",
+                    "type": "boolean"
+                },
+                "memo_store_path": {
+                    "anyOf": [
+                        {
+                            "format": "path",
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "The path to the memo store file.",
+                    "title": "Memo Store Path"
+                },
+                "deployment_schedule_max_scheduled_runs": {
+                    "default": 50,
+                    "description": "The maximum number of scheduled runs to create for a deployment.",
+                    "title": "Deployment Schedule Max Scheduled Runs",
+                    "type": "integer"
+                },
+                "api": {
+                    "$ref": "#/$defs/ServerAPISettings"
+                },
+                "database": {
+                    "$ref": "#/$defs/ServerDatabaseSettings"
+                },
+                "deployments": {
+                    "$ref": "#/$defs/ServerDeploymentsSettings",
+                    "description": "Settings for controlling server deployments behavior"
+                },
+                "ephemeral": {
+                    "$ref": "#/$defs/ServerEphemeralSettings"
+                },
+                "events": {
+                    "$ref": "#/$defs/ServerEventsSettings",
+                    "description": "Settings for controlling server events behavior"
+                },
+                "flow_run_graph": {
+                    "$ref": "#/$defs/ServerFlowRunGraphSettings",
+                    "description": "Settings for controlling flow run graph behavior"
+                },
+                "services": {
+                    "$ref": "#/$defs/ServerServicesSettings",
+                    "description": "Settings for controlling server services behavior"
+                },
+                "tasks": {
+                    "$ref": "#/$defs/ServerTasksSettings",
+                    "description": "Settings for controlling server tasks behavior"
+                },
+                "ui": {
+                    "$ref": "#/$defs/ServerUISettings",
+                    "description": "Settings for controlling server UI behavior"
+                }
+            },
+            "title": "ServerSettings",
+            "type": "object"
+        },
+        "ServerTasksSchedulingSettings": {
+            "description": "Settings for controlling server-side behavior related to task scheduling",
+            "properties": {
+                "max_scheduled_queue_size": {
+                    "default": 1000,
+                    "description": "The maximum number of scheduled tasks to queue for submission.",
+                    "title": "Max Scheduled Queue Size",
+                    "type": "integer"
+                },
+                "max_retry_queue_size": {
+                    "default": 100,
+                    "description": "The maximum number of retries to queue for submission.",
+                    "title": "Max Retry Queue Size",
+                    "type": "integer"
+                },
+                "pending_task_timeout": {
+                    "default": "PT0S",
+                    "description": "How long before a PENDING task are made available to another task worker.",
+                    "format": "duration",
+                    "title": "Pending Task Timeout",
+                    "type": "string"
+                }
+            },
+            "title": "ServerTasksSchedulingSettings",
+            "type": "object"
+        },
+        "ServerTasksSettings": {
+            "description": "Settings for controlling server-side behavior related to tasks",
+            "properties": {
+                "tag_concurrency_slot_wait_seconds": {
+                    "default": 30,
+                    "description": "The number of seconds to wait before retrying when a task run cannot secure a concurrency slot from the server.",
+                    "minimum": 0.0,
+                    "title": "Tag Concurrency Slot Wait Seconds",
+                    "type": "number"
+                },
+                "max_cache_key_length": {
+                    "default": 2000,
+                    "description": "The maximum number of characters allowed for a task run cache key.",
+                    "title": "Max Cache Key Length",
+                    "type": "integer"
+                },
+                "scheduling": {
+                    "$ref": "#/$defs/ServerTasksSchedulingSettings"
+                }
+            },
+            "title": "ServerTasksSettings",
+            "type": "object"
+        },
+        "ServerUISettings": {
+            "properties": {
+                "enabled": {
+                    "default": true,
+                    "description": "Whether or not to serve the Prefect UI.",
+                    "title": "Enabled",
+                    "type": "boolean"
+                },
+                "api_url": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "The connection url for communication from the UI to the API. Defaults to `PREFECT_API_URL` if set. Otherwise, the default URL is generated from `PREFECT_SERVER_API_HOST` and `PREFECT_SERVER_API_PORT`.",
+                    "title": "Api Url"
+                },
+                "serve_base": {
+                    "default": "/",
+                    "description": "The base URL path to serve the Prefect UI from.",
+                    "title": "Serve Base",
+                    "type": "string"
+                },
+                "static_directory": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "The directory to serve static files from. This should be used when running into permissions issues when attempting to serve the UI from the default directory (for example when running in a Docker container).",
+                    "title": "Static Directory"
+                }
+            },
+            "title": "ServerUISettings",
+            "type": "object"
+        },
+        "TasksRunnerSettings": {
+            "properties": {
+                "thread_pool_max_workers": {
+                    "anyOf": [
+                        {
+                            "exclusiveMinimum": 0,
+                            "type": "integer"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "The maximum number of workers for ThreadPoolTaskRunner.",
+                    "title": "Thread Pool Max Workers"
+                }
+            },
+            "title": "TasksRunnerSettings",
+            "type": "object"
+        },
+        "TasksSchedulingSettings": {
+            "properties": {
+                "default_storage_block": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "The `block-type/block-document` slug of a block to use as the default storage for autonomous tasks.",
+                    "title": "Default Storage Block"
+                },
+                "delete_failed_submissions": {
+                    "default": true,
+                    "description": "Whether or not to delete failed task submissions from the database.",
+                    "title": "Delete Failed Submissions",
+                    "type": "boolean"
+                }
+            },
+            "title": "TasksSchedulingSettings",
+            "type": "object"
+        },
+        "TasksSettings": {
+            "properties": {
+                "refresh_cache": {
+                    "default": false,
+                    "description": "If `True`, enables a refresh of cached results: re-executing the task will refresh the cached results.",
+                    "title": "Refresh Cache",
+                    "type": "boolean"
+                },
+                "default_retries": {
+                    "default": 0,
+                    "description": "This value sets the default number of retries for all tasks.",
+                    "minimum": 0,
+                    "title": "Default Retries",
+                    "type": "integer"
+                },
+                "default_retry_delay_seconds": {
+                    "anyOf": [
+                        {
+                            "type": "integer"
+                        },
+                        {
+                            "type": "number"
+                        },
+                        {
+                            "items": {
+                                "type": "number"
+                            },
+                            "type": "array"
+                        }
+                    ],
+                    "default": 0,
+                    "description": "This value sets the default retry delay seconds for all tasks.",
+                    "title": "Default Retry Delay Seconds"
+                },
+                "runner": {
+                    "$ref": "#/$defs/TasksRunnerSettings",
+                    "description": "Settings for controlling task runner behavior"
+                },
+                "scheduling": {
+                    "$ref": "#/$defs/TasksSchedulingSettings",
+                    "description": "Settings for controlling client-side task scheduling behavior"
+                }
+            },
+            "title": "TasksSettings",
+            "type": "object"
+        },
+        "TestingSettings": {
+            "properties": {
+                "test_mode": {
+                    "default": false,
+                    "description": "If `True`, places the API in test mode. This may modify behavior to facilitate testing.",
+                    "title": "Test Mode",
+                    "type": "boolean"
+                },
+                "unit_test_mode": {
+                    "default": false,
+                    "description": "This setting only exists to facilitate unit testing. If `True`, code is executing in a unit test context. Defaults to `False`.",
+                    "title": "Unit Test Mode",
+                    "type": "boolean"
+                },
+                "unit_test_loop_debug": {
+                    "default": true,
+                    "description": "If `True` turns on debug mode for the unit testing event loop.",
+                    "title": "Unit Test Loop Debug",
+                    "type": "boolean"
+                },
+                "test_setting": {
+                    "anyOf": [
+                        {},
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": "FOO",
+                    "description": "This setting only exists to facilitate unit testing. If in test mode, this setting will return its value. Otherwise, it returns `None`.",
+                    "title": "Test Setting"
+                }
+            },
+            "title": "TestingSettings",
+            "type": "object"
+        },
+        "WorkerSettings": {
+            "properties": {
+                "heartbeat_seconds": {
+                    "default": 30,
+                    "description": "Number of seconds a worker should wait between sending a heartbeat.",
+                    "title": "Heartbeat Seconds",
+                    "type": "number"
+                },
+                "query_seconds": {
+                    "default": 10,
+                    "description": "Number of seconds a worker should wait between queries for scheduled work.",
+                    "title": "Query Seconds",
+                    "type": "number"
+                },
+                "prefetch_seconds": {
+                    "default": 10,
+                    "description": "The number of seconds into the future a worker should query for scheduled work.",
+                    "title": "Prefetch Seconds",
+                    "type": "number"
+                },
+                "webserver": {
+                    "$ref": "#/$defs/WorkerWebserverSettings",
+                    "description": "Settings for a worker's webserver"
+                }
+            },
+            "title": "WorkerSettings",
+            "type": "object"
+        },
+        "WorkerWebserverSettings": {
+            "properties": {
+                "host": {
+                    "default": "0.0.0.0",
+                    "description": "The host address the worker's webserver should bind to.",
+                    "title": "Host",
+                    "type": "string"
+                },
+                "port": {
+                    "default": 8080,
+                    "description": "The port the worker's webserver should bind to.",
+                    "title": "Port",
+                    "type": "integer"
+                }
+            },
+            "title": "WorkerWebserverSettings",
+            "type": "object"
+        }
+    },
+    "description": "Settings for Prefect using Pydantic settings.\n\nSee https://docs.pydantic.dev/latest/concepts/pydantic_settings",
+    "properties": {
+        "home": {
+            "default": "~/.prefect",
+            "description": "The path to the Prefect home directory. Defaults to ~/.prefect",
+            "format": "path",
+            "title": "Home",
+            "type": "string"
+        },
+        "profiles_path": {
+            "anyOf": [
+                {
+                    "format": "path",
+                    "type": "string"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": null,
+            "description": "The path to a profiles configuration file.",
+            "title": "Profiles Path"
+        },
+        "debug_mode": {
+            "default": false,
+            "description": "If True, enables debug mode which may provide additional logging and debugging features.",
+            "title": "Debug Mode",
+            "type": "boolean"
+        },
+        "api": {
+            "$ref": "#/$defs/APISettings"
+        },
+        "cli": {
+            "$ref": "#/$defs/CLISettings"
+        },
+        "client": {
+            "$ref": "#/$defs/ClientSettings",
+            "description": "Settings for for controlling API client behavior"
+        },
+        "cloud": {
+            "$ref": "#/$defs/CloudSettings"
+        },
+        "deployments": {
+            "$ref": "#/$defs/DeploymentsSettings"
+        },
+        "flows": {
+            "$ref": "#/$defs/FlowsSettings"
+        },
+        "internal": {
+            "$ref": "#/$defs/InternalSettings",
+            "description": "Settings for internal Prefect machinery"
+        },
+        "logging": {
+            "$ref": "#/$defs/LoggingSettings"
+        },
+        "results": {
+            "$ref": "#/$defs/ResultsSettings"
+        },
+        "runner": {
+            "$ref": "#/$defs/RunnerSettings"
+        },
+        "server": {
+            "$ref": "#/$defs/ServerSettings"
+        },
+        "tasks": {
+            "$ref": "#/$defs/TasksSettings",
+            "description": "Settings for controlling task behavior"
+        },
+        "testing": {
+            "$ref": "#/$defs/TestingSettings",
+            "description": "Settings used during testing"
+        },
+        "worker": {
+            "$ref": "#/$defs/WorkerSettings",
+            "description": "Settings for controlling worker behavior"
+        },
+        "ui_url": {
+            "anyOf": [
+                {
+                    "type": "string"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": null,
+            "description": "The URL of the Prefect UI. If not set, the client will attempt to infer it.",
+            "title": "Ui Url"
+        },
+        "silence_api_url_misconfiguration": {
+            "default": false,
+            "description": "\n        If `True`, disable the warning when a user accidentally misconfigure its `PREFECT_API_URL`\n        Sometimes when a user manually set `PREFECT_API_URL` to a custom url,reverse-proxy for example,\n        we would like to silence this warning so we will set it to `FALSE`.\n        ",
+            "title": "Silence Api Url Misconfiguration",
+            "type": "boolean"
+        },
+        "experimental_warn": {
+            "default": true,
+            "description": "If `True`, warn on usage of experimental features.",
+            "title": "Experimental Warn",
+            "type": "boolean"
+        },
+        "async_fetch_state_result": {
+            "default": false,
+            "description": "\n        Determines whether `State.result()` fetches results automatically or not.\n        In Prefect 2.6.0, the `State.result()` method was updated to be async\n        to facilitate automatic retrieval of results from storage which means when\n        writing async code you must `await` the call. For backwards compatibility,\n        the result is not retrieved by default for async users. You may opt into this\n        per call by passing  `fetch=True` or toggle this setting to change the behavior\n        globally.\n        ",
+            "title": "Async Fetch State Result",
+            "type": "boolean"
+        }
+    },
+    "title": "Prefect Settings",
+    "type": "object",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://github.com/PrefectHQ/prefect/schemas/settings.schema.json"
+}

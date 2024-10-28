@@ -859,7 +859,24 @@ class TestPipInstallRequirements:
             stdout=ANY,
         )
 
-    async def test_pip_install_fails_on_error(self):
+    async def test_pip_install_fails_on_error(self, monkeypatch):
+        open_process_mock = MagicMock(return_value=MockProcess(1))
+        monkeypatch.setattr(
+            "prefect.deployments.steps.utility.open_process",
+            open_process_mock,
+        )
+
+        mock_stream_capture = AsyncMock()
+        mock_stream_capture.side_effect = lambda *args, **kwargs: kwargs[
+            "stderr_sink"
+        ].write(
+            "ERROR: Could not open requirements file: [Errno 2] No such file or directory: 'doesnt-exist.txt'"
+        )
+
+        monkeypatch.setattr(
+            "prefect.deployments.steps.utility._stream_capture_process_output",
+            mock_stream_capture,
+        )
         with pytest.raises(RuntimeError) as exc:
             await run_step(
                 {

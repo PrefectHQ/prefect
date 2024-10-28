@@ -1,7 +1,6 @@
 from pydantic import Field
-from pydantic_settings import SettingsConfigDict
 
-from prefect.settings.base import PrefectBaseSettings
+from prefect.settings.base import PrefectBaseSettings, PrefectSettingsConfigDict
 from prefect.types import LogLevel
 
 
@@ -10,8 +9,12 @@ class RunnerServerSettings(PrefectBaseSettings):
     Settings for controlling runner server behavior
     """
 
-    model_config = SettingsConfigDict(
-        env_prefix="PREFECT_RUNNER_SERVER_", env_file=".env", extra="ignore"
+    model_config = PrefectSettingsConfigDict(
+        env_prefix="PREFECT_RUNNER_SERVER_",
+        env_file=".env",
+        extra="ignore",
+        toml_file="prefect.toml",
+        prefect_toml_table_header=("runner", "server"),
     )
 
     enable: bool = Field(
@@ -45,8 +48,12 @@ class RunnerSettings(PrefectBaseSettings):
     Settings for controlling runner behavior
     """
 
-    model_config = SettingsConfigDict(
-        env_prefix="PREFECT_RUNNER_", env_file=".env", extra="ignore"
+    model_config = PrefectSettingsConfigDict(
+        env_prefix="PREFECT_RUNNER_",
+        env_file=".env",
+        extra="ignore",
+        toml_file="prefect.toml",
+        prefect_toml_table_header=("runner",),
     )
 
     process_limit: int = Field(
