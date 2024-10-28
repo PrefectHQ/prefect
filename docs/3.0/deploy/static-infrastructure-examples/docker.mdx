@@ -3,7 +3,7 @@ title: Serve flows in a long-lived Docker container
 description: Learn how to serve a flow in a long-lived Docker container
 ---
 
-The `.serve` method allows you to easily elevate a flow to a deployment, immediately executing scheduled work [as a local process](/3.0/deploy/run-flows-in-local-processes).
+The `.serve` method allows you to easily elevate a flow to a deployment, listening for scheduled work to execute [as a local process](/3.0/deploy/run-flows-in-local-processes).
 
 However, this _"local"_ process does not need to be on your local machine. In this example we show how to run a flow in Docker container on your local machine, but you could use a Docker container on any machine that has [Docker installed](https://docs.docker.com/engine/install/).
 
@@ -13,13 +13,11 @@ In this example, you will set up:
 - a simple flow that retrieves the number of stars for some GitHub repositories
 - a `Dockerfile` that packages up your flow code and dependencies into a container image
 
-You will need to have [Docker](https://docs.docker.com/engine/install/) installed and running on the machine where you want to run your flow.
-
 ## Writing the flow
 
 Say we have a flow that retrieves the number of stars for a GitHub repository:
 
-```python serve_retrieve_github_stars.py {16-20}
+```python serve_retrieve_github_stars.py {19-23}
 import httpx
 from prefect import flow, task
 

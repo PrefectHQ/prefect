@@ -68,7 +68,11 @@ The work pool should have a `Ready` status indicator.
 <Tip>
 **Pro Tip:**
 
-If `my-docker-pool` does not already exist, the above command will create it for you automatically with the default settings for that work pool type, in this case `docker`.
+If `my-docker-pool` does not already exist, the below command will create it for you automatically with the default settings for that work pool type, in this case `docker`.
+
+```bash
+prefect worker start --pool my-docker-pool --type docker
+```
 </Tip>
 
 Keep this terminal session active for the worker to continue to pick up jobs.
