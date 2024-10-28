@@ -195,8 +195,8 @@ class GitRepository:
 
         cmd = ["git", "sparse-checkout", "init"]
 
-        if self._sparse_checkout_cone_mode:
-            cmd += ["--cone"]
+        if not self._sparse_checkout_cone_mode:
+            cmd += ["--no-cone"]
 
         await run_process(
             cmd,
