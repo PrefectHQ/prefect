@@ -51,7 +51,6 @@ from prefect.server.schemas.actions import (
 )
 from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
-    PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY,
     PREFECT_UI_URL,
     temporary_settings,
 )
@@ -61,12 +60,6 @@ from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.filesystem import tmpchdir
 
 TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
-
-
-@pytest.fixture
-def enable_schedule_concurrency():
-    with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY: True}):
-        yield
 
 
 @pytest.fixture
@@ -2834,88 +2827,6 @@ class TestSchedules:
         assert deployment_schedule.schedule.cron == "0 4 * * *"
         assert deployment_schedule.schedule.timezone == "America/Chicago"
 
-    @pytest.mark.usefixtures("project_dir", "enable_schedule_concurrency")
-    async def test_deploy_with_max_active_runs_and_catchup_provided_for_schedule(
-        self, work_pool, prefect_client
-    ):
-        prefect_file = Path("prefect.yaml")
-        with prefect_file.open(mode="r") as f:
-            deploy_config = yaml.safe_load(f)
-
-        deploy_config["deployments"] = [
-            {
-                "name": "test-name",
-                "entrypoint": "flows/hello.py:my_flow",
-                "work_pool": {"name": work_pool.name},
-                "schedules": [
-                    {
-                        "interval": 42,
-                        "max_active_runs": 5,
-                        "catchup": True,
-                    }
-                ],
-            }
-        ]
-
-        with prefect_file.open(mode="w") as f:
-            yaml.safe_dump(deploy_config, f)
-
-        await run_sync_in_worker_thread(
-            invoke_and_assert,
-            command="deploy --all",
-            expected_code=0,
-        )
-
-        deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
-        )
-
-        assert deployment.schedules[0].max_active_runs == 5
-        assert deployment.schedules[0].catchup is True
-
-    @pytest.mark.usefixtures(
-        "project_dir", "interactive_console", "enable_schedule_concurrency"
-    )
-    async def test_deploy_with_max_active_runs_and_catchup_interactive(
-        self, work_pool, prefect_client
-    ):
-        await run_sync_in_worker_thread(
-            invoke_and_assert,
-            command=(
-                f"deploy ./flows/hello.py:my_flow -n test-name --pool {work_pool.name}"
-            ),
-            user_input=(
-                # Confirm schedule creation
-                readchar.key.ENTER
-                # Select interval schedule
-                + readchar.key.ENTER
-                # Enter interval
-                + "42"
-                + readchar.key.ENTER
-                # accept schedule being active
-                + readchar.key.ENTER
-                # Enter max active runs
-                + "5"
-                + readchar.key.ENTER
-                # Enter catchup
-                + "y"
-                + readchar.key.ENTER
-                # decline adding another schedule
-                + readchar.key.ENTER
-                # decline save
-                + "n"
-                + readchar.key.ENTER
-            ),
-            expected_code=0,
-        )
-
-        deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
-        )
-
-        assert deployment.schedules[0].max_active_runs == 5
-        assert deployment.schedules[0].catchup is True
-
     @pytest.mark.usefixtures("project_dir")
     async def test_yaml_null_schedules(self, prefect_client, work_pool):
         prefect_yaml_content = f"""
@@ -4523,8 +4434,6 @@ class TestSaveUserInputs:
             "day_or": True,
             "timezone": "UTC",
             "active": True,
-            "max_active_runs": None,
-            "catchup": False,
         }
 
     def test_deploy_existing_deployment_with_no_changes_does_not_prompt_save(self):
@@ -4568,8 +4477,6 @@ class TestSaveUserInputs:
             "day_or": True,
             "timezone": "UTC",
             "active": True,
-            "max_active_runs": None,
-            "catchup": False,
         }
 
         invoke_and_assert(
@@ -4601,8 +4508,6 @@ class TestSaveUserInputs:
             "day_or": True,
             "timezone": "UTC",
             "active": True,
-            "max_active_runs": None,
-            "catchup": False,
         }
 
     def test_deploy_existing_deployment_with_changes_prompts_save(self):
@@ -4750,8 +4655,6 @@ class TestSaveUserInputs:
             "rrule": "FREQ=MINUTELY",
             "timezone": "UTC",
             "active": True,
-            "max_active_runs": None,
-            "catchup": False,
         }
 
     async def test_save_user_inputs_with_actions(self):

@@ -167,11 +167,6 @@ class Settings(PrefectBaseSettings):
         """,
     )
 
-    experimental_enable_schedule_concurrency: bool = Field(
-        default=False,
-        description="Whether or not to enable concurrency for scheduled tasks.",
-    )
-
     ###########################################################################
     # allow deprecated access to PREFECT_SOME_SETTING_NAME
 
