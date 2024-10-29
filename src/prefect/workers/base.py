@@ -29,11 +29,11 @@ from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logg
 from prefect.plugins import load_prefect_collections
 from prefect.settings import (
     PREFECT_API_URL,
-    PREFECT_EXPERIMENT_WORKER_LOGGING_TO_API_ENABLED,
     PREFECT_TEST_MODE,
     PREFECT_WORKER_HEARTBEAT_SECONDS,
     PREFECT_WORKER_PREFETCH_SECONDS,
     PREFECT_WORKER_QUERY_SECONDS,
+PREFECT_WORKER_EXPERIMENT_LOGGING_TO_API_ENABLED,
     get_current_settings,
 )
 from prefect.states import (
@@ -735,7 +735,7 @@ class BaseWorker(abc.ABC):
         """
         await self._update_local_work_pool_info()
 
-        if PREFECT_EXPERIMENT_WORKER_LOGGING_TO_API_ENABLED and self._remote_id is None:
+        if PREFECT_WORKER_EXPERIMENT_LOGGING_TO_API_ENABLED and self._remote_id is None:
             get_worker_id = True
         else:
             get_worker_id = False

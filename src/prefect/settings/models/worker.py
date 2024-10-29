@@ -54,3 +54,8 @@ class WorkerSettings(PrefectBaseSettings):
         default_factory=WorkerWebserverSettings,
         description="Settings for a worker's webserver",
     )
+
+    experiment_logging_to_api_enabled: bool = Field(
+        default=False,
+        description="If True, enables the experiment to log worker logs to the API.",
+    )
