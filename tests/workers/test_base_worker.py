@@ -2,10 +2,12 @@ import uuid
 from typing import Any, Dict, Optional, Type
 from unittest.mock import MagicMock
 
+import httpx
 import pendulum
 import pytest
 from packaging import version
 from pydantic import Field
+from starlette import status
 
 import prefect
 import prefect.client.schemas as schemas
@@ -172,17 +174,28 @@ async def test_worker_sends_heartbeat_messages(
 
 async def test_worker_sends_heartbeat_gets_id(
     experimental_logging_enabled,
+respx_mock
 ):
-    async with WorkerTestImpl(name="test", work_pool_name="test-work-pool") as worker:
-        mock = AsyncMock(return_value="test")
-        setattr(worker._client, "send_worker_heartbeat", mock)
+    work_pool_name = "test-work-pool"
+    test_worker_id = uuid.UUID("028EC481-5899-49D7-B8C5-37A2726E9840")
+    async with WorkerTestImpl(name="test", work_pool_name=work_pool_name) as worker:
+        # Pass through the non-relevant paths
+        respx_mock.get(f"api/work_pools/{work_pool_name}").pass_through()
+        respx_mock.get('api/csrf-token?').pass_through()
+        respx_mock.post("api/work_pools/").pass_through()
+        respx_mock.patch(f"api/work_pools/{work_pool_name}").pass_through()
+
+
+        respx_mock.post(f"api/work_pools/{work_pool_name}/workers/heartbeat",).mock(
+            return_value=httpx.Response(
+                status.HTTP_200_OK,
+                text=str(test_worker_id)
+            )
+        )
+
         await worker.sync_with_backend()
 
-        send_worker_heartbeat_kwargs = mock.await_args_list[0].kwargs
-
-        assert worker._remote_id == "test"
-        mock.assert_called()
-        assert send_worker_heartbeat_kwargs["get_worker_id"]
+        assert worker._remote_id == test_worker_id
 
 
 async def test_worker_sends_heartbeat_only_gets_id_once(
