@@ -26,7 +26,7 @@ from prefect.server.schemas.responses import DeploymentResponse
 from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_TEST_MODE,
-    PREFECT_WORKER_EXPERIMENT_LOGGING_TO_API_ENABLED,
+    PREFECT_EXPERIMENTS_WORKER_LOGGING_TO_API_ENABLED,
     PREFECT_WORKER_PREFETCH_SECONDS,
     get_current_settings,
     temporary_settings,
@@ -86,7 +86,7 @@ def no_api_url():
 @pytest.fixture
 def experimental_logging_enabled():
     with temporary_settings(
-        updates={PREFECT_WORKER_EXPERIMENT_LOGGING_TO_API_ENABLED: True}
+        updates={PREFECT_EXPERIMENTS_WORKER_LOGGING_TO_API_ENABLED: True}
     ):
         yield
 
@@ -172,25 +172,20 @@ async def test_worker_sends_heartbeat_messages(
         assert second_heartbeat > first_heartbeat
 
 
-async def test_worker_sends_heartbeat_gets_id(
-    experimental_logging_enabled,
-respx_mock
-):
+async def test_worker_sends_heartbeat_gets_id(experimental_logging_enabled, respx_mock):
     work_pool_name = "test-work-pool"
     test_worker_id = uuid.UUID("028EC481-5899-49D7-B8C5-37A2726E9840")
     async with WorkerTestImpl(name="test", work_pool_name=work_pool_name) as worker:
         # Pass through the non-relevant paths
         respx_mock.get(f"api/work_pools/{work_pool_name}").pass_through()
-        respx_mock.get('api/csrf-token?').pass_through()
+        respx_mock.get("api/csrf-token?").pass_through()
         respx_mock.post("api/work_pools/").pass_through()
         respx_mock.patch(f"api/work_pools/{work_pool_name}").pass_through()
 
-
-        respx_mock.post(f"api/work_pools/{work_pool_name}/workers/heartbeat",).mock(
-            return_value=httpx.Response(
-                status.HTTP_200_OK,
-                text=str(test_worker_id)
-            )
+        respx_mock.post(
+            f"api/work_pools/{work_pool_name}/workers/heartbeat",
+        ).mock(
+            return_value=httpx.Response(status.HTTP_200_OK, text=str(test_worker_id))
         )
 
         await worker.sync_with_backend()
