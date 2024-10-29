@@ -236,6 +236,45 @@ class APILogHandler(logging.Handler):
         return len(json.dumps(log).encode())
 
 
+class WorkerAPILogHandler(APILogHandler):
+    def prepare(self, record: logging.LogRecord) -> Dict[str, Any]:
+        """
+        Convert a `logging.LogRecord` to the API `LogCreate` schema and serialize.
+
+        This will add in the worker id to the log.
+
+        Logs exceeding the maximum size will be dropped.
+        """
+
+        worker_id = getattr(record, "worker_id", None)
+
+        log_obj = LogCreate(
+            worker_id=worker_id,
+            name=record.name,
+            level=record.levelno,
+            timestamp=pendulum.from_timestamp(
+                getattr(record, "created", None) or time.time()
+            ),
+            message=self.format(record),
+        )
+
+        if worker_id:
+            log = log_obj.model_dump(mode="json")
+        else:
+            # Lets errr on the side of not sending a breaking change to the API if for some reason we don't have a
+            # worker_id.
+            log = log_obj.model_dump(mode="json", exclude=["worker_id"])
+
+        log_size = log["__payload_size__"] = self._get_payload_size(log)
+        if log_size > PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value():
+            raise ValueError(
+                f"Log of size {log_size} is greater than the max size of "
+                f"{PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value()}"
+            )
+
+        return log
+
+
 class PrefectConsoleHandler(logging.StreamHandler):
     def __init__(
         self,
