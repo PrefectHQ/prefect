@@ -1,3 +1,5 @@
+from pydantic import Field
+
 from prefect.settings.base import PrefectBaseSettings, PrefectSettingsConfigDict
 
 
@@ -12,4 +14,9 @@ class ExperimentsSettings(PrefectBaseSettings):
         extra="ignore",
         toml_file="prefect.toml",
         prefect_toml_table_header=("experiments",),
+    )
+
+    worker_logging_to_api_enabled: bool = Field(
+        default=False,
+        description="Enables the logging of worker logs to Prefect Cloud.",
     )

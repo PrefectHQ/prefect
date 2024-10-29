@@ -295,7 +295,14 @@
         },
         "ExperimentsSettings": {
             "description": "Settings for configuring experimental features",
-            "properties": {},
+            "properties": {
+                "worker_logging_to_api_enabled": {
+                    "default": false,
+                    "description": "Enables the logging of worker logs to Prefect Cloud.",
+                    "title": "Worker Logging To Api Enabled",
+                    "type": "boolean"
+                }
+            },
             "title": "ExperimentsSettings",
             "type": "object"
         },
