@@ -1701,6 +1701,11 @@
                     "$ref": "#/$defs/ServerUISettings",
                     "description": "Settings for controlling server UI behavior",
                     "supported_environment_variables": []
+                },
+                "uvicorn": {
+                    "$ref": "#/$defs/ServerUvicornSettings",
+                    "description": "Settings for controlling Uvicorn server behavior",
+                    "supported_environment_variables": []
                 }
             },
             "title": "ServerSettings",
@@ -1825,6 +1830,18 @@
                 }
             },
             "title": "ServerUISettings",
+            "type": "object"
+        },
+        "ServerUvicornSettings": {
+            "properties": {
+                "workers": {
+                    "default": 1,
+                    "description": "The number of worker processes for the API server.",
+                    "title": "Workers",
+                    "type": "integer"
+                }
+            },
+            "title": "ServerUvicornSettings",
             "type": "object"
         },
         "TasksRunnerSettings": {

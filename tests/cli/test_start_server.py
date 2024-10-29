@@ -218,6 +218,37 @@ class TestBackgroundServer:
             PREFECT_HOME.value() / "server.pid"
         ).exists(), "Server PID file exists"
 
+    def test_start_server_with_workers(self, unused_tcp_port):
+        invoke_and_assert(
+            command=[
+                "server",
+                "start",
+                "--port",
+                str(unused_tcp_port),
+                "--background",
+                "--workers",
+                "4",
+            ],
+            expected_output_contains="The Prefect server is running in the background.",
+            expected_code=0,
+        )
+
+        pid_file = PREFECT_HOME.value() / "server.pid"
+        assert pid_file.exists(), "Server PID file does not exist"
+
+        invoke_and_assert(
+            command=[
+                "server",
+                "stop",
+            ],
+            expected_output_contains="Server stopped!",
+            expected_code=0,
+        )
+
+        assert not (
+            PREFECT_HOME.value() / "server.pid"
+        ).exists(), "Server PID file exists"
+
 
 @pytest.mark.service("process")
 class TestUvicornSignalForwarding:

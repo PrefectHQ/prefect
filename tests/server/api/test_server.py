@@ -32,6 +32,7 @@ from prefect.settings import (
     PREFECT_SERVER_CORS_ALLOWED_HEADERS,
     PREFECT_SERVER_CORS_ALLOWED_METHODS,
     PREFECT_SERVER_CORS_ALLOWED_ORIGINS,
+    PREFECT_SERVER_UVICORN_WORKERS,
     temporary_settings,
 )
 from prefect.testing.utilities import AsyncMock
@@ -488,3 +489,28 @@ class TestSubprocessASGIServer:
                 assert len(client.read_flow_runs()) == 1
 
             server.stop()
+
+    async def test_uvicorn_workers_setting(self, monkeypatch, respx_mock):
+        popen_mock = MagicMock()
+        monkeypatch.setattr("prefect.server.api.server.subprocess.Popen", popen_mock)
+
+        # Test with workers=4
+        respx_mock.get("http://127.0.0.1:8000/api/health").respond(status_code=200)
+        with temporary_settings({PREFECT_SERVER_UVICORN_WORKERS: 4}):
+            server = SubprocessASGIServer(port=8000)
+            server.start()
+
+            call_args = popen_mock.call_args[1]["args"]
+            assert "--workers" in call_args
+            worker_index = call_args.index("--workers")
+            assert call_args[worker_index + 1] == "4"
+            server.stop()
+
+        # Test default behavior (workers=1)
+        respx_mock.get("http://127.0.0.1:8000/api/health").respond(status_code=200)
+        with temporary_settings({PREFECT_SERVER_UVICORN_WORKERS: 1}):
+            server = SubprocessASGIServer(port=8000)
+            server.start()
+
+            call_args = popen_mock.call_args[1]["args"]
+            assert "--workers" not in call_args

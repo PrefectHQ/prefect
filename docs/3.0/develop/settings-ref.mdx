@@ -1997,6 +1997,13 @@ Settings for controlling server UI behavior
 
 **TOML dotted key path**: `server.ui`
 
+### `uvicorn`
+Settings for controlling Uvicorn server behavior
+
+**Type**: [ServerUvicornSettings](#serveruvicornsettings)
+
+**TOML dotted key path**: `server.uvicorn`
+
 ---
 ## ServerTasksSchedulingSettings
 Settings for controlling server-side behavior related to task scheduling
@@ -2115,6 +2122,17 @@ The directory to serve static files from. This should be used when running into 
 
 **Supported environment variables**:
 `PREFECT_SERVER_UI_STATIC_DIRECTORY`, `PREFECT_UI_STATIC_DIRECTORY`
+
+---
+## ServerUvicornSettings
+### `workers`
+The number of worker processes for the API server.
+
+**Type**: `integer`
+
+**Default**: `1`
+
+**TOML dotted key path**: `server.uvicorn.workers`
 
 ---
 ## TasksRunnerSettings

@@ -30,6 +30,7 @@ from prefect.settings import (
     PREFECT_SERVER_API_KEEPALIVE_TIMEOUT,
     PREFECT_SERVER_API_PORT,
     PREFECT_SERVER_LOGGING_LEVEL,
+    PREFECT_SERVER_UVICORN_WORKERS,
     PREFECT_UI_ENABLED,
     Profile,
     load_current_profile,
@@ -37,6 +38,7 @@ from prefect.settings import (
     save_profiles,
     update_current_profile,
 )
+from prefect.settings.context import get_current_settings
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.processutils import (
     consume_process_output,
@@ -211,6 +213,7 @@ async def start(
     ),
     late_runs: bool = SettingsOption(PREFECT_API_SERVICES_LATE_RUNS_ENABLED),
     ui: bool = SettingsOption(PREFECT_UI_ENABLED),
+    workers: int = SettingsOption(PREFECT_SERVER_UVICORN_WORKERS),
     background: bool = typer.Option(
         False, "--background", "-b", help="Run the server in the background"
     ),
@@ -232,6 +235,7 @@ async def start(
     server_env["PREFECT_API_SERVICES_UI"] = str(ui)
     server_env["PREFECT_UI_ENABLED"] = str(ui)
     server_env["PREFECT_SERVER_LOGGING_LEVEL"] = log_level
+    server_env["PREFECT_SERVER_UVICORN_WORKERS"] = str(workers)
 
     pid_file = anyio.Path(PREFECT_HOME.value() / PID_FILE)
     # check if port is already in use
@@ -279,6 +283,10 @@ async def start(
             "--timeout-keep-alive",
             str(keep_alive_timeout),
         ]
+
+        if (workers := get_current_settings().server.uvicorn.workers) > 1:
+            command.extend(["--workers", str(workers)])
+
         logger.debug("Opening server process with command: %s", shlex.join(command))
         process = await anyio.open_process(
             command=command,

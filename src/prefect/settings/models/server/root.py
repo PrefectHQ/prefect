@@ -19,6 +19,7 @@ from .flow_run_graph import ServerFlowRunGraphSettings
 from .services import ServerServicesSettings
 from .tasks import ServerTasksSettings
 from .ui import ServerUISettings
+from .uvicorn import ServerUvicornSettings
 
 
 class ServerSettings(PrefectBaseSettings):
@@ -145,4 +146,9 @@ class ServerSettings(PrefectBaseSettings):
     ui: ServerUISettings = Field(
         default_factory=ServerUISettings,
         description="Settings for controlling server UI behavior",
+    )
+
+    uvicorn: ServerUvicornSettings = Field(
+        default_factory=ServerUvicornSettings,
+        description="Settings for controlling Uvicorn server behavior",
     )

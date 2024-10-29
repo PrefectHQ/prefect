@@ -632,7 +632,8 @@ def create_app(
                 RequestValidationError: validation_exception_handler,
                 sa.exc.IntegrityError: integrity_exception_handler,
                 ObjectNotFoundError: prefect_object_not_found_exception_handler,
-            }
+            },
+            **settings.server.uvicorn.model_dump(),
         },
     )
     ui_app = create_ui_app(ephemeral)
@@ -829,24 +830,31 @@ class SubprocessASGIServer:
         server_env = {
             "PREFECT_UI_ENABLED": "0",
         }
+
+        uvicorn_args = [
+            sys.executable,
+            "-m",
+            "uvicorn",
+            "--app-dir",
+            str(prefect.__module_path__.parent),
+            "--factory",
+            "prefect.server.api.server:create_app",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            str(self.port),
+            "--log-level",
+            "error",
+            "--lifespan",
+            "on",
+        ]
+
+        workers = get_current_settings().server.uvicorn.workers
+        if workers != 1:  # Only add workers flag if it's not the default value
+            uvicorn_args.extend(["--workers", str(workers)])
+
         return subprocess.Popen(
-            args=[
-                sys.executable,
-                "-m",
-                "uvicorn",
-                "--app-dir",
-                str(prefect.__module_path__.parent),
-                "--factory",
-                "prefect.server.api.server:create_app",
-                "--host",
-                "127.0.0.1",
-                "--port",
-                str(self.port),
-                "--log-level",
-                "error",
-                "--lifespan",
-                "on",
-            ],
+            args=uvicorn_args,
             env={
                 **os.environ,
                 **server_env,
