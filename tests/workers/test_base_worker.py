@@ -25,8 +25,8 @@ from prefect.server.schemas.core import Deployment, Flow, WorkPool
 from prefect.server.schemas.responses import DeploymentResponse
 from prefect.settings import (
     PREFECT_API_URL,
-    PREFECT_TEST_MODE,
     PREFECT_EXPERIMENTS_WORKER_LOGGING_TO_API_ENABLED,
+    PREFECT_TEST_MODE,
     PREFECT_WORKER_PREFETCH_SECONDS,
     get_current_settings,
     temporary_settings,

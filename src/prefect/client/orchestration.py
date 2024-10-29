@@ -2610,13 +2610,13 @@ class PrefectClient:
         else:
             return_dict = {}
 
-    
         resp = await self._client.post(
             f"/work_pools/{work_pool_name}/workers/heartbeat",
             json={
                 "name": worker_name,
                 "heartbeat_interval_seconds": heartbeat_interval_seconds,
-            } | return_dict,
+            }
+            | return_dict,
         )
 
         if get_worker_id and resp.status_code == 200:
