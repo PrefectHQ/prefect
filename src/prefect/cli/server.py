@@ -284,7 +284,8 @@ async def start(
             str(keep_alive_timeout),
         ]
 
-        if (workers := get_current_settings().server.uvicorn.workers) > 1:
+        workers = get_current_settings().server.uvicorn.workers
+        if workers is not None:
             command.extend(["--workers", str(workers)])
 
         logger.debug("Opening server process with command: %s", shlex.join(command))

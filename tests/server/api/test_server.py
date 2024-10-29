@@ -506,9 +506,9 @@ class TestSubprocessASGIServer:
             assert call_args[worker_index + 1] == "4"
             server.stop()
 
-        # Test default behavior (workers=1)
+        # Test default behavior (workers=None)
         respx_mock.get("http://127.0.0.1:8000/api/health").respond(status_code=200)
-        with temporary_settings({PREFECT_SERVER_UVICORN_WORKERS: 1}):
+        with temporary_settings({PREFECT_SERVER_UVICORN_WORKERS: None}):
             server = SubprocessASGIServer(port=8000)
             server.start()
 

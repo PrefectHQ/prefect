@@ -850,7 +850,7 @@ class SubprocessASGIServer:
         ]
 
         workers = get_current_settings().server.uvicorn.workers
-        if workers != 1:  # Only add workers flag if it's not the default value
+        if workers is not None:
             uvicorn_args.extend(["--workers", str(workers)])
 
         return subprocess.Popen(

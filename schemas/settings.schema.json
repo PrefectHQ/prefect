@@ -1835,10 +1835,18 @@
         "ServerUvicornSettings": {
             "properties": {
                 "workers": {
-                    "default": 1,
+                    "anyOf": [
+                        {
+                            "exclusiveMinimum": 0,
+                            "type": "integer"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
                     "description": "The number of worker processes for the API server.",
-                    "title": "Workers",
-                    "type": "integer"
+                    "title": "Workers"
                 }
             },
             "title": "ServerUvicornSettings",

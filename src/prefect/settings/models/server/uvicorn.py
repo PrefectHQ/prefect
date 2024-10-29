@@ -1,6 +1,9 @@
+from typing import Optional
+
 from pydantic import Field
 
 from prefect.settings.base import PrefectBaseSettings, PrefectSettingsConfigDict
+from prefect.types import PositiveInteger
 
 
 class ServerUvicornSettings(PrefectBaseSettings):
@@ -12,6 +15,6 @@ class ServerUvicornSettings(PrefectBaseSettings):
         env_prefix="PREFECT_SERVER_UVICORN_",
     )
 
-    workers: int = Field(
-        default=1, description="The number of worker processes for the API server."
+    workers: Optional[PositiveInteger] = Field(
+        default=None, description="The number of worker processes for the API server."
     )
