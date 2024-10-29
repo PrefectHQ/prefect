@@ -1,4 +1,7 @@
-from pytest_benchmark.fixture import BenchmarkFixture
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pytest_benchmark.fixture import BenchmarkFixture
 
 from prefect import flow, task
 

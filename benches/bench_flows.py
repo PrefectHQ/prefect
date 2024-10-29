@@ -2,11 +2,15 @@
 TODO: Add benches for higher number of tasks; blocked by engine deadlocks in CI.
 """
 
+from typing import TYPE_CHECKING
+
 import anyio
 import pytest
-from pytest_benchmark.fixture import BenchmarkFixture
 
 from prefect import flow, task
+
+if TYPE_CHECKING:
+    from pytest_benchmark.fixture import BenchmarkFixture
 
 
 def noop_function():

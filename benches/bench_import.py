@@ -1,9 +1,12 @@
 import importlib
 import sys
+from typing import TYPE_CHECKING
 
 import pytest
 from prometheus_client import REGISTRY
-from pytest_benchmark.fixture import BenchmarkFixture
+
+if TYPE_CHECKING:
+    from pytest_benchmark.fixture import BenchmarkFixture
 
 
 def reset_imports():
