@@ -61,7 +61,8 @@ jobs:
       - name: Install packages
         run: |
           python -m pip install -U uv
-          uv pip install --upgrade --system .[dev]
+          uv pip install --upgrade --system .[dev] pytest-codspeed
+          uv pip uninstall --system pytest-benchmark
 
       - name: Start server
         run: |
