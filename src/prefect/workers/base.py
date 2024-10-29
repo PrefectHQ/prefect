@@ -15,6 +15,7 @@ from typing_extensions import Literal
 
 import prefect
 from prefect._internal.schemas.validators import return_v_or_none
+from prefect.client.base import ServerType
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
 from prefect.client.schemas.objects import StateType, WorkPool
@@ -737,7 +738,7 @@ class BaseWorker(abc.ABC):
         if (
             get_current_settings().experiments.worker_logging_to_api_enabled
             and (
-                "api.prefect.cloud" in get_current_settings().api.url
+                self._client.server_type == ServerType.CLOUD
                 or get_current_settings().testing.test_mode
             )
             and self.backend_id is None

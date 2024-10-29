@@ -2619,7 +2619,11 @@ class PrefectClient:
             | return_dict,
         )
 
-        if get_worker_id and resp.status_code == 200:
+        if (
+            self.server_type == ServerType.CLOUD
+            and get_worker_id
+            and resp.status_code == 200
+        ):
             return UUID(resp.text)
         else:
             return None
