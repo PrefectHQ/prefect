@@ -733,11 +733,10 @@ class BaseWorker(abc.ABC):
         queues. Sends a worker heartbeat to the API.
         """
         await self._update_local_work_pool_info()
-
         # Only do this logic if we've enabled the experiment, are connected to cloud and we don't have an ID.
         if (
             get_current_settings().worker.experiment_logging_to_api_enabled
-            and "api.prefect.cloud" in get_current_settings().api.url
+            and ("api.prefect.cloud" in get_current_settings().api.url or get_current_settings().testing.test_mode)
             and self.backend_id is None
         ):
             get_worker_id = True
