@@ -71,6 +71,13 @@ Settings for for controlling API client behavior
 
 **TOML dotted key path**: `deployments`
 
+### `experiments`
+Settings for controlling experimental features
+
+**Type**: [ExperimentsSettings](#experimentssettings)
+
+**TOML dotted key path**: `experiments`
+
 ### `flows`
 
 **Type**: [FlowsSettings](#flowssettings)
@@ -454,7 +461,18 @@ The default Docker namespace to use when building images.
 `PREFECT_DEPLOYMENTS_DEFAULT_DOCKER_BUILD_NAMESPACE`, `PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE`
 
 ---
+## ExperimentsSettings
+Settings for configuring experimental features
+### `worker_logging_to_api_enabled`
+Enables the logging of worker logs to Prefect Cloud.
 
+**Type**: `boolean`
+
+**Default**: `False`
+
+**TOML dotted key path**: `experiments.worker_logging_to_api_enabled`
+
+---
 ## FlowsSettings
 Settings for controlling flow behavior
 ### `default_retries`
