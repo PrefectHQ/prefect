@@ -1,3 +1,4 @@
+import asyncio
 import inspect
 import logging
 import threading
@@ -184,6 +185,22 @@ class BaseTaskRunEngine(Generic[P, R]):
 
         self.parameters = resolved_parameters
 
+    def _set_custom_task_run_name(self):
+        from prefect.utilities.engine import _resolve_custom_task_run_name
+
+        # update the task run name if necessary
+        if not self._task_name_set and self.task.task_run_name:
+            task_run_name = _resolve_custom_task_run_name(
+                task=self.task, parameters=self.parameters or {}
+            )
+
+            self.logger.extra["task_run_name"] = task_run_name
+            self.logger.debug(
+                f"Renamed task run {self.task_run.name!r} to {task_run_name!r}"
+            )
+            self.task_run.name = task_run_name
+            self._task_name_set = True
+
     def _wait_for_dependencies(self):
         if not self.wait_for:
             return
@@ -291,7 +308,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 data=exc,
                 message=f"Task run encountered unexpected exception: {repr(exc)}",
             )
-            if inspect.iscoroutinefunction(retry_condition):
+            if asyncio.iscoroutinefunction(retry_condition):
                 should_retry = run_coro_as_sync(
                     retry_condition(self.task, self.task_run, state)
                 )
@@ -335,7 +352,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     f" {state.name!r}"
                 )
                 result = hook(task, task_run, state)
-                if inspect.isawaitable(result):
+                if asyncio.iscoroutine(result):
                     run_coro_as_sync(result)
             except Exception:
                 self.logger.error(
@@ -348,6 +365,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     def begin_run(self):
         try:
             self._resolve_parameters()
+            self._set_custom_task_run_name()
             self._wait_for_dependencies()
         except UpstreamTaskError as upstream_exc:
             state = self.set_state(
@@ -419,7 +437,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 # Avoid fetching the result unless it is cached, otherwise we defeat
                 # the purpose of disabling `cache_result_in_memory`
                 result = state.result(raise_on_failure=False, fetch=True)
-                if inspect.isawaitable(result):
+                if asyncio.iscoroutine(result):
                     result = run_coro_as_sync(result)
             elif isinstance(state.data, ResultRecord):
                 result = state.data.result
@@ -443,7 +461,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             # if the return value is a BaseResult, we need to fetch it
             if isinstance(self._return_value, BaseResult):
                 _result = self._return_value.get()
-                if inspect.isawaitable(_result):
+                if asyncio.iscoroutine(_result):
                     _result = run_coro_as_sync(_result)
                 return _result
             elif isinstance(self._return_value, ResultRecord):
@@ -577,7 +595,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     @contextmanager
     def setup_run_context(self, client: Optional[SyncPrefectClient] = None):
         from prefect.utilities.engine import (
-            _resolve_custom_task_run_name,
             should_log_prints,
         )
 
@@ -609,18 +626,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
             self.logger = task_run_logger(task_run=self.task_run, task=self.task)  # type: ignore
 
-            # update the task run name if necessary
-            if not self._task_name_set and self.task.task_run_name:
-                task_run_name = _resolve_custom_task_run_name(
-                    task=self.task, parameters=self.parameters
-                )
-
-                self.logger.extra["task_run_name"] = task_run_name
-                self.logger.debug(
-                    f"Renamed task run {self.task_run.name!r} to {task_run_name!r}"
-                )
-                self.task_run.name = task_run_name
-                self._task_name_set = True
             yield
 
     @contextmanager
@@ -813,7 +818,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 data=exc,
                 message=f"Task run encountered unexpected exception: {repr(exc)}",
             )
-            if inspect.iscoroutinefunction(retry_condition):
+            if asyncio.iscoroutinefunction(retry_condition):
                 should_retry = await retry_condition(self.task, self.task_run, state)
             elif inspect.isfunction(retry_condition):
                 should_retry = retry_condition(self.task, self.task_run, state)
@@ -869,6 +874,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     async def begin_run(self):
         try:
             self._resolve_parameters()
+            self._set_custom_task_run_name()
             self._wait_for_dependencies()
         except UpstreamTaskError as upstream_exc:
             state = await self.set_state(
@@ -1091,7 +1097,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     @asynccontextmanager
     async def setup_run_context(self, client: Optional[PrefectClient] = None):
         from prefect.utilities.engine import (
-            _resolve_custom_task_run_name,
             should_log_prints,
         )
 
@@ -1122,16 +1127,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
             self.logger = task_run_logger(task_run=self.task_run, task=self.task)  # type: ignore
 
-            if not self._task_name_set and self.task.task_run_name:
-                task_run_name = _resolve_custom_task_run_name(
-                    task=self.task, parameters=self.parameters
-                )
-                self.logger.extra["task_run_name"] = task_run_name
-                self.logger.debug(
-                    f"Renamed task run {self.task_run.name!r} to {task_run_name!r}"
-                )
-                self.task_run.name = task_run_name
-                self._task_name_set = True
             yield
 
     @asynccontextmanager

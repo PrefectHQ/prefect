@@ -133,7 +133,7 @@ from prefect.settings import (
     PREFECT_CLIENT_CSRF_SUPPORT_ENABLED,
     PREFECT_CLOUD_API_URL,
     PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
-    PREFECT_UNIT_TEST_MODE,
+    PREFECT_TESTING_UNIT_TEST_MODE,
 )
 
 if TYPE_CHECKING:
@@ -385,7 +385,7 @@ class PrefectClient:
             ),
         )
 
-        if not PREFECT_UNIT_TEST_MODE:
+        if not PREFECT_TESTING_UNIT_TEST_MODE:
             httpx_settings.setdefault("follow_redirects", True)
 
         enable_csrf_support = (
@@ -2630,7 +2630,7 @@ class PrefectClient:
         response = await self._client.post(
             f"/work_pools/{work_pool_name}/workers/filter",
             json={
-                "worker_filter": (
+                "workers": (
                     worker_filter.model_dump(mode="json", exclude_unset=True)
                     if worker_filter
                     else None
@@ -3594,7 +3594,7 @@ class SyncPrefectClient:
             ),
         )
 
-        if not PREFECT_UNIT_TEST_MODE:
+        if not PREFECT_TESTING_UNIT_TEST_MODE:
             httpx_settings.setdefault("follow_redirects", True)
 
         enable_csrf_support = (

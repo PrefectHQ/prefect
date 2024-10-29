@@ -270,12 +270,18 @@ create a deployment:
 
 ```python example.py
 from prefect import flow
-from prefect.storage import GitHub
+from prefect.runner.storage import GitRepository
 
+@flow(log_prints=True)
+def my_flow(name: str = "world"):
+    print(f"Hello {name}! I'm a flow from a GitHub repo!")
 
 if __name__ == "__main__":
     flow.from_source(
-        source=GitHub.load("demo-repo"),
+        source=GitRepository(
+            url="https://github.com/me/myrepo.git",
+            credentials={"username": "oauth2", "access_token": "my-access-token"},
+        ),
         entrypoint="example.py:my_flow"
     ).deploy(
         name="my-deployment",

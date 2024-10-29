@@ -503,7 +503,7 @@ def propose_state_sync(
             # Avoid fetching the result unless it is cached, otherwise we defeat
             # the purpose of disabling `cache_result_in_memory`
             result = state.result(raise_on_failure=False, fetch=True)
-            if inspect.isawaitable(result):
+            if asyncio.iscoroutine(result):
                 result = run_coro_as_sync(result)
         elif isinstance(state.data, ResultRecord):
             result = state.data.result
@@ -685,7 +685,15 @@ def _resolve_custom_flow_run_name(flow: Flow, parameters: Dict[str, Any]) -> str
 
 def _resolve_custom_task_run_name(task: Task, parameters: Dict[str, Any]) -> str:
     if callable(task.task_run_name):
-        task_run_name = task.task_run_name()
+        sig = inspect.signature(task.task_run_name)
+
+        # If the callable accepts a 'parameters' kwarg, pass the entire parameters dict
+        if "parameters" in sig.parameters:
+            task_run_name = task.task_run_name(parameters=parameters)
+        else:
+            # If it doesn't expect parameters, call it without arguments
+            task_run_name = task.task_run_name()
+
         if not isinstance(task_run_name, str):
             raise TypeError(
                 f"Callable {task.task_run_name} for 'task_run_name' returned type"
@@ -870,7 +878,7 @@ def resolve_to_final_result(expr, context):
         )
 
     _result = state.result(raise_on_failure=False, fetch=True)
-    if inspect.isawaitable(_result):
+    if asyncio.iscoroutine(_result):
         _result = run_coro_as_sync(_result)
     return _result
 

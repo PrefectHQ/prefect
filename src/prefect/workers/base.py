@@ -1,5 +1,5 @@
 import abc
-import inspect
+import asyncio
 import threading
 from contextlib import AsyncExitStack
 from functools import partial
@@ -137,6 +137,12 @@ class BaseJobConfiguration(BaseModel):
         variables = cls._get_base_config_defaults(
             variables_schema.get("properties", {})
         )
+
+        # copy variable defaults for `env` to job config before they're replaced by
+        # deployment overrides
+        if variables.get("env"):
+            job_config["env"] = variables.get("env")
+
         variables.update(values)
 
         # deep merge `env`
@@ -1078,7 +1084,7 @@ class BaseWorker(abc.ABC):
                 task_status.started()
 
             result = fn(*args, **kwargs)
-            if inspect.iscoroutine(result):
+            if asyncio.iscoroutine(result):
                 await result
 
         await self._runs_task_group.start(wrapper)

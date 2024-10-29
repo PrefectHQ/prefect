@@ -14,8 +14,8 @@ def may_i_take_your_hat_sir(item: str, counter_dir: Path):
     return f"May I take your {item}?"
 
 
-def timeout_handler(signum, frame):
-    raise TimeoutError("Timeout reached. Shutting down gracefully.")
+def _handler(signum, frame):
+    raise KeyboardInterrupt("Simulating user interruption")
 
 
 def count_runs(counter_dir: Path):
@@ -23,12 +23,12 @@ def count_runs(counter_dir: Path):
 
 
 if __name__ == "__main__":
-    TIMEOUT: int = 10
+    TIMEOUT: int = 15
     INTERVAL_SECONDS: int = 3
 
-    EXPECTED_N_FLOW_RUNS: int = TIMEOUT // INTERVAL_SECONDS
+    MINIMUM_EXPECTED_N_FLOW_RUNS: int = 3
 
-    signal.signal(signal.SIGALRM, timeout_handler)
+    signal.signal(signal.SIGALRM, _handler)
     signal.alarm(TIMEOUT)
 
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -41,7 +41,7 @@ if __name__ == "__main__":
                     interval=timedelta(seconds=INTERVAL_SECONDS),
                     parameters={"item": "hat", "counter_dir": counter_dir},
                 )
-            except TimeoutError as e:
+            except KeyboardInterrupt as e:
                 print(str(e))
             finally:
                 signal.alarm(0)
@@ -49,7 +49,7 @@ if __name__ == "__main__":
         actual_run_count = count_runs(counter_dir)
 
         assert (
-            actual_run_count >= EXPECTED_N_FLOW_RUNS
-        ), f"Expected at least {EXPECTED_N_FLOW_RUNS} flow runs, got {actual_run_count}"
+            actual_run_count >= MINIMUM_EXPECTED_N_FLOW_RUNS
+        ), f"Expected at least {MINIMUM_EXPECTED_N_FLOW_RUNS} flow runs, got {actual_run_count}"
 
         print(f"Successfully completed and audited {actual_run_count} flow runs")

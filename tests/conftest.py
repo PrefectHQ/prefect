@@ -40,7 +40,6 @@ import prefect.settings
 from prefect.logging.configuration import setup_logging
 from prefect.settings import (
     PREFECT_API_BLOCKS_REGISTER_ON_START,
-    PREFECT_API_DATABASE_CONNECTION_URL,
     PREFECT_API_LOG_RETRYABLE_ERRORS,
     PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED,
     PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED,
@@ -59,12 +58,13 @@ from prefect.settings import (
     PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_LOGGING_INTERNAL_LEVEL,
     PREFECT_LOGGING_LEVEL,
-    PREFECT_LOGGING_SERVER_LEVEL,
     PREFECT_LOGGING_TO_API_ENABLED,
     PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION,
     PREFECT_PROFILES_PATH,
     PREFECT_SERVER_ANALYTICS_ENABLED,
     PREFECT_SERVER_CSRF_PROTECTION_ENABLED,
+    PREFECT_SERVER_DATABASE_CONNECTION_URL,
+    PREFECT_SERVER_LOGGING_LEVEL,
     PREFECT_UNIT_TEST_LOOP_DEBUG,
 )
 from prefect.utilities.dispatch import get_registry_for_type
@@ -132,6 +132,8 @@ EXCLUDE_FROM_CLEAR_DB_AUTO_MARK = [
     "tests/utilities",
     "tests/agent",
     "tests/test_settings.py",
+    "tests/_internal",
+    "tests/server/orchestration/test_rules.py",
 ]
 
 
@@ -325,7 +327,7 @@ def pytest_sessionstart(session):
             # Enable debug logging
             PREFECT_LOGGING_LEVEL: "DEBUG",
             PREFECT_LOGGING_INTERNAL_LEVEL: "DEBUG",
-            PREFECT_LOGGING_SERVER_LEVEL: "DEBUG",
+            PREFECT_SERVER_LOGGING_LEVEL: "DEBUG",
             # Disable shipping logs to the API;
             # can be enabled by the `enable_api_log_handler` mark
             PREFECT_LOGGING_TO_API_ENABLED: False,
@@ -407,7 +409,7 @@ async def generate_test_database_connection_url(
     server for each test worker, using the provided connection URL as the starting
     point.  Requires that the given database user has permission to connect to the
     server and create new databases."""
-    original_url = PREFECT_API_DATABASE_CONNECTION_URL.value()
+    original_url = PREFECT_SERVER_DATABASE_CONNECTION_URL.value()
     if not original_url:
         yield None
         return
@@ -488,7 +490,7 @@ def test_database_connection_url(generate_test_database_connection_url):
     if url is None:
         yield None
     else:
-        with temporary_settings({PREFECT_API_DATABASE_CONNECTION_URL: url}):
+        with temporary_settings({PREFECT_SERVER_DATABASE_CONNECTION_URL: url}):
             yield url
 
 

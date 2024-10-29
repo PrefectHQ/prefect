@@ -9,107 +9,106 @@ version: 1
 disable_existing_loggers: False
 
 formatters:
-    simple:
-        format: "%(asctime)s.%(msecs)03d | %(message)s"
-        datefmt: "%H:%M:%S"
+  simple:
+    format: "%(asctime)s.%(msecs)03d | %(message)s"
+    datefmt: "%H:%M:%S"
 
-    standard:
-        (): prefect.logging.formatters.PrefectFormatter
-        format: "%(asctime)s.%(msecs)03d | %(levelname)-7s | %(name)s - %(message)s"
-        flow_run_fmt: "%(asctime)s.%(msecs)03d | %(levelname)-7s | Flow run %(flow_run_name)r - %(message)s"
-        task_run_fmt: "%(asctime)s.%(msecs)03d | %(levelname)-7s | Task run %(task_run_name)r - %(message)s"
-        datefmt: "%H:%M:%S"
+  standard:
+    (): prefect.logging.formatters.PrefectFormatter
+    format: "%(asctime)s.%(msecs)03d | %(levelname)-7s | %(name)s - %(message)s"
+    flow_run_fmt: "%(asctime)s.%(msecs)03d | %(levelname)-7s | Flow run %(flow_run_name)r - %(message)s"
+    task_run_fmt: "%(asctime)s.%(msecs)03d | %(levelname)-7s | Task run %(task_run_name)r - %(message)s"
+    datefmt: "%H:%M:%S"
 
-    debug:
-        format: "%(asctime)s.%(msecs)03d | %(levelname)-7s | %(threadName)-12s | %(name)s - %(message)s"
-        datefmt: "%H:%M:%S"
+  debug:
+    format: "%(asctime)s.%(msecs)03d | %(levelname)-7s | %(threadName)-12s | %(name)s - %(message)s"
+    datefmt: "%H:%M:%S"
 
-    json:
-        class: prefect.logging.formatters.JsonFormatter
-        format: "default"
+  json:
+    class: prefect.logging.formatters.JsonFormatter
+    format: "default"
 
 # filters:
-    # Define any custom filters to drops records containing
-    # sensitive information
-    # my_filter:
-        # class: your_module.FilterClass
+# Define any custom filters to drops records containing
+# sensitive information
+# my_filter:
+# class: your_module.FilterClass
 
 handlers:
+  # The handlers we define here will output all logs they receive by default
+  # but we include the `level` so it can be overridden by environment
 
-    # The handlers we define here will output all logs they receive by default
-    # but we include the `level` so it can be overridden by environment
+  console:
+    level: 0
+    class: prefect.logging.handlers.PrefectConsoleHandler
+    formatter: standard
+    styles:
+      log.web_url: bright_blue
+      log.local_url: bright_blue
 
-    console:
-        level: 0
-        class: prefect.logging.handlers.PrefectConsoleHandler
-        formatter: standard
-        styles:
-            log.web_url: bright_blue
-            log.local_url: bright_blue
+      log.info_level: cyan
+      log.warning_level: yellow3
+      log.error_level: red3
+      log.critical_level: bright_red
 
-            log.info_level: cyan
-            log.warning_level: yellow3
-            log.error_level: red3
-            log.critical_level: bright_red
+      log.completed_state: green
+      log.cancelled_state: yellow3
+      log.failed_state: red3
+      log.crashed_state: bright_red
+      log.cached_state: bright_blue
 
-            log.completed_state: green
-            log.cancelled_state: yellow3
-            log.failed_state: red3
-            log.crashed_state: bright_red
+      log.flow_run_name: magenta
+      log.flow_name: bold magenta
 
-            log.flow_run_name: magenta
-            log.flow_name: bold magenta
+  api:
+    level: 0
+    class: prefect.logging.handlers.APILogHandler
 
-    api:
-        level: 0
-        class: prefect.logging.handlers.APILogHandler
-
-    
-    debug:
-        level: 0
-        class: logging.StreamHandler
-        formatter: debug
+  debug:
+    level: 0
+    class: logging.StreamHandler
+    formatter: debug
 
 loggers:
-    prefect:
-        level: "${PREFECT_LOGGING_LEVEL}"
+  prefect:
+    level: "${PREFECT_LOGGING_LEVEL}"
 
-    prefect.extra:
-        level: "${PREFECT_LOGGING_LEVEL}"
-        handlers: [api]
-        propagate: false
+  prefect.extra:
+    level: "${PREFECT_LOGGING_LEVEL}"
+    handlers: [api]
+    propagate: false
 
-    prefect.flow_runs:
-        level: NOTSET
-        handlers: [api]
+  prefect.flow_runs:
+    level: NOTSET
+    handlers: [api]
 
-    prefect.task_runs:
-        level: NOTSET
-        handlers: [api]
+  prefect.task_runs:
+    level: NOTSET
+    handlers: [api]
 
-    prefect.server:
-        level: "${PREFECT_LOGGING_SERVER_LEVEL}"
+  prefect.server:
+    level: "${PREFECT_SERVER_LOGGING_LEVEL}"
 
-    prefect.client:
-        level: "${PREFECT_LOGGING_LEVEL}"
+  prefect.client:
+    level: "${PREFECT_LOGGING_LEVEL}"
 
-    prefect.infrastructure:
-        level: "${PREFECT_LOGGING_LEVEL}"
+  prefect.infrastructure:
+    level: "${PREFECT_LOGGING_LEVEL}"
 
-    prefect._internal:
-        level: "${PREFECT_LOGGING_INTERNAL_LEVEL}"
-        propagate: false
-        handlers: [debug]
+  prefect._internal:
+    level: "${PREFECT_INTERNAL_LOGGING_LEVEL}"
+    propagate: false
+    handlers: [debug]
 
-    uvicorn:
-        level: "${PREFECT_LOGGING_SERVER_LEVEL}"
+  uvicorn:
+    level: "${PREFECT_SERVER_LOGGING_LEVEL}"
 
-    fastapi:
-        level: "${PREFECT_LOGGING_SERVER_LEVEL}"
+  fastapi:
+    level: "${PREFECT_SERVER_LOGGING_LEVEL}"
 
 # The root logger: any logger without propagation disabled sends to here as well
 root:
-    # By default, we display warning level logs from any library in the console
-    # to match Python's default behavior while formatting logs nicely
-    level: WARNING
-    handlers: [console]
+  # By default, we display warning level logs from any library in the console
+  # to match Python's default behavior while formatting logs nicely
+  level: WARNING
+  handlers: [console]

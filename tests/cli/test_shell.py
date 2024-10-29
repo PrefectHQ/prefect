@@ -1,5 +1,7 @@
+import os
 from unittest.mock import AsyncMock, patch
 
+from prefect.cli.shell import run_shell_process
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
@@ -145,3 +147,33 @@ async def test_shell_runner_integration(monkeypatch):
         )
 
         runner_mock.assert_awaited_once_with(run_once=True)
+
+
+class TestRunShellProcess:
+    def test_run_shell_process_basic(self, tmp_path):
+        """Test basic command execution"""
+        test_file = tmp_path / "test.txt"
+        run_shell_process(f"touch {test_file}")
+        assert test_file.exists()
+
+    def test_run_shell_process_with_cwd(self, tmp_path):
+        """Test command execution with custom working directory"""
+        subdir = tmp_path / "subdir"
+        subdir.mkdir()
+        test_file = "test.txt"
+
+        run_shell_process(f"touch {test_file}", popen_kwargs={"cwd": str(subdir)})
+
+        assert (subdir / test_file).exists()
+
+    def test_run_shell_process_with_env(self, tmp_path):
+        """Test command execution with custom environment variables"""
+        custom_env = os.environ.copy()
+        custom_env["TEST_VAR"] = "hello"
+
+        run_shell_process(
+            "echo $TEST_VAR > output.txt",
+            popen_kwargs={"env": custom_env, "cwd": str(tmp_path)},
+        )
+
+        assert (tmp_path / "output.txt").read_text().strip() == "hello"

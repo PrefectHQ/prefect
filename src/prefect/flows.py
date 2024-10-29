@@ -49,8 +49,8 @@ from typing_extensions import Literal, ParamSpec, Self
 
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect.blocks.core import Block
-from prefect.client.orchestration import get_client
 from prefect.client.schemas.actions import DeploymentScheduleCreate
+from prefect.client.schemas.filters import WorkerFilter
 from prefect.client.schemas.objects import ConcurrencyLimitConfig, FlowRun
 from prefect.client.schemas.objects import Flow as FlowSchema
 from prefect.client.utilities import client_injector
@@ -74,8 +74,8 @@ from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
     PREFECT_FLOW_DEFAULT_RETRIES,
     PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS,
+    PREFECT_TESTING_UNIT_TEST_MODE,
     PREFECT_UI_URL,
-    PREFECT_UNIT_TEST_MODE,
 )
 from prefect.states import State
 from prefect.task_runners import TaskRunner, ThreadPoolTaskRunner
@@ -286,7 +286,7 @@ class Flow(Generic[P, R]):
 
         # the flow is considered async if its function is async or an async
         # generator
-        self.isasync = inspect.iscoroutinefunction(
+        self.isasync = asyncio.iscoroutinefunction(
             self.fn
         ) or inspect.isasyncgenfunction(self.fn)
 
@@ -1168,9 +1168,15 @@ class Flow(Generic[P, R]):
                 " `PREFECT_DEFAULT_WORK_POOL_NAME` environment variable."
             )
 
+        from prefect.client.orchestration import get_client
+
         try:
             async with get_client() as client:
                 work_pool = await client.read_work_pool(work_pool_name)
+                active_workers = await client.read_workers_for_work_pool(
+                    work_pool_name,
+                    worker_filter=WorkerFilter(status={"any_": ["ONLINE"]}),
+                )
         except ObjectNotFound as exc:
             raise ValueError(
                 f"Could not find work pool {work_pool_name!r}. Please create it before"
@@ -1210,7 +1216,11 @@ class Flow(Generic[P, R]):
 
         if print_next_steps:
             console = Console()
-            if not work_pool.is_push_pool and not work_pool.is_managed_pool:
+            if (
+                not work_pool.is_push_pool
+                and not work_pool.is_managed_pool
+                and not active_workers
+            ):
                 console.print(
                     "\nTo execute flow runs from this deployment, start a worker in a"
                     " separate terminal that pulls work from the"
@@ -1370,7 +1380,7 @@ class Flow(Generic[P, R]):
             visualize_task_dependencies,
         )
 
-        if not PREFECT_UNIT_TEST_MODE:
+        if not PREFECT_TESTING_UNIT_TEST_MODE:
             warnings.warn(
                 "`flow.visualize()` will execute code inside of your flow that is not"
                 " decorated with `@task` or `@flow`."
@@ -1848,10 +1858,15 @@ def serve(
         else:
             raise
 
-    if loop is not None:
-        loop.run_until_complete(runner.start())
-    else:
-        asyncio.run(runner.start())
+    try:
+        if loop is not None:
+            loop.run_until_complete(runner.start())
+        else:
+            asyncio.run(runner.start())
+    except (KeyboardInterrupt, TerminationSignal) as exc:
+        logger.info(f"Received {type(exc).__name__}, shutting down...")
+        if loop is not None:
+            loop.stop()
 
 
 @client_injector
