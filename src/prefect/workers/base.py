@@ -30,10 +30,10 @@ from prefect.plugins import load_prefect_collections
 from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_TEST_MODE,
+    PREFECT_WORKER_EXPERIMENT_LOGGING_TO_API_ENABLED,
     PREFECT_WORKER_HEARTBEAT_SECONDS,
     PREFECT_WORKER_PREFETCH_SECONDS,
     PREFECT_WORKER_QUERY_SECONDS,
-PREFECT_WORKER_EXPERIMENT_LOGGING_TO_API_ENABLED,
     get_current_settings,
 )
 from prefect.states import (
