@@ -133,7 +133,8 @@ from prefect.settings import (
     PREFECT_CLIENT_CSRF_SUPPORT_ENABLED,
     PREFECT_CLOUD_API_URL,
     PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
-    PREFECT_TESTING_UNIT_TEST_MODE, get_current_settings,
+    PREFECT_TESTING_UNIT_TEST_MODE,
+    get_current_settings,
 )
 
 if TYPE_CHECKING:
@@ -2620,8 +2621,10 @@ class PrefectClient:
         )
 
         if (
-                (self.server_type == ServerType.CLOUD
-                or get_current_settings().testing.test_mode)
+            (
+                self.server_type == ServerType.CLOUD
+                or get_current_settings().testing.test_mode
+            )
             and get_worker_id
             and resp.status_code == 200
         ):
