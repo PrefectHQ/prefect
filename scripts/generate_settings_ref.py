@@ -4,6 +4,11 @@ from prefect import __development_base_path__
 from prefect.settings import Settings
 
 
+def resolve_ref(schema: Dict[Any, Any], ref_path: str) -> Dict[str, Any]:
+    """Resolve a reference to a nested model."""
+    return schema.get("$defs", {}).get(ref_path.split("/")[-1], {})
+
+
 def build_ref_paths(schema: Dict[Any, Any]) -> Dict[str, str]:
     """Build a mapping of reference paths for all nested models."""
     paths = {}
@@ -110,6 +115,9 @@ def generate_model_docs(
     docs = []
     header = "#" * level
 
+    if not schema.get("properties"):
+        return ""
+
     # Model title and description
     title = schema.get("title", "Settings")
     docs.append(f"{header} {title}")
@@ -160,6 +168,11 @@ def main():
     # Generate documentation for top-level properties
     if "properties" in schema:
         for prop_name, prop_info in schema["properties"].items():
+            if "$ref" in prop_info and not resolve_ref(schema, prop_info["$ref"]).get(
+                "properties"
+            ):
+                # Exclude nested models with no properties (like `experiments` sometimes)
+                continue
             docs_content.append(generate_property_docs(prop_name, prop_info, level=3))
 
     # Generate documentation for nested models
