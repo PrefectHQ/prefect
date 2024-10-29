@@ -2,7 +2,11 @@ from datetime import timedelta
 
 from pydantic import AliasChoices, AliasPath, Field
 
-from prefect.settings.base import PrefectBaseSettings, PrefectSettingsConfigDict
+from prefect.settings.base import (
+    COMMON_CONFIG_DICT,
+    PrefectBaseSettings,
+    PrefectSettingsConfigDict,
+)
 
 
 class ServerTasksSchedulingSettings(PrefectBaseSettings):
@@ -11,10 +15,8 @@ class ServerTasksSchedulingSettings(PrefectBaseSettings):
     """
 
     model_config = PrefectSettingsConfigDict(
-        env_file=".env",
+        **COMMON_CONFIG_DICT,
         env_prefix="PREFECT_SERVER_TASKS_SCHEDULING_",
-        extra="ignore",
-        toml_file="prefect.toml",
         prefect_toml_table_header=("server", "tasks", "scheduling"),
     )
 
