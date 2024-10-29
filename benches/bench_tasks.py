@@ -10,11 +10,11 @@ def noop_function():
     pass
 
 
-def bench_task_decorator(benchmark: BenchmarkFixture):
+def bench_task_decorator(benchmark: "BenchmarkFixture"):
     benchmark(task, noop_function)
 
 
-def bench_task_call(benchmark: BenchmarkFixture):
+def bench_task_call(benchmark: "BenchmarkFixture"):
     noop_task = task(noop_function)
 
     @flow
@@ -24,7 +24,7 @@ def bench_task_call(benchmark: BenchmarkFixture):
     benchmark_flow()
 
 
-def bench_task_submit(benchmark: BenchmarkFixture):
+def bench_task_submit(benchmark: "BenchmarkFixture"):
     noop_task = task(noop_function)
 
     # The benchmark occurs within the flow to measure _submission_ time without
