@@ -95,6 +95,7 @@ jobs:
           python -m pip install -U uv
           uv pip install --upgrade --system -e '.[dev]'
           uv pip install --upgrade --system -r requirements-markdown-tests.txt
+          uv pip uninstall --system pytest-benchmark
 
       - name: Start server
         run: |
@@ -106,4 +107,3 @@ jobs:
           PREFECT_API_URL="http://127.0.0.1:4200/api" pytest docs/ --markdown-docs -m markdown-docs
           --numprocesses auto
           --maxprocesses 6
-          --benchmark-disable
