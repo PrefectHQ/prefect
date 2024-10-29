@@ -245,6 +245,12 @@
             "title": "DeploymentsSettings",
             "type": "object"
         },
+        "ExperimentsSettings": {
+            "description": "Settings for configuring experimental features",
+            "properties": {},
+            "title": "ExperimentsSettings",
+            "type": "object"
+        },
         "FlowsSettings": {
             "description": "Settings for controlling flow behavior",
             "properties": {
@@ -1570,6 +1576,10 @@
         },
         "deployments": {
             "$ref": "#/$defs/DeploymentsSettings"
+        },
+        "experiments": {
+            "$ref": "#/$defs/ExperimentsSettings",
+            "description": "Settings for controlling experimental features"
         },
         "flows": {
             "$ref": "#/$defs/FlowsSettings"
