@@ -562,6 +562,7 @@ class LogCreate(ActionBaseModel):
     timestamp: DateTime = Field(default=..., description="The log timestamp.")
     flow_run_id: Optional[UUID] = Field(None)
     task_run_id: Optional[UUID] = Field(None)
+    worker_id: Optional[UUID] = Field(None)
 
 
 class WorkPoolCreate(ActionBaseModel):
