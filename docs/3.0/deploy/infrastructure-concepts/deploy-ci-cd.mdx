@@ -68,11 +68,11 @@ For reference, the examples below live in their respective branches of
 
     ```
     .
-    ├── .github/
-    │   └── workflows/
-    │       └── deploy-prefect-flow.yaml
-    ├── flow.py
-    └── requirements.txt
+    | -- .github/
+    |   |-- workflows/
+    |       |-- deploy-prefect-flow.yaml
+    |-- flow.py
+    |-- requirements.txt
     ```
 
     `flow.py`
@@ -120,7 +120,7 @@ For reference, the examples below live in their respective branches of
           - name: Setup Python
             uses: actions/setup-python@v5
             with:
-              python-version: "3.11"
+              python-version: "3.12"
 
           - name: Prefect Deploy
             env:
@@ -135,12 +135,12 @@ For reference, the examples below live in their respective branches of
 
     ```
     .
-    ├── .github/
-    │   └── workflows/
-    │       └── deploy-prefect-flow.yaml
-    ├── flow.py
-    ├── prefect.yaml
-    └── requirements.txt
+    |-- .github/
+    |   |-- workflows/
+    |       |-- deploy-prefect-flow.yaml
+    |-- flow.py
+    |-- prefect.yaml
+    |-- requirements.txt
     ```
 
     `flow.py`
@@ -213,7 +213,7 @@ For reference, the examples below live in their respective branches of
           - name: Setup Python
             uses: actions/setup-python@v5
             with:
-              python-version: "3.11"
+              python-version: "3.12"
 
           - name: Prefect Deploy
             env:
@@ -244,11 +244,11 @@ Successfully pushed image '***/cicd-example:latest'
 Successfully created/updated all deployments!
 
                 Deployments
-┏━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━┓
-┃ Name                ┃ Status  ┃ Details ┃
-┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━┩
-│ hello/my-deployment │ applied │         │
-└─────────────────────┴─────────┴─────────┘
+|-----------------------------------------|
+| Name                | Status    Details |
+|---------------------|---------|---------|
+| hello/my-deployment | applied |         |
+|-----------------------------------------|
 
 ```
 
@@ -292,12 +292,12 @@ separated across projects and environments.
 
 ```
   .
-  ├── cicd-example-workspaces-prod  # production bucket
-  │   ├── project_1
-  │   └── project_2
-  └── cicd-example-workspaces-stg  # staging bucket
-      ├── project_1
-      └── project_2
+  |--- cicd-example-workspaces-prod  # production bucket
+  |   |--- project_1
+  |   |---project_2
+  |---cicd-example-workspaces-stg  # staging bucket
+      |--- project_1
+      |---project_2
 ```
 
 Deployments in this example use S3 for code storage. So it's important that push steps place flow files
@@ -316,13 +316,8 @@ so Python packages do not have to be downloaded on repeat workflow runs.
 - name: Setup Python
   uses: actions/setup-python@v5
   with:
-    python-version: "3.11"
+    python-version: "3.12"
     cache: "pip"
-```
-
-```
-Using cached prefect-3.0.0-py3-none-any.whl (2.9 MB)
-Using cached prefect_aws-0.4.18-py3-none-any.whl (61 kB)
 ```
 
 The `build-push-action` for building Docker images also offers
@@ -395,7 +390,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: Prefect Auth
         uses: PrefectHQ/actions-prefect-auth@v1
@@ -404,7 +399,7 @@ jobs:
           prefect-workspace: ${{ secrets.PREFECT_WORKSPACE }}
 
       - name: Run Prefect Deploy
-        uses: PrefectHQ/actions-prefect-deploy@v3
+        uses: PrefectHQ/actions-prefect-deploy@v4
         with:
           deployment-names: my-deployment
           requirements-file-paths: requirements.txt
@@ -429,5 +424,4 @@ registry URL to the `registry` key in the `with:` part of the action and use an 
 
 ## See also
 
-Check out the [Prefect Cloud Terraform provider](https://registry.terraform.io/providers/PrefectHQ/prefect/latest/docs/guides/getting-started)
-if you're using Terraform to manage your infrastructure.
+If you're using Terraform to manage your infrastructure, check out the [Prefect Cloud Terraform provider](https://registry.terraform.io/providers/PrefectHQ/prefect/latest/docs/guides/getting-started).
