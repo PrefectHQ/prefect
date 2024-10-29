@@ -24,6 +24,7 @@ from .cli import CLISettings
 from .client import ClientSettings
 from .cloud import CloudSettings
 from .deployments import DeploymentsSettings
+from .experiments import ExperimentsSettings
 from .flows import FlowsSettings
 from .internal import InternalSettings
 from .logging import LoggingSettings
@@ -87,6 +88,11 @@ class Settings(PrefectBaseSettings):
     deployments: DeploymentsSettings = Field(
         default_factory=DeploymentsSettings,
         description="Settings for configuring deployments defaults",
+    )
+
+    experiments: ExperimentsSettings = Field(
+        default_factory=ExperimentsSettings,
+        description="Settings for controlling experimental features",
     )
 
     flows: FlowsSettings = Field(
