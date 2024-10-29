@@ -134,6 +134,8 @@ def generate_model_docs(
                 )
             )
 
+    docs.append("---")
+
     return "\n".join(docs)
 
 
@@ -148,7 +150,6 @@ def process_definitions(defs: Dict[Any, Any], schema: Dict[Any, Any]) -> str:
     for model_name, model_schema in defs.items():
         parent_path = ref_paths.get(model_name, "")
         docs.append(generate_model_docs(model_schema, level=2, parent_path=parent_path))
-        docs.append("---")
 
     return "\n".join(docs)
 
