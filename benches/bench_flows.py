@@ -2,11 +2,15 @@
 TODO: Add benches for higher number of tasks; blocked by engine deadlocks in CI.
 """
 
+from typing import TYPE_CHECKING
+
 import anyio
 import pytest
-from pytest_benchmark.fixture import BenchmarkFixture
 
 from prefect import flow, task
+
+if TYPE_CHECKING:
+    from pytest_benchmark.fixture import BenchmarkFixture
 
 
 def noop_function():
@@ -17,12 +21,12 @@ async def anoop_function():
     pass
 
 
-def bench_flow_decorator(benchmark: BenchmarkFixture):
+def bench_flow_decorator(benchmark: "BenchmarkFixture"):
     benchmark(flow, noop_function)
 
 
 @pytest.mark.parametrize("options", [{}, {"timeout_seconds": 10}])
-def bench_flow_call(benchmark: BenchmarkFixture, options):
+def bench_flow_call(benchmark: "BenchmarkFixture", options):
     noop_flow = flow(**options)(noop_function)
     benchmark(noop_flow)
 
@@ -35,7 +39,7 @@ def bench_flow_call(benchmark: BenchmarkFixture, options):
 
 
 @pytest.mark.parametrize("num_tasks", [10, 50, 100])
-def bench_flow_with_submitted_tasks(benchmark: BenchmarkFixture, num_tasks: int):
+def bench_flow_with_submitted_tasks(benchmark: "BenchmarkFixture", num_tasks: int):
     test_task = task(noop_function)
 
     @flow
@@ -47,7 +51,7 @@ def bench_flow_with_submitted_tasks(benchmark: BenchmarkFixture, num_tasks: int)
 
 
 @pytest.mark.parametrize("num_tasks", [10, 50, 100, 250])
-def bench_flow_with_called_tasks(benchmark: BenchmarkFixture, num_tasks: int):
+def bench_flow_with_called_tasks(benchmark: "BenchmarkFixture", num_tasks: int):
     test_task = task(noop_function)
 
     @flow
@@ -62,7 +66,7 @@ def bench_flow_with_called_tasks(benchmark: BenchmarkFixture, num_tasks: int):
 
 
 @pytest.mark.parametrize("num_tasks", [10, 50, 100, 250])
-def bench_async_flow_with_async_tasks(benchmark: BenchmarkFixture, num_tasks: int):
+def bench_async_flow_with_async_tasks(benchmark: "BenchmarkFixture", num_tasks: int):
     test_task = task(anoop_function)
 
     @flow
@@ -78,7 +82,7 @@ def bench_async_flow_with_async_tasks(benchmark: BenchmarkFixture, num_tasks: in
 
 
 @pytest.mark.parametrize("num_flows", [5, 10, 20])
-def bench_flow_with_subflows(benchmark: BenchmarkFixture, num_flows: int):
+def bench_flow_with_subflows(benchmark: "BenchmarkFixture", num_flows: int):
     test_flow = flow(noop_function)
 
     @flow
@@ -91,7 +95,7 @@ def bench_flow_with_subflows(benchmark: BenchmarkFixture, num_flows: int):
 
 @pytest.mark.parametrize("num_flows", [5, 10, 20])
 def bench_async_flow_with_sequential_subflows(
-    benchmark: BenchmarkFixture, num_flows: int
+    benchmark: "BenchmarkFixture", num_flows: int
 ):
     test_flow = flow(anoop_function)
 
@@ -105,7 +109,7 @@ def bench_async_flow_with_sequential_subflows(
 
 @pytest.mark.parametrize("num_flows", [5, 10, 20])
 def bench_async_flow_with_concurrent_subflows(
-    benchmark: BenchmarkFixture, num_flows: int
+    benchmark: "BenchmarkFixture", num_flows: int
 ):
     test_flow = flow(anoop_function)
 
