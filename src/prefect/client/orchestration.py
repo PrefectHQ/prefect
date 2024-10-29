@@ -2603,7 +2603,7 @@ class PrefectClient:
         Args:
             work_pool_name: The name of the work pool to heartbeat against.
             worker_name: The name of the worker sending the heartbeat.
-            return_id: Whether to return the worker ID.
+            return_id: Whether to return the worker ID. Note: will return `None` if the connected server does not support returning worker IDs, even if `return_id` is `True`.
         """
 
         if get_worker_id:
