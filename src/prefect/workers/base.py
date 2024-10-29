@@ -30,7 +30,6 @@ from prefect.plugins import load_prefect_collections
 from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_TEST_MODE,
-    PREFECT_WORKER_EXPERIMENT_LOGGING_TO_API_ENABLED,
     PREFECT_WORKER_HEARTBEAT_SECONDS,
     PREFECT_WORKER_PREFETCH_SECONDS,
     PREFECT_WORKER_QUERY_SECONDS,
@@ -735,7 +734,12 @@ class BaseWorker(abc.ABC):
         """
         await self._update_local_work_pool_info()
 
-        if PREFECT_WORKER_EXPERIMENT_LOGGING_TO_API_ENABLED and self.backend_id is None:
+        # Only do this logic if we've enabled the experiment, are connected to cloud and we don't have an ID.
+        if (
+            get_current_settings().worker.experiment_logging_to_api_enabled
+            and "api.prefect.cloud" in get_current_settings().api.url
+            and self.backend_id is None
+        ):
             get_worker_id = True
         else:
             get_worker_id = False
