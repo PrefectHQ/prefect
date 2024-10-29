@@ -2604,13 +2604,19 @@ class PrefectClient:
             worker_name: The name of the worker sending the heartbeat.
             return_id: Whether to return the worker ID.
         """
+
+        if get_worker_id:
+            return_dict = {"return_id": get_worker_id}
+        else:
+            return_dict = {}
+
+    
         resp = await self._client.post(
             f"/work_pools/{work_pool_name}/workers/heartbeat",
             json={
                 "name": worker_name,
                 "heartbeat_interval_seconds": heartbeat_interval_seconds,
-                "return_id": get_worker_id,
-            },
+            } | return_dict,
         )
 
         if get_worker_id and resp.status_code == 200:
