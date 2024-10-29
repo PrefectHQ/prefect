@@ -422,7 +422,7 @@ class BaseWorker(abc.ABC):
             heartbeat_interval_seconds or PREFECT_WORKER_HEARTBEAT_SECONDS.value()
         )
 
-        self._remote_id: Optional[UUID] = None
+        self.backend_id: Optional[UUID] = None
         self._work_pool: Optional[WorkPool] = None
         self._exit_stack: AsyncExitStack = AsyncExitStack()
         self._runs_task_group: Optional[anyio.abc.TaskGroup] = None
@@ -735,7 +735,7 @@ class BaseWorker(abc.ABC):
         """
         await self._update_local_work_pool_info()
 
-        if PREFECT_WORKER_EXPERIMENT_LOGGING_TO_API_ENABLED and self._remote_id is None:
+        if PREFECT_WORKER_EXPERIMENT_LOGGING_TO_API_ENABLED and self.backend_id is None:
             get_worker_id = True
         else:
             get_worker_id = False
@@ -747,10 +747,10 @@ class BaseWorker(abc.ABC):
                 "Failed to retrieve worker ID from the Prefect API server."
             )
         else:
-            self._remote_id = remote_id
+            self.backend_id = remote_id
 
         self._logger.debug(
-            f"Worker synchronized with the Prefect API server. Remote ID: {self._remote_id}"
+            f"Worker synchronized with the Prefect API server. Remote ID: {self.backend_id}"
         )
 
     async def _get_scheduled_flow_runs(

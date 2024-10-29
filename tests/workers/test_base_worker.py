@@ -195,7 +195,7 @@ respx_mock
 
         await worker.sync_with_backend()
 
-        assert worker._remote_id == test_worker_id
+        assert worker.backend_id == test_worker_id
 
 
 async def test_worker_sends_heartbeat_only_gets_id_once(
@@ -209,7 +209,7 @@ async def test_worker_sends_heartbeat_only_gets_id_once(
 
         second_call = mock.await_args_list[1]
 
-        assert worker._remote_id == "test"
+        assert worker.backend_id == "test"
         assert not second_call.kwargs["get_worker_id"]
 
 
