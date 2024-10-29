@@ -99,7 +99,7 @@ def generate_property_docs(
 
     # Access path
     access_path = f"{parent_path}.{prop_name}" if parent_path else prop_name
-    docs.append(f"\n**Access path**: `{access_path}`")
+    docs.append(f"\n**TOML dotted key path**: `{access_path}`")
 
     if supported_env_vars := prop_info.get("supported_environment_variables"):
         docs.append("\n**Supported environment variables**:")

@@ -11,7 +11,7 @@ The path to the Prefect home directory. Defaults to ~/.prefect
 
 **Default**: `~/.prefect`
 
-**Access path**: `home`
+**TOML dotted key path**: `home`
 
 **Supported environment variables**:
 `PREFECT_HOME`
@@ -23,7 +23,7 @@ The path to a profiles configuration file.
 
 **Default**: `None`
 
-**Access path**: `profiles_path`
+**TOML dotted key path**: `profiles_path`
 
 **Supported environment variables**:
 `PREFECT_PROFILES_PATH`
@@ -35,7 +35,7 @@ If True, enables debug mode which may provide additional logging and debugging f
 
 **Default**: `False`
 
-**Access path**: `debug_mode`
+**TOML dotted key path**: `debug_mode`
 
 **Supported environment variables**:
 `PREFECT_DEBUG_MODE`
@@ -44,90 +44,90 @@ If True, enables debug mode which may provide additional logging and debugging f
 
 **Type**: [APISettings](#apisettings)
 
-**Access path**: `api`
+**TOML dotted key path**: `api`
 
 ### `cli`
 
 **Type**: [CLISettings](#clisettings)
 
-**Access path**: `cli`
+**TOML dotted key path**: `cli`
 
 ### `client`
 Settings for for controlling API client behavior
 
 **Type**: [ClientSettings](#clientsettings)
 
-**Access path**: `client`
+**TOML dotted key path**: `client`
 
 ### `cloud`
 
 **Type**: [CloudSettings](#cloudsettings)
 
-**Access path**: `cloud`
+**TOML dotted key path**: `cloud`
 
 ### `deployments`
 
 **Type**: [DeploymentsSettings](#deploymentssettings)
 
-**Access path**: `deployments`
+**TOML dotted key path**: `deployments`
 
 ### `flows`
 
 **Type**: [FlowsSettings](#flowssettings)
 
-**Access path**: `flows`
+**TOML dotted key path**: `flows`
 
 ### `internal`
 Settings for internal Prefect machinery
 
 **Type**: [InternalSettings](#internalsettings)
 
-**Access path**: `internal`
+**TOML dotted key path**: `internal`
 
 ### `logging`
 
 **Type**: [LoggingSettings](#loggingsettings)
 
-**Access path**: `logging`
+**TOML dotted key path**: `logging`
 
 ### `results`
 
 **Type**: [ResultsSettings](#resultssettings)
 
-**Access path**: `results`
+**TOML dotted key path**: `results`
 
 ### `runner`
 
 **Type**: [RunnerSettings](#runnersettings)
 
-**Access path**: `runner`
+**TOML dotted key path**: `runner`
 
 ### `server`
 
 **Type**: [ServerSettings](#serversettings)
 
-**Access path**: `server`
+**TOML dotted key path**: `server`
 
 ### `tasks`
 Settings for controlling task behavior
 
 **Type**: [TasksSettings](#taskssettings)
 
-**Access path**: `tasks`
+**TOML dotted key path**: `tasks`
 
 ### `testing`
 Settings used during testing
 
 **Type**: [TestingSettings](#testingsettings)
 
-**Access path**: `testing`
+**TOML dotted key path**: `testing`
 
 ### `worker`
 Settings for controlling worker behavior
 
 **Type**: [WorkerSettings](#workersettings)
 
-**Access path**: `worker`
+**TOML dotted key path**: `worker`
 
 ### `ui_url`
 The URL of the Prefect UI. If not set, the client will attempt to infer it.
@@ -136,7 +136,7 @@ The URL of the Prefect UI. If not set, the client will attempt to infer it.
 
 **Default**: `None`
 
-**Access path**: `ui_url`
+**TOML dotted key path**: `ui_url`
 
 **Supported environment variables**:
 `PREFECT_UI_URL`
@@ -152,7 +152,7 @@ The URL of the Prefect UI. If not set, the client will attempt to infer it.
 
 **Default**: `False`
 
-**Access path**: `silence_api_url_misconfiguration`
+**TOML dotted key path**: `silence_api_url_misconfiguration`
 
 **Supported environment variables**:
 `PREFECT_SILENCE_API_URL_MISCONFIGURATION`
@@ -164,7 +164,7 @@ If `True`, warn on usage of experimental features.
 
 **Default**: `True`
 
-**Access path**: `experimental_warn`
+**TOML dotted key path**: `experimental_warn`
 
 **Supported environment variables**:
 `PREFECT_EXPERIMENTAL_WARN`
@@ -184,7 +184,7 @@ If `True`, warn on usage of experimental features.
 
 **Default**: `False`
 
-**Access path**: `async_fetch_state_result`
+**TOML dotted key path**: `async_fetch_state_result`
 
 **Supported environment variables**:
 `PREFECT_ASYNC_FETCH_STATE_RESULT`
@@ -199,7 +199,7 @@ The URL of the Prefect API. If not set, the client will attempt to infer it.
 
 **Default**: `None`
 
-**Access path**: `api.url`
+**TOML dotted key path**: `api.url`
 
 **Supported environment variables**:
 `PREFECT_API_URL`
@@ -211,7 +211,7 @@ The API key used for authentication with the Prefect API. Should be kept secret.
 
 **Default**: `None`
 
-**Access path**: `api.key`
+**TOML dotted key path**: `api.key`
 
 **Supported environment variables**:
 `PREFECT_API_KEY`
@@ -223,7 +223,7 @@ If `True`, disables SSL checking to allow insecure requests. This is recommended
 
 **Default**: `False`
 
-**Access path**: `api.tls_insecure_skip_verify`
+**TOML dotted key path**: `api.tls_insecure_skip_verify`
 
 **Supported environment variables**:
 `PREFECT_API_TLS_INSECURE_SKIP_VERIFY`
@@ -235,7 +235,7 @@ This configuration settings option specifies the path to an SSL certificate file
 
 **Default**: `None`
 
-**Access path**: `api.ssl_cert_file`
+**TOML dotted key path**: `api.ssl_cert_file`
 
 **Supported environment variables**:
 `PREFECT_API_SSL_CERT_FILE`
@@ -247,7 +247,7 @@ If true, enable support for HTTP/2 for communicating with an API. If the API doe
 
 **Default**: `False`
 
-**Access path**: `api.enable_http2`
+**TOML dotted key path**: `api.enable_http2`
 
 **Supported environment variables**:
 `PREFECT_API_ENABLE_HTTP2`
@@ -259,7 +259,7 @@ The default timeout for requests to the API
 
 **Default**: `60.0`
 
-**Access path**: `api.request_timeout`
+**TOML dotted key path**: `api.request_timeout`
 
 **Supported environment variables**:
 `PREFECT_API_REQUEST_TIMEOUT`
@@ -274,7 +274,7 @@ If True, use colors in CLI output. If `False`, output will not include colors co
 
 **Default**: `True`
 
-**Access path**: `cli.colors`
+**TOML dotted key path**: `cli.colors`
 
 **Supported environment variables**:
 `PREFECT_CLI_COLORS`
@@ -286,7 +286,7 @@ If `True`, use interactive prompts in CLI commands. If `False`, no interactive p
 
 **Default**: `None`
 
-**Access path**: `cli.prompt`
+**TOML dotted key path**: `cli.prompt`
 
 **Supported environment variables**:
 `PREFECT_CLI_PROMPT`
@@ -298,7 +298,7 @@ If `True`, wrap text by inserting new lines in long lines in CLI output. If `Fal
 
 **Default**: `True`
 
-**Access path**: `cli.wrap_lines`
+**TOML dotted key path**: `cli.wrap_lines`
 
 **Supported environment variables**:
 `PREFECT_CLI_WRAP_LINES`
@@ -313,7 +313,7 @@ Whether or not to enable Prometheus metrics in the client.
 
 **Default**: `False`
 
-**Access path**: `client.metrics.enabled`
+**TOML dotted key path**: `client.metrics.enabled`
 
 **Supported environment variables**:
 `PREFECT_CLIENT_METRICS_ENABLED`, `PREFECT_CLIENT_ENABLE_METRICS`
@@ -325,7 +325,7 @@ The port to expose the client Prometheus metrics on.
 
 **Default**: `4201`
 
-**Access path**: `client.metrics.port`
+**TOML dotted key path**: `client.metrics.port`
 
 **Supported environment variables**:
 `PREFECT_CLIENT_METRICS_PORT`
@@ -348,7 +348,7 @@ Settings for controlling API client behavior
 **Constraints**:
 - Minimum: 0
 
-**Access path**: `client.max_retries`
+**TOML dotted key path**: `client.max_retries`
 
 ### `retry_jitter_factor`
 
@@ -365,7 +365,7 @@ Settings for controlling API client behavior
 **Constraints**:
 - Minimum: 0.0
 
-**Access path**: `client.retry_jitter_factor`
+**TOML dotted key path**: `client.retry_jitter_factor`
 
 ### `retry_extra_codes`
 
@@ -376,7 +376,7 @@ Settings for controlling API client behavior
 
 **Type**: `string | integer | array | None`
 
-**Access path**: `client.retry_extra_codes`
+**TOML dotted key path**: `client.retry_extra_codes`
 
 ### `csrf_support_enabled`
 
@@ -391,13 +391,13 @@ Settings for controlling API client behavior
 
 **Default**: `True`
 
-**Access path**: `client.csrf_support_enabled`
+**TOML dotted key path**: `client.csrf_support_enabled`
 
 ### `metrics`
 
 **Type**: [ClientMetricsSettings](#clientmetricssettings)
 
-**Access path**: `client.metrics`
+**TOML dotted key path**: `client.metrics`
 
 ---
 ## CloudSettings
@@ -409,7 +409,7 @@ API URL for Prefect Cloud. Used for authentication with Prefect Cloud.
 
 **Default**: `https://api.prefect.cloud/api`
 
-**Access path**: `cloud.api_url`
+**TOML dotted key path**: `cloud.api_url`
 
 **Supported environment variables**:
 `PREFECT_CLOUD_API_URL`
@@ -421,7 +421,7 @@ The URL of the Prefect Cloud UI. If not set, the client will attempt to infer it
 
 **Default**: `None`
 
-**Access path**: `cloud.ui_url`
+**TOML dotted key path**: `cloud.ui_url`
 
 **Supported environment variables**:
 `PREFECT_CLOUD_UI_URL`
@@ -436,7 +436,7 @@ The default work pool to use when creating deployments.
 
 **Default**: `None`
 
-**Access path**: `deployments.default_work_pool_name`
+**TOML dotted key path**: `deployments.default_work_pool_name`
 
 **Supported environment variables**:
 `PREFECT_DEPLOYMENTS_DEFAULT_WORK_POOL_NAME`, `PREFECT_DEFAULT_WORK_POOL_NAME`
@@ -448,7 +448,7 @@ The default Docker namespace to use when building images.
 
 **Default**: `None`
 
-**Access path**: `deployments.default_docker_build_namespace`
+**TOML dotted key path**: `deployments.default_docker_build_namespace`
 
 **Supported environment variables**:
 `PREFECT_DEPLOYMENTS_DEFAULT_DOCKER_BUILD_NAMESPACE`, `PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE`
@@ -468,7 +468,7 @@ This value sets the default number of retries for all flows.
 **Constraints**:
 - Minimum: 0
 
-**Access path**: `flows.default_retries`
+**TOML dotted key path**: `flows.default_retries`
 
 **Supported environment variables**:
 `PREFECT_FLOWS_DEFAULT_RETRIES`, `PREFECT_FLOW_DEFAULT_RETRIES`
@@ -480,7 +480,7 @@ This value sets the default retry delay seconds for all flows.
 
 **Default**: `0`
 
-**Access path**: `flows.default_retry_delay_seconds`
+**TOML dotted key path**: `flows.default_retry_delay_seconds`
 
 **Supported environment variables**:
 `PREFECT_FLOWS_DEFAULT_RETRY_DELAY_SECONDS`, `PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS`
@@ -497,7 +497,7 @@ The default logging level for Prefect's internal machinery loggers.
 **Constraints**:
 - Allowed values: 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'
 
-**Access path**: `internal.logging_level`
+**TOML dotted key path**: `internal.logging_level`
 
 **Supported environment variables**:
 `PREFECT_INTERNAL_LOGGING_LEVEL`, `PREFECT_LOGGING_INTERNAL_LEVEL`
@@ -515,7 +515,7 @@ The default logging level for Prefect loggers.
 **Constraints**:
 - Allowed values: 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'
 
-**Access path**: `logging.level`
+**TOML dotted key path**: `logging.level`
 
 **Supported environment variables**:
 `PREFECT_LOGGING_LEVEL`
@@ -527,7 +527,7 @@ The path to a custom YAML logging configuration file.
 
 **Default**: `None`
 
-**Access path**: `logging.config_path`
+**TOML dotted key path**: `logging.config_path`
 
 **Supported environment variables**:
 `PREFECT_LOGGING_CONFIG_PATH`, `PREFECT_LOGGING_SETTINGS_PATH`
@@ -539,7 +539,7 @@ Additional loggers to attach to Prefect logging at runtime.
 
 **Default**: `None`
 
-**Access path**: `logging.extra_loggers`
+**TOML dotted key path**: `logging.extra_loggers`
 
 **Supported environment variables**:
 `PREFECT_LOGGING_EXTRA_LOGGERS`
@@ -551,7 +551,7 @@ If `True`, `print` statements in flows and tasks will be redirected to the Prefe
 
 **Default**: `False`
 
-**Access path**: `logging.log_prints`
+**TOML dotted key path**: `logging.log_prints`
 
 **Supported environment variables**:
 `PREFECT_LOGGING_LOG_PRINTS`
@@ -563,7 +563,7 @@ If `True`, use colors in CLI output. If `False`, output will not include colors 
 
 **Default**: `True`
 
-**Access path**: `logging.colors`
+**TOML dotted key path**: `logging.colors`
 
 **Supported environment variables**:
 `PREFECT_LOGGING_COLORS`
@@ -583,7 +583,7 @@ If `True`, use colors in CLI output. If `False`, output will not include colors 
 
 **Default**: `False`
 
-**Access path**: `logging.markup`
+**TOML dotted key path**: `logging.markup`
 
 **Supported environment variables**:
 `PREFECT_LOGGING_MARKUP`
@@ -592,7 +592,7 @@ If `True`, use colors in CLI output. If `False`, output will not include colors 
 
 **Type**: [LoggingToAPISettings](#loggingtoapisettings)
 
-**Access path**: `logging.to_api`
+**TOML dotted key path**: `logging.to_api`
 
 ---
 ## LoggingToAPISettings
@@ -604,7 +604,7 @@ If `True`, logs will be sent to the API.
 
 **Default**: `True`
 
-**Access path**: `logging.to_api.enabled`
+**TOML dotted key path**: `logging.to_api.enabled`
 
 **Supported environment variables**:
 `PREFECT_LOGGING_TO_API_ENABLED`
@@ -616,7 +616,7 @@ The number of seconds between batched writes of logs to the API.
 
 **Default**: `2.0`
 
-**Access path**: `logging.to_api.batch_interval`
+**TOML dotted key path**: `logging.to_api.batch_interval`
 
 **Supported environment variables**:
 `PREFECT_LOGGING_TO_API_BATCH_INTERVAL`
@@ -628,7 +628,7 @@ The number of logs to batch before sending to the API.
 
 **Default**: `4000000`
 
-**Access path**: `logging.to_api.batch_size`
+**TOML dotted key path**: `logging.to_api.batch_size`
 
 **Supported environment variables**:
 `PREFECT_LOGGING_TO_API_BATCH_SIZE`
@@ -640,7 +640,7 @@ The maximum size in bytes for a single log.
 
 **Default**: `1000000`
 
-**Access path**: `logging.to_api.max_log_size`
+**TOML dotted key path**: `logging.to_api.max_log_size`
 
 **Supported environment variables**:
 `PREFECT_LOGGING_TO_API_MAX_LOG_SIZE`
@@ -668,7 +668,7 @@ The maximum size in bytes for a single log.
 **Constraints**:
 - Allowed values: 'warn', 'error', 'ignore'
 
-**Access path**: `logging.to_api.when_missing_flow`
+**TOML dotted key path**: `logging.to_api.when_missing_flow`
 
 **Supported environment variables**:
 `PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW`
@@ -683,7 +683,7 @@ The default serializer to use when not otherwise specified.
 
 **Default**: `pickle`
 
-**Access path**: `results.default_serializer`
+**TOML dotted key path**: `results.default_serializer`
 
 **Supported environment variables**:
 `PREFECT_RESULTS_DEFAULT_SERIALIZER`
@@ -695,7 +695,7 @@ The default setting for persisting results when not otherwise specified.
 
 **Default**: `False`
 
-**Access path**: `results.persist_by_default`
+**TOML dotted key path**: `results.persist_by_default`
 
 **Supported environment variables**:
 `PREFECT_RESULTS_PERSIST_BY_DEFAULT`
@@ -707,7 +707,7 @@ The `block-type/block-document` slug of a block to use as the default result sto
 
 **Default**: `None`
 
-**Access path**: `results.default_storage_block`
+**TOML dotted key path**: `results.default_storage_block`
 
 **Supported environment variables**:
 `PREFECT_RESULTS_DEFAULT_STORAGE_BLOCK`, `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK`
@@ -719,7 +719,7 @@ The path to a directory to store results in.
 
 **Default**: `None`
 
-**Access path**: `results.local_storage_path`
+**TOML dotted key path**: `results.local_storage_path`
 
 **Supported environment variables**:
 `PREFECT_RESULTS_LOCAL_STORAGE_PATH`, `PREFECT_LOCAL_STORAGE_PATH`
@@ -734,7 +734,7 @@ Whether or not to enable the runner's webserver.
 
 **Default**: `False`
 
-**Access path**: `runner.server.enable`
+**TOML dotted key path**: `runner.server.enable`
 
 **Supported environment variables**:
 `PREFECT_RUNNER_SERVER_ENABLE`
@@ -746,7 +746,7 @@ The host address the runner's webserver should bind to.
 
 **Default**: `localhost`
 
-**Access path**: `runner.server.host`
+**TOML dotted key path**: `runner.server.host`
 
 **Supported environment variables**:
 `PREFECT_RUNNER_SERVER_HOST`
@@ -758,7 +758,7 @@ The port the runner's webserver should bind to.
 
 **Default**: `8080`
 
-**Access path**: `runner.server.port`
+**TOML dotted key path**: `runner.server.port`
 
 **Supported environment variables**:
 `PREFECT_RUNNER_SERVER_PORT`
@@ -773,7 +773,7 @@ The log level of the runner's webserver.
 **Constraints**:
 - Allowed values: 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'
 
-**Access path**: `runner.server.log_level`
+**TOML dotted key path**: `runner.server.log_level`
 
 **Supported environment variables**:
 `PREFECT_RUNNER_SERVER_LOG_LEVEL`
@@ -785,7 +785,7 @@ Number of missed polls before a runner is considered unhealthy by its webserver.
 
 **Default**: `2`
 
-**Access path**: `runner.server.missed_polls_tolerance`
+**TOML dotted key path**: `runner.server.missed_polls_tolerance`
 
 **Supported environment variables**:
 `PREFECT_RUNNER_SERVER_MISSED_POLLS_TOLERANCE`
@@ -800,7 +800,7 @@ Maximum number of processes a runner will execute in parallel.
 
 **Default**: `5`
 
-**Access path**: `runner.process_limit`
+**TOML dotted key path**: `runner.process_limit`
 
 **Supported environment variables**:
 `PREFECT_RUNNER_PROCESS_LIMIT`
@@ -812,7 +812,7 @@ Number of seconds a runner should wait between queries for scheduled work.
 
 **Default**: `10`
 
-**Access path**: `runner.poll_frequency`
+**TOML dotted key path**: `runner.poll_frequency`
 
 **Supported environment variables**:
 `PREFECT_RUNNER_POLL_FREQUENCY`
@@ -821,7 +821,7 @@ Number of seconds a runner should wait between queries for scheduled work.
 
 **Type**: [RunnerServerSettings](#runnerserversettings)
 
-**Access path**: `runner.server`
+**TOML dotted key path**: `runner.server`
 
 ---
 ## ServerAPISettings
@@ -833,7 +833,7 @@ The API's host address (defaults to `127.0.0.1`).
 
 **Default**: `127.0.0.1`
 
-**Access path**: `server.api.host`
+**TOML dotted key path**: `server.api.host`
 
 **Supported environment variables**:
 `PREFECT_SERVER_API_HOST`
@@ -845,7 +845,7 @@ The API's port address (defaults to `4200`).
 
 **Default**: `4200`
 
-**Access path**: `server.api.port`
+**TOML dotted key path**: `server.api.port`
 
 **Supported environment variables**:
 `PREFECT_SERVER_API_PORT`
@@ -857,7 +857,7 @@ The default limit applied to queries that can return multiple objects, such as `
 
 **Default**: `200`
 
-**Access path**: `server.api.default_limit`
+**TOML dotted key path**: `server.api.default_limit`
 
 **Supported environment variables**:
 `PREFECT_SERVER_API_DEFAULT_LIMIT`, `PREFECT_API_DEFAULT_LIMIT`
@@ -878,7 +878,7 @@ The default limit applied to queries that can return multiple objects, such as `
 
 **Default**: `5`
 
-**Access path**: `server.api.keepalive_timeout`
+**TOML dotted key path**: `server.api.keepalive_timeout`
 
 **Supported environment variables**:
 `PREFECT_SERVER_API_KEEPALIVE_TIMEOUT`
@@ -904,7 +904,7 @@ The default limit applied to queries that can return multiple objects, such as `
 
 **Default**: `False`
 
-**Access path**: `server.api.csrf_protection_enabled`
+**TOML dotted key path**: `server.api.csrf_protection_enabled`
 
 **Supported environment variables**:
 `PREFECT_SERVER_API_CSRF_PROTECTION_ENABLED`, `PREFECT_SERVER_CSRF_PROTECTION_ENABLED`
@@ -923,7 +923,7 @@ The default limit applied to queries that can return multiple objects, such as `
 
 **Default**: `PT1H`
 
-**Access path**: `server.api.csrf_token_expiration`
+**TOML dotted key path**: `server.api.csrf_token_expiration`
 
 **Supported environment variables**:
 `PREFECT_SERVER_API_CSRF_TOKEN_EXPIRATION`, `PREFECT_SERVER_CSRF_TOKEN_EXPIRATION`
@@ -939,7 +939,7 @@ The default limit applied to queries that can return multiple objects, such as `
 
 **Default**: `*`
 
-**Access path**: `server.api.cors_allowed_origins`
+**TOML dotted key path**: `server.api.cors_allowed_origins`
 
 **Supported environment variables**:
 `PREFECT_SERVER_API_CORS_ALLOWED_ORIGINS`, `PREFECT_SERVER_CORS_ALLOWED_ORIGINS`
@@ -955,7 +955,7 @@ The default limit applied to queries that can return multiple objects, such as `
 
 **Default**: `*`
 
-**Access path**: `server.api.cors_allowed_methods`
+**TOML dotted key path**: `server.api.cors_allowed_methods`
 
 **Supported environment variables**:
 `PREFECT_SERVER_API_CORS_ALLOWED_METHODS`, `PREFECT_SERVER_CORS_ALLOWED_METHODS`
@@ -971,7 +971,7 @@ The default limit applied to queries that can return multiple objects, such as `
 
 **Default**: `*`
 
-**Access path**: `server.api.cors_allowed_headers`
+**TOML dotted key path**: `server.api.cors_allowed_headers`
 
 **Supported environment variables**:
 `PREFECT_SERVER_API_CORS_ALLOWED_HEADERS`, `PREFECT_SERVER_CORS_ALLOWED_HEADERS`
@@ -997,7 +997,7 @@ Settings for controlling server database behavior
 
 **Default**: `None`
 
-**Access path**: `server.database.connection_url`
+**TOML dotted key path**: `server.database.connection_url`
 
 **Supported environment variables**:
 `PREFECT_SERVER_DATABASE_CONNECTION_URL`, `PREFECT_API_DATABASE_CONNECTION_URL`
@@ -1009,7 +1009,7 @@ The database driver to use when connecting to the database. If not set, the driv
 
 **Default**: `None`
 
-**Access path**: `server.database.driver`
+**TOML dotted key path**: `server.database.driver`
 
 **Supported environment variables**:
 `PREFECT_SERVER_DATABASE_DRIVER`, `PREFECT_API_DATABASE_DRIVER`
@@ -1021,7 +1021,7 @@ The database server host.
 
 **Default**: `None`
 
-**Access path**: `server.database.host`
+**TOML dotted key path**: `server.database.host`
 
 **Supported environment variables**:
 `PREFECT_SERVER_DATABASE_HOST`, `PREFECT_API_DATABASE_HOST`
@@ -1033,7 +1033,7 @@ The database server port.
 
 **Default**: `None`
 
-**Access path**: `server.database.port`
+**TOML dotted key path**: `server.database.port`
 
 **Supported environment variables**:
 `PREFECT_SERVER_DATABASE_PORT`, `PREFECT_API_DATABASE_PORT`
@@ -1045,7 +1045,7 @@ The user to use when connecting to the database.
 
 **Default**: `None`
 
-**Access path**: `server.database.user`
+**TOML dotted key path**: `server.database.user`
 
 **Supported environment variables**:
 `PREFECT_SERVER_DATABASE_USER`, `PREFECT_API_DATABASE_USER`
@@ -1057,7 +1057,7 @@ The name of the Prefect database on the remote server, or the path to the databa
 
 **Default**: `None`
 
-**Access path**: `server.database.name`
+**TOML dotted key path**: `server.database.name`
 
 **Supported environment variables**:
 `PREFECT_SERVER_DATABASE_NAME`, `PREFECT_API_DATABASE_NAME`
@@ -1069,7 +1069,7 @@ The password to use when connecting to the database. Should be kept secret.
 
 **Default**: `None`
 
-**Access path**: `server.database.password`
+**TOML dotted key path**: `server.database.password`
 
 **Supported environment variables**:
 `PREFECT_SERVER_DATABASE_PASSWORD`, `PREFECT_API_DATABASE_PASSWORD`
@@ -1081,7 +1081,7 @@ If `True`, SQLAlchemy will log all SQL issued to the database. Defaults to `Fals
 
 **Default**: `False`
 
-**Access path**: `server.database.echo`
+**TOML dotted key path**: `server.database.echo`
 
 **Supported environment variables**:
 `PREFECT_SERVER_DATABASE_ECHO`, `PREFECT_API_DATABASE_ECHO`
@@ -1093,7 +1093,7 @@ If `True`, the database will be migrated on application startup.
 
 **Default**: `True`
 
-**Access path**: `server.database.migrate_on_start`
+**TOML dotted key path**: `server.database.migrate_on_start`
 
 **Supported environment variables**:
 `PREFECT_SERVER_DATABASE_MIGRATE_ON_START`, `PREFECT_API_DATABASE_MIGRATE_ON_START`
@@ -1105,7 +1105,7 @@ A statement timeout, in seconds, applied to all database interactions made by th
 
 **Default**: `10.0`
 
-**Access path**: `server.database.timeout`
+**TOML dotted key path**: `server.database.timeout`
 
 **Supported environment variables**:
 `PREFECT_SERVER_DATABASE_TIMEOUT`, `PREFECT_API_DATABASE_TIMEOUT`
@@ -1117,7 +1117,7 @@ A connection timeout, in seconds, applied to database connections. Defaults to `
 
 **Default**: `5`
 
-**Access path**: `server.database.connection_timeout`
+**TOML dotted key path**: `server.database.connection_timeout`
 
 **Supported environment variables**:
 `PREFECT_SERVER_DATABASE_CONNECTION_TIMEOUT`, `PREFECT_API_DATABASE_CONNECTION_TIMEOUT`
@@ -1129,7 +1129,7 @@ Controls connection pool size when using a PostgreSQL database with the Prefect 
 
 **Default**: `None`
 
-**Access path**: `server.database.sqlalchemy_pool_size`
+**TOML dotted key path**: `server.database.sqlalchemy_pool_size`
 
 **Supported environment variables**:
 `PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_SIZE`, `PREFECT_SQLALCHEMY_POOL_SIZE`
@@ -1141,7 +1141,7 @@ Controls maximum overflow of the connection pool when using a PostgreSQL databas
 
 **Default**: `None`
 
-**Access path**: `server.database.sqlalchemy_max_overflow`
+**TOML dotted key path**: `server.database.sqlalchemy_max_overflow`
 
 **Supported environment variables**:
 `PREFECT_SERVER_DATABASE_SQLALCHEMY_MAX_OVERFLOW`, `PREFECT_SQLALCHEMY_MAX_OVERFLOW`
@@ -1158,7 +1158,7 @@ The number of seconds to wait before retrying when a deployment flow run cannot 
 **Constraints**:
 - Minimum: 0.0
 
-**Access path**: `server.deployments.concurrency_slot_wait_seconds`
+**TOML dotted key path**: `server.deployments.concurrency_slot_wait_seconds`
 
 **Supported environment variables**:
 `PREFECT_SERVER_DEPLOYMENTS_CONCURRENCY_SLOT_WAIT_SECONDS`, `PREFECT_DEPLOYMENT_CONCURRENCY_SLOT_WAIT_SECONDS`
@@ -1175,7 +1175,7 @@ Settings for controlling ephemeral server behavior
 
 **Default**: `False`
 
-**Access path**: `server.ephemeral.enabled`
+**TOML dotted key path**: `server.ephemeral.enabled`
 
 **Supported environment variables**:
 `PREFECT_SERVER_EPHEMERAL_ENABLED`, `PREFECT_SERVER_ALLOW_EPHEMERAL_MODE`
@@ -1190,7 +1190,7 @@ Settings for controlling ephemeral server behavior
 
 **Default**: `20`
 
-**Access path**: `server.ephemeral.startup_timeout_seconds`
+**TOML dotted key path**: `server.ephemeral.startup_timeout_seconds`
 
 **Supported environment variables**:
 `PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS`
@@ -1205,7 +1205,7 @@ Whether or not to stream events out to the API via websockets.
 
 **Default**: `True`
 
-**Access path**: `server.events.stream_out_enabled`
+**TOML dotted key path**: `server.events.stream_out_enabled`
 
 **Supported environment variables**:
 `PREFECT_SERVER_EVENTS_STREAM_OUT_ENABLED`, `PREFECT_API_EVENTS_STREAM_OUT_ENABLED`
@@ -1217,7 +1217,7 @@ The number of seconds to cache related resources for in the API.
 
 **Default**: `PT5M`
 
-**Access path**: `server.events.related_resource_cache_ttl`
+**TOML dotted key path**: `server.events.related_resource_cache_ttl`
 
 **Supported environment variables**:
 `PREFECT_SERVER_EVENTS_RELATED_RESOURCE_CACHE_TTL`, `PREFECT_API_EVENTS_RELATED_RESOURCE_CACHE_TTL`
@@ -1229,7 +1229,7 @@ The maximum number of labels a resource may have.
 
 **Default**: `500`
 
-**Access path**: `server.events.maximum_labels_per_resource`
+**TOML dotted key path**: `server.events.maximum_labels_per_resource`
 
 **Supported environment variables**:
 `PREFECT_SERVER_EVENTS_MAXIMUM_LABELS_PER_RESOURCE`, `PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE`
@@ -1241,7 +1241,7 @@ The maximum number of related resources an Event may have.
 
 **Default**: `500`
 
-**Access path**: `server.events.maximum_related_resources`
+**TOML dotted key path**: `server.events.maximum_related_resources`
 
 **Supported environment variables**:
 `PREFECT_SERVER_EVENTS_MAXIMUM_RELATED_RESOURCES`, `PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES`
@@ -1253,7 +1253,7 @@ The maximum size of an Event when serialized to JSON
 
 **Default**: `1500000`
 
-**Access path**: `server.events.maximum_size_bytes`
+**TOML dotted key path**: `server.events.maximum_size_bytes`
 
 **Supported environment variables**:
 `PREFECT_SERVER_EVENTS_MAXIMUM_SIZE_BYTES`, `PREFECT_EVENTS_MAXIMUM_SIZE_BYTES`
@@ -1265,7 +1265,7 @@ The amount of time to retain expired automation buckets
 
 **Default**: `PT1M`
 
-**Access path**: `server.events.expired_bucket_buffer`
+**TOML dotted key path**: `server.events.expired_bucket_buffer`
 
 **Supported environment variables**:
 `PREFECT_SERVER_EVENTS_EXPIRED_BUCKET_BUFFER`, `PREFECT_EVENTS_EXPIRED_BUCKET_BUFFER`
@@ -1277,7 +1277,7 @@ How frequently proactive automations are evaluated
 
 **Default**: `PT5S`
 
-**Access path**: `server.events.proactive_granularity`
+**TOML dotted key path**: `server.events.proactive_granularity`
 
 **Supported environment variables**:
 `PREFECT_SERVER_EVENTS_PROACTIVE_GRANULARITY`, `PREFECT_EVENTS_PROACTIVE_GRANULARITY`
@@ -1289,7 +1289,7 @@ The amount of time to retain events in the database.
 
 **Default**: `P7D`
 
-**Access path**: `server.events.retention_period`
+**TOML dotted key path**: `server.events.retention_period`
 
 **Supported environment variables**:
 `PREFECT_SERVER_EVENTS_RETENTION_PERIOD`, `PREFECT_EVENTS_RETENTION_PERIOD`
@@ -1301,7 +1301,7 @@ The maximum range to look back for backfilling events for a websocket subscriber
 
 **Default**: `PT15M`
 
-**Access path**: `server.events.maximum_websocket_backfill`
+**TOML dotted key path**: `server.events.maximum_websocket_backfill`
 
 **Supported environment variables**:
 `PREFECT_SERVER_EVENTS_MAXIMUM_WEBSOCKET_BACKFILL`, `PREFECT_EVENTS_MAXIMUM_WEBSOCKET_BACKFILL`
@@ -1313,7 +1313,7 @@ The page size for the queries to backfill events for websocket subscribers.
 
 **Default**: `250`
 
-**Access path**: `server.events.websocket_backfill_page_size`
+**TOML dotted key path**: `server.events.websocket_backfill_page_size`
 
 **Supported environment variables**:
 `PREFECT_SERVER_EVENTS_WEBSOCKET_BACKFILL_PAGE_SIZE`, `PREFECT_EVENTS_WEBSOCKET_BACKFILL_PAGE_SIZE`
@@ -1325,7 +1325,7 @@ Which message broker implementation to use for the messaging system, should poin
 
 **Default**: `prefect.server.utilities.messaging.memory`
 
-**Access path**: `server.events.messaging_broker`
+**TOML dotted key path**: `server.events.messaging_broker`
 
 **Supported environment variables**:
 `PREFECT_SERVER_EVENTS_MESSAGING_BROKER`, `PREFECT_MESSAGING_BROKER`
@@ -1337,7 +1337,7 @@ Which cache implementation to use for the events system.  Should point to a modu
 
 **Default**: `prefect.server.utilities.messaging.memory`
 
-**Access path**: `server.events.messaging_cache`
+**TOML dotted key path**: `server.events.messaging_cache`
 
 **Supported environment variables**:
 `PREFECT_SERVER_EVENTS_MESSAGING_CACHE`, `PREFECT_MESSAGING_CACHE`
@@ -1352,7 +1352,7 @@ The maximum size of a flow run graph on the v2 API
 
 **Default**: `10000`
 
-**Access path**: `server.flow_run_graph.max_nodes`
+**TOML dotted key path**: `server.flow_run_graph.max_nodes`
 
 **Supported environment variables**:
 `PREFECT_SERVER_FLOW_RUN_GRAPH_MAX_NODES`, `PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES`
@@ -1364,7 +1364,7 @@ The maximum number of artifacts to show on a flow run graph on the v2 API
 
 **Default**: `10000`
 
-**Access path**: `server.flow_run_graph.max_artifacts`
+**TOML dotted key path**: `server.flow_run_graph.max_artifacts`
 
 **Supported environment variables**:
 `PREFECT_SERVER_FLOW_RUN_GRAPH_MAX_ARTIFACTS`, `PREFECT_API_MAX_FLOW_RUN_GRAPH_ARTIFACTS`
@@ -1379,7 +1379,7 @@ Whether or not to start the cancellation cleanup service in the server applicati
 
 **Default**: `True`
 
-**Access path**: `server.services.cancellation_cleanup.enabled`
+**TOML dotted key path**: `server.services.cancellation_cleanup.enabled`
 
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_CANCELLATION_CLEANUP_ENABLED`, `PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED`
@@ -1391,7 +1391,7 @@ The cancellation cleanup service will look for non-terminal tasks and subflows t
 
 **Default**: `20`
 
-**Access path**: `server.services.cancellation_cleanup.loop_seconds`
+**TOML dotted key path**: `server.services.cancellation_cleanup.loop_seconds`
 
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS`, `PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS`
@@ -1406,7 +1406,7 @@ Whether or not to start the event persister service in the server application.
 
 **Default**: `True`
 
-**Access path**: `server.services.event_persister.enabled`
+**TOML dotted key path**: `server.services.event_persister.enabled`
 
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_EVENT_PERSISTER_ENABLED`, `PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED`
@@ -1418,7 +1418,7 @@ The number of events the event persister will attempt to insert in one batch.
 
 **Default**: `20`
 
-**Access path**: `server.services.event_persister.batch_size`
+**TOML dotted key path**: `server.services.event_persister.batch_size`
 
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_EVENT_PERSISTER_BATCH_SIZE`, `PREFECT_API_SERVICES_EVENT_PERSISTER_BATCH_SIZE`
@@ -1430,7 +1430,7 @@ The maximum number of seconds between flushes of the event persister.
 
 **Default**: `5`
 
-**Access path**: `server.services.event_persister.flush_interval`
+**TOML dotted key path**: `server.services.event_persister.flush_interval`
 
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL`, `PREFECT_API_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL`
@@ -1445,7 +1445,7 @@ Whether or not to start the flow run notifications service in the server applica
 
 **Default**: `True`
 
-**Access path**: `server.services.flow_run_notifications.enabled`
+**TOML dotted key path**: `server.services.flow_run_notifications.enabled`
 
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED`, `PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED`
@@ -1460,7 +1460,7 @@ Whether or not to start the foreman service in the server application.
 
 **Default**: `True`
 
-**Access path**: `server.services.foreman.enabled`
+**TOML dotted key path**: `server.services.foreman.enabled`
 
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_FOREMAN_ENABLED`, `PREFECT_API_SERVICES_FOREMAN_ENABLED`
@@ -1472,7 +1472,7 @@ The foreman service will check for offline workers this often. Defaults to `15`.
 
 **Default**: `15`
 
-**Access path**: `server.services.foreman.loop_seconds`
+**TOML dotted key path**: `server.services.foreman.loop_seconds`
 
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_FOREMAN_LOOP_SECONDS`, `PREFECT_API_SERVICES_FOREMAN_LOOP_SECONDS`
@@ -1486,7 +1486,7 @@ The foreman service will check for offline workers this often. Defaults to `15`.
 
 **Default**: `3`
 
-**Access path**: `server.services.foreman.inactivity_heartbeat_multiple`
+**TOML dotted key path**: `server.services.foreman.inactivity_heartbeat_multiple`
 
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_FOREMAN_INACTIVITY_HEARTBEAT_MULTIPLE`, `PREFECT_API_SERVICES_FOREMAN_INACTIVITY_HEARTBEAT_MULTIPLE`
@@ -1501,7 +1501,7 @@ The foreman service will check for offline workers this often. Defaults to `15`.
 
 **Default**: `30`
 
-**Access path**: `server.services.foreman.fallback_heartbeat_interval_seconds`
+**TOML dotted key path**: `server.services.foreman.fallback_heartbeat_interval_seconds`
 
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_FOREMAN_FALLBACK_HEARTBEAT_INTERVAL_SECONDS`, `PREFECT_API_SERVICES_FOREMAN_FALLBACK_HEARTBEAT_INTERVAL_SECONDS`
@@ -1516,7 +1516,7 @@ The foreman service will check for offline workers this often. Defaults to `15`.
 
 **Default**: `60`
 
-**Access path**: `server.services.foreman.deployment_last_polled_timeout_seconds`
+**TOML dotted key path**: `server.services.foreman.deployment_last_polled_timeout_seconds`
 
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_FOREMAN_DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS`, `PREFECT_API_SERVICES_FOREMAN_DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS`
@@ -1531,7 +1531,7 @@ The foreman service will check for offline workers this often. Defaults to `15`.
 
 **Default**: `60`
 
-**Access path**: `server.services.foreman.work_queue_last_polled_timeout_seconds`
+**TOML dotted key path**: `server.services.foreman.work_queue_last_polled_timeout_seconds`
 
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_FOREMAN_WORK_QUEUE_LAST_POLLED_TIMEOUT_SECONDS`, `PREFECT_API_SERVICES_FOREMAN_WORK_QUEUE_LAST_POLLED_TIMEOUT_SECONDS`
@@ -1546,7 +1546,7 @@ Whether or not to start the late runs service in the server application.
 
 **Default**: `True`
 
-**Access path**: `server.services.late_runs.enabled`
+**TOML dotted key path**: `server.services.late_runs.enabled`
 
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_LATE_RUNS_ENABLED`, `PREFECT_API_SERVICES_LATE_RUNS_ENABLED`
@@ -1560,7 +1560,7 @@ Whether or not to start the late runs service in the server application.
 
 **Default**: `5`
 
-**Access path**: `server.services.late_runs.loop_seconds`
+**TOML dotted key path**: `server.services.late_runs.loop_seconds`
 
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_LATE_RUNS_LOOP_SECONDS`, `PREFECT_API_SERVICES_LATE_RUNS_LOOP_SECONDS`
@@ -1574,7 +1574,7 @@ Whether or not to start the late runs service in the server application.
 
 **Default**: `PT15S`
 
-**Access path**: `server.services.late_runs.after_seconds`
+**TOML dotted key path**: `server.services.late_runs.after_seconds`
 
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_LATE_RUNS_AFTER_SECONDS`, `PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS`
@@ -1593,7 +1593,7 @@ Settings for controlling the pause expiration service
 
 **Default**: `True`
 
-**Access path**: `server.services.pause_expirations.enabled`
+**TOML dotted key path**: `server.services.pause_expirations.enabled`
 
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_PAUSE_EXPIRATIONS_ENABLED`, `PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED`
@@ -1607,7 +1607,7 @@ Settings for controlling the pause expiration service
 
 **Default**: `5`
 
-**Access path**: `server.services.pause_expirations.loop_seconds`
+**TOML dotted key path**: `server.services.pause_expirations.loop_seconds`
 
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS`, `PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS`
@@ -1622,7 +1622,7 @@ Whether or not to start the scheduler service in the server application.
 
 **Default**: `True`
 
-**Access path**: `server.services.scheduler.enabled`
+**TOML dotted key path**: `server.services.scheduler.enabled`
 
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_SCHEDULER_ENABLED`, `PREFECT_API_SERVICES_SCHEDULER_ENABLED`
@@ -1639,7 +1639,7 @@ Whether or not to start the scheduler service in the server application.
 
 **Default**: `60`
 
-**Access path**: `server.services.scheduler.loop_seconds`
+**TOML dotted key path**: `server.services.scheduler.loop_seconds`
 
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_SCHEDULER_LOOP_SECONDS`, `PREFECT_API_SERVICES_SCHEDULER_LOOP_SECONDS`
@@ -1657,7 +1657,7 @@ Whether or not to start the scheduler service in the server application.
 
 **Default**: `100`
 
-**Access path**: `server.services.scheduler.deployment_batch_size`
+**TOML dotted key path**: `server.services.scheduler.deployment_batch_size`
 
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE`, `PREFECT_API_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE`
@@ -1674,7 +1674,7 @@ Whether or not to start the scheduler service in the server application.
 
 **Default**: `100`
 
-**Access path**: `server.services.scheduler.max_runs`
+**TOML dotted key path**: `server.services.scheduler.max_runs`
 
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_SCHEDULER_MAX_RUNS`, `PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS`
@@ -1691,7 +1691,7 @@ Whether or not to start the scheduler service in the server application.
 
 **Default**: `3`
 
-**Access path**: `server.services.scheduler.min_runs`
+**TOML dotted key path**: `server.services.scheduler.min_runs`
 
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_SCHEDULER_MIN_RUNS`, `PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS`
@@ -1709,7 +1709,7 @@ Whether or not to start the scheduler service in the server application.
 
 **Default**: `P100D`
 
-**Access path**: `server.services.scheduler.max_scheduled_time`
+**TOML dotted key path**: `server.services.scheduler.max_scheduled_time`
 
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME`, `PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME`
@@ -1726,7 +1726,7 @@ Whether or not to start the scheduler service in the server application.
 
 **Default**: `PT1H`
 
-**Access path**: `server.services.scheduler.min_scheduled_time`
+**TOML dotted key path**: `server.services.scheduler.min_scheduled_time`
 
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME`, `PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME`
@@ -1741,7 +1741,7 @@ Whether or not to start the scheduler service in the server application.
 
 **Default**: `500`
 
-**Access path**: `server.services.scheduler.insert_batch_size`
+**TOML dotted key path**: `server.services.scheduler.insert_batch_size`
 
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_SCHEDULER_INSERT_BATCH_SIZE`, `PREFECT_API_SERVICES_SCHEDULER_INSERT_BATCH_SIZE`
@@ -1753,55 +1753,55 @@ Settings for controlling server services
 
 **Type**: [ServerServicesCancellationCleanupSettings](#serverservicescancellationcleanupsettings)
 
-**Access path**: `server.services.cancellation_cleanup`
+**TOML dotted key path**: `server.services.cancellation_cleanup`
 
 ### `event_persister`
 
 **Type**: [ServerServicesEventPersisterSettings](#serverserviceseventpersistersettings)
 
-**Access path**: `server.services.event_persister`
+**TOML dotted key path**: `server.services.event_persister`
 
 ### `flow_run_notifications`
 
 **Type**: [ServerServicesFlowRunNotificationsSettings](#serverservicesflowrunnotificationssettings)
 
-**Access path**: `server.services.flow_run_notifications`
+**TOML dotted key path**: `server.services.flow_run_notifications`
 
 ### `foreman`
 
 **Type**: [ServerServicesForemanSettings](#serverservicesforemansettings)
 
-**Access path**: `server.services.foreman`
+**TOML dotted key path**: `server.services.foreman`
 
 ### `late_runs`
 
 **Type**: [ServerServicesLateRunsSettings](#serverserviceslaterunssettings)
 
-**Access path**: `server.services.late_runs`
+**TOML dotted key path**: `server.services.late_runs`
 
 ### `scheduler`
 
 **Type**: [ServerServicesSchedulerSettings](#serverservicesschedulersettings)
 
-**Access path**: `server.services.scheduler`
+**TOML dotted key path**: `server.services.scheduler`
 
 ### `pause_expirations`
 
 **Type**: [ServerServicesPauseExpirationsSettings](#serverservicespauseexpirationssettings)
 
-**Access path**: `server.services.pause_expirations`
+**TOML dotted key path**: `server.services.pause_expirations`
 
 ### `task_run_recorder`
 
 **Type**: [ServerServicesTaskRunRecorderSettings](#serverservicestaskrunrecordersettings)
 
-**Access path**: `server.services.task_run_recorder`
+**TOML dotted key path**: `server.services.task_run_recorder`
 
 ### `triggers`
 
 **Type**: [ServerServicesTriggersSettings](#serverservicestriggerssettings)
 
-**Access path**: `server.services.triggers`
+**TOML dotted key path**: `server.services.triggers`
 
 ---
 ## ServerServicesTaskRunRecorderSettings
@@ -1813,7 +1813,7 @@ Whether or not to start the task run recorder service in the server application.
 
 **Default**: `True`
 
-**Access path**: `server.services.task_run_recorder.enabled`
+**TOML dotted key path**: `server.services.task_run_recorder.enabled`
 
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_ENABLED`, `PREFECT_API_SERVICES_TASK_RUN_RECORDER_ENABLED`
@@ -1828,7 +1828,7 @@ Whether or not to start the triggers service in the server application.
 
 **Default**: `True`
 
-**Access path**: `server.services.triggers.enabled`
+**TOML dotted key path**: `server.services.triggers.enabled`
 
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_TRIGGERS_ENABLED`, `PREFECT_API_SERVICES_TRIGGERS_ENABLED`
@@ -1846,7 +1846,7 @@ The default logging level for the Prefect API server.
 **Constraints**:
 - Allowed values: 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'
 
-**Access path**: `server.logging_level`
+**TOML dotted key path**: `server.logging_level`
 
 **Supported environment variables**:
 `PREFECT_SERVER_LOGGING_LEVEL`, `PREFECT_LOGGING_SERVER_LEVEL`
@@ -1861,7 +1861,7 @@ The default logging level for the Prefect API server.
 
 **Default**: `True`
 
-**Access path**: `server.analytics_enabled`
+**TOML dotted key path**: `server.analytics_enabled`
 
 **Supported environment variables**:
 `PREFECT_SERVER_ANALYTICS_ENABLED`
@@ -1873,7 +1873,7 @@ Whether or not to enable Prometheus metrics in the API.
 
 **Default**: `False`
 
-**Access path**: `server.metrics_enabled`
+**TOML dotted key path**: `server.metrics_enabled`
 
 **Supported environment variables**:
 `PREFECT_SERVER_METRICS_ENABLED`, `PREFECT_API_ENABLE_METRICS`
@@ -1885,7 +1885,7 @@ If `True`, log retryable errors in the API and it's services.
 
 **Default**: `False`
 
-**Access path**: `server.log_retryable_errors`
+**TOML dotted key path**: `server.log_retryable_errors`
 
 **Supported environment variables**:
 `PREFECT_SERVER_LOG_RETRYABLE_ERRORS`, `PREFECT_API_LOG_RETRYABLE_ERRORS`
@@ -1897,7 +1897,7 @@ If set, any block types that have been imported will be registered with the back
 
 **Default**: `True`
 
-**Access path**: `server.register_blocks_on_start`
+**TOML dotted key path**: `server.register_blocks_on_start`
 
 **Supported environment variables**:
 `PREFECT_SERVER_REGISTER_BLOCKS_ON_START`, `PREFECT_API_BLOCKS_REGISTER_ON_START`
@@ -1909,7 +1909,7 @@ Controls whether or not block auto-registration on start
 
 **Default**: `True`
 
-**Access path**: `server.memoize_block_auto_registration`
+**TOML dotted key path**: `server.memoize_block_auto_registration`
 
 **Supported environment variables**:
 `PREFECT_SERVER_MEMOIZE_BLOCK_AUTO_REGISTRATION`, `PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION`
@@ -1921,7 +1921,7 @@ The path to the memo store file.
 
 **Default**: `None`
 
-**Access path**: `server.memo_store_path`
+**TOML dotted key path**: `server.memo_store_path`
 
 **Supported environment variables**:
 `PREFECT_SERVER_MEMO_STORE_PATH`, `PREFECT_MEMO_STORE_PATH`
@@ -1933,7 +1933,7 @@ The maximum number of scheduled runs to create for a deployment.
 
 **Default**: `50`
 
-**Access path**: `server.deployment_schedule_max_scheduled_runs`
+**TOML dotted key path**: `server.deployment_schedule_max_scheduled_runs`
 
 **Supported environment variables**:
 `PREFECT_SERVER_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS`, `PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS`
@@ -1942,61 +1942,61 @@ The maximum number of scheduled runs to create for a deployment.
 
 **Type**: [ServerAPISettings](#serverapisettings)
 
-**Access path**: `server.api`
+**TOML dotted key path**: `server.api`
 
 ### `database`
 
 **Type**: [ServerDatabaseSettings](#serverdatabasesettings)
 
-**Access path**: `server.database`
+**TOML dotted key path**: `server.database`
 
 ### `deployments`
 Settings for controlling server deployments behavior
 
 **Type**: [ServerDeploymentsSettings](#serverdeploymentssettings)
 
-**Access path**: `server.deployments`
+**TOML dotted key path**: `server.deployments`
 
 ### `ephemeral`
 
 **Type**: [ServerEphemeralSettings](#serverephemeralsettings)
 
-**Access path**: `server.ephemeral`
+**TOML dotted key path**: `server.ephemeral`
 
 ### `events`
 Settings for controlling server events behavior
 
 **Type**: [ServerEventsSettings](#servereventssettings)
 
-**Access path**: `server.events`
+**TOML dotted key path**: `server.events`
 
 ### `flow_run_graph`
 Settings for controlling flow run graph behavior
 
 **Type**: [ServerFlowRunGraphSettings](#serverflowrungraphsettings)
 
-**Access path**: `server.flow_run_graph`
+**TOML dotted key path**: `server.flow_run_graph`
 
 ### `services`
 Settings for controlling server services behavior
 
 **Type**: [ServerServicesSettings](#serverservicessettings)
 
-**Access path**: `server.services`
+**TOML dotted key path**: `server.services`
 
 ### `tasks`
 Settings for controlling server tasks behavior
 
 **Type**: [ServerTasksSettings](#servertaskssettings)
 
-**Access path**: `server.tasks`
+**TOML dotted key path**: `server.tasks`
 
 ### `ui`
 Settings for controlling server UI behavior
 
 **Type**: [ServerUISettings](#serveruisettings)
 
-**Access path**: `server.ui`
+**TOML dotted key path**: `server.ui`
 
 ---
 ## ServerTasksSchedulingSettings
@@ -2008,7 +2008,7 @@ The maximum number of scheduled tasks to queue for submission.
 
 **Default**: `1000`
 
-**Access path**: `server.tasks.scheduling.max_scheduled_queue_size`
+**TOML dotted key path**: `server.tasks.scheduling.max_scheduled_queue_size`
 
 **Supported environment variables**:
 `PREFECT_SERVER_TASKS_SCHEDULING_MAX_SCHEDULED_QUEUE_SIZE`, `PREFECT_TASK_SCHEDULING_MAX_SCHEDULED_QUEUE_SIZE`
@@ -2020,7 +2020,7 @@ The maximum number of retries to queue for submission.
 
 **Default**: `100`
 
-**Access path**: `server.tasks.scheduling.max_retry_queue_size`
+**TOML dotted key path**: `server.tasks.scheduling.max_retry_queue_size`
 
 **Supported environment variables**:
 `PREFECT_SERVER_TASKS_SCHEDULING_MAX_RETRY_QUEUE_SIZE`, `PREFECT_TASK_SCHEDULING_MAX_RETRY_QUEUE_SIZE`
@@ -2032,7 +2032,7 @@ How long before a PENDING task are made available to another task worker.
 
 **Default**: `PT0S`
 
-**Access path**: `server.tasks.scheduling.pending_task_timeout`
+**TOML dotted key path**: `server.tasks.scheduling.pending_task_timeout`
 
 **Supported environment variables**:
 `PREFECT_SERVER_TASKS_SCHEDULING_PENDING_TASK_TIMEOUT`, `PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT`
@@ -2050,7 +2050,7 @@ The number of seconds to wait before retrying when a task run cannot secure a co
 **Constraints**:
 - Minimum: 0.0
 
-**Access path**: `server.tasks.tag_concurrency_slot_wait_seconds`
+**TOML dotted key path**: `server.tasks.tag_concurrency_slot_wait_seconds`
 
 ### `max_cache_key_length`
 The maximum number of characters allowed for a task run cache key.
@@ -2059,13 +2059,13 @@ The maximum number of characters allowed for a task run cache key.
 
 **Default**: `2000`
 
-**Access path**: `server.tasks.max_cache_key_length`
+**TOML dotted key path**: `server.tasks.max_cache_key_length`
 
 ### `scheduling`
 
 **Type**: [ServerTasksSchedulingSettings](#servertasksschedulingsettings)
 
-**Access path**: `server.tasks.scheduling`
+**TOML dotted key path**: `server.tasks.scheduling`
 
 ---
 ## ServerUISettings
@@ -2076,7 +2076,7 @@ Whether or not to serve the Prefect UI.
 
 **Default**: `True`
 
-**Access path**: `server.ui.enabled`
+**TOML dotted key path**: `server.ui.enabled`
 
 **Supported environment variables**:
 `PREFECT_SERVER_UI_ENABLED`, `PREFECT_UI_ENABLED`
@@ -2088,7 +2088,7 @@ The connection url for communication from the UI to the API. Defaults to `PREFEC
 
 **Default**: `None`
 
-**Access path**: `server.ui.api_url`
+**TOML dotted key path**: `server.ui.api_url`
 
 **Supported environment variables**:
 `PREFECT_SERVER_UI_API_URL`, `PREFECT_UI_API_URL`
@@ -2100,7 +2100,7 @@ The base URL path to serve the Prefect UI from.
 
 **Default**: `/`
 
-**Access path**: `server.ui.serve_base`
+**TOML dotted key path**: `server.ui.serve_base`
 
 **Supported environment variables**:
 `PREFECT_SERVER_UI_SERVE_BASE`, `PREFECT_UI_SERVE_BASE`
@@ -2112,7 +2112,7 @@ The directory to serve static files from. This should be used when running into 
 
 **Default**: `None`
 
-**Access path**: `server.ui.static_directory`
+**TOML dotted key path**: `server.ui.static_directory`
 
 **Supported environment variables**:
 `PREFECT_SERVER_UI_STATIC_DIRECTORY`, `PREFECT_UI_STATIC_DIRECTORY`
@@ -2126,7 +2126,7 @@ The maximum number of workers for ThreadPoolTaskRunner.
 
 **Default**: `None`
 
-**Access path**: `tasks.runner.thread_pool_max_workers`
+**TOML dotted key path**: `tasks.runner.thread_pool_max_workers`
 
 **Supported environment variables**:
 `PREFECT_TASKS_RUNNER_THREAD_POOL_MAX_WORKERS`, `PREFECT_TASK_RUNNER_THREAD_POOL_MAX_WORKERS`
@@ -2140,7 +2140,7 @@ The `block-type/block-document` slug of a block to use as the default storage fo
 
 **Default**: `None`
 
-**Access path**: `tasks.scheduling.default_storage_block`
+**TOML dotted key path**: `tasks.scheduling.default_storage_block`
 
 **Supported environment variables**:
 `PREFECT_TASKS_SCHEDULING_DEFAULT_STORAGE_BLOCK`, `PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK`
@@ -2152,7 +2152,7 @@ Whether or not to delete failed task submissions from the database.
 
 **Default**: `True`
 
-**Access path**: `tasks.scheduling.delete_failed_submissions`
+**TOML dotted key path**: `tasks.scheduling.delete_failed_submissions`
 
 **Supported environment variables**:
 `PREFECT_TASKS_SCHEDULING_DELETE_FAILED_SUBMISSIONS`, `PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS`
@@ -2166,7 +2166,7 @@ If `True`, enables a refresh of cached results: re-executing the task will refre
 
 **Default**: `False`
 
-**Access path**: `tasks.refresh_cache`
+**TOML dotted key path**: `tasks.refresh_cache`
 
 **Supported environment variables**:
 `PREFECT_TASKS_REFRESH_CACHE`
@@ -2181,7 +2181,7 @@ This value sets the default number of retries for all tasks.
 **Constraints**:
 - Minimum: 0
 
-**Access path**: `tasks.default_retries`
+**TOML dotted key path**: `tasks.default_retries`
 
 **Supported environment variables**:
 `PREFECT_TASKS_DEFAULT_RETRIES`, `PREFECT_TASK_DEFAULT_RETRIES`
@@ -2193,7 +2193,7 @@ This value sets the default retry delay seconds for all tasks.
 
 **Default**: `0`
 
-**Access path**: `tasks.default_retry_delay_seconds`
+**TOML dotted key path**: `tasks.default_retry_delay_seconds`
 
 **Supported environment variables**:
 `PREFECT_TASKS_DEFAULT_RETRY_DELAY_SECONDS`, `PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS`
@@ -2203,14 +2203,14 @@ Settings for controlling task runner behavior
 
 **Type**: [TasksRunnerSettings](#tasksrunnersettings)
 
-**Access path**: `tasks.runner`
+**TOML dotted key path**: `tasks.runner`
 
 ### `scheduling`
 Settings for controlling client-side task scheduling behavior
 
 **Type**: [TasksSchedulingSettings](#tasksschedulingsettings)
 
-**Access path**: `tasks.scheduling`
+**TOML dotted key path**: `tasks.scheduling`
 
 ---
 ## TestingSettings
@@ -2221,7 +2221,7 @@ If `True`, places the API in test mode. This may modify behavior to facilitate t
 
 **Default**: `False`
 
-**Access path**: `testing.test_mode`
+**TOML dotted key path**: `testing.test_mode`
 
 **Supported environment variables**:
 `PREFECT_TESTING_TEST_MODE`, `PREFECT_TEST_MODE`
@@ -2233,7 +2233,7 @@ This setting only exists to facilitate unit testing. If `True`, code is executin
 
 **Default**: `False`
 
-**Access path**: `testing.unit_test_mode`
+**TOML dotted key path**: `testing.unit_test_mode`
 
 **Supported environment variables**:
 `PREFECT_TESTING_UNIT_TEST_MODE`, `PREFECT_UNIT_TEST_MODE`
@@ -2245,7 +2245,7 @@ If `True` turns on debug mode for the unit testing event loop.
 
 **Default**: `True`
 
-**Access path**: `testing.unit_test_loop_debug`
+**TOML dotted key path**: `testing.unit_test_loop_debug`
 
 **Supported environment variables**:
 `PREFECT_TESTING_UNIT_TEST_LOOP_DEBUG`, `PREFECT_UNIT_TEST_LOOP_DEBUG`
@@ -2257,7 +2257,7 @@ This setting only exists to facilitate unit testing. If in test mode, this setti
 
 **Default**: `FOO`
 
-**Access path**: `testing.test_setting`
+**TOML dotted key path**: `testing.test_setting`
 
 **Supported environment variables**:
 `PREFECT_TESTING_TEST_SETTING`, `PREFECT_TEST_SETTING`
@@ -2271,7 +2271,7 @@ Number of seconds a worker should wait between sending a heartbeat.
 
 **Default**: `30`
 
-**Access path**: `worker.heartbeat_seconds`
+**TOML dotted key path**: `worker.heartbeat_seconds`
 
 **Supported environment variables**:
 `PREFECT_WORKER_HEARTBEAT_SECONDS`
@@ -2283,7 +2283,7 @@ Number of seconds a worker should wait between queries for scheduled work.
 
 **Default**: `10`
 
-**Access path**: `worker.query_seconds`
+**TOML dotted key path**: `worker.query_seconds`
 
 **Supported environment variables**:
 `PREFECT_WORKER_QUERY_SECONDS`
@@ -2295,7 +2295,7 @@ The number of seconds into the future a worker should query for scheduled work.
 
 **Default**: `10`
 
-**Access path**: `worker.prefetch_seconds`
+**TOML dotted key path**: `worker.prefetch_seconds`
 
 **Supported environment variables**:
 `PREFECT_WORKER_PREFETCH_SECONDS`
@@ -2305,7 +2305,7 @@ Settings for a worker's webserver
 
 **Type**: [WorkerWebserverSettings](#workerwebserversettings)
 
-**Access path**: `worker.webserver`
+**TOML dotted key path**: `worker.webserver`
 
 ---
 ## WorkerWebserverSettings
@@ -2316,7 +2316,7 @@ The host address the worker's webserver should bind to.
 
 **Default**: `0.0.0.0`
 
-**Access path**: `worker.webserver.host`
+**TOML dotted key path**: `worker.webserver.host`
 
 **Supported environment variables**:
 `PREFECT_WORKER_WEBSERVER_HOST`
@@ -2328,7 +2328,7 @@ The port the worker's webserver should bind to.
 
 **Default**: `8080`
 
-**Access path**: `worker.webserver.port`
+**TOML dotted key path**: `worker.webserver.port`
 
 **Supported environment variables**:
 `PREFECT_WORKER_WEBSERVER_PORT`
