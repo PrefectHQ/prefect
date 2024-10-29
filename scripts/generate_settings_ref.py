@@ -4,6 +4,29 @@ from prefect import __development_base_path__
 from prefect.settings import Settings
 
 
+def build_ref_paths(schema: Dict[Any, Any]) -> Dict[str, str]:
+    """Build a mapping of reference paths for all nested models."""
+    paths = {}
+    to_process = [("", "", schema)]
+
+    defs = schema.get("$defs", {})
+
+    while to_process:
+        current_path, current_name, current_schema = to_process.pop(0)
+
+        if "properties" in current_schema:
+            for prop_name, prop_info in current_schema["properties"].items():
+                new_path = f"{current_path}.{prop_name}" if current_path else prop_name
+
+                if "$ref" in prop_info:
+                    ref_name = prop_info["$ref"].split("/")[-1]
+                    paths[ref_name] = new_path
+                    if ref_name in defs:
+                        to_process.append((new_path, ref_name, defs[ref_name]))
+
+    return paths
+
+
 def process_property_constraints(prop_info: Dict[Any, Any]) -> list:
     """Extract constraints from a property's schema information."""
     constraints = []
@@ -20,39 +43,43 @@ def process_property_constraints(prop_info: Dict[Any, Any]) -> list:
                     f"{constraint.capitalize()}: {prop_info[constraint]}"
                 )
 
-    # Handle complex type constraints
-    if "anyOf" in prop_info:
-        types = []
-        for type_info in prop_info["anyOf"]:
-            if "type" in type_info:
-                types.append(type_info["type"])
-            if "format" in type_info:
-                types.append(f"format: {type_info['format']}")
-        if types:
-            constraints.append(f"Accepts: {' or '.join(types)}")
-
     return constraints
 
 
 def generate_property_docs(
-    prop_name: str, prop_info: Dict[Any, Any], level: int = 3
+    prop_name: str, prop_info: Dict[Any, Any], level: int = 3, parent_path: str = ""
 ) -> str:
     """Generate documentation for a single property."""
     docs = []
     header = "#" * level
-    docs.append(f"{header} {prop_name}")
+    docs.append(f"{header} `{prop_name}`")
+
+    # Description
+    if "description" in prop_info:
+        docs.append(f"{prop_info['description']}")
 
     # Type information
     if "$ref" in prop_info:
         ref_name = prop_info["$ref"].split("/")[-1]
-        docs.append(f"**Type**: [{ref_name}](#{ref_name.lower()})")
+        docs.append(f"\n**Type**: [{ref_name}](#{ref_name.lower()})")
+    elif "type" in prop_info:
+        prop_type = prop_info["type"]
+        docs.append(f"\n**Type**: `{prop_type}`")
+    elif "anyOf" in prop_info:
+        # Handle complex type constraints
+        types = []
+        for type_info in prop_info["anyOf"]:
+            if "type" in type_info:
+                if type_info["type"] == "null":
+                    types.append("None")
+                else:
+                    types.append(type_info["type"])
+        if types:
+            docs.append(f"\n**Type**: `{' | '.join(types)}`")
+        else:
+            docs.append("\n**Type**: `any`")
     else:
-        prop_type = prop_info.get("type", "any")
-        docs.append(f"**Type**: `{prop_type}`")
-
-    # Description
-    if "description" in prop_info:
-        docs.append(f"\n{prop_info['description']}")
+        docs.append("\n**Type**: `any`")
 
     # Default value
     if "default" in prop_info:
@@ -65,42 +92,55 @@ def generate_property_docs(
         for constraint in constraints:
             docs.append(f"- {constraint}")
 
-    if "supported_environment_variables" in prop_info:
+    # Access path
+    access_path = f"{parent_path}.{prop_name}" if parent_path else prop_name
+    docs.append(f"\n**Access path**: `{access_path}`")
+
+    if supported_env_vars := prop_info.get("supported_environment_variables"):
         docs.append("\n**Supported environment variables**:")
-        for env_var in prop_info["supported_environment_variables"]:
-            docs.append(f"- `{env_var}`")
+        docs.append(", ".join(f"`{env_var}`" for env_var in supported_env_vars))
 
     return "\n".join(docs) + "\n"
 
 
-def generate_model_docs(schema: Dict[Any, Any], level: int = 1) -> str:
+def generate_model_docs(
+    schema: Dict[Any, Any], level: int = 1, parent_path: str = ""
+) -> str:
     """Generate documentation for a model and its properties."""
     docs = []
     header = "#" * level
 
     # Model title and description
     title = schema.get("title", "Settings")
-    docs.append(f"{header} {title}\n")
+    docs.append(f"{header} {title}")
 
     if "description" in schema:
-        docs.append(f"{schema['description']}\n")
+        docs.append(f"{schema['description']}")
 
     # Process all properties
     if "properties" in schema:
-        docs.append(f"{header}{'#'} Properties\n")
         for prop_name, prop_info in schema["properties"].items():
-            docs.append(generate_property_docs(prop_name, prop_info, level + 2))
+            docs.append(
+                generate_property_docs(
+                    prop_name, prop_info, level=level + 1, parent_path=parent_path
+                )
+            )
 
     return "\n".join(docs)
 
 
-def process_definitions(defs: Dict[Any, Any]) -> str:
+def process_definitions(defs: Dict[Any, Any], schema: Dict[Any, Any]) -> str:
     """Process all model definitions and generate their documentation."""
     docs = []
 
+    # Build complete reference paths
+    ref_paths = build_ref_paths(schema)
+
+    docs.append("---")
     for model_name, model_schema in defs.items():
-        docs.append(generate_model_docs(model_schema, level=2))
-        docs.append("\n---\n")
+        parent_path = ref_paths.get(model_name, "")
+        docs.append(generate_model_docs(model_schema, level=2, parent_path=parent_path))
+        docs.append("---")
 
     return "\n".join(docs)
 
@@ -113,18 +153,18 @@ def main():
         "title: Settings reference",
         "description: Reference for all available settings for Prefect.",
         "---",
+        "{/* This page is generated by `scripts/generate_settings_ref.py`. Update the generation script to update this page. */}",
         "## Root Settings",
-        "### Properties",
     ]
 
     # Generate documentation for top-level properties
     if "properties" in schema:
         for prop_name, prop_info in schema["properties"].items():
-            docs_content.append(generate_property_docs(prop_name, prop_info, level=4))
+            docs_content.append(generate_property_docs(prop_name, prop_info, level=3))
 
     # Generate documentation for nested models
     if "$defs" in schema:
-        docs_content.append(process_definitions(schema["$defs"]))
+        docs_content.append(process_definitions(schema["$defs"], schema))
 
     with open(
         __development_base_path__ / "docs" / "3.0" / "develop" / "settings-ref.mdx",

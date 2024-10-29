@@ -156,7 +156,7 @@ class PrefectSettingsConfigDict(SettingsConfigDict, total=False):
     """
 
 
-def add_environment_variables(
+def _add_environment_variables(
     schema: Dict[str, Any], model: Type[PrefectBaseSettings]
 ) -> None:
     for property in schema["properties"]:
@@ -180,5 +180,5 @@ COMMON_CONFIG_DICT = {
     "env_file": ".env",
     "extra": "ignore",
     "toml_file": "prefect.toml",
-    "json_schema_extra": add_environment_variables,
+    "json_schema_extra": _add_environment_variables,
 }
