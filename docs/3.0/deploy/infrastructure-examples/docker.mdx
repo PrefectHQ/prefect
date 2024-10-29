@@ -3,8 +3,23 @@ title: Run flows in Docker containers
 description: Learn how to deploy a flow to a Docker work pool with workers
 ---
 
-In this example, you will create a work pool and worker to deploy your flow, and then execute it with the Prefect API.
+In this example, you will set up:
+
+- a Docker [**work pool**](/3.0/deploy/infrastructure-concepts/work-pools/): stores the infrastructure configuration for your deployment
+- a Docker [**worker**](/3.0/deploy/infrastructure-concepts/workers/): process that polls the Prefect API for flow runs to execute as Docker containers
+- a [**deployment**](/3.0/deploy/index/): a flow that should run according to the configuration on your Docker work pool
+
+Then you can execute your deployment via the Prefect API (through the SDK, CLI, UI, etc).
+
 You must have [Docker](https://docs.docker.com/engine/install/) installed and running on your machine.
+
+<Note>
+**Executing flows in a long-lived container**
+
+This guide shows how to run a flow in an ephemeral container that is removed after the flow run completes.
+To instead learn how to run flows in a static, long-lived container, see [this](/3.0/deploy/static-infrastructure-examples/docker/) guide.
+
+</Note>
 
 ### Create a work pool
 
@@ -17,7 +32,7 @@ To set up a **Docker** type work pool with the default values, run:
 prefect work-pool create --type docker my-docker-pool
 ```
 
-Or create the work pool in the UI.
+... or create the work pool in the UI.
 
 To confirm the work pool creation was successful, run:
 
@@ -50,6 +65,16 @@ It's now polling the Prefect API to check for any scheduled flow runs it should 
 You'll see your new worker listed in the UI under the **Workers** tab of the Work Pools page with a recent last polled date.
 The work pool should have a `Ready` status indicator.
 
+<Tip>
+**Pro Tip:**
+
+If `my-docker-pool` does not already exist, the below command will create it for you automatically with the default settings for that work pool type, in this case `docker`.
+
+```bash
+prefect worker start --pool my-docker-pool --type docker
+```
+</Tip>
+
 Keep this terminal session active for the worker to continue to pick up jobs.
 Since you are running this worker locally, the worker will if you close the terminal.
 In a production setting this worker should run as a [daemonized or managed process](/3.0/resources/daemonize-processes/).
@@ -67,7 +92,7 @@ Next, you'll create a deployment from your flow code.
 
 Create a deployment from Python code by calling the `.deploy` method on a flow:
 
-```python buy.py
+```python deploy_buy.py
 from prefect import flow
 
 @flow(log_prints=True)
@@ -85,7 +110,7 @@ if __name__ == "__main__":
 Now, run the script to create a deployment (in future examples this step is omitted for brevity):
 
 ```bash
-python buy.py
+python deploy_buy.py
 ```
 
 You should see messages in your terminal that Docker is building your image.
@@ -129,7 +154,7 @@ if __name__ == "__main__":
     buy.deploy(
         name="my-code-baked-into-an-image-deployment",
         work_pool_name="my-docker-pool",
-        image="my_registry/no-build-image:1.0",
+        image="my_registry/already-built-image:1.0",
         build=False
     )
 ```
