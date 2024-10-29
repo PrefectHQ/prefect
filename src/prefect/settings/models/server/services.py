@@ -2,7 +2,11 @@ from datetime import timedelta
 
 from pydantic import AliasChoices, AliasPath, Field
 
-from prefect.settings.base import PrefectBaseSettings, PrefectSettingsConfigDict
+from prefect.settings.base import (
+    COMMON_CONFIG_DICT,
+    PrefectBaseSettings,
+    PrefectSettingsConfigDict,
+)
 
 
 class ServerServicesCancellationCleanupSettings(PrefectBaseSettings):
@@ -11,10 +15,8 @@ class ServerServicesCancellationCleanupSettings(PrefectBaseSettings):
     """
 
     model_config = PrefectSettingsConfigDict(
+        **COMMON_CONFIG_DICT,
         env_prefix="PREFECT_SERVER_SERVICES_CANCELLATION_CLEANUP_",
-        env_file=".env",
-        extra="ignore",
-        toml_file="prefect.toml",
         prefect_toml_table_header=("server", "services", "cancellation_cleanup"),
     )
 
@@ -45,10 +47,8 @@ class ServerServicesEventPersisterSettings(PrefectBaseSettings):
     """
 
     model_config = PrefectSettingsConfigDict(
+        **COMMON_CONFIG_DICT,
         env_prefix="PREFECT_SERVER_SERVICES_EVENT_PERSISTER_",
-        env_file=".env",
-        extra="ignore",
-        toml_file="prefect.toml",
         prefect_toml_table_header=("server", "services", "event_persister"),
     )
 
@@ -91,10 +91,8 @@ class ServerServicesFlowRunNotificationsSettings(PrefectBaseSettings):
     """
 
     model_config = PrefectSettingsConfigDict(
+        **COMMON_CONFIG_DICT,
         env_prefix="PREFECT_SERVER_SERVICES_FLOW_RUN_NOTIFICATIONS_",
-        env_file=".env",
-        extra="ignore",
-        toml_file="prefect.toml",
         prefect_toml_table_header=("server", "services", "flow_run_notifications"),
     )
 
@@ -115,10 +113,8 @@ class ServerServicesForemanSettings(PrefectBaseSettings):
     """
 
     model_config = PrefectSettingsConfigDict(
+        **COMMON_CONFIG_DICT,
         env_prefix="PREFECT_SERVER_SERVICES_FOREMAN_",
-        env_file=".env",
-        extra="ignore",
-        toml_file="prefect.toml",
         prefect_toml_table_header=("server", "services", "foreman"),
     )
 
@@ -200,10 +196,8 @@ class ServerServicesLateRunsSettings(PrefectBaseSettings):
     """
 
     model_config = PrefectSettingsConfigDict(
+        **COMMON_CONFIG_DICT,
         env_prefix="PREFECT_SERVER_SERVICES_LATE_RUNS_",
-        env_file=".env",
-        extra="ignore",
-        toml_file="prefect.toml",
         prefect_toml_table_header=("server", "services", "late_runs"),
     )
 
@@ -248,10 +242,8 @@ class ServerServicesSchedulerSettings(PrefectBaseSettings):
     """
 
     model_config = PrefectSettingsConfigDict(
+        **COMMON_CONFIG_DICT,
         env_prefix="PREFECT_SERVER_SERVICES_SCHEDULER_",
-        env_file=".env",
-        extra="ignore",
-        toml_file="prefect.toml",
         prefect_toml_table_header=("server", "services", "scheduler"),
     )
 
@@ -377,10 +369,8 @@ class ServerServicesPauseExpirationsSettings(PrefectBaseSettings):
     """
 
     model_config = PrefectSettingsConfigDict(
+        **COMMON_CONFIG_DICT,
         env_prefix="PREFECT_SERVER_SERVICES_PAUSE_EXPIRATIONS_",
-        env_file=".env",
-        extra="ignore",
-        toml_file="prefect.toml",
         prefect_toml_table_header=("server", "services", "pause_expirations"),
     )
 
@@ -417,10 +407,8 @@ class ServerServicesTaskRunRecorderSettings(PrefectBaseSettings):
     """
 
     model_config = PrefectSettingsConfigDict(
+        **COMMON_CONFIG_DICT,
         env_prefix="PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_",
-        env_file=".env",
-        extra="ignore",
-        toml_file="prefect.toml",
         prefect_toml_table_header=("server", "services", "task_run_recorder"),
     )
 
@@ -441,10 +429,8 @@ class ServerServicesTriggersSettings(PrefectBaseSettings):
     """
 
     model_config = PrefectSettingsConfigDict(
+        **COMMON_CONFIG_DICT,
         env_prefix="PREFECT_SERVER_SERVICES_TRIGGERS_",
-        env_file=".env",
-        extra="ignore",
-        toml_file="prefect.toml",
         prefect_toml_table_header=("server", "services", "triggers"),
     )
 
@@ -465,10 +451,8 @@ class ServerServicesSettings(PrefectBaseSettings):
     """
 
     model_config = PrefectSettingsConfigDict(
+        **COMMON_CONFIG_DICT,
         env_prefix="PREFECT_SERVER_SERVICES_",
-        env_file=".env",
-        extra="ignore",
-        toml_file="prefect.toml",
         prefect_toml_table_header=("server", "services"),
     )
 

@@ -59,3 +59,17 @@ repos:
               src/prefect/settings/models/.*|
               scripts/generate_settings_schema.py
           )$
+
+  - repo: local
+    hooks:
+      - id: generate-settings-ref
+        name: Generating Settings Reference
+        language: system
+        entry: uv run --with 'pydantic>=2.9.0' ./scripts/generate_settings_ref.py
+        pass_filenames: false
+        files: |
+          (?x)^(
+              .pre-commit-config.yaml|
+              src/prefect/settings/models/.*|
+              scripts/generate_settings_ref.py
+          )$

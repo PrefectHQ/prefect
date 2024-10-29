@@ -2,15 +2,17 @@ from typing import Optional, Union
 
 from pydantic import AliasChoices, AliasPath, Field
 
-from prefect.settings.base import PrefectBaseSettings, PrefectSettingsConfigDict
+from prefect.settings.base import (
+    COMMON_CONFIG_DICT,
+    PrefectBaseSettings,
+    PrefectSettingsConfigDict,
+)
 
 
 class TasksRunnerSettings(PrefectBaseSettings):
     model_config = PrefectSettingsConfigDict(
+        **COMMON_CONFIG_DICT,
         env_prefix="PREFECT_TASKS_RUNNER_",
-        env_file=".env",
-        extra="ignore",
-        toml_file="prefect.toml",
         prefect_toml_table_header=("tasks", "runner"),
     )
 
@@ -28,10 +30,8 @@ class TasksRunnerSettings(PrefectBaseSettings):
 
 class TasksSchedulingSettings(PrefectBaseSettings):
     model_config = PrefectSettingsConfigDict(
+        **COMMON_CONFIG_DICT,
         env_prefix="PREFECT_TASKS_SCHEDULING_",
-        env_file=".env",
-        extra="ignore",
-        toml_file="prefect.toml",
         prefect_toml_table_header=(
             "tasks",
             "scheduling",
@@ -61,10 +61,8 @@ class TasksSchedulingSettings(PrefectBaseSettings):
 
 class TasksSettings(PrefectBaseSettings):
     model_config = PrefectSettingsConfigDict(
+        **COMMON_CONFIG_DICT,
         env_prefix="PREFECT_TASKS_",
-        env_file=".env",
-        extra="ignore",
-        toml_file="prefect.toml",
         prefect_toml_table_header=("tasks",),
     )
 

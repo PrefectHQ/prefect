@@ -111,6 +111,13 @@
           ],
           "version": "3.0"
         },
+        {
+          "group": "Manage settings",
+          "pages": [
+            "3.0/develop/settings-and-profiles",
+            "3.0/develop/settings-ref"
+          ]
+        },
         "3.0/develop/test-workflows"
       ],
       "version": "3.0"
@@ -198,7 +205,6 @@
           "version": "3.0"
         },
         "3.0/manage/self-host",
-        "3.0/manage/settings-and-profiles",
         "3.0/manage/interact-with-api"
       ],
       "version": "3.0"
@@ -759,6 +765,10 @@
     {
       "destination": "/latest/develop/write-tasks",
       "source": "/latest/concepts/tasks"
+    },
+    {
+      "destination": "/3.0/manage/settings-and-profiles",
+      "source": "/3.0/develop/settings-and-profiles"
     },
     {
       "destination": "/latest",
