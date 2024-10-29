@@ -2,15 +2,17 @@ from typing import Any, Optional
 
 from pydantic import AliasChoices, AliasPath, Field
 
-from prefect.settings.base import PrefectBaseSettings, PrefectSettingsConfigDict
+from prefect.settings.base import (
+    COMMON_CONFIG_DICT,
+    PrefectBaseSettings,
+    PrefectSettingsConfigDict,
+)
 
 
 class TestingSettings(PrefectBaseSettings):
     model_config = PrefectSettingsConfigDict(
+        **COMMON_CONFIG_DICT,
         env_prefix="PREFECT_TESTING_",
-        env_file=".env",
-        extra="ignore",
-        toml_file="prefect.toml",
         prefect_toml_table_header=("testing",),
     )
 

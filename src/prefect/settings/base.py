@@ -1,3 +1,4 @@
+import inspect
 from functools import partial
 from typing import Any, Dict, Tuple, Type
 
@@ -153,3 +154,31 @@ class PrefectSettingsConfigDict(SettingsConfigDict, total=False):
 
     To use the root table, exclude this config setting or provide an empty tuple.
     """
+
+
+def _add_environment_variables(
+    schema: Dict[str, Any], model: Type[PrefectBaseSettings]
+) -> None:
+    for property in schema["properties"]:
+        env_vars = []
+        schema["properties"][property]["supported_environment_variables"] = env_vars
+        field = model.model_fields[property]
+        if inspect.isclass(field.annotation) and issubclass(
+            field.annotation, PrefectBaseSettings
+        ):
+            continue
+        elif field.validation_alias:
+            if isinstance(field.validation_alias, AliasChoices):
+                for alias in field.validation_alias.choices:
+                    if isinstance(alias, str):
+                        env_vars.append(alias.upper())
+        else:
+            env_vars.append(f"{model.model_config.get('env_prefix')}{property.upper()}")
+
+
+COMMON_CONFIG_DICT = {
+    "env_file": ".env",
+    "extra": "ignore",
+    "toml_file": "prefect.toml",
+    "json_schema_extra": _add_environment_variables,
+}

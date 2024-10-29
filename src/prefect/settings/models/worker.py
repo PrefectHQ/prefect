@@ -1,14 +1,16 @@
 from pydantic import Field
 
-from prefect.settings.base import PrefectBaseSettings, PrefectSettingsConfigDict
+from prefect.settings.base import (
+    COMMON_CONFIG_DICT,
+    PrefectBaseSettings,
+    PrefectSettingsConfigDict,
+)
 
 
 class WorkerWebserverSettings(PrefectBaseSettings):
     model_config = PrefectSettingsConfigDict(
+        **COMMON_CONFIG_DICT,
         env_prefix="PREFECT_WORKER_WEBSERVER_",
-        env_file=".env",
-        extra="ignore",
-        toml_file="prefect.toml",
         prefect_toml_table_header=(
             "worker",
             "webserver",
@@ -28,10 +30,8 @@ class WorkerWebserverSettings(PrefectBaseSettings):
 
 class WorkerSettings(PrefectBaseSettings):
     model_config = PrefectSettingsConfigDict(
+        **COMMON_CONFIG_DICT,
         env_prefix="PREFECT_WORKER_",
-        env_file=".env",
-        extra="ignore",
-        toml_file="prefect.toml",
         prefect_toml_table_header=("worker",),
     )
 

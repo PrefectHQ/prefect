@@ -1,6 +1,10 @@
 from pydantic import AliasChoices, AliasPath, Field
 
-from prefect.settings.base import PrefectBaseSettings, PrefectSettingsConfigDict
+from prefect.settings.base import (
+    COMMON_CONFIG_DICT,
+    PrefectBaseSettings,
+    PrefectSettingsConfigDict,
+)
 
 
 class ServerFlowRunGraphSettings(PrefectBaseSettings):
@@ -9,10 +13,8 @@ class ServerFlowRunGraphSettings(PrefectBaseSettings):
     """
 
     model_config = PrefectSettingsConfigDict(
+        **COMMON_CONFIG_DICT,
         env_prefix="PREFECT_SERVER_FLOW_RUN_GRAPH_",
-        env_file=".env",
-        extra="ignore",
-        toml_file="prefect.toml",
         prefect_toml_table_header=("server", "flow_run_graph"),
     )
 
