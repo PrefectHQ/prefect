@@ -301,6 +301,12 @@
                     "description": "Enables the logging of worker logs to Prefect Cloud.",
                     "title": "Worker Logging To Api Enabled",
                     "type": "boolean"
+                },
+                "telemetry_enabled": {
+                    "default": false,
+                    "description": "Enables sending telemetry to Prefect Cloud.",
+                    "title": "Telemetry Enabled",
+                    "type": "boolean"
                 }
             },
             "title": "ExperimentsSettings",
