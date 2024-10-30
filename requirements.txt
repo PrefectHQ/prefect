@@ -3,7 +3,7 @@
 aiosqlite >= 0.17.0, < 1.0.0
 alembic >= 1.7.5, < 2.0.0
 apprise >= 1.8.0, < 2.0.0
-asyncpg >= 0.23, < 0.30.0
+asyncpg >= 0.23, < 0.31.0
 click >= 8.0, < 8.2
 cryptography >= 36.0.1
 dateparser >= 1.1.1, < 2.0.0
