@@ -62,8 +62,8 @@ from prefect.settings import (
 from prefect.utilities.hashing import hash_objects
 
 TITLE = "Prefect Server"
-API_TITLE = "Prefect Prefect REST API"
-UI_TITLE = "Prefect Prefect REST API UI"
+API_TITLE = "Prefect REST API"
+UI_TITLE = "Prefect UI"
 API_VERSION = prefect.__version__
 # migrations should run only once per app start; the ephemeral API can potentially
 # create multiple apps in a single process

@@ -73,3 +73,17 @@ repos:
               src/prefect/settings/models/.*|
               scripts/generate_settings_ref.py
           )$
+
+  - repo: local
+    hooks:
+      - id: generate-openapi-schema
+        name: Generating OpenAPI Schema
+        language: system
+        entry: uv run ./scripts/generate_openapi_schema.py
+        pass_filenames: false
+        files: |
+          .pre-commit-config.yaml|
+          src/prefect/server/api/.*|
+          src/prefect/server/schemas/.*|
+          src/prefect/server/events/.*|
+          scripts/generate_openapi_schema.py
