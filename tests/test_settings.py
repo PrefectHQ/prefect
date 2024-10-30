@@ -1107,9 +1107,17 @@ class TestSettingsSources:
 
         assert Settings().client.retry_extra_codes == {420, 500}
 
-        toml_data = {"client": {"retry_extra_codes": "300"}}
+        pyproject_toml_data = {
+            "tool": {"prefect": {"client": {"retry_extra_codes": "200"}}}
+        }
+        with open("pyproject.toml", "w") as f:
+            toml.dump(pyproject_toml_data, f)
+
+        assert Settings().client.retry_extra_codes == {200}
+
+        prefect_toml_data = {"client": {"retry_extra_codes": "300"}}
         with open("prefect.toml", "w") as f:
-            toml.dump(toml_data, f)
+            toml.dump(prefect_toml_data, f)
 
         assert Settings().client.retry_extra_codes == {300}
 
@@ -1122,6 +1130,10 @@ class TestSettingsSources:
         assert Settings().client.retry_extra_codes == {300}
 
         os.unlink("prefect.toml")
+
+        assert Settings().client.retry_extra_codes == {200}
+
+        os.unlink("pyproject.toml")
 
         assert Settings().client.retry_extra_codes == {420, 500}
 

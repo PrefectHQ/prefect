@@ -204,7 +204,9 @@ def view(
     def _process_setting(
         setting: prefect.settings.Setting,
         value: str,
-        source: Literal["env", "profile", "defaults", ".env file", "prefect.toml"],
+        source: Literal[
+            "env", "profile", "defaults", ".env file", "prefect.toml", "pyproject.toml"
+        ],
     ):
         display_value = "********" if setting.is_secret and not show_secrets else value
         source_blurb = f" (from {source})" if show_sources else ""
@@ -223,18 +225,23 @@ def view(
                     continue
                 _process_setting(setting, value, "defaults")
 
-    def _process_toml_settings(settings: Dict[str, Any], base_path: List[str]):
+    def _process_toml_settings(
+        settings: Dict[str, Any],
+        base_path: List[str],
+        source: Literal["prefect.toml", "pyproject.toml"],
+    ):
         for key, value in settings.items():
             if isinstance(value, dict):
-                _process_toml_settings(value, base_path + [key])
+                _process_toml_settings(value, base_path + [key], source)
             else:
                 setting = _get_settings_fields(prefect.settings.Settings).get(
                     ".".join(base_path + [key]), NotSet
                 )
                 if setting is NotSet or setting.name in processed_settings:
                     continue
-                _process_setting(setting, value, "prefect.toml")
+                _process_setting(setting, value, source)
 
+    # Process settings from environment variables
     for setting_name in VALID_SETTING_NAMES:
         setting = _get_settings_fields(prefect.settings.Settings)[setting_name]
         if setting.name in processed_settings:
@@ -242,6 +249,8 @@ def view(
         if (env_value := os.getenv(setting.name)) is None:
             continue
         _process_setting(setting, env_value, "env")
+
+    # Process settings from .env file
     for key, value in dotenv_values().items():
         if key in VALID_SETTING_NAMES:
             setting = _get_settings_fields(prefect.settings.Settings)[key]
@@ -249,9 +258,18 @@ def view(
                 continue
             _process_setting(setting, value, ".env file")
 
+    # Process settings from prefect.toml
     if Path("prefect.toml").exists():
         toml_settings = toml.load(Path("prefect.toml"))
-        _process_toml_settings(toml_settings, base_path=[])
+        _process_toml_settings(toml_settings, base_path=[], source="prefect.toml")
+
+    # Process settings from pyproject.toml
+    if Path("pyproject.toml").exists():
+        pyproject_settings = toml.load(Path("pyproject.toml"))
+        pyproject_settings = pyproject_settings.get("tool", {}).get("prefect", {})
+        _process_toml_settings(
+            pyproject_settings, base_path=[], source="pyproject.toml"
+        )
 
     # Process settings from the current profile
     for setting, value in current_profile_settings.items():
