@@ -4,9 +4,8 @@ from typing import Optional
 from pydantic import Field, SecretStr
 
 from prefect.settings.base import (
-    COMMON_CONFIG_DICT,
     PrefectBaseSettings,
-    PrefectSettingsConfigDict,
+    _build_settings_config,
 )
 
 
@@ -15,11 +14,7 @@ class APISettings(PrefectBaseSettings):
     Settings for interacting with the Prefect API
     """
 
-    model_config = PrefectSettingsConfigDict(
-        **COMMON_CONFIG_DICT,
-        env_prefix="PREFECT_API_",
-        prefect_toml_table_header=("api",),
-    )
+    model_config = _build_settings_config(("api",))
     url: Optional[str] = Field(
         default=None,
         description="The URL of the Prefect API. If not set, the client will attempt to infer it.",

@@ -144,26 +144,11 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
 DEFAULT_PREFECT_TOML_PATH = Path("prefect.toml")
 
 
-class PrefectTomlConfigSettingsSource(
-    PydanticBaseSettingsSource, ConfigFileSourceMixin
-):
-    """Custom pydantic settings source to load settings from a prefect.toml file"""
-
-    def __init__(
-        self,
-        settings_cls: Type[BaseSettings],
-    ):
+class TomlConfigSettingsSourceBase(PydanticBaseSettingsSource, ConfigFileSourceMixin):
+    def __init__(self, settings_cls: Type[BaseSettings]):
         super().__init__(settings_cls)
         self.settings_cls = settings_cls
-        self.toml_file_path = settings_cls.model_config.get(
-            "toml_file", DEFAULT_PREFECT_TOML_PATH
-        )
-        self.toml_data = self._read_files(self.toml_file_path)
-        self.toml_table_header = settings_cls.model_config.get(
-            "prefect_toml_table_header", tuple()
-        )
-        for key in self.toml_table_header:
-            self.toml_data = self.toml_data.get(key, {})
+        self.toml_data = {}
 
     def _read_file(self, path: Path) -> Dict[str, Any]:
         return toml.load(path)
@@ -190,6 +175,42 @@ class PrefectTomlConfigSettingsSource(
                 )
                 toml_setings[key] = prepared_value
         return toml_setings
+
+
+class PrefectTomlConfigSettingsSource(TomlConfigSettingsSourceBase):
+    """Custom pydantic settings source to load settings from a prefect.toml file"""
+
+    def __init__(
+        self,
+        settings_cls: Type[BaseSettings],
+    ):
+        super().__init__(settings_cls)
+        self.toml_file_path = settings_cls.model_config.get(
+            "toml_file", DEFAULT_PREFECT_TOML_PATH
+        )
+        self.toml_data = self._read_files(self.toml_file_path)
+        self.toml_table_header = settings_cls.model_config.get(
+            "prefect_toml_table_header", tuple()
+        )
+        for key in self.toml_table_header:
+            self.toml_data = self.toml_data.get(key, {})
+
+
+class PyprojectTomlConfigSettingsSource(TomlConfigSettingsSourceBase):
+    """Custom pydantic settings source to load settings from a pyproject.toml file"""
+
+    def __init__(
+        self,
+        settings_cls: Type[BaseSettings],
+    ):
+        super().__init__(settings_cls)
+        self.toml_file_path = Path("pyproject.toml")
+        self.toml_data = self._read_files(self.toml_file_path)
+        self.toml_table_header = settings_cls.model_config.get(
+            "pyproject_toml_table_header", ("tool", "prefect")
+        )
+        for key in self.toml_table_header:
+            self.toml_data = self.toml_data.get(key, {})
 
 
 def _is_test_mode() -> bool:
