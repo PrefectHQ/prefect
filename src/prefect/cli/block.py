@@ -229,7 +229,7 @@ async def register(
         block_catalog_url = f"{ui_url}/blocks/catalog"
         msg = f"{msg.rstrip().rstrip('.')}: {block_catalog_url}\n"
 
-    app.console.print(msg)
+    app.console.print(msg, soft_wrap=True)
 
 
 @blocks_app.command("ls")
