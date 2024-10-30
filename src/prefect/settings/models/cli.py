@@ -3,9 +3,8 @@ from typing import Optional
 from pydantic import Field
 
 from prefect.settings.base import (
-    COMMON_CONFIG_DICT,
     PrefectBaseSettings,
-    PrefectSettingsConfigDict,
+    _build_settings_config,
 )
 
 
@@ -14,11 +13,7 @@ class CLISettings(PrefectBaseSettings):
     Settings for controlling CLI behavior
     """
 
-    model_config = PrefectSettingsConfigDict(
-        **COMMON_CONFIG_DICT,
-        env_prefix="PREFECT_CLI_",
-        prefect_toml_table_header=("cli",),
-    )
+    model_config = _build_settings_config(("cli",))
 
     colors: bool = Field(
         default=True,

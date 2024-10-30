@@ -2,19 +2,11 @@ from typing import Optional, Union
 
 from pydantic import AliasChoices, AliasPath, Field
 
-from prefect.settings.base import (
-    COMMON_CONFIG_DICT,
-    PrefectBaseSettings,
-    PrefectSettingsConfigDict,
-)
+from prefect.settings.base import PrefectBaseSettings, _build_settings_config
 
 
 class TasksRunnerSettings(PrefectBaseSettings):
-    model_config = PrefectSettingsConfigDict(
-        **COMMON_CONFIG_DICT,
-        env_prefix="PREFECT_TASKS_RUNNER_",
-        prefect_toml_table_header=("tasks", "runner"),
-    )
+    model_config = _build_settings_config(("tasks", "runner"))
 
     thread_pool_max_workers: Optional[int] = Field(
         default=None,
@@ -29,14 +21,7 @@ class TasksRunnerSettings(PrefectBaseSettings):
 
 
 class TasksSchedulingSettings(PrefectBaseSettings):
-    model_config = PrefectSettingsConfigDict(
-        **COMMON_CONFIG_DICT,
-        env_prefix="PREFECT_TASKS_SCHEDULING_",
-        prefect_toml_table_header=(
-            "tasks",
-            "scheduling",
-        ),
-    )
+    model_config = _build_settings_config(("tasks", "scheduling"))
 
     default_storage_block: Optional[str] = Field(
         default=None,
@@ -60,11 +45,7 @@ class TasksSchedulingSettings(PrefectBaseSettings):
 
 
 class TasksSettings(PrefectBaseSettings):
-    model_config = PrefectSettingsConfigDict(
-        **COMMON_CONFIG_DICT,
-        env_prefix="PREFECT_TASKS_",
-        prefect_toml_table_header=("tasks",),
-    )
+    model_config = _build_settings_config(("tasks",))
 
     refresh_cache: bool = Field(
         default=False,

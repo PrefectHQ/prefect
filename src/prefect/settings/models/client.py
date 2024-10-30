@@ -1,9 +1,8 @@
 from pydantic import AliasChoices, AliasPath, Field
 
 from prefect.settings.base import (
-    COMMON_CONFIG_DICT,
     PrefectBaseSettings,
-    PrefectSettingsConfigDict,
+    _build_settings_config,
 )
 from prefect.types import ClientRetryExtraCodes
 
@@ -13,11 +12,7 @@ class ClientMetricsSettings(PrefectBaseSettings):
     Settings for controlling metrics reporting from the client
     """
 
-    model_config = PrefectSettingsConfigDict(
-        **COMMON_CONFIG_DICT,
-        env_prefix="PREFECT_CLIENT_METRICS_",
-        prefect_toml_table_header=("client", "metrics"),
-    )
+    model_config = _build_settings_config(("client", "metrics"))
 
     enabled: bool = Field(
         default=False,
@@ -42,13 +37,7 @@ class ClientSettings(PrefectBaseSettings):
     Settings for controlling API client behavior
     """
 
-    model_config = PrefectSettingsConfigDict(
-        env_prefix="PREFECT_CLIENT_",
-        env_file=".env",
-        extra="ignore",
-        toml_file="prefect.toml",
-        prefect_toml_table_header=("client",),
-    )
+    model_config = _build_settings_config(("client",))
 
     max_retries: int = Field(
         default=5,

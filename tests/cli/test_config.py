@@ -31,6 +31,7 @@ FROM_ENV = "(from env)"
 FROM_PROFILE = "(from profile)"
 FROM_DOT_ENV = "(from .env)"
 FROM_PREFECT_TOML = "(from prefect.toml)"
+FROM_PYPROJECT_TOML = "(from pyproject.toml)"
 
 
 @pytest.fixture(autouse=True)
@@ -594,3 +595,48 @@ def test_view_with_prefect_toml_file_and_profile(tmp_path):
 
         assert "PREFECT_CLIENT_RETRY_EXTRA_CODES='300'" in res.stdout
         assert FROM_PREFECT_TOML in res.stdout
+
+
+def test_view_with_pyproject_toml_file(tmp_path):
+    with tmpchdir(tmp_path):
+        toml_data = {"tool": {"prefect": {"client": {"retry_extra_codes": "300"}}}}
+        with open("pyproject.toml", "w") as f:
+            toml.dump(toml_data, f)
+
+        res = invoke_and_assert(["config", "view"])
+
+        assert "PREFECT_CLIENT_RETRY_EXTRA_CODES='300'" in res.stdout
+        assert FROM_PYPROJECT_TOML in res.stdout
+
+
+def test_view_with_pyproject_toml_file_and_env_var(monkeypatch, tmp_path):
+    monkeypatch.setenv("PREFECT_CLIENT_RETRY_EXTRA_CODES", "400")
+
+    with tmpchdir(tmp_path):
+        toml_data = {"tool": {"prefect": {"client": {"retry_extra_codes": "300"}}}}
+        with open("pyproject.toml", "w") as f:
+            toml.dump(toml_data, f)
+
+        res = invoke_and_assert(["config", "view"])
+
+        assert "PREFECT_CLIENT_RETRY_EXTRA_CODES='400'" in res.stdout
+        assert FROM_PYPROJECT_TOML not in res.stdout
+
+
+def test_view_with_pyproject_toml_file_and_profile(tmp_path):
+    with tmpchdir(tmp_path):
+        toml_data = {"tool": {"prefect": {"client": {"retry_extra_codes": "300"}}}}
+        with open("pyproject.toml", "w") as f:
+            toml.dump(toml_data, f)
+
+        with prefect.context.use_profile(
+            prefect.settings.Profile(
+                name="foo",
+                settings={PREFECT_CLIENT_RETRY_EXTRA_CODES: [400]},
+            ),
+            include_current_context=False,
+        ):
+            res = invoke_and_assert(["config", "view"])
+
+        assert "PREFECT_CLIENT_RETRY_EXTRA_CODES='300'" in res.stdout
+        assert FROM_PYPROJECT_TOML in res.stdout

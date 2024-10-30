@@ -1,21 +1,10 @@
 from pydantic import Field
 
-from prefect.settings.base import (
-    COMMON_CONFIG_DICT,
-    PrefectBaseSettings,
-    PrefectSettingsConfigDict,
-)
+from prefect.settings.base import PrefectBaseSettings, _build_settings_config
 
 
 class WorkerWebserverSettings(PrefectBaseSettings):
-    model_config = PrefectSettingsConfigDict(
-        **COMMON_CONFIG_DICT,
-        env_prefix="PREFECT_WORKER_WEBSERVER_",
-        prefect_toml_table_header=(
-            "worker",
-            "webserver",
-        ),
-    )
+    model_config = _build_settings_config(("worker", "webserver"))
 
     host: str = Field(
         default="0.0.0.0",
@@ -29,11 +18,7 @@ class WorkerWebserverSettings(PrefectBaseSettings):
 
 
 class WorkerSettings(PrefectBaseSettings):
-    model_config = PrefectSettingsConfigDict(
-        **COMMON_CONFIG_DICT,
-        env_prefix="PREFECT_WORKER_",
-        prefect_toml_table_header=("worker",),
-    )
+    model_config = _build_settings_config(("worker",))
 
     heartbeat_seconds: float = Field(
         default=30,

@@ -767,8 +767,8 @@
       "source": "/latest/concepts/tasks"
     },
     {
-      "destination": "/3.0/manage/settings-and-profiles",
-      "source": "/3.0/develop/settings-and-profiles"
+      "destination": "/3.0/develop/settings-and-profiles",
+      "source": "/3.0/manage/settings-and-profiles"
     },
     {
       "destination": "/latest",

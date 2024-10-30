@@ -2,11 +2,7 @@ from datetime import timedelta
 
 from pydantic import AliasChoices, AliasPath, Field
 
-from prefect.settings.base import (
-    COMMON_CONFIG_DICT,
-    PrefectBaseSettings,
-    PrefectSettingsConfigDict,
-)
+from prefect.settings.base import PrefectBaseSettings, _build_settings_config
 
 
 class ServerTasksSchedulingSettings(PrefectBaseSettings):
@@ -14,11 +10,7 @@ class ServerTasksSchedulingSettings(PrefectBaseSettings):
     Settings for controlling server-side behavior related to task scheduling
     """
 
-    model_config = PrefectSettingsConfigDict(
-        **COMMON_CONFIG_DICT,
-        env_prefix="PREFECT_SERVER_TASKS_SCHEDULING_",
-        prefect_toml_table_header=("server", "tasks", "scheduling"),
-    )
+    model_config = _build_settings_config(("server", "tasks", "scheduling"))
 
     max_scheduled_queue_size: int = Field(
         default=1000,
@@ -56,13 +48,7 @@ class ServerTasksSettings(PrefectBaseSettings):
     Settings for controlling server-side behavior related to tasks
     """
 
-    model_config = PrefectSettingsConfigDict(
-        env_file=".env",
-        env_prefix="PREFECT_SERVER_TASKS_",
-        extra="ignore",
-        toml_file="prefect.toml",
-        prefect_toml_table_header=("server", "tasks"),
-    )
+    model_config = _build_settings_config(("server", "tasks"))
 
     tag_concurrency_slot_wait_seconds: float = Field(
         default=30,
