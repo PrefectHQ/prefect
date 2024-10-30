@@ -624,7 +624,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     client=client,
                     persist_result=self.task.persist_result
                     if self.task.persist_result is not None
-                    else should_persist_result(),
+                    else should_persist_result(for_type="task"),
                 )
             )
             stack.enter_context(ConcurrencyContextV1())
@@ -1126,7 +1126,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     client=client,
                     persist_result=self.task.persist_result
                     if self.task.persist_result is not None
-                    else should_persist_result(),
+                    else should_persist_result(for_type="task"),
                 )
             )
             stack.enter_context(ConcurrencyContext())

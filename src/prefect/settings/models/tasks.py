@@ -73,6 +73,11 @@ class TasksSettings(PrefectBaseSettings):
         ),
     )
 
+    default_persist_result: bool = Field(
+        default=False,
+        description="If `True`, results will be persisted by default for all tasks.",
+    )
+
     runner: TasksRunnerSettings = Field(
         default_factory=TasksRunnerSettings,
         description="Settings for controlling task runner behavior",

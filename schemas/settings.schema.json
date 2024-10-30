@@ -358,6 +358,15 @@
                         "PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS"
                     ],
                     "title": "Default Retry Delay Seconds"
+                },
+                "default_persist_result": {
+                    "default": false,
+                    "description": "If `True`, results will be persisted by default for all flows.",
+                    "supported_environment_variables": [
+                        "PREFECT_FLOWS_DEFAULT_PERSIST_RESULT"
+                    ],
+                    "title": "Default Persist Result",
+                    "type": "boolean"
                 }
             },
             "title": "FlowsSettings",
@@ -1960,6 +1969,15 @@
                         "PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS"
                     ],
                     "title": "Default Retry Delay Seconds"
+                },
+                "default_persist_result": {
+                    "default": false,
+                    "description": "If `True`, results will be persisted by default for all tasks.",
+                    "supported_environment_variables": [
+                        "PREFECT_TASKS_DEFAULT_PERSIST_RESULT"
+                    ],
+                    "title": "Default Persist Result",
+                    "type": "boolean"
                 },
                 "runner": {
                     "$ref": "#/$defs/TasksRunnerSettings",

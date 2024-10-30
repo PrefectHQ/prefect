@@ -32,3 +32,8 @@ class FlowsSettings(PrefectBaseSettings):
             "prefect_flow_default_retry_delay_seconds",
         ),
     )
+
+    default_persist_result: bool = Field(
+        default=False,
+        description="If `True`, results will be persisted by default for all flows.",
+    )

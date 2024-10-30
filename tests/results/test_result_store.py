@@ -13,9 +13,11 @@ from prefect.results import (
 )
 from prefect.serializers import JSONSerializer, PickleSerializer
 from prefect.settings import (
+    PREFECT_FLOWS_DEFAULT_PERSIST_RESULT,
     PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_RESULTS_DEFAULT_SERIALIZER,
     PREFECT_RESULTS_PERSIST_BY_DEFAULT,
+    PREFECT_TASKS_DEFAULT_PERSIST_RESULT,
     temporary_settings,
 )
 from prefect.testing.utilities import assert_blocks_equal
@@ -80,6 +82,10 @@ def test_root_flow_default_persist_result_can_be_overriden_by_setting():
         return should_persist_result()
 
     with temporary_settings({PREFECT_RESULTS_PERSIST_BY_DEFAULT: True}):
+        persist_result = foo()
+    assert persist_result is True
+
+    with temporary_settings({PREFECT_FLOWS_DEFAULT_PERSIST_RESULT: True}):
         persist_result = foo()
     assert persist_result is True
 
@@ -437,6 +443,11 @@ def test_task_default_persist_result_can_be_overriden_by_setting():
             return should_persist_result()
 
         persist_result = foo()
+
+    assert persist_result is True
+
+    with temporary_settings({PREFECT_TASKS_DEFAULT_PERSIST_RESULT: True}):
+        persist_result = bar()
 
     assert persist_result is True
 

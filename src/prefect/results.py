@@ -13,6 +13,7 @@ from typing import (
     Callable,
     Dict,
     Generic,
+    Literal,
     Optional,
     Tuple,
     Type,
@@ -56,13 +57,7 @@ from prefect.filesystems import (
 from prefect.locking.protocol import LockManager
 from prefect.logging import get_logger
 from prefect.serializers import PickleSerializer, Serializer
-from prefect.settings import (
-    PREFECT_DEFAULT_RESULT_STORAGE_BLOCK,
-    PREFECT_LOCAL_STORAGE_PATH,
-    PREFECT_RESULTS_DEFAULT_SERIALIZER,
-    PREFECT_RESULTS_PERSIST_BY_DEFAULT,
-    PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK,
-)
+from prefect.settings.context import get_current_settings
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.pydantic import get_dispatch_key, lookup_type, register_base_type
@@ -94,8 +89,9 @@ async def get_default_result_storage() -> WritableFileSystem:
     """
     Generate a default file system for result storage.
     """
-    default_block = PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value()
-    basepath = PREFECT_LOCAL_STORAGE_PATH.value()
+    settings = get_current_settings()
+    default_block = settings.results.default_storage_block
+    basepath = settings.results.local_storage_path
 
     cache_key = (str(default_block), str(basepath))
 
@@ -169,13 +165,14 @@ async def get_or_create_default_task_scheduling_storage() -> ResultStorage:
     """
     Generate a default file system for background task parameter/result storage.
     """
-    default_block = PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK.value()
+    settings = get_current_settings()
+    default_block = settings.tasks.scheduling.default_storage_block
 
     if default_block is not None:
         return await Block.load(default_block)
 
     # otherwise, use the local file system
-    basepath = PREFECT_LOCAL_STORAGE_PATH.value()
+    basepath = settings.results.local_storage_path
     return LocalFileSystem(basepath=basepath)
 
 
@@ -183,22 +180,44 @@ def get_default_result_serializer() -> Serializer:
     """
     Generate a default file system for result storage.
     """
-    return resolve_serializer(PREFECT_RESULTS_DEFAULT_SERIALIZER.value())
+    settings = get_current_settings()
+    return resolve_serializer(settings.results.default_serializer)
 
 
 def get_default_persist_setting() -> bool:
     """
-    Return the default option for result persistence (False).
+    Return the default option for result persistence.
     """
-    return PREFECT_RESULTS_PERSIST_BY_DEFAULT.value()
+    settings = get_current_settings()
+    return settings.results.persist_by_default
 
 
-def should_persist_result() -> bool:
+def get_default_persist_setting_for_tasks() -> bool:
+    """
+    Return the default option for result persistence for tasks.
+    """
+    settings = get_current_settings()
+    return settings.tasks.default_persist_result or settings.results.persist_by_default
+
+
+def get_default_persist_setting_for_flows() -> bool:
+    """
+    Return the default option for result persistence for flows.
+    """
+    settings = get_current_settings()
+    return settings.flows.default_persist_result or settings.results.persist_by_default
+
+
+def should_persist_result(for_type: Optional[Literal["task", "flow"]] = None) -> bool:
     """
     Return the default option for result persistence determined by the current run context.
 
-    If there is no current run context, the default value set by
-    `PREFECT_RESULTS_PERSIST_BY_DEFAULT` will be returned.
+    If there is no current run context, the default value for the requested type will be
+    returned. If no type is requested, the default persist setting will be returned.
+
+    Args:
+        for_type: The type of run primitive to use for determining the persist setting.
+            If not provided, the default persist setting will be returned.
     """
     from prefect.context import FlowRunContext, TaskRunContext
 
@@ -209,7 +228,12 @@ def should_persist_result() -> bool:
     if flow_run_context is not None:
         return flow_run_context.persist_result
 
-    return PREFECT_RESULTS_PERSIST_BY_DEFAULT.value()
+    if for_type == "task":
+        return get_default_persist_setting_for_tasks()
+    elif for_type == "flow":
+        return get_default_persist_setting_for_flows()
+    else:
+        return get_default_persist_setting()
 
 
 def _format_user_supplied_storage_key(key: str) -> str:
