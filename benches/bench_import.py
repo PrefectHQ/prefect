@@ -1,9 +1,12 @@
 import importlib
 import sys
+from typing import TYPE_CHECKING
 
 import pytest
 from prometheus_client import REGISTRY
-from pytest_benchmark.fixture import BenchmarkFixture
+
+if TYPE_CHECKING:
+    from pytest_benchmark.fixture import BenchmarkFixture
 
 
 def reset_imports():
@@ -21,7 +24,7 @@ def reset_imports():
 
 
 @pytest.mark.benchmark(group="imports")
-def bench_import_prefect(benchmark: BenchmarkFixture):
+def bench_import_prefect(benchmark: "BenchmarkFixture"):
     def import_prefect():
         reset_imports()
 
@@ -32,7 +35,7 @@ def bench_import_prefect(benchmark: BenchmarkFixture):
 
 @pytest.mark.timeout(180)
 @pytest.mark.benchmark(group="imports")
-def bench_import_prefect_flow(benchmark: BenchmarkFixture):
+def bench_import_prefect_flow(benchmark: "BenchmarkFixture"):
     def import_prefect_flow():
         reset_imports()
 

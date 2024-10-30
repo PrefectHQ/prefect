@@ -381,12 +381,14 @@ async def deploy(
     concurrency_limit_config = (
         None
         if concurrency_limit is None
-        else concurrency_limit
-        if concurrency_limit_collision_strategy is None
-        else ConcurrencyLimitConfig(
-            limit=concurrency_limit,
-            collision_strategy=concurrency_limit_collision_strategy,
-        ).model_dump()
+        else (
+            concurrency_limit
+            if concurrency_limit_collision_strategy is None
+            else ConcurrencyLimitConfig(
+                limit=concurrency_limit,
+                collision_strategy=concurrency_limit_collision_strategy,
+            ).model_dump()
+        )
     )
 
     options = {
@@ -906,21 +908,16 @@ def _construct_schedules(
 def _schedule_config_to_deployment_schedule(
     schedule_config: Dict,
 ) -> DeploymentScheduleCreate:
-    cron = schedule_config.get("cron")
-    interval = schedule_config.get("interval")
     anchor_date = schedule_config.get("anchor_date")
-    rrule = schedule_config.get("rrule")
     timezone = schedule_config.get("timezone")
     schedule_active = schedule_config.get("active", True)
-    max_active_runs = schedule_config.get("max_active_runs")
-    catchup = schedule_config.get("catchup", False)
 
-    if cron:
+    if cron := schedule_config.get("cron"):
         cron_kwargs = {"cron": cron, "timezone": timezone}
         schedule = CronSchedule(
             **{k: v for k, v in cron_kwargs.items() if v is not None}
         )
-    elif interval:
+    elif interval := schedule_config.get("interval"):
         interval_kwargs = {
             "interval": timedelta(seconds=interval),
             "anchor_date": anchor_date,
@@ -929,7 +926,7 @@ def _schedule_config_to_deployment_schedule(
         schedule = IntervalSchedule(
             **{k: v for k, v in interval_kwargs.items() if v is not None}
         )
-    elif rrule:
+    elif rrule := schedule_config.get("rrule"):
         try:
             schedule = RRuleSchedule(**json.loads(rrule))
             if timezone:
@@ -945,8 +942,6 @@ def _schedule_config_to_deployment_schedule(
     return DeploymentScheduleCreate(
         schedule=schedule,
         active=schedule_active,
-        max_active_runs=max_active_runs,
-        catchup=catchup,
     )
 
 

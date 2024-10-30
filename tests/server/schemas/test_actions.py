@@ -404,9 +404,7 @@ class TestDeploymentScheduleValidation:
         with pytest.raises(ValueError, match=expected_error_substr):
             schema_type(
                 schedule=CronSchedule(cron="0 0 * * *"),
-                max_active_runs=1,
                 max_scheduled_runs=max_scheduled_runs,
-                catchup=False,
             )
 
     @pytest.mark.parametrize(
@@ -423,9 +421,7 @@ class TestDeploymentScheduleValidation:
         with pytest.raises(ValidationError):
             schema_type(
                 schedule=CronSchedule(cron="0 0 * * *"),
-                max_active_runs=1,
                 max_scheduled_runs=max_scheduled_runs,
-                catchup=False,
             )
 
     @pytest.mark.parametrize(
@@ -441,8 +437,6 @@ class TestDeploymentScheduleValidation:
     ):
         schedule = schema_type(
             schedule=CronSchedule(cron="0 0 * * *"),
-            max_active_runs=1,
             max_scheduled_runs=max_scheduled_runs,
-            catchup=False,
         )
         assert schedule.max_scheduled_runs == max_scheduled_runs

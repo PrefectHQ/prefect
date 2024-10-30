@@ -1,9 +1,12 @@
 from datetime import timedelta
 
 from pydantic import AliasChoices, AliasPath, Field
-from pydantic_settings import SettingsConfigDict
 
-from prefect.settings.base import PrefectBaseSettings
+from prefect.settings.base import (
+    COMMON_CONFIG_DICT,
+    PrefectBaseSettings,
+    PrefectSettingsConfigDict,
+)
 
 
 class ServerEventsSettings(PrefectBaseSettings):
@@ -11,8 +14,10 @@ class ServerEventsSettings(PrefectBaseSettings):
     Settings for controlling behavior of the events subsystem
     """
 
-    model_config = SettingsConfigDict(
-        env_prefix="PREFECT_SERVER_EVENTS_", env_file=".env", extra="ignore"
+    model_config = PrefectSettingsConfigDict(
+        **COMMON_CONFIG_DICT,
+        env_prefix="PREFECT_SERVER_EVENTS_",
+        prefect_toml_table_header=("server", "events"),
     )
 
     ###########################################################################

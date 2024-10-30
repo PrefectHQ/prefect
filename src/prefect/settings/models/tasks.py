@@ -1,14 +1,19 @@
 from typing import Optional, Union
 
 from pydantic import AliasChoices, AliasPath, Field
-from pydantic_settings import SettingsConfigDict
 
-from prefect.settings.base import PrefectBaseSettings
+from prefect.settings.base import (
+    COMMON_CONFIG_DICT,
+    PrefectBaseSettings,
+    PrefectSettingsConfigDict,
+)
 
 
 class TasksRunnerSettings(PrefectBaseSettings):
-    model_config = SettingsConfigDict(
-        env_prefix="PREFECT_TASKS_RUNNER_", env_file=".env", extra="ignore"
+    model_config = PrefectSettingsConfigDict(
+        **COMMON_CONFIG_DICT,
+        env_prefix="PREFECT_TASKS_RUNNER_",
+        prefect_toml_table_header=("tasks", "runner"),
     )
 
     thread_pool_max_workers: Optional[int] = Field(
@@ -24,8 +29,13 @@ class TasksRunnerSettings(PrefectBaseSettings):
 
 
 class TasksSchedulingSettings(PrefectBaseSettings):
-    model_config = SettingsConfigDict(
-        env_prefix="PREFECT_TASKS_SCHEDULING_", env_file=".env", extra="ignore"
+    model_config = PrefectSettingsConfigDict(
+        **COMMON_CONFIG_DICT,
+        env_prefix="PREFECT_TASKS_SCHEDULING_",
+        prefect_toml_table_header=(
+            "tasks",
+            "scheduling",
+        ),
     )
 
     default_storage_block: Optional[str] = Field(
@@ -50,8 +60,10 @@ class TasksSchedulingSettings(PrefectBaseSettings):
 
 
 class TasksSettings(PrefectBaseSettings):
-    model_config = SettingsConfigDict(
-        env_prefix="PREFECT_TASKS_", env_file=".env", extra="ignore"
+    model_config = PrefectSettingsConfigDict(
+        **COMMON_CONFIG_DICT,
+        env_prefix="PREFECT_TASKS_",
+        prefect_toml_table_header=("tasks",),
     )
 
     refresh_cache: bool = Field(

@@ -11,10 +11,13 @@ from typing import (
 from urllib.parse import urlparse
 
 from pydantic import BeforeValidator, Field, SecretStr, model_validator
-from pydantic_settings import SettingsConfigDict
 from typing_extensions import Self
 
-from prefect.settings.base import PrefectBaseSettings
+from prefect.settings.base import (
+    COMMON_CONFIG_DICT,
+    PrefectBaseSettings,
+    PrefectSettingsConfigDict,
+)
 from prefect.settings.models.tasks import TasksSettings
 from prefect.settings.models.testing import TestingSettings
 from prefect.settings.models.worker import WorkerSettings
@@ -25,6 +28,7 @@ from .cli import CLISettings
 from .client import ClientSettings
 from .cloud import CloudSettings
 from .deployments import DeploymentsSettings
+from .experiments import ExperimentsSettings
 from .flows import FlowsSettings
 from .internal import InternalSettings
 from .logging import LoggingSettings
@@ -43,11 +47,9 @@ class Settings(PrefectBaseSettings):
     See https://docs.pydantic.dev/latest/concepts/pydantic_settings
     """
 
-    model_config = SettingsConfigDict(
-        env_file=".env",
+    model_config = PrefectSettingsConfigDict(
+        **COMMON_CONFIG_DICT,
         env_prefix="PREFECT_",
-        env_nested_delimiter=None,
-        extra="ignore",
     )
 
     home: Annotated[Path, BeforeValidator(lambda x: Path(x).expanduser())] = Field(
@@ -88,6 +90,11 @@ class Settings(PrefectBaseSettings):
     deployments: DeploymentsSettings = Field(
         default_factory=DeploymentsSettings,
         description="Settings for configuring deployments defaults",
+    )
+
+    experiments: ExperimentsSettings = Field(
+        default_factory=ExperimentsSettings,
+        description="Settings for controlling experimental features",
     )
 
     flows: FlowsSettings = Field(
@@ -166,11 +173,6 @@ class Settings(PrefectBaseSettings):
         per call by passing  `fetch=True` or toggle this setting to change the behavior
         globally.
         """,
-    )
-
-    experimental_enable_schedule_concurrency: bool = Field(
-        default=False,
-        description="Whether or not to enable concurrency for scheduled tasks.",
     )
 
     ###########################################################################

@@ -8,30 +8,30 @@ env:
 on:
   workflow_dispatch:
 
-  # pull_request:
-  #   paths:
-  #     - .github/workflows/markdown-tests.yaml
-  #     - "docs/**"
-  #     - requirements-client.txt
-  #     - requirements-dev.txt
-  #     - requirements-markdown-tests.txt
-  #     - requirements.txt
-  #     - setup.cfg
-  #     - Dockerfile
+  pull_request:
+    paths:
+      - .github/workflows/markdown-tests.yaml
+      - "docs/**"
+      - requirements-client.txt
+      - requirements-dev.txt
+      - requirements-markdown-tests.txt
+      - requirements.txt
+      - setup.cfg
+      - Dockerfile
 
-  # push:
-  #   branches:
-  #     - main
-  # paths:
-  #   - .github/workflows/markdown-tests.yaml
-  #   - "src/prefect/**/*.py"
-  #   - "tests/**/*.py"
-  #   - requirements-client.txt
-  #   - requirements-dev.txt
-  #   - requirements-markdown-tests.txt
-  #   - requirements.txt
-  #   - setup.cfg
-  #   - Dockerfile
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/markdown-tests.yaml
+      - "src/prefect/**/*.py"
+      - "tests/**/*.py"
+      - requirements-client.txt
+      - requirements-dev.txt
+      - requirements-markdown-tests.txt
+      - requirements.txt
+      - setup.cfg
+      - Dockerfile
 
 permissions:
   contents: read
@@ -95,6 +95,7 @@ jobs:
           python -m pip install -U uv
           uv pip install --upgrade --system -e '.[dev]'
           uv pip install --upgrade --system -r requirements-markdown-tests.txt
+          uv pip uninstall --system pytest-benchmark
 
       - name: Start server
         run: |

@@ -64,7 +64,7 @@ class Setting:
         for key in path:
             current_value = getattr(current_value, key, None)
         if isinstance(current_value, _SECRET_TYPES):
-            return current_value.get_secret_value()
+            return current_value.get_secret_value()  # type: ignore
         return current_value
 
     def __bool__(self) -> bool:

@@ -227,8 +227,8 @@ SUPPORTED_SETTINGS = {
         "legacy": True,
     },
     "PREFECT_EVENTS_WEBSOCKET_BACKFILL_PAGE_SIZE": {"test_value": 10, "legacy": True},
-    "PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY": {"test_value": True},
     "PREFECT_EXPERIMENTAL_WARN": {"test_value": True},
+    "PREFECT_EXPERIMENTS_WORKER_LOGGING_TO_API_ENABLED": {"test_value": False},
     "PREFECT_FLOW_DEFAULT_RETRIES": {"test_value": 10, "legacy": True},
     "PREFECT_FLOWS_DEFAULT_RETRIES": {"test_value": 10},
     "PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS": {"test_value": 10, "legacy": True},
@@ -452,6 +452,21 @@ def temporary_env_file(tmp_path):
 
         if env_file.exists():
             env_file.unlink()
+
+
+@pytest.fixture
+def temporary_toml_file(tmp_path):
+    with tmpchdir(tmp_path):
+        toml_file = Path("prefect.toml")
+
+        def _create_temp_toml(content):
+            with toml_file.open("w") as f:
+                toml.dump(content, f)
+
+        yield _create_temp_toml
+
+        if toml_file.exists():
+            toml_file.unlink()
 
 
 class TestSettingClass:
@@ -1092,11 +1107,21 @@ class TestSettingsSources:
 
         assert Settings().client.retry_extra_codes == {420, 500}
 
+        toml_data = {"client": {"retry_extra_codes": "300"}}
+        with open("prefect.toml", "w") as f:
+            toml.dump(toml_data, f)
+
+        assert Settings().client.retry_extra_codes == {300}
+
         temporary_env_file("PREFECT_CLIENT_RETRY_EXTRA_CODES=429,500")
 
         assert Settings().client.retry_extra_codes == {429, 500}
 
         os.unlink(".env")
+
+        assert Settings().client.retry_extra_codes == {300}
+
+        os.unlink("prefect.toml")
 
         assert Settings().client.retry_extra_codes == {420, 500}
 
@@ -1698,5 +1723,26 @@ class TestSettingValues:
             monkeypatch.setenv("PREFECT_TEST_MODE", "True")
 
         temporary_env_file(f"{setting}={value}")
+
+        self.check_setting_value(setting, value)
+
+    def test_set_via_prefect_toml_file(
+        self, setting_and_value, temporary_toml_file, monkeypatch
+    ):
+        setting, value = setting_and_value
+        if setting == "PREFECT_PROFILES_PATH":
+            monkeypatch.delenv("PREFECT_PROFILES_PATH", raising=False)
+        if (
+            setting == "PREFECT_TEST_SETTING"
+            or setting == "PREFECT_TESTING_TEST_SETTING"
+        ):
+            monkeypatch.setenv("PREFECT_TEST_MODE", "True")
+
+        settings_fields = _get_settings_fields(prefect.settings.Settings)
+        toml_dict = {}
+        set_in_dict(
+            toml_dict, settings_fields[setting].accessor, to_jsonable_python(value)
+        )
+        temporary_toml_file(toml_dict)
 
         self.check_setting_value(setting, value)

@@ -1,3 +1,4 @@
+import inspect
 from functools import partial
 from typing import Any, Dict, Tuple, Type
 
@@ -8,9 +9,17 @@ from pydantic import (
     SerializerFunctionWrapHandler,
     model_serializer,
 )
-from pydantic_settings import BaseSettings, PydanticBaseSettingsSource
+from pydantic_settings import (
+    BaseSettings,
+    PydanticBaseSettingsSource,
+    SettingsConfigDict,
+)
 
-from prefect.settings.sources import EnvFilterSettingsSource, ProfileSettingsTomlLoader
+from prefect.settings.sources import (
+    EnvFilterSettingsSource,
+    PrefectTomlConfigSettingsSource,
+    ProfileSettingsTomlLoader,
+)
 from prefect.utilities.collections import visit_collection
 from prefect.utilities.pydantic import handle_secret_render
 
@@ -54,6 +63,7 @@ class PrefectBaseSettings(BaseSettings):
             ),
             dotenv_settings,
             file_secret_settings,
+            PrefectTomlConfigSettingsSource(settings_cls),
             ProfileSettingsTomlLoader(settings_cls),
         )
 
@@ -105,7 +115,7 @@ class PrefectBaseSettings(BaseSettings):
             if isinstance(child_settings := getattr(self, key), PrefectBaseSettings):
                 child_jsonable = child_settings.model_dump(
                     mode=info.mode,
-                    include=child_include,
+                    include=child_include,  # type: ignore
                     exclude=child_exclude,
                     exclude_unset=info.exclude_unset,
                     context=info.context,
@@ -129,3 +139,46 @@ class PrefectBaseSettings(BaseSettings):
             )
 
         return jsonable_self
+
+
+class PrefectSettingsConfigDict(SettingsConfigDict, total=False):
+    """
+    Configuration for the behavior of Prefect settings models.
+    """
+
+    prefect_toml_table_header: tuple[str, ...]
+    """
+    Header of the TOML table within a prefect.toml file to use when filling variables.
+    This is supplied as a `tuple[str, ...]` instead of a `str` to accommodate for headers
+    containing a `.`.
+
+    To use the root table, exclude this config setting or provide an empty tuple.
+    """
+
+
+def _add_environment_variables(
+    schema: Dict[str, Any], model: Type[PrefectBaseSettings]
+) -> None:
+    for property in schema["properties"]:
+        env_vars = []
+        schema["properties"][property]["supported_environment_variables"] = env_vars
+        field = model.model_fields[property]
+        if inspect.isclass(field.annotation) and issubclass(
+            field.annotation, PrefectBaseSettings
+        ):
+            continue
+        elif field.validation_alias:
+            if isinstance(field.validation_alias, AliasChoices):
+                for alias in field.validation_alias.choices:
+                    if isinstance(alias, str):
+                        env_vars.append(alias.upper())
+        else:
+            env_vars.append(f"{model.model_config.get('env_prefix')}{property.upper()}")
+
+
+COMMON_CONFIG_DICT = {
+    "env_file": ".env",
+    "extra": "ignore",
+    "toml_file": "prefect.toml",
+    "json_schema_extra": _add_environment_variables,
+}

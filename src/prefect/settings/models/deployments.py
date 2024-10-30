@@ -1,9 +1,12 @@
 from typing import Optional
 
 from pydantic import AliasChoices, AliasPath, Field
-from pydantic_settings import SettingsConfigDict
 
-from prefect.settings.base import PrefectBaseSettings
+from prefect.settings.base import (
+    COMMON_CONFIG_DICT,
+    PrefectBaseSettings,
+    PrefectSettingsConfigDict,
+)
 
 
 class DeploymentsSettings(PrefectBaseSettings):
@@ -11,8 +14,10 @@ class DeploymentsSettings(PrefectBaseSettings):
     Settings for configuring deployments defaults
     """
 
-    model_config = SettingsConfigDict(
-        env_prefix="PREFECT_DEPLOYMENTS_", env_file=".env", extra="ignore"
+    model_config = PrefectSettingsConfigDict(
+        **COMMON_CONFIG_DICT,
+        env_prefix="PREFECT_DEPLOYMENTS_",
+        prefect_toml_table_header=("deployments",),
     )
 
     default_work_pool_name: Optional[str] = Field(

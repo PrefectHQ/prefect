@@ -3,10 +3,13 @@ from typing import Optional
 from urllib.parse import quote_plus
 
 from pydantic import AliasChoices, AliasPath, Field, SecretStr, model_validator
-from pydantic_settings import SettingsConfigDict
 from typing_extensions import Literal, Self
 
-from prefect.settings.base import PrefectBaseSettings
+from prefect.settings.base import (
+    COMMON_CONFIG_DICT,
+    PrefectBaseSettings,
+    PrefectSettingsConfigDict,
+)
 
 
 class ServerDatabaseSettings(PrefectBaseSettings):
@@ -14,10 +17,10 @@ class ServerDatabaseSettings(PrefectBaseSettings):
     Settings for controlling server database behavior
     """
 
-    model_config = SettingsConfigDict(
+    model_config = PrefectSettingsConfigDict(
+        **COMMON_CONFIG_DICT,
         env_prefix="PREFECT_SERVER_DATABASE_",
-        env_file=".env",
-        extra="ignore",
+        prefect_toml_table_header=("server", "database"),
     )
 
     connection_url: Optional[SecretStr] = Field(

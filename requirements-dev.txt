@@ -12,7 +12,6 @@ pluggy >= 1.4.0
 pytest >= 8.3
 pytest-asyncio >= 0.24
 pytest-benchmark
-pytest-codspeed
 pytest-cov
 pytest-env
 pytest-flakefinder
