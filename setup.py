@@ -14,6 +14,7 @@ def read_requirements(file):
 client_requires = read_requirements("requirements-client.txt")
 install_requires = read_requirements("requirements.txt")[1:] + client_requires
 dev_requires = read_requirements("requirements-dev.txt")
+otel_requires = read_requirements("requirements-otel.txt")
 
 setup(
     # Package metadata
@@ -49,6 +50,7 @@ setup(
     install_requires=install_requires,
     extras_require={
         "dev": dev_requires,
+        "otel": otel_requires,
         # Infrastructure extras
         "aws": "prefect-aws>=0.5.0rc1",
         "azure": "prefect-azure>=0.4.0rc1",
