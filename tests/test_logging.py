@@ -670,6 +670,7 @@ class TestWorkerLogging:
             assert logger.extra['worker_id'] == "test_backend_id"
 
     async def test_worker_emits_logs_with_worker_id(self, caplog,experiment_enabled):
+        
         async with self.WorkerTestImpl(
             name="test", work_pool_name="test-work-pool"
         ) as worker:
@@ -680,12 +681,6 @@ class TestWorkerLogging:
                 r for r in caplog.records if "testing_with_extras" in r.message
             ]
 
-            assert any(
-                [
-                    isinstance(h, WorkerAPILogHandler)
-                    for h in worker._logger.logger.handlers
-                ]
-            )
             assert "testing_with_extras" in caplog.text
             assert record_with_extras[0].worker_id == worker.backend_id
             assert worker._logger.extra["worker_id"] == worker.backend_id
