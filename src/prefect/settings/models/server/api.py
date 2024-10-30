@@ -2,11 +2,7 @@ from datetime import timedelta
 
 from pydantic import AliasChoices, AliasPath, Field
 
-from prefect.settings.base import (
-    COMMON_CONFIG_DICT,
-    PrefectBaseSettings,
-    PrefectSettingsConfigDict,
-)
+from prefect.settings.base import PrefectBaseSettings, _build_settings_config
 
 
 class ServerAPISettings(PrefectBaseSettings):
@@ -14,11 +10,7 @@ class ServerAPISettings(PrefectBaseSettings):
     Settings for controlling API server behavior
     """
 
-    model_config = PrefectSettingsConfigDict(
-        **COMMON_CONFIG_DICT,
-        env_prefix="PREFECT_SERVER_API_",
-        prefect_toml_table_header=("server", "api"),
-    )
+    model_config = _build_settings_config(("server", "api"))
 
     host: str = Field(
         default="127.0.0.1",

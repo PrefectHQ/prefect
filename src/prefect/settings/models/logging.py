@@ -4,11 +4,7 @@ from typing import Annotated, Literal, Optional, Union
 from pydantic import AfterValidator, AliasChoices, AliasPath, Field, model_validator
 from typing_extensions import Self
 
-from prefect.settings.base import (
-    COMMON_CONFIG_DICT,
-    PrefectBaseSettings,
-    PrefectSettingsConfigDict,
-)
+from prefect.settings.base import PrefectBaseSettings, _build_settings_config
 from prefect.types import LogLevel
 
 
@@ -29,11 +25,7 @@ class LoggingToAPISettings(PrefectBaseSettings):
     Settings for controlling logging to the API
     """
 
-    model_config = PrefectSettingsConfigDict(
-        **COMMON_CONFIG_DICT,
-        env_prefix="PREFECT_LOGGING_TO_API_",
-        prefect_toml_table_header=("logging", "to_api"),
-    )
+    model_config = _build_settings_config(("logging", "to_api"))
 
     enabled: bool = Field(
         default=True,
@@ -86,11 +78,7 @@ class LoggingSettings(PrefectBaseSettings):
     Settings for controlling logging behavior
     """
 
-    model_config = PrefectSettingsConfigDict(
-        **COMMON_CONFIG_DICT,
-        env_prefix="PREFECT_LOGGING_",
-        prefect_toml_table_header=("logging",),
-    )
+    model_config = _build_settings_config(("logging",))
 
     level: LogLevel = Field(
         default="INFO",

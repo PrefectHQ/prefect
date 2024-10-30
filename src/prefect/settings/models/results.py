@@ -3,11 +3,7 @@ from typing import Optional
 
 from pydantic import AliasChoices, AliasPath, Field
 
-from prefect.settings.base import (
-    COMMON_CONFIG_DICT,
-    PrefectBaseSettings,
-    PrefectSettingsConfigDict,
-)
+from prefect.settings.base import PrefectBaseSettings, _build_settings_config
 
 
 class ResultsSettings(PrefectBaseSettings):
@@ -15,11 +11,7 @@ class ResultsSettings(PrefectBaseSettings):
     Settings for controlling result storage behavior
     """
 
-    model_config = PrefectSettingsConfigDict(
-        **COMMON_CONFIG_DICT,
-        env_prefix="PREFECT_RESULTS_",
-        prefect_toml_table_header=("results",),
-    )
+    model_config = _build_settings_config(("results",))
 
     default_serializer: str = Field(
         default="pickle",

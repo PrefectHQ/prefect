@@ -2,11 +2,7 @@ from datetime import timedelta
 
 from pydantic import AliasChoices, AliasPath, Field
 
-from prefect.settings.base import (
-    COMMON_CONFIG_DICT,
-    PrefectBaseSettings,
-    PrefectSettingsConfigDict,
-)
+from prefect.settings.base import PrefectBaseSettings, _build_settings_config
 
 
 class ServerServicesCancellationCleanupSettings(PrefectBaseSettings):
@@ -14,10 +10,8 @@ class ServerServicesCancellationCleanupSettings(PrefectBaseSettings):
     Settings for controlling the cancellation cleanup service
     """
 
-    model_config = PrefectSettingsConfigDict(
-        **COMMON_CONFIG_DICT,
-        env_prefix="PREFECT_SERVER_SERVICES_CANCELLATION_CLEANUP_",
-        prefect_toml_table_header=("server", "services", "cancellation_cleanup"),
+    model_config = _build_settings_config(
+        ("server", "services", "cancellation_cleanup")
     )
 
     enabled: bool = Field(
@@ -46,11 +40,7 @@ class ServerServicesEventPersisterSettings(PrefectBaseSettings):
     Settings for controlling the event persister service
     """
 
-    model_config = PrefectSettingsConfigDict(
-        **COMMON_CONFIG_DICT,
-        env_prefix="PREFECT_SERVER_SERVICES_EVENT_PERSISTER_",
-        prefect_toml_table_header=("server", "services", "event_persister"),
-    )
+    model_config = _build_settings_config(("server", "services", "event_persister"))
 
     enabled: bool = Field(
         default=True,
@@ -90,10 +80,8 @@ class ServerServicesFlowRunNotificationsSettings(PrefectBaseSettings):
     Settings for controlling the flow run notifications service
     """
 
-    model_config = PrefectSettingsConfigDict(
-        **COMMON_CONFIG_DICT,
-        env_prefix="PREFECT_SERVER_SERVICES_FLOW_RUN_NOTIFICATIONS_",
-        prefect_toml_table_header=("server", "services", "flow_run_notifications"),
+    model_config = _build_settings_config(
+        ("server", "services", "flow_run_notifications")
     )
 
     enabled: bool = Field(
@@ -112,11 +100,7 @@ class ServerServicesForemanSettings(PrefectBaseSettings):
     Settings for controlling the foreman service
     """
 
-    model_config = PrefectSettingsConfigDict(
-        **COMMON_CONFIG_DICT,
-        env_prefix="PREFECT_SERVER_SERVICES_FOREMAN_",
-        prefect_toml_table_header=("server", "services", "foreman"),
-    )
+    model_config = _build_settings_config(("server", "services", "foreman"))
 
     enabled: bool = Field(
         default=True,
@@ -195,11 +179,7 @@ class ServerServicesLateRunsSettings(PrefectBaseSettings):
     Settings for controlling the late runs service
     """
 
-    model_config = PrefectSettingsConfigDict(
-        **COMMON_CONFIG_DICT,
-        env_prefix="PREFECT_SERVER_SERVICES_LATE_RUNS_",
-        prefect_toml_table_header=("server", "services", "late_runs"),
-    )
+    model_config = _build_settings_config(("server", "services", "late_runs"))
 
     enabled: bool = Field(
         default=True,
@@ -241,11 +221,7 @@ class ServerServicesSchedulerSettings(PrefectBaseSettings):
     Settings for controlling the scheduler service
     """
 
-    model_config = PrefectSettingsConfigDict(
-        **COMMON_CONFIG_DICT,
-        env_prefix="PREFECT_SERVER_SERVICES_SCHEDULER_",
-        prefect_toml_table_header=("server", "services", "scheduler"),
-    )
+    model_config = _build_settings_config(("server", "services", "scheduler"))
 
     enabled: bool = Field(
         default=True,
@@ -368,11 +344,7 @@ class ServerServicesPauseExpirationsSettings(PrefectBaseSettings):
     Settings for controlling the pause expiration service
     """
 
-    model_config = PrefectSettingsConfigDict(
-        **COMMON_CONFIG_DICT,
-        env_prefix="PREFECT_SERVER_SERVICES_PAUSE_EXPIRATIONS_",
-        prefect_toml_table_header=("server", "services", "pause_expirations"),
-    )
+    model_config = _build_settings_config(("server", "services", "pause_expirations"))
 
     enabled: bool = Field(
         default=True,
@@ -406,11 +378,7 @@ class ServerServicesTaskRunRecorderSettings(PrefectBaseSettings):
     Settings for controlling the task run recorder service
     """
 
-    model_config = PrefectSettingsConfigDict(
-        **COMMON_CONFIG_DICT,
-        env_prefix="PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_",
-        prefect_toml_table_header=("server", "services", "task_run_recorder"),
-    )
+    model_config = _build_settings_config(("server", "services", "task_run_recorder"))
 
     enabled: bool = Field(
         default=True,
@@ -428,11 +396,7 @@ class ServerServicesTriggersSettings(PrefectBaseSettings):
     Settings for controlling the triggers service
     """
 
-    model_config = PrefectSettingsConfigDict(
-        **COMMON_CONFIG_DICT,
-        env_prefix="PREFECT_SERVER_SERVICES_TRIGGERS_",
-        prefect_toml_table_header=("server", "services", "triggers"),
-    )
+    model_config = _build_settings_config(("server", "services", "triggers"))
 
     enabled: bool = Field(
         default=True,
@@ -450,11 +414,7 @@ class ServerServicesSettings(PrefectBaseSettings):
     Settings for controlling server services
     """
 
-    model_config = PrefectSettingsConfigDict(
-        **COMMON_CONFIG_DICT,
-        env_prefix="PREFECT_SERVER_SERVICES_",
-        prefect_toml_table_header=("server", "services"),
-    )
+    model_config = _build_settings_config(("server", "services"))
 
     cancellation_cleanup: ServerServicesCancellationCleanupSettings = Field(
         default_factory=ServerServicesCancellationCleanupSettings,

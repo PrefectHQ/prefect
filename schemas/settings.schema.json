@@ -158,6 +158,9 @@
                     "default": 5,
                     "description": "\n        The maximum number of retries to perform on failed HTTP requests.\n        Defaults to 5. Set to 0 to disable retries.\n        See `PREFECT_CLIENT_RETRY_EXTRA_CODES` for details on which HTTP status codes are\n        retried.\n        ",
                     "minimum": 0,
+                    "supported_environment_variables": [
+                        "PREFECT_CLIENT_MAX_RETRIES"
+                    ],
                     "title": "Max Retries",
                     "type": "integer"
                 },
@@ -165,6 +168,9 @@
                     "default": 0.2,
                     "description": "\n        A value greater than or equal to zero to control the amount of jitter added to retried\n        client requests. Higher values introduce larger amounts of jitter.\n        Set to 0 to disable jitter. See `clamped_poisson_interval` for details on the how jitter\n        can affect retry lengths.\n        ",
                     "minimum": 0.0,
+                    "supported_environment_variables": [
+                        "PREFECT_CLIENT_RETRY_JITTER_FACTOR"
+                    ],
                     "title": "Retry Jitter Factor",
                     "type": "number"
                 },
@@ -201,16 +207,23 @@
                             503
                         ]
                     ],
+                    "supported_environment_variables": [
+                        "PREFECT_CLIENT_RETRY_EXTRA_CODES"
+                    ],
                     "title": "Retry Extra Codes"
                 },
                 "csrf_support_enabled": {
                     "default": true,
                     "description": "\n        Determines if CSRF token handling is active in the Prefect client for API\n        requests.\n\n        When enabled (`True`), the client automatically manages CSRF tokens by\n        retrieving, storing, and including them in applicable state-changing requests\n        ",
+                    "supported_environment_variables": [
+                        "PREFECT_CLIENT_CSRF_SUPPORT_ENABLED"
+                    ],
                     "title": "Csrf Support Enabled",
                     "type": "boolean"
                 },
                 "metrics": {
-                    "$ref": "#/$defs/ClientMetricsSettings"
+                    "$ref": "#/$defs/ClientMetricsSettings",
+                    "supported_environment_variables": []
                 }
             },
             "title": "ClientSettings",
@@ -299,6 +312,9 @@
                 "worker_logging_to_api_enabled": {
                     "default": false,
                     "description": "Enables the logging of worker logs to Prefect Cloud.",
+                    "supported_environment_variables": [
+                        "PREFECT_EXPERIMENTS_WORKER_LOGGING_TO_API_ENABLED"
+                    ],
                     "title": "Worker Logging To Api Enabled",
                     "type": "boolean"
                 }
@@ -1758,17 +1774,26 @@
                     "default": 30,
                     "description": "The number of seconds to wait before retrying when a task run cannot secure a concurrency slot from the server.",
                     "minimum": 0.0,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_TASKS_TAG_CONCURRENCY_SLOT_WAIT_SECONDS",
+                        "PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS"
+                    ],
                     "title": "Tag Concurrency Slot Wait Seconds",
                     "type": "number"
                 },
                 "max_cache_key_length": {
                     "default": 2000,
                     "description": "The maximum number of characters allowed for a task run cache key.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_TASKS_MAX_CACHE_KEY_LENGTH",
+                        "PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH"
+                    ],
                     "title": "Max Cache Key Length",
                     "type": "integer"
                 },
                 "scheduling": {
-                    "$ref": "#/$defs/ServerTasksSchedulingSettings"
+                    "$ref": "#/$defs/ServerTasksSchedulingSettings",
+                    "supported_environment_variables": []
                 }
             },
             "title": "ServerTasksSettings",

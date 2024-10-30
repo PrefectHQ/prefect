@@ -5,11 +5,7 @@ from urllib.parse import quote_plus
 from pydantic import AliasChoices, AliasPath, Field, SecretStr, model_validator
 from typing_extensions import Literal, Self
 
-from prefect.settings.base import (
-    COMMON_CONFIG_DICT,
-    PrefectBaseSettings,
-    PrefectSettingsConfigDict,
-)
+from prefect.settings.base import PrefectBaseSettings, _build_settings_config
 
 
 class ServerDatabaseSettings(PrefectBaseSettings):
@@ -17,11 +13,7 @@ class ServerDatabaseSettings(PrefectBaseSettings):
     Settings for controlling server database behavior
     """
 
-    model_config = PrefectSettingsConfigDict(
-        **COMMON_CONFIG_DICT,
-        env_prefix="PREFECT_SERVER_DATABASE_",
-        prefect_toml_table_header=("server", "database"),
-    )
+    model_config = _build_settings_config(("server", "database"))
 
     connection_url: Optional[SecretStr] = Field(
         default=None,

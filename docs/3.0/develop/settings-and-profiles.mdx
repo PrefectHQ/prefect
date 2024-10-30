@@ -43,6 +43,8 @@ You can configure settings via the following sources (highest to lowest preceden
 
 - **`prefect.toml` file**: A `prefect.toml` file is useful when you want to declare settings for an entire project. You can keep this file in your project directory and it will be automatically applied regardless of where you run your project.
 
+- **`pyproject.toml` file**: If you already have a `pyproject.toml` file in your project or like to consolidate settings for all your tools in one place, you can declare settings in the `[tool.prefect]` table of your `pyproject.toml` file.
+
 - **Profiles**: Prefect profiles are useful for switching between different environments. For example, you might use one profile for a local Prefect server and another for your production environment.
 
 When multiple settings sources define the same setting, Prefect follows this precedence order (highest to lowest):
@@ -51,6 +53,7 @@ When multiple settings sources define the same setting, Prefect follows this pre
   <Step title="Environment variables"/>
   <Step title=".env file in the current working directory"/>
   <Step title="prefect.toml file in the current working directory"/>
+  <Step title="pyproject.toml file in the current working directory"/>
   <Step title="Active profile settings"/>
   <Step title="Default values"/>
 </Steps>
@@ -110,6 +113,19 @@ level = "DEBUG"
 If you commit your `prefect.toml` file to a code repository, creating deployments from flows in that repository will use the settings declared in the `prefect.toml` file.
 
 You can see the `prefect.toml` path for each setting in the [settings reference documentation](/3.0/develop/settings-ref).
+
+### `pyproject.toml` file
+
+Declaring settings in a `pyproject.toml` file is very similar to declaring settings in a `prefect.toml` file. The main difference is that settings are declared in the `[tool.prefect]` table instead of at the root of the file.
+
+For example, the following `pyproject.toml` file declares a setting for the logging level:
+
+```toml pyproject.toml
+[tool.prefect]
+logging.level = "DEBUG"
+```
+
+The advantage of declaring settings in a `pyproject.toml` file is that it allows you to keep all your dependencies and settings for all your tools in one place. You can learn more about `pyproject.toml` files in the [Python Packaging User Guide](https://packaging.python.org/en/latest/specifications/pyproject-toml/#arbitrary-tool-configuration-the-tool-table).
 
 ### Profiles
 

@@ -357,6 +357,9 @@ Settings for controlling API client behavior
 
 **TOML dotted key path**: `client.max_retries`
 
+**Supported environment variables**:
+`PREFECT_CLIENT_MAX_RETRIES`
+
 ### `retry_jitter_factor`
 
         A value greater than or equal to zero to control the amount of jitter added to retried
@@ -374,6 +377,9 @@ Settings for controlling API client behavior
 
 **TOML dotted key path**: `client.retry_jitter_factor`
 
+**Supported environment variables**:
+`PREFECT_CLIENT_RETRY_JITTER_FACTOR`
+
 ### `retry_extra_codes`
 
         A list of extra HTTP status codes to retry on. Defaults to an empty list.
@@ -384,6 +390,9 @@ Settings for controlling API client behavior
 **Type**: `string | integer | array | None`
 
 **TOML dotted key path**: `client.retry_extra_codes`
+
+**Supported environment variables**:
+`PREFECT_CLIENT_RETRY_EXTRA_CODES`
 
 ### `csrf_support_enabled`
 
@@ -399,6 +408,9 @@ Settings for controlling API client behavior
 **Default**: `True`
 
 **TOML dotted key path**: `client.csrf_support_enabled`
+
+**Supported environment variables**:
+`PREFECT_CLIENT_CSRF_SUPPORT_ENABLED`
 
 ### `metrics`
 
@@ -471,6 +483,9 @@ Enables the logging of worker logs to Prefect Cloud.
 **Default**: `False`
 
 **TOML dotted key path**: `experiments.worker_logging_to_api_enabled`
+
+**Supported environment variables**:
+`PREFECT_EXPERIMENTS_WORKER_LOGGING_TO_API_ENABLED`
 
 ---
 ## FlowsSettings
@@ -2069,6 +2084,9 @@ The number of seconds to wait before retrying when a task run cannot secure a co
 
 **TOML dotted key path**: `server.tasks.tag_concurrency_slot_wait_seconds`
 
+**Supported environment variables**:
+`PREFECT_SERVER_TASKS_TAG_CONCURRENCY_SLOT_WAIT_SECONDS`, `PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS`
+
 ### `max_cache_key_length`
 The maximum number of characters allowed for a task run cache key.
 
@@ -2077,6 +2095,9 @@ The maximum number of characters allowed for a task run cache key.
 **Default**: `2000`
 
 **TOML dotted key path**: `server.tasks.max_cache_key_length`
+
+**Supported environment variables**:
+`PREFECT_SERVER_TASKS_MAX_CACHE_KEY_LENGTH`, `PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH`
 
 ### `scheduling`
 

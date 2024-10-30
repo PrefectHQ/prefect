@@ -19,6 +19,7 @@ from prefect.settings.sources import (
     EnvFilterSettingsSource,
     PrefectTomlConfigSettingsSource,
     ProfileSettingsTomlLoader,
+    PyprojectTomlConfigSettingsSource,
 )
 from prefect.utilities.collections import visit_collection
 from prefect.utilities.pydantic import handle_secret_render
@@ -64,6 +65,7 @@ class PrefectBaseSettings(BaseSettings):
             dotenv_settings,
             file_secret_settings,
             PrefectTomlConfigSettingsSource(settings_cls),
+            PyprojectTomlConfigSettingsSource(settings_cls),
             ProfileSettingsTomlLoader(settings_cls),
         )
 
@@ -176,9 +178,16 @@ def _add_environment_variables(
             env_vars.append(f"{model.model_config.get('env_prefix')}{property.upper()}")
 
 
-COMMON_CONFIG_DICT = {
-    "env_file": ".env",
-    "extra": "ignore",
-    "toml_file": "prefect.toml",
-    "json_schema_extra": _add_environment_variables,
-}
+def _build_settings_config(
+    path: Tuple[str, ...] = tuple(),
+) -> PrefectSettingsConfigDict:
+    env_prefix = f"PREFECT_{'_'.join(path).upper()}_" if path else "PREFECT_"
+    return PrefectSettingsConfigDict(
+        env_prefix=env_prefix,
+        env_file=".env",
+        extra="ignore",
+        toml_file="prefect.toml",
+        prefect_toml_table_header=path,
+        pyproject_toml_table_header=("tool", "prefect", *path),
+        json_schema_extra=_add_environment_variables,
+    )

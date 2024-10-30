@@ -5,9 +5,8 @@ from pydantic import Field, model_validator
 from typing_extensions import Self
 
 from prefect.settings.base import (
-    COMMON_CONFIG_DICT,
     PrefectBaseSettings,
-    PrefectSettingsConfigDict,
+    _build_settings_config,
 )
 
 
@@ -33,11 +32,7 @@ class CloudSettings(PrefectBaseSettings):
     Settings for interacting with Prefect Cloud
     """
 
-    model_config = PrefectSettingsConfigDict(
-        **COMMON_CONFIG_DICT,
-        env_prefix="PREFECT_CLOUD_",
-        prefect_toml_table_header=("cloud",),
-    )
+    model_config = _build_settings_config(("cloud",))
 
     api_url: str = Field(
         default="https://api.prefect.cloud/api",
