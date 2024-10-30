@@ -150,11 +150,17 @@ class BaseTaskRunEngine(Generic[P, R]):
             else:
                 parameters = None
 
-            key = self.task.cache_policy.compute_key(
-                task_ctx=task_run_context,
-                inputs=self.parameters,
-                flow_parameters=parameters,
-            )
+            try:
+                key = self.task.cache_policy.compute_key(
+                    task_ctx=task_run_context,
+                    inputs=self.parameters,
+                    flow_parameters=parameters,
+                )
+            except Exception:
+                self.logger.exception(
+                    "Error encountered when computing cache key - result will not be persisted.",
+                )
+                key = None
         elif self.task.result_storage_key is not None:
             key = _format_user_supplied_storage_key(self.task.result_storage_key)
         return key
