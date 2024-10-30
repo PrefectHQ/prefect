@@ -175,7 +175,7 @@ class CompoundCachePolicy(CachePolicy):
                 keys.append(policy_key)
         if not keys:
             return None
-        return hash_objects(*keys)
+        return hash_objects(*keys, raise_on_failure=True)
 
 
 @dataclass
@@ -224,7 +224,7 @@ class TaskSource(CachePolicy):
             else:
                 raise
 
-        return hash_objects(lines)
+        return hash_objects(lines, raise_on_failure=True)
 
 
 @dataclass
@@ -242,7 +242,7 @@ class FlowParameters(CachePolicy):
     ) -> Optional[str]:
         if not flow_parameters:
             return None
-        return hash_objects(flow_parameters)
+        return hash_objects(flow_parameters, raise_on_failure=True)
 
 
 @dataclass
@@ -293,7 +293,7 @@ class Inputs(CachePolicy):
             if key not in exclude:
                 hashed_inputs[key] = val
 
-        return hash_objects(hashed_inputs)
+        return hash_objects(hashed_inputs, raise_on_failure=True)
 
     def __sub__(self, other: str) -> "CachePolicy":
         if not isinstance(other, str):

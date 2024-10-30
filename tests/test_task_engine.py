@@ -14,7 +14,7 @@ import anyio
 import pytest
 
 from prefect import Task, flow, tags, task
-from prefect.cache_policies import FLOW_PARAMETERS
+from prefect.cache_policies import FLOW_PARAMETERS, INPUTS, TASK_SOURCE
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.objects import StateType
 from prefect.concurrency.asyncio import concurrency as aconcurrency
@@ -1803,6 +1803,35 @@ class TestCachePolicy:
 
         assert first_val is None
         assert second_val is None
+
+    async def test_error_handling_on_cache_policies(self, prefect_client, tmp_path):
+        fs = LocalFileSystem(basepath=tmp_path)
+        await fs.save("error-handling-test")
+
+        @task(
+            cache_policy=TASK_SOURCE + INPUTS,
+            result_storage=fs,
+        )
+        def my_random_task(x: int, cmplx_input):
+            return random.randint(0, x)
+
+        @flow
+        def my_param_flow(x: int):
+            import threading
+
+            thread = threading.Thread()
+
+            first_val = my_random_task(x, cmplx_input=thread, return_state=True)
+            second_val = my_random_task(x, cmplx_input=thread, return_state=True)
+            return first_val, second_val
+
+        first, second = my_param_flow(4200)
+        assert first.name == "Completed"
+        assert second.name == "Completed"
+
+        first_result = await first.result()
+        second_result = await second.result()
+        assert first_result != second_result
 
     async def test_flow_parameter_caching(self, prefect_client, tmp_path):
         fs = LocalFileSystem(basepath=tmp_path)
