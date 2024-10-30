@@ -206,7 +206,7 @@ def task_run_logger(
     )
 
 
-def get_worker_logger(worker: "BaseWorker"):
+def get_worker_logger(worker: "BaseWorker",name: Optional[str] = None):
     """
     Create a worker logger with the worker's metadata attached.
 
@@ -214,11 +214,13 @@ def get_worker_logger(worker: "BaseWorker"):
     If the worker does not have a backend_id a basic logger will be returned.
     If the worker does not have a backend_id attribute, a basic logger will be returned.
     """
+
+    worker_log_name = name or f"workers.{worker.__class__.type}.{worker.name.lower()}"
     try:
         if worker.backend_id:
             return PrefectLogAdapter(
                 get_logger(
-                    "prefect.workers",
+                    worker_log_name
                 ),
                 extra={
                     "worker_id": str(worker.backend_id),
@@ -226,12 +228,12 @@ def get_worker_logger(worker: "BaseWorker"):
             )
         else:
             return get_logger(
-                "prefect.workers",
+                worker_log_name
             )
     except AttributeError:
         # Going to throw this in there in case if we have a user defined worker w/o a backend_id
         return get_logger(
-            "prefect.workers",
+            worker_log_name
         )
 
 

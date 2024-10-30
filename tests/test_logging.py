@@ -644,51 +644,51 @@ class TestWorkerLogging:
         job_configuration: Type[BaseJobConfiguration] = BaseJobConfiguration
 
         async def _send_worker_heartbeat(self, *_, **__):
-            return "test"
+            return "test_backend_id"
 
         async def run(self, *_, **__):
             pass
 
-    def test_get_worker_logger_works_with_no_backend_id(self):
-        mock_worker = MagicMock()
-
-        logger = get_worker_logger(mock_worker)
-
-        assert logger.name == "prefect.workers"
-
-    def test_get_worker_logger_works_with_backend_id(self):
-        mock_worker = MagicMock()
-        mock_worker.backend_id = "test"
-
-        logger = get_worker_logger(mock_worker)
-        assert logger.name == "prefect.workers"
-        assert logger.extra["worker_id"] == "test"
-
-    async def test_worker_emits_logs_with_worker_id(self, caplog):
+    @pytest.fixture
+    def experiment_enabled(self):
         with temporary_settings(
-            updates={PREFECT_EXPERIMENTS_WORKER_LOGGING_TO_API_ENABLED: True}
+                updates={PREFECT_EXPERIMENTS_WORKER_LOGGING_TO_API_ENABLED: True}
         ):
-            async with self.WorkerTestImpl(
-                name="test", work_pool_name="test-work-pool"
-            ) as worker:
-                worker._client.server_type = ServerType.CLOUD
-                get_current_settings()
-                await worker.sync_with_backend()
-                worker._logger.info("testing_with_extras")
+            yield
 
-                record_with_extras = [
-                    r for r in caplog.records if "testing_with_extras" in r.message
+    async def test_get_worker_logger_works_with_no_backend_id(self,experiment_enabled):
+        async with self.WorkerTestImpl(name="test", work_pool_name="test-work-pool") as worker:
+            logger = get_worker_logger(worker)
+            assert logger.name == "prefect.workers.test.test"
+
+    async def test_get_worker_logger_works_with_backend_id(self,experiment_enabled):
+
+       async with self.WorkerTestImpl(name="test", work_pool_name="test-work-pool") as worker:
+            await worker.sync_with_backend()
+            logger = get_worker_logger(worker)
+            assert logger.name ==  "prefect.workers.test.test"
+            assert logger.extra['worker_id'] == "test_backend_id"
+
+    async def test_worker_emits_logs_with_worker_id(self, caplog,experiment_enabled):
+        async with self.WorkerTestImpl(
+            name="test", work_pool_name="test-work-pool"
+        ) as worker:
+            await worker.sync_with_backend()
+            worker._logger.info("testing_with_extras")
+
+            record_with_extras = [
+                r for r in caplog.records if "testing_with_extras" in r.message
+            ]
+
+            assert any(
+                [
+                    isinstance(h, WorkerAPILogHandler)
+                    for h in worker._logger.logger.handlers
                 ]
-
-                assert any(
-                    [
-                        isinstance(h, WorkerAPILogHandler)
-                        for h in worker._logger.logger.handlers
-                    ]
-                )
-                assert "testing_with_extras" in caplog.text
-                assert record_with_extras[0].worker_id == worker.backend_id
-                assert worker._logger.extra["worker_id"] == worker.backend_id
+            )
+            assert "testing_with_extras" in caplog.text
+            assert record_with_extras[0].worker_id == worker.backend_id
+            assert worker._logger.extra["worker_id"] == worker.backend_id
 
 
 class TestAPILogWorker:

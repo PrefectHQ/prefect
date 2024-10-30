@@ -19,6 +19,7 @@ from prefect._internal.concurrency.api import create_call, from_sync
 from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect._internal.concurrency.services import BatchedQueueService
 from prefect._internal.concurrency.threads import in_global_loop
+from prefect.client.base import ServerType, determine_server_type
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.actions import LogCreate
 from prefect.exceptions import MissingContextError
@@ -31,7 +32,7 @@ from prefect.settings import (
     PREFECT_LOGGING_TO_API_BATCH_INTERVAL,
     PREFECT_LOGGING_TO_API_BATCH_SIZE,
     PREFECT_LOGGING_TO_API_MAX_LOG_SIZE,
-    PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW,
+    PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW, get_current_settings,
 )
 
 
@@ -237,6 +238,13 @@ class APILogHandler(logging.Handler):
 
 
 class WorkerAPILogHandler(APILogHandler):
+
+    def emit(self, record: logging.LogRecord):
+        if get_current_settings().experiments.worker_logging_to_api_enabled:
+            super().emit(record)
+        else:
+            return
+
     def prepare(self, record: logging.LogRecord) -> Dict[str, Any]:
         """
         Convert a `logging.LogRecord` to the API `LogCreate` schema and serialize.
@@ -248,7 +256,7 @@ class WorkerAPILogHandler(APILogHandler):
 
         worker_id = getattr(record, "worker_id", None)
 
-        log_obj = LogCreate(
+        log = LogCreate(
             worker_id=worker_id,
             name=record.name,
             level=record.levelno,
@@ -256,14 +264,7 @@ class WorkerAPILogHandler(APILogHandler):
                 getattr(record, "created", None) or time.time()
             ),
             message=self.format(record),
-        )
-
-        if worker_id:
-            log = log_obj.model_dump(mode="json")
-        else:
-            # Lets errr on the side of not sending a breaking change to the API if for some reason we don't have a
-            # worker_id.
-            log = log_obj.model_dump(mode="json", exclude=["worker_id"])
+        ).model_dump(mode="json")
 
         log_size = log["__payload_size__"] = self._get_payload_size(log)
         if log_size > PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value():

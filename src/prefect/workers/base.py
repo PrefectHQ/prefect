@@ -8,6 +8,7 @@ from uuid import UUID, uuid4
 
 import anyio
 import anyio.abc
+import httpx
 import pendulum
 from pydantic import BaseModel, Field, PrivateAttr, field_validator
 from pydantic.json_schema import GenerateJsonSchema
@@ -751,16 +752,27 @@ class BaseWorker(abc.ABC):
         else:
             get_worker_id = False
 
-        remote_id = await self._send_worker_heartbeat(get_worker_id=get_worker_id)
+        # Here we try and get the worker ID from the API. If we fail, we try and get it again without the ID.
+        # This is because older versions of the API did not return the worker ID.
+        try:
+            remote_id = await self._send_worker_heartbeat(get_worker_id=get_worker_id)
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 422:
+                self._logger.warning(
+                    "Failed to retrieve worker ID from the Prefect API server."
+                )
+                await self._send_worker_heartbeat(get_worker_id=False)
+            else:
+                raise e
 
-        if get_worker_id and remote_id is None:
+        if get_worker_id and remote_id is None and self.backend_id is None:
             self._logger.warning(
                 "Failed to retrieve worker ID from the Prefect API server."
             )
-        else:
+        elif self.backend_id is None and remote_id is not None:
             self.backend_id = remote_id
             self._logger = get_worker_logger(self)
-            self._logger.info("Connected to Prefect API server.")
+            self._logger.info(f"id {self.backend_id}")
 
         self._logger.debug(
             f"Worker synchronized with the Prefect API server. Remote ID: {self.backend_id}"
