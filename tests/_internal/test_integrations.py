@@ -13,6 +13,7 @@ def extract_extras_require(setup_py_content):
         client_requires = []
         install_requires = []
         dev_requires = []
+        otel_requires = []
         markdown_requirements = []
         markdown_tests_requires = []
 
@@ -23,6 +24,7 @@ def extract_extras_require(setup_py_content):
                 "client_requires": client_requires,
                 "install_requires": install_requires,
                 "dev_requires": dev_requires,
+                "otel_requires": otel_requires,
                 "markdown_requirements": markdown_requirements,
                 "markdown_tests_requires": markdown_tests_requires,
             },
