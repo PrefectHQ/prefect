@@ -65,7 +65,7 @@ dask-worker-space/
 !ui/.vscode/
 
 # Prefect files
-prefect.toml
+/prefect.toml
 prefect.yaml
 
 # Deployment recipes

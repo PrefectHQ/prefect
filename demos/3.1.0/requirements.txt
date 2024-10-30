@@ -1,0 +1,4 @@
+git+https://github.com/PrefectHQ/prefect.git
+prefect-aws
+pandas
+numpy

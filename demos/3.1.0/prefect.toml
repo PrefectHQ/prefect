@@ -1,0 +1,10 @@
+[client]
+max_retries = 5
+
+[results]
+persist_by_default = true
+# default_storage_block = "s3-bucket/test-bucket"
+
+
+[tasks]
+runner.thread_pool_max_workers = 25
