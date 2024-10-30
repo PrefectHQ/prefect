@@ -459,8 +459,8 @@ def temporary_toml_file(tmp_path):
     with tmpchdir(tmp_path):
         toml_file = Path("prefect.toml")
 
-        def _create_temp_toml(content):
-            with toml_file.open("w") as f:
+        def _create_temp_toml(content, path=toml_file):
+            with path.open("w") as f:
                 toml.dump(content, f)
 
         yield _create_temp_toml
@@ -1107,9 +1107,17 @@ class TestSettingsSources:
 
         assert Settings().client.retry_extra_codes == {420, 500}
 
-        toml_data = {"client": {"retry_extra_codes": "300"}}
+        pyproject_toml_data = {
+            "tool": {"prefect": {"client": {"retry_extra_codes": "200"}}}
+        }
+        with open("pyproject.toml", "w") as f:
+            toml.dump(pyproject_toml_data, f)
+
+        assert Settings().client.retry_extra_codes == {200}
+
+        prefect_toml_data = {"client": {"retry_extra_codes": "300"}}
         with open("prefect.toml", "w") as f:
-            toml.dump(toml_data, f)
+            toml.dump(prefect_toml_data, f)
 
         assert Settings().client.retry_extra_codes == {300}
 
@@ -1122,6 +1130,10 @@ class TestSettingsSources:
         assert Settings().client.retry_extra_codes == {300}
 
         os.unlink("prefect.toml")
+
+        assert Settings().client.retry_extra_codes == {200}
+
+        os.unlink("pyproject.toml")
 
         assert Settings().client.retry_extra_codes == {420, 500}
 
@@ -1744,5 +1756,28 @@ class TestSettingValues:
             toml_dict, settings_fields[setting].accessor, to_jsonable_python(value)
         )
         temporary_toml_file(toml_dict)
+
+        self.check_setting_value(setting, value)
+
+    def test_set_via_pyproject_toml_file(
+        self, setting_and_value, temporary_toml_file, monkeypatch
+    ):
+        setting, value = setting_and_value
+        if setting == "PREFECT_PROFILES_PATH":
+            monkeypatch.delenv("PREFECT_PROFILES_PATH", raising=False)
+        if (
+            setting == "PREFECT_TEST_SETTING"
+            or setting == "PREFECT_TESTING_TEST_SETTING"
+        ):
+            monkeypatch.setenv("PREFECT_TEST_MODE", "True")
+
+        settings_fields = _get_settings_fields(prefect.settings.Settings)
+        toml_dict = {}
+        set_in_dict(
+            toml_dict,
+            f"tool.prefect.{settings_fields[setting].accessor}",
+            to_jsonable_python(value),
+        )
+        temporary_toml_file(toml_dict, path=Path("pyproject.toml"))
 
         self.check_setting_value(setting, value)
