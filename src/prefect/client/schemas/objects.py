@@ -187,7 +187,7 @@ class StateDetails(PrefectBaseModel):
 
 
 def data_discriminator(x: Any) -> str:
-    if isinstance(x, dict) and "type" in x:
+    if isinstance(x, dict) and "type" in x and x["type"] != "unpersisted":
         return "BaseResult"
     elif isinstance(x, dict) and "storage_key" in x:
         return "ResultRecordMetadata"
@@ -355,6 +355,12 @@ class State(ObjectBaseModel, Generic[R]):
         if self.type == StateType.SCHEDULED:
             if not self.state_details.scheduled_time:
                 self.state_details.scheduled_time = DateTime.now("utc")
+        return self
+
+    @model_validator(mode="after")
+    def set_unpersisted_results_to_none(self) -> Self:
+        if isinstance(self.data, dict) and self.data.get("type") == "unpersisted":
+            self.data = None
         return self
 
     def is_scheduled(self) -> bool:
