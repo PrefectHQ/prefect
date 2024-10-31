@@ -532,6 +532,15 @@ class TestSettingsClass:
             ), "Changed, existing value was default"
             assert new_settings.client.retry_extra_codes == {400, 500}
 
+    def test_settings_copy_with_update_restore_defaults(self, monkeypatch):
+        monkeypatch.setenv("PREFECT_TESTING_TEST_SETTING", "Not the default")
+        settings = Settings()
+        assert settings.testing.test_setting == "Not the default"
+        new_settings = settings.copy_with_update(
+            restore_defaults={PREFECT_TEST_SETTING},
+        )
+        assert new_settings.testing.test_setting == "FOO"
+
     def test_settings_loads_environment_variables_at_instantiation(self, monkeypatch):
         assert PREFECT_TEST_MODE.value() is True
 
