@@ -517,18 +517,6 @@ This value sets the default retry delay seconds for all flows.
 **Supported environment variables**:
 `PREFECT_FLOWS_DEFAULT_RETRY_DELAY_SECONDS`, `PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS`
 
-### `default_persist_result`
-If `True`, results will be persisted by default for all flows.
-
-**Type**: `boolean`
-
-**Default**: `False`
-
-**TOML dotted key path**: `flows.default_persist_result`
-
-**Supported environment variables**:
-`PREFECT_FLOWS_DEFAULT_PERSIST_RESULT`
-
 ---
 ## InternalSettings
 ### `logging_level`
@@ -2249,11 +2237,11 @@ This value sets the default retry delay seconds for all tasks.
 `PREFECT_TASKS_DEFAULT_RETRY_DELAY_SECONDS`, `PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS`
 
 ### `default_persist_result`
-If `True`, results will be persisted by default for all tasks.
+If `True`, results will be persisted by default for all tasks. Set to `False` to disable persistence by default. Note that setting to `False` will override the behavior set by a parent flow or task.
 
-**Type**: `boolean`
+**Type**: `boolean | None`
 
-**Default**: `False`
+**Default**: `None`
 
 **TOML dotted key path**: `tasks.default_persist_result`
 

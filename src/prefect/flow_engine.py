@@ -521,7 +521,7 @@ class FlowRunEngine(Generic[P, R]):
                     task_runner=task_runner,
                     persist_result=self.flow.persist_result
                     if self.flow.persist_result is not None
-                    else should_persist_result(for_type="flow"),
+                    else should_persist_result(),
                 )
             )
             stack.enter_context(ConcurrencyContextV1())

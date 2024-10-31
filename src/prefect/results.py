@@ -13,7 +13,6 @@ from typing import (
     Callable,
     Dict,
     Generic,
-    Literal,
     Optional,
     Tuple,
     Type,
@@ -197,27 +196,19 @@ def get_default_persist_setting_for_tasks() -> bool:
     Return the default option for result persistence for tasks.
     """
     settings = get_current_settings()
-    return settings.tasks.default_persist_result or settings.results.persist_by_default
+    return (
+        settings.tasks.default_persist_result
+        if settings.tasks.default_persist_result is not None
+        else settings.results.persist_by_default
+    )
 
 
-def get_default_persist_setting_for_flows() -> bool:
-    """
-    Return the default option for result persistence for flows.
-    """
-    settings = get_current_settings()
-    return settings.flows.default_persist_result or settings.results.persist_by_default
-
-
-def should_persist_result(for_type: Optional[Literal["task", "flow"]] = None) -> bool:
+def should_persist_result() -> bool:
     """
     Return the default option for result persistence determined by the current run context.
 
-    If there is no current run context, the default value for the requested type will be
-    returned. If no type is requested, the default persist setting will be returned.
-
-    Args:
-        for_type: The type of run primitive to use for determining the persist setting.
-            If not provided, the default persist setting will be returned.
+    If there is no current run context, the value of `results.persist_by_default` on the
+    current settings will be returned.
     """
     from prefect.context import FlowRunContext, TaskRunContext
 
@@ -228,12 +219,7 @@ def should_persist_result(for_type: Optional[Literal["task", "flow"]] = None) ->
     if flow_run_context is not None:
         return flow_run_context.persist_result
 
-    if for_type == "task":
-        return get_default_persist_setting_for_tasks()
-    elif for_type == "flow":
-        return get_default_persist_setting_for_flows()
-    else:
-        return get_default_persist_setting()
+    return get_default_persist_setting()
 
 
 def _format_user_supplied_storage_key(key: str) -> str:
