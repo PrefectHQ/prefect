@@ -12,6 +12,7 @@ import httpx
 import pendulum
 from typing_extensions import TypeGuard
 
+from prefect._internal.compatibility import deprecated
 from prefect.client.schemas import State as State
 from prefect.client.schemas import StateDetails, StateType
 from prefect.exceptions import (
@@ -40,10 +41,17 @@ from prefect.utilities.collections import ensure_iterable
 logger = get_logger("states")
 
 
+@deprecated.deprecated_parameter(
+    "fetch",
+    when=lambda fetch: fetch is not True,
+    start_date="Oct 2024",
+    end_date="Jan 2025",
+    help="Please ensure you are awaiting the call to `result()` when calling in an async context.",
+)
 def get_state_result(
     state: State[R],
     raise_on_failure: bool = True,
-    fetch: Optional[bool] = None,
+    fetch: bool = True,
     retry_result_failure: bool = True,
 ) -> R:
     """

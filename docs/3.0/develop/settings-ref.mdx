@@ -164,18 +164,6 @@ The URL of the Prefect UI. If not set, the client will attempt to infer it.
 **Supported environment variables**:
 `PREFECT_SILENCE_API_URL_MISCONFIGURATION`
 
-### `experimental_warn`
-If `True`, warn on usage of experimental features.
-
-**Type**: `boolean`
-
-**Default**: `True`
-
-**TOML dotted key path**: `experimental_warn`
-
-**Supported environment variables**:
-`PREFECT_EXPERIMENTAL_WARN`
-
 ### `async_fetch_state_result`
 
         Determines whether `State.result()` fetches results automatically or not.
@@ -475,6 +463,18 @@ The default Docker namespace to use when building images.
 ---
 ## ExperimentsSettings
 Settings for configuring experimental features
+### `warn`
+If `True`, warn on usage of experimental features.
+
+**Type**: `boolean`
+
+**Default**: `True`
+
+**TOML dotted key path**: `experiments.warn`
+
+**Supported environment variables**:
+`PREFECT_EXPERIMENTS_WARN`, `PREFECT_EXPERIMENTAL_WARN`
+
 ### `worker_logging_to_api_enabled`
 Enables the logging of worker logs to Prefect Cloud.
 

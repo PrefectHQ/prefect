@@ -13,6 +13,9 @@ from urllib.parse import urlparse
 from pydantic import BeforeValidator, Field, SecretStr, model_validator
 from typing_extensions import Self
 
+from prefect._internal.compatibility.deprecated import (
+    generate_deprecation_message,
+)
 from prefect.settings.base import PrefectBaseSettings, _build_settings_config
 from prefect.settings.models.tasks import TasksSettings
 from prefect.settings.models.testing import TestingSettings
@@ -149,11 +152,6 @@ class Settings(PrefectBaseSettings):
         """,
     )
 
-    experimental_warn: bool = Field(
-        default=True,
-        description="If `True`, warn on usage of experimental features.",
-    )
-
     # this setting needs to be removed
     async_fetch_state_result: bool = Field(
         default=False,
@@ -166,6 +164,12 @@ class Settings(PrefectBaseSettings):
         per call by passing  `fetch=True` or toggle this setting to change the behavior
         globally.
         """,
+        deprecated=generate_deprecation_message(
+            "The `async_fetch_state_result` setting",
+            start_date="Oct 2024",
+            end_date="Jan 2025",
+            help="Please ensure you are awaiting calls to `result()` when calling in an async context.",
+        ),
     )
 
     ###########################################################################
