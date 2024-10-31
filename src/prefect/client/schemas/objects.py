@@ -32,6 +32,7 @@ from pydantic.functional_validators import ModelWrapValidatorHandler
 from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Literal, Self, TypeVar
 
+from prefect._internal.compatibility import deprecated
 from prefect._internal.compatibility.migration import getattr_migration
 from prefect._internal.schemas.bases import ObjectBaseModel, PrefectBaseModel
 from prefect._internal.schemas.fields import CreatedBy, UpdatedBy
@@ -220,10 +221,17 @@ class State(ObjectBaseModel, Generic[R]):
     def result(self: "State[R]", raise_on_failure: bool = False) -> Union[R, Exception]:
         ...
 
+    @deprecated.deprecated_parameter(
+        "fetch",
+        when=lambda fetch: fetch is not True,
+        start_date="Oct 2024",
+        end_date="Jan 2025",
+        help="Please ensure you are awaiting the call to `result()` when calling in an async context.",
+    )
     def result(
         self,
         raise_on_failure: bool = True,
-        fetch: Optional[bool] = None,
+        fetch: bool = True,
         retry_result_failure: bool = True,
     ) -> Union[R, Exception]:
         """
@@ -248,22 +256,6 @@ class State(ObjectBaseModel, Generic[R]):
             The result of the run
 
         Examples:
-            >>> from prefect import flow, task
-            >>> @task
-            >>> def my_task(x):
-            >>>     return x
-
-            Get the result from a task future in a flow
-
-            >>> @flow
-            >>> def my_flow():
-            >>>     future = my_task("hello")
-            >>>     state = future.wait()
-            >>>     result = state.result()
-            >>>     print(result)
-            >>> my_flow()
-            hello
-
             Get the result from a flow state
 
             >>> @flow
@@ -307,7 +299,7 @@ class State(ObjectBaseModel, Generic[R]):
             >>>     raise ValueError("oh no!")
             >>> my_flow.deploy("my_deployment/my_flow")
             >>> flow_run = run_deployment("my_deployment/my_flow")
-            >>> await flow_run.state.result(raise_on_failure=True, fetch=True) # Raises `ValueError("oh no!")`
+            >>> await flow_run.state.result(raise_on_failure=True) # Raises `ValueError("oh no!")`
         """
         from prefect.states import get_state_result
 

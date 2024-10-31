@@ -1,21 +1,6 @@
-import pytest
-
 from prefect import flow, task
-from prefect.settings import PREFECT_ASYNC_FETCH_STATE_RESULT, temporary_settings
 
 
-@pytest.fixture(autouse=True)
-def disable_fetch_by_default():
-    """
-    The test suite defaults to the future behavior.
-
-    For these tests, we enable the default user behavior.
-    """
-    with temporary_settings({PREFECT_ASYNC_FETCH_STATE_RESULT: False}):
-        yield
-
-
-@pytest.mark.skip(reason="This test is flaky and needs to be fixed")
 async def test_async_result_warnings_are_not_raised_by_engine():
     # Since most of our tests are run with the opt-in globally enabled, this test
     # covers a bunch of features to cover remaining cases where we may internally
@@ -92,8 +77,7 @@ async def test_async_result_returns_coroutine_with_setting():
         return 1
 
     state = await foo(return_state=True)
-    with temporary_settings({PREFECT_ASYNC_FETCH_STATE_RESULT: True}):
-        coro = state.result(fetch=True)
+    coro = state.result()
 
     assert await coro == 1
 
