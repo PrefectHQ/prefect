@@ -757,7 +757,7 @@ class BaseWorker(abc.ABC):
         try:
             remote_id = await self._send_worker_heartbeat(get_worker_id=get_worker_id)
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == 422:
+            if e.response.status_code == 422 and get_worker_id:
                 self._logger.warning(
                     "Failed to retrieve worker ID from the Prefect API server."
                 )
