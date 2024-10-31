@@ -640,7 +640,7 @@ class TestAPILogHandler:
 
 class TestWorkerLogging:
     class WorkerTestImpl(BaseWorker):
-        type: str = "test"
+        type: str = "logging_test"
         job_configuration: Type[BaseJobConfiguration] = BaseJobConfiguration
 
         async def _send_worker_heartbeat(self, *_, **__):
@@ -659,18 +659,18 @@ class TestWorkerLogging:
     async def test_get_worker_logger_works_with_no_backend_id(self,experiment_enabled):
         async with self.WorkerTestImpl(name="test", work_pool_name="test-work-pool") as worker:
             logger = get_worker_logger(worker)
-            assert logger.name == "prefect.workers.test.test"
+            assert logger.name == "prefect.workers.logging_test.test"
 
     async def test_get_worker_logger_works_with_backend_id(self,experiment_enabled):
 
        async with self.WorkerTestImpl(name="test", work_pool_name="test-work-pool") as worker:
             await worker.sync_with_backend()
             logger = get_worker_logger(worker)
-            assert logger.name ==  "prefect.workers.test.test"
+            assert logger.name ==  "prefect.workers.logging_test.test"
             assert logger.extra['worker_id'] == "test_backend_id"
 
     async def test_worker_emits_logs_with_worker_id(self, caplog,experiment_enabled):
-        
+
         async with self.WorkerTestImpl(
             name="test", work_pool_name="test-work-pool"
         ) as worker:

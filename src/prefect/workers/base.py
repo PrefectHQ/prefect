@@ -739,33 +739,25 @@ class BaseWorker(abc.ABC):
         queues. Sends a worker heartbeat to the API.
         """
         await self._update_local_work_pool_info()
-        # Only do this logic if we've enabled the experiment, are connected to cloud and we don't have an ID.
-        if (
-            get_current_settings().experiments.worker_logging_to_api_enabled
-            and (
-                self._client.server_type == ServerType.CLOUD
-                or get_current_settings().testing.test_mode
-            )
-            and self.backend_id is None
-        ):
-            get_worker_id = True
-        else:
-            get_worker_id = False
 
-        # Here we try and get the worker ID from the API. If we fail, we try and get it again without the ID.
-        # This is because older versions of the API did not return the worker ID.
         try:
-            remote_id = await self._send_worker_heartbeat(get_worker_id=get_worker_id)
+            remote_id = await self._send_worker_heartbeat(
+                get_worker_id=self._should_get_worker_id()
+            )
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == 422 and get_worker_id:
+            if e.response.status_code == 422 and self._should_get_worker_id():
                 self._logger.warning(
                     "Failed to retrieve worker ID from the Prefect API server."
                 )
                 await self._send_worker_heartbeat(get_worker_id=False)
+                remote_id = None
             else:
                 raise e
 
-        if get_worker_id and remote_id is None and self.backend_id is None:
+        if (
+            self._should_get_worker_id()
+            and remote_id is None
+        ):
             self._logger.warning(
                 "Failed to retrieve worker ID from the Prefect API server."
             )
@@ -776,6 +768,13 @@ class BaseWorker(abc.ABC):
 
         self._logger.debug(
             f"Worker synchronized with the Prefect API server. Remote ID: {self.backend_id}"
+        )
+
+    def _should_get_worker_id(self):
+        return (
+            get_current_settings().experiments.worker_logging_to_api_enabled
+            and self._client.server_type == ServerType.CLOUD
+            and self.backend_id is None
         )
 
     async def _get_scheduled_flow_runs(
