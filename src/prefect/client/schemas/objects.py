@@ -32,6 +32,7 @@ from pydantic.functional_validators import ModelWrapValidatorHandler
 from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Literal, Self, TypeVar
 
+from prefect._internal.compatibility import deprecated
 from prefect._internal.compatibility.migration import getattr_migration
 from prefect._internal.schemas.bases import ObjectBaseModel, PrefectBaseModel
 from prefect._internal.schemas.fields import CreatedBy, UpdatedBy
@@ -186,7 +187,7 @@ class StateDetails(PrefectBaseModel):
 
 
 def data_discriminator(x: Any) -> str:
-    if isinstance(x, dict) and "type" in x:
+    if isinstance(x, dict) and "type" in x and x["type"] != "unpersisted":
         return "BaseResult"
     elif isinstance(x, dict) and "storage_key" in x:
         return "ResultRecordMetadata"
@@ -220,10 +221,17 @@ class State(ObjectBaseModel, Generic[R]):
     def result(self: "State[R]", raise_on_failure: bool = False) -> Union[R, Exception]:
         ...
 
+    @deprecated.deprecated_parameter(
+        "fetch",
+        when=lambda fetch: fetch is not True,
+        start_date="Oct 2024",
+        end_date="Jan 2025",
+        help="Please ensure you are awaiting the call to `result()` when calling in an async context.",
+    )
     def result(
         self,
         raise_on_failure: bool = True,
-        fetch: Optional[bool] = None,
+        fetch: bool = True,
         retry_result_failure: bool = True,
     ) -> Union[R, Exception]:
         """
@@ -248,22 +256,6 @@ class State(ObjectBaseModel, Generic[R]):
             The result of the run
 
         Examples:
-            >>> from prefect import flow, task
-            >>> @task
-            >>> def my_task(x):
-            >>>     return x
-
-            Get the result from a task future in a flow
-
-            >>> @flow
-            >>> def my_flow():
-            >>>     future = my_task("hello")
-            >>>     state = future.wait()
-            >>>     result = state.result()
-            >>>     print(result)
-            >>> my_flow()
-            hello
-
             Get the result from a flow state
 
             >>> @flow
@@ -307,7 +299,7 @@ class State(ObjectBaseModel, Generic[R]):
             >>>     raise ValueError("oh no!")
             >>> my_flow.deploy("my_deployment/my_flow")
             >>> flow_run = run_deployment("my_deployment/my_flow")
-            >>> await flow_run.state.result(raise_on_failure=True, fetch=True) # Raises `ValueError("oh no!")`
+            >>> await flow_run.state.result(raise_on_failure=True) # Raises `ValueError("oh no!")`
         """
         from prefect.states import get_state_result
 
@@ -363,6 +355,12 @@ class State(ObjectBaseModel, Generic[R]):
         if self.type == StateType.SCHEDULED:
             if not self.state_details.scheduled_time:
                 self.state_details.scheduled_time = DateTime.now("utc")
+        return self
+
+    @model_validator(mode="after")
+    def set_unpersisted_results_to_none(self) -> Self:
+        if isinstance(self.data, dict) and self.data.get("type") == "unpersisted":
+            self.data = None
         return self
 
     def is_scheduled(self) -> bool:
