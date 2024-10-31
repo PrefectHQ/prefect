@@ -2,7 +2,7 @@
     "openapi": "3.1.0",
     "info": {
         "title": "Prefect Prefect REST API",
-        "version": "3.0",
+        "version": "3.1",
         "x-logo": {
             "url": "static/prefect-logo-mark-gradient.png"
         }
@@ -16217,6 +16217,19 @@
                         "description": "Whether or not the schedule is active.",
                         "default": true
                     },
+                    "max_active_runs": {
+                        "anyOf": [
+                            {
+                                "type": "integer",
+                                "exclusiveMinimum": 0.0
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Max Active Runs",
+                        "description": "The maximum number of active runs for the schedule."
+                    },
                     "max_scheduled_runs": {
                         "anyOf": [
                             {
@@ -16229,6 +16242,12 @@
                         ],
                         "title": "Max Scheduled Runs",
                         "description": "The maximum number of scheduled runs for the schedule."
+                    },
+                    "catchup": {
+                        "type": "boolean",
+                        "title": "Catchup",
+                        "description": "Whether or not a worker should catch up on Late runs for the schedule.",
+                        "default": false
                     }
                 },
                 "type": "object",
@@ -16260,6 +16279,19 @@
                         "title": "Schedule",
                         "description": "The schedule for the deployment."
                     },
+                    "max_active_runs": {
+                        "anyOf": [
+                            {
+                                "type": "integer",
+                                "exclusiveMinimum": 0.0
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Max Active Runs",
+                        "description": "The maximum number of active runs for the schedule."
+                    },
                     "max_scheduled_runs": {
                         "anyOf": [
                             {
@@ -16272,6 +16304,12 @@
                         ],
                         "title": "Max Scheduled Runs",
                         "description": "The maximum number of scheduled runs for the schedule."
+                    },
+                    "catchup": {
+                        "type": "boolean",
+                        "title": "Catchup",
+                        "description": "Whether or not a worker should catch up on Late runs for the schedule.",
+                        "default": false
                     }
                 },
                 "additionalProperties": false,
@@ -16313,6 +16351,19 @@
                         "title": "Schedule",
                         "description": "The schedule for the deployment."
                     },
+                    "max_active_runs": {
+                        "anyOf": [
+                            {
+                                "type": "integer",
+                                "exclusiveMinimum": 0.0
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Max Active Runs",
+                        "description": "The maximum number of active runs for the schedule."
+                    },
                     "max_scheduled_runs": {
                         "anyOf": [
                             {
@@ -16325,6 +16376,18 @@
                         ],
                         "title": "Max Scheduled Runs",
                         "description": "The maximum number of scheduled runs for the schedule."
+                    },
+                    "catchup": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Catchup",
+                        "description": "Whether or not a worker should catch up on Late runs for the schedule."
                     }
                 },
                 "additionalProperties": false,

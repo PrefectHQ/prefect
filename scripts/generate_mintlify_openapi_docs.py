@@ -33,7 +33,7 @@ def current_version() -> str:
     """
     # TODO: Handle versioned docs
     # version = Version(prefect.__version__)
-    version = Version("3.0.0")
+    version = Version("3.1")
     return f"{version.major}.{version.minor}{version.pre[0] if version.pre else ''}"
 
 
