@@ -1971,6 +1971,22 @@
                     ],
                     "title": "Default Retry Delay Seconds"
                 },
+                "default_persist_result": {
+                    "anyOf": [
+                        {
+                            "type": "boolean"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "If `True`, results will be persisted by default for all tasks. Set to `False` to disable persistence by default. Note that setting to `False` will override the behavior set by a parent flow or task.",
+                    "supported_environment_variables": [
+                        "PREFECT_TASKS_DEFAULT_PERSIST_RESULT"
+                    ],
+                    "title": "Default Persist Result"
+                },
                 "runner": {
                     "$ref": "#/$defs/TasksRunnerSettings",
                     "description": "Settings for controlling task runner behavior",
