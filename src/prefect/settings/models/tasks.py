@@ -73,6 +73,12 @@ class TasksSettings(PrefectBaseSettings):
         ),
     )
 
+    default_persist_result: Optional[bool] = Field(
+        default=None,
+        description="If `True`, results will be persisted by default for all tasks. Set to `False` to disable persistence by default. "
+        "Note that setting to `False` will override the behavior set by a parent flow or task.",
+    )
+
     runner: TasksRunnerSettings = Field(
         default_factory=TasksRunnerSettings,
         description="Settings for controlling task runner behavior",
