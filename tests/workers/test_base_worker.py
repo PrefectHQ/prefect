@@ -2,10 +2,12 @@ import uuid
 from typing import Any, Dict, Optional, Type
 from unittest.mock import MagicMock
 
+import httpx
 import pendulum
 import pytest
 from packaging import version
 from pydantic import Field
+from starlette import status
 
 import prefect
 import prefect.client.schemas as schemas
@@ -23,6 +25,7 @@ from prefect.server.schemas.core import Deployment, Flow, WorkPool
 from prefect.server.schemas.responses import DeploymentResponse
 from prefect.settings import (
     PREFECT_API_URL,
+    PREFECT_EXPERIMENTS_WORKER_LOGGING_TO_API_ENABLED,
     PREFECT_TEST_MODE,
     PREFECT_WORKER_PREFETCH_SECONDS,
     get_current_settings,
@@ -77,6 +80,14 @@ async def variables(prefect_client: PrefectClient):
 @pytest.fixture
 def no_api_url():
     with temporary_settings(updates={PREFECT_TEST_MODE: False, PREFECT_API_URL: None}):
+        yield
+
+
+@pytest.fixture
+def experimental_logging_enabled():
+    with temporary_settings(
+        updates={PREFECT_EXPERIMENTS_WORKER_LOGGING_TO_API_ENABLED: True}
+    ):
         yield
 
 
@@ -159,6 +170,42 @@ async def test_worker_sends_heartbeat_messages(
         )
         second_heartbeat = workers[0].last_heartbeat_time
         assert second_heartbeat > first_heartbeat
+
+
+async def test_worker_sends_heartbeat_gets_id(experimental_logging_enabled, respx_mock):
+    work_pool_name = "test-work-pool"
+    test_worker_id = uuid.UUID("028EC481-5899-49D7-B8C5-37A2726E9840")
+    async with WorkerTestImpl(name="test", work_pool_name=work_pool_name) as worker:
+        # Pass through the non-relevant paths
+        respx_mock.get(f"api/work_pools/{work_pool_name}").pass_through()
+        respx_mock.get("api/csrf-token?").pass_through()
+        respx_mock.post("api/work_pools/").pass_through()
+        respx_mock.patch(f"api/work_pools/{work_pool_name}").pass_through()
+
+        respx_mock.post(
+            f"api/work_pools/{work_pool_name}/workers/heartbeat",
+        ).mock(
+            return_value=httpx.Response(status.HTTP_200_OK, text=str(test_worker_id))
+        )
+
+        await worker.sync_with_backend()
+
+        assert worker.backend_id == test_worker_id
+
+
+async def test_worker_sends_heartbeat_only_gets_id_once(
+    experimental_logging_enabled,
+):
+    async with WorkerTestImpl(name="test", work_pool_name="test-work-pool") as worker:
+        mock = AsyncMock(return_value="test")
+        setattr(worker._client, "send_worker_heartbeat", mock)
+        await worker.sync_with_backend()
+        await worker.sync_with_backend()
+
+        second_call = mock.await_args_list[1]
+
+        assert worker.backend_id == "test"
+        assert not second_call.kwargs["get_worker_id"]
 
 
 async def test_worker_with_work_pool(
