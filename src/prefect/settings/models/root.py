@@ -149,25 +149,6 @@ class Settings(PrefectBaseSettings):
         """,
     )
 
-    experimental_warn: bool = Field(
-        default=True,
-        description="If `True`, warn on usage of experimental features.",
-    )
-
-    # this setting needs to be removed
-    async_fetch_state_result: bool = Field(
-        default=False,
-        description="""
-        Determines whether `State.result()` fetches results automatically or not.
-        In Prefect 2.6.0, the `State.result()` method was updated to be async
-        to facilitate automatic retrieval of results from storage which means when
-        writing async code you must `await` the call. For backwards compatibility,
-        the result is not retrieved by default for async users. You may opt into this
-        per call by passing  `fetch=True` or toggle this setting to change the behavior
-        globally.
-        """,
-    )
-
     ###########################################################################
     # allow deprecated access to PREFECT_SOME_SETTING_NAME
 
