@@ -412,7 +412,7 @@ class BaseWorker(abc.ABC):
             raise ValueError("Worker name cannot contain '/' or '%'")
         self.name = name or f"{self.__class__.__name__} {uuid4()}"
         self._started_event: Optional[Event] = None
-        self.backend_id: Optional[UUID] = None
+        self.worker_id: Optional[UUID] = None
         self._logger = get_worker_logger(self)
 
         self.is_setup = False
@@ -739,13 +739,12 @@ class BaseWorker(abc.ABC):
         queues. Sends a worker heartbeat to the API.
         """
         await self._update_local_work_pool_info()
-        get_worker_id = self._should_get_worker_id()
         try:
             remote_id = await self._send_worker_heartbeat(
-                get_worker_id=get_worker_id
+                get_worker_id=(self._should_get_worker_id())
             )
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == 422 and get_worker_id:
+            if e.response.status_code == 422 and self._should_get_worker_id():
                 self._logger.warning(
                     "Failed to retrieve worker ID from the Prefect API server."
                 )
@@ -754,17 +753,17 @@ class BaseWorker(abc.ABC):
             else:
                 raise e
 
-        if get_worker_id and remote_id is None:
+        if self._should_get_worker_id() and remote_id is None:
             self._logger.warning(
                 "Failed to retrieve worker ID from the Prefect API server."
             )
-        elif self.backend_id is None and remote_id is not None:
-            self.backend_id = remote_id
+        elif self.worker_id is None and remote_id is not None:
+            self.worker_id = remote_id
             self._logger = get_worker_logger(self)
-            self._logger.info(f"id {self.backend_id}")
+            self._logger.info(f"id {self.worker_id}")
 
         self._logger.debug(
-            f"Worker synchronized with the Prefect API server. Remote ID: {self.backend_id}"
+            f"Worker synchronized with the Prefect API server. Remote ID: {self.worker_id}"
         )
 
     def _should_get_worker_id(self):
@@ -772,7 +771,7 @@ class BaseWorker(abc.ABC):
         return (
             get_current_settings().experiments.worker_logging_to_api_enabled
             and self._client.server_type == ServerType.CLOUD
-            and self.backend_id is None
+            and self.worker_id is None
         )
 
     async def _get_scheduled_flow_runs(

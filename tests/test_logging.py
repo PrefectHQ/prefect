@@ -681,8 +681,8 @@ class TestWorkerLogging:
             ]
 
             assert "testing_with_extras" in caplog.text
-            assert record_with_extras[0].worker_id == worker.backend_id
-            assert worker._logger.extra["worker_id"] == worker.backend_id
+            assert record_with_extras[0].worker_id == worker.worker_id
+            assert worker._logger.extra["worker_id"] == worker.worker_id
 
 
 class TestAPILogWorker:

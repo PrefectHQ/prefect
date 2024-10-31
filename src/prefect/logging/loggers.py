@@ -217,11 +217,11 @@ def get_worker_logger(worker: "BaseWorker", name: Optional[str] = None):
 
     worker_log_name = name or f"workers.{worker.__class__.type}.{worker.name.lower()}"
     try:
-        if worker.backend_id:
+        if worker.worker_id:
             return PrefectLogAdapter(
                 get_logger(worker_log_name),
                 extra={
-                    "worker_id": str(worker.backend_id),
+                    "worker_id": str(worker.worker_id),
                 },
             )
         else:

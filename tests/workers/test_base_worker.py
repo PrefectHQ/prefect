@@ -192,7 +192,7 @@ async def test_worker_sends_heartbeat_gets_id(respx_mock):
 
         await worker.sync_with_backend()
 
-        assert worker.backend_id == test_worker_id
+        assert worker.worker_id == test_worker_id
 
 
 async def test_worker_sends_heartbeat_only_gets_id_once(experimental_logging_enabled):
@@ -205,7 +205,7 @@ async def test_worker_sends_heartbeat_only_gets_id_once(experimental_logging_ena
 
         second_call = mock.await_args_list[1]
 
-        assert worker.backend_id == "test"
+        assert worker.worker_id == "test"
         assert not second_call.kwargs["get_worker_id"]
 
 
