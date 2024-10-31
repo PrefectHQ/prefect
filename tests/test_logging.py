@@ -21,7 +21,6 @@ import prefect.logging.configuration
 import prefect.settings
 from prefect import flow, task
 from prefect._internal.concurrency.api import create_call, from_sync
-from prefect.client.base import ServerType
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.exceptions import MissingContextError
 from prefect.logging import LogEavesdropper
@@ -36,7 +35,6 @@ from prefect.logging.handlers import (
     APILogHandler,
     APILogWorker,
     PrefectConsoleHandler,
-    WorkerAPILogHandler,
 )
 from prefect.logging.highlighters import PrefectConsoleHighlighter
 from prefect.logging.loggers import (
@@ -64,7 +62,6 @@ from prefect.settings import (
     PREFECT_LOGGING_TO_API_MAX_LOG_SIZE,
     PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW,
     PREFECT_TEST_MODE,
-    get_current_settings,
     temporary_settings,
 )
 from prefect.testing.cli import temporary_console_width
@@ -652,25 +649,27 @@ class TestWorkerLogging:
     @pytest.fixture
     def experiment_enabled(self):
         with temporary_settings(
-                updates={PREFECT_EXPERIMENTS_WORKER_LOGGING_TO_API_ENABLED: True}
+            updates={PREFECT_EXPERIMENTS_WORKER_LOGGING_TO_API_ENABLED: True}
         ):
             yield
 
-    async def test_get_worker_logger_works_with_no_backend_id(self,experiment_enabled):
-        async with self.WorkerTestImpl(name="test", work_pool_name="test-work-pool") as worker:
+    async def test_get_worker_logger_works_with_no_backend_id(self, experiment_enabled):
+        async with self.WorkerTestImpl(
+            name="test", work_pool_name="test-work-pool"
+        ) as worker:
             logger = get_worker_logger(worker)
             assert logger.name == "prefect.workers.logging_test.test"
 
-    async def test_get_worker_logger_works_with_backend_id(self,experiment_enabled):
-
-       async with self.WorkerTestImpl(name="test", work_pool_name="test-work-pool") as worker:
+    async def test_get_worker_logger_works_with_backend_id(self, experiment_enabled):
+        async with self.WorkerTestImpl(
+            name="test", work_pool_name="test-work-pool"
+        ) as worker:
             await worker.sync_with_backend()
             logger = get_worker_logger(worker)
-            assert logger.name ==  "prefect.workers.logging_test.test"
-            assert logger.extra['worker_id'] == "test_backend_id"
+            assert logger.name == "prefect.workers.logging_test.test"
+            assert logger.extra["worker_id"] == "test_backend_id"
 
-    async def test_worker_emits_logs_with_worker_id(self, caplog,experiment_enabled):
-
+    async def test_worker_emits_logs_with_worker_id(self, caplog, experiment_enabled):
         async with self.WorkerTestImpl(
             name="test", work_pool_name="test-work-pool"
         ) as worker:

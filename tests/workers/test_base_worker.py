@@ -172,7 +172,7 @@ async def test_worker_sends_heartbeat_messages(
         assert second_heartbeat > first_heartbeat
 
 
-async def test_worker_sends_heartbeat_gets_id( respx_mock):
+async def test_worker_sends_heartbeat_gets_id(respx_mock):
     work_pool_name = "test-work-pool"
     test_worker_id = uuid.UUID("028EC481-5899-49D7-B8C5-37A2726E9840")
     async with WorkerTestImpl(name="test", work_pool_name=work_pool_name) as worker:

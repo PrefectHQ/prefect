@@ -754,10 +754,7 @@ class BaseWorker(abc.ABC):
             else:
                 raise e
 
-        if (
-            self._should_get_worker_id()
-            and remote_id is None
-        ):
+        if self._should_get_worker_id() and remote_id is None:
             self._logger.warning(
                 "Failed to retrieve worker ID from the Prefect API server."
             )

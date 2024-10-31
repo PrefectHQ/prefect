@@ -19,7 +19,6 @@ from prefect._internal.concurrency.api import create_call, from_sync
 from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect._internal.concurrency.services import BatchedQueueService
 from prefect._internal.concurrency.threads import in_global_loop
-from prefect.client.base import ServerType, determine_server_type
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.actions import LogCreate
 from prefect.exceptions import MissingContextError
@@ -32,7 +31,8 @@ from prefect.settings import (
     PREFECT_LOGGING_TO_API_BATCH_INTERVAL,
     PREFECT_LOGGING_TO_API_BATCH_SIZE,
     PREFECT_LOGGING_TO_API_MAX_LOG_SIZE,
-    PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW, get_current_settings,
+    PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW,
+    get_current_settings,
 )
 
 
@@ -238,7 +238,6 @@ class APILogHandler(logging.Handler):
 
 
 class WorkerAPILogHandler(APILogHandler):
-
     def emit(self, record: logging.LogRecord):
         if get_current_settings().experiments.worker_logging_to_api_enabled:
             super().emit(record)
