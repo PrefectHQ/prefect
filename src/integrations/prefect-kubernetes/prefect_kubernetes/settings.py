@@ -17,7 +17,7 @@ class KubernetesWorkerSettings(PrefectBaseSettings):
         default=False,
         description="If `True`, the worker will create a secret in the same namespace as created Kubernetes jobs to store the Prefect API key.",
         validation_alias=AliasChoices(
-            AliasPath("worker_create_secret_for_api_key"),
+            AliasPath("create_secret_for_api_key"),
             "prefect_integrations_kubernetes_worker_create_secret_for_api_key",
             "prefect_kubernetes_worker_store_prefect_api_in_secret",
         ),
@@ -27,7 +27,7 @@ class KubernetesWorkerSettings(PrefectBaseSettings):
         default=True,
         description="If `True`, the worker will add TCP keepalive to the Kubernetes client.",
         validation_alias=AliasChoices(
-            AliasPath("worker_add_tcp_keepalive"),
+            AliasPath("add_tcp_keepalive"),
             "prefect_integrations_kubernetes_worker_add_tcp_keepalive",
             "prefect_kubernetes_worker_add_tcp_keepalive",
         ),
