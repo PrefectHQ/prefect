@@ -14,11 +14,11 @@ to poll for flow runs.
 ### Securing your Prefect Cloud API key
 If you are using Prefect Cloud and would like to pass your Prefect Cloud API key to
 created jobs via a Kubernetes secret, set the
-`PREFECT_KUBERNETES_WORKER_STORE_PREFECT_API_IN_SECRET` environment variable before
+`PREFECT_INTEGRATIONS_KUBERNETES_WORKER_CREATE_SECRET_FOR_API_KEY` environment variable before
 starting your worker:
 
 ```bash
-export PREFECT_KUBERNETES_WORKER_STORE_PREFECT_API_IN_SECRET="true"
+export PREFECT_INTEGRATIONS_KUBERNETES_WORKER_CREATE_SECRET_FOR_API_KEY="true"
 prefect worker start --pool 'my-work-pool' --type kubernetes
 ```
 
@@ -105,7 +105,6 @@ import base64
 import enum
 import json
 import logging
-import os
 import shlex
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -160,6 +159,7 @@ from prefect.workers.base import (
 )
 from prefect_kubernetes.credentials import KubernetesClusterConfig
 from prefect_kubernetes.events import KubernetesEventsReplicator
+from prefect_kubernetes.settings import KubernetesSettings
 from prefect_kubernetes.utilities import (
     KeepAliveClientRequest,
     _slugify_label_key,
@@ -650,6 +650,7 @@ class KubernetesWorker(BaseWorker):
         Returns a configured Kubernetes client.
         """
         client = None
+        settings = KubernetesSettings()
 
         if configuration.cluster_config:
             config_dict = configuration.cluster_config.config
@@ -667,9 +668,7 @@ class KubernetesWorker(BaseWorker):
                 # If in-cluster config fails, load the local kubeconfig
                 client = await config.new_client_from_config()
 
-        if os.environ.get(
-            "PREFECT_KUBERNETES_WORKER_ADD_TCP_KEEPALIVE", "TRUE"
-        ).strip().lower() in ("true", "1"):
+        if settings.worker.add_tcp_keepalive:
             client.rest_client.pool_manager._request_class = KeepAliveClientRequest
 
         try:
@@ -678,7 +677,10 @@ class KubernetesWorker(BaseWorker):
             await client.close()
 
     async def _replace_api_key_with_secret(
-        self, configuration: KubernetesWorkerJobConfiguration, client: "ApiClient"
+        self,
+        configuration: KubernetesWorkerJobConfiguration,
+        client: "ApiClient",
+        secret_name: Optional[str] = None,
     ):
         """Replaces the PREFECT_API_KEY environment variable with a Kubernetes secret"""
         manifest_env = configuration.job_manifest["spec"]["template"]["spec"][
@@ -693,7 +695,7 @@ class KubernetesWorker(BaseWorker):
             {},
         )
         api_key = manifest_api_key_env.get("value")
-        if api_key:
+        if api_key and not secret_name:
             secret_name = f"prefect-{_slugify_name(self.name)}-api-key"
             secret = await self._upsert_secret(
                 name=secret_name,
@@ -706,6 +708,7 @@ class KubernetesWorker(BaseWorker):
             self._created_secrets[
                 (secret.metadata.name, secret.metadata.namespace)
             ] = configuration
+        if secret_name:
             new_api_env_entry = {
                 "name": "PREFECT_API_KEY",
                 "valueFrom": {"secretKeyRef": {"name": secret_name, "key": "value"}},
@@ -733,9 +736,14 @@ class KubernetesWorker(BaseWorker):
         """
         Creates a Kubernetes job from a job manifest.
         """
-        if os.environ.get(
-            "PREFECT_KUBERNETES_WORKER_STORE_PREFECT_API_IN_SECRET", ""
-        ).strip().lower() in ("true", "1"):
+        settings = KubernetesSettings()
+        if settings.worker.api_key_secret_name:
+            await self._replace_api_key_with_secret(
+                configuration=configuration,
+                client=client,
+                secret_name=settings.worker.api_key_secret_name,
+            )
+        elif settings.worker.create_secret_for_api_key:
             await self._replace_api_key_with_secret(
                 configuration=configuration, client=client
             )
@@ -838,8 +846,9 @@ class KubernetesWorker(BaseWorker):
 
         See https://github.com/kubernetes/kubernetes/issues/44954
         """
+        settings = KubernetesSettings()
         # Default to an environment variable
-        env_cluster_uid = os.environ.get("PREFECT_KUBERNETES_CLUSTER_UID")
+        env_cluster_uid = settings.cluster_uid
         if env_cluster_uid:
             return env_cluster_uid
 
