@@ -739,13 +739,13 @@ class BaseWorker(abc.ABC):
         queues. Sends a worker heartbeat to the API.
         """
         await self._update_local_work_pool_info()
-
+        get_worker_id = self._should_get_worker_id()
         try:
             remote_id = await self._send_worker_heartbeat(
-                get_worker_id=self._should_get_worker_id()
+                get_worker_id=get_worker_id
             )
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == 422 and self._should_get_worker_id():
+            if e.response.status_code == 422 and get_worker_id:
                 self._logger.warning(
                     "Failed to retrieve worker ID from the Prefect API server."
                 )
@@ -754,7 +754,7 @@ class BaseWorker(abc.ABC):
             else:
                 raise e
 
-        if self._should_get_worker_id() and remote_id is None:
+        if get_worker_id and remote_id is None:
             self._logger.warning(
                 "Failed to retrieve worker ID from the Prefect API server."
             )
@@ -768,6 +768,7 @@ class BaseWorker(abc.ABC):
         )
 
     def _should_get_worker_id(self):
+        """Determines if the worker should request an ID from the API server."""
         return (
             get_current_settings().experiments.worker_logging_to_api_enabled
             and self._client.server_type == ServerType.CLOUD
