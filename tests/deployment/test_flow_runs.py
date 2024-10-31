@@ -164,6 +164,54 @@ class TestRunDeployment:
             assert len(flow_polls.calls) == 0
             assert flow_run.state.is_scheduled()
 
+    async def test_returns_flow_run_from_2_dot_0(
+        self,
+        test_deployment,
+        use_hosted_api_server,
+    ):
+        """
+        See https://github.com/PrefectHQ/prefect/issues/15694
+        """
+        deployment = test_deployment
+
+        mock_flowrun_response = {
+            "id": str(uuid4()),
+            "flow_id": str(uuid4()),
+        }
+
+        side_effects = [
+            Response(
+                200, json={**mock_flowrun_response, "state": {"type": "SCHEDULED"}}
+            )
+        ]
+        side_effects.append(
+            Response(
+                200,
+                json={
+                    **mock_flowrun_response,
+                    "state": {"type": "COMPLETED", "data": {"type": "unpersisted"}},
+                },
+            )
+        )
+
+        with respx.mock(
+            base_url=PREFECT_API_URL.value(),
+            assert_all_mocked=True,
+            assert_all_called=False,
+        ) as router:
+            router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
+            router.get(f"/deployments/name/foo/{deployment.name}").pass_through()
+            router.post(f"/deployments/{deployment.id}/create_flow_run").pass_through()
+            router.request(
+                "GET", re.compile(PREFECT_API_URL.value() + "/flow_runs/.*")
+            ).mock(side_effect=side_effects)
+
+            flow_run = await run_deployment(
+                f"foo/{deployment.name}", timeout=None, poll_interval=0
+            )
+            assert flow_run.state.is_completed()
+            assert flow_run.state.data is None
+
     async def test_polls_indefinitely(
         self,
         test_deployment,
