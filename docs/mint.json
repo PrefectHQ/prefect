@@ -1315,7 +1315,7 @@
       "source": "/3.0rc/:slug*"
     },
     {
-      "destination": "/3.0/:slug*",
+      "destination": "/3.1/:slug*",
       "source": "/latest/:slug*"
     }
   ],
