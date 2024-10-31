@@ -290,9 +290,32 @@ class Settings(PrefectBaseSettings):
         Returns:
             A new Settings object.
         """
+        # To restore defaults, we need to resolve the setting path and then
+        # set the default value on the new settings object. When restoring
+        # defaults, all settings sources will be ignored.
         restore_defaults_obj = {}
         for r in restore_defaults or []:
-            set_in_dict(restore_defaults_obj, r.accessor, True)
+            path = r.accessor.split(".")
+            model = self
+            for key in path[:-1]:
+                model = model.model_fields[key].annotation
+                assert model is not None, f"Invalid setting path: {r.accessor}"
+
+            model_field = model.model_fields[path[-1]]
+            assert model is not None, f"Invalid setting path: {r.accessor}"
+            if hasattr(model_field, "default"):
+                default = model_field.default
+            elif (
+                hasattr(model_field, "default_factory") and model_field.default_factory
+            ):
+                default = model_field.default_factory()
+            else:
+                raise ValueError(f"No default value for setting: {r.accessor}")
+            set_in_dict(
+                restore_defaults_obj,
+                r.accessor,
+                default,
+            )
         updates = updates or {}
         set_defaults = set_defaults or {}
 
@@ -307,7 +330,8 @@ class Settings(PrefectBaseSettings):
         new_settings = self.__class__.model_validate(
             deep_merge_dicts(
                 set_defaults_obj,
-                self.model_dump(exclude_unset=True, exclude=restore_defaults_obj),
+                self.model_dump(exclude_unset=True),
+                restore_defaults_obj,
                 updates_obj,
             )
         )
