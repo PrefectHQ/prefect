@@ -33,7 +33,6 @@ from prefect.results import (
     ResultRecordMetadata,
     ResultStore,
 )
-from prefect.settings import PREFECT_ASYNC_FETCH_STATE_RESULT
 from prefect.utilities.annotations import BaseAnnotation
 from prefect.utilities.asyncutils import in_async_main_thread, sync_compatible
 from prefect.utilities.collections import ensure_iterable
@@ -60,23 +59,17 @@ def get_state_result(
     See `State.result()`
     """
 
-    if fetch is None and (
-        PREFECT_ASYNC_FETCH_STATE_RESULT or not in_async_main_thread()
-    ):
-        # Fetch defaults to `True` for sync users or async users who have opted in
-        fetch = True
-    if not fetch:
-        if fetch is None and in_async_main_thread():
-            warnings.warn(
-                (
-                    "State.result() was called from an async context but not awaited. "
-                    "This method will be updated to return a coroutine by default in "
-                    "the future. Pass `fetch=True` and `await` the call to get rid of "
-                    "this warning."
-                ),
-                DeprecationWarning,
-                stacklevel=2,
-            )
+    if not fetch and in_async_main_thread():
+        warnings.warn(
+            (
+                "State.result() was called from an async context but not awaited. "
+                "This method will be updated to return a coroutine by default in "
+                "the future. Pass `fetch=True` and `await` the call to get rid of "
+                "this warning."
+            ),
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
         return state.data
     else:

@@ -164,26 +164,6 @@ The URL of the Prefect UI. If not set, the client will attempt to infer it.
 **Supported environment variables**:
 `PREFECT_SILENCE_API_URL_MISCONFIGURATION`
 
-### `async_fetch_state_result`
-
-        Determines whether `State.result()` fetches results automatically or not.
-        In Prefect 2.6.0, the `State.result()` method was updated to be async
-        to facilitate automatic retrieval of results from storage which means when
-        writing async code you must `await` the call. For backwards compatibility,
-        the result is not retrieved by default for async users. You may opt into this
-        per call by passing  `fetch=True` or toggle this setting to change the behavior
-        globally.
-        
-
-**Type**: `boolean`
-
-**Default**: `False`
-
-**TOML dotted key path**: `async_fetch_state_result`
-
-**Supported environment variables**:
-`PREFECT_ASYNC_FETCH_STATE_RESULT`
-
 ---
 ## APISettings
 Settings for interacting with the Prefect API

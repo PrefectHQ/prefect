@@ -13,9 +13,6 @@ from urllib.parse import urlparse
 from pydantic import BeforeValidator, Field, SecretStr, model_validator
 from typing_extensions import Self
 
-from prefect._internal.compatibility.deprecated import (
-    generate_deprecation_message,
-)
 from prefect.settings.base import PrefectBaseSettings, _build_settings_config
 from prefect.settings.models.tasks import TasksSettings
 from prefect.settings.models.testing import TestingSettings
@@ -150,26 +147,6 @@ class Settings(PrefectBaseSettings):
         Sometimes when a user manually set `PREFECT_API_URL` to a custom url,reverse-proxy for example,
         we would like to silence this warning so we will set it to `FALSE`.
         """,
-    )
-
-    # this setting needs to be removed
-    async_fetch_state_result: bool = Field(
-        default=False,
-        description="""
-        Determines whether `State.result()` fetches results automatically or not.
-        In Prefect 2.6.0, the `State.result()` method was updated to be async
-        to facilitate automatic retrieval of results from storage which means when
-        writing async code you must `await` the call. For backwards compatibility,
-        the result is not retrieved by default for async users. You may opt into this
-        per call by passing  `fetch=True` or toggle this setting to change the behavior
-        globally.
-        """,
-        deprecated=generate_deprecation_message(
-            "The `async_fetch_state_result` setting",
-            start_date="Oct 2024",
-            end_date="Jan 2025",
-            help="Please ensure you are awaiting calls to `result()` when calling in an async context.",
-        ),
     )
 
     ###########################################################################
