@@ -309,6 +309,16 @@
         "ExperimentsSettings": {
             "description": "Settings for configuring experimental features",
             "properties": {
+                "warn": {
+                    "default": true,
+                    "description": "If `True`, warn on usage of experimental features.",
+                    "supported_environment_variables": [
+                        "PREFECT_EXPERIMENTS_WARN",
+                        "PREFECT_EXPERIMENTAL_WARN"
+                    ],
+                    "title": "Warn",
+                    "type": "boolean"
+                },
                 "worker_logging_to_api_enabled": {
                     "default": false,
                     "description": "Enables the logging of worker logs to Prefect Cloud.",
@@ -1961,6 +1971,22 @@
                     ],
                     "title": "Default Retry Delay Seconds"
                 },
+                "default_persist_result": {
+                    "anyOf": [
+                        {
+                            "type": "boolean"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "If `True`, results will be persisted by default for all tasks. Set to `False` to disable persistence by default. Note that setting to `False` will override the behavior set by a parent flow or task.",
+                    "supported_environment_variables": [
+                        "PREFECT_TASKS_DEFAULT_PERSIST_RESULT"
+                    ],
+                    "title": "Default Persist Result"
+                },
                 "runner": {
                     "$ref": "#/$defs/TasksRunnerSettings",
                     "description": "Settings for controlling task runner behavior",
@@ -2216,24 +2242,6 @@
                 "PREFECT_SILENCE_API_URL_MISCONFIGURATION"
             ],
             "title": "Silence Api Url Misconfiguration",
-            "type": "boolean"
-        },
-        "experimental_warn": {
-            "default": true,
-            "description": "If `True`, warn on usage of experimental features.",
-            "supported_environment_variables": [
-                "PREFECT_EXPERIMENTAL_WARN"
-            ],
-            "title": "Experimental Warn",
-            "type": "boolean"
-        },
-        "async_fetch_state_result": {
-            "default": false,
-            "description": "\n        Determines whether `State.result()` fetches results automatically or not.\n        In Prefect 2.6.0, the `State.result()` method was updated to be async\n        to facilitate automatic retrieval of results from storage which means when\n        writing async code you must `await` the call. For backwards compatibility,\n        the result is not retrieved by default for async users. You may opt into this\n        per call by passing  `fetch=True` or toggle this setting to change the behavior\n        globally.\n        ",
-            "supported_environment_variables": [
-                "PREFECT_ASYNC_FETCH_STATE_RESULT"
-            ],
-            "title": "Async Fetch State Result",
             "type": "boolean"
         }
     },

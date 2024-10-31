@@ -164,38 +164,6 @@ The URL of the Prefect UI. If not set, the client will attempt to infer it.
 **Supported environment variables**:
 `PREFECT_SILENCE_API_URL_MISCONFIGURATION`
 
-### `experimental_warn`
-If `True`, warn on usage of experimental features.
-
-**Type**: `boolean`
-
-**Default**: `True`
-
-**TOML dotted key path**: `experimental_warn`
-
-**Supported environment variables**:
-`PREFECT_EXPERIMENTAL_WARN`
-
-### `async_fetch_state_result`
-
-        Determines whether `State.result()` fetches results automatically or not.
-        In Prefect 2.6.0, the `State.result()` method was updated to be async
-        to facilitate automatic retrieval of results from storage which means when
-        writing async code you must `await` the call. For backwards compatibility,
-        the result is not retrieved by default for async users. You may opt into this
-        per call by passing  `fetch=True` or toggle this setting to change the behavior
-        globally.
-        
-
-**Type**: `boolean`
-
-**Default**: `False`
-
-**TOML dotted key path**: `async_fetch_state_result`
-
-**Supported environment variables**:
-`PREFECT_ASYNC_FETCH_STATE_RESULT`
-
 ---
 ## APISettings
 Settings for interacting with the Prefect API
@@ -475,6 +443,18 @@ The default Docker namespace to use when building images.
 ---
 ## ExperimentsSettings
 Settings for configuring experimental features
+### `warn`
+If `True`, warn on usage of experimental features.
+
+**Type**: `boolean`
+
+**Default**: `True`
+
+**TOML dotted key path**: `experiments.warn`
+
+**Supported environment variables**:
+`PREFECT_EXPERIMENTS_WARN`, `PREFECT_EXPERIMENTAL_WARN`
+
 ### `worker_logging_to_api_enabled`
 Enables the logging of worker logs to Prefect Cloud.
 
@@ -2235,6 +2215,18 @@ This value sets the default retry delay seconds for all tasks.
 
 **Supported environment variables**:
 `PREFECT_TASKS_DEFAULT_RETRY_DELAY_SECONDS`, `PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS`
+
+### `default_persist_result`
+If `True`, results will be persisted by default for all tasks. Set to `False` to disable persistence by default. Note that setting to `False` will override the behavior set by a parent flow or task.
+
+**Type**: `boolean | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `tasks.default_persist_result`
+
+**Supported environment variables**:
+`PREFECT_TASKS_DEFAULT_PERSIST_RESULT`
 
 ### `runner`
 Settings for controlling task runner behavior

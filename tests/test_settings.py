@@ -178,7 +178,6 @@ SUPPORTED_SETTINGS = {
     "PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH": {"test_value": 10, "legacy": True},
     "PREFECT_API_TLS_INSECURE_SKIP_VERIFY": {"test_value": True},
     "PREFECT_API_URL": {"test_value": "https://api.prefect.io"},
-    "PREFECT_ASYNC_FETCH_STATE_RESULT": {"test_value": True},
     "PREFECT_CLIENT_CSRF_SUPPORT_ENABLED": {"test_value": True},
     "PREFECT_CLIENT_ENABLE_METRICS": {"test_value": True, "legacy": True},
     "PREFECT_CLIENT_MAX_RETRIES": {"test_value": 3},
@@ -227,7 +226,8 @@ SUPPORTED_SETTINGS = {
         "legacy": True,
     },
     "PREFECT_EVENTS_WEBSOCKET_BACKFILL_PAGE_SIZE": {"test_value": 10, "legacy": True},
-    "PREFECT_EXPERIMENTAL_WARN": {"test_value": True},
+    "PREFECT_EXPERIMENTAL_WARN": {"test_value": True, "legacy": True},
+    "PREFECT_EXPERIMENTS_WARN": {"test_value": True},
     "PREFECT_EXPERIMENTS_WORKER_LOGGING_TO_API_ENABLED": {"test_value": False},
     "PREFECT_FLOW_DEFAULT_RETRIES": {"test_value": 10, "legacy": True},
     "PREFECT_FLOWS_DEFAULT_RETRIES": {"test_value": 10},
@@ -389,6 +389,7 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SILENCE_API_URL_MISCONFIGURATION": {"test_value": True},
     "PREFECT_SQLALCHEMY_MAX_OVERFLOW": {"test_value": 10, "legacy": True},
     "PREFECT_SQLALCHEMY_POOL_SIZE": {"test_value": 10, "legacy": True},
+    "PREFECT_TASKS_DEFAULT_PERSIST_RESULT": {"test_value": True},
     "PREFECT_TASKS_DEFAULT_RETRIES": {"test_value": 10},
     "PREFECT_TASKS_DEFAULT_RETRY_DELAY_SECONDS": {"test_value": 10},
     "PREFECT_TASKS_REFRESH_CACHE": {"test_value": True},
@@ -531,6 +532,15 @@ class TestSettingsClass:
                 and new_settings.api.key.get_secret_value() == "TEST"
             ), "Changed, existing value was default"
             assert new_settings.client.retry_extra_codes == {400, 500}
+
+    def test_settings_copy_with_update_restore_defaults(self, monkeypatch):
+        monkeypatch.setenv("PREFECT_TESTING_TEST_SETTING", "Not the default")
+        settings = Settings()
+        assert settings.testing.test_setting == "Not the default"
+        new_settings = settings.copy_with_update(
+            restore_defaults={PREFECT_TEST_SETTING},
+        )
+        assert new_settings.testing.test_setting == "FOO"
 
     def test_settings_loads_environment_variables_at_instantiation(self, monkeypatch):
         assert PREFECT_TEST_MODE.value() is True
