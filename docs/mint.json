@@ -52,6 +52,16 @@
     {
       "group": "Get started",
       "pages": [
+        "3.1/get-started/index",
+        "3.1/resources/whats-new-prefect-3",
+        "3.1/get-started/install",
+        "3.1/get-started/quickstart"
+      ],
+      "version": "3.1"
+    },
+    {
+      "group": "Get started",
+      "pages": [
         "3.0/get-started/index",
         "3.0/resources/whats-new-prefect-3",
         "3.0/get-started/install",
@@ -65,6 +75,163 @@
         "2.x/get-started/index"
       ],
       "version": "2.x"
+    },
+    {
+      "group": "Develop",
+      "pages": [
+        "3.1/develop/index",
+        {
+          "group": "Write and run workflows",
+          "pages": [
+            "3.1/develop/write-flows",
+            "3.1/develop/write-tasks",
+            "3.1/develop/deferred-tasks"
+          ],
+          "version": "3.1"
+        },
+        {
+          "group": "Configure runtime behavior",
+          "pages": [
+            "3.1/develop/logging",
+            "3.1/develop/task-caching",
+            "3.1/develop/transactions",
+            "3.1/develop/pause-resume",
+            "3.1/develop/inputs",
+            "3.1/develop/runtime-context"
+          ],
+          "version": "3.1"
+        },
+        {
+          "group": "Manage state and configuration",
+          "pages": [
+            "3.1/develop/manage-states",
+            "3.1/develop/results",
+            "3.1/develop/artifacts",
+            "3.1/develop/variables",
+            "3.1/develop/blocks"
+          ],
+          "version": "3.1"
+        },
+        {
+          "group": "Manage concurrency",
+          "pages": [
+            "3.1/develop/task-runners",
+            "3.1/develop/task-run-limits",
+            "3.1/develop/global-concurrency-limits"
+          ],
+          "version": "3.1"
+        },
+        {
+          "group": "Manage settings",
+          "pages": [
+            "3.1/develop/settings-and-profiles",
+            "3.1/develop/settings-ref"
+          ]
+        },
+        "3.1/develop/test-workflows"
+      ],
+      "version": "3.1"
+    },
+    {
+      "group": "Deploy",
+      "pages": [
+        "3.1/deploy/index",
+        "3.1/deploy/run-flows-in-local-processes",
+        {
+          "group": "Run flows on dynamic infrastructure",
+          "pages": [
+            "3.1/deploy/infrastructure-concepts/work-pools",
+            "3.1/deploy/infrastructure-concepts/workers",
+            "3.1/deploy/infrastructure-concepts/store-flow-code",
+            "3.1/deploy/infrastructure-concepts/deploy-via-python",
+            "3.1/deploy/infrastructure-concepts/prefect-yaml",
+            "3.1/deploy/infrastructure-concepts/deploy-ci-cd",
+            "3.1/deploy/infrastructure-concepts/customize"
+          ],
+          "version": "3.1"
+        },
+        {
+          "group": "Dynamic infrastructure examples",
+          "pages": [
+            "3.1/deploy/infrastructure-examples/managed",
+            "3.1/deploy/infrastructure-examples/serverless",
+            "3.1/deploy/infrastructure-examples/docker",
+            "3.1/deploy/infrastructure-examples/kubernetes"
+          ],
+          "version": "3.1"
+        },
+        {
+          "group": "Static infrastructure examples",
+          "pages": [
+            "3.1/deploy/static-infrastructure-examples/docker"
+          ],
+          "version": "3.1"
+        }
+      ],
+      "version": "3.1"
+    },
+    {
+      "group": "Automate",
+      "pages": [
+        "3.1/automate/index",
+        "3.1/automate/add-schedules",
+        "3.1/automate/events/events",
+        "3.1/automate/events/automations-triggers",
+        "3.1/automate/events/custom-triggers",
+        "3.1/automate/events/webhook-triggers",
+        "3.1/automate/incidents"
+      ],
+      "version": "3.1"
+    },
+    {
+      "group": "Cloud and Server",
+      "pages": [
+        "3.1/manage/index",
+        {
+          "group": "Use Prefect Cloud",
+          "pages": [
+            "3.1/manage/cloud/index",
+            "3.1/manage/cloud/connect-to-cloud",
+            "3.1/manage/cloud/workspaces",
+            {
+              "group": "Manage accounts",
+              "pages": [
+                "3.1/manage/cloud/manage-users/index",
+                "3.1/manage/cloud/manage-users/service-accounts",
+                "3.1/manage/cloud/manage-users/manage-teams",
+                "3.1/manage/cloud/manage-users/manage-roles",
+                "3.1/manage/cloud/manage-users/api-keys",
+                "3.1/manage/cloud/manage-users/configure-sso",
+                "3.1/manage/cloud/manage-users/audit-logs",
+                "3.1/manage/cloud/manage-users/object-access-control-lists",
+                "3.1/manage/cloud/manage-users/secure-access-by-ip-address"
+              ],
+              "version": "3.1"
+            },
+            "3.1/manage/cloud/rate-limits",
+            "3.1/manage/cloud/terraform-provider",
+            "3.1/manage/cloud/troubleshoot-cloud"
+          ],
+          "version": "3.1"
+        },
+        "3.1/manage/self-host",
+        "3.1/manage/interact-with-api"
+      ],
+      "version": "3.1"
+    },
+    {
+      "group": "Resources",
+      "pages": [
+        "3.1/resources/upgrade-to-prefect-3",
+        "3.1/resources/upgrade-agents-to-workers",
+        "3.1/resources/cancel",
+        "3.1/resources/visualize-flow-structure",
+        "3.1/resources/daemonize-processes",
+        "3.1/resources/big-data",
+        "3.1/resources/cli-shell",
+        "3.1/resources/secrets"
+      ],
+      "version": "3.1"
     },
     {
       "group": "Develop",
