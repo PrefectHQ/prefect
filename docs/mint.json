@@ -1826,6 +1826,10 @@
   "tabs": [
     {
       "name": "APIs & SDK",
+      "url": "3.1/api-ref"
+    },
+    {
+      "name": "APIs & SDK",
       "url": "3.0/api-ref"
     },
     {
