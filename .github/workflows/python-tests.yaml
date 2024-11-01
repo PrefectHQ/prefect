@@ -159,6 +159,11 @@ jobs:
           echo "COVERAGE_FILE=${COVERAGE_FILE}" >> $GITHUB_ENV
           echo "artifact_name=coverage-data-${sanitized_test_type}-${{ matrix.python-version }}-${sanitized_database}" >> $GITHUB_OUTPUT
 
+      - name: Set coverage core
+        if: ${{ matrix.python-version == '3.12' }}
+        run: |
+          echo "COVERAGE_CORE=sysmon" >> $GITHUB_ENV
+
       - name: Run tests
         run: |
           echo "Using COVERAGE_FILE=$COVERAGE_FILE"
@@ -343,6 +348,11 @@ jobs:
           export COVERAGE_FILE=".coverage.${sanitized_python_version}.${sanitized_database}"
           echo "COVERAGE_FILE=${COVERAGE_FILE}" >> $GITHUB_ENV
           echo "artifact_name=coverage-data-docker-${{ matrix.python-version }}-${sanitized_database}" >> $GITHUB_OUTPUT
+
+      - name: Set coverage core
+        if: ${{ matrix.python-version == '3.12' }}
+        run: |
+          echo "COVERAGE_CORE=sysmon" >> $GITHUB_ENV
 
       - name: Run tests
         run: |
