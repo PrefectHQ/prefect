@@ -54,15 +54,17 @@ const flowsQueryParams = (search: z.infer<typeof searchParams>) => ({
   staleTime: 1000, // Data will be considered stale after 1 second.
 })
 
+const FlowsRoute = () => {
+  const search = Route.useSearch()
+  const { data } = useSuspenseQuery(flowsQueryParams(search))
+  return <FlowsTable flows={data.data?.results as components['schemas']['Flow'][]} />
+}
+
 export const Route = createFileRoute('/flows/')({
-  component: () => {
-    const search = Route.useSearch()
-    const { data } = useSuspenseQuery(flowsQueryParams(search))
-    return <FlowsTable flows={data.data?.results as components['schemas']['Flow'][]} />
-  },
+  validateSearch: zodSearchValidator(searchParams),
+  component: FlowsRoute,
   loaderDeps: ({ search }) => search,
   loader: async ({ deps: search, context }) =>
     await context.queryClient.ensureQueryData(flowsQueryParams(search)),
-  validateSearch: zodSearchValidator(searchParams),
   wrapInSuspense: true,
 })

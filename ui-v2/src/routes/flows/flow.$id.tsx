@@ -17,7 +17,7 @@ import { components } from '@/api/prefect'
 //    - Passes the fetched data to the FlowDetail component.
 //    - Includes a loader function to prefetch data on the server side.
 
-export const searchParams = z
+const searchParams = z
   .object({
     'tab': z.enum(['runs', 'deployments', 'details']).optional().default('runs'),
     'runs.page': z.number().int().nonnegative().optional().default(0),
@@ -43,11 +43,11 @@ export const searchParams = z
   .default({})
 
 
-const filterFlowRunsBySearchParams = (search: z.infer<typeof searchParams>) : components['schemas']['Body_read_flow_runs_flow_runs_filter_post'] => {
+const filterFlowRunsBySearchParams = (search: z.infer<typeof searchParams>): components['schemas']['Body_read_flow_runs_flow_runs_filter_post'] => {
   const filter: components['schemas']['Body_read_flow_runs_flow_runs_filter_post'] = {
     'sort': search['runs.sort'],
     'limit': search['runs.limit'],
-    'offset': search['runs.page']*search['runs.limit'],
+    'offset': search['runs.page'] * search['runs.limit'],
     'flow_runs': {
       'operator': 'and_',
       'state': {
@@ -64,44 +64,46 @@ const filterFlowRunsBySearchParams = (search: z.infer<typeof searchParams>) : co
   return filter
 }
 
-
-
-export const Route = createFileRoute('/flows/flow/$id')({
-  component: () => {
-    const { id } = Route.useParams()
-    const search = Route.useSearch()
-    const flowQuery = new FlowQuery(id)
-    const [ 
-      { data: flow }, 
-      { data: flowRuns },
-      { data: activity },
-      { data: deployments },
-    ] = useSuspenseQueries({'queries': [
+const FlowDetailRoute = () => {
+  const { id } = Route.useParams()
+  const search = Route.useSearch()
+  const flowQuery = new FlowQuery(id)
+  const [
+    { data: flow },
+    { data: flowRuns },
+    { data: activity },
+    { data: deployments },
+  ] = useSuspenseQueries({
+    'queries': [
       flowQuery.getQueryParams(),
       flowQuery.getFlowRunsQueryParams(filterFlowRunsBySearchParams(search)),
       flowQuery.getLatestFlowRunsQueryParams(60),
-      flowQuery.getDeploymentsQueryParams({'sort': 'CREATED_DESC', 'offset': search['deployments.page']*search['deployments.limit'], 'limit': search['deployments.limit'] }),
-    ]})
-    
-    return (
-      <FlowDetail
-        flow={flow}
-        flowRuns={flowRuns}
-        deployments={deployments}
-        activity={activity}
-        tab={search.tab}
-      />
-    )
-  },
+      flowQuery.getDeploymentsQueryParams({ 'sort': 'CREATED_DESC', 'offset': search['deployments.page'] * search['deployments.limit'], 'limit': search['deployments.limit'] }),
+    ]
+  })
+
+  return (
+    <FlowDetail
+      flow={flow}
+      flowRuns={flowRuns}
+      deployments={deployments}
+      activity={activity}
+      tab={search.tab}
+    />
+  )
+}
+
+export const Route = createFileRoute('/flows/flow/$id')({
+  component: FlowDetailRoute,
   validateSearch: zodSearchValidator(searchParams),
   loaderDeps: ({ search }) => search,
-  loader: async ({ params: { id }, context, deps}) => {
+  loader: async ({ params: { id }, context, deps }) => {
     const flow = new FlowQuery(id)
     return await Promise.all([
       context.queryClient.ensureQueryData(flow.getQueryParams()),
       context.queryClient.ensureQueryData(flow.getFlowRunsQueryParams(filterFlowRunsBySearchParams(deps))),
       context.queryClient.ensureQueryData(flow.getFlowRunsCountQueryParams()),
-      context.queryClient.ensureQueryData(flow.getDeploymentsQueryParams({'sort': 'CREATED_DESC', 'offset': deps['runs.page']*deps['runs.limit'], 'limit': deps['runs.limit'] })),
+      context.queryClient.ensureQueryData(flow.getDeploymentsQueryParams({ 'sort': 'CREATED_DESC', 'offset': deps['runs.page'] * deps['runs.limit'], 'limit': deps['runs.limit'] })),
       context.queryClient.ensureQueryData(flow.getDeploymentsCountQueryParams()),
     ])
   },

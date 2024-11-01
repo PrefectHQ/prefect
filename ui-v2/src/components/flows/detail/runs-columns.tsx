@@ -1,35 +1,9 @@
 import { ColumnDef } from "@tanstack/react-table"
 import { components } from '@/api/prefect'
 import { format, parseISO } from 'date-fns'
-import { useQuery } from '@tanstack/react-query'
-import { QueryService } from '@/api/service'
+import { DeploymentCell, WorkPoolCell } from "./cells"
 
 type FlowRun = components['schemas']['FlowRun']
-
-const DeploymentCell = ({ row }: { row: { original: FlowRun } }) => {
-  const deploymentId = row.original.deployment_id;
-  const { data: deployment } = useQuery({
-    queryKey: ['deployment', deploymentId],
-    queryFn: () => QueryService.GET('/deployments/{id}', { params: { path: { id: deploymentId as string } } }),
-    enabled: !!deploymentId
-  });
-  return (
-      deployment?.data?.name
-  )
-};
-
-const WorkPoolCell = ({ row }: { row: { original: FlowRun } }) => {
-  const deploymentId = row.original.deployment_id;
-  const { data: deployment } = useQuery({
-    queryKey: ['deployment', deploymentId],
-    queryFn: () => QueryService.GET('/deployments/{id}', { params: { path: { id: deploymentId as string} } }),
-    enabled: !!deploymentId
-  });
-
-  return (
-      deployment?.data?.work_pool_name
-  )
-};
 
 export const columns: ColumnDef<FlowRun>[] = [
   {
