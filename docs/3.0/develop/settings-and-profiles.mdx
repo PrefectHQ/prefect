@@ -23,6 +23,8 @@ The simplest way declare settings is by creating a `prefect.toml` file in your p
 level = "DEBUG"
 ```
 
+<Note>To use `prefect.toml` or `pyproject.toml` for configuration, `prefect>=3.1` must be installed.</Note>
+
 Most editors have plugins for TOML that provide syntax highlighting, linting, and autocomplete for `prefect.toml` files. If you use VSCode, we recommend the [Even Better TOML extension](https://marketplace.visualstudio.com/items?itemName=tamasfe.even-better-toml).
 
 <Tip>
@@ -95,7 +97,7 @@ PREFECT_LOGGING_LEVEL="DEBUG"
 
 Any flows run in the same directory as this `.env` file will use the `DEBUG` logging level, even if they are run in different shell sessions.
 
-You can see supported environment variables for each setting in the [settings reference documentation](/3.0/develop/settings-ref).
+View supported environment variables for each setting in the [settings reference documentation](/3.0/develop/settings-ref).
 
 ### `prefect.toml` file
 
@@ -136,6 +138,7 @@ Profiles are stored in a [TOML](https://toml.io/en/) file located at `~/.prefect
 One and only one profile can be active at any time.
 
 Immediately after installation, the `ephemeral` profile will be used, which only has 1 setting configured:
+
 ```bash
 » docker run -it prefecthq/prefect:3-latest
   ___ ___ ___ ___ ___ ___ _____
@@ -168,6 +171,7 @@ The `prefect profile` CLI commands enable you to create, review, and manage prof
 | `populate-defaults` | Populate your `profiles.toml` file with opinionated stock profiles. |
 
 ... or you may edit your `profiles.toml` file directly:
+
 ```bash
 vim ~/.prefect/profiles.toml
 ```

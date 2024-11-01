@@ -54,7 +54,6 @@ If True, enables debug mode which may provide additional logging and debugging f
 **TOML dotted key path**: `cli`
 
 ### `client`
-Settings for for controlling API client behavior
 
 **Type**: [ClientSettings](#clientsettings)
 
@@ -193,7 +192,7 @@ The API key used for authentication with the Prefect API. Should be kept secret.
 `PREFECT_API_KEY`
 
 ### `tls_insecure_skip_verify`
-If `True`, disables SSL checking to allow insecure requests. This is recommended only during development, e.g. when using self-signed certificates.
+If `True`, disables SSL checking to allow insecure requests. Setting to False is recommended only during development. For example, when using self-signed certificates.
 
 **Type**: `boolean`
 
@@ -1344,7 +1343,7 @@ Which message broker implementation to use for the messaging system, should poin
 `PREFECT_SERVER_EVENTS_MESSAGING_BROKER`, `PREFECT_MESSAGING_BROKER`
 
 ### `messaging_cache`
-Which cache implementation to use for the events system.  Should point to a module that exports a Cache class.
+Which cache implementation to use for the events system. Should point to a module that exports a Cache class.
 
 **Type**: `string`
 
