@@ -412,7 +412,7 @@ class BaseWorker(abc.ABC):
             raise ValueError("Worker name cannot contain '/' or '%'")
         self.name = name or f"{self.__class__.__name__} {uuid4()}"
         self._started_event: Optional[Event] = None
-        self.worker_id: Optional[UUID] = None
+        self.backend_id: Optional[UUID] = None
         self._logger = get_worker_logger(self)
 
         self.is_setup = False
@@ -757,21 +757,20 @@ class BaseWorker(abc.ABC):
             self._logger.warning(
                 "Failed to retrieve worker ID from the Prefect API server."
             )
-        elif self.worker_id is None and remote_id is not None:
-            self.worker_id = remote_id
+        elif self.backend_id is None and remote_id is not None:
+            self.backend_id = remote_id
             self._logger = get_worker_logger(self)
-            self._logger.info(f"id {self.worker_id}")
 
         self._logger.debug(
-            f"Worker synchronized with the Prefect API server. Remote ID: {self.worker_id}"
+            f"Worker synchronized with the Prefect API server. Remote ID: {self.backend_id}"
         )
 
     def _should_get_worker_id(self):
         """Determines if the worker should request an ID from the API server."""
         return (
-            get_current_settings().experiments.worker_logging_to_api_enabled
-            and self._client.server_type == ServerType.CLOUD
-            and self.worker_id is None
+                get_current_settings().experiments.worker_logging_to_api_enabled
+                and self._client.server_type == ServerType.CLOUD
+                and self.backend_id is None
         )
 
     async def _get_scheduled_flow_runs(
