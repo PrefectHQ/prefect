@@ -11,6 +11,9 @@ from unittest.mock import ANY, MagicMock
 
 import pendulum
 import pytest
+from unittest import mock
+from unittest.mock import patch
+
 from rich.color import Color, ColorType
 from rich.console import Console
 from rich.highlighter import NullHighlighter, ReprHighlighter
@@ -34,7 +37,7 @@ from prefect.logging.formatters import JsonFormatter
 from prefect.logging.handlers import (
     APILogHandler,
     APILogWorker,
-    PrefectConsoleHandler,
+    PrefectConsoleHandler, WorkerAPILogHandler,
 )
 from prefect.logging.highlighters import PrefectConsoleHighlighter
 from prefect.logging.loggers import (
@@ -653,6 +656,26 @@ class TestWorkerLogging:
         ):
             yield
 
+    @pytest.fixture
+    def logging_to_api_enabled(self):
+        with temporary_settings(
+            updates={PREFECT_LOGGING_TO_API_ENABLED: True}
+        ):
+            yield
+
+    @pytest.fixture
+    def worker_handler(self):
+        yield WorkerAPILogHandler()
+
+    @pytest.fixture
+    def logger(self, worker_handler):
+        logger = logging.getLogger(__name__)
+        logger.setLevel(logging.DEBUG)
+        logger.addHandler(worker_handler)
+        yield logger
+        logger.removeHandler(worker_handler)
+
+
     async def test_get_worker_logger_works_with_no_backend_id(self, experiment_enabled):
         async with self.WorkerTestImpl(
             name="test", work_pool_name="test-work-pool"
@@ -683,6 +706,20 @@ class TestWorkerLogging:
             assert "testing_with_extras" in caplog.text
             assert record_with_extras[0].backend_id == worker.backend_id
             assert worker._logger.extra["worker_id"] == worker.backend_id
+
+
+    def test_worker_logger_sends_log_to_api_worker(self, logger, mock_log_worker,experiment_enabled,logging_to_api_enabled):
+        logger.info("test-worker-log")
+
+        mock_log_worker.instance().send.assert_called_once()
+        assert len(mock_log_worker.instance().send.call_args_list) == 1
+
+        log_statement =mock_log_worker.instance().send.call_args.args[0]
+        assert log_statement['name'] == logger.name
+        assert log_statement['level'] == 20
+        assert log_statement['message'] == 'test-worker-log'
+
+
 
 
 class TestAPILogWorker:
