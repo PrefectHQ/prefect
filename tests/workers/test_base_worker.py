@@ -1858,8 +1858,8 @@ class TestBaseWorkerHeartbeat:
             with mock.patch(
                 "prefect.workers.base.load_prefect_collections"
             ) as mock_load_prefect_collections, mock.patch(
-                "prefect.client.orchestration.PrefectClient.send_worker_heartbeat"
-            ) as mock_send_worker_heartbeat, mock.patch(
+                "prefect.client.orchestration.PrefectHttpxAsyncClient.post"
+            ) as mock_send_worker_heartbeat_post, mock.patch(
                 "prefect.workers.base.distributions"
             ) as mock_distributions:
                 mock_load_prefect_collections.return_value = {
@@ -1877,13 +1877,17 @@ class TestBaseWorkerHeartbeat:
                     worker._client.server_type = ServerType.CLOUD
                     await worker.sync_with_backend()
 
-                mock_send_worker_heartbeat.assert_called_once_with(
-                    work_pool_name=work_pool.name,
-                    worker_name=worker.name,
-                    heartbeat_interval_seconds=worker.heartbeat_interval_seconds,
-                    get_worker_id=True,
-                    worker_metadata={
-                        "integrations": [{"name": "prefect-aws", "version": "1.0.0"}]
+                mock_send_worker_heartbeat_post.assert_called_once_with(
+                    f"/work_pools/{work_pool.name}/workers/heartbeat",
+                    json={
+                        "name": worker.name,
+                        "heartbeat_interval_seconds": worker.heartbeat_interval_seconds,
+                        "worker_metadata": {
+                            "integrations": [
+                                {"name": "prefect-aws", "version": "1.0.0"}
+                            ]
+                        },
+                        "return_id": True,
                     },
                 )
 

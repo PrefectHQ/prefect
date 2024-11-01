@@ -56,9 +56,11 @@ from prefect.client.schemas.objects import (
     Flow,
     FlowRunNotificationPolicy,
     FlowRunPolicy,
+    Integration,
     StateType,
     TaskRun,
     Variable,
+    WorkerMetadata,
     WorkQueue,
 )
 from prefect.client.schemas.responses import (
@@ -2728,12 +2730,16 @@ class TestPrefectClientWorkerHeartbeat:
                 work_pool_name="work-pool",
                 worker_name="test-worker",
                 heartbeat_interval_seconds=10,
-                worker_metadata={"test": "metadata"},
+                worker_metadata=WorkerMetadata(
+                    integrations=[Integration(name="prefect-aws", version="1.0.0")]
+                ),
             )
             assert mock_post.call_args[1]["json"] == {
                 "name": "test-worker",
                 "heartbeat_interval_seconds": 10,
-                "worker_metadata": {"test": "metadata"},
+                "worker_metadata": {
+                    "integrations": [{"name": "prefect-aws", "version": "1.0.0"}]
+                },
             }
 
     async def test_worker_heartbeat_does_not_send_metadata_if_not_passed(

@@ -19,7 +19,12 @@ from prefect._internal.schemas.validators import return_v_or_none
 from prefect.client.base import ServerType
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
-from prefect.client.schemas.objects import StateType, WorkPool
+from prefect.client.schemas.objects import (
+    Integration,
+    StateType,
+    WorkerMetadata,
+    WorkPool,
+)
 from prefect.client.utilities import inject_client
 from prefect.events import Event, RelatedResource, emit_event
 from prefect.events.related import object_as_related_resource, tags_as_related_resources
@@ -714,15 +719,15 @@ class BaseWorker(abc.ABC):
 
         self._work_pool = work_pool
 
-    async def _worker_metadata(self) -> Optional[Dict[str, Any]]:
+    async def _worker_metadata(self) -> Optional[WorkerMetadata]:
         installed_integrations = load_prefect_collections().keys()
 
         integration_versions = [
-            {"name": dist.metadata["Name"], "version": dist.version}
+            Integration(name=dist.metadata["Name"], version=dist.version)
             for dist in distributions()
             if dist.metadata.get("Name") in installed_integrations
         ]
-        return {"integrations": integration_versions}
+        return WorkerMetadata(integrations=integration_versions)
 
     async def _send_worker_heartbeat(self) -> Optional[UUID]:
         """
