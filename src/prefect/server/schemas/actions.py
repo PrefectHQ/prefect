@@ -755,8 +755,6 @@ class LogCreate(ActionBaseModel):
     worker_id: Optional[UUID] = Field(None)
 
 
-
-
 def validate_base_job_template(v):
     if v == dict():
         return v
