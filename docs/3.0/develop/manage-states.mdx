@@ -56,6 +56,109 @@ The final state of a flow or task run depends on a number of factors; generally 
 - `FAILED`: a run in any `FAILED` state encountered an error during execution, such as a raised exception
 - `CRASHED`: a run in any `CRASHED` state was interrupted by an OS signal such as a `KeyboardInterrupt` or `SIGTERM`
 
+The flow of state transitions can be visualized here:
+
+<Note>
+States are represented by their name, with boxes behind states clarifying their underlying type. Dotted lines lead to terminal states.
+</Note>
+
+```mermaid
+%%{
+  init: {
+    'theme': 'neutral',
+    'flowchart': {
+      'curve' : 'linear',
+      'rankSpacing': 80,
+      'nodeSpacing': 70,
+      'width': 5
+    }
+  }
+}%%
+
+flowchart TD
+    %% Style definitions
+    classDef scheduled fill:#fcd14edb,stroke:#fcd14edb
+    classDef pending fill:#A99FADdb,stroke:#A99FAD
+    classDef running fill:#1860f2db,stroke:#1860f2db
+    classDef paused fill:#a99faddb,stroke:#a99faddb
+    classDef completed fill:#2ac769db,stroke:#2ac769db,stroke-width:2px
+    classDef failed fill:#fb4e4ef5,stroke:#fb4e4ef5,stroke-width:2px
+    classDef crashed fill:#f97316db,stroke:#f97316db,stroke-width:2px
+    classDef cancelled fill:#3d3d3da8,stroke:#3d3d3da8,stroke-width:2px
+    classDef awaiting_concurrency_slot fill:#ede7f6,stroke:#4527a0,stroke-width:2px
+
+    %% States
+    subgraph scheduled_type[Scheduled]
+    Scheduled[Scheduled]:::scheduled
+    Late[Late]:::scheduled
+    AwaitingConcurrencySlot[AwaitingConcurrencySlot]:::scheduled
+    end
+
+    Running[Running]:::running
+
+    Failed[Failed]:::failed
+
+    subgraph scheduled_type2[Scheduled]
+    AwaitingRetry[Awaiting Retry]:::scheduled
+    end
+
+    subgraph running_type[Running]
+    Retrying[Retrying]:::running
+    end
+
+    Pending[Pending]:::pending
+
+
+
+    Cancelling[Cancelling]:::cancelled
+    Cancelled[Cancelled]:::cancelled
+    
+    Cached[Cached]:::completed
+    RolledBack[Rolled Back]:::completed
+    Crashed[Crashed]:::crashed
+
+    Paused[Paused]:::paused
+
+    Completed[Completed]:::completed
+
+    %% Connections
+    Scheduled --> |Scheduled start time passes without entering Pending| Late
+    Scheduled --> |Scheduled start time reached| Pending
+    Scheduled --> |Worker encounters concurrency limit| AwaitingConcurrencySlot
+
+    AwaitingConcurrencySlot --> Pending
+    
+    Late -->  Pending
+
+    Pending --> |Preconditions met| Running    
+
+
+    Running -.-> |Success| Completed
+
+    %%problematic section:
+    Retrying -.-> |Success| Completed
+    Failed --> |Retries remaining| AwaitingRetry
+    AwaitingRetry --> |Retry attempt| Retrying
+    Retrying -.-> |Failure| Failed
+    
+    
+
+    Running -.-> |Error| Failed
+
+    Running -.-> |Infrastructure issue| Crashed
+    Running -.-> |Cache hit| Cached
+    Running -.-> |Transaction rollback| RolledBack
+    Running --> |User cancels| Cancelling
+
+    Running --> |Manual pause| Paused
+    Paused --> |Resume| Running
+    
+    Cancelling -.-> |Cleanup complete| Cancelled
+
+
+
+```
+
 ### Task return values
 
 A task will be placed into a `Completed` state if it returns  _any_ Python object, with one exception:
