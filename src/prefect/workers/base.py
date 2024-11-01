@@ -8,6 +8,7 @@ from uuid import UUID, uuid4
 
 import anyio
 import anyio.abc
+import httpx
 import pendulum
 from pydantic import BaseModel, Field, PrivateAttr, field_validator
 from pydantic.json_schema import GenerateJsonSchema
@@ -26,7 +27,11 @@ from prefect.exceptions import (
     Abort,
     ObjectNotFound,
 )
-from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
+from prefect.logging.loggers import (
+    PrefectLogAdapter,
+    flow_run_logger,
+    get_worker_logger,
+)
 from prefect.plugins import load_prefect_collections
 from prefect.settings import (
     PREFECT_API_URL,
@@ -407,7 +412,8 @@ class BaseWorker(abc.ABC):
             raise ValueError("Worker name cannot contain '/' or '%'")
         self.name = name or f"{self.__class__.__name__} {uuid4()}"
         self._started_event: Optional[Event] = None
-        self._logger = get_logger(f"worker.{self.__class__.type}.{self.name.lower()}")
+        self.backend_id: Optional[UUID] = None
+        self._logger = get_worker_logger(self)
 
         self.is_setup = False
         self._create_pool_if_not_found = create_pool_if_not_found
@@ -422,7 +428,6 @@ class BaseWorker(abc.ABC):
             heartbeat_interval_seconds or PREFECT_WORKER_HEARTBEAT_SECONDS.value()
         )
 
-        self.backend_id: Optional[UUID] = None
         self._work_pool: Optional[WorkPool] = None
         self._exit_stack: AsyncExitStack = AsyncExitStack()
         self._runs_task_group: Optional[anyio.abc.TaskGroup] = None
@@ -734,30 +739,38 @@ class BaseWorker(abc.ABC):
         queues. Sends a worker heartbeat to the API.
         """
         await self._update_local_work_pool_info()
-        # Only do this logic if we've enabled the experiment, are connected to cloud and we don't have an ID.
-        if (
-            get_current_settings().experiments.worker_logging_to_api_enabled
-            and (
-                self._client.server_type == ServerType.CLOUD
-                or get_current_settings().testing.test_mode
+        try:
+            remote_id = await self._send_worker_heartbeat(
+                get_worker_id=(self._should_get_worker_id())
             )
-            and self.backend_id is None
-        ):
-            get_worker_id = True
-        else:
-            get_worker_id = False
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 422 and self._should_get_worker_id():
+                self._logger.warning(
+                    "Failed to retrieve worker ID from the Prefect API server."
+                )
+                await self._send_worker_heartbeat(get_worker_id=False)
+                remote_id = None
+            else:
+                raise e
 
-        remote_id = await self._send_worker_heartbeat(get_worker_id=get_worker_id)
-
-        if get_worker_id and remote_id is None:
+        if self._should_get_worker_id() and remote_id is None:
             self._logger.warning(
                 "Failed to retrieve worker ID from the Prefect API server."
             )
-        else:
+        elif self.backend_id is None and remote_id is not None:
             self.backend_id = remote_id
+            self._logger = get_worker_logger(self)
 
         self._logger.debug(
             f"Worker synchronized with the Prefect API server. Remote ID: {self.backend_id}"
+        )
+
+    def _should_get_worker_id(self):
+        """Determines if the worker should request an ID from the API server."""
+        return (
+            get_current_settings().experiments.worker_logging_to_api_enabled
+            and self._client.server_type == ServerType.CLOUD
+            and self.backend_id is None
         )
 
     async def _get_scheduled_flow_runs(
