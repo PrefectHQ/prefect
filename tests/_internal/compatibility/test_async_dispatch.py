@@ -9,75 +9,124 @@ from prefect._internal.compatibility.async_dispatch import (
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 
-def test_async_compatible_fn_in_sync_context():
-    data = []
+class TestAsyncDispatchBasicUsage:
+    def test_async_compatible_fn_in_sync_context(self):
+        data = []
 
-    async def my_function_async():
-        data.append("async")
+        async def my_function_async():
+            data.append("async")
 
-    @async_dispatch(my_function_async)
-    def my_function():
-        data.append("sync")
+        @async_dispatch(my_function_async)
+        def my_function():
+            data.append("sync")
 
-    my_function()
-    assert data == ["sync"]
+        my_function()
+        assert data == ["sync"]
 
+    async def test_async_compatible_fn_in_async_context(self):
+        data = []
 
-async def test_async_compatible_fn_in_async_context():
-    data = []
+        async def my_function_async():
+            data.append("async")
 
-    async def my_function_async():
-        data.append("async")
+        @async_dispatch(my_function_async)
+        def my_function():
+            data.append("sync")
 
-    @async_dispatch(my_function_async)
-    def my_function():
-        data.append("sync")
-
-    await my_function()
-    assert data == ["async"]
-
-
-async def test_async_compatible_fn_explicit_async_usage():
-    """Verify .aio property works as expected"""
-    data = []
-
-    async def my_function_async():
-        data.append("async")
-
-    @async_dispatch(my_function_async)
-    def my_function():
-        data.append("sync")
-
-    await my_function.aio()
-    assert data == ["async"]
+        await my_function()
+        assert data == ["async"]
 
 
-def test_async_compatible_fn_explicit_async_usage_with_asyncio_run():
-    """Verify .aio property works as expected with asyncio.run"""
-    data = []
+class TestAsyncDispatchExplicitUsage:
+    async def test_async_compatible_fn_explicit_async_usage(self):
+        """Verify .aio property works as expected"""
+        data = []
 
-    async def my_function_async():
-        data.append("async")
+        async def my_function_async():
+            data.append("async")
 
-    @async_dispatch(my_function_async)
-    def my_function():
-        data.append("sync")
+        @async_dispatch(my_function_async)
+        def my_function():
+            data.append("sync")
 
-    asyncio.run(my_function.aio())
-    assert data == ["async"]
+        await my_function.aio()
+        assert data == ["async"]
+
+    def test_async_compatible_fn_explicit_async_usage_with_asyncio_run(self):
+        """Verify .aio property works as expected with asyncio.run"""
+        data = []
+
+        async def my_function_async():
+            data.append("async")
+
+        @async_dispatch(my_function_async)
+        def my_function():
+            data.append("sync")
+
+        asyncio.run(my_function.aio())
+        assert data == ["async"]
+
+    async def test_async_compatible_fn_explicit_sync_usage(self):
+        """Verify .sync property works as expected in async context"""
+        data = []
+
+        async def my_function_async():
+            data.append("async")
+
+        @async_dispatch(my_function_async)
+        def my_function():
+            data.append("sync")
+
+        # Even though we're in async context, .sync should force sync execution
+        my_function.sync()
+        assert data == ["sync"]
+
+    def test_async_compatible_fn_explicit_sync_usage_in_sync_context(self):
+        """Verify .sync property works as expected in sync context"""
+        data = []
+
+        async def my_function_async():
+            data.append("async")
+
+        @async_dispatch(my_function_async)
+        def my_function():
+            data.append("sync")
+
+        my_function.sync()
+        assert data == ["sync"]
 
 
-def test_async_compatible_requires_async_implementation():
-    """Verify we properly reject non-async implementations"""
+class TestAsyncDispatchValidation:
+    def test_async_compatible_requires_async_implementation(self):
+        """Verify we properly reject non-async implementations"""
 
-    def not_async():
-        pass
+        def not_async():
+            pass
 
-    with pytest.raises(TypeError, match="async_impl must be an async function"):
+        with pytest.raises(TypeError, match="async_impl must be an async function"):
 
-        @async_dispatch(not_async)
+            @async_dispatch(not_async)
+            def my_function():
+                pass
+
+    async def test_async_compatible_fn_attributes_exist(self):
+        """Verify both .sync and .aio attributes are present"""
+
+        async def my_function_async():
+            pass
+
+        @async_dispatch(my_function_async)
         def my_function():
             pass
+
+        assert hasattr(my_function, "sync"), "Should have .sync attribute"
+        assert hasattr(my_function, "aio"), "Should have .aio attribute"
+        assert (
+            my_function.sync is my_function.__wrapped__
+        ), "Should reference original sync function"
+        assert (
+            my_function.aio is my_function_async
+        ), "Should reference original async function"
 
 
 class TestAsyncCompatibleFnCannotBeUsedWithAsyncioRun:

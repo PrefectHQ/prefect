@@ -18,6 +18,7 @@ class AsyncDispatchable(Protocol[P, R]):
         ...
 
     aio: Callable[P, Coroutine[Any, Any, R]]
+    sync: Callable[P, R]
 
 
 def is_in_async_context() -> bool:
@@ -44,6 +45,7 @@ def async_dispatch(
     - Return a coroutine when in an async context (detected via running event loop)
     - Run synchronously when in a sync context
     - Provide .aio for explicit async access
+    - Provide .sync for explicit sync access
 
     Args:
         async_impl: The async implementation to dispatch to when async execution
@@ -63,8 +65,9 @@ def async_dispatch(
                 return async_impl(*args, **kwargs)
             return sync_fn(*args, **kwargs)
 
-        # Attach the async implementation directly
+        # Attach both async and sync implementations directly
         wrapper.aio = async_impl
+        wrapper.sync = sync_fn
         return wrapper  # type: ignore
 
     return decorator
