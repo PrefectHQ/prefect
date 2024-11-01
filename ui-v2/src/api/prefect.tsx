@@ -4,7 +4,7 @@
  */
 
 export interface paths {
-    "/health": {
+    "/api/health": {
         parameters: {
             query?: never;
             header?: never;
@@ -21,7 +21,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/version": {
+    "/api/version": {
         parameters: {
             query?: never;
             header?: never;
@@ -38,7 +38,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/flows/": {
+    "/api/flows/": {
         parameters: {
             query?: never;
             header?: never;
@@ -59,7 +59,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/flows/{id}": {
+    "/api/flows/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -87,7 +87,7 @@ export interface paths {
         patch: operations["update_flow_flows__id__patch"];
         trace?: never;
     };
-    "/flows/count": {
+    "/api/flows/count": {
         parameters: {
             query?: never;
             header?: never;
@@ -107,7 +107,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/flows/name/{name}": {
+    "/api/flows/name/{name}": {
         parameters: {
             query?: never;
             header?: never;
@@ -127,7 +127,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/flows/filter": {
+    "/api/flows/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -147,7 +147,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/flows/paginate": {
+    "/api/flows/paginate": {
         parameters: {
             query?: never;
             header?: never;
@@ -167,7 +167,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/flow_runs/": {
+    "/api/flow_runs/": {
         parameters: {
             query?: never;
             header?: never;
@@ -190,7 +190,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/flow_runs/{id}": {
+    "/api/flow_runs/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -218,7 +218,7 @@ export interface paths {
         patch: operations["update_flow_run_flow_runs__id__patch"];
         trace?: never;
     };
-    "/flow_runs/count": {
+    "/api/flow_runs/count": {
         parameters: {
             query?: never;
             header?: never;
@@ -238,7 +238,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/flow_runs/lateness": {
+    "/api/flow_runs/lateness": {
         parameters: {
             query?: never;
             header?: never;
@@ -258,7 +258,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/flow_runs/history": {
+    "/api/flow_runs/history": {
         parameters: {
             query?: never;
             header?: never;
@@ -278,7 +278,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/flow_runs/{id}/graph": {
+    "/api/flow_runs/{id}/graph": {
         parameters: {
             query?: never;
             header?: never;
@@ -298,7 +298,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/flow_runs/{id}/graph-v2": {
+    "/api/flow_runs/{id}/graph-v2": {
         parameters: {
             query?: never;
             header?: never;
@@ -318,7 +318,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/flow_runs/{id}/resume": {
+    "/api/flow_runs/{id}/resume": {
         parameters: {
             query?: never;
             header?: never;
@@ -338,7 +338,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/flow_runs/filter": {
+    "/api/flow_runs/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -358,7 +358,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/flow_runs/{id}/set_state": {
+    "/api/flow_runs/{id}/set_state": {
         parameters: {
             query?: never;
             header?: never;
@@ -378,7 +378,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/flow_runs/{id}/input": {
+    "/api/flow_runs/{id}/input": {
         parameters: {
             query?: never;
             header?: never;
@@ -398,7 +398,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/flow_runs/{id}/input/filter": {
+    "/api/flow_runs/{id}/input/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -418,7 +418,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/flow_runs/{id}/input/{key}": {
+    "/api/flow_runs/{id}/input/{key}": {
         parameters: {
             query?: never;
             header?: never;
@@ -442,7 +442,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/flow_runs/paginate": {
+    "/api/flow_runs/paginate": {
         parameters: {
             query?: never;
             header?: never;
@@ -462,7 +462,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/flow_runs/{id}/logs/download": {
+    "/api/flow_runs/{id}/logs/download": {
         parameters: {
             query?: never;
             header?: never;
@@ -482,7 +482,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/task_runs/": {
+    "/api/task_runs/": {
         parameters: {
             query?: never;
             header?: never;
@@ -506,7 +506,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/task_runs/{id}": {
+    "/api/task_runs/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -534,7 +534,7 @@ export interface paths {
         patch: operations["update_task_run_task_runs__id__patch"];
         trace?: never;
     };
-    "/task_runs/count": {
+    "/api/task_runs/count": {
         parameters: {
             query?: never;
             header?: never;
@@ -554,7 +554,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/task_runs/history": {
+    "/api/task_runs/history": {
         parameters: {
             query?: never;
             header?: never;
@@ -574,7 +574,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/task_runs/filter": {
+    "/api/task_runs/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -594,7 +594,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/task_runs/{id}/set_state": {
+    "/api/task_runs/{id}/set_state": {
         parameters: {
             query?: never;
             header?: never;
@@ -614,7 +614,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/flow_run_states/{id}": {
+    "/api/flow_run_states/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -634,7 +634,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/flow_run_states/": {
+    "/api/flow_run_states/": {
         parameters: {
             query?: never;
             header?: never;
@@ -654,7 +654,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/task_run_states/{id}": {
+    "/api/task_run_states/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -674,7 +674,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/task_run_states/": {
+    "/api/task_run_states/": {
         parameters: {
             query?: never;
             header?: never;
@@ -694,7 +694,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/flow_run_notification_policies/": {
+    "/api/flow_run_notification_policies/": {
         parameters: {
             query?: never;
             header?: never;
@@ -714,7 +714,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/flow_run_notification_policies/{id}": {
+    "/api/flow_run_notification_policies/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -742,7 +742,7 @@ export interface paths {
         patch: operations["update_flow_run_notification_policy_flow_run_notification_policies__id__patch"];
         trace?: never;
     };
-    "/flow_run_notification_policies/filter": {
+    "/api/flow_run_notification_policies/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -762,7 +762,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/deployments/": {
+    "/api/deployments/": {
         parameters: {
             query?: never;
             header?: never;
@@ -786,7 +786,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/deployments/{id}": {
+    "/api/deployments/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -811,7 +811,7 @@ export interface paths {
         patch: operations["update_deployment_deployments__id__patch"];
         trace?: never;
     };
-    "/deployments/name/{flow_name}/{deployment_name}": {
+    "/api/deployments/name/{flow_name}/{deployment_name}": {
         parameters: {
             query?: never;
             header?: never;
@@ -831,7 +831,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/deployments/filter": {
+    "/api/deployments/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -851,7 +851,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/deployments/paginate": {
+    "/api/deployments/paginate": {
         parameters: {
             query?: never;
             header?: never;
@@ -871,7 +871,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/deployments/get_scheduled_flow_runs": {
+    "/api/deployments/get_scheduled_flow_runs": {
         parameters: {
             query?: never;
             header?: never;
@@ -891,7 +891,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/deployments/count": {
+    "/api/deployments/count": {
         parameters: {
             query?: never;
             header?: never;
@@ -911,7 +911,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/deployments/{id}/schedule": {
+    "/api/deployments/{id}/schedule": {
         parameters: {
             query?: never;
             header?: never;
@@ -941,7 +941,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/deployments/{id}/resume_deployment": {
+    "/api/deployments/{id}/resume_deployment": {
         parameters: {
             query?: never;
             header?: never;
@@ -961,7 +961,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/deployments/{id}/pause_deployment": {
+    "/api/deployments/{id}/pause_deployment": {
         parameters: {
             query?: never;
             header?: never;
@@ -982,7 +982,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/deployments/{id}/create_flow_run": {
+    "/api/deployments/{id}/create_flow_run": {
         parameters: {
             query?: never;
             header?: never;
@@ -1007,7 +1007,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/deployments/{id}/work_queue_check": {
+    "/api/deployments/{id}/work_queue_check": {
         parameters: {
             query?: never;
             header?: never;
@@ -1034,7 +1034,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/deployments/{id}/schedules": {
+    "/api/deployments/{id}/schedules": {
         parameters: {
             query?: never;
             header?: never;
@@ -1052,7 +1052,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/deployments/{id}/schedules/{schedule_id}": {
+    "/api/deployments/{id}/schedules/{schedule_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1070,7 +1070,7 @@ export interface paths {
         patch: operations["update_deployment_schedule_deployments__id__schedules__schedule_id__patch"];
         trace?: never;
     };
-    "/saved_searches/": {
+    "/api/saved_searches/": {
         parameters: {
             query?: never;
             header?: never;
@@ -1093,7 +1093,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/saved_searches/{id}": {
+    "/api/saved_searches/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1117,7 +1117,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/saved_searches/filter": {
+    "/api/saved_searches/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -1137,7 +1137,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/logs/": {
+    "/api/logs/": {
         parameters: {
             query?: never;
             header?: never;
@@ -1157,7 +1157,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/logs/filter": {
+    "/api/logs/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -1177,7 +1177,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/concurrency_limits/": {
+    "/api/concurrency_limits/": {
         parameters: {
             query?: never;
             header?: never;
@@ -1194,7 +1194,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/concurrency_limits/{id}": {
+    "/api/concurrency_limits/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1218,7 +1218,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/concurrency_limits/tag/{tag}": {
+    "/api/concurrency_limits/tag/{tag}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1242,7 +1242,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/concurrency_limits/filter": {
+    "/api/concurrency_limits/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -1265,7 +1265,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/concurrency_limits/tag/{tag}/reset": {
+    "/api/concurrency_limits/tag/{tag}/reset": {
         parameters: {
             query?: never;
             header?: never;
@@ -1282,7 +1282,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/concurrency_limits/increment": {
+    "/api/concurrency_limits/increment": {
         parameters: {
             query?: never;
             header?: never;
@@ -1299,7 +1299,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/concurrency_limits/decrement": {
+    "/api/concurrency_limits/decrement": {
         parameters: {
             query?: never;
             header?: never;
@@ -1316,7 +1316,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v2/concurrency_limits/": {
+    "/api/v2/concurrency_limits/": {
         parameters: {
             query?: never;
             header?: never;
@@ -1333,7 +1333,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v2/concurrency_limits/{id_or_name}": {
+    "/api/v2/concurrency_limits/{id_or_name}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1352,7 +1352,7 @@ export interface paths {
         patch: operations["update_concurrency_limit_v2_v2_concurrency_limits__id_or_name__patch"];
         trace?: never;
     };
-    "/v2/concurrency_limits/filter": {
+    "/api/v2/concurrency_limits/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -1369,7 +1369,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v2/concurrency_limits/increment": {
+    "/api/v2/concurrency_limits/increment": {
         parameters: {
             query?: never;
             header?: never;
@@ -1386,7 +1386,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v2/concurrency_limits/decrement": {
+    "/api/v2/concurrency_limits/decrement": {
         parameters: {
             query?: never;
             header?: never;
@@ -1403,7 +1403,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/block_types/": {
+    "/api/block_types/": {
         parameters: {
             query?: never;
             header?: never;
@@ -1423,7 +1423,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/block_types/{id}": {
+    "/api/block_types/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1448,7 +1448,7 @@ export interface paths {
         patch: operations["update_block_type_block_types__id__patch"];
         trace?: never;
     };
-    "/block_types/slug/{slug}": {
+    "/api/block_types/slug/{slug}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1468,7 +1468,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/block_types/filter": {
+    "/api/block_types/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -1488,7 +1488,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/block_types/slug/{slug}/block_documents": {
+    "/api/block_types/slug/{slug}/block_documents": {
         parameters: {
             query?: never;
             header?: never;
@@ -1505,7 +1505,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/block_types/slug/{slug}/block_documents/name/{block_document_name}": {
+    "/api/block_types/slug/{slug}/block_documents/name/{block_document_name}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1522,7 +1522,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/block_types/install_system_block_types": {
+    "/api/block_types/install_system_block_types": {
         parameters: {
             query?: never;
             header?: never;
@@ -1539,7 +1539,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/block_documents/": {
+    "/api/block_documents/": {
         parameters: {
             query?: never;
             header?: never;
@@ -1559,7 +1559,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/block_documents/filter": {
+    "/api/block_documents/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -1579,7 +1579,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/block_documents/count": {
+    "/api/block_documents/count": {
         parameters: {
             query?: never;
             header?: never;
@@ -1599,7 +1599,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/block_documents/{id}": {
+    "/api/block_documents/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1618,7 +1618,7 @@ export interface paths {
         patch: operations["update_block_document_data_block_documents__id__patch"];
         trace?: never;
     };
-    "/work_pools/": {
+    "/api/work_pools/": {
         parameters: {
             query?: never;
             header?: never;
@@ -1639,7 +1639,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/work_pools/{name}": {
+    "/api/work_pools/{name}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1667,7 +1667,7 @@ export interface paths {
         patch: operations["update_work_pool_work_pools__name__patch"];
         trace?: never;
     };
-    "/work_pools/filter": {
+    "/api/work_pools/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -1687,7 +1687,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/work_pools/count": {
+    "/api/work_pools/count": {
         parameters: {
             query?: never;
             header?: never;
@@ -1707,7 +1707,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/work_pools/{name}/get_scheduled_flow_runs": {
+    "/api/work_pools/{name}/get_scheduled_flow_runs": {
         parameters: {
             query?: never;
             header?: never;
@@ -1727,7 +1727,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/work_pools/{work_pool_name}/queues": {
+    "/api/work_pools/{work_pool_name}/queues": {
         parameters: {
             query?: never;
             header?: never;
@@ -1748,7 +1748,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/work_pools/{work_pool_name}/queues/{name}": {
+    "/api/work_pools/{work_pool_name}/queues/{name}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1776,7 +1776,7 @@ export interface paths {
         patch: operations["update_work_queue_work_pools__work_pool_name__queues__name__patch"];
         trace?: never;
     };
-    "/work_pools/{work_pool_name}/queues/filter": {
+    "/api/work_pools/{work_pool_name}/queues/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -1796,7 +1796,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/work_pools/{work_pool_name}/workers/heartbeat": {
+    "/api/work_pools/{work_pool_name}/workers/heartbeat": {
         parameters: {
             query?: never;
             header?: never;
@@ -1813,7 +1813,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/work_pools/{work_pool_name}/workers/filter": {
+    "/api/work_pools/{work_pool_name}/workers/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -1833,7 +1833,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/work_pools/{work_pool_name}/workers/{name}": {
+    "/api/work_pools/{work_pool_name}/workers/{name}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1853,7 +1853,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/task_workers/filter": {
+    "/api/task_workers/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -1873,7 +1873,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/work_queues/": {
+    "/api/work_queues/": {
         parameters: {
             query?: never;
             header?: never;
@@ -1896,7 +1896,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/work_queues/{id}": {
+    "/api/work_queues/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1924,7 +1924,7 @@ export interface paths {
         patch: operations["update_work_queue_work_queues__id__patch"];
         trace?: never;
     };
-    "/work_queues/name/{name}": {
+    "/api/work_queues/name/{name}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1944,7 +1944,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/work_queues/{id}/get_runs": {
+    "/api/work_queues/{id}/get_runs": {
         parameters: {
             query?: never;
             header?: never;
@@ -1964,7 +1964,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/work_queues/filter": {
+    "/api/work_queues/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -1984,7 +1984,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/work_queues/{id}/status": {
+    "/api/work_queues/{id}/status": {
         parameters: {
             query?: never;
             header?: never;
@@ -2004,7 +2004,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/artifacts/": {
+    "/api/artifacts/": {
         parameters: {
             query?: never;
             header?: never;
@@ -2021,7 +2021,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/artifacts/{id}": {
+    "/api/artifacts/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2049,7 +2049,7 @@ export interface paths {
         patch: operations["update_artifact_artifacts__id__patch"];
         trace?: never;
     };
-    "/artifacts/{key}/latest": {
+    "/api/artifacts/{key}/latest": {
         parameters: {
             query?: never;
             header?: never;
@@ -2069,7 +2069,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/artifacts/filter": {
+    "/api/artifacts/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -2089,7 +2089,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/artifacts/latest/filter": {
+    "/api/artifacts/latest/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -2109,7 +2109,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/artifacts/count": {
+    "/api/artifacts/count": {
         parameters: {
             query?: never;
             header?: never;
@@ -2129,7 +2129,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/artifacts/latest/count": {
+    "/api/artifacts/latest/count": {
         parameters: {
             query?: never;
             header?: never;
@@ -2149,7 +2149,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/block_schemas/": {
+    "/api/block_schemas/": {
         parameters: {
             query?: never;
             header?: never;
@@ -2166,7 +2166,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/block_schemas/{id}": {
+    "/api/block_schemas/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2190,7 +2190,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/block_schemas/filter": {
+    "/api/block_schemas/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -2210,7 +2210,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/block_schemas/checksum/{checksum}": {
+    "/api/block_schemas/checksum/{checksum}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2227,7 +2227,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/block_capabilities/": {
+    "/api/block_capabilities/": {
         parameters: {
             query?: never;
             header?: never;
@@ -2244,7 +2244,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/collections/views/{view}": {
+    "/api/collections/views/{view}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2264,7 +2264,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/variables/": {
+    "/api/variables/": {
         parameters: {
             query?: never;
             header?: never;
@@ -2281,7 +2281,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/variables/{id}": {
+    "/api/variables/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2300,7 +2300,7 @@ export interface paths {
         patch: operations["update_variable_variables__id__patch"];
         trace?: never;
     };
-    "/variables/name/{name}": {
+    "/api/variables/name/{name}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2319,7 +2319,7 @@ export interface paths {
         patch: operations["update_variable_by_name_variables_name__name__patch"];
         trace?: never;
     };
-    "/variables/filter": {
+    "/api/variables/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -2336,7 +2336,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/variables/count": {
+    "/api/variables/count": {
         parameters: {
             query?: never;
             header?: never;
@@ -2353,7 +2353,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/csrf-token": {
+    "/api/csrf-token": {
         parameters: {
             query?: never;
             header?: never;
@@ -2373,7 +2373,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/events": {
+    "/api/events": {
         parameters: {
             query?: never;
             header?: never;
@@ -2393,7 +2393,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/events/filter": {
+    "/api/events/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -2415,7 +2415,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/events/filter/next": {
+    "/api/events/filter/next": {
         parameters: {
             query?: never;
             header?: never;
@@ -2436,7 +2436,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/events/count-by/{countable}": {
+    "/api/events/count-by/{countable}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2458,7 +2458,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/automations/": {
+    "/api/automations/": {
         parameters: {
             query?: never;
             header?: never;
@@ -2475,7 +2475,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/automations/{id}": {
+    "/api/automations/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2495,7 +2495,7 @@ export interface paths {
         patch: operations["patch_automation_automations__id__patch"];
         trace?: never;
     };
-    "/automations/filter": {
+    "/api/automations/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -2512,7 +2512,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/automations/count": {
+    "/api/automations/count": {
         parameters: {
             query?: never;
             header?: never;
@@ -2529,7 +2529,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/automations/related-to/{resource_id}": {
+    "/api/automations/related-to/{resource_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2546,7 +2546,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/automations/owned-by/{resource_id}": {
+    "/api/automations/owned-by/{resource_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2563,7 +2563,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/templates/validate": {
+    "/api/templates/validate": {
         parameters: {
             query?: never;
             header?: never;
@@ -2580,7 +2580,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/ui/flows/count-deployments": {
+    "/api/ui/flows/count-deployments": {
         parameters: {
             query?: never;
             header?: never;
@@ -2600,7 +2600,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/ui/flows/next-runs": {
+    "/api/ui/flows/next-runs": {
         parameters: {
             query?: never;
             header?: never;
@@ -2620,7 +2620,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/ui/flow_runs/history": {
+    "/api/ui/flow_runs/history": {
         parameters: {
             query?: never;
             header?: never;
@@ -2637,7 +2637,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/ui/flow_runs/count-task-runs": {
+    "/api/ui/flow_runs/count-task-runs": {
         parameters: {
             query?: never;
             header?: never;
@@ -2657,7 +2657,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/ui/schemas/validate": {
+    "/api/ui/schemas/validate": {
         parameters: {
             query?: never;
             header?: never;
@@ -2674,7 +2674,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/ui/task_runs/dashboard/counts": {
+    "/api/ui/task_runs/dashboard/counts": {
         parameters: {
             query?: never;
             header?: never;
@@ -2691,7 +2691,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/ui/task_runs/count": {
+    "/api/ui/task_runs/count": {
         parameters: {
             query?: never;
             header?: never;
@@ -2708,7 +2708,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/admin/settings": {
+    "/api/admin/settings": {
         parameters: {
             query?: never;
             header?: never;
@@ -2730,7 +2730,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/admin/version": {
+    "/api/admin/version": {
         parameters: {
             query?: never;
             header?: never;
@@ -2750,7 +2750,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/admin/database/clear": {
+    "/api/admin/database/clear": {
         parameters: {
             query?: never;
             header?: never;
@@ -2770,7 +2770,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/admin/database/drop": {
+    "/api/admin/database/drop": {
         parameters: {
             query?: never;
             header?: never;
@@ -2790,7 +2790,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/admin/database/create": {
+    "/api/admin/database/create": {
         parameters: {
             query?: never;
             header?: never;
@@ -2810,7 +2810,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/hello": {
+    "/api/hello": {
         parameters: {
             query?: never;
             header?: never;
@@ -2830,7 +2830,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/ready": {
+    "/api/ready": {
         parameters: {
             query?: never;
             header?: never;
@@ -4593,7 +4593,7 @@ export interface components {
         };
         /** Body_read_workers_work_pools__work_pool_name__workers_filter_post */
         Body_read_workers_work_pools__work_pool_name__workers_filter_post: {
-            workers?: components["schemas"]["WorkerFilter"];
+            workers?: components["schemas"]["WorkerFilter"] | null;
             /**
              * Offset
              * @default 0
@@ -5601,21 +5601,10 @@ export interface components {
              */
             active: boolean;
             /**
-             * Max Active Runs
-             * @description The maximum number of active runs for the schedule.
-             */
-            max_active_runs?: number | null;
-            /**
              * Max Scheduled Runs
              * @description The maximum number of scheduled runs for the schedule.
              */
             max_scheduled_runs?: number | null;
-            /**
-             * Catchup
-             * @description Whether or not a worker should catch up on Late runs for the schedule.
-             * @default false
-             */
-            catchup: boolean;
         };
         /** DeploymentScheduleCreate */
         DeploymentScheduleCreate: {
@@ -5631,21 +5620,10 @@ export interface components {
              */
             schedule: components["schemas"]["IntervalSchedule"] | components["schemas"]["CronSchedule"] | components["schemas"]["RRuleSchedule"];
             /**
-             * Max Active Runs
-             * @description The maximum number of active runs for the schedule.
-             */
-            max_active_runs?: number | null;
-            /**
              * Max Scheduled Runs
              * @description The maximum number of scheduled runs for the schedule.
              */
             max_scheduled_runs?: number | null;
-            /**
-             * Catchup
-             * @description Whether or not a worker should catch up on Late runs for the schedule.
-             * @default false
-             */
-            catchup: boolean;
         };
         /** DeploymentScheduleUpdate */
         DeploymentScheduleUpdate: {
@@ -5660,20 +5638,10 @@ export interface components {
              */
             schedule?: components["schemas"]["IntervalSchedule"] | components["schemas"]["CronSchedule"] | components["schemas"]["RRuleSchedule"] | null;
             /**
-             * Max Active Runs
-             * @description The maximum number of active runs for the schedule.
-             */
-            max_active_runs?: number | null;
-            /**
              * Max Scheduled Runs
              * @description The maximum number of scheduled runs for the schedule.
              */
             max_scheduled_runs?: number | null;
-            /**
-             * Catchup
-             * @description Whether or not a worker should catch up on Late runs for the schedule.
-             */
-            catchup?: boolean | null;
         };
         /**
          * DeploymentSort
@@ -8073,718 +8041,11 @@ export interface components {
         SetStateStatus: "ACCEPT" | "REJECT" | "ABORT" | "WAIT";
         /**
          * Settings
-         * @description Contains validated Prefect settings.
+         * @description Settings for Prefect using Pydantic settings.
          *
-         *     Settings should be accessed using the relevant `Setting` object. For example:
-         *     ```python
-         *     from prefect.settings import PREFECT_HOME
-         *     PREFECT_HOME.value()
-         *     ```
-         *
-         *     Accessing a setting attribute directly will ignore any `value_callback` mutations.
-         *     This is not recommended:
-         *     ```python
-         *     from prefect.settings import Settings
-         *     Settings().PREFECT_PROFILES_PATH  # PosixPath('${PREFECT_HOME}/profiles.toml')
-         *     ```
+         *     See https://docs.pydantic.dev/latest/concepts/pydantic_settings
          */
-        Settings: {
-            /**
-             * Prefect Home
-             * Format: path
-             * @default ~/.prefect
-             */
-            PREFECT_HOME: string;
-            /**
-             * Prefect Debug Mode
-             * @default false
-             */
-            PREFECT_DEBUG_MODE: boolean;
-            /**
-             * Prefect Cli Colors
-             * @default true
-             */
-            PREFECT_CLI_COLORS: boolean;
-            /** Prefect Cli Prompt */
-            PREFECT_CLI_PROMPT?: boolean | null;
-            /**
-             * Prefect Cli Wrap Lines
-             * @default true
-             */
-            PREFECT_CLI_WRAP_LINES: boolean;
-            /**
-             * Prefect Test Mode
-             * @default false
-             */
-            PREFECT_TEST_MODE: boolean;
-            /**
-             * Prefect Unit Test Mode
-             * @default false
-             */
-            PREFECT_UNIT_TEST_MODE: boolean;
-            /**
-             * Prefect Unit Test Loop Debug
-             * @default true
-             */
-            PREFECT_UNIT_TEST_LOOP_DEBUG: boolean;
-            /** Prefect Test Setting */
-            PREFECT_TEST_SETTING?: unknown;
-            /**
-             * Prefect Api Tls Insecure Skip Verify
-             * @default false
-             */
-            PREFECT_API_TLS_INSECURE_SKIP_VERIFY: boolean;
-            /** Prefect Api Ssl Cert File */
-            PREFECT_API_SSL_CERT_FILE?: string | null;
-            /** Prefect Api Url */
-            PREFECT_API_URL?: string | null;
-            /**
-             * Prefect Silence Api Url Misconfiguration
-             * @default false
-             */
-            PREFECT_SILENCE_API_URL_MISCONFIGURATION: boolean;
-            /** Prefect Api Key */
-            PREFECT_API_KEY?: string | null;
-            /**
-             * Prefect Api Enable Http2
-             * @default false
-             */
-            PREFECT_API_ENABLE_HTTP2: boolean;
-            /**
-             * Prefect Client Max Retries
-             * @default 5
-             */
-            PREFECT_CLIENT_MAX_RETRIES: number;
-            /**
-             * Prefect Client Retry Jitter Factor
-             * @default 0.2
-             */
-            PREFECT_CLIENT_RETRY_JITTER_FACTOR: number;
-            /**
-             * Prefect Client Retry Extra Codes
-             * @default
-             */
-            PREFECT_CLIENT_RETRY_EXTRA_CODES: string;
-            /**
-             * Prefect Client Csrf Support Enabled
-             * @default true
-             */
-            PREFECT_CLIENT_CSRF_SUPPORT_ENABLED: boolean;
-            /**
-             * Prefect Cloud Api Url
-             * @default https://api.prefect.cloud/api
-             */
-            PREFECT_CLOUD_API_URL: string;
-            /** Prefect Ui Url */
-            PREFECT_UI_URL?: string | null;
-            /** Prefect Cloud Ui Url */
-            PREFECT_CLOUD_UI_URL?: string | null;
-            /**
-             * Prefect Api Request Timeout
-             * @default 60
-             */
-            PREFECT_API_REQUEST_TIMEOUT: number;
-            /**
-             * Prefect Experimental Warn
-             * @default true
-             */
-            PREFECT_EXPERIMENTAL_WARN: boolean;
-            /**
-             * Prefect Profiles Path
-             * Format: path
-             * @default ${PREFECT_HOME}/profiles.toml
-             */
-            PREFECT_PROFILES_PATH: string;
-            /**
-             * Prefect Results Default Serializer
-             * @default pickle
-             */
-            PREFECT_RESULTS_DEFAULT_SERIALIZER: string;
-            /**
-             * Prefect Results Persist By Default
-             * @default false
-             */
-            PREFECT_RESULTS_PERSIST_BY_DEFAULT: boolean;
-            /**
-             * Prefect Tasks Refresh Cache
-             * @default false
-             */
-            PREFECT_TASKS_REFRESH_CACHE: boolean;
-            /**
-             * Prefect Task Default Retries
-             * @default 0
-             */
-            PREFECT_TASK_DEFAULT_RETRIES: number;
-            /**
-             * Prefect Flow Default Retries
-             * @default 0
-             */
-            PREFECT_FLOW_DEFAULT_RETRIES: number;
-            /**
-             * Prefect Flow Default Retry Delay Seconds
-             * @default 0
-             */
-            PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS: number;
-            /**
-             * Prefect Task Default Retry Delay Seconds
-             * @default 0
-             */
-            PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS: number | number[];
-            /**
-             * Prefect Task Run Tag Concurrency Slot Wait Seconds
-             * @default 30
-             */
-            PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS: number;
-            /**
-             * Prefect Local Storage Path
-             * Format: path
-             * @default ${PREFECT_HOME}/storage
-             */
-            PREFECT_LOCAL_STORAGE_PATH: string;
-            /**
-             * Prefect Memo Store Path
-             * Format: path
-             * @default ${PREFECT_HOME}/memo_store.toml
-             */
-            PREFECT_MEMO_STORE_PATH: string;
-            /**
-             * Prefect Memoize Block Auto Registration
-             * @default true
-             */
-            PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION: boolean;
-            /**
-             * Prefect Logging Level
-             * @default INFO
-             */
-            PREFECT_LOGGING_LEVEL: string;
-            /**
-             * Prefect Logging Internal Level
-             * @default ERROR
-             */
-            PREFECT_LOGGING_INTERNAL_LEVEL: string;
-            /**
-             * Prefect Logging Server Level
-             * @default WARNING
-             */
-            PREFECT_LOGGING_SERVER_LEVEL: string;
-            /**
-             * Prefect Logging Settings Path
-             * Format: path
-             * @default ${PREFECT_HOME}/logging.yml
-             */
-            PREFECT_LOGGING_SETTINGS_PATH: string;
-            /**
-             * Prefect Logging Extra Loggers
-             * @default
-             */
-            PREFECT_LOGGING_EXTRA_LOGGERS: string;
-            /**
-             * Prefect Logging Log Prints
-             * @default false
-             */
-            PREFECT_LOGGING_LOG_PRINTS: boolean;
-            /**
-             * Prefect Logging To Api Enabled
-             * @default true
-             */
-            PREFECT_LOGGING_TO_API_ENABLED: boolean;
-            /**
-             * Prefect Logging To Api Batch Interval
-             * @default 2
-             */
-            PREFECT_LOGGING_TO_API_BATCH_INTERVAL: number;
-            /**
-             * Prefect Logging To Api Batch Size
-             * @default 4000000
-             */
-            PREFECT_LOGGING_TO_API_BATCH_SIZE: number;
-            /**
-             * Prefect Logging To Api Max Log Size
-             * @default 1000000
-             */
-            PREFECT_LOGGING_TO_API_MAX_LOG_SIZE: number;
-            /**
-             * Prefect Logging To Api When Missing Flow
-             * @default warn
-             * @enum {string}
-             */
-            PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW: "warn" | "error" | "ignore";
-            /** Prefect Sqlalchemy Pool Size */
-            PREFECT_SQLALCHEMY_POOL_SIZE?: number | null;
-            /** Prefect Sqlalchemy Max Overflow */
-            PREFECT_SQLALCHEMY_MAX_OVERFLOW?: number | null;
-            /**
-             * Prefect Logging Colors
-             * @default true
-             */
-            PREFECT_LOGGING_COLORS: boolean;
-            /**
-             * Prefect Logging Markup
-             * @default false
-             */
-            PREFECT_LOGGING_MARKUP: boolean;
-            /**
-             * Prefect Async Fetch State Result
-             * @default false
-             */
-            PREFECT_ASYNC_FETCH_STATE_RESULT: boolean;
-            /**
-             * Prefect Api Blocks Register On Start
-             * @default true
-             */
-            PREFECT_API_BLOCKS_REGISTER_ON_START: boolean;
-            /** Prefect Api Database Connection Url */
-            PREFECT_API_DATABASE_CONNECTION_URL?: string | null;
-            /** Prefect Api Database Driver */
-            PREFECT_API_DATABASE_DRIVER?: ("postgresql+asyncpg" | "sqlite+aiosqlite") | null;
-            /** Prefect Api Database Host */
-            PREFECT_API_DATABASE_HOST?: string | null;
-            /** Prefect Api Database Port */
-            PREFECT_API_DATABASE_PORT?: number | null;
-            /** Prefect Api Database User */
-            PREFECT_API_DATABASE_USER?: string | null;
-            /** Prefect Api Database Name */
-            PREFECT_API_DATABASE_NAME?: string | null;
-            /** Prefect Api Database Password */
-            PREFECT_API_DATABASE_PASSWORD?: string | null;
-            /**
-             * Prefect Api Database Echo
-             * @default false
-             */
-            PREFECT_API_DATABASE_ECHO: boolean;
-            /**
-             * Prefect Api Database Migrate On Start
-             * @default true
-             */
-            PREFECT_API_DATABASE_MIGRATE_ON_START: boolean;
-            /**
-             * Prefect Api Database Timeout
-             * @default 10
-             */
-            PREFECT_API_DATABASE_TIMEOUT: number | null;
-            /**
-             * Prefect Api Database Connection Timeout
-             * @default 5
-             */
-            PREFECT_API_DATABASE_CONNECTION_TIMEOUT: number | null;
-            /**
-             * Prefect Api Services Scheduler Loop Seconds
-             * @default 60
-             */
-            PREFECT_API_SERVICES_SCHEDULER_LOOP_SECONDS: number;
-            /**
-             * Prefect Api Services Scheduler Deployment Batch Size
-             * @default 100
-             */
-            PREFECT_API_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE: number;
-            /**
-             * Prefect Api Services Scheduler Max Runs
-             * @default 100
-             */
-            PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS: number;
-            /**
-             * Prefect Api Services Scheduler Min Runs
-             * @default 3
-             */
-            PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS: number;
-            /**
-             * Prefect Api Services Scheduler Max Scheduled Time
-             * Format: duration
-             * @default P100D
-             */
-            PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME: string;
-            /**
-             * Prefect Api Services Scheduler Min Scheduled Time
-             * Format: duration
-             * @default PT1H
-             */
-            PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME: string;
-            /**
-             * Prefect Api Services Scheduler Insert Batch Size
-             * @default 500
-             */
-            PREFECT_API_SERVICES_SCHEDULER_INSERT_BATCH_SIZE: number;
-            /**
-             * Prefect Api Services Late Runs Loop Seconds
-             * @default 5
-             */
-            PREFECT_API_SERVICES_LATE_RUNS_LOOP_SECONDS: number;
-            /**
-             * Prefect Api Services Late Runs After Seconds
-             * Format: duration
-             * @default PT15S
-             */
-            PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS: string;
-            /**
-             * Prefect Api Services Pause Expirations Loop Seconds
-             * @default 5
-             */
-            PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS: number;
-            /**
-             * Prefect Api Services Cancellation Cleanup Loop Seconds
-             * @default 20
-             */
-            PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS: number;
-            /**
-             * Prefect Api Services Foreman Enabled
-             * @default true
-             */
-            PREFECT_API_SERVICES_FOREMAN_ENABLED: boolean;
-            /**
-             * Prefect Api Services Foreman Loop Seconds
-             * @default 15
-             */
-            PREFECT_API_SERVICES_FOREMAN_LOOP_SECONDS: number;
-            /**
-             * Prefect Api Services Foreman Inactivity Heartbeat Multiple
-             * @default 3
-             */
-            PREFECT_API_SERVICES_FOREMAN_INACTIVITY_HEARTBEAT_MULTIPLE: number;
-            /**
-             * Prefect Api Services Foreman Fallback Heartbeat Interval Seconds
-             * @default 30
-             */
-            PREFECT_API_SERVICES_FOREMAN_FALLBACK_HEARTBEAT_INTERVAL_SECONDS: number;
-            /**
-             * Prefect Api Services Foreman Deployment Last Polled Timeout Seconds
-             * @default 60
-             */
-            PREFECT_API_SERVICES_FOREMAN_DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS: number;
-            /**
-             * Prefect Api Services Foreman Work Queue Last Polled Timeout Seconds
-             * @default 60
-             */
-            PREFECT_API_SERVICES_FOREMAN_WORK_QUEUE_LAST_POLLED_TIMEOUT_SECONDS: number;
-            /**
-             * Prefect Api Log Retryable Errors
-             * @default false
-             */
-            PREFECT_API_LOG_RETRYABLE_ERRORS: boolean;
-            /**
-             * Prefect Api Services Task Run Recorder Enabled
-             * @default true
-             */
-            PREFECT_API_SERVICES_TASK_RUN_RECORDER_ENABLED: boolean;
-            /**
-             * Prefect Api Default Limit
-             * @default 200
-             */
-            PREFECT_API_DEFAULT_LIMIT: number;
-            /**
-             * Prefect Server Api Host
-             * @default 127.0.0.1
-             */
-            PREFECT_SERVER_API_HOST: string;
-            /**
-             * Prefect Server Api Port
-             * @default 4200
-             */
-            PREFECT_SERVER_API_PORT: number;
-            /**
-             * Prefect Server Api Keepalive Timeout
-             * @default 5
-             */
-            PREFECT_SERVER_API_KEEPALIVE_TIMEOUT: number;
-            /**
-             * Prefect Server Csrf Protection Enabled
-             * @default false
-             */
-            PREFECT_SERVER_CSRF_PROTECTION_ENABLED: boolean;
-            /**
-             * Prefect Server Csrf Token Expiration
-             * Format: duration
-             * @default PT1H
-             */
-            PREFECT_SERVER_CSRF_TOKEN_EXPIRATION: string;
-            /**
-             * Prefect Server Cors Allowed Origins
-             * @default *
-             */
-            PREFECT_SERVER_CORS_ALLOWED_ORIGINS: string;
-            /**
-             * Prefect Server Cors Allowed Methods
-             * @default *
-             */
-            PREFECT_SERVER_CORS_ALLOWED_METHODS: string;
-            /**
-             * Prefect Server Cors Allowed Headers
-             * @default *
-             */
-            PREFECT_SERVER_CORS_ALLOWED_HEADERS: string;
-            /**
-             * Prefect Server Allow Ephemeral Mode
-             * @default false
-             */
-            PREFECT_SERVER_ALLOW_EPHEMERAL_MODE: boolean;
-            /**
-             * Prefect Server Ephemeral Startup Timeout Seconds
-             * @default 10
-             */
-            PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS: number;
-            /**
-             * Prefect Ui Enabled
-             * @default true
-             */
-            PREFECT_UI_ENABLED: boolean;
-            /** Prefect Ui Api Url */
-            PREFECT_UI_API_URL?: string | null;
-            /**
-             * Prefect Server Analytics Enabled
-             * @default true
-             */
-            PREFECT_SERVER_ANALYTICS_ENABLED: boolean;
-            /**
-             * Prefect Api Services Scheduler Enabled
-             * @default true
-             */
-            PREFECT_API_SERVICES_SCHEDULER_ENABLED: boolean;
-            /**
-             * Prefect Api Services Late Runs Enabled
-             * @default true
-             */
-            PREFECT_API_SERVICES_LATE_RUNS_ENABLED: boolean;
-            /**
-             * Prefect Api Services Flow Run Notifications Enabled
-             * @default true
-             */
-            PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED: boolean;
-            /**
-             * Prefect Api Services Pause Expirations Enabled
-             * @default true
-             */
-            PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED: boolean;
-            /**
-             * Prefect Api Task Cache Key Max Length
-             * @default 2000
-             */
-            PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH: number;
-            /**
-             * Prefect Api Services Cancellation Cleanup Enabled
-             * @default true
-             */
-            PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED: boolean;
-            /**
-             * Prefect Api Max Flow Run Graph Nodes
-             * @default 10000
-             */
-            PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES: number;
-            /**
-             * Prefect Api Max Flow Run Graph Artifacts
-             * @default 10000
-             */
-            PREFECT_API_MAX_FLOW_RUN_GRAPH_ARTIFACTS: number;
-            /**
-             * Prefect Runner Process Limit
-             * @default 5
-             */
-            PREFECT_RUNNER_PROCESS_LIMIT: number;
-            /**
-             * Prefect Runner Poll Frequency
-             * @default 10
-             */
-            PREFECT_RUNNER_POLL_FREQUENCY: number;
-            /**
-             * Prefect Runner Server Missed Polls Tolerance
-             * @default 2
-             */
-            PREFECT_RUNNER_SERVER_MISSED_POLLS_TOLERANCE: number;
-            /**
-             * Prefect Runner Server Host
-             * @default localhost
-             */
-            PREFECT_RUNNER_SERVER_HOST: string;
-            /**
-             * Prefect Runner Server Port
-             * @default 8080
-             */
-            PREFECT_RUNNER_SERVER_PORT: number;
-            /**
-             * Prefect Runner Server Log Level
-             * @default error
-             */
-            PREFECT_RUNNER_SERVER_LOG_LEVEL: string;
-            /**
-             * Prefect Runner Server Enable
-             * @default false
-             */
-            PREFECT_RUNNER_SERVER_ENABLE: boolean;
-            /**
-             * Prefect Deployment Schedule Max Scheduled Runs
-             * @default 50
-             */
-            PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS: number;
-            /**
-             * Prefect Deployment Concurrency Slot Wait Seconds
-             * @default 30
-             */
-            PREFECT_DEPLOYMENT_CONCURRENCY_SLOT_WAIT_SECONDS: number;
-            /**
-             * Prefect Worker Heartbeat Seconds
-             * @default 30
-             */
-            PREFECT_WORKER_HEARTBEAT_SECONDS: number;
-            /**
-             * Prefect Worker Query Seconds
-             * @default 10
-             */
-            PREFECT_WORKER_QUERY_SECONDS: number;
-            /**
-             * Prefect Worker Prefetch Seconds
-             * @default 10
-             */
-            PREFECT_WORKER_PREFETCH_SECONDS: number;
-            /**
-             * Prefect Worker Webserver Host
-             * @default 0.0.0.0
-             */
-            PREFECT_WORKER_WEBSERVER_HOST: string;
-            /**
-             * Prefect Worker Webserver Port
-             * @default 8080
-             */
-            PREFECT_WORKER_WEBSERVER_PORT: number;
-            /** Prefect Task Scheduling Default Storage Block */
-            PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK?: string | null;
-            /**
-             * Prefect Task Scheduling Delete Failed Submissions
-             * @default true
-             */
-            PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS: boolean;
-            /**
-             * Prefect Task Scheduling Max Scheduled Queue Size
-             * @default 1000
-             */
-            PREFECT_TASK_SCHEDULING_MAX_SCHEDULED_QUEUE_SIZE: number;
-            /**
-             * Prefect Task Scheduling Max Retry Queue Size
-             * @default 100
-             */
-            PREFECT_TASK_SCHEDULING_MAX_RETRY_QUEUE_SIZE: number;
-            /**
-             * Prefect Task Scheduling Pending Task Timeout
-             * Format: duration
-             * @default PT0S
-             */
-            PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT: string;
-            /**
-             * Prefect Experimental Enable Schedule Concurrency
-             * @default false
-             */
-            PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY: boolean;
-            /** Prefect Default Result Storage Block */
-            PREFECT_DEFAULT_RESULT_STORAGE_BLOCK?: string | null;
-            /** Prefect Default Work Pool Name */
-            PREFECT_DEFAULT_WORK_POOL_NAME?: string | null;
-            /** Prefect Default Docker Build Namespace */
-            PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE?: string | null;
-            /**
-             * Prefect Ui Serve Base
-             * @default /
-             */
-            PREFECT_UI_SERVE_BASE: string;
-            /** Prefect Ui Static Directory */
-            PREFECT_UI_STATIC_DIRECTORY?: string | null;
-            /**
-             * Prefect Messaging Broker
-             * @default prefect.server.utilities.messaging.memory
-             */
-            PREFECT_MESSAGING_BROKER: string;
-            /**
-             * Prefect Messaging Cache
-             * @default prefect.server.utilities.messaging.memory
-             */
-            PREFECT_MESSAGING_CACHE: string;
-            /**
-             * Prefect Events Maximum Labels Per Resource
-             * @default 500
-             */
-            PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE: number;
-            /**
-             * Prefect Events Maximum Related Resources
-             * @default 500
-             */
-            PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES: number;
-            /**
-             * Prefect Events Maximum Size Bytes
-             * @default 1500000
-             */
-            PREFECT_EVENTS_MAXIMUM_SIZE_BYTES: number;
-            /**
-             * Prefect Api Services Triggers Enabled
-             * @default true
-             */
-            PREFECT_API_SERVICES_TRIGGERS_ENABLED: boolean;
-            /**
-             * Prefect Events Expired Bucket Buffer
-             * Format: duration
-             * @default PT1M
-             */
-            PREFECT_EVENTS_EXPIRED_BUCKET_BUFFER: string;
-            /**
-             * Prefect Events Proactive Granularity
-             * Format: duration
-             * @default PT5S
-             */
-            PREFECT_EVENTS_PROACTIVE_GRANULARITY: string;
-            /**
-             * Prefect Api Services Event Persister Enabled
-             * @default true
-             */
-            PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED: boolean;
-            /**
-             * Prefect Api Services Event Persister Batch Size
-             * @default 20
-             */
-            PREFECT_API_SERVICES_EVENT_PERSISTER_BATCH_SIZE: number;
-            /**
-             * Prefect Api Services Event Persister Flush Interval
-             * @default 5
-             */
-            PREFECT_API_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL: number;
-            /**
-             * Prefect Events Retention Period
-             * Format: duration
-             * @default P7D
-             */
-            PREFECT_EVENTS_RETENTION_PERIOD: string;
-            /**
-             * Prefect Api Events Stream Out Enabled
-             * @default true
-             */
-            PREFECT_API_EVENTS_STREAM_OUT_ENABLED: boolean;
-            /**
-             * Prefect Api Events Related Resource Cache Ttl
-             * Format: duration
-             * @default PT5M
-             */
-            PREFECT_API_EVENTS_RELATED_RESOURCE_CACHE_TTL: string;
-            /**
-             * Prefect Events Maximum Websocket Backfill
-             * Format: duration
-             * @default PT15M
-             */
-            PREFECT_EVENTS_MAXIMUM_WEBSOCKET_BACKFILL: string;
-            /**
-             * Prefect Events Websocket Backfill Page Size
-             * @default 250
-             */
-            PREFECT_EVENTS_WEBSOCKET_BACKFILL_PAGE_SIZE: number;
-            /**
-             * Prefect Api Enable Metrics
-             * @default false
-             */
-            PREFECT_API_ENABLE_METRICS: boolean;
-            /**
-             * Prefect Client Enable Metrics
-             * @default false
-             */
-            PREFECT_CLIENT_ENABLE_METRICS: boolean;
-            /**
-             * Prefect Client Metrics Port
-             * @default 4201
-             */
-            PREFECT_CLIENT_METRICS_PORT: number;
-        };
+        Settings: unknown;
         /** SimpleFlowRun */
         SimpleFlowRun: {
             /**

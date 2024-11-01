@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "service-sync": "uv run ../scripts/generate_openapi_yml.py && npx openapi-typescript ../src/prefect/_internal/openapi.yml -o ../src/api/prefect.tsx"
+    "service-sync": "uv run ../scripts/generate_oss_openapi_schema.py && npx openapi-typescript oss_schema.json -o src/api/prefect.tsx && rm oss_schema.json"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.1.1",

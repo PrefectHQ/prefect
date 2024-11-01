@@ -1,3 +1,8 @@
+# /// script
+# dependencies = [
+#   "prefect @ file:${PROJECT_ROOT}/../",
+# ]
+# ///
 import json
 
 from prefect.server.api.server import create_app
