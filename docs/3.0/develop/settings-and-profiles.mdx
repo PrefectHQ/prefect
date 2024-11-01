@@ -13,7 +13,7 @@ Specifically, settings enable:
 
 - **Runtime Flexibility**: Quickly adjust things like retry attempts or logging levels without having to modify and redeploy your workflows.
 
-## Getting Started with Settings
+## Get started with settings
 
 The simplest way declare settings is by creating a `prefect.toml` file in your project directory. For example:
 
@@ -23,12 +23,18 @@ The simplest way declare settings is by creating a `prefect.toml` file in your p
 level = "DEBUG"
 ```
 
+<Note>
+To use `prefect.toml` or `pyproject.toml` for configuration, `prefect>=3.1` must be installed.
+
+To use a `.env` file for configuration, `prefect>=3.0.5` must be installed.
+</Note>
+
 Most editors have plugins for TOML that provide syntax highlighting, linting, and autocomplete for `prefect.toml` files. If you use VSCode, we recommend the [Even Better TOML extension](https://marketplace.visualstudio.com/items?itemName=tamasfe.even-better-toml).
 
 <Tip>
 **Writing TOML**
 
-TOML is a simple configuration language that is easy to read and write. If you're new to TOML, you can learn more about the syntax in the [official documentation](https://toml.io/en/). 
+TOML is a simple configuration language. If you're new to TOML, learn more about the syntax in the [official documentation](https://toml.io/en/). 
 
 In particular, note that TOML uses square brackets to denote [tables](https://toml.io/en/v1.0.0#table), which are analogous to dictionaries in Python.
 </Tip>
@@ -37,7 +43,7 @@ In particular, note that TOML uses square brackets to denote [tables](https://to
 
 You can configure settings via the following sources (highest to lowest precedence):
 
-- **Environment Variables**: Environment variables are useful for temporarily overriding settings or configuring the runtime environment of a single workflow run.
+- **Environment variables**: Environment variables are useful for temporarily overriding settings or configuring the runtime environment of a single workflow run.
 
 - **`.env` file**: `.env` files are useful for declaring local settings that you want to apply across multiple runs.
 
@@ -95,7 +101,7 @@ PREFECT_LOGGING_LEVEL="DEBUG"
 
 Any flows run in the same directory as this `.env` file will use the `DEBUG` logging level, even if they are run in different shell sessions.
 
-You can see supported environment variables for each setting in the [settings reference documentation](/3.0/develop/settings-ref).
+View supported environment variables for each setting in the [settings reference documentation](/3.0/develop/settings-ref).
 
 ### `prefect.toml` file
 
@@ -136,6 +142,7 @@ Profiles are stored in a [TOML](https://toml.io/en/) file located at `~/.prefect
 One and only one profile can be active at any time.
 
 Immediately after installation, the `ephemeral` profile will be used, which only has 1 setting configured:
+
 ```bash
 » docker run -it prefecthq/prefect:3-latest
   ___ ___ ___ ___ ___ ___ _____
@@ -168,6 +175,7 @@ The `prefect profile` CLI commands enable you to create, review, and manage prof
 | `populate-defaults` | Populate your `profiles.toml` file with opinionated stock profiles. |
 
 ... or you may edit your `profiles.toml` file directly:
+
 ```bash
 vim ~/.prefect/profiles.toml
 ```
