@@ -1882,7 +1882,9 @@ class TestBaseWorkerHeartbeat:
                     worker_name=worker.name,
                     heartbeat_interval_seconds=worker.heartbeat_interval_seconds,
                     get_worker_id=True,
-                    worker_metadata={"integrations": [("prefect-aws", "1.0.0")]},
+                    worker_metadata={
+                        "integrations": [{"name": "prefect-aws", "version": "1.0.0"}]
+                    },
                 )
 
             assert worker._worker_metadata_sent

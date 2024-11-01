@@ -718,7 +718,7 @@ class BaseWorker(abc.ABC):
         installed_integrations = load_prefect_collections().keys()
 
         integration_versions = [
-            (dist.metadata["Name"], dist.version)
+            {"name": dist.metadata["Name"], "version": dist.version}
             for dist in distributions()
             if dist.metadata.get("Name") in installed_integrations
         ]
