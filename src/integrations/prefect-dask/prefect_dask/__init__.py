@@ -1,5 +1,5 @@
 from . import _version
-from .task_runners import DaskTaskRunner  # noqa
+from .task_runners import DaskTaskRunner, as_completed  # noqa
 from .client import PrefectDaskClient  # noqa
 from .utils import get_dask_client, get_async_dask_client  # noqa
 

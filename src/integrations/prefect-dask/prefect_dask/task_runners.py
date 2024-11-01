@@ -78,6 +78,7 @@ from typing import (
     Callable,
     Coroutine,
     Dict,
+    Generator,
     Iterable,
     Optional,
     Set,
@@ -97,6 +98,7 @@ from prefect.tasks import Task
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import visit_collection
 from prefect.utilities.importtools import from_qualified_name, to_qualified_name
+from prefect.utilities.timeout import timeout as timeout_context
 from prefect_dask.client import PrefectDaskClient
 
 logger = get_logger(__name__)
@@ -458,3 +460,44 @@ class DaskTaskRunner(TaskRunner):
     def __exit__(self, *args):
         self._exit_stack.__exit__(*args)
         super().__exit__(*args)
+
+
+def as_completed(
+    futures_or_states: Iterable[Union[PrefectDaskFuture[R], State]],
+    timeout: Optional[float] = None,
+) -> Generator[PrefectDaskFuture[R], None, None]:
+    """
+    Returns an iterator of PrefectDaskFutures that yields futures as they complete.
+
+    This is a Dask-specific implementation that handles futures returned from flows
+    using the DaskTaskRunner.
+
+    Args:
+        futures: List of PrefectDaskFuture objects
+        timeout: Maximum time in seconds to wait for all futures to complete
+
+    Yields:
+        PrefectDaskFutures as they complete
+
+    Raises:
+        TimeoutError: If timeout is reached before all futures complete
+    """
+    futures = [
+        f if isinstance(f, PrefectDaskFuture) else f.result() for f in futures_or_states
+    ]
+    unique_futures: Set[PrefectDaskFuture[R]] = set(futures)
+    total_futures = len(unique_futures)
+    pending = unique_futures.copy()
+
+    try:
+        with timeout_context(timeout):
+            # Use Dask's as_completed to handle the underlying futures
+            dask_futures = {f.wrapped_future for f in pending}
+            for dask_future in distributed.as_completed(dask_futures, timeout=timeout):
+                # Find the corresponding PrefectDaskFuture
+                future = next(f for f in pending if f.wrapped_future == dask_future)
+                pending.remove(future)
+                yield future
+
+    except TimeoutError:
+        raise TimeoutError(f"{len(pending)} (of {total_futures}) futures unfinished")
