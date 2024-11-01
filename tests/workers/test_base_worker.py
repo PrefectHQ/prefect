@@ -1,5 +1,6 @@
 import uuid
 from typing import Any, Dict, Optional, Type
+from unittest import mock
 from unittest.mock import MagicMock
 
 import httpx
@@ -12,6 +13,7 @@ from starlette import status
 import prefect
 import prefect.client.schemas as schemas
 from prefect.blocks.core import Block
+from prefect.client.base import ServerType
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun
 from prefect.exceptions import (
@@ -1845,3 +1847,42 @@ async def test_env_merge_logic_is_deep(
 
     for key, value in expected_env.items():
         assert config.env[key] == value
+
+
+class TestBaseWorkerHeartbeat:
+    async def test_worker_heartbeat_sends_integrations(
+        self, work_pool, hosted_api_server, experimental_logging_enabled
+    ):
+        async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+            await worker.start(run_once=True)
+            with mock.patch(
+                "prefect.workers.base.load_prefect_collections"
+            ) as mock_load_prefect_collections, mock.patch(
+                "prefect.client.orchestration.PrefectClient.send_worker_heartbeat"
+            ) as mock_send_worker_heartbeat, mock.patch(
+                "prefect.workers.base.distributions"
+            ) as mock_distributions:
+                mock_load_prefect_collections.return_value = {
+                    "prefect-aws": "1.0.0",
+                }
+                mock_distributions.return_value = [
+                    mock.MagicMock(
+                        metadata={"Name": "prefect-aws"},
+                        version="1.0.0",
+                    )
+                ]
+
+                async with get_client() as client:
+                    worker._client = client
+                    worker._client.server_type = ServerType.CLOUD
+                    await worker.sync_with_backend()
+
+                mock_send_worker_heartbeat.assert_called_once_with(
+                    work_pool_name=work_pool.name,
+                    worker_name=worker.name,
+                    heartbeat_interval_seconds=worker.heartbeat_interval_seconds,
+                    get_worker_id=True,
+                    worker_metadata={"integrations": [("prefect-aws", "1.0.0")]},
+                )
+
+            assert worker._worker_metadata_sent

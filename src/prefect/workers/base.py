@@ -9,6 +9,7 @@ from uuid import UUID, uuid4
 import anyio
 import anyio.abc
 import pendulum
+from importlib_metadata import distributions
 from pydantic import BaseModel, Field, PrivateAttr, field_validator
 from pydantic.json_schema import GenerateJsonSchema
 from typing_extensions import Literal
@@ -433,6 +434,7 @@ class BaseWorker(abc.ABC):
         self._submitting_flow_run_ids = set()
         self._cancelling_flow_run_ids = set()
         self._scheduled_task_scopes = set()
+        self._worker_metadata_sent = False
 
     @classmethod
     def get_documentation_url(cls) -> str:
@@ -712,21 +714,59 @@ class BaseWorker(abc.ABC):
 
         self._work_pool = work_pool
 
-    async def _send_worker_heartbeat(
-        self, get_worker_id: bool = False
-    ) -> Optional[UUID]:
+    async def _worker_metadata(self) -> Optional[Dict[str, Any]]:
+        installed_integrations = load_prefect_collections().keys()
+
+        integration_versions = [
+            (dist.metadata["Name"], dist.version)
+            for dist in distributions()
+            if dist.metadata.get("Name") in installed_integrations
+        ]
+        return {"integrations": integration_versions}
+
+    async def _send_worker_heartbeat(self) -> Optional[UUID]:
         """
         Sends a heartbeat to the API.
-
-        If `get_worker_id` is True, the worker ID will be retrieved from the API.
         """
-        if self._work_pool:
-            return await self._client.send_worker_heartbeat(
-                work_pool_name=self._work_pool_name,
-                worker_name=self.name,
-                heartbeat_interval_seconds=self.heartbeat_interval_seconds,
-                get_worker_id=get_worker_id,
+        if not self._client:
+            self._logger.warning("Client has not been initialized; skipping heartbeat.")
+            return None
+        if not self._work_pool:
+            self._logger.debug("Worker has no work pool; skipping heartbeat.")
+            return None
+
+        get_worker_id = (
+            get_current_settings().experiments.worker_logging_to_api_enabled
+            and (
+                self._client.server_type == ServerType.CLOUD
+                or get_current_settings().testing.test_mode
             )
+            and self.backend_id is None
+        )
+
+        params = {
+            "work_pool_name": self._work_pool_name,
+            "worker_name": self.name,
+            "heartbeat_interval_seconds": self.heartbeat_interval_seconds,
+            "get_worker_id": get_worker_id,
+        }
+        if (
+            self._client.server_type == ServerType.CLOUD
+            and not self._worker_metadata_sent
+        ):
+            worker_metadata = await self._worker_metadata()
+            if worker_metadata:
+                params["worker_metadata"] = worker_metadata
+            self._worker_metadata_sent = True
+
+        worker_id = await self._client.send_worker_heartbeat(**params)
+
+        if get_worker_id and worker_id is None:
+            self._logger.warning(
+                "Failed to retrieve worker ID from the Prefect API server."
+            )
+
+        return worker_id
 
     async def sync_with_backend(self):
         """
@@ -734,26 +774,10 @@ class BaseWorker(abc.ABC):
         queues. Sends a worker heartbeat to the API.
         """
         await self._update_local_work_pool_info()
-        # Only do this logic if we've enabled the experiment, are connected to cloud and we don't have an ID.
-        if (
-            get_current_settings().experiments.worker_logging_to_api_enabled
-            and (
-                self._client.server_type == ServerType.CLOUD
-                or get_current_settings().testing.test_mode
-            )
-            and self.backend_id is None
-        ):
-            get_worker_id = True
-        else:
-            get_worker_id = False
 
-        remote_id = await self._send_worker_heartbeat(get_worker_id=get_worker_id)
+        remote_id = await self._send_worker_heartbeat()
 
-        if get_worker_id and remote_id is None:
-            self._logger.warning(
-                "Failed to retrieve worker ID from the Prefect API server."
-            )
-        else:
+        if remote_id:
             self.backend_id = remote_id
 
         self._logger.debug(
