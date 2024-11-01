@@ -319,7 +319,7 @@ class DaskTaskRunner(TaskRunner):
         self,
         task: "Task[P, Coroutine[Any, Any, R]]",
         parameters: Dict[str, Any],
-        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        wait_for: Optional[Iterable[PrefectDaskFuture]] = None,
         dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
     ) -> PrefectDaskFuture[R]:
         ...
@@ -329,7 +329,7 @@ class DaskTaskRunner(TaskRunner):
         self,
         task: "Task[Any, R]",
         parameters: Dict[str, Any],
-        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        wait_for: Optional[Iterable[PrefectDaskFuture]] = None,
         dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
     ) -> PrefectDaskFuture[R]:
         ...
@@ -338,22 +338,21 @@ class DaskTaskRunner(TaskRunner):
         self,
         task: Task,
         parameters: Dict[str, Any],
-        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        wait_for: Optional[Iterable[PrefectDaskFuture]] = None,
         dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
-    ) -> PrefectDaskFuture:
+    ) -> PrefectDaskFuture[R]:
         if not self._started:
             raise RuntimeError(
                 "The task runner must be started before submitting work."
             )
 
-        # unpack the upstream call in order to cast Prefect futures to Dask futures
-        # where possible to optimize Dask task scheduling
+        # Convert parameters and wait_for futures to Dask futures
         parameters = self._optimize_futures(parameters)
 
         future = self._client.submit(
             task,
             parameters=parameters,
-            wait_for=wait_for,
+            wait_for=([f.wrapped_future for f in wait_for] if wait_for else None),
             dependencies=dependencies,
             return_type="state",
         )
