@@ -802,6 +802,7 @@ class BaseWorker(abc.ABC):
         """Determines if the worker should request an ID from the API server."""
         return (
             get_current_settings().experiments.worker_logging_to_api_enabled
+            and self._client
             and self._client.server_type == ServerType.CLOUD
             and self.backend_id is None
         )
