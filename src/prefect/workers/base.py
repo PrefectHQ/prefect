@@ -826,6 +826,9 @@ class BaseWorker(abc.ABC):
                 run_logger.info(
                     f"Worker '{self.name}' submitting flow run '{flow_run.id}'"
                 )
+                run_logger.info(
+                    f"Flow run '{flow_run.id}' submitted by worker '{self.worker_id}'"
+                )
                 self._submitting_flow_run_ids.add(flow_run.id)
                 self._runs_task_group.start_soon(
                     self._submit_run,
