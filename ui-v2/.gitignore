@@ -25,3 +25,4 @@ dist-ssr
 
 # Generated files
 oss_schema.json
+*.tsbuildinfo
