@@ -768,9 +768,9 @@ class BaseWorker(abc.ABC):
     def _should_get_worker_id(self):
         """Determines if the worker should request an ID from the API server."""
         return (
-                get_current_settings().experiments.worker_logging_to_api_enabled
-                and self._client.server_type == ServerType.CLOUD
-                and self.backend_id is None
+            get_current_settings().experiments.worker_logging_to_api_enabled
+            and self._client.server_type == ServerType.CLOUD
+            and self.backend_id is None
         )
 
     async def _get_scheduled_flow_runs(
