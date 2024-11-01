@@ -2,8 +2,8 @@ import asyncio
 
 import pytest
 
-from prefect._internal.compatibility.async_compatible import (
-    async_compatible,
+from prefect._internal.compatibility.async_dispatch import (
+    async_dispatch,
     is_in_async_context,
 )
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
@@ -15,7 +15,7 @@ def test_async_compatible_fn_in_sync_context():
     async def my_function_async():
         data.append("async")
 
-    @async_compatible(my_function_async)
+    @async_dispatch(my_function_async)
     def my_function():
         data.append("sync")
 
@@ -29,7 +29,7 @@ async def test_async_compatible_fn_in_async_context():
     async def my_function_async():
         data.append("async")
 
-    @async_compatible(my_function_async)
+    @async_dispatch(my_function_async)
     def my_function():
         data.append("sync")
 
@@ -44,7 +44,7 @@ async def test_async_compatible_fn_explicit_async_usage():
     async def my_function_async():
         data.append("async")
 
-    @async_compatible(my_function_async)
+    @async_dispatch(my_function_async)
     def my_function():
         data.append("sync")
 
@@ -59,7 +59,7 @@ def test_async_compatible_fn_explicit_async_usage_with_asyncio_run():
     async def my_function_async():
         data.append("async")
 
-    @async_compatible(my_function_async)
+    @async_dispatch(my_function_async)
     def my_function():
         data.append("sync")
 
@@ -75,7 +75,7 @@ def test_async_compatible_requires_async_implementation():
 
     with pytest.raises(TypeError, match="async_impl must be an async function"):
 
-        @async_compatible(not_async)
+        @async_dispatch(not_async)
         def my_function():
             pass
 
@@ -88,7 +88,7 @@ class TestAsyncCompatibleFnCannotBeUsedWithAsyncioRun:
         async def my_function_async():
             data.append("async")
 
-        @async_compatible(my_function_async)
+        @async_dispatch(my_function_async)
         def my_function():
             data.append("sync")
 
@@ -102,7 +102,7 @@ class TestAsyncCompatibleFnCannotBeUsedWithAsyncioRun:
         async def my_function_async():
             data.append("async")
 
-        @async_compatible(my_function_async)
+        @async_dispatch(my_function_async)
         def my_function():
             data.append("sync")
 

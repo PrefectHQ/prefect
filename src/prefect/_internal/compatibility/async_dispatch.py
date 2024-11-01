@@ -9,8 +9,8 @@ R = TypeVar("R")
 P = ParamSpec("P")
 
 
-class AsyncCompatible(Protocol[P, R]):
-    """Protocol for functions decorated with async_compatible."""
+class AsyncDispatchable(Protocol[P, R]):
+    """Protocol for functions decorated with async_dispatch."""
 
     def __call__(
         self, *args: P.args, **kwargs: P.kwargs
@@ -34,9 +34,9 @@ def is_in_async_context() -> bool:
         return False
 
 
-def async_compatible(
+def async_dispatch(
     async_impl: Callable[P, Coroutine[Any, Any, R]],
-) -> Callable[[Callable[P, R]], AsyncCompatible[P, R]]:
+) -> Callable[[Callable[P, R]], AsyncDispatchable[P, R]]:
     """
     Decorator that adds async compatibility to a sync function.
 
@@ -54,7 +54,7 @@ def async_compatible(
             "async_impl must be an async function to dispatch in async contexts"
         )
 
-    def decorator(sync_fn: Callable[P, R]) -> AsyncCompatible[P, R]:
+    def decorator(sync_fn: Callable[P, R]) -> AsyncDispatchable[P, R]:
         @wraps(sync_fn)
         def wrapper(
             *args: P.args, **kwargs: P.kwargs
