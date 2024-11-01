@@ -39,7 +39,7 @@
                 },
                 "tls_insecure_skip_verify": {
                     "default": false,
-                    "description": "If `True`, disables SSL checking to allow insecure requests. This is recommended only during development, e.g. when using self-signed certificates.",
+                    "description": "If `True`, disables SSL checking to allow insecure requests. Setting to False is recommended only during development. For example, when using self-signed certificates.",
                     "supported_environment_variables": [
                         "PREFECT_API_TLS_INSECURE_SKIP_VERIFY"
                     ],
@@ -1176,7 +1176,7 @@
                 },
                 "messaging_cache": {
                     "default": "prefect.server.utilities.messaging.memory",
-                    "description": "Which cache implementation to use for the events system.  Should point to a module that exports a Cache class.",
+                    "description": "Which cache implementation to use for the events system. Should point to a module that exports a Cache class.",
                     "supported_environment_variables": [
                         "PREFECT_SERVER_EVENTS_MESSAGING_CACHE",
                         "PREFECT_MESSAGING_CACHE"
@@ -2163,7 +2163,6 @@
         },
         "client": {
             "$ref": "#/$defs/ClientSettings",
-            "description": "Settings for for controlling API client behavior",
             "supported_environment_variables": []
         },
         "cloud": {

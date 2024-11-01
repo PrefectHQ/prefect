@@ -128,7 +128,7 @@ class ServerEventsSettings(PrefectBaseSettings):
 
     messaging_cache: str = Field(
         default="prefect.server.utilities.messaging.memory",
-        description="Which cache implementation to use for the events system.  Should point to a module that exports a Cache class.",
+        description="Which cache implementation to use for the events system. Should point to a module that exports a Cache class.",
         validation_alias=AliasChoices(
             AliasPath("messaging_cache"),
             "prefect_server_events_messaging_cache",
