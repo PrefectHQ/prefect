@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from prefect.context import RunContext
     from prefect.flows import Flow
     from prefect.tasks import Task
+    from prefect.workers.base import BaseWorker
 
 
 class PrefectLogAdapter(logging.LoggerAdapter):
@@ -203,6 +204,29 @@ def task_run_logger(
             **kwargs,
         },
     )
+
+
+def get_worker_logger(worker: "BaseWorker", name: Optional[str] = None):
+    """
+    Create a worker logger with the worker's metadata attached.
+
+    If the worker has a backend_id, it will be attached to the log records.
+    If the worker does not have a backend_id a basic logger will be returned.
+    If the worker does not have a backend_id attribute, a basic logger will be returned.
+    """
+
+    worker_log_name = name or f"workers.{worker.__class__.type}.{worker.name.lower()}"
+
+    worker_id = getattr(worker, "backend_id", None)
+    if worker_id:
+        return PrefectLogAdapter(
+            get_logger(worker_log_name),
+            extra={
+                "worker_id": str(worker.backend_id),
+            },
+        )
+    else:
+        return get_logger(worker_log_name)
 
 
 @contextmanager

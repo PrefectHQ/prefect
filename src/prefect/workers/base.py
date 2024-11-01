@@ -8,6 +8,7 @@ from uuid import UUID, uuid4
 
 import anyio
 import anyio.abc
+import httpx
 import pendulum
 from importlib_metadata import distributions
 from pydantic import BaseModel, Field, PrivateAttr, field_validator
@@ -32,7 +33,11 @@ from prefect.exceptions import (
     Abort,
     ObjectNotFound,
 )
-from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
+from prefect.logging.loggers import (
+    PrefectLogAdapter,
+    flow_run_logger,
+    get_worker_logger,
+)
 from prefect.plugins import load_prefect_collections
 from prefect.settings import (
     PREFECT_API_URL,
@@ -413,7 +418,8 @@ class BaseWorker(abc.ABC):
             raise ValueError("Worker name cannot contain '/' or '%'")
         self.name = name or f"{self.__class__.__name__} {uuid4()}"
         self._started_event: Optional[Event] = None
-        self._logger = get_logger(f"worker.{self.__class__.type}.{self.name.lower()}")
+        self.backend_id: Optional[UUID] = None
+        self._logger = get_worker_logger(self)
 
         self.is_setup = False
         self._create_pool_if_not_found = create_pool_if_not_found
@@ -428,7 +434,6 @@ class BaseWorker(abc.ABC):
             heartbeat_interval_seconds or PREFECT_WORKER_HEARTBEAT_SECONDS.value()
         )
 
-        self.backend_id: Optional[UUID] = None
         self._work_pool: Optional[WorkPool] = None
         self._exit_stack: AsyncExitStack = AsyncExitStack()
         self._runs_task_group: Optional[anyio.abc.TaskGroup] = None
@@ -740,20 +745,13 @@ class BaseWorker(abc.ABC):
             self._logger.debug("Worker has no work pool; skipping heartbeat.")
             return None
 
-        get_worker_id = (
-            get_current_settings().experiments.worker_logging_to_api_enabled
-            and (
-                self._client.server_type == ServerType.CLOUD
-                or get_current_settings().testing.test_mode
-            )
-            and self.backend_id is None
-        )
+        should_get_worker_id = self._should_get_worker_id()
 
         params = {
             "work_pool_name": self._work_pool_name,
             "worker_name": self.name,
             "heartbeat_interval_seconds": self.heartbeat_interval_seconds,
-            "get_worker_id": get_worker_id,
+            "get_worker_id": should_get_worker_id,
         }
         if (
             self._client.server_type == ServerType.CLOUD
@@ -764,9 +762,20 @@ class BaseWorker(abc.ABC):
                 params["worker_metadata"] = worker_metadata
             self._worker_metadata_sent = True
 
-        worker_id = await self._client.send_worker_heartbeat(**params)
+        worker_id = None
+        try:
+            worker_id = await self._client.send_worker_heartbeat(**params)
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 422 and should_get_worker_id:
+                self._logger.warning(
+                    "Failed to retrieve worker ID from the Prefect API server."
+                )
+                params["get_worker_id"] = False
+                worker_id = await self._client.send_worker_heartbeat(**params)
+            else:
+                raise e
 
-        if get_worker_id and worker_id is None:
+        if should_get_worker_id and worker_id is None:
             self._logger.warning(
                 "Failed to retrieve worker ID from the Prefect API server."
             )
@@ -781,12 +790,20 @@ class BaseWorker(abc.ABC):
         await self._update_local_work_pool_info()
 
         remote_id = await self._send_worker_heartbeat()
-
         if remote_id:
             self.backend_id = remote_id
+            self._logger = get_worker_logger(self)
 
         self._logger.debug(
             f"Worker synchronized with the Prefect API server. Remote ID: {self.backend_id}"
+        )
+
+    def _should_get_worker_id(self):
+        """Determines if the worker should request an ID from the API server."""
+        return (
+            get_current_settings().experiments.worker_logging_to_api_enabled
+            and self._client.server_type == ServerType.CLOUD
+            and self.backend_id is None
         )
 
     async def _get_scheduled_flow_runs(
