@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Annotated, Any, Dict, List, Sequence, Set, TypeVar, Union
+from typing import Annotated, Any, Dict, List, Set, TypeVar, Union
 from typing_extensions import Literal
 import orjson
 import pydantic
@@ -7,7 +7,6 @@ import pydantic
 from pydantic import (
     BeforeValidator,
     Field,
-    SecretStr,
     StrictBool,
     StrictFloat,
     StrictInt,

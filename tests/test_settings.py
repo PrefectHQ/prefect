@@ -748,7 +748,7 @@ class TestSettingAccess:
         assert set(PREFECT_LOGGING_EXTRA_LOGGERS.value_from(settings)) == set(expected)
 
     def test_prefect_home_expands_tilde_in_path(self):
-        settings = Settings(home=Path("~/test"))  # type: ignore
+        settings = Settings(home="~/test")  # type: ignore
         assert PREFECT_HOME.value_from(settings) == Path("~/test").expanduser()
 
     @pytest.mark.parametrize(
