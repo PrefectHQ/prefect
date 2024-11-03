@@ -1097,6 +1097,37 @@ class TestSettingsSources:
 
         assert Settings().client.retry_extra_codes == set()
 
+    def test_env_source_with_profiles_path(
+        self, temporary_env_file, monkeypatch, tmp_path
+    ):
+        profiles_path = tmp_path / "custom_profiles.toml"
+
+        monkeypatch.delenv("PREFECT_TESTING_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_TESTING_UNIT_TEST_MODE", raising=False)
+
+        profiles_path.write_text(
+            textwrap.dedent(
+                """
+                active = "foo"
+
+                [profiles.foo]
+                PREFECT_CLIENT_RETRY_EXTRA_CODES = "420,500"
+                """
+            )
+        )
+
+        temporary_env_file(f"PREFECT_PROFILES_PATH={profiles_path}")
+
+        assert Settings().profiles_path == profiles_path
+        assert Settings().client.retry_extra_codes == {420, 500}
+
+        os.unlink(".env")
+
+        monkeypatch.setenv("PREFECT_TEST_MODE", "1")
+        monkeypatch.setenv("PREFECT_TESTING_UNIT_TEST_MODE", "1")
+
+        assert Settings().client.retry_extra_codes == set()
+
     def test_resolution_order(self, temporary_env_file, monkeypatch, tmp_path):
         profiles_path = tmp_path / "profiles.toml"
 

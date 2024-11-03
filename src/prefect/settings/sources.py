@@ -4,6 +4,7 @@ import warnings
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Type
 
+import dotenv
 import toml
 from pydantic import AliasChoices
 from pydantic.fields import FieldInfo
@@ -229,6 +230,8 @@ def _get_profiles_path() -> Path:
     if _is_test_mode():
         return DEFAULT_PROFILES_PATH
     if env_path := os.getenv("PREFECT_PROFILES_PATH"):
+        return Path(env_path)
+    if env_path := dotenv.dotenv_values(".env").get("PREFECT_PROFILES_PATH"):
         return Path(env_path)
     if not (DEFAULT_PREFECT_HOME / "profiles.toml").exists():
         return DEFAULT_PROFILES_PATH
