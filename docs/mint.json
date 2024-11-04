@@ -1321,6 +1321,10 @@
     {
       "destination": "/v3/:slug*",
       "source": "/3/:slug*"
+    },
+    {
+      "destination": "/v2/:slug*",
+      "source": "/2/:slug*"
     }
   ],
   "tabs": [
