@@ -33,7 +33,7 @@ def current_version() -> str:
     """
 
     version = Version("3.0.0")
-    return f"{version.major}{version.minor if version.pre else ''}{version.pre[0] if version.pre else ''}"
+    return f"v{version.major}{version.minor if version.pre else ''}{version.pre[0] if version.pre else ''}"
 
 
 def main():
