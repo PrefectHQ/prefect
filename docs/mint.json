@@ -62,7 +62,7 @@
     {
       "group": "Get started",
       "pages": [
-        "2/get-started/index"
+        "v2/get-started/index"
       ],
       "version": "v2"
     },
