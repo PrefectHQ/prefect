@@ -10,85 +10,104 @@
 
 // Import Routes
 
-import { Route as rootRoute } from "./routes/__root";
-import { Route as FlowsFlowIdImport } from "./routes/flows/flow.$id";
-import { Route as FlowsIndexImport } from "./routes/flows/index";
+import { Route as rootRoute } from './routes/__root'
+import { Route as SettingsImport } from './routes/settings'
+import { Route as FlowsIndexImport } from './routes/flows/index'
+import { Route as FlowsFlowIdImport } from './routes/flows/flow.$id'
 
 // Create/Update Routes
 
+const SettingsRoute = SettingsImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRoute,
+} as any)
+
 const FlowsIndexRoute = FlowsIndexImport.update({
-	id: "/flows/",
-	path: "/flows/",
-	getParentRoute: () => rootRoute,
-} as any);
+  id: '/flows/',
+  path: '/flows/',
+  getParentRoute: () => rootRoute,
+} as any)
 
 const FlowsFlowIdRoute = FlowsFlowIdImport.update({
-	id: "/flows/flow/$id",
-	path: "/flows/flow/$id",
-	getParentRoute: () => rootRoute,
-} as any);
+  id: '/flows/flow/$id',
+  path: '/flows/flow/$id',
+  getParentRoute: () => rootRoute,
+} as any)
 
 // Populate the FileRoutesByPath interface
 
-declare module "@tanstack/react-router" {
-	interface FileRoutesByPath {
-		"/flows/": {
-			id: "/flows/";
-			path: "/flows";
-			fullPath: "/flows";
-			preLoaderRoute: typeof FlowsIndexImport;
-			parentRoute: typeof rootRoute;
-		};
-		"/flows/flow/$id": {
-			id: "/flows/flow/$id";
-			path: "/flows/flow/$id";
-			fullPath: "/flows/flow/$id";
-			preLoaderRoute: typeof FlowsFlowIdImport;
-			parentRoute: typeof rootRoute;
-		};
-	}
+declare module '@tanstack/react-router' {
+  interface FileRoutesByPath {
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsImport
+      parentRoute: typeof rootRoute
+    }
+    '/flows/': {
+      id: '/flows/'
+      path: '/flows'
+      fullPath: '/flows'
+      preLoaderRoute: typeof FlowsIndexImport
+      parentRoute: typeof rootRoute
+    }
+    '/flows/flow/$id': {
+      id: '/flows/flow/$id'
+      path: '/flows/flow/$id'
+      fullPath: '/flows/flow/$id'
+      preLoaderRoute: typeof FlowsFlowIdImport
+      parentRoute: typeof rootRoute
+    }
+  }
 }
 
 // Create and export the route tree
 
 export interface FileRoutesByFullPath {
-	"/flows": typeof FlowsIndexRoute;
-	"/flows/flow/$id": typeof FlowsFlowIdRoute;
+  '/settings': typeof SettingsRoute
+  '/flows': typeof FlowsIndexRoute
+  '/flows/flow/$id': typeof FlowsFlowIdRoute
 }
 
 export interface FileRoutesByTo {
-	"/flows": typeof FlowsIndexRoute;
-	"/flows/flow/$id": typeof FlowsFlowIdRoute;
+  '/settings': typeof SettingsRoute
+  '/flows': typeof FlowsIndexRoute
+  '/flows/flow/$id': typeof FlowsFlowIdRoute
 }
 
 export interface FileRoutesById {
-	__root__: typeof rootRoute;
-	"/flows/": typeof FlowsIndexRoute;
-	"/flows/flow/$id": typeof FlowsFlowIdRoute;
+  __root__: typeof rootRoute
+  '/settings': typeof SettingsRoute
+  '/flows/': typeof FlowsIndexRoute
+  '/flows/flow/$id': typeof FlowsFlowIdRoute
 }
 
 export interface FileRouteTypes {
-	fileRoutesByFullPath: FileRoutesByFullPath;
-	fullPaths: "/flows" | "/flows/flow/$id";
-	fileRoutesByTo: FileRoutesByTo;
-	to: "/flows" | "/flows/flow/$id";
-	id: "__root__" | "/flows/" | "/flows/flow/$id";
-	fileRoutesById: FileRoutesById;
+  fileRoutesByFullPath: FileRoutesByFullPath
+  fullPaths: '/settings' | '/flows' | '/flows/flow/$id'
+  fileRoutesByTo: FileRoutesByTo
+  to: '/settings' | '/flows' | '/flows/flow/$id'
+  id: '__root__' | '/settings' | '/flows/' | '/flows/flow/$id'
+  fileRoutesById: FileRoutesById
 }
 
 export interface RootRouteChildren {
-	FlowsIndexRoute: typeof FlowsIndexRoute;
-	FlowsFlowIdRoute: typeof FlowsFlowIdRoute;
+  SettingsRoute: typeof SettingsRoute
+  FlowsIndexRoute: typeof FlowsIndexRoute
+  FlowsFlowIdRoute: typeof FlowsFlowIdRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
-	FlowsIndexRoute: FlowsIndexRoute,
-	FlowsFlowIdRoute: FlowsFlowIdRoute,
-};
+  SettingsRoute: SettingsRoute,
+  FlowsIndexRoute: FlowsIndexRoute,
+  FlowsFlowIdRoute: FlowsFlowIdRoute,
+}
 
 export const routeTree = rootRoute
-	._addFileChildren(rootRouteChildren)
-	._addFileTypes<FileRouteTypes>();
+  ._addFileChildren(rootRouteChildren)
+  ._addFileTypes<FileRouteTypes>()
 
 /* ROUTE_MANIFEST_START
 {
@@ -96,9 +115,13 @@ export const routeTree = rootRoute
     "__root__": {
       "filePath": "__root.tsx",
       "children": [
+        "/settings",
         "/flows/",
         "/flows/flow/$id"
       ]
+    },
+    "/settings": {
+      "filePath": "settings.tsx"
     },
     "/flows/": {
       "filePath": "flows/index.tsx"
