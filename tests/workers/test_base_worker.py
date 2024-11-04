@@ -1868,7 +1868,7 @@ class TestBaseWorkerHeartbeat:
                 }
                 mock_distributions.return_value = [
                     mock.MagicMock(
-                        metadata={"Name": "prefect-aws"},
+                        metadata={"Name": "prefect_aws"},
                         version="1.0.0",
                     )
                 ]
@@ -1885,7 +1885,7 @@ class TestBaseWorkerHeartbeat:
                         "heartbeat_interval_seconds": worker.heartbeat_interval_seconds,
                         "worker_metadata": {
                             "integrations": [
-                                {"name": "prefect-aws", "version": "1.0.0"}
+                                {"name": "prefect_aws", "version": "1.0.0"}
                             ]
                         },
                         "return_id": True,
