@@ -725,14 +725,22 @@ class BaseWorker(abc.ABC):
         self._work_pool = work_pool
 
     async def _worker_metadata(self) -> Optional[WorkerMetadata]:
+        """
+        Returns metadata about installed Prefect collections for the worker.
+        """
         installed_integrations = load_prefect_collections().keys()
 
         integration_versions = [
             Integration(name=dist.metadata["Name"], version=dist.version)
             for dist in distributions()
-            if dist.metadata.get("Name") in installed_integrations
+            # PyPI packages often use dashes, but Python package names use underscores
+            # because they must be valid identifiers.
+            if dist.metadata.get("Name").replace("-", "_") in installed_integrations
         ]
-        return WorkerMetadata(integrations=integration_versions)
+
+        if integration_versions:
+            return WorkerMetadata(integrations=integration_versions)
+        return None
 
     async def _send_worker_heartbeat(self) -> Optional[UUID]:
         """
