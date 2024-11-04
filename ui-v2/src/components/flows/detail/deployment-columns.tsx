@@ -91,7 +91,7 @@ export const columns: ColumnDef<Deployment>[] = [
           <DropdownMenuContent align="end">
             <DropdownMenuItem>Quick run</DropdownMenuItem>
             <DropdownMenuItem>Custom run</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigator.clipboard.writeText(row.original.id as string)}>
+            <DropdownMenuItem onClick={() => void navigator.clipboard.writeText(row.original.id as string)}>
               Copy ID
             </DropdownMenuItem>
             <DropdownMenuItem>Edit</DropdownMenuItem>

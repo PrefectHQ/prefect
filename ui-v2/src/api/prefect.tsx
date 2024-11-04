@@ -4,7 +4,7 @@
  */
 
 export interface paths {
-    "/api/health": {
+    "/health": {
         parameters: {
             query?: never;
             header?: never;
@@ -21,7 +21,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/version": {
+    "/version": {
         parameters: {
             query?: never;
             header?: never;
@@ -38,7 +38,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/flows/": {
+    "/flows/": {
         parameters: {
             query?: never;
             header?: never;
@@ -59,7 +59,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/flows/{id}": {
+    "/flows/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -87,7 +87,7 @@ export interface paths {
         patch: operations["update_flow_flows__id__patch"];
         trace?: never;
     };
-    "/api/flows/count": {
+    "/flows/count": {
         parameters: {
             query?: never;
             header?: never;
@@ -107,7 +107,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/flows/name/{name}": {
+    "/flows/name/{name}": {
         parameters: {
             query?: never;
             header?: never;
@@ -127,7 +127,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/flows/filter": {
+    "/flows/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -147,7 +147,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/flows/paginate": {
+    "/flows/paginate": {
         parameters: {
             query?: never;
             header?: never;
@@ -167,7 +167,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/flow_runs/": {
+    "/flow_runs/": {
         parameters: {
             query?: never;
             header?: never;
@@ -190,7 +190,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/flow_runs/{id}": {
+    "/flow_runs/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -218,7 +218,7 @@ export interface paths {
         patch: operations["update_flow_run_flow_runs__id__patch"];
         trace?: never;
     };
-    "/api/flow_runs/count": {
+    "/flow_runs/count": {
         parameters: {
             query?: never;
             header?: never;
@@ -238,7 +238,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/flow_runs/lateness": {
+    "/flow_runs/lateness": {
         parameters: {
             query?: never;
             header?: never;
@@ -258,7 +258,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/flow_runs/history": {
+    "/flow_runs/history": {
         parameters: {
             query?: never;
             header?: never;
@@ -278,7 +278,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/flow_runs/{id}/graph": {
+    "/flow_runs/{id}/graph": {
         parameters: {
             query?: never;
             header?: never;
@@ -298,7 +298,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/flow_runs/{id}/graph-v2": {
+    "/flow_runs/{id}/graph-v2": {
         parameters: {
             query?: never;
             header?: never;
@@ -318,7 +318,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/flow_runs/{id}/resume": {
+    "/flow_runs/{id}/resume": {
         parameters: {
             query?: never;
             header?: never;
@@ -338,7 +338,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/flow_runs/filter": {
+    "/flow_runs/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -358,7 +358,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/flow_runs/{id}/set_state": {
+    "/flow_runs/{id}/set_state": {
         parameters: {
             query?: never;
             header?: never;
@@ -378,7 +378,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/flow_runs/{id}/input": {
+    "/flow_runs/{id}/input": {
         parameters: {
             query?: never;
             header?: never;
@@ -398,7 +398,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/flow_runs/{id}/input/filter": {
+    "/flow_runs/{id}/input/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -418,7 +418,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/flow_runs/{id}/input/{key}": {
+    "/flow_runs/{id}/input/{key}": {
         parameters: {
             query?: never;
             header?: never;
@@ -442,7 +442,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/flow_runs/paginate": {
+    "/flow_runs/paginate": {
         parameters: {
             query?: never;
             header?: never;
@@ -462,7 +462,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/flow_runs/{id}/logs/download": {
+    "/flow_runs/{id}/logs/download": {
         parameters: {
             query?: never;
             header?: never;
@@ -482,7 +482,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/task_runs/": {
+    "/task_runs/": {
         parameters: {
             query?: never;
             header?: never;
@@ -506,7 +506,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/task_runs/{id}": {
+    "/task_runs/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -534,7 +534,7 @@ export interface paths {
         patch: operations["update_task_run_task_runs__id__patch"];
         trace?: never;
     };
-    "/api/task_runs/count": {
+    "/task_runs/count": {
         parameters: {
             query?: never;
             header?: never;
@@ -554,7 +554,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/task_runs/history": {
+    "/task_runs/history": {
         parameters: {
             query?: never;
             header?: never;
@@ -574,7 +574,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/task_runs/filter": {
+    "/task_runs/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -594,7 +594,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/task_runs/{id}/set_state": {
+    "/task_runs/{id}/set_state": {
         parameters: {
             query?: never;
             header?: never;
@@ -614,7 +614,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/flow_run_states/{id}": {
+    "/flow_run_states/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -634,7 +634,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/flow_run_states/": {
+    "/flow_run_states/": {
         parameters: {
             query?: never;
             header?: never;
@@ -654,7 +654,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/task_run_states/{id}": {
+    "/task_run_states/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -674,7 +674,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/task_run_states/": {
+    "/task_run_states/": {
         parameters: {
             query?: never;
             header?: never;
@@ -694,7 +694,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/flow_run_notification_policies/": {
+    "/flow_run_notification_policies/": {
         parameters: {
             query?: never;
             header?: never;
@@ -714,7 +714,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/flow_run_notification_policies/{id}": {
+    "/flow_run_notification_policies/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -742,7 +742,7 @@ export interface paths {
         patch: operations["update_flow_run_notification_policy_flow_run_notification_policies__id__patch"];
         trace?: never;
     };
-    "/api/flow_run_notification_policies/filter": {
+    "/flow_run_notification_policies/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -762,7 +762,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/deployments/": {
+    "/deployments/": {
         parameters: {
             query?: never;
             header?: never;
@@ -786,7 +786,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/deployments/{id}": {
+    "/deployments/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -811,7 +811,7 @@ export interface paths {
         patch: operations["update_deployment_deployments__id__patch"];
         trace?: never;
     };
-    "/api/deployments/name/{flow_name}/{deployment_name}": {
+    "/deployments/name/{flow_name}/{deployment_name}": {
         parameters: {
             query?: never;
             header?: never;
@@ -831,7 +831,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/deployments/filter": {
+    "/deployments/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -851,7 +851,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/deployments/paginate": {
+    "/deployments/paginate": {
         parameters: {
             query?: never;
             header?: never;
@@ -871,7 +871,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/deployments/get_scheduled_flow_runs": {
+    "/deployments/get_scheduled_flow_runs": {
         parameters: {
             query?: never;
             header?: never;
@@ -891,7 +891,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/deployments/count": {
+    "/deployments/count": {
         parameters: {
             query?: never;
             header?: never;
@@ -911,7 +911,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/deployments/{id}/schedule": {
+    "/deployments/{id}/schedule": {
         parameters: {
             query?: never;
             header?: never;
@@ -941,7 +941,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/deployments/{id}/resume_deployment": {
+    "/deployments/{id}/resume_deployment": {
         parameters: {
             query?: never;
             header?: never;
@@ -961,7 +961,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/deployments/{id}/pause_deployment": {
+    "/deployments/{id}/pause_deployment": {
         parameters: {
             query?: never;
             header?: never;
@@ -982,7 +982,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/deployments/{id}/create_flow_run": {
+    "/deployments/{id}/create_flow_run": {
         parameters: {
             query?: never;
             header?: never;
@@ -1007,7 +1007,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/deployments/{id}/work_queue_check": {
+    "/deployments/{id}/work_queue_check": {
         parameters: {
             query?: never;
             header?: never;
@@ -1034,7 +1034,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/deployments/{id}/schedules": {
+    "/deployments/{id}/schedules": {
         parameters: {
             query?: never;
             header?: never;
@@ -1052,7 +1052,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/deployments/{id}/schedules/{schedule_id}": {
+    "/deployments/{id}/schedules/{schedule_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1070,7 +1070,7 @@ export interface paths {
         patch: operations["update_deployment_schedule_deployments__id__schedules__schedule_id__patch"];
         trace?: never;
     };
-    "/api/saved_searches/": {
+    "/saved_searches/": {
         parameters: {
             query?: never;
             header?: never;
@@ -1093,7 +1093,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/saved_searches/{id}": {
+    "/saved_searches/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1117,7 +1117,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/saved_searches/filter": {
+    "/saved_searches/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -1137,7 +1137,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/logs/": {
+    "/logs/": {
         parameters: {
             query?: never;
             header?: never;
@@ -1157,7 +1157,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/logs/filter": {
+    "/logs/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -1177,7 +1177,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/concurrency_limits/": {
+    "/concurrency_limits/": {
         parameters: {
             query?: never;
             header?: never;
@@ -1194,7 +1194,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/concurrency_limits/{id}": {
+    "/concurrency_limits/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1218,7 +1218,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/concurrency_limits/tag/{tag}": {
+    "/concurrency_limits/tag/{tag}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1242,7 +1242,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/concurrency_limits/filter": {
+    "/concurrency_limits/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -1265,7 +1265,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/concurrency_limits/tag/{tag}/reset": {
+    "/concurrency_limits/tag/{tag}/reset": {
         parameters: {
             query?: never;
             header?: never;
@@ -1282,7 +1282,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/concurrency_limits/increment": {
+    "/concurrency_limits/increment": {
         parameters: {
             query?: never;
             header?: never;
@@ -1299,7 +1299,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/concurrency_limits/decrement": {
+    "/concurrency_limits/decrement": {
         parameters: {
             query?: never;
             header?: never;
@@ -1316,7 +1316,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v2/concurrency_limits/": {
+    "/v2/concurrency_limits/": {
         parameters: {
             query?: never;
             header?: never;
@@ -1333,7 +1333,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v2/concurrency_limits/{id_or_name}": {
+    "/v2/concurrency_limits/{id_or_name}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1352,7 +1352,7 @@ export interface paths {
         patch: operations["update_concurrency_limit_v2_v2_concurrency_limits__id_or_name__patch"];
         trace?: never;
     };
-    "/api/v2/concurrency_limits/filter": {
+    "/v2/concurrency_limits/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -1369,7 +1369,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v2/concurrency_limits/increment": {
+    "/v2/concurrency_limits/increment": {
         parameters: {
             query?: never;
             header?: never;
@@ -1386,7 +1386,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v2/concurrency_limits/decrement": {
+    "/v2/concurrency_limits/decrement": {
         parameters: {
             query?: never;
             header?: never;
@@ -1403,7 +1403,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/block_types/": {
+    "/block_types/": {
         parameters: {
             query?: never;
             header?: never;
@@ -1423,7 +1423,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/block_types/{id}": {
+    "/block_types/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1448,7 +1448,7 @@ export interface paths {
         patch: operations["update_block_type_block_types__id__patch"];
         trace?: never;
     };
-    "/api/block_types/slug/{slug}": {
+    "/block_types/slug/{slug}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1468,7 +1468,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/block_types/filter": {
+    "/block_types/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -1488,7 +1488,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/block_types/slug/{slug}/block_documents": {
+    "/block_types/slug/{slug}/block_documents": {
         parameters: {
             query?: never;
             header?: never;
@@ -1505,7 +1505,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/block_types/slug/{slug}/block_documents/name/{block_document_name}": {
+    "/block_types/slug/{slug}/block_documents/name/{block_document_name}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1522,7 +1522,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/block_types/install_system_block_types": {
+    "/block_types/install_system_block_types": {
         parameters: {
             query?: never;
             header?: never;
@@ -1539,7 +1539,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/block_documents/": {
+    "/block_documents/": {
         parameters: {
             query?: never;
             header?: never;
@@ -1559,7 +1559,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/block_documents/filter": {
+    "/block_documents/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -1579,7 +1579,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/block_documents/count": {
+    "/block_documents/count": {
         parameters: {
             query?: never;
             header?: never;
@@ -1599,7 +1599,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/block_documents/{id}": {
+    "/block_documents/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1618,7 +1618,7 @@ export interface paths {
         patch: operations["update_block_document_data_block_documents__id__patch"];
         trace?: never;
     };
-    "/api/work_pools/": {
+    "/work_pools/": {
         parameters: {
             query?: never;
             header?: never;
@@ -1639,7 +1639,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/work_pools/{name}": {
+    "/work_pools/{name}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1667,7 +1667,7 @@ export interface paths {
         patch: operations["update_work_pool_work_pools__name__patch"];
         trace?: never;
     };
-    "/api/work_pools/filter": {
+    "/work_pools/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -1687,7 +1687,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/work_pools/count": {
+    "/work_pools/count": {
         parameters: {
             query?: never;
             header?: never;
@@ -1707,7 +1707,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/work_pools/{name}/get_scheduled_flow_runs": {
+    "/work_pools/{name}/get_scheduled_flow_runs": {
         parameters: {
             query?: never;
             header?: never;
@@ -1727,7 +1727,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/work_pools/{work_pool_name}/queues": {
+    "/work_pools/{work_pool_name}/queues": {
         parameters: {
             query?: never;
             header?: never;
@@ -1748,7 +1748,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/work_pools/{work_pool_name}/queues/{name}": {
+    "/work_pools/{work_pool_name}/queues/{name}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1776,7 +1776,7 @@ export interface paths {
         patch: operations["update_work_queue_work_pools__work_pool_name__queues__name__patch"];
         trace?: never;
     };
-    "/api/work_pools/{work_pool_name}/queues/filter": {
+    "/work_pools/{work_pool_name}/queues/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -1796,7 +1796,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/work_pools/{work_pool_name}/workers/heartbeat": {
+    "/work_pools/{work_pool_name}/workers/heartbeat": {
         parameters: {
             query?: never;
             header?: never;
@@ -1813,7 +1813,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/work_pools/{work_pool_name}/workers/filter": {
+    "/work_pools/{work_pool_name}/workers/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -1833,7 +1833,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/work_pools/{work_pool_name}/workers/{name}": {
+    "/work_pools/{work_pool_name}/workers/{name}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1853,7 +1853,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/task_workers/filter": {
+    "/task_workers/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -1873,7 +1873,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/work_queues/": {
+    "/work_queues/": {
         parameters: {
             query?: never;
             header?: never;
@@ -1896,7 +1896,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/work_queues/{id}": {
+    "/work_queues/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1924,7 +1924,7 @@ export interface paths {
         patch: operations["update_work_queue_work_queues__id__patch"];
         trace?: never;
     };
-    "/api/work_queues/name/{name}": {
+    "/work_queues/name/{name}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1944,7 +1944,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/work_queues/{id}/get_runs": {
+    "/work_queues/{id}/get_runs": {
         parameters: {
             query?: never;
             header?: never;
@@ -1964,7 +1964,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/work_queues/filter": {
+    "/work_queues/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -1984,7 +1984,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/work_queues/{id}/status": {
+    "/work_queues/{id}/status": {
         parameters: {
             query?: never;
             header?: never;
@@ -2004,7 +2004,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/artifacts/": {
+    "/artifacts/": {
         parameters: {
             query?: never;
             header?: never;
@@ -2021,7 +2021,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/artifacts/{id}": {
+    "/artifacts/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2049,7 +2049,7 @@ export interface paths {
         patch: operations["update_artifact_artifacts__id__patch"];
         trace?: never;
     };
-    "/api/artifacts/{key}/latest": {
+    "/artifacts/{key}/latest": {
         parameters: {
             query?: never;
             header?: never;
@@ -2069,7 +2069,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/artifacts/filter": {
+    "/artifacts/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -2089,7 +2089,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/artifacts/latest/filter": {
+    "/artifacts/latest/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -2109,7 +2109,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/artifacts/count": {
+    "/artifacts/count": {
         parameters: {
             query?: never;
             header?: never;
@@ -2129,7 +2129,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/artifacts/latest/count": {
+    "/artifacts/latest/count": {
         parameters: {
             query?: never;
             header?: never;
@@ -2149,7 +2149,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/block_schemas/": {
+    "/block_schemas/": {
         parameters: {
             query?: never;
             header?: never;
@@ -2166,7 +2166,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/block_schemas/{id}": {
+    "/block_schemas/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2190,7 +2190,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/block_schemas/filter": {
+    "/block_schemas/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -2210,7 +2210,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/block_schemas/checksum/{checksum}": {
+    "/block_schemas/checksum/{checksum}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2227,7 +2227,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/block_capabilities/": {
+    "/block_capabilities/": {
         parameters: {
             query?: never;
             header?: never;
@@ -2244,7 +2244,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/collections/views/{view}": {
+    "/collections/views/{view}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2264,7 +2264,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/variables/": {
+    "/variables/": {
         parameters: {
             query?: never;
             header?: never;
@@ -2281,7 +2281,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/variables/{id}": {
+    "/variables/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2300,7 +2300,7 @@ export interface paths {
         patch: operations["update_variable_variables__id__patch"];
         trace?: never;
     };
-    "/api/variables/name/{name}": {
+    "/variables/name/{name}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2319,7 +2319,7 @@ export interface paths {
         patch: operations["update_variable_by_name_variables_name__name__patch"];
         trace?: never;
     };
-    "/api/variables/filter": {
+    "/variables/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -2336,7 +2336,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/variables/count": {
+    "/variables/count": {
         parameters: {
             query?: never;
             header?: never;
@@ -2353,7 +2353,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/csrf-token": {
+    "/csrf-token": {
         parameters: {
             query?: never;
             header?: never;
@@ -2373,7 +2373,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/events": {
+    "/events": {
         parameters: {
             query?: never;
             header?: never;
@@ -2393,7 +2393,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/events/filter": {
+    "/events/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -2415,7 +2415,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/events/filter/next": {
+    "/events/filter/next": {
         parameters: {
             query?: never;
             header?: never;
@@ -2436,7 +2436,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/events/count-by/{countable}": {
+    "/events/count-by/{countable}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2458,7 +2458,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/automations/": {
+    "/automations/": {
         parameters: {
             query?: never;
             header?: never;
@@ -2475,7 +2475,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/automations/{id}": {
+    "/automations/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2495,7 +2495,7 @@ export interface paths {
         patch: operations["patch_automation_automations__id__patch"];
         trace?: never;
     };
-    "/api/automations/filter": {
+    "/automations/filter": {
         parameters: {
             query?: never;
             header?: never;
@@ -2512,7 +2512,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/automations/count": {
+    "/automations/count": {
         parameters: {
             query?: never;
             header?: never;
@@ -2529,7 +2529,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/automations/related-to/{resource_id}": {
+    "/automations/related-to/{resource_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2546,7 +2546,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/automations/owned-by/{resource_id}": {
+    "/automations/owned-by/{resource_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2563,7 +2563,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/templates/validate": {
+    "/templates/validate": {
         parameters: {
             query?: never;
             header?: never;
@@ -2580,7 +2580,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/ui/flows/count-deployments": {
+    "/ui/flows/count-deployments": {
         parameters: {
             query?: never;
             header?: never;
@@ -2600,7 +2600,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/ui/flows/next-runs": {
+    "/ui/flows/next-runs": {
         parameters: {
             query?: never;
             header?: never;
@@ -2620,7 +2620,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/ui/flow_runs/history": {
+    "/ui/flow_runs/history": {
         parameters: {
             query?: never;
             header?: never;
@@ -2637,7 +2637,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/ui/flow_runs/count-task-runs": {
+    "/ui/flow_runs/count-task-runs": {
         parameters: {
             query?: never;
             header?: never;
@@ -2657,7 +2657,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/ui/schemas/validate": {
+    "/ui/schemas/validate": {
         parameters: {
             query?: never;
             header?: never;
@@ -2674,7 +2674,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/ui/task_runs/dashboard/counts": {
+    "/ui/task_runs/dashboard/counts": {
         parameters: {
             query?: never;
             header?: never;
@@ -2691,7 +2691,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/ui/task_runs/count": {
+    "/ui/task_runs/count": {
         parameters: {
             query?: never;
             header?: never;
@@ -2708,7 +2708,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/admin/settings": {
+    "/admin/settings": {
         parameters: {
             query?: never;
             header?: never;
@@ -2730,7 +2730,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/admin/version": {
+    "/admin/version": {
         parameters: {
             query?: never;
             header?: never;
@@ -2750,7 +2750,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/admin/database/clear": {
+    "/admin/database/clear": {
         parameters: {
             query?: never;
             header?: never;
@@ -2770,7 +2770,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/admin/database/drop": {
+    "/admin/database/drop": {
         parameters: {
             query?: never;
             header?: never;
@@ -2790,7 +2790,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/admin/database/create": {
+    "/admin/database/create": {
         parameters: {
             query?: never;
             header?: never;
@@ -2810,7 +2810,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/hello": {
+    "/hello": {
         parameters: {
             query?: never;
             header?: never;
@@ -2830,7 +2830,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/ready": {
+    "/ready": {
         parameters: {
             query?: never;
             header?: never;

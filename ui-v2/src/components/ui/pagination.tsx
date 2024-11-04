@@ -9,7 +9,11 @@ import { cn } from "@/lib/utils"
 import { ButtonProps, buttonVariants } from "@/components/ui/button"
 import { Link, LinkProps } from "@tanstack/react-router"
 
-const Pagination = ({ className, ...props }: React.ComponentProps<"nav">) => (
+type PaginationProps = React.ComponentProps<"nav"> & {
+  className?: string
+}
+
+const Pagination = ({ className, ...props }: PaginationProps) => (
   <nav
     role="navigation"
     aria-label="pagination"
@@ -19,9 +23,13 @@ const Pagination = ({ className, ...props }: React.ComponentProps<"nav">) => (
 )
 Pagination.displayName = "Pagination"
 
+type PaginationContentProps = React.ComponentProps<"ul"> & {
+  className?: string
+}
+
 const PaginationContent = React.forwardRef<
   HTMLUListElement,
-  React.ComponentProps<"ul">
+  PaginationContentProps
 >(({ className, ...props }, ref) => (
   <ul
     ref={ref}
@@ -31,9 +39,13 @@ const PaginationContent = React.forwardRef<
 ))
 PaginationContent.displayName = "PaginationContent"
 
+type PaginationItemProps = React.ComponentProps<"li"> & {
+  className?: string
+}
+
 const PaginationItem = React.forwardRef<
   HTMLLIElement,
-  React.ComponentProps<"li">
+  PaginationItemProps
 >(({ className, ...props }, ref) => (
   <li ref={ref} className={cn("", className)} {...props} />
 ))
@@ -108,10 +120,14 @@ const PaginationNext = ({
 )
 PaginationNext.displayName = "PaginationNext"
 
+type PaginationEllipsisProps = React.ComponentProps<"span"> & {
+  className?: string
+}
+
 const PaginationEllipsis = ({
   className,
   ...props
-}: React.ComponentProps<"span">) => (
+}: PaginationEllipsisProps) => (
   <span
     aria-hidden
     className={cn("flex h-9 w-9 items-center justify-center", className)}

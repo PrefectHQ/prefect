@@ -62,7 +62,7 @@ export const FlowActionMenu = ({ row }: { row: { original: Flow } }) => {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => navigator.clipboard.writeText(id)}>
+                <DropdownMenuItem onClick={() => void navigator.clipboard.writeText(id)}>
                     Copy ID
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />

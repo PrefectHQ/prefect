@@ -24,7 +24,7 @@ const SearchComponent = () => {
   const navigate = useNavigate()
 
   return <div className="relative">
-    <Input placeholder="Run names" className="pl-10" onChange={(e) => navigate({ to:'.', search: (prev) => ({ ...prev, 'runs.flowRuns.nameLike': e.target.value }) })} />
+    <Input placeholder="Run names" className="pl-10" onChange={(e) => void navigate({ to:'.', search: (prev) => ({ ...prev, 'runs.flowRuns.nameLike': e.target.value }) })} />
     <SearchIcon className="absolute left-3 top-2.5 text-muted-foreground" size={18} />
   </div>
 }
@@ -40,10 +40,10 @@ const SortComponent = () => {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent>
-        <DropdownMenuItem onClick={() => navigate({'to': '.', 'search': (prev) => ({ ...prev, 'runs.sort': 'START_TIME_DESC' }) })}>
+        <DropdownMenuItem onClick={() => void navigate({'to': '.', 'search': (prev) => ({ ...prev, 'runs.sort': 'START_TIME_DESC' }) })}>
           Newest
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => navigate({'to': '.', 'search': (prev) => ({ ...prev, 'runs.sort': 'START_TIME_ASC' }) })}>
+        <DropdownMenuItem onClick={() => void navigate({'to': '.', 'search': (prev) => ({ ...prev, 'runs.sort': 'START_TIME_ASC' }) })}>
           Oldest
         </DropdownMenuItem>
       </DropdownMenuContent>
@@ -114,7 +114,7 @@ export default function FlowDetail({
   return (
     <div className="container mx-auto">
 
-      <Tabs value={tab} onValueChange={(value) => navigate({to: '.', search: (prev) => ({ ...prev, tab: value as 'runs' | 'deployments' | 'details' }) })}>
+      <Tabs value={tab} onValueChange={(value) => void navigate({to: '.', search: (prev) => ({ ...prev, tab: value as 'runs' | 'deployments' | 'details' }) })}>
         <TabsList>
           <TabsTrigger value="runs">Runs</TabsTrigger>
           <TabsTrigger value="deployments">Deployments</TabsTrigger>

@@ -19,7 +19,7 @@ const SearchComponent = () => {
   const navigate = useNavigate()
 
   return <div className="relative">
-    <Input placeholder="Flow names" className="pl-10" onChange={(e) => navigate({ to: '.', search: (prev) => ({ ...prev, name: e.target.value }) })} />
+    <Input placeholder="Flow names" className="pl-10" onChange={(e) => void navigate({ to: '.', search: (prev) => ({ ...prev, name: e.target.value }) })} />
     <SearchIcon className="absolute left-3 top-2.5 text-muted-foreground" size={18} />
   </div>
 }
@@ -78,10 +78,10 @@ const SortComponent = () => {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent>
-        <DropdownMenuItem onClick={() => navigate({ to: '.', search: (prev) => ({ ...prev, sort: 'NAME_ASC' }) })}>
+        <DropdownMenuItem onClick={() => void navigate({ to: '.', search: (prev) => ({ ...prev, sort: 'NAME_ASC' }) })}>
           A to Z
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => navigate({ to: '.', search: (prev) => ({ ...prev, sort: 'NAME_DESC' }) })}>
+        <DropdownMenuItem onClick={() => void navigate({ to: '.', search: (prev) => ({ ...prev, sort: 'NAME_DESC' }) })}>
           Z to A
         </DropdownMenuItem>
       </DropdownMenuContent>
