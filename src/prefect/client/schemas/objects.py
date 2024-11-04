@@ -1689,3 +1689,24 @@ class CsrfToken(ObjectBaseModel):
 
 
 __getattr__ = getattr_migration(__name__)
+
+
+class Integration(PrefectBaseModel):
+    """A representation of an installed Prefect integration."""
+
+    name: str = Field(description="The name of the Prefect integration.")
+    version: str = Field(description="The version of the Prefect integration.")
+
+
+class WorkerMetadata(PrefectBaseModel):
+    """
+    Worker metadata.
+
+    We depend on the structure of `integrations`, but otherwise, worker classes
+    should support flexible metadata.
+    """
+
+    integrations: List[Integration] = Field(
+        default=..., description="Prefect integrations installed in the worker."
+    )
+    model_config = ConfigDict(extra="allow")
