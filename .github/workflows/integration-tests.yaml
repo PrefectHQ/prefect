@@ -1,3 +1,6 @@
+# TODO: Replace `wait-for-server` with dedicated command
+#       https://github.com/PrefectHQ/prefect/issues/6990
+
 name: Integration tests
 on:
   pull_request:
@@ -53,6 +56,9 @@ jobs:
           python-version: "3.10"
 
       - name: UV Cache
+        # Manually cache the uv cache directory
+        # until setup-python supports it:
+        # https://github.com/actions/setup-python/issues/822
         uses: actions/cache@v4
         id: cache-uv
         with:
