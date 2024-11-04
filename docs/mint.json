@@ -52,7 +52,7 @@
     {
       "group": "Get started",
       "pages": [
-        "vv3/get-started/index",
+        "v3/get-started/index",
         "v3/resources/whats-new-prefect-3",
         "v3/get-started/install",
         "v3/get-started/quickstart"
@@ -212,7 +212,7 @@
     {
       "group": "Resources",
       "pages": [
-        "v3/resources/upgrade-to-prefect-v3",
+        "v3/resources/upgrade-to-prefect-3",
         "v3/resources/upgrade-agents-to-workers",
         "v3/resources/cancel",
         "v3/resources/visualize-flow-structure",
