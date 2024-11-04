@@ -4,7 +4,7 @@ import { components } from "@/api/prefect"; // Typescript types generated from t
 import { QueryService } from "@/api/service"; // Service object that makes requests to the Prefect API
 
 import FlowsTable from "@/components/flows/data-table";
-
+import NoConnection from "@/components/ui/no-connection";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { zodSearchValidator } from "@tanstack/router-zod-adapter";
 import { z } from "zod";
@@ -65,4 +65,5 @@ export const Route = createFileRoute("/flows/")({
 	loader: async ({ deps: search, context }) =>
 		await context.queryClient.ensureQueryData(flowsQueryParams(search)),
 	wrapInSuspense: true,
+	errorComponent: () => <NoConnection />,
 });
