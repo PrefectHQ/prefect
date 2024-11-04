@@ -1,10 +1,29 @@
+# Build the Python distributable
+FROM python:3.9-slim AS python-builder
+
+WORKDIR /opt/prefect
+
+# Install git for version calculation
+RUN apt-get update && \
+    apt-get install --no-install-recommends -y \
+    git \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Copy the repository for version calculation
+COPY . .
+
+# Create source distribution
+RUN python setup.py sdist && \
+    mv "dist/$(python setup.py --fullname).tar.gz" "dist/prefect.tar.gz"
+
+# Final image
 FROM python:3.9-slim
 
 # Accept SQLite version as build argument
 ARG SQLITE_VERSION="3310100"
 ARG SQLITE_YEAR="2020"
 
-# Install build dependencies and git
+# Install build dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
     wget
@@ -29,18 +48,19 @@ ENV LD_LIBRARY_PATH=/usr/local/lib
 
 WORKDIR /app
 
-# Copy the entire source directory first
-COPY src ./src
-COPY README.md ./
+# Copy the built distributable
+COPY --from=python-builder /opt/prefect/dist/prefect.tar.gz ./dist/
+
+# Install requirements and Prefect
 COPY requirements*.txt ./
-COPY setup.py setup.cfg versioneer.py ./
-
-# Install requirements and Prefect core
 RUN uv pip install -r requirements.txt
-RUN uv pip install .
+RUN uv pip install ./dist/prefect.tar.gz
 
-# Verify SQLite version
-RUN python -c "import sqlite3; print(f'SQLite Version: {sqlite3.sqlite_version}')"
+# Create entrypoint script
+RUN echo '#!/bin/bash\n\
+    python -c "import sqlite3; print(f'\''SQLite Version: {sqlite3.sqlite_version}'\'')" \n\
+    python -c "import prefect; print(f'\''Prefect Version: {prefect.__version__}'\'')" \n\
+    exec prefect server start --host 0.0.0.0' > /entrypoint.sh && \
+    chmod +x /entrypoint.sh
 
-# Start Prefect server
-ENTRYPOINT ["prefect", "server", "start", "--host", "0.0.0.0"]
+ENTRYPOINT ["/entrypoint.sh"]
