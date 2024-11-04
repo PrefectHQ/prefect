@@ -597,8 +597,8 @@ class TestSettingsClass:
         assert settings.model_dump() == new_settings.model_dump()
 
     def test_settings_hash_key(self):
-        settings = Settings(testing=dict(test_mode=True))
-        diff_settings = Settings(testing=dict(test_mode=False))
+        settings = Settings(testing=dict(test_mode=True))  # type: ignore
+        diff_settings = Settings(testing=dict(test_mode=False))  # type: ignore
 
         assert settings.hash_key() == settings.hash_key()
 
@@ -729,17 +729,26 @@ class TestSettingAccess:
     @pytest.mark.parametrize(
         "value,expected",
         [
+            (None, []),
             ("foo", ["foo"]),
             ("foo,bar", ["foo", "bar"]),
             ("foo, bar, foobar ", ["foo", "bar", "foobar"]),
+            (["foo", "bar"], ["foo", "bar"]),
+        ],
+        ids=[
+            "none",
+            "string",
+            "comma_separated",
+            "comma_separated_with_spaces",
+            "python_list",
         ],
     )
     def test_extra_loggers(self, value, expected):
         settings = Settings(logging=LoggingSettings(extra_loggers=value))
-        assert PREFECT_LOGGING_EXTRA_LOGGERS.value_from(settings) == expected
+        assert set(PREFECT_LOGGING_EXTRA_LOGGERS.value_from(settings)) == set(expected)
 
     def test_prefect_home_expands_tilde_in_path(self):
-        settings = Settings(home="~/test")
+        settings = Settings(home="~/test")  # type: ignore
         assert PREFECT_HOME.value_from(settings) == Path("~/test").expanduser()
 
     @pytest.mark.parametrize(
@@ -1371,7 +1380,7 @@ class TestSaveProfiles:
 
 class TestProfile:
     def test_init_casts_names_to_setting_types(self):
-        profile = Profile(name="test", settings={"PREFECT_DEBUG_MODE": 1})
+        profile = Profile(name="test", settings={"PREFECT_DEBUG_MODE": 1})  # type: ignore
         assert profile.settings == {PREFECT_DEBUG_MODE: 1}
 
     def test_validate_settings(self):
