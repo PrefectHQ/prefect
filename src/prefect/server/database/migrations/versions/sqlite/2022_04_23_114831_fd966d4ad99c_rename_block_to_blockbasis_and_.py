@@ -16,6 +16,8 @@ depends_on = None
 
 
 def upgrade():
+    op.execute("PRAGMA legacy_alter_table = ON")
+
     op.rename_table("block_spec", "block_schema")
     op.rename_table("block", "block_document")
 
@@ -71,6 +73,8 @@ def upgrade():
             ["id"],
             ondelete="cascade",
         )
+
+    op.execute("PRAGMA legacy_alter_table = OFF")
 
 
 def downgrade():
