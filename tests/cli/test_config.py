@@ -29,7 +29,7 @@ from prefect.utilities.filesystem import tmpchdir
 FROM_DEFAULT = "(from defaults)"
 FROM_ENV = "(from env)"
 FROM_PROFILE = "(from profile)"
-FROM_DOT_ENV = "(from .env)"
+FROM_DOT_ENV = "(from .env file)"
 FROM_PREFECT_TOML = "(from prefect.toml)"
 FROM_PYPROJECT_TOML = "(from pyproject.toml)"
 
@@ -550,6 +550,48 @@ def test_view_shows_secrets(monkeypatch, command):
 
     if "--show-defaults" in command:
         assert f"PREFECT_API_DATABASE_PASSWORD='None' {FROM_DEFAULT}" in lines
+
+
+def test_view_with_env_file(tmp_path):
+    with tmpchdir(tmp_path):
+        with open(".env", "w") as f:
+            f.write("PREFECT_CLIENT_RETRY_EXTRA_CODES=300\n")
+
+        res = invoke_and_assert(["config", "view"])
+
+        assert "PREFECT_CLIENT_RETRY_EXTRA_CODES='300'" in res.stdout
+        assert FROM_DOT_ENV in res.stdout
+
+
+def test_view_with_env_file_and_env_var(monkeypatch, tmp_path):
+    monkeypatch.setenv("PREFECT_CLIENT_RETRY_EXTRA_CODES", "400")
+
+    with tmpchdir(tmp_path):
+        with open(".env", "w") as f:
+            f.write("PREFECT_CLIENT_RETRY_EXTRA_CODES=300\n")
+
+        res = invoke_and_assert(["config", "view"])
+
+        assert "PREFECT_CLIENT_RETRY_EXTRA_CODES='400'" in res.stdout
+        assert FROM_DOT_ENV not in res.stdout
+
+
+def test_view_with_env_file_and_profile(tmp_path):
+    with tmpchdir(tmp_path):
+        with open(".env", "w") as f:
+            f.write("PREFECT_CLIENT_RETRY_EXTRA_CODES=300\n")
+
+        with prefect.context.use_profile(
+            prefect.settings.Profile(
+                name="foo",
+                settings={PREFECT_CLIENT_RETRY_EXTRA_CODES: [400]},
+            ),
+            include_current_context=False,
+        ):
+            res = invoke_and_assert(["config", "view"])
+
+        assert "PREFECT_CLIENT_RETRY_EXTRA_CODES='300'" in res.stdout
+        assert FROM_DOT_ENV in res.stdout
 
 
 def test_view_with_prefect_toml_file(tmp_path):
