@@ -3,7 +3,7 @@ title: Run flows in local processes
 description: Create a deployment for a flow by calling the `serve` method.
 ---
 
-The simplest way to create a [deployment](deploy/infrastructure-examples/docker/) for your flow is by calling its `serve` method.
+The simplest way to create a [deployment](/v3/deploy/infrastructure-examples/docker/) for your flow is by calling its `serve` method.
 
 ## Serve a flow
 
@@ -68,7 +68,7 @@ The `serve` method on flows exposes many options for the deployment.
 Here's how to use some of those options:
 
 - `cron`: a keyword that allows you to set a cron string schedule for the deployment; see 
-[schedules](automate/add-schedules/) for more advanced scheduling options
+[schedules](/v3/automate/add-schedules/) for more advanced scheduling options
 - `tags`: a keyword that allows you to tag this deployment and its runs for bookkeeping and filtering purposes
 - `description`: a keyword that allows you to document what this deployment does; by default the 
 description is set from the docstring of the flow function (if documented)
@@ -180,7 +180,7 @@ if __name__ == "__main__":
 
 A flow entrypoint is the path to the file where the flow is located, and the name of the flow function separated by a colon.
 
-For more ways to store and access flow code, see the [Retrieve code from storage page](deploy/infrastructure-concepts/store-flow-code).
+For more ways to store and access flow code, see the [Retrieve code from storage page](/v3/deploy/infrastructure-concepts/store-flow-code).
 
 <Tip>
 **You can serve loaded flows**
@@ -214,4 +214,4 @@ Reasons to create a work-pool based deployment include:
 
 Work pools are popular with data platform teams because they allow you to manage infrastructure configuration across an organization.
 
-Learn more about work-pool based deployments on the [Configure dynamic infrastructure with work pools page](deploy/infrastructure-concepts/work-pools)
+Learn more about work-pool based deployments on the [Configure dynamic infrastructure with work pools page](/v3/deploy/infrastructure-concepts/work-pools)

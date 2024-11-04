@@ -85,7 +85,7 @@ export PREFECT_LOGGING_LEVEL="DEBUG"
 prefect run my_flow.py
 ```
 
-You can see supported environment variables for each setting in the [settings reference documentation](develop/settings-ref).
+You can see supported environment variables for each setting in the [settings reference documentation](/v3/develop/settings-ref).
 
 ### `.env` file
 
@@ -101,7 +101,7 @@ PREFECT_LOGGING_LEVEL="DEBUG"
 
 Any flows run in the same directory as this `.env` file will use the `DEBUG` logging level, even if they are run in different shell sessions.
 
-View supported environment variables for each setting in the [settings reference documentation](develop/settings-ref).
+View supported environment variables for each setting in the [settings reference documentation](/v3/develop/settings-ref).
 
 ### `prefect.toml` file
 
@@ -118,7 +118,7 @@ level = "DEBUG"
 
 If you commit your `prefect.toml` file to a code repository, creating deployments from flows in that repository will use the settings declared in the `prefect.toml` file.
 
-You can see the `prefect.toml` path for each setting in the [settings reference documentation](develop/settings-ref).
+You can see the `prefect.toml` path for each setting in the [settings reference documentation](/v3/develop/settings-ref).
 
 ### `pyproject.toml` file
 
@@ -229,24 +229,24 @@ prefect config validate
 
 ## Common client settings
 
-- [`api.url`](develop/settings-ref/#url): this setting specifies the API endpoint of your 
+- [`api.url`](/v3/develop/settings-ref/#url): this setting specifies the API endpoint of your 
 Prefect Cloud workspace or a self-hosted Prefect server instance.
-- [`api.key`](develop/settings-ref/#key): this setting specifies the 
-[API key](manage/cloud/manage-users/api-keys/) used to authenticate with Prefect Cloud.
-- [`home`](develop/settings-ref/#home): the `home` value specifies the local Prefect directory for configuration files,
+- [`api.key`](/v3/develop/settings-ref/#key): this setting specifies the 
+[API key](/v3/manage/cloud/manage-users/api-keys/) used to authenticate with Prefect Cloud.
+- [`home`](/v3/develop/settings-ref/#home): the `home` value specifies the local Prefect directory for configuration files,
 profiles, and the location of the default Prefect SQLite database.
 
 <Tip>
 **Use `prefect cloud login` to set these values for Prefect Cloud**
 
 To set `PREFECT_API_URL` and `PREFECT_API_KEY` for your active profile, run `prefect cloud login`. 
-Read more about [managing API keys](manage/cloud/manage-users/api-keys/). 
+Read more about [managing API keys](/v3/manage/cloud/manage-users/api-keys/). 
 </Tip>
 
 ## Common server settings
 
 
-- [`server.database.connection_url`](http://localhost:3000develop/settings-ref#connection-url): the database connection URL for a self-hosted Prefect server instance.
+- [`server.database.connection_url`](http://localhost:3000/v3/develop/settings-ref#connection-url): the database connection URL for a self-hosted Prefect server instance.
 Must be provided in a SQLAlchemy-compatible format. Prefect currently supports SQLite and Postgres. 
 
 #### Security settings
@@ -255,7 +255,7 @@ Must be provided in a SQLAlchemy-compatible format. Prefect currently supports S
 
 When using a reverse proxy (such as [Nginx](https://nginx.org) or [Traefik](https://traefik.io)) to proxy traffic to a 
  hosted Prefect UI instance, you must also configure the self-hosted Prefect server instance to connect to the API. 
-The [`ui.api_url`](develop/settings-ref/#api_url) setting should be set to the external proxy URL.
+The [`ui.api_url`](/v3/develop/settings-ref/#api_url) setting should be set to the external proxy URL.
 
 For example, if your external URL is `https://prefect-server.example.com` then you can configure a `prefect.toml` file for your server like this:
 
@@ -270,12 +270,12 @@ If you do not set `ui.api_url`, then `api.url` will be used as a fallback.
 
 If using self-hosted Prefect server, you can configure CSRF protection settings.
 
-- [`server.api.csrf_protection_enabled`](develop/settings-ref/#csrf-protection-enabled): activates CSRF protection on the server, 
+- [`server.api.csrf_protection_enabled`](/v3/develop/settings-ref/#csrf-protection-enabled): activates CSRF protection on the server, 
 requiring valid CSRF tokens for applicable requests. Recommended for production to prevent CSRF attacks. 
 Defaults to `False`.
-- [`server.api.csrf_token_expiration`](develop/settings-ref/#csrf-token-expiration): sets the expiration duration for server-issued CSRF tokens, 
+- [`server.api.csrf_token_expiration`](/v3/develop/settings-ref/#csrf-token-expiration): sets the expiration duration for server-issued CSRF tokens, 
 influencing how often tokens need to be refreshed. The default is 1 hour.
-- [`client.csrf_support_enabled`](develop/settings-ref/#csrf-support-enabled): enables or disables CSRF token handling in the Prefect client. 
+- [`client.csrf_support_enabled`](/v3/develop/settings-ref/#csrf-support-enabled): enables or disables CSRF token handling in the Prefect client. 
 When enabled, the client manages CSRF tokens for state-changing API requests. Defaults to `True`.
 
 By default clients expect that CSRF protection is enabled on the server. If you are running a server without CSRF protection, 
@@ -285,6 +285,6 @@ you can disable CSRF support in the client.
 
 If using self-hosted Prefect server, you can configure CORS settings to control which origins are allowed to make cross-origin requests to your server.
 
-- [`server.api.cors_allowed_origins`](develop/settings-ref/#cors-allowed-origins): a list of origins that are allowed to make cross-origin requests.
-- [`server.api.cors_allowed_methods`](develop/settings-ref/#cors-allowed-methods): a list of HTTP methods that are allowed to be used during cross-origin requests.
-- [`server.api.cors_allowed_headers`](develop/settings-ref/#cors-allowed-headers): a list of headers that are allowed to be used during cross-origin requests.
+- [`server.api.cors_allowed_origins`](/v3/develop/settings-ref/#cors-allowed-origins): a list of origins that are allowed to make cross-origin requests.
+- [`server.api.cors_allowed_methods`](/v3/develop/settings-ref/#cors-allowed-methods): a list of HTTP methods that are allowed to be used during cross-origin requests.
+- [`server.api.cors_allowed_headers`](/v3/develop/settings-ref/#cors-allowed-headers): a list of headers that are allowed to be used during cross-origin requests.
