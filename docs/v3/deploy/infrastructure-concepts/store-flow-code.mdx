@@ -18,7 +18,7 @@ Local storage is also an option for deployments that run locally.
 In the examples below, we show how to create a work pool-based deployment for each of these storage options. 
 
 ## Deployment creation options
-You can create a deployment through [Python code with the `flow.deploy` method](/3.0/deploy/infrastructure-concepts/deploy-via-python) or through a [YAML specification defined in a `prefect.yaml` file](/3.0/deploy/infrastructure-concepts/prefect-yaml).
+You can create a deployment through [Python code with the `flow.deploy` method](deploy/infrastructure-concepts/deploy-via-python) or through a [YAML specification defined in a `prefect.yaml` file](deploy/infrastructure-concepts/prefect-yaml).
 
 When using the Python `deploy` method specify a flow storage location other than a Docker image requires the `flow.from_source` method. The `source` and `entrypoint` arguments are required. 
 
@@ -422,7 +422,7 @@ Alternatively, you can create a custom Docker image outside of Prefect.
 If doing this with and you don't need push or pull steps in the `prefect.yaml` file.
 Instead, the work pool can reference the image directly.
 
-For more information, see [this discussion of custom Docker images](/3.0/deploy/infrastructure-examples/docker/#automatically-build-a-custom-docker-image-with-a-local-dockerfile).
+For more information, see [this discussion of custom Docker images](deploy/infrastructure-examples/docker/#automatically-build-a-custom-docker-image-with-a-local-dockerfile).
 
 ## Cloud-provider storage
 
@@ -734,7 +734,7 @@ We also include Python code that shows how to use an existing storage block and 
     </Tab>
 </Tabs>
 
-Another authentication option is to give the [worker](/3.0/deploy/infrastructure-concepts/workers/) access to the storage location at runtime through SSH keys.
+Another authentication option is to give the [worker](deploy/infrastructure-concepts/workers/) access to the storage location at runtime through SSH keys.
 
 ## Store code locally
 
@@ -819,4 +819,4 @@ The deployment creation mechanics for `serve` are similar to `deploy`.
 
 Unlike `serve`, if you don't specify an image to use for your flow, you must specify where to pull the flow code from at runtime with the `from_source` method; `from_source` is optional with `serve`.
 
-Read more about when to consider using `serve` [here](/3.0/deploy/infrastructure-concepts/deploy-via-python#when-to-consider-flow-deploy-over-flow-serve).
+Read more about when to consider using `serve` [here](deploy/infrastructure-concepts/deploy-via-python#when-to-consider-flow-deploy-over-flow-serve).
