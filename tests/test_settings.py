@@ -1310,7 +1310,9 @@ class TestSettingsSources:
 
         assert Settings().client.retry_extra_codes == set()
 
-    def test_profiles_path_resolution_order_from_sources(self, temporary_env_file, monkeypatch, tmp_path):
+    def test_profiles_path_resolution_order_from_sources(
+        self, temporary_env_file, monkeypatch, tmp_path
+    ):
         monkeypatch.delenv("PREFECT_TESTING_TEST_MODE", raising=False)
         monkeypatch.delenv("PREFECT_TESTING_UNIT_TEST_MODE", raising=False)
 
