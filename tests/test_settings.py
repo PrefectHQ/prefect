@@ -461,28 +461,15 @@ def temporary_toml_file(tmp_path):
         toml_file = Path("prefect.toml")
 
         def _create_temp_toml(content, path=toml_file):
+            nonlocal toml_file
             with path.open("w") as f:
                 toml.dump(content, f)
+            toml_file = path  # update toml_file in case path was changed
 
         yield _create_temp_toml
 
         if toml_file.exists():
             toml_file.unlink()
-
-
-@pytest.fixture
-def temporary_pyproject_file(tmp_path):
-    with tmpchdir(tmp_path):
-        pyproject_file = Path("pyproject.toml")
-
-        def _create_temp_pyproject(settings, path=pyproject_file):
-            with path.open("w") as f:
-                toml.dump({"tool": {"prefect": settings}}, f)
-
-        yield _create_temp_pyproject
-
-        if pyproject_file.exists():
-            pyproject_file.unlink()
 
 
 class TestSettingClass:
@@ -1291,7 +1278,7 @@ class TestSettingsSources:
         assert Settings().client.retry_extra_codes == set()
 
     def test_profiles_path_from_pyproject_source(
-        self, temporary_pyproject_file, monkeypatch, tmp_path
+        self, temporary_toml_file, monkeypatch, tmp_path
     ):
         monkeypatch.delenv("PREFECT_TESTING_TEST_MODE", raising=False)
         monkeypatch.delenv("PREFECT_TESTING_UNIT_TEST_MODE", raising=False)
@@ -1308,7 +1295,10 @@ class TestSettingsSources:
             )
         )
 
-        temporary_pyproject_file({"profiles_path": str(profiles_path)})
+        temporary_toml_file(
+            {"tool": {"prefect": {"profiles_path": str(profiles_path)}}},
+            path=Path("pyproject.toml"),
+        )
 
         assert Settings().profiles_path == profiles_path
         assert Settings().client.retry_extra_codes == {420, 500}
