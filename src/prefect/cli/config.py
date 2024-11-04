@@ -251,7 +251,7 @@ def view(
         _process_setting(setting, env_value, "env")
 
     # Process settings from .env file
-    for key, value in dotenv_values().items():
+    for key, value in dotenv_values(".env").items():
         if key in VALID_SETTING_NAMES:
             setting = _get_settings_fields(prefect.settings.Settings)[key]
             if setting.name in processed_settings or value is None:
