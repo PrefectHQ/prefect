@@ -56,11 +56,4 @@ COPY requirements*.txt ./
 RUN uv pip install -r requirements.txt
 RUN uv pip install ./dist/prefect.tar.gz
 
-# Create entrypoint script
-RUN echo '#!/bin/bash\n\
-    python -c "import sqlite3; print(f'\''SQLite Version: {sqlite3.sqlite_version}'\'')" \n\
-    python -c "import prefect; print(f'\''Prefect Version: {prefect.__version__}'\'')" \n\
-    exec prefect server start --host 0.0.0.0' > /entrypoint.sh && \
-    chmod +x /entrypoint.sh
 
-ENTRYPOINT ["/entrypoint.sh"]
