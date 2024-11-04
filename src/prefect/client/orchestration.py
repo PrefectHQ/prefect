@@ -99,6 +99,7 @@ from prefect.client.schemas.objects import (
     TaskRunResult,
     Variable,
     Worker,
+    WorkerMetadata,
     WorkPool,
     WorkQueue,
     WorkQueueStatusDetail,
@@ -2596,6 +2597,7 @@ class PrefectClient:
         worker_name: str,
         heartbeat_interval_seconds: Optional[float] = None,
         get_worker_id: bool = False,
+        worker_metadata: Optional[WorkerMetadata] = None,
     ) -> Optional[UUID]:
         """
         Sends a worker heartbeat for a given work pool.
@@ -2604,20 +2606,20 @@ class PrefectClient:
             work_pool_name: The name of the work pool to heartbeat against.
             worker_name: The name of the worker sending the heartbeat.
             return_id: Whether to return the worker ID. Note: will return `None` if the connected server does not support returning worker IDs, even if `return_id` is `True`.
+            worker_metadata: Metadata about the worker to send to the server.
         """
-
+        params = {
+            "name": worker_name,
+            "heartbeat_interval_seconds": heartbeat_interval_seconds,
+        }
+        if worker_metadata:
+            params["worker_metadata"] = worker_metadata.model_dump(mode="json")
         if get_worker_id:
-            return_dict = {"return_id": get_worker_id}
-        else:
-            return_dict = {}
+            params["return_id"] = get_worker_id
 
         resp = await self._client.post(
             f"/work_pools/{work_pool_name}/workers/heartbeat",
-            json={
-                "name": worker_name,
-                "heartbeat_interval_seconds": heartbeat_interval_seconds,
-            }
-            | return_dict,
+            json=params,
         )
 
         if (
