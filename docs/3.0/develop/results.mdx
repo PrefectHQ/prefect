@@ -33,6 +33,7 @@ keyword and the `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK` setting.
 the `result_serializer` keyword and the `PREFECT_RESULTS_DEFAULT_SERIALIZER` setting.
 - [what filename to use](/3.0/develop/results#result-filenames): this is configured through one of
 `result_storage_key`, `cache_policy`, or `cache_key_fn`.
+
 ### Default persistence configuration
 
 Once result persistence is enabled - whether through the `PREFECT_RESULTS_PERSIST_BY_DEFAULT` setting or
@@ -50,25 +51,32 @@ prefect config set PREFECT_LOCAL_STORAGE_PATH='~/.my-results/'
 
 ### Enabling result persistence
 
-In addition to the `PREFECT_RESULTS_PERSIST_BY_DEFAULT` and `PREFECT_TASKS_DEFAULT_PERSIST_RESULT` settings, result persistence can also be enabled or disabled on both individual flows and individual tasks. Specifying a non-null value for any of the following keywords on the task decorator will enable result persistence for that task:
+In addition to the `PREFECT_RESULTS_PERSIST_BY_DEFAULT` and `PREFECT_TASKS_DEFAULT_PERSIST_RESULT` settings,
+result persistence can also be enabled or disabled on both individual flows and individual tasks.
+Specifying a non-null value for any of the following keywords on the task decorator will enable result
+persistence for that task:
 - `persist_result`: a boolean that allows you to explicitly enable or disable result persistence.
-- `result_storage`: accepts either a string reference to a storage block or a storage block class that specifies where results should be stored.
+- `result_storage`: accepts either a string reference to a storage block or a storage block class that
+specifies where results should be stored.
 - `result_storage_key`: a string that specifies the filename of the result within the task's result storage.
 - `result_serializer`: a string or serializer that configures how the data should be serialized and deserialized.
 - `cache_policy`: a [cache policy](/3.0/develop/task-caching#cache-policies) specifying the behavior of the task's cache.
 - `cache_key_fn`: [a function](/3.0/develop/task-caching#cache-key-functions) that configures a custom cache policy.
 
-Similarly, setting `persist_result=True`, `result_storage`, or `result_serializer` on a flow will enable persistence for that flow.
+Similarly, setting `persist_result=True`, `result_storage`, or `result_serializer` on a flow will enable
+persistence for that flow.
 
 <Note>
 **Enabling persistence on a flow enables persistence by default for its tasks**
 
-Enabling result persistence on a flow through any of the above keywords will also enable it for all tasks called within that flow by default.
+Enabling result persistence on a flow through any of the above keywords will also enable it for all
+tasks called within that flow by default.
 
 Any settings _explicitly_ set on a task take precedence over the flow settings.
 
 Additionally, the `PREFECT_TASKS_DEFAULT_PERSIST_RESULT` environment variable can be used to globally control the default persistence behavior for tasks, overriding the default behavior set by a parent flow or task.
 </Note>
+
 ### Result storage
 
 You can configure the system of record for your results through the `result_storage` keyword argument.
@@ -162,6 +170,7 @@ def my_flow():
 
 If a result exists at a given storage key in the storage location, the task will load it without running.
 To learn more about caching mechanics in Prefect, see the [caching documentation](/3.0/develop/task-caching).
+
 ### Result serialization
 
 You can configure how results are serialized to storage using result serializers.
