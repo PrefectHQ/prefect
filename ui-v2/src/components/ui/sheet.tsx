@@ -15,9 +15,15 @@ const SheetClose = SheetPrimitive.Close;
 
 const SheetPortal = SheetPrimitive.Portal;
 
+type SheetOverlayProps = React.ComponentPropsWithoutRef<
+	typeof SheetPrimitive.Overlay
+> & {
+	className?: string;
+};
+
 const SheetOverlay = React.forwardRef<
 	React.ElementRef<typeof SheetPrimitive.Overlay>,
-	React.ComponentPropsWithoutRef<typeof SheetPrimitive.Overlay>
+	SheetOverlayProps
 >(({ className, ...props }, ref) => (
 	<SheetPrimitive.Overlay
 		className={cn(
@@ -102,9 +108,15 @@ const SheetFooter = ({
 );
 SheetFooter.displayName = "SheetFooter";
 
+type SheetTitleProps = React.ComponentPropsWithoutRef<
+	typeof SheetPrimitive.Title
+> & {
+	className?: string;
+};
+
 const SheetTitle = React.forwardRef<
 	React.ElementRef<typeof SheetPrimitive.Title>,
-	React.ComponentPropsWithoutRef<typeof SheetPrimitive.Title>
+	SheetTitleProps
 >(({ className, ...props }, ref) => (
 	<SheetPrimitive.Title
 		ref={ref}
@@ -114,9 +126,15 @@ const SheetTitle = React.forwardRef<
 ));
 SheetTitle.displayName = SheetPrimitive.Title.displayName;
 
+type SheetDescriptionProps = React.ComponentPropsWithoutRef<
+	typeof SheetPrimitive.Description
+> & {
+	className?: string;
+};
+
 const SheetDescription = React.forwardRef<
 	React.ElementRef<typeof SheetPrimitive.Description>,
-	React.ComponentPropsWithoutRef<typeof SheetPrimitive.Description>
+	SheetDescriptionProps
 >(({ className, ...props }, ref) => (
 	<SheetPrimitive.Description
 		ref={ref}
