@@ -211,7 +211,7 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
         ]
         envs.extend(envs_from_secrets)
 
-        self.job_body["template"]["template"]["containers"][0]["env"] = envs
+        self.job_body["template"]["template"]["containers"][0]["env"].extend(envs)
 
     def _configure_cloudsql_volumes(self):
         """
