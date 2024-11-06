@@ -4,7 +4,7 @@ export const Route = createFileRoute("/")({
 	component: RouteComponent,
 	beforeLoad: ({ location }) => {
 		if (location.pathname === "/") {
-			throw redirect({ to: "/dashboard" });
+			redirect({ to: "/dashboard", throw: true });
 		}
 	},
 });
