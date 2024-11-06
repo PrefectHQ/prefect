@@ -630,6 +630,7 @@ class FlowRunEngine(Generic[P, R]):
                     "prefect.run.type": "flow",
                     "prefect.run.id": str(self.flow_run.id),
                     "prefect.tags": self.flow_run.tags,
+                    "prefect.flow.name": self.flow.name,
                 },
             )
 
