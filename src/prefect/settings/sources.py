@@ -4,6 +4,7 @@ import warnings
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Type
 
+import dotenv
 import toml
 from pydantic import AliasChoices
 from pydantic.fields import FieldInfo
@@ -15,6 +16,7 @@ from pydantic_settings import (
 from pydantic_settings.sources import ConfigFileSourceMixin
 
 from prefect.settings.constants import DEFAULT_PREFECT_HOME, DEFAULT_PROFILES_PATH
+from prefect.utilities.collections import get_from_dict
 
 
 class EnvFilterSettingsSource(EnvSettingsSource):
@@ -230,6 +232,25 @@ def _get_profiles_path() -> Path:
         return DEFAULT_PROFILES_PATH
     if env_path := os.getenv("PREFECT_PROFILES_PATH"):
         return Path(env_path)
+    if dotenv_path := dotenv.dotenv_values(".env").get("PREFECT_PROFILES_PATH"):
+        return Path(dotenv_path)
+    if toml_path := _get_profiles_path_from_toml("prefect.toml", ["profiles_path"]):
+        return Path(toml_path)
+    if pyproject_path := _get_profiles_path_from_toml(
+        "pyproject.toml", ["tool", "prefect", "profiles_path"]
+    ):
+        return Path(pyproject_path)
     if not (DEFAULT_PREFECT_HOME / "profiles.toml").exists():
         return DEFAULT_PROFILES_PATH
     return DEFAULT_PREFECT_HOME / "profiles.toml"
+
+
+def _get_profiles_path_from_toml(path: str, keys: List[str]) -> Optional[str]:
+    """Helper to get the profiles path from a toml file."""
+
+    try:
+        toml_data = toml.load(path)
+    except FileNotFoundError:
+        return None
+
+    return get_from_dict(toml_data, keys)
