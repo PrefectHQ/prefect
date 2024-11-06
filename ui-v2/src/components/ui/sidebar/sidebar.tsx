@@ -96,7 +96,7 @@ const SidebarProvider = React.forwardRef<
 		// This makes it easier to style the sidebar with Tailwind classes.
 		const state = open ? "expanded" : "collapsed";
 
-		const contextValue = React.useMemo<typeof SidebarContext>(
+		const contextValue = React.useMemo<SidebarContext>(
 			() => ({
 				state,
 				open,
