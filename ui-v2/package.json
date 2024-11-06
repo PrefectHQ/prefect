@@ -11,7 +11,8 @@
 		"format:check": "biome format",
 		"format": "biome format --write",
 		"preview": "vite preview",
-		"service-sync": "uv run ../scripts/generate_oss_openapi_schema.py && npx openapi-typescript oss_schema.json -o src/api/prefect.tsx && rm oss_schema.json"
+		"service-sync": "uv run ../scripts/generate_oss_openapi_schema.py && npx openapi-typescript oss_schema.json -o src/api/prefect.tsx && rm oss_schema.json",
+		"prepare": "cd .. && husky ui-v2/.husky"
 	},
 	"dependencies": {
 		"@radix-ui/react-avatar": "^1.1.1",
@@ -65,6 +66,7 @@
 		"eslint-plugin-react-refresh": "^0.4.9",
 		"eslint-plugin-unused-imports": "^4.1.4",
 		"globals": "^15.10.0",
+		"husky": "^9.1.6",
 		"jsdom": "^25.0.1",
 		"postcss": "^8.4.47",
 		"tailwindcss": "^3.4.13",
