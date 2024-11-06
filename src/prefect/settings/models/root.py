@@ -72,7 +72,7 @@ class Settings(PrefectBaseSettings):
 
     client: ClientSettings = Field(
         default_factory=ClientSettings,
-        description="Settings for for controlling API client behavior",
+        description="Settings for controlling API client behavior",
     )
 
     cloud: CloudSettings = Field(
@@ -146,25 +146,6 @@ class Settings(PrefectBaseSettings):
         If `True`, disable the warning when a user accidentally misconfigure its `PREFECT_API_URL`
         Sometimes when a user manually set `PREFECT_API_URL` to a custom url,reverse-proxy for example,
         we would like to silence this warning so we will set it to `FALSE`.
-        """,
-    )
-
-    experimental_warn: bool = Field(
-        default=True,
-        description="If `True`, warn on usage of experimental features.",
-    )
-
-    # this setting needs to be removed
-    async_fetch_state_result: bool = Field(
-        default=False,
-        description="""
-        Determines whether `State.result()` fetches results automatically or not.
-        In Prefect 2.6.0, the `State.result()` method was updated to be async
-        to facilitate automatic retrieval of results from storage which means when
-        writing async code you must `await` the call. For backwards compatibility,
-        the result is not retrieved by default for async users. You may opt into this
-        per call by passing  `fetch=True` or toggle this setting to change the behavior
-        globally.
         """,
     )
 

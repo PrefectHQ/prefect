@@ -178,7 +178,6 @@ SUPPORTED_SETTINGS = {
     "PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH": {"test_value": 10, "legacy": True},
     "PREFECT_API_TLS_INSECURE_SKIP_VERIFY": {"test_value": True},
     "PREFECT_API_URL": {"test_value": "https://api.prefect.io"},
-    "PREFECT_ASYNC_FETCH_STATE_RESULT": {"test_value": True},
     "PREFECT_CLIENT_CSRF_SUPPORT_ENABLED": {"test_value": True},
     "PREFECT_CLIENT_ENABLE_METRICS": {"test_value": True, "legacy": True},
     "PREFECT_CLIENT_MAX_RETRIES": {"test_value": 3},
@@ -227,7 +226,8 @@ SUPPORTED_SETTINGS = {
         "legacy": True,
     },
     "PREFECT_EVENTS_WEBSOCKET_BACKFILL_PAGE_SIZE": {"test_value": 10, "legacy": True},
-    "PREFECT_EXPERIMENTAL_WARN": {"test_value": True},
+    "PREFECT_EXPERIMENTAL_WARN": {"test_value": True, "legacy": True},
+    "PREFECT_EXPERIMENTS_WARN": {"test_value": True},
     "PREFECT_EXPERIMENTS_WORKER_LOGGING_TO_API_ENABLED": {"test_value": False},
     "PREFECT_FLOW_DEFAULT_RETRIES": {"test_value": 10, "legacy": True},
     "PREFECT_FLOWS_DEFAULT_RETRIES": {"test_value": 10},
@@ -389,6 +389,7 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SILENCE_API_URL_MISCONFIGURATION": {"test_value": True},
     "PREFECT_SQLALCHEMY_MAX_OVERFLOW": {"test_value": 10, "legacy": True},
     "PREFECT_SQLALCHEMY_POOL_SIZE": {"test_value": 10, "legacy": True},
+    "PREFECT_TASKS_DEFAULT_PERSIST_RESULT": {"test_value": True},
     "PREFECT_TASKS_DEFAULT_RETRIES": {"test_value": 10},
     "PREFECT_TASKS_DEFAULT_RETRY_DELAY_SECONDS": {"test_value": 10},
     "PREFECT_TASKS_REFRESH_CACHE": {"test_value": True},
@@ -596,8 +597,8 @@ class TestSettingsClass:
         assert settings.model_dump() == new_settings.model_dump()
 
     def test_settings_hash_key(self):
-        settings = Settings(testing=dict(test_mode=True))
-        diff_settings = Settings(testing=dict(test_mode=False))
+        settings = Settings(testing=dict(test_mode=True))  # type: ignore
+        diff_settings = Settings(testing=dict(test_mode=False))  # type: ignore
 
         assert settings.hash_key() == settings.hash_key()
 
@@ -728,17 +729,26 @@ class TestSettingAccess:
     @pytest.mark.parametrize(
         "value,expected",
         [
+            (None, []),
             ("foo", ["foo"]),
             ("foo,bar", ["foo", "bar"]),
             ("foo, bar, foobar ", ["foo", "bar", "foobar"]),
+            (["foo", "bar"], ["foo", "bar"]),
+        ],
+        ids=[
+            "none",
+            "string",
+            "comma_separated",
+            "comma_separated_with_spaces",
+            "python_list",
         ],
     )
     def test_extra_loggers(self, value, expected):
         settings = Settings(logging=LoggingSettings(extra_loggers=value))
-        assert PREFECT_LOGGING_EXTRA_LOGGERS.value_from(settings) == expected
+        assert set(PREFECT_LOGGING_EXTRA_LOGGERS.value_from(settings)) == set(expected)
 
     def test_prefect_home_expands_tilde_in_path(self):
-        settings = Settings(home="~/test")
+        settings = Settings(home="~/test")  # type: ignore
         assert PREFECT_HOME.value_from(settings) == Path("~/test").expanduser()
 
     @pytest.mark.parametrize(
@@ -1370,7 +1380,7 @@ class TestSaveProfiles:
 
 class TestProfile:
     def test_init_casts_names_to_setting_types(self):
-        profile = Profile(name="test", settings={"PREFECT_DEBUG_MODE": 1})
+        profile = Profile(name="test", settings={"PREFECT_DEBUG_MODE": 1})  # type: ignore
         assert profile.settings == {PREFECT_DEBUG_MODE: 1}
 
     def test_validate_settings(self):
