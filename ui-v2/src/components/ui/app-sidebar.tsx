@@ -11,50 +11,178 @@ import {
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 
-const items = [
+const navItems = [
 	{
-		title: "Dashboard",
-		url: "/dashboard",
+		key: "dashboard",
+		component: (
+			<Link to="/dashboard">
+				{({ isActive }) => (
+					<SidebarMenuButton asChild isActive={isActive}>
+						<span>Dashboard</span>
+					</SidebarMenuButton>
+				)}
+			</Link>
+		),
 	},
 	{
-		title: "Runs",
-		url: "/runs",
+		key: "runs",
+		component: (
+			<Link to="/runs">
+				{({ isActive }) => (
+					<SidebarMenuButton asChild isActive={isActive}>
+						<span>Runs</span>
+					</SidebarMenuButton>
+				)}
+			</Link>
+		),
 	},
 	{
-		title: "Flows",
-		url: "/flows",
+		key: "flows",
+		component: (
+			<Link to="/flows">
+				{({ isActive }) => (
+					<SidebarMenuButton asChild isActive={isActive}>
+						<span>Flows</span>
+					</SidebarMenuButton>
+				)}
+			</Link>
+		),
 	},
 	{
-		title: "Deployments",
-		url: "/deployments",
+		key: "deployments",
+		component: (
+			<Link to="/deployments">
+				{({ isActive }) => (
+					<SidebarMenuButton asChild isActive={isActive}>
+						<span>Deployments</span>
+					</SidebarMenuButton>
+				)}
+			</Link>
+		),
 	},
 	{
-		title: "Work Pools",
-		url: "/work-pools",
+		key: "work-pools",
+		component: (
+			<Link to="/work-pools">
+				{({ isActive }) => (
+					<SidebarMenuButton asChild isActive={isActive}>
+						<span>Work Pools</span>
+					</SidebarMenuButton>
+				)}
+			</Link>
+		),
 	},
 	{
-		title: "Blocks",
-		url: "/blocks",
+		key: "blocks",
+		component: (
+			<Link to="/blocks">
+				{({ isActive }) => (
+					<SidebarMenuButton asChild isActive={isActive}>
+						<span>Blocks</span>
+					</SidebarMenuButton>
+				)}
+			</Link>
+		),
 	},
 	{
-		title: "Variables",
-		url: "/variables",
+		key: "variables",
+		component: (
+			<Link to="/variables">
+				{({ isActive }) => (
+					<SidebarMenuButton asChild isActive={isActive}>
+						<span>Variables</span>
+					</SidebarMenuButton>
+				)}
+			</Link>
+		),
 	},
 	{
-		title: "Automations",
-		url: "/automations",
+		key: "automations",
+		component: (
+			<Link to="/automations">
+				{({ isActive }) => (
+					<SidebarMenuButton asChild isActive={isActive}>
+						<span>Automations</span>
+					</SidebarMenuButton>
+				)}
+			</Link>
+		),
 	},
 	{
-		title: "Event Feed",
-		url: "/events",
+		key: "event-feed",
+		component: (
+			<Link to="/events">
+				{({ isActive }) => (
+					<SidebarMenuButton asChild isActive={isActive}>
+						<span>Event Feed</span>
+					</SidebarMenuButton>
+				)}
+			</Link>
+		),
 	},
 	{
-		title: "Notifications",
-		url: "/notifications",
+		key: "notifications",
+		component: (
+			<Link to="/notifications">
+				{({ isActive }) => (
+					<SidebarMenuButton asChild isActive={isActive}>
+						<span>Notifications</span>
+					</SidebarMenuButton>
+				)}
+			</Link>
+		),
 	},
 	{
-		title: "Concurrency",
-		url: "/concurrency-limits",
+		key: "concurrency-limits",
+		component: (
+			<Link to="/concurrency-limits">
+				{({ isActive }) => (
+					<SidebarMenuButton asChild isActive={isActive}>
+						<span>Concurrency</span>
+					</SidebarMenuButton>
+				)}
+			</Link>
+		),
+	},
+] as const;
+
+const footerItems = [
+	{
+		key: "upgrade",
+		component: (
+			<a
+				href="https://prefect.io/cloud-vs-oss?utm_source=oss&utm_medium=oss&utm_campaign=oss&utm_term=none&utm_content=none"
+				target="_blank"
+				rel="noreferrer"
+			>
+				<SidebarMenuButton asChild>
+					<div className="flex items-center justify-between">
+						<span>Ready to scale?</span>
+						<Button size="sm">Upgrade</Button>
+					</div>
+				</SidebarMenuButton>
+			</a>
+		),
+	},
+	{
+		key: "community",
+		component: (
+			<SidebarMenuButton asChild>
+				<span>Join the community</span>
+			</SidebarMenuButton>
+		),
+	},
+	{
+		key: "settings",
+		component: (
+			<Link to="/settings">
+				{({ isActive }) => (
+					<SidebarMenuButton asChild isActive={isActive}>
+						<span>Settings</span>
+					</SidebarMenuButton>
+				)}
+			</Link>
+		),
 	},
 ];
 
@@ -93,50 +221,17 @@ export function AppSidebar() {
 			<SidebarContent>
 				<SidebarGroup>
 					<SidebarMenu>
-						{items.map((item) => (
-							<SidebarMenuItem key={item.title}>
-								<Link to={item.url}>
-									{({ isActive }) => (
-										<SidebarMenuButton asChild isActive={isActive}>
-											<span>{item.title}</span>
-										</SidebarMenuButton>
-									)}
-								</Link>
-							</SidebarMenuItem>
+						{navItems.map((item) => (
+							<SidebarMenuItem key={item.key}>{item.component}</SidebarMenuItem>
 						))}
 					</SidebarMenu>
 				</SidebarGroup>
 			</SidebarContent>
 			<SidebarFooter>
 				<SidebarMenu>
-					<SidebarMenuItem>
-						<a
-							href="https://prefect.io/cloud-vs-oss?utm_source=oss&utm_medium=oss&utm_campaign=oss&utm_term=none&utm_content=none"
-							target="_blank"
-							rel="noreferrer"
-						>
-							<SidebarMenuButton asChild>
-								<div className="flex items-center justify-between">
-									<span>Ready to scale?</span>
-									<Button size="sm">Upgrade</Button>
-								</div>
-							</SidebarMenuButton>
-						</a>
-					</SidebarMenuItem>
-					<SidebarMenuItem>
-						<SidebarMenuButton asChild>
-							<span>Join the community</span>
-						</SidebarMenuButton>
-					</SidebarMenuItem>
-					<SidebarMenuItem>
-						<Link to="/settings">
-							{({ isActive }) => (
-								<SidebarMenuButton asChild isActive={isActive}>
-									<span>Settings</span>
-								</SidebarMenuButton>
-							)}
-						</Link>
-					</SidebarMenuItem>
+					{footerItems.map((item) => (
+						<SidebarMenuItem key={item.key}>{item.component}</SidebarMenuItem>
+					))}
 				</SidebarMenu>
 			</SidebarFooter>
 		</Sidebar>
