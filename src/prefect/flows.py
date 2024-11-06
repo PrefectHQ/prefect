@@ -2116,6 +2116,45 @@ def _sanitize_and_load_flow(
             )
             func_def.returns = None
 
+    # Remove flow decorator callback hooks
+
+    def get_decorator_function_name(func_decorator):
+        """Retrieve decorator function name."""
+        func_decorator = (
+            func_decorator.func
+            if isinstance(func_decorator, ast.Call)
+            else func_decorator
+        )
+        return (
+            func_decorator.attr
+            if isinstance(func_decorator, ast.Attribute)
+            else func_decorator.id
+        )
+
+    if func_def.decorator_list:
+        # Keep only prefect flow decorator only
+        func_def.decorator_list = [
+            func_decorator
+            for func_decorator in func_def.decorator_list
+            if get_decorator_function_name(func_decorator) == "flow"
+        ]
+        exclude_keyword_args = (
+            "on_failure",
+            "on_completion",
+            "on_cancellation",
+            "on_crashed",
+            "on_running",
+        )
+
+        # Exclude callable type keyword arguments from flow decorator
+        for func_decorator in func_def.decorator_list:
+            func_decorator.keywords = list(
+                filter(
+                    lambda keyword_arg: keyword_arg.arg not in exclude_keyword_args,
+                    func_decorator.keywords,
+                )
+            )
+
     # Attempt to compile the function without annotations and defaults that
     # can't be compiled
     try:
