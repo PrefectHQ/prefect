@@ -1,3 +1,6 @@
+# TODO: Replace `wait-for-server` with dedicated command
+#       https://github.com/PrefectHQ/prefect/issues/6990
+
 name: Integration tests
 on:
   pull_request:
@@ -85,9 +88,6 @@ jobs:
 
           ./scripts/wait-for-server.py
 
-          # TODO: Replace `wait-for-server` with dedicated command
-          #       https://github.com/PrefectHQ/prefect/issues/6990
-
       - name: Start server
         if: ${{ matrix.server-version.version == 'main' }}
         env:
@@ -97,9 +97,6 @@ jobs:
           prefect server start --analytics-off --host 0.0.0.0 2>&1 > server.log &
 
           ./scripts/wait-for-server.py
-
-          # TODO: Replace `wait-for-server` with dedicated command
-          #       https://github.com/PrefectHQ/prefect/issues/6990
 
       - name: Run integration flows
         env:
@@ -113,3 +110,35 @@ jobs:
         run: |
           cat server.log || echo "No logs available"
           docker logs prefect-server || echo "No logs available"
+
+  sqlite-3-24-0:
+    name: Test SQLite 3.24.0 Compatibility
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Test with SQLite 3.24.0
+        run: >
+          docker build -t prefect-server-old-sqlite \
+            --build-arg SQLITE_VERSION=3240000 \
+            --build-arg SQLITE_YEAR=2018 \
+            -f old-sqlite.Dockerfile . &&
+          docker run prefect-server-old-sqlite sh -c "prefect server database downgrade --yes -r base && prefect server database upgrade --yes"
+
+  sqlite-3-31-1:
+    name: Test SQLite 3.31.1 Compatibility
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Test with SQLite 3.31.1
+        run: >
+          docker build -t prefect-server-new-sqlite \
+            --build-arg SQLITE_VERSION=3310100 \
+            --build-arg SQLITE_YEAR=2020 \
+            -f old-sqlite.Dockerfile . &&
+          docker run prefect-server-new-sqlite sh -c "prefect server database downgrade --yes -r base && prefect server database upgrade --yes"
