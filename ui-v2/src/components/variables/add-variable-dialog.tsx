@@ -123,7 +123,7 @@ export const AddVariableDialog = ({
 									<FormLabel>Value</FormLabel>
 									<FormControl>
 										<CodeMirror
-											extensions={[json({ strict: true })]}
+											extensions={[json()]}
 											basicSetup={{
 												foldGutter: false,
 												history: false,
