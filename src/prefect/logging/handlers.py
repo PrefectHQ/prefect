@@ -181,6 +181,7 @@ class APILogHandler(logging.Handler):
         """
         flow_run_id = getattr(record, "flow_run_id", None)
         task_run_id = getattr(record, "task_run_id", None)
+        worker_id = getattr(record, "worker_id", None)
 
         if not flow_run_id:
             try:
@@ -216,6 +217,7 @@ class APILogHandler(logging.Handler):
         log = LogCreate(
             flow_run_id=flow_run_id if is_uuid_like else None,
             task_run_id=task_run_id,
+            worker_id=worker_id,
             name=record.name,
             level=record.levelno,
             timestamp=pendulum.from_timestamp(
