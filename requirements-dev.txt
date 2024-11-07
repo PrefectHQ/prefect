@@ -37,7 +37,7 @@ mkdocs-material
 mkdocstrings[python]
 mkdocs-gen-files
 
-# open-telemetry
+# OpenTelemetry
 # Other than the `test-utils` package these versions should match the versions
 # in `requirements-otel.txt`
 opentelemetry-distro >= 0.48b0, < 1.0.0
