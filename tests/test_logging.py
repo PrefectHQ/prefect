@@ -7,6 +7,7 @@ from contextlib import nullcontext
 from functools import partial
 from io import StringIO
 from typing import Type
+from unittest import mock
 from unittest.mock import ANY, MagicMock
 
 import pendulum
@@ -834,6 +835,22 @@ class TestAPILogWorker:
 
         logs = await prefect_client.read_logs()
         assert len(logs) == 2
+
+    async def test_logs_include_worker_id_if_available(
+        self, worker, log_dict, prefect_client
+    ):
+        worker_id = str(uuid.uuid4())
+        log_dict["worker_id"] = worker_id
+
+        with mock.patch(
+            "prefect.client.orchestration.PrefectClient.create_logs", autospec=True
+        ) as mock_create_logs:
+            worker.send(log_dict)
+            await worker.drain()
+            assert mock_create_logs.call_count == 1
+            logs = mock_create_logs.call_args.args[1]
+            assert len(logs) == 1
+            assert logs[0]["worker_id"] == worker_id
 
 
 def test_flow_run_logger(flow_run):
