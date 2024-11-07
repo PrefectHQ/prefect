@@ -1585,7 +1585,7 @@ async def test_get_flow_run_logger_with_worker_id_set(
             "flow_name": "<unknown>",
             "worker_name": "test",
             "work_pool_name": work_pool.name,
-            "work_pool_id": str(work_pool.id),
+            "work_pool_id": work_pool.id,
             "worker_id": worker_id,
         }
 
