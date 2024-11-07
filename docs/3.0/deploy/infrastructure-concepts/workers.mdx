@@ -105,9 +105,13 @@ after it stopped sending heartbeats, but you can configure the threshold with th
 ### Worker logs
 <Warning>This feature is experimental as of Prefect version 3.1.1</Warning>
 
-<span class="badge cloud"></span>Workers can now send logs directly to Prefect Cloud.
+<span class="badge cloud"></span> Workers can now send logs directly to Prefect Cloud.
 
-To enable this feature, run the command `prefect config set PREFECT_EXPERIMENTS_WORKER_LOGGING_TO_API_ENABLED=true` or set an environment variable with the same name and value. See our [profile settings](/3.0/manage/settings-and-profiles/) documentation for more information about changing settings.
+To enable this feature, run the command:
+```bash
+prefect config set PREFECT_EXPERIMENTS_WORKER_LOGGING_TO_API_ENABLED=true
+```
+See our [profile settings](/3.0/manage/settings-and-profiles/) documentation for more information about changing settings.
 
 Once enabled:
 - All worker logs are automatically sent to the Prefect Cloud API
