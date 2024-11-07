@@ -173,7 +173,7 @@ prefect worker start --pool "my-pool" --limit 5
 
 ### Configure prefetch
 
-By default, the worker submits flow runs a short time (10 seconds) before they are scheduled to run. 
+By default, the worker submits flow runs 10 seconds before they are scheduled to run. 
 This allows time for the infrastructure to be created so the flow run can start on time.
 
 In some cases, infrastructure takes longer than 10 seconds to start the flow run. You can increase the prefetch with the
