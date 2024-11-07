@@ -2148,6 +2148,9 @@ def _sanitize_and_load_flow(
 
         # Exclude callable type keyword arguments from flow decorator
         for func_decorator in func_def.decorator_list:
+            if not hasattr(func_decorator, "keywords"):
+                continue
+
             func_decorator.keywords = list(
                 filter(
                     lambda keyword_arg: keyword_arg.arg not in exclude_keyword_args,
