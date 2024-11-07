@@ -448,6 +448,81 @@ async def test_reading_graph_for_flow_run_with_nested_tasks(
 
 
 @pytest.fixture
+async def nested_tasks_including_parent_with_multiple_params(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    flow_run,  # db.FlowRun,
+    base_time: pendulum.DateTime,
+) -> List:
+    task_runs = []
+
+    task_runs.append(
+        db.TaskRun(
+            id=uuid4(),
+            flow_run_id=flow_run.id,
+            name="task-0",
+            task_key="task-0",
+            dynamic_key="task-0",
+            state_type=StateType.COMPLETED,
+            state_name="Irrelevant",
+            expected_start_time=base_time.add(seconds=1).subtract(microseconds=1),
+            start_time=base_time.add(seconds=1),
+            end_time=base_time.add(minutes=1, seconds=1),
+            task_inputs={
+                "first_arg": [],
+                "second_arg": [],
+            },
+        )
+    )
+
+    task_runs.append(
+        db.TaskRun(
+            id=uuid4(),
+            flow_run_id=flow_run.id,
+            name="task-1",
+            task_key="task-1",
+            dynamic_key="task-1",
+            state_type=StateType.COMPLETED,
+            state_name="Irrelevant",
+            expected_start_time=base_time.add(seconds=2).subtract(microseconds=1),
+            start_time=base_time.add(seconds=2),
+            end_time=base_time.add(minutes=1, seconds=2),
+            task_inputs={
+                "__parents__": [
+                    {"id": task_runs[0].id, "input_type": "task_run"},
+                ],
+            },
+        )
+    )
+
+    session.add_all(task_runs)
+    await session.commit()
+    return task_runs
+
+
+async def test_reading_graph_nested_tasks_including_parent_with_multiple_params(
+    session: AsyncSession,
+    flow_run,
+    nested_tasks_including_parent_with_multiple_params: List,
+    base_time: pendulum.DateTime,
+):
+    graph = await read_flow_run_graph(
+        session=session,
+        flow_run_id=flow_run.id,
+    )
+
+    parent_task, child_task = nested_tasks_including_parent_with_multiple_params
+
+    # Check that the encapsulating relationships are correct and deduplicated
+    nodes_by_id = {node.id: node for _, node in graph.nodes}
+    child_node = nodes_by_id[child_task.id]
+
+    # Verify the child task has exactly one encapsulating reference to the parent
+    assert len(child_node.encapsulating) == 1
+    assert child_node.encapsulating[0].id == parent_task.id
+
+
+@pytest.fixture
 async def linked_tasks(
     db: PrefectDBInterface,
     session: AsyncSession,
