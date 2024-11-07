@@ -1538,7 +1538,7 @@ class TestPrepareForFlowRun:
         assert job_config.command == "prefect flow-run execute"
 
 
-async def test_get_flow_run_logger(
+async def test_get_flow_run_logger_without_worker_id_set(
     prefect_client: PrefectClient, worker_deployment_wq1, work_pool
 ):
     flow_run = await prefect_client.create_flow_run_from_deployment(
@@ -1549,6 +1549,7 @@ async def test_get_flow_run_logger(
         name="test", work_pool_name=work_pool.name, create_pool_if_not_found=False
     ) as worker:
         await worker.sync_with_backend()
+        assert worker.backend_id is None
         logger = worker.get_flow_run_logger(flow_run)
 
         assert logger.name == "prefect.flow_runs.worker"
@@ -1559,6 +1560,36 @@ async def test_get_flow_run_logger(
             "worker_name": "test",
             "work_pool_name": work_pool.name,
             "work_pool_id": str(work_pool.id),
+        }
+
+
+async def test_get_flow_run_logger_with_worker_id_set(
+    prefect_client: PrefectClient,
+    worker_deployment_wq1,
+    work_pool,
+    experimental_logging_enabled,
+):
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        worker_deployment_wq1.id
+    )
+
+    async with WorkerTestImpl(
+        name="test", work_pool_name=work_pool.name, create_pool_if_not_found=False
+    ) as worker:
+        await worker.sync_with_backend()
+        worker_id = uuid.uuid4()
+        worker.backend_id = worker_id
+        logger = worker.get_flow_run_logger(flow_run)
+
+        assert logger.name == "prefect.flow_runs.worker"
+        assert logger.extra == {
+            "flow_run_name": flow_run.name,
+            "flow_run_id": str(flow_run.id),
+            "flow_name": "<unknown>",
+            "worker_name": "test",
+            "work_pool_name": work_pool.name,
+            "work_pool_id": str(work_pool.id),
+            "worker_id": str(worker_id),
         }
 
 

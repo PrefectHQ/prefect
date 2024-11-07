@@ -502,15 +502,19 @@ class BaseWorker(abc.ABC):
         return slugify(self.name)
 
     def get_flow_run_logger(self, flow_run: "FlowRun") -> PrefectLogAdapter:
+        extra = {
+            "worker_name": self.name,
+            "work_pool_name": (
+                self._work_pool_name if self._work_pool else "<unknown>"
+            ),
+            "work_pool_id": str(getattr(self._work_pool, "id", "unknown")),
+        }
+        if self.backend_id:
+            extra["worker_id"] = str(self.backend_id)
+
         return flow_run_logger(flow_run=flow_run).getChild(
             "worker",
-            extra={
-                "worker_name": self.name,
-                "work_pool_name": (
-                    self._work_pool_name if self._work_pool else "<unknown>"
-                ),
-                "work_pool_id": str(getattr(self._work_pool, "id", "unknown")),
-            },
+            extra=extra,
         )
 
     async def start(
