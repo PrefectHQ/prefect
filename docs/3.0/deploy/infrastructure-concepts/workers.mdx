@@ -116,24 +116,17 @@ PREFECT_EXPERIMENTS_WORKER_LOGGING_TO_API_ENABLED=True
 Once enabled:
 - All worker logs are automatically sent to the Prefect Cloud API
 - Logs are accessible through both the Prefect Cloud UI and API
-- Each flow run log includes a direct link to its associated worker's logs
+- Each flow run will include a link to its associated worker's logs
 
 ### Worker details
 <Warning>This feature is experimental as of Prefect version 3.X.X</Warning>
 
 <span class="badge cloud"></span> The Worker Details page shows you three key areas of information:
 
-- Runtime Information
-  - Current Prefect version
-  - Active worker configuration
-
-- Integrations
-  - Installed packages (e.g., `prefect-aws`, `prefect-gcp`)
-  - Integration-specific configurations and status if available
-
-- Worker Status
-   - Live worker logs (if logging is enabled)
-   - Current worker health and performance metrics
+- Worker status
+- Installed Prefect version
+- Installed Prefect integrations (e.g., `prefect-aws`, `prefect-gcp`)
+- Live worker logs (if logging is enabled)
 
 You can access any worker's detail by clicking on the worker's name in the Work Pool list.
 
