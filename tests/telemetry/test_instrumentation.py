@@ -1,3 +1,4 @@
+import os
 from uuid import UUID
 
 import pytest
@@ -77,7 +78,7 @@ def test_trace_provider(
 
     assert resource_attributes == {
         "service.name": "prefect",
-        "service.instance.id": "prefect.local",
+        "service.instance.id": os.uname().nodename,
         "prefect.account": str(telemetry_account_id),
         "prefect.workspace": str(telemetry_workspace_id),
     }
@@ -115,7 +116,7 @@ def test_meter_provider(
 
     assert resource_attributes == {
         "service.name": "prefect",
-        "service.instance.id": "prefect.local",
+        "service.instance.id": os.uname().nodename,
         "prefect.account": str(telemetry_account_id),
         "prefect.workspace": str(telemetry_workspace_id),
     }
