@@ -1564,7 +1564,10 @@ async def test_get_flow_run_logger_without_worker_id_set(
 
 
 async def test_get_flow_run_logger_with_worker_id_set(
-    prefect_client: PrefectClient, worker_deployment_wq1, work_pool
+    prefect_client: PrefectClient,
+    worker_deployment_wq1,
+    work_pool,
+    experimental_logging_enabled,
 ):
     flow_run = await prefect_client.create_flow_run_from_deployment(
         worker_deployment_wq1.id
@@ -1585,8 +1588,8 @@ async def test_get_flow_run_logger_with_worker_id_set(
             "flow_name": "<unknown>",
             "worker_name": "test",
             "work_pool_name": work_pool.name,
-            "work_pool_id": work_pool.id,
-            "worker_id": worker_id,
+            "work_pool_id": str(work_pool.id),
+            "worker_id": str(worker_id),
         }
 
 
