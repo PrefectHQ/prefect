@@ -1,5 +1,5 @@
 # Build the Python distributable
-FROM python:3.9-slim AS python-builder
+FROM python:3.13-slim AS python-builder
 
 WORKDIR /opt/prefect
 
@@ -17,7 +17,7 @@ RUN python setup.py sdist && \
     mv "dist/$(python setup.py --fullname).tar.gz" "dist/prefect.tar.gz"
 
 # Final image
-FROM python:3.9-slim
+FROM python:3.13-slim
 
 # Accept SQLite version as build argument
 ARG SQLITE_VERSION="3310100"
