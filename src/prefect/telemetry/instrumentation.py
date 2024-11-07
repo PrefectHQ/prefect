@@ -1,7 +1,7 @@
 import logging
 import os
 import re
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 from urllib.parse import urljoin
 from uuid import UUID
 
@@ -16,9 +16,6 @@ from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
-
-import prefect.settings
-from prefect.client.base import ServerType, determine_server_type
 
 from .logging import set_log_handler
 from .processors import InFlightSpanProcessor
@@ -56,26 +53,11 @@ def _url_join(base_url: str, path: str) -> str:
     return urljoin(base_url.rstrip("/") + "/", path.lstrip("/"))
 
 
-def setup_telemetry() -> (
-    Union[
-        tuple[TracerProvider, MeterProvider, "LoggerProvider"], tuple[None, None, None]
-    ]
-):
-    """Configure OpenTelemetry exporters for Prefect telemetry."""
-    settings = prefect.settings.get_current_settings()
-    if not settings.experiments.telemetry_enabled:
-        return None, None, None
-
-    server_type = determine_server_type()
-    if server_type != ServerType.CLOUD:
-        return None, None, None
-
-    assert settings.api.key
-    assert settings.api.url
-
-    api_key = settings.api.key.get_secret_value()
-    account_id, workspace_id = extract_account_and_workspace_id(settings.api.url)
-    telemetry_url = _url_join(settings.api.url, "telemetry/")
+def setup_exporters(
+    api_url: str, api_key: str
+) -> tuple[TracerProvider, MeterProvider, "LoggerProvider"]:
+    account_id, workspace_id = extract_account_and_workspace_id(api_url)
+    telemetry_url = _url_join(api_url, "telemetry/")
 
     headers = {
         "Authorization": f"Bearer {api_key}",

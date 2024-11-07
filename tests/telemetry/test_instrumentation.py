@@ -11,10 +11,8 @@ from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 from opentelemetry.sdk.trace import TracerProvider
 
-from prefect.telemetry.instrumentation import (
-    extract_account_and_workspace_id,
-    setup_telemetry,
-)
+from prefect.telemetry.bootstrap import setup_telemetry
+from prefect.telemetry.instrumentation import extract_account_and_workspace_id
 from prefect.telemetry.logging import get_log_handler
 from prefect.telemetry.processors import InFlightSpanProcessor
 

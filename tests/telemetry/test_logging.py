@@ -1,6 +1,6 @@
 import logging
 
-from prefect.telemetry.instrumentation import setup_telemetry
+from prefect.telemetry.bootstrap import setup_telemetry
 from prefect.telemetry.logging import (
     add_telemetry_log_handler,
     get_log_handler,

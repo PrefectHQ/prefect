@@ -58,9 +58,9 @@ prefect.logging.get_logger("profiles").debug(
 )
 
 # Configure telemetry
-import prefect.telemetry.instrumentation
+import prefect.telemetry.bootstrap
 
-prefect.telemetry.instrumentation.setup_telemetry()
+prefect.telemetry.bootstrap.setup_telemetry()
 
 
 from prefect._internal.compatibility.deprecated import (

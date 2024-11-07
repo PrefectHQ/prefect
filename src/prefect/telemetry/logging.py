@@ -1,18 +1,19 @@
 import logging
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
-from opentelemetry.sdk._logs import LoggingHandler
+if TYPE_CHECKING:
+    from opentelemetry.sdk._logs import LoggingHandler
 
-_log_handler: Optional[LoggingHandler] = None
+_log_handler: Optional["LoggingHandler"] = None
 
 
-def set_log_handler(log_handler: Optional[LoggingHandler]) -> None:
+def set_log_handler(log_handler: Optional["LoggingHandler"]) -> None:
     """Set the OTLP log handler."""
     global _log_handler
     _log_handler = log_handler
 
 
-def get_log_handler() -> Optional[LoggingHandler]:
+def get_log_handler() -> Optional["LoggingHandler"]:
     """Get the OTLP log handler."""
     global _log_handler
     return _log_handler
