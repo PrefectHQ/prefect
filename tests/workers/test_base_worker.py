@@ -1,5 +1,6 @@
 import uuid
 from typing import Any, Dict, Optional, Type
+from unittest import mock
 from unittest.mock import MagicMock
 
 import httpx
@@ -15,6 +16,7 @@ from prefect.blocks.core import Block
 from prefect.client.base import ServerType
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun
+from prefect.client.schemas.objects import WorkerMetadata
 from prefect.exceptions import (
     CrashedRun,
     ObjectNotFound,
@@ -1536,7 +1538,7 @@ class TestPrepareForFlowRun:
         assert job_config.command == "prefect flow-run execute"
 
 
-async def test_get_flow_run_logger(
+async def test_get_flow_run_logger_without_worker_id_set(
     prefect_client: PrefectClient, worker_deployment_wq1, work_pool
 ):
     flow_run = await prefect_client.create_flow_run_from_deployment(
@@ -1547,6 +1549,7 @@ async def test_get_flow_run_logger(
         name="test", work_pool_name=work_pool.name, create_pool_if_not_found=False
     ) as worker:
         await worker.sync_with_backend()
+        assert worker.backend_id is None
         logger = worker.get_flow_run_logger(flow_run)
 
         assert logger.name == "prefect.flow_runs.worker"
@@ -1557,6 +1560,36 @@ async def test_get_flow_run_logger(
             "worker_name": "test",
             "work_pool_name": work_pool.name,
             "work_pool_id": str(work_pool.id),
+        }
+
+
+async def test_get_flow_run_logger_with_worker_id_set(
+    prefect_client: PrefectClient,
+    worker_deployment_wq1,
+    work_pool,
+    experimental_logging_enabled,
+):
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        worker_deployment_wq1.id
+    )
+
+    async with WorkerTestImpl(
+        name="test", work_pool_name=work_pool.name, create_pool_if_not_found=False
+    ) as worker:
+        await worker.sync_with_backend()
+        worker_id = uuid.uuid4()
+        worker.backend_id = worker_id
+        logger = worker.get_flow_run_logger(flow_run)
+
+        assert logger.name == "prefect.flow_runs.worker"
+        assert logger.extra == {
+            "flow_run_name": flow_run.name,
+            "flow_run_id": str(flow_run.id),
+            "flow_name": "<unknown>",
+            "worker_name": "test",
+            "work_pool_name": work_pool.name,
+            "work_pool_id": str(work_pool.id),
+            "worker_id": str(worker_id),
         }
 
 
@@ -1846,3 +1879,107 @@ async def test_env_merge_logic_is_deep(
 
     for key, value in expected_env.items():
         assert config.env[key] == value
+
+
+class TestBaseWorkerHeartbeat:
+    async def test_worker_heartbeat_sends_integrations(
+        self, work_pool, hosted_api_server, experimental_logging_enabled
+    ):
+        async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+            await worker.start(run_once=True)
+            with mock.patch(
+                "prefect.workers.base.load_prefect_collections"
+            ) as mock_load_prefect_collections, mock.patch(
+                "prefect.client.orchestration.PrefectHttpxAsyncClient.post"
+            ) as mock_send_worker_heartbeat_post, mock.patch(
+                "prefect.workers.base.distributions"
+            ) as mock_distributions:
+                mock_load_prefect_collections.return_value = {
+                    "prefect-aws": "1.0.0",
+                }
+                mock_distributions.return_value = [
+                    mock.MagicMock(
+                        metadata={"Name": "prefect_aws"},
+                        version="1.0.0",
+                    )
+                ]
+
+                async with get_client() as client:
+                    worker._client = client
+                    worker._client.server_type = ServerType.CLOUD
+                    await worker.sync_with_backend()
+
+                mock_send_worker_heartbeat_post.assert_called_once_with(
+                    f"/work_pools/{work_pool.name}/workers/heartbeat",
+                    json={
+                        "name": worker.name,
+                        "heartbeat_interval_seconds": worker.heartbeat_interval_seconds,
+                        "worker_metadata": {
+                            "integrations": [
+                                {"name": "prefect_aws", "version": "1.0.0"}
+                            ]
+                        },
+                        "return_id": True,
+                    },
+                )
+
+            assert worker._worker_metadata_sent
+
+    async def test_custom_worker_can_send_arbitrary_metadata(
+        self, work_pool, hosted_api_server, experimental_logging_enabled
+    ):
+        class CustomWorker(BaseWorker):
+            type: str = "test-custom-metadata"
+            job_configuration: Type[BaseJobConfiguration] = BaseJobConfiguration
+
+            async def run(self):
+                pass
+
+            async def _worker_metadata(self) -> WorkerMetadata:
+                return WorkerMetadata(
+                    **{
+                        "integrations": [{"name": "prefect-aws", "version": "1.0.0"}],
+                        "custom_field": "heya",
+                    }
+                )
+
+        async with CustomWorker(work_pool_name=work_pool.name) as worker:
+            await worker.start(run_once=True)
+            with mock.patch(
+                "prefect.workers.base.load_prefect_collections"
+            ) as mock_load_prefect_collections, mock.patch(
+                "prefect.client.orchestration.PrefectHttpxAsyncClient.post"
+            ) as mock_send_worker_heartbeat_post, mock.patch(
+                "prefect.workers.base.distributions"
+            ) as mock_distributions:
+                mock_load_prefect_collections.return_value = {
+                    "prefect-aws": "1.0.0",
+                }
+                mock_distributions.return_value = [
+                    mock.MagicMock(
+                        metadata={"Name": "prefect-aws"},
+                        version="1.0.0",
+                    )
+                ]
+
+                async with get_client() as client:
+                    worker._client = client
+                    worker._client.server_type = ServerType.CLOUD
+                    await worker.sync_with_backend()
+
+                mock_send_worker_heartbeat_post.assert_called_once_with(
+                    f"/work_pools/{work_pool.name}/workers/heartbeat",
+                    json={
+                        "name": worker.name,
+                        "heartbeat_interval_seconds": worker.heartbeat_interval_seconds,
+                        "worker_metadata": {
+                            "integrations": [
+                                {"name": "prefect-aws", "version": "1.0.0"}
+                            ],
+                            "custom_field": "heya",
+                        },
+                        "return_id": True,
+                    },
+                )
+
+            assert worker._worker_metadata_sent
