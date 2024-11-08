@@ -6,6 +6,7 @@ from typing import List, Optional
 from uuid import UUID
 
 from fastapi import Body, Depends, HTTPException, Path, status
+import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models
@@ -50,9 +51,15 @@ async def create_variable(
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> core.Variable:
     async with db.session_context(begin_transaction=True) as session:
-        model = await models.variables.create_variable(
-            session=session, variable=variable
-        )
+        try:
+            model = await models.variables.create_variable(
+                session=session, variable=variable
+            )
+        except sa.exc.IntegrityError:
+            raise HTTPException(
+                status_code=409,
+                detail=f"A variable with the name {variable.name!r} already exists.",
+            )
 
     return core.Variable.model_validate(model, from_attributes=True)
 
