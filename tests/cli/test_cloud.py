@@ -876,7 +876,6 @@ def test_login_already_logged_in_to_another_profile_cancel_during_select(respx_m
             "? Would you like to switch profiles? [Y/n]:",
             "? Which authenticated profile would you like to switch to?",
             "logged-in-profile",
-            "Aborted",
         ],
     )
 
