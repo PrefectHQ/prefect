@@ -38,17 +38,17 @@ dynamic = ["version"]
 cloud_storage = ["google-cloud-storage"]
 bigquery = ["google-cloud-bigquery", "google-cloud-bigquery-storage"]
 secret_manager = ["google-cloud-secret-manager"]
-aiplatform = ["google-cloud-aiplatform < 1.71.1"]
+aiplatform = ["google-cloud-aiplatform"]
 all_extras = [
   "google-cloud-storage",
   "google-cloud-bigquery",
   "google-cloud-bigquery-storage",
   "google-cloud-secret-manager",
-  "google-cloud-aiplatform < 1.71.1",
+  "google-cloud-aiplatform",
 ]
 dev = [
   "coverage",
-  "google-cloud-aiplatform < 1.71.1",
+  "google-cloud-aiplatform",
   "google-cloud-bigquery-storage",
   "google-cloud-bigquery",
   "google-cloud-secret-manager",
