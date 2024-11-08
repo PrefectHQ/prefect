@@ -173,10 +173,6 @@ class ShellProcess(JobRun):
         """
         self.logger.debug(f"Waiting for PID {self.pid} to complete.")
 
-        await asyncio.gather(
-            self._capture_output(self._process.stdout),
-            self._capture_output(self._process.stderr),
-        )
         await self._process.wait()
 
         if self.return_code != 0:
@@ -364,7 +360,10 @@ class ShellOperation(JobBlock):
             f"PID {process.pid} triggered with {num_commands} commands running "
             f"inside the {(self.working_dir or '.')!r} directory."
         )
-        return ShellProcess(shell_operation=self, process=process)
+        shell_process = ShellProcess(shell_operation=self, process=process)
+        await asyncio.create_task(shell_process._capture_output(process.stdout))
+        await asyncio.create_task(shell_process._capture_output(process.stderr))
+        return shell_process
 
     @sync_compatible
     async def run(self, **open_kwargs: Dict[str, Any]) -> List[str]:
@@ -398,6 +397,10 @@ class ShellOperation(JobBlock):
             self.logger.info(
                 f"PID {process.pid} triggered with {num_commands} commands running "
                 f"inside the {(self.working_dir or '.')!r} directory."
+            )
+            await asyncio.gather(
+                shell_process._capture_output(process.stdout),
+                shell_process._capture_output(process.stderr),
             )
             await shell_process.wait_for_completion()
             result = await shell_process.fetch_result()
