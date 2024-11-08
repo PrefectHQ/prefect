@@ -311,7 +311,7 @@ def test_trigger_dbt_cli_command_failed(profiles_dir, dbt_cli_profile_bare):
         )
 
     with pytest.raises(
-        Exception, match="dbt task result success: False with exception: None"
+        Exception, match="dbt task result unsuccessful with exception: None"
     ):
         test_flow()
 
@@ -384,7 +384,7 @@ def test_trigger_dbt_cli_command_missing_profile(profiles_dir):
         )
 
     with pytest.raises(
-        ValueError, match="Profile not found. Provide `dbt_cli_profile` or"
+        ValueError, match="Provide `dbt_cli_profile` keyword for writing profiles"
     ):
         test_flow()
 
@@ -671,7 +671,7 @@ async def test_run_dbt_model_creates_unsuccessful_artifact(
         )
 
     with pytest.raises(
-        Exception, match="dbt task result success: False with exception: None"
+        Exception, match="dbt task result unsuccessful with exception"
     ):
         await test_flow()
     assert (a := await Artifact.get(key="foo"))
