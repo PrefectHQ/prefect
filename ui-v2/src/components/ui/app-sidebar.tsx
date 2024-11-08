@@ -69,7 +69,6 @@ const navItems = [
 	},
 ] as const;
 
-
 export function AppSidebar() {
 	return (
 		<Sidebar>
