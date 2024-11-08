@@ -61,6 +61,7 @@ from prefect.utilities.templating import (
     resolve_block_document_references,
     resolve_variables,
 )
+from prefect.utilities.urls import url_for
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import Flow, FlowRun
@@ -876,8 +877,8 @@ class BaseWorker(abc.ABC):
                     get_current_settings().experiments.worker_logging_to_api_enabled
                     and self.backend_id
                 ):
-                    worker_path = f"work-pools/work-pool/{self._work_pool_name}/worker/{self.backend_id}"
-                    base_url = get_current_settings().ui_url
+                    worker_path = f"worker/{self.backend_id}"
+                    base_url = url_for("work-pool", self._work_pool.id)
 
                     run_logger.info(
                         f"Running on worker id: {self.backend_id}. See worker logs here: {base_url}/{worker_path}"
