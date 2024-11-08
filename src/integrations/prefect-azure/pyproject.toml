@@ -33,14 +33,14 @@ dependencies = [
 dynamic = ["version"]
 
 [project.optional-dependencies]
-blob_storage = ["azure-storage-blob"]
+blob_storage = ["azure-storage-blob < 12.22.0"]
 cosmos_db = ["azure-cosmos"]
 ml_datastore = ["azureml-core"]
-all_extras = ["azure-cosmos", "azure-storage-blob", "azureml-core"]
+all_extras = ["azure-cosmos", "azure-storage-blob < 12.22.0", "azureml-core"]
 dev = [
   "aiohttp",
   "azure-cosmos",
-  "azure-storage-blob",
+  "azure-storage-blob < 12.22.0",
   "azureml-core",
   "coverage",
   "interrogate",
@@ -52,7 +52,7 @@ dev = [
   "mypy",
   "pillow",
   "pre-commit",
-  "pytest-asyncio",
+  "pytest-asyncio < 0.23.0",
   "pytest",
   "pytest-xdist",
 ]

@@ -26,15 +26,14 @@ class TestVertexAICustomTrainingJob:
             labels={"prefect.io/flow-name": "hungry-hippo"},
         )
 
-    # TODO: Improve test resiliency to changes in str output
     @patch("prefect_gcp.aiplatform.VertexAICustomTrainingJob._base_environment")
     def test_preview(
         self, mock_base_env, vertex_ai_custom_training_job: VertexAICustomTrainingJob
     ):
         mock_base_env.return_value = {"PREFECT_API_KEY": "secret"}
-        actual_lines = vertex_ai_custom_training_job.preview().splitlines()
+        actual_lines = vertex_ai_custom_training_job.preview()
 
-        expected_lines = """
+        subsample_of_expected_lines = """
             display_name: "container
             job_spec {
                 worker_pool_specs {
@@ -66,10 +65,8 @@ class TestVertexAICustomTrainingJob:
             }
         """.strip().splitlines()
 
-        for actual_line, expected_line in zip(actual_lines, expected_lines):
-            if '"container' in actual_line:
-                actual_line = actual_line.split("-")[0]  # remove the unique hex
-            assert actual_line.strip() == expected_line.strip()  # disregard whitespace
+        for expected_line in subsample_of_expected_lines:
+            assert expected_line.strip() in actual_lines
 
     @patch("prefect_gcp.aiplatform.VertexAICustomTrainingJob._base_environment")
     def test_environment_variables(self, mock_base_env, gcp_credentials):

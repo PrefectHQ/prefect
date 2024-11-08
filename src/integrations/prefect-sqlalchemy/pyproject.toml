@@ -41,7 +41,7 @@ dev = [
   "pillow",
   "pre-commit",
   "psycopg2",
-  "pytest-asyncio",
+  "pytest-asyncio < 0.23.0",
   "pytest-xdist",
   "pytest",
 ]
