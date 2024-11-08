@@ -670,9 +670,7 @@ async def test_run_dbt_model_creates_unsuccessful_artifact(
             create_summary_artifact=True,
         )
 
-    with pytest.raises(
-        Exception, match="dbt task result unsuccessful with exception"
-    ):
+    with pytest.raises(Exception, match="dbt task result unsuccessful with exception"):
         await test_flow()
     assert (a := await Artifact.get(key="foo"))
     assert a.type == "markdown"
