@@ -5,7 +5,7 @@ const throwOnError: Middleware = {
 	async onResponse({ response }) {
 		if (!response.ok) {
 			const body = (await response.clone().json()) as Record<string, unknown>;
-			throw new Error((body.detail as string) ?? "Unknown error");
+			throw new Error(body.detail as string | undefined);
 		}
 	},
 };

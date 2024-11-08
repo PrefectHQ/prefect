@@ -5,11 +5,12 @@ import {
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
+	DialogDescription,
+	DialogTrigger,
 } from "@/components/ui/dialog";
 import { zodResolver } from "@hookform/resolvers/zod";
 import CodeMirror, { EditorView } from "@uiw/react-codemirror";
 import { json } from "@codemirror/lang-json";
-import { DialogTrigger } from "@radix-ui/react-dialog";
 import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -26,7 +27,8 @@ import { createQueryService } from "@/api/service";
 import type { components } from "@/api/prefect";
 import type { JSONValue } from "@/lib/types";
 import { Loader2 } from "lucide-react";
-import TagsInput from "../ui/tag-input";
+import { TagsInput } from "../ui/tags-input";
+import { useToast } from "@/hooks/use-toast";
 
 const formSchema = z.object({
 	name: z.string().min(2, { message: "Name must be at least 2 characters" }),
@@ -56,6 +58,7 @@ export const AddVariableDialog = ({
 		resolver: zodResolver(formSchema),
 		defaultValues,
 	});
+	const { toast } = useToast();
 
 	const queryService = createQueryService();
 	const { mutate: createVariable, isPending } = useMutation({
@@ -65,10 +68,16 @@ export const AddVariableDialog = ({
 			});
 		},
 		onSuccess: () => {
+			toast({
+				title: "Variable created",
+			});
 			onClose();
 		},
 		onError: (error) => {
-			form.setError("root", { message: error.message });
+			const message = error.message || "Unknown error while creating variable.";
+			form.setError("root", {
+				message,
+			});
 		},
 	});
 
@@ -96,6 +105,10 @@ export const AddVariableDialog = ({
 				<DialogHeader>
 					<DialogTitle>New Variable</DialogTitle>
 				</DialogHeader>
+				<DialogDescription>
+					Add a new variable by providing a name, value, and optional tags.
+					Values can be any valid JSON value.
+				</DialogDescription>
 				<Form {...form}>
 					<form
 						onSubmit={(e) => void form.handleSubmit(onSubmit)(e)}
@@ -120,9 +133,10 @@ export const AddVariableDialog = ({
 							name="value"
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel>Value</FormLabel>
+									<FormLabel id="value-label">Value</FormLabel>
 									<FormControl>
 										<CodeMirror
+											aria-labelledby="value-label"
 											extensions={[json()]}
 											basicSetup={{
 												foldGutter: false,
