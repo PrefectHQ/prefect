@@ -872,6 +872,15 @@ class BaseWorker(abc.ABC):
                 run_logger.info(
                     f"Worker '{self.name}' submitting flow run '{flow_run.id}'"
                 )
+                if get_current_settings().experiments.worker_logging_to_api_enabled and self.backend_id:
+
+                    worker_path = f"work-pools/work-pool/{self._work_pool_name}/worker/{self.backend_id}"
+                    base_url = get_current_settings().ui_url
+
+                    run_logger.info(
+                        f"Running on worker id: {self.backend_id}. See worker logs here: {base_url}/{worker_path}"
+                    )
+
                 self._submitting_flow_run_ids.add(flow_run.id)
                 self._runs_task_group.start_soon(
                     self._submit_run,
