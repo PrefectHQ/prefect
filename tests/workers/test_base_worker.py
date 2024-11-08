@@ -1895,11 +1895,11 @@ class TestBaseWorkerHeartbeat:
                 "prefect.workers.base.distributions"
             ) as mock_distributions:
                 mock_load_prefect_collections.return_value = {
-                    "prefect-aws": "1.0.0",
+                    "prefect_aws": "1.0.0",
                 }
                 mock_distributions.return_value = [
                     mock.MagicMock(
-                        metadata={"Name": "prefect_aws"},
+                        metadata={"Name": "prefect-aws"},
                         version="1.0.0",
                     )
                 ]
@@ -1916,7 +1916,7 @@ class TestBaseWorkerHeartbeat:
                         "heartbeat_interval_seconds": worker.heartbeat_interval_seconds,
                         "worker_metadata": {
                             "integrations": [
-                                {"name": "prefect_aws", "version": "1.0.0"}
+                                {"name": "prefect-aws", "version": "1.0.0"}
                             ]
                         },
                         "return_id": True,
@@ -1953,7 +1953,7 @@ class TestBaseWorkerHeartbeat:
                 "prefect.workers.base.distributions"
             ) as mock_distributions:
                 mock_load_prefect_collections.return_value = {
-                    "prefect-aws": "1.0.0",
+                    "prefect_aws": "1.0.0",
                 }
                 mock_distributions.return_value = [
                     mock.MagicMock(

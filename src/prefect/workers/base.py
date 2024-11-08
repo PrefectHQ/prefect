@@ -739,7 +739,7 @@ class BaseWorker(abc.ABC):
             for dist in distributions()
             # PyPI packages often use dashes, but Python package names use underscores
             # because they must be valid identifiers.
-            if dist.metadata.get("Name").replace("_", "-") in installed_integrations
+            if dist.metadata.get("Name").replace("-", "_") in installed_integrations
         ]
 
         if integration_versions:
@@ -772,7 +772,7 @@ class BaseWorker(abc.ABC):
             worker_metadata = await self._worker_metadata()
             if worker_metadata:
                 params["worker_metadata"] = worker_metadata
-            self._worker_metadata_sent = True
+                self._worker_metadata_sent = True
 
         worker_id = None
         try:
