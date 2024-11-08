@@ -61,6 +61,7 @@ from prefect.utilities.templating import (
     resolve_block_document_references,
     resolve_variables,
 )
+from prefect.utilities.urls import url_for
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import Flow, FlowRun
@@ -739,7 +740,7 @@ class BaseWorker(abc.ABC):
             for dist in distributions()
             # PyPI packages often use dashes, but Python package names use underscores
             # because they must be valid identifiers.
-            if dist.metadata.get("Name").replace("_", "-") in installed_integrations
+            if dist.metadata.get("Name").replace("-", "_") in installed_integrations
         ]
 
         if integration_versions:
@@ -772,7 +773,7 @@ class BaseWorker(abc.ABC):
             worker_metadata = await self._worker_metadata()
             if worker_metadata:
                 params["worker_metadata"] = worker_metadata
-            self._worker_metadata_sent = True
+                self._worker_metadata_sent = True
 
         worker_id = None
         try:
@@ -872,6 +873,17 @@ class BaseWorker(abc.ABC):
                 run_logger.info(
                     f"Worker '{self.name}' submitting flow run '{flow_run.id}'"
                 )
+                if (
+                    get_current_settings().experiments.worker_logging_to_api_enabled
+                    and self.backend_id
+                ):
+                    worker_path = f"worker/{self.backend_id}"
+                    base_url = url_for("work-pool", self._work_pool.id)
+
+                    run_logger.info(
+                        f"Running on worker id: {self.backend_id}. See worker logs here: {base_url}/{worker_path}"
+                    )
+
                 self._submitting_flow_run_ids.add(flow_run.id)
                 self._runs_task_group.start_soon(
                     self._submit_run,
