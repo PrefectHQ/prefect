@@ -5,8 +5,8 @@ Routes for interacting with variable objects
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import Body, Depends, HTTPException, Path, status
 import sqlalchemy as sa
+from fastapi import Body, Depends, HTTPException, Path, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models
