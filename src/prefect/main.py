@@ -57,6 +57,11 @@ prefect.logging.get_logger("profiles").debug(
     f"Using profile {prefect.context.get_settings_context().profile.name!r}"
 )
 
+# Configure telemetry
+import prefect.telemetry.bootstrap
+
+prefect.telemetry.bootstrap.setup_telemetry()
+
 
 from prefect._internal.compatibility.deprecated import (
     inject_renamed_module_alias_finder,
