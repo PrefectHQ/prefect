@@ -22,7 +22,6 @@ from prefect_dbt.cli.commands import (
     run_dbt_model,
     run_dbt_seed,
     run_dbt_snapshot,
-    run_dbt_source_freshness,
     run_dbt_test,
     trigger_dbt_cli_command,
 )
@@ -652,27 +651,6 @@ async def test_run_dbt_model_creates_artifact(profiles_dir, dbt_cli_profile_bare
     assert "Successful Nodes" in a.data
 
 
-@pytest.mark.usefixtures("dbt_runner_freshness_success")
-async def test_run_dbt_source_freshness_creates_artifact(
-    profiles_dir, dbt_cli_profile_bare
-):
-    @flow
-    async def test_flow():
-        return await run_dbt_source_freshness(
-            profiles_dir=profiles_dir,
-            dbt_cli_profile=dbt_cli_profile_bare,
-            summary_artifact_key="foo",
-            create_summary_artifact=True,
-        )
-
-    await test_flow()
-    assert (a := await Artifact.get(key="foo"))
-    assert a.type == "markdown"
-    assert a.data.startswith("# dbt source freshness Task Summary")
-    assert "my_first_dbt_model" in a.data
-    assert "Successful Nodes" in a.data
-
-
 @pytest.fixture
 def dbt_runner_model_error(monkeypatch, mock_dbt_runner_model_error):
     _mock_dbt_runner_invoke_error = MagicMock(return_value=mock_dbt_runner_model_error)
@@ -699,30 +677,6 @@ async def test_run_dbt_model_creates_unsuccessful_artifact(
     assert (a := await Artifact.get(key="foo"))
     assert a.type == "markdown"
     assert a.data.startswith("# dbt run Task Summary")
-    assert "my_first_dbt_model" in a.data
-    assert "Unsuccessful Nodes" in a.data
-
-
-@pytest.mark.usefixtures("dbt_runner_freshness_error")
-async def test_run_dbt_source_freshness_creates_unsuccessful_artifact(
-    profiles_dir, dbt_cli_profile_bare
-):
-    @flow
-    async def test_flow():
-        return await run_dbt_source_freshness(
-            profiles_dir=profiles_dir,
-            dbt_cli_profile=dbt_cli_profile_bare,
-            summary_artifact_key="foo",
-            create_summary_artifact=True,
-        )
-
-    with pytest.raises(
-        Exception, match="dbt task result success: False with exception: None"
-    ):
-        await test_flow()
-    assert (a := await Artifact.get(key="foo"))
-    assert a.type == "markdown"
-    assert a.data.startswith("# dbt source freshness Task Summary")
     assert "my_first_dbt_model" in a.data
     assert "Unsuccessful Nodes" in a.data
 
