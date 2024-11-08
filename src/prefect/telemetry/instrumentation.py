@@ -32,7 +32,7 @@ WORKSPACES_PREFIX = "workspaces/"
 WORKSPACE_ID_REGEX = f"{WORKSPACES_PREFIX}{UUID_REGEX}"
 
 
-def extract_account_and_workspace_id(url) -> tuple[UUID, UUID]:
+def extract_account_and_workspace_id(url: str) -> tuple[UUID, UUID]:
     account_id, workspace_id = None, None
 
     if res := re.search(ACCOUNT_ID_REGEX, url):
