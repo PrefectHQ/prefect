@@ -864,7 +864,7 @@ def test_login_already_logged_in_to_another_profile_cancel_during_select(respx_m
 
     invoke_and_assert(
         ["cloud", "login"],
-        expected_code=1,
+        expected_code=130,  # assumes typer > 0.13.0
         user_input=(
             # Yes, switch profiles
             "y"
