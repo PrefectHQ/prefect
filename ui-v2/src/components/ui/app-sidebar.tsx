@@ -14,177 +14,61 @@ import { Button } from "@/components/ui/button";
 const navItems = [
 	{
 		key: "dashboard",
-		component: (
-			<Link to="/dashboard">
-				{({ isActive }) => (
-					<SidebarMenuButton asChild isActive={isActive}>
-						<span>Dashboard</span>
-					</SidebarMenuButton>
-				)}
-			</Link>
-		),
+		to: "/dashboard",
+		display: <span>Dashboard</span>,
 	},
 	{
 		key: "runs",
-		component: (
-			<Link to="/runs">
-				{({ isActive }) => (
-					<SidebarMenuButton asChild isActive={isActive}>
-						<span>Runs</span>
-					</SidebarMenuButton>
-				)}
-			</Link>
-		),
+		to: "/runs",
+		display: <span>Runs</span>,
 	},
 	{
 		key: "flows",
-		component: (
-			<Link to="/flows">
-				{({ isActive }) => (
-					<SidebarMenuButton asChild isActive={isActive}>
-						<span>Flows</span>
-					</SidebarMenuButton>
-				)}
-			</Link>
-		),
+		to: "/flows",
+		display: <span>Flows</span>,
 	},
 	{
 		key: "deployments",
-		component: (
-			<Link to="/deployments">
-				{({ isActive }) => (
-					<SidebarMenuButton asChild isActive={isActive}>
-						<span>Deployments</span>
-					</SidebarMenuButton>
-				)}
-			</Link>
-		),
+		to: "/deployments",
+		display: <span>Deployments</span>,
 	},
 	{
 		key: "work-pools",
-		component: (
-			<Link to="/work-pools">
-				{({ isActive }) => (
-					<SidebarMenuButton asChild isActive={isActive}>
-						<span>Work Pools</span>
-					</SidebarMenuButton>
-				)}
-			</Link>
-		),
+		to: "/work-pools",
+		display: <span>Work Pools</span>,
 	},
 	{
 		key: "blocks",
-		component: (
-			<Link to="/blocks">
-				{({ isActive }) => (
-					<SidebarMenuButton asChild isActive={isActive}>
-						<span>Blocks</span>
-					</SidebarMenuButton>
-				)}
-			</Link>
-		),
+		to: "/blocks",
+		display: <span>Blocks</span>,
 	},
 	{
 		key: "variables",
-		component: (
-			<Link to="/variables">
-				{({ isActive }) => (
-					<SidebarMenuButton asChild isActive={isActive}>
-						<span>Variables</span>
-					</SidebarMenuButton>
-				)}
-			</Link>
-		),
+		to: "/variables",
+		display: <span>Variables</span>,
 	},
 	{
 		key: "automations",
-		component: (
-			<Link to="/automations">
-				{({ isActive }) => (
-					<SidebarMenuButton asChild isActive={isActive}>
-						<span>Automations</span>
-					</SidebarMenuButton>
-				)}
-			</Link>
-		),
+		to: "/automations",
+		display: <span>Automations</span>,
 	},
 	{
 		key: "event-feed",
-		component: (
-			<Link to="/events">
-				{({ isActive }) => (
-					<SidebarMenuButton asChild isActive={isActive}>
-						<span>Event Feed</span>
-					</SidebarMenuButton>
-				)}
-			</Link>
-		),
+		to: "/events",
+		display: <span>Event Feed</span>,
 	},
 	{
 		key: "notifications",
-		component: (
-			<Link to="/notifications">
-				{({ isActive }) => (
-					<SidebarMenuButton asChild isActive={isActive}>
-						<span>Notifications</span>
-					</SidebarMenuButton>
-				)}
-			</Link>
-		),
+		to: "/notifications",
+		display: <span>Notifications</span>,
 	},
 	{
 		key: "concurrency-limits",
-		component: (
-			<Link to="/concurrency-limits">
-				{({ isActive }) => (
-					<SidebarMenuButton asChild isActive={isActive}>
-						<span>Concurrency</span>
-					</SidebarMenuButton>
-				)}
-			</Link>
-		),
+		to: "/concurrency-limits",
+		display: <span>Concurrency</span>,
 	},
 ] as const;
 
-const footerItems = [
-	{
-		key: "upgrade",
-		component: (
-			<a
-				href="https://prefect.io/cloud-vs-oss?utm_source=oss&utm_medium=oss&utm_campaign=oss&utm_term=none&utm_content=none"
-				target="_blank"
-				rel="noreferrer"
-			>
-				<SidebarMenuButton asChild>
-					<div className="flex items-center justify-between">
-						<span>Ready to scale?</span>
-						<Button size="sm">Upgrade</Button>
-					</div>
-				</SidebarMenuButton>
-			</a>
-		),
-	},
-	{
-		key: "community",
-		component: (
-			<SidebarMenuButton asChild>
-				<span>Join the community</span>
-			</SidebarMenuButton>
-		),
-	},
-	{
-		key: "settings",
-		component: (
-			<Link to="/settings">
-				{({ isActive }) => (
-					<SidebarMenuButton asChild isActive={isActive}>
-						<span>Settings</span>
-					</SidebarMenuButton>
-				)}
-			</Link>
-		),
-	},
-];
 
 export function AppSidebar() {
 	return (
@@ -222,16 +106,49 @@ export function AppSidebar() {
 				<SidebarGroup>
 					<SidebarMenu>
 						{navItems.map((item) => (
-							<SidebarMenuItem key={item.key}>{item.component}</SidebarMenuItem>
+							<SidebarMenuItem key={item.key}>
+								<Link to={item.to}>
+									{({ isActive }) => (
+										<SidebarMenuButton asChild isActive={isActive}>
+											{item.display}
+										</SidebarMenuButton>
+									)}
+								</Link>
+							</SidebarMenuItem>
 						))}
 					</SidebarMenu>
 				</SidebarGroup>
 			</SidebarContent>
 			<SidebarFooter>
 				<SidebarMenu>
-					{footerItems.map((item) => (
-						<SidebarMenuItem key={item.key}>{item.component}</SidebarMenuItem>
-					))}
+					<SidebarMenuItem>
+						<a
+							href="https://prefect.io/cloud-vs-oss?utm_source=oss&utm_medium=oss&utm_campaign=oss&utm_term=none&utm_content=none"
+							target="_blank"
+							rel="noreferrer"
+						>
+							<SidebarMenuButton asChild>
+								<div className="flex items-center justify-between">
+									<span>Ready to scale?</span>
+									<Button size="sm">Upgrade</Button>
+								</div>
+							</SidebarMenuButton>
+						</a>
+					</SidebarMenuItem>
+					<SidebarMenuItem>
+						<SidebarMenuButton asChild>
+							<span>Join the community</span>
+						</SidebarMenuButton>
+					</SidebarMenuItem>
+					<SidebarMenuItem>
+						<Link to="/settings">
+							{({ isActive }) => (
+								<SidebarMenuButton asChild isActive={isActive}>
+									<span>Settings</span>
+								</SidebarMenuButton>
+							)}
+						</Link>
+					</SidebarMenuItem>
 				</SidebarMenu>
 			</SidebarFooter>
 		</Sidebar>
