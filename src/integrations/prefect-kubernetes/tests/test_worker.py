@@ -2739,32 +2739,44 @@ class TestKubernetesWorker:
 
             assert result.status_code == -1
 
-        async def test_watch_handles_410(
+        async def test_watch_handles_410_api_exception(
             self,
-            default_configuration: KubernetesWorkerJobConfiguration,
             flow_run,
-            mock_batch_client,
+            default_configuration,
             mock_core_client,
             mock_watch,
-            mock_job,
+            mock_batch_client,
             mock_pod,
+            mock_job,
         ):
             async def mock_stream(*args, **kwargs):
-                mock_job.status.completion_time = pendulum.now("utc").timestamp()
-                items = [
-                    {"object": mock_pod, "type": "MODIFIED"},
-                    {"object": mock_job, "type": "MODIFIED"},
-                ]
-                for item in items:
-                    yield item
+                if kwargs["func"] == mock_core_client.return_value.list_namespaced_pod:
+                    yield {"object": mock_pod, "type": "ADDED"}
 
-            stream_return = [
-                mock_stream(),
-                mock_stream(),
-                ApiException(status=410),
-                mock_stream(),
-            ]
-            mock_watch.return_value.stream = mock.Mock(side_effect=stream_return)
+                if kwargs["func"] == mock_batch_client.return_value.list_namespaced_job:
+                    # don't let the job finish until the second watch
+                    if not kwargs.get("resource_version"):
+                        mock_job.status.completion_time = None
+                    else:
+                        mock_job.status.completion_time = True
+
+                    mock_job.status.failed = 0
+                    mock_job.spec.backoff_limit = 6
+
+                    items = [
+                        {"object": mock_job, "type": "ADDED"},
+                        {"object": mock_job, "type": "MODIFIED"},
+                        {"object": mock_job, "type": "UPDATED"},
+                    ]
+                    for item in items:
+                        if item["type"] == "UPDATED" and not kwargs.get(
+                            "resource_version"
+                        ):
+                            raise ApiException(status=410)
+                        else:
+                            yield item
+
+            mock_watch.return_value.stream = mock.Mock(side_effect=mock_stream)
             job_list = MagicMock(spec=kubernetes_asyncio.client.V1JobList)
             job_list.metadata.resource_version = "1"
 
