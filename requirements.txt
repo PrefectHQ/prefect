@@ -16,4 +16,4 @@ opentelemetry-api >= 1.27.0, < 2.0.0
 pytz >= 2021.1, < 2025
 readchar >= 4.0.0, < 5.0.0
 sqlalchemy[asyncio] >= 2.0, < 3.0.0
-typer >= 0.12.0, != 0.12.2, < 0.13.0
+typer >= 0.12.0, != 0.12.2, < 0.14.0
