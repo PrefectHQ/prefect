@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import yaml
 from dbt.cli.main import dbtRunner, dbtRunnerResult
-from dbt.contracts.results import NodeStatus, RunExecutionResult
+from dbt.contracts.results import ExecutionResult, NodeStatus
 from prefect_shell.commands import ShellOperation
 from pydantic import VERSION as PYDANTIC_VERSION
 
@@ -191,7 +191,7 @@ async def trigger_dbt_cli_command(
         raise result.exception
 
     # Creating the dbt Summary Markdown if enabled
-    if create_summary_artifact and isinstance(result.result, RunExecutionResult):
+    if create_summary_artifact and isinstance(result.result, ExecutionResult):
         run_results = consolidate_run_results(result)
         markdown = create_summary_markdown(run_results, command)
         artifact_id = await create_markdown_artifact(
@@ -208,11 +208,11 @@ async def trigger_dbt_cli_command(
         logger.debug(
             f"Artifacts were not created for dbt {command} this task \
                      due to create_artifact=False or the dbt command did not \
-                     return any RunExecutionResults. \
+                     return any ExecutionResult. \
                      See https://docs.getdbt.com/reference/programmatic-invocations \
                      for more details on dbtRunnerResult."
         )
-    if isinstance(result.result, RunExecutionResult) and not result.success:
+    if isinstance(result.result, ExecutionResult) and not result.success:
         return Failed(
             message=f"dbt task result unsuccessful with exception: {result.exception}"
         )

@@ -223,14 +223,14 @@ class TestShellOperation:
         )
         assert open_process_mock.call_args_list[0][0][0][0] == "powershell"
 
-    async def test_context_manager(self):
+    async def test_async_context_manager(self):
         async with ShellOperation(commands=["echo 'testing'"]) as op:
             proc = await op.trigger()
             await proc.wait_for_completion()
-            await proc.fetch_result() == ["testing"]
+            assert await proc.fetch_result() == ["testing"]
 
-    def test_async_context_manager(self):
+    def test_context_manager(self):
         with ShellOperation(commands=["echo 'testing'"]) as op:
             proc = op.trigger()
             proc.wait_for_completion()
-            proc.fetch_result() == ["testing"]
+            assert proc.fetch_result() == ["testing"]
