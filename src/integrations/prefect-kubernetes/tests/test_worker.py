@@ -2766,10 +2766,10 @@ class TestKubernetesWorker:
                     items = [
                         {"object": mock_job, "type": "ADDED"},
                         {"object": mock_job, "type": "MODIFIED"},
-                        {"object": mock_job, "type": "UPDATED"},
+                        {"object": mock_job, "type": "ERROR"},
                     ]
                     for item in items:
-                        if item["type"] == "UPDATED" and not kwargs.get(
+                        if item["type"] == "ERROR" and not kwargs.get(
                             "resource_version"
                         ):
                             raise ApiException(status=410)
