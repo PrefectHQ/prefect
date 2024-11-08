@@ -60,7 +60,7 @@ dev = [
   "prefect-gcp[bigquery]>=0.1.8",
   "prefect-snowflake>=0.2.4",
   "prefect-sqlalchemy>=0.2.1",
-  "pytest-asyncio",
+  "pytest-asyncio < 0.23.0",
   "pytest-xdist",
   "pytest",
   "respx",

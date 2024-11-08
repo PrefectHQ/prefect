@@ -64,7 +64,7 @@ dev = [
   "pillow",
   "pre-commit",
   "pyarrow",
-  "pytest-asyncio",
+  "pytest-asyncio < 0.23.0",
   "pytest-xdist",
   "pytest",
 ]
