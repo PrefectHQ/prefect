@@ -44,11 +44,11 @@ all_extras = [
   "google-cloud-bigquery",
   "google-cloud-bigquery-storage",
   "google-cloud-secret-manager",
-  "google-cloud-aiplatform",
+  "google-cloud-aiplatform < 1.71.1",
 ]
 dev = [
   "coverage",
-  "google-cloud-aiplatform",
+  "google-cloud-aiplatform < 1.71.1",
   "google-cloud-bigquery-storage",
   "google-cloud-bigquery",
   "google-cloud-secret-manager",
