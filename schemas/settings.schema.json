@@ -327,6 +327,15 @@
                     ],
                     "title": "Worker Logging To Api Enabled",
                     "type": "boolean"
+                },
+                "telemetry_enabled": {
+                    "default": false,
+                    "description": "Enables sending telemetry to Prefect Cloud.",
+                    "supported_environment_variables": [
+                        "PREFECT_EXPERIMENTS_TELEMETRY_ENABLED"
+                    ],
+                    "title": "Telemetry Enabled",
+                    "type": "boolean"
                 }
             },
             "title": "ExperimentsSettings",
