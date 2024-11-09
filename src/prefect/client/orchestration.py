@@ -2617,8 +2617,6 @@ class PrefectClient:
         if get_worker_id:
             params["return_id"] = get_worker_id
 
-        print(f"params: {params}")
-
         resp = await self._client.post(
             f"/work_pools/{work_pool_name}/workers/heartbeat",
             json=params,
