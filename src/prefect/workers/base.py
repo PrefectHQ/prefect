@@ -740,7 +740,8 @@ class BaseWorker(abc.ABC):
             for dist in distributions()
             # PyPI packages often use dashes, but Python package names use underscores
             # because they must be valid identifiers.
-            if dist.metadata.get("Name").replace("-", "_") in installed_integrations
+            if (name := dist.metadata.get("Name"))
+            and (name.replace("-", "_") in installed_integrations)
         ]
 
         if integration_versions:
