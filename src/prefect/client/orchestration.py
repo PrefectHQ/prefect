@@ -2613,9 +2613,11 @@ class PrefectClient:
             "heartbeat_interval_seconds": heartbeat_interval_seconds,
         }
         if worker_metadata:
-            params["worker_metadata"] = worker_metadata.model_dump(mode="json")
+            params["metadata"] = worker_metadata.model_dump(mode="json")
         if get_worker_id:
             params["return_id"] = get_worker_id
+
+        print(f"params: {params}")
 
         resp = await self._client.post(
             f"/work_pools/{work_pool_name}/workers/heartbeat",
