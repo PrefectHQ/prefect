@@ -1762,6 +1762,7 @@ def load_flow_from_entrypoint(
 
     return flow
 
+
 @sync_compatible
 async def serve(
     *args: "RunnerDeployment",
