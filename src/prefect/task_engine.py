@@ -1344,7 +1344,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         async with self.initialize_run(
             task_run_id=task_run_id, dependencies=dependencies
         ):
-            with trace.use_span(self.span):
+            with trace.use_span(self._span):
                 await self.begin_run()
                 try:
                     yield
