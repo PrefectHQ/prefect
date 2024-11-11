@@ -1,5 +1,5 @@
 import { components } from "@/api/prefect";
-import { QueryService } from "@/api/service";
+import { createQueryService } from "@/api/service";
 import {
 	MutationFunction,
 	QueryFunction,
@@ -18,9 +18,11 @@ export const flowQueryParams = (
 	...queryParams,
 	queryKey: ["flows", flowId] as const,
 	queryFn: async (): Promise<components["schemas"]["Flow"]> => {
-		const response = await QueryService.GET("/flows/{id}", {
-			params: { path: { id: flowId } },
-		}).then((response) => response.data);
+		const response = await createQueryService()
+			.GET("/flows/{id}", {
+				params: { path: { id: flowId } },
+			})
+			.then((response) => response.data);
 		return response as components["schemas"]["Flow"];
 	},
 });
@@ -36,12 +38,18 @@ export const flowRunsQueryParams = (
 	...queryParams,
 	queryKey: ["flowRun", JSON.stringify({ flowId: id, ...body })] as const,
 	queryFn: async () => {
-		const response = await QueryService.POST("/flow_runs/filter", {
-			body: {
-				...body,
-				flows: { ...body.flows, operator: "and_" as const, id: { any_: [id] } },
-			},
-		}).then((response) => response.data);
+		const response = await createQueryService()
+			.POST("/flow_runs/filter", {
+				body: {
+					...body,
+					flows: {
+						...body.flows,
+						operator: "and_" as const,
+						id: { any_: [id] },
+					},
+				},
+			})
+			.then((response) => response.data);
 		return response as components["schemas"]["FlowRunResponse"][];
 	},
 });
@@ -65,21 +73,23 @@ export const getLatestFlowRunsQueryParams = (
 		}),
 	] as const,
 	queryFn: async () => {
-		const response = await QueryService.POST("/flow_runs/filter", {
-			body: {
-				flows: { operator: "and_" as const, id: { any_: [id] } },
-				flow_runs: {
-					operator: "and_" as const,
-					start_time: {
-						before_: format(new Date(), "yyyy-MM-dd'T'HH:mm:ss'Z'"),
-						is_null_: false,
+		const response = await createQueryService()
+			.POST("/flow_runs/filter", {
+				body: {
+					flows: { operator: "and_" as const, id: { any_: [id] } },
+					flow_runs: {
+						operator: "and_" as const,
+						start_time: {
+							before_: format(new Date(), "yyyy-MM-dd'T'HH:mm:ss'Z'"),
+							is_null_: false,
+						},
 					},
+					offset: 0,
+					limit: n,
+					sort: "START_TIME_DESC",
 				},
-				offset: 0,
-				limit: n,
-				sort: "START_TIME_DESC",
-			},
-		}).then((response) => response.data);
+			})
+			.then((response) => response.data);
 		return response as components["schemas"]["FlowRunResponse"][];
 	},
 });
@@ -103,20 +113,22 @@ export const getNextFlowRunsQueryParams = (
 		}),
 	] as const,
 	queryFn: async () => {
-		const response = await QueryService.POST("/flow_runs/filter", {
-			body: {
-				flows: { operator: "and_" as const, id: { any_: [id] } },
-				flow_runs: {
-					operator: "and_" as const,
-					expected_start_time: {
-						after_: format(new Date(), "yyyy-MM-dd'T'HH:mm:ss'Z'"),
+		const response = await createQueryService()
+			.POST("/flow_runs/filter", {
+				body: {
+					flows: { operator: "and_" as const, id: { any_: [id] } },
+					flow_runs: {
+						operator: "and_" as const,
+						expected_start_time: {
+							after_: format(new Date(), "yyyy-MM-dd'T'HH:mm:ss'Z'"),
+						},
 					},
+					offset: 0,
+					limit: n,
+					sort: "EXPECTED_START_TIME_ASC",
 				},
-				offset: 0,
-				limit: n,
-				sort: "EXPECTED_START_TIME_ASC",
-			},
-		}).then((response) => response.data);
+			})
+			.then((response) => response.data);
 		return response as components["schemas"]["FlowRunResponse"][];
 	},
 });
@@ -132,23 +144,25 @@ export const flowRunsCountQueryParams = (
 	...queryParams,
 	queryKey: ["flowRunCount", JSON.stringify({ flowId: id, ...body })] as const,
 	queryFn: async () => {
-		const response = await QueryService.POST("/flow_runs/count", {
-			body: {
-				...body,
-				flows: {
-					...body?.flows,
-					operator: "and_" as const,
-					id: { any_: [id] },
-				},
-				flow_runs: {
-					operator: "and_" as const,
-					expected_start_time: {
-						before_: format(new Date(), "yyyy-MM-dd'T'HH:mm:ss'Z'"),
+		const response = await createQueryService()
+			.POST("/flow_runs/count", {
+				body: {
+					...body,
+					flows: {
+						...body?.flows,
+						operator: "and_" as const,
+						id: { any_: [id] },
 					},
-					...body?.flow_runs,
+					flow_runs: {
+						operator: "and_" as const,
+						expected_start_time: {
+							before_: format(new Date(), "yyyy-MM-dd'T'HH:mm:ss'Z'"),
+						},
+						...body?.flow_runs,
+					},
 				},
-			},
-		}).then((response) => response.data);
+			})
+			.then((response) => response.data);
 		return response as number;
 	},
 });
@@ -164,16 +178,18 @@ export const deploymentsQueryParams = (
 	...queryParams,
 	queryKey: ["deployments", JSON.stringify({ ...body, flowId: id })] as const,
 	queryFn: async () => {
-		const response = await QueryService.POST("/deployments/filter", {
-			body: {
-				...body,
-				flows: {
-					...body?.flows,
-					operator: "and_" as const,
-					id: { any_: [id] },
+		const response = await createQueryService()
+			.POST("/deployments/filter", {
+				body: {
+					...body,
+					flows: {
+						...body?.flows,
+						operator: "and_" as const,
+						id: { any_: [id] },
+					},
 				},
-			},
-		}).then((response) => response.data);
+			})
+			.then((response) => response.data);
 		return response as components["schemas"]["DeploymentResponse"][];
 	},
 });
@@ -188,9 +204,11 @@ export const deploymentsCountQueryParams = (
 	...queryParams,
 	queryKey: ["deploymentsCount", JSON.stringify({ flowId: id })] as const,
 	queryFn: async () => {
-		const response = await QueryService.POST("/deployments/count", {
-			body: { flows: { operator: "and_" as const, id: { any_: [id] } } },
-		}).then((response) => response.data);
+		const response = await createQueryService()
+			.POST("/deployments/count", {
+				body: { flows: { operator: "and_" as const, id: { any_: [id] } } },
+			})
+			.then((response) => response.data);
 		return response as number;
 	},
 });
@@ -201,7 +219,9 @@ export const deleteFlowMutation = (
 	mutationFn: MutationFunction<void>;
 } => ({
 	mutationFn: async () => {
-		await QueryService.DELETE("/flows/{id}", { params: { path: { id } } });
+		await createQueryService().DELETE("/flows/{id}", {
+			params: { path: { id } },
+		});
 	},
 });
 
