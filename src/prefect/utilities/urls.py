@@ -22,7 +22,6 @@ logger = get_logger("utilities.urls")
 
 # The following objects are excluded from UI URL generation because we lack a
 # directly-addressable URL:
-#   worker
 #   artifact
 #   variable
 #   saved-search
