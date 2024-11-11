@@ -37,7 +37,7 @@ UI_URL_FORMATS = {
     "deployment": "deployments/deployment/{obj_id}",
     "automation": "automations/automation/{obj_id}",
     "received-event": "events/event/{occurred}/{obj_id}",
-    "worker": "work-pools/work-pool/{obj_id}/worker/{worker_id}",
+    "worker": "work-pools/work-pool/{work_pool_name}/worker/{obj_id}",
 }
 
 # The following objects are excluded from API URL generation because we lack a
