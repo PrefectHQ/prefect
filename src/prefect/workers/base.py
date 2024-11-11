@@ -880,16 +880,16 @@ class BaseWorker(abc.ABC):
                 ):
                     try:
                         worker_url = url_for(
-                            "worker",  obj_id=self.backend_id, work_pool_name=self._work_pool_name
+                            "worker",
+                            obj_id=self.backend_id,
+                            work_pool_name=self._work_pool_name,
                         )
 
                         run_logger.info(
                             f"Running on worker id: {self.backend_id}. See worker logs here: {worker_url}"
                         )
                     except ValueError as ve:
-                        run_logger.warning(
-                            f"Failed to generate worker URL: {ve}"
-                        )
+                        run_logger.warning(f"Failed to generate worker URL: {ve}")
 
                 self._submitting_flow_run_ids.add(flow_run.id)
                 self._runs_task_group.start_soon(
