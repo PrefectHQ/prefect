@@ -134,7 +134,7 @@ def url_for(
     obj_id: Optional[Union[str, UUID]] = None,
     url_type: URLType = "ui",
     default_base_url: Optional[str] = None,
-    **additional_format_kwargs: Optional[Dict[str, Any]]
+    **additional_format_kwargs: Optional[Dict[str, Any]],
 ) -> Optional[str]:
     """
     Returns the URL for a Prefect object.

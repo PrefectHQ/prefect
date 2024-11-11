@@ -878,7 +878,9 @@ class BaseWorker(abc.ABC):
                     get_current_settings().experiments.worker_logging_to_api_enabled
                     and self.backend_id
                 ):
-                    worker_url = url_for("worker", self._work_pool.name,worker_id=self.backend_id)
+                    worker_url = url_for(
+                        "worker", self._work_pool.name, worker_id=self.backend_id
+                    )
 
                     run_logger.info(
                         f"Running on worker id: {self.backend_id}. See worker logs here: {worker_url}"
