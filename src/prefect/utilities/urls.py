@@ -2,7 +2,8 @@ import inspect
 import ipaddress
 import socket
 import urllib.parse
-from typing import TYPE_CHECKING, Any, Literal, Optional, Union
+from string import Formatter
+from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Union
 from urllib.parse import urlparse
 from uuid import UUID
 
@@ -22,7 +23,6 @@ logger = get_logger("utilities.urls")
 
 # The following objects are excluded from UI URL generation because we lack a
 # directly-addressable URL:
-#   worker
 #   artifact
 #   variable
 #   saved-search
@@ -38,6 +38,7 @@ UI_URL_FORMATS = {
     "deployment": "deployments/deployment/{obj_id}",
     "automation": "automations/automation/{obj_id}",
     "received-event": "events/event/{occurred}/{obj_id}",
+    "worker": "work-pools/work-pool/{work_pool_name}/worker/{obj_id}",
 }
 
 # The following objects are excluded from API URL generation because we lack a
@@ -134,6 +135,7 @@ def url_for(
     obj_id: Optional[Union[str, UUID]] = None,
     url_type: URLType = "ui",
     default_base_url: Optional[str] = None,
+    **additional_format_kwargs: Optional[Dict[str, Any]],
 ) -> Optional[str]:
     """
     Returns the URL for a Prefect object.
@@ -149,6 +151,8 @@ def url_for(
             Whether to return the URL for the UI (default) or API.
         default_base_url (str, optional):
             The default base URL to use if no URL is configured.
+        additional_format_kwargs (Dict[str, Any], optional):
+            Additional keyword arguments to pass to the URL format.
 
     Returns:
         Optional[str]: The URL for the given object or None if the object is not supported.
@@ -246,7 +250,18 @@ def url_for(
             occurred=obj.occurred.strftime("%Y-%m-%d"), obj_id=obj_id
         )
     else:
-        url = url_format.format(obj_id=obj_id)
+        obj_keys = [
+            fname
+            for _, fname, _, _ in Formatter().parse(url_format)
+            if fname is not None and fname != "obj_id"
+        ]
+
+        if not all(key in additional_format_kwargs for key in obj_keys):
+            raise ValueError(
+                f"Unable to generate URL for {name} because the following keys are missing: {', '.join(obj_keys)}"
+            )
+
+        url = url_format.format(obj_id=obj_id, **additional_format_kwargs)
 
     if not base_url.endswith("/"):
         base_url += "/"
