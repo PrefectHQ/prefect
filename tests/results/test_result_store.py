@@ -16,6 +16,7 @@ from prefect.settings import (
     PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_RESULTS_DEFAULT_SERIALIZER,
     PREFECT_RESULTS_PERSIST_BY_DEFAULT,
+    PREFECT_TASKS_DEFAULT_PERSIST_RESULT,
     temporary_settings,
 )
 from prefect.testing.utilities import assert_blocks_equal
@@ -439,6 +440,55 @@ def test_task_default_persist_result_can_be_overriden_by_setting():
         persist_result = foo()
 
     assert persist_result is True
+
+    with temporary_settings({PREFECT_TASKS_DEFAULT_PERSIST_RESULT: True}):
+        persist_result = bar()
+
+    assert persist_result is True
+
+
+async def test_task_can_opt_out_of_result_persistence_with_setting():
+    with temporary_settings({PREFECT_TASKS_DEFAULT_PERSIST_RESULT: True}):
+
+        @task(persist_result=False)
+        def bar():
+            return should_persist_result()
+
+        persist_result = bar()
+        assert persist_result is False
+
+        async def abar():
+            return should_persist_result()
+
+        persist_result = await abar()
+        assert persist_result is False
+
+
+async def test_can_opt_out_of_result_persistence_with_setting_when_flow_uses_feature():
+    with temporary_settings({PREFECT_TASKS_DEFAULT_PERSIST_RESULT: False}):
+
+        @flow(persist_result=True)
+        def foo():
+            return bar()
+
+        @task
+        def bar():
+            return should_persist_result()
+
+        persist_result = foo()
+
+        assert persist_result is False
+
+        @flow(persist_result=True)
+        async def afoo():
+            return await abar()
+
+        @task
+        async def abar():
+            return should_persist_result()
+
+        persist_result = await afoo()
+        assert persist_result is False
 
 
 def test_nested_flow_custom_persist_setting():

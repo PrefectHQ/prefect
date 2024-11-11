@@ -257,10 +257,10 @@ async def exception_to_failed_state(
         if write_result:
             try:
                 await result_store.apersist_result_record(data)
-            except Exception as exc:
+            except Exception as nested_exc:
                 local_logger.warning(
                     "Failed to write result: %s Execution will continue, but the result has not been written",
-                    exc,
+                    nested_exc,
                 )
     else:
         # Attach the exception for local usage, will not be available when retrieved
