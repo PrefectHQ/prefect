@@ -11,12 +11,14 @@ from pydantic import (
 )
 from pydantic_settings import (
     BaseSettings,
+    DotEnvSettingsSource,
     PydanticBaseSettingsSource,
     SettingsConfigDict,
 )
 
 from prefect.settings.sources import (
     EnvFilterSettingsSource,
+    FilteredDotEnvSettingsSource,
     PrefectTomlConfigSettingsSource,
     ProfileSettingsTomlLoader,
     PyprojectTomlConfigSettingsSource,
@@ -62,7 +64,18 @@ class PrefectBaseSettings(BaseSettings):
                 env_parse_enums=cls.model_config.get("env_parse_enums"),
                 env_filter=list(env_filter),
             ),
-            dotenv_settings,
+            FilteredDotEnvSettingsSource(
+                settings_cls,
+                env_file=cls.model_config.get("env_file"),
+                env_file_encoding=cls.model_config.get("env_file_encoding"),
+                case_sensitive=cls.model_config.get("case_sensitive"),
+                env_prefix=cls.model_config.get("env_prefix"),
+                env_nested_delimiter=cls.model_config.get("env_nested_delimiter"),
+                env_ignore_empty=cls.model_config.get("env_ignore_empty"),
+                env_parse_none_str=cls.model_config.get("env_parse_none_str"),
+                env_parse_enums=cls.model_config.get("env_parse_enums"),
+                env_blacklist=list(env_filter),
+            ),
             file_secret_settings,
             PrefectTomlConfigSettingsSource(settings_cls),
             PyprojectTomlConfigSettingsSource(settings_cls),
@@ -90,9 +103,9 @@ class PrefectBaseSettings(BaseSettings):
                 )
                 env_variables.update(child_env)
             elif (value := env.get(key)) is not None:
-                env_variables[
-                    f"{self.model_config.get('env_prefix')}{key.upper()}"
-                ] = str(value)
+                env_variables[f"{self.model_config.get('env_prefix')}{key.upper()}"] = (
+                    str(value)
+                )
         return env_variables
 
     @model_serializer(
