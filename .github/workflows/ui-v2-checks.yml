@@ -54,3 +54,7 @@ jobs:
       - name: Build UI
         working-directory: ./ui-v2
         run: npm run build
+
+      - name: Run tests
+        working-directory: ./ui-v2
+        run: npm run test
