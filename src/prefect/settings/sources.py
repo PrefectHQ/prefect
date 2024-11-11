@@ -4,6 +4,7 @@ import warnings
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Type
 
+import dotenv
 import toml
 from pydantic import AliasChoices
 from pydantic.fields import FieldInfo
@@ -15,6 +16,7 @@ from pydantic_settings import (
 from pydantic_settings.sources import ConfigFileSourceMixin
 
 from prefect.settings.constants import DEFAULT_PREFECT_HOME, DEFAULT_PROFILES_PATH
+from prefect.utilities.collections import get_from_dict
 
 
 class EnvFilterSettingsSource(EnvSettingsSource):
@@ -144,26 +146,11 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
 DEFAULT_PREFECT_TOML_PATH = Path("prefect.toml")
 
 
-class PrefectTomlConfigSettingsSource(
-    PydanticBaseSettingsSource, ConfigFileSourceMixin
-):
-    """Custom pydantic settings source to load settings from a prefect.toml file"""
-
-    def __init__(
-        self,
-        settings_cls: Type[BaseSettings],
-    ):
+class TomlConfigSettingsSourceBase(PydanticBaseSettingsSource, ConfigFileSourceMixin):
+    def __init__(self, settings_cls: Type[BaseSettings]):
         super().__init__(settings_cls)
         self.settings_cls = settings_cls
-        self.toml_file_path = settings_cls.model_config.get(
-            "toml_file", DEFAULT_PREFECT_TOML_PATH
-        )
-        self.toml_data = self._read_files(self.toml_file_path)
-        self.toml_table_header = settings_cls.model_config.get(
-            "prefect_toml_table_header", tuple()
-        )
-        for key in self.toml_table_header:
-            self.toml_data = self.toml_data.get(key, {})
+        self.toml_data = {}
 
     def _read_file(self, path: Path) -> Dict[str, Any]:
         return toml.load(path)
@@ -192,6 +179,42 @@ class PrefectTomlConfigSettingsSource(
         return toml_setings
 
 
+class PrefectTomlConfigSettingsSource(TomlConfigSettingsSourceBase):
+    """Custom pydantic settings source to load settings from a prefect.toml file"""
+
+    def __init__(
+        self,
+        settings_cls: Type[BaseSettings],
+    ):
+        super().__init__(settings_cls)
+        self.toml_file_path = settings_cls.model_config.get(
+            "toml_file", DEFAULT_PREFECT_TOML_PATH
+        )
+        self.toml_data = self._read_files(self.toml_file_path)
+        self.toml_table_header = settings_cls.model_config.get(
+            "prefect_toml_table_header", tuple()
+        )
+        for key in self.toml_table_header:
+            self.toml_data = self.toml_data.get(key, {})
+
+
+class PyprojectTomlConfigSettingsSource(TomlConfigSettingsSourceBase):
+    """Custom pydantic settings source to load settings from a pyproject.toml file"""
+
+    def __init__(
+        self,
+        settings_cls: Type[BaseSettings],
+    ):
+        super().__init__(settings_cls)
+        self.toml_file_path = Path("pyproject.toml")
+        self.toml_data = self._read_files(self.toml_file_path)
+        self.toml_table_header = settings_cls.model_config.get(
+            "pyproject_toml_table_header", ("tool", "prefect")
+        )
+        for key in self.toml_table_header:
+            self.toml_data = self.toml_data.get(key, {})
+
+
 def _is_test_mode() -> bool:
     """Check if the current process is in test mode."""
     return bool(
@@ -209,6 +232,25 @@ def _get_profiles_path() -> Path:
         return DEFAULT_PROFILES_PATH
     if env_path := os.getenv("PREFECT_PROFILES_PATH"):
         return Path(env_path)
+    if dotenv_path := dotenv.dotenv_values(".env").get("PREFECT_PROFILES_PATH"):
+        return Path(dotenv_path)
+    if toml_path := _get_profiles_path_from_toml("prefect.toml", ["profiles_path"]):
+        return Path(toml_path)
+    if pyproject_path := _get_profiles_path_from_toml(
+        "pyproject.toml", ["tool", "prefect", "profiles_path"]
+    ):
+        return Path(pyproject_path)
     if not (DEFAULT_PREFECT_HOME / "profiles.toml").exists():
         return DEFAULT_PROFILES_PATH
     return DEFAULT_PREFECT_HOME / "profiles.toml"
+
+
+def _get_profiles_path_from_toml(path: str, keys: List[str]) -> Optional[str]:
+    """Helper to get the profiles path from a toml file."""
+
+    try:
+        toml_data = toml.load(path)
+    except FileNotFoundError:
+        return None
+
+    return get_from_dict(toml_data, keys)

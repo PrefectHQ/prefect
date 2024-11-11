@@ -178,7 +178,6 @@ SUPPORTED_SETTINGS = {
     "PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH": {"test_value": 10, "legacy": True},
     "PREFECT_API_TLS_INSECURE_SKIP_VERIFY": {"test_value": True},
     "PREFECT_API_URL": {"test_value": "https://api.prefect.io"},
-    "PREFECT_ASYNC_FETCH_STATE_RESULT": {"test_value": True},
     "PREFECT_CLIENT_CSRF_SUPPORT_ENABLED": {"test_value": True},
     "PREFECT_CLIENT_ENABLE_METRICS": {"test_value": True, "legacy": True},
     "PREFECT_CLIENT_MAX_RETRIES": {"test_value": 3},
@@ -227,7 +226,10 @@ SUPPORTED_SETTINGS = {
         "legacy": True,
     },
     "PREFECT_EVENTS_WEBSOCKET_BACKFILL_PAGE_SIZE": {"test_value": 10, "legacy": True},
-    "PREFECT_EXPERIMENTAL_WARN": {"test_value": True},
+    "PREFECT_EXPERIMENTAL_WARN": {"test_value": True, "legacy": True},
+    "PREFECT_EXPERIMENTS_TELEMETRY_ENABLED": {"test_value": False},
+    "PREFECT_EXPERIMENTS_WARN": {"test_value": True},
+    "PREFECT_EXPERIMENTS_WORKER_LOGGING_TO_API_ENABLED": {"test_value": False},
     "PREFECT_FLOW_DEFAULT_RETRIES": {"test_value": 10, "legacy": True},
     "PREFECT_FLOWS_DEFAULT_RETRIES": {"test_value": 10},
     "PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS": {"test_value": 10, "legacy": True},
@@ -388,6 +390,7 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SILENCE_API_URL_MISCONFIGURATION": {"test_value": True},
     "PREFECT_SQLALCHEMY_MAX_OVERFLOW": {"test_value": 10, "legacy": True},
     "PREFECT_SQLALCHEMY_POOL_SIZE": {"test_value": 10, "legacy": True},
+    "PREFECT_TASKS_DEFAULT_PERSIST_RESULT": {"test_value": True},
     "PREFECT_TASKS_DEFAULT_RETRIES": {"test_value": 10},
     "PREFECT_TASKS_DEFAULT_RETRY_DELAY_SECONDS": {"test_value": 10},
     "PREFECT_TASKS_REFRESH_CACHE": {"test_value": True},
@@ -458,9 +461,11 @@ def temporary_toml_file(tmp_path):
     with tmpchdir(tmp_path):
         toml_file = Path("prefect.toml")
 
-        def _create_temp_toml(content):
-            with toml_file.open("w") as f:
+        def _create_temp_toml(content, path=toml_file):
+            nonlocal toml_file
+            with path.open("w") as f:
                 toml.dump(content, f)
+            toml_file = path  # update toml_file in case path was changed
 
         yield _create_temp_toml
 
@@ -531,6 +536,15 @@ class TestSettingsClass:
             ), "Changed, existing value was default"
             assert new_settings.client.retry_extra_codes == {400, 500}
 
+    def test_settings_copy_with_update_restore_defaults(self, monkeypatch):
+        monkeypatch.setenv("PREFECT_TESTING_TEST_SETTING", "Not the default")
+        settings = Settings()
+        assert settings.testing.test_setting == "Not the default"
+        new_settings = settings.copy_with_update(
+            restore_defaults={PREFECT_TEST_SETTING},
+        )
+        assert new_settings.testing.test_setting == "FOO"
+
     def test_settings_loads_environment_variables_at_instantiation(self, monkeypatch):
         assert PREFECT_TEST_MODE.value() is True
 
@@ -586,8 +600,8 @@ class TestSettingsClass:
         assert settings.model_dump() == new_settings.model_dump()
 
     def test_settings_hash_key(self):
-        settings = Settings(testing=dict(test_mode=True))
-        diff_settings = Settings(testing=dict(test_mode=False))
+        settings = Settings(testing=dict(test_mode=True))  # type: ignore
+        diff_settings = Settings(testing=dict(test_mode=False))  # type: ignore
 
         assert settings.hash_key() == settings.hash_key()
 
@@ -718,17 +732,26 @@ class TestSettingAccess:
     @pytest.mark.parametrize(
         "value,expected",
         [
+            (None, []),
             ("foo", ["foo"]),
             ("foo,bar", ["foo", "bar"]),
             ("foo, bar, foobar ", ["foo", "bar", "foobar"]),
+            (["foo", "bar"], ["foo", "bar"]),
+        ],
+        ids=[
+            "none",
+            "string",
+            "comma_separated",
+            "comma_separated_with_spaces",
+            "python_list",
         ],
     )
     def test_extra_loggers(self, value, expected):
         settings = Settings(logging=LoggingSettings(extra_loggers=value))
-        assert PREFECT_LOGGING_EXTRA_LOGGERS.value_from(settings) == expected
+        assert set(PREFECT_LOGGING_EXTRA_LOGGERS.value_from(settings)) == set(expected)
 
     def test_prefect_home_expands_tilde_in_path(self):
-        settings = Settings(home="~/test")
+        settings = Settings(home="~/test")  # type: ignore
         assert PREFECT_HOME.value_from(settings) == Path("~/test").expanduser()
 
     @pytest.mark.parametrize(
@@ -1106,9 +1129,17 @@ class TestSettingsSources:
 
         assert Settings().client.retry_extra_codes == {420, 500}
 
-        toml_data = {"client": {"retry_extra_codes": "300"}}
+        pyproject_toml_data = {
+            "tool": {"prefect": {"client": {"retry_extra_codes": "200"}}}
+        }
+        with open("pyproject.toml", "w") as f:
+            toml.dump(pyproject_toml_data, f)
+
+        assert Settings().client.retry_extra_codes == {200}
+
+        prefect_toml_data = {"client": {"retry_extra_codes": "300"}}
         with open("prefect.toml", "w") as f:
-            toml.dump(toml_data, f)
+            toml.dump(prefect_toml_data, f)
 
         assert Settings().client.retry_extra_codes == {300}
 
@@ -1121,6 +1152,10 @@ class TestSettingsSources:
         assert Settings().client.retry_extra_codes == {300}
 
         os.unlink("prefect.toml")
+
+        assert Settings().client.retry_extra_codes == {200}
+
+        os.unlink("pyproject.toml")
 
         assert Settings().client.retry_extra_codes == {420, 500}
 
@@ -1180,6 +1215,180 @@ class TestSettingsSources:
         os.unlink(".env")
 
         assert Settings().api.url == "http://example.com:4200"
+
+    def test_profiles_path_from_env_source(
+        self, temporary_env_file, monkeypatch, tmp_path
+    ):
+        profiles_path = tmp_path / "custom_profiles.toml"
+
+        monkeypatch.delenv("PREFECT_TESTING_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_TESTING_UNIT_TEST_MODE", raising=False)
+
+        profiles_path.write_text(
+            textwrap.dedent(
+                """
+                active = "foo"
+
+                [profiles.foo]
+                PREFECT_CLIENT_RETRY_EXTRA_CODES = "420,500"
+                """
+            )
+        )
+
+        temporary_env_file(f"PREFECT_PROFILES_PATH={profiles_path}")
+
+        assert Settings().profiles_path == profiles_path
+        assert Settings().client.retry_extra_codes == {420, 500}
+
+        os.unlink(".env")
+
+        monkeypatch.setenv("PREFECT_TEST_MODE", "1")
+        monkeypatch.setenv("PREFECT_TESTING_UNIT_TEST_MODE", "1")
+
+        assert Settings().client.retry_extra_codes == set()
+
+    def test_profiles_path_from_toml_source(
+        self, temporary_toml_file, monkeypatch, tmp_path
+    ):
+        profiles_path = tmp_path / "custom_profiles.toml"
+
+        monkeypatch.delenv("PREFECT_TESTING_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_TESTING_UNIT_TEST_MODE", raising=False)
+
+        profiles_path.write_text(
+            textwrap.dedent(
+                """
+                active = "foo"
+
+                [profiles.foo]
+                PREFECT_CLIENT_RETRY_EXTRA_CODES = "420,500"
+                """
+            )
+        )
+
+        temporary_toml_file({"profiles_path": str(profiles_path)})
+
+        assert Settings().profiles_path == profiles_path
+        assert Settings().client.retry_extra_codes == {420, 500}
+
+        os.unlink("prefect.toml")
+
+        monkeypatch.setenv("PREFECT_TEST_MODE", "1")
+        monkeypatch.setenv("PREFECT_TESTING_UNIT_TEST_MODE", "1")
+
+        assert Settings().client.retry_extra_codes == set()
+
+    def test_profiles_path_from_pyproject_source(
+        self, temporary_toml_file, monkeypatch, tmp_path
+    ):
+        monkeypatch.delenv("PREFECT_TESTING_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_TESTING_UNIT_TEST_MODE", raising=False)
+
+        profiles_path = tmp_path / "custom_profiles.toml"
+        profiles_path.write_text(
+            textwrap.dedent(
+                """
+                active = "foo"
+
+                [profiles.foo]
+                PREFECT_CLIENT_RETRY_EXTRA_CODES = "420,500"
+                """
+            )
+        )
+
+        temporary_toml_file(
+            {"tool": {"prefect": {"profiles_path": str(profiles_path)}}},
+            path=Path("pyproject.toml"),
+        )
+
+        assert Settings().profiles_path == profiles_path
+        assert Settings().client.retry_extra_codes == {420, 500}
+
+        os.unlink("pyproject.toml")
+
+        monkeypatch.setenv("PREFECT_TEST_MODE", "1")
+        monkeypatch.setenv("PREFECT_TESTING_UNIT_TEST_MODE", "1")
+
+        assert Settings().client.retry_extra_codes == set()
+
+    def test_profiles_path_resolution_order_from_sources(
+        self, temporary_env_file, monkeypatch, tmp_path
+    ):
+        monkeypatch.delenv("PREFECT_TESTING_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_TESTING_UNIT_TEST_MODE", raising=False)
+
+        pyproject_profiles_path = tmp_path / "pyproject_profiles.toml"
+        pyproject_profiles_path.write_text(
+            textwrap.dedent(
+                """
+                active = "foo"
+
+                [profiles.foo]
+                PREFECT_CLIENT_RETRY_EXTRA_CODES = "420,500"
+                """
+            )
+        )
+
+        toml_profiles_path = tmp_path / "toml_profiles.toml"
+        toml_profiles_path.write_text(
+            textwrap.dedent(
+                """
+                active = "foo"
+
+                [profiles.foo]
+                PREFECT_CLIENT_RETRY_EXTRA_CODES = "300"
+                """
+            )
+        )
+
+        env_profiles_path = tmp_path / "env_profiles.toml"
+        env_profiles_path.write_text(
+            textwrap.dedent(
+                """
+                active = "foo"
+
+                [profiles.foo]
+                PREFECT_CLIENT_RETRY_EXTRA_CODES = "200"
+                """
+            )
+        )
+
+        with open("pyproject.toml", "w") as f:
+            toml.dump(
+                {"tool": {"prefect": {"profiles_path": str(pyproject_profiles_path)}}},
+                f,
+            )
+
+        assert Settings().profiles_path == pyproject_profiles_path
+        assert Settings().client.retry_extra_codes == {420, 500}
+
+        with open("prefect.toml", "w") as f:
+            toml.dump({"profiles_path": str(toml_profiles_path)}, f)
+
+        assert Settings().profiles_path == toml_profiles_path
+        assert Settings().client.retry_extra_codes == {300}
+
+        temporary_env_file(f"PREFECT_PROFILES_PATH={env_profiles_path}")
+
+        assert Settings().profiles_path == env_profiles_path
+        assert Settings().client.retry_extra_codes == {200}
+
+        os.unlink(".env")
+
+        assert Settings().profiles_path == toml_profiles_path
+        assert Settings().client.retry_extra_codes == {300}
+
+        os.unlink("prefect.toml")
+
+        assert Settings().profiles_path == pyproject_profiles_path
+        assert Settings().client.retry_extra_codes == {420, 500}
+
+        os.unlink("pyproject.toml")
+
+        monkeypatch.setenv("PREFECT_TEST_MODE", "1")
+        monkeypatch.setenv("PREFECT_TESTING_UNIT_TEST_MODE", "1")
+
+        assert Settings().client.retry_extra_codes == set()
 
 
 class TestLoadProfiles:
@@ -1348,7 +1557,7 @@ class TestSaveProfiles:
 
 class TestProfile:
     def test_init_casts_names_to_setting_types(self):
-        profile = Profile(name="test", settings={"PREFECT_DEBUG_MODE": 1})
+        profile = Profile(name="test", settings={"PREFECT_DEBUG_MODE": 1})  # type: ignore
         assert profile.settings == {PREFECT_DEBUG_MODE: 1}
 
     def test_validate_settings(self):
@@ -1743,5 +1952,28 @@ class TestSettingValues:
             toml_dict, settings_fields[setting].accessor, to_jsonable_python(value)
         )
         temporary_toml_file(toml_dict)
+
+        self.check_setting_value(setting, value)
+
+    def test_set_via_pyproject_toml_file(
+        self, setting_and_value, temporary_toml_file, monkeypatch
+    ):
+        setting, value = setting_and_value
+        if setting == "PREFECT_PROFILES_PATH":
+            monkeypatch.delenv("PREFECT_PROFILES_PATH", raising=False)
+        if (
+            setting == "PREFECT_TEST_SETTING"
+            or setting == "PREFECT_TESTING_TEST_SETTING"
+        ):
+            monkeypatch.setenv("PREFECT_TEST_MODE", "True")
+
+        settings_fields = _get_settings_fields(prefect.settings.Settings)
+        toml_dict = {}
+        set_in_dict(
+            toml_dict,
+            f"tool.prefect.{settings_fields[setting].accessor}",
+            to_jsonable_python(value),
+        )
+        temporary_toml_file(toml_dict, path=Path("pyproject.toml"))
 
         self.check_setting_value(setting, value)

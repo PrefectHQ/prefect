@@ -78,6 +78,7 @@ from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_TASKS_REFRESH_CACHE,
 )
+from prefect.settings.context import get_current_settings
 from prefect.states import (
     AwaitingRetry,
     Completed,
@@ -186,11 +187,17 @@ class BaseTaskRunEngine(Generic[P, R]):
             else:
                 parameters = None
 
-            key = self.task.cache_policy.compute_key(
-                task_ctx=task_run_context,
-                inputs=self.parameters,
-                flow_parameters=parameters,
-            )
+            try:
+                key = self.task.cache_policy.compute_key(
+                    task_ctx=task_run_context,
+                    inputs=self.parameters,
+                    flow_parameters=parameters,
+                )
+            except Exception:
+                self.logger.exception(
+                    "Error encountered when computing cache key - result will not be persisted.",
+                )
+                key = None
         elif self.task.result_storage_key is not None:
             key = _format_user_supplied_storage_key(self.task.result_storage_key)
         return key
@@ -657,6 +664,8 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             should_log_prints,
         )
 
+        settings = get_current_settings()
+
         if client is None:
             client = self.client
         if not self.task_run:
@@ -665,6 +674,12 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         with ExitStack() as stack:
             if log_prints := should_log_prints(self.task):
                 stack.enter_context(patch_print())
+            if self.task.persist_result is not None:
+                persist_result = self.task.persist_result
+            elif settings.tasks.default_persist_result is not None:
+                persist_result = settings.tasks.default_persist_result
+            else:
+                persist_result = should_persist_result()
             stack.enter_context(
                 TaskRunContext(
                     task=self.task,
@@ -675,9 +690,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                         self.task, _sync=True
                     ),
                     client=client,
-                    persist_result=self.task.persist_result
-                    if self.task.persist_result is not None
-                    else should_persist_result(),
+                    persist_result=persist_result,
                 )
             )
             stack.enter_context(ConcurrencyContextV1())
@@ -1217,6 +1230,8 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             should_log_prints,
         )
 
+        settings = get_current_settings()
+
         if client is None:
             client = self.client
         if not self.task_run:
@@ -1225,6 +1240,12 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         with ExitStack() as stack:
             if log_prints := should_log_prints(self.task):
                 stack.enter_context(patch_print())
+            if self.task.persist_result is not None:
+                persist_result = self.task.persist_result
+            elif settings.tasks.default_persist_result is not None:
+                persist_result = settings.tasks.default_persist_result
+            else:
+                persist_result = should_persist_result()
             stack.enter_context(
                 TaskRunContext(
                     task=self.task,
@@ -1235,9 +1256,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                         self.task, _sync=False
                     ),
                     client=client,
-                    persist_result=self.task.persist_result
-                    if self.task.persist_result is not None
-                    else should_persist_result(),
+                    persist_result=persist_result,
                 )
             )
             stack.enter_context(ConcurrencyContext())

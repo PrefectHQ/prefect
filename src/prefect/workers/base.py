@@ -4,20 +4,28 @@ import threading
 from contextlib import AsyncExitStack
 from functools import partial
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Type, Union
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import anyio
 import anyio.abc
+import httpx
 import pendulum
+from importlib_metadata import distributions
 from pydantic import BaseModel, Field, PrivateAttr, field_validator
 from pydantic.json_schema import GenerateJsonSchema
 from typing_extensions import Literal
 
 import prefect
 from prefect._internal.schemas.validators import return_v_or_none
+from prefect.client.base import ServerType
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
-from prefect.client.schemas.objects import StateType, WorkPool
+from prefect.client.schemas.objects import (
+    Integration,
+    StateType,
+    WorkerMetadata,
+    WorkPool,
+)
 from prefect.client.utilities import inject_client
 from prefect.events import Event, RelatedResource, emit_event
 from prefect.events.related import object_as_related_resource, tags_as_related_resources
@@ -25,7 +33,11 @@ from prefect.exceptions import (
     Abort,
     ObjectNotFound,
 )
-from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
+from prefect.logging.loggers import (
+    PrefectLogAdapter,
+    flow_run_logger,
+    get_worker_logger,
+)
 from prefect.plugins import load_prefect_collections
 from prefect.settings import (
     PREFECT_API_URL,
@@ -49,6 +61,7 @@ from prefect.utilities.templating import (
     resolve_block_document_references,
     resolve_variables,
 )
+from prefect.utilities.urls import url_for
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import Flow, FlowRun
@@ -406,7 +419,8 @@ class BaseWorker(abc.ABC):
             raise ValueError("Worker name cannot contain '/' or '%'")
         self.name = name or f"{self.__class__.__name__} {uuid4()}"
         self._started_event: Optional[Event] = None
-        self._logger = get_logger(f"worker.{self.__class__.type}.{self.name.lower()}")
+        self.backend_id: Optional[UUID] = None
+        self._logger = get_worker_logger(self)
 
         self.is_setup = False
         self._create_pool_if_not_found = create_pool_if_not_found
@@ -431,6 +445,7 @@ class BaseWorker(abc.ABC):
         self._submitting_flow_run_ids = set()
         self._cancelling_flow_run_ids = set()
         self._scheduled_task_scopes = set()
+        self._worker_metadata_sent = False
 
     @classmethod
     def get_documentation_url(cls) -> str:
@@ -488,15 +503,19 @@ class BaseWorker(abc.ABC):
         return slugify(self.name)
 
     def get_flow_run_logger(self, flow_run: "FlowRun") -> PrefectLogAdapter:
+        extra = {
+            "worker_name": self.name,
+            "work_pool_name": (
+                self._work_pool_name if self._work_pool else "<unknown>"
+            ),
+            "work_pool_id": str(getattr(self._work_pool, "id", "unknown")),
+        }
+        if self.backend_id:
+            extra["worker_id"] = str(self.backend_id)
+
         return flow_run_logger(flow_run=flow_run).getChild(
             "worker",
-            extra={
-                "worker_name": self.name,
-                "work_pool_name": (
-                    self._work_pool_name if self._work_pool else "<unknown>"
-                ),
-                "work_pool_id": str(getattr(self._work_pool, "id", "unknown")),
-            },
+            extra=extra,
         )
 
     async def start(
@@ -710,13 +729,72 @@ class BaseWorker(abc.ABC):
 
         self._work_pool = work_pool
 
-    async def _send_worker_heartbeat(self):
-        if self._work_pool:
-            await self._client.send_worker_heartbeat(
-                work_pool_name=self._work_pool_name,
-                worker_name=self.name,
-                heartbeat_interval_seconds=self.heartbeat_interval_seconds,
+    async def _worker_metadata(self) -> Optional[WorkerMetadata]:
+        """
+        Returns metadata about installed Prefect collections for the worker.
+        """
+        installed_integrations = load_prefect_collections().keys()
+
+        integration_versions = [
+            Integration(name=dist.metadata["Name"], version=dist.version)
+            for dist in distributions()
+            # PyPI packages often use dashes, but Python package names use underscores
+            # because they must be valid identifiers.
+            if (name := dist.metadata.get("Name"))
+            and (name.replace("-", "_") in installed_integrations)
+        ]
+
+        if integration_versions:
+            return WorkerMetadata(integrations=integration_versions)
+        return None
+
+    async def _send_worker_heartbeat(self) -> Optional[UUID]:
+        """
+        Sends a heartbeat to the API.
+        """
+        if not self._client:
+            self._logger.warning("Client has not been initialized; skipping heartbeat.")
+            return None
+        if not self._work_pool:
+            self._logger.debug("Worker has no work pool; skipping heartbeat.")
+            return None
+
+        should_get_worker_id = self._should_get_worker_id()
+
+        params = {
+            "work_pool_name": self._work_pool_name,
+            "worker_name": self.name,
+            "heartbeat_interval_seconds": self.heartbeat_interval_seconds,
+            "get_worker_id": should_get_worker_id,
+        }
+        if (
+            self._client.server_type == ServerType.CLOUD
+            and not self._worker_metadata_sent
+        ):
+            worker_metadata = await self._worker_metadata()
+            if worker_metadata:
+                params["worker_metadata"] = worker_metadata
+                self._worker_metadata_sent = True
+
+        worker_id = None
+        try:
+            worker_id = await self._client.send_worker_heartbeat(**params)
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 422 and should_get_worker_id:
+                self._logger.warning(
+                    "Failed to retrieve worker ID from the Prefect API server."
+                )
+                params["get_worker_id"] = False
+                worker_id = await self._client.send_worker_heartbeat(**params)
+            else:
+                raise e
+
+        if should_get_worker_id and worker_id is None:
+            self._logger.warning(
+                "Failed to retrieve worker ID from the Prefect API server."
             )
+
+        return worker_id
 
     async def sync_with_backend(self):
         """
@@ -725,9 +803,23 @@ class BaseWorker(abc.ABC):
         """
         await self._update_local_work_pool_info()
 
-        await self._send_worker_heartbeat()
+        remote_id = await self._send_worker_heartbeat()
+        if remote_id:
+            self.backend_id = remote_id
+            self._logger = get_worker_logger(self)
 
-        self._logger.debug("Worker synchronized with the Prefect API server.")
+        self._logger.debug(
+            f"Worker synchronized with the Prefect API server. Remote ID: {self.backend_id}"
+        )
+
+    def _should_get_worker_id(self):
+        """Determines if the worker should request an ID from the API server."""
+        return (
+            get_current_settings().experiments.worker_logging_to_api_enabled
+            and self._client
+            and self._client.server_type == ServerType.CLOUD
+            and self.backend_id is None
+        )
 
     async def _get_scheduled_flow_runs(
         self,
@@ -782,6 +874,17 @@ class BaseWorker(abc.ABC):
                 run_logger.info(
                     f"Worker '{self.name}' submitting flow run '{flow_run.id}'"
                 )
+                if (
+                    get_current_settings().experiments.worker_logging_to_api_enabled
+                    and self.backend_id
+                ):
+                    worker_path = f"worker/{self.backend_id}"
+                    base_url = url_for("work-pool", self._work_pool.name)
+
+                    run_logger.info(
+                        f"Running on worker id: {self.backend_id}. See worker logs here: {base_url}/{worker_path}"
+                    )
+
                 self._submitting_flow_run_ids.add(flow_run.id)
                 self._runs_task_group.start_soon(
                     self._submit_run,

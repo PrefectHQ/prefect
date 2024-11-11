@@ -1,3 +1,4 @@
+import inspect
 from functools import partial
 from typing import Any, Dict, Tuple, Type
 
@@ -18,6 +19,7 @@ from prefect.settings.sources import (
     EnvFilterSettingsSource,
     PrefectTomlConfigSettingsSource,
     ProfileSettingsTomlLoader,
+    PyprojectTomlConfigSettingsSource,
 )
 from prefect.utilities.collections import visit_collection
 from prefect.utilities.pydantic import handle_secret_render
@@ -63,6 +65,7 @@ class PrefectBaseSettings(BaseSettings):
             dotenv_settings,
             file_secret_settings,
             PrefectTomlConfigSettingsSource(settings_cls),
+            PyprojectTomlConfigSettingsSource(settings_cls),
             ProfileSettingsTomlLoader(settings_cls),
         )
 
@@ -153,3 +156,38 @@ class PrefectSettingsConfigDict(SettingsConfigDict, total=False):
 
     To use the root table, exclude this config setting or provide an empty tuple.
     """
+
+
+def _add_environment_variables(
+    schema: Dict[str, Any], model: Type[PrefectBaseSettings]
+) -> None:
+    for property in schema["properties"]:
+        env_vars = []
+        schema["properties"][property]["supported_environment_variables"] = env_vars
+        field = model.model_fields[property]
+        if inspect.isclass(field.annotation) and issubclass(
+            field.annotation, PrefectBaseSettings
+        ):
+            continue
+        elif field.validation_alias:
+            if isinstance(field.validation_alias, AliasChoices):
+                for alias in field.validation_alias.choices:
+                    if isinstance(alias, str):
+                        env_vars.append(alias.upper())
+        else:
+            env_vars.append(f"{model.model_config.get('env_prefix')}{property.upper()}")
+
+
+def _build_settings_config(
+    path: Tuple[str, ...] = tuple(),
+) -> PrefectSettingsConfigDict:
+    env_prefix = f"PREFECT_{'_'.join(path).upper()}_" if path else "PREFECT_"
+    return PrefectSettingsConfigDict(
+        env_prefix=env_prefix,
+        env_file=".env",
+        extra="ignore",
+        toml_file="prefect.toml",
+        prefect_toml_table_header=path,
+        pyproject_toml_table_header=("tool", "prefect", *path),
+        json_schema_extra=_add_environment_variables,
+    )
