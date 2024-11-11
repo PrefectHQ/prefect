@@ -3,10 +3,46 @@ title: Build a data pipeline
 description: Learn how to build resilient and performance data pipelines with Prefect.
 ---
 
-In [Schedule a flow](/3.0/get-started/schedule), you learned how to schedule runs of a Prefect flow on remote infrastructure.
+In [Schedule a flow](/3.0/tutorials/schedule), you learned how to schedule runs of a Prefect flow on remote infrastructure.
 
 In this tutorial, you'll learn how to build a resilient and performant data pipeline.
 The real world is messy, and Prefect is designed to handle that messiness.
+
+This is the current state of our GitHub script from the [Quickstart](/3.0/tutorials/quickstart):
+
+```python my_workflow.py
+import httpx
+from prefect import flow, task # Prefect flow and task decorators
+
+@flow(log_prints=True)
+def show_stars(github_repo: str):
+    """Flow: Show the number of stars that a GitHub repo has"""
+
+    # Call Task 1
+    repo_stats = fetch_stats(github_repo)
+
+    # Call Task 2
+    stars = get_stars(repo_stats)
+
+    # Print the result
+    print(f"Stars 🌠 : {stars}")
+
+@task
+def fetch_stats(github_repo: str):
+    """Task 1: Fetch the statistics for a GitHub repo"""
+
+    return httpx.get(f"https://api.github.com/repos/{github_repo}").json()
+
+@task
+def get_stars(repo_stats: dict):
+    """Task 2: Get the number of stars from GitHub repo statistics"""
+
+    return repo_stats['stargazers_count']
+
+# Run the flow
+if __name__ == "__main__":
+    show_stars("PrefectHQ/prefect")
+```
 
 ## Retries
 
@@ -28,7 +64,7 @@ TBD
 
 In this tutorial, you built a resilient and performant data pipeline using retries, concurrency, caching, and rate limiting.
 
-Next, learn how to use error handling to deal with unstructured data, another common problem in the real world.
+Next, learn how to [use error handling to deal with unstructured data](3.0//tutorials/scraping), another common problem in the real world.
 You'll use error handling and everything else you've learned to build a functional web scraper.
 
 <Tip>
