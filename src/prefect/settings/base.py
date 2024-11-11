@@ -11,7 +11,6 @@ from pydantic import (
 )
 from pydantic_settings import (
     BaseSettings,
-    DotEnvSettingsSource,
     PydanticBaseSettingsSource,
     SettingsConfigDict,
 )
@@ -103,9 +102,9 @@ class PrefectBaseSettings(BaseSettings):
                 )
                 env_variables.update(child_env)
             elif (value := env.get(key)) is not None:
-                env_variables[f"{self.model_config.get('env_prefix')}{key.upper()}"] = (
-                    str(value)
-                )
+                env_variables[
+                    f"{self.model_config.get('env_prefix')}{key.upper()}"
+                ] = str(value)
         return env_variables
 
     @model_serializer(
