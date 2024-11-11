@@ -1,3 +1,4 @@
+import type { components } from "@/api/prefect";
 import {
 	Breadcrumb,
 	BreadcrumbItem,
@@ -8,8 +9,13 @@ import { AddVariableDialog } from "@/components/variables/add-variable-dialog";
 import { VariablesEmptyState } from "@/components/variables/empty-state";
 import { PlusIcon } from "lucide-react";
 import { useState } from "react";
+import { VariablesDataTable } from "./data-table";
 
-export const VariablesPage = () => {
+export const VariablesPage = ({
+	variables,
+}: {
+	variables: components["schemas"]["Variable"][];
+}) => {
 	const [addVariableDialogOpen, setAddVariableDialogOpen] = useState(false);
 	const onAddVariableClick = () => {
 		setAddVariableDialogOpen(true);
@@ -39,7 +45,11 @@ export const VariablesPage = () => {
 						<PlusIcon className="h-4 w-4" />
 					</Button>
 				</div>
-				<VariablesEmptyState onAddVariableClick={onAddVariableClick} />
+				{variables.length === 0 ? (
+					<VariablesEmptyState onAddVariableClick={onAddVariableClick} />
+				) : (
+					<VariablesDataTable variables={variables} />
+				)}
 			</div>
 		</>
 	);
