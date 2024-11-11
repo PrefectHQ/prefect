@@ -971,6 +971,7 @@ class BaseWorker(abc.ABC):
         try:
             configuration = await self._get_configuration(flow_run)
             submitted_event = self._emit_flow_run_submitted_event(configuration)
+            await self._give_worker_labels_to_flow_run(flow_run.id)
             result = await self.run(
                 flow_run=flow_run,
                 task_status=task_status,
@@ -1191,6 +1192,19 @@ class BaseWorker(abc.ABC):
                 await result
 
         await self._runs_task_group.start(wrapper)
+
+    async def _give_worker_labels_to_flow_run(self, flow_run_id: UUID):
+        """
+        Give this worker's identifying labels to the specified flow run.
+        """
+        if self._client and self._client.server_type == ServerType.CLOUD:
+            await self._client.update_flow_run_labels(
+                flow_run_id,
+                {
+                    "prefect.worker.name": self.name,
+                    "prefect.worker.type": self.type,
+                },
+            )
 
     async def __aenter__(self):
         self._logger.debug("Entering worker context...")
