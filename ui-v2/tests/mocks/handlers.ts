@@ -19,4 +19,8 @@ export const handlers = [
 	http.post("http://localhost:4200/api/deployments/count", () => {
 		return HttpResponse.json(1);
 	}),
+
+	http.post("http://localhost:4200/api/variables/", () => {
+		return HttpResponse.json({ status: "success" }, { status: 201 });
+	}),
 ];
