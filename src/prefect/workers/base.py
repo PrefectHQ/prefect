@@ -878,11 +878,10 @@ class BaseWorker(abc.ABC):
                     get_current_settings().experiments.worker_logging_to_api_enabled
                     and self.backend_id
                 ):
-                    worker_path = f"worker/{self.backend_id}"
-                    base_url = url_for("work-pool", self._work_pool.name)
+                    worker_url = url_for("worker", self._work_pool.name,worker_id=self.backend_id)
 
                     run_logger.info(
-                        f"Running on worker id: {self.backend_id}. See worker logs here: {base_url}/{worker_path}"
+                        f"Running on worker id: {self.backend_id}. See worker logs here: {worker_url}"
                     )
 
                 self._submitting_flow_run_ids.add(flow_run.id)
