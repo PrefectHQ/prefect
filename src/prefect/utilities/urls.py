@@ -5,6 +5,7 @@ import urllib.parse
 from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Union
 from urllib.parse import urlparse
 from uuid import UUID
+from string import Formatter
 
 from pydantic import BaseModel
 
@@ -249,6 +250,11 @@ def url_for(
             occurred=obj.occurred.strftime("%Y-%m-%d"), obj_id=obj_id
         )
     else:
+        obj_keys = [fname for _, fname, _, _ in Formatter().parse(url_format) if fname is not None and fname != "obj_id"]
+    
+        if not all(key in additional_format_kwargs for key in obj_keys):
+            raise ValueError(f"Unable to generate URL for {name} because the following keys are missing: {', '.join(obj_keys)}")
+
         url = url_format.format(obj_id=obj_id, **additional_format_kwargs)
 
     if not base_url.endswith("/"):

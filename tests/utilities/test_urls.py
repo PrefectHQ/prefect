@@ -396,8 +396,8 @@ def test_url_for_with_additional_format_kwargs():
     with temporary_settings({PREFECT_UI_URL: MOCK_PREFECT_UI_URL}):
         url = url_for(
             obj="worker",
-            obj_id="my-work-pool",
-            worker_id="123e4567-e89b-12d3-a456-426614174000",
+            obj_id="123e4567-e89b-12d3-a456-426614174000",
+            work_pool_name="my-work-pool",
         )
         assert (
             url
@@ -406,5 +406,8 @@ def test_url_for_with_additional_format_kwargs():
 
 
 def test_url_for_with_additional_format_kwargs_raises_if_placeholder_not_replaced():
-    with pytest.raises(KeyError):
-        url_for(obj="worker", obj_id="my-work-pool")
+    with pytest.raises(
+        ValueError,
+        match="Unable to generate URL for worker because the following keys are missing: work_pool_name",
+    ):
+        url_for(obj="worker", obj_id="123e4567-e89b-12d3-a456-42661417400")
