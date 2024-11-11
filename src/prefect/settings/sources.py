@@ -92,14 +92,6 @@ class FilteredDotEnvSettingsSource(DotEnvSettingsSource):
             env_parse_enums,
         )
         self.env_blacklist = env_blacklist
-
-        # Filter out environment variables that don't start with the env prefix
-        self.env_vars = {
-            key: value
-            for key, value in self.env_vars.items()  # type: ignore
-            if (env_prefix := settings_cls.model_config.get("env_prefix"))
-            and key.lower().startswith(env_prefix.lower())
-        }
         if self.env_blacklist:
             if isinstance(self.env_vars, dict):
                 for key in self.env_blacklist:
