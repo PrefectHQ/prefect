@@ -2737,7 +2737,7 @@ class TestPrefectClientWorkerHeartbeat:
             assert mock_post.call_args[1]["json"] == {
                 "name": "test-worker",
                 "heartbeat_interval_seconds": 10,
-                "worker_metadata": {
+                "metadata": {
                     "integrations": [{"name": "prefect-aws", "version": "1.0.0"}]
                 },
             }
