@@ -879,7 +879,7 @@ class BaseWorker(abc.ABC):
                     and self.backend_id
                 ):
                     worker_url = url_for(
-                        "worker", self._work_pool.name, worker_id=self.backend_id
+                        "worker",  obj_id=self.backend_id, work_pool_name=self._work_pool_name
                     )
 
                     run_logger.info(
