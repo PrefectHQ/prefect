@@ -1395,7 +1395,9 @@ class TestSettingsSources:
         expected_db_name = Settings().server.database.name
         temporary_env_file("HOME=foo\nNAME=bar")
         assert Settings().home == expected_home
+        assert Settings().home != "foo"
         assert Settings().server.database.name == expected_db_name
+        assert Settings().server.database.name != "bar"
 
 
 class TestLoadProfiles:
