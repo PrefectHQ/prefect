@@ -54,10 +54,18 @@
       "pages": [
         "3.0/get-started/index",
         "3.0/resources/whats-new-prefect-3",
-        "3.0/get-started/install",
-        "3.0/get-started/quickstart"
+        "3.0/get-started/install"
       ],
       "version": "3.0"
+    },
+    {
+      "group": "Tutorials",
+      "pages": [
+        "3.0/tutorials/quickstart",
+        "3.0/tutorials/schedule",
+        "3.0/tutorials/pipelines",
+        "3.0/tutorials/scraping"
+      ]
     },
     {
       "group": "Get started",
