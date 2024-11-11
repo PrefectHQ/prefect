@@ -1,9 +1,11 @@
+import { VariablesPage } from "@/components/variables/page";
 import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/variables")({
-	component: RouteComponent,
+	component: VariablesRoute,
 });
 
-function RouteComponent() {
-	return "🚧🚧 Pardon our dust! 🚧🚧";
+function VariablesRoute() {
+	// TODO: Add call for existing variables
+	return <VariablesPage />;
 }
