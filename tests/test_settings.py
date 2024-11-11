@@ -1891,7 +1891,7 @@ class TestSettingValues:
                 assert settings_value == value
                 # get value from legacy setting object
                 assert getattr(prefect.settings, setting).value() == value
-                
+
             # ensure the value gets added to the environment variables, but "legacy" will use
             # their updated name
             if not SUPPORTED_SETTINGS[setting].get("legacy"):
