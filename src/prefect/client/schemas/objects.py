@@ -23,6 +23,9 @@ from pydantic import (
     HttpUrl,
     IPvAnyNetwork,
     SerializationInfo,
+    StrictBool,
+    StrictFloat,
+    StrictInt,
     Tag,
     field_validator,
     model_serializer,
@@ -501,6 +504,9 @@ class FlowRunPolicy(PrefectBaseModel):
         return values
 
 
+KeyValueLabels = dict[str, StrictBool | StrictInt | StrictFloat | str]
+
+
 class FlowRun(ObjectBaseModel):
     name: str = Field(
         default_factory=lambda: generate_slug(2),
@@ -554,6 +560,11 @@ class FlowRun(ObjectBaseModel):
         default_factory=list,
         description="A list of tags on the flow run",
         examples=[["tag-1", "tag-2"]],
+    )
+    labels: KeyValueLabels = Field(
+        default_factory=dict,
+        description="Prefect Cloud: A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
+        examples=[{"key": "value1", "key2": 42}],
     )
     parent_task_run_id: Optional[UUID] = Field(
         default=None,

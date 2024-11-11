@@ -627,6 +627,7 @@ class FlowRunEngine(Generic[P, R]):
             self._span = self._tracer.start_span(
                 name=self.flow_run.name,
                 attributes={
+                    **self.flow_run.labels,
                     "prefect.run.type": "flow",
                     "prefect.run.id": str(self.flow_run.id),
                     "prefect.tags": self.flow_run.tags,
