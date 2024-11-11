@@ -1762,8 +1762,8 @@ def load_flow_from_entrypoint(
 
     return flow
 
-
-def serve(
+@sync_compatible
+async def serve(
     *args: "RunnerDeployment",
     pause_on_shutdown: bool = True,
     print_starting_message: bool = True,
@@ -1817,9 +1817,20 @@ def serve(
 
     from prefect.runner import Runner
 
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError as exc:
+        if "no running event loop" in str(exc):
+            loop = None
+        else:
+            raise
+
     runner = Runner(pause_on_shutdown=pause_on_shutdown, limit=limit, **kwargs)
     for deployment in args:
-        runner.add_deployment(deployment)
+        if loop.is_running():
+            await runner.add_deployment(deployment)
+        else:
+            runner.add_deployment(deployment)
 
     if print_starting_message:
         help_message_top = (
@@ -1851,14 +1862,8 @@ def serve(
         )
 
     try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError as exc:
-        if "no running event loop" in str(exc):
-            loop = None
-        else:
-            raise
-
-    try:
+        if loop.is_running():
+            await runner.start()
         if loop is not None:
             loop.run_until_complete(runner.start())
         else:
