@@ -51,6 +51,7 @@ from prefect.settings import (
     save_profiles,
     temporary_settings,
 )
+from prefect.settings.base import _to_environment_variable_value
 from prefect.settings.constants import DEFAULT_PROFILES_PATH
 from prefect.settings.legacy import (
     _env_var_to_accessor,
@@ -58,6 +59,7 @@ from prefect.settings.legacy import (
     _get_valid_setting_names,
 )
 from prefect.settings.models.api import APISettings
+from prefect.settings.models.client import ClientSettings
 from prefect.settings.models.logging import LoggingSettings
 from prefect.settings.models.server import ServerSettings
 from prefect.settings.models.server.api import ServerAPISettings
@@ -185,7 +187,7 @@ SUPPORTED_SETTINGS = {
         "test_value": True,
     },
     "PREFECT_CLIENT_METRICS_PORT": {"test_value": 9000},
-    "PREFECT_CLIENT_RETRY_EXTRA_CODES": {"test_value": "400"},
+    "PREFECT_CLIENT_RETRY_EXTRA_CODES": {"test_value": {400, 300}},
     "PREFECT_CLIENT_RETRY_JITTER_FACTOR": {"test_value": 0.5},
     "PREFECT_CLI_COLORS": {"test_value": True},
     "PREFECT_CLI_PROMPT": {"test_value": True},
@@ -242,7 +244,7 @@ SUPPORTED_SETTINGS = {
     },
     "PREFECT_LOGGING_COLORS": {"test_value": True},
     "PREFECT_LOGGING_CONFIG_PATH": {"test_value": Path("/path/to/settings.yaml")},
-    "PREFECT_LOGGING_EXTRA_LOGGERS": {"test_value": "foo"},
+    "PREFECT_LOGGING_EXTRA_LOGGERS": {"test_value": ["bar", "foo"]},
     "PREFECT_LOGGING_INTERNAL_LEVEL": {"test_value": "INFO", "legacy": True},
     "PREFECT_LOGGING_LEVEL": {"test_value": "INFO"},
     "PREFECT_LOGGING_LOG_PRINTS": {"test_value": True},
@@ -588,6 +590,30 @@ class TestSettingsClass:
                 server=ServerSettings(api=ServerAPISettings(port=3000))
             ).to_environment_variables()["PREFECT_SERVER_API_PORT"]
             == "3000"
+        )
+        assert (
+            Settings(
+                logging=LoggingSettings(extra_loggers="foo")
+            ).to_environment_variables()["PREFECT_LOGGING_EXTRA_LOGGERS"]
+            == "foo"
+        )
+        assert Settings(
+            logging=LoggingSettings(extra_loggers=["foo", "bar"])
+        ).to_environment_variables()["PREFECT_LOGGING_EXTRA_LOGGERS"] in (
+            "foo,bar",
+            "bar,foo",
+        )
+        assert (
+            Settings(
+                client=ClientSettings(retry_extra_codes=300)
+            ).to_environment_variables()["PREFECT_CLIENT_RETRY_EXTRA_CODES"]
+            == "300"
+        )
+        assert Settings(
+            client=ClientSettings(retry_extra_codes={300, 400})
+        ).to_environment_variables()["PREFECT_CLIENT_RETRY_EXTRA_CODES"] in (
+            "300,400",
+            "400,300",
         )
 
     @pytest.mark.parametrize("exclude_unset", [True, False])
@@ -1855,29 +1881,16 @@ class TestSettingValues:
 
             if isinstance(settings_value, pydantic.SecretStr):
                 settings_value = settings_value.get_secret_value()
-            if setting == "PREFECT_CLIENT_RETRY_EXTRA_CODES":
-                assert settings_value == {int(value)}
-                assert getattr(prefect.settings, setting).value() == {int(value)}
-                assert current_settings.to_environment_variables(exclude_unset=True)[
-                    setting
-                ] == str([int(value)])
 
-            elif setting == "PREFECT_LOGGING_EXTRA_LOGGERS":
-                assert settings_value == [value]
-                assert getattr(prefect.settings, setting).value() == [value]
+            assert settings_value == value
+            # get value from legacy setting object
+            assert getattr(prefect.settings, setting).value() == value
+            # ensure the value gets added to the environment variables, but "legacy" will use
+            # their updated name
+            if not SUPPORTED_SETTINGS[setting].get("legacy"):
                 assert current_settings.to_environment_variables(exclude_unset=True)[
                     setting
-                ] == str([value])
-            else:
-                assert settings_value == value
-                # get value from legacy setting object
-                assert getattr(prefect.settings, setting).value() == value
-                # ensure the value gets added to the environment variables, but "legacy" will use
-                # their updated name
-                if not SUPPORTED_SETTINGS[setting].get("legacy"):
-                    assert current_settings.to_environment_variables(
-                        exclude_unset=True
-                    )[setting] == str(to_jsonable_python(value))
+                ] == _to_environment_variable_value(to_jsonable_python(value))
 
     def test_set_via_env_var(self, setting_and_value, monkeypatch):
         setting, value = setting_and_value
@@ -1889,7 +1902,7 @@ class TestSettingValues:
             monkeypatch.setenv("PREFECT_TEST_MODE", "True")
 
         # mock set the env var
-        monkeypatch.setenv(setting, str(value))
+        monkeypatch.setenv(setting, _to_environment_variable_value(value))
 
         self.check_setting_value(setting, value)
 
@@ -1930,7 +1943,7 @@ class TestSettingValues:
         ):
             monkeypatch.setenv("PREFECT_TEST_MODE", "True")
 
-        temporary_env_file(f"{setting}={value}")
+        temporary_env_file(f"{setting}={_to_environment_variable_value(value)}")
 
         self.check_setting_value(setting, value)
 
