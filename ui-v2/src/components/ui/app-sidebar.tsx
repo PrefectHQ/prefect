@@ -11,64 +11,6 @@ import {
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 
-const navItems = [
-	{
-		key: "dashboard",
-		to: "/dashboard",
-		display: <span>Dashboard</span>,
-	},
-	{
-		key: "runs",
-		to: "/runs",
-		display: <span>Runs</span>,
-	},
-	{
-		key: "flows",
-		to: "/flows",
-		display: <span>Flows</span>,
-	},
-	{
-		key: "deployments",
-		to: "/deployments",
-		display: <span>Deployments</span>,
-	},
-	{
-		key: "work-pools",
-		to: "/work-pools",
-		display: <span>Work Pools</span>,
-	},
-	{
-		key: "blocks",
-		to: "/blocks",
-		display: <span>Blocks</span>,
-	},
-	{
-		key: "variables",
-		to: "/variables",
-		display: <span>Variables</span>,
-	},
-	{
-		key: "automations",
-		to: "/automations",
-		display: <span>Automations</span>,
-	},
-	{
-		key: "event-feed",
-		to: "/events",
-		display: <span>Event Feed</span>,
-	},
-	{
-		key: "notifications",
-		to: "/notifications",
-		display: <span>Notifications</span>,
-	},
-	{
-		key: "concurrency-limits",
-		to: "/concurrency-limits",
-		display: <span>Concurrency</span>,
-	},
-] as const;
-
 export function AppSidebar() {
 	return (
 		<Sidebar>
@@ -104,17 +46,105 @@ export function AppSidebar() {
 			<SidebarContent>
 				<SidebarGroup>
 					<SidebarMenu>
-						{navItems.map((item) => (
-							<SidebarMenuItem key={item.key}>
-								<Link to={item.to}>
-									{({ isActive }) => (
-										<SidebarMenuButton asChild isActive={isActive}>
-											{item.display}
-										</SidebarMenuButton>
-									)}
-								</Link>
-							</SidebarMenuItem>
-						))}
+						<SidebarMenuItem>
+							<Link to="/dashboard">
+								{({ isActive }) => (
+									<SidebarMenuButton asChild isActive={isActive}>
+										<span>Dashboard</span>
+									</SidebarMenuButton>
+								)}
+							</Link>
+						</SidebarMenuItem>
+						<SidebarMenuItem>
+							<Link to="/runs">
+								{({ isActive }) => (
+									<SidebarMenuButton asChild isActive={isActive}>
+										<span>Runs</span>
+									</SidebarMenuButton>
+								)}
+							</Link>
+						</SidebarMenuItem>
+						<SidebarMenuItem>
+							<Link to="/flows">
+								{({ isActive }) => (
+									<SidebarMenuButton asChild isActive={isActive}>
+										<span>Flows</span>
+									</SidebarMenuButton>
+								)}
+							</Link>
+						</SidebarMenuItem>
+						<SidebarMenuItem>
+							<Link to="/deployments">
+								{({ isActive }) => (
+									<SidebarMenuButton asChild isActive={isActive}>
+										<span>Deployments</span>
+									</SidebarMenuButton>
+								)}
+							</Link>
+						</SidebarMenuItem>
+						<SidebarMenuItem>
+							<Link to="/work-pools">
+								{({ isActive }) => (
+									<SidebarMenuButton asChild isActive={isActive}>
+										<span>Work Pools</span>
+									</SidebarMenuButton>
+								)}
+							</Link>
+						</SidebarMenuItem>
+						<SidebarMenuItem>
+							<Link to="/blocks">
+								{({ isActive }) => (
+									<SidebarMenuButton asChild isActive={isActive}>
+										<span>Blocks</span>
+									</SidebarMenuButton>
+								)}
+							</Link>
+						</SidebarMenuItem>
+						<SidebarMenuItem>
+							<Link to="/variables">
+								{({ isActive }) => (
+									<SidebarMenuButton asChild isActive={isActive}>
+										<span>Variables</span>
+									</SidebarMenuButton>
+								)}
+							</Link>
+						</SidebarMenuItem>
+						<SidebarMenuItem>
+							<Link to="/automations">
+								{({ isActive }) => (
+									<SidebarMenuButton asChild isActive={isActive}>
+										<span>Automations</span>
+									</SidebarMenuButton>
+								)}
+							</Link>
+						</SidebarMenuItem>
+						<SidebarMenuItem>
+							<Link to="/events">
+								{({ isActive }) => (
+									<SidebarMenuButton asChild isActive={isActive}>
+										<span>Event Feed</span>
+									</SidebarMenuButton>
+								)}
+							</Link>
+						</SidebarMenuItem>
+						<SidebarMenuItem>
+							<Link to="/notifications">
+								{({ isActive }) => (
+									<SidebarMenuButton asChild isActive={isActive}>
+										<span>Notifications</span>
+									</SidebarMenuButton>
+								)}
+							</Link>
+						</SidebarMenuItem>
+						<SidebarMenuItem>
+							<Link to="/concurrency-limits">
+								{({ isActive }) => (
+									<SidebarMenuButton asChild isActive={isActive}>
+										<span>Concurrency</span>
+									</SidebarMenuButton>
+								)}
+							</Link>
+						</SidebarMenuItem>
 					</SidebarMenu>
 				</SidebarGroup>
 			</SidebarContent>
