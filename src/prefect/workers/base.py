@@ -878,13 +878,18 @@ class BaseWorker(abc.ABC):
                     get_current_settings().experiments.worker_logging_to_api_enabled
                     and self.backend_id
                 ):
-                    worker_url = url_for(
-                        "worker", self._work_pool.name, worker_id=self.backend_id
-                    )
+                    try:
+                        worker_url = url_for(
+                            "worker",
+                            obj_id=self.backend_id,
+                            work_pool_name=self._work_pool_name,
+                        )
 
-                    run_logger.info(
-                        f"Running on worker id: {self.backend_id}. See worker logs here: {worker_url}"
-                    )
+                        run_logger.info(
+                            f"Running on worker id: {self.backend_id}. See worker logs here: {worker_url}"
+                        )
+                    except ValueError as ve:
+                        run_logger.warning(f"Failed to generate worker URL: {ve}")
 
                 self._submitting_flow_run_ids.add(flow_run.id)
                 self._runs_task_group.start_soon(
