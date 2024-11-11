@@ -38,8 +38,13 @@ from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_c
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.events.worker import EventsWorker
 from prefect.exceptions import MissingContextError
-from prefect.results import ResultStore, get_default_persist_setting
+from prefect.results import (
+    ResultStore,
+    get_default_persist_setting,
+    get_default_persist_setting_for_tasks,
+)
 from prefect.settings import Profile, Settings
+from prefect.settings.legacy import _get_settings_fields
 from prefect.states import State
 from prefect.task_runners import TaskRunner
 from prefect.utilities.services import start_client_metrics_server
@@ -396,7 +401,7 @@ class TaskRunContext(RunContext):
 
     # Result handling
     result_store: ResultStore
-    persist_result: bool = Field(default_factory=get_default_persist_setting)
+    persist_result: bool = Field(default_factory=get_default_persist_setting_for_tasks)
 
     __var__ = ContextVar("task_run")
 
@@ -598,8 +603,8 @@ def use_profile(
 
     if not override_environment_variables:
         for key in os.environ:
-            if key in prefect.settings.SETTING_VARIABLES:
-                profile_settings.pop(prefect.settings.SETTING_VARIABLES[key], None)
+            if key in _get_settings_fields(Settings):
+                profile_settings.pop(_get_settings_fields(Settings)[key], None)
 
     new_settings = settings.copy_with_update(updates=profile_settings)
 

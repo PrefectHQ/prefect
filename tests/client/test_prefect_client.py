@@ -3,6 +3,7 @@ import os
 from contextlib import asynccontextmanager
 from datetime import timedelta
 from typing import Generator, List
+from unittest import mock
 from unittest.mock import ANY, MagicMock, Mock
 from uuid import UUID, uuid4
 
@@ -55,9 +56,11 @@ from prefect.client.schemas.objects import (
     Flow,
     FlowRunNotificationPolicy,
     FlowRunPolicy,
+    Integration,
     StateType,
     TaskRun,
     Variable,
+    WorkerMetadata,
     WorkQueue,
 )
 from prefect.client.schemas.responses import (
@@ -69,6 +72,7 @@ from prefect.client.schemas.schedules import CronSchedule, IntervalSchedule
 from prefect.client.utilities import inject_client
 from prefect.events import AutomationCore, EventTrigger, Posture
 from prefect.server.api.server import create_app
+from prefect.server.database.orm_models import WorkPool
 from prefect.settings import (
     PREFECT_API_DATABASE_MIGRATE_ON_START,
     PREFECT_API_KEY,
@@ -77,7 +81,7 @@ from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_CLIENT_CSRF_SUPPORT_ENABLED,
     PREFECT_CLOUD_API_URL,
-    PREFECT_UNIT_TEST_MODE,
+    PREFECT_TESTING_UNIT_TEST_MODE,
     temporary_settings,
 )
 from prefect.states import Completed, Pending, Running, Scheduled, State
@@ -2312,7 +2316,7 @@ async def test_prefect_client_follow_redirects():
         assert client._client.follow_redirects is False
 
     # follow redirects by default
-    with temporary_settings({PREFECT_UNIT_TEST_MODE: False}):
+    with temporary_settings({PREFECT_TESTING_UNIT_TEST_MODE: False}):
         async with PrefectClient(api=app) as client:
             assert client._client.follow_redirects is True
 
@@ -2698,3 +2702,59 @@ class TestSyncClientRaiseForAPIVersionMismatch:
             f"Found incompatible versions: client: {client_version}, server: {api_version}. "
             in str(e.value)
         )
+
+
+class TestPrefectClientWorkerHeartbeat:
+    async def test_worker_heartbeat(
+        self, prefect_client: PrefectClient, work_pool: WorkPool
+    ):
+        work_pool_name = str(work_pool.name)
+        await prefect_client.send_worker_heartbeat(
+            work_pool_name=work_pool_name,
+            worker_name="test-worker",
+            heartbeat_interval_seconds=10,
+        )
+        workers = await prefect_client.read_workers_for_work_pool(work_pool_name)
+        assert len(workers) == 1
+        assert workers[0].name == "test-worker"
+        assert workers[0].heartbeat_interval_seconds == 10
+
+    async def test_worker_heartbeat_sends_metadata_if_passed(
+        self, prefect_client: PrefectClient
+    ):
+        with mock.patch(
+            "prefect.client.orchestration.PrefectHttpxAsyncClient.post",
+            return_value=httpx.Response(status_code=204),
+        ) as mock_post:
+            await prefect_client.send_worker_heartbeat(
+                work_pool_name="work-pool",
+                worker_name="test-worker",
+                heartbeat_interval_seconds=10,
+                worker_metadata=WorkerMetadata(
+                    integrations=[Integration(name="prefect-aws", version="1.0.0")]
+                ),
+            )
+            assert mock_post.call_args[1]["json"] == {
+                "name": "test-worker",
+                "heartbeat_interval_seconds": 10,
+                "worker_metadata": {
+                    "integrations": [{"name": "prefect-aws", "version": "1.0.0"}]
+                },
+            }
+
+    async def test_worker_heartbeat_does_not_send_metadata_if_not_passed(
+        self, prefect_client: PrefectClient
+    ):
+        with mock.patch(
+            "prefect.client.orchestration.PrefectHttpxAsyncClient.post",
+            return_value=httpx.Response(status_code=204),
+        ) as mock_post:
+            await prefect_client.send_worker_heartbeat(
+                work_pool_name="work-pool",
+                worker_name="test-worker",
+                heartbeat_interval_seconds=10,
+            )
+            assert mock_post.call_args[1]["json"] == {
+                "name": "test-worker",
+                "heartbeat_interval_seconds": 10,
+            }

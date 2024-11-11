@@ -99,6 +99,7 @@ from prefect.client.schemas.objects import (
     TaskRunResult,
     Variable,
     Worker,
+    WorkerMetadata,
     WorkPool,
     WorkQueue,
     WorkQueueStatusDetail,
@@ -133,7 +134,8 @@ from prefect.settings import (
     PREFECT_CLIENT_CSRF_SUPPORT_ENABLED,
     PREFECT_CLOUD_API_URL,
     PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
-    PREFECT_UNIT_TEST_MODE,
+    PREFECT_TESTING_UNIT_TEST_MODE,
+    get_current_settings,
 )
 
 if TYPE_CHECKING:
@@ -385,7 +387,7 @@ class PrefectClient:
             ),
         )
 
-        if not PREFECT_UNIT_TEST_MODE:
+        if not PREFECT_TESTING_UNIT_TEST_MODE:
             httpx_settings.setdefault("follow_redirects", True)
 
         enable_csrf_support = (
@@ -2594,21 +2596,43 @@ class PrefectClient:
         work_pool_name: str,
         worker_name: str,
         heartbeat_interval_seconds: Optional[float] = None,
-    ):
+        get_worker_id: bool = False,
+        worker_metadata: Optional[WorkerMetadata] = None,
+    ) -> Optional[UUID]:
         """
         Sends a worker heartbeat for a given work pool.
 
         Args:
             work_pool_name: The name of the work pool to heartbeat against.
             worker_name: The name of the worker sending the heartbeat.
+            return_id: Whether to return the worker ID. Note: will return `None` if the connected server does not support returning worker IDs, even if `return_id` is `True`.
+            worker_metadata: Metadata about the worker to send to the server.
         """
-        await self._client.post(
+        params = {
+            "name": worker_name,
+            "heartbeat_interval_seconds": heartbeat_interval_seconds,
+        }
+        if worker_metadata:
+            params["worker_metadata"] = worker_metadata.model_dump(mode="json")
+        if get_worker_id:
+            params["return_id"] = get_worker_id
+
+        resp = await self._client.post(
             f"/work_pools/{work_pool_name}/workers/heartbeat",
-            json={
-                "name": worker_name,
-                "heartbeat_interval_seconds": heartbeat_interval_seconds,
-            },
+            json=params,
         )
+
+        if (
+            (
+                self.server_type == ServerType.CLOUD
+                or get_current_settings().testing.test_mode
+            )
+            and get_worker_id
+            and resp.status_code == 200
+        ):
+            return UUID(resp.text)
+        else:
+            return None
 
     async def read_workers_for_work_pool(
         self,
@@ -2630,7 +2654,7 @@ class PrefectClient:
         response = await self._client.post(
             f"/work_pools/{work_pool_name}/workers/filter",
             json={
-                "worker_filter": (
+                "workers": (
                     worker_filter.model_dump(mode="json", exclude_unset=True)
                     if worker_filter
                     else None
@@ -3594,7 +3618,7 @@ class SyncPrefectClient:
             ),
         )
 
-        if not PREFECT_UNIT_TEST_MODE:
+        if not PREFECT_TESTING_UNIT_TEST_MODE:
             httpx_settings.setdefault("follow_redirects", True)
 
         enable_csrf_support = (

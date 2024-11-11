@@ -32,6 +32,7 @@ from prefect.settings import (
     PREFECT_LOGGING_TO_API_BATCH_SIZE,
     PREFECT_LOGGING_TO_API_MAX_LOG_SIZE,
     PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW,
+    get_current_settings,
 )
 
 
@@ -133,7 +134,7 @@ class APILogHandler(logging.Handler):
         try:
             profile = prefect.context.get_settings_context()
 
-            if not profile.settings.logging_to_api_enabled:
+            if not profile.settings.logging.to_api.enabled:
                 return  # Respect the global settings toggle
             if not getattr(record, "send_to_api", True):
                 return  # Do not send records that have opted out
@@ -180,6 +181,7 @@ class APILogHandler(logging.Handler):
         """
         flow_run_id = getattr(record, "flow_run_id", None)
         task_run_id = getattr(record, "task_run_id", None)
+        worker_id = getattr(record, "worker_id", None)
 
         if not flow_run_id:
             try:
@@ -215,6 +217,7 @@ class APILogHandler(logging.Handler):
         log = LogCreate(
             flow_run_id=flow_run_id if is_uuid_like else None,
             task_run_id=task_run_id,
+            worker_id=worker_id,
             name=record.name,
             level=record.levelno,
             timestamp=pendulum.from_timestamp(
@@ -234,6 +237,44 @@ class APILogHandler(logging.Handler):
 
     def _get_payload_size(self, log: Dict[str, Any]) -> int:
         return len(json.dumps(log).encode())
+
+
+class WorkerAPILogHandler(APILogHandler):
+    def emit(self, record: logging.LogRecord):
+        if get_current_settings().experiments.worker_logging_to_api_enabled:
+            super().emit(record)
+        else:
+            return
+
+    def prepare(self, record: logging.LogRecord) -> Dict[str, Any]:
+        """
+        Convert a `logging.LogRecord` to the API `LogCreate` schema and serialize.
+
+        This will add in the worker id to the log.
+
+        Logs exceeding the maximum size will be dropped.
+        """
+
+        worker_id = getattr(record, "worker_id", None)
+
+        log = LogCreate(
+            worker_id=worker_id,
+            name=record.name,
+            level=record.levelno,
+            timestamp=pendulum.from_timestamp(
+                getattr(record, "created", None) or time.time()
+            ),
+            message=self.format(record),
+        ).model_dump(mode="json")
+
+        log_size = log["__payload_size__"] = self._get_payload_size(log)
+        if log_size > PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value():
+            raise ValueError(
+                f"Log of size {log_size} is greater than the max size of "
+                f"{PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value()}"
+            )
+
+        return log
 
 
 class PrefectConsoleHandler(logging.StreamHandler):

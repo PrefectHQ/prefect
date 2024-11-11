@@ -67,6 +67,7 @@ from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_TASKS_REFRESH_CACHE,
 )
+from prefect.settings.context import get_current_settings
 from prefect.states import (
     AwaitingRetry,
     Completed,
@@ -150,11 +151,17 @@ class BaseTaskRunEngine(Generic[P, R]):
             else:
                 parameters = None
 
-            key = self.task.cache_policy.compute_key(
-                task_ctx=task_run_context,
-                inputs=self.parameters,
-                flow_parameters=parameters,
-            )
+            try:
+                key = self.task.cache_policy.compute_key(
+                    task_ctx=task_run_context,
+                    inputs=self.parameters,
+                    flow_parameters=parameters,
+                )
+            except Exception:
+                self.logger.exception(
+                    "Error encountered when computing cache key - result will not be persisted.",
+                )
+                key = None
         elif self.task.result_storage_key is not None:
             key = _format_user_supplied_storage_key(self.task.result_storage_key)
         return key
@@ -184,6 +191,22 @@ class BaseTaskRunEngine(Generic[P, R]):
                 ) from exc
 
         self.parameters = resolved_parameters
+
+    def _set_custom_task_run_name(self):
+        from prefect.utilities.engine import _resolve_custom_task_run_name
+
+        # update the task run name if necessary
+        if not self._task_name_set and self.task.task_run_name:
+            task_run_name = _resolve_custom_task_run_name(
+                task=self.task, parameters=self.parameters or {}
+            )
+
+            self.logger.extra["task_run_name"] = task_run_name
+            self.logger.debug(
+                f"Renamed task run {self.task_run.name!r} to {task_run_name!r}"
+            )
+            self.task_run.name = task_run_name
+            self._task_name_set = True
 
     def _wait_for_dependencies(self):
         if not self.wait_for:
@@ -349,6 +372,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     def begin_run(self):
         try:
             self._resolve_parameters()
+            self._set_custom_task_run_name()
             self._wait_for_dependencies()
         except UpstreamTaskError as upstream_exc:
             state = self.set_state(
@@ -578,9 +602,10 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     @contextmanager
     def setup_run_context(self, client: Optional[SyncPrefectClient] = None):
         from prefect.utilities.engine import (
-            _resolve_custom_task_run_name,
             should_log_prints,
         )
+
+        settings = get_current_settings()
 
         if client is None:
             client = self.client
@@ -590,6 +615,12 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         with ExitStack() as stack:
             if log_prints := should_log_prints(self.task):
                 stack.enter_context(patch_print())
+            if self.task.persist_result is not None:
+                persist_result = self.task.persist_result
+            elif settings.tasks.default_persist_result is not None:
+                persist_result = settings.tasks.default_persist_result
+            else:
+                persist_result = should_persist_result()
             stack.enter_context(
                 TaskRunContext(
                     task=self.task,
@@ -600,9 +631,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                         self.task, _sync=True
                     ),
                     client=client,
-                    persist_result=self.task.persist_result
-                    if self.task.persist_result is not None
-                    else should_persist_result(),
+                    persist_result=persist_result,
                 )
             )
             stack.enter_context(ConcurrencyContextV1())
@@ -610,18 +639,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
             self.logger = task_run_logger(task_run=self.task_run, task=self.task)  # type: ignore
 
-            # update the task run name if necessary
-            if not self._task_name_set and self.task.task_run_name:
-                task_run_name = _resolve_custom_task_run_name(
-                    task=self.task, parameters=self.parameters
-                )
-
-                self.logger.extra["task_run_name"] = task_run_name
-                self.logger.debug(
-                    f"Renamed task run {self.task_run.name!r} to {task_run_name!r}"
-                )
-                self.task_run.name = task_run_name
-                self._task_name_set = True
             yield
 
     @contextmanager
@@ -870,6 +887,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     async def begin_run(self):
         try:
             self._resolve_parameters()
+            self._set_custom_task_run_name()
             self._wait_for_dependencies()
         except UpstreamTaskError as upstream_exc:
             state = await self.set_state(
@@ -1092,9 +1110,10 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     @asynccontextmanager
     async def setup_run_context(self, client: Optional[PrefectClient] = None):
         from prefect.utilities.engine import (
-            _resolve_custom_task_run_name,
             should_log_prints,
         )
+
+        settings = get_current_settings()
 
         if client is None:
             client = self.client
@@ -1104,6 +1123,12 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         with ExitStack() as stack:
             if log_prints := should_log_prints(self.task):
                 stack.enter_context(patch_print())
+            if self.task.persist_result is not None:
+                persist_result = self.task.persist_result
+            elif settings.tasks.default_persist_result is not None:
+                persist_result = settings.tasks.default_persist_result
+            else:
+                persist_result = should_persist_result()
             stack.enter_context(
                 TaskRunContext(
                     task=self.task,
@@ -1114,25 +1139,13 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                         self.task, _sync=False
                     ),
                     client=client,
-                    persist_result=self.task.persist_result
-                    if self.task.persist_result is not None
-                    else should_persist_result(),
+                    persist_result=persist_result,
                 )
             )
             stack.enter_context(ConcurrencyContext())
 
             self.logger = task_run_logger(task_run=self.task_run, task=self.task)  # type: ignore
 
-            if not self._task_name_set and self.task.task_run_name:
-                task_run_name = _resolve_custom_task_run_name(
-                    task=self.task, parameters=self.parameters
-                )
-                self.logger.extra["task_run_name"] = task_run_name
-                self.logger.debug(
-                    f"Renamed task run {self.task_run.name!r} to {task_run_name!r}"
-                )
-                self.task_run.name = task_run_name
-                self._task_name_set = True
             yield
 
     @asynccontextmanager

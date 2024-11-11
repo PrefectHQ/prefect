@@ -6,6 +6,8 @@ env:
   PY_COLORS: 1
 
 on:
+  workflow_dispatch:
+
   pull_request:
     paths:
       - .github/workflows/markdown-tests.yaml
@@ -16,6 +18,7 @@ on:
       - requirements.txt
       - setup.cfg
       - Dockerfile
+
   push:
     branches:
       - main
@@ -92,6 +95,7 @@ jobs:
           python -m pip install -U uv
           uv pip install --upgrade --system -e '.[dev]'
           uv pip install --upgrade --system -r requirements-markdown-tests.txt
+          uv pip uninstall --system pytest-benchmark
 
       - name: Start server
         run: |
