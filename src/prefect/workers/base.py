@@ -879,7 +879,7 @@ class BaseWorker(abc.ABC):
                     and self.backend_id
                 ):
                     worker_path = f"worker/{self.backend_id}"
-                    base_url = url_for("work-pool", self._work_pool.id)
+                    base_url = url_for("work-pool", self._work_pool.name)
 
                     run_logger.info(
                         f"Running on worker id: {self.backend_id}. See worker logs here: {base_url}/{worker_path}"
