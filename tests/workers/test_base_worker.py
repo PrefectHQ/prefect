@@ -1914,7 +1914,7 @@ class TestBaseWorkerHeartbeat:
                     json={
                         "name": worker.name,
                         "heartbeat_interval_seconds": worker.heartbeat_interval_seconds,
-                        "worker_metadata": {
+                        "metadata": {
                             "integrations": [
                                 {"name": "prefect-aws", "version": "1.0.0"}
                             ]
@@ -1972,7 +1972,7 @@ class TestBaseWorkerHeartbeat:
                     json={
                         "name": worker.name,
                         "heartbeat_interval_seconds": worker.heartbeat_interval_seconds,
-                        "worker_metadata": {
+                        "metadata": {
                             "integrations": [
                                 {"name": "prefect-aws", "version": "1.0.0"}
                             ],
