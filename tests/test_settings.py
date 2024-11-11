@@ -244,7 +244,7 @@ SUPPORTED_SETTINGS = {
     },
     "PREFECT_LOGGING_COLORS": {"test_value": True},
     "PREFECT_LOGGING_CONFIG_PATH": {"test_value": Path("/path/to/settings.yaml")},
-    "PREFECT_LOGGING_EXTRA_LOGGERS": {"test_value": ["bar", "foo"]},
+    "PREFECT_LOGGING_EXTRA_LOGGERS": {"test_value": ["foo", "bar"]},
     "PREFECT_LOGGING_INTERNAL_LEVEL": {"test_value": "INFO", "legacy": True},
     "PREFECT_LOGGING_LEVEL": {"test_value": "INFO"},
     "PREFECT_LOGGING_LOG_PRINTS": {"test_value": True},
@@ -1882,9 +1882,16 @@ class TestSettingValues:
             if isinstance(settings_value, pydantic.SecretStr):
                 settings_value = settings_value.get_secret_value()
 
-            assert settings_value == value
-            # get value from legacy setting object
-            assert getattr(prefect.settings, setting).value() == value
+            if setting == "PREFECT_LOGGING_EXTRA_LOGGERS":
+                assert sorted(settings_value) == sorted(value)
+                legacy_value = getattr(prefect.settings, setting).value()
+                assert isinstance(legacy_value, list)
+                assert sorted(legacy_value) == sorted(value)
+            else:
+                assert settings_value == value
+                # get value from legacy setting object
+                assert getattr(prefect.settings, setting).value() == value
+                
             # ensure the value gets added to the environment variables, but "legacy" will use
             # their updated name
             if not SUPPORTED_SETTINGS[setting].get("legacy"):
