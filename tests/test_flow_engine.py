@@ -10,6 +10,7 @@ from uuid import UUID
 import anyio
 import pydantic
 import pytest
+from opentelemetry import trace
 
 from prefect import Flow, __development_base_path__, flow, task
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
@@ -42,6 +43,7 @@ from prefect.input.run_input import RunInput
 from prefect.logging import get_run_logger
 from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.server.schemas.core import FlowRun as ServerFlowRun
+from prefect.telemetry.test_utils import InstrumentationTester
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.filesystem import tmpchdir
@@ -1802,3 +1804,32 @@ class TestConcurrencyRelease:
             concurrency_limit_v2.name
         )
         assert response.active_slots == 0
+
+
+class TestFlowRunInstrumentation:
+    def test_flow_run_instrumentation(self, instrumentation: InstrumentationTester):
+        @flow
+        def instrumented_flow():
+            from prefect.states import Completed
+
+            return Completed(message="The flow is with you")
+
+        instrumented_flow()
+
+        spans = instrumentation.get_finished_spans()
+        assert len(spans) == 1
+        span = spans[0]
+        assert span is not None
+
+        instrumentation.assert_span_has_attributes(
+            span,
+            {
+                "prefect.run.type": "flow",
+                "prefect.tags": (),
+                "prefect.flow.name": "instrumented-flow",
+            },
+        )
+        assert span.attributes.get("prefect.run.id") is not None
+        # assert span.attributes.get("prefect.deployment.id") is not None  # todo
+        assert span.status.status_code == trace.StatusCode.OK
+        # assert span.status.description == "The flow is with you" # fixme
