@@ -22,11 +22,7 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Topic :: Software Development :: Libraries",
 ]
-dependencies = [
-  "prefect>=3.0.0rc1",
-  "docker>=6.1.1",
-  "exceptiongroup",
-]
+dependencies = ["prefect>=3.0.0rc1", "docker>=6.1.1", "exceptiongroup"]
 dynamic = ["version"]
 
 [project.optional-dependencies]
@@ -41,7 +37,7 @@ dev = [
   "pillow",
   "pre-commit",
   "pytest-asyncio",
-  "pytest",
+  "pytest >= 8.3",
   "pytest-env",
   "pytest-xdist",
 ]
@@ -74,6 +70,7 @@ fail_under = 80
 show_missing = true
 
 [tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "session"
 asyncio_mode = "auto"
 env = ["PREFECT_TEST_MODE=1"]
 filterwarnings = [

@@ -4,10 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "prefect-sqlalchemy"
-dependencies = [
-  "sqlalchemy>=1.4.31,<3",
-  "prefect>=3.0.0rc1",
-]
+dependencies = ["sqlalchemy>=1.4.31,<3", "prefect>=3.0.0rc1"]
 dynamic = ["version"]
 description = "Prefect integrations for working with databases"
 readme = "README.md"
@@ -42,7 +39,7 @@ dev = [
   "pillow",
   "pre-commit",
   "psycopg2",
-  "pytest",
+  "pytest >= 8.3",
   "pytest-asyncio",
   "pytest-env",
   "pytest-xdist",
@@ -76,7 +73,6 @@ fail_under = 80
 show_missing = true
 
 [tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "session"
 asyncio_mode = "auto"
-env = [
-  "PREFECT_TEST_MODE=1",
-]
+env = ["PREFECT_TEST_MODE=1"]
