@@ -29,6 +29,7 @@ import type { JSONValue } from "@/lib/types";
 import { Loader2 } from "lucide-react";
 import { TagsInput } from "../ui/tags-input";
 import { useToast } from "@/hooks/use-toast";
+import { queryClient } from "@/router";
 
 const formSchema = z.object({
 	name: z.string().min(2, { message: "Name must be at least 2 characters" }),
@@ -66,6 +67,16 @@ export const AddVariableDialog = ({
 			return queryService.POST("/variables/", {
 				body: variable,
 			});
+		},
+		onSettled: async () => {
+			return await Promise.all([
+				queryClient.invalidateQueries({
+					predicate: (query) => query.queryKey[0] === "variables",
+				}),
+				queryClient.invalidateQueries({
+					queryKey: ["total-variable-count"],
+				}),
+			]);
 		},
 		onSuccess: () => {
 			toast({

@@ -2,20 +2,13 @@ import type { components } from "@/api/prefect";
 import {
 	useReactTable,
 	getCoreRowModel,
-	getPaginationRowModel,
 	createColumnHelper,
+	type PaginationState,
 } from "@tanstack/react-table";
 import { DataTable } from "@/components/ui/data-table";
-import { Badge } from "../ui/badge";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuLabel,
-	DropdownMenuTrigger,
-} from "../ui/dropdown-menu";
-import { Button } from "../ui/button";
-import { MoreVerticalIcon } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { ActionsCell } from "./cells";
+import { useNavigate } from "@tanstack/react-router";
 
 const columnHelper = createColumnHelper<components["schemas"]["Variable"]>();
 
@@ -69,68 +62,56 @@ const columns = [
 	}),
 	columnHelper.display({
 		id: "actions",
-		cell: ({ row }) => {
-			const id = row.original.id;
-			if (!id) return null;
-			return (
-				<DropdownMenu>
-					<DropdownMenuTrigger asChild>
-						<Button variant="ghost" className="h-8 w-8 p-0 ml-auto">
-							<span className="sr-only">Open menu</span>
-							<MoreVerticalIcon className="h-4 w-4" />
-						</Button>
-					</DropdownMenuTrigger>
-					<DropdownMenuContent align="end">
-						<DropdownMenuLabel>Actions</DropdownMenuLabel>
-						<DropdownMenuItem
-							onClick={() => void navigator.clipboard.writeText(id)}
-						>
-							Copy ID
-						</DropdownMenuItem>
-						<DropdownMenuItem
-							onClick={() =>
-								void navigator.clipboard.writeText(row.original.name)
-							}
-						>
-							Copy Name
-						</DropdownMenuItem>
-						<DropdownMenuItem
-							onClick={() => {
-								const copyValue =
-									typeof row.original.value !== "string"
-										? JSON.stringify(row.original.value)
-										: row.original.value;
-								if (copyValue) {
-									void navigator.clipboard.writeText(copyValue);
-								}
-							}}
-						>
-							Copy Value
-						</DropdownMenuItem>
-					</DropdownMenuContent>
-				</DropdownMenu>
-			);
-		},
+		cell: ActionsCell,
 	}),
 ];
 
 export const VariablesDataTable = ({
 	variables,
+	totalVariableCount,
+	pagination,
 }: {
 	variables: components["schemas"]["Variable"][];
+	totalVariableCount: number;
+	pagination: PaginationState;
 }) => {
+	const navigate = useNavigate({ from: "/variables" });
+
 	const table = useReactTable({
 		data: variables,
 		columns: columns,
-		getCoreRowModel: getCoreRowModel(),
-		getPaginationRowModel: getPaginationRowModel(),
-		initialState: {
-			pagination: {
-				pageIndex: 0,
-				pageSize: 10,
-			},
+		state: {
+			pagination,
 		},
+		getCoreRowModel: getCoreRowModel(),
+		manualPagination: true,
+		onPaginationChange: (updater) => {
+			let newPagination = pagination;
+			if (typeof updater === "function") {
+				newPagination = updater(pagination);
+			} else {
+				newPagination = updater;
+			}
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					offset: newPagination.pageIndex * newPagination.pageSize,
+					limit: newPagination.pageSize,
+				}),
+			});
+		},
+		rowCount: totalVariableCount,
 	});
 
-	return <DataTable table={table} />;
+	return (
+		<div className="flex flex-col gap-6 mt-2">
+			<div className="flex flex-row justify-between items-center">
+				<p className="text-sm text-muted-foreground">
+					{totalVariableCount} Variables
+				</p>
+			</div>
+			<DataTable table={table} />
+		</div>
+	);
 };

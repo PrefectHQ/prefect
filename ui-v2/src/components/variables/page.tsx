@@ -10,11 +10,16 @@ import { VariablesEmptyState } from "@/components/variables/empty-state";
 import { PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { VariablesDataTable } from "./data-table";
+import type { PaginationState } from "@tanstack/react-table";
 
 export const VariablesPage = ({
 	variables,
+	totalVariableCount,
+	pagination,
 }: {
 	variables: components["schemas"]["Variable"][];
+	totalVariableCount: number;
+	pagination: PaginationState;
 }) => {
 	const [addVariableDialogOpen, setAddVariableDialogOpen] = useState(false);
 	const onAddVariableClick = () => {
@@ -48,7 +53,11 @@ export const VariablesPage = ({
 				{variables.length === 0 ? (
 					<VariablesEmptyState onAddVariableClick={onAddVariableClick} />
 				) : (
-					<VariablesDataTable variables={variables} />
+					<VariablesDataTable
+						variables={variables}
+						totalVariableCount={totalVariableCount}
+						pagination={pagination}
+					/>
 				)}
 			</div>
 		</>
