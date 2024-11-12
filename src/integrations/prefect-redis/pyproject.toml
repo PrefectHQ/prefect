@@ -37,7 +37,7 @@ dev = [
   "pillow",
   "pre-commit",
   "pytest-asyncio",
-  "pytest",
+  "pytest >= 8.3",
   "pytest-env",
   "pytest-timeout",
   "pytest-xdist",
@@ -71,8 +71,7 @@ fail_under = 80
 show_missing = true
 
 [tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "session"
 asyncio_mode = "auto"
 timeout = "30"
-env = [
-  "PREFECT_TEST_MODE=1",
-]
+env = ["PREFECT_TEST_MODE=1"]
