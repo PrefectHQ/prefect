@@ -115,6 +115,8 @@ def digest_task_inputs(inputs, parameters) -> Tuple[Dict[str, str], list[Link]]:
     links = []
     for key, value in inputs.items():
         for input in value:
+            if input in ("__parents__", "wait_for"):
+                continue
             if isinstance(input, TaskRunInput):
                 parameter_attributes[f"prefect.run.parameter.{key}"] = type(
                     parameters[key]
@@ -716,7 +718,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 self._is_started = True
                 flow_run_context = FlowRunContext.get()
                 parent_task_run_context = TaskRunContext.get()
-                self.logger.info(f"parameters {self.parameters}")
 
                 try:
                     if not self.task_run:
@@ -754,6 +755,9 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                                 span_id=0,
                                 is_remote=False,
                             )
+                        labels = {}
+                        if flow_run_context:
+                            labels = flow_run_context.flow_run.labels
 
                         self._span = self._tracer.start_span(
                             name=self.task_run.name,
@@ -762,6 +766,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                                 "prefect.run.id": str(self.task_run.id),
                                 "prefect.tags": self.task_run.tags,
                                 **parameter_attributes,
+                                **labels,
                             },
                             links=links,
                             context=context,

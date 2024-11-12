@@ -555,6 +555,11 @@ class FlowRun(ObjectBaseModel):
         description="A list of tags on the flow run",
         examples=[["tag-1", "tag-2"]],
     )
+    labels: Dict[str, str] = Field(
+        default_factory=dict,
+        description="A dictionary of labels on the flow run",
+        examples=[{"my-label": "my-value"}],
+    )
     parent_task_run_id: Optional[UUID] = Field(
         default=None,
         description=(
