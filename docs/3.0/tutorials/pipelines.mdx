@@ -237,7 +237,7 @@ def show_stars(github_repos: list[str]):
 
     repo_stats = []
     for repo in github_repos:
-        # Use a rate limit when making HTTP requests
+        # Apply a rate limit to this loop
         rate_limit("github-api")
 
         # Call Task 1
@@ -263,7 +263,7 @@ def show_stars(github_repos: list[str]):
 
     repo_stats = []
     for repo in github_repos:
-        # Use a rate limit when making HTTP requests
+        # Apply a rate limit to this loop
         rate_limit("github-api")
 
         # Call Task 1
