@@ -58,7 +58,7 @@ dev = [
   "prefect-gcp[bigquery]>=0.6.0rc1",
   "prefect-snowflake>=0.28.0rc1",
   "prefect-sqlalchemy>=0.5.1",
-  "pytest",
+  "pytest >= 8.3",
   "pytest-asyncio",
   "pytest-env",
   "pytest-xdist",

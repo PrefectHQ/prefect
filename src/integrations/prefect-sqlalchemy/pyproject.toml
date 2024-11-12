@@ -39,7 +39,7 @@ dev = [
   "pillow",
   "pre-commit",
   "psycopg2",
-  "pytest",
+  "pytest >= 8.3",
   "pytest-asyncio",
   "pytest-env",
   "pytest-xdist",

@@ -38,7 +38,7 @@ dev = [
   "pillow",
   "pre-commit",
   "pytest-asyncio",
-  "pytest",
+  "pytest >= 8.3",
   "pytest-asyncio>=0.18.2,!=0.22.0,<0.23.0",
   "pytest-env",
   "pytest-xdist",
