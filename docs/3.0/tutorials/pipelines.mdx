@@ -159,12 +159,12 @@ if __name__ == "__main__":
 
 ## Avoid rate limits
 
-It's easy to violate the rate limits of whatever API you're using.
-To avoid this, you can use Prefect's rate limiting feature to set a global concurrency limit.
+To avoid violating the rate limits of whatever API you're using, use Prefect to set a global concurrency limit.
 
 1. Open the Prefect UI
 1. Navigate to **Configuration** / **Concurrency**, and then click **Add Concurrency Limit**.
 1. Choose a name (**github-api**), concurrency limit (**3**), and set a non-zero slot decay (**1**).
+   This allows 3 tasks to run concurrently, with a 1-second delay before the next slot is freed up.
 1. Click **Create**.
 
 Now, you can use this global concurrency limit in your code:
