@@ -9,11 +9,10 @@ Prefect is an orchestration and observability platform that empowers developers 
 In this quickstart, you will use Prefect to convert the following Python script to a deployable workflow:
 
 ```python my_script.py
-from typings import List
 import httpx
 
 
-def show_stars(github_repos: List[str]):
+def show_stars(github_repos: list[str]):
     """Show the number of stars that GitHub repos have"""
 
     for repo in github_repos:
@@ -80,13 +79,12 @@ Tasks receive metadata about upstream dependencies and the state of those depend
 Prefect will then record these dependencies and states as it orchestrates these tasks.
 
 ```python my_workflow.py
-from typings import List
 import httpx
 from prefect import flow, task # Prefect flow and task decorators
 
 
 @flow(log_prints=True)
-def show_stars(github_repos: List[str]):
+def show_stars(github_repos: list[str]):
     """Flow: Show the number of stars that GitHub repos have"""
 
     for repo in github_repos:

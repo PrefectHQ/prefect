@@ -51,7 +51,7 @@ As an additional optimization, you can run multiple HTTP requests in parallel.
 
 ```python
 @flow(log_prints=True)
-def show_stars(github_repos: List[str]):
+def show_stars(github_repos: list[str]):
     """Flow: Show the number of stars that GitHub repos have"""
 
     # Make HTTP requests in parallel
@@ -85,7 +85,7 @@ Now, you can use this global concurrency limit in your code:
 from prefect.concurrency.sync import rate_limit
 
 @flow(log_prints=True)
-def show_stars(github_repos: List[str]):
+def show_stars(github_repos: list[str]):
     """Flow: Show the number of stars that GitHub repos have"""
 
     # Use a rate limit when making HTTP requests
@@ -105,14 +105,13 @@ def show_stars(github_repos: List[str]):
 This is what your flow looks like after applying all of these improvements:
 
 ```python my_data_pipeline.py
-from typings import List
 import httpx
 from prefect import flow, task
 from prefect.cache_policies import INPUTS
 
 
 @flow(log_prints=True)
-def show_stars(github_repos: List[str]):
+def show_stars(github_repos: list[str]):
     """Flow: Show the number of stars that GitHub repos have"""
 
     # Make HTTP requests in parallel while respecting rate limits
