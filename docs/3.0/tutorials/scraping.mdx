@@ -5,129 +5,157 @@ description: Use Prefect's error handling to deal with unstructured data
 
 In [Build a data pipeline](/3.0/tutorials/pipelines), you learned how to build a resilient and performant data pipeline with Prefect.
 
-In this tutorial, you'll learn how to use error handling to deal with unstructured data.
-You'll use error handling and everything else you've learned to build a functional web scraper.
+Until now we've been working with structured data (stars), however, in the real world, you may need to work with unstructured data.
+You can't make any assumptions about unstructured data and need to gracefully handle whatever data you get.
+In this tutorial, instead of fetching stars, you'll fetch READMEs and summarize them.
 
-## Error handling
+Some problems that you'll learn to solve include:
+
+- How to deal with repositories that lack a README.
+- How to find READMEs that don't follow normal naming conventions.
+- How to process different content formats: plaintext, Markdown, reStructuredText, etc.
+- How to handle READMEs that are too large to process in one go.
+
+## Missing files
 
 TBD
 
-## Web scraping
+## File name variations
+
+TBD
+
+## Content type detection
+
+TBD
+
+## Truncation and paging
+
+TBD
+
+## Run the web scraper
+
+NOTE: This is not the final script. It's just a placeholder.
 
 ```python my_web_scraper.py
-from typing import List, Optional, Dict
-import httpx
-from prefect import flow, task
-from prefect.cache_policies import INPUTS
 from datetime import timedelta
 import base64
-import os
-from openai import OpenAI
+import httpx
+from typing import Optional
+
+from prefect import flow, task
+from prefect.cache_policies import INPUTS
+from prefect.concurrency.sync import rate_limit
+
+# You'll need to install these dependencies
+from transformers import pipeline
+import markdown
+
 
 @flow(log_prints=True)
-def show_repo_analysis(github_repos: List[str]):
-    """Flow: Analyze GitHub repos - shows stars and generates README summaries"""
+def analyze_readmes(github_repos: list[str]):
+    """Flow: Fetch and analyze README contents from GitHub repos"""
     
-    # Make HTTP requests in parallel while respecting rate limits
-    rate_limit("github-api")
-    repo_stats = []
+    # Task 1: Make HTTP requests in parallel while respecting rate limits
+    repo_contents = []
     for repo in github_repos:
-        repo_stats.append({
+        rate_limit("github-api")
+        repo_contents.append({
             'repo': repo,
-            'basic_stats': fetch_stats.submit(repo),
-            'readme_content': fetch_readme.submit(repo)
+            'task': fetch_readme.submit(repo)
         })
-
-    # Process results as they complete
-    for repo in repo_stats:
+    
+    # Task 2: Process README contents once all parallel tasks complete
+    for repo in repo_contents:
         repo_name = repo['repo']
-        stars = get_stars(repo['basic_stats'].result())
-        print(f"\n=== {repo_name} ===")
-        print(f"Stars: {stars}")
+        readme_content = repo['task'].result()
         
-        # Handle README summarization with error recovery
-        try:
-            readme_content = repo['readme_content'].result()
-            if readme_content:
-                summary = summarize_readme(readme_content).result()
-                if summary:
-                    print(f"Summary: {summary}")
-                else:
-                    print("Could not generate summary: LLM processing failed")
-            else:
-                print("No README found to summarize")
-        except Exception as e:
-            print(f"README Analysis failed: {str(e)}")
+        if readme_content:
+            summary = summarize_text(readme_content).result()
+            print(f"\n=== {repo_name} README Summary ===")
+            print(summary)
+        else:
+            print(f"\n=== {repo_name}: No README found ===")
+
 
 @task(retries=2, cache_policy=INPUTS, cache_expiration=timedelta(days=1))
-def fetch_stats(github_repo: str) -> dict:
-    """Task 1: Fetch the statistics for a GitHub repo"""
-    api_response = httpx.get(
-        f"https://api.github.com/repos/{github_repo}",
-        headers={"Accept": "application/vnd.github.v3+json"}
-    )
-    api_response.raise_for_status()
-    return api_response.json()
-
-@task(retries=3)
 def fetch_readme(github_repo: str) -> Optional[str]:
-    """Task 2: Fetch the README content for a GitHub repo"""
-    try:
-        api_response = httpx.get(
-            f"https://api.github.com/repos/{github_repo}/readme",
-            headers={"Accept": "application/vnd.github.v3+json"}
-        )
-        api_response.raise_for_status()
-        content = api_response.json().get('content', '')
-        if not content:
-            return None
-        
-        # GitHub returns base64 encoded content
-        decoded_content = base64.b64decode(content).decode('utf-8')
-        return decoded_content
-    except httpx.HTTPStatusError as e:
-        if e.response.status_code == 404:
-            print(f"No README found for {github_repo}")
-            return None
-        raise
-    except Exception as e:
-        print(f"Error fetching README for {github_repo}: {str(e)}")
-        return None
+    """Task 1: Fetch and decode the README content from a GitHub repo
+    
+    Returns:
+        str or None: Decoded README text if found, None if no README exists
+    """
+    # Try common README filenames
+    readme_files = ["README.md", "README.rst", "README.txt", "README"]
+    
+    for filename in readme_files:
+        try:
+            response = httpx.get(
+                f"https://api.github.com/repos/{github_repo}/contents/{filename}",
+                timeout=10.0
+            )
+            
+            if response.status_code == 200:
+                content = response.json()
+                
+                # GitHub API returns content as base64 encoded
+                if content.get("encoding") == "base64":
+                    decoded_content = base64.b64decode(content["content"]).decode('utf-8')
+                    
+                    # Convert markdown to plain text if it's a markdown file
+                    if filename.endswith('.md'):
+                        html = markdown.markdown(decoded_content)
+                        # Basic HTML tag removal (you might want a more robust solution)
+                        text = (html.replace('<p>', '\n\n')
+                                  .replace('</p>', '')
+                                  .replace('<h1>', '\n\n')
+                                  .replace('</h1>', '\n')
+                                  .replace('<h2>', '\n\n')
+                                  .replace('</h2>', '\n')
+                                  .replace('<h3>', '\n\n')
+                                  .replace('</h3>', '\n')
+                                  .replace('<code>', '')
+                                  .replace('</code>', ''))
+                        return text
+                    return decoded_content
+                    
+        except (httpx.RequestError, KeyError, UnicodeDecodeError) as e:
+            continue
+            
+    return None
 
-@task
-def get_stars(repo_stats: dict) -> int:
-    """Task 3: Get the number of stars from GitHub repo statistics"""
-    return repo_stats['stargazers_count']
 
-@task(retries=2)
-def summarize_readme(content: str) -> Optional[str]:
-    """Task 4: Use LLM to generate a one-line summary of the README"""
+@task(retries=1)
+def summarize_text(text: str, max_length: int = 1000) -> str:
+    """Task 2: Summarize README text using a pretrained model
+    
+    Args:
+        text: The README text to summarize
+        max_length: Maximum length of text to process (to avoid memory issues)
+    
+    Returns:
+        str: A summary of the README content
+    """
+    # Truncate very long texts to avoid memory issues
+    if len(text) > max_length:
+        text = text[:max_length] + "..."
+    
     try:
-        # Initialize OpenAI client (requires OPENAI_API_KEY environment variable)
-        client = OpenAI()
+        # Initialize the summarization pipeline
+        summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
         
-        # Truncate content if it's too long (OpenAI has token limits)
-        max_chars = 6000  # Approximate limit to stay within token bounds
-        truncated_content = content[:max_chars] + ("..." if len(content) > max_chars else "")
+        # Generate summary
+        summary = summarizer(text, max_length=130, min_length=30, do_sample=False)
+        return summary[0]['summary_text']
         
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are a technical documentation expert. Create a single-sentence summary of the following repository README, focusing on the main purpose and key features of the project. Keep the summary concise and technical."},
-                {"role": "user", "content": truncated_content}
-            ],
-            max_tokens=100,  # Limit response length to ensure you get a concise summary
-            temperature=0.3   # Lower temperature for more focused, consistent summaries
-        )
-        
-        return response.choices[0].message.content.strip()
     except Exception as e:
-        print(f"Error generating README summary: {str(e)}")
-        return None
+        # Fallback to a basic summary if model fails
+        sentences = text.split('.')[:3]  # First 3 sentences
+        return '. '.join(sentences) + '.'
+
 
 # Run the flow
 if __name__ == "__main__":
-    show_repo_analysis([
+    analyze_readmes([
         "PrefectHQ/prefect",
         "tensorflow/tensorflow",
         "huggingface/transformers"
