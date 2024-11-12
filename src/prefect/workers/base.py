@@ -18,6 +18,7 @@ from typing_extensions import Literal
 import prefect
 from prefect._internal.schemas.validators import return_v_or_none
 from prefect.client.base import ServerType
+from prefect.client.cloud import CloudClient, get_cloud_client
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
 from prefect.client.schemas.objects import (
@@ -439,6 +440,7 @@ class BaseWorker(abc.ABC):
         self._exit_stack: AsyncExitStack = AsyncExitStack()
         self._runs_task_group: Optional[anyio.abc.TaskGroup] = None
         self._client: Optional[PrefectClient] = None
+        self._cloud_client: Optional[CloudClient] = None
         self._last_polled_time: pendulum.DateTime = pendulum.now("utc")
         self._limit = limit
         self._limiter: Optional[anyio.CapacityLimiter] = None
@@ -630,8 +632,13 @@ class BaseWorker(abc.ABC):
             raise ValueError("`PREFECT_API_URL` must be set to start a Worker.")
 
         self._client = get_client()
+
         await self._exit_stack.enter_async_context(self._client)
         await self._exit_stack.enter_async_context(self._runs_task_group)
+
+        if self._client.server_type == ServerType.CLOUD:
+            self._cloud_client = get_cloud_client()
+            await self._exit_stack.enter_async_context(self._cloud_client)
 
         self.is_setup = True
 
@@ -977,6 +984,7 @@ class BaseWorker(abc.ABC):
         try:
             configuration = await self._get_configuration(flow_run)
             submitted_event = self._emit_flow_run_submitted_event(configuration)
+            await self._give_worker_labels_to_flow_run(flow_run.id)
             result = await self.run(
                 flow_run=flow_run,
                 task_status=task_status,
@@ -1197,6 +1205,19 @@ class BaseWorker(abc.ABC):
                 await result
 
         await self._runs_task_group.start(wrapper)
+
+    async def _give_worker_labels_to_flow_run(self, flow_run_id: UUID):
+        """
+        Give this worker's identifying labels to the specified flow run.
+        """
+        if self._cloud_client:
+            await self._cloud_client.update_flow_run_labels(
+                flow_run_id,
+                {
+                    "prefect.worker.name": self.name,
+                    "prefect.worker.type": self.type,
+                },
+            )
 
     async def __aenter__(self):
         self._logger.debug("Entering worker context...")
