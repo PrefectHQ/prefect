@@ -6,7 +6,9 @@ description: Get started with Prefect, the easiest way to orchestrate and observ
 import Installation from '/snippets/installation.mdx'
 
 Prefect is an orchestration and observability platform that empowers developers to build and scale workflows quickly.
-In this quickstart, you will use Prefect to convert the following Python script to a deployable workflow:
+In this quickstart, you will use Prefect to convert a Python script to a deployable workflow.
+
+The following script takes a list of GitHub repositories and prints the number of stars each repository has:
 
 ```python my_script.py
 import httpx
@@ -16,11 +18,21 @@ def show_stars(github_repos: list[str]):
     """Show the number of stars that GitHub repos have"""
 
     for repo in github_repos:
-        # Fetch repository statistics from GitHub
-        repo_stats = httpx.get(f"https://api.github.com/repos/{i}").json()
+        repo_stats = fetch_stats(repo)
+        stars = get_stars(repo_stats)
+        print(f"{repo}: {stars} stars")
 
-        # Print the number of stars
-        print(f"{repo}: {repo_stats['stargazers_count']} stars")
+
+def fetch_stats(github_repo: str):
+    """Fetch the statistics for a GitHub repo"""
+
+    return httpx.get(f"https://api.github.com/repos/{github_repo}").json()
+
+
+def get_stars(repo_stats: dict):
+    """Get the number of stars from GitHub repo statistics"""
+
+    return repo_stats['stargazers_count']
 
 
 if __name__ == "__main__":
@@ -71,12 +83,14 @@ If you have any issues with browser-based authentication, you can [authenticate 
 
 ## Convert your script to a Prefect workflow
 
-The easiest way to convert a Python script into a workflow is to add a `@flow` decorator to the script's entrypoint.
-This will create a corresponding [flow](/3.0/develop/write-flows/). 
+Decorators are the easiest way to convert a Python script into a workflow.
 
-Adding `@task` decorators to any functions called by the flow converts them to [tasks](/3.0/develop/write-tasks/). 
+1. Add a `@flow` decorator to the script's entrypoint.
+1. Add `@task` decorators to any methods called by the flow.
+
+This will create a [flow](/3.0/develop/write-flows/) and corresponding [tasks](/3.0/develop/write-tasks/). 
 Tasks receive metadata about upstream dependencies and the state of those dependencies before they run.
-Prefect will then record these dependencies and states as it orchestrates these tasks.
+Prefect records these dependencies and states as it orchestrates these tasks.
 
 ```python my_workflow.py
 import httpx
