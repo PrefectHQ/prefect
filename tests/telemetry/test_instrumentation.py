@@ -12,6 +12,7 @@ from opentelemetry.sdk._logs.export import SimpleLogRecordProcessor
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import InMemorySpanExporter
 
 from prefect import flow, task
 from prefect.client.schemas import TaskRun
@@ -168,34 +169,15 @@ def test_logger_provider(
 
 
 class TestTaskRunInstrumentation:
-    @pytest.fixture
-    def mock_tracer():
-        trace_provider, _, _ = setup_telemetry()
-        return trace_provider.get_tracer("prefect.test")
+    @task
+    def test_task(x: int, y: int):
+        return x + y
 
-    @pytest.fixture
-    async def task_run_engine(mock_tracer):
-        @task
-        async def test_task(x: int, y: int):
-            return x + y
+    @task
+    def returns_4():
+        return 4
 
-        task_run = TaskRun(
-            id=uuid4(),
-            task_key="test_task",
-            flow_run_id=uuid4(),
-            state=Running(),
-            dynamic_key="test_task-1",
-        )
-
-        engine = AsyncTaskRunEngine(
-            task=test_task,
-            task_run=task_run,
-            parameters={"x": 1, "y": 2},
-            _tracer=mock_tracer,
-        )
-        return engine
-
-    def test_digest_task_inputs():
+    def test_digest_task_inputs(self):
         inputs = {"x": 1, "y": 2}
         parameters = {"x": int, "y": int}
         otel_params, otel_inputs = digest_task_inputs(inputs, parameters)
@@ -205,91 +187,135 @@ class TestTaskRunInstrumentation:
         }
         assert otel_inputs == []
 
-    @pytest.mark.asyncio
-    async def test_span_creation(task_run_engine, mock_tracer):
-        async with task_run_engine.start():
-            assert task_run_engine._span is not None
-            assert task_run_engine._span.name == task_run_engine.task_run.name
-            assert task_run_engine._span.attributes["prefect.run.type"] == "task"
-            assert task_run_engine._span.attributes["prefect.run.id"] == str(
-                task_run_engine.task_run.id
-            )
+    def test_linked_parameters(self):
+        trace_provider, _, _ = setup_telemetry()
+        tracer = trace_provider.get_tracer(__name__)
+        with tracer.start_as_current_span("test_task"):
+            self.test_task(x=self.returns_4(), y=2)
 
-    @pytest.mark.asyncio
-    async def test_span_attributes(task_run_engine):
-        async with task_run_engine.start():
-            assert "prefect.run.parameter.x" in task_run_engine._span.attributes
-            assert "prefect.run.parameter.y" in task_run_engine._span.attributes
-            assert task_run_engine._span.attributes["prefect.run.parameter.x"] == "int"
-            assert task_run_engine._span.attributes["prefect.run.parameter.y"] == "int"
 
-    @pytest.mark.asyncio
-    async def test_span_events(task_run_engine):
-        async with task_run_engine.start():
-            await task_run_engine.set_state(Running())
-            await task_run_engine.set_state(Completed())
+@pytest.fixture
+def mock_tracer():
+    trace_provider, _, _ = setup_telemetry()
+    span_exporter = InMemorySpanExporter()
+    span_processor = InFlightSpanProcessor(span_exporter)
+    trace_provider.add_span_processor(span_processor)
+    trace.set_tracer_provider(trace_provider)
+    return trace.get_tracer("prefect.test")
 
-        events = task_run_engine._span.events
-        assert len(events) == 2
-        assert events[0].name == "Running"
-        assert events[1].name == "Completed"
 
-    @pytest.mark.asyncio
-    async def test_span_status_on_success(task_run_engine):
-        async with task_run_engine.start():
-            async with task_run_engine.run_context():
-                await task_run_engine.handle_success(3, Mock())
+@pytest.fixture
+async def task_run_engine(mock_tracer):
+    @task
+    async def test_task(x: int, y: int):
+        return x + y
 
-        assert task_run_engine._span.status.status_code == trace.StatusCode.OK
+    task_run = TaskRun(
+        id=uuid4(),
+        task_key="test_task",
+        flow_run_id=uuid4(),
+        state=Running(),
+        dynamic_key="test_task-1",
+    )
 
-    @pytest.mark.asyncio
-    async def test_span_status_on_failure(task_run_engine):
-        async with task_run_engine.start():
-            async with task_run_engine.run_context():
-                await task_run_engine.handle_exception(ValueError("Test error"))
+    engine = AsyncTaskRunEngine(
+        task=test_task,
+        task_run=task_run,
+        parameters={"x": 1, "y": 2},
+        _tracer=mock_tracer,
+    )
+    return engine
 
-        assert task_run_engine._span.status.status_code == trace.StatusCode.ERROR
-        assert "Test error" in task_run_engine._span.status.description
 
-    @pytest.mark.asyncio
-    async def test_span_exception_recording(task_run_engine):
-        test_exception = ValueError("Test error")
-        async with task_run_engine.start():
-            async with task_run_engine.run_context():
-                await task_run_engine.handle_exception(test_exception)
+@pytest.mark.asyncio
+async def test_span_creation(task_run_engine, mock_tracer):
+    async with task_run_engine.start():
+        assert task_run_engine._span is not None
+        assert task_run_engine._span.name == task_run_engine.task_run.name
+        assert task_run_engine._span.attributes["prefect.run.type"] == "task"
+        assert task_run_engine._span.attributes["prefect.run.id"] == str(
+            task_run_engine.task_run.id
+        )
 
-        events = task_run_engine._span.events
-        assert any(event.name == "exception" for event in events)
-        exception_event = next(event for event in events if event.name == "exception")
-        assert exception_event.attributes["exception.type"] == "ValueError"
-        assert exception_event.attributes["exception.message"] == "Test error"
 
-    @pytest.mark.asyncio
-    async def test_span_links(task_run_engine):
-        # Simulate a parent task run
-        parent_task_run_id = uuid4()
-        task_run_engine.task_run.task_inputs = {
-            "x": [{"id": parent_task_run_id}],
-            "y": [2],
-        }
+@pytest.mark.asyncio
+async def test_span_attributes(task_run_engine):
+    async with task_run_engine.start():
+        assert "prefect.run.parameter.x" in task_run_engine._span.attributes
+        assert "prefect.run.parameter.y" in task_run_engine._span.attributes
+        assert task_run_engine._span.attributes["prefect.run.parameter.x"] == "int"
+        assert task_run_engine._span.attributes["prefect.run.parameter.y"] == "int"
 
+
+@pytest.mark.asyncio
+async def test_span_events(task_run_engine):
+    async with task_run_engine.start():
+        await task_run_engine.set_state(Running())
+        await task_run_engine.set_state(Completed())
+
+    events = task_run_engine._span.events
+    assert len(events) == 2
+    assert events[0].name == "Running"
+    assert events[1].name == "Completed"
+
+
+@pytest.mark.asyncio
+async def test_span_status_on_success(task_run_engine):
+    async with task_run_engine.start():
+        async with task_run_engine.run_context():
+            await task_run_engine.handle_success(3, Mock())
+
+    assert task_run_engine._span.status.status_code == trace.StatusCode.OK
+
+
+@pytest.mark.asyncio
+async def test_span_status_on_failure(task_run_engine):
+    async with task_run_engine.start():
+        async with task_run_engine.run_context():
+            await task_run_engine.handle_exception(ValueError("Test error"))
+
+    assert task_run_engine._span.status.status_code == trace.StatusCode.ERROR
+    assert "Test error" in task_run_engine._span.status.description
+
+
+@pytest.mark.asyncio
+async def test_span_exception_recording(task_run_engine):
+    test_exception = ValueError("Test error")
+    async with task_run_engine.start():
+        async with task_run_engine.run_context():
+            await task_run_engine.handle_exception(test_exception)
+
+    events = task_run_engine._span.events
+    assert any(event.name == "exception" for event in events)
+    exception_event = next(event for event in events if event.name == "exception")
+    assert exception_event.attributes["exception.type"] == "ValueError"
+    assert exception_event.attributes["exception.message"] == "Test error"
+
+
+@pytest.mark.asyncio
+async def test_span_links(task_run_engine):
+    # Simulate a parent task run
+    parent_task_run_id = uuid4()
+    task_run_engine.task_run.task_inputs = {"x": [{"id": parent_task_run_id}], "y": [2]}
+
+    async with task_run_engine.start():
+        pass
+
+    assert len(task_run_engine._span.links) == 1
+    link = task_run_engine._span.links[0]
+    assert link.context.trace_id == int(parent_task_run_id)
+    assert link.attributes["prefect.run.id"] == str(parent_task_run_id)
+
+
+@pytest.mark.asyncio
+async def test_flow_run_labels(task_run_engine):
+    @flow
+    async def test_flow():
+        return await task_run_engine.task()
+
+    with patch("prefect.context.FlowRunContext.get") as mock_flow_run_context:
+        mock_flow_run_context.return_value.flow_run.labels = {"env": "test"}
         async with task_run_engine.start():
             pass
 
-        assert len(task_run_engine._span.links) == 1
-        link = task_run_engine._span.links[0]
-        assert link.context.trace_id == int(parent_task_run_id)
-        assert link.attributes["prefect.run.id"] == str(parent_task_run_id)
-
-    @pytest.mark.asyncio
-    async def test_flow_run_labels(task_run_engine):
-        @flow
-        async def test_flow():
-            return await task_run_engine.task()
-
-        with patch("prefect.context.FlowRunContext.get") as mock_flow_run_context:
-            mock_flow_run_context.return_value.flow_run.labels = {"env": "test"}
-            async with task_run_engine.start():
-                pass
-
-        assert task_run_engine._span.attributes["env"] == "test"
+    assert task_run_engine._span.attributes["env"] == "test"
