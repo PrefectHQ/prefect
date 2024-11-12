@@ -154,21 +154,34 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
     ) -> Tuple[Any, str, bool]:
         """Concrete implementation to get the field value from the profile settings"""
         if field.validation_alias:
+            # Use validation alias as the key to ensure profile value does not
+            # higher priority sources. Lower priority sources that use the
+            # field name can override higher priority sources that use the
+            # validation alias as seen in https://github.com/PrefectHQ/prefect/issues/15981
             if isinstance(field.validation_alias, str):
                 value = self.profile_settings.get(field.validation_alias.upper())
                 if value is not None:
-                    return value, field_name, self.field_is_complex(field)
+                    return value, field.validation_alias, self.field_is_complex(field)
             elif isinstance(field.validation_alias, AliasChoices):
+                value = None
+                lowest_priority_alias = next(
+                    choice
+                    for choice in reversed(field.validation_alias.choices)
+                    if isinstance(choice, str)
+                )
                 for alias in field.validation_alias.choices:
                     if not isinstance(alias, str):
                         continue
                     value = self.profile_settings.get(alias.upper())
                     if value is not None:
-                        return value, field_name, self.field_is_complex(field)
+                        return (
+                            value,
+                            lowest_priority_alias,
+                            self.field_is_complex(field),
+                        )
 
-        value = self.profile_settings.get(
-            f"{self.config.get('env_prefix','')}{field_name.upper()}"
-        )
+        name = f"{self.config.get('env_prefix','')}{field_name.upper()}"
+        value = self.profile_settings.get(name)
         return value, field_name, self.field_is_complex(field)
 
     def __call__(self) -> Dict[str, Any]:
@@ -207,7 +220,22 @@ class TomlConfigSettingsSourceBase(PydanticBaseSettingsSource, ConfigFileSourceM
             # if the value is a dict, it is likely a nested settings object and a nested
             # source will handle it
             value = None
-        return value, field_name, self.field_is_complex(field)
+        name = field_name
+        # Use validation alias as the key to ensure profile value does not
+        # higher priority sources. Lower priority sources that use the
+        # field name can override higher priority sources that use the
+        # validation alias as seen in https://github.com/PrefectHQ/prefect/issues/15981
+        if value is not None:
+            if field.validation_alias and isinstance(field.validation_alias, str):
+                name = field.validation_alias
+            elif field.validation_alias and isinstance(
+                field.validation_alias, AliasChoices
+            ):
+                for alias in reversed(field.validation_alias.choices):
+                    if isinstance(alias, str):
+                        name = alias
+                        break
+        return value, name, self.field_is_complex(field)
 
     def __call__(self) -> Dict[str, Any]:
         """Called by pydantic to get the settings from our custom source"""
