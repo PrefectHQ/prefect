@@ -3,35 +3,142 @@ title: Build a data pipeline
 description: Learn how to build resilient and performance data pipelines with Prefect.
 ---
 
-In [Schedule a flow](/3.0/tutorials/schedule), you learned how to schedule runs of a Prefect flow on remote infrastructure.
+In the [Quickstart](/3.0/tutorials/quickstart), you created a Prefect flow to get the number of stars for multiple GitHub repositories.
+And in [Schedule a flow](/3.0/tutorials/schedule), you learned how to schedule runs of that flow on remote infrastructure.
 
 In this tutorial, you'll learn how to build a resilient and performant data pipeline.
 The real world is messy, and Prefect is designed to handle that messiness.
 
-This is the current state of our GitHub script from the [Quickstart](/3.0/tutorials/quickstart):
+- Your HTTP requests can fail.
+- For efficiency, you might want to skip tasks that you've performed already.
+- Making HTTP requests one at a time is slow.
+- You might be restricted to a certain number of API requests within a specific time frame.
 
-```python my_workflow.py
-import httpx
-from prefect import flow, task # Prefect flow and task decorators
+Instead of solving these problems in the business logic itself, use Prefect's built-in features to handle them.
 
-@flow(log_prints=True)
-def show_stars(github_repo: str):
-    """Flow: Show the number of stars that a GitHub repo has"""
+## Retries
 
-    # Call Task 1
-    repo_stats = fetch_stats(github_repo)
+The first improvement you can make is to add retries to your flow.
+Whenever an HTTP request fails, you can retry it a few times before giving up.
 
-    # Call Task 2
-    stars = get_stars(repo_stats)
-
-    # Print the result
-    print(f"Stars 🌠 : {stars}")
-
-@task
+```python
+@task(retries=2)
 def fetch_stats(github_repo: str):
     """Task 1: Fetch the statistics for a GitHub repo"""
 
-    return httpx.get(f"https://api.github.com/repos/{github_repo}").json()
+    api_response = httpx.get(f"https://api.github.com/repos/{github_repo}")
+    api_response.raise_for_status() # Force a retry if you don't get a 2xx status code
+    return api_response.json()
+```
+
+## Caching
+
+For efficiency, you can deprioritize repositories that have already been fetched (from a previous run of the flow).
+This is useful if you want to decouple the frequency with which repositories are updated from the frequency with which the flow is run.
+
+```python
+from prefect.cache_policies import INPUTS
+
+@task(cache_policy=INPUTS, cache_expiration=timedelta(days=1))
+def fetch_stats(github_repo: str):
+    """Task 1: Fetch the statistics for a GitHub repo"""
+    # ...
+```
+
+## Concurrency
+
+As an additional optimization, you can run multiple HTTP requests in parallel.
+
+```python
+@flow(log_prints=True)
+def show_stars(github_repos: List[str]):
+    """Flow: Show the number of stars that GitHub repos have"""
+
+    # Make HTTP requests in parallel
+    repo_stats = []
+    for repo in github_repos:
+        repo_stats.append({
+            'repo': repo,
+            'task': fetch_stats.submit(repo)
+        })
+
+    # Once all parallel tasks have completed, show the results
+    for repo in repo_stats:
+        repo_name = repo['repo']
+        stars = get_stars(repo['task'].result())
+        print(f"{repo_name}: {stars} stars")
+```
+
+## Rate limiting
+
+It's easy to violate the rate limits of whatever API you're using.
+To avoid this, you can use Prefect's rate limiting feature to set a global concurrency limit.
+
+1. Open the Prefect UI
+1. Navigate to **Configuration** / **Concurrency**, and then click **Add Concurrency Limit**.
+1. Choose a name (**github-api**), concurrency limit (**3**), and set a non-zero slot decay (**1**).
+1. Click **Create**.
+
+Now, you can use this global concurrency limit in your code:
+
+```python
+from prefect.concurrency.sync import rate_limit
+
+@flow(log_prints=True)
+def show_stars(github_repos: List[str]):
+    """Flow: Show the number of stars that GitHub repos have"""
+
+    # Use a rate limit when making HTTP requests
+    rate_limit("github-api")
+    repo_stats = []
+    for repo in github_repos:
+        repo_stats.append({
+            'repo': repo,
+            'task': fetch_stats.submit(repo)
+        })
+
+    # ...
+```
+
+## Run your improved flow
+
+This is what your flow looks like after applying all of these improvements:
+
+```python my_data_pipeline.py
+from typings import List
+import httpx
+from prefect import flow, task
+from prefect.cache_policies import INPUTS
+
+
+@flow(log_prints=True)
+def show_stars(github_repos: List[str]):
+    """Flow: Show the number of stars that GitHub repos have"""
+
+    # Make HTTP requests in parallel while respecting rate limits
+    rate_limit("github-api")
+    repo_stats = []
+    for repo in github_repos:
+        repo_stats.append({
+            'repo': repo,
+            'task': fetch_stats.submit(repo)
+        })
+
+    # Once all parallel tasks have completed, show the results
+    for repo in repo_stats:
+        repo_name = repo['repo']
+        stars = get_stars(repo['task'].result())
+        print(f"{repo_name}: {stars} stars")
+
+
+@task(retries=2, cache_policy=INPUTS, cache_expiration=timedelta(days=1))
+def fetch_stats(github_repo: str):
+    """Task 1: Fetch the statistics for a GitHub repo"""
+
+    api_response = httpx.get(f"https://api.github.com/repos/{github_repo}")
+    api_response.raise_for_status() # Force a retry if you don't get a 2xx status code
+    return api_response.json()
+
 
 @task
 def get_stars(repo_stats: dict):
@@ -39,26 +146,15 @@ def get_stars(repo_stats: dict):
 
     return repo_stats['stargazers_count']
 
+
 # Run the flow
 if __name__ == "__main__":
-    show_stars("PrefectHQ/prefect")
+    show_stars([
+        "PrefectHQ/prefect",
+        "tensorflow/tensorflow",
+        "huggingface/transformers"
+    ])
 ```
-
-## Retries
-
-TBD
-
-## Caching
-
-TBD
-
-## Concurrency
-
-TBD
-
-## Rate limiting
-
-TBD
 
 ## Next steps
 

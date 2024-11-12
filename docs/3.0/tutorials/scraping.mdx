@@ -14,7 +14,125 @@ TBD
 
 ## Web scraping
 
-TBD
+```python my_web_scraper.py
+from typing import List, Optional, Dict
+import httpx
+from prefect import flow, task
+from prefect.cache_policies import INPUTS
+from datetime import timedelta
+import base64
+import os
+from openai import OpenAI
+
+@flow(log_prints=True)
+def show_repo_analysis(github_repos: List[str]):
+    """Flow: Analyze GitHub repos - shows stars and generates README summaries"""
+    
+    # Make HTTP requests in parallel while respecting rate limits
+    rate_limit("github-api")
+    repo_stats = []
+    for repo in github_repos:
+        repo_stats.append({
+            'repo': repo,
+            'basic_stats': fetch_stats.submit(repo),
+            'readme_content': fetch_readme.submit(repo)
+        })
+
+    # Process results as they complete
+    for repo in repo_stats:
+        repo_name = repo['repo']
+        stars = get_stars(repo['basic_stats'].result())
+        print(f"\n=== {repo_name} ===")
+        print(f"Stars: {stars}")
+        
+        # Handle README summarization with error recovery
+        try:
+            readme_content = repo['readme_content'].result()
+            if readme_content:
+                summary = summarize_readme(readme_content).result()
+                if summary:
+                    print(f"Summary: {summary}")
+                else:
+                    print("Could not generate summary: LLM processing failed")
+            else:
+                print("No README found to summarize")
+        except Exception as e:
+            print(f"README Analysis failed: {str(e)}")
+
+@task(retries=2, cache_policy=INPUTS, cache_expiration=timedelta(days=1))
+def fetch_stats(github_repo: str) -> dict:
+    """Task 1: Fetch the statistics for a GitHub repo"""
+    api_response = httpx.get(
+        f"https://api.github.com/repos/{github_repo}",
+        headers={"Accept": "application/vnd.github.v3+json"}
+    )
+    api_response.raise_for_status()
+    return api_response.json()
+
+@task(retries=3)
+def fetch_readme(github_repo: str) -> Optional[str]:
+    """Task 2: Fetch the README content for a GitHub repo"""
+    try:
+        api_response = httpx.get(
+            f"https://api.github.com/repos/{github_repo}/readme",
+            headers={"Accept": "application/vnd.github.v3+json"}
+        )
+        api_response.raise_for_status()
+        content = api_response.json().get('content', '')
+        if not content:
+            return None
+        
+        # GitHub returns base64 encoded content
+        decoded_content = base64.b64decode(content).decode('utf-8')
+        return decoded_content
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            print(f"No README found for {github_repo}")
+            return None
+        raise
+    except Exception as e:
+        print(f"Error fetching README for {github_repo}: {str(e)}")
+        return None
+
+@task
+def get_stars(repo_stats: dict) -> int:
+    """Task 3: Get the number of stars from GitHub repo statistics"""
+    return repo_stats['stargazers_count']
+
+@task(retries=2)
+def summarize_readme(content: str) -> Optional[str]:
+    """Task 4: Use LLM to generate a one-line summary of the README"""
+    try:
+        # Initialize OpenAI client (requires OPENAI_API_KEY environment variable)
+        client = OpenAI()
+        
+        # Truncate content if it's too long (OpenAI has token limits)
+        max_chars = 6000  # Approximate limit to stay within token bounds
+        truncated_content = content[:max_chars] + ("..." if len(content) > max_chars else "")
+        
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a technical documentation expert. Create a single-sentence summary of the following repository README, focusing on the main purpose and key features of the project. Keep the summary concise and technical."},
+                {"role": "user", "content": truncated_content}
+            ],
+            max_tokens=100,  # Limit response length to ensure you get a concise summary
+            temperature=0.3   # Lower temperature for more focused, consistent summaries
+        )
+        
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"Error generating README summary: {str(e)}")
+        return None
+
+# Run the flow
+if __name__ == "__main__":
+    show_repo_analysis([
+        "PrefectHQ/prefect",
+        "tensorflow/tensorflow",
+        "huggingface/transformers"
+    ])
+```
 
 ## Next steps
 

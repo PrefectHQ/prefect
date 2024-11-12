@@ -9,19 +9,27 @@ Prefect is an orchestration and observability platform that empowers developers 
 In this quickstart, you will use Prefect to convert the following Python script to a deployable workflow:
 
 ```python my_script.py
+from typings import List
 import httpx
 
-def show_stars(github_repo: str):
-    """Show the number of stars that a repository has"""
 
-    # Fetch repository statistics from GitHub
-    repo_stats = httpx.get(f"https://api.github.com/repos/{github_repo}").json()
+def show_stars(github_repos: List[str]):
+    """Show the number of stars that GitHub repos have"""
 
-    # Print the number of stars
-    print(f"Stars 🌠 : {repo_stats['stargazers_count']}")
+    for repo in github_repos:
+        # Fetch repository statistics from GitHub
+        repo_stats = httpx.get(f"https://api.github.com/repos/{i}").json()
+
+        # Print the number of stars
+        print(f"{repo}: {repo_stats['stargazers_count']} stars")
+
 
 if __name__ == "__main__":
-    show_stars("PrefectHQ/prefect")
+    show_stars([
+        "PrefectHQ/prefect",
+        "tensorflow/tensorflow",
+        "huggingface/transformers"
+    ])
 ```
 
 ## Install Prefect
@@ -72,21 +80,25 @@ Tasks receive metadata about upstream dependencies and the state of those depend
 Prefect will then record these dependencies and states as it orchestrates these tasks.
 
 ```python my_workflow.py
+from typings import List
 import httpx
 from prefect import flow, task # Prefect flow and task decorators
 
+
 @flow(log_prints=True)
-def show_stars(github_repo: str):
-    """Flow: Show the number of stars that a GitHub repo has"""
+def show_stars(github_repos: List[str]):
+    """Flow: Show the number of stars that GitHub repos have"""
 
-    # Call Task 1
-    repo_stats = fetch_stats(github_repo)
+    for repo in github_repos:
+        # Call Task 1
+        repo_stats = fetch_stats(repo)
 
-    # Call Task 2
-    stars = get_stars(repo_stats)
+        # Call Task 2
+        stars = get_stars(repo_stats)
 
-    # Print the result
-    print(f"Stars 🌠 : {stars}")
+        # Print the result
+        print(f"{repo}: {stars} stars")
+
 
 @task
 def fetch_stats(github_repo: str):
@@ -94,15 +106,21 @@ def fetch_stats(github_repo: str):
 
     return httpx.get(f"https://api.github.com/repos/{github_repo}").json()
 
+
 @task
 def get_stars(repo_stats: dict):
     """Task 2: Get the number of stars from GitHub repo statistics"""
 
     return repo_stats['stargazers_count']
 
+
 # Run the flow
 if __name__ == "__main__":
-    show_stars("PrefectHQ/prefect")
+    show_stars([
+        "PrefectHQ/prefect",
+        "tensorflow/tensorflow",
+        "huggingface/transformers"
+    ])
 ```
 
 <Note>
@@ -115,6 +133,23 @@ You can run your Prefect flow just as you would a Python script:
 
 ```bash
 python my_workflow.py
+```
+
+The output in your terminal should look similar to this:
+
+```bash
+08:21:31.335 | INFO    | prefect.engine - Created flow run 'attentive-kestrel' for flow 'show-stars'
+08:21:31.336 | INFO    | prefect.engine - View at http://127.0.0.1:4200/runs/flow-run/edf6866f-371d-4e51-a9e3-556a525b1146
+08:21:31.731 | INFO    | Task run 'fetch_stats-dce' - Finished in state Completed()
+08:21:31.775 | INFO    | Task run 'get_stars-585' - Finished in state Completed()
+08:21:31.776 | INFO    | Flow run 'attentive-kestrel' - PrefectHQ/prefect: 17318 stars
+08:21:32.089 | INFO    | Task run 'fetch_stats-e16' - Finished in state Completed()
+08:21:32.118 | INFO    | Task run 'get_stars-756' - Finished in state Completed()
+08:21:32.119 | INFO    | Flow run 'attentive-kestrel' - tensorflow/tensorflow: 186318 stars
+08:21:32.409 | INFO    | Task run 'fetch_stats-b62' - Finished in state Completed()
+08:21:32.440 | INFO    | Task run 'get_stars-8ad' - Finished in state Completed()
+08:21:32.441 | INFO    | Flow run 'attentive-kestrel' - huggingface/transformers: 134848 stars
+08:21:32.469 | INFO    | Flow run 'attentive-kestrel' - Finished in state Completed()
 ```
 
 Prefect automatically tracks the state of the flow run and logs the output, which can be viewed directly in the terminal or in the UI.

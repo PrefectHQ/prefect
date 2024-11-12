@@ -51,7 +51,7 @@ Deploy your flow to Prefect Cloud using a managed work pool.
 </Tabs>
   
 <Tip>
-You can also choose from other [work pool types](https://docs.prefect.io/concepts/work-pools/#worker-types).
+You can also choose from other [work pool types](/concepts/work-pools/#worker-types).
 </Tip>
 
 ## Deploy and schedule your flow
@@ -61,7 +61,7 @@ Deployments elevate flows to remotely configurable entities that have their own 
 
 1. Create a deployment in code:
 
-   ```bash create_deployment.py
+   ```python create_deployment.py
    from prefect import flow
 
    # Source for the code to deploy (here, a GitHub repo)
@@ -74,7 +74,7 @@ Deployments elevate flows to remotely configurable entities that have their own 
        ).deploy(
            name="my-first-deployment",
            work_pool_name="my-work-pool", # Work pool target
-           cron="0 1 * * *", # Cron schedule (1am every day)
+           cron="* * * * *", # Cron schedule (every minute)
        )
    ```
 
