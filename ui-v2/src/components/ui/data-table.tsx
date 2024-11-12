@@ -102,7 +102,7 @@ export function DataTablePagination<TData>({
 					/>
 				</PaginationItem>
 				<PaginationItem className="text-sm">
-					Page {table.getState().pagination.pageIndex + 1} of{" "}
+					Page {Math.ceil(table.getState().pagination.pageIndex + 1)} of{" "}
 					{table.getPageCount()}
 				</PaginationItem>
 				<PaginationItem>

@@ -99,6 +99,7 @@ export const VariablesDataTable = ({
 					offset: newPagination.pageIndex * newPagination.pageSize,
 					limit: newPagination.pageSize,
 				}),
+				replace: true,
 			});
 		},
 		rowCount: totalVariableCount,
