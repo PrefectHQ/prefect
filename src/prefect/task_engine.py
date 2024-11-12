@@ -115,7 +115,7 @@ def digest_task_inputs(inputs, parameters) -> Tuple[Dict[str, str], list[Link]]:
     links = []
     for key, value in inputs.items():
         for input in value:
-            if input in ("__parents__", "wait_for"):
+            if key in ("__parents__", "wait_for"):
                 continue
             if isinstance(input, TaskRunInput):
                 parameter_attributes[f"prefect.run.parameter.{key}"] = type(
