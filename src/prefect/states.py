@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import sys
 import traceback
+import uuid
 import warnings
 from collections import Counter
 from types import GeneratorType, TracebackType
@@ -220,7 +221,8 @@ async def exception_to_crashed_state(
         )
 
     if result_store:
-        data = result_store.create_result_record(exc)
+        key = uuid.uuid4().hex
+        data = result_store.create_result_record(exc, key=key)
     else:
         # Attach the exception for local usage, will not be available when retrieved
         # from the API
@@ -253,7 +255,8 @@ async def exception_to_failed_state(
         pass
 
     if result_store:
-        data = result_store.create_result_record(exc)
+        key = uuid.uuid4().hex
+        data = result_store.create_result_record(exc, key=key)
         if write_result:
             try:
                 await result_store.apersist_result_record(data)
