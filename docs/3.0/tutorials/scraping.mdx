@@ -11,24 +11,28 @@ In this tutorial, instead of fetching stars, you'll fetch READMEs and summarize 
 
 Some problems that you'll learn to solve include:
 
+- Error handling
+    - Demonstrate the use of try/catch blocks to set the flow state to `Failed` if an error occurs
+    - Use logging to highlight any errors that arose during data processing
+    - Use transactions to rollback if the README processing pipeline fails partway through
+- How to handle big data
+    - Save data to disk instead of passing results between tasks directly
+    - Use artifacts to note the data which failed to process, so that you can fix the data pipeline and reprocess the failures without having to restart the entire data pipeline from scratch.
+    - Task runners for distributed compute? (probably out of scope for a tutorial like this one)
+
+Some complexities related to READMEs specifically:
+
 - How to deal with repositories that lack a README.
 - How to find READMEs that don't follow normal naming conventions.
 - How to process different content formats: plaintext, Markdown, reStructuredText, etc.
 - How to handle READMEs that are too large to process in one go.
+- How to incorporate linked assets like images, videos, or documentation in the summarization model (requires multi-modal capabilities).
 
-## Missing files
-
-TBD
-
-## File name variations
+## Error handling
 
 TBD
 
-## Content type detection
-
-TBD
-
-## Truncation and paging
+## Dealing with big data
 
 TBD
 
