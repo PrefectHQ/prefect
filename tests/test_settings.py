@@ -1416,6 +1416,15 @@ class TestSettingsSources:
 
         assert Settings().client.retry_extra_codes == set()
 
+    def test_dot_env_filters_as_expected(self, temporary_env_file):
+        expected_home = Settings().home
+        expected_db_name = Settings().server.database.name
+        temporary_env_file("HOME=foo\nNAME=bar")
+        assert Settings().home == expected_home
+        assert Settings().home != "foo"
+        assert Settings().server.database.name == expected_db_name
+        assert Settings().server.database.name != "bar"
+
 
 class TestLoadProfiles:
     @pytest.fixture(autouse=True)
