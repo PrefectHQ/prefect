@@ -1425,6 +1425,26 @@ class TestSettingsSources:
         assert Settings().server.database.name == expected_db_name
         assert Settings().server.database.name != "bar"
 
+    def test_environment_variables_take_precedence_over_toml_settings(
+        self, monkeypatch, temporary_toml_file
+    ):
+        """
+        Test to ensure that fields with multiple validation aliases respect the
+        expected precedence of sources.
+
+        Regression test for https://github.com/PrefectHQ/prefect/issues/15981
+        """
+        for env_var in os.environ:
+            if env_var.startswith("PREFECT_"):
+                monkeypatch.delenv(env_var, raising=False)
+
+        monkeypatch.setenv("PREFECT_SERVER_ALLOW_EPHEMERAL_MODE", "false")
+
+        temporary_toml_file({"server": {"ephemeral": {"enabled": "true"}}})
+
+        assert not Settings().server.ephemeral.enabled
+        assert not PREFECT_SERVER_ALLOW_EPHEMERAL_MODE.value()
+
 
 class TestLoadProfiles:
     @pytest.fixture(autouse=True)
@@ -1435,6 +1455,20 @@ class TestLoadProfiles:
 
     def test_load_profiles_no_profiles_file(self):
         assert load_profiles()
+
+    def test_env_variables_respected_when_no_profiles_file(self, monkeypatch):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/15981
+        """
+        for env_var in os.environ:
+            if env_var.startswith("PREFECT_"):
+                monkeypatch.delenv(env_var, raising=False)
+
+        monkeypatch.setenv("PREFECT_SERVER_ALLOW_EPHEMERAL_MODE", "false")
+
+        # Will be true if the profile is incorrectly taking priority
+        assert not Settings().server.ephemeral.enabled
+        assert not PREFECT_SERVER_ALLOW_EPHEMERAL_MODE.value()
 
     def test_load_profiles_missing_ephemeral(self, temporary_profiles_path):
         temporary_profiles_path.write_text(
