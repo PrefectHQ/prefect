@@ -3,20 +3,20 @@ title: Build a data pipeline
 description: Learn how to build resilient and performance data pipelines with Prefect.
 ---
 
-In the [Quickstart](/3.0/tutorials/quickstart), you created a Prefect flow to get the number of stars for multiple GitHub repositories.
+In the [Quickstart](/3.0/tutorials/quickstart), you created a Prefect flow to get stars for a list of GitHub repositories.
 And in [Schedule a flow](/3.0/tutorials/schedule), you learned how to schedule runs of that flow on remote infrastructure.
 
 In this tutorial, you'll learn how to build a resilient and performant data pipeline.
 The real world is messy, and Prefect is designed to handle that messiness.
 
-- Your HTTP requests can fail.
-- For efficiency, you might want to skip tasks that you've performed already.
-- Making HTTP requests one at a time is slow.
+- Your API requests can fail.
+- For efficiency, you might want to skip tasks that have run already.
+- Making API requests one at a time is slow.
 - You might be restricted to a certain number of API requests within a specific time frame.
 
 Instead of solving these problems in the business logic itself, use Prefect's built-in features to handle them.
 
-## Retries
+## Retry on failure
 
 The first improvement you can make is to add retries to your flow.
 Whenever an HTTP request fails, you can retry it a few times before giving up.
@@ -32,6 +32,8 @@ def fetch_stats(github_repo: str):
 ```
 
 <Expandable title="full example">
+Run the following code to see retries in action:
+
 ```python
 import httpx
 
@@ -79,10 +81,10 @@ if __name__ == "__main__":
 ```
 </Expandable>
 
-## Caching
+## Cache the results of a task
 
-For efficiency, you can deprioritize repositories that have already been fetched (from a previous run of the flow).
-This is useful if you want to decouple the frequency with which repositories are updated from the frequency with which the flow is run.
+For efficiency, you can skip tasks that have already run.
+For example, if you don't want to fetch the number of stars for a given repository more than once per day, you can cache those results for a day.
 
 ```python
 from datetime import timedelta
@@ -96,6 +98,8 @@ def fetch_stats(github_repo: str):
 ```
 
 <Expandable title="full example">
+Run the following code to see caching in action:
+
 ```python
 import httpx
 
@@ -142,9 +146,9 @@ if __name__ == "__main__":
 ```
 </Expandable>
 
-## Concurrency
+## Enable concurrency for slow tasks
 
-As an additional optimization, you can run multiple HTTP requests in parallel.
+As an additional optimization, you can run multiple API requests in parallel.
 
 ```python
 @flow(log_prints=True)
@@ -167,6 +171,8 @@ def show_stars(github_repos: list[str]):
 ```
 
 <Expandable title="full example">
+Run the following code to see concurrency in action:
+
 ```python
 import httpx
 
@@ -216,7 +222,7 @@ if __name__ == "__main__":
 ```
 </Expandable>
 
-## Rate limiting
+## Avoid rate limits
 
 It's easy to violate the rate limits of whatever API you're using.
 To avoid this, you can use Prefect's rate limiting feature to set a global concurrency limit.
@@ -250,6 +256,8 @@ def show_stars(github_repos: list[str]):
 ```
 
 <Expandable title="full example">
+Run the following code to see rate limits in action:
+
 ```python
 import httpx
 
