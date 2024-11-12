@@ -1988,7 +1988,7 @@ class TestBaseWorkerHeartbeat:
 async def test_worker_gives_labels_to_flow_runs_when_using_cloud_api(
     prefect_client: PrefectClient, worker_deployment_wq1, work_pool
 ):
-    update_labels_mock = AsyncMock()
+    CloudClientMock = AsyncMock()
 
     def create_run_with_deployment(state):
         return prefect_client.create_flow_run_from_deployment(
@@ -2002,14 +2002,14 @@ async def test_worker_gives_labels_to_flow_runs_when_using_cloud_api(
     async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
         assert worker._client is not None
         worker._client.server_type = ServerType.CLOUD
-        worker._client.update_flow_run_labels = update_labels_mock
+        worker._cloud_client = CloudClientMock
 
         worker._work_pool = work_pool
         worker.run = AsyncMock()
 
         await worker.get_and_submit_flow_runs()
 
-    update_labels_mock.assert_awaited_once_with(
+    CloudClientMock.update_flow_run_labels.assert_awaited_once_with(
         flow_run.id,
         {"prefect.worker.name": worker.name, "prefect.worker.type": worker.type},
     )

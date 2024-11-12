@@ -93,7 +93,6 @@ from prefect.client.schemas.objects import (
     FlowRunInput,
     FlowRunNotificationPolicy,
     FlowRunPolicy,
-    KeyValueLabels,
     Log,
     Parameter,
     TaskRunPolicy,
@@ -764,23 +763,6 @@ class PrefectClient:
         return await self._client.patch(
             f"/flow_runs/{flow_run_id}",
             json=flow_run_data.model_dump(mode="json", exclude_unset=True),
-        )
-
-    async def update_flow_run_labels(self, flow_run_id: UUID, labels: KeyValueLabels):
-        """
-        Update the labels for a flow run.
-
-        Args:
-            flow_run_id: The identifier for the flow run to update.
-            labels: A dictionary of labels to update for the flow run.
-
-        Returns:
-            an `httpx.Response` object from the PATCH request
-        """
-
-        return await self._client.patch(
-            f"/flow_runs/{flow_run_id}/labels",
-            json=labels,
         )
 
     async def delete_flow_run(
@@ -3919,23 +3901,6 @@ class SyncPrefectClient:
         return self._client.patch(
             f"/flow_runs/{flow_run_id}",
             json=flow_run_data.model_dump(mode="json", exclude_unset=True),
-        )
-
-    def update_flow_run_labels(self, flow_run_id: UUID, labels: KeyValueLabels):
-        """
-        Update the labels for a flow run.
-
-        Args:
-            flow_run_id: The identifier for the flow run to update.
-            labels: A dictionary of labels to update for the flow run.
-
-        Returns:
-            an `httpx.Response` object from the PATCH request
-        """
-
-        return self._client.patch(
-            f"/flow_runs/{flow_run_id}/labels",
-            json=labels,
         )
 
     def read_flow_run(self, flow_run_id: UUID) -> FlowRun:
