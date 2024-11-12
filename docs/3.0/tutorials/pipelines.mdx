@@ -361,6 +361,33 @@ if __name__ == "__main__":
     ])
 ```
 
+Run your flow twice: once to run the tasks and cache the result, again to retrieve the results from the cache.
+
+```bash
+# Run the tasks and cache the results
+python my_data_pipeline.py
+
+# Retrieve the cached results
+python my_data_pipeline.py
+```
+
+The terminal output from the second flow run should look like this:
+
+```bash
+09:08:12.265 | INFO    | prefect.engine - Created flow run 'laughing-nightingale' for flow 'show-stars'
+09:08:12.266 | INFO    | prefect.engine - View at http://127.0.0.1:4200/runs/flow-run/541864e8-12f7-4890-9397-b2ed361f6b20
+09:08:12.322 | INFO    | Task run 'fetch_stats-0c9' - Finished in state Cached(type=COMPLETED)
+09:08:12.359 | INFO    | Task run 'fetch_stats-e89' - Finished in state Cached(type=COMPLETED)
+09:08:12.360 | INFO    | Task run 'get_stars-b51' - Finished in state Completed()
+09:08:12.361 | INFO    | Flow run 'laughing-nightingale' - PrefectHQ/prefect: 17320 stars
+09:08:12.372 | INFO    | Task run 'fetch_stats-8ef' - Finished in state Cached(type=COMPLETED)
+09:08:12.374 | INFO    | Task run 'get_stars-08d' - Finished in state Completed()
+09:08:12.374 | INFO    | Flow run 'laughing-nightingale' - tensorflow/tensorflow: 186319 stars
+09:08:12.387 | INFO    | Task run 'get_stars-2af' - Finished in state Completed()
+09:08:12.387 | INFO    | Flow run 'laughing-nightingale' - huggingface/transformers: 134849 stars
+09:08:12.404 | INFO    | Flow run 'laughing-nightingale' - Finished in state Completed()
+```
+
 ## Next steps
 
 In this tutorial, you built a resilient and performant data pipeline using retries, concurrency, caching, and rate limiting.
