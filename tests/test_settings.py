@@ -1883,21 +1883,30 @@ class TestSettingValues:
                 settings_value = settings_value.get_secret_value()
 
             if setting == "PREFECT_LOGGING_EXTRA_LOGGERS":
+                assert isinstance(settings_value, list)
+                settings_value.sort()
+                value.sort()
                 assert sorted(settings_value) == sorted(value)
                 legacy_value = getattr(prefect.settings, setting).value()
                 assert isinstance(legacy_value, list)
-                assert sorted(legacy_value) == sorted(value)
+                legacy_value.sort()
+                assert legacy_value == value
+                env_value = current_settings.to_environment_variables(
+                    exclude_unset=True
+                )[setting]
+                assert env_value.split(",") == to_jsonable_python(value)
             else:
                 assert settings_value == value
                 # get value from legacy setting object
                 assert getattr(prefect.settings, setting).value() == value
-
-            # ensure the value gets added to the environment variables, but "legacy" will use
-            # their updated name
-            if not SUPPORTED_SETTINGS[setting].get("legacy"):
-                assert current_settings.to_environment_variables(exclude_unset=True)[
-                    setting
-                ] == _to_environment_variable_value(to_jsonable_python(value))
+                # ensure the value gets added to the environment variables, but "legacy" will use
+                # their updated name
+                if not SUPPORTED_SETTINGS[setting].get("legacy"):
+                    assert current_settings.to_environment_variables(
+                        exclude_unset=True
+                    )[setting] == _to_environment_variable_value(
+                        to_jsonable_python(value)
+                    )
 
     def test_set_via_env_var(self, setting_and_value, monkeypatch):
         setting, value = setting_and_value
