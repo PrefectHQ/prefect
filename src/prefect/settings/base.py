@@ -92,7 +92,7 @@ class PrefectBaseSettings(BaseSettings):
             elif (value := env.get(key)) is not None:
                 env_variables[
                     f"{self.model_config.get('env_prefix')}{key.upper()}"
-                ] = str(value)
+                ] = _to_environment_variable_value(value)
         return env_variables
 
     @model_serializer(
@@ -191,3 +191,9 @@ def _build_settings_config(
         pyproject_toml_table_header=("tool", "prefect", *path),
         json_schema_extra=_add_environment_variables,
     )
+
+
+def _to_environment_variable_value(value: Any) -> str:
+    if isinstance(value, (list, set, tuple)):
+        return ",".join(str(v) for v in value)
+    return str(value)
