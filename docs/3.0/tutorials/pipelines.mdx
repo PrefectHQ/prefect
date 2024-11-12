@@ -22,7 +22,7 @@ The first improvement you can make is to add retries to your flow.
 Whenever an HTTP request fails, you can retry it a few times before giving up.
 
 ```python
-@task(retries=2)
+@task(retries=3)
 def fetch_stats(github_repo: str):
     """Task 1: Fetch the statistics for a GitHub repo"""
 
@@ -55,7 +55,7 @@ def show_stars(github_repos: list[str]):
         print(f"{repo}: {stars} stars")
 
 
-@task(retries=2)
+@task(retries=3)
 def fetch_stats(github_repo: str):
     """Task 1: Fetch the statistics for a GitHub repo"""
 
@@ -344,7 +344,7 @@ def show_stars(github_repos: list[str]):
         print(f"{repo_name}: {stars} stars")
 
 
-@task(retries=2, cache_policy=INPUTS, cache_expiration=timedelta(days=1))
+@task(retries=3, cache_policy=INPUTS, cache_expiration=timedelta(days=1))
 def fetch_stats(github_repo: str):
     """Task 1: Fetch the statistics for a GitHub repo"""
 
