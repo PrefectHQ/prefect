@@ -61,7 +61,7 @@ dev = [
   "pillow",
   "pre-commit",
   "pyarrow",
-  "pytest",
+  "pytest >= 8.3",
   "pytest-asyncio",
   "pytest-env",
   "pytest-xdist",
@@ -95,10 +95,9 @@ fail_under = 80
 show_missing = true
 
 [tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "session"
 asyncio_mode = "auto"
-env = [
-  "PREFECT_TEST_MODE=1",
-]
+env = ["PREFECT_TEST_MODE=1"]
 filterwarnings = [
   "ignore:Type google._upb._message.* uses PyType_Spec with a metaclass that has custom tp_new. This is deprecated and will no longer be allowed in Python 3.14:DeprecationWarning",
 ]

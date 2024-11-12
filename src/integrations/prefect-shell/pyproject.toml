@@ -38,7 +38,7 @@ dev = [
   "pillow",
   "pre-commit",
   "pytest-asyncio",
-  "pytest",
+  "pytest >= 8.3",
   "pytest-env",
   "pytest-xdist",
 ]
@@ -54,7 +54,15 @@ version_file = "prefect_shell/_version.py"
 root = "../../.."
 tag_regex = "^prefect-shell-(?P<version>\\d+\\.\\d+\\.\\d+(?:[a-zA-Z0-9]+(?:\\.[a-zA-Z0-9]+)*)?)$"
 fallback_version = "0.2.0"
-git_describe_command = 'git describe --dirty --tags --long --match "prefect-shell-*[0-9]*"'
+git_describe_command = [
+  "git",
+  "describe",
+  "--dirty",
+  "--tags",
+  "--long",
+  "--match",
+  "prefect-shell-*[0-9]*",
+]
 
 [tool.interrogate]
 ignore-init-module = true
@@ -72,6 +80,4 @@ show_missing = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-env = [
-  "PREFECT_TEST_MODE=1",
-]
+env = ["PREFECT_TEST_MODE=1"]

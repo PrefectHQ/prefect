@@ -58,7 +58,7 @@ dev = [
   "prefect-gcp[bigquery]>=0.6.0rc1",
   "prefect-snowflake>=0.28.0rc1",
   "prefect-sqlalchemy>=0.5.1",
-  "pytest",
+  "pytest >= 8.3",
   "pytest-asyncio",
   "pytest-env",
   "pytest-xdist",
@@ -93,7 +93,6 @@ fail_under = 80
 show_missing = true
 
 [tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "session"
 asyncio_mode = "auto"
-env = [
-  "PREFECT_TEST_MODE=1",
-]
+env = ["PREFECT_TEST_MODE=1"]
