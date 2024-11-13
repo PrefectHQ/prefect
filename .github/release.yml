@@ -26,6 +26,7 @@ changelog:
     - title: Development & Tidiness 🧹
       labels:
         - development
+        - docs
     - title: Uncategorized
       labels:
         - "*"
