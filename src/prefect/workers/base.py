@@ -649,9 +649,14 @@ class BaseWorker(abc.ABC):
         for scope in self._scheduled_task_scopes:
             scope.cancel()
 
-        await self._exit_stack.__aexit__(*exc_info)
+        # Emit stopped event before closing client
         if self._started_event:
-            await self._emit_worker_stopped_event(self._started_event)
+            try:
+                await self._emit_worker_stopped_event(self._started_event)
+            except Exception:
+                self._logger.exception("Failed to emit worker stopped event")
+
+        await self._exit_stack.__aexit__(*exc_info)
         self._runs_task_group = None
         self._client = None
 

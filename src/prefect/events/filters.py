@@ -83,17 +83,18 @@ class EventOccurredFilter(EventDataFilter):
 
 class EventNameFilter(EventDataFilter):
     prefix: Optional[List[str]] = Field(
-        None, description="Only include events matching one of these prefixes"
+        default=None, description="Only include events matching one of these prefixes"
     )
     exclude_prefix: Optional[List[str]] = Field(
-        None, description="Exclude events matching one of these prefixes"
+        default=None, description="Exclude events matching one of these prefixes"
     )
 
     name: Optional[List[str]] = Field(
-        None, description="Only include events matching one of these names exactly"
+        default=None,
+        description="Only include events matching one of these names exactly",
     )
     exclude_name: Optional[List[str]] = Field(
-        None, description="Exclude events matching one of these names exactly"
+        default=None, description="Exclude events matching one of these names exactly"
     )
 
     def includes(self, event: Event) -> bool:
@@ -230,17 +231,20 @@ class EventFilter(EventDataFilter):
         description="Filter criteria for when the events occurred",
     )
     event: Optional[EventNameFilter] = Field(
-        None,
+        default=None,
         description="Filter criteria for the event name",
     )
     any_resource: Optional[EventAnyResourceFilter] = Field(
-        None, description="Filter criteria for any resource involved in the event"
+        default=None,
+        description="Filter criteria for any resource involved in the event",
     )
     resource: Optional[EventResourceFilter] = Field(
-        None, description="Filter criteria for the resource of the event"
+        default=None,
+        description="Filter criteria for the resource of the event",
     )
     related: Optional[EventRelatedFilter] = Field(
-        None, description="Filter criteria for the related resources of the event"
+        default=None,
+        description="Filter criteria for the related resources of the event",
     )
     id: EventIDFilter = Field(
         default_factory=lambda: EventIDFilter(id=[]),
@@ -248,6 +252,6 @@ class EventFilter(EventDataFilter):
     )
 
     order: EventOrder = Field(
-        EventOrder.DESC,
+        default=EventOrder.DESC,
         description="The order to return filtered events",
     )
