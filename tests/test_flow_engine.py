@@ -1821,21 +1821,44 @@ class TestFlowRunInstrumentation:
         span = spans[0]
         assert span is not None
 
-        instrumentation.assert_span_has_attributes(
+        instrumentation.assert_has_attributes(
             span,
             {
                 "prefect.run.type": "flow",
                 "prefect.tags": (),
                 "prefect.flow.name": "instrumented-flow",
+                "prefect.run.id": mock.ANY,
             },
         )
-        assert span.attributes.get("prefect.run.id") is not None
-        # assert span.attributes.get("prefect.deployment.id") is not None  # todo
         assert span.status.status_code == trace.StatusCode.OK
         # assert span.status.description == "The flow is with you" # fixme
 
+        assert len(span.events) == 2
+        assert span.events[0].name == "Running"
+        instrumentation.assert_has_attributes(
+            span.events[0],
+            {
+                "prefect.state.message": "",
+                "prefect.state.type": StateType.RUNNING,
+                "prefect.state.name": "Running",
+                "prefect.state.id": mock.ANY,
+            },
+        )
+
+        assert span.events[1].name == "Completed"
+        instrumentation.assert_has_attributes(
+            span.events[1],
+            {
+                "prefect.state.message": "The flow is with you",
+                "prefect.state.type": StateType.COMPLETED,
+                "prefect.state.name": "Completed",
+                "prefect.state.id": mock.ANY,
+            },
+        )
+
     def test_flow_run_instrumentation_captures_tags(
-        self, instrumentation: InstrumentationTester
+        self,
+        instrumentation: InstrumentationTester,
     ):
         from prefect import tags
 
@@ -1851,16 +1874,24 @@ class TestFlowRunInstrumentation:
         span = spans[0]
         assert span is not None
 
-        instrumentation.assert_span_has_attributes(
+        instrumentation.assert_has_attributes(
             span,
             {
                 "prefect.run.type": "flow",
-                "prefect.tags": ("foo", "bar"),
                 "prefect.flow.name": "instrumented-flow",
+                "prefect.run.id": mock.ANY,
             },
         )
-        assert span.attributes.get("prefect.run.id") is not None
+        # listy span attributes are serialized to tuples -- order seems nondeterministic so ignore rather than flake
+        assert set(span.attributes.get("prefect.tags")) == {"foo", "bar"}  # type: ignore
         assert span.status.status_code == trace.StatusCode.OK
+
+    @pytest.mark.xfail(reason="Test not written yet.")
+    def test_flow_run_instrumentation_captures_labels(
+        self, instrumentation: InstrumentationTester
+    ):
+        # assert span.attributes.get("prefect.deployment.id") is not None  # todo
+        raise NotImplementedError
 
     def test_flow_run_instrumentation_on_exception(
         self, instrumentation: InstrumentationTester
@@ -1877,17 +1908,51 @@ class TestFlowRunInstrumentation:
         span = spans[0]
         assert span is not None
 
-        instrumentation.assert_span_has_attributes(
+        instrumentation.assert_has_attributes(
             span,
             {
                 "prefect.run.type": "flow",
                 "prefect.tags": (),
                 "prefect.flow.name": "a-broken-flow",
+                "prefect.run.id": mock.ANY,
             },
         )
-        assert span.attributes.get("prefect.run.id") is not None
 
         assert span.status.status_code == trace.StatusCode.ERROR
+
+        assert len(span.events) == 3
+        assert span.events[0].name == "Running"
+        instrumentation.assert_has_attributes(
+            span.events[0],
+            {
+                "prefect.state.message": "",
+                "prefect.state.type": StateType.RUNNING,
+                "prefect.state.name": "Running",
+                "prefect.state.id": mock.ANY,
+            },
+        )
+
+        assert span.events[1].name == "Failed"
+        instrumentation.assert_has_attributes(
+            span.events[1],
+            {
+                "prefect.state.message": "Flow run encountered an exception: Exception: This flow broke!",
+                "prefect.state.type": StateType.FAILED,
+                "prefect.state.name": "Failed",
+                "prefect.state.id": mock.ANY,
+            },
+        )
+
+        assert span.events[2].name == "exception"
+        instrumentation.assert_has_attributes(
+            span.events[2],
+            {
+                "exception.type": "Exception",
+                "exception.message": "This flow broke!",
+                "exception.stacktrace": mock.ANY,
+                "exception.escaped": "False",
+            },
+        )
 
     def test_flow_run_instrumentation_on_timeout(
         self, instrumentation: InstrumentationTester
@@ -1904,14 +1969,48 @@ class TestFlowRunInstrumentation:
         span = spans[0]
         assert span is not None
 
-        instrumentation.assert_span_has_attributes(
+        instrumentation.assert_has_attributes(
             span,
             {
                 "prefect.run.type": "flow",
                 "prefect.tags": (),
                 "prefect.flow.name": "a-slow-flow",
+                "prefect.run.id": mock.ANY,
             },
         )
-        assert span.attributes.get("prefect.run.id") is not None
 
         assert span.status.status_code == trace.StatusCode.ERROR
+
+        assert len(span.events) == 3
+        assert span.events[0].name == "Running"
+        instrumentation.assert_has_attributes(
+            span.events[0],
+            {
+                "prefect.state.message": "",
+                "prefect.state.type": StateType.RUNNING,
+                "prefect.state.name": "Running",
+                "prefect.state.id": mock.ANY,
+            },
+        )
+
+        assert span.events[1].name == "TimedOut"
+        instrumentation.assert_has_attributes(
+            span.events[1],
+            {
+                "prefect.state.message": "Flow run exceeded timeout of 0.1 second(s)",
+                "prefect.state.type": StateType.FAILED,
+                "prefect.state.name": "TimedOut",
+                "prefect.state.id": mock.ANY,
+            },
+        )
+
+        assert span.events[2].name == "exception"
+        instrumentation.assert_has_attributes(
+            span.events[2],
+            {
+                "exception.type": "prefect.flow_engine.FlowRunTimeoutError",
+                "exception.message": "Scope timed out after 0.1 second(s).",
+                "exception.stacktrace": mock.ANY,
+                "exception.escaped": "False",
+            },
+        )
