@@ -5,10 +5,13 @@ import {
 	createColumnHelper,
 	type PaginationState,
 	type OnChangeFn,
+	type ColumnFiltersState,
 } from "@tanstack/react-table";
 import { DataTable } from "@/components/ui/data-table";
 import { Badge } from "@/components/ui/badge";
 import { ActionsCell } from "./cells";
+import { useCallback, useRef } from "react";
+import { VariablesDataTableSearch } from "./search";
 
 const columnHelper = createColumnHelper<components["schemas"]["Variable"]>();
 
@@ -66,35 +69,65 @@ const columns = [
 	}),
 ];
 
-export const VariablesDataTable = ({
-	variables,
-	totalVariableCount,
-	pagination,
-	onPaginationChange,
-}: {
+type VariablesDataTableProps = {
 	variables: components["schemas"]["Variable"][];
-	totalVariableCount: number;
+	currentVariableCount: number;
 	pagination: PaginationState;
 	onPaginationChange: OnChangeFn<PaginationState>;
-}) => {
+	columnFilters: ColumnFiltersState;
+	onColumnFiltersChange: OnChangeFn<ColumnFiltersState>;
+};
+
+export const VariablesDataTable = ({
+	variables,
+	currentVariableCount,
+	pagination,
+	onPaginationChange,
+	columnFilters,
+	onColumnFiltersChange,
+}: VariablesDataTableProps) => {
+	const initialSearchValue = useRef(
+		columnFilters.find((filter) => filter.id === "name")?.value as string,
+	);
+	const handleNameSearchChange = useCallback(
+		(value: string) => {
+			onColumnFiltersChange([{ id: "name", value }]);
+		},
+		[onColumnFiltersChange],
+	);
+
+	const handleSortChange = useCallback(
+		(value: string) => {
+			onColumnFiltersChange([{ id: "sort", value }]);
+		},
+		[onColumnFiltersChange],
+	);
+
 	const table = useReactTable({
 		data: variables,
 		columns: columns,
 		state: {
 			pagination,
+			columnFilters,
 		},
 		getCoreRowModel: getCoreRowModel(),
 		manualPagination: true,
 		onPaginationChange: onPaginationChange,
-		rowCount: totalVariableCount,
+		onColumnFiltersChange: onColumnFiltersChange,
+		rowCount: currentVariableCount,
 	});
 
 	return (
 		<div className="flex flex-col gap-6 mt-2">
-			<div className="flex flex-row justify-between items-center">
+			<div className="flex items-center justify-between">
 				<p className="text-sm text-muted-foreground">
-					{totalVariableCount} Variables
+					{currentVariableCount} Variables
 				</p>
+				<VariablesDataTableSearch
+					initialSearchValue={initialSearchValue.current}
+					onNameSearchChange={handleNameSearchChange}
+					onSortChange={handleSortChange}
+				/>
 			</div>
 			<DataTable table={table} />
 		</div>

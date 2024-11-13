@@ -8,10 +8,17 @@ import { X } from "lucide-react";
 type TagsInputProps = InputProps & {
 	value?: string[];
 	onChange?: (tags: string[]) => void;
+	placeholder?: string;
 };
 
 const TagsInput = React.forwardRef<HTMLInputElement, TagsInputProps>(
-	({ onChange, value = [], onBlur, ...props }: TagsInputProps = {}) => {
+	({
+		onChange,
+		value = [],
+		onBlur,
+		placeholder = "Enter tags",
+		...props
+	}: TagsInputProps = {}) => {
 		const [inputValue, setInputValue] = useState("");
 
 		const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -77,8 +84,8 @@ const TagsInput = React.forwardRef<HTMLInputElement, TagsInputProps>(
 					onKeyDown={handleInputKeyDown}
 					onBlur={handleInputBlur(onBlur)}
 					className="flex-grow border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
-					placeholder="Enter tags"
-					aria-label="Enter tags"
+					placeholder={placeholder}
+					aria-label={placeholder}
 					{...props}
 				/>
 			</div>

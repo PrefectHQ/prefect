@@ -24,4 +24,20 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
 );
 Input.displayName = "Input";
 
-export { Input, type InputProps };
+type IconInputProps = InputProps & {
+	Icon: React.ElementType;
+};
+
+const IconInput = React.forwardRef<HTMLInputElement, IconInputProps>(
+	({ className, Icon, ...props }, ref) => {
+		return (
+			<div className="relative w-full">
+				<Icon className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
+				<Input className={cn("pl-8", className)} ref={ref} {...props} />
+			</div>
+		);
+	},
+);
+IconInput.displayName = "IconInput";
+
+export { Input, type InputProps, IconInput };
