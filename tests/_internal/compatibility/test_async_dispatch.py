@@ -199,3 +199,42 @@ class TestIsInAsyncContext:
             assert (
                 is_in_async_context() is False
             ), "the loop should be closed and not considered an async context"
+
+
+class TestMethodBinding:
+    @pytest.mark.xfail(reason="Method binding not yet implemented")
+    async def test_can_force_sync_dispatch_from_async_context(self):
+        """Verify that we can force sync dispatch from an async context"""
+
+        class Counter:
+            def __init__(self):
+                self.count = 0
+
+            async def increment_async(self):
+                self.count += 1
+
+            @async_dispatch(increment_async)
+            def increment(self):
+                self.count += 1
+
+        counter = Counter()
+
+        assert counter.count == 0
+        await counter.increment_async()
+        counter.increment()
+        assert counter.count == 2
+
+    @pytest.mark.xfail(reason="Method binding not yet implemented")
+    async def test_async_dispatch_debug(self):
+        data = []
+
+        async def async_fn(self):
+            data.append("async")
+
+        @async_dispatch(async_fn)
+        def sync_fn(self):
+            data.append("sync")
+
+        obj = type("Test", (), {})()
+        sync_fn(obj)
+        assert data == ["sync"]
