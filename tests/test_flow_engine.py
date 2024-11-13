@@ -1834,6 +1834,34 @@ class TestFlowRunInstrumentation:
         assert span.status.status_code == trace.StatusCode.OK
         # assert span.status.description == "The flow is with you" # fixme
 
+    def test_flow_run_instrumentation_captures_tags(
+        self, instrumentation: InstrumentationTester
+    ):
+        from prefect import tags
+
+        @flow
+        def instrumented_flow():
+            pass
+
+        with tags("foo", "bar"):
+            instrumented_flow()
+
+        spans = instrumentation.get_finished_spans()
+        assert len(spans) == 1
+        span = spans[0]
+        assert span is not None
+
+        instrumentation.assert_span_has_attributes(
+            span,
+            {
+                "prefect.run.type": "flow",
+                "prefect.tags": ("foo", "bar"),
+                "prefect.flow.name": "instrumented-flow",
+            },
+        )
+        assert span.attributes.get("prefect.run.id") is not None
+        assert span.status.status_code == trace.StatusCode.OK
+
     def test_flow_run_instrumentation_on_exception(
         self, instrumentation: InstrumentationTester
     ):
