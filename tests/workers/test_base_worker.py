@@ -1100,7 +1100,7 @@ async def test_job_configuration_from_template_overrides_with_remote_variables()
 
     class ArbitraryJobConfiguration(BaseJobConfiguration):
         var1: str
-        env: Dict[str, str]
+        env: Dict[str, str] = Field(default_factory=dict)
 
     config = await ArbitraryJobConfiguration.from_template_and_values(
         base_job_template=template,
