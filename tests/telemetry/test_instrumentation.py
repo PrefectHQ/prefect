@@ -12,7 +12,6 @@ from opentelemetry.sdk._logs.export import SimpleLogRecordProcessor
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import InMemorySpanExporter
 
 from prefect import flow, task
 from prefect.client.schemas import TaskRun
@@ -187,25 +186,19 @@ class TestTaskRunInstrumentation:
         }
         assert otel_inputs == []
 
-    def test_linked_parameters(self):
-        trace_provider, _, _ = setup_telemetry()
-        tracer = trace_provider.get_tracer(__name__)
-        with tracer.start_as_current_span("test_task"):
-            self.test_task(x=self.returns_4(), y=2)
+
+# @pytest.fixture
+# def mock_tracer():
+#     trace_provider, _, _ = setup_telemetry()
+#     span_exporter = InMemorySpanExporter()
+#     span_processor = InFlightSpanProcessor(span_exporter)
+#     trace_provider.add_span_processor(span_processor)
+#     trace.set_tracer_provider(trace_provider)
+#     return trace.get_tracer("prefect.test")
 
 
 @pytest.fixture
-def mock_tracer():
-    trace_provider, _, _ = setup_telemetry()
-    span_exporter = InMemorySpanExporter()
-    span_processor = InFlightSpanProcessor(span_exporter)
-    trace_provider.add_span_processor(span_processor)
-    trace.set_tracer_provider(trace_provider)
-    return trace.get_tracer("prefect.test")
-
-
-@pytest.fixture
-async def task_run_engine(mock_tracer):
+async def task_run_engine(instrumentation):
     @task
     async def test_task(x: int, y: int):
         return x + y
@@ -222,13 +215,13 @@ async def task_run_engine(mock_tracer):
         task=test_task,
         task_run=task_run,
         parameters={"x": 1, "y": 2},
-        _tracer=mock_tracer,
+        _tracer=instrumentation.tracer_provider.get_tracer("prefect.test"),
     )
     return engine
 
 
 @pytest.mark.asyncio
-async def test_span_creation(task_run_engine, mock_tracer):
+async def test_span_creation(task_run_engine, instrumentation):
     async with task_run_engine.start():
         assert task_run_engine._span is not None
         assert task_run_engine._span.name == task_run_engine.task_run.name
