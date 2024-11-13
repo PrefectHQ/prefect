@@ -4,7 +4,7 @@ from opentelemetry import metrics as metrics_api
 from opentelemetry import trace as trace_api
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import InMemoryMetricReader
-from opentelemetry.sdk.trace import TracerProvider, export
+from opentelemetry.sdk.trace import ReadableSpan, Span, TracerProvider, export
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
     InMemorySpanExporter,
 )
@@ -97,3 +97,9 @@ class InstrumentationTester:
         for key, val in attributes.items():
             assert key in obj.attributes
             assert obj.attributes[key] == val
+
+    @staticmethod
+    def assert_span_instrumented_for(span: Union[Span, ReadableSpan], module):
+        assert span.instrumentation_scope is not None
+        assert span.instrumentation_scope.name == module.__name__
+        assert span.instrumentation_scope.version == module.__version__

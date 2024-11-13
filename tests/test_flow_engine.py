@@ -12,6 +12,7 @@ import pydantic
 import pytest
 from opentelemetry import trace
 
+import prefect
 from prefect import Flow, __development_base_path__, flow, task
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.filters import FlowFilter, FlowRunFilter
@@ -1820,6 +1821,7 @@ class TestFlowRunInstrumentation:
         assert len(spans) == 1
         span = spans[0]
         assert span is not None
+        instrumentation.assert_span_instrumented_for(span, prefect)
 
         instrumentation.assert_has_attributes(
             span,
@@ -1873,6 +1875,7 @@ class TestFlowRunInstrumentation:
         assert len(spans) == 1
         span = spans[0]
         assert span is not None
+        instrumentation.assert_span_instrumented_for(span, prefect)
 
         instrumentation.assert_has_attributes(
             span,
@@ -1907,6 +1910,7 @@ class TestFlowRunInstrumentation:
         assert len(spans) == 1
         span = spans[0]
         assert span is not None
+        instrumentation.assert_span_instrumented_for(span, prefect)
 
         instrumentation.assert_has_attributes(
             span,
@@ -1968,6 +1972,7 @@ class TestFlowRunInstrumentation:
         assert len(spans) == 1
         span = spans[0]
         assert span is not None
+        instrumentation.assert_span_instrumented_for(span, prefect)
 
         instrumentation.assert_has_attributes(
             span,
