@@ -11,6 +11,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createQueryService } from "@/api/service";
 import type { CellContext } from "@tanstack/react-table";
 import type { components } from "@/api/prefect";
+import { useToast } from "@/hooks/use-toast";
 
 export const ActionsCell = ({
 	row,
@@ -34,7 +35,16 @@ export const ActionsCell = ({
 			]);
 		},
 	});
+	const { toast } = useToast();
 	if (!id) return null;
+
+	const onVariableDelete = () => {
+		deleteVariable(id);
+		toast({
+			title: "Variable deleted",
+		});
+	};
+
 	return (
 		<div className="flex flex-row justify-end">
 			<DropdownMenu>
@@ -71,9 +81,7 @@ export const ActionsCell = ({
 					>
 						Copy Value
 					</DropdownMenuItem>
-					<DropdownMenuItem onClick={() => deleteVariable(id)}>
-						Delete
-					</DropdownMenuItem>
+					<DropdownMenuItem onClick={onVariableDelete}>Delete</DropdownMenuItem>
 				</DropdownMenuContent>
 			</DropdownMenu>
 		</div>

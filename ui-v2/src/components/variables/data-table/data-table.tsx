@@ -4,11 +4,11 @@ import {
 	getCoreRowModel,
 	createColumnHelper,
 	type PaginationState,
+	type OnChangeFn,
 } from "@tanstack/react-table";
 import { DataTable } from "@/components/ui/data-table";
 import { Badge } from "@/components/ui/badge";
 import { ActionsCell } from "./cells";
-import { useNavigate } from "@tanstack/react-router";
 
 const columnHelper = createColumnHelper<components["schemas"]["Variable"]>();
 
@@ -36,11 +36,11 @@ const columns = [
 			return new Date(updated ?? new Date())
 				.toLocaleString(undefined, {
 					year: "numeric",
-					month: "2-digit",
-					day: "2-digit",
-					hour: "2-digit",
-					minute: "2-digit",
-					second: "2-digit",
+					month: "numeric",
+					day: "numeric",
+					hour: "numeric",
+					minute: "numeric",
+					second: "numeric",
 					hour12: true,
 				})
 				.replace(",", "");
@@ -70,13 +70,13 @@ export const VariablesDataTable = ({
 	variables,
 	totalVariableCount,
 	pagination,
+	onPaginationChange,
 }: {
 	variables: components["schemas"]["Variable"][];
 	totalVariableCount: number;
 	pagination: PaginationState;
+	onPaginationChange: OnChangeFn<PaginationState>;
 }) => {
-	const navigate = useNavigate({ from: "/variables" });
-
 	const table = useReactTable({
 		data: variables,
 		columns: columns,
@@ -85,23 +85,7 @@ export const VariablesDataTable = ({
 		},
 		getCoreRowModel: getCoreRowModel(),
 		manualPagination: true,
-		onPaginationChange: (updater) => {
-			let newPagination = pagination;
-			if (typeof updater === "function") {
-				newPagination = updater(pagination);
-			} else {
-				newPagination = updater;
-			}
-			void navigate({
-				to: ".",
-				search: (prev) => ({
-					...prev,
-					offset: newPagination.pageIndex * newPagination.pageSize,
-					limit: newPagination.pageSize,
-				}),
-				replace: true,
-			});
-		},
+		onPaginationChange: onPaginationChange,
 		rowCount: totalVariableCount,
 	});
 
