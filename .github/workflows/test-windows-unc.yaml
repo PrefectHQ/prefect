@@ -7,6 +7,8 @@ on:
       - "src/prefect/utilities/filesystem.py"
       - "scripts/test_unc_paths.py"
       - ".github/workflows/test-windows-unc.yaml"
+      - "requirements.txt"
+      - "requirements-client.txt"
 
 jobs:
   test-unc-paths:
