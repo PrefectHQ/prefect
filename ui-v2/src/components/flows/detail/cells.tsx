@@ -1,5 +1,5 @@
 import { components } from "@/api/prefect";
-import { QueryService } from "@/api/service";
+import { createQueryService } from "@/api/service";
 import { useQuery } from "@tanstack/react-query";
 
 type FlowRun = components["schemas"]["FlowRun"];
@@ -9,7 +9,7 @@ export const DeploymentCell = ({ row }: { row: { original: FlowRun } }) => {
 	const { data: deployment } = useQuery({
 		queryKey: ["deployment", deploymentId],
 		queryFn: () =>
-			QueryService.GET("/deployments/{id}", {
+			createQueryService().GET("/deployments/{id}", {
 				params: { path: { id: deploymentId as string } },
 			}),
 		enabled: !!deploymentId,
@@ -22,7 +22,7 @@ export const WorkPoolCell = ({ row }: { row: { original: FlowRun } }) => {
 	const { data: deployment } = useQuery({
 		queryKey: ["deployment", deploymentId],
 		queryFn: () =>
-			QueryService.GET("/deployments/{id}", {
+			createQueryService().GET("/deployments/{id}", {
 				params: { path: { id: deploymentId as string } },
 			}),
 		enabled: !!deploymentId,

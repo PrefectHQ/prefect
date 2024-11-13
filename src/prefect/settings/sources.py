@@ -10,10 +10,15 @@ from pydantic import AliasChoices
 from pydantic.fields import FieldInfo
 from pydantic_settings import (
     BaseSettings,
+    DotEnvSettingsSource,
     EnvSettingsSource,
     PydanticBaseSettingsSource,
 )
-from pydantic_settings.sources import ConfigFileSourceMixin
+from pydantic_settings.sources import (
+    ENV_FILE_SENTINEL,
+    ConfigFileSourceMixin,
+    DotenvType,
+)
 
 from prefect.settings.constants import DEFAULT_PREFECT_HOME, DEFAULT_PROFILES_PATH
 from prefect.utilities.collections import get_from_dict
@@ -58,6 +63,44 @@ class EnvFilterSettingsSource(EnvSettingsSource):
                     key: value
                     for key, value in self.env_vars.items()  # type: ignore
                     if key.lower() not in env_filter
+                }
+
+
+class FilteredDotEnvSettingsSource(DotEnvSettingsSource):
+    def __init__(
+        self,
+        settings_cls: type[BaseSettings],
+        env_file: Optional[DotenvType] = ENV_FILE_SENTINEL,
+        env_file_encoding: Optional[str] = None,
+        case_sensitive: Optional[bool] = None,
+        env_prefix: Optional[str] = None,
+        env_nested_delimiter: Optional[str] = None,
+        env_ignore_empty: Optional[bool] = None,
+        env_parse_none_str: Optional[str] = None,
+        env_parse_enums: Optional[bool] = None,
+        env_blacklist: Optional[List[str]] = None,
+    ) -> None:
+        super().__init__(
+            settings_cls,
+            env_file,
+            env_file_encoding,
+            case_sensitive,
+            env_prefix,
+            env_nested_delimiter,
+            env_ignore_empty,
+            env_parse_none_str,
+            env_parse_enums,
+        )
+        self.env_blacklist = env_blacklist
+        if self.env_blacklist:
+            if isinstance(self.env_vars, dict):
+                for key in self.env_blacklist:
+                    self.env_vars.pop(key, None)
+            else:
+                self.env_vars = {
+                    key: value
+                    for key, value in self.env_vars.items()  # type: ignore
+                    if key.lower() not in env_blacklist
                 }
 
 
@@ -111,21 +154,34 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
     ) -> Tuple[Any, str, bool]:
         """Concrete implementation to get the field value from the profile settings"""
         if field.validation_alias:
+            # Use validation alias as the key to ensure profile value does not
+            # higher priority sources. Lower priority sources that use the
+            # field name can override higher priority sources that use the
+            # validation alias as seen in https://github.com/PrefectHQ/prefect/issues/15981
             if isinstance(field.validation_alias, str):
                 value = self.profile_settings.get(field.validation_alias.upper())
                 if value is not None:
-                    return value, field_name, self.field_is_complex(field)
+                    return value, field.validation_alias, self.field_is_complex(field)
             elif isinstance(field.validation_alias, AliasChoices):
+                value = None
+                lowest_priority_alias = next(
+                    choice
+                    for choice in reversed(field.validation_alias.choices)
+                    if isinstance(choice, str)
+                )
                 for alias in field.validation_alias.choices:
                     if not isinstance(alias, str):
                         continue
                     value = self.profile_settings.get(alias.upper())
                     if value is not None:
-                        return value, field_name, self.field_is_complex(field)
+                        return (
+                            value,
+                            lowest_priority_alias,
+                            self.field_is_complex(field),
+                        )
 
-        value = self.profile_settings.get(
-            f"{self.config.get('env_prefix','')}{field_name.upper()}"
-        )
+        name = f"{self.config.get('env_prefix','')}{field_name.upper()}"
+        value = self.profile_settings.get(name)
         return value, field_name, self.field_is_complex(field)
 
     def __call__(self) -> Dict[str, Any]:
@@ -164,7 +220,22 @@ class TomlConfigSettingsSourceBase(PydanticBaseSettingsSource, ConfigFileSourceM
             # if the value is a dict, it is likely a nested settings object and a nested
             # source will handle it
             value = None
-        return value, field_name, self.field_is_complex(field)
+        name = field_name
+        # Use validation alias as the key to ensure profile value does not
+        # higher priority sources. Lower priority sources that use the
+        # field name can override higher priority sources that use the
+        # validation alias as seen in https://github.com/PrefectHQ/prefect/issues/15981
+        if value is not None:
+            if field.validation_alias and isinstance(field.validation_alias, str):
+                name = field.validation_alias
+            elif field.validation_alias and isinstance(
+                field.validation_alias, AliasChoices
+            ):
+                for alias in reversed(field.validation_alias.choices):
+                    if isinstance(alias, str):
+                        name = alias
+                        break
+        return value, name, self.field_is_complex(field)
 
     def __call__(self) -> Dict[str, Any]:
         """Called by pydantic to get the settings from our custom source"""

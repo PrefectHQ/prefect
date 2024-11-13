@@ -4,10 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "prefect-github"
-dependencies = [
-  "sgqlc>=15.0",
-  "prefect>=3.0.0rc1",
-]
+dependencies = ["sgqlc>=15.0", "prefect>=3.0.0rc1"]
 dynamic = ["version"]
 description = "Prefect integrations interacting with GitHub"
 readme = "README.md"
@@ -40,7 +37,7 @@ dev = [
   "pillow",
   "pre-commit",
   "pytest-asyncio",
-  "pytest",
+  "pytest >= 8.3",
   "pytest-env",
   "pytest-xdist",
 ]
@@ -73,7 +70,6 @@ fail_under = 80
 show_missing = true
 
 [tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "session"
 asyncio_mode = "auto"
-env = [
-  "PREFECT_TEST_MODE=1",
-]
+env = ["PREFECT_TEST_MODE=1"]

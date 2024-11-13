@@ -71,6 +71,8 @@ if TYPE_CHECKING:
 
 R = TypeVar("R", default=Any)
 
+KeyValueLabels = dict[str, Union[StrictBool, StrictInt, StrictFloat, str]]
+
 
 DEFAULT_BLOCK_SCHEMA_VERSION = "non-versioned"
 DEFAULT_AGENT_WORK_POOL_NAME = "default-agent-pool"
