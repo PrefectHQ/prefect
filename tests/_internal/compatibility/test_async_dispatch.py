@@ -202,7 +202,9 @@ class TestIsInAsyncContext:
 
 
 class TestMethodBinding:
-    @pytest.mark.xfail(reason="Method binding not yet implemented")
+    # @pytest.mark.skip(
+    #     reason="TODO: Allow forcing sync call of instance method from async context (without passing the instance)"
+    # )
     async def test_can_force_sync_dispatch_from_async_context(self):
         """Verify that we can force sync dispatch from an async context"""
 
@@ -221,5 +223,5 @@ class TestMethodBinding:
 
         assert counter.count == 0
         await counter.increment_async()
-        counter.increment()
+        counter.increment.sync(counter)
         assert counter.count == 2
