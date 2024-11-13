@@ -223,18 +223,3 @@ class TestMethodBinding:
         await counter.increment_async()
         counter.increment()
         assert counter.count == 2
-
-    @pytest.mark.xfail(reason="Method binding not yet implemented")
-    async def test_async_dispatch_debug(self):
-        data = []
-
-        async def async_fn(self):
-            data.append("async")
-
-        @async_dispatch(async_fn)
-        def sync_fn(self):
-            data.append("sync")
-
-        obj = type("Test", (), {})()
-        sync_fn(obj)
-        assert data == ["sync"]
