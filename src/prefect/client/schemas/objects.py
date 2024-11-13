@@ -506,7 +506,7 @@ class FlowRunPolicy(PrefectBaseModel):
         return values
 
 
-KeyValueLabels = dict[str, StrictBool | StrictInt | StrictFloat | str]
+KeyValueLabels = Dict[str, StrictBool | StrictInt | StrictFloat | str]
 
 
 class FlowRun(ObjectBaseModel):
