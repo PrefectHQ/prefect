@@ -81,7 +81,7 @@ if __name__ == "__main__":
 ```
 </Expandable>
 
-## Enable concurrency for slow tasks
+## Parallelize slow tasks
 
 If individual API requests are slow, you can speed them up in aggregate by making multiple requests in parallel.
 
@@ -106,7 +106,7 @@ def show_stars(github_repos: list[str]):
 ```
 
 <Expandable title="full example">
-Run the following code to see concurrency in action:
+Run the following code to see parallel tasks in action:
 
 ```python
 import httpx
@@ -157,15 +157,15 @@ if __name__ == "__main__":
 ```
 </Expandable>
 
-## Avoid rate limits
+## Avoid getting rate limited
 
-To avoid violating the rate limits of whatever API you're using, use Prefect to set a global concurrency limit.
+One consequence of running tasks in parallel is that you're more likely to hit the rate limits of whatever API you're using.
+To avoid this, use Prefect to set a global concurrency limit.
 
-1. Open the Prefect UI
-1. Navigate to **Configuration** / **Concurrency**, and then click **Add Concurrency Limit**.
-1. Choose a name (**github-api**), concurrency limit (**3**), and set a non-zero slot decay (**1**).
-   This allows 3 tasks to run concurrently, with a 1-second delay before the next slot is freed up.
-1. Click **Create**.
+```bash
+# This allows 3 tasks to run concurrently, with a 1-second delay before the next slot is freed up.
+prefect gcl create github-api --limit 3 --slot-decay-per-second 1.0
+```
 
 Now, you can use this global concurrency limit in your code:
 
@@ -178,7 +178,7 @@ def show_stars(github_repos: list[str]):
 
     repo_stats = []
     for repo in github_repos:
-        # Apply a rate limit to this loop
+        # Apply the concurrency limit to this loop
         rate_limit("github-api")
 
         # Call Task 1
@@ -191,7 +191,7 @@ def show_stars(github_repos: list[str]):
 ```
 
 <Expandable title="full example">
-Run the following code to see rate limits in action:
+Run the following code to see concurrency limits in action:
 
 ```python
 import httpx
@@ -206,7 +206,7 @@ def show_stars(github_repos: list[str]):
 
     repo_stats = []
     for repo in github_repos:
-        # Apply a rate limit to this loop
+        # Apply the concurrency limit to this loop
         rate_limit("github-api")
 
         # Call Task 1
@@ -328,7 +328,7 @@ from prefect.concurrency.sync import rate_limit
 def show_stars(github_repos: list[str]):
     """Flow: Show the number of stars that GitHub repos have"""
 
-    # Task 1: Make HTTP requests in parallel while respecting rate limits
+    # Task 1: Make HTTP requests in parallel while respecting concurrency limits
     repo_stats = []
     for repo in github_repos:
         rate_limit("github-api")
