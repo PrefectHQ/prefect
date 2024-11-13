@@ -103,9 +103,13 @@ loggers:
 
     uvicorn:
         level: "${PREFECT_LOGGING_SERVER_LEVEL}"
+        handlers: [console]
+        propagate: false
 
     fastapi:
         level: "${PREFECT_LOGGING_SERVER_LEVEL}"
+        handlers: [console]
+        propagate: false
 
 # The root logger: any logger without propagation disabled sends to here as well
 root:
