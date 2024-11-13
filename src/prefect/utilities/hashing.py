@@ -48,10 +48,13 @@ def file_hash(path: str, hash_algo=_md5) -> str:
     return stable_hash(contents, hash_algo=hash_algo)
 
 
-def hash_objects(*args, hash_algo=_md5, **kwargs) -> Optional[str]:
+def hash_objects(
+    *args, hash_algo=_md5, raise_on_failure: bool = False, **kwargs
+) -> Optional[str]:
     """
     Attempt to hash objects by dumping to JSON or serializing with cloudpickle.
-    On failure of both, `None` will be returned
+    On failure of both, `None` will be returned; to raise on failure, set
+    `raise_on_failure=True`.
     """
     try:
         serializer = JSONSerializer(dumps_kwargs={"sort_keys": True})
@@ -62,6 +65,7 @@ def hash_objects(*args, hash_algo=_md5, **kwargs) -> Optional[str]:
     try:
         return stable_hash(cloudpickle.dumps((args, kwargs)), hash_algo=hash_algo)
     except Exception:
-        pass
+        if raise_on_failure:
+            raise
 
     return None

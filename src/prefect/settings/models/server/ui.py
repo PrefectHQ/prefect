@@ -2,19 +2,11 @@ from typing import Optional
 
 from pydantic import AliasChoices, AliasPath, Field
 
-from prefect.settings.base import (
-    COMMON_CONFIG_DICT,
-    PrefectBaseSettings,
-    PrefectSettingsConfigDict,
-)
+from prefect.settings.base import PrefectBaseSettings, _build_settings_config
 
 
 class ServerUISettings(PrefectBaseSettings):
-    model_config = PrefectSettingsConfigDict(
-        **COMMON_CONFIG_DICT,
-        env_prefix="PREFECT_SERVER_UI_",
-        prefect_toml_table_header=("server", "ui"),
-    )
+    model_config = _build_settings_config(("server", "ui"))
 
     enabled: bool = Field(
         default=True,

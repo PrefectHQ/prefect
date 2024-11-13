@@ -562,6 +562,17 @@ class LogCreate(ActionBaseModel):
     timestamp: DateTime = Field(default=..., description="The log timestamp.")
     flow_run_id: Optional[UUID] = Field(None)
     task_run_id: Optional[UUID] = Field(None)
+    worker_id: Optional[UUID] = Field(None)
+
+    def model_dump(self, *args, **kwargs):
+        """
+        The worker_id field is only included in logs sent to Prefect Cloud.
+        If it's unset, we should not include it in the log payload.
+        """
+        data = super().model_dump(*args, **kwargs)
+        if self.worker_id is None:
+            data.pop("worker_id")
+        return data
 
 
 class WorkPoolCreate(ActionBaseModel):

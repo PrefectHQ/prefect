@@ -1,6 +1,6 @@
-from pydantic import Field
+from pydantic import AliasChoices, AliasPath, Field
 
-from prefect.settings.base import PrefectBaseSettings, PrefectSettingsConfigDict
+from prefect.settings.base import PrefectBaseSettings, _build_settings_config
 
 
 class ExperimentsSettings(PrefectBaseSettings):
@@ -8,15 +8,22 @@ class ExperimentsSettings(PrefectBaseSettings):
     Settings for configuring experimental features
     """
 
-    model_config = PrefectSettingsConfigDict(
-        env_prefix="PREFECT_EXPERIMENTS_",
-        env_file=".env",
-        extra="ignore",
-        toml_file="prefect.toml",
-        prefect_toml_table_header=("experiments",),
+    model_config = _build_settings_config(("experiments",))
+
+    warn: bool = Field(
+        default=True,
+        description="If `True`, warn on usage of experimental features.",
+        validation_alias=AliasChoices(
+            AliasPath("warn"), "prefect_experiments_warn", "prefect_experimental_warn"
+        ),
     )
 
     worker_logging_to_api_enabled: bool = Field(
         default=False,
         description="Enables the logging of worker logs to Prefect Cloud.",
+    )
+
+    telemetry_enabled: bool = Field(
+        default=False,
+        description="Enables sending telemetry to Prefect Cloud.",
     )
