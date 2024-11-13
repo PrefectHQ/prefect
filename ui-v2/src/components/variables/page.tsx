@@ -10,10 +10,7 @@ import { VariablesEmptyState } from "@/components/variables/empty-state";
 import { PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { VariablesDataTable } from "./data-table";
-import type {
-	OnChangeFn,
-	PaginationState,
-} from "@tanstack/react-table";
+import type { OnChangeFn, PaginationState } from "@tanstack/react-table";
 
 export const VariablesPage = ({
 	variables,

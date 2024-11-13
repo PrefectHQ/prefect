@@ -1,8 +1,5 @@
 import { createQueryService } from "@/api/service";
-import {
-	keepPreviousData,
-	useSuspenseQuery,
-} from "@tanstack/react-query";
+import { keepPreviousData, useSuspenseQuery } from "@tanstack/react-query";
 import { VariablesPage } from "@/components/variables/page";
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
