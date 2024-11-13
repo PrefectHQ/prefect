@@ -4,7 +4,7 @@ from opentelemetry import metrics as metrics_api
 from opentelemetry import trace as trace_api
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import InMemoryMetricReader
-from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
+from opentelemetry.sdk.trace import ReadableSpan, TracerProvider, export
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
     InMemorySpanExporter,
 )
@@ -12,8 +12,6 @@ from opentelemetry.test.globals_test import (
     reset_metrics_globals,
     reset_trace_globals,
 )
-
-from prefect.telemetry.processors import InFlightSpanProcessor
 
 
 def create_tracer_provider(**kwargs) -> Tuple[TracerProvider, InMemorySpanExporter]:
@@ -30,8 +28,7 @@ def create_tracer_provider(**kwargs) -> Tuple[TracerProvider, InMemorySpanExport
     """
     tracer_provider = TracerProvider(**kwargs)
     memory_exporter = InMemorySpanExporter()
-    # span_processor = export.SimpleSpanProcessor(memory_exporter)
-    span_processor = InFlightSpanProcessor(memory_exporter)
+    span_processor = export.SimpleSpanProcessor(memory_exporter)
     tracer_provider.add_span_processor(span_processor)
 
     return tracer_provider, memory_exporter

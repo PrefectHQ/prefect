@@ -1833,3 +1833,57 @@ class TestFlowRunInstrumentation:
         # assert span.attributes.get("prefect.deployment.id") is not None  # todo
         assert span.status.status_code == trace.StatusCode.OK
         # assert span.status.description == "The flow is with you" # fixme
+
+    def test_flow_run_instrumentation_on_exception(
+        self, instrumentation: InstrumentationTester
+    ):
+        @flow
+        def a_broken_flow():
+            raise Exception("This flow broke!")
+
+        with pytest.raises(Exception):
+            a_broken_flow()
+
+        spans = instrumentation.get_finished_spans()
+        assert len(spans) == 1
+        span = spans[0]
+        assert span is not None
+
+        instrumentation.assert_span_has_attributes(
+            span,
+            {
+                "prefect.run.type": "flow",
+                "prefect.tags": (),
+                "prefect.flow.name": "a-broken-flow",
+            },
+        )
+        assert span.attributes.get("prefect.run.id") is not None
+
+        assert span.status.status_code == trace.StatusCode.ERROR
+
+    def test_flow_run_instrumentation_on_timeout(
+        self, instrumentation: InstrumentationTester
+    ):
+        @flow(timeout_seconds=0.1)
+        def a_slow_flow():
+            time.sleep(1)
+
+        with pytest.raises(TimeoutError):
+            a_slow_flow()
+
+        spans = instrumentation.get_finished_spans()
+        assert len(spans) == 1
+        span = spans[0]
+        assert span is not None
+
+        instrumentation.assert_span_has_attributes(
+            span,
+            {
+                "prefect.run.type": "flow",
+                "prefect.tags": (),
+                "prefect.flow.name": "a-slow-flow",
+            },
+        )
+        assert span.attributes.get("prefect.run.id") is not None
+
+        assert span.status.status_code == trace.StatusCode.ERROR
