@@ -163,8 +163,8 @@ One consequence of running tasks in parallel is that you're more likely to hit t
 To avoid this, use Prefect to set a global concurrency limit.
 
 ```bash
-# This allows 3 tasks to run concurrently, with a 1-second delay before the next slot is freed up.
-prefect gcl create github-api --limit 3 --slot-decay-per-second 1.0
+# GitHub has a rate limit of 60 unauthenticated requests per hour (~0.016 requests per second)
+prefect gcl create github-api --limit 60 --slot-decay-per-second 0.016
 ```
 
 Now, you can use this global concurrency limit in your code:

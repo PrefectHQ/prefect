@@ -1,174 +1,423 @@
 ---
 title: Extract data from websites
-description: Use Prefect's error handling to deal with unstructured data
+description: Use Prefect to deal with the complexity of fetching and analyzing an indeterminate amount of data
 ---
 
-In [Build a data pipeline](/3.0/tutorials/pipelines), you learned how to build a resilient and performant data pipeline with Prefect.
+In the [Build a data pipeline](/3.0/tutorials/pipelines) tutorial, you learned how to create resilient and performant data pipelines.
+Now you'll learn how to handle unstructured data and complex API responses by building a GitHub issue analysis pipeline.
 
-Until now we've been working with structured data (GitHub stars), however, in the real world, you may need to work with unstructured data.
-You can't make any assumptions about unstructured data and need to gracefully handle whatever data you get.
-In this tutorial, instead of fetching stars, you'll fetch READMEs and summarize them.
+The real world presents additional challenges when dealing with web data:
 
-Some problems that you'll learn to solve include:
+- API responses can contain missing or malformed data
+- You need to make multiple dependent API calls
+- You need to handle pagination and rate limits
+- You want to process data in parallel when possible
 
-- Error handling
-    - Demonstrate the use of try/catch blocks to set the flow state to `Failed` if an error occurs
-    - Use logging to highlight any errors that arose during data processing
-    - Use transactions to rollback if the README processing pipeline fails partway through
-- How to handle big data
-    - Save data to disk instead of passing results between tasks directly
-    - Use artifacts to note the data which failed to process, so that you can fix the data pipeline and reprocess the failures without having to restart the entire data pipeline from scratch.
-    - Task runners for distributed compute? (probably out of scope for a tutorial like this one)
+## Set up error handling
 
-Some complexities related to READMEs specifically (these are domain specific and aren't of primary interest in this tutorial):
+Throw and catch errors to handle them gracefully.
+For example, if you don't get a 2xx response from an API, throw an exception and log the error.
 
-- How to deal with repositories that lack a README or that have multiple READMEs.
-- How to find READMEs that don't follow normal naming conventions.
-- How to process different content formats: plaintext, Markdown, reStructuredText, etc.
-- How to handle READMEs that are too large to process in one go.
-- How to incorporate linked assets like images, videos, or documentation in the summarization model (requires multi-modal capabilities).
+```python
+@flow(log_prints=True)
+def analyze_repo_health(repos: [str]):
+    """Analyze issue health metrics for a GitHub repository"""
+    for repo in repos:
+        try:
+            issue = fetch_issue_details(repo, 1)
+            print(f"Successfully fetched issue #{issue['number']}: {issue['title']}")
+        except Exception as e:
+            print(f"Error analyzing {repo}: {e}")
 
-## Error handling
 
-TBD
+@task(retries=3)
+def fetch_issue_details(repo: str, issue_number: int) -> dict:
+    """Fetch detailed information about a specific issue"""
+    response = httpx.get(f"https://api.github.com/repos/{repo}/issues/{issue_number}")
+    response.raise_for_status() # Throw an exception if you don't get a 2xx response
+    return response.json()
+```
 
-## Dealing with big data
+<Expandable title="full example">
+Run the following code to see error handling in action:
 
-TBD
-
-## Run the web scraper
-
-NOTE: This is not the final script. It's just a placeholder.
-
-```python my_web_scraper.py
+```python
 from datetime import timedelta
-import base64
 import httpx
-from typing import Optional
 
 from prefect import flow, task
-from prefect.cache_policies import INPUTS
-from prefect.concurrency.sync import rate_limit
-
-# You'll need to install these dependencies
-from transformers import pipeline
-import markdown
 
 
 @flow(log_prints=True)
-def analyze_readmes(github_repos: list[str]):
-    """Flow: Fetch and analyze README contents from GitHub repos"""
-    
-    # Task 1: Make HTTP requests in parallel while respecting rate limits
-    repo_contents = []
-    for repo in github_repos:
-        rate_limit("github-api")
-        repo_contents.append({
-            'repo': repo,
-            'task': fetch_readme.submit(repo)
-        })
-    
-    # Task 2: Process README contents once all parallel tasks complete
-    for repo in repo_contents:
-        repo_name = repo['repo']
-        readme_content = repo['task'].result()
-        
-        if readme_content:
-            summary = summarize_text(readme_content).result()
-            print(f"\n=== {repo_name} README Summary ===")
-            print(summary)
-        else:
-            print(f"\n=== {repo_name}: No README found ===")
-
-
-@task(retries=2, cache_policy=INPUTS, cache_expiration=timedelta(days=1))
-def fetch_readme(github_repo: str) -> Optional[str]:
-    """Task 1: Fetch and decode the README content from a GitHub repo
-    
-    Returns:
-        str or None: Decoded README text if found, None if no README exists
-    """
-    # Try common README filenames
-    readme_files = ["README.md", "README.rst", "README.txt", "README"]
-    
-    for filename in readme_files:
+def analyze_repo_health(repos: [str]):
+    """Analyze issue health metrics for a GitHub repository"""
+    for repo in repos:
         try:
-            response = httpx.get(
-                f"https://api.github.com/repos/{github_repo}/contents/{filename}",
-                timeout=10.0
-            )
-            
-            if response.status_code == 200:
-                content = response.json()
-                
-                # GitHub API returns content as base64 encoded
-                if content.get("encoding") == "base64":
-                    decoded_content = base64.b64decode(content["content"]).decode('utf-8')
-                    
-                    # Convert markdown to plain text if it's a markdown file
-                    if filename.endswith('.md'):
-                        html = markdown.markdown(decoded_content)
-                        # Basic HTML tag removal (you might want a more robust solution)
-                        text = (html.replace('<p>', '\n\n')
-                                  .replace('</p>', '')
-                                  .replace('<h1>', '\n\n')
-                                  .replace('</h1>', '\n')
-                                  .replace('<h2>', '\n\n')
-                                  .replace('</h2>', '\n')
-                                  .replace('<h3>', '\n\n')
-                                  .replace('</h3>', '\n')
-                                  .replace('<code>', '')
-                                  .replace('</code>', ''))
-                        return text
-                    return decoded_content
-                    
-        except (httpx.RequestError, KeyError, UnicodeDecodeError) as e:
-            continue
-            
-    return None
+            issue = fetch_issue_details(repo, 1)
+            print(f"Successfully fetched issue #{issue['number']}: {issue['title']}")
+        except Exception as e:
+            print(f"Error analyzing {repo}: {e}")
 
 
-@task(retries=1)
-def summarize_text(text: str, max_length: int = 1000) -> str:
-    """Task 2: Summarize README text using a pretrained model
-    
-    Args:
-        text: The README text to summarize
-        max_length: Maximum length of text to process (to avoid memory issues)
-    
-    Returns:
-        str: A summary of the README content
-    """
-    # Truncate very long texts to avoid memory issues
-    if len(text) > max_length:
-        text = text[:max_length] + "..."
-    
-    try:
-        # Initialize the summarization pipeline
-        summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
-        
-        # Generate summary
-        summary = summarizer(text, max_length=130, min_length=30, do_sample=False)
-        return summary[0]['summary_text']
-        
-    except Exception as e:
-        # Fallback to a basic summary if model fails
-        sentences = text.split('.')[:3]  # First 3 sentences
-        return '. '.join(sentences) + '.'
+@task(retries=3)
+def fetch_issue_details(repo: str, issue_number: int) -> dict:
+    """Fetch detailed information about a specific issue"""
+    response = httpx.get(f"https://api.github.com/repos/{repo}/issues/{issue_number}")
+    response.raise_for_status()
+    return response.json()
 
 
-# Run the flow
 if __name__ == "__main__":
-    analyze_readmes([
+    analyze_repo_health([
+        "PrefectHQ/prefect",
+        "this-repo-does-not-exist/404" # This repo will trigger an error
+    ])
+```
+
+## Ingest large amount of data
+
+Use pagination to fetch large amounts of data and run tasks in parallel to analyze it efficiently:
+
+```python
+@flow(log_prints=True)
+def analyze_repo_health(repos: [str]):
+    """Analyze issue health metrics for GitHub repositories"""
+    all_issues = []
+
+    for repo in repos:
+        for page in range(1, 3):  # Get first 2 pages
+            issues = fetch_issues(repo, page)
+            if not issues:
+                break
+            all_issues.extend(issues)
+    
+    # Run issue analysis tasks in parallel
+    for issue in all_issues:
+        analyze_issue.submit(issue)
+    
+    # Wait for all analysis tasks to complete
+    for detail in issue_details:
+        result = detail.result()
+        print(f"Analyzed issue #{result['number']}")
+```
+
+<Expandable title="full example">
+Run the following code to see pagination and parallel tasks in action:
+
+```python
+import httpx
+from typing import Optional, List
+
+from prefect import flow, task
+
+
+@flow(log_prints=True)
+def analyze_repo_health(repos: [str]):
+    """Analyze issue health metrics for GitHub repositories"""
+    all_issues = []
+    
+    # Handle pagination
+    for repo in repos:
+        for page in range(1, 3):  # Get first 2 pages
+            issues = fetch_issues(repo, page)
+            if not issues:
+                break
+            all_issues.extend(issues)
+            print(f"Fetched page {page} with {len(issues)} issues")
+    
+    # Run issue analysis tasks in parallel
+    issue_details = []
+    for issue in all_issues[:5]:  # Analyze first 5 issues to avoid hitting rate limits
+        issue_details.append(
+            analyze_issue.submit(issue)
+        )
+    
+    # Wait for all analysis tasks to complete
+    for detail in issue_details:
+        result = detail.result()
+        print(f"Analyzed issue #{result['number']}")
+
+
+@task
+def fetch_issues(repo: str, page: int = 1) -> Optional[List[dict]]:
+    """Fetch a page of issues for a GitHub repository"""
+    response = httpx.get(
+        f"https://api.github.com/repos/{repo}/issues",
+        params={"page": page, "state": "all", "per_page": 100}
+    )
+    return response.json()
+
+
+@task
+def analyze_issue(issue: dict) -> dict:
+    """Analyze a single issue"""
+    return {
+        "number": issue["number"],
+        "state": issue["state"],
+        "created_at": issue["created_at"]
+    }
+
+
+if __name__ == "__main__":
+    analyze_repo_health(["PrefectHQ/prefect"])
+```
+</Expandable>
+
+## Use dependent tasks to calculate metrics
+
+Add dependent tasks to analyze the issue data and calculate health metrics:
+
+```python
+@task
+def calculate_metrics(issues: List[dict]):
+    """Calculate basic repository health metrics"""
+    total = len(issues)
+    closed = sum(1 for issue in issues if issue["state"] == "closed")
+    resolution_rate = (closed / total) * 100 if total > 0 else 0
+    return {"total": total, "resolution_rate": resolution_rate}
+```
+
+<Expandable title="full example">
+Run the following code to see metrics calculation in action:
+
+```python
+from datetime import datetime
+import httpx
+from typing import List
+
+from prefect import flow, task
+
+
+@flow(log_prints=True)
+def analyze_repo_health(repos: List[str]):
+    """Analyze issue health metrics for a GitHub repository"""
+    for repo in repos:
+        # Fetch sample issues
+        issues = fetch_issues(repo)
+        
+        # Calculate metrics
+        metrics = calculate_metrics(issues)
+        response_times = calculate_response_times(issues)
+        
+        print(f"\nRepository Health Metrics for {repo}:")
+        print(f"Total Issues: {metrics['total']}")
+        print(f"Resolution Rate: {metrics['resolution_rate']:.1f}%")
+        print(f"Average Response Time: {response_times:.1f} hours")
+
+
+@task
+def fetch_issues(repo: str) -> List[dict]:
+    """Fetch issues for a GitHub repository"""
+    response = httpx.get(
+        f"https://api.github.com/repos/{repo}/issues",
+        params={"state": "all", "per_page": 100}
+    )
+    return response.json()
+
+
+@task
+def calculate_metrics(issues: List[dict]):
+    """Calculate basic repository health metrics"""
+    total = len(issues)
+    closed = sum(1 for issue in issues if issue["state"] == "closed")
+    resolution_rate = (closed / total) * 100 if total > 0 else 0
+    return {"total": total, "resolution_rate": resolution_rate}
+
+
+@task
+def calculate_response_times(issues: List[dict]) -> float:
+    """Calculate average time to first response"""
+    response_times = []
+    for issue in issues:
+        if issue.get("comments", 0) > 0:
+            created = datetime.fromisoformat(issue["created_at"].replace("Z", "+00:00"))
+            first_response = datetime.fromisoformat(issue["updated_at"].replace("Z", "+00:00"))
+            hours = (first_response - created).total_seconds() / 3600
+            response_times.append(hours)
+    return sum(response_times) / len(response_times) if response_times else 0
+
+
+if __name__ == "__main__":
+    analyze_repo_health(["PrefectHQ/prefect"])
+```
+</Expandable>
+
+## Put it all together
+
+Here's the complete flow that combines all of these components:
+
+```python repo_analysis.py
+from datetime import timedelta, datetime
+from statistics import mean
+from typing import List, Optional
+import httpx
+
+from prefect import flow, task
+from prefect.tasks import task_input_hash
+from prefect.concurrency.sync import rate_limit
+
+
+@flow(log_prints=True)
+def analyze_repo_health(repos: List[str]):
+    """Analyze issue health metrics for GitHub repositories"""
+    for repo in repos:
+        print(f"Analyzing {repo}...")
+        
+        # Fetch and analyze all issues
+        issues = analyze_single_repo(repo)
+        
+        # Calculate metrics
+        avg_response_time = calculate_response_times(issues)
+        resolution_rate = calculate_resolution_rate(issues)
+        
+        print(f"Average response time: {avg_response_time:.1f} hours")
+        print(f"Resolution rate: {resolution_rate:.1f}%")
+
+
+@flow(log_prints=True)
+def analyze_single_repo(repo: str):
+    """Analyze all issues for a single repository"""
+    all_issues = []
+    page = 1
+    
+    for page in range(1, 3):  # Limit to 2 pages to avoid hitting rate limits
+        issues = fetch_issues(repo, page)
+        if not issues or len(issues) == 0:
+            break
+        all_issues.extend(issues)
+        page += 1
+
+    issue_details = []
+    for issue in all_issues[:5]:  # Limit to 5 issues to avoid hitting rate limits
+        issue_details.append(
+            fetch_issue_details.submit(repo, issue['number'])
+        )
+    
+    details = []
+    for issue in issue_details:
+        details.append(issue.result())
+
+    return details
+
+
+@task(retries=3, cache_key_fn=task_input_hash, cache_expiration=timedelta(hours=1))
+def fetch_issues(repo: str, page: int = 1) -> Optional[dict]:
+    """Fetch a page of issues for a GitHub repository"""
+    rate_limit("github-api")
+    try:
+        response = httpx.get(
+            f"https://api.github.com/repos/{repo}/issues",
+            params={"page": page, "state": "all", "per_page": 100}
+        )
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        print(f"Error fetching issues for {repo}: {e}")
+        return None
+
+
+@task(retries=3, cache_key_fn=task_input_hash, cache_expiration=timedelta(hours=1))
+def fetch_issue_details(repo: str, issue_number: int) -> dict:
+    """Fetch detailed information about a specific issue"""
+    rate_limit("github-api")
+    response = httpx.get(f"https://api.github.com/repos/{repo}/issues/{issue_number}")
+    issue_data = response.json()
+    
+    # Fetch comments for the issue
+    comments = fetch_comments(issue_data['comments_url'])
+    issue_data['comments_data'] = comments
+    
+    return issue_data
+
+
+@task(retries=3, cache_key_fn=task_input_hash, cache_expiration=timedelta(hours=1))
+def fetch_comments(comments_url: str) -> List[dict]:
+    """Fetch comments for an issue"""
+    rate_limit("github-api")
+    try:
+        response = httpx.get(comments_url)
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        print(f"Error fetching comments: {e}")
+        return []
+
+
+@task
+def calculate_response_times(issues: List[dict]) -> float:
+    """Calculate average time to first response for issues"""
+    response_times = []
+    
+    for issue in issues:
+        comments_data = issue.get('comments_data', [])
+        if comments_data:  # If there are comments
+            created = datetime.fromisoformat(issue['created_at'].replace('Z', '+00:00'))
+            first_comment = datetime.fromisoformat(
+                comments_data[0]['created_at'].replace('Z', '+00:00')
+            )
+            response_time = (first_comment - created).total_seconds() / 3600
+            response_times.append(response_time)
+
+    return mean(response_times) if response_times else 0
+
+
+@task
+def calculate_resolution_rate(issues: List[dict]) -> float:
+    """Calculate the percentage of closed issues"""
+    if not issues:
+        return 0
+    closed = sum(1 for issue in issues if issue['state'] == 'closed')
+    return (closed / len(issues)) * 100
+
+
+if __name__ == "__main__":
+    analyze_repo_health([
         "PrefectHQ/prefect",
         "tensorflow/tensorflow",
         "huggingface/transformers"
     ])
 ```
 
+Before running this code, make sure to set up the GitHub API rate limit:
+
+```bash
+# GitHub has a rate limit of 60 unauthenticated requests per hour (~0.016 requests per second)
+prefect gcl create github-api --limit 60 --slot-decay-per-second 0.016
+```
+
+Run your analysis:
+
+```bash
+python repo_analysis.py
+```
+
+The output should look something like this:
+
+```bash
+10:59:13.933 | INFO    | prefect.engine - Created flow run 'robust-kangaroo' for flow 'analyze-repo-health'
+10:59:13.934 | INFO    | prefect.engine - View at http://127.0.0.1:4200/runs/flow-run/abdf7f46-6d59-4857-99cd-9e265cadc4a7
+10:59:13.954 | INFO    | Flow run 'robust-kangaroo' - Analyzing PrefectHQ/prefect...
+...
+10:59:27.631 | INFO    | Flow run 'robust-kangaroo' - Average response time: 0.4 hours
+10:59:27.631 | INFO    | Flow run 'robust-kangaroo' - Resolution rate: 40.0%
+10:59:27.632 | INFO    | Flow run 'robust-kangaroo' - Analyzing tensorflow/tensorflow...
+...
+10:59:40.990 | INFO    | Flow run 'robust-kangaroo' - Average response time: 0.0 hours
+10:59:40.991 | INFO    | Flow run 'robust-kangaroo' - Resolution rate: 0.0%
+10:59:40.991 | INFO    | Flow run 'robust-kangaroo' - Analyzing huggingface/transformers...
+...
+10:59:54.225 | INFO    | Flow run 'robust-kangaroo' - Average response time: 1.1 hours
+10:59:54.225 | INFO    | Flow run 'robust-kangaroo' - Resolution rate: 0.0%
+10:59:54.240 | INFO    | Flow run 'robust-kangaroo' - Finished in state Completed()
+```
+
 ## Next steps
 
-In this tutorial, you built a web scraper capable of handling unstructured data gracefully.
+In this tutorial, you built a complex data extraction pipeline which uses the following new techniques:
+
+- Error recovery with try/catch blocks
+- Modularized workflows with dependent subflows and tasks
+- Efficient ingestion and processing of large data with pagination and parallel tasks
 
 Now that you've finished this tutorial series, continue your learning journey by going deep on the following topics:
 
