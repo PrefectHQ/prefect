@@ -23,23 +23,23 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-  "prefect>=3.0.0rc1",
+  "prefect>=3.0.0",
   "dbt-core>=1.7.0",
-  "prefect_shell>=0.3.0rc1",
+  "prefect_shell>=0.3.0",
   "sgqlc>=16.0.0",
 ]
 dynamic = ["version"]
 
 [project.optional-dependencies]
-snowflake = ["prefect-snowflake>=0.28.0rc1", "dbt-snowflake"]
-bigquery = ["prefect-gcp[bigquery]>=0.6.0rc1", "dbt-bigquery"]
+snowflake = ["prefect-snowflake>=0.28.0", "dbt-snowflake"]
+bigquery = ["prefect-gcp[bigquery]>=0.6.0", "dbt-bigquery"]
 postgres = ["prefect-sqlalchemy>=0.5.1", "dbt-postgres"]
 all_extras = [
   "dbt-bigquery",
   "dbt-postgres",
   "dbt-snowflake",
-  "prefect-gcp[bigquery]>=0.6.0rc1",
-  "prefect-snowflake>=0.28.0rc1",
+  "prefect-gcp[bigquery]>=0.6.0",
+  "prefect-snowflake>=0.28.0",
   "prefect-sqlalchemy>=0.5.1",
 ]
 dev = [
@@ -55,8 +55,8 @@ dev = [
   "mypy",
   "pillow",
   "pre-commit",
-  "prefect-gcp[bigquery]>=0.6.0rc1",
-  "prefect-snowflake>=0.28.0rc1",
+  "prefect-gcp[bigquery]>=0.6.0",
+  "prefect-snowflake>=0.28.0",
   "prefect-sqlalchemy>=0.5.1",
   "pytest >= 8.3",
   "pytest-asyncio",
