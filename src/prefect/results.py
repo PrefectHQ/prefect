@@ -88,7 +88,6 @@ async def get_default_result_storage() -> WritableFileSystem:
     """
     Generate a default file system for result storage.
     """
-    print("\n\n\n\n\ngetting default result storage\n\n\n\n\n")
     settings = get_current_settings()
     default_block = settings.results.default_storage_block
     basepath = settings.results.local_storage_path
@@ -106,7 +105,7 @@ async def get_default_result_storage() -> WritableFileSystem:
 
     _default_storages[cache_key] = storage
 
-    print(f"returning storage: {storage}")
+    logger.debug(f"Using default result storage: {storage}")
     return storage
 
 
@@ -317,7 +316,6 @@ class ResultStore(BaseModel):
         if flow.cache_result_in_memory is not None:
             update["cache_result_in_memory"] = flow.cache_result_in_memory
         if self.result_storage is None and update.get("result_storage") is None:
-            print("\n\n\nFOR FLOW\n\n\n")
             update["result_storage"] = await get_default_result_storage()
         update["metadata_storage"] = NullFileSystem()
         return self.model_copy(update=update)
@@ -326,6 +324,11 @@ class ResultStore(BaseModel):
     async def update_for_task(self: Self, task: "Task") -> Self:
         """
         Create a new result store for a task.
+
+        Args:
+            task: The task to update the result store for.
+        Returns:
+            An updated result store.
         """
         from prefect.settings import get_current_settings
 
