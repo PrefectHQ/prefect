@@ -1,6 +1,6 @@
 import time
 from threading import Event, Lock, Thread
-from typing import Optional
+from typing import Dict, Optional
 
 from opentelemetry.context import Context
 from opentelemetry.sdk.trace import ReadableSpan, Span, SpanProcessor
@@ -10,7 +10,7 @@ from opentelemetry.sdk.trace.export import SpanExporter
 class InFlightSpanProcessor(SpanProcessor):
     def __init__(self, span_exporter: SpanExporter):
         self.span_exporter = span_exporter
-        self._in_flight = {}
+        self._in_flight: Dict[int, Span] = {}
         self._lock = Lock()
         self._stop_event = Event()
         self._export_thread = Thread(target=self._export_periodically, daemon=True)

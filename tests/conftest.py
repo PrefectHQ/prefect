@@ -83,6 +83,7 @@ from .fixtures.docker import *
 from .fixtures.events import *
 from .fixtures.logging import *
 from .fixtures.storage import *
+from .fixtures.telemetry import *
 from .fixtures.time import *
 
 
