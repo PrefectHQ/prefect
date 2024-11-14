@@ -71,6 +71,8 @@ if TYPE_CHECKING:
 
 R = TypeVar("R", default=Any)
 
+KeyValueLabels = dict[str, Union[StrictBool, StrictInt, StrictFloat, str]]
+
 
 DEFAULT_BLOCK_SCHEMA_VERSION = "non-versioned"
 DEFAULT_AGENT_WORK_POOL_NAME = "default-agent-pool"
@@ -504,9 +506,6 @@ class FlowRunPolicy(PrefectBaseModel):
         return values
 
 
-KeyValueLabels = Dict[str, Union[StrictBool, StrictInt, StrictFloat, str]]
-
-
 class FlowRun(ObjectBaseModel):
     name: str = Field(
         default_factory=lambda: generate_slug(2),
@@ -561,10 +560,10 @@ class FlowRun(ObjectBaseModel):
         description="A list of tags on the flow run",
         examples=[["tag-1", "tag-2"]],
     )
-    labels: Dict[str, str] = Field(
+    labels: KeyValueLabels = Field(
         default_factory=dict,
-        description="A dictionary of labels on the flow run",
-        examples=[{"my-label": "my-value"}],
+        description="Prefect Cloud: A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
+        examples=[{"key": "value1", "key2": 42}],
     )
     parent_task_run_id: Optional[UUID] = Field(
         default=None,

@@ -1,6 +1,5 @@
 import pytest
-
-from prefect.telemetry.test_util import InstrumentationTester
+from tests.telemetry.instrumentation_tester import InstrumentationTester
 
 
 @pytest.fixture

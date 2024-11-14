@@ -4,8 +4,7 @@ from opentelemetry import metrics as metrics_api
 from opentelemetry import trace as trace_api
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import InMemoryMetricReader
-from opentelemetry.sdk.trace import ReadableSpan, Span, TracerProvider
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace import ReadableSpan, Span, TracerProvider, export
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
     InMemorySpanExporter,
 )
@@ -30,8 +29,7 @@ def create_tracer_provider(**kwargs) -> Tuple[TracerProvider, InMemorySpanExport
     """
     tracer_provider = TracerProvider(**kwargs)
     memory_exporter = InMemorySpanExporter()
-    span_processor = SimpleSpanProcessor(memory_exporter)
-    # span_processor = InFlightSpanProcessor(memory_exporter)
+    span_processor = export.SimpleSpanProcessor(memory_exporter)
     tracer_provider.add_span_processor(span_processor)
 
     return tracer_provider, memory_exporter
@@ -104,4 +102,4 @@ class InstrumentationTester:
     def assert_span_instrumented_for(span: Union[Span, ReadableSpan], module):
         assert span.instrumentation_scope is not None
         assert span.instrumentation_scope.name == module.__name__
-        assert span.instrumentation_scope.version == module.__version__a
+        assert span.instrumentation_scope.version == module.__version__
