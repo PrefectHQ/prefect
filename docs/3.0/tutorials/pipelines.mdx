@@ -27,10 +27,7 @@ def fetch_stats(github_repo: str):
     """Task 1: Fetch the statistics for a GitHub repo"""
 
     api_response = httpx.get(f"https://api.github.com/repos/{github_repo}")
-
-    # Force a retry if you don't get a 2xx status code
-    api_response.raise_for_status()
-    
+    api_response.raise_for_status() # Force a retry if you don't get a 2xx status code
     return api_response.json()
 ```
 
