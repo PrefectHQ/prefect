@@ -64,10 +64,7 @@ jobs:
           - "postgres:14"
           - "sqlite"
         python-version:
-          - "3.9"
-          - "3.10"
-          - "3.11"
-          - "3.12"
+          - "3.13"
         exclude:
           - database: "sqlite"
             test-type:
@@ -220,10 +217,7 @@ jobs:
         database:
           - "postgres:14"
         python-version:
-          - "3.9"
-          - "3.10"
-          - "3.11"
-          - "3.12"
+          - "3.13"
 
       fail-fast: true
 
@@ -410,11 +404,11 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set up Python 3.12
+      - name: Set up Python 3.13
         uses: actions/setup-python@v5
         id: setup_python
         with:
-          python-version: "3.12"
+          python-version: "3.13"
 
       - name: Download coverage data artifacts
         uses: actions/download-artifact@v4
