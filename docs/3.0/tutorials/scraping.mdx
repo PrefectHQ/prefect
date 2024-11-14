@@ -1,17 +1,16 @@
 ---
 title: Extract data from websites
-description: Use Prefect to deal with the complexity of fetching and analyzing an indeterminate amount of data
+description: Use Prefect to fetch and analyze large amounts of data
 ---
 
 In the [Build a data pipeline](/3.0/tutorials/pipelines) tutorial, you learned how to create resilient and performant data pipelines.
-Now you'll learn how to handle unstructured data and complex API responses by building a GitHub issue analysis pipeline.
+Now you'll learn how to handle data dependencies and ingest large amounts of data by building a GitHub issue analysis pipeline.
 
 The real world presents additional challenges when dealing with web data:
 
-- API responses can contain missing or malformed data
-- You need to make multiple dependent API calls
-- You need to handle pagination and rate limits
-- You want to process data in parallel when possible
+- API requests can fail or give a response with missing or malformed data.
+- You need to make multiple dependent API calls.
+- You need to ingest data when you don't know in advance how much data is available.
 
 ## Set up error handling
 
@@ -73,10 +72,11 @@ if __name__ == "__main__":
         "this-repo-does-not-exist/404" # This repo will trigger an error
     ])
 ```
+</Expandable>
 
 ## Ingest large amount of data
 
-Use pagination to fetch large amounts of data and run tasks in parallel to analyze it efficiently:
+Use pagination to fetch large amounts of data and run tasks in parallel to analyze the data efficiently:
 
 ```python
 @flow(log_prints=True)
