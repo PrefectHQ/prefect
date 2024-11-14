@@ -301,9 +301,7 @@ class FlowRunEngine(Generic[P, R]):
         self._return_value = resolved_result
 
         if self._span:
-            self._span.set_status(
-                trace.Status(trace.StatusCode.OK, terminal_state.message)
-            )
+            self._span.set_status(trace.Status(trace.StatusCode.OK))
             self._span.end(time.time_ns())
             self._span = None
 

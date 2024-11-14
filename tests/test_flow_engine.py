@@ -1833,7 +1833,6 @@ class TestFlowRunInstrumentation:
             },
         )
         assert span.status.status_code == trace.StatusCode.OK
-        # assert span.status.description == "The flow is with you" # fixme
 
         assert len(span.events) == 2
         assert span.events[0].name == "Running"
@@ -1923,6 +1922,10 @@ class TestFlowRunInstrumentation:
         )
 
         assert span.status.status_code == trace.StatusCode.ERROR
+        assert (
+            span.status.description
+            == "Flow run encountered an exception: Exception: This flow broke!"
+        )
 
         assert len(span.events) == 3
         assert span.events[0].name == "Running"
@@ -1985,6 +1988,7 @@ class TestFlowRunInstrumentation:
         )
 
         assert span.status.status_code == trace.StatusCode.ERROR
+        assert span.status.description == "Flow run exceeded timeout of 0.1 second(s)"
 
         assert len(span.events) == 3
         assert span.events[0].name == "Running"
