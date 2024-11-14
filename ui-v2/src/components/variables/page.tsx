@@ -24,6 +24,8 @@ type VariablesPageProps = {
 	onPaginationChange: OnChangeFn<PaginationState>;
 	columnFilters: ColumnFiltersState;
 	onColumnFiltersChange: OnChangeFn<ColumnFiltersState>;
+	sorting: components["schemas"]["VariableSort"];
+	onSortingChange: (sortKey: components["schemas"]["VariableSort"]) => void;
 };
 
 export const VariablesPage = ({
@@ -34,6 +36,8 @@ export const VariablesPage = ({
 	onPaginationChange,
 	columnFilters,
 	onColumnFiltersChange,
+	sorting,
+	onSortingChange,
 }: VariablesPageProps) => {
 	const [addVariableDialogOpen, setAddVariableDialogOpen] = useState(false);
 	const onAddVariableClick = () => {
@@ -74,6 +78,8 @@ export const VariablesPage = ({
 						onPaginationChange={onPaginationChange}
 						columnFilters={columnFilters}
 						onColumnFiltersChange={onColumnFiltersChange}
+						sorting={sorting}
+						onSortingChange={onSortingChange}
 					/>
 				)}
 			</div>

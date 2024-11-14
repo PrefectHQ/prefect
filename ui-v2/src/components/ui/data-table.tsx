@@ -32,7 +32,7 @@ export function DataTable<TData>({
 	table: TanstackTable<TData>;
 }) {
 	return (
-		<>
+		<div className="flex flex-col gap-4">
 			<div className="rounded-md border">
 				<Table>
 					<TableHeader>
@@ -85,7 +85,7 @@ export function DataTable<TData>({
 				<DataTablePageSize table={table} />
 				<DataTablePagination table={table} />
 			</div>
-		</>
+		</div>
 	);
 }
 

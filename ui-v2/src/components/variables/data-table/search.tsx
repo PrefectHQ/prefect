@@ -1,4 +1,4 @@
-import { Input } from "@/components/ui/input";
+import { IconInput, Input } from "@/components/ui/input";
 import {
 	Select,
 	SelectTrigger,
@@ -31,8 +31,8 @@ export const VariablesDataTableSearch = ({
 
 	return (
 		<div className="flex items-center gap-2 w-1/2 max-w-md">
-			<Input
-				className="w-1/2"
+			<IconInput
+				Icon={SearchIcon}
 				placeholder="Search variables"
 				value={searchValue}
 				onChange={(e) => setSearchValue(e.target.value)}

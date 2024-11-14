@@ -61,10 +61,10 @@ const TagsInput = React.forwardRef<HTMLInputElement, TagsInputProps>(
 		};
 
 		return (
-			<div className="flex flex-wrap items-center border rounded-md focus-within:ring-1 focus-within:ring-ring ">
-				<div className="flex flex-wrap items-center gap-2 px-2">
+			<div className="flex items-center border rounded-md focus-within:ring-1 focus-within:ring-ring ">
+				<div className="flex items-center">
 					{value.map((tag, index) => (
-						<Badge key={tag} variant="secondary" className="gap-1 px-2 mt-2">
+						<Badge key={tag} variant="secondary" className="ml-1">
 							{tag}
 							<button
 								type="button"

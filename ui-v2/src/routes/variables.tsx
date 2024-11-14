@@ -10,6 +10,7 @@ import type {
 	PaginationState,
 } from "@tanstack/react-table";
 import { useCallback, useMemo } from "react";
+import type { components } from "@/api/prefect";
 
 const searchParams = z.object({
 	offset: z.number().int().nonnegative().optional().default(0),
@@ -19,16 +20,21 @@ const searchParams = z.object({
 		.optional()
 		.default("CREATED_DESC"),
 	name: z.string().optional(),
+	tags: z.array(z.string()).optional(),
 });
 
 const buildVariablesQuery = (search: z.infer<typeof searchParams>) => ({
 	queryKey: ["variables", JSON.stringify(search)],
 	queryFn: async () => {
-		const { name, ...rest } = search;
+		const { name, tags, ...rest } = search;
 		const response = await getQueryService().POST("/variables/filter", {
 			body: {
 				...rest,
-				variables: { operator: "and_", name: { like_: name } },
+				variables: {
+					operator: "and_",
+					name: { like_: name },
+					tags: { operator: "and_", all_: tags },
+				},
 			},
 		});
 		return response.data;
@@ -46,17 +52,24 @@ const buildTotalVariableCountQuery = (
 	if (search?.name) {
 		queryKey.push(search.name);
 	}
+	if (search?.tags && search.tags.length > 0) {
+		queryKey.push(JSON.stringify(search.tags));
+	}
 	return {
 		queryKey,
 		queryFn: async () => {
-			if (!search || !search.name) {
+			const { name, tags } = search ?? {};
+			if (!name && (!tags || tags.length === 0)) {
 				const response = await getQueryService().POST("/variables/count");
 				return response.data;
 			}
-			const { name } = search;
 			const response = await getQueryService().POST("/variables/count", {
 				body: {
-					variables: { operator: "and_", name: { like_: name } },
+					variables: {
+						operator: "and_",
+						name: { like_: name },
+						tags: { operator: "and_", all_: tags },
+					},
 				},
 			});
 			return response.data;
@@ -86,8 +99,11 @@ function VariablesRoute() {
 		[pageIndex, pageSize],
 	);
 	const columnFilters: ColumnFiltersState = useMemo(
-		() => [{ id: "name", value: search.name }],
-		[search.name],
+		() => [
+			{ id: "name", value: search.name },
+			{ id: "tags", value: search.tags },
+		],
+		[search.name, search.tags],
 	);
 
 	const onPaginationChange: OnChangeFn<PaginationState> = useCallback(
@@ -121,16 +137,36 @@ function VariablesRoute() {
 			}
 			void navigate({
 				to: ".",
-				search: (prev) => ({
-					...prev,
-					offset: 0,
-					name: newColumnFilters.find((filter) => filter.id === "name")
-						?.value as string,
-				}),
+				search: (prev) => {
+					const name = newColumnFilters.find((filter) => filter.id === "name")
+						?.value as string;
+					const tags = newColumnFilters.find((filter) => filter.id === "tags")
+						?.value as string[];
+					return {
+						...prev,
+						offset: 0,
+						name,
+						tags,
+					};
+				},
 				replace: true,
 			});
 		},
 		[columnFilters, navigate],
+	);
+
+	const onSortingChange = useCallback(
+		(sortKey: components["schemas"]["VariableSort"]) => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					sort: sortKey,
+				}),
+				replace: true,
+			});
+		},
+		[navigate],
 	);
 
 	return (
@@ -142,6 +178,8 @@ function VariablesRoute() {
 			onPaginationChange={onPaginationChange}
 			columnFilters={columnFilters}
 			onColumnFiltersChange={onColumnFiltersChange}
+			sorting={search.sort}
+			onSortingChange={onSortingChange}
 		/>
 	);
 }
