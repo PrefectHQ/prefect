@@ -1,4 +1,4 @@
-import { createQueryService } from "@/api/service";
+import { getQueryService } from "@/api/service";
 import { keepPreviousData, useSuspenseQuery } from "@tanstack/react-query";
 import { VariablesPage } from "@/components/variables/page";
 import { createFileRoute } from "@tanstack/react-router";
@@ -18,7 +18,7 @@ const searchParams = z.object({
 const buildVariablesQuery = (search: z.infer<typeof searchParams>) => ({
 	queryKey: ["variables", JSON.stringify(search)],
 	queryFn: async () => {
-		const response = await createQueryService().POST("/variables/filter", {
+		const response = await getQueryService().POST("/variables/filter", {
 			body: search,
 		});
 		return response.data;
@@ -30,7 +30,7 @@ const buildVariablesQuery = (search: z.infer<typeof searchParams>) => ({
 const buildTotalVariableCountQuery = () => ({
 	queryKey: ["total-variable-count"],
 	queryFn: async () => {
-		const response = await createQueryService().POST("/variables/count", {});
+		const response = await getQueryService().POST("/variables/count", {});
 		return response.data;
 	},
 });

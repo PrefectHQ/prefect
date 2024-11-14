@@ -8,7 +8,7 @@ import {
 import { Button } from "../../ui/button";
 import { MoreVerticalIcon } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createQueryService } from "@/api/service";
+import { getQueryService } from "@/api/service";
 import type { CellContext } from "@tanstack/react-table";
 import type { components } from "@/api/prefect";
 import { useToast } from "@/hooks/use-toast";
@@ -21,7 +21,7 @@ export const ActionsCell = ({
 	const { mutate: deleteVariable } = useMutation({
 		mutationKey: ["delete-variable"],
 		mutationFn: async (id: string) =>
-			await createQueryService().DELETE("/variables/{id}", {
+			await getQueryService().DELETE("/variables/{id}", {
 				params: { path: { id } },
 			}),
 		onSettled: async () => {

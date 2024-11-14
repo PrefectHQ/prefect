@@ -47,12 +47,12 @@ const columns = [
 		},
 	}),
 	columnHelper.accessor("tags", {
-		header: "Tags",
+		header: () => null,
 		cell: (props) => {
 			const tags = props.getValue();
 			if (!tags) return null;
 			return (
-				<div className="flex flex-row gap-1">
+				<div className="flex flex-row gap-1 justify-end">
 					{tags?.map((tag) => (
 						<Badge key={tag}>{tag}</Badge>
 					))}
