@@ -16,7 +16,7 @@ import prefect
 from prefect import Flow, __development_base_path__, flow, task
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.filters import FlowFilter, FlowRunFilter
-from prefect.client.schemas.objects import StateType
+from prefect.client.schemas.objects import FlowRun, KeyValueLabels, StateType
 from prefect.client.schemas.sorting import FlowRunSort
 from prefect.concurrency.asyncio import concurrency as aconcurrency
 from prefect.concurrency.sync import concurrency
@@ -1888,12 +1888,44 @@ class TestFlowRunInstrumentation:
         assert set(span.attributes.get("prefect.tags")) == {"foo", "bar"}  # type: ignore
         assert span.status.status_code == trace.StatusCode.OK
 
-    @pytest.mark.xfail(reason="Test not written yet.")
     def test_flow_run_instrumentation_captures_labels(
-        self, instrumentation: InstrumentationTester
+        self, instrumentation: InstrumentationTester, monkeypatch
     ):
-        # assert span.attributes.get("prefect.deployment.id") is not None  # todo
-        raise NotImplementedError
+        # simulate server responding with labels on flow run
+        class FlowRunWithLabels(FlowRun):
+            labels: KeyValueLabels = pydantic.Field(
+                default_factory=lambda: {
+                    "prefect.deployment.id": "some-id",
+                    "my-label": "my-value",
+                }
+            )
+
+        monkeypatch.setattr(
+            "prefect.client.orchestration.FlowRun",
+            FlowRunWithLabels,
+        )
+
+        @flow
+        def instrumented_flow():
+            pass
+
+        instrumented_flow()
+
+        spans = instrumentation.get_finished_spans()
+        assert len(spans) == 1
+        span = spans[0]
+        assert span is not None
+
+        instrumentation.assert_has_attributes(
+            span,
+            {
+                "prefect.run.type": "flow",
+                "prefect.flow.name": "instrumented-flow",
+                "prefect.run.id": mock.ANY,
+                "prefect.deployment.id": "some-id",
+                "my-label": "my-value",
+            },
+        )
 
     def test_flow_run_instrumentation_on_exception(
         self, instrumentation: InstrumentationTester
