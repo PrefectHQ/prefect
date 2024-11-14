@@ -23,6 +23,9 @@ from pydantic import (
     HttpUrl,
     IPvAnyNetwork,
     SerializationInfo,
+    StrictBool,
+    StrictFloat,
+    StrictInt,
     Tag,
     field_validator,
     model_serializer,
@@ -499,6 +502,9 @@ class FlowRunPolicy(PrefectBaseModel):
         if isinstance(values, dict):
             return set_run_policy_deprecated_fields(values)
         return values
+
+
+KeyValueLabels = Dict[str, Union[StrictBool, StrictInt, StrictFloat, str]]
 
 
 class FlowRun(ObjectBaseModel):

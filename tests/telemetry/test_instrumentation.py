@@ -281,11 +281,11 @@ class TestTaskRunInstrumentation:
     async def test_span_exception_recording(task_run_engine, instrumentation):
         @task
         async def test_task(x: int, y: int):
-            raise ValueError("Test error")
+            raise Exception("Test error")
 
         task_run_id = uuid4()
 
-        with pytest.raises(ValueError, match="Test error"):
+        with pytest.raises(Exception, match="Test error"):
             await run_task_async(
                 test_task, task_run_id=task_run_id, parameters={"x": 1, "y": 2}
             )
@@ -297,7 +297,7 @@ class TestTaskRunInstrumentation:
 
         assert any(event.name == "exception" for event in events)
         exception_event = next(event for event in events if event.name == "exception")
-        assert exception_event.attributes["exception.type"] == "ValueError"
+        assert exception_event.attributes["exception.type"] == "Exception"
         assert exception_event.attributes["exception.message"] == "Test error"
 
     @pytest.mark.asyncio
