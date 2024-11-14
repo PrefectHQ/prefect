@@ -1,10 +1,10 @@
-from typing import Tuple
+from typing import Any, Dict, Protocol, Tuple, Union
 
 from opentelemetry import metrics as metrics_api
 from opentelemetry import trace as trace_api
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import InMemoryMetricReader
-from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace import ReadableSpan, Span, TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
     InMemorySpanExporter,
@@ -13,6 +13,7 @@ from opentelemetry.test.globals_test import (
     reset_metrics_globals,
     reset_trace_globals,
 )
+from opentelemetry.util.types import Attributes
 
 
 def create_tracer_provider(**kwargs) -> Tuple[TracerProvider, InMemorySpanExporter]:
@@ -51,6 +52,19 @@ def create_meter_provider(**kwargs) -> Tuple[MeterProvider, InMemoryMetricReader
     return meter_provider, memory_reader
 
 
+class HasAttributesViaProperty(Protocol):
+    @property
+    def attributes(self) -> Attributes:
+        ...
+
+
+class HasAttributesViaAttr(Protocol):
+    attributes: Attributes
+
+
+HasAttributes = Union[HasAttributesViaProperty, HasAttributesViaAttr]
+
+
 class InstrumentationTester:
     tracer_provider: TracerProvider
     memory_exporter: InMemorySpanExporter
@@ -78,3 +92,16 @@ class InstrumentationTester:
 
     def get_finished_spans(self):
         return self.memory_exporter.get_finished_spans()
+
+    @staticmethod
+    def assert_has_attributes(obj: HasAttributes, attributes: Dict[str, Any]):
+        assert obj.attributes is not None
+        for key, val in attributes.items():
+            assert key in obj.attributes
+            assert obj.attributes[key] == val
+
+    @staticmethod
+    def assert_span_instrumented_for(span: Union[Span, ReadableSpan], module):
+        assert span.instrumentation_scope is not None
+        assert span.instrumentation_scope.name == module.__name__
+        assert span.instrumentation_scope.version == module.__version__a

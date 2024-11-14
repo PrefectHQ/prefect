@@ -168,8 +168,15 @@ def test_logger_provider(
 
 
 class TestTaskRunInstrumentation:
+    def assert_has_attributes(self, span, **expected_attributes):
+        """Helper method to assert span has expected attributes"""
+        for key, value in expected_attributes.items():
+            assert (
+                span.attributes.get(key) == value
+            ), f"Expected {key}={value}, got {span.attributes.get(key)}"
+
     @pytest.fixture
-    async def task_run_engine(instrumentation):
+    async def task_run_engine(self, instrumentation):
         @task
         async def test_task(x: int, y: int):
             return x + y
@@ -191,7 +198,7 @@ class TestTaskRunInstrumentation:
         return engine
 
     @pytest.mark.asyncio
-    async def test_span_creation(task_run_engine, instrumentation):
+    async def test_span_creation(self, task_run_engine, instrumentation):
         @task
         async def test_task(x: int, y: int):
             return x + y
@@ -203,11 +210,13 @@ class TestTaskRunInstrumentation:
 
         spans = instrumentation.get_finished_spans()
         assert len(spans) == 1
+        self.assert_has_attributes(
+            spans[0], **{"prefect.run.id": str(task_run_id), "prefect.run.type": "task"}
+        )
         assert spans[0].name == "test_task"
-        assert spans[0].attributes["prefect.run.id"] == str(task_run_id)
 
     @pytest.mark.asyncio
-    async def test_span_attributes(task_run_engine, instrumentation):
+    async def test_span_attributes(self, task_run_engine, instrumentation):
         @task
         async def test_task(x: int, y: int):
             return x + y
@@ -219,15 +228,19 @@ class TestTaskRunInstrumentation:
 
         spans = instrumentation.get_finished_spans()
         assert len(spans) == 1
+        self.assert_has_attributes(
+            spans[0],
+            **{
+                "prefect.run.id": str(task_run_id),
+                "prefect.run.type": "task",
+                "prefect.run.parameter.x": "int",
+                "prefect.run.parameter.y": "int",
+            },
+        )
         assert spans[0].name == "test_task"
-        assert spans[0].attributes["prefect.run.id"] == str(task_run_id)
-        assert "prefect.run.parameter.x" in spans[0].attributes
-        assert "prefect.run.parameter.y" in spans[0].attributes
-        assert spans[0].attributes["prefect.run.parameter.x"] == "int"
-        assert spans[0].attributes["prefect.run.parameter.y"] == "int"
 
     @pytest.mark.asyncio
-    async def test_span_events(task_run_engine, instrumentation):
+    async def test_span_events(self, task_run_engine, instrumentation):
         @task
         async def test_task(x: int, y: int):
             return x + y
@@ -244,7 +257,7 @@ class TestTaskRunInstrumentation:
         assert events[1].name == "Completed"
 
     @pytest.mark.asyncio
-    async def test_span_status_on_success(task_run_engine, instrumentation):
+    async def test_span_status_on_success(self, task_run_engine, instrumentation):
         @task
         async def test_task(x: int, y: int):
             return x + y
@@ -260,7 +273,7 @@ class TestTaskRunInstrumentation:
         assert spans[0].status.status_code == trace.StatusCode.OK
 
     @pytest.mark.asyncio
-    async def test_span_status_on_failure(task_run_engine, instrumentation):
+    async def test_span_status_on_failure(self, task_run_engine, instrumentation):
         @task
         async def test_task(x: int, y: int):
             raise ValueError("Test error")
@@ -278,7 +291,7 @@ class TestTaskRunInstrumentation:
         assert "Test error" in spans[0].status.description
 
     @pytest.mark.asyncio
-    async def test_span_exception_recording(task_run_engine, instrumentation):
+    async def test_span_exception_recording(self, task_run_engine, instrumentation):
         @task
         async def test_task(x: int, y: int):
             raise Exception("Test error")
@@ -301,7 +314,7 @@ class TestTaskRunInstrumentation:
         assert exception_event.attributes["exception.message"] == "Test error"
 
     @pytest.mark.asyncio
-    async def test_flow_run_labels(task_run_engine, instrumentation):
+    async def test_flow_run_labels(self, task_run_engine, instrumentation):
         """Test that flow run labels are propagated to task spans"""
 
         @task
@@ -312,23 +325,17 @@ class TestTaskRunInstrumentation:
         async def parent_flow():
             return await child_task()
 
-        # Create a patch that only modifies the labels of the flow run
         with patch("prefect.task_engine.get_labels_from_context") as mock_get:
             mock_get.return_value = {"env": "test", "team": "engineering"}
-
-            # Run the flow which will execute our task
             await parent_flow()
 
-        # Get the spans from our mock tracer
         spans = instrumentation.get_finished_spans()
-
-        # Find the task span - there should be exactly one task span
         task_spans = [
             span for span in spans if span.attributes.get("prefect.run.type") == "task"
         ]
         assert len(task_spans) == 1
-        task_span = task_spans[0]
 
-        # Verify the flow labels were propagated to the task span
-        assert task_span.attributes["env"] == "test"
-        assert task_span.attributes["team"] == "engineering"
+        self.assert_has_attributes(
+            task_spans[0],
+            **{"prefect.run.type": "task", "env": "test", "team": "engineering"},
+        )
