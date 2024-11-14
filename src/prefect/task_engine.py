@@ -1157,7 +1157,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         """
         Enters a client context and creates a task run if needed.
         """
-
+        # Use hydrated_context to ensure settings and context are properly propagated
         with hydrated_context(self.context):
             async with AsyncClientContext.get_or_create():
                 self._client = get_client()

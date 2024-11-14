@@ -88,6 +88,7 @@ async def get_default_result_storage() -> WritableFileSystem:
     """
     Generate a default file system for result storage.
     """
+    print("\n\n\n\n\ngetting default result storage\n\n\n\n\n")
     settings = get_current_settings()
     default_block = settings.results.default_storage_block
     basepath = settings.results.local_storage_path
@@ -104,6 +105,8 @@ async def get_default_result_storage() -> WritableFileSystem:
         storage = LocalFileSystem(basepath=str(basepath))
 
     _default_storages[cache_key] = storage
+
+    print(f"returning storage: {storage}")
     return storage
 
 
@@ -314,6 +317,7 @@ class ResultStore(BaseModel):
         if flow.cache_result_in_memory is not None:
             update["cache_result_in_memory"] = flow.cache_result_in_memory
         if self.result_storage is None and update.get("result_storage") is None:
+            print("\n\n\nFOR FLOW\n\n\n")
             update["result_storage"] = await get_default_result_storage()
         update["metadata_storage"] = NullFileSystem()
         return self.model_copy(update=update)
@@ -322,14 +326,14 @@ class ResultStore(BaseModel):
     async def update_for_task(self: Self, task: "Task") -> Self:
         """
         Create a new result store for a task.
-
-        Args:
-            task: The task to update the result store for.
-
-        Returns:
-            An updated result store.
         """
-        from prefect.transactions import get_transaction
+        from prefect.settings import get_current_settings
+
+        logger = get_logger("results")
+        logger.debug(f"Updating result store for task {task.name}")
+        logger.debug(f"Current result store: {self}")
+        logger.debug(f"Task result_storage: {task.result_storage}")
+        logger.debug(f"Task result_storage_key: {task.result_storage_key}")
 
         update = {}
         if task.result_storage is not None:
@@ -339,34 +343,24 @@ class ResultStore(BaseModel):
         if task.cache_result_in_memory is not None:
             update["cache_result_in_memory"] = task.cache_result_in_memory
         if task.result_storage_key is not None:
+            logger.debug(f"Setting storage_key_fn for key: {task.result_storage_key}")
             update["storage_key_fn"] = partial(
                 _format_user_supplied_storage_key, task.result_storage_key
             )
 
-        # use the lock manager from a parent transaction if it exists
-        if (current_txn := get_transaction()) and isinstance(
-            current_txn.store, ResultStore
+        # If no result storage is set OR storage has no basepath, use settings
+        settings = get_current_settings()
+        storage_path = settings.results.local_storage_path
+        if (self.result_storage is None and update.get("result_storage") is None) or (
+            self.result_storage and self.result_storage.basepath is None
         ):
-            update["lock_manager"] = current_txn.store.lock_manager
+            logger.debug(f"No storage path set, using settings path: {storage_path}")
+            if storage_path:
+                update["result_storage"] = LocalFileSystem(basepath=str(storage_path))
 
-        if task.cache_policy is not None and task.cache_policy is not NotSet:
-            if task.cache_policy.key_storage is not None:
-                storage = task.cache_policy.key_storage
-                if isinstance(storage, str) and not len(storage.split("/")) == 2:
-                    storage = Path(storage)
-                update["metadata_storage"] = await resolve_result_storage(storage)
-            # if the cache policy has a lock manager, it takes precedence over the parent transaction
-            if task.cache_policy.lock_manager is not None:
-                update["lock_manager"] = task.cache_policy.lock_manager
-
-        if self.result_storage is None and update.get("result_storage") is None:
-            update["result_storage"] = await get_default_result_storage()
-        if (
-            isinstance(self.metadata_storage, NullFileSystem)
-            and update.get("metadata_storage", NotSet) is NotSet
-        ):
-            update["metadata_storage"] = None
-        return self.model_copy(update=update)
+        result = self.model_copy(update=update)
+        logger.debug(f"Updated result store: {result}")
+        return result
 
     @staticmethod
     def generate_default_holder() -> str:
@@ -542,22 +536,28 @@ class ResultStore(BaseModel):
     ) -> "ResultRecord":
         """
         Create a result record.
-
-        Args:
-            key: The key to create the result record for.
-            obj: The object to create the result record for.
-            expiration: The expiration time for the result record.
         """
+        logger = get_logger("results")
+        logger.debug(f"Creating result record with key: {key}")
+        logger.debug(f"Current storage_key_fn: {self.storage_key_fn}")
+        logger.debug(f"Current result_storage: {self.result_storage}")
+
+        # Use provided key or generate one
         key = key or self.storage_key_fn()
+        logger.debug(f"Using key: {key}")
 
         if self.result_storage is None:
+            logger.debug("No result storage set, getting default")
             self.result_storage = get_default_result_storage(_sync=True)
+            logger.debug(f"Got default storage: {self.result_storage}")
 
         if self.result_storage_block_id is None:
             if hasattr(self.result_storage, "_resolve_path"):
-                key = str(self.result_storage._resolve_path(key))
+                resolved_key = str(self.result_storage._resolve_path(key))
+                logger.debug(f"Resolved key {key} to {resolved_key}")
+                key = resolved_key
 
-        return ResultRecord(
+        record = ResultRecord(
             result=obj,
             metadata=ResultRecordMetadata(
                 serializer=self.serializer,
@@ -566,6 +566,8 @@ class ResultStore(BaseModel):
                 storage_block_id=self.result_storage_block_id,
             ),
         )
+        logger.debug(f"Created record with metadata: {record.metadata}")
+        return record
 
     def write(
         self,
@@ -910,13 +912,26 @@ def get_result_store() -> ResultStore:
     Get the current result store.
     """
     from prefect.context import get_run_context
+    from prefect.settings.context import get_current_settings
+
+    settings = get_current_settings()
+    storage_path = settings.results.local_storage_path
 
     try:
         run_context = get_run_context()
-    except MissingContextError:
-        result_store = ResultStore()
-    else:
         result_store = run_context.result_store
+
+        # Even if we got a store from context, ensure it has storage path set
+        if result_store.result_storage is None and storage_path:
+            result_store = result_store.model_copy(
+                update={"result_storage": LocalFileSystem(basepath=str(storage_path))}
+            )
+    except MissingContextError:
+        # Create new store with storage path from settings
+        storage = LocalFileSystem(basepath=str(storage_path)) if storage_path else None
+        result_store = ResultStore(result_storage=storage)
+
+    logger.debug(f"Retrieved result store: {result_store}")
     return result_store
 
 
@@ -1290,7 +1305,9 @@ class PersistedResult(BaseResult):
 
     @sync_compatible
     @inject_client
-    async def write(self, obj: R = NotSet, client: "PrefectClient" = None) -> None:
+    async def write(
+        self, obj: R = NotSet, client: Optional["PrefectClient"] = None
+    ) -> None:
         """
         Write the result to the storage block.
         """
@@ -1303,7 +1320,7 @@ class PersistedResult(BaseResult):
         # first the object itself
         if obj is NotSet and not self.has_cached_object():
             raise ValueError("Cannot write a result that has no object cached.")
-        obj = obj if obj is not NotSet else self._cache
+        _obj = obj if obj is not NotSet else self._cache
 
         # next, the storage block
         storage_block = await self._get_storage_block(client=client)
@@ -1319,7 +1336,7 @@ class PersistedResult(BaseResult):
             serializer=serializer,
         )
         await result_store.awrite(
-            obj=obj, key=self.storage_key, expiration=self.expiration
+            obj=_obj, key=self.storage_key, expiration=self.expiration
         )
 
         self._persisted = True
