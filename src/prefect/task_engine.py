@@ -21,7 +21,6 @@ from typing import (
     Optional,
     Sequence,
     Set,
-    Tuple,
     Type,
     TypeVar,
     Union,
@@ -32,8 +31,6 @@ import anyio
 import pendulum
 from opentelemetry import trace
 from opentelemetry.trace import (
-    Link,
-    SpanContext,
     Status,
     StatusCode,
     Tracer,
@@ -110,28 +107,10 @@ R = TypeVar("R")
 BACKOFF_MAX = 10
 
 
-def digest_task_inputs(inputs, parameters) -> Tuple[Dict[str, str], list[Link]]:
-    parameter_attributes = {}
-    links = []
-    for key, value in inputs.items():
-        for input in value:
-            if key in ("__parents__", "wait_for"):
-                continue
-            if isinstance(input, TaskRunInput):
-                parameter_attributes[f"prefect.run.parameter.{key}"] = type(
-                    parameters[key]
-                ).__name__
-                links.append(
-                    Link(
-                        SpanContext(trace_id=int(input.id), span_id=0, is_remote=True),
-                        attributes={"prefect.run.id": str(input.id)},
-                    )
-                )
-            else:
-                parameter_attributes[f"prefect.run.parameter.{key}"] = type(
-                    input
-                ).__name__
-    return parameter_attributes, links
+def get_labels_from_context(context: Optional[FlowRunContext]) -> Dict[str, Any]:
+    if context is None:
+        return {}
+    return context.flow_run.labels
 
 
 class TaskRunTimeoutError(TimeoutError):
@@ -744,21 +723,11 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                             f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
                         )
 
-                        context = None
-                        parameter_attributes, links = digest_task_inputs(
-                            self.task_run.task_inputs, self.parameters
-                        )
-
-                        if not parent_task_run_context and not flow_run_context:
-                            context = SpanContext(
-                                trace_id=int(self.task_run.id),
-                                span_id=0,
-                                is_remote=False,
-                            )
-                        labels = {}
-                        if flow_run_context:
-                            labels = flow_run_context.flow_run.labels
-
+                        labels = get_labels_from_context(flow_run_context)
+                        parameter_attributes = {
+                            f"prefect.run.parameter.{k}": type(v).__name__
+                            for k, v in self.parameters.items()
+                        }
                         self._span = self._tracer.start_span(
                             name=self.task_run.name,
                             attributes={
@@ -768,8 +737,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                                 **parameter_attributes,
                                 **labels,
                             },
-                            links=links,
-                            context=context,
                         )
 
                         yield self
@@ -1309,9 +1276,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                             f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
                         )
 
-                        labels = {}
-                        if flow_run_context:
-                            labels = flow_run_context.flow_run.labels
+                        labels = get_labels_from_context(flow_run_context)
 
                         parameter_attributes = {
                             f"prefect.run.parameter.{k}": type(v).__name__

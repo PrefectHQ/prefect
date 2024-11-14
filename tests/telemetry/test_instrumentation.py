@@ -1,5 +1,5 @@
 import os
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 from uuid import UUID, uuid4
 
 import pytest
@@ -15,7 +15,6 @@ from opentelemetry.sdk.trace import TracerProvider
 
 from prefect import flow, task
 from prefect.client.schemas import TaskRun
-from prefect.context import FlowRunContext
 from prefect.states import Running
 from prefect.task_engine import AsyncTaskRunEngine, run_task_async
 from prefect.telemetry.bootstrap import setup_telemetry
@@ -302,7 +301,7 @@ class TestTaskRunInstrumentation:
         assert exception_event.attributes["exception.message"] == "Test error"
 
     @pytest.mark.asyncio
-    async def test_flow_run_labels(instrumentation, prefect_client):
+    async def test_flow_run_labels(task_run_engine, instrumentation):
         """Test that flow run labels are propagated to task spans"""
 
         @task
@@ -314,21 +313,8 @@ class TestTaskRunInstrumentation:
             return await child_task()
 
         # Create a patch that only modifies the labels of the flow run
-        with patch("prefect.context.FlowRunContext.get") as mock_get:
-            flow_run = await prefect_client.create_flow_run(
-                parent_flow, name="test-flow-run"
-            )
-
-            # Get the actual flow run context
-            real_context = FlowRunContext.get()
-            # Create a new mock that copies the real context but adds labels
-            mock_context = Mock(
-                wraps=real_context,
-            )
-            # Add labels to the flow run
-            mock_context.flow_run.labels = {"env": "test", "team": "engineering"}
-            mock_context.flow_run.id = flow_run.id
-            mock_get.return_value = mock_context
+        with patch("prefect.task_engine.get_labels_from_context") as mock_get:
+            mock_get.return_value = {"env": "test", "team": "engineering"}
 
             # Run the flow which will execute our task
             await parent_flow()
