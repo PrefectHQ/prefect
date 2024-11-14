@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "prefect-dask"
 dependencies = [
-  "prefect>=3.0.0rc1",
+  "prefect>=3.0.0",
   # don't allow versions from 2023.3.2 to 2023.5 (inclusive) due to issue with
   # get_client starting in 2023.3.2 (fixed in 2023.6.0)
   # https://github.com/dask/distributed/issues/7763
