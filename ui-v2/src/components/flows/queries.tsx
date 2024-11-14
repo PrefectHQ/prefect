@@ -1,5 +1,5 @@
 import { components } from "@/api/prefect";
-import { createQueryService } from "@/api/service";
+import { getQueryService } from "@/api/service";
 import {
 	MutationFunction,
 	QueryFunction,
@@ -18,7 +18,7 @@ export const flowQueryParams = (
 	...queryParams,
 	queryKey: ["flows", flowId] as const,
 	queryFn: async (): Promise<components["schemas"]["Flow"]> => {
-		const response = await createQueryService()
+		const response = await getQueryService()
 			.GET("/flows/{id}", {
 				params: { path: { id: flowId } },
 			})
@@ -38,7 +38,7 @@ export const flowRunsQueryParams = (
 	...queryParams,
 	queryKey: ["flowRun", JSON.stringify({ flowId: id, ...body })] as const,
 	queryFn: async () => {
-		const response = await createQueryService()
+		const response = await getQueryService()
 			.POST("/flow_runs/filter", {
 				body: {
 					...body,
@@ -73,7 +73,7 @@ export const getLatestFlowRunsQueryParams = (
 		}),
 	] as const,
 	queryFn: async () => {
-		const response = await createQueryService()
+		const response = await getQueryService()
 			.POST("/flow_runs/filter", {
 				body: {
 					flows: { operator: "and_" as const, id: { any_: [id] } },
@@ -113,7 +113,7 @@ export const getNextFlowRunsQueryParams = (
 		}),
 	] as const,
 	queryFn: async () => {
-		const response = await createQueryService()
+		const response = await getQueryService()
 			.POST("/flow_runs/filter", {
 				body: {
 					flows: { operator: "and_" as const, id: { any_: [id] } },
@@ -144,7 +144,7 @@ export const flowRunsCountQueryParams = (
 	...queryParams,
 	queryKey: ["flowRunCount", JSON.stringify({ flowId: id, ...body })] as const,
 	queryFn: async () => {
-		const response = await createQueryService()
+		const response = await getQueryService()
 			.POST("/flow_runs/count", {
 				body: {
 					...body,
@@ -178,7 +178,7 @@ export const deploymentsQueryParams = (
 	...queryParams,
 	queryKey: ["deployments", JSON.stringify({ ...body, flowId: id })] as const,
 	queryFn: async () => {
-		const response = await createQueryService()
+		const response = await getQueryService()
 			.POST("/deployments/filter", {
 				body: {
 					...body,
@@ -204,7 +204,7 @@ export const deploymentsCountQueryParams = (
 	...queryParams,
 	queryKey: ["deploymentsCount", JSON.stringify({ flowId: id })] as const,
 	queryFn: async () => {
-		const response = await createQueryService()
+		const response = await getQueryService()
 			.POST("/deployments/count", {
 				body: { flows: { operator: "and_" as const, id: { any_: [id] } } },
 			})
@@ -219,7 +219,7 @@ export const deleteFlowMutation = (
 	mutationFn: MutationFunction<void>;
 } => ({
 	mutationFn: async () => {
-		await createQueryService().DELETE("/flows/{id}", {
+		await getQueryService().DELETE("/flows/{id}", {
 			params: { path: { id } },
 		});
 	},

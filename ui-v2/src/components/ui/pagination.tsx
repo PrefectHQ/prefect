@@ -1,13 +1,18 @@
+import { DotsHorizontalIcon } from "@radix-ui/react-icons";
 import {
-	ChevronLeftIcon,
-	ChevronRightIcon,
-	DotsHorizontalIcon,
-} from "@radix-ui/react-icons";
+	ChevronsLeft,
+	ChevronsRight,
+	ChevronLeft,
+	ChevronRight,
+} from "lucide-react";
 import * as React from "react";
-
-import { ButtonProps, buttonVariants } from "@/components/ui/button";
+import {
+	Button,
+	type ButtonProps,
+	buttonVariants,
+} from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Link, LinkProps } from "@tanstack/react-router";
+import { Link, type LinkProps } from "@tanstack/react-router";
 
 type PaginationProps = React.ComponentProps<"nav"> & {
 	className?: string;
@@ -15,7 +20,6 @@ type PaginationProps = React.ComponentProps<"nav"> & {
 
 const Pagination = ({ className, ...props }: PaginationProps) => (
 	<nav
-		role="navigation"
 		aria-label="pagination"
 		className={cn("mx-auto flex w-full justify-center", className)}
 		{...props}
@@ -79,45 +83,65 @@ const PaginationPrevious = ({
 	className,
 	...props
 }: React.ComponentProps<typeof PaginationLink> & LinkProps) => (
-	<Link
+	<PaginationLink
 		aria-label="Go to previous page"
-		className={cn(
-			buttonVariants({
-				variant: "ghost",
-				size: "default",
-			}),
-			"gap-1 pl-2.5",
-			className,
-		)}
+		size="default"
+		className={cn("gap-1 pl-2.5", className)}
 		{...props}
 	>
-		<ChevronLeftIcon className="h-4 w-4" />
+		<ChevronLeft className="h-4 w-4" />
 		<span>Previous</span>
-	</Link>
+	</PaginationLink>
 );
 PaginationPrevious.displayName = "PaginationPrevious";
+
+const PaginationPreviousButton = ({
+	className,
+	...props
+}: React.ComponentProps<typeof Button> & { className?: string }) => (
+	<Button
+		aria-label="Go to previous page"
+		size="default"
+		variant="ghost"
+		className={cn("gap-1 pl-2.5", className)}
+		{...props}
+	>
+		<ChevronLeft className="h-4 w-4" />
+	</Button>
+);
+PaginationPreviousButton.displayName = "PaginationPreviousButton";
 
 const PaginationNext = ({
 	className,
 	...props
 }: React.ComponentProps<typeof PaginationLink> & LinkProps) => (
-	<Link
+	<PaginationLink
 		aria-label="Go to next page"
-		className={cn(
-			buttonVariants({
-				variant: "ghost",
-				size: "default",
-			}),
-			"gap-1 pr-2.5",
-			className,
-		)}
+		size="default"
+		className={cn("gap-1 pr-2.5", className)}
 		{...props}
 	>
 		<span>Next</span>
-		<ChevronRightIcon className="h-4 w-4" />
-	</Link>
+		<ChevronRight className="h-4 w-4" />
+	</PaginationLink>
 );
 PaginationNext.displayName = "PaginationNext";
+
+const PaginationNextButton = ({
+	className,
+	...props
+}: React.ComponentProps<typeof Button> & { className?: string }) => (
+	<Button
+		aria-label="Go to next page"
+		variant="ghost"
+		size="default"
+		className={cn("gap-1 pr-2.5", className)}
+		{...props}
+	>
+		<ChevronRight className="h-4 w-4" />
+	</Button>
+);
+PaginationNextButton.displayName = "PaginationNextButton";
 
 type PaginationEllipsisProps = React.ComponentProps<"span"> & {
 	className?: string;
@@ -138,6 +162,37 @@ const PaginationEllipsis = ({
 );
 PaginationEllipsis.displayName = "PaginationEllipsis";
 
+const PaginationFirstButton = ({
+	className,
+	...props
+}: React.ComponentProps<typeof Button> & { className?: string }) => (
+	<Button
+		aria-label="Go to first page"
+		variant="ghost"
+		size="default"
+		className={cn("gap-1 pl-2.5", className)}
+		{...props}
+	>
+		<ChevronsLeft className="h-4 w-4" />
+	</Button>
+);
+PaginationFirstButton.displayName = "PaginationFirstButton";
+
+const PaginationLastButton = ({
+	className,
+	...props
+}: React.ComponentProps<typeof Button> & { className?: string }) => (
+	<Button
+		aria-label="Go to last page"
+		variant="ghost"
+		size="default"
+		className={cn("gap-1 pr-2.5", className)}
+		{...props}
+	>
+		<ChevronsRight className="h-4 w-4" />
+	</Button>
+);
+
 export {
 	Pagination,
 	PaginationContent,
@@ -146,4 +201,8 @@ export {
 	PaginationPrevious,
 	PaginationNext,
 	PaginationEllipsis,
+	PaginationPreviousButton,
+	PaginationNextButton,
+	PaginationFirstButton,
+	PaginationLastButton,
 };
