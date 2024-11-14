@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { components } from "@/api/prefect"; // Typescript types generated from the Prefect API
-import { createQueryService } from "@/api/service"; // Service object that makes requests to the Prefect API
+import { getQueryService } from "@/api/service"; // Service object that makes requests to the Prefect API
 
 import FlowsTable from "@/components/flows/data-table";
 
@@ -39,7 +39,7 @@ const searchParams = z
 const flowsQueryParams = (search: z.infer<typeof searchParams>) => ({
 	queryKey: ["flows", JSON.stringify(search)],
 	queryFn: async () =>
-		await createQueryService().POST("/flows/paginate", {
+		await getQueryService().POST("/flows/paginate", {
 			body: {
 				page: search.page,
 				limit: search.limit,

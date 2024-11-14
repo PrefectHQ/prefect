@@ -9,11 +9,17 @@ const throwOnError: Middleware = {
 		}
 	},
 };
+
+let client: ReturnType<typeof createClient<paths>> | null = null;
+
 // TODO: Make the baseUrl configurable
-export const createQueryService = () => {
-	const client = createClient<paths>({
-		baseUrl: "http://localhost:4200/api",
-	});
-	client.use(throwOnError);
+export const getQueryService = () => {
+	if (!client) {
+		client = createClient<paths>({
+			baseUrl:
+				(import.meta.env.VITE_API_URL as string) ?? "http://localhost:4200/api",
+		});
+		client.use(throwOnError);
+	}
 	return client;
 };
