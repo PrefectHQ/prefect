@@ -1,5 +1,19 @@
 import { http, HttpResponse } from "msw";
 
+const variablesHandlers = [
+	http.post("http://localhost:4200/api/variables/", () => {
+		return HttpResponse.json({ status: "success" }, { status: 201 });
+	}),
+
+	http.post("http://localhost:4200/api/variables/filter", () => {
+		return HttpResponse.json([]);
+	}),
+
+	http.post("http://localhost:4200/api/variables/count", () => {
+		return HttpResponse.json(0);
+	}),
+];
+
 export const handlers = [
 	http.post("http://localhost:4200/api/flows/paginate", () => {
 		return HttpResponse.json({
@@ -19,8 +33,5 @@ export const handlers = [
 	http.post("http://localhost:4200/api/deployments/count", () => {
 		return HttpResponse.json(1);
 	}),
-
-	http.post("http://localhost:4200/api/variables/", () => {
-		return HttpResponse.json({ status: "success" }, { status: 201 });
-	}),
+	...variablesHandlers,
 ];

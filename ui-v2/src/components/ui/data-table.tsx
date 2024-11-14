@@ -6,17 +6,18 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { Table as TanstackTable, flexRender } from "@tanstack/react-table";
+import { type Table as TanstackTable, flexRender } from "@tanstack/react-table";
 
 import {
 	Pagination,
 	PaginationContent,
-	PaginationEllipsis,
 	PaginationItem,
-	PaginationLink,
-	PaginationNext,
-	PaginationPrevious,
+	PaginationNextButton,
+	PaginationPreviousButton,
+	PaginationFirstButton,
+	PaginationLastButton,
 } from "@/components/ui/pagination";
+import { cn } from "@/lib/utils";
 
 export function DataTable<TData>({
 	table,
@@ -73,46 +74,47 @@ export function DataTable<TData>({
 					</TableBody>
 				</Table>
 			</div>
-			<DataTablePagination
-				table={table}
-				onPageChange={(page) => {
-					table.setPageIndex(page - 1);
-				}}
-			/>
+			<DataTablePagination table={table} />
 		</>
 	);
 }
 
 interface DataTablePaginationProps<TData> {
 	table: TanstackTable<TData>;
-	onPageChange: (page: number) => void;
+	className?: string;
 }
 
 export function DataTablePagination<TData>({
 	table,
-	onPageChange,
+	className,
 }: DataTablePaginationProps<TData>) {
 	return (
-		<Pagination className="mt-4 justify-end">
+		<Pagination className={cn("justify-end", className)}>
 			<PaginationContent>
 				<PaginationItem>
-					<PaginationPrevious
-						onClick={() =>
-							onPageChange(Math.max(1, table.getState().pagination.pageIndex))
-						}
+					<PaginationFirstButton
+						onClick={() => table.firstPage()}
+						disabled={!table.getCanPreviousPage()}
+					/>
+					<PaginationPreviousButton
+						onClick={() => table.previousPage()}
+						disabled={!table.getCanPreviousPage()}
+					/>
+				</PaginationItem>
+				<PaginationItem className="text-sm">
+					Page {Math.ceil(table.getState().pagination.pageIndex + 1)} of{" "}
+					{table.getPageCount()}
+				</PaginationItem>
+				<PaginationItem>
+					<PaginationNextButton
+						onClick={() => table.nextPage()}
+						disabled={!table.getCanNextPage()}
 					/>
 				</PaginationItem>
 				<PaginationItem>
-					<PaginationLink onClick={() => onPageChange(1)}>1</PaginationLink>
-				</PaginationItem>
-				<PaginationItem>
-					<PaginationEllipsis />
-				</PaginationItem>
-				<PaginationItem>
-					<PaginationNext
-						onClick={() =>
-							onPageChange(table.getState().pagination.pageIndex + 2)
-						}
+					<PaginationLastButton
+						onClick={() => table.lastPage()}
+						disabled={!table.getCanNextPage()}
 					/>
 				</PaginationItem>
 			</PaginationContent>
