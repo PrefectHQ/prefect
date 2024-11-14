@@ -506,9 +506,6 @@ class FlowRunPolicy(PrefectBaseModel):
         return values
 
 
-KeyValueLabels = Dict[str, Union[StrictBool, StrictInt, StrictFloat, str]]
-
-
 class FlowRun(ObjectBaseModel):
     name: str = Field(
         default_factory=lambda: generate_slug(2),
