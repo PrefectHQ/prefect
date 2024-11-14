@@ -687,13 +687,12 @@ class FlowRunEngine(Generic[P, R]):
 
     @contextmanager
     def start(self) -> Generator[None, None, None]:
-        with self.initialize_run():
-            with trace.use_span(self._span):
-                self.begin_run()
+        with self.initialize_run(), trace.use_span(self._span):
+            self.begin_run()
 
-                if self.state.is_running():
-                    self.call_hooks()
-                yield
+            if self.state.is_running():
+                self.call_hooks()
+            yield
 
     @contextmanager
     def run_context(self):
