@@ -300,10 +300,7 @@ class FlowRunEngine(Generic[P, R]):
         self.set_state(terminal_state)
         self._return_value = resolved_result
 
-        if self._span:
-            self._span.set_status(trace.Status(trace.StatusCode.OK))
-            self._span.end(time.time_ns())
-            self._span = None
+        self._end_span_on_success()
 
         return result
 
@@ -336,11 +333,7 @@ class FlowRunEngine(Generic[P, R]):
             state = self.set_state(Running())
         self._raised = exc
 
-        if self._span:
-            self._span.record_exception(exc)
-            self._span.set_status(trace.Status(trace.StatusCode.ERROR, state.message))
-            self._span.end(time.time_ns())
-            self._span = None
+        self._end_span_on_error(exc, state.message)
 
         return state
 
@@ -360,11 +353,7 @@ class FlowRunEngine(Generic[P, R]):
         self.set_state(state)
         self._raised = exc
 
-        if self._span:
-            self._span.record_exception(exc)
-            self._span.set_status(trace.Status(trace.StatusCode.ERROR, state.message))
-            self._span.end(time.time_ns())
-            self._span = None
+        self._end_span_on_error(exc, message)
 
     def handle_crash(self, exc: BaseException) -> None:
         state = run_coro_as_sync(exception_to_crashed_state(exc))
@@ -373,11 +362,22 @@ class FlowRunEngine(Generic[P, R]):
         self.set_state(state, force=True)
         self._raised = exc
 
-        if self._span:
-            self._span.record_exception(exc)
-            self._span.set_status(trace.Status(trace.StatusCode.ERROR, state.message))
-            self._span.end(time.time_ns())
-            self._span = None
+        self._end_span_on_error(exc, state.message)
+
+    def _end_span_on_success(self):
+        if not self._span:
+            return
+        self._span.set_status(trace.Status(trace.StatusCode.OK))
+        self._span.end(time.time_ns())
+        self._span = None
+
+    def _end_span_on_error(self, exc: BaseException, description: Optional[str]):
+        if not self._span:
+            return
+        self._span.record_exception(exc)
+        self._span.set_status(trace.Status(trace.StatusCode.ERROR, description))
+        self._span.end(time.time_ns())
+        self._span = None
 
     def load_subflow_run(
         self,
