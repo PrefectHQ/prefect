@@ -560,6 +560,11 @@ class FlowRun(ObjectBaseModel):
         description="A list of tags on the flow run",
         examples=[["tag-1", "tag-2"]],
     )
+    labels: KeyValueLabels = Field(
+        default_factory=dict,
+        description="Prefect Cloud: A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
+        examples=[{"key": "value1", "key2": 42}],
+    )
     parent_task_run_id: Optional[UUID] = Field(
         default=None,
         description=(

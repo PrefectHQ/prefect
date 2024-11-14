@@ -22,8 +22,11 @@ from typing import (
 )
 from uuid import UUID
 
+from opentelemetry import trace
+from opentelemetry.trace import Tracer, get_tracer
 from typing_extensions import ParamSpec
 
+import prefect
 from prefect import Task
 from prefect.client.orchestration import SyncPrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
@@ -124,6 +127,10 @@ class FlowRunEngine(Generic[P, R]):
     _client: Optional[SyncPrefectClient] = None
     short_circuit: bool = False
     _flow_run_name_set: bool = False
+    _tracer: Tracer = field(
+        default_factory=lambda: get_tracer("prefect", prefect.__version__)
+    )
+    _span: Optional[trace.Span] = None
 
     def __post_init__(self):
         if self.flow is None and self.flow_run_id is None:
@@ -233,6 +240,17 @@ class FlowRunEngine(Generic[P, R]):
         self.flow_run.state = state  # type: ignore
         self.flow_run.state_name = state.name  # type: ignore
         self.flow_run.state_type = state.type  # type: ignore
+
+        if self._span:
+            self._span.add_event(
+                state.name,
+                {
+                    "prefect.state.message": state.message or "",
+                    "prefect.state.type": state.type,
+                    "prefect.state.name": state.name or state.type,
+                    "prefect.state.id": str(state.id),
+                },
+            )
         return state
 
     def result(self, raise_on_failure: bool = True) -> "Union[R, State, None]":
@@ -281,6 +299,9 @@ class FlowRunEngine(Generic[P, R]):
         )
         self.set_state(terminal_state)
         self._return_value = resolved_result
+
+        self._end_span_on_success()
+
         return result
 
     def handle_exception(
@@ -311,6 +332,9 @@ class FlowRunEngine(Generic[P, R]):
             )
             state = self.set_state(Running())
         self._raised = exc
+
+        self._end_span_on_error(exc, state.message)
+
         return state
 
     def handle_timeout(self, exc: TimeoutError) -> None:
@@ -329,12 +353,31 @@ class FlowRunEngine(Generic[P, R]):
         self.set_state(state)
         self._raised = exc
 
+        self._end_span_on_error(exc, message)
+
     def handle_crash(self, exc: BaseException) -> None:
         state = run_coro_as_sync(exception_to_crashed_state(exc))
         self.logger.error(f"Crash detected! {state.message}")
         self.logger.debug("Crash details:", exc_info=exc)
         self.set_state(state, force=True)
         self._raised = exc
+
+        self._end_span_on_error(exc, state.message)
+
+    def _end_span_on_success(self):
+        if not self._span:
+            return
+        self._span.set_status(trace.Status(trace.StatusCode.OK))
+        self._span.end(time.time_ns())
+        self._span = None
+
+    def _end_span_on_error(self, exc: BaseException, description: Optional[str]):
+        if not self._span:
+            return
+        self._span.record_exception(exc)
+        self._span.set_status(trace.Status(trace.StatusCode.ERROR, description))
+        self._span.end(time.time_ns())
+        self._span = None
 
     def load_subflow_run(
         self,
@@ -578,6 +621,18 @@ class FlowRunEngine(Generic[P, R]):
                     flow_version=self.flow.version,
                     empirical_policy=self.flow_run.empirical_policy,
                 )
+
+            self._span = self._tracer.start_span(
+                name=self.flow_run.name,
+                attributes={
+                    **self.flow_run.labels,
+                    "prefect.run.type": "flow",
+                    "prefect.run.id": str(self.flow_run.id),
+                    "prefect.tags": self.flow_run.tags,
+                    "prefect.flow.name": self.flow.name,
+                },
+            )
+
             try:
                 yield self
 
@@ -632,7 +687,7 @@ class FlowRunEngine(Generic[P, R]):
 
     @contextmanager
     def start(self) -> Generator[None, None, None]:
-        with self.initialize_run():
+        with self.initialize_run(), trace.use_span(self._span):
             self.begin_run()
 
             if self.state.is_running():
