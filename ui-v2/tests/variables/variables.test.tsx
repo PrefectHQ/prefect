@@ -37,8 +37,13 @@ describe("Variables page", () => {
 					<VariablesPage
 						variables={[]}
 						totalVariableCount={0}
+						currentVariableCount={0}
 						pagination={{ pageIndex: 0, pageSize: 10 }}
 						onPaginationChange={vi.fn()}
+						columnFilters={[]}
+						onColumnFiltersChange={vi.fn()}
+						sorting="CREATED_DESC"
+						onSortingChange={vi.fn()}
 					/>
 				</QueryClientProvider>,
 			);
@@ -62,8 +67,13 @@ describe("Variables page", () => {
 					<VariablesPage
 						variables={[]}
 						totalVariableCount={0}
+						currentVariableCount={0}
 						pagination={{ pageIndex: 0, pageSize: 10 }}
 						onPaginationChange={vi.fn()}
+						columnFilters={[]}
+						onColumnFiltersChange={vi.fn()}
+						sorting="CREATED_DESC"
+						onSortingChange={vi.fn()}
 					/>
 				</QueryClientProvider>,
 			);
@@ -88,8 +98,13 @@ describe("Variables page", () => {
 					<VariablesPage
 						variables={[]}
 						totalVariableCount={0}
+						currentVariableCount={0}
 						pagination={{ pageIndex: 0, pageSize: 10 }}
 						onPaginationChange={vi.fn()}
+						columnFilters={[]}
+						onColumnFiltersChange={vi.fn()}
+						sorting="CREATED_DESC"
+						onSortingChange={vi.fn()}
 					/>
 					<Toaster />
 				</QueryClientProvider>,
@@ -113,8 +128,13 @@ describe("Variables page", () => {
 					<VariablesPage
 						variables={[]}
 						totalVariableCount={0}
+						currentVariableCount={0}
 						pagination={{ pageIndex: 0, pageSize: 10 }}
 						onPaginationChange={vi.fn()}
+						columnFilters={[]}
+						onColumnFiltersChange={vi.fn()}
+						sorting="CREATED_DESC"
+						onSortingChange={vi.fn()}
 					/>
 				</QueryClientProvider>,
 			);
@@ -152,8 +172,13 @@ describe("Variables page", () => {
 					<VariablesPage
 						variables={[]}
 						totalVariableCount={0}
+						currentVariableCount={0}
 						pagination={{ pageIndex: 0, pageSize: 10 }}
 						onPaginationChange={vi.fn()}
+						columnFilters={[]}
+						onColumnFiltersChange={vi.fn()}
+						sorting="CREATED_DESC"
+						onSortingChange={vi.fn()}
 					/>
 				</QueryClientProvider>,
 			);
@@ -181,8 +206,13 @@ describe("Variables page", () => {
 					<VariablesPage
 						variables={[]}
 						totalVariableCount={0}
+						currentVariableCount={0}
 						pagination={{ pageIndex: 0, pageSize: 10 }}
 						onPaginationChange={vi.fn()}
+						columnFilters={[]}
+						onColumnFiltersChange={vi.fn()}
+						sorting="CREATED_DESC"
+						onSortingChange={vi.fn()}
 					/>
 				</QueryClientProvider>,
 			);
@@ -242,8 +272,13 @@ describe("Variables page", () => {
 					<VariablesPage
 						variables={variables}
 						totalVariableCount={2}
+						currentVariableCount={2}
 						pagination={{ pageIndex: 0, pageSize: 10 }}
 						onPaginationChange={vi.fn()}
+						columnFilters={[]}
+						onColumnFiltersChange={vi.fn()}
+						sorting="CREATED_DESC"
+						onSortingChange={vi.fn()}
 					/>
 				</QueryClientProvider>,
 			);
@@ -282,8 +317,13 @@ describe("Variables page", () => {
 					<VariablesPage
 						variables={variables.slice(0, 10)}
 						totalVariableCount={20}
+						currentVariableCount={20}
 						pagination={{ pageIndex: 0, pageSize: 10 }}
 						onPaginationChange={onPaginationChange}
+						columnFilters={[]}
+						onColumnFiltersChange={vi.fn()}
+						sorting="CREATED_DESC"
+						onSortingChange={vi.fn()}
 					/>
 				</QueryClientProvider>,
 			);
@@ -306,8 +346,13 @@ describe("Variables page", () => {
 					<VariablesPage
 						variables={variables.slice(10, 20)}
 						totalVariableCount={20}
+						currentVariableCount={20}
 						pagination={{ pageIndex: 1, pageSize: 10 }}
 						onPaginationChange={onPaginationChange}
+						columnFilters={[]}
+						onColumnFiltersChange={vi.fn()}
+						sorting="CREATED_DESC"
+						onSortingChange={vi.fn()}
 					/>
 				</QueryClientProvider>,
 			);
@@ -342,8 +387,13 @@ describe("Variables page", () => {
 					<VariablesPage
 						variables={variables}
 						totalVariableCount={1}
+						currentVariableCount={1}
 						pagination={{ pageIndex: 0, pageSize: 10 }}
 						onPaginationChange={vi.fn()}
+						columnFilters={[]}
+						onColumnFiltersChange={vi.fn()}
+						sorting="CREATED_DESC"
+						onSortingChange={vi.fn()}
 					/>
 				</QueryClientProvider>,
 			);
@@ -371,8 +421,13 @@ describe("Variables page", () => {
 					<VariablesPage
 						variables={variables}
 						totalVariableCount={1}
+						currentVariableCount={1}
 						pagination={{ pageIndex: 0, pageSize: 10 }}
 						onPaginationChange={vi.fn()}
+						columnFilters={[]}
+						onColumnFiltersChange={vi.fn()}
+						sorting="CREATED_DESC"
+						onSortingChange={vi.fn()}
 					/>
 				</QueryClientProvider>,
 			);
@@ -399,8 +454,13 @@ describe("Variables page", () => {
 					<VariablesPage
 						variables={variables}
 						totalVariableCount={1}
+						currentVariableCount={1}
 						pagination={{ pageIndex: 0, pageSize: 10 }}
 						onPaginationChange={vi.fn()}
+						columnFilters={[]}
+						onColumnFiltersChange={vi.fn()}
+						sorting="CREATED_DESC"
+						onSortingChange={vi.fn()}
 					/>
 				</QueryClientProvider>,
 			);
@@ -428,8 +488,13 @@ describe("Variables page", () => {
 					<VariablesPage
 						variables={variables}
 						totalVariableCount={1}
+						currentVariableCount={1}
 						pagination={{ pageIndex: 0, pageSize: 10 }}
 						onPaginationChange={vi.fn()}
+						columnFilters={[]}
+						onColumnFiltersChange={vi.fn()}
+						sorting="CREATED_DESC"
+						onSortingChange={vi.fn()}
 					/>
 				</QueryClientProvider>,
 			);

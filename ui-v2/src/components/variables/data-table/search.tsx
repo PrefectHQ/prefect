@@ -1,4 +1,4 @@
-import { IconInput, Input } from "@/components/ui/input";
+import { IconInput } from "@/components/ui/input";
 import {
 	Select,
 	SelectTrigger,
