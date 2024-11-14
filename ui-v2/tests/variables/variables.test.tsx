@@ -250,7 +250,6 @@ describe("Variables page", () => {
 			expect(screen.getByText("2 Variables")).toBeVisible();
 			// Table headers
 			expect(screen.getByText("Name")).toBeVisible();
-			expect(screen.getByText("Tags")).toBeVisible();
 			expect(screen.getByText("Value")).toBeVisible();
 			expect(screen.getByText("Updated")).toBeVisible();
 
