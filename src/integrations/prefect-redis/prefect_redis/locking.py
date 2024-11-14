@@ -148,7 +148,7 @@ class RedisLockManager(LockManager):
         lock = AsyncLock(self.async_client, lock_name)
         lock_freed = await lock.acquire(blocking_timeout=timeout)
         if lock_freed:
-            lock.release()
+            await lock.release()
         return lock_freed
 
     def is_locked(self, key: str) -> bool:
