@@ -51,6 +51,7 @@ from prefect.settings import (
     save_profiles,
     temporary_settings,
 )
+from prefect.settings.base import _to_environment_variable_value
 from prefect.settings.constants import DEFAULT_PROFILES_PATH
 from prefect.settings.legacy import (
     _env_var_to_accessor,
@@ -58,6 +59,7 @@ from prefect.settings.legacy import (
     _get_valid_setting_names,
 )
 from prefect.settings.models.api import APISettings
+from prefect.settings.models.client import ClientSettings
 from prefect.settings.models.logging import LoggingSettings
 from prefect.settings.models.server import ServerSettings
 from prefect.settings.models.server.api import ServerAPISettings
@@ -185,7 +187,7 @@ SUPPORTED_SETTINGS = {
         "test_value": True,
     },
     "PREFECT_CLIENT_METRICS_PORT": {"test_value": 9000},
-    "PREFECT_CLIENT_RETRY_EXTRA_CODES": {"test_value": "400"},
+    "PREFECT_CLIENT_RETRY_EXTRA_CODES": {"test_value": {400, 300}},
     "PREFECT_CLIENT_RETRY_JITTER_FACTOR": {"test_value": 0.5},
     "PREFECT_CLI_COLORS": {"test_value": True},
     "PREFECT_CLI_PROMPT": {"test_value": True},
@@ -242,7 +244,7 @@ SUPPORTED_SETTINGS = {
     },
     "PREFECT_LOGGING_COLORS": {"test_value": True},
     "PREFECT_LOGGING_CONFIG_PATH": {"test_value": Path("/path/to/settings.yaml")},
-    "PREFECT_LOGGING_EXTRA_LOGGERS": {"test_value": "foo"},
+    "PREFECT_LOGGING_EXTRA_LOGGERS": {"test_value": ["foo", "bar"]},
     "PREFECT_LOGGING_INTERNAL_LEVEL": {"test_value": "INFO", "legacy": True},
     "PREFECT_LOGGING_LEVEL": {"test_value": "INFO"},
     "PREFECT_LOGGING_LOG_PRINTS": {"test_value": True},
@@ -588,6 +590,30 @@ class TestSettingsClass:
                 server=ServerSettings(api=ServerAPISettings(port=3000))
             ).to_environment_variables()["PREFECT_SERVER_API_PORT"]
             == "3000"
+        )
+        assert (
+            Settings(
+                logging=LoggingSettings(extra_loggers="foo")
+            ).to_environment_variables()["PREFECT_LOGGING_EXTRA_LOGGERS"]
+            == "foo"
+        )
+        assert Settings(
+            logging=LoggingSettings(extra_loggers=["foo", "bar"])
+        ).to_environment_variables()["PREFECT_LOGGING_EXTRA_LOGGERS"] in (
+            "foo,bar",
+            "bar,foo",
+        )
+        assert (
+            Settings(
+                client=ClientSettings(retry_extra_codes=300)
+            ).to_environment_variables()["PREFECT_CLIENT_RETRY_EXTRA_CODES"]
+            == "300"
+        )
+        assert Settings(
+            client=ClientSettings(retry_extra_codes={300, 400})
+        ).to_environment_variables()["PREFECT_CLIENT_RETRY_EXTRA_CODES"] in (
+            "300,400",
+            "400,300",
         )
 
     @pytest.mark.parametrize("exclude_unset", [True, False])
@@ -1390,6 +1416,35 @@ class TestSettingsSources:
 
         assert Settings().client.retry_extra_codes == set()
 
+    def test_dot_env_filters_as_expected(self, temporary_env_file):
+        expected_home = Settings().home
+        expected_db_name = Settings().server.database.name
+        temporary_env_file("HOME=foo\nNAME=bar")
+        assert Settings().home == expected_home
+        assert Settings().home != "foo"
+        assert Settings().server.database.name == expected_db_name
+        assert Settings().server.database.name != "bar"
+
+    def test_environment_variables_take_precedence_over_toml_settings(
+        self, monkeypatch, temporary_toml_file
+    ):
+        """
+        Test to ensure that fields with multiple validation aliases respect the
+        expected precedence of sources.
+
+        Regression test for https://github.com/PrefectHQ/prefect/issues/15981
+        """
+        for env_var in os.environ:
+            if env_var.startswith("PREFECT_"):
+                monkeypatch.delenv(env_var, raising=False)
+
+        monkeypatch.setenv("PREFECT_SERVER_ALLOW_EPHEMERAL_MODE", "false")
+
+        temporary_toml_file({"server": {"ephemeral": {"enabled": "true"}}})
+
+        assert not Settings().server.ephemeral.enabled
+        assert not PREFECT_SERVER_ALLOW_EPHEMERAL_MODE.value()
+
 
 class TestLoadProfiles:
     @pytest.fixture(autouse=True)
@@ -1400,6 +1455,20 @@ class TestLoadProfiles:
 
     def test_load_profiles_no_profiles_file(self):
         assert load_profiles()
+
+    def test_env_variables_respected_when_no_profiles_file(self, monkeypatch):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/15981
+        """
+        for env_var in os.environ:
+            if env_var.startswith("PREFECT_"):
+                monkeypatch.delenv(env_var, raising=False)
+
+        monkeypatch.setenv("PREFECT_SERVER_ALLOW_EPHEMERAL_MODE", "false")
+
+        # Will be true if the profile is incorrectly taking priority
+        assert not Settings().server.ephemeral.enabled
+        assert not PREFECT_SERVER_ALLOW_EPHEMERAL_MODE.value()
 
     def test_load_profiles_missing_ephemeral(self, temporary_profiles_path):
         temporary_profiles_path.write_text(
@@ -1855,19 +1924,20 @@ class TestSettingValues:
 
             if isinstance(settings_value, pydantic.SecretStr):
                 settings_value = settings_value.get_secret_value()
-            if setting == "PREFECT_CLIENT_RETRY_EXTRA_CODES":
-                assert settings_value == {int(value)}
-                assert getattr(prefect.settings, setting).value() == {int(value)}
-                assert current_settings.to_environment_variables(exclude_unset=True)[
-                    setting
-                ] == str([int(value)])
 
-            elif setting == "PREFECT_LOGGING_EXTRA_LOGGERS":
-                assert settings_value == [value]
-                assert getattr(prefect.settings, setting).value() == [value]
-                assert current_settings.to_environment_variables(exclude_unset=True)[
-                    setting
-                ] == str([value])
+            if setting == "PREFECT_LOGGING_EXTRA_LOGGERS":
+                assert isinstance(settings_value, list)
+                settings_value.sort()
+                value.sort()
+                assert sorted(settings_value) == sorted(value)
+                legacy_value = getattr(prefect.settings, setting).value()
+                assert isinstance(legacy_value, list)
+                legacy_value.sort()
+                assert legacy_value == value
+                env_value = current_settings.to_environment_variables(
+                    exclude_unset=True
+                )[setting]
+                assert env_value.split(",") == to_jsonable_python(value)
             else:
                 assert settings_value == value
                 # get value from legacy setting object
@@ -1877,7 +1947,9 @@ class TestSettingValues:
                 if not SUPPORTED_SETTINGS[setting].get("legacy"):
                     assert current_settings.to_environment_variables(
                         exclude_unset=True
-                    )[setting] == str(to_jsonable_python(value))
+                    )[setting] == _to_environment_variable_value(
+                        to_jsonable_python(value)
+                    )
 
     def test_set_via_env_var(self, setting_and_value, monkeypatch):
         setting, value = setting_and_value
@@ -1889,7 +1961,7 @@ class TestSettingValues:
             monkeypatch.setenv("PREFECT_TEST_MODE", "True")
 
         # mock set the env var
-        monkeypatch.setenv(setting, str(value))
+        monkeypatch.setenv(setting, _to_environment_variable_value(value))
 
         self.check_setting_value(setting, value)
 
@@ -1930,7 +2002,7 @@ class TestSettingValues:
         ):
             monkeypatch.setenv("PREFECT_TEST_MODE", "True")
 
-        temporary_env_file(f"{setting}={value}")
+        temporary_env_file(f"{setting}={_to_environment_variable_value(value)}")
 
         self.check_setting_value(setting, value)
 
