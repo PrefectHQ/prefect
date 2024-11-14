@@ -1284,12 +1284,14 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             async with AsyncClientContext.get_or_create():
                 self._client = get_client()
                 self._is_started = True
+                flow_run_context = FlowRunContext.get()
+
                 try:
                     if not self.task_run:
                         self.task_run = await self.task.create_local_run(
                             id=task_run_id,
                             parameters=self.parameters,
-                            flow_run_context=FlowRunContext.get(),
+                            flow_run_context=flow_run_context,
                             parent_task_run_context=TaskRunContext.get(),
                             wait_for=self.wait_for,
                             extra_task_inputs=dependencies,
@@ -1306,12 +1308,23 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                         self.logger.debug(
                             f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
                         )
+
+                        labels = {}
+                        if flow_run_context:
+                            labels = flow_run_context.flow_run.labels
+
+                        parameter_attributes = {
+                            f"prefect.run.parameter.{k}": type(v).__name__
+                            for k, v in self.parameters.items()
+                        }
                         self._span = self._tracer.start_span(
                             name=self.task_run.name,
                             attributes={
-                                "prefect.run.type": "flow",
+                                "prefect.run.type": "task",
                                 "prefect.run.id": str(self.task_run.id),
                                 "prefect.tags": self.task_run.tags,
+                                **parameter_attributes,
+                                **labels,
                             },
                         )
 
