@@ -332,7 +332,6 @@ class ResultStore(BaseModel):
         """
         from prefect.settings import get_current_settings
 
-        logger = get_logger("results")
         logger.debug(f"Updating result store for task {task.name}")
         logger.debug(f"Current result store: {self}")
         logger.debug(f"Task result_storage: {task.result_storage}")
@@ -540,7 +539,6 @@ class ResultStore(BaseModel):
         """
         Create a result record.
         """
-        logger = get_logger("results")
         logger.debug(f"Creating result record with key: {key}")
         logger.debug(f"Current storage_key_fn: {self.storage_key_fn}")
         logger.debug(f"Current result_storage: {self.result_storage}")
