@@ -28,3 +28,7 @@ MockJsonInput.displayName = "MockJsonInput";
 vi.mock("@/components/ui/json-input", () => ({
 	JsonInput: MockJsonInput,
 }));
+
+vi.mock("@/hooks/use-debounce", () => ({
+	default: (v: unknown) => v,
+}));
