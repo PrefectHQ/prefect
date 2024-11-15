@@ -61,6 +61,9 @@ if __name__ == "__main__":
                 f"Expected exactly two files in {tmp_path}, "
                 f"found {len(found_files)}: {found_files!r}"
             )
+            assert any(
+                f.name == "test-key" for f in found_files
+            ), f"Expected to find 'test-key' in {found_files!r}"
 
         print("Result storage location test passed!")
     finally:
