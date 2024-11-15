@@ -9,18 +9,12 @@
 
 `prefect-gcp` makes it easy to leverage the capabilities of Google Cloud Platform (GCP) in your flows, featuring support for Vertex AI, Cloud Run, BigQuery, Cloud Storage, and Secret Manager.
 
-Visit the full docs [here](https://PrefectHQ.github.io/prefect-gcp).
+Visit the full docs [here](https://docs.prefect.io/integrations/prefect-gcp).
 
-### Installation
+## Installation
 
 To start using `prefect-gcp`:
 
 ```bash
 pip install prefect-gcp
 ```
-
-To install extras, see [here](https://prefecthq.github.io/prefect-gcp/#installation).
-
-### Contributing
-
-Thanks for thinking about chipping in! Check out this [step-by-step guide](https://prefecthq.github.io/prefect-gcp/#installation) on how to get started.

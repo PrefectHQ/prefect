@@ -290,7 +290,7 @@ class DbtCoreOperation(ShellOperation):
 
     _block_type_name = "dbt Core Operation"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/5zE9lxfzBHjw3tnEup4wWL/9a001902ed43a84c6c96d23b24622e19/dbt-bit_tm.png?h=250"  # noqa
-    _documentation_url = "https://prefecthq.github.io/prefect-dbt/cli/commands/#prefect_dbt.cli.commands.DbtCoreOperation"  # noqa
+    _documentation_url = "https://docs.prefect.io/integrations/prefect-dbt"  # noqa
 
     profiles_dir: Optional[Path] = Field(
         default=None,
@@ -929,9 +929,11 @@ def _create_unsuccessful_markdown(run_results: dict) -> str:
                 n.node.resource_type,
                 n.message,
                 n.node.path,
-                n.node.compiled_code
-                if n.node.resource_type not in ["seed", "source"]
-                else None,
+                (
+                    n.node.compiled_code
+                    if n.node.resource_type not in ["seed", "source"]
+                    else None
+                ),
             )
     if len(run_results["Fail"]) > 0:
         markdown += "\n### Failed Nodes:\n"
@@ -941,9 +943,11 @@ def _create_unsuccessful_markdown(run_results: dict) -> str:
                 n.node.resource_type,
                 n.message,
                 n.node.path,
-                n.node.compiled_code
-                if n.node.resource_type not in ["seed", "source"]
-                else None,
+                (
+                    n.node.compiled_code
+                    if n.node.resource_type not in ["seed", "source"]
+                    else None
+                ),
             )
     if len(run_results["Skipped"]) > 0:
         markdown += "\n### Skipped Nodes:\n"
@@ -953,9 +957,11 @@ def _create_unsuccessful_markdown(run_results: dict) -> str:
                 n.node.resource_type,
                 n.message,
                 n.node.path,
-                n.node.compiled_code
-                if n.node.resource_type not in ["seed", "source"]
-                else None,
+                (
+                    n.node.compiled_code
+                    if n.node.resource_type not in ["seed", "source"]
+                    else None
+                ),
             )
     if len(run_results["Warn"]) > 0:
         markdown += "\n### Warned Nodes:\n"
@@ -965,9 +971,11 @@ def _create_unsuccessful_markdown(run_results: dict) -> str:
                 n.node.resource_type,
                 n.message,
                 n.node.path,
-                n.node.compiled_code
-                if n.node.resource_type not in ["seed", "source"]
-                else None,
+                (
+                    n.node.compiled_code
+                    if n.node.resource_type not in ["seed", "source"]
+                    else None
+                ),
             )
     return markdown
 

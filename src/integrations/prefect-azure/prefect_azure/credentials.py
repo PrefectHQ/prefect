@@ -95,7 +95,7 @@ class AzureBlobStorageCredentials(Block):
 
     _block_type_name = "Azure Blob Storage Credentials"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/54e3fa7e00197a4fbd1d82ed62494cb58d08c96a-250x250.png"  # noqa
-    _documentation_url = "https://prefecthq.github.io/prefect-azure/credentials/#prefect_azure.credentials.AzureBlobStorageCredentials"  # noqa
+    _documentation_url = "https://docs.prefect.io/integrations/prefect-azure"  # noqa
 
     connection_string: Optional[SecretStr] = Field(
         default=None,
@@ -281,7 +281,7 @@ class AzureCosmosDbCredentials(Block):
 
     _block_type_name = "Azure Cosmos DB Credentials"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/54e3fa7e00197a4fbd1d82ed62494cb58d08c96a-250x250.png"  # noqa
-    _documentation_url = "https://prefecthq.github.io/prefect-azure/credentials/#prefect_azure.credentials.AzureCosmosDbCredentials"  # noqa
+    _documentation_url = "https://docs.prefect.io/integrations/prefect-azure"  # noqa
 
     connection_string: SecretStr = Field(
         default=..., description="Includes the authorization information required."
@@ -401,7 +401,7 @@ class AzureMlCredentials(Block):
 
     _block_type_name = "AzureML Credentials"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/54e3fa7e00197a4fbd1d82ed62494cb58d08c96a-250x250.png"  # noqa
-    _documentation_url = "https://prefecthq.github.io/prefect-azure/credentials/#prefect_azure.credentials.AzureMlCredentials"  # noqa
+    _documentation_url = "https://docs.prefect.io/integrations/prefect-azure"  # noqa
 
     tenant_id: str = Field(
         default=...,
@@ -474,7 +474,7 @@ class AzureContainerInstanceCredentials(Block):
 
     _block_type_name = "Azure Container Instance Credentials"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/54e3fa7e00197a4fbd1d82ed62494cb58d08c96a-250x250.png"  # noqa
-    _documentation_url = "https://prefecthq.github.io/prefect-azure/credentials/#prefect_azure.credentials.AzureContainerInstanceCredentials"  # noqa
+    _documentation_url = "https://docs.prefect.io/integrations/prefect-azure"  # noqa
 
     client_id: Optional[str] = Field(
         default=None,

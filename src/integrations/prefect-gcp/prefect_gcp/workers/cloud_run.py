@@ -541,7 +541,7 @@ class CloudRunWorker(BaseWorker):
         "a Google Cloud Platform account."
     )
     _display_name = "Google Cloud Run"
-    _documentation_url = "https://prefecthq.github.io/prefect-gcp/cloud_run_worker/"
+    _documentation_url = "https://docs.prefect.io/integrations/prefect-gcp"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/10424e311932e31c477ac2b9ef3d53cefbaad708-250x250.png"  # noqa
 
     def _create_job_error(self, exc, configuration):
