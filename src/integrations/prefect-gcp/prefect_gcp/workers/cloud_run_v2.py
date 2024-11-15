@@ -226,7 +226,10 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
         if "volumes" not in template:
             template["volumes"] = []
         template["volumes"].append(
-            {"name": "cloudsql", "cloudSqlInstance": {"instances": self.cloudsql_instances}}
+            {
+                "name": "cloudsql",
+                "cloudSqlInstance": {"instances": self.cloudsql_instances},
+            }
         )
         if "volumeMounts" not in containers[0]:
             containers[0]["volumeMounts"] = []
