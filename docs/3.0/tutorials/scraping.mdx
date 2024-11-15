@@ -18,44 +18,54 @@ Throw and catch errors to handle them gracefully.
 For example, if you don't get a 2xx response from an API, throw an exception and log the error.
 
 ```python
-@flow(log_prints=True)
-def analyze_repo_health(repos: [str]):
-    """Analyze issue health metrics for GitHub repositories"""
-    for repo in repos:
-        try:
-            issue = fetch_issue_details(repo, 1)
-            print(f"Successfully fetched issue #{issue['number']}: {issue['title']}")
-        except Exception as e:
-            print(f"Error analyzing {repo}: {e}")
+@task
+def fetch_page_of_issues(repo: str, page: int = 1) -> Optional[dict]:
+    """Fetch a page of issues for a GitHub repository"""
+    try:
+        response = httpx.get(
+            f"https://api.github.com/repos/{repo}/issues",
+            params={"page": page, "state": "all", "per_page": 100}
+        )
+        response.raise_for_status() # Raise an exception if the response is not a 2xx status code
+        return response.json()
+    except Exception as e:
+        print(f"Error fetching issues for {repo}: {e}")
+        return None
 ```
 
 <Expandable title="full example">
 Run the following code to see error handling in action:
 
 ```python
-from datetime import timedelta
+from typing import List, Optional
 import httpx
 
 from prefect import flow, task
 
 
-@flow(log_prints=True)
-def analyze_repo_health(repos: [str]):
+@flow
+def analyze_repo_health(repos: List[str]):
     """Analyze issue health metrics for GitHub repositories"""
     for repo in repos:
-        try:
-            issue = fetch_issue_details(repo, 1)
-            print(f"Successfully fetched issue #{issue['number']}: {issue['title']}")
-        except Exception as e:
-            print(f"Error analyzing {repo}: {e}")
+        print(f"Analyzing {repo}...")
+        
+        # Fetch and analyze all issues
+        fetch_page_of_issues(repo)
 
 
-@task(retries=3)
-def fetch_issue_details(repo: str, issue_number: int) -> dict:
-    """Fetch detailed information about a specific issue"""
-    response = httpx.get(f"https://api.github.com/repos/{repo}/issues/{issue_number}")
-    response.raise_for_status()
-    return response.json()
+@task
+def fetch_page_of_issues(repo: str, page: int = 1) -> Optional[dict]:
+    """Fetch a page of issues for a GitHub repository"""
+    try:
+        response = httpx.get(
+            f"https://api.github.com/repos/{repo}/issues",
+            params={"page": page, "state": "all", "per_page": 100}
+        )
+        response.raise_for_status() # Raise an exception if the response is not a 2xx status code
+        return response.json()
+    except Exception as e:
+        print(f"Error fetching issues for {repo}: {e}")
+        return None
 
 
 if __name__ == "__main__":
@@ -93,65 +103,116 @@ def analyze_repo_health(repos: [str]):
         print(f"Analyzed issue #{result['number']}")
 ```
 
+```python
+@flow
+def analyze_repo_health(repos: List[str]):
+    """Analyze issue health metrics for GitHub repositories"""
+    for repo in repos:
+        fetch_repo_issues(repo) # Fetch and analyze all issues
+
+
+@flow
+def fetch_repo_issues(repo: str):
+    """Fetch all issues for a single repository"""
+    all_issues = []
+    page = 1
+    
+    for page in range(1, 3):  # Limit to 2 pages to avoid hitting rate limits
+        issues = fetch_page_of_issues(repo, page)
+        if not issues or len(issues) == 0:
+            break
+        all_issues.extend(issues)
+        page += 1
+
+    issue_details = []
+    for issue in all_issues[:5]:  # Limit to 5 issues to avoid hitting rate limits
+        issue_details.append(
+            fetch_issue_details.submit(repo, issue['number'])  # Make requests in parallel
+        )
+    
+    details = []
+    for issue in issue_details:
+        details.append(issue.result())
+
+    return details
+```
+
 <Expandable title="full example">
 Run the following code to see pagination and parallel tasks in action:
 
 ```python
+from typing import List, Optional
 import httpx
-from typing import Optional, List
 
 from prefect import flow, task
 
 
 @flow(log_prints=True)
-def analyze_repo_health(repos: [str]):
+def analyze_repo_health(repos: List[str]):
     """Analyze issue health metrics for GitHub repositories"""
-    all_issues = []
-    
-    # Handle pagination
     for repo in repos:
-        for page in range(1, 3):  # Get first 2 pages
-            issues = fetch_page_of_issues(repo, page)
-            if not issues:
-                break
-            all_issues.extend(issues)
-            print(f"Fetched page {page} with {len(issues)} issues")
+        print(f"Analyzing {repo}...")
+        
+        # Fetch and analyze all issues
+        fetch_repo_issues(repo)
+
+
+@flow
+def fetch_repo_issues(repo: str):
+    """Fetch all issues for a single repository"""
+    all_issues = []
+    page = 1
     
-    # Run issue analysis tasks in parallel
+    for page in range(1, 3):  # Limit to 2 pages to avoid hitting rate limits
+        issues = fetch_page_of_issues(repo, page)
+        if not issues or len(issues) == 0:
+            break
+        all_issues.extend(issues)
+        page += 1
+
     issue_details = []
-    for issue in all_issues[:5]:  # Analyze first 5 issues to avoid hitting rate limits
+    for issue in all_issues[:5]:  # Limit to 5 issues to avoid hitting rate limits
         issue_details.append(
-            analyze_issue.submit(issue)
+            fetch_issue_details.submit(repo, issue['number'])  # Make requests in parallel
         )
     
-    # Wait for all analysis tasks to complete
-    for detail in issue_details:
-        result = detail.result()
-        print(f"Analyzed issue #{result['number']}")
+    details = []
+    for issue in issue_details:
+        details.append(issue.result())
+
+    return details
 
 
 @task
-def fetch_page_of_issues(repo: str, page: int = 1) -> Optional[List[dict]]:
+def fetch_page_of_issues(repo: str, page: int = 1) -> Optional[dict]:
     """Fetch a page of issues for a GitHub repository"""
-    response = httpx.get(
-        f"https://api.github.com/repos/{repo}/issues",
-        params={"page": page, "state": "all", "per_page": 100}
-    )
-    return response.json()
+    try:
+        response = httpx.get(
+            f"https://api.github.com/repos/{repo}/issues",
+            params={"page": page, "state": "all", "per_page": 100}
+        )
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        print(f"Error fetching issues for {repo}: {e}")
+        return None
 
 
 @task
-def analyze_issue(issue: dict) -> dict:
-    """Analyze a single issue"""
-    return {
-        "number": issue["number"],
-        "state": issue["state"],
-        "created_at": issue["created_at"]
-    }
+def fetch_issue_details(repo: str, issue_number: int) -> dict:
+    """Fetch detailed information about a specific issue"""
+    response = httpx.get(f"https://api.github.com/repos/{repo}/issues/{issue_number}")
+    issue_data = response.json()
+    
+    return issue_data
 
 
 if __name__ == "__main__":
-    analyze_repo_health(["PrefectHQ/prefect"])
+    analyze_repo_health([
+        "PrefectHQ/prefect",
+        "tensorflow/tensorflow",
+        "huggingface/transformers"
+    ])
 ```
 </Expandable>
 
@@ -187,13 +248,6 @@ def fetch_repo_issues(repo: str):
 
 
 @task
-def calculate_response_times(issues: List[dict]) -> float:
-    """Task: Calculate average time to first response for issues"""
-    
-    # ...
-
-
-@task
 def calculate_resolution_rate(issues: List[dict]) -> float:
     """Task: Calculate the percentage of closed issues"""
 
@@ -204,9 +258,8 @@ def calculate_resolution_rate(issues: List[dict]) -> float:
 Run the following code to see metrics calculation in action:
 
 ```python
-from datetime import datetime
+from typing import List, Optional
 import httpx
-from typing import List
 
 from prefect import flow, task
 
@@ -215,27 +268,65 @@ from prefect import flow, task
 def analyze_repo_health(repos: List[str]):
     """Analyze issue health metrics for GitHub repositories"""
     for repo in repos:
-        # Fetch sample issues
-        issues = fetch_page_of_issues(repo)
+        print(f"Analyzing {repo}...")
+        
+        # Fetch and analyze all issues
+        issues = fetch_repo_issues(repo)
         
         # Calculate metrics
-        metrics = calculate_resolution_rate(issues)
-        response_times = calculate_response_times(issues)
+        resolution_rate = calculate_resolution_rate(issues)
         
-        print(f"\nRepository Health Metrics for {repo}:")
-        print(f"Total Issues: {metrics['total']}")
-        print(f"Resolution Rate: {metrics['resolution_rate']:.1f}%")
-        print(f"Average Response Time: {response_times:.1f} hours")
+        print(f"Resolution rate: {resolution_rate:.1f}%")
+
+
+@flow
+def fetch_repo_issues(repo: str):
+    """Fetch all issues for a single repository"""
+    all_issues = []
+    page = 1
+    
+    for page in range(1, 3):  # Limit to 2 pages to avoid hitting rate limits
+        issues = fetch_page_of_issues(repo, page)
+        if not issues or len(issues) == 0:
+            break
+        all_issues.extend(issues)
+        page += 1
+
+    issue_details = []
+    for issue in all_issues[:5]:  # Limit to 5 issues to avoid hitting rate limits
+        issue_details.append(
+            fetch_issue_details.submit(repo, issue['number'])
+        )
+    
+    details = []
+    for issue in issue_details:
+        details.append(issue.result())
+
+    return details
 
 
 @task
-def fetch_page_of_issues(repo: str) -> List[dict]:
-    """Fetch issues for a GitHub repository"""
-    response = httpx.get(
-        f"https://api.github.com/repos/{repo}/issues",
-        params={"state": "all", "per_page": 100}
-    )
-    return response.json()
+def fetch_page_of_issues(repo: str, page: int = 1) -> Optional[dict]:
+    """Fetch a page of issues for a GitHub repository"""
+    try:
+        response = httpx.get(
+            f"https://api.github.com/repos/{repo}/issues",
+            params={"page": page, "state": "all", "per_page": 100}
+        )
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        print(f"Error fetching issues for {repo}: {e}")
+        return None
+
+
+@task
+def fetch_issue_details(repo: str, issue_number: int) -> dict:
+    """Fetch detailed information about a specific issue"""
+    response = httpx.get(f"https://api.github.com/repos/{repo}/issues/{issue_number}")
+    issue_data = response.json()
+    
+    return issue_data
 
 
 @task
@@ -248,13 +339,18 @@ def calculate_resolution_rate(issues: List[dict]) -> float:
 
 
 if __name__ == "__main__":
-    analyze_repo_health(["PrefectHQ/prefect"])
+    analyze_repo_health([
+        "PrefectHQ/prefect",
+        "tensorflow/tensorflow",
+        "huggingface/transformers"
+    ])
 ```
 </Expandable>
 
 ## Put it all together
 
-Here's the complete flow that combines all of these components:
+Here's the complete flow that combines all of these components.
+We'll also add retries, caching, and rate limiting to make the workflow more robust.
 
 ```python repo_analysis.py
 from datetime import timedelta, datetime
