@@ -1,7 +1,7 @@
 import uuid
 from typing import Any, Dict, Optional, Type
 from unittest import mock
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, Mock
 
 import httpx
 import pendulum
@@ -28,7 +28,6 @@ from prefect.server.schemas.core import Deployment, Flow, WorkPool
 from prefect.server.schemas.responses import DeploymentResponse
 from prefect.settings import (
     PREFECT_API_URL,
-    PREFECT_EXPERIMENTS_WORKER_LOGGING_TO_API_ENABLED,
     PREFECT_TEST_MODE,
     PREFECT_WORKER_PREFETCH_SECONDS,
     get_current_settings,
@@ -83,14 +82,6 @@ async def variables(prefect_client: PrefectClient):
 @pytest.fixture
 def no_api_url():
     with temporary_settings(updates={PREFECT_TEST_MODE: False, PREFECT_API_URL: None}):
-        yield
-
-
-@pytest.fixture
-def experimental_logging_enabled():
-    with temporary_settings(
-        updates={PREFECT_EXPERIMENTS_WORKER_LOGGING_TO_API_ENABLED: True}
-    ):
         yield
 
 
@@ -197,7 +188,7 @@ async def test_worker_sends_heartbeat_gets_id(respx_mock):
         assert worker.backend_id == test_worker_id
 
 
-async def test_worker_sends_heartbeat_only_gets_id_once(experimental_logging_enabled):
+async def test_worker_sends_heartbeat_only_gets_id_once():
     async with WorkerTestImpl(name="test", work_pool_name="test-work-pool") as worker:
         worker._client.server_type = ServerType.CLOUD
         mock = AsyncMock(return_value="test")
@@ -336,6 +327,34 @@ async def test_priority_trumps_lateness(
         submitted_flow_runs = await worker.get_and_submit_flow_runs()
 
     assert {flow_run.id for flow_run in submitted_flow_runs} == set(flow_run_ids[1:2])
+
+
+async def test_worker_releases_limit_slot_when_aborting_a_change_to_pending(
+    prefect_client: PrefectClient, worker_deployment_wq1, work_pool
+):
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/15952"""
+
+    def create_run_with_deployment(state):
+        return prefect_client.create_flow_run_from_deployment(
+            worker_deployment_wq1.id, state=state
+        )
+
+    flow_run = await create_run_with_deployment(
+        Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1))
+    )
+
+    run_mock = AsyncMock()
+    release_mock = Mock()
+
+    async with WorkerTestImpl(work_pool_name=work_pool.name, limit=1) as worker:
+        worker.run = run_mock
+        worker._propose_pending_state = AsyncMock(return_value=False)
+        worker._release_limit_slot = release_mock
+
+        await worker.get_and_submit_flow_runs()
+
+    run_mock.assert_not_called()
+    release_mock.assert_called_once_with(flow_run.id)
 
 
 async def test_worker_with_work_pool_and_limit(
@@ -1567,7 +1586,6 @@ async def test_get_flow_run_logger_with_worker_id_set(
     prefect_client: PrefectClient,
     worker_deployment_wq1,
     work_pool,
-    experimental_logging_enabled,
 ):
     flow_run = await prefect_client.create_flow_run_from_deployment(
         worker_deployment_wq1.id
@@ -1883,7 +1901,7 @@ async def test_env_merge_logic_is_deep(
 
 class TestBaseWorkerHeartbeat:
     async def test_worker_heartbeat_sends_integrations(
-        self, work_pool, hosted_api_server, experimental_logging_enabled
+        self, work_pool, hosted_api_server
     ):
         async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
             await worker.start(run_once=True)
@@ -1926,7 +1944,7 @@ class TestBaseWorkerHeartbeat:
             assert worker._worker_metadata_sent
 
     async def test_custom_worker_can_send_arbitrary_metadata(
-        self, work_pool, hosted_api_server, experimental_logging_enabled
+        self, work_pool, hosted_api_server
     ):
         class CustomWorker(BaseWorker):
             type: str = "test-custom-metadata"

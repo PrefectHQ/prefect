@@ -9,8 +9,6 @@ import {
 	DialogTrigger,
 } from "@/components/ui/dialog";
 import { zodResolver } from "@hookform/resolvers/zod";
-import CodeMirror, { EditorView } from "@uiw/react-codemirror";
-import { json } from "@codemirror/lang-json";
 import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -30,6 +28,7 @@ import { Loader2 } from "lucide-react";
 import { TagsInput } from "../ui/tags-input";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/router";
+import { JsonInput } from "@/components/ui/json-input";
 
 const formSchema = z.object({
 	name: z.string().min(2, { message: "Name must be at least 2 characters" }),
@@ -133,7 +132,7 @@ export const AddVariableDialog = ({
 								<FormItem>
 									<FormLabel>Name</FormLabel>
 									<FormControl>
-										<Input {...field} />
+										<Input autoComplete="off" {...field} />
 									</FormControl>
 									<FormMessage />
 								</FormItem>
@@ -144,23 +143,9 @@ export const AddVariableDialog = ({
 							name="value"
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel id="value-label">Value</FormLabel>
+									<FormLabel>Value</FormLabel>
 									<FormControl>
-										<CodeMirror
-											aria-labelledby="value-label"
-											extensions={[json()]}
-											basicSetup={{
-												foldGutter: false,
-												history: false,
-											}}
-											theme={EditorView.theme({
-												"&.cm-editor.cm-focused": {
-													outline: "none",
-												},
-											})}
-											className="rounded-md border shadow-sm overflow-hidden"
-											{...field}
-										/>
+										<JsonInput {...field} />
 									</FormControl>
 									<FormMessage />
 								</FormItem>
