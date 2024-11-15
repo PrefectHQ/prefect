@@ -87,6 +87,7 @@ type VariablesDataTableProps = {
 	onPaginationChange: OnChangeFn<PaginationState>;
 	columnFilters: ColumnFiltersState;
 	onColumnFiltersChange: OnChangeFn<ColumnFiltersState>;
+	searchDebounceMs?: number;
 	sorting: components["schemas"]["VariableSort"];
 	onSortingChange: (sortKey: components["schemas"]["VariableSort"]) => void;
 };
@@ -98,14 +99,15 @@ export const VariablesDataTable = ({
 	onPaginationChange,
 	columnFilters,
 	onColumnFiltersChange,
+	searchDebounceMs = 500,
 	sorting,
 	onSortingChange,
 }: VariablesDataTableProps) => {
 	const initialSearchValue = columnFilters.find(
 		(filter) => filter.id === "name",
 	)?.value as string;
-	const [searchValue, setSearchValue] = useState(initialSearchValue);
-	const debouncedSearchValue = useDebounce(searchValue, 500);
+	const [searchValue, setSearchValue] = useState(initialSearchValue ?? "");
+	const debouncedSearchValue = useDebounce(searchValue, searchDebounceMs);
 
 	const handleNameSearchChange = useCallback(
 		(value: string) => {
@@ -176,7 +178,7 @@ export const VariablesDataTable = ({
 				</div>
 				<div className="xs:col-span-1 md:col-span-2 lg:col-span-2">
 					<Select value={sorting} onValueChange={onSortingChange}>
-						<SelectTrigger>
+						<SelectTrigger aria-label="Variable sort order">
 							<SelectValue placeholder="Sort by" />
 						</SelectTrigger>
 						<SelectContent>

@@ -29,3 +29,7 @@ vi.mock("@uiw/react-codemirror", () => ({
 		theme: () => ({}),
 	},
 }));
+
+vi.mock("@/hooks/use-debounce", () => ({
+	default: (v: unknown) => v,
+}));

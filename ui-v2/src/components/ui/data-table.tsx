@@ -103,7 +103,7 @@ function DataTablePageSize<TData>({ table }: DataTablePageSizeProps<TData>) {
 					table.setPageSize(Number(value));
 				}}
 			>
-				<SelectTrigger>
+				<SelectTrigger aria-label="Items per page">
 					<SelectValue placeholder="Theme" />
 				</SelectTrigger>
 				<SelectContent>
