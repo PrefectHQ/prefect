@@ -18,7 +18,7 @@ Throw and catch errors to handle them gracefully.
 For example, if you don't get a 2xx response from an API, throw an exception and log the error.
 
 ```python
-@task
+@task(log_prints=True)
 def fetch_page_of_issues(repo: str, page: int = 1) -> Optional[dict]:
     """Fetch a page of issues for a GitHub repository"""
     try:
@@ -43,7 +43,7 @@ import httpx
 from prefect import flow, task
 
 
-@flow
+@flow(log_prints=True)
 def analyze_repo_health(repos: List[str]):
     """Analyze issue health metrics for GitHub repositories"""
     for repo in repos:
@@ -53,7 +53,7 @@ def analyze_repo_health(repos: List[str]):
         fetch_page_of_issues(repo)
 
 
-@task
+@task(log_prints=True)
 def fetch_page_of_issues(repo: str, page: int = 1) -> Optional[dict]:
     """Fetch a page of issues for a GitHub repository"""
     try:
@@ -76,7 +76,7 @@ if __name__ == "__main__":
 ```
 </Expandable>
 
-## Ingest large amount of data
+## Ingest large amounts of data
 
 Use pagination to fetch large amounts of data and run tasks in parallel to analyze the data efficiently:
 
@@ -101,40 +101,6 @@ def analyze_repo_health(repos: [str]):
     for detail in issue_details:
         result = detail.result()
         print(f"Analyzed issue #{result['number']}")
-```
-
-```python
-@flow
-def analyze_repo_health(repos: List[str]):
-    """Analyze issue health metrics for GitHub repositories"""
-    for repo in repos:
-        fetch_repo_issues(repo) # Fetch and analyze all issues
-
-
-@flow
-def fetch_repo_issues(repo: str):
-    """Fetch all issues for a single repository"""
-    all_issues = []
-    page = 1
-    
-    for page in range(1, 3):  # Limit to 2 pages to avoid hitting rate limits
-        issues = fetch_page_of_issues(repo, page)
-        if not issues or len(issues) == 0:
-            break
-        all_issues.extend(issues)
-        page += 1
-
-    issue_details = []
-    for issue in all_issues[:5]:  # Limit to 5 issues to avoid hitting rate limits
-        issue_details.append(
-            fetch_issue_details.submit(repo, issue['number'])  # Make requests in parallel
-        )
-    
-    details = []
-    for issue in issue_details:
-        details.append(issue.result())
-
-    return details
 ```
 
 <Expandable title="full example">
@@ -183,7 +149,7 @@ def fetch_repo_issues(repo: str):
     return details
 
 
-@task
+@task(log_prints=True)
 def fetch_page_of_issues(repo: str, page: int = 1) -> Optional[dict]:
     """Fetch a page of issues for a GitHub repository"""
     try:
@@ -227,7 +193,7 @@ Here's an example of how to use subflows and tasks:
 
 ```python
 
-@flow(log_prints=True)
+@flow
 def analyze_repo_health(repos: List[str]):
     """Analyze issue health metrics for GitHub repositories"""
     for repo in repos:
@@ -240,7 +206,7 @@ def analyze_repo_health(repos: List[str]):
         # ...
 
 
-@flow(log_prints=True)
+@flow
 def fetch_repo_issues(repo: str):
     """Subflow: Fetch all data for a single repository"""
 
@@ -305,7 +271,7 @@ def fetch_repo_issues(repo: str):
     return details
 
 
-@task
+@task(log_prints=True)
 def fetch_page_of_issues(repo: str, page: int = 1) -> Optional[dict]:
     """Fetch a page of issues for a GitHub repository"""
     try:
@@ -380,7 +346,7 @@ def analyze_repo_health(repos: List[str]):
         print(f"Resolution rate: {resolution_rate:.1f}%")
 
 
-@flow(log_prints=True)
+@flow
 def fetch_repo_issues(repo: str):
     """Fetch all issues for a single repository"""
     all_issues = []
@@ -406,7 +372,7 @@ def fetch_repo_issues(repo: str):
     return details
 
 
-@task(retries=3, cache_key_fn=task_input_hash, cache_expiration=timedelta(hours=1))
+@task(log_prints=True, retries=3, cache_key_fn=task_input_hash, cache_expiration=timedelta(hours=1))
 def fetch_page_of_issues(repo: str, page: int = 1) -> Optional[dict]:
     """Fetch a page of issues for a GitHub repository"""
     rate_limit("github-api")
@@ -436,7 +402,7 @@ def fetch_issue_details(repo: str, issue_number: int) -> dict:
     return issue_data
 
 
-@task(retries=3, cache_key_fn=task_input_hash, cache_expiration=timedelta(hours=1))
+@task(log_prints=True, retries=3, cache_key_fn=task_input_hash, cache_expiration=timedelta(hours=1))
 def fetch_comments(comments_url: str) -> List[dict]:
     """Fetch comments for an issue"""
     rate_limit("github-api")
