@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import sys
 import traceback
+import uuid
 import warnings
 from collections import Counter
 from types import GeneratorType, TracebackType
@@ -12,6 +13,7 @@ import httpx
 import pendulum
 from typing_extensions import TypeGuard
 
+from prefect._internal.compatibility import deprecated
 from prefect.client.schemas import State as State
 from prefect.client.schemas import StateDetails, StateType
 from prefect.exceptions import (
@@ -32,7 +34,6 @@ from prefect.results import (
     ResultRecordMetadata,
     ResultStore,
 )
-from prefect.settings import PREFECT_ASYNC_FETCH_STATE_RESULT
 from prefect.utilities.annotations import BaseAnnotation
 from prefect.utilities.asyncutils import in_async_main_thread, sync_compatible
 from prefect.utilities.collections import ensure_iterable
@@ -40,10 +41,17 @@ from prefect.utilities.collections import ensure_iterable
 logger = get_logger("states")
 
 
+@deprecated.deprecated_parameter(
+    "fetch",
+    when=lambda fetch: fetch is not True,
+    start_date="Oct 2024",
+    end_date="Jan 2025",
+    help="Please ensure you are awaiting the call to `result()` when calling in an async context.",
+)
 def get_state_result(
     state: State[R],
     raise_on_failure: bool = True,
-    fetch: Optional[bool] = None,
+    fetch: bool = True,
     retry_result_failure: bool = True,
 ) -> R:
     """
@@ -52,23 +60,17 @@ def get_state_result(
     See `State.result()`
     """
 
-    if fetch is None and (
-        PREFECT_ASYNC_FETCH_STATE_RESULT or not in_async_main_thread()
-    ):
-        # Fetch defaults to `True` for sync users or async users who have opted in
-        fetch = True
-    if not fetch:
-        if fetch is None and in_async_main_thread():
-            warnings.warn(
-                (
-                    "State.result() was called from an async context but not awaited. "
-                    "This method will be updated to return a coroutine by default in "
-                    "the future. Pass `fetch=True` and `await` the call to get rid of "
-                    "this warning."
-                ),
-                DeprecationWarning,
-                stacklevel=2,
-            )
+    if not fetch and in_async_main_thread():
+        warnings.warn(
+            (
+                "State.result() was called from an async context but not awaited. "
+                "This method will be updated to return a coroutine by default in "
+                "the future. Pass `fetch=True` and `await` the call to get rid of "
+                "this warning."
+            ),
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
         return state.data
     else:
@@ -219,7 +221,8 @@ async def exception_to_crashed_state(
         )
 
     if result_store:
-        data = result_store.create_result_record(exc)
+        key = uuid.uuid4().hex
+        data = result_store.create_result_record(exc, key=key)
     else:
         # Attach the exception for local usage, will not be available when retrieved
         # from the API
@@ -252,14 +255,15 @@ async def exception_to_failed_state(
         pass
 
     if result_store:
-        data = result_store.create_result_record(exc)
+        key = uuid.uuid4().hex
+        data = result_store.create_result_record(exc, key=key)
         if write_result:
             try:
                 await result_store.apersist_result_record(data)
-            except Exception as exc:
+            except Exception as nested_exc:
                 local_logger.warning(
                     "Failed to write result: %s Execution will continue, but the result has not been written",
-                    exc,
+                    nested_exc,
                 )
     else:
         # Attach the exception for local usage, will not be available when retrieved

@@ -2,7 +2,10 @@ from typing import Optional
 
 from pydantic import Field
 
-from prefect.settings.base import PrefectBaseSettings, PrefectSettingsConfigDict
+from prefect.settings.base import (
+    PrefectBaseSettings,
+    _build_settings_config,
+)
 
 
 class CLISettings(PrefectBaseSettings):
@@ -10,13 +13,7 @@ class CLISettings(PrefectBaseSettings):
     Settings for controlling CLI behavior
     """
 
-    model_config = PrefectSettingsConfigDict(
-        env_prefix="PREFECT_CLI_",
-        env_file=".env",
-        extra="ignore",
-        toml_file="prefect.toml",
-        prefect_toml_table_header=("cli",),
-    )
+    model_config = _build_settings_config(("cli",))
 
     colors: bool = Field(
         default=True,

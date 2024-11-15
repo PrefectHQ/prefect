@@ -7,7 +7,6 @@ from typing import Any
 
 from packaging.version import Version
 
-import prefect
 from prefect.server.api.server import create_app
 
 Mint = dict[str, Any]
@@ -32,7 +31,9 @@ def current_version() -> str:
     Return a high-level version string for the current Prefect version,
     such as "3.1" or "3.1rc".
     """
-    version = Version(prefect.__version__)
+    # TODO: Handle versioned docs
+    # version = Version(prefect.__version__)
+    version = Version("3.0.0")
     return f"{version.major}.{version.minor}{version.pre[0] if version.pre else ''}"
 
 

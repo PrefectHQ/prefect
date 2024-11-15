@@ -4,17 +4,24 @@ import warnings
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Type
 
+import dotenv
 import toml
 from pydantic import AliasChoices
 from pydantic.fields import FieldInfo
 from pydantic_settings import (
     BaseSettings,
+    DotEnvSettingsSource,
     EnvSettingsSource,
     PydanticBaseSettingsSource,
 )
-from pydantic_settings.sources import ConfigFileSourceMixin
+from pydantic_settings.sources import (
+    ENV_FILE_SENTINEL,
+    ConfigFileSourceMixin,
+    DotenvType,
+)
 
 from prefect.settings.constants import DEFAULT_PREFECT_HOME, DEFAULT_PROFILES_PATH
+from prefect.utilities.collections import get_from_dict
 
 
 class EnvFilterSettingsSource(EnvSettingsSource):
@@ -56,6 +63,44 @@ class EnvFilterSettingsSource(EnvSettingsSource):
                     key: value
                     for key, value in self.env_vars.items()  # type: ignore
                     if key.lower() not in env_filter
+                }
+
+
+class FilteredDotEnvSettingsSource(DotEnvSettingsSource):
+    def __init__(
+        self,
+        settings_cls: type[BaseSettings],
+        env_file: Optional[DotenvType] = ENV_FILE_SENTINEL,
+        env_file_encoding: Optional[str] = None,
+        case_sensitive: Optional[bool] = None,
+        env_prefix: Optional[str] = None,
+        env_nested_delimiter: Optional[str] = None,
+        env_ignore_empty: Optional[bool] = None,
+        env_parse_none_str: Optional[str] = None,
+        env_parse_enums: Optional[bool] = None,
+        env_blacklist: Optional[List[str]] = None,
+    ) -> None:
+        super().__init__(
+            settings_cls,
+            env_file,
+            env_file_encoding,
+            case_sensitive,
+            env_prefix,
+            env_nested_delimiter,
+            env_ignore_empty,
+            env_parse_none_str,
+            env_parse_enums,
+        )
+        self.env_blacklist = env_blacklist
+        if self.env_blacklist:
+            if isinstance(self.env_vars, dict):
+                for key in self.env_blacklist:
+                    self.env_vars.pop(key, None)
+            else:
+                self.env_vars = {
+                    key: value
+                    for key, value in self.env_vars.items()  # type: ignore
+                    if key.lower() not in env_blacklist
                 }
 
 
@@ -109,21 +154,34 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
     ) -> Tuple[Any, str, bool]:
         """Concrete implementation to get the field value from the profile settings"""
         if field.validation_alias:
+            # Use validation alias as the key to ensure profile value does not
+            # higher priority sources. Lower priority sources that use the
+            # field name can override higher priority sources that use the
+            # validation alias as seen in https://github.com/PrefectHQ/prefect/issues/15981
             if isinstance(field.validation_alias, str):
                 value = self.profile_settings.get(field.validation_alias.upper())
                 if value is not None:
-                    return value, field_name, self.field_is_complex(field)
+                    return value, field.validation_alias, self.field_is_complex(field)
             elif isinstance(field.validation_alias, AliasChoices):
+                value = None
+                lowest_priority_alias = next(
+                    choice
+                    for choice in reversed(field.validation_alias.choices)
+                    if isinstance(choice, str)
+                )
                 for alias in field.validation_alias.choices:
                     if not isinstance(alias, str):
                         continue
                     value = self.profile_settings.get(alias.upper())
                     if value is not None:
-                        return value, field_name, self.field_is_complex(field)
+                        return (
+                            value,
+                            lowest_priority_alias,
+                            self.field_is_complex(field),
+                        )
 
-        value = self.profile_settings.get(
-            f"{self.config.get('env_prefix','')}{field_name.upper()}"
-        )
+        name = f"{self.config.get('env_prefix','')}{field_name.upper()}"
+        value = self.profile_settings.get(name)
         return value, field_name, self.field_is_complex(field)
 
     def __call__(self) -> Dict[str, Any]:
@@ -144,26 +202,11 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
 DEFAULT_PREFECT_TOML_PATH = Path("prefect.toml")
 
 
-class PrefectTomlConfigSettingsSource(
-    PydanticBaseSettingsSource, ConfigFileSourceMixin
-):
-    """Custom pydantic settings source to load settings from a prefect.toml file"""
-
-    def __init__(
-        self,
-        settings_cls: Type[BaseSettings],
-    ):
+class TomlConfigSettingsSourceBase(PydanticBaseSettingsSource, ConfigFileSourceMixin):
+    def __init__(self, settings_cls: Type[BaseSettings]):
         super().__init__(settings_cls)
         self.settings_cls = settings_cls
-        self.toml_file_path = settings_cls.model_config.get(
-            "toml_file", DEFAULT_PREFECT_TOML_PATH
-        )
-        self.toml_data = self._read_files(self.toml_file_path)
-        self.toml_table_header = settings_cls.model_config.get(
-            "prefect_toml_table_header", tuple()
-        )
-        for key in self.toml_table_header:
-            self.toml_data = self.toml_data.get(key, {})
+        self.toml_data = {}
 
     def _read_file(self, path: Path) -> Dict[str, Any]:
         return toml.load(path)
@@ -177,7 +220,22 @@ class PrefectTomlConfigSettingsSource(
             # if the value is a dict, it is likely a nested settings object and a nested
             # source will handle it
             value = None
-        return value, field_name, self.field_is_complex(field)
+        name = field_name
+        # Use validation alias as the key to ensure profile value does not
+        # higher priority sources. Lower priority sources that use the
+        # field name can override higher priority sources that use the
+        # validation alias as seen in https://github.com/PrefectHQ/prefect/issues/15981
+        if value is not None:
+            if field.validation_alias and isinstance(field.validation_alias, str):
+                name = field.validation_alias
+            elif field.validation_alias and isinstance(
+                field.validation_alias, AliasChoices
+            ):
+                for alias in reversed(field.validation_alias.choices):
+                    if isinstance(alias, str):
+                        name = alias
+                        break
+        return value, name, self.field_is_complex(field)
 
     def __call__(self) -> Dict[str, Any]:
         """Called by pydantic to get the settings from our custom source"""
@@ -190,6 +248,42 @@ class PrefectTomlConfigSettingsSource(
                 )
                 toml_setings[key] = prepared_value
         return toml_setings
+
+
+class PrefectTomlConfigSettingsSource(TomlConfigSettingsSourceBase):
+    """Custom pydantic settings source to load settings from a prefect.toml file"""
+
+    def __init__(
+        self,
+        settings_cls: Type[BaseSettings],
+    ):
+        super().__init__(settings_cls)
+        self.toml_file_path = settings_cls.model_config.get(
+            "toml_file", DEFAULT_PREFECT_TOML_PATH
+        )
+        self.toml_data = self._read_files(self.toml_file_path)
+        self.toml_table_header = settings_cls.model_config.get(
+            "prefect_toml_table_header", tuple()
+        )
+        for key in self.toml_table_header:
+            self.toml_data = self.toml_data.get(key, {})
+
+
+class PyprojectTomlConfigSettingsSource(TomlConfigSettingsSourceBase):
+    """Custom pydantic settings source to load settings from a pyproject.toml file"""
+
+    def __init__(
+        self,
+        settings_cls: Type[BaseSettings],
+    ):
+        super().__init__(settings_cls)
+        self.toml_file_path = Path("pyproject.toml")
+        self.toml_data = self._read_files(self.toml_file_path)
+        self.toml_table_header = settings_cls.model_config.get(
+            "pyproject_toml_table_header", ("tool", "prefect")
+        )
+        for key in self.toml_table_header:
+            self.toml_data = self.toml_data.get(key, {})
 
 
 def _is_test_mode() -> bool:
@@ -209,6 +303,25 @@ def _get_profiles_path() -> Path:
         return DEFAULT_PROFILES_PATH
     if env_path := os.getenv("PREFECT_PROFILES_PATH"):
         return Path(env_path)
+    if dotenv_path := dotenv.dotenv_values(".env").get("PREFECT_PROFILES_PATH"):
+        return Path(dotenv_path)
+    if toml_path := _get_profiles_path_from_toml("prefect.toml", ["profiles_path"]):
+        return Path(toml_path)
+    if pyproject_path := _get_profiles_path_from_toml(
+        "pyproject.toml", ["tool", "prefect", "profiles_path"]
+    ):
+        return Path(pyproject_path)
     if not (DEFAULT_PREFECT_HOME / "profiles.toml").exists():
         return DEFAULT_PROFILES_PATH
     return DEFAULT_PREFECT_HOME / "profiles.toml"
+
+
+def _get_profiles_path_from_toml(path: str, keys: List[str]) -> Optional[str]:
+    """Helper to get the profiles path from a toml file."""
+
+    try:
+        toml_data = toml.load(path)
+    except FileNotFoundError:
+        return None
+
+    return get_from_dict(toml_data, keys)

@@ -102,6 +102,34 @@ Workers have two statuses: `ONLINE` and `OFFLINE`. A worker is online if it send
 If a worker misses three heartbeats, it is considered offline. By default, a worker is considered offline a maximum of 90 seconds 
 after it stopped sending heartbeats, but you can configure the threshold with the `PREFECT_WORKER_HEARTBEAT_SECONDS` setting.
 
+### Worker logs
+<Warning>This feature is experimental as of Prefect version 3.1.1</Warning>
+
+<span class="badge cloud"></span> Workers can now send logs directly to Prefect Cloud.
+
+To enable this feature, run the command:
+```bash
+prefect config set PREFECT_EXPERIMENTS_WORKER_LOGGING_TO_API_ENABLED=true
+```
+See our [profile settings](/3.0/manage/settings-and-profiles/) documentation for more information about changing settings.
+
+Once enabled:
+- All worker logs are automatically sent to the Prefect Cloud API
+- Logs are accessible through both the Prefect Cloud UI and API
+- Each flow run will include a link to its associated worker's logs
+
+### Worker details
+<span class="badge cloud"></span> The **Worker Details** page shows you three key areas of information:
+
+- Worker status
+- Installed Prefect version
+- Installed Prefect integrations (e.g., `prefect-aws`, `prefect-gcp`)
+- Live worker logs (if worker logging is enabled)
+
+<Warning>Worker logging is an experimental feature as of Prefect version 3.1.1.</Warning> If your worker is using an earlier version of Prefect or you have not opted in to the experiment, this page will not show worker logs.
+
+Access a worker's details by clicking on the worker's name in the Work Pool list.
+
 ### Start a worker
 
 Use the `prefect worker start` CLI command to start a worker. You must pass at least the work pool name. 
@@ -145,10 +173,10 @@ prefect worker start --pool "my-pool" --limit 5
 
 ### Configure prefetch
 
-By default, the worker submits flow runs a short time (10 seconds) before they are scheduled to run. 
+By default, the worker submits flow runs 10 seconds before they are scheduled to run. 
 This allows time for the infrastructure to be created so the flow run can start on time.
 
-In some cases, infrastructure takes longer than 10 seconds to start the flow run. You can increase the prefetch with the 
+In some cases, infrastructure takes longer than 10 seconds to start the flow run. You can increase the prefetch time with the
 `--prefetch-seconds` option or the `PREFECT_WORKER_PREFETCH_SECONDS` setting.
 
 If this value is _more_ than the amount of time it takes for the infrastructure to start, the flow run will _wait_ until its 
@@ -178,5 +206,6 @@ If `prefect worker start` is run non-interactively, the `prompt` install policy 
 See how to [daemonize a Prefect worker](/3.0/resources/daemonize-processes/).
 
 See more information on [overriding a work pool's job variables](/3.0/deploy/infrastructure-concepts/customize).
+
 
 ---------

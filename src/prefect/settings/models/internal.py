@@ -1,17 +1,11 @@
 from pydantic import AliasChoices, AliasPath, Field
 
-from prefect.settings.base import PrefectBaseSettings, PrefectSettingsConfigDict
+from prefect.settings.base import PrefectBaseSettings, _build_settings_config
 from prefect.types import LogLevel
 
 
 class InternalSettings(PrefectBaseSettings):
-    model_config = PrefectSettingsConfigDict(
-        env_prefix="PREFECT_INTERNAL_",
-        env_file=".env",
-        extra="ignore",
-        toml_file="prefect.toml",
-        prefect_toml_table_header=("internal",),
-    )
+    model_config = _build_settings_config(("internal",))
 
     logging_level: LogLevel = Field(
         default="ERROR",

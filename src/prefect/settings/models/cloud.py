@@ -4,7 +4,10 @@ from typing import Optional
 from pydantic import Field, model_validator
 from typing_extensions import Self
 
-from prefect.settings.base import PrefectBaseSettings, PrefectSettingsConfigDict
+from prefect.settings.base import (
+    PrefectBaseSettings,
+    _build_settings_config,
+)
 
 
 def default_cloud_ui_url(settings: "CloudSettings") -> Optional[str]:
@@ -29,13 +32,7 @@ class CloudSettings(PrefectBaseSettings):
     Settings for interacting with Prefect Cloud
     """
 
-    model_config = PrefectSettingsConfigDict(
-        env_prefix="PREFECT_CLOUD_",
-        env_file=".env",
-        extra="ignore",
-        toml_file="prefect.toml",
-        prefect_toml_table_header=("cloud",),
-    )
+    model_config = _build_settings_config(("cloud",))
 
     api_url: str = Field(
         default="https://api.prefect.cloud/api",
