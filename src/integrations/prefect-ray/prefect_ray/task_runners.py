@@ -362,9 +362,6 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture]):
         This variable is otherwise unused as the ray object refs are also
         contained in parameters.
         """
-        from prefect.filesystems import LocalFileSystem
-        from prefect.results import ResultStore
-        from prefect.settings import get_current_settings
 
         # Resolve Ray futures to ensure that the task function receives the actual values
         def resolve_ray_future(expr):
@@ -376,15 +373,6 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture]):
         parameters = visit_collection(
             parameters, visit_fn=resolve_ray_future, return_data=True
         )
-
-        # Create a fresh result store rather than modifying the existing one
-        settings = get_current_settings()
-        storage_path = settings.results.local_storage_path
-        if storage_path:
-            result_store = ResultStore(
-                result_storage=LocalFileSystem(basepath=str(storage_path))
-            )
-            context["result_store"] = result_store
 
         run_task_kwargs = {
             "task": task,
