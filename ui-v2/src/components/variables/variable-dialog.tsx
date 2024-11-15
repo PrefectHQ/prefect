@@ -9,7 +9,6 @@ import {
 	DialogTrigger,
 } from "@/components/ui/dialog";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import {
@@ -21,14 +20,12 @@ import {
 	FormMessage,
 } from "../ui/form";
 import { Input } from "../ui/input";
-import { getQueryService } from "@/api/service";
 import type { components } from "@/api/prefect";
 import type { JSONValue } from "@/lib/types";
 import { TagsInput } from "../ui/tags-input";
-import { useToast } from "@/hooks/use-toast";
-import { queryClient } from "@/router";
 import { JsonInput } from "@/components/ui/json-input";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
+import { useCreateVariable, useUpdateVariable } from "./hooks";
 
 const formSchema = z.object({
 	name: z.string().min(2, { message: "Name must be at least 2 characters" }),
@@ -43,7 +40,7 @@ const formSchema = z.object({
 export type VariableDialogProps = {
 	onOpenChange: (open: boolean) => void;
 	open: boolean;
-	initialValues?: z.infer<typeof formSchema>;
+	existingVariable?: components["schemas"]["Variable"];
 };
 
 const VARIABLE_FORM_DEFAULT_VALUES = {
@@ -55,41 +52,28 @@ const VARIABLE_FORM_DEFAULT_VALUES = {
 export const VariableDialog = ({
 	onOpenChange,
 	open,
-	initialValues,
+	existingVariable,
 }: VariableDialogProps) => {
-	const editMode = !!initialValues;
+	const editMode = !!existingVariable;
 	const form = useForm<z.infer<typeof formSchema>>({
 		resolver: zodResolver(formSchema),
 		defaultValues: VARIABLE_FORM_DEFAULT_VALUES,
 	});
+	const initialValues = useMemo(() => {
+		if (!existingVariable) return undefined;
+		return {
+			name: existingVariable.name,
+			value: JSON.stringify(existingVariable.value),
+			tags: existingVariable.tags,
+		};
+	}, [existingVariable]);
 
 	useEffect(() => {
 		form.reset(initialValues ?? VARIABLE_FORM_DEFAULT_VALUES);
 	}, [initialValues, form]);
 
-	const { toast } = useToast();
-
-	const queryService = getQueryService();
-	const { mutate: createVariable, isPending } = useMutation({
-		mutationFn: (variable: components["schemas"]["VariableCreate"]) => {
-			return queryService.POST("/variables/", {
-				body: variable,
-			});
-		},
-		onSettled: async () => {
-			return await Promise.all([
-				queryClient.invalidateQueries({
-					predicate: (query) => query.queryKey[0] === "variables",
-				}),
-				queryClient.invalidateQueries({
-					predicate: (query) => query.queryKey[0] === "total-variable-count",
-				}),
-			]);
-		},
+	const { mutate: createVariable, isPending: isCreating } = useCreateVariable({
 		onSuccess: () => {
-			toast({
-				title: "Variable created",
-			});
 			onOpenChange(false);
 		},
 		onError: (error) => {
@@ -100,14 +84,35 @@ export const VariableDialog = ({
 		},
 	});
 
+	const { mutate: updateVariable, isPending: isUpdating } = useUpdateVariable({
+		existingVariable,
+		onSuccess: () => {
+			onOpenChange(false);
+		},
+		onError: (error) => {
+			const message = error.message || "Unknown error while updating variable.";
+			form.setError("root", {
+				message,
+			});
+		},
+	});
+
 	const onSubmit = (values: z.infer<typeof formSchema>) => {
 		try {
 			const value = JSON.parse(values.value) as JSONValue;
-			createVariable({
-				name: values.name,
-				value,
-				tags: values.tags,
-			});
+			if (editMode) {
+				updateVariable({
+					name: values.name,
+					value,
+					tags: values.tags,
+				});
+			} else {
+				createVariable({
+					name: values.name,
+					value,
+					tags: values.tags,
+				});
+			}
 		} catch {
 			form.setError("value", { message: "Value must be valid JSON" });
 		}
@@ -173,7 +178,7 @@ export const VariableDialog = ({
 							<DialogTrigger asChild>
 								<Button variant="outline">Close</Button>
 							</DialogTrigger>
-							<Button type="submit" loading={isPending}>
+							<Button type="submit" loading={isCreating || isUpdating}>
 								{editMode ? "Save" : "Create"}
 							</Button>
 						</DialogFooter>

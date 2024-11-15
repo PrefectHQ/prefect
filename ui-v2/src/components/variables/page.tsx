@@ -11,7 +11,7 @@ import {
 } from "@/components/variables/variable-dialog";
 import { VariablesEmptyState } from "@/components/variables/empty-state";
 import { PlusIcon } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { VariablesDataTable } from "./data-table";
 import type {
 	ColumnFiltersState,
@@ -43,31 +43,32 @@ export const VariablesPage = ({
 	onSortingChange,
 }: VariablesPageProps) => {
 	const [addVariableDialogOpen, setAddVariableDialogOpen] = useState(false);
-	const [variableDialogInitialValues, setVariableDialogInitialValues] =
-		useState<VariableDialogProps["initialValues"] | undefined>(undefined);
-	const onAddVariableClick = () => {
-		setVariableDialogInitialValues(undefined);
-		setAddVariableDialogOpen(true);
-	};
-	const handleVariableEdit = (variable: components["schemas"]["Variable"]) => {
-		setVariableDialogInitialValues({
-			name: variable.name,
-			value: JSON.stringify(variable.value),
-			tags: variable.tags,
-		});
-		setAddVariableDialogOpen(true);
-	};
+	const [variableToEdit, setVariableToEdit] =
+		useState<VariableDialogProps["existingVariable"] | undefined>(undefined);
 
-	const handleVariableDialogOpenChange = (open: boolean) => {
+	const onAddVariableClick = useCallback(() => {
+		setVariableToEdit(undefined);
+		setAddVariableDialogOpen(true);
+	}, []);
+
+	const handleVariableEdit = useCallback(
+		(variable: components["schemas"]["Variable"]) => {
+			setVariableToEdit(variable);
+			setAddVariableDialogOpen(true);
+		},
+		[],
+	);
+
+	const handleVariableDialogOpenChange = useCallback((open: boolean) => {
 		setAddVariableDialogOpen(open);
-	};
+	}, []);
 
 	return (
 		<>
 			<VariableDialog
 				open={addVariableDialogOpen}
 				onOpenChange={handleVariableDialogOpenChange}
-				initialValues={variableDialogInitialValues}
+				existingVariable={variableToEdit}
 			/>
 			<div className="flex flex-col gap-4 p-4">
 				<div className="flex items-center gap-2">
