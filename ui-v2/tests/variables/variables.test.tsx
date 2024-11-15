@@ -70,14 +70,14 @@ describe("Variables page", () => {
 
 			await user.click(screen.getByRole("button", { name: "Add Variable" }));
 			await user.type(screen.getByLabelText("Name"), "my-variable");
-			await userEvent.type(screen.getByTestId("mock-codemirror"), "123");
+			await userEvent.type(screen.getByTestId("mock-json-input"), "123");
 			await user.click(
 				screen.getByRole("button", { name: "Close", expanded: true }),
 			);
 			await user.click(screen.getByRole("button", { name: "Add Variable" }));
 
 			expect(screen.getByLabelText("Name")).toHaveValue("");
-			expect(screen.getByTestId("mock-codemirror")).toHaveValue("");
+			expect(screen.getByTestId("mock-json-input")).toHaveValue("");
 		});
 
 		it("should allow adding a variable", async () => {
@@ -98,7 +98,7 @@ describe("Variables page", () => {
 			await user.click(screen.getByRole("button", { name: "Add Variable" }));
 			expect(screen.getByText("New Variable")).toBeVisible();
 			await user.type(screen.getByLabelText("Name"), "my-variable");
-			await userEvent.type(screen.getByTestId("mock-codemirror"), "123");
+			await userEvent.type(screen.getByTestId("mock-json-input"), "123");
 			await userEvent.type(screen.getByLabelText("Tags"), "tag1");
 			await user.click(screen.getByRole("button", { name: "Create" }));
 
@@ -129,7 +129,7 @@ describe("Variables page", () => {
 			// Value validation error
 			await user.type(screen.getByLabelText("Name"), "my-variable");
 			await userEvent.type(
-				screen.getByTestId("mock-codemirror"),
+				screen.getByTestId("mock-json-input"),
 				"{{Invalid JSON",
 			);
 			await user.click(screen.getByRole("button", { name: "Create" }));
@@ -160,7 +160,7 @@ describe("Variables page", () => {
 
 			await user.click(screen.getByRole("button", { name: "Add Variable" }));
 			await user.type(screen.getByLabelText("Name"), "my-variable");
-			await userEvent.type(screen.getByTestId("mock-codemirror"), "123");
+			await userEvent.type(screen.getByTestId("mock-json-input"), "123");
 			await user.click(screen.getByRole("button", { name: "Create" }));
 			expect(screen.getByText("Failed to create variable")).toBeVisible();
 		});
@@ -189,7 +189,7 @@ describe("Variables page", () => {
 
 			await user.click(screen.getByRole("button", { name: "Add Variable" }));
 			await user.type(screen.getByLabelText("Name"), "my-variable");
-			await userEvent.type(screen.getByTestId("mock-codemirror"), "123");
+			await userEvent.type(screen.getByTestId("mock-json-input"), "123");
 			await user.click(screen.getByRole("button", { name: "Create" }));
 
 			expect(
