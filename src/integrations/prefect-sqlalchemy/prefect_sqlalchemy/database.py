@@ -94,7 +94,7 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
 
     _block_type_name = "SQLAlchemy Connector"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/3c7dff04f70aaf4528e184a3b028f9e40b98d68c-250x250.png"  # type: ignore
-    _documentation_url = "https://prefecthq.github.io/prefect-sqlalchemy/database/#prefect_sqlalchemy.database.SqlAlchemyConnector"  # type: ignore
+    _documentation_url = "https://docs.prefect.io/integrations/prefect-sqlalchemy"  # type: ignore
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     connection_info: Union[ConnectionComponents, DBUrl] = Field(
