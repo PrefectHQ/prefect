@@ -9,7 +9,8 @@ from pathlib import Path
 from prefect_ray import RayTaskRunner
 
 from prefect import flow, get_run_logger, task
-from prefect.serializers import PickleSerializer
+from prefect.cache_policies import NONE
+from prefect.results import ResultRecord
 from prefect.settings import (
     PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_RESULTS_PERSIST_BY_DEFAULT,
@@ -17,7 +18,7 @@ from prefect.settings import (
 )
 
 
-@task(result_storage_key="test-key")
+@task(result_storage_key="test-key", cache_policy=NONE)
 def task_a():
     logger = get_run_logger()
     current_storage_path = PREFECT_LOCAL_STORAGE_PATH.value()
@@ -49,9 +50,9 @@ if __name__ == "__main__":
             result_file = tmp_path / "test-key"
             assert result_file.exists(), f"Result file not found at {result_file}"
 
-            # Verify file contents - use pickle serializer since that's what was used to write
-            serializer = PickleSerializer()
-            result = serializer.loads(result_file.read_bytes())
+            # Verify file contents using ResultRecord deserialization
+            record = ResultRecord.deserialize(result_file.read_bytes())
+            result = record.result
             assert result == 42
 
             # Verify no files exist in CWD
