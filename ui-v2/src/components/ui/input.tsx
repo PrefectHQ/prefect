@@ -1,6 +1,8 @@
 import * as React from "react";
-
+import { useEffect, useState } from "react";
+import useDebounce from "@/hooks/use-debounce";
 import { cn } from "@/lib/utils";
+import { SearchIcon } from "lucide-react";
 
 type InputProps = React.ComponentProps<"input"> & {
 	className?: string;
@@ -40,4 +42,40 @@ const IconInput = React.forwardRef<HTMLInputElement, IconInputProps>(
 );
 IconInput.displayName = "IconInput";
 
-export { Input, type InputProps, IconInput };
+type SearchInputProps = Omit<IconInputProps, "Icon"> & {
+	debounceMs?: number;
+};
+
+const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(
+	({ className, debounceMs = 200, onChange, value, ...props }, ref) => {
+		const [state, setState] = useState<{
+			value: typeof value;
+			event?: React.ChangeEvent<HTMLInputElement>;
+		}>({ value });
+		const debouncedValue = useDebounce(state.value, debounceMs);
+
+		useEffect(() => {
+			if (debouncedValue && state.event) {
+				onChange?.(state.event);
+			}
+		}, [debouncedValue, onChange, state.event]);
+
+		useEffect(() => {
+			setState({ value });
+		}, [value]);
+
+		return (
+			<IconInput
+				Icon={SearchIcon}
+				className={className}
+				ref={ref}
+				value={state.value}
+				onChange={(e) => setState({ value: e.target.value, event: e })}
+				{...props}
+			/>
+		);
+	},
+);
+SearchInput.displayName = "SearchInput";
+
+export { Input, type InputProps, IconInput, SearchInput };

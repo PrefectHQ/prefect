@@ -10,10 +10,8 @@ import {
 import { DataTable } from "@/components/ui/data-table";
 import { Badge } from "@/components/ui/badge";
 import { ActionsCell } from "./cells";
-import { useCallback, useEffect, useState } from "react";
-import useDebounce from "@/hooks/use-debounce";
-import { SearchIcon } from "lucide-react";
-import { IconInput } from "@/components/ui/input";
+import { useCallback } from "react";
+import { SearchInput } from "@/components/ui/input";
 import { TagsInput } from "@/components/ui/tags-input";
 import {
 	Select,
@@ -87,7 +85,6 @@ type VariablesDataTableProps = {
 	onPaginationChange: OnChangeFn<PaginationState>;
 	columnFilters: ColumnFiltersState;
 	onColumnFiltersChange: OnChangeFn<ColumnFiltersState>;
-	searchDebounceMs?: number;
 	sorting: components["schemas"]["VariableSort"];
 	onSortingChange: (sortKey: components["schemas"]["VariableSort"]) => void;
 };
@@ -99,18 +96,15 @@ export const VariablesDataTable = ({
 	onPaginationChange,
 	columnFilters,
 	onColumnFiltersChange,
-	searchDebounceMs = 500,
 	sorting,
 	onSortingChange,
 }: VariablesDataTableProps) => {
-	const initialSearchValue = columnFilters.find(
-		(filter) => filter.id === "name",
-	)?.value as string;
-	const [searchValue, setSearchValue] = useState(initialSearchValue ?? "");
-	const debouncedSearchValue = useDebounce(searchValue, searchDebounceMs);
-
+	const nameSearchValue = columnFilters.find((filter) => filter.id === "name")
+		?.value as string;
+	const tagsSearchValue = columnFilters.find((filter) => filter.id === "tags")
+		?.value as string[];
 	const handleNameSearchChange = useCallback(
-		(value: string) => {
+		(value?: string) => {
 			onColumnFiltersChange((prev) => [
 				...prev.filter((filter) => filter.id !== "name"),
 				{ id: "name", value },
@@ -131,10 +125,6 @@ export const VariablesDataTable = ({
 		},
 		[onColumnFiltersChange],
 	);
-
-	useEffect(() => {
-		handleNameSearchChange(debouncedSearchValue);
-	}, [debouncedSearchValue, handleNameSearchChange]);
 
 	const table = useReactTable({
 		data: variables,
@@ -159,21 +149,17 @@ export const VariablesDataTable = ({
 					</p>
 				</div>
 				<div className="sm:col-span-2 md:col-span-2 lg:col-span-3">
-					<IconInput
-						Icon={SearchIcon}
+					<SearchInput
 						placeholder="Search variables"
-						value={searchValue}
-						onChange={(e) => setSearchValue(e.target.value)}
+						value={nameSearchValue}
+						onChange={(e) => handleNameSearchChange(e.target.value)}
 					/>
 				</div>
 				<div className="xs:col-span-1 md:col-span-2 lg:col-span-3">
 					<TagsInput
 						placeholder="Filter by tags"
 						onChange={handleTagsSearchChange}
-						value={
-							columnFilters.find((filter) => filter.id === "tags")
-								?.value as string[]
-						}
+						value={tagsSearchValue}
 					/>
 				</div>
 				<div className="xs:col-span-1 md:col-span-2 lg:col-span-2">
