@@ -372,7 +372,7 @@ class VertexAIWorker(BaseWorker):
         "a Google Cloud Platform account."
     )
     _display_name = "Google Vertex AI"
-    _documentation_url = "https://prefecthq.github.io/prefect-gcp/vertex_worker/"
+    _documentation_url = "https://docs.prefect.io/integrations/prefect-gcp"  # noqa
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/10424e311932e31c477ac2b9ef3d53cefbaad708-250x250.png"  # noqa
 
     async def run(

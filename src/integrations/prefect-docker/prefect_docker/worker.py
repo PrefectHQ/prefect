@@ -396,7 +396,7 @@ class DockerWorker(BaseWorker):
         "Docker daemon."
     )
     _display_name = "Docker"
-    _documentation_url = "https://prefecthq.github.io/prefect-docker/worker/"
+    _documentation_url = "https://docs.prefect.io/integrations/prefect-docker"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/2IfXXfMq66mrzJBDFFCHTp/6d8f320d9e4fc4393f045673d61ab612/Moby-logo.png?h=250"  # noqa
 
     def __init__(
