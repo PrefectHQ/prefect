@@ -3,7 +3,7 @@ import ipaddress
 import socket
 import urllib.parse
 from string import Formatter
-from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union
 from urllib.parse import urlparse
 from uuid import UUID
 
@@ -135,7 +135,7 @@ def url_for(
     obj_id: Optional[Union[str, UUID]] = None,
     url_type: URLType = "ui",
     default_base_url: Optional[str] = None,
-    **additional_format_kwargs: Optional[Dict[str, Any]],
+    **additional_format_kwargs: Any,
 ) -> Optional[str]:
     """
     Returns the URL for a Prefect object.
