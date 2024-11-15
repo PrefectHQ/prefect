@@ -365,7 +365,7 @@ class ResultStore(BaseModel):
             and update.get("result_storage") is None
             or (self.result_storage and self.result_storage.basepath is None)
         ):
-            update["result_storage"] = await get_default_result_storage()
+            update["result_storage"] = await get_default_result_storage(_sync=False)
         if (
             isinstance(self.metadata_storage, NullFileSystem)
             and update.get("metadata_storage", NotSet) is NotSet
