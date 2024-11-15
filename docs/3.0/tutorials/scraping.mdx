@@ -20,21 +20,13 @@ For example, if you don't get a 2xx response from an API, throw an exception and
 ```python
 @flow(log_prints=True)
 def analyze_repo_health(repos: [str]):
-    """Analyze issue health metrics for a GitHub repository"""
+    """Analyze issue health metrics for GitHub repositories"""
     for repo in repos:
         try:
             issue = fetch_issue_details(repo, 1)
             print(f"Successfully fetched issue #{issue['number']}: {issue['title']}")
         except Exception as e:
             print(f"Error analyzing {repo}: {e}")
-
-
-@task(retries=3)
-def fetch_issue_details(repo: str, issue_number: int) -> dict:
-    """Fetch detailed information about a specific issue"""
-    response = httpx.get(f"https://api.github.com/repos/{repo}/issues/{issue_number}")
-    response.raise_for_status() # Throw an exception if you don't get a 2xx response
-    return response.json()
 ```
 
 <Expandable title="full example">
@@ -49,7 +41,7 @@ from prefect import flow, task
 
 @flow(log_prints=True)
 def analyze_repo_health(repos: [str]):
-    """Analyze issue health metrics for a GitHub repository"""
+    """Analyze issue health metrics for GitHub repositories"""
     for repo in repos:
         try:
             issue = fetch_issue_details(repo, 1)
@@ -86,7 +78,7 @@ def analyze_repo_health(repos: [str]):
 
     for repo in repos:
         for page in range(1, 3):  # Get first 2 pages
-            issues = fetch_issues(repo, page)
+            issues = fetch_page_of_issues(repo, page)
             if not issues:
                 break
             all_issues.extend(issues)
@@ -119,7 +111,7 @@ def analyze_repo_health(repos: [str]):
     # Handle pagination
     for repo in repos:
         for page in range(1, 3):  # Get first 2 pages
-            issues = fetch_issues(repo, page)
+            issues = fetch_page_of_issues(repo, page)
             if not issues:
                 break
             all_issues.extend(issues)
@@ -139,7 +131,7 @@ def analyze_repo_health(repos: [str]):
 
 
 @task
-def fetch_issues(repo: str, page: int = 1) -> Optional[List[dict]]:
+def fetch_page_of_issues(repo: str, page: int = 1) -> Optional[List[dict]]:
     """Fetch a page of issues for a GitHub repository"""
     response = httpx.get(
         f"https://api.github.com/repos/{repo}/issues",
@@ -163,18 +155,49 @@ if __name__ == "__main__":
 ```
 </Expandable>
 
-## Use dependent tasks to calculate metrics
+## Structure your code with dependent subflows and tasks
 
-Add dependent tasks to analyze the issue data and calculate health metrics:
+Using subflows and tasks can help you distribute tasks more efficiently and aid with debugging.
+
+* Use subflows for more complex operations that involve multiple steps.
+* Use tasks for simpler, atomic operations.
+
+Here's an example of how to use subflows and tasks:
 
 ```python
+
+@flow(log_prints=True)
+def analyze_repo_health(repos: List[str]):
+    """Analyze issue health metrics for GitHub repositories"""
+    for repo in repos:
+        
+        # Fetch and analyze all issues
+        issues = fetch_repo_issues(repo)
+        
+        # Calculate metrics
+        resolution_rate = calculate_resolution_rate(issues)
+        # ...
+
+
+@flow(log_prints=True)
+def fetch_repo_issues(repo: str):
+    """Subflow: Fetch all data for a single repository"""
+
+    # ...
+
+
 @task
-def calculate_metrics(issues: List[dict]):
-    """Calculate basic repository health metrics"""
-    total = len(issues)
-    closed = sum(1 for issue in issues if issue["state"] == "closed")
-    resolution_rate = (closed / total) * 100 if total > 0 else 0
-    return {"total": total, "resolution_rate": resolution_rate}
+def calculate_response_times(issues: List[dict]) -> float:
+    """Task: Calculate average time to first response for issues"""
+    
+    # ...
+
+
+@task
+def calculate_resolution_rate(issues: List[dict]) -> float:
+    """Task: Calculate the percentage of closed issues"""
+
+    # ...
 ```
 
 <Expandable title="full example">
@@ -190,13 +213,13 @@ from prefect import flow, task
 
 @flow(log_prints=True)
 def analyze_repo_health(repos: List[str]):
-    """Analyze issue health metrics for a GitHub repository"""
+    """Analyze issue health metrics for GitHub repositories"""
     for repo in repos:
         # Fetch sample issues
-        issues = fetch_issues(repo)
+        issues = fetch_page_of_issues(repo)
         
         # Calculate metrics
-        metrics = calculate_metrics(issues)
+        metrics = calculate_resolution_rate(issues)
         response_times = calculate_response_times(issues)
         
         print(f"\nRepository Health Metrics for {repo}:")
@@ -206,7 +229,7 @@ def analyze_repo_health(repos: List[str]):
 
 
 @task
-def fetch_issues(repo: str) -> List[dict]:
+def fetch_page_of_issues(repo: str) -> List[dict]:
     """Fetch issues for a GitHub repository"""
     response = httpx.get(
         f"https://api.github.com/repos/{repo}/issues",
@@ -216,25 +239,12 @@ def fetch_issues(repo: str) -> List[dict]:
 
 
 @task
-def calculate_metrics(issues: List[dict]):
-    """Calculate basic repository health metrics"""
-    total = len(issues)
-    closed = sum(1 for issue in issues if issue["state"] == "closed")
-    resolution_rate = (closed / total) * 100 if total > 0 else 0
-    return {"total": total, "resolution_rate": resolution_rate}
-
-
-@task
-def calculate_response_times(issues: List[dict]) -> float:
-    """Calculate average time to first response"""
-    response_times = []
-    for issue in issues:
-        if issue.get("comments", 0) > 0:
-            created = datetime.fromisoformat(issue["created_at"].replace("Z", "+00:00"))
-            first_response = datetime.fromisoformat(issue["updated_at"].replace("Z", "+00:00"))
-            hours = (first_response - created).total_seconds() / 3600
-            response_times.append(hours)
-    return sum(response_times) / len(response_times) if response_times else 0
+def calculate_resolution_rate(issues: List[dict]) -> float:
+    """Calculate the percentage of closed issues"""
+    if not issues:
+        return 0
+    closed = sum(1 for issue in issues if issue['state'] == 'closed')
+    return (closed / len(issues)) * 100
 
 
 if __name__ == "__main__":
@@ -264,7 +274,7 @@ def analyze_repo_health(repos: List[str]):
         print(f"Analyzing {repo}...")
         
         # Fetch and analyze all issues
-        issues = analyze_single_repo(repo)
+        issues = fetch_repo_issues(repo)
         
         # Calculate metrics
         avg_response_time = calculate_response_times(issues)
@@ -275,13 +285,13 @@ def analyze_repo_health(repos: List[str]):
 
 
 @flow(log_prints=True)
-def analyze_single_repo(repo: str):
-    """Analyze all issues for a single repository"""
+def fetch_repo_issues(repo: str):
+    """Fetch all issues for a single repository"""
     all_issues = []
     page = 1
     
     for page in range(1, 3):  # Limit to 2 pages to avoid hitting rate limits
-        issues = fetch_issues(repo, page)
+        issues = fetch_page_of_issues(repo, page)
         if not issues or len(issues) == 0:
             break
         all_issues.extend(issues)
@@ -301,7 +311,7 @@ def analyze_single_repo(repo: str):
 
 
 @task(retries=3, cache_key_fn=task_input_hash, cache_expiration=timedelta(hours=1))
-def fetch_issues(repo: str, page: int = 1) -> Optional[dict]:
+def fetch_page_of_issues(repo: str, page: int = 1) -> Optional[dict]:
     """Fetch a page of issues for a GitHub repository"""
     rate_limit("github-api")
     try:
