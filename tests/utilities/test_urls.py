@@ -390,3 +390,24 @@ def test_url_for_unsupported_obj_type_ui():
 
     with temporary_settings({PREFECT_UI_URL: MOCK_PREFECT_UI_URL}):
         assert url_for(obj=unsupported_obj) is None  # type: ignore
+
+
+def test_url_for_with_additional_format_kwargs():
+    with temporary_settings({PREFECT_UI_URL: MOCK_PREFECT_UI_URL}):
+        url = url_for(
+            obj="worker",
+            obj_id="123e4567-e89b-12d3-a456-426614174000",
+            work_pool_name="my-work-pool",
+        )
+        assert (
+            url
+            == f"{MOCK_PREFECT_UI_URL}/work-pools/work-pool/my-work-pool/worker/123e4567-e89b-12d3-a456-426614174000"
+        )
+
+
+def test_url_for_with_additional_format_kwargs_raises_if_placeholder_not_replaced():
+    with pytest.raises(
+        ValueError,
+        match="Unable to generate URL for worker because the following keys are missing: work_pool_name",
+    ):
+        url_for(obj="worker", obj_id="123e4567-e89b-12d3-a456-42661417400")
