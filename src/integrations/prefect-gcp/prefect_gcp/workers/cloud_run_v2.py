@@ -211,7 +211,7 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
         ]
         envs.extend(envs_from_secrets)
 
-        self.job_body["template"]["template"]["containers"][0]["env"] = envs
+        self.job_body["template"]["template"]["containers"][0]["env"].extend(envs)
 
     def _configure_cloudsql_volumes(self):
         """
@@ -226,7 +226,10 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
         if "volumes" not in template:
             template["volumes"] = []
         template["volumes"].append(
-            {"name": "cloudsql", "cloudSqlInstance": self.cloudsql_instances}
+            {
+                "name": "cloudsql",
+                "cloudSqlInstance": {"instances": self.cloudsql_instances},
+            }
         )
         if "volumeMounts" not in containers[0]:
             containers[0]["volumeMounts"] = []

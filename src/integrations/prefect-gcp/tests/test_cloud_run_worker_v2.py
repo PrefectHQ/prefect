@@ -120,6 +120,29 @@ class TestCloudRunWorkerJobV2Configuration:
             },
         ]
 
+    def test_populate_env_with_existing_envs(self, cloud_run_worker_v2_job_config):
+        cloud_run_worker_v2_job_config.job_body["template"]["template"]["containers"][
+            0
+        ]["env"] = [{"name": "ENV0", "value": "VALUE0"}]
+        cloud_run_worker_v2_job_config.env_from_secrets = {
+            "SECRET_ENV1": SecretKeySelector(secret="SECRET1", version="latest")
+        }
+        cloud_run_worker_v2_job_config._populate_env()
+
+        assert cloud_run_worker_v2_job_config.job_body["template"]["template"][
+            "containers"
+        ][0]["env"] == [
+            {"name": "ENV0", "value": "VALUE0"},
+            {"name": "ENV1", "value": "VALUE1"},
+            {"name": "ENV2", "value": "VALUE2"},
+            {
+                "name": "SECRET_ENV1",
+                "valueSource": {
+                    "secretKeyRef": {"secret": "SECRET1", "version": "latest"}
+                },
+            },
+        ]
+
     def test_populate_image_if_not_present(self, cloud_run_worker_v2_job_config):
         cloud_run_worker_v2_job_config._populate_image_if_not_present()
 
@@ -231,7 +254,7 @@ class TestCloudRunWorkerJobV2Configuration:
         assert template["volumes"][0] == {"name": "existing-volume", "emptyDir": {}}
         assert template["volumes"][1] == {
             "name": "cloudsql",
-            "cloudSqlInstance": ["project:region:instance1"],
+            "cloudSqlInstance": {"instances": ["project:region:instance1"]},
         }
 
         assert len(template["containers"][0]["volumeMounts"]) == 2
@@ -261,7 +284,7 @@ class TestCloudRunWorkerJobV2Configuration:
 
         assert any(
             vol["name"] == "cloudsql"
-            and vol["cloudSqlInstance"] == ["project:region:instance1"]
+            and vol["cloudSqlInstance"]["instances"] == ["project:region:instance1"]
             for vol in template["volumes"]
         )
         assert any(
