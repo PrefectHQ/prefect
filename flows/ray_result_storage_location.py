@@ -1,7 +1,3 @@
-# /// script
-# dependencies = ["prefect-ray@git+https://github.com/PrefectHQ/prefect-ray.git"]
-# ///
-
 """This is a regression test for https://github.com/PrefectHQ/prefect/issues/16009"""
 
 from pathlib import Path

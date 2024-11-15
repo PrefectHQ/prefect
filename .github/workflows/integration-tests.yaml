@@ -103,6 +103,8 @@ jobs:
           PREFECT_API_URL: http://127.0.0.1:4200/api
           SERVER_VERSION: ${{ matrix.server-version.version }}
         run: >
+          uv pip install src/integrations/prefect-ray &&
+          uv pip install . &&
           ./scripts/run-integration-flows.py flows/
 
       - name: Show server logs
