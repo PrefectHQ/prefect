@@ -5,7 +5,10 @@ import {
 	BreadcrumbList,
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
-import { AddVariableDialog } from "@/components/variables/add-variable-dialog";
+import {
+	VariableDialog,
+	type VariableDialogProps,
+} from "@/components/variables/variable-dialog";
 import { VariablesEmptyState } from "@/components/variables/empty-state";
 import { PlusIcon } from "lucide-react";
 import { useState } from "react";
@@ -40,15 +43,31 @@ export const VariablesPage = ({
 	onSortingChange,
 }: VariablesPageProps) => {
 	const [addVariableDialogOpen, setAddVariableDialogOpen] = useState(false);
+	const [variableDialogInitialValues, setVariableDialogInitialValues] =
+		useState<VariableDialogProps["initialValues"] | undefined>(undefined);
 	const onAddVariableClick = () => {
+		setVariableDialogInitialValues(undefined);
 		setAddVariableDialogOpen(true);
+	};
+	const handleVariableEdit = (variable: components["schemas"]["Variable"]) => {
+		setVariableDialogInitialValues({
+			name: variable.name,
+			value: JSON.stringify(variable.value),
+			tags: variable.tags,
+		});
+		setAddVariableDialogOpen(true);
+	};
+
+	const handleVariableDialogOpenChange = (open: boolean) => {
+		setAddVariableDialogOpen(open);
 	};
 
 	return (
 		<>
-			<AddVariableDialog
+			<VariableDialog
 				open={addVariableDialogOpen}
-				onOpenChange={setAddVariableDialogOpen}
+				onOpenChange={handleVariableDialogOpenChange}
+				initialValues={variableDialogInitialValues}
 			/>
 			<div className="flex flex-col gap-4 p-4">
 				<div className="flex items-center gap-2">
@@ -80,6 +99,7 @@ export const VariablesPage = ({
 						onColumnFiltersChange={onColumnFiltersChange}
 						sorting={sorting}
 						onSortingChange={onSortingChange}
+						onVariableEdit={handleVariableEdit}
 					/>
 				)}
 			</div>

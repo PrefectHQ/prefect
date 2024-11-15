@@ -24,11 +24,11 @@ import { Input } from "../ui/input";
 import { getQueryService } from "@/api/service";
 import type { components } from "@/api/prefect";
 import type { JSONValue } from "@/lib/types";
-import { Loader2 } from "lucide-react";
 import { TagsInput } from "../ui/tags-input";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/router";
 import { JsonInput } from "@/components/ui/json-input";
+import { useEffect } from "react";
 
 const formSchema = z.object({
 	name: z.string().min(2, { message: "Name must be at least 2 characters" }),
@@ -40,24 +40,33 @@ const formSchema = z.object({
 		.optional(),
 });
 
-type AddVariableDialogProps = {
+export type VariableDialogProps = {
 	onOpenChange: (open: boolean) => void;
 	open: boolean;
+	initialValues?: z.infer<typeof formSchema>;
 };
 
-export const AddVariableDialog = ({
+const VARIABLE_FORM_DEFAULT_VALUES = {
+	name: "",
+	value: "",
+	tags: [],
+};
+
+export const VariableDialog = ({
 	onOpenChange,
 	open,
-}: AddVariableDialogProps) => {
-	const defaultValues = {
-		name: "",
-		value: "",
-		tags: [],
-	};
+	initialValues,
+}: VariableDialogProps) => {
+	const editMode = !!initialValues;
 	const form = useForm<z.infer<typeof formSchema>>({
 		resolver: zodResolver(formSchema),
-		defaultValues,
+		defaultValues: VARIABLE_FORM_DEFAULT_VALUES,
 	});
+
+	useEffect(() => {
+		form.reset(initialValues ?? VARIABLE_FORM_DEFAULT_VALUES);
+	}, [initialValues, form]);
+
 	const { toast } = useToast();
 
 	const queryService = getQueryService();
@@ -73,7 +82,7 @@ export const AddVariableDialog = ({
 					predicate: (query) => query.queryKey[0] === "variables",
 				}),
 				queryClient.invalidateQueries({
-					queryKey: ["total-variable-count"],
+					predicate: (query) => query.queryKey[0] === "total-variable-count",
 				}),
 			]);
 		},
@@ -81,7 +90,7 @@ export const AddVariableDialog = ({
 			toast({
 				title: "Variable created",
 			});
-			onClose();
+			onOpenChange(false);
 		},
 		onError: (error) => {
 			const message = error.message || "Unknown error while creating variable.";
@@ -103,22 +112,18 @@ export const AddVariableDialog = ({
 			form.setError("value", { message: "Value must be valid JSON" });
 		}
 	};
-
-	const onClose = () => {
-		form.reset();
-		onOpenChange(false);
-	};
+	const dialogTitle = editMode ? "Edit Variable" : "New Variable";
+	const dialogDescription = editMode
+		? "Edit the variable by changing the name, value, or tags."
+		: "Add a new variable by providing a name, value, and optional tags. Values can be any valid JSON value.";
 
 	return (
-		<Dialog open={open} onOpenChange={onClose}>
+		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent>
 				<DialogHeader>
-					<DialogTitle>New Variable</DialogTitle>
+					<DialogTitle>{dialogTitle}</DialogTitle>
 				</DialogHeader>
-				<DialogDescription>
-					Add a new variable by providing a name, value, and optional tags.
-					Values can be any valid JSON value.
-				</DialogDescription>
+				<DialogDescription>{dialogDescription}</DialogDescription>
 				<Form {...form}>
 					<form
 						onSubmit={(e) => void form.handleSubmit(onSubmit)(e)}
@@ -168,12 +173,8 @@ export const AddVariableDialog = ({
 							<DialogTrigger asChild>
 								<Button variant="outline">Close</Button>
 							</DialogTrigger>
-							<Button type="submit" disabled={isPending}>
-								{isPending ? (
-									<Loader2 className="w-4 h-4 animate-spin" />
-								) : (
-									"Create"
-								)}
+							<Button type="submit" loading={isPending}>
+								{editMode ? "Save" : "Create"}
 							</Button>
 						</DialogFooter>
 					</form>
