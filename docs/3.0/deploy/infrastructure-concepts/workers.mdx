@@ -103,17 +103,8 @@ If a worker misses three heartbeats, it is considered offline. By default, a wor
 after it stopped sending heartbeats, but you can configure the threshold with the `PREFECT_WORKER_HEARTBEAT_SECONDS` setting.
 
 ### Worker logs
-<Warning>This feature is experimental as of Prefect version 3.1.1</Warning>
+<span class="badge cloud"></span> Workers send logs to the Prefect Cloud API if you're connected to Prefect Cloud.
 
-<span class="badge cloud"></span> Workers can now send logs directly to Prefect Cloud.
-
-To enable this feature, run the command:
-```bash
-prefect config set PREFECT_EXPERIMENTS_WORKER_LOGGING_TO_API_ENABLED=true
-```
-See our [profile settings](/3.0/manage/settings-and-profiles/) documentation for more information about changing settings.
-
-Once enabled:
 - All worker logs are automatically sent to the Prefect Cloud API
 - Logs are accessible through both the Prefect Cloud UI and API
 - Each flow run will include a link to its associated worker's logs
@@ -125,8 +116,6 @@ Once enabled:
 - Installed Prefect version
 - Installed Prefect integrations (e.g., `prefect-aws`, `prefect-gcp`)
 - Live worker logs (if worker logging is enabled)
-
-<Warning>Worker logging is an experimental feature as of Prefect version 3.1.1.</Warning> If your worker is using an earlier version of Prefect or you have not opted in to the experiment, this page will not show worker logs.
 
 Access a worker's details by clicking on the worker's name in the Work Pool list.
 

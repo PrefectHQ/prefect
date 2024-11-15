@@ -18,11 +18,6 @@ class ExperimentsSettings(PrefectBaseSettings):
         ),
     )
 
-    worker_logging_to_api_enabled: bool = Field(
-        default=False,
-        description="Enables the logging of worker logs to Prefect Cloud.",
-    )
-
     telemetry_enabled: bool = Field(
         default=False,
         description="Enables sending telemetry to Prefect Cloud.",

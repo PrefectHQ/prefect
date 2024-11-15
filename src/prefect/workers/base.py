@@ -821,14 +821,14 @@ class BaseWorker(abc.ABC):
             self._logger = get_worker_logger(self)
 
         self._logger.debug(
-            f"Worker synchronized with the Prefect API server. Remote ID: {self.backend_id}"
+            "Worker synchronized with the Prefect API server. "
+            + (f"Remote ID: {self.backend_id}" if self.backend_id else "")
         )
 
     def _should_get_worker_id(self):
         """Determines if the worker should request an ID from the API server."""
         return (
-            get_current_settings().experiments.worker_logging_to_api_enabled
-            and self._client
+            self._client
             and self._client.server_type == ServerType.CLOUD
             and self.backend_id is None
         )
@@ -886,10 +886,7 @@ class BaseWorker(abc.ABC):
                 run_logger.info(
                     f"Worker '{self.name}' submitting flow run '{flow_run.id}'"
                 )
-                if (
-                    get_current_settings().experiments.worker_logging_to_api_enabled
-                    and self.backend_id
-                ):
+                if self.backend_id:
                     try:
                         worker_url = url_for(
                             "worker",

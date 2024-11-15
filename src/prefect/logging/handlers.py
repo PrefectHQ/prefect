@@ -32,7 +32,6 @@ from prefect.settings import (
     PREFECT_LOGGING_TO_API_BATCH_SIZE,
     PREFECT_LOGGING_TO_API_MAX_LOG_SIZE,
     PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW,
-    get_current_settings,
 )
 
 
@@ -241,10 +240,12 @@ class APILogHandler(logging.Handler):
 
 class WorkerAPILogHandler(APILogHandler):
     def emit(self, record: logging.LogRecord):
-        if get_current_settings().experiments.worker_logging_to_api_enabled:
-            super().emit(record)
-        else:
+        # Open-source API servers do not currently support worker logs, and
+        # worker logs only have an associated worker ID when connected to Cloud,
+        # so we won't send worker logs to the API unless they have a worker ID.
+        if not getattr(record, "worker_id", None):
             return
+        super().emit(record)
 
     def prepare(self, record: logging.LogRecord) -> Dict[str, Any]:
         """
