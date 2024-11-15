@@ -1015,8 +1015,7 @@ class BaseWorker(abc.ABC):
                 )
             return exc
         finally:
-            if self._limiter:
-                self._limiter.release_on_behalf_of(flow_run.id)
+            self._release_limit_slot(flow_run.id)
 
         if not task_status._future.done():
             run_logger.error(
