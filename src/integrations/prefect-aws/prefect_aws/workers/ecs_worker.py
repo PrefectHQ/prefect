@@ -654,7 +654,7 @@ class ECSWorker(BaseWorker):
         "and Fargate clusters. Requires an AWS account."
     )
     _display_name = "AWS Elastic Container Service"
-    _documentation_url = "https://prefecthq.github.io/prefect-aws/ecs_worker/"
+    _documentation_url = "https://docs.prefect.io/integrations/prefect-aws/"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/d74b16fe84ce626345adf235a47008fea2869a60-225x225.png"  # noqa
 
     async def run(

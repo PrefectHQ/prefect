@@ -403,9 +403,7 @@ class S3Bucket(WritableFileSystem, WritableDeploymentStorage, ObjectStorageBlock
 
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/d74b16fe84ce626345adf235a47008fea2869a60-225x225.png"  # noqa
     _block_type_name = "S3 Bucket"
-    _documentation_url = (
-        "https://prefecthq.github.io/prefect-aws/s3/#prefect_aws.s3.S3Bucket"  # noqa
-    )
+    _documentation_url = "https://docs.prefect.io/integrations/prefect-aws"  # noqa
 
     bucket_name: str = Field(default=..., description="Name of your bucket.")
 

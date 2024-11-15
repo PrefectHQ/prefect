@@ -72,7 +72,7 @@ class SnowflakeCredentials(CredentialsBlock):
 
     _block_type_name = "Snowflake Credentials"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/bd359de0b4be76c2254bd329fe3a267a1a3879c2-250x250.png"  # noqa
-    _documentation_url = "https://prefecthq.github.io/prefect-snowflake/credentials/#prefect_snowflake.credentials.SnowflakeCredentials"  # noqa
+    _documentation_url = "https://docs.prefect.io/integrations/prefect-snowflake"  # noqa
 
     account: str = Field(
         ...,

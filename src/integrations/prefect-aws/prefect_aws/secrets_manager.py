@@ -367,7 +367,7 @@ class AwsSecret(SecretBlock):
 
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/d74b16fe84ce626345adf235a47008fea2869a60-225x225.png"  # noqa
     _block_type_name = "AWS Secret"
-    _documentation_url = "https://prefecthq.github.io/prefect-aws/secrets_manager/#prefect_aws.secrets_manager.AwsSecret"  # noqa
+    _documentation_url = "https://docs.prefect.io/integrations/prefect-aws"  # noqa
 
     aws_credentials: AwsCredentials
     secret_name: str = Field(default=..., description="The name of the secret.")

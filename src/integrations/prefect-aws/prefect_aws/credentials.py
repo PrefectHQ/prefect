@@ -70,7 +70,7 @@ class AwsCredentials(CredentialsBlock):
 
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/d74b16fe84ce626345adf235a47008fea2869a60-225x225.png"  # noqa
     _block_type_name = "AWS Credentials"
-    _documentation_url = "https://prefecthq.github.io/prefect-aws/credentials/#prefect_aws.credentials.AwsCredentials"  # noqa
+    _documentation_url = "https://docs.prefect.io/integrations/prefect-aws"  # noqa
 
     aws_access_key_id: Optional[str] = Field(
         default=None,
@@ -209,7 +209,7 @@ class MinIOCredentials(CredentialsBlock):
         "docs: https://docs.min.io/docs/minio-server-configuration-guide.html "
         "for more info about the possible credential configurations."
     )
-    _documentation_url = "https://prefecthq.github.io/prefect-aws/credentials/#prefect_aws.credentials.MinIOCredentials"  # noqa
+    _documentation_url = "https://docs.prefect.io/integrations/prefect-aws"  # noqa
 
     minio_root_user: str = Field(default=..., description="Admin or root user.")
     minio_root_password: SecretStr = Field(
