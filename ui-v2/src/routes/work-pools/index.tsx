@@ -1,67 +1,65 @@
-import { getQueryService } from '@/api/service'
-import { keepPreviousData, useSuspenseQuery } from '@tanstack/react-query'
-import { createFileRoute } from '@tanstack/react-router'
-import { z } from 'zod'
-import { zodSearchValidator } from '@tanstack/router-zod-adapter'
+import { getQueryService } from "@/api/service";
+import { keepPreviousData, useSuspenseQuery } from "@tanstack/react-query";
+import { createFileRoute } from "@tanstack/react-router";
+import { z } from "zod";
+import { zodSearchValidator } from "@tanstack/router-zod-adapter";
 
 const searchParams = z.object({
-  offset: z.number().int().nonnegative().optional().default(0),
-  limit: z.number().int().positive().optional().default(10),
-  sort: z
-    .enum(['CREATED_DESC', 'UPDATED_DESC', 'NAME_ASC', 'NAME_DESC'])
-    .optional()
-    .default('CREATED_DESC'),
-  name: z.string().optional(),
-  type: z.string().optional(),
-})
+	offset: z.number().int().nonnegative().optional().default(0),
+	limit: z.number().int().positive().optional().default(10),
+	sort: z
+		.enum(["CREATED_DESC", "UPDATED_DESC", "NAME_ASC", "NAME_DESC"])
+		.optional()
+		.default("CREATED_DESC"),
+	name: z.string().optional(),
+	type: z.string().optional(),
+});
 
 const buildWorkPoolsQuery = (search: z.infer<typeof searchParams>) => ({
-  queryKey: ['work-pools', JSON.stringify(search)],
-  queryFn: async () => {
-    const response = await getQueryService().POST('/work_pools/filter')
-    return response.data
-  },
-  staleTime: 1000,
-  placeholderData: keepPreviousData,
-})
+	queryKey: ["work-pools", JSON.stringify(search)],
+	queryFn: async () => {
+		const response = await getQueryService().POST("/work_pools/filter");
+		return response.data;
+	},
+	staleTime: 1000,
+	placeholderData: keepPreviousData,
+});
 
 const buildTotalWorkPoolCountQuery = (
-  search?: z.infer<typeof searchParams>,
+	search?: z.infer<typeof searchParams>,
 ) => ({
-    queryKey: ['work-pool-count', JSON.stringify(search)],
-    queryFn: async () => {
-      const response = await getQueryService().POST('/work_pools/count')
-      return response.data
-    },
-    staleTime: 1000,
-    placeholderData: keepPreviousData,
-})
+	queryKey: ["work-pool-count", JSON.stringify(search)],
+	queryFn: async () => {
+		const response = await getQueryService().POST("/work_pools/count");
+		return response.data;
+	},
+	staleTime: 1000,
+	placeholderData: keepPreviousData,
+});
 
 function WorkPoolsRoute() {
-  const search = Route.useSearch()
+	const search = Route.useSearch();
 
-  const { data: workPools } = useSuspenseQuery(buildWorkPoolsQuery(search))
-  const { data: currentWorkPoolCount } = useSuspenseQuery(buildTotalWorkPoolCountQuery(search))
-  const { data: totalWorkPoolCount } = useSuspenseQuery(buildTotalWorkPoolCountQuery())
+	const { data: workPools } = useSuspenseQuery(buildWorkPoolsQuery(search));
+	const { data: currentWorkPoolCount } = useSuspenseQuery(
+		buildTotalWorkPoolCountQuery(search),
+	);
+	const { data: totalWorkPoolCount } = useSuspenseQuery(
+		buildTotalWorkPoolCountQuery(),
+	);
 
-  return (
-    JSON.stringify([
-        workPools,
-        currentWorkPoolCount,
-        totalWorkPoolCount,
-    ])
-  )
+	return JSON.stringify([workPools, currentWorkPoolCount, totalWorkPoolCount]);
 }
 
-export const Route = createFileRoute('/work-pools/')({
-  validateSearch: zodSearchValidator(searchParams),
-  component: WorkPoolsRoute,
-  loaderDeps: ({ search }) => search,
-  loader: ({ deps: search, context }) =>
-    Promise.all([
-      context.queryClient.ensureQueryData(buildWorkPoolsQuery(search)),
-      context.queryClient.ensureQueryData(buildTotalWorkPoolCountQuery(search)),
-      context.queryClient.ensureQueryData(buildTotalWorkPoolCountQuery()),
-    ]),
-  wrapInSuspense: true,
-})
+export const Route = createFileRoute("/work-pools/")({
+	validateSearch: zodSearchValidator(searchParams),
+	component: WorkPoolsRoute,
+	loaderDeps: ({ search }) => search,
+	loader: ({ deps: search, context }) =>
+		Promise.all([
+			context.queryClient.ensureQueryData(buildWorkPoolsQuery(search)),
+			context.queryClient.ensureQueryData(buildTotalWorkPoolCountQuery(search)),
+			context.queryClient.ensureQueryData(buildTotalWorkPoolCountQuery()),
+		]),
+	wrapInSuspense: true,
+});
