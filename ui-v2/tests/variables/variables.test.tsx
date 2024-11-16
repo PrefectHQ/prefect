@@ -1,5 +1,11 @@
 import "./mocks";
-import { render, screen } from "@testing-library/react";
+import {
+	getByLabelText,
+	getByTestId,
+	getByText,
+	render,
+	screen,
+} from "@testing-library/react";
 import { VariablesPage } from "@/components/variables/page";
 import userEvent from "@testing-library/user-event";
 import {
@@ -245,6 +251,159 @@ describe("Variables page", () => {
 				}),
 			).toBeVisible();
 		});
+	});
+
+	describe("Edit variable dialog", () => {
+		it("should allow editing a variable", async () => {
+			const user = userEvent.setup();
+			const queryClient = new QueryClient();
+
+			const variables = [
+				{
+					id: "1",
+					name: "my-variable",
+					value: 123,
+					created: "2021-01-01T00:00:00Z",
+					updated: "2021-01-01T00:00:00Z",
+					tags: ["tag1"],
+				},
+			];
+
+			render(
+				<QueryClientProvider client={queryClient}>
+					<Toaster />
+					<VariablesPage
+						variables={variables}
+						totalVariableCount={1}
+						currentVariableCount={1}
+						pagination={{ pageIndex: 0, pageSize: 10 }}
+						onPaginationChange={vi.fn()}
+						columnFilters={[]}
+						onColumnFiltersChange={vi.fn()}
+						sorting="CREATED_DESC"
+						onSortingChange={vi.fn()}
+					/>
+				</QueryClientProvider>,
+			);
+
+			await user.click(screen.getByRole("button", { expanded: false }));
+			await user.click(screen.getByText("Edit"));
+			expect(screen.getByText("Edit Variable")).toBeVisible();
+
+			const dialog = screen.getByRole("dialog");
+			expect(getByLabelText(dialog, "Name")).toHaveValue("my-variable");
+			expect(getByTestId(dialog, "mock-json-input")).toHaveValue("123");
+			expect(getByText(dialog, "tag1")).toBeVisible();
+
+			await user.type(getByLabelText(dialog, "Name"), "new_name");
+			await user.click(screen.getByRole("button", { name: "Save" }));
+			expect(screen.getByText("Variable updated")).toBeVisible();
+		});
+
+		it("should show an error when API call fails with detail", async () => {
+			server.use(
+				http.patch("http://localhost:4200/api/variables/:id", () => {
+					return HttpResponse.json(
+						{ detail: "Failed to update variable. Here's some detail..." },
+						{ status: 500 },
+					);
+				}),
+			);
+			const user = userEvent.setup();
+			const queryClient = new QueryClient();
+
+			const variables = [
+				{
+					id: "1",
+					name: "my-variable",
+					value: 123,
+					created: "2021-01-01T00:00:00Z",
+					updated: "2021-01-01T00:00:00Z",
+					tags: ["tag1"],
+				},
+			];
+
+			render(
+				<QueryClientProvider client={queryClient}>
+					<Toaster />
+					<VariablesPage
+						variables={variables}
+						totalVariableCount={1}
+						currentVariableCount={1}
+						pagination={{ pageIndex: 0, pageSize: 10 }}
+						onPaginationChange={vi.fn()}
+						columnFilters={[]}
+						onColumnFiltersChange={vi.fn()}
+						sorting="CREATED_DESC"
+						onSortingChange={vi.fn()}
+					/>
+				</QueryClientProvider>,
+			);
+
+			await user.click(screen.getByRole("button", { expanded: false }));
+			await user.click(screen.getByText("Edit"));
+			expect(screen.getByText("Edit Variable")).toBeVisible();
+
+			const dialog = screen.getByRole("dialog");
+			expect(getByLabelText(dialog, "Name")).toHaveValue("my-variable");
+
+			await user.type(getByLabelText(dialog, "Name"), "new_name");
+			await user.click(screen.getByRole("button", { name: "Save" }));
+			expect(
+				screen.getByText("Failed to update variable. Here's some detail..."),
+			).toBeVisible();
+		});
+	});
+
+	it("should show an error when API call fails without detail", async () => {
+		server.use(
+			http.patch("http://localhost:4200/api/variables/:id", () => {
+				return HttpResponse.json(
+					{ error: "Internal server error" },
+					{ status: 500 },
+				);
+			}),
+		);
+		const user = userEvent.setup();
+		const queryClient = new QueryClient();
+
+		const variables = [
+			{
+				id: "1",
+				name: "my-variable",
+				value: 123,
+				created: "2021-01-01T00:00:00Z",
+				updated: "2021-01-01T00:00:00Z",
+				tags: ["tag1"],
+			},
+		];
+
+		render(
+			<QueryClientProvider client={queryClient}>
+				<Toaster />
+				<VariablesPage
+					variables={variables}
+					totalVariableCount={1}
+					currentVariableCount={1}
+					pagination={{ pageIndex: 0, pageSize: 10 }}
+					onPaginationChange={vi.fn()}
+					columnFilters={[]}
+					onColumnFiltersChange={vi.fn()}
+					sorting="CREATED_DESC"
+					onSortingChange={vi.fn()}
+				/>
+			</QueryClientProvider>,
+		);
+
+		await user.click(screen.getByRole("button", { expanded: false }));
+		await user.click(screen.getByText("Edit"));
+
+		const dialog = screen.getByRole("dialog");
+		expect(getByLabelText(dialog, "Name")).toHaveValue("my-variable");
+
+		await user.type(getByLabelText(dialog, "Name"), "new_name");
+		await user.click(screen.getByRole("button", { name: "Save" }));
+		expect(screen.getByText("Unknown error", { exact: false })).toBeVisible();
 	});
 
 	describe("Variables table", () => {

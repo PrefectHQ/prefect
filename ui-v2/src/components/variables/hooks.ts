@@ -42,7 +42,6 @@ export const useCreateVariable = ({
 };
 
 type UseUpdateVariableProps = {
-	existingVariable?: components["schemas"]["Variable"];
 	onSuccess: () => void;
 	onError: (error: Error) => void;
 };

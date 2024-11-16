@@ -68,8 +68,11 @@ export const VariableDialog = ({
 	}, [existingVariable]);
 
 	useEffect(() => {
-		form.reset(initialValues ?? VARIABLE_FORM_DEFAULT_VALUES);
-	}, [initialValues, form]);
+		// Ensure we start with the initial values when the dialog opens
+		if (open) {
+			form.reset(initialValues ?? VARIABLE_FORM_DEFAULT_VALUES);
+		}
+	}, [initialValues, form, open]);
 
 	const { mutate: createVariable, isPending: isCreating } = useCreateVariable({
 		onSuccess: () => {
@@ -84,7 +87,6 @@ export const VariableDialog = ({
 	});
 
 	const { mutate: updateVariable, isPending: isUpdating } = useUpdateVariable({
-		existingVariable,
 		onSuccess: () => {
 			onOpenChange(false);
 		},
@@ -99,6 +101,7 @@ export const VariableDialog = ({
 	const onSubmit = (values: z.infer<typeof formSchema>) => {
 		try {
 			const value = JSON.parse(values.value) as JSONValue;
+			console.log(existingVariable);
 			if (existingVariable?.id) {
 				updateVariable({
 					id: existingVariable.id,
