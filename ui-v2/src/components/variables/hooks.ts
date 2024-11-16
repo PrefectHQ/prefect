@@ -47,8 +47,11 @@ type UseUpdateVariableProps = {
 	onError: (error: Error) => void;
 };
 
+type VariableUpdateWithId = components["schemas"]["VariableUpdate"] & {
+	id: string;
+};
+
 export const useUpdateVariable = ({
-	existingVariable,
 	onSuccess,
 	onError,
 }: UseUpdateVariableProps) => {
@@ -56,11 +59,11 @@ export const useUpdateVariable = ({
 	const { toast } = useToast();
 
 	return useMutation({
-		mutationFn: (variable: components["schemas"]["VariableUpdate"]) => {
-			if (!existingVariable?.id) throw new Error("Variable ID is required");
+		mutationFn: (variable: VariableUpdateWithId) => {
+			const { id, ...body } = variable;
 			return getQueryService().PATCH("/variables/{id}", {
-				params: { path: { id: existingVariable.id } },
-				body: variable,
+				params: { path: { id } },
+				body,
 			});
 		},
 		onSettled: async () => {

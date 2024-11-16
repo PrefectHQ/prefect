@@ -54,7 +54,6 @@ export const VariableDialog = ({
 	open,
 	existingVariable,
 }: VariableDialogProps) => {
-	const editMode = !!existingVariable;
 	const form = useForm<z.infer<typeof formSchema>>({
 		resolver: zodResolver(formSchema),
 		defaultValues: VARIABLE_FORM_DEFAULT_VALUES,
@@ -100,8 +99,9 @@ export const VariableDialog = ({
 	const onSubmit = (values: z.infer<typeof formSchema>) => {
 		try {
 			const value = JSON.parse(values.value) as JSONValue;
-			if (editMode) {
+			if (existingVariable?.id) {
 				updateVariable({
+					id: existingVariable.id,
 					name: values.name,
 					value,
 					tags: values.tags,
@@ -117,8 +117,8 @@ export const VariableDialog = ({
 			form.setError("value", { message: "Value must be valid JSON" });
 		}
 	};
-	const dialogTitle = editMode ? "Edit Variable" : "New Variable";
-	const dialogDescription = editMode
+	const dialogTitle = existingVariable ? "Edit Variable" : "New Variable";
+	const dialogDescription = existingVariable
 		? "Edit the variable by changing the name, value, or tags."
 		: "Add a new variable by providing a name, value, and optional tags. Values can be any valid JSON value.";
 
@@ -179,7 +179,7 @@ export const VariableDialog = ({
 								<Button variant="outline">Close</Button>
 							</DialogTrigger>
 							<Button type="submit" loading={isCreating || isUpdating}>
-								{editMode ? "Save" : "Create"}
+								{existingVariable ? "Save" : "Create"}
 							</Button>
 						</DialogFooter>
 					</form>

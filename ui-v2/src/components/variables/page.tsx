@@ -43,8 +43,9 @@ export const VariablesPage = ({
 	onSortingChange,
 }: VariablesPageProps) => {
 	const [addVariableDialogOpen, setAddVariableDialogOpen] = useState(false);
-	const [variableToEdit, setVariableToEdit] =
-		useState<VariableDialogProps["existingVariable"] | undefined>(undefined);
+	const [variableToEdit, setVariableToEdit] = useState<
+		VariableDialogProps["existingVariable"] | undefined
+	>(undefined);
 
 	const onAddVariableClick = useCallback(() => {
 		setVariableToEdit(undefined);
