@@ -101,7 +101,6 @@ export const VariableDialog = ({
 	const onSubmit = (values: z.infer<typeof formSchema>) => {
 		try {
 			const value = JSON.parse(values.value) as JSONValue;
-			console.log(existingVariable);
 			if (existingVariable?.id) {
 				updateVariable({
 					id: existingVariable.id,
