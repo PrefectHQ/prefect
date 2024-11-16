@@ -123,7 +123,7 @@ flowchart TD
 
     %% Connections
     Scheduled --> |Scheduled start time passes without entering Pending| Late
-    Scheduled --> |Scheduled start time reached| Pending
+    Scheduled --> |Worker/Runner successfully submits run| Pending
     Scheduled --> |Worker encounters concurrency limit| AwaitingConcurrencySlot
 
     AwaitingConcurrencySlot --> Pending
