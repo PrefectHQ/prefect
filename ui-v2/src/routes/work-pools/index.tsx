@@ -3,6 +3,7 @@ import { keepPreviousData, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { zodSearchValidator } from "@tanstack/router-zod-adapter";
+import WorkPoolPage from "@/components/work-pools/page";
 
 const searchParams = z.object({
 	offset: z.number().int().nonnegative().optional().default(0),
@@ -41,14 +42,18 @@ function WorkPoolsRoute() {
 	const search = Route.useSearch();
 
 	const { data: workPools } = useSuspenseQuery(buildWorkPoolsQuery(search));
-	const { data: currentWorkPoolCount } = useSuspenseQuery(
+	const { data: filteredWorkPoolsCount } = useSuspenseQuery(
 		buildTotalWorkPoolCountQuery(search),
 	);
-	const { data: totalWorkPoolCount } = useSuspenseQuery(
+	const { data: totalWorkPoolsCount } = useSuspenseQuery(
 		buildTotalWorkPoolCountQuery(),
 	);
 
-	return JSON.stringify([workPools, currentWorkPoolCount, totalWorkPoolCount]);
+	return <WorkPoolPage 
+                workPools={workPools ?? []}
+                filteredWorkPoolsCount={filteredWorkPoolsCount ?? 0}
+                totalWorkPoolsCount={totalWorkPoolsCount ?? 0}
+            />;
 }
 
 export const Route = createFileRoute("/work-pools/")({
