@@ -49,11 +49,13 @@ function WorkPoolsRoute() {
 		buildTotalWorkPoolCountQuery(),
 	);
 
-	return <WorkPoolPage 
-                workPools={workPools ?? []}
-                filteredWorkPoolsCount={filteredWorkPoolsCount ?? 0}
-                totalWorkPoolsCount={totalWorkPoolsCount ?? 0}
-            />;
+	return (
+		<WorkPoolPage
+			workPools={workPools ?? []}
+			filteredWorkPoolsCount={filteredWorkPoolsCount ?? 0}
+			totalWorkPoolsCount={totalWorkPoolsCount ?? 0}
+		/>
+	);
 }
 
 export const Route = createFileRoute("/work-pools/")({
