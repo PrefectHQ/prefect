@@ -4,6 +4,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { zodSearchValidator } from "@tanstack/router-zod-adapter";
 import WorkPoolPage from "@/components/work-pools/page";
+import { PaginationState, OnChangeFn } from "@tanstack/react-table";
+import { useCallback, useMemo } from "react";
 
 const searchParams = z.object({
 	offset: z.number().int().nonnegative().optional().default(0),
@@ -40,6 +42,7 @@ const buildTotalWorkPoolCountQuery = (
 
 function WorkPoolsRoute() {
 	const search = Route.useSearch();
+	const navigate = Route.useNavigate();
 
 	const { data: workPools } = useSuspenseQuery(buildWorkPoolsQuery(search));
 	const { data: filteredWorkPoolsCount } = useSuspenseQuery(
@@ -49,11 +52,44 @@ function WorkPoolsRoute() {
 		buildTotalWorkPoolCountQuery(),
 	);
 
+	const pageIndex = search.offset ? search.offset / search.limit : 0;
+	const pageSize = search.limit ?? 10;
+	const pagination: PaginationState = useMemo(
+		() => ({
+			pageIndex,
+			pageSize,
+		}),
+		[pageIndex, pageSize],
+	);
+
+	const onPaginationChange: OnChangeFn<PaginationState> = useCallback(
+		(updater) => {
+			let newPagination = pagination;
+			if (typeof updater === "function") {
+				newPagination = updater(pagination);
+			} else {
+				newPagination = updater;
+			}
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					offset: newPagination.pageIndex * newPagination.pageSize,
+					limit: newPagination.pageSize,
+				}),
+				replace: true,
+			});
+		},
+		[pagination, navigate],
+	);
+
 	return (
 		<WorkPoolPage
 			workPools={workPools ?? []}
 			filteredWorkPoolsCount={filteredWorkPoolsCount ?? 0}
 			totalWorkPoolsCount={totalWorkPoolsCount ?? 0}
+			pagination={pagination}
+			onPaginationChange={onPaginationChange}
 		/>
 	);
 }

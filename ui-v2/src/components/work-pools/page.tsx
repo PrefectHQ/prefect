@@ -7,16 +7,28 @@ import {
 import { Button } from "@/components/ui/button";
 import { PlusIcon } from "lucide-react";
 import { Link } from "@tanstack/react-router";
+import type { OnChangeFn, PaginationState } from "@tanstack/react-table";
+import { WorkPoolsDataTable } from "@/components/work-pools/data-table";
+import { WorkPoolsEmptyState } from "@/components/work-pools/empty-state";
+
+// Define a type for the WorkPool schema
+type WorkPool = components["schemas"]["WorkPool"];
+
+type WorkPoolsPageProps = {
+	workPools: WorkPool[];
+	totalWorkPoolsCount: number;
+	filteredWorkPoolsCount: number;
+	pagination: PaginationState;
+	onPaginationChange: OnChangeFn<PaginationState>;
+};
 
 const WorkPoolsPage = ({
 	workPools,
 	totalWorkPoolsCount,
 	filteredWorkPoolsCount,
-}: {
-	workPools: components["schemas"]["WorkPool"][];
-	totalWorkPoolsCount: number;
-	filteredWorkPoolsCount: number;
-}) => {
+	pagination,
+	onPaginationChange,
+}: WorkPoolsPageProps) => {
 	return (
 		<div className="flex flex-col gap-4 p-4">
 			<div className="flex items-center gap-2">
@@ -33,13 +45,16 @@ const WorkPoolsPage = ({
 					</Link>
 				</Button>
 			</div>
-			<pre className="whitespace-pre-wrap">
-				{JSON.stringify(
-					[workPools, totalWorkPoolsCount, filteredWorkPoolsCount],
-					null,
-					2,
-				)}
-			</pre>
+			{totalWorkPoolsCount === 0 ? (
+				<WorkPoolsEmptyState />
+			) : (
+				<WorkPoolsDataTable
+					workPools={workPools}
+					filteredWorkPoolsCount={filteredWorkPoolsCount}
+					pagination={pagination}
+					onPaginationChange={onPaginationChange}
+				/>
+			)}
 		</div>
 	);
 };
