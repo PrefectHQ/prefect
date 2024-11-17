@@ -19,4 +19,4 @@ export const WorkPoolsEmptyState = () => {
 			</Button>
 		</div>
 	);
-}; 
+};
