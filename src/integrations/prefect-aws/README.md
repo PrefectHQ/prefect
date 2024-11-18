@@ -7,7 +7,7 @@
         <img src="https://img.shields.io/pypi/dm/prefect-aws?color=26272B&labelColor=090422" /></a>
 </p>
 
-## Welcome!
+## Welcome
 
 `prefect-aws` makes it easy to leverage the capabilities of AWS in your flows, featuring support for ECS, S3, Secrets Manager, and Batch.
 
@@ -18,7 +18,3 @@ To start using `prefect-aws`:
 ```bash
 pip install prefect-aws
 ```
-
-### Contributing
-
-Thanks for thinking about chipping in! Check out this [step-by-step guide](https://prefecthq.github.io/prefect-aws/#installation) on how to get started.

@@ -123,10 +123,13 @@ import FinalFlowState from '/snippets/final-flow-state.mdx'
 State change hooks execute code in response to **_client side_** changes in flow or task run states, enabling you to define actions for
 specific state transitions in a workflow.
 
-A state hook must have the following signature:
+State hooks have the following signature:
 
 ```python
-def my_hook(obj: Task | Flow, run: TaskRun | FlowRun, state: State) -> None:
+def my_task_state_hook(task: Task, run: TaskRun, state: State) -> None:
+    ...
+
+def my_flow_state_hook(flow: Flow, run: FlowRun, state: State) -> None:
     ...
 ```
 
@@ -137,7 +140,7 @@ from prefect import task, flow
 
 # for type hints only
 from prefect import Task
-from prefect.context import TaskRun
+from prefect.client.schemas.objects import TaskRun
 from prefect.states import State
 
 
@@ -154,10 +157,16 @@ def nice_task(name: str):
 
 
 # alternatively hooks can be specified via decorator
-@my_nice_task.on_completion
+@nice_task.on_completion
 def second_hook(tsk: Task, run: TaskRun, state: State) -> None:
     print('another hook')
+
+nice_task(name='Marvin')
 ```
+
+<Note>
+To import a `TaskRun` or `FlowRun` for type hinting, you can import from `prefect.client.schemas.objects`.
+</Note>
 
 State change hooks are versatile, allowing you to specify multiple state change hooks for the same state transition,
 or to use the same state change hook for different transitions:
