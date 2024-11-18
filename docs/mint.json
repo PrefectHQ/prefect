@@ -1124,7 +1124,7 @@
     },
     {
       "destination": "/integrations/prefect-aws",
-      "source": "/latest/integrations/prefect-aws/sv3"
+      "source": "/latest/integrations/prefect-aws/s3"
     },
     {
       "destination": "/latest/api-ref",
