@@ -202,7 +202,8 @@ Here's an example of how to use nested flows and tasks:
 ```python
 from typing import List
 
-from prefect import flow
+from prefect import flow, task
+
 
 @flow
 def analyze_repo_health(repos: List[str]):
