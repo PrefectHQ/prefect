@@ -399,10 +399,15 @@ The terminal output from the second flow run should look like this:
 
 ## Next steps
 
-In this tutorial, you built a resilient and performant data pipeline using retries, parallel tasks, concurrency limits, and caching.
+In this tutorial, you built a resilient and performant data pipeline which uses the following techniques:
 
-Next, learn how to [use error handling to deal with unstructured data](/3.0/tutorials/scraping), another common problem in the real world.
-You'll use error handling and everything else you've learned to build a functional web scraper.
+- [Retries](/3.0/develop/write-tasks#retries) to handle transient errors
+- [Parallel tasks](/3.0/develop/task-runners) to speed up slow tasks
+- [Concurrency limits](/3.0/develop/global-concurrency-limits) to avoid hitting the rate limits of your APIs
+- [Caching](/3.0/develop/task-caching) to skip repeated tasks
+
+Next, learn how to [handle data dependencies and ingest large amounts of data](/3.0/tutorials/scraping).
+You'll use error handling, pagination, and nested flows to scrape data from GitHub.
 
 <Tip>
 Need help? [Book a meeting](https://calendly.com/prefect-experts/prefect-product-advocates?utm_campaign=prefect_docs_cloud&utm_content=prefect_docs&utm_medium=docs&utm_source=docs) with a Prefect Product Advocate to get your questions answered.

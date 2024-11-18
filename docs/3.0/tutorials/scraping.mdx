@@ -184,12 +184,12 @@ if __name__ == "__main__":
 
 ## Structure your code with dependent nested flows and tasks
 
-Using subflows and tasks can help you distribute tasks more efficiently and aid with debugging.
+Use nested flows and tasks to help distribute tasks more efficiently and aid with debugging.
 
-* Use subflows for more complex operations that involve multiple steps.
+* Use nested flows for more complex operations that involve multiple steps.
 * Use tasks for simpler, atomic operations.
 
-Here's an example of how to use subflows and tasks:
+Here's an example of how to use nested flows and tasks:
 
 ```python
 
@@ -208,7 +208,7 @@ def analyze_repo_health(repos: List[str]):
 
 @flow
 def fetch_repo_issues(repo: str):
-    """Subflow: Fetch all data for a single repository"""
+    """Nested flow: Fetch all data for a single repository"""
 
     # ...
 
@@ -488,15 +488,14 @@ The output should look something like this:
 In this tutorial, you built a complex data extraction pipeline which uses the following new techniques:
 
 - Error recovery with try/catch blocks
-- Modularized workflows with dependent subflows and tasks
-- Efficient ingestion and processing of large data with pagination and parallel tasks
+- Modularized workflows with dependent [nested flows and tasks](/3.0/develop/write-flows#nest-flows)
+- Efficient ingestion and processing of large data with pagination and [parallel tasks](/3.0/develop/task-runners)
 
 Now that you've finished this tutorial series, continue your learning journey by going deep on the following topics:
 
-* [Write flows](/3.0/develop/write-flows)
-* [Write tasks](/3.0/develop/write-tasks)
-* [Cloud and server](/3.0/manage)
-* [Manage infrastructure with work pools](/3.0/deploy/infrastructure-concepts/work-pools) to learn about running workflows on Kubernetes, Docker, and serverless infrastructure.
+- Write [flows](/3.0/develop/write-flows) and [tasks](/3.0/develop/write-tasks)
+- Manage [Prefect Cloud and server instances](/3.0/manage)
+- Run workflows on [work pools](/3.0/deploy/infrastructure-concepts/work-pools) using Kubernetes, Docker, and serverless infrastructure.
 
 <Tip>
 Need help? [Book a meeting](https://calendly.com/prefect-experts/prefect-product-advocates?utm_campaign=prefect_docs_cloud&utm_content=prefect_docs&utm_medium=docs&utm_source=docs) with a Prefect Product Advocate to get your questions answered.
