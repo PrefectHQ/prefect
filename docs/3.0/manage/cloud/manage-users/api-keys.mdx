@@ -25,11 +25,15 @@ Provide a name for the key and an expiration date.
 Copy the key to a secure location since an API key cannot be revealed again in the UI after it is generated. 
 </Warning>
 
-## Log into Prefect Cloud with an API Key
+## Log in to Prefect Cloud with an API Key
 
 ```bash
 prefect cloud login -k '<my-api-key>'
 ```
+
+Alternatively, if you don't have a CLI available - for example, if you are connecting to Prefect Cloud within a remote serverless environment - set the `PREFECT_API_KEY` environment variable. 
+
+For more information see [Connect to Prefect Cloud](/3.0/manage/cloud/connect-to-cloud).
 
 ## Service account API keys (Pro) (Enterprise)
 
