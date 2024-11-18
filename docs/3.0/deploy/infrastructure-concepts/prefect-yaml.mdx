@@ -685,6 +685,10 @@ Each time a step runs, the following actions take place in order:
 - The step's function is called with the resolved inputs.
 - The step's output is returned and used to resolve inputs for subsequent steps.
 
+## Update a deployment
+
+To update a deployment, make any desired changes to the `prefect.yaml` file, and run `prefect deploy`. Running just this command will prompt you to select a deployment interactively, or you may specify the deployment to update with `--name your-deployment`.
+
 ## Next steps
 
 Now that you are familiar with creating deployments, you can explore infrastructure options for running your deployments:
