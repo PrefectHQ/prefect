@@ -56,7 +56,7 @@ class BigQueryTargetConfigs(BaseTargetConfigs):
     _block_type_name = "dbt CLI BigQuery Target Configs"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/5zE9lxfzBHjw3tnEup4wWL/9a001902ed43a84c6c96d23b24622e19/dbt-bit_tm.png?h=250"  # noqa
     _description = "dbt CLI target configs containing credentials and settings, specific to BigQuery."  # noqa
-    _documentation_url = "https://prefecthq.github.io/prefect-dbt/cli/configs/bigquery/#prefect_dbt.cli.configs.bigquery.BigQueryTargetConfigs"  # noqa
+    _documentation_url = "https://docs.prefect.io/integrations/prefect-dbt"  # noqa
 
     type: Literal["bigquery"] = Field(
         default="bigquery", description="The type of target."

@@ -472,7 +472,7 @@ class CloudRunWorkerV2(BaseWorker):
     job_configuration_variables = CloudRunWorkerV2Variables
     _description = "Execute flow runs within containers on Google Cloud Run (V2 API). Requires a Google Cloud Platform account."  # noqa
     _display_name = "Google Cloud Run V2"
-    _documentation_url = "https://prefecthq.github.io/prefect-gcp/worker_v2/"
+    _documentation_url = "https://docs.prefect.io/integrations/prefect-gcp"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/4SpnOBvMYkHp6z939MDKP6/549a91bc1ce9afd4fb12c68db7b68106/social-icon-google-cloud-1200-630.png?h=250"  # noqa
 
     async def run(
