@@ -18,6 +18,8 @@ Throw and catch errors to handle them gracefully.
 For example, if you don't get a 2xx response from an API, throw an exception and log the error.
 
 ```python
+from prefect import task
+
 @task(log_prints=True)
 def fetch_page_of_issues(repo: str, page: int = 1) -> Optional[dict]:
     """Fetch a page of issues for a GitHub repository"""
@@ -81,6 +83,8 @@ if __name__ == "__main__":
 Use pagination to fetch large amounts of data and run tasks concurrently to analyze the data efficiently:
 
 ```python
+from prefect import flow
+
 @flow(log_prints=True)
 def analyze_repo_health(repos: [str]):
     """Analyze issue health metrics for GitHub repositories"""
@@ -192,6 +196,7 @@ Use nested flows and tasks to help distribute tasks more efficiently and aid wit
 Here's an example of how to use nested flows and tasks:
 
 ```python
+from prefect import flow
 
 @flow
 def analyze_repo_health(repos: List[str]):

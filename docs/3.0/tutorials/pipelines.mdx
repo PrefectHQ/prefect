@@ -89,6 +89,8 @@ If individual API requests are slow, you can speed them up in aggregate by makin
 When you call the `submit` method on a task, the task is submitted to a task runner for execution.
 
 ```python
+from prefect import flow
+
 @flow(log_prints=True)
 def show_stars(github_repos: list[str]):
     """Flow: Show the number of stars that GitHub repos have"""
@@ -173,6 +175,7 @@ prefect gcl create github-api --limit 60 --slot-decay-per-second 0.016
 Now, you can use this global concurrency limit in your code:
 
 ```python
+from prefect import flow
 from prefect.concurrency.sync import rate_limit
 
 @flow(log_prints=True)
@@ -257,6 +260,7 @@ For example, if you don't want to fetch the number of stars for a given reposito
 ```python
 from datetime import timedelta
 
+from prefect import task
 from prefect.cache_policies import INPUTS
 
 @task(cache_policy=INPUTS, cache_expiration=timedelta(days=1))
@@ -269,6 +273,7 @@ def fetch_stats(github_repo: str):
 Run the following code to see caching in action:
 
 ```python
+from datetime import timedelta
 import httpx
 
 from prefect import flow, task # Prefect flow and task decorators
