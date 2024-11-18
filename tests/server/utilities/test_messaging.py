@@ -456,7 +456,6 @@ async def test_repeatedly_failed_message_is_moved_to_dead_letter_queue(
 
     consumer_task = asyncio.create_task(consumer.run(handler))
 
-
     async with deduplicating_publisher as p:
         await p.publish_data(b"hello, world", {"howdy": "partner"})
 
