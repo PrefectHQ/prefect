@@ -1023,7 +1023,7 @@
       "source": "/latest/faq"
     },
     {
-      "destination": "/latest/resources/upgrade-prefect-v3",
+      "destination": "/latest/resources/upgrade-prefect-3",
       "source": "/latest/guides/migration-guide"
     },
     {
