@@ -22,6 +22,8 @@ The first improvement you can make is to add retries to your flow.
 Whenever an HTTP request fails, you can retry it a few times before giving up.
 
 ```python
+from prefect import task
+
 @task(retries=3)
 def fetch_stats(github_repo: str):
     """Task 1: Fetch the statistics for a GitHub repo"""
