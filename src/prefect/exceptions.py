@@ -443,3 +443,7 @@ class ProfileSettingsValidationError(PrefectException):
 
     def __init__(self, errors: List[Tuple[Any, ValidationError]]) -> None:
         self.errors = errors
+
+
+class HashError(PrefectException):
+    """Raised when hashing objects fails"""

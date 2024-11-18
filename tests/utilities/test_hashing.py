@@ -1,8 +1,11 @@
 import hashlib
+import threading
+from unittest.mock import MagicMock
 
 import pytest
 
-from prefect.utilities.hashing import file_hash, stable_hash
+from prefect.exceptions import HashError
+from prefect.utilities.hashing import file_hash, hash_objects, stable_hash
 
 
 @pytest.mark.parametrize(
@@ -55,3 +58,28 @@ class TestFileHash:
         assert val == hashlib.md5(b"0").hexdigest()
         # Check if the hash is stable
         assert val == "cfcd208495d565ef66e7dff9f98764da"
+
+
+class TestHashObjects:
+    def test_hash_objects_handles_unhashable_objects_gracefully(self):
+        """Test that unhashable objects return None by default"""
+        lock = threading.Lock()
+        result = hash_objects({"data": "hello", "lock": lock})
+        assert result is None
+
+    def test_hash_objects_raises_with_helpful_message(self):
+        """Test that unhashable objects raise HashError when raise_on_failure=True"""
+        lock = threading.Lock()
+        mock_file = MagicMock()
+        mock_file.__str__ = lambda _: "<file object>"
+
+        with pytest.raises(HashError) as exc:
+            hash_objects(
+                {"data": "hello", "lock": lock, "file": mock_file},
+                raise_on_failure=True,
+            )
+
+        error_msg = str(exc.value)
+        assert "Unable to create hash" in error_msg
+        assert "JSON error" in error_msg
+        assert "Pickle error" in error_msg
