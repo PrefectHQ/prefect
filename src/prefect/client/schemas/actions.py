@@ -20,6 +20,7 @@ from prefect._internal.schemas.validators import (
     validate_variable_name,
 )
 from prefect.client.schemas.objects import (
+    KeyValueLabels,
     StateDetails,
     StateType,
 )
@@ -65,6 +66,11 @@ class FlowCreate(ActionBaseModel):
         default_factory=list,
         description="A list of flow tags",
         examples=[["tag-1", "tag-2"]],
+    )
+    labels: Union[KeyValueLabels, None] = Field(
+        default_factory=dict,
+        description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
+        examples=[{"key": "value1", "key2": 42}],
     )
 
 
@@ -159,6 +165,11 @@ class DeploymentCreate(ActionBaseModel):
         description="Parameters for flow runs scheduled by the deployment.",
     )
     tags: List[str] = Field(default_factory=list)
+    labels: Union[KeyValueLabels, None] = Field(
+        default_factory=dict,
+        description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
+        examples=[{"key": "value1", "key2": 42}],
+    )
     pull_steps: Optional[List[dict]] = Field(None)
 
     work_queue_name: Optional[str] = Field(None)
@@ -315,6 +326,11 @@ class TaskRunCreate(ActionBaseModel):
         default_factory=objects.TaskRunPolicy,
     )
     tags: List[str] = Field(default_factory=list)
+    labels: Union[KeyValueLabels, None] = Field(
+        default_factory=dict,
+        description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
+        examples=[{"key": "value1", "key2": 42}],
+    )
     task_inputs: Dict[
         str,
         List[
@@ -357,6 +373,11 @@ class FlowRunCreate(ActionBaseModel):
         default_factory=objects.FlowRunPolicy
     )
     tags: List[str] = Field(default_factory=list)
+    labels: Union[KeyValueLabels, None] = Field(
+        default_factory=dict,
+        description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
+        examples=[{"key": "value1", "key2": 42}],
+    )
     idempotency_key: Optional[str] = Field(None)
 
 

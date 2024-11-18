@@ -201,6 +201,11 @@ class FlowRunResponse(ObjectBaseModel):
         description="A list of tags on the flow run",
         examples=[["tag-1", "tag-2"]],
     )
+    labels: objects.KeyValueLabelsField = Field(
+        default_factory=dict,
+        description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
+        examples=[{"key": "value1", "key2": 42}],
+    )
     parent_task_run_id: Optional[UUID] = Field(
         default=None,
         description=(
@@ -352,6 +357,11 @@ class DeploymentResponse(ObjectBaseModel):
         default_factory=list,
         description="A list of tags for the deployment",
         examples=[["tag-1", "tag-2"]],
+    )
+    labels: objects.KeyValueLabelsField = Field(
+        default_factory=dict,
+        description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
+        examples=[{"key": "value1", "key2": 42}],
     )
     work_queue_name: Optional[str] = Field(
         default=None,

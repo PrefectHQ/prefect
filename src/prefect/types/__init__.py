@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Annotated, Any, Dict, List, Set, TypeVar, Union
+from typing import Annotated, Any, Dict, List, Optional, Set, TypeAlias, TypeVar, Union
 from typing_extensions import Literal
 import orjson
 import pydantic
@@ -142,9 +142,24 @@ LogLevel = Annotated[
     BeforeValidator(lambda x: x.upper()),
 ]
 
+
+KeyValueLabels: TypeAlias = dict[str, Union[StrictBool, StrictInt, StrictFloat, str]]
+
+
+def convert_none_to_empty_dict(v: Optional[KeyValueLabels]) -> KeyValueLabels:
+    return v or {}
+
+
+KeyValueLabelsField = Annotated[
+    dict[str, Union[StrictBool, StrictInt, StrictFloat, str]],
+    BeforeValidator(cast_none_to_empty_dict),
+]
+
+
 __all__ = [
     "ClientRetryExtraCodes",
     "LogLevel",
+    "KeyValueLabelsField",
     "NonNegativeInteger",
     "PositiveInteger",
     "NonNegativeFloat",
