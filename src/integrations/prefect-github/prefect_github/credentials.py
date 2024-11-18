@@ -25,7 +25,7 @@ class GitHubCredentials(CredentialsBlock):
 
     _block_type_name = "GitHub Credentials"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/41971cfecfea5f79ff334164f06ecb34d1038dd4-250x250.png"  # noqa
-    _documentation_url = "https://prefecthq.github.io/prefect-github/credentials/#prefect_github.credentials.GitHubCredentials"  # noqa
+    _documentation_url = "https://docs.prefect.io/integrations/prefect-github"
 
     token: Optional[SecretStr] = Field(
         default=None, description="A GitHub personal access token (PAT)."

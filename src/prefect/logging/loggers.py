@@ -12,6 +12,7 @@ from typing_extensions import Self
 import prefect
 from prefect.exceptions import MissingContextError
 from prefect.logging.filters import ObfuscateApiKeyFilter
+from prefect.telemetry.logging import add_telemetry_log_handler
 
 if TYPE_CHECKING:
     from prefect.client.schemas import FlowRun as ClientFlowRun
@@ -19,6 +20,7 @@ if TYPE_CHECKING:
     from prefect.context import RunContext
     from prefect.flows import Flow
     from prefect.tasks import Task
+    from prefect.workers.base import BaseWorker
 
 
 class PrefectLogAdapter(logging.LoggerAdapter):
@@ -74,6 +76,8 @@ def get_logger(name: Optional[str] = None) -> logging.Logger:
     # Prevent the current API key from being logged in plain text
     obfuscate_api_key_filter = ObfuscateApiKeyFilter()
     logger.addFilter(obfuscate_api_key_filter)
+
+    add_telemetry_log_handler(logger=logger)
 
     return logger
 
@@ -135,6 +139,12 @@ def get_run_logger(
         logger = logging.getLogger("null")
     else:
         raise MissingContextError("There is no active flow or task run context.")
+
+    if isinstance(logger, logging.LoggerAdapter):
+        assert isinstance(logger.logger, logging.Logger)
+        add_telemetry_log_handler(logger.logger)
+    else:
+        add_telemetry_log_handler(logger)
 
     return logger
 
@@ -203,6 +213,29 @@ def task_run_logger(
             **kwargs,
         },
     )
+
+
+def get_worker_logger(worker: "BaseWorker", name: Optional[str] = None):
+    """
+    Create a worker logger with the worker's metadata attached.
+
+    If the worker has a backend_id, it will be attached to the log records.
+    If the worker does not have a backend_id a basic logger will be returned.
+    If the worker does not have a backend_id attribute, a basic logger will be returned.
+    """
+
+    worker_log_name = name or f"workers.{worker.__class__.type}.{worker.name.lower()}"
+
+    worker_id = getattr(worker, "backend_id", None)
+    if worker_id:
+        return PrefectLogAdapter(
+            get_logger(worker_log_name),
+            extra={
+                "worker_id": str(worker.backend_id),
+            },
+        )
+    else:
+        return get_logger(worker_log_name)
 
 
 @contextmanager

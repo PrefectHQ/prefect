@@ -77,7 +77,7 @@ class RedisDatabase(WritableFileSystem):
         Returns:
             Contents at key as bytes
         """
-        client = self.get_client()
+        client = self.get_async_client()
         ret = await client.get(path)
 
         await client.close()
@@ -90,7 +90,7 @@ class RedisDatabase(WritableFileSystem):
             path: Redis key to write to
             content: Binary object to write
         """
-        client = self.get_client()
+        client = self.get_async_client()
         ret = await client.set(path, content)
 
         await client.close()

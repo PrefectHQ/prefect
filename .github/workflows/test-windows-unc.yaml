@@ -1,0 +1,53 @@
+name: Test Windows UNC Paths
+
+on:
+  workflow_dispatch: # Allow manual triggering
+  pull_request:
+    paths:
+      - "src/prefect/utilities/filesystem.py"
+      - "scripts/test_unc_paths.py"
+      - ".github/workflows/test-windows-unc.yaml"
+      - "requirements.txt"
+      - "requirements-client.txt"
+
+jobs:
+  test-unc-paths:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install -U pip
+          pip install -e .
+
+      - name: Create test UNC path and run flow
+        shell: pwsh
+        run: |
+          # Create a test directory
+          New-Item -ItemType Directory -Path "C:\ShareTest" -Force
+
+          # Create network share
+          New-SmbShare -Name "PrefectTest" -Path "C:\ShareTest" -FullAccess "Everyone"
+
+          # Run the test script from the current directory
+          # This will create and test flows in the UNC path
+          python scripts/test_unc_paths.py
+
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+
+      - name: Cleanup
+        if: always()
+        shell: pwsh
+        run: |
+          Remove-SmbShare -Name "PrefectTest" -Force

@@ -25,7 +25,7 @@ class APISettings(PrefectBaseSettings):
     )
     tls_insecure_skip_verify: bool = Field(
         default=False,
-        description="If `True`, disables SSL checking to allow insecure requests. This is recommended only during development, e.g. when using self-signed certificates.",
+        description="If `True`, disables SSL checking to allow insecure requests. Setting to False is recommended only during development. For example, when using self-signed certificates.",
     )
     ssl_cert_file: Optional[str] = Field(
         default=os.environ.get("SSL_CERT_FILE"),

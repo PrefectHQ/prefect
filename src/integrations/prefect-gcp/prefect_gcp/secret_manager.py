@@ -307,7 +307,7 @@ class GcpSecret(SecretBlock):
     """
 
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/10424e311932e31c477ac2b9ef3d53cefbaad708-250x250.png"  # noqa
-    _documentation_url = "https://prefecthq.github.io/prefect-gcp/secret_manager/#prefect_gcp.secret_manager.GcpSecret"  # noqa: E501
+    _documentation_url = "https://docs.prefect.io/integrations/prefect-gcp"  # noqa: E501
 
     gcp_credentials: GcpCredentials
     secret_name: str = Field(default=..., description="Name of the secret to manage.")

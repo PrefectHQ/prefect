@@ -26,7 +26,7 @@ See [settings](/3.0/manage/settings-and-profiles) for more information on how se
 
 There are four categories of configuration for result persistence:
 - [whether to persist results at all](/3.0/develop/results#enabling-result-persistence): this is configured through
-various keyword arguments and the `PREFECT_RESULTS_PERSIST_BY_DEFAULT` setting.
+various keyword arguments, the `PREFECT_RESULTS_PERSIST_BY_DEFAULT` setting, and the `PREFECT_TASKS_DEFAULT_PERSIST_RESULT` setting for tasks specifically.
 - [what filesystem to persist results to](/3.0/develop/results#result-storage): this is configured through the `result_storage`
 keyword and the `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK` setting.
 - [how to serialize and deserialize results](/3.0/develop/results#result-serialization): this is configured through
@@ -51,8 +51,8 @@ prefect config set PREFECT_LOCAL_STORAGE_PATH='~/.my-results/'
 
 ### Enabling result persistence
 
-In addition to the `PREFECT_RESULTS_PERSIST_BY_DEFAULT` setting, result persistence can also be
-enabled or disabled on both individual flows and individual tasks.
+In addition to the `PREFECT_RESULTS_PERSIST_BY_DEFAULT` and `PREFECT_TASKS_DEFAULT_PERSIST_RESULT` settings,
+result persistence can also be enabled or disabled on both individual flows and individual tasks.
 Specifying a non-null value for any of the following keywords on the task decorator will enable result
 persistence for that task:
 - `persist_result`: a boolean that allows you to explicitly enable or disable result persistence.
@@ -74,6 +74,7 @@ tasks called within that flow by default.
 
 Any settings _explicitly_ set on a task take precedence over the flow settings.
 
+Additionally, the `PREFECT_TASKS_DEFAULT_PERSIST_RESULT` environment variable can be used to globally control the default persistence behavior for tasks, overriding the default behavior set by a parent flow or task.
 </Note>
 
 ### Result storage
@@ -84,6 +85,7 @@ Note that if you want your tasks to share a common cache, your result storage sh
 the infrastructure in which those tasks run. [Integrations](/integrations/integrations) have cloud-specific storage blocks.
 For example, a common distributed filesystem for result storage is AWS S3.
 
+Additionally, you can control the default persistence behavior for task results using the `default_persist_result` setting. This setting allows you to specify whether results should be persisted by default for all tasks. You can set this to `True` to enable persistence by default, or `False` to disable it. This setting can be overridden at the individual task or flow level.
 
 {/* pmd-metadata: fixture:cleanup_s3_bucket_block */}
 ```python

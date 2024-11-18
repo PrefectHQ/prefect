@@ -156,23 +156,37 @@ class TestShellOperation:
     @pytest.mark.skipif(sys.version >= "3.12", reason="Fails on Python 3.12")
     @pytest.mark.parametrize("method", ["run", "trigger"])
     async def test_output(self, prefect_task_runs_caplog, method):
+        # Set the log level to INFO explicitly
+        prefect_task_runs_caplog.set_level(logging.INFO)
+
         op = ShellOperation(commands=["echo 'testing\nthe output'", "echo good"])
         assert await self.execute(op, method) == ["testing", "the output", "good"]
-        records = prefect_task_runs_caplog.records
-        assert len(records) == 3
-        assert "triggered with 2 commands running" in records[0].message
-        assert "stream output:\ntesting\nthe output\ngood" in records[1].message
-        assert "completed with return code 0" in records[2].message
+
+        # Filter for only INFO level records
+        log_messages = [
+            r.message
+            for r in prefect_task_runs_caplog.records
+            if r.levelno >= logging.INFO
+        ]
+        assert any("triggered with 2 commands running" in m for m in log_messages)
+        assert any(
+            "stream output:\ntesting\nthe output\ngood" in m for m in log_messages
+        )
+        assert any("completed with return code 0" in m for m in log_messages)
 
     @pytest.mark.parametrize("method", ["run", "trigger"])
     async def test_stream_output(self, prefect_task_runs_caplog, method):
         # If stream_output is False, there should be output,
         # but no logs from the shell process
+        prefect_task_runs_caplog.set_level(logging.INFO)  # Only capture INFO logs
+
         op = ShellOperation(
             commands=["echo 'testing\nthe output'", "echo good"], stream_output=False
         )
         assert await self.execute(op, method) == ["testing", "the output", "good"]
-        records = prefect_task_runs_caplog.records
+        records = [
+            r for r in prefect_task_runs_caplog.records if r.levelno >= logging.INFO
+        ]
         assert len(records) == 2
         assert "triggered with 2 commands running" in records[0].message
         assert "completed with return code 0" in records[1].message

@@ -227,7 +227,7 @@ class ShellOperation(JobBlock):
 
     _block_type_name = "Shell Operation"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/0b47a017e1b40381de770c17647c49cdf6388d1c-250x250.png"  # noqa: E501
-    _documentation_url = "https://prefecthq.github.io/prefect-shell/commands/#prefect_shell.commands.ShellOperation"  # noqa: E501
+    _documentation_url = "https://docs.prefect.io/integrations/prefect-shell"  # noqa
 
     commands: List[str] = Field(
         default=..., description="A list of commands to execute sequentially."

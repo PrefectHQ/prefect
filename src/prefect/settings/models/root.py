@@ -72,7 +72,7 @@ class Settings(PrefectBaseSettings):
 
     client: ClientSettings = Field(
         default_factory=ClientSettings,
-        description="Settings for for controlling API client behavior",
+        description="Settings for controlling API client behavior",
     )
 
     cloud: CloudSettings = Field(

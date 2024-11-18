@@ -1,9 +1,39 @@
+import asyncio
 import subprocess
 import sys
+from threading import Thread
+from typing import List
+
+from pydantic_extra_types.pendulum_dt import DateTime
+
+from prefect.events import Event
+from prefect.events.clients import get_events_subscriber
+from prefect.events.filters import EventFilter, EventNameFilter, EventOccurredFilter
 
 
-# Checks to make sure that collections are loaded prior to attempting to start a worker
+async def watch_worker_events(events: List[Event]):
+    """Watch for worker start/stop events and collect them"""
+    async with get_events_subscriber(
+        filter=EventFilter(
+            event=EventNameFilter(prefix=["prefect.worker."]),
+            occurred=EventOccurredFilter(since=DateTime.now()),
+        )
+    ) as events_subscriber:
+        async for event in events_subscriber:
+            events.append(event)
+
+
+def run_event_listener(events: List[Event]):
+    """Run the async event listener in a thread"""
+    asyncio.run(watch_worker_events(events))
+
+
 def main():
+    events: List[Event] = []
+
+    listener_thread = Thread(target=run_event_listener, args=(events,), daemon=True)
+    listener_thread.start()
+
     subprocess.check_call(
         ["python", "-m", "pip", "install", "prefect-kubernetes>=0.5.0"],
         stdout=sys.stdout,
@@ -52,10 +82,27 @@ def main():
         stderr=sys.stderr,
     )
     subprocess.check_call(
-        ["prefect", "work-pool", "delete", "test-worker-pool"],
+        ["prefect", "--no-prompt", "work-pool", "delete", "test-worker-pool"],
         stdout=sys.stdout,
         stderr=sys.stderr,
     )
+
+    worker_events = [e for e in events if e.event.startswith("prefect.worker.")]
+    assert (
+        len(worker_events) == 2
+    ), f"Expected 2 worker events, got {len(worker_events)}"
+
+    start_events = [e for e in worker_events if e.event == "prefect.worker.started"]
+    stop_events = [e for e in worker_events if e.event == "prefect.worker.stopped"]
+
+    assert len(start_events) == 1, "Expected 1 worker start event"
+    assert len(stop_events) == 1, "Expected 1 worker stop event"
+
+    print("Captured expected worker start and stop events!")
+
+    assert (
+        stop_events[0].follows == start_events[0].id
+    ), "Stop event should follow start event"
 
 
 if __name__ == "__main__":

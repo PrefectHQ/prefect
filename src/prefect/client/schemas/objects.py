@@ -23,6 +23,9 @@ from pydantic import (
     HttpUrl,
     IPvAnyNetwork,
     SerializationInfo,
+    StrictBool,
+    StrictFloat,
+    StrictInt,
     Tag,
     field_validator,
     model_serializer,
@@ -67,6 +70,8 @@ if TYPE_CHECKING:
 
 
 R = TypeVar("R", default=Any)
+
+KeyValueLabels = dict[str, Union[StrictBool, StrictInt, StrictFloat, str]]
 
 
 DEFAULT_BLOCK_SCHEMA_VERSION = "non-versioned"
@@ -554,6 +559,11 @@ class FlowRun(ObjectBaseModel):
         default_factory=list,
         description="A list of tags on the flow run",
         examples=[["tag-1", "tag-2"]],
+    )
+    labels: KeyValueLabels = Field(
+        default_factory=dict,
+        description="Prefect Cloud: A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
+        examples=[{"key": "value1", "key2": 42}],
     )
     parent_task_run_id: Optional[UUID] = Field(
         default=None,
@@ -1689,3 +1699,24 @@ class CsrfToken(ObjectBaseModel):
 
 
 __getattr__ = getattr_migration(__name__)
+
+
+class Integration(PrefectBaseModel):
+    """A representation of an installed Prefect integration."""
+
+    name: str = Field(description="The name of the Prefect integration.")
+    version: str = Field(description="The version of the Prefect integration.")
+
+
+class WorkerMetadata(PrefectBaseModel):
+    """
+    Worker metadata.
+
+    We depend on the structure of `integrations`, but otherwise, worker classes
+    should support flexible metadata.
+    """
+
+    integrations: List[Integration] = Field(
+        default=..., description="Prefect integrations installed in the worker."
+    )
+    model_config = ConfigDict(extra="allow")

@@ -17,6 +17,7 @@ from pydantic_settings import (
 
 from prefect.settings.sources import (
     EnvFilterSettingsSource,
+    FilteredDotEnvSettingsSource,
     PrefectTomlConfigSettingsSource,
     ProfileSettingsTomlLoader,
     PyprojectTomlConfigSettingsSource,
@@ -43,13 +44,14 @@ class PrefectBaseSettings(BaseSettings):
         See https://docs.pydantic.dev/latest/concepts/pydantic_settings/#customise-settings-sources
         """
         env_filter = set()
-        for field in settings_cls.model_fields.values():
+        for field_name, field in settings_cls.model_fields.items():
             if field.validation_alias is not None and isinstance(
                 field.validation_alias, AliasChoices
             ):
                 for alias in field.validation_alias.choices:
                     if isinstance(alias, AliasPath) and len(alias.path) > 0:
                         env_filter.add(alias.path[0])
+            env_filter.add(field_name)
         return (
             init_settings,
             EnvFilterSettingsSource(
@@ -62,7 +64,18 @@ class PrefectBaseSettings(BaseSettings):
                 env_parse_enums=cls.model_config.get("env_parse_enums"),
                 env_filter=list(env_filter),
             ),
-            dotenv_settings,
+            FilteredDotEnvSettingsSource(
+                settings_cls,
+                env_file=cls.model_config.get("env_file"),
+                env_file_encoding=cls.model_config.get("env_file_encoding"),
+                case_sensitive=cls.model_config.get("case_sensitive"),
+                env_prefix=cls.model_config.get("env_prefix"),
+                env_nested_delimiter=cls.model_config.get("env_nested_delimiter"),
+                env_ignore_empty=cls.model_config.get("env_ignore_empty"),
+                env_parse_none_str=cls.model_config.get("env_parse_none_str"),
+                env_parse_enums=cls.model_config.get("env_parse_enums"),
+                env_blacklist=list(env_filter),
+            ),
             file_secret_settings,
             PrefectTomlConfigSettingsSource(settings_cls),
             PyprojectTomlConfigSettingsSource(settings_cls),
@@ -92,7 +105,7 @@ class PrefectBaseSettings(BaseSettings):
             elif (value := env.get(key)) is not None:
                 env_variables[
                     f"{self.model_config.get('env_prefix')}{key.upper()}"
-                ] = str(value)
+                ] = _to_environment_variable_value(value)
         return env_variables
 
     @model_serializer(
@@ -191,3 +204,9 @@ def _build_settings_config(
         pyproject_toml_table_header=("tool", "prefect", *path),
         json_schema_extra=_add_environment_variables,
     )
+
+
+def _to_environment_variable_value(value: Any) -> str:
+    if isinstance(value, (list, set, tuple)):
+        return ",".join(str(v) for v in value)
+    return str(value)

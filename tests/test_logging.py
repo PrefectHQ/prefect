@@ -6,6 +6,8 @@ import uuid
 from contextlib import nullcontext
 from functools import partial
 from io import StringIO
+from typing import Type
+from unittest import mock
 from unittest.mock import ANY, MagicMock
 
 import pendulum
@@ -30,7 +32,12 @@ from prefect.logging.configuration import (
 )
 from prefect.logging.filters import ObfuscateApiKeyFilter
 from prefect.logging.formatters import JsonFormatter
-from prefect.logging.handlers import APILogHandler, APILogWorker, PrefectConsoleHandler
+from prefect.logging.handlers import (
+    APILogHandler,
+    APILogWorker,
+    PrefectConsoleHandler,
+    WorkerAPILogHandler,
+)
 from prefect.logging.highlighters import PrefectConsoleHighlighter
 from prefect.logging.loggers import (
     PrefectLogAdapter,
@@ -39,6 +46,7 @@ from prefect.logging.loggers import (
     flow_run_logger,
     get_logger,
     get_run_logger,
+    get_worker_logger,
     patch_print,
     task_run_logger,
 )
@@ -60,6 +68,7 @@ from prefect.settings import (
 from prefect.testing.cli import temporary_console_width
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.names import obfuscate
+from prefect.workers.base import BaseJobConfiguration, BaseWorker
 
 
 @pytest.fixture
@@ -627,6 +636,118 @@ class TestAPILogHandler:
         assert handler._get_payload_size(dict_log) == log_size
 
 
+WORKER_ID = uuid.uuid4()
+
+
+class TestWorkerLogging:
+    class CloudWorkerTestImpl(BaseWorker):
+        type: str = "cloud_logging_test"
+        job_configuration: Type[BaseJobConfiguration] = BaseJobConfiguration
+
+        async def _send_worker_heartbeat(self, *_, **__):
+            """
+            Workers only return an ID here if they're connected to Cloud,
+            so this simulates the worker being connected to Cloud.
+            """
+            return WORKER_ID
+
+        async def run(self, *_, **__):
+            pass
+
+    class ServerWorkerTestImpl(BaseWorker):
+        type: str = "server_logging_test"
+        job_configuration: Type[BaseJobConfiguration] = BaseJobConfiguration
+
+        async def run(self, *_, **__):
+            pass
+
+        async def _send_worker_heartbeat(self, *_, **__):
+            """
+            Workers only return an ID here if they're connected to Cloud,
+            so this simulates the worker not being connected to Cloud.
+            """
+            return None
+
+    @pytest.fixture
+    def logging_to_api_enabled(self):
+        with temporary_settings(updates={PREFECT_LOGGING_TO_API_ENABLED: True}):
+            yield
+
+    @pytest.fixture
+    def worker_handler(self):
+        yield WorkerAPILogHandler()
+
+    @pytest.fixture
+    def logger(self, worker_handler):
+        logger = logging.getLogger(__name__)
+        logger.setLevel(logging.DEBUG)
+        logger.addHandler(worker_handler)
+        yield logger
+        logger.removeHandler(worker_handler)
+
+    async def test_get_worker_logger_works_with_no_backend_id(self):
+        async with self.CloudWorkerTestImpl(
+            name="test", work_pool_name="test-work-pool"
+        ) as worker:
+            logger = get_worker_logger(worker)
+            assert logger.name == "prefect.workers.cloud_logging_test.test"
+
+    async def test_get_worker_logger_works_with_backend_id(self):
+        async with self.CloudWorkerTestImpl(
+            name="test", work_pool_name="test-work-pool"
+        ) as worker:
+            await worker.sync_with_backend()
+            logger = get_worker_logger(worker)
+            assert logger.name == "prefect.workers.cloud_logging_test.test"
+            assert logger.extra["worker_id"] == str(WORKER_ID)
+
+    async def test_worker_emits_logs_with_worker_id(self, caplog):
+        async with self.CloudWorkerTestImpl(
+            name="test", work_pool_name="test-work-pool"
+        ) as worker:
+            await worker.sync_with_backend()
+            worker._logger.info("testing_with_extras")
+
+            record_with_extras = [
+                r for r in caplog.records if "testing_with_extras" in r.message
+            ]
+
+            assert "testing_with_extras" in caplog.text
+            assert record_with_extras[0].worker_id == str(worker.backend_id)
+            assert worker._logger.extra["worker_id"] == str(worker.backend_id)
+
+    async def test_worker_logger_sends_log_to_api_worker_when_connected_to_cloud(
+        self, mock_log_worker, worker_handler, logging_to_api_enabled
+    ):
+        async with self.CloudWorkerTestImpl(
+            name="test", work_pool_name="test-work-pool"
+        ) as worker:
+            await worker.sync_with_backend()
+            worker._logger.debug("test-worker-log")
+
+        log_statement = [
+            log
+            for call in mock_log_worker.instance().send.call_args_list
+            for log in call.args
+            if log["name"] == worker._logger.name
+            and log["message"] == "test-worker-log"
+        ]
+
+        assert len(log_statement) == 1
+        assert log_statement[0]["worker_id"] == str(worker.backend_id)
+
+    async def test_worker_logger_does_not_send_logs_when_not_connected_to_cloud(
+        self, mock_log_worker, worker_handler, logging_to_api_enabled
+    ):
+        async with self.ServerWorkerTestImpl(
+            name="test", work_pool_name="test-work-pool"
+        ) as worker:
+            assert isinstance(worker._logger, logging.Logger)
+            worker._logger.debug("test-worker-log")
+
+        mock_log_worker.instance().send.assert_not_called()
+
+
 class TestAPILogWorker:
     @pytest.fixture
     async def worker(self):
@@ -745,6 +866,22 @@ class TestAPILogWorker:
 
         logs = await prefect_client.read_logs()
         assert len(logs) == 2
+
+    async def test_logs_include_worker_id_if_available(
+        self, worker, log_dict, prefect_client
+    ):
+        worker_id = str(uuid.uuid4())
+        log_dict["worker_id"] = worker_id
+
+        with mock.patch(
+            "prefect.client.orchestration.PrefectClient.create_logs", autospec=True
+        ) as mock_create_logs:
+            worker.send(log_dict)
+            await worker.drain()
+            assert mock_create_logs.call_count == 1
+            logs = mock_create_logs.call_args.args[1]
+            assert len(logs) == 1
+            assert logs[0]["worker_id"] == worker_id
 
 
 def test_flow_run_logger(flow_run):

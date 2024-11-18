@@ -1006,7 +1006,7 @@ class DbtCloudJob(JobBlock):
 
     _block_type_name = "dbt Cloud Job"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/5zE9lxfzBHjw3tnEup4wWL/9a001902ed43a84c6c96d23b24622e19/dbt-bit_tm.png?h=250"  # noqa
-    _documentation_url = "https://prefecthq.github.io/prefect-dbt/cloud/jobs/#prefect_dbt.cloud.jobs.DbtCloudJob"  # noqa
+    _documentation_url = "https://docs.prefect.io/integrations/prefect-dbt"  # noqa
 
     dbt_cloud_credentials: DbtCloudCredentials = Field(
         default=...,

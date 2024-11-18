@@ -79,7 +79,7 @@ class LambdaFunction(Block):
 
     _block_type_name = "Lambda Function"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/d74b16fe84ce626345adf235a47008fea2869a60-225x225.png"  # noqa
-    _documentation_url = "https://prefecthq.github.io/prefect-aws/s3/#prefect_aws.lambda_function.LambdaFunction"  # noqa
+    _documentation_url = "https://docs.prefect.io/integrations/prefect-aws"  # noqa
 
     function_name: str = Field(
         title="Function Name",

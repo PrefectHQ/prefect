@@ -7,7 +7,6 @@ import pydantic
 from pydantic import (
     BeforeValidator,
     Field,
-    SecretStr,
     StrictBool,
     StrictFloat,
     StrictInt,
@@ -110,7 +109,7 @@ def validate_set_T_from_delim_string(
     T_adapter = TypeAdapter(type_)
     delim = delim or ","
     if isinstance(value, str):
-        return {T_adapter.validate_strings(s) for s in value.split(delim)}
+        return {T_adapter.validate_strings(s.strip()) for s in value.split(delim)}
     errors = []
     try:
         return {T_adapter.validate_python(value)}

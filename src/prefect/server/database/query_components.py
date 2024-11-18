@@ -947,8 +947,15 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                         end_time=row.end_time,
                         parents=[Edge(id=id) for id in row.parent_ids or []],
                         children=[Edge(id=id) for id in row.child_ids or []],
+                        # ensure encapsulating_ids is deduplicated
+                        # so parents only show up once
                         encapsulating=[
-                            Edge(id=id) for id in row.encapsulating_ids or []
+                            Edge(id=id)
+                            for id in (
+                                list(set(row.encapsulating_ids))
+                                if row.encapsulating_ids
+                                else []
+                            )
                         ],
                         artifacts=graph_artifacts.get(row.id, []),
                     ),
@@ -1427,7 +1434,13 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                         end_time=time(row.end_time),
                         parents=edges(row.parent_ids),
                         children=edges(row.child_ids),
-                        encapsulating=edges(row.encapsulating_ids),
+                        # ensure encapsulating_ids is deduplicated
+                        # so parents only show up once
+                        encapsulating=edges(
+                            list(set(row.encapsulating_ids.split(",")))
+                            if row.encapsulating_ids
+                            else None
+                        ),
                         artifacts=graph_artifacts.get(UUID(row.id), []),
                     ),
                 )
