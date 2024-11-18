@@ -1,4 +1,5 @@
 import asyncio
+import copy
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import timedelta
@@ -29,6 +30,7 @@ logger = get_logger(__name__)
 class MemoryMessage:
     data: Union[bytes, str]
     attributes: Dict[str, Any]
+    retry_count: int = 0
 
 
 class Subscription:
@@ -36,8 +38,10 @@ class Subscription:
     _queue: asyncio.Queue
     _retry: asyncio.Queue
 
-    def __init__(self, topic: "Topic") -> None:
+    def __init__(self, topic: "Topic", max_retries: int = 3) -> None:
         self.topic = topic
+        self.max_retries = max_retries
+        self.dead_letter_queue = list()
         self._queue = asyncio.Queue()
         self._retry = asyncio.Queue()
 
@@ -45,7 +49,16 @@ class Subscription:
         await self._queue.put(message)
 
     async def retry(self, message: MemoryMessage) -> None:
-        await self._retry.put(message)
+        message.retry_count += 1
+        if message.retry_count > self.max_retries:
+            logger.warning(
+                "Message failed after %d retries and will be moved to the dead letter queue",
+                message.retry_count,
+                extra={"event_message": message},
+            )
+            self.dead_letter_queue.append(message)
+        else:
+            await self._retry.put(message)
 
     async def get(self) -> MemoryMessage:
         if self._retry.qsize() > 0:
@@ -93,7 +106,8 @@ class Topic:
 
     async def publish(self, message: MemoryMessage) -> None:
         for subscription in self._subscriptions:
-            await subscription.deliver(message)
+            # Ensure that each subscription gets its own copy of the message
+            await subscription.deliver(copy.deepcopy(message))
 
 
 @asynccontextmanager

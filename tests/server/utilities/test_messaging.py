@@ -24,6 +24,7 @@ from prefect.server.utilities.messaging import (
     create_publisher,
     ephemeral_subscription,
 )
+from prefect.server.utilities.messaging.memory import Consumer as MemoryConsumer
 from prefect.settings import (
     PREFECT_MESSAGING_BROKER,
     PREFECT_MESSAGING_CACHE,
@@ -441,3 +442,44 @@ async def test_ephemeral_subscription(broker: str, publisher: Publisher):
     # TODO: is there a way we can test that ephemeral subscriptions really have cleaned
     # up after themselves after they have exited?  This will differ significantly by
     # each broker implementation, so it's hard to write a generic test.
+
+
+async def test_repeatedly_failed_message_is_moved_to_dead_letter_queue(
+    deduplicating_publisher: Publisher,
+    consumer: MemoryConsumer,
+):
+    captured_messages: List[Message] = []
+
+    async def handler(message: Message):
+        captured_messages.append(message)
+        raise ValueError("Simulated failure")
+
+    consumer_task = asyncio.create_task(consumer.run(handler))
+
+
+    async with deduplicating_publisher as p:
+        await p.publish_data(b"hello, world", {"howdy": "partner"})
+
+    while not consumer.subscription.dead_letter_queue:
+        await asyncio.sleep(0.1)
+    try:
+        consumer_task.cancel()
+        await consumer_task
+    except asyncio.CancelledError:
+        pass
+
+    # Message should have been moved to DLQ after multiple retries
+    assert len(captured_messages) == 4  # Original attempt + 3 retries
+    for message in captured_messages:
+        assert message.data == b"hello, world"
+        assert message.attributes == {"howdy": "partner"}
+
+    # Verify message is in DLQ
+    assert len(consumer.subscription.dead_letter_queue) == 1
+    dlq_message = next(iter(consumer.subscription.dead_letter_queue))
+    assert dlq_message.data == b"hello, world"
+    assert dlq_message.attributes == {"howdy": "partner"}
+    assert dlq_message.retry_count > 3
+
+    remaining_message = await drain_one(consumer)
+    assert not remaining_message
