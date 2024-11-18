@@ -84,6 +84,7 @@ if __name__ == "__main__":
 ## Parallelize slow tasks
 
 If individual API requests are slow, you can speed them up in aggregate by making multiple requests in parallel.
+When you call the `submit` method on a task, the task is submitted to a task runner for execution.
 
 ```python
 @flow(log_prints=True)

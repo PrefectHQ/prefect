@@ -95,7 +95,7 @@ def analyze_repo_health(repos: [str]):
     
     # Run issue analysis tasks in parallel
     for issue in all_issues:
-        analyze_issue.submit(issue)
+        analyze_issue.submit(issue) # Submit each task to a task runner
     
     # Wait for all analysis tasks to complete
     for detail in issue_details:
@@ -139,7 +139,7 @@ def fetch_repo_issues(repo: str):
     issue_details = []
     for issue in all_issues[:5]:  # Limit to 5 issues to avoid hitting rate limits
         issue_details.append(
-            fetch_issue_details.submit(repo, issue['number'])  # Make requests in parallel
+            fetch_issue_details.submit(repo, issue['number'])  # Submit each task to a task runner
         )
     
     details = []
