@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, 
 from typing_extensions import Self
 
 from prefect.context import TaskRunContext
+from prefect.exceptions import HashError
 from prefect.utilities.hashing import hash_objects
 
 if TYPE_CHECKING:
@@ -223,7 +224,6 @@ class TaskSource(CachePolicy):
                 lines = task_ctx.task.fn.__code__.co_code
             else:
                 raise
-
         return hash_objects(lines, raise_on_failure=True)
 
 
@@ -293,7 +293,18 @@ class Inputs(CachePolicy):
             if key not in exclude:
                 hashed_inputs[key] = val
 
-        return hash_objects(hashed_inputs, raise_on_failure=True)
+        try:
+            return hash_objects(hashed_inputs, raise_on_failure=True)
+        except HashError as exc:
+            msg = (
+                f"{exc}\n\n"
+                "This often occurs when task inputs contain objects that cannot be cached "
+                "like locks, file handles, or other system resources.\n\n"
+                "To resolve this, you can:\n"
+                "  1. Exclude these arguments by defining a custom `cache_key_fn`\n"
+                "  2. Disable caching by passing `cache_policy=NONE`\n"
+            )
+            raise ValueError(msg) from exc
 
     def __sub__(self, other: str) -> "CachePolicy":
         if not isinstance(other, str):
