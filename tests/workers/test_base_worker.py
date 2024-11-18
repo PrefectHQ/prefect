@@ -2105,7 +2105,7 @@ async def test_worker_last_polled_health_check(
         ),
         (
             {"A": "1", "B": "2"},
-            {"B": ""},  # empty strings will still override
+            {"B": ""},  # empty strings are considered values and will still override
             {},
             {"A": "1", "B": ""},
         ),
