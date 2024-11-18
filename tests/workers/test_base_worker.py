@@ -1799,6 +1799,12 @@ class TestBaseWorkerStart:
         ),
         (
             {"A": "1", "B": "2"},
+            {"A": "1", "B": "3"},
+            {},
+            {"A": "1", "B": "3"},
+        ),
+        (
+            {"A": "1", "B": "2"},
             {"C": "3", "D": "4"},
             {},
             {"A": "1", "B": "2", "C": "3", "D": "4"},
@@ -1811,14 +1817,15 @@ class TestBaseWorkerStart:
         ),
         (
             {"A": "1", "B": "2"},
-            {"B": ""},  # will be treated as unset and not apply
+            {"B": ""},  # empty strings are considered values and will still override
             {},
-            {"A": "1", "B": "2"},
+            {"A": "1", "B": ""},
         ),
     ],
     ids=[
         "flow_run_into_deployment",
-        "deployment_into_work_pool",
+        "deployment_into_work_pool_overlap",
+        "deployment_into_work_pool_no_overlap",
         "flow_run_into_work_pool",
         "try_overwrite_with_empty_str",
     ],

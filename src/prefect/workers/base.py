@@ -146,26 +146,26 @@ class BaseJobConfiguration(BaseModel):
         Important: this method expects that the base_job_template was already
         validated server-side.
         """
-        job_config: Dict[str, Any] = base_job_template["job_configuration"]
+        base_config: Dict[str, Any] = base_job_template["job_configuration"]
         variables_schema = base_job_template["variables"]
         variables = cls._get_base_config_defaults(
             variables_schema.get("properties", {})
         )
 
-        # copy variable defaults for `env` to job config before they're replaced by
+        # copy variable defaults for `env` to base config before they're replaced by
         # deployment overrides
         if variables.get("env"):
-            job_config["env"] = variables.get("env")
+            base_config["env"] = variables.get("env")
 
         variables.update(values)
 
         # deep merge `env`
-        if isinstance(job_config.get("env"), dict) and (
-            hardcoded_env := variables.get("env")
+        if isinstance(base_config.get("env"), dict) and (
+            deployment_env := variables.get("env")
         ):
-            job_config["env"] = hardcoded_env | job_config.get("env")
+            base_config["env"] = base_config.get("env") | deployment_env
 
-        populated_configuration = apply_values(template=job_config, values=variables)
+        populated_configuration = apply_values(template=base_config, values=variables)
         populated_configuration = await resolve_block_document_references(
             template=populated_configuration, client=client
         )
