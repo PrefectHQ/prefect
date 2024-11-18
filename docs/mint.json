@@ -1326,6 +1326,10 @@
     {
       "destination": "/3.0/:slug*",
       "source": "/latest/:slug*"
+    },
+    {
+      "destination": "/3.0/tutorials/quickstart",
+      "source": "/3.0/get-started/quickstart"
     }
   ],
   "tabs": [
