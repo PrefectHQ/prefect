@@ -18,19 +18,19 @@
     "axios": "1.7.4",
     "lodash.debounce": "4.0.8",
     "lodash.merge": "^4.6.2",
-    "tailwindcss": "3.4.14",
-    "vue": "3.5.12",
+    "tailwindcss": "3.4.15",
+    "vue": "3.5.13",
     "vue-router": "4.4.5"
   },
   "devDependencies": {
     "@prefecthq/eslint-config": "1.0.32",
     "@types/lodash.merge": "^4.6.9",
-    "@vitejs/plugin-vue": "5.1.4",
+    "@vitejs/plugin-vue": "5.2.0",
     "autoprefixer": "10.4.20",
     "eslint": "^8.57.1",
     "ts-node": "10.9.2",
     "typescript": "^5.6.3",
-    "vite": "5.4.10",
+    "vite": "5.4.11",
     "vue-tsc": "^2.1.10"
   }
 }

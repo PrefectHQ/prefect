@@ -50,14 +50,6 @@ class SlackCredentials(Block):
         return AsyncWebClient(token=self.token.get_secret_value())
 
 
-async def _notify_async(obj: Any, body: str, subject: Optional[str] = None):
-    client = obj.get_client()
-
-    response = await client.send(text=body)
-
-    obj._raise_on_failure(response)
-
-
 class SlackWebhook(NotificationBlock):
     """
     Block holding a Slack webhook for use in tasks and flows.
@@ -125,17 +117,17 @@ class SlackWebhook(NotificationBlock):
 
     async def notify_async(self, body: str, subject: Optional[str] = None):
         """
-        Sends a message to the Slack channel.
+        Sends a message to the Slack channel asynchronously.
         """
-        await _notify_async(self, body, subject)
+        client = self.get_client()
+        response = await client.send(text=body)
+        self._raise_on_failure(response)
 
-    @async_dispatch(_notify_async)  # type: ignore
+    @async_dispatch(notify_async)
     def notify(self, body: str, subject: Optional[str] = None):
         """
         Sends a message to the Slack channel.
         """
         client = self.get_client(sync_client=True)
-
         response = client.send(text=body)
-
         self._raise_on_failure(response)
