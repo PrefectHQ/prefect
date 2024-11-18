@@ -1019,11 +1019,11 @@
       "source": "/latest/integrations/prefect-kubernetes"
     },
     {
-      "destination": "/latest/resources/whats-new-prefect-v3.mdx",
+      "destination": "/latest/resources/whats-new-prefect-3.mdx",
       "source": "/latest/faq"
     },
     {
-      "destination": "/latest/resources/upgrade-prefect-v3",
+      "destination": "/latest/resources/upgrade-prefect-3",
       "source": "/latest/guides/migration-guide"
     },
     {
@@ -1124,7 +1124,7 @@
     },
     {
       "destination": "/integrations/prefect-aws",
-      "source": "/latest/integrations/prefect-aws/sv3"
+      "source": "/latest/integrations/prefect-aws/s3"
     },
     {
       "destination": "/latest/api-ref",
