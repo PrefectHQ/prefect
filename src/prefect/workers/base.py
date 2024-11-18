@@ -163,7 +163,7 @@ class BaseJobConfiguration(BaseModel):
         if isinstance(job_config.get("env"), dict) and (
             hardcoded_env := variables.get("env")
         ):
-            job_config["env"] = hardcoded_env | job_config.get("env")
+            job_config["env"] = job_config.get("env") | hardcoded_env
 
         populated_configuration = apply_values(template=job_config, values=variables)
         populated_configuration = await resolve_block_document_references(
