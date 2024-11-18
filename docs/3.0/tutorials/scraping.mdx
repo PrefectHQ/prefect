@@ -184,7 +184,7 @@ def fetch_issue_details(repo: str, issue_number: int) -> dict:
 if __name__ == "__main__":
     analyze_repo_health([
         "PrefectHQ/prefect",
-        "tensorflow/tensorflow",
+        "pydantic/pydantic",
         "huggingface/transformers"
     ])
 ```
@@ -319,7 +319,7 @@ def calculate_resolution_rate(issues: List[dict]) -> float:
 if __name__ == "__main__":
     analyze_repo_health([
         "PrefectHQ/prefect",
-        "tensorflow/tensorflow",
+        "pydantic/pydantic",
         "huggingface/transformers"
     ])
 ```
@@ -457,7 +457,7 @@ def calculate_resolution_rate(issues: List[dict]) -> float:
 if __name__ == "__main__":
     analyze_repo_health([
         "PrefectHQ/prefect",
-        "tensorflow/tensorflow",
+        "pydantic/pydantic",
         "huggingface/transformers"
     ])
 ```
@@ -484,7 +484,7 @@ The output should look something like this:
 ...
 10:59:27.631 | INFO    | Flow run 'robust-kangaroo' - Average response time: 0.4 hours
 10:59:27.631 | INFO    | Flow run 'robust-kangaroo' - Resolution rate: 40.0%
-10:59:27.632 | INFO    | Flow run 'robust-kangaroo' - Analyzing tensorflow/tensorflow...
+10:59:27.632 | INFO    | Flow run 'robust-kangaroo' - Analyzing pydantic/pydantic...
 ...
 10:59:40.990 | INFO    | Flow run 'robust-kangaroo' - Average response time: 0.0 hours
 10:59:40.991 | INFO    | Flow run 'robust-kangaroo' - Resolution rate: 0.0%
