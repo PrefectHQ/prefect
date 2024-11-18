@@ -1019,7 +1019,7 @@
       "source": "/latest/integrations/prefect-kubernetes"
     },
     {
-      "destination": "/latest/resources/whats-new-prefect-v3.mdx",
+      "destination": "/latest/resources/whats-new-prefect-3.mdx",
       "source": "/latest/faq"
     },
     {
