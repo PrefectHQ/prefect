@@ -1,9 +1,8 @@
 from typing import Union
 
 from pydantic import AliasChoices, AliasPath, Field
-from pydantic_settings import SettingsConfigDict
 
-from prefect.settings.base import PrefectBaseSettings
+from prefect.settings.base import PrefectBaseSettings, _build_settings_config
 
 
 class FlowsSettings(PrefectBaseSettings):
@@ -11,9 +10,7 @@ class FlowsSettings(PrefectBaseSettings):
     Settings for controlling flow behavior
     """
 
-    model_config = SettingsConfigDict(
-        env_prefix="PREFECT_FLOWS_", env_file=".env", extra="ignore"
-    )
+    model_config = _build_settings_config(("flows",))
 
     default_retries: int = Field(
         default=0,

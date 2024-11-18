@@ -1,4 +1,5 @@
 from pathlib import Path
+from uuid import UUID
 
 import pytest
 
@@ -260,6 +261,42 @@ async def test_task_result_static_storage_key(
     ).state
     assert await api_state.result() == 1
     assert task_state.data.metadata.storage_key == "test"
+
+
+async def test_task_failure_is_persisted_randomly(
+    prefect_client, tmp_path, events_pipeline
+):
+    """
+    If we use the result storage key it can interfere with proper caching.
+    """
+    storage = LocalFileSystem(basepath=tmp_path / "test-storage")
+    await storage.save("tmp-test-storage")
+
+    @flow
+    def foo():
+        return bar(return_state=True)
+
+    @task(result_storage=storage, persist_result=True, result_storage_key="not-a-uuid")
+    def bar():
+        raise ValueError("oops I messed up")
+
+    flow_state = foo(return_state=True)
+    task_state = await flow_state.result(raise_on_failure=False)
+    assert task_state.is_failed()
+    with pytest.raises(ValueError, match="oops I messed up"):
+        await task_state.result()
+
+    assert UUID(task_state.data.metadata.storage_key)
+
+    await events_pipeline.process_events()
+
+    api_state = (
+        await prefect_client.read_task_run(task_state.state_details.task_run_id)
+    ).state
+    with pytest.raises(ValueError, match="oops I messed up"):
+        await api_state.result()
+
+    assert UUID(task_state.data.metadata.storage_key)
 
 
 async def test_task_result_parameter_formatted_storage_key(

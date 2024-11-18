@@ -229,7 +229,7 @@ async def register(
         block_catalog_url = f"{ui_url}/blocks/catalog"
         msg = f"{msg.rstrip().rstrip('.')}: {block_catalog_url}\n"
 
-    app.console.print(msg)
+    app.console.print(msg, soft_wrap=True)
 
 
 @blocks_app.command("ls")
@@ -449,7 +449,7 @@ async def blocktype_delete(
         try:
             block_type = await client.read_block_type_by_slug(slug)
             if is_interactive() and not typer.confirm(
-                (f"Are you sure you want to delete block with id {id!r}?"),
+                (f"Are you sure you want to delete block type {block_type.slug!r}?"),
                 default=False,
             ):
                 exit_with_error("Deletion aborted.")

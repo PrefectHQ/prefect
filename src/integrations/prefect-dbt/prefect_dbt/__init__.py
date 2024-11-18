@@ -1,6 +1,6 @@
 from . import _version
 
-from .cloud import DbtCloudCredentials  # noqa
+from .cloud import DbtCloudCredentials, DbtCloudJob  # noqa
 from .cli import (  # noqa
     DbtCliProfile,
     GlobalConfigs,

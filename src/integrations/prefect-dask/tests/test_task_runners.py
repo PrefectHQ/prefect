@@ -452,3 +452,49 @@ class TestDaskTaskRunner:
             return future.result()
 
         assert umbrella_flow() == "nested task"
+
+    def test_state_dependencies_via_wait_for(self, task_runner):
+        @task
+        def task_a():
+            return time.time()
+
+        @task
+        def task_b():
+            return time.time()
+
+        @flow(task_runner=task_runner)
+        def test_flow() -> tuple[float, float]:
+            a = task_a.submit()
+            b = task_b.submit(wait_for=[a])
+            return a.result(), b.result()
+
+        a_time, b_time = test_flow()
+
+        assert b_time > a_time, "task_b timestamp should be after task_a timestamp"
+
+    def test_state_dependencies_via_wait_for_disparate_upstream_tasks(
+        self, task_runner
+    ):
+        @task
+        def task_a():
+            return time.time()
+
+        @task
+        def task_b():
+            return time.time()
+
+        @task
+        def task_c():
+            return time.time()
+
+        @flow(task_runner=task_runner)
+        def test_flow() -> tuple[float, float, float]:
+            a = task_a.submit()
+            b = task_b.submit()
+            c = task_c.submit(wait_for=[a, b])
+
+            return a.result(), b.result(), c.result()
+
+        a_time, b_time, c_time = test_flow()
+
+        assert c_time > a_time and c_time > b_time

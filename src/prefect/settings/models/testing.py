@@ -1,15 +1,12 @@
 from typing import Any, Optional
 
 from pydantic import AliasChoices, AliasPath, Field
-from pydantic_settings import SettingsConfigDict
 
-from prefect.settings.base import PrefectBaseSettings
+from prefect.settings.base import PrefectBaseSettings, _build_settings_config
 
 
 class TestingSettings(PrefectBaseSettings):
-    model_config = SettingsConfigDict(
-        env_prefix="PREFECT_TESTING_", env_file=".env", extra="ignore"
-    )
+    model_config = _build_settings_config(("testing",))
 
     test_mode: bool = Field(
         default=False,

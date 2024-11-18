@@ -1,13 +1,10 @@
 from pydantic import AliasChoices, AliasPath, Field
-from pydantic_settings import SettingsConfigDict
 
-from prefect.settings.base import PrefectBaseSettings
+from prefect.settings.base import PrefectBaseSettings, _build_settings_config
 
 
 class ServerDeploymentsSettings(PrefectBaseSettings):
-    model_config = SettingsConfigDict(
-        env_prefix="PREFECT_SERVER_DEPLOYMENTS_", env_file=".env", extra="ignore"
-    )
+    model_config = _build_settings_config(("server", "deployments"))
 
     concurrency_slot_wait_seconds: float = Field(
         default=30.0,

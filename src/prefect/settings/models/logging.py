@@ -1,12 +1,18 @@
+from functools import partial
 from pathlib import Path
 from typing import Annotated, Literal, Optional, Union
 
-from pydantic import AfterValidator, AliasChoices, AliasPath, Field, model_validator
-from pydantic_settings import SettingsConfigDict
+from pydantic import (
+    AliasChoices,
+    AliasPath,
+    BeforeValidator,
+    Field,
+    model_validator,
+)
 from typing_extensions import Self
 
-from prefect.settings.base import PrefectBaseSettings
-from prefect.types import LogLevel
+from prefect.settings.base import PrefectBaseSettings, _build_settings_config
+from prefect.types import LogLevel, validate_set_T_from_delim_string
 
 
 def max_log_size_smaller_than_batch_size(values):
@@ -26,9 +32,7 @@ class LoggingToAPISettings(PrefectBaseSettings):
     Settings for controlling logging to the API
     """
 
-    model_config = SettingsConfigDict(
-        env_prefix="PREFECT_LOGGING_TO_API_", env_file=".env", extra="ignore"
-    )
+    model_config = _build_settings_config(("logging", "to_api"))
 
     enabled: bool = Field(
         default=True,
@@ -81,9 +85,7 @@ class LoggingSettings(PrefectBaseSettings):
     Settings for controlling logging behavior
     """
 
-    model_config = SettingsConfigDict(
-        env_prefix="PREFECT_LOGGING_", env_file=".env", extra="ignore"
-    )
+    model_config = _build_settings_config(("logging",))
 
     level: LogLevel = Field(
         default="INFO",
@@ -102,7 +104,7 @@ class LoggingSettings(PrefectBaseSettings):
 
     extra_loggers: Annotated[
         Union[str, list[str], None],
-        AfterValidator(lambda v: [n.strip() for n in v.split(",")] if v else []),
+        BeforeValidator(partial(validate_set_T_from_delim_string, type_=str)),
     ] = Field(
         default=None,
         description="Additional loggers to attach to Prefect logging at runtime.",

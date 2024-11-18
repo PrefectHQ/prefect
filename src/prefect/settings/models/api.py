@@ -2,9 +2,11 @@ import os
 from typing import Optional
 
 from pydantic import Field, SecretStr
-from pydantic_settings import SettingsConfigDict
 
-from prefect.settings.base import PrefectBaseSettings
+from prefect.settings.base import (
+    PrefectBaseSettings,
+    _build_settings_config,
+)
 
 
 class APISettings(PrefectBaseSettings):
@@ -12,9 +14,7 @@ class APISettings(PrefectBaseSettings):
     Settings for interacting with the Prefect API
     """
 
-    model_config = SettingsConfigDict(
-        env_prefix="PREFECT_API_", env_file=".env", extra="ignore"
-    )
+    model_config = _build_settings_config(("api",))
     url: Optional[str] = Field(
         default=None,
         description="The URL of the Prefect API. If not set, the client will attempt to infer it.",
@@ -25,7 +25,7 @@ class APISettings(PrefectBaseSettings):
     )
     tls_insecure_skip_verify: bool = Field(
         default=False,
-        description="If `True`, disables SSL checking to allow insecure requests. This is recommended only during development, e.g. when using self-signed certificates.",
+        description="If `True`, disables SSL checking to allow insecure requests. Setting to False is recommended only during development. For example, when using self-signed certificates.",
     )
     ssl_cert_file: Optional[str] = Field(
         default=os.environ.get("SSL_CERT_FILE"),
