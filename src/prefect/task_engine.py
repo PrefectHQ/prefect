@@ -30,15 +30,8 @@ from uuid import UUID
 import anyio
 import pendulum
 from opentelemetry import trace
-from opentelemetry.trace import (
-    Status,
-    StatusCode,
-    Tracer,
-    get_tracer,
-)
 from typing_extensions import ParamSpec
 
-import prefect
 from prefect import Task
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import TaskRun
@@ -87,6 +80,7 @@ from prefect.states import (
     exception_to_failed_state,
     return_value_to_state,
 )
+from prefect.telemetry.instrumentation import RunTelemetry
 from prefect.transactions import IsolationLevel, Transaction, transaction
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_coro_as_sync
@@ -134,9 +128,7 @@ class BaseTaskRunEngine(Generic[P, R]):
     _is_started: bool = False
     _task_name_set: bool = False
     _last_event: Optional[PrefectEvent] = None
-    _tracer: Tracer = field(
-        default_factory=lambda: get_tracer("prefect", prefect.__version__)
-    )
+    _telemetry: RunTelemetry = field(default_factory=RunTelemetry)
 
     def __post_init__(self):
         if self.parameters is None:
@@ -477,15 +469,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             validated_state=self.task_run.state,
             follows=self._last_event,
         )
-        self._span.add_event(
-            new_state.name,
-            {
-                "prefect.state.message": new_state.message or "",
-                "prefect.state.type": new_state.type,
-                "prefect.state.name": new_state.name or new_state.type,
-                "prefect.state.id": str(new_state.id),
-            },
-        )
+        self._telemetry.start_span(self.task_run.name, self.task_run, self.parameters)
         return new_state
 
     def result(self, raise_on_failure: bool = True) -> "Union[R, State, None]":
@@ -540,10 +524,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         self.set_state(terminal_state)
         self._return_value = result
 
-        self._span.set_status(Status(StatusCode.OK), terminal_state.message)
-        self._span.end(time.time_ns())
-        self._span = None
-
+        self._telemetry.end_span_on_success(terminal_state.message)
         return result
 
     def handle_retry(self, exc: Exception) -> bool:
@@ -592,7 +573,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
     def handle_exception(self, exc: Exception) -> None:
         # If the task fails, and we have retries left, set the task to retrying.
-        self._span.record_exception(exc)
+        self._telemetry.record_exception(exc)
         if not self.handle_retry(exc):
             # If the task has no retries left, or the retry condition is not met, set the task to failed.
             state = run_coro_as_sync(
@@ -607,9 +588,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             self.set_state(state)
             self._raised = exc
 
-            self._span.set_status(Status(StatusCode.ERROR, state.message))
-            self._span.end(time.time_ns())
-            self._span = None
+        self._telemetry.end_span_on_failure(state.message)
 
     def handle_timeout(self, exc: TimeoutError) -> None:
         if not self.handle_retry(exc):
@@ -633,11 +612,8 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         self.record_terminal_state_timing(state)
         self.set_state(state, force=True)
         self._raised = exc
-
-        self._span.record_exception(exc)
-        self._span.set_status(Status(StatusCode.ERROR, state.message))
-        self._span.end(time.time_ns())
-        self._span = None
+        self._telemetry.record_exception(exc)
+        self._telemetry.end_span_on_failure(state.message)
 
     @contextmanager
     def setup_run_context(self, client: Optional[SyncPrefectClient] = None):
@@ -722,21 +698,11 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                         self.logger.debug(
                             f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
                         )
-
-                        labels = get_labels_from_context(flow_run_context)
-                        parameter_attributes = {
-                            f"prefect.run.parameter.{k}": type(v).__name__
-                            for k, v in self.parameters.items()
-                        }
-                        self._span = self._tracer.start_span(
-                            name=self.task_run.name,
-                            attributes={
-                                "prefect.run.type": "task",
-                                "prefect.run.id": str(self.task_run.id),
-                                "prefect.tags": self.task_run.tags,
-                                **parameter_attributes,
-                                **labels,
-                            },
+                        labels = {}
+                        if flow_run_context:
+                            labels = flow_run_context.flow_run.labels
+                        self._telemetry.start_span(
+                            self.task_run, self.parameters, labels
                         )
 
                         yield self
@@ -790,7 +756,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
     ) -> Generator[None, None, None]:
         with self.initialize_run(task_run_id=task_run_id, dependencies=dependencies):
-            with trace.use_span(self._span):
+            with trace.use_span(self._telemetry._span):
                 self.begin_run()
                 try:
                     yield
@@ -1038,16 +1004,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             follows=self._last_event,
         )
 
-        self._span.add_event(
-            new_state.name,
-            {
-                "prefect.state.message": new_state.message or "",
-                "prefect.state.type": new_state.type,
-                "prefect.state.name": new_state.name or new_state.type,
-                "prefect.state.id": str(new_state.id),
-            },
-        )
-
+        self._telemetry.update_state(new_state)
         return new_state
 
     async def result(self, raise_on_failure: bool = True) -> "Union[R, State, None]":
@@ -1097,9 +1054,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         await self.set_state(terminal_state)
         self._return_value = result
 
-        self._span.set_status(Status(StatusCode.OK, terminal_state.message))
-        self._span.end(time.time_ns())
-        self._span = None
+        self._telemetry.end_span_on_success(terminal_state.message)
 
         return result
 
@@ -1149,7 +1104,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
     async def handle_exception(self, exc: Exception) -> None:
         # If the task fails, and we have retries left, set the task to retrying.
-        self._span.record_exception(exc)
+        self._telemetry.record_exception(exc)
         if not await self.handle_retry(exc):
             # If the task has no retries left, or the retry condition is not met, set the task to failed.
             state = await exception_to_failed_state(
@@ -1160,12 +1115,11 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             self.record_terminal_state_timing(state)
             await self.set_state(state)
             self._raised = exc
-            self._span.set_status(Status(StatusCode.ERROR, state.message))
-            self._span.end(time.time_ns())
-            self._span = None
+
+            self._telemetry.end_span_on_failure(state.message)
 
     async def handle_timeout(self, exc: TimeoutError) -> None:
-        self._span.record_exception(exc)
+        self._telemetry.record_exception(exc)
         if not await self.handle_retry(exc):
             if isinstance(exc, TaskRunTimeoutError):
                 message = f"Task run exceeded timeout of {self.task.timeout_seconds} second(s)"
@@ -1179,9 +1133,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             )
             await self.set_state(state)
             self._raised = exc
-            self._span.set_status(Status(StatusCode.ERROR, state.message))
-            self._span.end(time.time_ns())
-            self._span = None
+            self._telemetry.end_span_on_failure(state.message)
 
     async def handle_crash(self, exc: BaseException) -> None:
         state = await exception_to_crashed_state(exc)
@@ -1191,10 +1143,8 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         await self.set_state(state, force=True)
         self._raised = exc
 
-        self._span.record_exception(exc)
-        self._span.set_status(Status(StatusCode.ERROR, state.message))
-        self._span.end(time.time_ns())
-        self._span = None
+        self._telemetry.record_exception(exc)
+        self._telemetry.end_span_on_failure(state.message)
 
     @asynccontextmanager
     async def setup_run_context(self, client: Optional[PrefectClient] = None):
@@ -1275,22 +1225,11 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                         self.logger.debug(
                             f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
                         )
-
-                        labels = get_labels_from_context(flow_run_context)
-
-                        parameter_attributes = {
-                            f"prefect.run.parameter.{k}": type(v).__name__
-                            for k, v in self.parameters.items()
-                        }
-                        self._span = self._tracer.start_span(
-                            name=self.task_run.name,
-                            attributes={
-                                "prefect.run.type": "task",
-                                "prefect.run.id": str(self.task_run.id),
-                                "prefect.tags": self.task_run.tags,
-                                **parameter_attributes,
-                                **labels,
-                            },
+                        labels = {}
+                        if flow_run_context:
+                            labels = get_labels_from_context(flow_run_context)
+                        self._telemetry.start_span(
+                            self.task_run, self.parameters, labels
                         )
 
                         yield self
@@ -1346,7 +1285,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         async with self.initialize_run(
             task_run_id=task_run_id, dependencies=dependencies
         ):
-            with trace.use_span(self._span):
+            with trace.use_span(self._telemetry._span):
                 await self.begin_run()
                 try:
                     yield

@@ -18,7 +18,10 @@ from prefect.client.schemas import TaskRun
 from prefect.states import Running
 from prefect.task_engine import AsyncTaskRunEngine, run_task_async
 from prefect.telemetry.bootstrap import setup_telemetry
-from prefect.telemetry.instrumentation import extract_account_and_workspace_id
+from prefect.telemetry.instrumentation import (
+    RunTelemetry,
+    extract_account_and_workspace_id,
+)
 from prefect.telemetry.logging import get_log_handler
 from prefect.telemetry.processors import InFlightSpanProcessor
 
@@ -193,11 +196,12 @@ class TestTaskRunInstrumentation:
             task=test_task,
             task_run=task_run,
             parameters={"x": 1, "y": 2},
-            _tracer=instrumentation.tracer_provider.get_tracer("prefect.test"),
+            _telemetry=RunTelemetry(
+                _tracer=instrumentation.tracer_provider.get_tracer("prefect.test")
+            ),
         )
         return engine
 
-    @pytest.mark.asyncio
     async def test_span_creation(self, task_run_engine, instrumentation):
         @task
         async def test_task(x: int, y: int):
@@ -215,7 +219,6 @@ class TestTaskRunInstrumentation:
         )
         assert spans[0].name == "test_task"
 
-    @pytest.mark.asyncio
     async def test_span_attributes(self, task_run_engine, instrumentation):
         @task
         async def test_task(x: int, y: int):
@@ -239,7 +242,6 @@ class TestTaskRunInstrumentation:
         )
         assert spans[0].name == "test_task"
 
-    @pytest.mark.asyncio
     async def test_span_events(self, task_run_engine, instrumentation):
         @task
         async def test_task(x: int, y: int):
@@ -256,7 +258,6 @@ class TestTaskRunInstrumentation:
         assert events[0].name == "Running"
         assert events[1].name == "Completed"
 
-    @pytest.mark.asyncio
     async def test_span_status_on_success(self, task_run_engine, instrumentation):
         @task
         async def test_task(x: int, y: int):
@@ -272,7 +273,6 @@ class TestTaskRunInstrumentation:
 
         assert spans[0].status.status_code == trace.StatusCode.OK
 
-    @pytest.mark.asyncio
     async def test_span_status_on_failure(self, task_run_engine, instrumentation):
         @task
         async def test_task(x: int, y: int):
@@ -290,7 +290,6 @@ class TestTaskRunInstrumentation:
         assert spans[0].status.status_code == trace.StatusCode.ERROR
         assert "Test error" in spans[0].status.description
 
-    @pytest.mark.asyncio
     async def test_span_exception_recording(self, task_run_engine, instrumentation):
         @task
         async def test_task(x: int, y: int):
@@ -313,7 +312,6 @@ class TestTaskRunInstrumentation:
         assert exception_event.attributes["exception.type"] == "Exception"
         assert exception_event.attributes["exception.message"] == "Test error"
 
-    @pytest.mark.asyncio
     async def test_flow_run_labels(self, task_run_engine, instrumentation):
         """Test that flow run labels are propagated to task spans"""
 
