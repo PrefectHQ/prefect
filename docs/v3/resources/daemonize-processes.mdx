@@ -1,0 +1,206 @@
+---
+title: Daemonize worker processes
+description: Learn how Prefect flow deployments enable configuring flows for scheduled and remote execution with workers.
+---
+
+When running workflow applications, it's helpful to create long-running processes that
+run at startup and are resilient to failure.
+
+This guide shows you how to set up a systemd service to create long-running Prefect processes
+that poll for scheduled flow runs, including how to:
+
+* create a Linux user
+* install and configure Prefect
+* set up a systemd service for the Prefect worker or `.serve` process
+
+## Prerequisites
+
+* An environment with a linux operating system with [systemd](https://systemd.io/) and Python 3.9
+or later.
+* A superuser account that can run `sudo` commands.
+* A Prefect Cloud account, or an instance of a Prefect server running on your network.
+
+If using an [AWS t2-micro EC2 instance](https://aws.amazon.com/ec2/instance-types/t2/) with an
+AWS Linux image, you can install Python and pip with `sudo yum install -y python3 python3-pip`.
+
+## Steps
+
+A systemd service is ideal for running a long-lived process on a Linux VM or physical Linux server.
+You will use systemd and learn how to automatically start a
+[Prefect worker](/v3/deploy/infrastructure-concepts/workers/) or
+long-lived [`serve` process](/v3/develop/write-flows/#serving-a-flow) when Linux starts.
+This approach provides resilience by automatically restarting the process if it crashes.
+
+### Step 1: Add a user
+
+Create a user account on your Linux system for the Prefect process.
+You can run a worker or serve process as root, but it's best practice to create a dedicated user.
+
+In a terminal, run:
+
+```bash
+sudo useradd -m prefect
+sudo passwd prefect
+```
+
+When prompted, enter a password for the `prefect` account.
+
+Next, log in to the `prefect` account by running:
+
+```bash
+sudo su prefect
+```
+
+### Step 2: Install Prefect
+
+Run:
+
+```bash
+pip3 install prefect
+```
+
+This guide assumes you are installing Prefect globally, rather than a virtual environment.
+If running a systemd service in a virtual environment, change the ExecPath.
+For example, if using [venv](https://docs.python.org/3/library/venv.html), change the ExecPath
+to target the `prefect` application in the `bin` subdirectory of your virtual environment.
+
+Next, set up your environment so the Prefect client knows which server to connect to.
+
+If connecting to Prefect Cloud, follow [the instructions](https://docs.prefect.io/ui/cloud-get-started/#create-an-api-key)
+to obtain an API key, and then run the following:
+
+```bash
+prefect cloud login -k YOUR_API_KEY
+```
+
+When prompted, choose the Prefect workspace to log in to.
+
+If connecting to a self-hosted Prefect server instance instead of a Prefect Cloud account, run the following command, substituting the IP address of your server:
+
+```bash
+prefect config set PREFECT_API_URL=http://your-prefect-server-IP:4200
+```
+
+Run the `exit` command to sign out of the `prefect` Linux account.
+This command switches you back to your sudo-enabled account where you can run the commands in the
+next section.
+
+### Step 3: Set up a systemd service
+
+See the section below if you are setting up a Prefect worker.
+Skip to the [next section](#setting-up-a-systemd-service-for-serve) if you are setting up a
+Prefect `.serve` process.
+
+#### Setting up a systemd service for a Prefect worker
+
+Move into the `/etc/systemd/system` folder and open a file for editing.
+We use the Vim text editor below.
+
+```bash
+cd /etc/systemd/system
+sudo vim my-prefect-service.service
+```
+
+```txt my-prefect-service.service
+[Unit]
+Description=Prefect worker
+
+[Service]
+User=prefect
+WorkingDirectory=/home
+ExecStart=prefect worker start --pool YOUR_WORK_POOL_NAME
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Make sure you substitute your own work pool name.
+
+#### Setting up a systemd service for `.serve`
+
+Copy your flow entrypoint Python file and any other files needed for your flow to run into the
+`/home` directory (or the directory of your choice).
+
+Here's a basic example flow:
+
+```python my_file.py
+from prefect import flow
+
+
+@flow(log_prints=True)
+def say_hi():
+    print("Hello!")
+
+if __name__=="__main__":
+    say_hi.serve(name="served and daemonized deployment")
+```
+
+To make changes to your flow code without restarting your process, push your
+code to git-based cloud storage (GitHub, BitBucket, GitLab) and use `flow.from_source().serve()`,
+as in the example below.
+
+```python my_remote_flow_code_file.py
+if __name__ == "__main__":
+    flow.from_source(
+        source="https://github.com/org/repo.git",
+        entrypoint="path/to/my_remote_flow_code_file.py:say_hi",
+    ).serve(name="deployment-with-github-storage")
+```
+
+Make sure you substitute your own flow code entrypoint path.
+
+If you change the flow entrypoint parameters, you must restart the process.
+
+Move into the `/etc/systemd/system` folder and open a file for editing.
+This example below uses Vim.
+
+```bash
+cd /etc/systemd/system
+sudo vim my-prefect-service.service
+```
+
+```txt my-prefect-service.service
+[Unit]
+Description=Prefect serve
+
+[Service]
+User=prefect
+WorkingDirectory=/home
+ExecStart=python3 my_file.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### Step 4: Save, enable, and start the service
+
+To save the file and exit Vim, hit the escape key, type `:wq!`, then press the return key.
+
+Next, make systemd aware of your new service by running:
+
+```bash
+sudo systemctl daemon-reload
+```
+
+Then, enable the service by running:
+
+```bash
+sudo systemctl enable my-prefect-service
+```
+
+This command ensures it runs when your system boots.
+
+Next, start the service:
+
+```bash
+sudo systemctl start my-prefect-service
+```
+
+Run your deployment from the UI and check the logs on the **Flow Runs** page.
+
+You can see if your daemonized Prefect worker or serve process is running, and the
+Prefect logs with `systemctl status my-prefect-service`.
+
+You now have a systemd service that starts when your system boots, which will restart if it ever crashes.
