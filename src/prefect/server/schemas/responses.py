@@ -15,11 +15,11 @@ import prefect.server.schemas as schemas
 from prefect.server.schemas.core import (
     CreatedBy,
     FlowRunPolicy,
-    KeyValueLabels,
     UpdatedBy,
     WorkQueueStatusDetail,
 )
 from prefect.server.utilities.schemas.bases import ORMBaseModel, PrefectBaseModel
+from prefect.types import KeyValueLabelsField
 from prefect.utilities.collections import AutoEnum
 from prefect.utilities.names import generate_slug
 
@@ -230,11 +230,7 @@ class FlowRunResponse(ORMBaseModel):
         description="A list of tags on the flow run",
         examples=[["tag-1", "tag-2"]],
     )
-    labels: KeyValueLabels = Field(
-        default_factory=dict,
-        description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
-        examples=[{"key": "value1", "key2": 42}],
-    )
+    labels: KeyValueLabelsField
     parent_task_run_id: Optional[UUID] = Field(
         default=None,
         description=(
@@ -392,11 +388,7 @@ class DeploymentResponse(ORMBaseModel):
         description="A list of tags for the deployment",
         examples=[["tag-1", "tag-2"]],
     )
-    labels: KeyValueLabels = Field(
-        default_factory=dict,
-        description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
-        examples=[{"key": "value1", "key2": 42}],
-    )
+    labels: KeyValueLabelsField
     work_queue_name: Optional[str] = Field(
         default=None,
         description=(

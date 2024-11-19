@@ -16025,23 +16025,30 @@
                         ]
                     },
                     "labels": {
-                        "additionalProperties": {
-                            "anyOf": [
-                                {
-                                    "type": "boolean"
+                        "anyOf": [
+                            {
+                                "additionalProperties": {
+                                    "anyOf": [
+                                        {
+                                            "type": "boolean"
+                                        },
+                                        {
+                                            "type": "integer"
+                                        },
+                                        {
+                                            "type": "number"
+                                        },
+                                        {
+                                            "type": "string"
+                                        }
+                                    ]
                                 },
-                                {
-                                    "type": "integer"
-                                },
-                                {
-                                    "type": "number"
-                                },
-                                {
-                                    "type": "string"
-                                }
-                            ]
-                        },
-                        "type": "object",
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
                         "title": "Labels",
                         "description": "A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
                         "examples": [
@@ -19554,23 +19561,30 @@
                         ]
                     },
                     "labels": {
-                        "additionalProperties": {
-                            "anyOf": [
-                                {
-                                    "type": "boolean"
+                        "anyOf": [
+                            {
+                                "additionalProperties": {
+                                    "anyOf": [
+                                        {
+                                            "type": "boolean"
+                                        },
+                                        {
+                                            "type": "integer"
+                                        },
+                                        {
+                                            "type": "number"
+                                        },
+                                        {
+                                            "type": "string"
+                                        }
+                                    ]
                                 },
-                                {
-                                    "type": "integer"
-                                },
-                                {
-                                    "type": "number"
-                                },
-                                {
-                                    "type": "string"
-                                }
-                            ]
-                        },
-                        "type": "object",
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
                         "title": "Labels",
                         "description": "A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
                         "examples": [

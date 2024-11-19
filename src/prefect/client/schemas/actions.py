@@ -20,7 +20,6 @@ from prefect._internal.schemas.validators import (
     validate_variable_name,
 )
 from prefect.client.schemas.objects import (
-    KeyValueLabels,
     StateDetails,
     StateType,
 )
@@ -28,6 +27,7 @@ from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
 from prefect.types import (
     MAX_VARIABLE_NAME_LENGTH,
+    KeyValueLabelsField,
     Name,
     NonEmptyishName,
     NonNegativeFloat,
@@ -67,11 +67,7 @@ class FlowCreate(ActionBaseModel):
         description="A list of flow tags",
         examples=[["tag-1", "tag-2"]],
     )
-    labels: Union[KeyValueLabels, None] = Field(
-        default_factory=dict,
-        description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
-        examples=[{"key": "value1", "key2": 42}],
-    )
+    labels: KeyValueLabelsField
 
 
 class FlowUpdate(ActionBaseModel):
@@ -165,11 +161,7 @@ class DeploymentCreate(ActionBaseModel):
         description="Parameters for flow runs scheduled by the deployment.",
     )
     tags: List[str] = Field(default_factory=list)
-    labels: Union[KeyValueLabels, None] = Field(
-        default_factory=dict,
-        description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
-        examples=[{"key": "value1", "key2": 42}],
-    )
+    labels: KeyValueLabelsField
     pull_steps: Optional[List[dict]] = Field(None)
 
     work_queue_name: Optional[str] = Field(None)
@@ -326,11 +318,7 @@ class TaskRunCreate(ActionBaseModel):
         default_factory=objects.TaskRunPolicy,
     )
     tags: List[str] = Field(default_factory=list)
-    labels: Union[KeyValueLabels, None] = Field(
-        default_factory=dict,
-        description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
-        examples=[{"key": "value1", "key2": 42}],
-    )
+    labels: KeyValueLabelsField
     task_inputs: Dict[
         str,
         List[
@@ -373,11 +361,7 @@ class FlowRunCreate(ActionBaseModel):
         default_factory=objects.FlowRunPolicy
     )
     tags: List[str] = Field(default_factory=list)
-    labels: Union[KeyValueLabels, None] = Field(
-        default_factory=dict,
-        description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
-        examples=[{"key": "value1", "key2": 42}],
-    )
+    labels: KeyValueLabelsField
     idempotency_key: Optional[str] = Field(None)
 
 
