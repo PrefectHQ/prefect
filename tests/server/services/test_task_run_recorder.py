@@ -769,10 +769,10 @@ async def test_task_run_recorder_sends_repeated_failed_messages_to_dead_letter(
     assert pending_event.occurred == pending_transition_time
 
     service = task_run_recorder.TaskRunRecorder()
-    service.consumer.subscription.dead_letter_queue_path = tmp_path / "dlq"
 
     service_task = asyncio.create_task(service.start())
     await service.started_event.wait()
+    service.consumer.subscription.dead_letter_queue_path = tmp_path / "dlq"
 
     async with create_publisher("events") as publisher:
         await publisher.publish_data(
