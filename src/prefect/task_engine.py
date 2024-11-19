@@ -469,7 +469,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             validated_state=self.task_run.state,
             follows=self._last_event,
         )
-        self._telemetry.start_span(self.task_run.name, self.task_run, self.parameters)
+        self._telemetry.update_state(new_state)
         return new_state
 
     def result(self, raise_on_failure: bool = True) -> "Union[R, State, None]":
@@ -700,7 +700,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                         )
                         labels = {}
                         if flow_run_context:
-                            labels = flow_run_context.flow_run.labels
+                            labels = get_labels_from_context(flow_run_context)
                         self._telemetry.start_span(
                             self.task_run, self.parameters, labels
                         )

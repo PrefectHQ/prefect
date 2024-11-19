@@ -14,12 +14,12 @@ from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 from opentelemetry.sdk.trace import TracerProvider
 
 from prefect import flow, task
-from prefect.client.schemas import TaskRun
-from prefect.states import Running
-from prefect.task_engine import AsyncTaskRunEngine, run_task_async
+from prefect.task_engine import (
+    run_task_async,
+    run_task_sync,
+)
 from prefect.telemetry.bootstrap import setup_telemetry
 from prefect.telemetry.instrumentation import (
-    RunTelemetry,
     extract_account_and_workspace_id,
 )
 from prefect.telemetry.logging import get_log_handler
@@ -171,85 +171,93 @@ def test_logger_provider(
 
 
 class TestTaskRunInstrumentation:
-    def assert_has_attributes(self, span, **expected_attributes):
-        """Helper method to assert span has expected attributes"""
-        for key, value in expected_attributes.items():
-            assert (
-                span.attributes.get(key) == value
-            ), f"Expected {key}={value}, got {span.attributes.get(key)}"
+    @pytest.fixture(params=["async", "sync"])
+    async def engine_type(self, request):
+        return request.param
 
-    @pytest.fixture
-    async def task_run_engine(self, instrumentation):
+    async def run_task(self, task, task_run_id, parameters, engine_type):
+        if engine_type == "async":
+            return await run_task_async(
+                task, task_run_id=task_run_id, parameters=parameters
+            )
+        else:
+            return run_task_sync(task, task_run_id=task_run_id, parameters=parameters)
+
+    async def test_span_creation(self, engine_type, instrumentation):
         @task
-        async def test_task(x: int, y: int):
+        async def async_task(x: int, y: int):
             return x + y
 
-        task_run = TaskRun(
-            id=uuid4(),
-            task_key="test_task",
-            flow_run_id=uuid4(),
-            state=Running(),
-            dynamic_key="test_task-1",
-        )
+        @task
+        def sync_task(x: int, y: int):
+            return x + y
 
-        engine = AsyncTaskRunEngine(
-            task=test_task,
-            task_run=task_run,
+        task_fn = async_task if engine_type == "async" else sync_task
+        task_run_id = uuid4()
+
+        await self.run_task(
+            task_fn,
+            task_run_id=task_run_id,
             parameters={"x": 1, "y": 2},
-            _telemetry=RunTelemetry(
-                _tracer=instrumentation.tracer_provider.get_tracer("prefect.test")
-            ),
-        )
-        return engine
-
-    async def test_span_creation(self, task_run_engine, instrumentation):
-        @task
-        async def test_task(x: int, y: int):
-            return x + y
-
-        task_run_id = uuid4()
-        await run_task_async(
-            test_task, task_run_id=task_run_id, parameters={"x": 1, "y": 2}
+            engine_type=engine_type,
         )
 
         spans = instrumentation.get_finished_spans()
         assert len(spans) == 1
-        self.assert_has_attributes(
-            spans[0], **{"prefect.run.id": str(task_run_id), "prefect.run.type": "task"}
+        instrumentation.assert_has_attributes(
+            spans[0], {"prefect.run.id": str(task_run_id), "prefect.run.type": "task"}
         )
-        assert spans[0].name == "test_task"
+        assert spans[0].name == task_fn.__name__
 
-    async def test_span_attributes(self, task_run_engine, instrumentation):
+    async def test_span_attributes(self, engine_type, instrumentation):
         @task
-        async def test_task(x: int, y: int):
+        async def async_task(x: int, y: int):
             return x + y
 
+        @task
+        def sync_task(x: int, y: int):
+            return x + y
+
+        task_fn = async_task if engine_type == "async" else sync_task
         task_run_id = uuid4()
-        await run_task_async(
-            test_task, task_run_id=task_run_id, parameters={"x": 1, "y": 2}
+
+        await self.run_task(
+            task_fn,
+            task_run_id=task_run_id,
+            parameters={"x": 1, "y": 2},
+            engine_type=engine_type,
         )
 
         spans = instrumentation.get_finished_spans()
         assert len(spans) == 1
-        self.assert_has_attributes(
+        instrumentation.assert_has_attributes(
             spans[0],
-            **{
+            {
                 "prefect.run.id": str(task_run_id),
                 "prefect.run.type": "task",
                 "prefect.run.parameter.x": "int",
                 "prefect.run.parameter.y": "int",
             },
         )
-        assert spans[0].name == "test_task"
+        assert spans[0].name == task_fn.__name__
 
-    async def test_span_events(self, task_run_engine, instrumentation):
+    async def test_span_events(self, engine_type, instrumentation):
         @task
-        async def test_task(x: int, y: int):
+        async def async_task(x: int, y: int):
             return x + y
 
+        @task
+        def sync_task(x: int, y: int):
+            return x + y
+
+        task_fn = async_task if engine_type == "async" else sync_task
         task_run_id = uuid4()
-        await run_task_async(
-            test_task, task_run_id=task_run_id, parameters={"x": 1, "y": 2}
+
+        await self.run_task(
+            task_fn,
+            task_run_id=task_run_id,
+            parameters={"x": 1, "y": 2},
+            engine_type=engine_type,
         )
 
         spans = instrumentation.get_finished_spans()
@@ -258,74 +266,108 @@ class TestTaskRunInstrumentation:
         assert events[0].name == "Running"
         assert events[1].name == "Completed"
 
-    async def test_span_status_on_success(self, task_run_engine, instrumentation):
+    async def test_span_status_on_success(self, engine_type, instrumentation):
         @task
-        async def test_task(x: int, y: int):
+        async def async_task(x: int, y: int):
             return x + y
 
+        @task
+        def sync_task(x: int, y: int):
+            return x + y
+
+        task_fn = async_task if engine_type == "async" else sync_task
         task_run_id = uuid4()
-        await run_task_async(
-            test_task, task_run_id=task_run_id, parameters={"x": 1, "y": 2}
+
+        await self.run_task(
+            task_fn,
+            task_run_id=task_run_id,
+            parameters={"x": 1, "y": 2},
+            engine_type=engine_type,
         )
 
         spans = instrumentation.get_finished_spans()
         assert len(spans) == 1
-
         assert spans[0].status.status_code == trace.StatusCode.OK
 
-    async def test_span_status_on_failure(self, task_run_engine, instrumentation):
+    async def test_span_status_on_failure(self, engine_type, instrumentation):
         @task
-        async def test_task(x: int, y: int):
+        async def async_task(x: int, y: int):
             raise ValueError("Test error")
 
+        @task
+        def sync_task(x: int, y: int):
+            raise ValueError("Test error")
+
+        task_fn = async_task if engine_type == "async" else sync_task
         task_run_id = uuid4()
+
         with pytest.raises(ValueError, match="Test error"):
-            await run_task_async(
-                test_task, task_run_id=task_run_id, parameters={"x": 1, "y": 2}
+            await self.run_task(
+                task_fn,
+                task_run_id=task_run_id,
+                parameters={"x": 1, "y": 2},
+                engine_type=engine_type,
             )
 
         spans = instrumentation.get_finished_spans()
         assert len(spans) == 1
-
         assert spans[0].status.status_code == trace.StatusCode.ERROR
         assert "Test error" in spans[0].status.description
 
-    async def test_span_exception_recording(self, task_run_engine, instrumentation):
+    async def test_span_exception_recording(self, engine_type, instrumentation):
         @task
-        async def test_task(x: int, y: int):
+        async def async_task(x: int, y: int):
             raise Exception("Test error")
 
+        @task
+        def sync_task(x: int, y: int):
+            raise Exception("Test error")
+
+        task_fn = async_task if engine_type == "async" else sync_task
         task_run_id = uuid4()
 
         with pytest.raises(Exception, match="Test error"):
-            await run_task_async(
-                test_task, task_run_id=task_run_id, parameters={"x": 1, "y": 2}
+            await self.run_task(
+                task_fn,
+                task_run_id=task_run_id,
+                parameters={"x": 1, "y": 2},
+                engine_type=engine_type,
             )
 
         spans = instrumentation.get_finished_spans()
         assert len(spans) == 1
 
         events = spans[0].events
-
         assert any(event.name == "exception" for event in events)
         exception_event = next(event for event in events if event.name == "exception")
         assert exception_event.attributes["exception.type"] == "Exception"
         assert exception_event.attributes["exception.message"] == "Test error"
 
-    async def test_flow_run_labels(self, task_run_engine, instrumentation):
+    async def test_flow_run_labels(self, engine_type, instrumentation):
         """Test that flow run labels are propagated to task spans"""
 
         @task
-        async def child_task():
+        async def async_child_task():
+            return 1
+
+        @task
+        def sync_child_task():
             return 1
 
         @flow
-        async def parent_flow():
-            return await child_task()
+        async def async_parent_flow():
+            return await async_child_task()
+
+        @flow
+        def sync_parent_flow():
+            return sync_child_task()
 
         with patch("prefect.task_engine.get_labels_from_context") as mock_get:
             mock_get.return_value = {"env": "test", "team": "engineering"}
-            await parent_flow()
+            if engine_type == "async":
+                await async_parent_flow()
+            else:
+                sync_parent_flow()
 
         spans = instrumentation.get_finished_spans()
         task_spans = [
@@ -333,7 +375,7 @@ class TestTaskRunInstrumentation:
         ]
         assert len(task_spans) == 1
 
-        self.assert_has_attributes(
+        instrumentation.assert_has_attributes(
             task_spans[0],
-            **{"prefect.run.type": "task", "env": "test", "team": "engineering"},
+            {"prefect.run.type": "task", "env": "test", "team": "engineering"},
         )
