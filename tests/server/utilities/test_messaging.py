@@ -1,5 +1,7 @@
 import asyncio
 import importlib
+import json
+from pathlib import Path
 from typing import (
     AsyncContextManager,
     AsyncGenerator,
@@ -23,6 +25,12 @@ from prefect.server.utilities.messaging import (
     create_consumer,
     create_publisher,
     ephemeral_subscription,
+)
+from prefect.server.utilities.messaging.memory import (
+    Consumer as MemoryConsumer,
+)
+from prefect.server.utilities.messaging.memory import (
+    MemoryMessage,
 )
 from prefect.settings import (
     PREFECT_MESSAGING_BROKER,
@@ -441,3 +449,52 @@ async def test_ephemeral_subscription(broker: str, publisher: Publisher):
     # TODO: is there a way we can test that ephemeral subscriptions really have cleaned
     # up after themselves after they have exited?  This will differ significantly by
     # each broker implementation, so it's hard to write a generic test.
+
+
+async def test_repeatedly_failed_message_is_moved_to_dead_letter_queue(
+    deduplicating_publisher: Publisher,
+    consumer: MemoryConsumer,
+    tmp_path: Path,
+):
+    captured_messages: List[Message] = []
+
+    async def handler(message: Message):
+        captured_messages.append(message)
+        raise ValueError("Simulated failure")
+
+    consumer.subscription.dead_letter_queue_path = tmp_path / "dlq"
+
+    consumer_task = asyncio.create_task(consumer.run(handler))
+
+    async with deduplicating_publisher as p:
+        await p.publish_data(
+            b"hello, world", {"howdy": "partner", "my-message-id": "A"}
+        )
+
+    while not list(consumer.subscription.dead_letter_queue_path.glob("*")):
+        await asyncio.sleep(0.1)
+
+    try:
+        consumer_task.cancel()
+        await consumer_task
+    except asyncio.CancelledError:
+        pass
+
+    # Message should have been moved to DLQ after multiple retries
+    assert len(captured_messages) == 4  # Original attempt + 3 retries
+    for message in captured_messages:
+        assert message.data == b"hello, world"
+        assert message.attributes == {"howdy": "partner", "my-message-id": "A"}
+
+    # Verify message is in DLQ
+    assert len(list(consumer.subscription.dead_letter_queue_path.glob("*"))) == 1
+    dlq_message_file = next(
+        iter(consumer.subscription.dead_letter_queue_path.glob("*"))
+    )
+    dlq_message = MemoryMessage(**json.loads(dlq_message_file.read_text()))
+    assert dlq_message.data == "hello, world"
+    assert dlq_message.attributes == {"howdy": "partner", "my-message-id": "A"}
+    assert dlq_message.retry_count > 3
+
+    remaining_message = await drain_one(consumer)
+    assert not remaining_message
