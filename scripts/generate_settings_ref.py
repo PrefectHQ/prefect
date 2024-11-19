@@ -182,7 +182,7 @@ def main():
         docs_content.append(process_definitions(schema["$defs"], schema))
 
     with open(
-        __development_base_path__ / "docs" / "3.0" / "develop" / "settings-ref.mdx",
+        __development_base_path__ / "docs" / "v3" / "develop" / "settings-ref.mdx",
         "w",
     ) as f:
         f.write("\n".join(docs_content))
