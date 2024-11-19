@@ -1,6 +1,7 @@
 import asyncio
 import importlib
 import json
+from pathlib import Path
 from typing import (
     AsyncContextManager,
     AsyncGenerator,
@@ -453,12 +454,15 @@ async def test_ephemeral_subscription(broker: str, publisher: Publisher):
 async def test_repeatedly_failed_message_is_moved_to_dead_letter_queue(
     deduplicating_publisher: Publisher,
     consumer: MemoryConsumer,
+    tmp_path: Path,
 ):
     captured_messages: List[Message] = []
 
     async def handler(message: Message):
         captured_messages.append(message)
         raise ValueError("Simulated failure")
+
+    consumer.subscription.dead_letter_queue_path = tmp_path / "dlq"
 
     consumer_task = asyncio.create_task(consumer.run(handler))
 

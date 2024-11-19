@@ -1,6 +1,7 @@
 import asyncio
 from datetime import timedelta
 from itertools import permutations
+from pathlib import Path
 from typing import AsyncGenerator
 from uuid import UUID
 
@@ -757,8 +758,8 @@ async def test_task_run_recorder_handles_all_out_of_order_permutations(
 
 
 async def test_task_run_recorder_sends_repeated_failed_messages_to_dead_letter(
-    session: AsyncSession,
     pending_event: ReceivedEvent,
+    tmp_path: Path,
 ):
     """
     Test to ensure situations like the one described in https://github.com/PrefectHQ/prefect/issues/15607
@@ -768,6 +769,7 @@ async def test_task_run_recorder_sends_repeated_failed_messages_to_dead_letter(
     assert pending_event.occurred == pending_transition_time
 
     service = task_run_recorder.TaskRunRecorder()
+    service.consumer.subscription.dead_letter_queue_path = tmp_path / "dlq"
 
     service_task = asyncio.create_task(service.start())
     await service.started_event.wait()
