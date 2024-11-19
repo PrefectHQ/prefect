@@ -1,6 +1,7 @@
 import asyncio
 from datetime import timedelta
 from itertools import permutations
+from pathlib import Path
 from typing import AsyncGenerator
 from uuid import UUID
 
@@ -18,7 +19,7 @@ from prefect.server.models.task_runs import read_task_run
 from prefect.server.schemas.core import FlowRun, TaskRunPolicy
 from prefect.server.schemas.states import StateDetails, StateType
 from prefect.server.services import task_run_recorder
-from prefect.server.utilities.messaging import MessageHandler
+from prefect.server.utilities.messaging import MessageHandler, create_publisher
 from prefect.server.utilities.messaging.memory import MemoryMessage
 
 
@@ -29,6 +30,7 @@ async def test_start_and_stop_service():
 
     await service.started_event.wait()
     assert service.consumer_task is not None
+    assert service.consumer is not None
 
     await service.stop()
     assert service.consumer_task is None
@@ -753,3 +755,48 @@ async def test_task_run_recorder_handles_all_out_of_order_permutations(
 
     state_types = set(state.type for state in states)
     assert state_types == {StateType.PENDING, StateType.RUNNING, StateType.COMPLETED}
+
+
+async def test_task_run_recorder_sends_repeated_failed_messages_to_dead_letter(
+    pending_event: ReceivedEvent,
+    tmp_path: Path,
+):
+    """
+    Test to ensure situations like the one described in https://github.com/PrefectHQ/prefect/issues/15607
+    don't overwhelm the task run recorder.
+    """
+    pending_transition_time = pendulum.datetime(2024, 1, 1, 0, 0, 0, 0, "UTC")
+    assert pending_event.occurred == pending_transition_time
+
+    service = task_run_recorder.TaskRunRecorder()
+
+    service_task = asyncio.create_task(service.start())
+    await service.started_event.wait()
+    service.consumer.subscription.dead_letter_queue_path = tmp_path / "dlq"
+
+    async with create_publisher("events") as publisher:
+        await publisher.publish_data(
+            message(pending_event).data, message(pending_event).attributes
+        )
+        # Sending a task run event with the same task run id and timestamp but
+        # a different id will raise an error when trying to insert it into the
+        # database
+        duplicate_pending_event = pending_event.model_copy()
+        duplicate_pending_event.id = UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
+        await publisher.publish_data(
+            message(duplicate_pending_event).data,
+            message(duplicate_pending_event).attributes,
+        )
+
+    while not list(service.consumer.subscription.dead_letter_queue_path.glob("*")):
+        await asyncio.sleep(0.1)
+
+    assert (
+        len(list(service.consumer.subscription.dead_letter_queue_path.glob("*"))) == 1
+    )
+
+    service_task.cancel()
+    try:
+        await service_task
+    except asyncio.CancelledError:
+        pass
