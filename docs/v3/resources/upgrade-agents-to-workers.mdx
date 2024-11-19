@@ -248,7 +248,7 @@ If you currently use a storage block to load your flow code but no infrastructur
 
 ```python
 from prefect import flow
-from prefect.storage import GitHub
+from prefect.filesystems import GitHub
 
   
 @flow(log_prints=True)
@@ -270,6 +270,7 @@ create a deployment:
 
 ```python example.py
 from prefect import flow
+from prefect.blocks.system import Secret
 from prefect.runner.storage import GitRepository
 
 @flow(log_prints=True)
@@ -280,7 +281,7 @@ if __name__ == "__main__":
     flow.from_source(
         source=GitRepository(
             url="https://github.com/me/myrepo.git",
-            credentials={"username": "oauth2", "access_token": "my-access-token"},
+            credentials={"username": "oauth2", "access_token": Secret.load("my-github-pat")},
         ),
         entrypoint="example.py:my_flow"
     ).deploy(
@@ -299,7 +300,7 @@ For the code below, you need to create a work pool from your infrastructure bloc
 ```python example.py
 from prefect import flow
 from prefect.deployments import Deployment
-from prefect.filesystems import GitHub
+from prefect.filesystems import GitHub # this block class no longer exists
 from prefect.infrastructure.kubernetes import KubernetesJob
 
 
@@ -307,12 +308,13 @@ from prefect.infrastructure.kubernetes import KubernetesJob
 def my_flow(name: str = "world"):
     print(f"Hello {name}! I'm a flow from a GitHub repo!")
 
+repo = GitHub.load("demo-repo")
 
 if __name__ == "__main__":
     Deployment.build_from_flow(
         my_flow,
         name="my-deployment",
-        storage=GitHub.load("demo-repo"),
+        storage=repo,
         entrypoint="example.py:my_flow",
         infrastructure=KubernetesJob.load("my-k8s-job"),
         infra_overrides=dict(pull_policy="Never"),
@@ -324,11 +326,10 @@ The equivalent deployment code using `flow.deploy` should look like this:
 
 ```python example.py
 from prefect import flow
-from prefect.storage import GitHub
 
 if __name__ == "__main__":
     flow.from_source(
-        source=GitHub.load("demo-repo"),
+        source="https://github.com/me/myrepo.git",
         entrypoint="example.py:my_flow"
     ).deploy(
         name="my-deployment",
