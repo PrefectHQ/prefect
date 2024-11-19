@@ -101,18 +101,18 @@ def analyze_repo_health(repos: List[str]):
                 break
             all_issues.extend(issues)
     
-    # Run issue analysis tasks in parallel
+    # Run issue analysis tasks concurrently
     for issue in all_issues:
         analyze_issue.submit(issue) # Submit each task to a task runner
     
     # Wait for all analysis tasks to complete
     for detail in issue_details:
-        result = detail.result()
+        result = detail.result() # Block until the task has completed
         print(f"Analyzed issue #{result['number']}")
 ```
 
 <Expandable title="full example">
-Run the following code to see pagination and parallel tasks in action:
+Run the following code to see pagination and concurrent tasks in action:
 
 ```python
 from typing import List, Optional
@@ -501,7 +501,7 @@ In this tutorial, you built a complex data extraction pipeline which uses the fo
 
 - Error recovery with try/catch blocks
 - Modularized workflows with dependent [nested flows and tasks](/v3/develop/write-flows#nest-flows)
-- Efficient ingestion and processing of large data with pagination and [parallel tasks](/v3/develop/task-runners)
+- Efficient ingestion and processing of large data with pagination and [concurrent tasks](/v3/develop/task-runners)
 
 Now that you've finished this tutorial series, continue your learning journey by going deep on the following topics:
 

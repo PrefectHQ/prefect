@@ -83,9 +83,9 @@ if __name__ == "__main__":
 ```
 </Expandable>
 
-## Parallelize slow tasks
+## Concurrent execution of slow tasks
 
-If individual API requests are slow, you can speed them up in aggregate by making multiple requests in parallel.
+If individual API requests are slow, you can speed them up in aggregate by making multiple requests concurrently.
 When you call the `submit` method on a task, the task is submitted to a task runner for execution.
 
 ```python
@@ -95,23 +95,23 @@ from prefect import flow
 def show_stars(github_repos: list[str]):
     """Flow: Show the number of stars that GitHub repos have"""
 
-    # Task 1: Make HTTP requests in parallel
+    # Task 1: Make HTTP requests concurrently
     repo_stats = []
     for repo in github_repos:
         repo_stats.append({
             'repo': repo,
-            'task': fetch_stats.submit(repo)
+            'task': fetch_stats.submit(repo) # Submit each task to a task runner
         })
 
-    # Task 2: Once all parallel tasks have completed, show the results
+    # Task 2: Once each concurrent task completes, show the results
     for repo in repo_stats:
         repo_name = repo['repo']
-        stars = get_stars(repo['task'].result())
+        stars = get_stars(repo['task'].result()) # Block until the task has completed
         print(f"{repo_name}: {stars} stars")
 ```
 
 <Expandable title="full example">
-Run the following code to see parallel tasks in action:
+Run the following code to see concurrent tasks in action:
 
 ```python
 import httpx
@@ -123,18 +123,18 @@ from prefect import flow, task # Prefect flow and task decorators
 def show_stars(github_repos: list[str]):
     """Flow: Show the number of stars that GitHub repos have"""
 
-    # Task 1: Make HTTP requests in parallel
+    # Task 1: Make HTTP requests concurrently
     repo_stats = []
     for repo in github_repos:
         repo_stats.append({
             'repo': repo,
-            'task': fetch_stats.submit(repo)
+            'task': fetch_stats.submit(repo) # Submit each task to a task runner
         })
 
-    # Task 2: Once all parallel tasks have completed, show the results
+    # Task 2: Once each concurrent task completes, show the results
     for repo in repo_stats:
         repo_name = repo['repo']
-        stars = get_stars(repo['task'].result())
+        stars = get_stars(repo['task'].result()) # Block until the task has completed
         print(f"{repo_name}: {stars} stars")
 
 
@@ -164,7 +164,7 @@ if __name__ == "__main__":
 
 ## Avoid getting rate limited
 
-One consequence of running tasks in parallel is that you're more likely to hit the rate limits of whatever API you're using.
+One consequence of running tasks concurrently is that you're more likely to hit the rate limits of whatever API you're using.
 To avoid this, use Prefect to set a global concurrency limit.
 
 ```bash
@@ -336,19 +336,19 @@ from prefect.concurrency.sync import rate_limit
 def show_stars(github_repos: list[str]):
     """Flow: Show the number of stars that GitHub repos have"""
 
-    # Task 1: Make HTTP requests in parallel while respecting concurrency limits
+    # Task 1: Make HTTP requests concurrently while respecting concurrency limits
     repo_stats = []
     for repo in github_repos:
         rate_limit("github-api")
         repo_stats.append({
             'repo': repo,
-            'task': fetch_stats.submit(repo)
+            'task': fetch_stats.submit(repo) # Submit each task to a task runner
         })
 
-    # Task 2: Once all parallel tasks have completed, show the results
+    # Task 2: Once each concurrent task completes, show the results
     for repo in repo_stats:
         repo_name = repo['repo']
-        stars = get_stars(repo['task'].result())
+        stars = get_stars(repo['task'].result()) # Block until the task has completed
         print(f"{repo_name}: {stars} stars")
 
 
@@ -409,7 +409,7 @@ The terminal output from the second flow run should look like this:
 In this tutorial, you built a resilient and performant data pipeline which uses the following techniques:
 
 - [Retries](/v3/develop/write-tasks#retries) to handle transient errors
-- [Parallel tasks](/v3/develop/task-runners) to speed up slow tasks
+- [Concurrency](/v3/develop/task-runners) to speed up slow tasks
 - [Concurrency limits](/v3/develop/global-concurrency-limits) to avoid hitting the rate limits of your APIs
 - [Caching](/v3/develop/task-caching) to skip repeated tasks
 
