@@ -29,12 +29,11 @@ with open(docs_path() / "mint.json", "r") as f:
 def current_version() -> str:
     """
     Return a high-level version string for the current Prefect version,
-    such as "3.1" or "3.1rc".
+    such as "3" or "3.1.0rc".
     """
-    # TODO: Handle versioned docs
-    # version = Version(prefect.__version__)
+
     version = Version("3.0.0")
-    return f"{version.major}.{version.minor}{version.pre[0] if version.pre else ''}"
+    return f"v{version.major}{version.minor if version.pre else ''}{version.pre[0] if version.pre else ''}"
 
 
 def main():

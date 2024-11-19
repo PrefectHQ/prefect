@@ -477,7 +477,7 @@ def create_app(
     ignore_cache: bool = False,
 ) -> FastAPI:
     """
-    Create an FastAPI app that includes the Prefect REST API and UI
+    Create a FastAPI app that includes the Prefect REST API and UI
 
     Args:
         settings: The settings to use to create the app. If not set, settings are pulled
