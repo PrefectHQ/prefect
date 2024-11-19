@@ -10,7 +10,7 @@ from prefect_aws.credentials import AwsCredentials
 
 
 @task
-async def batch_submit_async(
+async def abatch_submit(
     job_name: str,
     job_queue: str,
     job_definition: str,
@@ -76,7 +76,7 @@ async def batch_submit_async(
 
 
 @task
-@async_dispatch(batch_submit_async)
+@async_dispatch(abatch_submit)
 def batch_submit(
     job_name: str,
     job_queue: str,
