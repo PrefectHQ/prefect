@@ -60,6 +60,15 @@
       "version": "v3"
     },
     {
+      "group": "Tutorials",
+      "pages": [
+        "v3/tutorials/schedule",
+        "v3/tutorials/pipelines",
+        "v3/tutorials/scraping"
+      ],
+      "version": "v3"
+    },
+    {
       "group": "Get started",
       "pages": [
         "v2/get-started/index"
