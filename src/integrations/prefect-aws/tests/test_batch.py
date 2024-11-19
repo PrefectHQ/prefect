@@ -1,11 +1,21 @@
+from typing import Optional
 from uuid import UUID
 
 import boto3
 import pytest
 from moto import mock_batch, mock_iam
-from prefect_aws.batch import batch_submit
+from prefect_aws.batch import abatch_submit, batch_submit
 
 from prefect import flow
+
+
+def assert_valid_job_id(job_id: Optional[str]):
+    assert job_id is not None, "job_id is None"
+    try:
+        UUID(str(job_id))
+        assert True, f"{job_id} is a valid UUID"
+    except ValueError:
+        assert False, f"{job_id} is not a valid UUID"
 
 
 @pytest.fixture(scope="function")
@@ -62,20 +72,57 @@ def job_definition_arn(batch_client):
     return job_definition_arn
 
 
-def test_batch_submit(job_queue_arn, job_definition_arn, aws_credentials):
-    @flow
-    def test_flow():
-        return batch_submit(
+class TestBatchSubmit:
+    def test_batch_submit(self, job_queue_arn, job_definition_arn, aws_credentials):
+        @flow
+        def test_flow():
+            return batch_submit(
+                "batch_test_job",
+                job_queue_arn,
+                job_definition_arn,
+                aws_credentials,
+            )
+
+        job_id = test_flow()
+
+        assert_valid_job_id(job_id)
+
+    async def test_batch_submit_async_dispatch(
+        self, job_queue_arn, job_definition_arn, aws_credentials
+    ):
+        @flow
+        async def test_flow():
+            return await batch_submit(
+                "batch_test_job",
+                job_queue_arn,
+                job_definition_arn,
+                aws_credentials,
+            )
+
+        job_id = await test_flow()
+        assert_valid_job_id(job_id)
+
+    async def test_batch_submit_force_sync_from_async(
+        self, job_queue_arn, job_definition_arn, aws_credentials
+    ):
+        job_id = batch_submit(
+            "batch_test_job",
+            job_queue_arn,
+            job_definition_arn,
+            aws_credentials,
+            _sync=True,
+        )
+        assert_valid_job_id(job_id)
+
+
+class TestBatchSubmitAsync:
+    async def test_batch_submit_explicit_async(
+        self, job_queue_arn, job_definition_arn, aws_credentials
+    ):
+        job_id = await abatch_submit(
             "batch_test_job",
             job_queue_arn,
             job_definition_arn,
             aws_credentials,
         )
-
-    job_id = test_flow()
-
-    try:
-        UUID(str(job_id))
-        assert True, f"{job_id} is a valid UUID"
-    except ValueError:
-        assert False, f"{job_id} is not a valid UUID"
+        assert_valid_job_id(job_id)
