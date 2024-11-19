@@ -52,185 +52,185 @@
     {
       "group": "Get started",
       "pages": [
-        "3.0/get-started/index",
-        "3.0/resources/whats-new-prefect-3",
-        "3.0/get-started/install",
-        "3.0/get-started/quickstart"
+        "v3/get-started/index",
+        "v3/resources/whats-new-prefect-3",
+        "v3/get-started/install",
+        "v3/get-started/quickstart"
       ],
-      "version": "3.0"
+      "version": "v3"
     },
     {
       "group": "Tutorials",
       "pages": [
-        "3.0/tutorials/schedule",
-        "3.0/tutorials/pipelines",
-        "3.0/tutorials/scraping"
+        "v3/tutorials/schedule",
+        "v3/tutorials/pipelines",
+        "v3/tutorials/scraping"
       ],
-      "version": "3.0"
+      "version": "v3"
     },
     {
       "group": "Get started",
       "pages": [
-        "2.x/get-started/index"
+        "v2/get-started/index"
       ],
-      "version": "2.x"
+      "version": "v2"
     },
     {
       "group": "Develop",
       "pages": [
-        "3.0/develop/index",
+        "v3/develop/index",
         {
           "group": "Write and run workflows",
           "pages": [
-            "3.0/develop/write-flows",
-            "3.0/develop/write-tasks",
-            "3.0/develop/deferred-tasks"
+            "v3/develop/write-flows",
+            "v3/develop/write-tasks",
+            "v3/develop/deferred-tasks"
           ],
-          "version": "3.0"
+          "version": "v3"
         },
         {
           "group": "Configure runtime behavior",
           "pages": [
-            "3.0/develop/logging",
-            "3.0/develop/task-caching",
-            "3.0/develop/transactions",
-            "3.0/develop/pause-resume",
-            "3.0/develop/inputs",
-            "3.0/develop/runtime-context"
+            "v3/develop/logging",
+            "v3/develop/task-caching",
+            "v3/develop/transactions",
+            "v3/develop/pause-resume",
+            "v3/develop/inputs",
+            "v3/develop/runtime-context"
           ],
-          "version": "3.0"
+          "version": "v3"
         },
         {
           "group": "Manage state and configuration",
           "pages": [
-            "3.0/develop/manage-states",
-            "3.0/develop/results",
-            "3.0/develop/artifacts",
-            "3.0/develop/variables",
-            "3.0/develop/blocks"
+            "v3/develop/manage-states",
+            "v3/develop/results",
+            "v3/develop/artifacts",
+            "v3/develop/variables",
+            "v3/develop/blocks"
           ],
-          "version": "3.0"
+          "version": "v3"
         },
         {
           "group": "Manage concurrency",
           "pages": [
-            "3.0/develop/task-runners",
-            "3.0/develop/task-run-limits",
-            "3.0/develop/global-concurrency-limits"
+            "v3/develop/task-runners",
+            "v3/develop/task-run-limits",
+            "v3/develop/global-concurrency-limits"
           ],
-          "version": "3.0"
+          "version": "v3"
         },
         {
           "group": "Manage settings",
           "pages": [
-            "3.0/develop/settings-and-profiles",
-            "3.0/develop/settings-ref"
+            "v3/develop/settings-and-profiles",
+            "v3/develop/settings-ref"
           ]
         },
-        "3.0/develop/test-workflows"
+        "v3/develop/test-workflows"
       ],
-      "version": "3.0"
+      "version": "v3"
     },
     {
       "group": "Deploy",
       "pages": [
-        "3.0/deploy/index",
-        "3.0/deploy/run-flows-in-local-processes",
+        "v3/deploy/index",
+        "v3/deploy/run-flows-in-local-processes",
         {
           "group": "Run flows on dynamic infrastructure",
           "pages": [
-            "3.0/deploy/infrastructure-concepts/work-pools",
-            "3.0/deploy/infrastructure-concepts/workers",
-            "3.0/deploy/infrastructure-concepts/store-flow-code",
-            "3.0/deploy/infrastructure-concepts/deploy-via-python",
-            "3.0/deploy/infrastructure-concepts/prefect-yaml",
-            "3.0/deploy/infrastructure-concepts/deploy-ci-cd",
-            "3.0/deploy/infrastructure-concepts/customize"
+            "v3/deploy/infrastructure-concepts/work-pools",
+            "v3/deploy/infrastructure-concepts/workers",
+            "v3/deploy/infrastructure-concepts/store-flow-code",
+            "v3/deploy/infrastructure-concepts/deploy-via-python",
+            "v3/deploy/infrastructure-concepts/prefect-yaml",
+            "v3/deploy/infrastructure-concepts/deploy-ci-cd",
+            "v3/deploy/infrastructure-concepts/customize"
           ],
-          "version": "3.0"
+          "version": "v3"
         },
         {
           "group": "Dynamic infrastructure examples",
           "pages": [
-            "3.0/deploy/infrastructure-examples/managed",
-            "3.0/deploy/infrastructure-examples/serverless",
-            "3.0/deploy/infrastructure-examples/docker",
-            "3.0/deploy/infrastructure-examples/kubernetes"
+            "v3/deploy/infrastructure-examples/managed",
+            "v3/deploy/infrastructure-examples/serverless",
+            "v3/deploy/infrastructure-examples/docker",
+            "v3/deploy/infrastructure-examples/kubernetes"
           ],
-          "version": "3.0"
+          "version": "v3"
         },
         {
           "group": "Static infrastructure examples",
           "pages": [
-            "3.0/deploy/static-infrastructure-examples/docker"
+            "v3/deploy/static-infrastructure-examples/docker"
           ],
-          "version": "3.0"
+          "version": "v3"
         }
       ],
-      "version": "3.0"
+      "version": "v3"
     },
     {
       "group": "Automate",
       "pages": [
-        "3.0/automate/index",
-        "3.0/automate/add-schedules",
-        "3.0/automate/events/events",
-        "3.0/automate/events/automations-triggers",
-        "3.0/automate/events/custom-triggers",
-        "3.0/automate/events/webhook-triggers",
-        "3.0/automate/incidents"
+        "v3/automate/index",
+        "v3/automate/add-schedules",
+        "v3/automate/events/events",
+        "v3/automate/events/automations-triggers",
+        "v3/automate/events/custom-triggers",
+        "v3/automate/events/webhook-triggers",
+        "v3/automate/incidents"
       ],
-      "version": "3.0"
+      "version": "v3"
     },
     {
       "group": "Cloud and Server",
       "pages": [
-        "3.0/manage/index",
+        "v3/manage/index",
         {
           "group": "Use Prefect Cloud",
           "pages": [
-            "3.0/manage/cloud/index",
-            "3.0/manage/cloud/connect-to-cloud",
-            "3.0/manage/cloud/workspaces",
+            "v3/manage/cloud/index",
+            "v3/manage/cloud/connect-to-cloud",
+            "v3/manage/cloud/workspaces",
             {
               "group": "Manage accounts",
               "pages": [
-                "3.0/manage/cloud/manage-users/index",
-                "3.0/manage/cloud/manage-users/service-accounts",
-                "3.0/manage/cloud/manage-users/manage-teams",
-                "3.0/manage/cloud/manage-users/manage-roles",
-                "3.0/manage/cloud/manage-users/api-keys",
-                "3.0/manage/cloud/manage-users/configure-sso",
-                "3.0/manage/cloud/manage-users/audit-logs",
-                "3.0/manage/cloud/manage-users/object-access-control-lists",
-                "3.0/manage/cloud/manage-users/secure-access-by-ip-address"
+                "v3/manage/cloud/manage-users/index",
+                "v3/manage/cloud/manage-users/service-accounts",
+                "v3/manage/cloud/manage-users/manage-teams",
+                "v3/manage/cloud/manage-users/manage-roles",
+                "v3/manage/cloud/manage-users/api-keys",
+                "v3/manage/cloud/manage-users/configure-sso",
+                "v3/manage/cloud/manage-users/audit-logs",
+                "v3/manage/cloud/manage-users/object-access-control-lists",
+                "v3/manage/cloud/manage-users/secure-access-by-ip-address"
               ],
-              "version": "3.0"
+              "version": "v3"
             },
-            "3.0/manage/cloud/rate-limits",
-            "3.0/manage/cloud/terraform-provider",
-            "3.0/manage/cloud/troubleshoot-cloud"
+            "v3/manage/cloud/rate-limits",
+            "v3/manage/cloud/terraform-provider",
+            "v3/manage/cloud/troubleshoot-cloud"
           ],
-          "version": "3.0"
+          "version": "v3"
         },
-        "3.0/manage/self-host",
-        "3.0/manage/interact-with-api"
+        "v3/manage/self-host",
+        "v3/manage/interact-with-api"
       ],
-      "version": "3.0"
+      "version": "v3"
     },
     {
       "group": "Resources",
       "pages": [
-        "3.0/resources/upgrade-to-prefect-3",
-        "3.0/resources/upgrade-agents-to-workers",
-        "3.0/resources/cancel",
-        "3.0/resources/visualize-flow-structure",
-        "3.0/resources/daemonize-processes",
-        "3.0/resources/big-data",
-        "3.0/resources/cli-shell",
-        "3.0/resources/secrets"
+        "v3/resources/upgrade-to-prefect-3",
+        "v3/resources/upgrade-agents-to-workers",
+        "v3/resources/cancel",
+        "v3/resources/visualize-flow-structure",
+        "v3/resources/daemonize-processes",
+        "v3/resources/big-data",
+        "v3/resources/cli-shell",
+        "v3/resources/secrets"
       ],
-      "version": "3.0"
+      "version": "v3"
     },
     {
       "group": "Integrations",
@@ -372,339 +372,339 @@
     {
       "group": "APIs & SDK",
       "pages": [
-        "3.0/api-ref/index",
-        "3.0/api-ref/python/index",
+        "v3/api-ref/index",
+        "v3/api-ref/python/index",
         {
           "group": "REST API",
           "pages": [
-            "3.0/api-ref/rest-api/index",
+            "v3/api-ref/rest-api/index",
             {
               "group": "Cloud API",
               "pages": [
-                "3.0/api-ref/rest-api/cloud/index"
+                "v3/api-ref/rest-api/cloud/index"
               ],
-              "version": "3.0"
+              "version": "v3"
             },
             {
               "group": "Server API",
               "pages": [
-                "3.0/api-ref/rest-api/server/index",
+                "v3/api-ref/rest-api/server/index",
                 {
                   "group": "Root",
                   "pages": [
-                    "3.0/api-ref/rest-api/server/root/health-check",
-                    "3.0/api-ref/rest-api/server/root/server-version",
-                    "3.0/api-ref/rest-api/server/root/hello",
-                    "3.0/api-ref/rest-api/server/root/perform-readiness-check"
+                    "v3/api-ref/rest-api/server/root/health-check",
+                    "v3/api-ref/rest-api/server/root/server-version",
+                    "v3/api-ref/rest-api/server/root/hello",
+                    "v3/api-ref/rest-api/server/root/perform-readiness-check"
                   ]
                 },
                 {
                   "group": "Flows",
                   "pages": [
-                    "3.0/api-ref/rest-api/server/flows/create-flow",
-                    "3.0/api-ref/rest-api/server/flows/read-flow",
-                    "3.0/api-ref/rest-api/server/flows/delete-flow",
-                    "3.0/api-ref/rest-api/server/flows/update-flow",
-                    "3.0/api-ref/rest-api/server/flows/count-flows",
-                    "3.0/api-ref/rest-api/server/flows/read-flow-by-name",
-                    "3.0/api-ref/rest-api/server/flows/read-flows",
-                    "3.0/api-ref/rest-api/server/flows/paginate-flows",
-                    "3.0/api-ref/rest-api/server/flows/count-deployments-by-flow",
-                    "3.0/api-ref/rest-api/server/flows/next-runs-by-flow"
+                    "v3/api-ref/rest-api/server/flows/create-flow",
+                    "v3/api-ref/rest-api/server/flows/read-flow",
+                    "v3/api-ref/rest-api/server/flows/delete-flow",
+                    "v3/api-ref/rest-api/server/flows/update-flow",
+                    "v3/api-ref/rest-api/server/flows/count-flows",
+                    "v3/api-ref/rest-api/server/flows/read-flow-by-name",
+                    "v3/api-ref/rest-api/server/flows/read-flows",
+                    "v3/api-ref/rest-api/server/flows/paginate-flows",
+                    "v3/api-ref/rest-api/server/flows/count-deployments-by-flow",
+                    "v3/api-ref/rest-api/server/flows/next-runs-by-flow"
                   ]
                 },
                 {
                   "group": "Flow Runs",
                   "pages": [
-                    "3.0/api-ref/rest-api/server/flow-runs/create-flow-run",
-                    "3.0/api-ref/rest-api/server/flow-runs/read-flow-run",
-                    "3.0/api-ref/rest-api/server/flow-runs/delete-flow-run",
-                    "3.0/api-ref/rest-api/server/flow-runs/update-flow-run",
-                    "3.0/api-ref/rest-api/server/flow-runs/count-flow-runs",
-                    "3.0/api-ref/rest-api/server/flow-runs/average-flow-run-lateness",
-                    "3.0/api-ref/rest-api/server/flow-runs/flow-run-history",
-                    "3.0/api-ref/rest-api/server/flow-runs/read-flow-run-graph-v1",
-                    "3.0/api-ref/rest-api/server/flow-runs/read-flow-run-graph-v2",
-                    "3.0/api-ref/rest-api/server/flow-runs/resume-flow-run",
-                    "3.0/api-ref/rest-api/server/flow-runs/read-flow-runs",
-                    "3.0/api-ref/rest-api/server/flow-runs/set-flow-run-state",
-                    "3.0/api-ref/rest-api/server/flow-runs/create-flow-run-input",
-                    "3.0/api-ref/rest-api/server/flow-runs/filter-flow-run-input",
-                    "3.0/api-ref/rest-api/server/flow-runs/read-flow-run-input",
-                    "3.0/api-ref/rest-api/server/flow-runs/delete-flow-run-input",
-                    "3.0/api-ref/rest-api/server/flow-runs/paginate-flow-runs",
-                    "3.0/api-ref/rest-api/server/flow-runs/download-logs",
-                    "3.0/api-ref/rest-api/server/flow-runs/read-flow-run-history",
-                    "3.0/api-ref/rest-api/server/flow-runs/count-task-runs-by-flow-run"
+                    "v3/api-ref/rest-api/server/flow-runs/create-flow-run",
+                    "v3/api-ref/rest-api/server/flow-runs/read-flow-run",
+                    "v3/api-ref/rest-api/server/flow-runs/delete-flow-run",
+                    "v3/api-ref/rest-api/server/flow-runs/update-flow-run",
+                    "v3/api-ref/rest-api/server/flow-runs/count-flow-runs",
+                    "v3/api-ref/rest-api/server/flow-runs/average-flow-run-lateness",
+                    "v3/api-ref/rest-api/server/flow-runs/flow-run-history",
+                    "v3/api-ref/rest-api/server/flow-runs/read-flow-run-graph-v1",
+                    "v3/api-ref/rest-api/server/flow-runs/read-flow-run-graph-v2",
+                    "v3/api-ref/rest-api/server/flow-runs/resume-flow-run",
+                    "v3/api-ref/rest-api/server/flow-runs/read-flow-runs",
+                    "v3/api-ref/rest-api/server/flow-runs/set-flow-run-state",
+                    "v3/api-ref/rest-api/server/flow-runs/create-flow-run-input",
+                    "v3/api-ref/rest-api/server/flow-runs/filter-flow-run-input",
+                    "v3/api-ref/rest-api/server/flow-runs/read-flow-run-input",
+                    "v3/api-ref/rest-api/server/flow-runs/delete-flow-run-input",
+                    "v3/api-ref/rest-api/server/flow-runs/paginate-flow-runs",
+                    "v3/api-ref/rest-api/server/flow-runs/download-logs",
+                    "v3/api-ref/rest-api/server/flow-runs/read-flow-run-history",
+                    "v3/api-ref/rest-api/server/flow-runs/count-task-runs-by-flow-run"
                   ]
                 },
                 {
                   "group": "Task Runs",
                   "pages": [
-                    "3.0/api-ref/rest-api/server/task-runs/create-task-run",
-                    "3.0/api-ref/rest-api/server/task-runs/read-task-run",
-                    "3.0/api-ref/rest-api/server/task-runs/delete-task-run",
-                    "3.0/api-ref/rest-api/server/task-runs/update-task-run",
-                    "3.0/api-ref/rest-api/server/task-runs/count-task-runs",
-                    "3.0/api-ref/rest-api/server/task-runs/task-run-history",
-                    "3.0/api-ref/rest-api/server/task-runs/read-task-runs",
-                    "3.0/api-ref/rest-api/server/task-runs/set-task-run-state",
-                    "3.0/api-ref/rest-api/server/task-runs/read-dashboard-task-run-counts",
-                    "3.0/api-ref/rest-api/server/task-runs/read-task-run-counts-by-state"
+                    "v3/api-ref/rest-api/server/task-runs/create-task-run",
+                    "v3/api-ref/rest-api/server/task-runs/read-task-run",
+                    "v3/api-ref/rest-api/server/task-runs/delete-task-run",
+                    "v3/api-ref/rest-api/server/task-runs/update-task-run",
+                    "v3/api-ref/rest-api/server/task-runs/count-task-runs",
+                    "v3/api-ref/rest-api/server/task-runs/task-run-history",
+                    "v3/api-ref/rest-api/server/task-runs/read-task-runs",
+                    "v3/api-ref/rest-api/server/task-runs/set-task-run-state",
+                    "v3/api-ref/rest-api/server/task-runs/read-dashboard-task-run-counts",
+                    "v3/api-ref/rest-api/server/task-runs/read-task-run-counts-by-state"
                   ]
                 },
                 {
                   "group": "Flow Run States",
                   "pages": [
-                    "3.0/api-ref/rest-api/server/flow-run-states/read-flow-run-state",
-                    "3.0/api-ref/rest-api/server/flow-run-states/read-flow-run-states"
+                    "v3/api-ref/rest-api/server/flow-run-states/read-flow-run-state",
+                    "v3/api-ref/rest-api/server/flow-run-states/read-flow-run-states"
                   ]
                 },
                 {
                   "group": "Task Run States",
                   "pages": [
-                    "3.0/api-ref/rest-api/server/task-run-states/read-task-run-state",
-                    "3.0/api-ref/rest-api/server/task-run-states/read-task-run-states"
+                    "v3/api-ref/rest-api/server/task-run-states/read-task-run-state",
+                    "v3/api-ref/rest-api/server/task-run-states/read-task-run-states"
                   ]
                 },
                 {
                   "group": "Flow Run Notification Policies",
                   "pages": [
-                    "3.0/api-ref/rest-api/server/flow-run-notification-policies/create-flow-run-notification-policy",
-                    "3.0/api-ref/rest-api/server/flow-run-notification-policies/read-flow-run-notification-policy",
-                    "3.0/api-ref/rest-api/server/flow-run-notification-policies/delete-flow-run-notification-policy",
-                    "3.0/api-ref/rest-api/server/flow-run-notification-policies/update-flow-run-notification-policy",
-                    "3.0/api-ref/rest-api/server/flow-run-notification-policies/read-flow-run-notification-policies"
+                    "v3/api-ref/rest-api/server/flow-run-notification-policies/create-flow-run-notification-policy",
+                    "v3/api-ref/rest-api/server/flow-run-notification-policies/read-flow-run-notification-policy",
+                    "v3/api-ref/rest-api/server/flow-run-notification-policies/delete-flow-run-notification-policy",
+                    "v3/api-ref/rest-api/server/flow-run-notification-policies/update-flow-run-notification-policy",
+                    "v3/api-ref/rest-api/server/flow-run-notification-policies/read-flow-run-notification-policies"
                   ]
                 },
                 {
                   "group": "Deployments",
                   "pages": [
-                    "3.0/api-ref/rest-api/server/deployments/create-deployment",
-                    "3.0/api-ref/rest-api/server/deployments/read-deployment",
-                    "3.0/api-ref/rest-api/server/deployments/delete-deployment",
-                    "3.0/api-ref/rest-api/server/deployments/update-deployment",
-                    "3.0/api-ref/rest-api/server/deployments/read-deployment-by-name",
-                    "3.0/api-ref/rest-api/server/deployments/read-deployments",
-                    "3.0/api-ref/rest-api/server/deployments/paginate-deployments",
-                    "3.0/api-ref/rest-api/server/deployments/get-scheduled-flow-runs-for-deployments",
-                    "3.0/api-ref/rest-api/server/deployments/count-deployments",
-                    "3.0/api-ref/rest-api/server/deployments/schedule-deployment",
-                    "3.0/api-ref/rest-api/server/deployments/resume-deployment",
-                    "3.0/api-ref/rest-api/server/deployments/pause-deployment",
-                    "3.0/api-ref/rest-api/server/deployments/create-flow-run-from-deployment",
-                    "3.0/api-ref/rest-api/server/deployments/work-queue-check-for-deployment",
-                    "3.0/api-ref/rest-api/server/deployments/read-deployment-schedules",
-                    "3.0/api-ref/rest-api/server/deployments/create-deployment-schedules",
-                    "3.0/api-ref/rest-api/server/deployments/delete-deployment-schedule",
-                    "3.0/api-ref/rest-api/server/deployments/update-deployment-schedule"
+                    "v3/api-ref/rest-api/server/deployments/create-deployment",
+                    "v3/api-ref/rest-api/server/deployments/read-deployment",
+                    "v3/api-ref/rest-api/server/deployments/delete-deployment",
+                    "v3/api-ref/rest-api/server/deployments/update-deployment",
+                    "v3/api-ref/rest-api/server/deployments/read-deployment-by-name",
+                    "v3/api-ref/rest-api/server/deployments/read-deployments",
+                    "v3/api-ref/rest-api/server/deployments/paginate-deployments",
+                    "v3/api-ref/rest-api/server/deployments/get-scheduled-flow-runs-for-deployments",
+                    "v3/api-ref/rest-api/server/deployments/count-deployments",
+                    "v3/api-ref/rest-api/server/deployments/schedule-deployment",
+                    "v3/api-ref/rest-api/server/deployments/resume-deployment",
+                    "v3/api-ref/rest-api/server/deployments/pause-deployment",
+                    "v3/api-ref/rest-api/server/deployments/create-flow-run-from-deployment",
+                    "v3/api-ref/rest-api/server/deployments/work-queue-check-for-deployment",
+                    "v3/api-ref/rest-api/server/deployments/read-deployment-schedules",
+                    "v3/api-ref/rest-api/server/deployments/create-deployment-schedules",
+                    "v3/api-ref/rest-api/server/deployments/delete-deployment-schedule",
+                    "v3/api-ref/rest-api/server/deployments/update-deployment-schedule"
                   ]
                 },
                 {
                   "group": "SavedSearches",
                   "pages": [
-                    "3.0/api-ref/rest-api/server/savedsearches/create-saved-search",
-                    "3.0/api-ref/rest-api/server/savedsearches/read-saved-search",
-                    "3.0/api-ref/rest-api/server/savedsearches/delete-saved-search",
-                    "3.0/api-ref/rest-api/server/savedsearches/read-saved-searches"
+                    "v3/api-ref/rest-api/server/savedsearches/create-saved-search",
+                    "v3/api-ref/rest-api/server/savedsearches/read-saved-search",
+                    "v3/api-ref/rest-api/server/savedsearches/delete-saved-search",
+                    "v3/api-ref/rest-api/server/savedsearches/read-saved-searches"
                   ]
                 },
                 {
                   "group": "Logs",
                   "pages": [
-                    "3.0/api-ref/rest-api/server/logs/create-logs",
-                    "3.0/api-ref/rest-api/server/logs/read-logs"
+                    "v3/api-ref/rest-api/server/logs/create-logs",
+                    "v3/api-ref/rest-api/server/logs/read-logs"
                   ]
                 },
                 {
                   "group": "Concurrency Limits",
                   "pages": [
-                    "3.0/api-ref/rest-api/server/concurrency-limits/create-concurrency-limit",
-                    "3.0/api-ref/rest-api/server/concurrency-limits/read-concurrency-limit",
-                    "3.0/api-ref/rest-api/server/concurrency-limits/delete-concurrency-limit",
-                    "3.0/api-ref/rest-api/server/concurrency-limits/read-concurrency-limit-by-tag",
-                    "3.0/api-ref/rest-api/server/concurrency-limits/delete-concurrency-limit-by-tag",
-                    "3.0/api-ref/rest-api/server/concurrency-limits/read-concurrency-limits",
-                    "3.0/api-ref/rest-api/server/concurrency-limits/reset-concurrency-limit-by-tag",
-                    "3.0/api-ref/rest-api/server/concurrency-limits/increment-concurrency-limits-v1",
-                    "3.0/api-ref/rest-api/server/concurrency-limits/decrement-concurrency-limits-v1"
+                    "v3/api-ref/rest-api/server/concurrency-limits/create-concurrency-limit",
+                    "v3/api-ref/rest-api/server/concurrency-limits/read-concurrency-limit",
+                    "v3/api-ref/rest-api/server/concurrency-limits/delete-concurrency-limit",
+                    "v3/api-ref/rest-api/server/concurrency-limits/read-concurrency-limit-by-tag",
+                    "v3/api-ref/rest-api/server/concurrency-limits/delete-concurrency-limit-by-tag",
+                    "v3/api-ref/rest-api/server/concurrency-limits/read-concurrency-limits",
+                    "v3/api-ref/rest-api/server/concurrency-limits/reset-concurrency-limit-by-tag",
+                    "v3/api-ref/rest-api/server/concurrency-limits/increment-concurrency-limits-v1",
+                    "v3/api-ref/rest-api/server/concurrency-limits/decrement-concurrency-limits-v1"
                   ]
                 },
                 {
                   "group": "Concurrency Limits V2",
                   "pages": [
-                    "3.0/api-ref/rest-api/server/concurrency-limits-v2/create-concurrency-limit-v2",
-                    "3.0/api-ref/rest-api/server/concurrency-limits-v2/read-concurrency-limit-v2",
-                    "3.0/api-ref/rest-api/server/concurrency-limits-v2/delete-concurrency-limit-v2",
-                    "3.0/api-ref/rest-api/server/concurrency-limits-v2/update-concurrency-limit-v2",
-                    "3.0/api-ref/rest-api/server/concurrency-limits-v2/read-all-concurrency-limits-v2",
-                    "3.0/api-ref/rest-api/server/concurrency-limits-v2/bulk-increment-active-slots",
-                    "3.0/api-ref/rest-api/server/concurrency-limits-v2/bulk-decrement-active-slots"
+                    "v3/api-ref/rest-api/server/concurrency-limits-v2/create-concurrency-limit-v2",
+                    "v3/api-ref/rest-api/server/concurrency-limits-v2/read-concurrency-limit-v2",
+                    "v3/api-ref/rest-api/server/concurrency-limits-v2/delete-concurrency-limit-v2",
+                    "v3/api-ref/rest-api/server/concurrency-limits-v2/update-concurrency-limit-v2",
+                    "v3/api-ref/rest-api/server/concurrency-limits-v2/read-all-concurrency-limits-v2",
+                    "v3/api-ref/rest-api/server/concurrency-limits-v2/bulk-increment-active-slots",
+                    "v3/api-ref/rest-api/server/concurrency-limits-v2/bulk-decrement-active-slots"
                   ]
                 },
                 {
                   "group": "Block types",
                   "pages": [
-                    "3.0/api-ref/rest-api/server/block-types/create-block-type",
-                    "3.0/api-ref/rest-api/server/block-types/read-block-type-by-id",
-                    "3.0/api-ref/rest-api/server/block-types/delete-block-type",
-                    "3.0/api-ref/rest-api/server/block-types/update-block-type",
-                    "3.0/api-ref/rest-api/server/block-types/read-block-type-by-slug",
-                    "3.0/api-ref/rest-api/server/block-types/read-block-types",
-                    "3.0/api-ref/rest-api/server/block-types/read-block-documents-for-block-type",
-                    "3.0/api-ref/rest-api/server/block-types/read-block-document-by-name-for-block-type",
-                    "3.0/api-ref/rest-api/server/block-types/install-system-block-types"
+                    "v3/api-ref/rest-api/server/block-types/create-block-type",
+                    "v3/api-ref/rest-api/server/block-types/read-block-type-by-id",
+                    "v3/api-ref/rest-api/server/block-types/delete-block-type",
+                    "v3/api-ref/rest-api/server/block-types/update-block-type",
+                    "v3/api-ref/rest-api/server/block-types/read-block-type-by-slug",
+                    "v3/api-ref/rest-api/server/block-types/read-block-types",
+                    "v3/api-ref/rest-api/server/block-types/read-block-documents-for-block-type",
+                    "v3/api-ref/rest-api/server/block-types/read-block-document-by-name-for-block-type",
+                    "v3/api-ref/rest-api/server/block-types/install-system-block-types"
                   ]
                 },
                 {
                   "group": "Block documents",
                   "pages": [
-                    "3.0/api-ref/rest-api/server/block-documents/create-block-document",
-                    "3.0/api-ref/rest-api/server/block-documents/read-block-documents",
-                    "3.0/api-ref/rest-api/server/block-documents/count-block-documents",
-                    "3.0/api-ref/rest-api/server/block-documents/read-block-document-by-id",
-                    "3.0/api-ref/rest-api/server/block-documents/delete-block-document",
-                    "3.0/api-ref/rest-api/server/block-documents/update-block-document-data"
+                    "v3/api-ref/rest-api/server/block-documents/create-block-document",
+                    "v3/api-ref/rest-api/server/block-documents/read-block-documents",
+                    "v3/api-ref/rest-api/server/block-documents/count-block-documents",
+                    "v3/api-ref/rest-api/server/block-documents/read-block-document-by-id",
+                    "v3/api-ref/rest-api/server/block-documents/delete-block-document",
+                    "v3/api-ref/rest-api/server/block-documents/update-block-document-data"
                   ]
                 },
                 {
                   "group": "Work Pools",
                   "pages": [
-                    "3.0/api-ref/rest-api/server/work-pools/create-work-pool",
-                    "3.0/api-ref/rest-api/server/work-pools/read-work-pool",
-                    "3.0/api-ref/rest-api/server/work-pools/delete-work-pool",
-                    "3.0/api-ref/rest-api/server/work-pools/update-work-pool",
-                    "3.0/api-ref/rest-api/server/work-pools/read-work-pools",
-                    "3.0/api-ref/rest-api/server/work-pools/count-work-pools",
-                    "3.0/api-ref/rest-api/server/work-pools/get-scheduled-flow-runs",
-                    "3.0/api-ref/rest-api/server/work-pools/create-work-queue",
-                    "3.0/api-ref/rest-api/server/work-pools/read-work-queue",
-                    "3.0/api-ref/rest-api/server/work-pools/delete-work-queue",
-                    "3.0/api-ref/rest-api/server/work-pools/update-work-queue",
-                    "3.0/api-ref/rest-api/server/work-pools/read-work-queues",
-                    "3.0/api-ref/rest-api/server/work-pools/worker-heartbeat",
-                    "3.0/api-ref/rest-api/server/work-pools/read-workers",
-                    "3.0/api-ref/rest-api/server/work-pools/delete-worker"
+                    "v3/api-ref/rest-api/server/work-pools/create-work-pool",
+                    "v3/api-ref/rest-api/server/work-pools/read-work-pool",
+                    "v3/api-ref/rest-api/server/work-pools/delete-work-pool",
+                    "v3/api-ref/rest-api/server/work-pools/update-work-pool",
+                    "v3/api-ref/rest-api/server/work-pools/read-work-pools",
+                    "v3/api-ref/rest-api/server/work-pools/count-work-pools",
+                    "v3/api-ref/rest-api/server/work-pools/get-scheduled-flow-runs",
+                    "v3/api-ref/rest-api/server/work-pools/create-work-queue",
+                    "v3/api-ref/rest-api/server/work-pools/read-work-queue",
+                    "v3/api-ref/rest-api/server/work-pools/delete-work-queue",
+                    "v3/api-ref/rest-api/server/work-pools/update-work-queue",
+                    "v3/api-ref/rest-api/server/work-pools/read-work-queues",
+                    "v3/api-ref/rest-api/server/work-pools/worker-heartbeat",
+                    "v3/api-ref/rest-api/server/work-pools/read-workers",
+                    "v3/api-ref/rest-api/server/work-pools/delete-worker"
                   ]
                 },
                 {
                   "group": "Task Workers",
                   "pages": [
-                    "3.0/api-ref/rest-api/server/task-workers/read-task-workers"
+                    "v3/api-ref/rest-api/server/task-workers/read-task-workers"
                   ]
                 },
                 {
                   "group": "Work Queues",
                   "pages": [
-                    "3.0/api-ref/rest-api/server/work-queues/create-work-queue",
-                    "3.0/api-ref/rest-api/server/work-queues/read-work-queue",
-                    "3.0/api-ref/rest-api/server/work-queues/delete-work-queue",
-                    "3.0/api-ref/rest-api/server/work-queues/update-work-queue",
-                    "3.0/api-ref/rest-api/server/work-queues/read-work-queue-by-name",
-                    "3.0/api-ref/rest-api/server/work-queues/read-work-queue-runs",
-                    "3.0/api-ref/rest-api/server/work-queues/read-work-queues",
-                    "3.0/api-ref/rest-api/server/work-queues/read-work-queue-status"
+                    "v3/api-ref/rest-api/server/work-queues/create-work-queue",
+                    "v3/api-ref/rest-api/server/work-queues/read-work-queue",
+                    "v3/api-ref/rest-api/server/work-queues/delete-work-queue",
+                    "v3/api-ref/rest-api/server/work-queues/update-work-queue",
+                    "v3/api-ref/rest-api/server/work-queues/read-work-queue-by-name",
+                    "v3/api-ref/rest-api/server/work-queues/read-work-queue-runs",
+                    "v3/api-ref/rest-api/server/work-queues/read-work-queues",
+                    "v3/api-ref/rest-api/server/work-queues/read-work-queue-status"
                   ]
                 },
                 {
                   "group": "Artifacts",
                   "pages": [
-                    "3.0/api-ref/rest-api/server/artifacts/create-artifact",
-                    "3.0/api-ref/rest-api/server/artifacts/read-artifact",
-                    "3.0/api-ref/rest-api/server/artifacts/delete-artifact",
-                    "3.0/api-ref/rest-api/server/artifacts/update-artifact",
-                    "3.0/api-ref/rest-api/server/artifacts/read-latest-artifact",
-                    "3.0/api-ref/rest-api/server/artifacts/read-artifacts",
-                    "3.0/api-ref/rest-api/server/artifacts/read-latest-artifacts",
-                    "3.0/api-ref/rest-api/server/artifacts/count-artifacts",
-                    "3.0/api-ref/rest-api/server/artifacts/count-latest-artifacts"
+                    "v3/api-ref/rest-api/server/artifacts/create-artifact",
+                    "v3/api-ref/rest-api/server/artifacts/read-artifact",
+                    "v3/api-ref/rest-api/server/artifacts/delete-artifact",
+                    "v3/api-ref/rest-api/server/artifacts/update-artifact",
+                    "v3/api-ref/rest-api/server/artifacts/read-latest-artifact",
+                    "v3/api-ref/rest-api/server/artifacts/read-artifacts",
+                    "v3/api-ref/rest-api/server/artifacts/read-latest-artifacts",
+                    "v3/api-ref/rest-api/server/artifacts/count-artifacts",
+                    "v3/api-ref/rest-api/server/artifacts/count-latest-artifacts"
                   ]
                 },
                 {
                   "group": "Block schemas",
                   "pages": [
-                    "3.0/api-ref/rest-api/server/block-schemas/create-block-schema",
-                    "3.0/api-ref/rest-api/server/block-schemas/read-block-schema-by-id",
-                    "3.0/api-ref/rest-api/server/block-schemas/delete-block-schema",
-                    "3.0/api-ref/rest-api/server/block-schemas/read-block-schemas",
-                    "3.0/api-ref/rest-api/server/block-schemas/read-block-schema-by-checksum"
+                    "v3/api-ref/rest-api/server/block-schemas/create-block-schema",
+                    "v3/api-ref/rest-api/server/block-schemas/read-block-schema-by-id",
+                    "v3/api-ref/rest-api/server/block-schemas/delete-block-schema",
+                    "v3/api-ref/rest-api/server/block-schemas/read-block-schemas",
+                    "v3/api-ref/rest-api/server/block-schemas/read-block-schema-by-checksum"
                   ]
                 },
                 {
                   "group": "Block capabilities",
                   "pages": [
-                    "3.0/api-ref/rest-api/server/block-capabilities/read-available-block-capabilities"
+                    "v3/api-ref/rest-api/server/block-capabilities/read-available-block-capabilities"
                   ]
                 },
                 {
                   "group": "Collections",
                   "pages": [
-                    "3.0/api-ref/rest-api/server/collections/read-view-content"
+                    "v3/api-ref/rest-api/server/collections/read-view-content"
                   ]
                 },
                 {
                   "group": "Variables",
                   "pages": [
-                    "3.0/api-ref/rest-api/server/variables/create-variable",
-                    "3.0/api-ref/rest-api/server/variables/read-variable",
-                    "3.0/api-ref/rest-api/server/variables/delete-variable",
-                    "3.0/api-ref/rest-api/server/variables/update-variable",
-                    "3.0/api-ref/rest-api/server/variables/read-variable-by-name",
-                    "3.0/api-ref/rest-api/server/variables/delete-variable-by-name",
-                    "3.0/api-ref/rest-api/server/variables/update-variable-by-name",
-                    "3.0/api-ref/rest-api/server/variables/read-variables",
-                    "3.0/api-ref/rest-api/server/variables/count-variables"
+                    "v3/api-ref/rest-api/server/variables/create-variable",
+                    "v3/api-ref/rest-api/server/variables/read-variable",
+                    "v3/api-ref/rest-api/server/variables/delete-variable",
+                    "v3/api-ref/rest-api/server/variables/update-variable",
+                    "v3/api-ref/rest-api/server/variables/read-variable-by-name",
+                    "v3/api-ref/rest-api/server/variables/delete-variable-by-name",
+                    "v3/api-ref/rest-api/server/variables/update-variable-by-name",
+                    "v3/api-ref/rest-api/server/variables/read-variables",
+                    "v3/api-ref/rest-api/server/variables/count-variables"
                   ]
                 },
-                "3.0/api-ref/rest-api/server/create-csrf-token",
+                "v3/api-ref/rest-api/server/create-csrf-token",
                 {
                   "group": "Events",
                   "pages": [
-                    "3.0/api-ref/rest-api/server/events/create-events",
-                    "3.0/api-ref/rest-api/server/events/read-events",
-                    "3.0/api-ref/rest-api/server/events/read-account-events-page",
-                    "3.0/api-ref/rest-api/server/events/count-account-events"
+                    "v3/api-ref/rest-api/server/events/create-events",
+                    "v3/api-ref/rest-api/server/events/read-events",
+                    "v3/api-ref/rest-api/server/events/read-account-events-page",
+                    "v3/api-ref/rest-api/server/events/count-account-events"
                   ]
                 },
                 {
                   "group": "Automations",
                   "pages": [
-                    "3.0/api-ref/rest-api/server/automations/create-automation",
-                    "3.0/api-ref/rest-api/server/automations/read-automation",
-                    "3.0/api-ref/rest-api/server/automations/update-automation",
-                    "3.0/api-ref/rest-api/server/automations/delete-automation",
-                    "3.0/api-ref/rest-api/server/automations/patch-automation",
-                    "3.0/api-ref/rest-api/server/automations/read-automations",
-                    "3.0/api-ref/rest-api/server/automations/count-automations",
-                    "3.0/api-ref/rest-api/server/automations/read-automations-related-to-resource",
-                    "3.0/api-ref/rest-api/server/automations/delete-automations-owned-by-resource",
-                    "3.0/api-ref/rest-api/server/automations/validate-template"
+                    "v3/api-ref/rest-api/server/automations/create-automation",
+                    "v3/api-ref/rest-api/server/automations/read-automation",
+                    "v3/api-ref/rest-api/server/automations/update-automation",
+                    "v3/api-ref/rest-api/server/automations/delete-automation",
+                    "v3/api-ref/rest-api/server/automations/patch-automation",
+                    "v3/api-ref/rest-api/server/automations/read-automations",
+                    "v3/api-ref/rest-api/server/automations/count-automations",
+                    "v3/api-ref/rest-api/server/automations/read-automations-related-to-resource",
+                    "v3/api-ref/rest-api/server/automations/delete-automations-owned-by-resource",
+                    "v3/api-ref/rest-api/server/automations/validate-template"
                   ]
                 },
                 {
                   "group": "UI",
                   "pages": [
-                    "3.0/api-ref/rest-api/server/ui/validate-obj"
+                    "v3/api-ref/rest-api/server/ui/validate-obj"
                   ]
                 },
                 {
                   "group": "Admin",
                   "pages": [
-                    "3.0/api-ref/rest-api/server/admin/read-settings",
-                    "3.0/api-ref/rest-api/server/admin/read-version",
-                    "3.0/api-ref/rest-api/server/admin/clear-database",
-                    "3.0/api-ref/rest-api/server/admin/drop-database",
-                    "3.0/api-ref/rest-api/server/admin/create-database"
+                    "v3/api-ref/rest-api/server/admin/read-settings",
+                    "v3/api-ref/rest-api/server/admin/read-version",
+                    "v3/api-ref/rest-api/server/admin/clear-database",
+                    "v3/api-ref/rest-api/server/admin/drop-database",
+                    "v3/api-ref/rest-api/server/admin/create-database"
                   ]
                 }
               ],
-              "version": "3.0"
+              "version": "v3"
             }
           ],
-          "version": "3.0"
+          "version": "v3"
         }
       ],
-      "version": "3.0"
+      "version": "v3"
     },
     {
       "group": "Contribute",
@@ -720,191 +720,191 @@
   ],
   "redirects": [
     {
-      "destination": "/latest/getting-started/:slug*",
+      "destination": "/v3/getting-started/:slug*",
       "source": "/getting-started/:slug*"
     },
     {
-      "destination": "/latest/tutorial/:slug*",
+      "destination": "/v3/tutorial/:slug*",
       "source": "/tutorial/:slug*"
     },
     {
-      "destination": "/latest/guides/:slug*",
+      "destination": "/v3/guides/:slug*",
       "source": "/guides/:slug*"
     },
     {
-      "destination": "/latest/concepts/:slug*",
+      "destination": "/v3/concepts/:slug*",
       "source": "/concepts/:slug*"
     },
     {
-      "destination": "/latest/cloud/:slug*",
+      "destination": "/v3/cloud/:slug*",
       "source": "/cloud/:slug*"
     },
     {
-      "destination": "/latest/api-ref/:slug*",
+      "destination": "/v3/api-ref/:slug*",
       "source": "/api-ref/:slug*"
     },
     {
-      "destination": "/latest/get-started",
+      "destination": "/v3/get-started",
       "source": "/latest/tutorial"
     },
     {
-      "destination": "/latest/get-started",
+      "destination": "/v3/get-started",
       "source": "/latest/getting-started/quickstart"
     },
     {
-      "destination": "/latest/develop/write-flows",
+      "destination": "/v3/develop/write-flows",
       "source": "/latest/concepts/flows"
     },
     {
-      "destination": "/latest/deploy",
+      "destination": "/v3/deploy",
       "source": "/latest/concepts/deployments"
     },
     {
-      "destination": "/latest/get-started/install",
+      "destination": "/v3/get-started/install",
       "source": "/latest/getting-started/installation"
     },
     {
-      "destination": "/latest/deploy/infrastructure-concepts/work-pools",
+      "destination": "/v3/deploy/infrastructure-concepts/work-pools",
       "source": "/latest/concepts/work-pools"
     },
     {
-      "destination": "/latest/manage/self-host",
+      "destination": "/v3/manage/self-host",
       "source": "/latest/guides/host"
     },
     {
-      "destination": "/latest/develop/write-tasks",
+      "destination": "/v3/develop/write-tasks",
       "source": "/latest/concepts/tasks"
     },
     {
-      "destination": "/3.0/develop/settings-and-profiles",
-      "source": "/3.0/manage/settings-and-profiles"
+      "destination": "/v3/develop/settings-and-profiles",
+      "source": "/v3/manage/settings-and-profiles"
     },
     {
-      "destination": "/latest",
+      "destination": "/v3",
       "source": "/latest/guides"
     },
     {
-      "destination": "/latest/deploy",
+      "destination": "/v3/deploy",
       "source": "/latest/tutorial/deployments"
     },
     {
-      "destination": "/latest/develop/write-flows",
+      "destination": "/v3/develop/write-flows",
       "source": "/latest/tutorial/flows"
     },
     {
-      "destination": "/latest",
+      "destination": "/v3",
       "source": "/latest/concepts"
     },
     {
-      "destination": "/latest/deploy",
+      "destination": "/v3/deploy",
       "source": "/latest/guides/prefect-deploy"
     },
     {
-      "destination": "/latest/develop/write-tasks",
+      "destination": "/v3/develop/write-tasks",
       "source": "/latest/tutorial/tasks"
     },
     {
-      "destination": "/latest/automate/add-schedules",
+      "destination": "/v3/automate/add-schedules",
       "source": "/latest/concepts/schedules"
     },
     {
-      "destination": "/latest/deploy/infrastructure-examples/docker",
+      "destination": "/v3/deploy/infrastructure-examples/docker",
       "source": "/latest/guides/docker"
     },
     {
-      "destination": "/latest/deploy/infrastructure-concepts/work-pools",
+      "destination": "/v3/deploy/infrastructure-concepts/work-pools",
       "source": "/latest/tutorial/work-pools"
     },
     {
-      "destination": "/latest/manage/settings-and-profiles",
+      "destination": "/v3/manage/settings-and-profiles",
       "source": "/latest/guides/settings"
     },
     {
-      "destination": "/latest/develop/task-runners",
+      "destination": "/v3/develop/task-runners",
       "source": "/latest/concepts/task-runners"
     },
     {
-      "destination": "/latest/deploy/infrastructure-concepts/workers",
+      "destination": "/v3/deploy/infrastructure-concepts/workers",
       "source": "/latest/tutorial/workers"
     },
     {
-      "destination": "/latest/manage/cloud",
+      "destination": "/v3/manage/cloud",
       "source": "/latest/cloud"
     },
     {
-      "destination": "/latest/integrations",
+      "destination": "/v3/integrations",
       "source": "/latest/integrations"
     },
     {
-      "destination": "/latest/develop/results",
+      "destination": "/v3/develop/results",
       "source": "/latest/concepts/results"
     },
     {
-      "destination": "/latest/automate",
+      "destination": "/v3/automate",
       "source": "/latest/concepts/automations"
     },
     {
-      "destination": "/latest/develop/logging",
+      "destination": "/v3/develop/logging",
       "source": "/latest/guides/logs"
     },
     {
-      "destination": "/latest/develop/blocks",
+      "destination": "/v3/develop/blocks",
       "source": "/latest/concepts/blocks"
     },
     {
-      "destination": "/latest/deploy/infrastructure-examples/kubernetes",
+      "destination": "/v3/deploy/infrastructure-examples/kubernetes",
       "source": "/latest/guides/deployment/kubernetes"
     },
     {
-      "destination": "/latest/develop/manage-states",
+      "destination": "/v3/develop/manage-states",
       "source": "/latest/concepts/states"
     },
     {
-      "destination": "/latest/resources/upgrade-agents-to-workers",
+      "destination": "/v3/resources/upgrade-agents-to-workers",
       "source": "/latest/guides/upgrade-guide-agents-to-workers"
     },
     {
-      "destination": "/latest/automate/events/webhook-triggers",
+      "destination": "/v3/automate/events/webhook-triggers",
       "source": "/latest/guides/webhooks"
     },
     {
-      "destination": "/latest/automate/events/webhook-triggers",
+      "destination": "/v3/automate/events/webhook-triggers",
       "source": "/latest/cloud/webhooks"
     },
     {
-      "destination": "/latest/develop/artifacts",
+      "destination": "/v3/develop/artifacts",
       "source": "/latest/concepts/artifacts"
     },
     {
-      "destination": "/latest/api-ref/rest-api",
+      "destination": "/v3/api-ref/rest-api",
       "source": "/latest/api-ref/rest-api-reference"
     },
     {
-      "destination": "/latest/develop/global-concurrency-limits",
+      "destination": "/v3/develop/global-concurrency-limits",
       "source": "/latest/guides/global-concurrency-limits"
     },
     {
-      "destination": "/latest/develop/variables",
+      "destination": "/v3/develop/variables",
       "source": "/latest/guides/variables"
     },
     {
-      "destination": "/latest/api-ref",
+      "destination": "/v3/api-ref",
       "source": "/latest/guides/using-the-client"
     },
     {
-      "destination": "/latest/deploy/infrastructure-concepts/store-flow-code",
+      "destination": "/v3/deploy/infrastructure-concepts/store-flow-code",
       "source": "/latest/guides/deployment/storage-guide"
     },
     {
-      "destination": "/latest/develop/test-workflows",
+      "destination": "/v3/develop/test-workflows",
       "source": "/latest/guides/testing"
     },
     {
-      "destination": "/latest/deploy/infrastructure-examples/serverless",
+      "destination": "/v3/deploy/infrastructure-examples/serverless",
       "source": "/latest/guides/deployment/push-work-pools"
     },
     {
-      "destination": "/latest/develop/inputs",
+      "destination": "/v3/develop/inputs",
       "source": "/latest/guides/creating-interactive-workflows"
     },
     {
@@ -912,39 +912,39 @@
       "source": "/latest/guides/dask-ray-task-runners"
     },
     {
-      "destination": "/latest/deploy/infrastructure-concepts/deploy-ci-cd",
+      "destination": "/v3/deploy/infrastructure-concepts/deploy-ci-cd",
       "source": "/latest/guides/ci-cd"
     },
     {
-      "destination": "/latest/resources/upgrade-agents-to-workers",
+      "destination": "/v3/resources/upgrade-agents-to-workers",
       "source": "/latest/concepts/deployments-block-based"
     },
     {
-      "destination": "/latest/deploy/infrastructure-concepts/work-pools",
+      "destination": "/v3/deploy/infrastructure-concepts/work-pools",
       "source": "/latest/concepts/infrastructure"
     },
     {
-      "destination": "/latest/develop/runtime-context",
+      "destination": "/v3/develop/runtime-context",
       "source": "/latest/guides/runtime-context"
     },
     {
-      "destination": "/latest/deploy/infrastructure-concepts/customize",
+      "destination": "/v3/deploy/infrastructure-concepts/customize",
       "source": "/latest/guides/deployment/overriding-job-variables"
     },
     {
-      "destination": "/latest/deploy/infrastructure-examples/managed",
+      "destination": "/v3/deploy/infrastructure-examples/managed",
       "source": "/latest/guides/managed-execution"
     },
     {
-      "destination": "/latest/develop/write-flows",
+      "destination": "/v3/develop/write-flows",
       "source": "/latest/guides/specifying-upstream-dependencies"
     },
     {
-      "destination": "/latest/automate",
+      "destination": "/v3/automate",
       "source": "/latest/guides/automations"
     },
     {
-      "destination": "/latest/resources/upgrade-agents-to-workers",
+      "destination": "/v3/resources/upgrade-agents-to-workers",
       "source": "/latest/concepts/agents"
     },
     {
@@ -952,43 +952,43 @@
       "source": "/latest/integrations/prefect-aws"
     },
     {
-      "destination": "/latest/deploy/infrastructure-concepts/store-flow-code",
+      "destination": "/v3/deploy/infrastructure-concepts/store-flow-code",
       "source": "/latest/concepts/storage"
     },
     {
-      "destination": "/latest/resources/daemonize-processes",
+      "destination": "/v3/resources/daemonize-processes",
       "source": "/latest/guides/deployment/daemonize"
     },
     {
-      "destination": "/latest/manage/cloud/manage-users/api-keys",
+      "destination": "/v3/manage/cloud/manage-users/api-keys",
       "source": "/latest/cloud/users/api-keys"
     },
     {
-      "destination": "/latest/contribute",
+      "destination": "/v3/contribute",
       "source": "/latest/community"
     },
     {
-      "destination": "/latest/develop/blocks",
+      "destination": "/v3/develop/blocks",
       "source": "/latest/concepts/filesystems"
     },
     {
-      "destination": "/latest/events",
+      "destination": "/v3/events",
       "source": "/latest/cloud/events"
     },
     {
-      "destination": "/latest",
+      "destination": "/v3",
       "source": "/latest/recipes/recipes"
     },
     {
-      "destination": "/latest/resources/cli-shell",
+      "destination": "/v3/resources/cli-shell",
       "source": "/latest/guides/cli-shell"
     },
     {
-      "destination": "/latest/api-ref/rest-api/server",
+      "destination": "/v3/api-ref/rest-api/server",
       "source": "/latest/api-ref/server"
     },
     {
-      "destination": "/latest/develop/blocks",
+      "destination": "/v3/develop/blocks",
       "source": "/latest/guides/moving-data"
     },
     {
@@ -996,11 +996,11 @@
       "source": "/latest/guides/deployment/developing-a-new-worker-type"
     },
     {
-      "destination": "/latest/develop/manage-states",
+      "destination": "/v3/develop/manage-states",
       "source": "/latest/guides/state-change-hooks"
     },
     {
-      "destination": "/latest/deploy/infrastructure-examples/serverless",
+      "destination": "/v3/deploy/infrastructure-examples/serverless",
       "source": "/latest/guides/deployment/serverless-workers"
     },
     {
@@ -1008,15 +1008,15 @@
       "source": "/latest/integrations/usage"
     },
     {
-      "destination": "/latest/manage/cloud/troubleshoot-cloud",
+      "destination": "/v3/manage/cloud/troubleshoot-cloud",
       "source": "/latest/guides/troubleshooting"
     },
     {
-      "destination": "/latest/resources/big-data",
+      "destination": "/v3/resources/big-data",
       "source": "/latest/guides/big-data"
     },
     {
-      "destination": "/latest/manage/cloud/workspaces",
+      "destination": "/v3/manage/cloud/workspaces",
       "source": "/latest/cloud/workspaces"
     },
     {
@@ -1028,11 +1028,11 @@
       "source": "/latest/integrations/prefect-kubernetes"
     },
     {
-      "destination": "/latest/resources/whats-new-prefect-3.mdx",
+      "destination": "/v3/resources/whats-new-prefect-3.mdx",
       "source": "/latest/faq"
     },
     {
-      "destination": "/latest/resources/upgrade-prefect-3",
+      "destination": "/v3/resources/upgrade-prefect-3",
       "source": "/latest/guides/migration-guide"
     },
     {
@@ -1044,19 +1044,19 @@
       "source": "/latest/integrations/prefect-aws/ecs_worker"
     },
     {
-      "destination": "/latest/contribute",
+      "destination": "/v3/contribute",
       "source": "/latest/contributing/overview"
     },
     {
-      "destination": "/latest/resources/secrets",
+      "destination": "/v3/resources/secrets",
       "source": "/latest/guides/secrets"
     },
     {
-      "destination": "/latest/manage/cloud/connect-to-cloud",
+      "destination": "/v3/manage/cloud/connect-to-cloud",
       "source": "/latest/cloud/connecting"
     },
     {
-      "destination": "/latest/manage/cloud/manage-users/manage-roles",
+      "destination": "/v3/manage/cloud/manage-users/manage-roles",
       "source": "/latest/cloud/users/roles"
     },
     {
@@ -1064,12 +1064,12 @@
       "source": "/latest/integrations/prefect-docker"
     },
     {
-      "destination": "/latest/manage/cloud/manage-users",
+      "destination": "/v3/manage/cloud/manage-users",
       "source": "/latest/cloud/users"
     },
     {
       "destination": "/integrations/prefect-gcp",
-      "source": "/latest/integrations/prefect-gcp"
+      "source": "/v3/integrations/prefect-gcp"
     },
     {
       "destination": "/latest/manage/cloud/manage-users/configure-sso",
@@ -1084,7 +1084,7 @@
       "source": "/latest/integrations/prefect-gcp/gcp-worker-guide"
     },
     {
-      "destination": "/latest/manage/cloud/rate-limits",
+      "destination": "/v3/manage/cloud/rate-limits",
       "source": "/latest/cloud/rate-limits"
     },
     {
@@ -1124,7 +1124,7 @@
       "source": "/latest/guides/deployment/aci"
     },
     {
-      "destination": "/latest/api-ref/python",
+      "destination": "/v3/api-ref/python",
       "source": "/latest/api-ref/server/api/deployments"
     },
     {
@@ -1136,7 +1136,7 @@
       "source": "/latest/integrations/prefect-aws/s3"
     },
     {
-      "destination": "/latest/api-ref",
+      "destination": "/v3/api-ref",
       "source": "/latest/api-ref/server/api/flow_runs"
     },
     {
@@ -1172,7 +1172,7 @@
       "source": "/latest/integrations/prefect-docker/worker"
     },
     {
-      "destination": "/latest/api-ref/python",
+      "destination": "/v3/api-ref/python",
       "source": "/latest/api-ref/server/schemas/schedules"
     },
     {
@@ -1184,11 +1184,11 @@
       "source": "/latest/integrations/prefect-ray"
     },
     {
-      "destination": "/latest/deploy/infrastructure-examples/kubernetes",
+      "destination": "/v3/deploy/infrastructure-examples/kubernetes",
       "source": "/implementation/azure/aks"
     },
     {
-      "destination": "/latest/api-ref/python",
+      "destination": "/v3/api-ref/python",
       "source": "/latest/api-ref/server/models/flow_runs"
     },
     {
@@ -1228,11 +1228,11 @@
       "source": "/latest/integrations/prefect-docker/containers"
     },
     {
-      "destination": "/latest/api-ref/rest-api/server/flows",
+      "destination": "/v3/api-ref/rest-api/server/flows",
       "source": "/latest/api-ref/server/api/flows"
     },
     {
-      "destination": "/latest/api-ref",
+      "destination": "/v3/api-ref",
       "source": "/latest/api-ref/server/schemas/filters"
     },
     {
@@ -1252,15 +1252,15 @@
       "source": "/latest/integrations/prefect-gcp/cloud_storage"
     },
     {
-      "destination": "/latest/api-ref",
+      "destination": "/v3/api-ref",
       "source": "/latest/api-ref/server/api/admin"
     },
     {
-      "destination": "/latest/api-ref",
+      "destination": "/v3/api-ref",
       "source": "/latest/api-ref/server/api/server"
     },
     {
-      "destination": "/latest/manage/cloud/manage-users/object-access-control-lists",
+      "destination": "/v3/manage/cloud/manage-users/object-access-control-lists",
       "source": "/latest/cloud/users/object-access-control-lists"
     },
     {
@@ -1312,26 +1312,38 @@
       "source": "/latest/integrations/prefect-slack/messages"
     },
     {
-      "destination": "/latest/api-ref/python",
+      "destination": "/v3/api-ref/python",
       "source": "/latest/api-ref/prefect/:slug*"
     },
     {
-      "destination": "/latest/api-ref/python",
+      "destination": "/v3/api-ref/python",
       "source": "/api-ref/prefect/:slug*"
     },
     {
-      "destination": "/3.0/:slug*",
-      "source": "/3.0rc/:slug*"
+      "destination": "/v3/:slug*",
+      "source": "/3rc/:slug*"
     },
     {
-      "destination": "/3.0/:slug*",
+      "destination": "/v3/:slug*",
       "source": "/latest/:slug*"
+    },
+    {
+      "destination": "/v3/:slug*",
+      "source": "/3/:slug*"
+    },
+    {
+      "destination": "/v3/:slug*",
+      "source": "/3.0/:slug*"
+    },
+    {
+      "destination": "/v2/:slug*",
+      "source": "/2/:slug*"
     }
   ],
   "tabs": [
     {
       "name": "APIs & SDK",
-      "url": "3.0/api-ref"
+      "url": "v3/api-ref"
     },
     {
       "name": "Integrations",
@@ -1347,7 +1359,7 @@
     "url": "https://github.com/PrefectHQ/Prefect"
   },
   "versions": [
-    "3.0",
-    "2.x"
+    "v3",
+    "v2"
   ]
 }
