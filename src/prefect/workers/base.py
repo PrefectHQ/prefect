@@ -146,26 +146,26 @@ class BaseJobConfiguration(BaseModel):
         Important: this method expects that the base_job_template was already
         validated server-side.
         """
-        job_config: Dict[str, Any] = base_job_template["job_configuration"]
+        base_config: Dict[str, Any] = base_job_template["job_configuration"]
         variables_schema = base_job_template["variables"]
         variables = cls._get_base_config_defaults(
             variables_schema.get("properties", {})
         )
 
-        # copy variable defaults for `env` to job config before they're replaced by
+        # copy variable defaults for `env` to base config before they're replaced by
         # deployment overrides
         if variables.get("env"):
-            job_config["env"] = variables.get("env")
+            base_config["env"] = variables.get("env")
 
         variables.update(values)
 
         # deep merge `env`
-        if isinstance(job_config.get("env"), dict) and (
-            hardcoded_env := variables.get("env")
+        if isinstance(base_config.get("env"), dict) and (
+            deployment_env := variables.get("env")
         ):
-            job_config["env"] = hardcoded_env | job_config.get("env")
+            base_config["env"] = base_config.get("env") | deployment_env
 
-        populated_configuration = apply_values(template=job_config, values=variables)
+        populated_configuration = apply_values(template=base_config, values=variables)
         populated_configuration = await resolve_block_document_references(
             template=populated_configuration, client=client
         )
@@ -821,14 +821,14 @@ class BaseWorker(abc.ABC):
             self._logger = get_worker_logger(self)
 
         self._logger.debug(
-            f"Worker synchronized with the Prefect API server. Remote ID: {self.backend_id}"
+            "Worker synchronized with the Prefect API server. "
+            + (f"Remote ID: {self.backend_id}" if self.backend_id else "")
         )
 
     def _should_get_worker_id(self):
         """Determines if the worker should request an ID from the API server."""
         return (
-            get_current_settings().experiments.worker_logging_to_api_enabled
-            and self._client
+            self._client
             and self._client.server_type == ServerType.CLOUD
             and self.backend_id is None
         )
@@ -886,10 +886,7 @@ class BaseWorker(abc.ABC):
                 run_logger.info(
                     f"Worker '{self.name}' submitting flow run '{flow_run.id}'"
                 )
-                if (
-                    get_current_settings().experiments.worker_logging_to_api_enabled
-                    and self.backend_id
-                ):
+                if self.backend_id:
                     try:
                         worker_url = url_for(
                             "worker",
@@ -976,10 +973,11 @@ class BaseWorker(abc.ABC):
 
             else:
                 # If the run is not ready to submit, release the concurrency slot
-                if self._limiter:
-                    self._limiter.release_on_behalf_of(flow_run.id)
+                self._release_limit_slot(flow_run.id)
 
             self._submitting_flow_run_ids.remove(flow_run.id)
+        else:
+            self._release_limit_slot(flow_run.id)
 
     async def _submit_run_and_capture_errors(
         self, flow_run: "FlowRun", task_status: Optional[anyio.abc.TaskStatus] = None
@@ -1014,8 +1012,7 @@ class BaseWorker(abc.ABC):
                 )
             return exc
         finally:
-            if self._limiter:
-                self._limiter.release_on_behalf_of(flow_run.id)
+            self._release_limit_slot(flow_run.id)
 
         if not task_status._future.done():
             run_logger.error(
@@ -1039,6 +1036,14 @@ class BaseWorker(abc.ABC):
         self._emit_flow_run_executed_event(result, configuration, submitted_event)
 
         return result
+
+    def _release_limit_slot(self, flow_run_id: str) -> None:
+        """
+        Frees up a slot taken by the given flow run id.
+        """
+        if self._limiter:
+            self._limiter.release_on_behalf_of(flow_run_id)
+            self._logger.debug("Limit slot released for flow run '%s'", flow_run_id)
 
     def get_status(self):
         """

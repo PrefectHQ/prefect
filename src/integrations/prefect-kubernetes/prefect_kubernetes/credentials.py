@@ -52,7 +52,7 @@ class KubernetesClusterConfig(Block):
 
     _block_type_name = "Kubernetes Cluster Config"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/2d0b896006ad463b49c28aaac14f31e00e32cfab-250x250.png"
-    _documentation_url = "https://prefecthq.github.io/prefect-kubernetes/credentials/#prefect_kubernetes.credentials.KubernetesClusterConfig"  # noqa
+    _documentation_url = "https://docs.prefect.io/integrations/prefect-kubernetes"  # noqa
     config: Dict = Field(
         default=..., description="The entire contents of a kubectl config file."
     )
@@ -142,7 +142,7 @@ class KubernetesCredentials(Block):
 
     _block_type_name = "Kubernetes Credentials"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/2d0b896006ad463b49c28aaac14f31e00e32cfab-250x250.png"  # noqa
-    _documentation_url = "https://prefecthq.github.io/prefect-kubernetes/credentials/#prefect_kubernetes.credentials.KubernetesCredentials"  # noqa
+    _documentation_url = "https://docs.prefect.io/integrations/prefect-kubernetes"  # noqa
 
     cluster_config: Optional[KubernetesClusterConfig] = None
 

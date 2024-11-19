@@ -10,19 +10,35 @@ import { VariablesEmptyState } from "@/components/variables/empty-state";
 import { PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { VariablesDataTable } from "./data-table";
-import type { OnChangeFn, PaginationState } from "@tanstack/react-table";
+import type {
+	ColumnFiltersState,
+	OnChangeFn,
+	PaginationState,
+} from "@tanstack/react-table";
+
+type VariablesPageProps = {
+	variables: components["schemas"]["Variable"][];
+	totalVariableCount: number;
+	currentVariableCount: number;
+	pagination: PaginationState;
+	onPaginationChange: OnChangeFn<PaginationState>;
+	columnFilters: ColumnFiltersState;
+	onColumnFiltersChange: OnChangeFn<ColumnFiltersState>;
+	sorting: components["schemas"]["VariableSort"];
+	onSortingChange: (sortKey: components["schemas"]["VariableSort"]) => void;
+};
 
 export const VariablesPage = ({
 	variables,
 	totalVariableCount,
+	currentVariableCount,
 	pagination,
 	onPaginationChange,
-}: {
-	variables: components["schemas"]["Variable"][];
-	totalVariableCount: number;
-	pagination: PaginationState;
-	onPaginationChange: OnChangeFn<PaginationState>;
-}) => {
+	columnFilters,
+	onColumnFiltersChange,
+	sorting,
+	onSortingChange,
+}: VariablesPageProps) => {
 	const [addVariableDialogOpen, setAddVariableDialogOpen] = useState(false);
 	const onAddVariableClick = () => {
 		setAddVariableDialogOpen(true);
@@ -52,14 +68,18 @@ export const VariablesPage = ({
 						<PlusIcon className="h-4 w-4" />
 					</Button>
 				</div>
-				{variables.length === 0 ? (
+				{totalVariableCount === 0 ? (
 					<VariablesEmptyState onAddVariableClick={onAddVariableClick} />
 				) : (
 					<VariablesDataTable
 						variables={variables}
-						totalVariableCount={totalVariableCount}
+						currentVariableCount={currentVariableCount}
 						pagination={pagination}
 						onPaginationChange={onPaginationChange}
+						columnFilters={columnFilters}
+						onColumnFiltersChange={onColumnFiltersChange}
+						sorting={sorting}
+						onSortingChange={onSortingChange}
 					/>
 				)}
 			</div>

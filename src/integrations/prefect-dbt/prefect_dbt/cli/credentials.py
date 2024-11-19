@@ -108,7 +108,7 @@ class DbtCliProfile(Block):
 
     _block_type_name = "dbt CLI Profile"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/5zE9lxfzBHjw3tnEup4wWL/9a001902ed43a84c6c96d23b24622e19/dbt-bit_tm.png?h=250"  # noqa
-    _documentation_url = "https://prefecthq.github.io/prefect-dbt/cli/credentials/#prefect_dbt.cli.credentials.DbtCliProfile"  # noqa
+    _documentation_url = "https://docs.prefect.io/integrations/prefect-dbt"  # noqa
 
     name: str = Field(
         default=..., description="Profile name used for populating profiles.yml."
