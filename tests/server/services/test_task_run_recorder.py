@@ -786,10 +786,12 @@ async def test_task_run_recorder_sends_repeated_failed_messages_to_dead_letter(
             message(duplicate_pending_event).attributes,
         )
 
-    while not service.consumer.subscription.dead_letter_queue:
+    while not list(service.consumer.subscription.dead_letter_queue_path.glob("*")):
         await asyncio.sleep(0.1)
 
-    assert len(service.consumer.subscription.dead_letter_queue) == 1
+    assert (
+        len(list(service.consumer.subscription.dead_letter_queue_path.glob("*"))) == 1
+    )
 
     service_task.cancel()
     try:

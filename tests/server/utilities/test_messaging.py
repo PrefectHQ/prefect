@@ -1,5 +1,6 @@
 import asyncio
 import importlib
+import json
 from typing import (
     AsyncContextManager,
     AsyncGenerator,
@@ -24,7 +25,12 @@ from prefect.server.utilities.messaging import (
     create_publisher,
     ephemeral_subscription,
 )
-from prefect.server.utilities.messaging.memory import Consumer as MemoryConsumer
+from prefect.server.utilities.messaging.memory import (
+    Consumer as MemoryConsumer,
+)
+from prefect.server.utilities.messaging.memory import (
+    MemoryMessage,
+)
 from prefect.settings import (
     PREFECT_MESSAGING_BROKER,
     PREFECT_MESSAGING_CACHE,
@@ -457,10 +463,13 @@ async def test_repeatedly_failed_message_is_moved_to_dead_letter_queue(
     consumer_task = asyncio.create_task(consumer.run(handler))
 
     async with deduplicating_publisher as p:
-        await p.publish_data(b"hello, world", {"howdy": "partner"})
+        await p.publish_data(
+            b"hello, world", {"howdy": "partner", "my-message-id": "A"}
+        )
 
-    while not consumer.subscription.dead_letter_queue:
+    while not list(consumer.subscription.dead_letter_queue_path.glob("*")):
         await asyncio.sleep(0.1)
+
     try:
         consumer_task.cancel()
         await consumer_task
@@ -471,13 +480,16 @@ async def test_repeatedly_failed_message_is_moved_to_dead_letter_queue(
     assert len(captured_messages) == 4  # Original attempt + 3 retries
     for message in captured_messages:
         assert message.data == b"hello, world"
-        assert message.attributes == {"howdy": "partner"}
+        assert message.attributes == {"howdy": "partner", "my-message-id": "A"}
 
     # Verify message is in DLQ
-    assert len(consumer.subscription.dead_letter_queue) == 1
-    dlq_message = next(iter(consumer.subscription.dead_letter_queue))
-    assert dlq_message.data == b"hello, world"
-    assert dlq_message.attributes == {"howdy": "partner"}
+    assert len(list(consumer.subscription.dead_letter_queue_path.glob("*"))) == 1
+    dlq_message_file = next(
+        iter(consumer.subscription.dead_letter_queue_path.glob("*"))
+    )
+    dlq_message = MemoryMessage(**json.loads(dlq_message_file.read_text()))
+    assert dlq_message.data == "hello, world"
+    assert dlq_message.attributes == {"howdy": "partner", "my-message-id": "A"}
     assert dlq_message.retry_count > 3
 
     remaining_message = await drain_one(consumer)
