@@ -3,7 +3,6 @@ Command line interface for interacting with Prefect Cloud
 """
 
 import os
-import signal
 import traceback
 import uuid
 import urllib.parse
