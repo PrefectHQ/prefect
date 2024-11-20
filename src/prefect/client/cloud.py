@@ -13,7 +13,6 @@ from prefect.client.base import PrefectHttpxAsyncClient
 from prefect.client.schemas.objects import (
     IPAllowlist,
     IPAllowlistMyAccessResponse,
-    KeyValueLabels,
     Workspace,
 )
 from prefect.exceptions import ObjectNotFound, PrefectException
@@ -23,6 +22,7 @@ from prefect.settings import (
     PREFECT_CLOUD_API_URL,
     PREFECT_TESTING_UNIT_TEST_MODE,
 )
+from prefect.types import KeyValueLabels
 
 PARSE_API_URL_REGEX = re.compile(r"accounts/(.{36})/workspaces/(.{36})")
 
