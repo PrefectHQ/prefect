@@ -777,7 +777,7 @@
     },
     {
       "destination": "/v3/develop/settings-and-profiles",
-      "source": "/v3/manage/settings-and-profiles"
+      "source": "/v3/develop/settings-and-profiles"
     },
     {
       "destination": "/v3",
@@ -816,7 +816,7 @@
       "source": "/latest/tutorial/work-pools"
     },
     {
-      "destination": "/v3/manage/settings-and-profiles",
+      "destination": "/v3/develop/settings-and-profiles",
       "source": "/latest/guides/settings"
     },
     {
