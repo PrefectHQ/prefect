@@ -1,5 +1,3 @@
-import { getQueryService } from "@/api/service";
-import { keepPreviousData, useSuspenseQuery } from "@tanstack/react-query";
 import { VariablesLayout } from "@/components/variables/layout";
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
@@ -17,6 +15,7 @@ import {
 	type VariableDialogProps,
 } from "@/components/variables/variable-dialog";
 import { VariablesEmptyState } from "@/components/variables/empty-state";
+import { useVariables } from "@/hooks/variables";
 
 const searchParams = z.object({
 	offset: z.number().int().nonnegative().optional().default(0),
@@ -29,70 +28,25 @@ const searchParams = z.object({
 	tags: z.array(z.string()).optional(),
 });
 
-const buildVariablesQuery = (search: z.infer<typeof searchParams>) => ({
-	queryKey: ["variables", JSON.stringify(search)],
-	queryFn: async () => {
-		const { name, tags, ...rest } = search;
-		const response = await getQueryService().POST("/variables/filter", {
-			body: {
-				...rest,
-				variables: {
-					operator: "and_",
-					name: { like_: name },
-					tags: { operator: "and_", all_: tags },
-				},
-			},
-		});
-		return response.data;
+const buildFilterBody = (search?: z.infer<typeof searchParams>) => ({
+	offset: search?.offset ?? 0,
+	limit: search?.limit ?? 10,
+	sort: search?.sort ?? "CREATED_DESC",
+	variables: {
+		operator: "and_" as const,
+		...(search?.name && { name: { like_: search.name } }),
+		...(search?.tags?.length && {
+			tags: { operator: "and_" as const, all_: search.tags },
+		}),
 	},
-	staleTime: 1000,
-	placeholderData: keepPreviousData,
 });
-
-const buildTotalVariableCountQuery = (
-	search?: z.infer<typeof searchParams>,
-) => {
-	// Construct the query key so that a single request is made for each unique search value
-	//  This is useful on initial load to avoid making duplicate calls for total and current count
-	const queryKey = ["total-variable-count"];
-	if (search?.name) {
-		queryKey.push(search.name);
-	}
-	if (search?.tags && search.tags.length > 0) {
-		queryKey.push(JSON.stringify(search.tags));
-	}
-	return {
-		queryKey,
-		queryFn: async () => {
-			const { name, tags } = search ?? {};
-			if (!name && (!tags || tags.length === 0)) {
-				const response = await getQueryService().POST("/variables/count");
-				return response.data;
-			}
-			const response = await getQueryService().POST("/variables/count", {
-				body: {
-					variables: {
-						operator: "and_",
-						name: { like_: name },
-						tags: { operator: "and_", all_: tags },
-					},
-				},
-			});
-			return response.data;
-		},
-	};
-};
 
 function VariablesPage() {
 	const search = Route.useSearch();
 	const navigate = Route.useNavigate();
 
-	const { data: variables } = useSuspenseQuery(buildVariablesQuery(search));
-	const { data: currentVariableCount } = useSuspenseQuery(
-		buildTotalVariableCountQuery(search),
-	);
-	const { data: totalVariableCount } = useSuspenseQuery(
-		buildTotalVariableCountQuery(),
+	const { variables, filteredCount, totalCount } = useVariables(
+		buildFilterBody(search),
 	);
 
 	const pageIndex = search.offset ? search.offset / search.limit : 0;
@@ -204,10 +158,10 @@ function VariablesPage() {
 				onOpenChange={handleVariableDialogOpenChange}
 				open={addVariableDialogOpen}
 			/>
-			{(totalVariableCount ?? 0) > 0 ? (
+			{(totalCount ?? 0) > 0 ? (
 				<VariablesDataTable
 					variables={variables ?? []}
-					currentVariableCount={currentVariableCount ?? 0}
+					currentVariableCount={filteredCount ?? 0}
 					pagination={pagination}
 					onPaginationChange={onPaginationChange}
 					columnFilters={columnFilters}
@@ -226,12 +180,7 @@ function VariablesPage() {
 export const Route = createFileRoute("/variables")({
 	validateSearch: zodSearchValidator(searchParams),
 	component: VariablesPage,
-	loaderDeps: ({ search }) => search,
-	loader: ({ deps: search, context }) =>
-		Promise.all([
-			context.queryClient.ensureQueryData(buildVariablesQuery(search)),
-			context.queryClient.ensureQueryData(buildTotalVariableCountQuery(search)),
-			context.queryClient.ensureQueryData(buildTotalVariableCountQuery()),
-		]),
+	loaderDeps: ({ search }) => buildFilterBody(search),
+	loader: useVariables.loader,
 	wrapInSuspense: true,
 });
