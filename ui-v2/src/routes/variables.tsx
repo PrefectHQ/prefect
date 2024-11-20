@@ -4,7 +4,6 @@ import { z } from "zod";
 import { zodSearchValidator } from "@tanstack/router-zod-adapter";
 import type {
 	ColumnFiltersState,
-	OnChangeFn,
 	PaginationState,
 } from "@tanstack/react-table";
 import { useCallback, useMemo, useState } from "react";
@@ -66,14 +65,8 @@ function VariablesPage() {
 		[search.name, search.tags],
 	);
 
-	const onPaginationChange: OnChangeFn<PaginationState> = useCallback(
-		(updater) => {
-			let newPagination = pagination;
-			if (typeof updater === "function") {
-				newPagination = updater(pagination);
-			} else {
-				newPagination = updater;
-			}
+	const onPaginationChange = useCallback(
+		(newPagination: PaginationState) => {
 			void navigate({
 				to: ".",
 				search: (prev) => ({
@@ -84,17 +77,11 @@ function VariablesPage() {
 				replace: true,
 			});
 		},
-		[pagination, navigate],
+		[navigate],
 	);
 
-	const onColumnFiltersChange: OnChangeFn<ColumnFiltersState> = useCallback(
-		(updater) => {
-			let newColumnFilters = columnFilters;
-			if (typeof updater === "function") {
-				newColumnFilters = updater(columnFilters);
-			} else {
-				newColumnFilters = updater;
-			}
+	const onColumnFiltersChange = useCallback(
+		(newColumnFilters: ColumnFiltersState) => {
 			void navigate({
 				to: ".",
 				search: (prev) => {
@@ -112,7 +99,7 @@ function VariablesPage() {
 				replace: true,
 			});
 		},
-		[columnFilters, navigate],
+		[navigate],
 	);
 
 	const onSortingChange = useCallback(

@@ -84,9 +84,9 @@ type VariablesDataTableProps = {
 	variables: components["schemas"]["Variable"][];
 	currentVariableCount: number;
 	pagination: PaginationState;
-	onPaginationChange: OnChangeFn<PaginationState>;
+	onPaginationChange: (newPagination: PaginationState) => void;
 	columnFilters: ColumnFiltersState;
-	onColumnFiltersChange: OnChangeFn<ColumnFiltersState>;
+	onColumnFiltersChange: (newColumnFilters: ColumnFiltersState) => void;
 	sorting: components["schemas"]["VariableSort"];
 	onSortingChange: (sortKey: components["schemas"]["VariableSort"]) => void;
 	onVariableEdit: (variable: components["schemas"]["Variable"]) => void;
@@ -114,12 +114,12 @@ export const VariablesDataTable = ({
 		?.value as string[];
 	const handleNameSearchChange = useCallback(
 		(value?: string) => {
-			onColumnFiltersChange((prev) => [
-				...prev.filter((filter) => filter.id !== "name"),
+			onColumnFiltersChange([
+				...columnFilters.filter((filter) => filter.id !== "name"),
 				{ id: "name", value },
 			]);
 		},
-		[onColumnFiltersChange],
+		[onColumnFiltersChange, columnFilters],
 	);
 
 	const handleTagsSearchChange: React.ChangeEventHandler<HTMLInputElement> &
@@ -127,12 +127,25 @@ export const VariablesDataTable = ({
 		(e: string[] | React.ChangeEvent<HTMLInputElement>) => {
 			const tags = Array.isArray(e) ? e : e.target.value;
 
-			onColumnFiltersChange((prev) => [
-				...prev.filter((filter) => filter.id !== "tags"),
+			onColumnFiltersChange([
+				...columnFilters.filter((filter) => filter.id !== "tags"),
 				{ id: "tags", value: tags },
 			]);
 		},
-		[onColumnFiltersChange],
+		[onColumnFiltersChange, columnFilters],
+	);
+
+	const handlePaginationChange: OnChangeFn<PaginationState> = useCallback(
+		(updater) => {
+			let newPagination = pagination;
+			if (typeof updater === "function") {
+				newPagination = updater(pagination);
+			} else {
+				newPagination = updater;
+			}
+			onPaginationChange(newPagination);
+		},
+		[pagination, onPaginationChange],
 	);
 
 	const table = useReactTable({
@@ -144,8 +157,7 @@ export const VariablesDataTable = ({
 		},
 		getCoreRowModel: getCoreRowModel(),
 		manualPagination: true,
-		onPaginationChange: onPaginationChange,
-		onColumnFiltersChange: onColumnFiltersChange,
+		onPaginationChange: handlePaginationChange,
 		rowCount: currentVariableCount,
 	});
 
