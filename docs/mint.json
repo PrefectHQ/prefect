@@ -88,8 +88,7 @@
             "v3/develop/visualize-flow-structure",
             "v3/develop/big-data",
             "v3/develop/cli-shell",
-            "v3/develop/secrets",
-            "v3/develop/daemonize-processes"
+            "v3/develop/secrets"
           ],
           "version": "v3"
         },
@@ -172,7 +171,8 @@
             "v3/deploy/static-infrastructure-examples/docker"
           ],
           "version": "v3"
-        }
+        },
+        "v3/deploy/daemonize-processes"
       ],
       "version": "v3"
     },
@@ -956,7 +956,7 @@
       "source": "/latest/concepts/storage"
     },
     {
-      "destination": "/v3/develop/daemonize-processes",
+      "destination": "/v3/deploy/daemonize-processes",
       "source": "/latest/guides/deployment/daemonize"
     },
     {
@@ -1340,7 +1340,7 @@
       "source": "/v3/resources/cancel"
     },
     {
-      "destination": "/v3/resources/daemonize-processes",
+      "destination": "/v3/deploy/daemonize-processes",
       "source": "/v3/resources/daemonize-processes"
     },
     {
