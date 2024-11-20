@@ -13,7 +13,7 @@ ECS (Elastic Container Service) tasks are a good option for executing Prefect fl
 
 ## ECS flow run execution
 
-Prefect enables remote flow execution via workers and work pools. To learn more about these concepts please see our [deployment docs](/latest/deploy/infrastructure-concepts/work-pools/).
+Prefect enables remote flow execution via workers and work pools. To learn more about these concepts please see our [deployment docs](/v3/deploy/infrastructure-concepts/work-pools/).
 
 For details on how workers and work pools are implemented for ECS, see the diagram below.
 
@@ -97,7 +97,7 @@ If you prefer infrastructure as code check out this [Terraform module](https://r
 
 ## Step 1: Set up an ECS work pool
 
-Before setting up the worker, create a [work pool](/latest/deploy/infrastructure-concepts/work-pools/) of type ECS for the worker to pull work from. If doing so from the CLI, be sure to authenticate with Prefect Cloud or run a local Prefect server instance.
+Before setting up the worker, create a [work pool](/v3/deploy/infrastructure-concepts/work-pools/) of type ECS for the worker to pull work from. If doing so from the CLI, be sure to authenticate with Prefect Cloud or run a local Prefect server instance.
 
 Create a work pool from the CLI:
 
@@ -210,7 +210,7 @@ Next, create an ECS task definition that specifies the Docker image for the Pref
 
 - Use `prefect config view` to view the `PREFECT_API_URL` for your current Prefect profile. Use this to replace `<prefect-api-url>`.
 
-- For the `PREFECT_API_KEY`, if you are on a paid plan you can create a [service account](https://docs.prefect.io/latest/cloud/manage-users/service-accounts/) for the worker. If your are on a free plan, you can pass a user's API key.
+- For the `PREFECT_API_KEY`, if you are on a paid plan you can create a [service account](/v3/manage/cloud/manage-users/service-accounts) for the worker. If your are on a free plan, you can pass a user's API key.
 
 - Replace both instances of `<ecs-task-role-arn>` with the ARN of the IAM role you created in Step 2. You can grab this by running:
 ```
@@ -351,4 +351,4 @@ prefect deploy my_flow.py:my_ecs_deployment
     - Do your flow runs require higher `CPU`?
     - Would an EC2 `Launch Type` speed up your flow run execution?
 
-    These infrastructure configuration values can be set on your ECS work pool or they can be overridden on the deployment level through [job_variables](/latest/deploy/infrastructure-concepts/customize/) if desired.
+    These infrastructure configuration values can be set on your ECS work pool or they can be overridden on the deployment level through [job_variables](/v3/deploy/infrastructure-concepts/customize/) if desired.
