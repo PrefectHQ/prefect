@@ -23,9 +23,6 @@ from pydantic import (
     HttpUrl,
     IPvAnyNetwork,
     SerializationInfo,
-    StrictBool,
-    StrictFloat,
-    StrictInt,
     Tag,
     field_validator,
     model_serializer,
@@ -56,6 +53,7 @@ from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.settings import PREFECT_CLOUD_API_URL, PREFECT_CLOUD_UI_URL
 from prefect.types import (
     MAX_VARIABLE_NAME_LENGTH,
+    KeyValueLabels,
     Name,
     NonNegativeInteger,
     PositiveInteger,
@@ -70,8 +68,6 @@ if TYPE_CHECKING:
 
 
 R = TypeVar("R", default=Any)
-
-KeyValueLabels = dict[str, Union[StrictBool, StrictInt, StrictFloat, str]]
 
 
 DEFAULT_BLOCK_SCHEMA_VERSION = "non-versioned"
@@ -1185,27 +1181,6 @@ class ConcurrencyLimit(ObjectBaseModel):
     active_slots: List[UUID] = Field(
         default_factory=list,
         description="A list of active run ids using a concurrency slot",
-    )
-
-
-class BlockSchema(ObjectBaseModel):
-    """An ORM representation of a block schema."""
-
-    checksum: str = Field(default=..., description="The block schema's unique checksum")
-    fields: Dict[str, Any] = Field(
-        default_factory=dict, description="The block schema's field schema"
-    )
-    block_type_id: Optional[UUID] = Field(default=..., description="A block type ID")
-    block_type: Optional[BlockType] = Field(
-        default=None, description="The associated block type"
-    )
-    capabilities: List[str] = Field(
-        default_factory=list,
-        description="A list of Block capabilities",
-    )
-    version: str = Field(
-        default=DEFAULT_BLOCK_SCHEMA_VERSION,
-        description="Human readable identifier for the block schema",
     )
 
 
