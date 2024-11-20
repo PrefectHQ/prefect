@@ -16,7 +16,7 @@ import prefect
 from prefect import Flow, __development_base_path__, flow, task
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.filters import FlowFilter, FlowRunFilter
-from prefect.client.schemas.objects import FlowRun, KeyValueLabels, StateType
+from prefect.client.schemas.objects import FlowRun, StateType
 from prefect.client.schemas.sorting import FlowRunSort
 from prefect.concurrency.asyncio import concurrency as aconcurrency
 from prefect.concurrency.sync import concurrency
@@ -45,6 +45,7 @@ from prefect.logging import get_run_logger
 from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.server.schemas.core import FlowRun as ServerFlowRun
 from prefect.testing.utilities import AsyncMock
+from prefect.types import KeyValueLabels
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.filesystem import tmpchdir
 
