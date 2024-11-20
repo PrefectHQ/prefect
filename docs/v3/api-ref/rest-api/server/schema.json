@@ -18673,7 +18673,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any ",
+                        "title": "Any",
                         "description": "A list of tags to include",
                         "examples": [
                             [
