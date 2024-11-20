@@ -63,8 +63,9 @@ async def blob_storage_download(
     logger = get_run_logger()
     logger.info("Downloading blob from container %s with key %s", container, blob)
 
-    async with blob_storage_credentials.get_blob_client(container, blob) as blob_client:
-        blob_obj = await blob_client.download_blob()
+    async with blob_storage_credentials as credentials:
+        async with credentials.get_blob_client(container, blob) as blob_client:
+            blob_obj = await blob_client.download_blob()
         output = await blob_obj.content_as_bytes()
 
     return output
@@ -123,8 +124,9 @@ async def blob_storage_upload(
     if blob is None:
         blob = str(uuid.uuid4())
 
-    async with blob_storage_credentials.get_blob_client(container, blob) as blob_client:
-        await blob_client.upload_blob(data, overwrite=overwrite)
+    async with blob_storage_credentials as credentials:
+        async with credentials.get_blob_client(container, blob) as blob_client:
+            await blob_client.upload_blob(data, overwrite=overwrite)
 
     return blob
 
@@ -176,17 +178,16 @@ async def blob_storage_list(
     logger = get_run_logger()
     logger.info("Listing blobs from container %s", container)
 
-    async with blob_storage_credentials.get_container_client(
-        container
-    ) as container_client:
-        blobs = [
-            blob
-            async for blob in container_client.list_blobs(
-                name_starts_with=name_starts_with, include=include, **kwargs
-            )
-        ]
+    async with blob_storage_credentials as credentials:
+        async with credentials.get_container_client(container) as container_client:
+            blobs = [
+                blob
+                async for blob in container_client.list_blobs(
+                    name_starts_with=name_starts_with, include=include, **kwargs
+                )
+            ]
 
-    return blobs
+        return blobs
 
 
 class AzureBlobStorageContainer(

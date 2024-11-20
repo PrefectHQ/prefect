@@ -90,6 +90,9 @@ class BlobStorageClientMethodsMock:
 @pytest.fixture
 def blob_storage_credentials():
     blob_storage_credentials = MagicMock()
+    blob_storage_credentials.__aenter__ = AsyncMock(
+        return_value=blob_storage_credentials
+    )
     blob_storage_credentials.get_client.side_effect = (
         lambda: BlobStorageClientMethodsMock()
     )
