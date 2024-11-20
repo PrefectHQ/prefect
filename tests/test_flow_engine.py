@@ -45,7 +45,6 @@ from prefect.logging import get_run_logger
 from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.server.schemas.core import FlowRun as ServerFlowRun
 from prefect.testing.utilities import AsyncMock
-from prefect.types import KeyValueLabels
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.filesystem import tmpchdir
 
