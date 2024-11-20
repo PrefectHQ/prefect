@@ -7,7 +7,7 @@ from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.identity.aio import DefaultAzureCredential as ADefaultAzureCredential
 from azure.mgmt.containerinstance import ContainerInstanceManagementClient
 from azure.mgmt.resource import ResourceManagementClient
-from pydantic import Field, SecretStr, model_validator
+from pydantic import Field, PrivateAttr, SecretStr, model_validator
 
 try:
     from azure.cosmos import CosmosClient
@@ -96,6 +96,7 @@ class AzureBlobStorageCredentials(Block):
     _block_type_name = "Azure Blob Storage Credentials"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/54e3fa7e00197a4fbd1d82ed62494cb58d08c96a-250x250.png"  # noqa
     _documentation_url = "https://docs.prefect.io/integrations/prefect-azure"  # noqa
+    _credential: Optional[ADefaultAzureCredential] = PrivateAttr(default=None)
 
     connection_string: Optional[SecretStr] = Field(
         default=None,
@@ -162,9 +163,10 @@ class AzureBlobStorageCredentials(Block):
             ```
         """
         if self.connection_string is None:
+            self._credential = self._credential or ADefaultAzureCredential()
             return BlobServiceClient(
                 account_url=self.account_url,
-                credential=ADefaultAzureCredential(),
+                credential=self._credential,
             )
 
         return BlobServiceClient.from_connection_string(
@@ -205,10 +207,11 @@ class AzureBlobStorageCredentials(Block):
             ```
         """
         if self.connection_string is None:
+            self._credential = self._credential or ADefaultAzureCredential()
             return BlobClient(
                 account_url=self.account_url,
                 container_name=container,
-                credential=ADefaultAzureCredential(),
+                credential=self._credential,
                 blob_name=blob,
             )
 
@@ -250,16 +253,28 @@ class AzureBlobStorageCredentials(Block):
             ```
         """
         if self.connection_string is None:
+            self._credential = self._credential or ADefaultAzureCredential()
             return ContainerClient(
                 account_url=self.account_url,
                 container_name=container,
-                credential=ADefaultAzureCredential(),
+                credential=self._credential,
             )
 
         container_client = ContainerClient.from_connection_string(
             self.connection_string.get_secret_value(), container
         )
         return container_client
+
+    async def aclose(self):
+        """Cleanup resources."""
+        if self._credential:
+            await self._credential.close()
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.aclose()
 
 
 class AzureCosmosDbCredentials(Block):
