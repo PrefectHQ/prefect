@@ -25,7 +25,7 @@ import type { JSONValue } from "@/lib/types";
 import { TagsInput } from "../ui/tags-input";
 import { JsonInput } from "@/components/ui/json-input";
 import { useEffect, useMemo } from "react";
-import { useCreateVariable, useUpdateVariable } from "./hooks";
+import { useCreateVariable, useUpdateVariable } from "@/hooks/variables";
 
 const formSchema = z.object({
 	name: z.string().min(2, { message: "Name must be at least 2 characters" }),
