@@ -254,16 +254,25 @@ class FlowRunFilterTags(PrefectOperatorFilterBaseModel):
             " superset of the list"
         ),
     )
+
+    any_: Optional[List[str]] = Field(
+        default=None,
+        examples=[["tag-1", "tag-2"]],
+        description="A list of tags to include",
+    )
+
     is_null_: Optional[bool] = Field(
         default=None, description="If true, only include flow runs without tags"
     )
 
     def _get_filter_list(self) -> List:
-        from prefect.server.utilities.database import json_has_all_keys
+        from prefect.server.utilities.database import json_contains, json_has_all_keys
 
         filters = []
         if self.all_ is not None:
             filters.append(json_has_all_keys(orm_models.FlowRun.tags, self.all_))
+        if self.any_ is not None:
+            filters.append(json_contains(orm_models.FlowRun.tags, self.any_))
         if self.is_null_ is not None:
             filters.append(
                 orm_models.FlowRun.tags == []

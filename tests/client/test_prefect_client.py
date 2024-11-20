@@ -47,6 +47,7 @@ from prefect.client.schemas.filters import (
     ArtifactFilterKey,
     FlowFilter,
     FlowRunFilter,
+    FlowRunFilterTags,
     FlowRunNotificationPolicyFilter,
     LogFilter,
     LogFilterFlowRunId,
@@ -980,6 +981,26 @@ async def test_read_flow_runs_with_filtering(prefect_client):
     assert len(flow_runs) == 2
     assert all(isinstance(flow, client_schemas.FlowRun) for flow in flow_runs)
     assert {flow_run.id for flow_run in flow_runs} == {fr_id_4, fr_id_5}
+
+
+async def test_read_flow_runs_with_tags(prefect_client):
+    @flow
+    def foo():
+        pass
+
+    fr_id = (await prefect_client.create_flow_run(foo, tags=["tag-1"])).id
+    (await prefect_client.create_flow_run(foo, tags=["tag-2"])).id
+
+    flow_runs = await prefect_client.read_flow_runs(
+        flow_run_filter=FlowRunFilter(tags=FlowRunFilterTags(any_=["tag-1"]))
+    )
+    assert len(flow_runs) == 1
+    assert {flow_run.id for flow_run in flow_runs} == {fr_id}
+
+    no_flow_runs = await prefect_client.read_flow_runs(
+        flow_run_filter=FlowRunFilter(tags=FlowRunFilterTags(any_=["get-real"]))
+    )
+    assert len(no_flow_runs) == 0
 
 
 async def test_read_flows_without_filter(prefect_client):

@@ -69,6 +69,7 @@ async def create_flow_run(
 
     If no state is provided, the flow run will be created in a PENDING state.
     """
+    print(flow_run.tags)
     # hydrate the input model into a full flow run / state model
     flow_run = schemas.core.FlowRun(**flow_run.model_dump(), created_by=created_by)
 
