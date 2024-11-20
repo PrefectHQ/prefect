@@ -1,6 +1,6 @@
 from functools import partial
-from typing import Annotated, Any, Dict, List, Optional, Set, TypeAlias, TypeVar, Union
-from typing_extensions import Literal
+from typing import Annotated, Any, Dict, List, Optional, Set, TypeVar, Union
+from typing_extensions import Literal, TypeAlias
 import orjson
 import pydantic
 
@@ -151,8 +151,13 @@ def convert_none_to_empty_dict(v: Optional[KeyValueLabels]) -> KeyValueLabels:
 
 
 KeyValueLabelsField = Annotated[
-    dict[str, Union[StrictBool, StrictInt, StrictFloat, str]],
-    BeforeValidator(cast_none_to_empty_dict),
+    KeyValueLabels,
+    Field(
+        default_factory=dict,
+        description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
+        examples=[{"key": "value1", "key2": 42}],
+    ),
+    BeforeValidator(convert_none_to_empty_dict),
 ]
 
 
