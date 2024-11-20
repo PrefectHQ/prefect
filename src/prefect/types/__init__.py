@@ -82,7 +82,7 @@ def check_variable_value(value: object) -> object:
     return value
 
 
-def cast_None_to_empty_dict(value: Any) -> dict[str, Any]:
+def cast_none_to_empty_dict(value: Any) -> dict[str, Any]:
     if value is None:
         return {}
     return value
