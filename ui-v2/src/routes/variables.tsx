@@ -1,6 +1,6 @@
 import { getQueryService } from "@/api/service";
 import { keepPreviousData, useSuspenseQuery } from "@tanstack/react-query";
-import { VariablesPage } from "@/components/variables/page";
+import { VariablesLayout } from "@/components/variables/layout";
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { zodSearchValidator } from "@tanstack/router-zod-adapter";
@@ -9,8 +9,14 @@ import type {
 	OnChangeFn,
 	PaginationState,
 } from "@tanstack/react-table";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { components } from "@/api/prefect";
+import { VariablesDataTable } from "@/components/variables/data-table";
+import {
+	VariableDialog,
+	type VariableDialogProps,
+} from "@/components/variables/variable-dialog";
+import { VariablesEmptyState } from "@/components/variables/empty-state";
 
 const searchParams = z.object({
 	offset: z.number().int().nonnegative().optional().default(0),
@@ -77,7 +83,7 @@ const buildTotalVariableCountQuery = (
 	};
 };
 
-function VariablesRoute() {
+function VariablesPage() {
 	const search = Route.useSearch();
 	const navigate = Route.useNavigate();
 
@@ -169,24 +175,57 @@ function VariablesRoute() {
 		[navigate],
 	);
 
+	const [addVariableDialogOpen, setAddVariableDialogOpen] = useState(false);
+	const [variableToEdit, setVariableToEdit] = useState<
+		VariableDialogProps["existingVariable"] | undefined
+	>(undefined);
+
+	const onAddVariableClick = useCallback(() => {
+		setVariableToEdit(undefined);
+		setAddVariableDialogOpen(true);
+	}, []);
+
+	const handleVariableEdit = useCallback(
+		(variable: components["schemas"]["Variable"]) => {
+			setVariableToEdit(variable);
+			setAddVariableDialogOpen(true);
+		},
+		[],
+	);
+
+	const handleVariableDialogOpenChange = useCallback((open: boolean) => {
+		setAddVariableDialogOpen(open);
+	}, []);
+
 	return (
-		<VariablesPage
-			variables={variables ?? []}
-			totalVariableCount={totalVariableCount ?? 0}
-			currentVariableCount={currentVariableCount ?? 0}
-			pagination={pagination}
-			onPaginationChange={onPaginationChange}
-			columnFilters={columnFilters}
-			onColumnFiltersChange={onColumnFiltersChange}
-			sorting={search.sort}
-			onSortingChange={onSortingChange}
-		/>
+		<VariablesLayout onAddVariableClick={onAddVariableClick}>
+			<VariableDialog
+				existingVariable={variableToEdit}
+				onOpenChange={handleVariableDialogOpenChange}
+				open={addVariableDialogOpen}
+			/>
+			{(totalVariableCount ?? 0) > 0 ? (
+				<VariablesDataTable
+					variables={variables ?? []}
+					currentVariableCount={currentVariableCount ?? 0}
+					pagination={pagination}
+					onPaginationChange={onPaginationChange}
+					columnFilters={columnFilters}
+					onColumnFiltersChange={onColumnFiltersChange}
+					sorting={search.sort}
+					onSortingChange={onSortingChange}
+					onVariableEdit={handleVariableEdit}
+				/>
+			) : (
+				<VariablesEmptyState onAddVariableClick={onAddVariableClick} />
+			)}
+		</VariablesLayout>
 	);
 }
 
 export const Route = createFileRoute("/variables")({
 	validateSearch: zodSearchValidator(searchParams),
-	component: VariablesRoute,
+	component: VariablesPage,
 	loaderDeps: ({ search }) => search,
 	loader: ({ deps: search, context }) =>
 		Promise.all([
