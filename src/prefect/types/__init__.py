@@ -96,7 +96,7 @@ StatusCode = Annotated[int, Field(ge=100, le=599)]
 
 KeyValueLabels = Annotated[
     dict[str, Union[StrictBool, StrictInt, StrictFloat, str]],
-    BeforeValidator(cast_None_to_empty_dict),
+    BeforeValidator(cast_none_to_empty_dict),
 ]
 
 
