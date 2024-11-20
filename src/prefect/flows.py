@@ -1845,7 +1845,9 @@ async def aserve(
     **kwargs,
 ):
     """
-    Serve the provided list of deployments with the possibility of asynchronous context initialization.
+    Asynchronously serve the provided list of deployments.
+    
+    Use `serve` instead if calling from a synchronous context.
 
     Args:
         *args: A list of deployments to serve.
