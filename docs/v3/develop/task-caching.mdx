@@ -29,7 +29,7 @@ prefect config set PREFECT_RESULTS_PERSIST_BY_DEFAULT=true
 ```
 
 See [managing results](/v3/develop/results/) for more details on managing your result configuration, and
-[settings](/v3/manage/settings-and-profiles) for more details on managing Prefect settings.
+[settings](/v3/develop/settings-and-profiles) for more details on managing Prefect settings.
 </Warning>
 
 ## Cache keys
@@ -473,7 +473,7 @@ particularly useful when you have a flow that is responsible for updating the ca
 To refresh the cache for all tasks, use the `PREFECT_TASKS_REFRESH_CACHE` setting. 
 Setting `PREFECT_TASKS_REFRESH_CACHE=true` changes the default behavior of all tasks to refresh. 
 This is particularly useful to rerun a flow without cached results.
-See [settings](/v3/manage/settings-and-profiles) for more details on managing Prefect settings.
+See [settings](/v3/develop/settings-and-profiles) for more details on managing Prefect settings.
 
 If you have tasks that should not refresh when this setting is enabled, you may explicitly set `refresh_cache` 
 to `False`. These tasks will never refresh the cache. If a cache key exists it will be read, not updated. 

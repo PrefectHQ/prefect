@@ -19,15 +19,15 @@ The simplest way to turn on result persistence globally is through the `PREFECT_
 prefect config set PREFECT_RESULTS_PERSIST_BY_DEFAULT=true
 ```
 
-See [settings](/v3/manage/settings-and-profiles) for more information on how settings are managed.
+See [settings](/v3/develop/settings-and-profiles) for more information on how settings are managed.
 </Tip>
 
 ## Configuring result persistence
 
 There are four categories of configuration for result persistence:
-- [whether to persist results at all](/3.0/develop/results#enabling-result-persistence): this is configured through
+- [whether to persist results at all](/v3/develop/results#enabling-result-persistence): this is configured through
 various keyword arguments, the `PREFECT_RESULTS_PERSIST_BY_DEFAULT` setting, and the `PREFECT_TASKS_DEFAULT_PERSIST_RESULT` setting for tasks specifically.
-- [what filesystem to persist results to](/3.0/develop/results#result-storage): this is configured through the `result_storage`
+- [what filesystem to persist results to](/v3/develop/results#result-storage): this is configured through the `result_storage`
 keyword and the `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK` setting.
 - [how to serialize and deserialize results](/v3/develop/results#result-serialization): this is configured through
 the `result_serializer` keyword and the `PREFECT_RESULTS_DEFAULT_SERIALIZER` setting.
