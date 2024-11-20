@@ -1908,7 +1908,7 @@ async def aserve(
     await runner.start()
 
 
-def display_start_message(*args: "RunnerDeployment"):
+def _display_serve_start_message(*args: "RunnerDeployment"):
     from rich.console import Console, Group
     from rich.table import Table
 
