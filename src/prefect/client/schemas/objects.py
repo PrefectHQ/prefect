@@ -215,12 +215,12 @@ class State(ObjectBaseModel, Generic[R]):
     ] = Field(default=None)
 
     @overload
-    def result(self: "State[R]", raise_on_failure: bool = True) -> R: ...
+    def result(self: "State[R]", raise_on_failure: bool = True) -> R:
+        ...
 
     @overload
-    def result(
-        self: "State[R]", raise_on_failure: bool = False
-    ) -> Union[R, Exception]: ...
+    def result(self: "State[R]", raise_on_failure: bool = False) -> Union[R, Exception]:
+        ...
 
     @deprecated.deprecated_parameter(
         "fetch",
