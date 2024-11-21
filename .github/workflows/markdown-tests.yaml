@@ -95,6 +95,7 @@ jobs:
           python -m pip install -U uv
           uv pip install --upgrade --system -e '.[dev]'
           uv pip install --upgrade --system -r requirements-markdown-tests.txt
+          uv pip uninstall --system pytest-benchmark
 
       - name: Start server
         run: |

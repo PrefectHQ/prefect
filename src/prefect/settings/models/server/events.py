@@ -1,9 +1,8 @@
 from datetime import timedelta
 
 from pydantic import AliasChoices, AliasPath, Field
-from pydantic_settings import SettingsConfigDict
 
-from prefect.settings.base import PrefectBaseSettings
+from prefect.settings.base import PrefectBaseSettings, _build_settings_config
 
 
 class ServerEventsSettings(PrefectBaseSettings):
@@ -11,9 +10,7 @@ class ServerEventsSettings(PrefectBaseSettings):
     Settings for controlling behavior of the events subsystem
     """
 
-    model_config = SettingsConfigDict(
-        env_prefix="PREFECT_SERVER_EVENTS_", env_file=".env", extra="ignore"
-    )
+    model_config = _build_settings_config(("server", "events"))
 
     ###########################################################################
     # Events settings
@@ -131,7 +128,7 @@ class ServerEventsSettings(PrefectBaseSettings):
 
     messaging_cache: str = Field(
         default="prefect.server.utilities.messaging.memory",
-        description="Which cache implementation to use for the events system.  Should point to a module that exports a Cache class.",
+        description="Which cache implementation to use for the events system. Should point to a module that exports a Cache class.",
         validation_alias=AliasChoices(
             AliasPath("messaging_cache"),
             "prefect_server_events_messaging_cache",

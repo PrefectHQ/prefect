@@ -526,9 +526,7 @@ class AzureContainerWorker(BaseWorker):
         "Execute flow runs within containers on Azure's Container Instances "
         "service. Requires an Azure account."
     )
-    _documentation_url = (
-        "https://prefecthq.github.io/prefect-azure/container_instance_worker/"
-    )
+    _documentation_url = "https://docs.prefect.io/integrations/prefect-azure"
 
     async def run(
         self,

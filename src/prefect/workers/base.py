@@ -4,20 +4,29 @@ import threading
 from contextlib import AsyncExitStack
 from functools import partial
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Type, Union
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import anyio
 import anyio.abc
+import httpx
 import pendulum
+from importlib_metadata import distributions
 from pydantic import BaseModel, Field, PrivateAttr, field_validator
 from pydantic.json_schema import GenerateJsonSchema
 from typing_extensions import Literal
 
 import prefect
 from prefect._internal.schemas.validators import return_v_or_none
+from prefect.client.base import ServerType
+from prefect.client.cloud import CloudClient, get_cloud_client
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
-from prefect.client.schemas.objects import StateType, WorkPool
+from prefect.client.schemas.objects import (
+    Integration,
+    StateType,
+    WorkerMetadata,
+    WorkPool,
+)
 from prefect.client.utilities import inject_client
 from prefect.events import Event, RelatedResource, emit_event
 from prefect.events.related import object_as_related_resource, tags_as_related_resources
@@ -25,7 +34,11 @@ from prefect.exceptions import (
     Abort,
     ObjectNotFound,
 )
-from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
+from prefect.logging.loggers import (
+    PrefectLogAdapter,
+    flow_run_logger,
+    get_worker_logger,
+)
 from prefect.plugins import load_prefect_collections
 from prefect.settings import (
     PREFECT_API_URL,
@@ -49,6 +62,7 @@ from prefect.utilities.templating import (
     resolve_block_document_references,
     resolve_variables,
 )
+from prefect.utilities.urls import url_for
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import Flow, FlowRun
@@ -132,26 +146,26 @@ class BaseJobConfiguration(BaseModel):
         Important: this method expects that the base_job_template was already
         validated server-side.
         """
-        job_config: Dict[str, Any] = base_job_template["job_configuration"]
+        base_config: Dict[str, Any] = base_job_template["job_configuration"]
         variables_schema = base_job_template["variables"]
         variables = cls._get_base_config_defaults(
             variables_schema.get("properties", {})
         )
 
-        # copy variable defaults for `env` to job config before they're replaced by
+        # copy variable defaults for `env` to base config before they're replaced by
         # deployment overrides
         if variables.get("env"):
-            job_config["env"] = variables.get("env")
+            base_config["env"] = variables.get("env")
 
         variables.update(values)
 
         # deep merge `env`
-        if isinstance(job_config.get("env"), dict) and (
-            hardcoded_env := variables.get("env")
+        if isinstance(base_config.get("env"), dict) and (
+            deployment_env := variables.get("env")
         ):
-            job_config["env"] = hardcoded_env | job_config.get("env")
+            base_config["env"] = base_config.get("env") | deployment_env
 
-        populated_configuration = apply_values(template=job_config, values=variables)
+        populated_configuration = apply_values(template=base_config, values=variables)
         populated_configuration = await resolve_block_document_references(
             template=populated_configuration, client=client
         )
@@ -406,7 +420,8 @@ class BaseWorker(abc.ABC):
             raise ValueError("Worker name cannot contain '/' or '%'")
         self.name = name or f"{self.__class__.__name__} {uuid4()}"
         self._started_event: Optional[Event] = None
-        self._logger = get_logger(f"worker.{self.__class__.type}.{self.name.lower()}")
+        self.backend_id: Optional[UUID] = None
+        self._logger = get_worker_logger(self)
 
         self.is_setup = False
         self._create_pool_if_not_found = create_pool_if_not_found
@@ -425,12 +440,14 @@ class BaseWorker(abc.ABC):
         self._exit_stack: AsyncExitStack = AsyncExitStack()
         self._runs_task_group: Optional[anyio.abc.TaskGroup] = None
         self._client: Optional[PrefectClient] = None
+        self._cloud_client: Optional[CloudClient] = None
         self._last_polled_time: pendulum.DateTime = pendulum.now("utc")
         self._limit = limit
         self._limiter: Optional[anyio.CapacityLimiter] = None
         self._submitting_flow_run_ids = set()
         self._cancelling_flow_run_ids = set()
         self._scheduled_task_scopes = set()
+        self._worker_metadata_sent = False
 
     @classmethod
     def get_documentation_url(cls) -> str:
@@ -488,15 +505,19 @@ class BaseWorker(abc.ABC):
         return slugify(self.name)
 
     def get_flow_run_logger(self, flow_run: "FlowRun") -> PrefectLogAdapter:
+        extra = {
+            "worker_name": self.name,
+            "work_pool_name": (
+                self._work_pool_name if self._work_pool else "<unknown>"
+            ),
+            "work_pool_id": str(getattr(self._work_pool, "id", "unknown")),
+        }
+        if self.backend_id:
+            extra["worker_id"] = str(self.backend_id)
+
         return flow_run_logger(flow_run=flow_run).getChild(
             "worker",
-            extra={
-                "worker_name": self.name,
-                "work_pool_name": (
-                    self._work_pool_name if self._work_pool else "<unknown>"
-                ),
-                "work_pool_id": str(getattr(self._work_pool, "id", "unknown")),
-            },
+            extra=extra,
         )
 
     async def start(
@@ -611,8 +632,13 @@ class BaseWorker(abc.ABC):
             raise ValueError("`PREFECT_API_URL` must be set to start a Worker.")
 
         self._client = get_client()
+
         await self._exit_stack.enter_async_context(self._client)
         await self._exit_stack.enter_async_context(self._runs_task_group)
+
+        if self._client.server_type == ServerType.CLOUD:
+            self._cloud_client = get_cloud_client()
+            await self._exit_stack.enter_async_context(self._cloud_client)
 
         self.is_setup = True
 
@@ -623,9 +649,14 @@ class BaseWorker(abc.ABC):
         for scope in self._scheduled_task_scopes:
             scope.cancel()
 
-        await self._exit_stack.__aexit__(*exc_info)
+        # Emit stopped event before closing client
         if self._started_event:
-            await self._emit_worker_stopped_event(self._started_event)
+            try:
+                await self._emit_worker_stopped_event(self._started_event)
+            except Exception:
+                self._logger.exception("Failed to emit worker stopped event")
+
+        await self._exit_stack.__aexit__(*exc_info)
         self._runs_task_group = None
         self._client = None
 
@@ -710,13 +741,72 @@ class BaseWorker(abc.ABC):
 
         self._work_pool = work_pool
 
-    async def _send_worker_heartbeat(self):
-        if self._work_pool:
-            await self._client.send_worker_heartbeat(
-                work_pool_name=self._work_pool_name,
-                worker_name=self.name,
-                heartbeat_interval_seconds=self.heartbeat_interval_seconds,
+    async def _worker_metadata(self) -> Optional[WorkerMetadata]:
+        """
+        Returns metadata about installed Prefect collections for the worker.
+        """
+        installed_integrations = load_prefect_collections().keys()
+
+        integration_versions = [
+            Integration(name=dist.metadata["Name"], version=dist.version)
+            for dist in distributions()
+            # PyPI packages often use dashes, but Python package names use underscores
+            # because they must be valid identifiers.
+            if (name := dist.metadata.get("Name"))
+            and (name.replace("-", "_") in installed_integrations)
+        ]
+
+        if integration_versions:
+            return WorkerMetadata(integrations=integration_versions)
+        return None
+
+    async def _send_worker_heartbeat(self) -> Optional[UUID]:
+        """
+        Sends a heartbeat to the API.
+        """
+        if not self._client:
+            self._logger.warning("Client has not been initialized; skipping heartbeat.")
+            return None
+        if not self._work_pool:
+            self._logger.debug("Worker has no work pool; skipping heartbeat.")
+            return None
+
+        should_get_worker_id = self._should_get_worker_id()
+
+        params = {
+            "work_pool_name": self._work_pool_name,
+            "worker_name": self.name,
+            "heartbeat_interval_seconds": self.heartbeat_interval_seconds,
+            "get_worker_id": should_get_worker_id,
+        }
+        if (
+            self._client.server_type == ServerType.CLOUD
+            and not self._worker_metadata_sent
+        ):
+            worker_metadata = await self._worker_metadata()
+            if worker_metadata:
+                params["worker_metadata"] = worker_metadata
+                self._worker_metadata_sent = True
+
+        worker_id = None
+        try:
+            worker_id = await self._client.send_worker_heartbeat(**params)
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 422 and should_get_worker_id:
+                self._logger.warning(
+                    "Failed to retrieve worker ID from the Prefect API server."
+                )
+                params["get_worker_id"] = False
+                worker_id = await self._client.send_worker_heartbeat(**params)
+            else:
+                raise e
+
+        if should_get_worker_id and worker_id is None:
+            self._logger.warning(
+                "Failed to retrieve worker ID from the Prefect API server."
             )
+
+        return worker_id
 
     async def sync_with_backend(self):
         """
@@ -725,9 +815,23 @@ class BaseWorker(abc.ABC):
         """
         await self._update_local_work_pool_info()
 
-        await self._send_worker_heartbeat()
+        remote_id = await self._send_worker_heartbeat()
+        if remote_id:
+            self.backend_id = remote_id
+            self._logger = get_worker_logger(self)
 
-        self._logger.debug("Worker synchronized with the Prefect API server.")
+        self._logger.debug(
+            "Worker synchronized with the Prefect API server. "
+            + (f"Remote ID: {self.backend_id}" if self.backend_id else "")
+        )
+
+    def _should_get_worker_id(self):
+        """Determines if the worker should request an ID from the API server."""
+        return (
+            self._client
+            and self._client.server_type == ServerType.CLOUD
+            and self.backend_id is None
+        )
 
     async def _get_scheduled_flow_runs(
         self,
@@ -782,6 +886,20 @@ class BaseWorker(abc.ABC):
                 run_logger.info(
                     f"Worker '{self.name}' submitting flow run '{flow_run.id}'"
                 )
+                if self.backend_id:
+                    try:
+                        worker_url = url_for(
+                            "worker",
+                            obj_id=self.backend_id,
+                            work_pool_name=self._work_pool_name,
+                        )
+
+                        run_logger.info(
+                            f"Running on worker id: {self.backend_id}. See worker logs here: {worker_url}"
+                        )
+                    except ValueError as ve:
+                        run_logger.warning(f"Failed to generate worker URL: {ve}")
+
                 self._submitting_flow_run_ids.add(flow_run.id)
                 self._runs_task_group.start_soon(
                     self._submit_run,
@@ -855,10 +973,11 @@ class BaseWorker(abc.ABC):
 
             else:
                 # If the run is not ready to submit, release the concurrency slot
-                if self._limiter:
-                    self._limiter.release_on_behalf_of(flow_run.id)
+                self._release_limit_slot(flow_run.id)
 
             self._submitting_flow_run_ids.remove(flow_run.id)
+        else:
+            self._release_limit_slot(flow_run.id)
 
     async def _submit_run_and_capture_errors(
         self, flow_run: "FlowRun", task_status: Optional[anyio.abc.TaskStatus] = None
@@ -868,6 +987,7 @@ class BaseWorker(abc.ABC):
         try:
             configuration = await self._get_configuration(flow_run)
             submitted_event = self._emit_flow_run_submitted_event(configuration)
+            await self._give_worker_labels_to_flow_run(flow_run.id)
             result = await self.run(
                 flow_run=flow_run,
                 task_status=task_status,
@@ -892,8 +1012,7 @@ class BaseWorker(abc.ABC):
                 )
             return exc
         finally:
-            if self._limiter:
-                self._limiter.release_on_behalf_of(flow_run.id)
+            self._release_limit_slot(flow_run.id)
 
         if not task_status._future.done():
             run_logger.error(
@@ -917,6 +1036,14 @@ class BaseWorker(abc.ABC):
         self._emit_flow_run_executed_event(result, configuration, submitted_event)
 
         return result
+
+    def _release_limit_slot(self, flow_run_id: str) -> None:
+        """
+        Frees up a slot taken by the given flow run id.
+        """
+        if self._limiter:
+            self._limiter.release_on_behalf_of(flow_run_id)
+            self._logger.debug("Limit slot released for flow run '%s'", flow_run_id)
 
     def get_status(self):
         """
@@ -1088,6 +1215,19 @@ class BaseWorker(abc.ABC):
                 await result
 
         await self._runs_task_group.start(wrapper)
+
+    async def _give_worker_labels_to_flow_run(self, flow_run_id: UUID):
+        """
+        Give this worker's identifying labels to the specified flow run.
+        """
+        if self._cloud_client:
+            await self._cloud_client.update_flow_run_labels(
+                flow_run_id,
+                {
+                    "prefect.worker.name": self.name,
+                    "prefect.worker.type": self.type,
+                },
+            )
 
     async def __aenter__(self):
         self._logger.debug("Entering worker context...")

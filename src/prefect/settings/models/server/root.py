@@ -2,9 +2,8 @@ from pathlib import Path
 from typing import Optional
 
 from pydantic import AliasChoices, AliasPath, Field
-from pydantic_settings import SettingsConfigDict
 
-from prefect.settings.base import PrefectBaseSettings
+from prefect.settings.base import PrefectBaseSettings, _build_settings_config
 from prefect.types import LogLevel
 
 from .api import ServerAPISettings
@@ -23,9 +22,7 @@ class ServerSettings(PrefectBaseSettings):
     Settings for controlling server behavior
     """
 
-    model_config = SettingsConfigDict(
-        env_prefix="PREFECT_SERVER_", env_file=".env", extra="ignore"
-    )
+    model_config = _build_settings_config(("server",))
 
     logging_level: LogLevel = Field(
         default="WARNING",

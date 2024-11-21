@@ -7,7 +7,6 @@ import pydantic
 from pydantic import (
     BeforeValidator,
     Field,
-    SecretStr,
     StrictBool,
     StrictFloat,
     StrictInt,
@@ -87,8 +86,24 @@ StrictVariableValue = Annotated[VariableValue, BeforeValidator(check_variable_va
 
 LaxUrl = Annotated[str, BeforeValidator(lambda x: str(x).strip())]
 
-
 StatusCode = Annotated[int, Field(ge=100, le=599)]
+
+
+def cast_none_to_empty_dict(value: Any) -> dict[str, Any]:
+    if value is None:
+        return {}
+    return value
+
+
+KeyValueLabels = Annotated[
+    dict[str, Union[StrictBool, StrictInt, StrictFloat, str]],
+    BeforeValidator(cast_none_to_empty_dict),
+]
+
+
+ListOfNonEmptyStrings = Annotated[
+    List[str], BeforeValidator(lambda x: [s for s in x if s.strip()])
+]
 
 
 class SecretDict(pydantic.Secret[Dict[str, Any]]):
@@ -110,7 +125,7 @@ def validate_set_T_from_delim_string(
     T_adapter = TypeAdapter(type_)
     delim = delim or ","
     if isinstance(value, str):
-        return {T_adapter.validate_strings(s) for s in value.split(delim)}
+        return {T_adapter.validate_strings(s.strip()) for s in value.split(delim)}
     errors = []
     try:
         return {T_adapter.validate_python(value)}
@@ -138,6 +153,7 @@ __all__ = [
     "LogLevel",
     "NonNegativeInteger",
     "PositiveInteger",
+    "ListOfNonEmptyStrings",
     "NonNegativeFloat",
     "Name",
     "NameOrEmpty",

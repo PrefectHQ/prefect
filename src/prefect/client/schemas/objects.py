@@ -32,6 +32,7 @@ from pydantic.functional_validators import ModelWrapValidatorHandler
 from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Literal, Self, TypeVar
 
+from prefect._internal.compatibility import deprecated
 from prefect._internal.compatibility.migration import getattr_migration
 from prefect._internal.schemas.bases import ObjectBaseModel, PrefectBaseModel
 from prefect._internal.schemas.fields import CreatedBy, UpdatedBy
@@ -52,6 +53,7 @@ from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.settings import PREFECT_CLOUD_API_URL, PREFECT_CLOUD_UI_URL
 from prefect.types import (
     MAX_VARIABLE_NAME_LENGTH,
+    KeyValueLabels,
     Name,
     NonNegativeInteger,
     PositiveInteger,
@@ -186,7 +188,7 @@ class StateDetails(PrefectBaseModel):
 
 
 def data_discriminator(x: Any) -> str:
-    if isinstance(x, dict) and "type" in x:
+    if isinstance(x, dict) and "type" in x and x["type"] != "unpersisted":
         return "BaseResult"
     elif isinstance(x, dict) and "storage_key" in x:
         return "ResultRecordMetadata"
@@ -220,10 +222,17 @@ class State(ObjectBaseModel, Generic[R]):
     def result(self: "State[R]", raise_on_failure: bool = False) -> Union[R, Exception]:
         ...
 
+    @deprecated.deprecated_parameter(
+        "fetch",
+        when=lambda fetch: fetch is not True,
+        start_date="Oct 2024",
+        end_date="Jan 2025",
+        help="Please ensure you are awaiting the call to `result()` when calling in an async context.",
+    )
     def result(
         self,
         raise_on_failure: bool = True,
-        fetch: Optional[bool] = None,
+        fetch: bool = True,
         retry_result_failure: bool = True,
     ) -> Union[R, Exception]:
         """
@@ -248,22 +257,6 @@ class State(ObjectBaseModel, Generic[R]):
             The result of the run
 
         Examples:
-            >>> from prefect import flow, task
-            >>> @task
-            >>> def my_task(x):
-            >>>     return x
-
-            Get the result from a task future in a flow
-
-            >>> @flow
-            >>> def my_flow():
-            >>>     future = my_task("hello")
-            >>>     state = future.wait()
-            >>>     result = state.result()
-            >>>     print(result)
-            >>> my_flow()
-            hello
-
             Get the result from a flow state
 
             >>> @flow
@@ -307,7 +300,7 @@ class State(ObjectBaseModel, Generic[R]):
             >>>     raise ValueError("oh no!")
             >>> my_flow.deploy("my_deployment/my_flow")
             >>> flow_run = run_deployment("my_deployment/my_flow")
-            >>> await flow_run.state.result(raise_on_failure=True, fetch=True) # Raises `ValueError("oh no!")`
+            >>> await flow_run.state.result(raise_on_failure=True) # Raises `ValueError("oh no!")`
         """
         from prefect.states import get_state_result
 
@@ -363,6 +356,12 @@ class State(ObjectBaseModel, Generic[R]):
         if self.type == StateType.SCHEDULED:
             if not self.state_details.scheduled_time:
                 self.state_details.scheduled_time = DateTime.now("utc")
+        return self
+
+    @model_validator(mode="after")
+    def set_unpersisted_results_to_none(self) -> Self:
+        if isinstance(self.data, dict) and self.data.get("type") == "unpersisted":
+            self.data = None
         return self
 
     def is_scheduled(self) -> bool:
@@ -494,6 +493,9 @@ class FlowRunPolicy(PrefectBaseModel):
     resuming: Optional[bool] = Field(
         default=False, description="Indicates if this run is resuming from a pause."
     )
+    retry_type: Optional[Literal["in_process", "reschedule"]] = Field(
+        default=None, description="The type of retry this run is undergoing."
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -556,6 +558,11 @@ class FlowRun(ObjectBaseModel):
         default_factory=list,
         description="A list of tags on the flow run",
         examples=[["tag-1", "tag-2"]],
+    )
+    labels: KeyValueLabels = Field(
+        default_factory=dict,
+        description="Prefect Cloud: A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
+        examples=[{"key": "value1", "key2": 42}],
     )
     parent_task_run_id: Optional[UUID] = Field(
         default=None,
@@ -1177,27 +1184,6 @@ class ConcurrencyLimit(ObjectBaseModel):
     )
 
 
-class BlockSchema(ObjectBaseModel):
-    """An ORM representation of a block schema."""
-
-    checksum: str = Field(default=..., description="The block schema's unique checksum")
-    fields: Dict[str, Any] = Field(
-        default_factory=dict, description="The block schema's field schema"
-    )
-    block_type_id: Optional[UUID] = Field(default=..., description="A block type ID")
-    block_type: Optional[BlockType] = Field(
-        default=None, description="The associated block type"
-    )
-    capabilities: List[str] = Field(
-        default_factory=list,
-        description="A list of Block capabilities",
-    )
-    version: str = Field(
-        default=DEFAULT_BLOCK_SCHEMA_VERSION,
-        description="Human readable identifier for the block schema",
-    )
-
-
 class BlockSchemaReference(ObjectBaseModel):
     """An ORM representation of a block schema reference."""
 
@@ -1691,3 +1677,24 @@ class CsrfToken(ObjectBaseModel):
 
 
 __getattr__ = getattr_migration(__name__)
+
+
+class Integration(PrefectBaseModel):
+    """A representation of an installed Prefect integration."""
+
+    name: str = Field(description="The name of the Prefect integration.")
+    version: str = Field(description="The version of the Prefect integration.")
+
+
+class WorkerMetadata(PrefectBaseModel):
+    """
+    Worker metadata.
+
+    We depend on the structure of `integrations`, but otherwise, worker classes
+    should support flexible metadata.
+    """
+
+    integrations: List[Integration] = Field(
+        default=..., description="Prefect integrations installed in the worker."
+    )
+    model_config = ConfigDict(extra="allow")

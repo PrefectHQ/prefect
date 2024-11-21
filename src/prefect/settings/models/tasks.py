@@ -1,15 +1,12 @@
 from typing import Optional, Union
 
 from pydantic import AliasChoices, AliasPath, Field
-from pydantic_settings import SettingsConfigDict
 
-from prefect.settings.base import PrefectBaseSettings
+from prefect.settings.base import PrefectBaseSettings, _build_settings_config
 
 
 class TasksRunnerSettings(PrefectBaseSettings):
-    model_config = SettingsConfigDict(
-        env_prefix="PREFECT_TASKS_RUNNER_", env_file=".env", extra="ignore"
-    )
+    model_config = _build_settings_config(("tasks", "runner"))
 
     thread_pool_max_workers: Optional[int] = Field(
         default=None,
@@ -24,9 +21,7 @@ class TasksRunnerSettings(PrefectBaseSettings):
 
 
 class TasksSchedulingSettings(PrefectBaseSettings):
-    model_config = SettingsConfigDict(
-        env_prefix="PREFECT_TASKS_SCHEDULING_", env_file=".env", extra="ignore"
-    )
+    model_config = _build_settings_config(("tasks", "scheduling"))
 
     default_storage_block: Optional[str] = Field(
         default=None,
@@ -50,9 +45,7 @@ class TasksSchedulingSettings(PrefectBaseSettings):
 
 
 class TasksSettings(PrefectBaseSettings):
-    model_config = SettingsConfigDict(
-        env_prefix="PREFECT_TASKS_", env_file=".env", extra="ignore"
-    )
+    model_config = _build_settings_config(("tasks",))
 
     refresh_cache: bool = Field(
         default=False,
@@ -78,6 +71,12 @@ class TasksSettings(PrefectBaseSettings):
             "prefect_tasks_default_retry_delay_seconds",
             "prefect_task_default_retry_delay_seconds",
         ),
+    )
+
+    default_persist_result: Optional[bool] = Field(
+        default=None,
+        description="If `True`, results will be persisted by default for all tasks. Set to `False` to disable persistence by default. "
+        "Note that setting to `False` will override the behavior set by a parent flow or task.",
     )
 
     runner: TasksRunnerSettings = Field(

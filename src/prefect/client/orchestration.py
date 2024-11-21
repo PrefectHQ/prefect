@@ -99,6 +99,7 @@ from prefect.client.schemas.objects import (
     TaskRunResult,
     Variable,
     Worker,
+    WorkerMetadata,
     WorkPool,
     WorkQueue,
     WorkQueueStatusDetail,
@@ -134,6 +135,7 @@ from prefect.settings import (
     PREFECT_CLOUD_API_URL,
     PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
     PREFECT_TESTING_UNIT_TEST_MODE,
+    get_current_settings,
 )
 
 if TYPE_CHECKING:
@@ -2594,21 +2596,43 @@ class PrefectClient:
         work_pool_name: str,
         worker_name: str,
         heartbeat_interval_seconds: Optional[float] = None,
-    ):
+        get_worker_id: bool = False,
+        worker_metadata: Optional[WorkerMetadata] = None,
+    ) -> Optional[UUID]:
         """
         Sends a worker heartbeat for a given work pool.
 
         Args:
             work_pool_name: The name of the work pool to heartbeat against.
             worker_name: The name of the worker sending the heartbeat.
+            return_id: Whether to return the worker ID. Note: will return `None` if the connected server does not support returning worker IDs, even if `return_id` is `True`.
+            worker_metadata: Metadata about the worker to send to the server.
         """
-        await self._client.post(
+        params = {
+            "name": worker_name,
+            "heartbeat_interval_seconds": heartbeat_interval_seconds,
+        }
+        if worker_metadata:
+            params["metadata"] = worker_metadata.model_dump(mode="json")
+        if get_worker_id:
+            params["return_id"] = get_worker_id
+
+        resp = await self._client.post(
             f"/work_pools/{work_pool_name}/workers/heartbeat",
-            json={
-                "name": worker_name,
-                "heartbeat_interval_seconds": heartbeat_interval_seconds,
-            },
+            json=params,
         )
+
+        if (
+            (
+                self.server_type == ServerType.CLOUD
+                or get_current_settings().testing.test_mode
+            )
+            and get_worker_id
+            and resp.status_code == 200
+        ):
+            return UUID(resp.text)
+        else:
+            return None
 
     async def read_workers_for_work_pool(
         self,
@@ -3901,13 +3925,13 @@ class SyncPrefectClient:
     def read_flow_runs(
         self,
         *,
-        flow_filter: FlowFilter = None,
-        flow_run_filter: FlowRunFilter = None,
-        task_run_filter: TaskRunFilter = None,
-        deployment_filter: DeploymentFilter = None,
-        work_pool_filter: WorkPoolFilter = None,
-        work_queue_filter: WorkQueueFilter = None,
-        sort: FlowRunSort = None,
+        flow_filter: Optional[FlowFilter] = None,
+        flow_run_filter: Optional[FlowRunFilter] = None,
+        task_run_filter: Optional[TaskRunFilter] = None,
+        deployment_filter: Optional[DeploymentFilter] = None,
+        work_pool_filter: Optional[WorkPoolFilter] = None,
+        work_queue_filter: Optional[WorkQueueFilter] = None,
+        sort: Optional[FlowRunSort] = None,
         limit: Optional[int] = None,
         offset: int = 0,
     ) -> List[FlowRun]:
