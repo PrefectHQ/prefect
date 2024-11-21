@@ -52,6 +52,7 @@ from prefect.client.schemas.filters import (
     LogFilter,
     LogFilterFlowRunId,
     TaskRunFilter,
+    TaskRunFilterFlowRunId,
 )
 from prefect.client.schemas.objects import (
     Flow,
@@ -983,24 +984,53 @@ async def test_read_flow_runs_with_filtering(prefect_client):
     assert {flow_run.id for flow_run in flow_runs} == {fr_id_4, fr_id_5}
 
 
-async def test_read_flow_runs_with_tags(prefect_client):
+@pytest.mark.parametrize(
+    "run_tags,filter_tags,expected_match",
+    [
+        # Basic single tag matching
+        (["tag-1"], ["tag-1"], True),
+        (["tag-2"], ["tag-1"], False),
+        # Any matching - should match if ANY tag in filter matches
+        (["tag-1", "tag-2"], ["tag-1", "tag-3"], True),
+        (["tag-1"], ["tag-1", "tag-2"], True),
+        (["tag-2"], ["tag-1", "tag-2"], True),
+        # No matches
+        (["tag-1"], ["tag-2", "tag-3"], False),
+        (["tag-1"], ["get-real"], False),
+        # Empty cases
+        ([], ["tag-1"], False),
+        (["tag-1"], [], False),
+    ],
+    ids=[
+        "single_tag_match",
+        "single_tag_no_match",
+        "multiple_tags_partial_match",
+        "subset_match_1",
+        "subset_match_2",
+        "no_matching_tags",
+        "nonexistent_tag",
+        "empty_run_tags",
+        "empty_filter_tags",
+    ],
+)
+async def test_read_flow_runs_with_tags(
+    prefect_client, run_tags, filter_tags, expected_match
+):
     @flow
     def foo():
         pass
 
-    fr_id = (await prefect_client.create_flow_run(foo, tags=["tag-1"])).id
-    (await prefect_client.create_flow_run(foo, tags=["tag-2"])).id
+    flow_run = await prefect_client.create_flow_run(foo, tags=run_tags)
 
     flow_runs = await prefect_client.read_flow_runs(
-        flow_run_filter=FlowRunFilter(tags=FlowRunFilterTags(any_=["tag-1"]))
+        flow_run_filter=FlowRunFilter(tags=FlowRunFilterTags(any_=filter_tags))
     )
-    assert len(flow_runs) == 1
-    assert {flow_run.id for flow_run in flow_runs} == {fr_id}
 
-    no_flow_runs = await prefect_client.read_flow_runs(
-        flow_run_filter=FlowRunFilter(tags=FlowRunFilterTags(any_=["get-real"]))
-    )
-    assert len(no_flow_runs) == 0
+    if expected_match:
+        assert len(flow_runs) == 1
+        assert flow_runs[0].id == flow_run.id
+    else:
+        assert len(flow_runs) == 0
 
 
 async def test_read_flows_without_filter(prefect_client):
@@ -1272,7 +1302,7 @@ async def test_create_then_read_autonomous_task_runs(prefect_client):
     )
 
     autonotask_runs = await prefect_client.read_task_runs(
-        task_run_filter=TaskRunFilter(flow_run_id=dict(is_null_=True))
+        task_run_filter=TaskRunFilter(flow_run_id=TaskRunFilterFlowRunId(is_null_=True))
     )
 
     assert len(autonotask_runs) == 2

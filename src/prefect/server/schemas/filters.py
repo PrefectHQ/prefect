@@ -266,13 +266,16 @@ class FlowRunFilterTags(PrefectOperatorFilterBaseModel):
     )
 
     def _get_filter_list(self) -> List:
-        from prefect.server.utilities.database import json_contains, json_has_all_keys
+        from prefect.server.utilities.database import (
+            json_has_all_keys,
+            json_has_any_key,
+        )
 
         filters = []
         if self.all_ is not None:
             filters.append(json_has_all_keys(orm_models.FlowRun.tags, self.all_))
         if self.any_ is not None:
-            filters.append(json_contains(orm_models.FlowRun.tags, self.any_))
+            filters.append(json_has_any_key(orm_models.FlowRun.tags, self.any_))
         if self.is_null_ is not None:
             filters.append(
                 orm_models.FlowRun.tags == []
