@@ -18,24 +18,29 @@ type VariableKeys = {
 		options: UseVariablesOptions,
 	) => readonly ["variables", "filtered", string];
 	filteredCount: (options?: UseVariablesOptions) => readonly string[];
-	total: readonly ["variables", "total"];
 };
 
-const queryKeys: VariableKeys = {
+/**
+ * Query key factory for variables-related queries
+ *
+ * @property {readonly string[]} all - Base key for all variable queries
+ * @property {function} filtered - Generates key for filtered variable queries, incorporating filter options
+ * @property {function} filteredCount - Generates key for filtered count queries, including name and tag filters
+ */
+const variableKeys: VariableKeys = {
 	all: ["variables"],
 	filtered: (options) => [
-		...queryKeys.all,
+		...variableKeys.all,
 		"filtered",
 		JSON.stringify(options),
 	],
 	filteredCount: (options) => {
-		const key = [...queryKeys.all, "filtered-count"];
+		const key = [...variableKeys.all, "filtered-count"];
 		if (options?.variables?.name?.like_) key.push(options.variables.name.like_);
 		if (options?.variables?.tags?.all_?.length)
 			key.push(JSON.stringify(options.variables.tags));
 		return key;
 	},
-	total: ["variables", "total"],
 };
 
 /**
@@ -48,7 +53,7 @@ const queryKeys: VariableKeys = {
  *  - placeholderData: Uses previous data while loading new data
  */
 const buildVariablesQuery = (options: UseVariablesOptions) => ({
-	queryKey: queryKeys.filtered(options),
+	queryKey: variableKeys.filtered(options),
 	queryFn: async () => {
 		const response = await getQueryService().POST("/variables/filter", {
 			body: options,
@@ -69,7 +74,7 @@ const buildVariablesQuery = (options: UseVariablesOptions) => ({
  *  - placeholderData: Uses previous data while loading new data
  */
 const buildCountQuery = (options?: UseVariablesOptions) => ({
-	queryKey: queryKeys.filteredCount(options),
+	queryKey: variableKeys.filteredCount(options),
 	queryFn: async () => {
 		const body = options?.variables ? { variables: options.variables } : {};
 		const response = await getQueryService().POST("/variables/count", {
@@ -98,6 +103,25 @@ const buildCountQuery = (options?: UseVariablesOptions) => ({
  *  - isErrorTotalCount: Error state for total count
  *  - isLoading: Overall loading state
  *  - isError: Overall error state
+ *
+ * @example
+ * ```ts
+ * const {
+ *   variables,
+ *   isLoading,
+ *   filteredCount,
+ *   totalCount
+ * } = useVariables({
+ *   offset: 0,
+ *   limit: 10,
+ *   sort: "CREATED_DESC",
+ *   variables: {
+ *     operator: "and_",
+ *     name: { like_: "test" },
+ *     tags: { operator: "and_", all_: ["prod"] }
+ *   }
+ * });
+ * ```
  */
 export const useVariables = (options: UseVariablesOptions) => {
 	const results = useQueries({
@@ -162,6 +186,35 @@ type UseCreateVariableOptions = {
 	onError: (error: Error) => void;
 };
 
+/**
+ * Hook for creating a new variable
+ *
+ * @param options - Configuration options
+ * @param options.onSuccess - Callback function to run when variable is successfully created
+ * @param options.onError - Callback function to run when variable creation fails
+ * @returns Mutation object for creating a variable with loading/error states and trigger function
+ *
+ * @example
+ * ```ts
+ * const { createVariable, isLoading } = useCreateVariable({
+ *   onSuccess: () => {
+ *     // Handle successful creation
+ *     console.log('Variable created successfully');
+ *   },
+ *   onError: (error) => {
+ *     // Handle error
+ *     console.error('Failed to create variable:', error);
+ *   }
+ * });
+ *
+ * // Create a new variable
+ * createVariable({
+ *   name: 'MY_VARIABLE',
+ *   value: 'secret-value',
+ *   tags: ['production', 'secrets']
+ * });
+ * ```
+ */
 export const useCreateVariable = ({
 	onSuccess,
 	onError,
@@ -169,7 +222,7 @@ export const useCreateVariable = ({
 	const queryClient = useQueryClient();
 	const { toast } = useToast();
 
-	return useMutation({
+	const { mutate: createVariable, ...rest } = useMutation({
 		mutationFn: (variable: components["schemas"]["VariableCreate"]) => {
 			return getQueryService().POST("/variables/", {
 				body: variable,
@@ -178,7 +231,7 @@ export const useCreateVariable = ({
 		onSettled: async () => {
 			return await Promise.all([
 				queryClient.invalidateQueries({
-					predicate: (query) => query.queryKey[0] === queryKeys.all,
+					predicate: (query) => query.queryKey[0] === variableKeys.all,
 				}),
 			]);
 		},
@@ -190,6 +243,8 @@ export const useCreateVariable = ({
 		},
 		onError,
 	});
+
+	return { createVariable, ...rest };
 };
 
 type UseUpdateVariableProps = {
@@ -201,6 +256,34 @@ type VariableUpdateWithId = components["schemas"]["VariableUpdate"] & {
 	id: string;
 };
 
+/**
+ * Hook for updating an existing variable
+ *
+ * @param options - Configuration options for the mutation
+ * @param options.onSuccess - Callback function to run when update succeeds
+ * @param options.onError - Callback function to run when update fails
+ * @returns Mutation object for updating a variable with loading/error states and trigger function
+ *
+ * @example
+ * ```ts
+ * const { updateVariable } = useUpdateVariable({
+ *   onSuccess: () => {
+ *     // Handle successful update
+ *   },
+ *   onError: (error) => {
+ *     console.error('Failed to update variable:', error);
+ *   }
+ * });
+ *
+ * // Update an existing variable
+ * updateVariable({
+ *   id: 'existing-variable-id',
+ *   name: 'UPDATED_NAME',
+ *   value: 'new-value',
+ *   tags: ['production']
+ * });
+ * ```
+ */
 export const useUpdateVariable = ({
 	onSuccess,
 	onError,
@@ -208,7 +291,7 @@ export const useUpdateVariable = ({
 	const queryClient = useQueryClient();
 	const { toast } = useToast();
 
-	return useMutation({
+	const { mutate: updateVariable, ...rest } = useMutation({
 		mutationFn: (variable: VariableUpdateWithId) => {
 			const { id, ...body } = variable;
 			return getQueryService().PATCH("/variables/{id}", {
@@ -219,7 +302,7 @@ export const useUpdateVariable = ({
 		onSettled: async () => {
 			return await Promise.all([
 				queryClient.invalidateQueries({
-					predicate: (query) => query.queryKey[0] === queryKeys.all,
+					predicate: (query) => query.queryKey[0] === variableKeys.all,
 				}),
 			]);
 		},
@@ -231,4 +314,6 @@ export const useUpdateVariable = ({
 		},
 		onError,
 	});
+
+	return { updateVariable, ...rest };
 };

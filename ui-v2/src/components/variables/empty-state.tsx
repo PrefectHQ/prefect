@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 type VariablesEmptyStateProps = {
-	onAddVariableClick: React.MouseEventHandler<HTMLButtonElement>;
+	onAddVariableClick: () => void;
 };
 export const VariablesEmptyState = ({
 	onAddVariableClick,

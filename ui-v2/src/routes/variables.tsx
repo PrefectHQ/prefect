@@ -6,12 +6,12 @@ import type {
 	ColumnFiltersState,
 	PaginationState,
 } from "@tanstack/react-table";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 import type { components } from "@/api/prefect";
 import { VariablesDataTable } from "@/components/variables/data-table";
 import {
 	VariableDialog,
-	type VariableDialogProps,
+	useVariableDialog,
 } from "@/components/variables/variable-dialog";
 import { VariablesEmptyState } from "@/components/variables/empty-state";
 import { useVariables } from "@/hooks/variables";
@@ -35,6 +35,47 @@ const searchParams = z.object({
 	tags: z.array(z.string()).optional(),
 });
 
+function VariablesPage() {
+	const search = Route.useSearch();
+
+	const { variables, filteredCount, totalCount } = useVariables(
+		buildFilterBody(search),
+	);
+	const [pagination, onPaginationChange] = usePagination();
+	const [columnFilters, onColumnFiltersChange] = useVariableColumnFilters();
+	const [sorting, onSortingChange] = useVariableSorting();
+	const [variableDialogState, onVariableAddOrEdit] = useVariableDialog();
+
+	return (
+		<VariablesLayout onAddVariableClick={onVariableAddOrEdit}>
+			<VariableDialog {...variableDialogState} />
+			{(totalCount ?? 0) > 0 ? (
+				<VariablesDataTable
+					variables={variables ?? []}
+					currentVariableCount={filteredCount ?? 0}
+					pagination={pagination}
+					onPaginationChange={onPaginationChange}
+					columnFilters={columnFilters}
+					onColumnFiltersChange={onColumnFiltersChange}
+					sorting={sorting}
+					onSortingChange={onSortingChange}
+					onVariableEdit={onVariableAddOrEdit}
+				/>
+			) : (
+				<VariablesEmptyState onAddVariableClick={onVariableAddOrEdit} />
+			)}
+		</VariablesLayout>
+	);
+}
+
+export const Route = createFileRoute("/variables")({
+	validateSearch: zodSearchValidator(searchParams),
+	component: VariablesPage,
+	loaderDeps: ({ search }) => buildFilterBody(search),
+	loader: useVariables.loader,
+	wrapInSuspense: true,
+});
+
 /**
  * Builds a filter body for the variables API based on search parameters.
  * @param search - Optional search parameters containing offset, limit, sort, name filter, and tags filter
@@ -53,13 +94,19 @@ const buildFilterBody = (search?: z.infer<typeof searchParams>) => ({
 	},
 });
 
-function VariablesPage() {
+/**
+ * Hook to manage pagination state and navigation for variables table
+ *
+ * Calculates current page index and size from URL search parameters and provides
+ * a callback to update pagination state. Updates the URL when pagination changes.
+ *
+ * @returns A tuple containing:
+ * - pagination: Current pagination state with pageIndex and pageSize
+ * - onPaginationChange: Callback to update pagination and navigate with new search params
+ */
+const usePagination = () => {
 	const search = Route.useSearch();
 	const navigate = Route.useNavigate();
-
-	const { variables, filteredCount, totalCount } = useVariables(
-		buildFilterBody(search),
-	);
 
 	const pageIndex = search.offset ? search.offset / search.limit : 0;
 	const pageSize = search.limit ?? 10;
@@ -69,13 +116,6 @@ function VariablesPage() {
 			pageSize,
 		}),
 		[pageIndex, pageSize],
-	);
-	const columnFilters: ColumnFiltersState = useMemo(
-		() => [
-			{ id: "name", value: search.name },
-			{ id: "tags", value: search.tags },
-		],
-		[search.name, search.tags],
 	);
 
 	const onPaginationChange = useCallback(
@@ -91,6 +131,30 @@ function VariablesPage() {
 			});
 		},
 		[navigate],
+	);
+
+	return [pagination, onPaginationChange] as const;
+};
+
+/**
+ * Hook to manage column filtering state and navigation for variables table
+ *
+ * Handles filtering by name and tags, updating the URL search parameters when filters change.
+ * Resets pagination offset when filters are updated.
+ *
+ * @returns A tuple containing:
+ * - columnFilters: Current column filter state for name and tags
+ * - onColumnFiltersChange: Callback to update filters and navigate with new search params
+ */
+const useVariableColumnFilters = () => {
+	const search = Route.useSearch();
+	const navigate = Route.useNavigate();
+	const columnFilters: ColumnFiltersState = useMemo(
+		() => [
+			{ id: "name", value: search.name },
+			{ id: "tags", value: search.tags },
+		],
+		[search.name, search.tags],
 	);
 
 	const onColumnFiltersChange = useCallback(
@@ -115,72 +179,34 @@ function VariablesPage() {
 		[navigate],
 	);
 
+	return [columnFilters, onColumnFiltersChange] as const;
+};
+
+/**
+ * Hook to manage sorting state and navigation for variables table
+ *
+ * Handles updating the URL search parameters when sort key changes.
+ * Uses the current sort value from search params and provides a callback
+ * to update sorting.
+ *
+ * @returns A tuple containing:
+ * - sorting: Current sort key from search params
+ * - onSortingChange: Callback to update sort and navigate with new search params
+ */
+const useVariableSorting = () => {
+	const search = Route.useSearch();
+	const navigate = Route.useNavigate();
+
 	const onSortingChange = useCallback(
 		(sortKey: components["schemas"]["VariableSort"]) => {
 			void navigate({
 				to: ".",
-				search: (prev) => ({
-					...prev,
-					sort: sortKey,
-				}),
+				search: (prev) => ({ ...prev, sort: sortKey }),
 				replace: true,
 			});
 		},
 		[navigate],
 	);
 
-	const [addVariableDialogOpen, setAddVariableDialogOpen] = useState(false);
-	const [variableToEdit, setVariableToEdit] = useState<
-		VariableDialogProps["existingVariable"] | undefined
-	>(undefined);
-
-	const onAddVariableClick = useCallback(() => {
-		setVariableToEdit(undefined);
-		setAddVariableDialogOpen(true);
-	}, []);
-
-	const handleVariableEdit = useCallback(
-		(variable: components["schemas"]["Variable"]) => {
-			setVariableToEdit(variable);
-			setAddVariableDialogOpen(true);
-		},
-		[],
-	);
-
-	const handleVariableDialogOpenChange = useCallback((open: boolean) => {
-		setAddVariableDialogOpen(open);
-	}, []);
-
-	return (
-		<VariablesLayout onAddVariableClick={onAddVariableClick}>
-			<VariableDialog
-				existingVariable={variableToEdit}
-				onOpenChange={handleVariableDialogOpenChange}
-				open={addVariableDialogOpen}
-			/>
-			{(totalCount ?? 0) > 0 ? (
-				<VariablesDataTable
-					variables={variables ?? []}
-					currentVariableCount={filteredCount ?? 0}
-					pagination={pagination}
-					onPaginationChange={onPaginationChange}
-					columnFilters={columnFilters}
-					onColumnFiltersChange={onColumnFiltersChange}
-					sorting={search.sort}
-					onSortingChange={onSortingChange}
-					onVariableEdit={handleVariableEdit}
-				/>
-			) : (
-				<VariablesEmptyState onAddVariableClick={onAddVariableClick} />
-			)}
-		</VariablesLayout>
-	);
-}
-
-export const Route = createFileRoute("/variables")({
-	validateSearch: zodSearchValidator(searchParams),
-	component: VariablesPage,
-	loaderDeps: ({ search }) => buildFilterBody(search),
-	loader: useVariables.loader,
-	wrapInSuspense: true,
-});
+	return [search.sort, onSortingChange] as const;
+};
