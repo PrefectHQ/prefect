@@ -27,7 +27,7 @@ export const VariablesLayout = ({
 					size="icon"
 					className="h-7 w-7"
 					variant="outline"
-					onClick={onAddVariableClick}
+					onClick={() => onAddVariableClick()}
 				>
 					<PlusIcon className="h-4 w-4" />
 				</Button>
