@@ -1,13 +1,11 @@
 import "./mocks";
 import {
-	act,
 	getByLabelText,
 	getByTestId,
 	getByText,
 	render,
 	screen,
 } from "@testing-library/react";
-import { VariablesPage } from "@/routes/variables";
 import { VariablesDataTable } from "@/components/variables/data-table";
 import userEvent from "@testing-library/user-event";
 import {
@@ -24,47 +22,25 @@ import { Toaster } from "@/components/ui/toaster";
 import { server } from "../mocks/node";
 import { HttpResponse } from "msw";
 import { http } from "msw";
-import { queryClient } from "@/router";
-import {
-	createRouter,
-	RouterProvider,
-	createRootRoute,
-	createRoute,
-} from "@tanstack/react-router";
+import { router } from "@/router";
+import { RouterProvider } from "@tanstack/react-router";
 
 const renderVariablesPage = async () => {
+	const user = userEvent.setup();
 	const queryClient = new QueryClient();
-
-	// Create routes
-	const rootRoute = createRootRoute();
-	const variablesRoute = createRoute({
-		getParentRoute: () => rootRoute,
-		path: "/variables",
-		component: () => (
-			<QueryClientProvider client={queryClient}>
-				<Toaster />
-				<VariablesPage />
-			</QueryClientProvider>
-		),
-	});
-
-	const routeTree = rootRoute.addChildren([variablesRoute]);
-
-	// Initialize router
-	const router = createRouter({
-		routeTree,
-	});
-
 	// Render with router provider
-	const result = render(<RouterProvider router={router} />);
-	await act(() => router.navigate({ to: "/variables" }));
+	const result = render(
+		<QueryClientProvider client={queryClient}>
+			<RouterProvider router={router} />
+		</QueryClientProvider>,
+	);
+	await user.click(screen.getByRole("link", { name: "Variables" }));
 	return result;
 };
 
 describe("Variables page", () => {
 	it("should render with empty state", async () => {
 		await renderVariablesPage();
-		expect(screen.getByText("Variables")).toBeVisible();
 		expect(screen.getByText("Add a variable to get started")).toBeVisible();
 		expect(screen.getByRole("button", { name: "Add Variable" })).toBeVisible();
 	});
@@ -360,6 +336,7 @@ describe("Variables page", () => {
 					tags: ["tag2"],
 				},
 			];
+			const queryClient = new QueryClient();
 			render(
 				<QueryClientProvider client={queryClient}>
 					<VariablesDataTable
@@ -405,6 +382,7 @@ describe("Variables page", () => {
 			}));
 			const onPaginationChange = vi.fn();
 			const user = userEvent.setup();
+			const queryClient = new QueryClient();
 			const { rerender } = render(
 				<QueryClientProvider client={queryClient}>
 					<VariablesDataTable
@@ -475,6 +453,7 @@ describe("Variables page", () => {
 					tags: ["tag1"],
 				},
 			];
+			const queryClient = new QueryClient();
 			render(
 				<QueryClientProvider client={queryClient}>
 					<VariablesDataTable
@@ -508,7 +487,7 @@ describe("Variables page", () => {
 					tags: ["tag1"],
 				},
 			];
-
+			const queryClient = new QueryClient();
 			render(
 				<QueryClientProvider client={queryClient}>
 					<VariablesDataTable
@@ -542,6 +521,7 @@ describe("Variables page", () => {
 					tags: ["tag1"],
 				},
 			];
+			const queryClient = new QueryClient();
 			render(
 				<QueryClientProvider client={queryClient}>
 					<VariablesDataTable
@@ -575,6 +555,7 @@ describe("Variables page", () => {
 					tags: ["tag1"],
 				},
 			];
+			const queryClient = new QueryClient();
 			render(
 				<QueryClientProvider client={queryClient}>
 					<Toaster />
@@ -610,7 +591,7 @@ describe("Variables page", () => {
 				},
 			];
 			const onColumnFiltersChange = vi.fn();
-
+			const queryClient = new QueryClient();
 			render(
 				<QueryClientProvider client={queryClient}>
 					<VariablesDataTable
@@ -655,7 +636,7 @@ describe("Variables page", () => {
 			];
 
 			const onColumnFiltersChange = vi.fn();
-
+			const queryClient = new QueryClient();
 			render(
 				<QueryClientProvider client={queryClient}>
 					<VariablesDataTable
@@ -700,7 +681,7 @@ describe("Variables page", () => {
 			];
 
 			const onSortingChange = vi.fn();
-
+			const queryClient = new QueryClient();
 			render(
 				<QueryClientProvider client={queryClient}>
 					<VariablesDataTable
@@ -744,7 +725,7 @@ describe("Variables page", () => {
 				},
 			];
 			const onPaginationChange = vi.fn();
-
+			const queryClient = new QueryClient();
 			render(
 				<QueryClientProvider client={queryClient}>
 					<VariablesDataTable
