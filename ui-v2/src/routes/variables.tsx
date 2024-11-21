@@ -16,6 +16,14 @@ import {
 import { VariablesEmptyState } from "@/components/variables/empty-state";
 import { useVariables } from "@/hooks/variables";
 
+/**
+ * Schema for validating URL search parameters for the variables page.
+ * @property {number} offset - The number of items to skip (for pagination). Must be non-negative. Defaults to 0.
+ * @property {number} limit - The maximum number of items to return. Must be positive. Defaults to 10.
+ * @property {string} sort - The sort order for variables. Can be "CREATED_DESC", "UPDATED_DESC", "NAME_ASC", or "NAME_DESC". Defaults to "CREATED_DESC".
+ * @property {string} name - Optional filter to search variables by name.
+ * @property {string[]} tags - Optional array of tags to filter variables by.
+ */
 const searchParams = z.object({
 	offset: z.number().int().nonnegative().optional().default(0),
 	limit: z.number().int().positive().optional().default(10),
@@ -27,6 +35,11 @@ const searchParams = z.object({
 	tags: z.array(z.string()).optional(),
 });
 
+/**
+ * Builds a filter body for the variables API based on search parameters.
+ * @param search - Optional search parameters containing offset, limit, sort, name filter, and tags filter
+ * @returns An object containing pagination parameters and variable filters that can be passed to the variables API
+ */
 const buildFilterBody = (search?: z.infer<typeof searchParams>) => ({
 	offset: search?.offset ?? 0,
 	limit: search?.limit ?? 10,

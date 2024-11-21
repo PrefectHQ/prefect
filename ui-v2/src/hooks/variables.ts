@@ -38,6 +38,15 @@ const queryKeys: VariableKeys = {
 	total: ["variables", "total"],
 };
 
+/**
+ * Builds a query configuration for fetching filtered variables
+ * @param options - Filter options for the variables query including pagination, sorting, and filtering criteria
+ * @returns A query configuration object compatible with TanStack Query including:
+ *  - queryKey: A unique key for caching the query results
+ *  - queryFn: The async function to fetch the filtered variables
+ *  - staleTime: How long the data should be considered fresh (1 second)
+ *  - placeholderData: Uses previous data while loading new data
+ */
 const buildVariablesQuery = (options: UseVariablesOptions) => ({
 	queryKey: queryKeys.filtered(options),
 	queryFn: async () => {
@@ -50,6 +59,15 @@ const buildVariablesQuery = (options: UseVariablesOptions) => ({
 	placeholderData: keepPreviousData,
 });
 
+/**
+ * Builds a query configuration for counting variables with optional filters
+ * @param options - Optional filter options for the variables count query
+ * @returns A query configuration object compatible with TanStack Query including:
+ *  - queryKey: A unique key for caching the count results
+ *  - queryFn: The async function to fetch the filtered count
+ *  - staleTime: How long the data should be considered fresh (1 second)
+ *  - placeholderData: Uses previous data while loading new data
+ */
 const buildCountQuery = (options?: UseVariablesOptions) => ({
 	queryKey: queryKeys.filteredCount(options),
 	queryFn: async () => {
@@ -63,6 +81,24 @@ const buildCountQuery = (options?: UseVariablesOptions) => ({
 	placeholderData: keepPreviousData,
 });
 
+/**
+ * Hook for fetching and managing variables data with filtering, pagination, and counts
+ *
+ * @param options - Filter options for the variables query including pagination, sorting, and filtering criteria
+ * @returns An object containing:
+ *  - variables: Array of filtered variables
+ *  - isLoadingVariables: Loading state for variables query
+ *  - isErrorVariables: Error state for variables query
+ *  - errorVariables: Error object for variables query
+ *  - filteredCount: Count of variables matching current filters
+ *  - isLoadingFilteredCount: Loading state for filtered count
+ *  - isErrorFilteredCount: Error state for filtered count
+ *  - totalCount: Total count of all variables
+ *  - isLoadingTotalCount: Loading state for total count
+ *  - isErrorTotalCount: Error state for total count
+ *  - isLoading: Overall loading state
+ *  - isError: Overall error state
+ */
 export const useVariables = (options: UseVariablesOptions) => {
 	const results = useQueries({
 		queries: [
@@ -100,6 +136,14 @@ export const useVariables = (options: UseVariablesOptions) => {
 	};
 };
 
+/**
+ * Data loader for the useVariables hook, used by TanStack Router
+ * Prefetches variables data, filtered count, and total count
+ *
+ * @param deps - Filter options to use for prefetching
+ * @param context - Router context containing queryClient
+ * @returns Promise that resolves when all data is prefetched
+ */
 useVariables.loader = ({
 	deps,
 	context,
