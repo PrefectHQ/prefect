@@ -115,7 +115,9 @@ export const VariablesDataTable = ({
 	const handleNameSearchChange = useCallback(
 		(value?: string) => {
 			const filters = columnFilters.filter((filter) => filter.id !== "name");
-			onColumnFiltersChange(value ? [...filters, { id: "name", value }] : filters);
+			onColumnFiltersChange(
+				value ? [...filters, { id: "name", value }] : filters,
+			);
 		},
 		[onColumnFiltersChange, columnFilters],
 	);
