@@ -114,10 +114,8 @@ export const VariablesDataTable = ({
 		?.value as string[];
 	const handleNameSearchChange = useCallback(
 		(value?: string) => {
-			onColumnFiltersChange([
-				...columnFilters.filter((filter) => filter.id !== "name"),
-				{ id: "name", value },
-			]);
+			const filters = columnFilters.filter((filter) => filter.id !== "name");
+			onColumnFiltersChange(value ? [...filters, { id: "name", value }] : filters);
 		},
 		[onColumnFiltersChange, columnFilters],
 	);
@@ -126,11 +124,10 @@ export const VariablesDataTable = ({
 		((tags: string[]) => void) = useCallback(
 		(e: string[] | React.ChangeEvent<HTMLInputElement>) => {
 			const tags = Array.isArray(e) ? e : e.target.value;
-
-			onColumnFiltersChange([
-				...columnFilters.filter((filter) => filter.id !== "tags"),
-				{ id: "tags", value: tags },
-			]);
+			const filters = columnFilters.filter((filter) => filter.id !== "tags");
+			onColumnFiltersChange(
+				tags.length ? [...filters, { id: "tags", value: tags }] : filters,
+			);
 		},
 		[onColumnFiltersChange, columnFilters],
 	);

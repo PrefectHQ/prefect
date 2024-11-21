@@ -25,14 +25,15 @@ import { useVariables } from "@/hooks/variables";
  * @property {string[]} tags - Optional array of tags to filter variables by.
  */
 const searchParams = z.object({
-	offset: z.number().int().nonnegative().optional().default(0),
-	limit: z.number().int().positive().optional().default(10),
+	offset: z.number().int().nonnegative().optional().default(0).catch(0),
+	limit: z.number().int().positive().optional().default(10).catch(10),
 	sort: z
 		.enum(["CREATED_DESC", "UPDATED_DESC", "NAME_ASC", "NAME_DESC"])
 		.optional()
-		.default("CREATED_DESC"),
-	name: z.string().optional(),
-	tags: z.array(z.string()).optional(),
+		.default("CREATED_DESC")
+		.catch("CREATED_DESC"),
+	name: z.string().optional().catch(undefined),
+	tags: z.array(z.string()).optional().catch(undefined),
 });
 
 export function VariablesPage() {
@@ -41,6 +42,7 @@ export function VariablesPage() {
 	const { variables, filteredCount, totalCount } = useVariables(
 		buildFilterBody(search),
 	);
+	const hasVariables = (totalCount ?? 0) > 0;
 	const [pagination, onPaginationChange] = usePagination();
 	const [columnFilters, onColumnFiltersChange] = useVariableColumnFilters();
 	const [sorting, onSortingChange] = useVariableSorting();
@@ -49,7 +51,7 @@ export function VariablesPage() {
 	return (
 		<VariablesLayout onAddVariableClick={onVariableAddOrEdit}>
 			<VariableDialog {...variableDialogState} />
-			{(totalCount ?? 0) > 0 ? (
+			{hasVariables ? (
 				<VariablesDataTable
 					variables={variables ?? []}
 					currentVariableCount={filteredCount ?? 0}
@@ -163,9 +165,9 @@ const useVariableColumnFilters = () => {
 				to: ".",
 				search: (prev) => {
 					const name = newColumnFilters.find((filter) => filter.id === "name")
-						?.value as string;
+						?.value as string | undefined;
 					const tags = newColumnFilters.find((filter) => filter.id === "tags")
-						?.value as string[];
+						?.value as string[] | undefined;
 					return {
 						...prev,
 						offset: 0,
