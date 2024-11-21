@@ -77,6 +77,7 @@ from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
     PREFECT_UI_URL,
 )
+from prefect.types import ListOfNonEmptyStrings
 from prefect.types.entrypoint import EntrypointType
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.callables import ParameterSchema, parameter_schema
@@ -140,7 +141,7 @@ class RunnerDeployment(BaseModel):
     version: Optional[str] = Field(
         default=None, description="An optional version for the deployment."
     )
-    tags: List[str] = Field(
+    tags: ListOfNonEmptyStrings = Field(
         default_factory=list,
         description="One of more tags to apply to this deployment.",
     )
