@@ -82,21 +82,27 @@ def check_variable_value(value: object) -> object:
     return value
 
 
-def cast_none_to_empty_dict(value: Any) -> dict[str, Any]:
-    if value is None:
-        return {}
-    return value
-
-
 StrictVariableValue = Annotated[VariableValue, BeforeValidator(check_variable_value)]
 
 LaxUrl = Annotated[str, BeforeValidator(lambda x: str(x).strip())]
 
 StatusCode = Annotated[int, Field(ge=100, le=599)]
 
+
+def cast_none_to_empty_dict(value: Any) -> dict[str, Any]:
+    if value is None:
+        return {}
+    return value
+
+
 KeyValueLabels = Annotated[
     dict[str, Union[StrictBool, StrictInt, StrictFloat, str]],
     BeforeValidator(cast_none_to_empty_dict),
+]
+
+
+ListOfNonEmptyStrings = Annotated[
+    List[str], BeforeValidator(lambda x: [s for s in x if s.strip()])
 ]
 
 
@@ -147,6 +153,7 @@ __all__ = [
     "LogLevel",
     "NonNegativeInteger",
     "PositiveInteger",
+    "ListOfNonEmptyStrings",
     "NonNegativeFloat",
     "Name",
     "NameOrEmpty",
