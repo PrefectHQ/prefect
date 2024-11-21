@@ -83,6 +83,9 @@ class ConcurrencySlotAcquisitionService(QueueService):
                         if max_retries is not None and max_retries <= 0:
                             raise exc
                         retry_after = float(exc.response.headers["Retry-After"])
+                        logger.debug(
+                            f"Unable to acquire concurrency slot. Retrying in {retry_after} second(s)."
+                        )
                         await asyncio.sleep(retry_after)
                         if max_retries is not None:
                             max_retries -= 1
