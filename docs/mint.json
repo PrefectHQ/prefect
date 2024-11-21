@@ -53,7 +53,7 @@
       "group": "Get started",
       "pages": [
         "v3/get-started/index",
-        "v3/resources/whats-new-prefect-3",
+        "v3/get-started/whats-new-prefect-3",
         "v3/get-started/install",
         "v3/get-started/quickstart"
       ],
@@ -84,7 +84,11 @@
           "pages": [
             "v3/develop/write-flows",
             "v3/develop/write-tasks",
-            "v3/develop/deferred-tasks"
+            "v3/develop/deferred-tasks",
+            "v3/develop/visualize-flow-structure",
+            "v3/develop/big-data",
+            "v3/develop/cli-shell",
+            "v3/develop/secrets"
           ],
           "version": "v3"
         },
@@ -95,8 +99,10 @@
             "v3/develop/task-caching",
             "v3/develop/transactions",
             "v3/develop/pause-resume",
+            "v3/develop/cancel",
             "v3/develop/inputs",
-            "v3/develop/runtime-context"
+            "v3/develop/runtime-context",
+            "v3/develop/interact-with-api"
           ],
           "version": "v3"
         },
@@ -165,7 +171,8 @@
             "v3/deploy/static-infrastructure-examples/docker"
           ],
           "version": "v3"
-        }
+        },
+        "v3/deploy/daemonize-processes"
       ],
       "version": "v3"
     },
@@ -183,11 +190,11 @@
       "version": "v3"
     },
     {
-      "group": "Cloud and Server",
+      "group": "Operate",
       "pages": [
         "v3/manage/index",
         {
-          "group": "Use Prefect Cloud",
+          "group": "Prefect Cloud",
           "pages": [
             "v3/manage/cloud/index",
             "v3/manage/cloud/connect-to-cloud",
@@ -213,22 +220,15 @@
           ],
           "version": "v3"
         },
-        "v3/manage/self-host",
-        "v3/manage/interact-with-api"
+        "v3/manage/self-host"
       ],
       "version": "v3"
     },
     {
-      "group": "Resources",
+      "group": "Migrate",
       "pages": [
         "v3/resources/upgrade-to-prefect-3",
-        "v3/resources/upgrade-agents-to-workers",
-        "v3/resources/cancel",
-        "v3/resources/visualize-flow-structure",
-        "v3/resources/daemonize-processes",
-        "v3/resources/big-data",
-        "v3/resources/cli-shell",
-        "v3/resources/secrets"
+        "v3/resources/upgrade-agents-to-workers"
       ],
       "version": "v3"
     },
@@ -956,7 +956,7 @@
       "source": "/latest/concepts/storage"
     },
     {
-      "destination": "/v3/resources/daemonize-processes",
+      "destination": "/v3/deploy/daemonize-processes",
       "source": "/latest/guides/deployment/daemonize"
     },
     {
@@ -980,7 +980,7 @@
       "source": "/latest/recipes/recipes"
     },
     {
-      "destination": "/v3/resources/cli-shell",
+      "destination": "/v3/develop/cli-shell",
       "source": "/latest/guides/cli-shell"
     },
     {
@@ -1012,7 +1012,7 @@
       "source": "/latest/guides/troubleshooting"
     },
     {
-      "destination": "/v3/resources/big-data",
+      "destination": "/v3/develop/big-data",
       "source": "/latest/guides/big-data"
     },
     {
@@ -1028,11 +1028,11 @@
       "source": "/latest/integrations/prefect-kubernetes"
     },
     {
-      "destination": "/v3/resources/whats-new-prefect-3.mdx",
+      "destination": "/v3/get-started/whats-new-prefect-3",
       "source": "/latest/faq"
     },
     {
-      "destination": "/v3/resources/upgrade-prefect-3",
+      "destination": "/v3/resources/upgrade-to-prefect-3",
       "source": "/latest/guides/migration-guide"
     },
     {
@@ -1048,7 +1048,7 @@
       "source": "/latest/contributing/overview"
     },
     {
-      "destination": "/v3/resources/secrets",
+      "destination": "/v3/develop/secrets",
       "source": "/latest/guides/secrets"
     },
     {
@@ -1310,6 +1310,42 @@
     {
       "destination": "/integrations/prefect-slack",
       "source": "/latest/integrations/prefect-slack/messages"
+    },
+    {
+      "destination": "/v3/get-started/whats-new-prefect-3",
+      "source": "/v3/resources/whats-new-prefect-3"
+    },
+    {
+      "destination": "/v3/develop/deferred-tasks",
+      "source": "/v3/resources/deferred-tasks"
+    },
+    {
+      "destination": "/v3/develop/visualize-flow-structure",
+      "source": "/v3/resources/visualize-flow-structure"
+    },
+    {
+      "destination": "/v3/develop/big-data",
+      "source": "/v3/resources/big-data"
+    },
+    {
+      "destination": "/v3/develop/cli-shell",
+      "source": "/v3/resources/cli-shell"
+    },
+    {
+      "destination": "/v3/develop/secrets",
+      "source": "/v3/resources/secrets"
+    },
+    {
+      "destination": "/v3/develop/cancel",
+      "source": "/v3/resources/cancel"
+    },
+    {
+      "destination": "/v3/deploy/daemonize-processes",
+      "source": "/v3/resources/daemonize-processes"
+    },
+    {
+      "destination": "/v3/develop/interact-with-api",
+      "source": "/v3/resources/interact-with-api"
     },
     {
       "destination": "/v3/api-ref/python",
