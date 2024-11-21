@@ -8,7 +8,7 @@ import pendulum
 import pytest
 from httpx import AsyncClient
 from pendulum.datetime import DateTime
-from pydantic_core import Url
+from pydantic.networks import AnyHttpUrl
 
 from prefect.server.events.counting import Countable, TimeUnit
 from prefect.server.events.filters import (
@@ -135,7 +135,8 @@ async def test_querying_for_events_returns_first_page(
 
     assert first_page.events == events_page_one
     assert first_page.total == 123
-    assert first_page.next_page == Url(
+    assert isinstance(first_page.next_page, AnyHttpUrl)
+    assert str(first_page.next_page) == (
         f"http://test/api/events/filter/next?page-token={ENCODED_MOCK_PAGE_TOKEN}"
     )
 
@@ -213,7 +214,8 @@ async def test_querying_for_subsequent_page_returns_it(
 
     assert second_page.events == events_page_two
     assert second_page.total == 123
-    assert second_page.next_page == Url(
+    assert isinstance(second_page.next_page, AnyHttpUrl)
+    assert str(second_page.next_page) == (
         f"http://test/api/events/filter/next?page-token={expected_token}"
     )
 
