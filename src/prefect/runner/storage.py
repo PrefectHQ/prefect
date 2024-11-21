@@ -192,26 +192,17 @@ class GitRepository:
         """
         Uses sparse-checkout on repository
         """
-
-        cmd = ["git", "sparse-checkout", "init"]
+        # use the sparse checkout set command to define the directories that need to be cloned
+        cmd = ["git", "sparse-checkout"]
 
         if not self._sparse_checkout_cone_mode:
             cmd += ["--no-cone"]
 
+        cmd += ["set", *self._sparse_checkout_directories]
+
         await run_process(
             cmd,
             cwd=str(self.destination),
-        )
-
-        cmd = [
-            "git",
-            "sparse-checkout",
-            "add",
-        ] + self._sparse_checkout_directories
-
-        await run_process(
-            cmd,
-            cwd=self.destination,
         )
 
     async def pull_code(self):
@@ -283,38 +274,29 @@ class GitRepository:
         if self._branch:
             cmd += ["--branch", self._branch]
 
+        # The idea of partial cloning is to reduce repository size, this can be achieved through blobless, shallow or treeless cloning.
+        # Shallow cloning is still the best way to reduce the repository size the most, combining this with sparse checkout means that cloning can be completed faster
+        # https://github.blog/open-source/git/get-up-to-speed-with-partial-clone-and-shallow-clone/
+
+        # Limit git history and set path to clone to
+        cmd += ["--depth", "1", str(self.destination)]
+
+        if self._include_submodules:
+            cmd += ["--recurse-submodules"]
+
+        try:
+            await run_process(cmd)
+        except subprocess.CalledProcessError as exc:
+            # Hide the command used to avoid leaking the access token
+            exc_chain = None if self._credentials else exc
+            raise RuntimeError(
+                f"Failed to clone repository {self._url!r} with exit code"
+                f" {exc.returncode}."
+            ) from exc_chain
+
         # For sparse-checkout it is recommended to use --filter=blob:none to reduce disk-space
         if self._sparse_checkout_mode:
-            cmd += ["--filter=blob:none", "--sparse", str(self.destination)]
-
-            try:
-                await run_process(cmd)
-            except subprocess.CalledProcessError as exc:
-                # Hide the command used to avoid leaking the access token
-                exc_chain = None if self._credentials else exc
-                raise RuntimeError(
-                    f"Failed to clone repository {self._url!r} with exit code"
-                    f" {exc.returncode}."
-                ) from exc_chain
-
             await self.sparse_checkout()
-
-        else:
-            if self._include_submodules:
-                cmd += ["--recurse-submodules"]
-
-            # Limit git history and set path to clone to
-            cmd += ["--depth", "1", str(self.destination)]
-
-            try:
-                await run_process(cmd)
-            except subprocess.CalledProcessError as exc:
-                # Hide the command used to avoid leaking the access token
-                exc_chain = None if self._credentials else exc
-                raise RuntimeError(
-                    f"Failed to clone repository {self._url!r} with exit code"
-                    f" {exc.returncode}."
-                ) from exc_chain
 
     def __eq__(self, __value) -> bool:
         if isinstance(__value, GitRepository):
