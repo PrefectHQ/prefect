@@ -18661,6 +18661,27 @@
                             ]
                         ]
                     },
+                    "any_": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Any",
+                        "description": "A list of tags to include",
+                        "examples": [
+                            [
+                                "tag-1",
+                                "tag-2"
+                            ]
+                        ]
+                    },
                     "is_null_": {
                         "anyOf": [
                             {
