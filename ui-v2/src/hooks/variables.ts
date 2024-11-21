@@ -1,6 +1,7 @@
 import type { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
 import { useToast } from "@/hooks/use-toast";
+import { startsWith } from "@/lib/utils";
 import {
 	useMutation,
 	useQueryClient,
@@ -229,11 +230,9 @@ export const useCreateVariable = ({
 			});
 		},
 		onSettled: async () => {
-			return await Promise.all([
-				queryClient.invalidateQueries({
-					predicate: (query) => query.queryKey[0] === variableKeys.all,
-				}),
-			]);
+			return await queryClient.invalidateQueries({
+				predicate: (query) => startsWith(query.queryKey, variableKeys.all),
+			});
 		},
 		onSuccess: () => {
 			toast({
@@ -300,11 +299,9 @@ export const useUpdateVariable = ({
 			});
 		},
 		onSettled: async () => {
-			return await Promise.all([
-				queryClient.invalidateQueries({
-					predicate: (query) => query.queryKey[0] === variableKeys.all,
-				}),
-			]);
+			return await queryClient.invalidateQueries({
+				predicate: (query) => startsWith(query.queryKey, variableKeys.all),
+			});
 		},
 		onSuccess: () => {
 			toast({
