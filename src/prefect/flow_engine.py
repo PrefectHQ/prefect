@@ -2,7 +2,7 @@ import asyncio
 import logging
 import os
 import time
-from contextlib import ExitStack, contextmanager
+from contextlib import ExitStack, asynccontextmanager, contextmanager
 from dataclasses import dataclass, field
 from typing import (
     Any,
@@ -22,19 +22,25 @@ from typing import (
 )
 from uuid import UUID
 
+from anyio import CancelScope
 from opentelemetry import trace
 from opentelemetry.trace import Tracer, get_tracer
 from typing_extensions import ParamSpec
 
 import prefect
 from prefect import Task
-from prefect.client.orchestration import SyncPrefectClient, get_client
+from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.filters import FlowRunFilter
 from prefect.client.schemas.sorting import FlowRunSort
 from prefect.concurrency.context import ConcurrencyContext
 from prefect.concurrency.v1.context import ConcurrencyContext as ConcurrencyContextV1
-from prefect.context import FlowRunContext, SyncClientContext, TagsContext
+from prefect.context import (
+    AsyncClientContext,
+    FlowRunContext,
+    SyncClientContext,
+    TagsContext,
+)
 from prefect.exceptions import (
     Abort,
     Pause,
@@ -79,6 +85,7 @@ from prefect.utilities.engine import (
     _resolve_custom_flow_run_name,
     capture_sigterm,
     link_state_to_result,
+    propose_state,
     propose_state_sync,
     resolve_to_final_result,
 )
@@ -747,10 +754,10 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
     not being fully asyncified.
     """
 
-    _client: Optional[SyncPrefectClient] = None
+    _client: Optional[PrefectClient] = None
 
     @property
-    def client(self) -> SyncPrefectClient:
+    def client(self) -> PrefectClient:
         if not self._is_started or self._client is None:
             raise RuntimeError("Engine has not started.")
         return self._client
@@ -794,12 +801,12 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             context={},
         )
 
-    def begin_run(self) -> State:
+    async def begin_run(self) -> State:
         try:
             self._resolve_parameters()
             self._wait_for_dependencies()
         except UpstreamTaskError as upstream_exc:
-            state = self.set_state(
+            state = await self.set_state(
                 Pending(
                     name="NotReady",
                     message=str(upstream_exc),
@@ -817,7 +824,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             except Exception as exc:
                 message = "Validation of flow parameters failed with error:"
                 self.logger.error("%s %s", message, exc)
-                self.handle_exception(
+                await self.handle_exception(
                     exc,
                     msg=message,
                     result_store=get_result_store().update_for_flow(
@@ -825,22 +832,22 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     ),
                 )
                 self.short_circuit = True
-                self.call_hooks()
+                await self.call_hooks()
 
         new_state = Running()
-        state = self.set_state(new_state)
+        state = await self.set_state(new_state)
         while state.is_pending():
-            time.sleep(0.2)
-            state = self.set_state(new_state)
+            await asyncio.sleep(0.2)
+            state = await self.set_state(new_state)
         return state
 
-    def set_state(self, state: State, force: bool = False) -> State:
+    async def set_state(self, state: State, force: bool = False) -> State:
         """ """
         # prevents any state-setting activity
         if self.short_circuit:
             return self.state
 
-        state = propose_state_sync(
+        state = await propose_state(
             self.client, state, flow_run_id=self.flow_run.id, force=force
         )  # type: ignore
         self.flow_run.state = state  # type: ignore
@@ -859,7 +866,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             )
         return state
 
-    def result(self, raise_on_failure: bool = True) -> "Union[R, State, None]":
+    async def result(self, raise_on_failure: bool = True) -> "Union[R, State, None]":
         if self._return_value is not NotSet and not isinstance(
             self._return_value, State
         ):
@@ -871,7 +878,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             if asyncio.iscoroutine(_result):
                 # getting the value for a BaseResult may return an awaitable
                 # depending on whether the parent frame is sync or not
-                _result = run_coro_as_sync(_result)
+                _result = await _result
             return _result
 
         if self._raised is not NotSet:
@@ -888,29 +895,27 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         # state.result is a `sync_compatible` function that may or may not return an awaitable
         # depending on whether the parent frame is sync or not
         if asyncio.iscoroutine(_result):
-            _result = run_coro_as_sync(_result)
+            _result = await _result
         return _result
 
-    def handle_success(self, result: R) -> R:
+    async def handle_success(self, result: R) -> R:
         result_store = getattr(FlowRunContext.get(), "result_store", None)
         if result_store is None:
             raise ValueError("Result store is not set")
         resolved_result = resolve_futures_to_states(result)
-        terminal_state = run_coro_as_sync(
-            return_value_to_state(
-                resolved_result,
-                result_store=result_store,
-                write_result=should_persist_result(),
-            )
+        terminal_state = await return_value_to_state(
+            resolved_result,
+            result_store=result_store,
+            write_result=should_persist_result(),
         )
-        self.set_state(terminal_state)
+        await self.set_state(terminal_state)
         self._return_value = resolved_result
 
         self._end_span_on_success()
 
         return result
 
-    def handle_exception(
+    async def handle_exception(
         self,
         exc: Exception,
         msg: Optional[str] = None,
@@ -919,16 +924,14 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         context = FlowRunContext.get()
         terminal_state = cast(
             State,
-            run_coro_as_sync(
-                exception_to_failed_state(
-                    exc,
-                    message=msg or "Flow run encountered an exception:",
-                    result_store=result_store or getattr(context, "result_store", None),
-                    write_result=True,
-                )
+            await exception_to_failed_state(
+                exc,
+                message=msg or "Flow run encountered an exception:",
+                result_store=result_store or getattr(context, "result_store", None),
+                write_result=True,
             ),
         )
-        state = self.set_state(terminal_state)
+        state = await self.set_state(terminal_state)
         if self.state.is_scheduled():
             self.logger.info(
                 (
@@ -936,14 +939,14 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     f" state {terminal_state.name!r} and will attempt to run again..."
                 ),
             )
-            state = self.set_state(Running())
+            state = await self.set_state(Running())
         self._raised = exc
 
         self._end_span_on_error(exc, state.message)
 
         return state
 
-    def handle_timeout(self, exc: TimeoutError) -> None:
+    async def handle_timeout(self, exc: TimeoutError) -> None:
         if isinstance(exc, FlowRunTimeoutError):
             message = (
                 f"Flow run exceeded timeout of {self.flow.timeout_seconds} second(s)"
@@ -956,24 +959,27 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             message=message,
             name="TimedOut",
         )
-        self.set_state(state)
+        await self.set_state(state)
         self._raised = exc
 
         self._end_span_on_error(exc, message)
 
-    def handle_crash(self, exc: BaseException) -> None:
-        state = run_coro_as_sync(exception_to_crashed_state(exc))
-        self.logger.error(f"Crash detected! {state.message}")
-        self.logger.debug("Crash details:", exc_info=exc)
-        self.set_state(state, force=True)
-        self._raised = exc
+    async def handle_crash(self, exc: BaseException) -> None:
+        # need to shield from asyncio cancellation to ensure we update the state
+        # on the server before exiting
+        with CancelScope(shield=True):
+            state = await exception_to_crashed_state(exc)
+            self.logger.error(f"Crash detected! {state.message}")
+            self.logger.debug("Crash details:", exc_info=exc)
+            await self.set_state(state, force=True)
+            self._raised = exc
 
-        self._end_span_on_error(exc, state.message)
+            self._end_span_on_error(exc, state.message)
 
-    def load_subflow_run(
+    async def load_subflow_run(
         self,
         parent_task_run: TaskRun,
-        client: SyncPrefectClient,
+        client: PrefectClient,
         context: FlowRunContext,
     ) -> Union[FlowRun, None]:
         """
@@ -1007,7 +1013,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             rerunning and not parent_task_run.state.is_completed()
         ):
             # return the most recent flow run, if it exists
-            flow_runs = client.read_flow_runs(
+            flow_runs = await client.read_flow_runs(
                 flow_run_filter=FlowRunFilter(
                     parent_task_run_id={"any_": [parent_task_run.id]}
                 ),
@@ -1019,7 +1025,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                 self._return_value = loaded_flow_run.state
                 return loaded_flow_run
 
-    def create_flow_run(self, client: SyncPrefectClient) -> FlowRun:
+    async def create_flow_run(self, client: PrefectClient) -> FlowRun:
         flow_run_ctx = FlowRunContext.get()
         parameters = self.parameters or {}
 
@@ -1032,21 +1038,19 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                 name=self.flow.name, fn=self.flow.fn, version=self.flow.version
             )
 
-            parent_task_run = run_coro_as_sync(
-                parent_task.create_run(
-                    flow_run_context=flow_run_ctx,
-                    parameters=self.parameters,
-                    wait_for=self.wait_for,
-                )
+            parent_task_run = await parent_task.create_run(
+                flow_run_context=flow_run_ctx,
+                parameters=self.parameters,
+                wait_for=self.wait_for,
             )
 
             # check if there is already a flow run for this subflow
-            if subflow_run := self.load_subflow_run(
+            if subflow_run := await self.load_subflow_run(
                 parent_task_run=parent_task_run, client=client, context=flow_run_ctx
             ):
                 return subflow_run
 
-        flow_run = client.create_flow_run(
+        flow_run = await client.create_flow_run(
             flow=self.flow,
             parameters=self.flow.serialize_parameters(parameters),
             state=Pending(),
@@ -1065,7 +1069,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
 
         return flow_run
 
-    def call_hooks(self, state: Optional[State] = None):
+    async def call_hooks(self, state: Optional[State] = None):
         if state is None:
             state = self.state
         flow = self.flow
@@ -1112,7 +1116,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                 )
                 result = hook(flow, flow_run, state)
                 if asyncio.iscoroutine(result):
-                    run_coro_as_sync(result)
+                    await result
             except Exception:
                 self.logger.error(
                     f"An error was encountered while running hook {hook_name!r}",
@@ -1121,8 +1125,8 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             else:
                 self.logger.info(f"Hook {hook_name!r} finished running successfully")
 
-    @contextmanager
-    def setup_run_context(self, client: Optional[SyncPrefectClient] = None):
+    @asynccontextmanager
+    async def setup_run_context(self, client: Optional[PrefectClient] = None):
         from prefect.utilities.engine import (
             should_log_prints,
         )
@@ -1132,7 +1136,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         if not self.flow_run:
             raise ValueError("Flow run not set")
 
-        self.flow_run = client.read_flow_run(self.flow_run.id)
+        self.flow_run = await client.read_flow_run(self.flow_run.id)
         log_prints = should_log_prints(self.flow)
 
         with ExitStack() as stack:
@@ -1169,7 +1173,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                 flow_run_name = _resolve_custom_flow_run_name(
                     flow=self.flow, parameters=self.parameters
                 )
-                self.client.set_flow_run_name(
+                await self.client.set_flow_run_name(
                     flow_run_id=self.flow_run.id, name=flow_run_name
                 )
                 self.logger.extra["flow_run_name"] = flow_run_name
@@ -1180,17 +1184,17 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                 self._flow_run_name_set = True
             yield
 
-    @contextmanager
-    def initialize_run(self):
+    @asynccontextmanager
+    async def initialize_run(self):
         """
         Enters a client context and creates a flow run if needed.
         """
-        with SyncClientContext.get_or_create() as client_ctx:
+        async with AsyncClientContext.get_or_create() as client_ctx:
             self._client = client_ctx.client
             self._is_started = True
 
             if not self.flow_run:
-                self.flow_run = self.create_flow_run(self.client)
+                self.flow_run = await self.create_flow_run(self.client)
                 flow_run_url = url_for(self.flow_run)
 
                 if flow_run_url:
@@ -1207,7 +1211,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                 if self.flow_run.empirical_policy.retries is None:
                     self.flow_run.empirical_policy.retries = self.flow.retries
 
-                self.client.update_flow_run(
+                await self.client.update_flow_run(
                     flow_run_id=self.flow_run.id,
                     flow_version=self.flow.version,
                     empirical_policy=self.flow_run.empirical_policy,
@@ -1229,7 +1233,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
 
             except TerminationSignal as exc:
                 self.cancel_all_tasks()
-                self.handle_crash(exc)
+                await self.handle_crash(exc)
                 raise
             except Exception:
                 # regular exceptions are caught and re-raised to the user
@@ -1241,7 +1245,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                 raise
             except BaseException as exc:
                 # BaseExceptions are caught and handled as crashes
-                self.handle_crash(exc)
+                await self.handle_crash(exc)
                 raise
             finally:
                 # If debugging, use the more complete `repr` than the usual `str` description
@@ -1262,20 +1266,21 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
     #
     # --------------------------
 
-    @contextmanager
-    def start(self) -> Generator[None, None, None]:
-        with self.initialize_run(), trace.use_span(self._span):
-            self.begin_run()
+    @asynccontextmanager
+    async def start(self) -> AsyncGenerator[None, None]:
+        async with self.initialize_run():
+            with trace.use_span(self._span):
+                await self.begin_run()
 
-            if self.state.is_running():
-                self.call_hooks()
-            yield
+                if self.state.is_running():
+                    await self.call_hooks()
+                yield
 
-    @contextmanager
-    def run_context(self):
+    @asynccontextmanager
+    async def run_context(self):
         timeout_context = timeout_async if self.flow.isasync else timeout
         # reenter the run context to ensure it is up to date for every run
-        with self.setup_run_context():
+        async with self.setup_run_context():
             try:
                 with timeout_context(
                     seconds=self.flow.timeout_seconds,
@@ -1286,29 +1291,24 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     )
                     yield self
             except TimeoutError as exc:
-                self.handle_timeout(exc)
+                await self.handle_timeout(exc)
             except Exception as exc:
                 self.logger.exception("Encountered exception during execution: %r", exc)
-                self.handle_exception(exc)
+                await self.handle_exception(exc)
             finally:
                 if self.state.is_final() or self.state.is_cancelling():
-                    self.call_hooks()
+                    await self.call_hooks()
 
-    def call_flow_fn(self) -> Union[R, Coroutine[Any, Any, R]]:
+    async def call_flow_fn(self) -> Coroutine[Any, Any, R]:
         """
         Convenience method to call the flow function. Returns a coroutine if the
         flow is async.
         """
-        if self.flow.isasync:
+        assert self.flow.isasync, "Flow must be async to be run with AsyncFlowRunEngine"
 
-            async def _call_flow_fn():
-                result = await call_with_parameters(self.flow.fn, self.parameters)
-                self.handle_success(result)
-
-            return _call_flow_fn()
-        else:
-            result = call_with_parameters(self.flow.fn, self.parameters)
-            self.handle_success(result)
+        result = await call_with_parameters(self.flow.fn, self.parameters)
+        await self.handle_success(result)
+        return result
 
 
 def run_flow_sync(
@@ -1344,12 +1344,12 @@ async def run_flow_async(
         flow=flow, parameters=parameters, flow_run=flow_run, wait_for=wait_for
     )
 
-    with engine.start():
+    async with engine.start():
         while engine.is_running():
-            with engine.run_context():
+            async with engine.run_context():
                 await engine.call_flow_fn()
 
-    return engine.state if return_type == "state" else engine.result()
+    return engine.state if return_type == "state" else await engine.result()
 
 
 def run_generator_flow_sync(
@@ -1402,9 +1402,9 @@ async def run_generator_flow_async(
         flow=flow, parameters=parameters, flow_run=flow_run, wait_for=wait_for
     )
 
-    with engine.start():
+    async with engine.start():
         while engine.is_running():
-            with engine.run_context():
+            async with engine.run_context():
                 call_args, call_kwargs = parameters_to_args_kwargs(
                     flow.fn, engine.parameters or {}
                 )
@@ -1417,13 +1417,13 @@ async def run_generator_flow_async(
                         link_state_to_result(engine.state, gen_result)
                         yield gen_result
                 except (StopAsyncIteration, GeneratorExit) as exc:
-                    engine.handle_success(None)
+                    await engine.handle_success(None)
                     if isinstance(exc, GeneratorExit):
                         gen.throw(exc)
 
     # async generators can't return, but we can raise failures here
     if engine.state.is_failed():
-        engine.result()
+        await engine.result()
 
 
 def run_flow(
