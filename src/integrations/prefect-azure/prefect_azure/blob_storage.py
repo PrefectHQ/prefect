@@ -718,6 +718,7 @@ class AzureBlobStorageContainer(
     async def list_blobs(self) -> List[str]:
         """
         Lists blobs available within the specified Azure container.
+        Added in version 0.4.1.
 
         Used to introspect your containers.
 

@@ -215,7 +215,7 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
 
     def _configure_cloudsql_volumes(self):
         """
-        Populates volumes and volume mounts for cloudsql instances
+        Populates volumes and volume mounts for cloudsql instances. Added in version 0.6.2.
         """
 
         if not self.cloudsql_instances:

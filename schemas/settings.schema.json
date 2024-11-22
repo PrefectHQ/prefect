@@ -1882,7 +1882,7 @@
                         }
                     ],
                     "default": null,
-                    "description": "The maximum number of workers for ThreadPoolTaskRunner.",
+                    "description": "The maximum number of workers for ThreadPoolTaskRunner. Added in version 3.0.11.",
                     "supported_environment_variables": [
                         "PREFECT_TASKS_RUNNER_THREAD_POOL_MAX_WORKERS",
                         "PREFECT_TASK_RUNNER_THREAD_POOL_MAX_WORKERS"

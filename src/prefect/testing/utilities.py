@@ -116,6 +116,7 @@ def prefect_test_harness(server_startup_timeout: Optional[int] = 30):
         server_startup_timeout: The maximum time to wait for the server to start.
             Defaults to 30 seconds. If set to `None`, the value of
             `PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS` will be used.
+            Added in version 3.0.2.
 
     Examples:
         >>> from prefect import flow
@@ -155,9 +156,11 @@ def prefect_test_harness(server_startup_timeout: Optional[int] = 30):
         # start a subprocess server to test against
         test_server = SubprocessASGIServer()
         test_server.start(
-            timeout=server_startup_timeout
-            if server_startup_timeout is not None
-            else prefect.settings.PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS.value()
+            timeout=(
+                server_startup_timeout
+                if server_startup_timeout is not None
+                else prefect.settings.PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS.value()
+            )
         )
         stack.enter_context(
             prefect.settings.temporary_settings(
