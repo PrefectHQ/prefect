@@ -1,8 +1,7 @@
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict
+from typing import TYPE_CHECKING, Any, Dict
 
-from opentelemetry.sdk.trace import Tracer
 from opentelemetry.trace import (
     Status,
     StatusCode,
@@ -12,6 +11,9 @@ from opentelemetry.trace import (
 import prefect
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import State
+
+if TYPE_CHECKING:
+    from opentelemetry.sdk.trace import Tracer
 
 
 @dataclass
