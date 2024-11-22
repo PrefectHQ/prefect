@@ -587,8 +587,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             self.record_terminal_state_timing(state)
             self.set_state(state)
             self._raised = exc
-
-        self._telemetry.end_span_on_failure(state.message)
+            self._telemetry.end_span_on_failure(state.message)
 
     def handle_timeout(self, exc: TimeoutError) -> None:
         if not self.handle_retry(exc):
