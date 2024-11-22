@@ -19,25 +19,25 @@ The simplest way to turn on result persistence globally is through the `PREFECT_
 prefect config set PREFECT_RESULTS_PERSIST_BY_DEFAULT=true
 ```
 
-See [settings](/v3/manage/settings-and-profiles) for more information on how settings are managed.
+See [settings](/v3/develop/settings-and-profiles) for more information on how settings are managed.
 </Tip>
 
 ## Configuring result persistence
 
 There are four categories of configuration for result persistence:
-- [whether to persist results at all](/3.0/develop/results#enabling-result-persistence): this is configured through
+- [whether to persist results at all](#enabling-result-persistence): this is configured through
 various keyword arguments, the `PREFECT_RESULTS_PERSIST_BY_DEFAULT` setting, and the `PREFECT_TASKS_DEFAULT_PERSIST_RESULT` setting for tasks specifically.
-- [what filesystem to persist results to](/3.0/develop/results#result-storage): this is configured through the `result_storage`
+- [what filesystem to persist results to](#result-storage): this is configured through the `result_storage`
 keyword and the `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK` setting.
-- [how to serialize and deserialize results](/v3/develop/results#result-serialization): this is configured through
+- [how to serialize and deserialize results](#result-serialization): this is configured through
 the `result_serializer` keyword and the `PREFECT_RESULTS_DEFAULT_SERIALIZER` setting.
-- [what filename to use](/v3/develop/results#result-filenames): this is configured through one of
+- [what filename to use](#result-filenames): this is configured through one of
 `result_storage_key`, `cache_policy`, or `cache_key_fn`.
 
 ### Default persistence configuration
 
 Once result persistence is enabled - whether through the `PREFECT_RESULTS_PERSIST_BY_DEFAULT` setting or
-through any of the mechanisms [described below](/v3/develop/results#enabling-result-persistence) - Prefect's default
+through any of the mechanisms [described below](#enabling-result-persistence) - Prefect's default
 result storage configuration is activated.
 
 If you enable result persistence and don't specify a filesystem block, your results will be stored locally.
