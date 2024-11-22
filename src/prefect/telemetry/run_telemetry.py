@@ -2,6 +2,7 @@ import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict
 
+from opentelemetry.sdk.trace import Tracer
 from opentelemetry.trace import (
     Status,
     StatusCode,
@@ -18,7 +19,7 @@ if TYPE_CHECKING:
 
 @dataclass
 class RunTelemetry:
-    _tracer: Tracer = field(
+    _tracer: "Tracer" = field(
         default_factory=lambda: get_tracer("prefect", prefect.__version__)
     )
     _span = None
