@@ -1,3 +1,5 @@
+"""Creating type adapters to avoid recreation of the pydantic core schemas when possible."""
+
 from typing import List
 
 from pydantic import TypeAdapter
