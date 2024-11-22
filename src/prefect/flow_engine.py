@@ -22,6 +22,7 @@ from typing import (
 )
 from uuid import UUID
 
+from anyio import CancelScope
 from opentelemetry import trace
 from opentelemetry.trace import Tracer, get_tracer
 from typing_extensions import ParamSpec
@@ -964,13 +965,16 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         self._end_span_on_error(exc, message)
 
     async def handle_crash(self, exc: BaseException) -> None:
-        state = await exception_to_crashed_state(exc)
-        self.logger.error(f"Crash detected! {state.message}")
-        self.logger.debug("Crash details:", exc_info=exc)
-        await self.set_state(state, force=True)
-        self._raised = exc
+        # need to shield from asyncio cancellation to ensure we update the state
+        # on the server before exiting
+        with CancelScope(shield=True):
+            state = await exception_to_crashed_state(exc)
+            self.logger.error(f"Crash detected! {state.message}")
+            self.logger.debug("Crash details:", exc_info=exc)
+            await self.set_state(state, force=True)
+            self._raised = exc
 
-        self._end_span_on_error(exc, state.message)
+            self._end_span_on_error(exc, state.message)
 
     async def load_subflow_run(
         self,
