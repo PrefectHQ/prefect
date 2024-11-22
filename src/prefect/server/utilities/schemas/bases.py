@@ -109,12 +109,9 @@ class PrefectBaseModel(BaseModel):
         Returns:
             PrefectBaseModel: A new instance of the model with the reset fields.
         """
-        data = self.model_dump()
         return self.model_copy(
             update={
-                field: self.model_fields[field].get_default(
-                    call_default_factory=True, validated_data=data
-                )
+                field: self.model_fields[field].get_default(call_default_factory=True)
                 for field in self._reset_fields
             }
         )
