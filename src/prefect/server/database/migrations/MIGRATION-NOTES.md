@@ -8,6 +8,10 @@ Each time a database migration is written, an entry is included here with:
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situations where a branch needs to be updated before merging.
 
+# Add `labels` column to Flow, FlowRun, TaskRun, and Deployment
+SQLite: `5952a5498b51`
+Postgres: `68a44144428d`
+
 # Migrate `Deployment.concurrency_limit` to a foreign key `Deployment.concurrency_limit_id`
 SQLite: `4ad4658cbefe`
 Postgres: `eaec5004771f`

@@ -95,8 +95,8 @@ class InstrumentationTester:
     def assert_has_attributes(obj: HasAttributes, attributes: Dict[str, Any]):
         assert obj.attributes is not None
         for key, val in attributes.items():
-            assert key in obj.attributes
-            assert obj.attributes[key] == val
+            assert key in obj.attributes, f"Key {key!r} not found in attributes"
+            assert obj.attributes[key] == val, f"Value for key {key!r} does not match"
 
     @staticmethod
     def assert_span_instrumented_for(span: Union[Span, ReadableSpan], module):

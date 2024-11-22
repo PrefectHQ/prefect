@@ -16,7 +16,7 @@ import prefect
 from prefect import Flow, __development_base_path__, flow, task
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.filters import FlowFilter, FlowRunFilter
-from prefect.client.schemas.objects import FlowRun, StateType
+from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.sorting import FlowRunSort
 from prefect.concurrency.asyncio import concurrency as aconcurrency
 from prefect.concurrency.sync import concurrency
@@ -45,7 +45,6 @@ from prefect.logging import get_run_logger
 from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.server.schemas.core import FlowRun as ServerFlowRun
 from prefect.testing.utilities import AsyncMock
-from prefect.types import KeyValueLabels
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.filesystem import tmpchdir
 
@@ -1891,27 +1890,18 @@ class TestFlowRunInstrumentation:
         assert span.status.status_code == trace.StatusCode.OK
 
     def test_flow_run_instrumentation_captures_labels(
-        self, instrumentation: InstrumentationTester, monkeypatch
+        self,
+        instrumentation: InstrumentationTester,
+        sync_prefect_client: SyncPrefectClient,
     ):
-        # simulate server responding with labels on flow run
-        class FlowRunWithLabels(FlowRun):
-            labels: KeyValueLabels = pydantic.Field(
-                default_factory=lambda: {
-                    "prefect.deployment.id": "some-id",
-                    "my-label": "my-value",
-                }
-            )
-
-        monkeypatch.setattr(
-            "prefect.client.orchestration.FlowRun",
-            FlowRunWithLabels,
-        )
-
         @flow
         def instrumented_flow():
             pass
 
-        instrumented_flow()
+        state = instrumented_flow(return_state=True)
+
+        assert state.state_details.flow_run_id is not None
+        flow_run = sync_prefect_client.read_flow_run(state.state_details.flow_run_id)
 
         spans = instrumentation.get_finished_spans()
         assert len(spans) == 1
@@ -1921,11 +1911,10 @@ class TestFlowRunInstrumentation:
         instrumentation.assert_has_attributes(
             span,
             {
+                **flow_run.labels,
                 "prefect.run.type": "flow",
                 "prefect.flow.name": "instrumented-flow",
                 "prefect.run.id": mock.ANY,
-                "prefect.deployment.id": "some-id",
-                "my-label": "my-value",
             },
         )
 

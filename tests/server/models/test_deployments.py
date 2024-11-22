@@ -1609,3 +1609,53 @@ class TestDeploymentSchedules:
             deployment_id=deployment.id,
         )
         assert len(schedules) == 0
+
+
+class TestDeploymentLabels:
+    @pytest.mark.parametrize(
+        "user_supplied_labels,parent_flow_labels,expected",
+        [
+            (
+                {"env": "prod", "label-on-flow": "from-user"},
+                {"label-on-flow": "from-flow", "flow-label": 15},
+                {
+                    "label-on-flow": "from-user",
+                    "env": "prod",
+                    "flow-label": 15,
+                    # "prefect.flow.id": <id> added within test
+                },
+            ),
+            (
+                {},
+                {},
+                {
+                    # "prefect.flow.id": <id> added within test
+                },
+            ),
+        ],
+    )
+    async def test_with_system_labels_for_deployment(
+        self,
+        user_supplied_labels,
+        parent_flow_labels,
+        expected,
+        session: AsyncSession,
+        flow: orm_models.Flow,
+    ):
+        deployment_data = schemas.core.Deployment(
+            name="Test Deployment with labels",
+            flow_id=flow.id,
+            labels=user_supplied_labels,
+            tags=["d-tag"],
+        )
+        flow.labels = parent_flow_labels
+        session.add(flow)
+        await session.commit()
+        expected["prefect.flow.id"] = str(flow.id)
+
+        merged_labels = await models.deployments.with_system_labels_for_deployment(
+            session=session,
+            deployment=deployment_data,
+        )
+
+        assert merged_labels == expected

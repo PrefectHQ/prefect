@@ -86,6 +86,7 @@ class TestCreateDeployment:
             entrypoint="/file.py:flow",
             flow_id=flow.id,
             tags=["foo"],
+            labels={"env": "dev"},
             parameters={"foo": "bar"},
             job_variables={"cpu": 24},
             storage_document_id=storage_document_id,
@@ -101,6 +102,10 @@ class TestCreateDeployment:
         assert deployment_response.storage_document_id == storage_document_id
         assert deployment_response.job_variables == {"cpu": 24}
         assert deployment_response.status == "NOT_READY"
+        assert deployment_response.labels == {
+            "env": "dev",
+            "prefect.flow.id": str(flow.id),
+        }
 
         deployment = await models.deployments.read_deployment(
             session=session, deployment_id=deployment_response.id
@@ -2570,6 +2575,10 @@ class TestCreateFlowRunFromDeployment:
         assert response.json()["work_queue_name"] == deployment.work_queue_name
         assert response.json()["state_type"] == schemas.states.StateType.SCHEDULED
         assert response.json()["deployment_version"] is None
+        assert response.json()["labels"] == {
+            "prefect.flow.id": str(deployment.flow_id),
+            "prefect.deployment.id": str(deployment.id),
+        }
 
     async def test_create_flow_run_from_deployment_with_deployment_version(
         self, deployment_with_version, client
