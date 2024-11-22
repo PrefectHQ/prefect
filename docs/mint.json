@@ -63,7 +63,7 @@
       "group": "Tutorials",
       "pages": [
         {
-          "group": "For authors",
+          "group": "For data engineers",
           "pages": [
             "v3/tutorials/schedule",
             "v3/tutorials/pipelines",
@@ -71,7 +71,7 @@
           ]
         },
         {
-          "group": "For operators",
+          "group": "For platform engineers",
           "pages": [
             "v3/tutorials/platform",
             "v3/tutorials/debug",
