@@ -75,7 +75,7 @@ def run_shell_process(
         log_output: If True, the output of the command (both stdout and stderr) is logged to Prefect.
         stream_stdout: If True, the stdout of the command is streamed to Prefect logs.
         log_stderr: If True, the stderr of the command is logged to Prefect logs.
-        popen_kwargs: Additional keyword arguments to pass to the `subprocess.Popen` call.
+        popen_kwargs: Additional keyword arguments to pass to the `subprocess.Popen` call. Added in version 3.1.0
 
     """
 
