@@ -141,6 +141,9 @@ class Flow(Base):
     tags: Mapped[List[str]] = mapped_column(
         JSON, server_default="[]", default=list, nullable=False
     )
+    labels: Mapped[Union[schemas.core.KeyValueLabels, None]] = mapped_column(
+        JSON, nullable=True
+    )
 
     flow_runs = sa.orm.relationship("FlowRun", back_populates="flow", lazy="raise")
     deployments = sa.orm.relationship("Deployment", back_populates="flow", lazy="raise")
@@ -514,6 +517,9 @@ class FlowRun(Run):
     tags: Mapped[List[str]] = mapped_column(
         JSON, server_default="[]", default=list, nullable=False
     )
+    labels: Mapped[Union[schemas.core.KeyValueLabels, None]] = mapped_column(
+        JSON, nullable=True
+    )
 
     created_by: Mapped[Union[schemas.core.CreatedBy, None]] = mapped_column(
         Pydantic(schemas.core.CreatedBy),
@@ -713,6 +719,9 @@ class TaskRun(Run):
     tags: Mapped[List[str]] = mapped_column(
         JSON, server_default="[]", default=list, nullable=False
     )
+    labels: Mapped[Union[schemas.core.KeyValueLabels, None]] = mapped_column(
+        JSON, nullable=True
+    )
 
     # TODO remove this foreign key for significant delete performance gains
     state_id = sa.Column(
@@ -900,6 +909,9 @@ class Deployment(Base):
 
     tags: Mapped[List[str]] = mapped_column(
         JSON, server_default="[]", default=list, nullable=False
+    )
+    labels: Mapped[Union[schemas.core.KeyValueLabels, None]] = mapped_column(
+        JSON, nullable=True
     )
     parameters = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     pull_steps = sa.Column(JSON, default=list, nullable=True)

@@ -19,6 +19,7 @@ from prefect.server.schemas.core import (
     WorkQueueStatusDetail,
 )
 from prefect.server.utilities.schemas.bases import ORMBaseModel, PrefectBaseModel
+from prefect.types import KeyValueLabelsField
 from prefect.utilities.collections import AutoEnum
 from prefect.utilities.names import generate_slug
 
@@ -229,6 +230,7 @@ class FlowRunResponse(ORMBaseModel):
         description="A list of tags on the flow run",
         examples=[["tag-1", "tag-2"]],
     )
+    labels: KeyValueLabelsField
     parent_task_run_id: Optional[UUID] = Field(
         default=None,
         description=(
@@ -386,6 +388,7 @@ class DeploymentResponse(ORMBaseModel):
         description="A list of tags for the deployment",
         examples=[["tag-1", "tag-2"]],
     )
+    labels: KeyValueLabelsField
     work_queue_name: Optional[str] = Field(
         default=None,
         description=(

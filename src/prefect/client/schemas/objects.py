@@ -53,7 +53,7 @@ from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.settings import PREFECT_CLOUD_API_URL, PREFECT_CLOUD_UI_URL
 from prefect.types import (
     MAX_VARIABLE_NAME_LENGTH,
-    KeyValueLabels,
+    KeyValueLabelsField,
     Name,
     NonNegativeInteger,
     PositiveInteger,
@@ -559,11 +559,7 @@ class FlowRun(ObjectBaseModel):
         description="A list of tags on the flow run",
         examples=[["tag-1", "tag-2"]],
     )
-    labels: KeyValueLabels = Field(
-        default_factory=dict,
-        description="Prefect Cloud: A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
-        examples=[{"key": "value1", "key2": 42}],
-    )
+    labels: KeyValueLabelsField
     parent_task_run_id: Optional[UUID] = Field(
         default=None,
         description=(
@@ -800,6 +796,7 @@ class TaskRun(ObjectBaseModel):
         description="A list of tags for the task run.",
         examples=[["tag-1", "tag-2"]],
     )
+    labels: KeyValueLabelsField
     state_id: Optional[UUID] = Field(
         default=None, description="The id of the current task run state."
     )
@@ -1055,6 +1052,7 @@ class Flow(ObjectBaseModel):
         description="A list of flow tags",
         examples=[["tag-1", "tag-2"]],
     )
+    labels: KeyValueLabelsField
 
 
 class DeploymentSchedule(ObjectBaseModel):
@@ -1113,6 +1111,7 @@ class Deployment(ObjectBaseModel):
         description="A list of tags for the deployment",
         examples=[["tag-1", "tag-2"]],
     )
+    labels: KeyValueLabelsField
     work_queue_name: Optional[str] = Field(
         default=None,
         description=(

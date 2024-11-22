@@ -6,7 +6,18 @@ Intended for internal use by the Prefect REST API.
 import contextlib
 import datetime
 from itertools import chain
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Type, TypeVar, Union
+from typing import (
+    Any,
+    Dict,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+    cast,
+)
 from uuid import UUID
 
 import pendulum
@@ -59,6 +70,10 @@ async def create_flow_run(
     """
     now = pendulum.now("UTC")
     # model: Union[orm_models.FlowRun, None] = None
+
+    flow_run.labels = await with_system_labels_for_flow_run(
+        session=session, flow_run=flow_run
+    )
 
     flow_run_dict = dict(
         **flow_run.model_dump_for_orm(
@@ -582,3 +597,39 @@ async def read_flow_run_graph(
         max_nodes=PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES.value(),
         max_artifacts=PREFECT_API_MAX_FLOW_RUN_GRAPH_ARTIFACTS.value(),
     )
+
+
+async def with_system_labels_for_flow_run(
+    session: AsyncSession,
+    flow_run: Union[schemas.core.FlowRun, schemas.actions.FlowRunCreate],
+) -> schemas.core.KeyValueLabels:
+    """Augment user supplied labels with system default labels for a flow
+    run."""
+
+    default_labels = cast(
+        schemas.core.KeyValueLabels,
+        {
+            "prefect.flow.id": str(flow_run.flow_id),
+        },
+    )
+
+    parent_labels: schemas.core.KeyValueLabels = {}
+    user_supplied_labels = flow_run.labels or {}
+
+    # `deployment_id` is deprecated on `schemas.actions.FlowRunCreate`. Only
+    # check `deployment_id` if given an instance of a `schemas.core.FlowRun`.
+    if isinstance(flow_run, schemas.core.FlowRun) and flow_run.deployment_id:
+        default_labels["prefect.deployment.id"] = str(flow_run.deployment_id)
+        deployment = await models.deployments.read_deployment(
+            session, deployment_id=flow_run.deployment_id
+        )
+        parent_labels = deployment.labels if deployment and deployment.labels else {}
+    else:
+        # If the flow run is not part of a deployment then we need to check for
+        # labels from the flow. We don't use this when there is a deployment as
+        # the deployment would have inherited the flow labels already.
+        parent_labels = (
+            await models.flows.read_flow_labels(session, flow_run.flow_id) or {}
+        )
+
+    return parent_labels | default_labels | user_supplied_labels

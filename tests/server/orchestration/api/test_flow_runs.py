@@ -30,6 +30,7 @@ class TestCreateFlowRun:
                 flow_id=flow.id,
                 name="orange you glad i didn't say yellow salamander",
                 state=client_states.Pending().to_state_create(),
+                labels={"env": "dev"},
             ).model_dump(mode="json"),
         )
         assert response.status_code == status.HTTP_201_CREATED, response.text
@@ -39,6 +40,10 @@ class TestCreateFlowRun:
         assert (
             response.json()["name"] == "orange you glad i didn't say yellow salamander"
         )
+        assert response.json()["labels"] == {
+            "env": "dev",
+            "prefect.flow.id": str(flow.id),
+        }
 
         flow_run = await models.flow_runs.read_flow_run(
             session=session, flow_run_id=response.json()["id"]

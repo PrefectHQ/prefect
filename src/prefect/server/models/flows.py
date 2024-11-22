@@ -280,3 +280,14 @@ async def delete_flow(session: AsyncSession, flow_id: UUID) -> bool:
         delete(orm_models.Flow).where(orm_models.Flow.id == flow_id)
     )
     return result.rowcount > 0
+
+
+async def read_flow_labels(
+    session: AsyncSession,
+    flow_id: UUID,
+) -> Union[schemas.core.KeyValueLabels, None]:
+    result = await session.execute(
+        select(orm_models.Flow.labels).where(orm_models.Flow.id == flow_id)
+    )
+
+    return result.scalar()

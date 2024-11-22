@@ -4,7 +4,7 @@ Intended for internal use by the Prefect REST API.
 """
 
 import contextlib
-from typing import Any, Dict, Optional, Sequence, Type, TypeVar, Union
+from typing import Any, Dict, Optional, Sequence, Type, TypeVar, Union, cast
 from uuid import UUID
 
 import pendulum
@@ -58,6 +58,10 @@ async def create_task_run(
 
     now = pendulum.now("UTC")
     model: Union[orm_models.TaskRun, None]
+
+    task_run.labels = await with_system_labels_for_task_run(
+        session=session, task_run=task_run
+    )
 
     # if a dynamic key exists, we need to guard against conflicts
     if task_run.flow_run_id:
@@ -481,3 +485,24 @@ async def set_task_run_state(
     )
 
     return result
+
+
+async def with_system_labels_for_task_run(
+    session: AsyncSession,
+    task_run: schemas.core.TaskRun,
+) -> schemas.core.KeyValueLabels:
+    """Augment user supplied labels with system default labels for a task
+    run."""
+
+    client_supplied_labels = task_run.labels or {}
+    default_labels = cast(schemas.core.KeyValueLabels, {})
+    parent_labels: schemas.core.KeyValueLabels = {}
+
+    if task_run.flow_run_id:
+        default_labels["prefect.flow-run.id"] = str(task_run.flow_run_id)
+        flow_run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=task_run.flow_run_id
+        )
+        parent_labels = flow_run.labels if flow_run and flow_run.labels else {}
+
+    return parent_labels | default_labels | client_supplied_labels
