@@ -80,6 +80,11 @@ class FlowCreate(ActionBaseModel):
         description="A list of flow tags",
         examples=[["tag-1", "tag-2"]],
     )
+    labels: Union[schemas.core.KeyValueLabels, None] = Field(
+        default_factory=dict,
+        description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
+        examples=[{"key": "value1", "key2": 42}],
+    )
 
 
 class FlowUpdate(ActionBaseModel):
@@ -175,6 +180,11 @@ class DeploymentCreate(ActionBaseModel):
         default_factory=list,
         description="A list of deployment tags.",
         examples=[["tag-1", "tag-2"]],
+    )
+    labels: Union[schemas.core.KeyValueLabels, None] = Field(
+        default_factory=dict,
+        description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
+        examples=[{"key": "value1", "key2": 42}],
     )
     pull_steps: Optional[List[dict]] = Field(None)
 
@@ -427,6 +437,11 @@ class TaskRunCreate(ActionBaseModel):
         description="A list of tags for the task run.",
         examples=[["tag-1", "tag-2"]],
     )
+    labels: Union[schemas.core.KeyValueLabels, None] = Field(
+        default_factory=dict,
+        description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
+        examples=[{"key": "value1", "key2": 42}],
+    )
     task_inputs: Dict[
         str,
         List[
@@ -501,6 +516,11 @@ class FlowRunCreate(ActionBaseModel):
         default_factory=list,
         description="A list of tags for the flow run.",
         examples=[["tag-1", "tag-2"]],
+    )
+    labels: Union[schemas.core.KeyValueLabels, None] = Field(
+        default_factory=dict,
+        description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
+        examples=[{"key": "value1", "key2": 42}],
     )
     idempotency_key: Optional[str] = Field(
         None,
