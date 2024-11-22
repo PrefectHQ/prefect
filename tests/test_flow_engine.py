@@ -107,7 +107,7 @@ class TestAsyncFlowRunEngine:
         engine = AsyncFlowRunEngine(flow=foo)
         async with engine.initialize_run():
             client = engine.client
-            assert isinstance(client, SyncPrefectClient)
+            assert isinstance(client, PrefectClient)
 
         with pytest.raises(RuntimeError, match="not started"):
             engine.client
