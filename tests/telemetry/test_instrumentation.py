@@ -1,5 +1,4 @@
 import os
-from unittest.mock import patch
 from uuid import UUID, uuid4
 
 import pytest
@@ -12,6 +11,7 @@ from opentelemetry.sdk._logs.export import SimpleLogRecordProcessor
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 from opentelemetry.sdk.trace import TracerProvider
+from tests.telemetry.instrumentation_tester import InstrumentationTester
 
 from prefect import flow, task
 from prefect.task_engine import (
@@ -183,7 +183,9 @@ class TestTaskRunInstrumentation:
         else:
             return run_task_sync(task, task_run_id=task_run_id, parameters=parameters)
 
-    async def test_span_creation(self, engine_type, instrumentation):
+    async def test_span_creation(
+        self, engine_type, instrumentation: InstrumentationTester
+    ):
         @task
         async def async_task(x: int, y: int):
             return x + y
@@ -204,8 +206,10 @@ class TestTaskRunInstrumentation:
 
         spans = instrumentation.get_finished_spans()
         assert len(spans) == 1
+        span = spans[0]
+
         instrumentation.assert_has_attributes(
-            spans[0], {"prefect.run.id": str(task_run_id), "prefect.run.type": "task"}
+            span, {"prefect.run.id": str(task_run_id), "prefect.run.type": "task"}
         )
         assert spans[0].name == task_fn.__name__
 
@@ -343,8 +347,8 @@ class TestTaskRunInstrumentation:
         assert exception_event.attributes["exception.type"] == "Exception"
         assert exception_event.attributes["exception.message"] == "Test error"
 
-    async def test_flow_run_labels(self, engine_type, instrumentation):
-        """Test that flow run labels are propagated to task spans"""
+    async def test_flow_labels(self, engine_type, instrumentation, sync_prefect_client):
+        """Test that parent flow ID gets propagated to task spans"""
 
         @task
         async def async_child_task():
@@ -362,12 +366,10 @@ class TestTaskRunInstrumentation:
         def sync_parent_flow():
             return sync_child_task()
 
-        with patch("prefect.task_engine.get_labels_from_context") as mock_get:
-            mock_get.return_value = {"env": "test", "team": "engineering"}
-            if engine_type == "async":
-                await async_parent_flow()
-            else:
-                sync_parent_flow()
+        if engine_type == "async":
+            state = await async_parent_flow(return_state=True)
+        else:
+            state = sync_parent_flow(return_state=True)
 
         spans = instrumentation.get_finished_spans()
         task_spans = [
@@ -375,7 +377,10 @@ class TestTaskRunInstrumentation:
         ]
         assert len(task_spans) == 1
 
+        assert state.state_details.flow_run_id is not None
+        flow_run = sync_prefect_client.read_flow_run(state.state_details.flow_run_id)
+
+        # Verify the task span has the parent flow's ID
         instrumentation.assert_has_attributes(
-            task_spans[0],
-            {"prefect.run.type": "task", "env": "test", "team": "engineering"},
+            task_spans[0], {**flow_run.labels, "prefect.run.type": "task"}
         )

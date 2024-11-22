@@ -698,9 +698,9 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                         self.logger.debug(
                             f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
                         )
-                        labels = {}
-                        if flow_run_context:
-                            labels = get_labels_from_context(flow_run_context)
+                        labels = (
+                            flow_run_context.flow_run.labels if flow_run_context else {}
+                        )
                         self._telemetry.start_span(
                             self.task_run, self.parameters, labels
                         )
@@ -1225,9 +1225,10 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                         self.logger.debug(
                             f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
                         )
-                        labels = {}
-                        if flow_run_context:
-                            labels = get_labels_from_context(flow_run_context)
+
+                        labels = (
+                            flow_run_context.flow_run.labels if flow_run_context else {}
+                        )
                         self._telemetry.start_span(
                             self.task_run, self.parameters, labels
                         )
