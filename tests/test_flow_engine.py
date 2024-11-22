@@ -926,11 +926,11 @@ class TestFlowCrashDetection:
         )
 
         @flow
-        async def my_flow():
+        def my_flow():
             pass
 
         with pytest.raises(interrupt_type):
-            await my_flow()
+            my_flow()
 
         flow_runs = await prefect_client.read_flow_runs()
         assert len(flow_runs) == 1
