@@ -306,6 +306,22 @@
             "title": "DeploymentsSettings",
             "type": "object"
         },
+        "EventsSettings": {
+            "description": "Settings for controlling behavior of the events subsystem",
+            "properties": {
+                "maximum_event_name_length": {
+                    "default": 1024,
+                    "description": "The maximum length of an event name.",
+                    "supported_environment_variables": [
+                        "PREFECT_EVENTS_MAXIMUM_EVENT_NAME_LENGTH"
+                    ],
+                    "title": "Maximum Event Name Length",
+                    "type": "integer"
+                }
+            },
+            "title": "EventsSettings",
+            "type": "object"
+        },
         "ExperimentsSettings": {
             "description": "Settings for configuring experimental features",
             "properties": {
@@ -2171,6 +2187,11 @@
         },
         "deployments": {
             "$ref": "#/$defs/DeploymentsSettings",
+            "supported_environment_variables": []
+        },
+        "events": {
+            "$ref": "#/$defs/EventsSettings",
+            "description": "Settings for controlling events behavior",
             "supported_environment_variables": []
         },
         "experiments": {

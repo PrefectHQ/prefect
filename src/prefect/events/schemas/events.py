@@ -13,18 +13,27 @@ from typing import (
 )
 from uuid import UUID, uuid4
 
-import pendulum
-from pydantic import ConfigDict, Field, RootModel, field_validator, model_validator
+from pydantic import (
+    AfterValidator,
+    BeforeValidator,
+    ConfigDict,
+    Field,
+    RootModel,
+    model_validator,
+)
 from pydantic_extra_types.pendulum_dt import DateTime
-from typing_extensions import Self
+from typing_extensions import Annotated, Self
 
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE,
-    PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES,
 )
 
+from ..validators import (
+    _validate_event_length,
+    _validate_related_resources,
+)
 from .labelling import Labelled
 
 logger = get_logger(__name__)
@@ -96,16 +105,19 @@ class Event(PrefectBaseModel):
     model_config = ConfigDict(extra="ignore")
 
     occurred: DateTime = Field(
-        default_factory=lambda: pendulum.now("UTC"),
+        default_factory=lambda: DateTime.now("UTC"),
         description="When the event happened from the sender's perspective",
     )
-    event: str = Field(
+    event: Annotated[str, BeforeValidator(_validate_event_length)] = Field(
         description="The name of the event that happened",
     )
     resource: Resource = Field(
         description="The primary Resource this event concerns",
     )
-    related: List[RelatedResource] = Field(
+    related: Annotated[
+        List[RelatedResource],
+        AfterValidator(_validate_related_resources),
+    ] = Field(
         default_factory=list,
         description="A list of additional Resources involved in this event",
     )
@@ -143,17 +155,6 @@ class Event(PrefectBaseModel):
         for related in self.related:
             resources[related.role].append(related)
         return resources
-
-    @field_validator("related")
-    @classmethod
-    def enforce_maximum_related_resources(cls, value: List[RelatedResource]):
-        if len(value) > PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES.value():
-            raise ValueError(
-                "The maximum number of related resources "
-                f"is {PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES.value()}"
-            )
-
-        return value
 
     def find_resource_label(self, label: str) -> Optional[str]:
         """Finds the value of the given label in this event's resource or one of its

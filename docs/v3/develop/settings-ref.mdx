@@ -71,6 +71,13 @@ If True, enables debug mode which may provide additional logging and debugging f
 
 **TOML dotted key path**: `deployments`
 
+### `events`
+Settings for controlling events behavior
+
+**Type**: [EventsSettings](#eventssettings)
+
+**TOML dotted key path**: `events`
+
 ### `experiments`
 Settings for controlling experimental features
 
@@ -439,6 +446,21 @@ The default Docker namespace to use when building images.
 
 **Supported environment variables**:
 `PREFECT_DEPLOYMENTS_DEFAULT_DOCKER_BUILD_NAMESPACE`, `PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE`
+
+---
+## EventsSettings
+Settings for controlling behavior of the events subsystem
+### `maximum_event_name_length`
+The maximum length of an event name.
+
+**Type**: `integer`
+
+**Default**: `1024`
+
+**TOML dotted key path**: `events.maximum_event_name_length`
+
+**Supported environment variables**:
+`PREFECT_EVENTS_MAXIMUM_EVENT_NAME_LENGTH`
 
 ---
 ## ExperimentsSettings
