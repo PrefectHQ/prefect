@@ -10,7 +10,7 @@ import {
 import { DataTable } from "@/components/ui/data-table";
 import { Badge } from "@/components/ui/badge";
 import { ActionsCell } from "./cells";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { SearchInput } from "@/components/ui/input";
 import { TagsInput } from "@/components/ui/tags-input";
 import {
@@ -24,7 +24,9 @@ import type React from "react";
 
 const columnHelper = createColumnHelper<components["schemas"]["Variable"]>();
 
-const columns = [
+const createColumns = (
+	onVariableEdit: (variable: components["schemas"]["Variable"]) => void,
+) => [
 	columnHelper.accessor("name", {
 		header: "Name",
 	}),
@@ -74,7 +76,7 @@ const columns = [
 	}),
 	columnHelper.display({
 		id: "actions",
-		cell: ActionsCell,
+		cell: (props) => <ActionsCell {...props} onVariableEdit={onVariableEdit} />,
 	}),
 ];
 
@@ -87,6 +89,7 @@ type VariablesDataTableProps = {
 	onColumnFiltersChange: OnChangeFn<ColumnFiltersState>;
 	sorting: components["schemas"]["VariableSort"];
 	onSortingChange: (sortKey: components["schemas"]["VariableSort"]) => void;
+	onVariableEdit: (variable: components["schemas"]["Variable"]) => void;
 };
 
 export const VariablesDataTable = ({
@@ -98,7 +101,13 @@ export const VariablesDataTable = ({
 	onColumnFiltersChange,
 	sorting,
 	onSortingChange,
+	onVariableEdit,
 }: VariablesDataTableProps) => {
+	const columns = useMemo(
+		() => createColumns(onVariableEdit),
+		[onVariableEdit],
+	);
+
 	const nameSearchValue = columnFilters.find((filter) => filter.id === "name")
 		?.value as string;
 	const tagsSearchValue = columnFilters.find((filter) => filter.id === "tags")
