@@ -13,9 +13,14 @@ import type { CellContext } from "@tanstack/react-table";
 import type { components } from "@/api/prefect";
 import { useToast } from "@/hooks/use-toast";
 
-export const ActionsCell = ({
-	row,
-}: CellContext<components["schemas"]["Variable"], unknown>) => {
+type ActionsCellProps = CellContext<
+	components["schemas"]["Variable"],
+	unknown
+> & {
+	onVariableEdit: (variable: components["schemas"]["Variable"]) => void;
+};
+
+export const ActionsCell = ({ row, onVariableEdit }: ActionsCellProps) => {
 	const id = row.original.id;
 	const queryClient = useQueryClient();
 	const { mutate: deleteVariable } = useMutation({
@@ -80,6 +85,9 @@ export const ActionsCell = ({
 						}}
 					>
 						Copy Value
+					</DropdownMenuItem>
+					<DropdownMenuItem onClick={() => onVariableEdit(row.original)}>
+						Edit
 					</DropdownMenuItem>
 					<DropdownMenuItem onClick={onVariableDelete}>Delete</DropdownMenuItem>
 				</DropdownMenuContent>

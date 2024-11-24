@@ -12,6 +12,10 @@ const variablesHandlers = [
 	http.post("http://localhost:4200/api/variables/count", () => {
 		return HttpResponse.json(0);
 	}),
+
+	http.patch("http://localhost:4200/api/variables/:id", () => {
+		return new HttpResponse(null, { status: 204 });
+	}),
 ];
 
 export const handlers = [

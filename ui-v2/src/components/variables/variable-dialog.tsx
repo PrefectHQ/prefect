@@ -9,7 +9,6 @@ import {
 	DialogTrigger,
 } from "@/components/ui/dialog";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import {
@@ -21,14 +20,12 @@ import {
 	FormMessage,
 } from "../ui/form";
 import { Input } from "../ui/input";
-import { getQueryService } from "@/api/service";
 import type { components } from "@/api/prefect";
 import type { JSONValue } from "@/lib/types";
-import { Loader2 } from "lucide-react";
 import { TagsInput } from "../ui/tags-input";
-import { useToast } from "@/hooks/use-toast";
-import { queryClient } from "@/router";
 import { JsonInput } from "@/components/ui/json-input";
+import { useEffect, useMemo } from "react";
+import { useCreateVariable, useUpdateVariable } from "./hooks";
 
 const formSchema = z.object({
 	name: z.string().min(2, { message: "Name must be at least 2 characters" }),
@@ -40,48 +37,46 @@ const formSchema = z.object({
 		.optional(),
 });
 
-type AddVariableDialogProps = {
+export type VariableDialogProps = {
 	onOpenChange: (open: boolean) => void;
 	open: boolean;
+	existingVariable?: components["schemas"]["Variable"];
 };
 
-export const AddVariableDialog = ({
+const VARIABLE_FORM_DEFAULT_VALUES = {
+	name: "",
+	value: "",
+	tags: [],
+};
+
+export const VariableDialog = ({
 	onOpenChange,
 	open,
-}: AddVariableDialogProps) => {
-	const defaultValues = {
-		name: "",
-		value: "",
-		tags: [],
-	};
+	existingVariable,
+}: VariableDialogProps) => {
 	const form = useForm<z.infer<typeof formSchema>>({
 		resolver: zodResolver(formSchema),
-		defaultValues,
+		defaultValues: VARIABLE_FORM_DEFAULT_VALUES,
 	});
-	const { toast } = useToast();
+	const initialValues = useMemo(() => {
+		if (!existingVariable) return undefined;
+		return {
+			name: existingVariable.name,
+			value: JSON.stringify(existingVariable.value),
+			tags: existingVariable.tags,
+		};
+	}, [existingVariable]);
 
-	const queryService = getQueryService();
-	const { mutate: createVariable, isPending } = useMutation({
-		mutationFn: (variable: components["schemas"]["VariableCreate"]) => {
-			return queryService.POST("/variables/", {
-				body: variable,
-			});
-		},
-		onSettled: async () => {
-			return await Promise.all([
-				queryClient.invalidateQueries({
-					predicate: (query) => query.queryKey[0] === "variables",
-				}),
-				queryClient.invalidateQueries({
-					queryKey: ["total-variable-count"],
-				}),
-			]);
-		},
+	useEffect(() => {
+		// Ensure we start with the initial values when the dialog opens
+		if (open) {
+			form.reset(initialValues ?? VARIABLE_FORM_DEFAULT_VALUES);
+		}
+	}, [initialValues, form, open]);
+
+	const { mutate: createVariable, isPending: isCreating } = useCreateVariable({
 		onSuccess: () => {
-			toast({
-				title: "Variable created",
-			});
-			onClose();
+			onOpenChange(false);
 		},
 		onError: (error) => {
 			const message = error.message || "Unknown error while creating variable.";
@@ -91,34 +86,51 @@ export const AddVariableDialog = ({
 		},
 	});
 
+	const { mutate: updateVariable, isPending: isUpdating } = useUpdateVariable({
+		onSuccess: () => {
+			onOpenChange(false);
+		},
+		onError: (error) => {
+			const message = error.message || "Unknown error while updating variable.";
+			form.setError("root", {
+				message,
+			});
+		},
+	});
+
 	const onSubmit = (values: z.infer<typeof formSchema>) => {
 		try {
 			const value = JSON.parse(values.value) as JSONValue;
-			createVariable({
-				name: values.name,
-				value,
-				tags: values.tags,
-			});
+			if (existingVariable?.id) {
+				updateVariable({
+					id: existingVariable.id,
+					name: values.name,
+					value,
+					tags: values.tags,
+				});
+			} else {
+				createVariable({
+					name: values.name,
+					value,
+					tags: values.tags,
+				});
+			}
 		} catch {
 			form.setError("value", { message: "Value must be valid JSON" });
 		}
 	};
-
-	const onClose = () => {
-		form.reset();
-		onOpenChange(false);
-	};
+	const dialogTitle = existingVariable ? "Edit Variable" : "New Variable";
+	const dialogDescription = existingVariable
+		? "Edit the variable by changing the name, value, or tags."
+		: "Add a new variable by providing a name, value, and optional tags. Values can be any valid JSON value.";
 
 	return (
-		<Dialog open={open} onOpenChange={onClose}>
+		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent>
 				<DialogHeader>
-					<DialogTitle>New Variable</DialogTitle>
+					<DialogTitle>{dialogTitle}</DialogTitle>
 				</DialogHeader>
-				<DialogDescription>
-					Add a new variable by providing a name, value, and optional tags.
-					Values can be any valid JSON value.
-				</DialogDescription>
+				<DialogDescription>{dialogDescription}</DialogDescription>
 				<Form {...form}>
 					<form
 						onSubmit={(e) => void form.handleSubmit(onSubmit)(e)}
@@ -168,12 +180,8 @@ export const AddVariableDialog = ({
 							<DialogTrigger asChild>
 								<Button variant="outline">Close</Button>
 							</DialogTrigger>
-							<Button type="submit" disabled={isPending}>
-								{isPending ? (
-									<Loader2 className="w-4 h-4 animate-spin" />
-								) : (
-									"Create"
-								)}
+							<Button type="submit" loading={isCreating || isUpdating}>
+								{existingVariable ? "Save" : "Create"}
 							</Button>
 						</DialogFooter>
 					</form>
