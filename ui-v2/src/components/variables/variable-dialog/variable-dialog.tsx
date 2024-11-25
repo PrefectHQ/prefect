@@ -62,7 +62,7 @@ export const VariableDialog = ({
 		if (!variableToEdit) return undefined;
 		return {
 			name: variableToEdit.name,
-			value: JSON.stringify(variableToEdit.value),
+			value: JSON.stringify(variableToEdit.value, null, 2),
 			tags: variableToEdit.tags,
 		};
 	}, [variableToEdit]);

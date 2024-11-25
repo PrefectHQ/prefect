@@ -12,6 +12,15 @@ import { getQueryService } from "@/api/service";
 import type { CellContext } from "@tanstack/react-table";
 import type { components } from "@/api/prefect";
 import { useToast } from "@/hooks/use-toast";
+import { JsonInput } from "@/components/ui/json-input";
+import {
+	HoverCard,
+	HoverCardContent,
+	HoverCardTrigger,
+} from "@/components/ui/hover-card";
+import { useState } from "react";
+import { useEffect } from "react";
+import { useRef } from "react";
 
 type ActionsCellProps = CellContext<
 	components["schemas"]["Variable"],
@@ -62,14 +71,22 @@ export const ActionsCell = ({ row, onVariableEdit }: ActionsCellProps) => {
 				<DropdownMenuContent align="end">
 					<DropdownMenuLabel>Actions</DropdownMenuLabel>
 					<DropdownMenuItem
-						onClick={() => void navigator.clipboard.writeText(id)}
+						onClick={() => {
+							void navigator.clipboard.writeText(id);
+							toast({
+								title: "ID copied",
+							});
+						}}
 					>
 						Copy ID
 					</DropdownMenuItem>
 					<DropdownMenuItem
-						onClick={() =>
-							void navigator.clipboard.writeText(row.original.name)
-						}
+						onClick={() => {
+							void navigator.clipboard.writeText(row.original.name);
+							toast({
+								title: "Name copied",
+							});
+						}}
 					>
 						Copy Name
 					</DropdownMenuItem>
@@ -81,6 +98,9 @@ export const ActionsCell = ({ row, onVariableEdit }: ActionsCellProps) => {
 									: row.original.value;
 							if (copyValue) {
 								void navigator.clipboard.writeText(copyValue);
+								toast({
+									title: "Value copied",
+								});
 							}
 						}}
 					>
@@ -93,5 +113,39 @@ export const ActionsCell = ({ row, onVariableEdit }: ActionsCellProps) => {
 				</DropdownMenuContent>
 			</DropdownMenu>
 		</div>
+	);
+};
+
+export const ValueCell = (
+	props: CellContext<components["schemas"]["Variable"], unknown>,
+) => {
+	const value = props.getValue();
+	const codeRef = useRef<HTMLDivElement>(null);
+	const [isOverflowing, setIsOverflowing] = useState(false);
+
+	useEffect(() => {
+		if (codeRef.current) {
+			setIsOverflowing(
+				codeRef.current.scrollWidth > codeRef.current.clientWidth,
+			);
+		}
+	}, []);
+	
+	if (!value) return null;
+	return (
+		// Disable the hover card if the value is overflowing
+		<HoverCard open={isOverflowing ? undefined : false}>
+			<HoverCardTrigger asChild>
+				<code
+					ref={codeRef}
+					className="px-2 py-1 font-mono text-sm text-ellipsis overflow-hidden whitespace-nowrap block"
+				>
+					{JSON.stringify(value, null, 2)}
+				</code>
+			</HoverCardTrigger>
+			<HoverCardContent className="p-0" align="start">
+				<JsonInput value={JSON.stringify(value, null, 2)} disabled />
+			</HoverCardContent>
+		</HoverCard>
 	);
 };

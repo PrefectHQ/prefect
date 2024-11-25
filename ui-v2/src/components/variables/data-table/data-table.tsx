@@ -9,8 +9,11 @@ import {
 } from "@tanstack/react-table";
 import { DataTable } from "@/components/ui/data-table";
 import { Badge } from "@/components/ui/badge";
-import { ActionsCell } from "./cells";
-import { useCallback, useMemo } from "react";
+import { ActionsCell, ValueCell } from "./cells";
+import {
+	useCallback,
+	useMemo,
+} from "react";
 import { SearchInput } from "@/components/ui/input";
 import { TagsInput } from "@/components/ui/tags-input";
 import {
@@ -32,15 +35,7 @@ const createColumns = (
 	}),
 	columnHelper.accessor("value", {
 		header: "Value",
-		cell: (props) => {
-			const value = props.getValue();
-			if (!value) return null;
-			return (
-				<code className="rounded bg-muted px-2 py-1 font-mono text-sm">
-					{JSON.stringify(value)}
-				</code>
-			);
-		},
+		cell: ValueCell,
 	}),
 	columnHelper.accessor("updated", {
 		header: "Updated",
@@ -158,6 +153,9 @@ export const VariablesDataTable = ({
 		manualPagination: true,
 		onPaginationChange: handlePaginationChange,
 		rowCount: currentVariableCount,
+		defaultColumn: {
+			maxSize: 300,
+		},
 	});
 
 	return (
