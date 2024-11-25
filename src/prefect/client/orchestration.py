@@ -2244,6 +2244,7 @@ class PrefectClient:
         response = await self._client.get(
             "/flow_run_states/", params=dict(flow_run_id=str(flow_run_id))
         )
+        StateListAdapter.rebuild()
         return StateListAdapter.validate_python(response.json())
 
     async def set_flow_run_name(self, flow_run_id: UUID, name: str) -> httpx.Response:
