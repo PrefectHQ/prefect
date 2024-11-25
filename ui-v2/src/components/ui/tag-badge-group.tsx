@@ -49,6 +49,7 @@ export const TagBadgeGroup = ({
 					key={tag}
 					tag={tag}
 					onRemove={onTagsChange ? () => removeTag(tag) : undefined}
+					variant={variant}
 				/>
 			))}
 		</>
