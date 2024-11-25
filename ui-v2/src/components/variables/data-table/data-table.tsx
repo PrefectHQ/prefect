@@ -8,9 +8,8 @@ import {
 	type ColumnFiltersState,
 } from "@tanstack/react-table";
 import { DataTable } from "@/components/ui/data-table";
-import { Badge } from "@/components/ui/badge";
-import { ActionsCell } from "./cells";
-import { useCallback } from "react";
+import { ActionsCell, ValueCell } from "./cells";
+import { useCallback, useMemo } from "react";
 import { SearchInput } from "@/components/ui/input";
 import { TagsInput } from "@/components/ui/tags-input";
 import {
@@ -21,24 +20,19 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import type React from "react";
+import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
 
 const columnHelper = createColumnHelper<components["schemas"]["Variable"]>();
 
-const columns = [
+const createColumns = (
+	onVariableEdit: (variable: components["schemas"]["Variable"]) => void,
+) => [
 	columnHelper.accessor("name", {
 		header: "Name",
 	}),
 	columnHelper.accessor("value", {
 		header: "Value",
-		cell: (props) => {
-			const value = props.getValue();
-			if (!value) return null;
-			return (
-				<code className="rounded bg-muted px-2 py-1 font-mono text-sm">
-					{JSON.stringify(value)}
-				</code>
-			);
-		},
+		cell: ValueCell,
 	}),
 	columnHelper.accessor("updated", {
 		header: "Updated",
@@ -63,18 +57,12 @@ const columns = [
 		cell: (props) => {
 			const tags = props.getValue();
 			if (!tags) return null;
-			return (
-				<div className="flex flex-row gap-1 justify-end">
-					{tags?.map((tag) => (
-						<Badge key={tag}>{tag}</Badge>
-					))}
-				</div>
-			);
+			return <TagBadgeGroup tags={tags} maxTagsDisplayed={3} />;
 		},
 	}),
 	columnHelper.display({
 		id: "actions",
-		cell: ActionsCell,
+		cell: (props) => <ActionsCell {...props} onVariableEdit={onVariableEdit} />,
 	}),
 ];
 
@@ -82,11 +70,12 @@ type VariablesDataTableProps = {
 	variables: components["schemas"]["Variable"][];
 	currentVariableCount: number;
 	pagination: PaginationState;
-	onPaginationChange: OnChangeFn<PaginationState>;
+	onPaginationChange: (newPagination: PaginationState) => void;
 	columnFilters: ColumnFiltersState;
-	onColumnFiltersChange: OnChangeFn<ColumnFiltersState>;
+	onColumnFiltersChange: (newColumnFilters: ColumnFiltersState) => void;
 	sorting: components["schemas"]["VariableSort"];
 	onSortingChange: (sortKey: components["schemas"]["VariableSort"]) => void;
+	onVariableEdit: (variable: components["schemas"]["Variable"]) => void;
 };
 
 export const VariablesDataTable = ({
@@ -98,32 +87,50 @@ export const VariablesDataTable = ({
 	onColumnFiltersChange,
 	sorting,
 	onSortingChange,
+	onVariableEdit,
 }: VariablesDataTableProps) => {
+	const columns = useMemo(
+		() => createColumns(onVariableEdit),
+		[onVariableEdit],
+	);
+
 	const nameSearchValue = columnFilters.find((filter) => filter.id === "name")
 		?.value as string;
 	const tagsSearchValue = columnFilters.find((filter) => filter.id === "tags")
 		?.value as string[];
 	const handleNameSearchChange = useCallback(
 		(value?: string) => {
-			onColumnFiltersChange((prev) => [
-				...prev.filter((filter) => filter.id !== "name"),
-				{ id: "name", value },
-			]);
+			const filters = columnFilters.filter((filter) => filter.id !== "name");
+			onColumnFiltersChange(
+				value ? [...filters, { id: "name", value }] : filters,
+			);
 		},
-		[onColumnFiltersChange],
+		[onColumnFiltersChange, columnFilters],
 	);
 
 	const handleTagsSearchChange: React.ChangeEventHandler<HTMLInputElement> &
 		((tags: string[]) => void) = useCallback(
 		(e: string[] | React.ChangeEvent<HTMLInputElement>) => {
 			const tags = Array.isArray(e) ? e : e.target.value;
-
-			onColumnFiltersChange((prev) => [
-				...prev.filter((filter) => filter.id !== "tags"),
-				{ id: "tags", value: tags },
-			]);
+			const filters = columnFilters.filter((filter) => filter.id !== "tags");
+			onColumnFiltersChange(
+				tags.length ? [...filters, { id: "tags", value: tags }] : filters,
+			);
 		},
-		[onColumnFiltersChange],
+		[onColumnFiltersChange, columnFilters],
+	);
+
+	const handlePaginationChange: OnChangeFn<PaginationState> = useCallback(
+		(updater) => {
+			let newPagination = pagination;
+			if (typeof updater === "function") {
+				newPagination = updater(pagination);
+			} else {
+				newPagination = updater;
+			}
+			onPaginationChange(newPagination);
+		},
+		[pagination, onPaginationChange],
 	);
 
 	const table = useReactTable({
@@ -135,9 +142,11 @@ export const VariablesDataTable = ({
 		},
 		getCoreRowModel: getCoreRowModel(),
 		manualPagination: true,
-		onPaginationChange: onPaginationChange,
-		onColumnFiltersChange: onColumnFiltersChange,
+		onPaginationChange: handlePaginationChange,
 		rowCount: currentVariableCount,
+		defaultColumn: {
+			maxSize: 300,
+		},
 	});
 
 	return (
