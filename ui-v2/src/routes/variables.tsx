@@ -110,7 +110,7 @@ const usePagination = () => {
 	const search = Route.useSearch();
 	const navigate = Route.useNavigate();
 
-	const pageIndex = search.offset ? search.offset / search.limit : 0;
+	const pageIndex = search.offset ? Math.ceil(search.offset / search.limit) : 0;
 	const pageSize = search.limit ?? 10;
 	const pagination: PaginationState = useMemo(
 		() => ({
