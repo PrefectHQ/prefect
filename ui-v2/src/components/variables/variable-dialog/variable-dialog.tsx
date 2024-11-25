@@ -30,11 +30,7 @@ import { useCreateVariable, useUpdateVariable } from "@/hooks/variables";
 const formSchema = z.object({
 	name: z.string().min(2, { message: "Name must be at least 2 characters" }),
 	value: z.string(),
-	tags: z
-		.string()
-		.min(2, { message: "Tags must be at least 2 characters" })
-		.array()
-		.optional(),
+	tags: z.string().array().optional(),
 });
 
 export type VariableDialogProps = {

@@ -10,10 +10,7 @@ import {
 import { DataTable } from "@/components/ui/data-table";
 import { Badge } from "@/components/ui/badge";
 import { ActionsCell, ValueCell } from "./cells";
-import {
-	useCallback,
-	useMemo,
-} from "react";
+import { useCallback, useMemo } from "react";
 import { SearchInput } from "@/components/ui/input";
 import { TagsInput } from "@/components/ui/tags-input";
 import {

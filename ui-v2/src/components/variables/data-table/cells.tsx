@@ -130,7 +130,7 @@ export const ValueCell = (
 			);
 		}
 	}, []);
-	
+
 	if (!value) return null;
 	return (
 		// Disable the hover card if the value is overflowing
