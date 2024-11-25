@@ -4,8 +4,8 @@ import {
 	DropdownMenuItem,
 	DropdownMenuLabel,
 	DropdownMenuTrigger,
-} from "../../ui/dropdown-menu";
-import { Button } from "../../ui/button";
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 import { MoreVerticalIcon } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { getQueryService } from "@/api/service";
@@ -18,8 +18,6 @@ import {
 	HoverCardContent,
 	HoverCardTrigger,
 } from "@/components/ui/hover-card";
-import { useState } from "react";
-import { useEffect } from "react";
 import { useRef } from "react";
 import { useIsOverflowing } from "@/hooks/use-is-overflowing";
 

@@ -8,7 +8,6 @@ import {
 	type ColumnFiltersState,
 } from "@tanstack/react-table";
 import { DataTable } from "@/components/ui/data-table";
-import { Badge } from "@/components/ui/badge";
 import { ActionsCell, ValueCell } from "./cells";
 import { useCallback, useMemo } from "react";
 import { SearchInput } from "@/components/ui/input";
@@ -21,7 +20,6 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import type React from "react";
-import { TagBadge } from "@/components/ui/tag-badge";
 import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
 
 const columnHelper = createColumnHelper<components["schemas"]["Variable"]>();
