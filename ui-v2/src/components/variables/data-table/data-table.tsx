@@ -21,6 +21,8 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import type React from "react";
+import { TagBadge } from "@/components/ui/tag-badge";
+import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
 
 const columnHelper = createColumnHelper<components["schemas"]["Variable"]>();
 
@@ -57,13 +59,7 @@ const createColumns = (
 		cell: (props) => {
 			const tags = props.getValue();
 			if (!tags) return null;
-			return (
-				<div className="flex flex-row gap-1 justify-end">
-					{tags?.map((tag) => (
-						<Badge key={tag}>{tag}</Badge>
-					))}
-				</div>
-			);
+			return <TagBadgeGroup tags={tags} maxTagsDisplayed={3} />;
 		},
 	}),
 	columnHelper.display({

@@ -21,6 +21,7 @@ import {
 import { useState } from "react";
 import { useEffect } from "react";
 import { useRef } from "react";
+import { useIsOverflowing } from "@/hooks/use-is-overflowing";
 
 type ActionsCellProps = CellContext<
 	components["schemas"]["Variable"],
@@ -121,15 +122,7 @@ export const ValueCell = (
 ) => {
 	const value = props.getValue();
 	const codeRef = useRef<HTMLDivElement>(null);
-	const [isOverflowing, setIsOverflowing] = useState(false);
-
-	useEffect(() => {
-		if (codeRef.current) {
-			setIsOverflowing(
-				codeRef.current.scrollWidth > codeRef.current.clientWidth,
-			);
-		}
-	}, []);
+	const isOverflowing = useIsOverflowing(codeRef);
 
 	if (!value) return null;
 	return (
@@ -143,7 +136,7 @@ export const ValueCell = (
 					{JSON.stringify(value, null, 2)}
 				</code>
 			</HoverCardTrigger>
-			<HoverCardContent className="p-0" align="start">
+			<HoverCardContent className="p-0">
 				<JsonInput value={JSON.stringify(value, null, 2)} disabled />
 			</HoverCardContent>
 		</HoverCard>
