@@ -51,8 +51,7 @@ async def adownload_from_bucket(
         ```python
         from prefect import flow
         from prefect_aws import AwsCredentials
-        from prefect_aws.s3 import download_from_bucket
-
+        from prefect_aws.s3 import adownload_from_bucket
 
         @flow
         async def example_download_from_bucket_flow():
@@ -60,13 +59,13 @@ async def adownload_from_bucket(
                 aws_access_key_id="acccess_key_id",
                 aws_secret_access_key="secret_access_key"
             )
-            data = await download_from_bucket(
+            data = await adownload_from_bucket(
                 bucket="bucket",
                 key="key",
                 aws_credentials=aws_credentials,
             )
 
-        example_download_from_bucket_flow()
+        await example_download_from_bucket_flow()
         ```
     """
     logger = get_run_logger()
@@ -123,7 +122,7 @@ def download_from_bucket(
                 aws_access_key_id="acccess_key_id",
                 aws_secret_access_key="secret_access_key"
             )
-            data = await download_from_bucket(
+            data = download_from_bucket(
                 bucket="bucket",
                 key="key",
                 aws_credentials=aws_credentials,
@@ -177,7 +176,7 @@ async def aupload_to_bucket(
         ```python
         from prefect import flow
         from prefect_aws import AwsCredentials
-        from prefect_aws.s3 import s3_upload
+        from prefect_aws.s3 import aupload_to_bucket
 
 
         @flow
@@ -187,14 +186,14 @@ async def aupload_to_bucket(
                 aws_secret_access_key="secret_access_key"
             )
             with open("data.csv", "rb") as file:
-                key = await s3_upload(
+                key = await aupload_to_bucket(
                     bucket="bucket",
                     key="data.csv",
                     data=file.read(),
                     aws_credentials=aws_credentials,
                 )
 
-        example_s3_upload_flow()
+        await example_s3_upload_flow()
         ```
     """
     logger = get_run_logger()
@@ -243,7 +242,7 @@ def upload_to_bucket(
         ```python
         from prefect import flow
         from prefect_aws import AwsCredentials
-        from prefect_aws.s3 import s3_upload
+        from prefect_aws.s3 import upload_to_bucket
 
 
         @flow
@@ -253,7 +252,7 @@ def upload_to_bucket(
                 aws_secret_access_key="secret_access_key"
             )
             with open("data.csv", "rb") as file:
-                key = await s3_upload(
+                key = upload_to_bucket(
                     bucket="bucket",
                     key="data.csv",
                     data=file.read(),
@@ -329,7 +328,7 @@ async def acopy_objects(
                 aws_credentials=aws_credentials,
             )
 
-        example_copy_flow()
+        await example_copy_flow()
         ```
 
         Copy notes.txt from s3://my-bucket/my_folder/notes.txt to
@@ -352,7 +351,7 @@ async def acopy_objects(
                 target_bucket_name="other-bucket",
             )
 
-        example_copy_flow()
+        await example_copy_flow()
         ```
 
     """
@@ -418,13 +417,13 @@ def copy_objects(
         ```python
         from prefect import flow
         from prefect_aws import AwsCredentials
-        from prefect_aws.s3 import s3_copy
+        from prefect_aws.s3 import copy_objects
 
         aws_credentials = AwsCredentials.load("my-creds")
 
         @flow
-        async def example_copy_flow():
-            await s3_copy(
+        def example_copy_flow():
+            copy_objects(
                 source_path="my_folder/notes.txt",
                 target_path="my_folder/notes_copy.txt",
                 source_bucket_name="my-bucket",
@@ -440,13 +439,13 @@ def copy_objects(
         ```python
         from prefect import flow
         from prefect_aws import AwsCredentials
-        from prefect_aws.s3 import s3_copy
+        from prefect_aws.s3 import copy_objects
 
         aws_credentials = AwsCredentials.load("shared-creds")
 
         @flow
-        async def example_copy_flow():
-            await s3_copy(
+        def example_copy_flow():
+            copy_objects(
                 source_path="my_folder/notes.txt",
                 target_path="notes_copy.txt",
                 source_bucket_name="my-bucket",
@@ -664,7 +663,7 @@ async def alist_objects(
                 aws_credentials=aws_credentials
             )
 
-        example_s3_list_objects_flow()
+        await example_s3_list_objects_flow()
         ```
     """  # noqa E501
     logger = get_run_logger()
@@ -728,12 +727,12 @@ def list_objects(
 
 
         @flow
-        async def example_s3_list_objects_flow():
+        def example_s3_list_objects_flow():
             aws_credentials = AwsCredentials(
                 aws_access_key_id="acccess_key_id",
                 aws_secret_access_key="secret_access_key"
             )
-            objects = await list_objects(
+            objects = list_objects(
                 bucket="data_bucket",
                 aws_credentials=aws_credentials
             )
