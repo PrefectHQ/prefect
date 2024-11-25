@@ -24,7 +24,7 @@ from prefect_aws.client_parameters import AwsClientParameters
 
 
 @task
-async def s3_adownload(
+async def adownload_from_bucket(
     bucket: str,
     key: str,
     aws_credentials: AwsCredentials,
@@ -51,22 +51,22 @@ async def s3_adownload(
         ```python
         from prefect import flow
         from prefect_aws import AwsCredentials
-        from prefect_aws.s3 import s3_download
+        from prefect_aws.s3 import download_from_bucket
 
 
         @flow
-        async def example_s3_download_flow():
+        async def example_download_from_bucket_flow():
             aws_credentials = AwsCredentials(
                 aws_access_key_id="acccess_key_id",
                 aws_secret_access_key="secret_access_key"
             )
-            data = await s3_download(
+            data = await download_from_bucket(
                 bucket="bucket",
                 key="key",
                 aws_credentials=aws_credentials,
             )
 
-        example_s3_download_flow()
+        example_download_from_bucket_flow()
         ```
     """
     logger = get_run_logger()
@@ -86,8 +86,8 @@ async def s3_adownload(
 
 
 @task
-@async_dispatch(s3_adownload)
-def s3_download(
+@async_dispatch(adownload_from_bucket)
+def download_from_bucket(
     bucket: str,
     key: str,
     aws_credentials: AwsCredentials,
@@ -114,22 +114,22 @@ def s3_download(
         ```python
         from prefect import flow
         from prefect_aws import AwsCredentials
-        from prefect_aws.s3 import s3_download
+        from prefect_aws.s3 import download_from_bucket
 
 
         @flow
-        async def example_s3_download_flow():
+        async def example_download_from_bucket_flow():
             aws_credentials = AwsCredentials(
                 aws_access_key_id="acccess_key_id",
                 aws_secret_access_key="secret_access_key"
             )
-            data = await s3_download(
+            data = await download_from_bucket(
                 bucket="bucket",
                 key="key",
                 aws_credentials=aws_credentials,
             )
 
-        example_s3_download_flow()
+        example_download_from_bucket_flow()
         ```
     """
     logger = get_run_logger()
@@ -146,8 +146,11 @@ def s3_download(
     return output
 
 
+s3_download = download_from_bucket  # backward compatibility
+
+
 @task
-async def s3_aupload(
+async def aupload_to_bucket(
     data: bytes,
     bucket: str,
     aws_credentials: AwsCredentials,
@@ -212,8 +215,8 @@ async def s3_aupload(
 
 
 @task
-@async_dispatch(s3_aupload)
-def s3_upload(
+@async_dispatch(aupload_to_bucket)
+def upload_to_bucket(
     data: bytes,
     bucket: str,
     aws_credentials: AwsCredentials,
@@ -274,8 +277,11 @@ def s3_upload(
     return key
 
 
+s3_upload = upload_to_bucket  # backward compatibility
+
+
 @task
-async def s3_acopy(
+async def acopy_objects(
     source_path: str,
     target_path: str,
     source_bucket_name: str,
@@ -310,13 +316,13 @@ async def s3_acopy(
         ```python
         from prefect import flow
         from prefect_aws import AwsCredentials
-        from prefect_aws.s3 import s3_copy
+        from prefect_aws.s3 import acopy_objects
 
         aws_credentials = AwsCredentials.load("my-creds")
 
         @flow
         async def example_copy_flow():
-            await s3_copy(
+            await acopy_objects(
                 source_path="my_folder/notes.txt",
                 target_path="my_folder/notes_copy.txt",
                 source_bucket_name="my-bucket",
@@ -332,13 +338,13 @@ async def s3_acopy(
         ```python
         from prefect import flow
         from prefect_aws import AwsCredentials
-        from prefect_aws.s3 import s3_copy
+        from prefect_aws.s3 import acopy_objects
 
         aws_credentials = AwsCredentials.load("shared-creds")
 
         @flow
         async def example_copy_flow():
-            await s3_copy(
+            await acopy_objects(
                 source_path="my_folder/notes.txt",
                 target_path="notes_copy.txt",
                 source_bucket_name="my-bucket",
@@ -376,8 +382,8 @@ async def s3_acopy(
 
 
 @task
-@async_dispatch(s3_acopy)
-def s3_copy(
+@async_dispatch(acopy_objects)
+def copy_objects(
     source_path: str,
     target_path: str,
     source_bucket_name: str,
@@ -476,8 +482,11 @@ def s3_copy(
     return target_path
 
 
+s3_copy = copy_objects  # backward compatibility
+
+
 @task
-async def s3_amove(
+async def amove_objects(
     source_path: str,
     target_path: str,
     source_bucket_name: str,
@@ -534,8 +543,8 @@ async def s3_amove(
 
 
 @task
-@async_dispatch(s3_amove)
-def s3_move(
+@async_dispatch(amove_objects)
+def move_objects(
     source_path: str,
     target_path: str,
     source_bucket_name: str,
@@ -588,6 +597,9 @@ def s3_move(
     return target_path
 
 
+s3_move = move_objects  # backward compatibility
+
+
 def _list_objects_sync(page_iterator: PageIterator):
     """
     Synchronous method to collect S3 objects into a list
@@ -602,7 +614,7 @@ def _list_objects_sync(page_iterator: PageIterator):
 
 
 @task
-async def s3_alist_objects(
+async def alist_objects(
     bucket: str,
     aws_credentials: AwsCredentials,
     aws_client_parameters: AwsClientParameters = AwsClientParameters(),
@@ -638,7 +650,7 @@ async def s3_alist_objects(
         ```python
         from prefect import flow
         from prefect_aws import AwsCredentials
-        from prefect_aws.s3 import s3_list_objects
+        from prefect_aws.s3 import alist_objects
 
 
         @flow
@@ -647,7 +659,7 @@ async def s3_alist_objects(
                 aws_access_key_id="acccess_key_id",
                 aws_secret_access_key="secret_access_key"
             )
-            objects = await s3_list_objects(
+            objects = await alist_objects(
                 bucket="data_bucket",
                 aws_credentials=aws_credentials
             )
@@ -675,8 +687,8 @@ async def s3_alist_objects(
 
 
 @task
-@async_dispatch(s3_alist_objects)
-def s3_list_objects(
+@async_dispatch(alist_objects)
+def list_objects(
     bucket: str,
     aws_credentials: AwsCredentials,
     aws_client_parameters: AwsClientParameters = AwsClientParameters(),
@@ -712,7 +724,7 @@ def s3_list_objects(
         ```python
         from prefect import flow
         from prefect_aws import AwsCredentials
-        from prefect_aws.s3 import s3_list_objects
+        from prefect_aws.s3 import list_objects
 
 
         @flow
@@ -721,7 +733,7 @@ def s3_list_objects(
                 aws_access_key_id="acccess_key_id",
                 aws_secret_access_key="secret_access_key"
             )
-            objects = await s3_list_objects(
+            objects = await list_objects(
                 bucket="data_bucket",
                 aws_credentials=aws_credentials
             )
@@ -746,6 +758,9 @@ def s3_list_objects(
         page_iterator = page_iterator.search(f"{jmespath_query} | {{Contents: @}}")
 
     return _list_objects_sync(page_iterator)  # type: ignore
+
+
+s3_list_objects = list_objects  # backward compatibility
 
 
 class S3Bucket(WritableFileSystem, WritableDeploymentStorage, ObjectStorageBlock):
