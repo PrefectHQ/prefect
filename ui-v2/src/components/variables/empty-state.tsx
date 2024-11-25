@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 type VariablesEmptyStateProps = {
-	onAddVariableClick: React.MouseEventHandler<HTMLButtonElement>;
+	onAddVariableClick: () => void;
 };
 export const VariablesEmptyState = ({
 	onAddVariableClick,
@@ -16,7 +16,7 @@ export const VariablesEmptyState = ({
 				Variables store non-sensitive pieces of JSON.
 			</p>
 			<div className="flex gap-2 mt-4">
-				<Button onClick={onAddVariableClick}>
+				<Button onClick={() => onAddVariableClick()}>
 					Add Variable <PlusIcon className="h-4 w-4 ml-2" />
 				</Button>
 				<a

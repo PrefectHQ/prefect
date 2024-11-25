@@ -2,9 +2,9 @@ import React, { useRef, useEffect } from "react";
 
 import { json } from "@codemirror/lang-json";
 import { cn } from "@/lib/utils";
-import { useCodeMirror } from "@uiw/react-codemirror";
+import { useCodeMirror, EditorView } from "@uiw/react-codemirror";
 
-const extensions = [json()];
+const extensions = [json(), EditorView.lineWrapping];
 
 type JsonInputProps = React.ComponentProps<"div"> & {
 	value?: string;
@@ -28,6 +28,11 @@ export const JsonInput = React.forwardRef<HTMLDivElement, JsonInputProps>(
 			onBlur,
 			indentWithTab: false,
 			editable: !disabled,
+			basicSetup: {
+				highlightActiveLine: !disabled,
+				foldGutter: !disabled,
+				highlightActiveLineGutter: !disabled,
+			},
 		});
 
 		useEffect(() => {
