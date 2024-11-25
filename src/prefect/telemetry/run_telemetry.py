@@ -1,6 +1,6 @@
 import time
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from opentelemetry.trace import (
     Status,
@@ -26,9 +26,13 @@ class RunTelemetry:
     def start_span(
         self,
         task_run: TaskRun,
-        parameters: Dict[str, Any] = {},
-        labels: Dict[str, Any] = {},
+        parameters: Optional[Dict[str, Any]] = None,
+        labels: Optional[Dict[str, Any]] = None,
     ):
+        if parameters is None:
+            parameters = {}
+        if labels is None:
+            labels = {}
         parameter_attributes = {
             f"prefect.run.parameter.{k}": type(v).__name__
             for k, v in parameters.items()

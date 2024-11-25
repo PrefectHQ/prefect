@@ -101,12 +101,6 @@ R = TypeVar("R")
 BACKOFF_MAX = 10
 
 
-def get_labels_from_context(context: Optional[FlowRunContext]) -> Dict[str, Any]:
-    if context is None:
-        return {}
-    return context.flow_run.labels
-
-
 class TaskRunTimeoutError(TimeoutError):
     """Raised when a task run exceeds its timeout."""
 
