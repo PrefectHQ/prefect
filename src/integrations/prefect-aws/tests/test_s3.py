@@ -1178,7 +1178,7 @@ class TestS3Bucket:
     async def test_async_download_from_bucket(
         self, object, client_parameters, aws_credentials
     ):
-        @flow(validate_parameters=False)
+        @flow
         async def test_flow():
             return await adownload_from_bucket(
                 bucket="bucket",
@@ -1194,7 +1194,7 @@ class TestS3Bucket:
     async def test_async_list_objects(
         self, object, object_in_folder, client_parameters, aws_credentials
     ):
-        @flow(validate_parameters=False)
+        @flow
         async def test_flow():
             return await alist_objects(
                 bucket="bucket",
@@ -1214,7 +1214,7 @@ class TestS3Bucket:
             stream.seek(0)
             return stream.read()
 
-        @flow(validate_parameters=False)
+        @flow
         async def test_flow():
             await acopy_objects(
                 source_path="object",
@@ -1235,7 +1235,7 @@ class TestS3Bucket:
             stream.seek(0)
             return stream.read()
 
-        @flow(validate_parameters=False)
+        @flow
         async def test_flow():
             await amove_objects(
                 source_path="object",
