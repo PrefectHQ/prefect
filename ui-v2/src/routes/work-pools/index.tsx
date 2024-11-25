@@ -30,11 +30,11 @@ function WorkPoolsRoute() {
 	const pageIndex = search.offset ? search.offset / search.limit : 0;
 	const pageSize = search.limit ?? 10;
 	const pagination: PaginationState = useMemo(
-			() => ({
-				pageIndex,
-				pageSize,
-			}),
-			[pageIndex, pageSize],
+		() => ({
+			pageIndex,
+			pageSize,
+		}),
+		[pageIndex, pageSize],
 	);
 
 	const onPaginationChange: OnChangeFn<PaginationState> = useCallback(
