@@ -1,95 +1,116 @@
-import { getQueryService } from "@/api/service";
-import { keepPreviousData, useSuspenseQuery } from "@tanstack/react-query";
-import { VariablesPage } from "@/components/variables/page";
+import { VariablesLayout } from "@/components/variables/layout";
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { zodSearchValidator } from "@tanstack/router-zod-adapter";
 import type {
 	ColumnFiltersState,
-	OnChangeFn,
 	PaginationState,
 } from "@tanstack/react-table";
 import { useCallback, useMemo } from "react";
 import type { components } from "@/api/prefect";
+import { VariablesDataTable } from "@/components/variables/data-table";
+import {
+	VariableDialog,
+	useVariableDialog,
+} from "@/components/variables/variable-dialog";
+import { VariablesEmptyState } from "@/components/variables/empty-state";
+import { useVariables } from "@/hooks/variables";
 
+/**
+ * Schema for validating URL search parameters for the variables page.
+ * @property {number} offset - The number of items to skip (for pagination). Must be non-negative. Defaults to 0.
+ * @property {number} limit - The maximum number of items to return. Must be positive. Defaults to 10.
+ * @property {string} sort - The sort order for variables. Can be "CREATED_DESC", "UPDATED_DESC", "NAME_ASC", or "NAME_DESC". Defaults to "CREATED_DESC".
+ * @property {string} name - Optional filter to search variables by name.
+ * @property {string[]} tags - Optional array of tags to filter variables by.
+ */
 const searchParams = z.object({
-	offset: z.number().int().nonnegative().optional().default(0),
-	limit: z.number().int().positive().optional().default(10),
+	offset: z.number().int().nonnegative().optional().default(0).catch(0),
+	limit: z.number().int().positive().optional().default(10).catch(10),
 	sort: z
 		.enum(["CREATED_DESC", "UPDATED_DESC", "NAME_ASC", "NAME_DESC"])
 		.optional()
-		.default("CREATED_DESC"),
-	name: z.string().optional(),
-	tags: z.array(z.string()).optional(),
+		.default("CREATED_DESC")
+		.catch("CREATED_DESC"),
+	name: z.string().optional().catch(undefined),
+	tags: z.array(z.string()).optional().catch(undefined),
 });
 
-const buildVariablesQuery = (search: z.infer<typeof searchParams>) => ({
-	queryKey: ["variables", JSON.stringify(search)],
-	queryFn: async () => {
-		const { name, tags, ...rest } = search;
-		const response = await getQueryService().POST("/variables/filter", {
-			body: {
-				...rest,
-				variables: {
-					operator: "and_",
-					name: { like_: name },
-					tags: { operator: "and_", all_: tags },
-				},
-			},
-		});
-		return response.data;
+export function VariablesPage() {
+	const search = Route.useSearch();
+
+	const { variables, filteredCount, totalCount } = useVariables(
+		buildFilterBody(search),
+	);
+	const hasVariables = (totalCount ?? 0) > 0;
+	const [pagination, onPaginationChange] = usePagination();
+	const [columnFilters, onColumnFiltersChange] = useVariableColumnFilters();
+	const [sorting, onSortingChange] = useVariableSorting();
+	const [variableDialogState, onVariableAddOrEdit] = useVariableDialog();
+
+	return (
+		<VariablesLayout onAddVariableClick={onVariableAddOrEdit}>
+			<VariableDialog {...variableDialogState} />
+			{hasVariables ? (
+				<VariablesDataTable
+					variables={variables ?? []}
+					currentVariableCount={filteredCount ?? 0}
+					pagination={pagination}
+					onPaginationChange={onPaginationChange}
+					columnFilters={columnFilters}
+					onColumnFiltersChange={onColumnFiltersChange}
+					sorting={sorting}
+					onSortingChange={onSortingChange}
+					onVariableEdit={onVariableAddOrEdit}
+				/>
+			) : (
+				<VariablesEmptyState onAddVariableClick={onVariableAddOrEdit} />
+			)}
+		</VariablesLayout>
+	);
+}
+
+export const Route = createFileRoute("/variables")({
+	validateSearch: zodSearchValidator(searchParams),
+	component: VariablesPage,
+	loaderDeps: ({ search }) => buildFilterBody(search),
+	loader: useVariables.loader,
+	wrapInSuspense: true,
+});
+
+/**
+ * Builds a filter body for the variables API based on search parameters.
+ * @param search - Optional search parameters containing offset, limit, sort, name filter, and tags filter
+ * @returns An object containing pagination parameters and variable filters that can be passed to the variables API
+ */
+const buildFilterBody = (search?: z.infer<typeof searchParams>) => ({
+	offset: search?.offset ?? 0,
+	limit: search?.limit ?? 10,
+	sort: search?.sort ?? "CREATED_DESC",
+	variables: {
+		operator: "and_" as const,
+		...(search?.name && { name: { like_: search.name } }),
+		...(search?.tags?.length && {
+			tags: { operator: "and_" as const, all_: search.tags },
+		}),
 	},
-	staleTime: 1000,
-	placeholderData: keepPreviousData,
 });
 
-const buildTotalVariableCountQuery = (
-	search?: z.infer<typeof searchParams>,
-) => {
-	// Construct the query key so that a single request is made for each unique search value
-	//  This is useful on initial load to avoid making duplicate calls for total and current count
-	const queryKey = ["total-variable-count"];
-	if (search?.name) {
-		queryKey.push(search.name);
-	}
-	if (search?.tags && search.tags.length > 0) {
-		queryKey.push(JSON.stringify(search.tags));
-	}
-	return {
-		queryKey,
-		queryFn: async () => {
-			const { name, tags } = search ?? {};
-			if (!name && (!tags || tags.length === 0)) {
-				const response = await getQueryService().POST("/variables/count");
-				return response.data;
-			}
-			const response = await getQueryService().POST("/variables/count", {
-				body: {
-					variables: {
-						operator: "and_",
-						name: { like_: name },
-						tags: { operator: "and_", all_: tags },
-					},
-				},
-			});
-			return response.data;
-		},
-	};
-};
-
-function VariablesRoute() {
+/**
+ * Hook to manage pagination state and navigation for variables table
+ *
+ * Calculates current page index and size from URL search parameters and provides
+ * a callback to update pagination state. Updates the URL when pagination changes.
+ *
+ * @returns A tuple containing:
+ * - pagination: Current pagination state with pageIndex and pageSize
+ * - onPaginationChange: Callback to update pagination and navigate with new search params
+ */
+const usePagination = () => {
 	const search = Route.useSearch();
 	const navigate = Route.useNavigate();
 
-	const { data: variables } = useSuspenseQuery(buildVariablesQuery(search));
-	const { data: currentVariableCount } = useSuspenseQuery(
-		buildTotalVariableCountQuery(search),
-	);
-	const { data: totalVariableCount } = useSuspenseQuery(
-		buildTotalVariableCountQuery(),
-	);
-
-	const pageIndex = search.offset ? search.offset / search.limit : 0;
+	const pageIndex = search.offset ? Math.ceil(search.offset / search.limit) : 0;
 	const pageSize = search.limit ?? 10;
 	const pagination: PaginationState = useMemo(
 		() => ({
@@ -98,22 +119,9 @@ function VariablesRoute() {
 		}),
 		[pageIndex, pageSize],
 	);
-	const columnFilters: ColumnFiltersState = useMemo(
-		() => [
-			{ id: "name", value: search.name },
-			{ id: "tags", value: search.tags },
-		],
-		[search.name, search.tags],
-	);
 
-	const onPaginationChange: OnChangeFn<PaginationState> = useCallback(
-		(updater) => {
-			let newPagination = pagination;
-			if (typeof updater === "function") {
-				newPagination = updater(pagination);
-			} else {
-				newPagination = updater;
-			}
+	const onPaginationChange = useCallback(
+		(newPagination: PaginationState) => {
 			void navigate({
 				to: ".",
 				search: (prev) => ({
@@ -124,24 +132,42 @@ function VariablesRoute() {
 				replace: true,
 			});
 		},
-		[pagination, navigate],
+		[navigate],
 	);
 
-	const onColumnFiltersChange: OnChangeFn<ColumnFiltersState> = useCallback(
-		(updater) => {
-			let newColumnFilters = columnFilters;
-			if (typeof updater === "function") {
-				newColumnFilters = updater(columnFilters);
-			} else {
-				newColumnFilters = updater;
-			}
+	return [pagination, onPaginationChange] as const;
+};
+
+/**
+ * Hook to manage column filtering state and navigation for variables table
+ *
+ * Handles filtering by name and tags, updating the URL search parameters when filters change.
+ * Resets pagination offset when filters are updated.
+ *
+ * @returns A tuple containing:
+ * - columnFilters: Current column filter state for name and tags
+ * - onColumnFiltersChange: Callback to update filters and navigate with new search params
+ */
+const useVariableColumnFilters = () => {
+	const search = Route.useSearch();
+	const navigate = Route.useNavigate();
+	const columnFilters: ColumnFiltersState = useMemo(
+		() => [
+			{ id: "name", value: search.name },
+			{ id: "tags", value: search.tags },
+		],
+		[search.name, search.tags],
+	);
+
+	const onColumnFiltersChange = useCallback(
+		(newColumnFilters: ColumnFiltersState) => {
 			void navigate({
 				to: ".",
 				search: (prev) => {
 					const name = newColumnFilters.find((filter) => filter.id === "name")
-						?.value as string;
+						?.value as string | undefined;
 					const tags = newColumnFilters.find((filter) => filter.id === "tags")
-						?.value as string[];
+						?.value as string[] | undefined;
 					return {
 						...prev,
 						offset: 0,
@@ -152,47 +178,37 @@ function VariablesRoute() {
 				replace: true,
 			});
 		},
-		[columnFilters, navigate],
+		[navigate],
 	);
+
+	return [columnFilters, onColumnFiltersChange] as const;
+};
+
+/**
+ * Hook to manage sorting state and navigation for variables table
+ *
+ * Handles updating the URL search parameters when sort key changes.
+ * Uses the current sort value from search params and provides a callback
+ * to update sorting.
+ *
+ * @returns A tuple containing:
+ * - sorting: Current sort key from search params
+ * - onSortingChange: Callback to update sort and navigate with new search params
+ */
+const useVariableSorting = () => {
+	const search = Route.useSearch();
+	const navigate = Route.useNavigate();
 
 	const onSortingChange = useCallback(
 		(sortKey: components["schemas"]["VariableSort"]) => {
 			void navigate({
 				to: ".",
-				search: (prev) => ({
-					...prev,
-					sort: sortKey,
-				}),
+				search: (prev) => ({ ...prev, sort: sortKey }),
 				replace: true,
 			});
 		},
 		[navigate],
 	);
 
-	return (
-		<VariablesPage
-			variables={variables ?? []}
-			totalVariableCount={totalVariableCount ?? 0}
-			currentVariableCount={currentVariableCount ?? 0}
-			pagination={pagination}
-			onPaginationChange={onPaginationChange}
-			columnFilters={columnFilters}
-			onColumnFiltersChange={onColumnFiltersChange}
-			sorting={search.sort}
-			onSortingChange={onSortingChange}
-		/>
-	);
-}
-
-export const Route = createFileRoute("/variables")({
-	validateSearch: zodSearchValidator(searchParams),
-	component: VariablesRoute,
-	loaderDeps: ({ search }) => search,
-	loader: ({ deps: search, context }) =>
-		Promise.all([
-			context.queryClient.ensureQueryData(buildVariablesQuery(search)),
-			context.queryClient.ensureQueryData(buildTotalVariableCountQuery(search)),
-			context.queryClient.ensureQueryData(buildTotalVariableCountQuery()),
-		]),
-	wrapInSuspense: true,
-});
+	return [search.sort, onSortingChange] as const;
+};
