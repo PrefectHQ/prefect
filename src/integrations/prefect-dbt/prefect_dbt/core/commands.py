@@ -16,7 +16,7 @@ from prefect.logging import get_run_logger
 from prefect.states import Failed
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.filesystem import relative_path_to_current_platform
-from prefect_dbt.cli.credentials import DbtCliProfile
+from prefect_dbt.core.credentials import DbtCliProfile
 
 
 @task

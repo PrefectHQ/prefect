@@ -5,7 +5,7 @@ from typing import Any, Dict
 from pydantic import Field
 from typing_extensions import Literal
 
-from prefect_dbt.cli.configs.base import BaseTargetConfigs, MissingExtrasRequireError
+from prefect_dbt.core.configs.base import BaseTargetConfigs, MissingExtrasRequireError
 
 try:
     from prefect_sqlalchemy import SqlAlchemyConnector

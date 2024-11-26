@@ -10,7 +10,7 @@ except ImportError:
 
 from pydantic import Field
 
-from prefect_dbt.cli.configs.base import BaseTargetConfigs, MissingExtrasRequireError
+from prefect_dbt.core.configs.base import BaseTargetConfigs, MissingExtrasRequireError
 
 try:
     from prefect_snowflake.database import SnowflakeConnector
@@ -32,14 +32,14 @@ class SnowflakeTargetConfigs(BaseTargetConfigs):
     Examples:
         Load stored SnowflakeTargetConfigs:
         ```python
-        from prefect_dbt.cli.configs import SnowflakeTargetConfigs
+        from prefect_dbt.core.configs import SnowflakeTargetConfigs
 
         snowflake_target_configs = SnowflakeTargetConfigs.load("BLOCK_NAME")
         ```
 
         Instantiate SnowflakeTargetConfigs.
         ```python
-        from prefect_dbt.cli.configs import SnowflakeTargetConfigs
+        from prefect_dbt.core.configs import SnowflakeTargetConfigs
         from prefect_snowflake.credentials import SnowflakeCredentials
         from prefect_snowflake.database import SnowflakeConnector
 

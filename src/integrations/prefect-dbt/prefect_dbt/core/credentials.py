@@ -5,20 +5,20 @@ from typing import Any, Dict, Optional, Union
 from pydantic import Field
 
 from prefect.blocks.core import Block
-from prefect_dbt.cli.configs import GlobalConfigs, TargetConfigs
+from prefect_dbt.core.configs import GlobalConfigs, TargetConfigs
 
 try:
-    from prefect_dbt.cli.configs.bigquery import BigQueryTargetConfigs
+    from prefect_dbt.core.configs.bigquery import BigQueryTargetConfigs
 except ImportError:
     BigQueryTargetConfigs = None
 
 try:
-    from prefect_dbt.cli.configs.snowflake import SnowflakeTargetConfigs
+    from prefect_dbt.core.configs.snowflake import SnowflakeTargetConfigs
 except ImportError:
     SnowflakeTargetConfigs = None
 
 try:
-    from prefect_dbt.cli.configs.postgres import PostgresTargetConfigs
+    from prefect_dbt.core.configs.postgres import PostgresTargetConfigs
 except ImportError:
     PostgresTargetConfigs = None
 

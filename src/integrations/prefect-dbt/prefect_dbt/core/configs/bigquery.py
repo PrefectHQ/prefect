@@ -10,7 +10,7 @@ except ImportError:
 
 from pydantic import Field
 
-from prefect_dbt.cli.configs.base import BaseTargetConfigs, MissingExtrasRequireError
+from prefect_dbt.core.configs.base import BaseTargetConfigs, MissingExtrasRequireError
 
 try:
     from google.auth.transport.requests import Request
@@ -35,14 +35,14 @@ class BigQueryTargetConfigs(BaseTargetConfigs):
     Examples:
         Load stored BigQueryTargetConfigs.
         ```python
-        from prefect_dbt.cli.configs import BigQueryTargetConfigs
+        from prefect_dbt.core.configs import BigQueryTargetConfigs
 
         bigquery_target_configs = BigQueryTargetConfigs.load("BLOCK_NAME")
         ```
 
         Instantiate BigQueryTargetConfigs.
         ```python
-        from prefect_dbt.cli.configs import BigQueryTargetConfigs
+        from prefect_dbt.core.configs import BigQueryTargetConfigs
         from prefect_gcp.credentials import GcpCredentials
 
         credentials = GcpCredentials.load("BLOCK-NAME-PLACEHOLDER")

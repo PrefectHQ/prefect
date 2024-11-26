@@ -7,8 +7,8 @@ import typer
 
 from prefect import Flow
 from prefect.cli._utilities import with_cli_exception_handling
-from prefect_dbt._cli.root import app
 from prefect_dbt.cli.commands import trigger_dbt_cli_command
+from prefect_dbt.cli.root import app
 
 
 @app.command()

@@ -1,23 +1,5 @@
-from .credentials import DbtCliProfile  # noqa
-from .commands import DbtCoreOperation  # noqa
+from prefect_dbt.cli.root import app
 
-from .configs.base import (  # noqa
-    TargetConfigs,
-    GlobalConfigs,
-    MissingExtrasRequireError,
-)
-
-try:
-    from .configs.snowflake import SnowflakeTargetConfigs  # noqa
-except MissingExtrasRequireError:
-    pass
-
-try:
-    from .configs.bigquery import BigQueryTargetConfigs  # noqa
-except MissingExtrasRequireError:
-    pass
-
-try:
-    from .configs.postgres import PostgresTargetConfigs  # noqa
-except MissingExtrasRequireError:
-    pass
+import prefect_dbt.cli.run
+import prefect_dbt.cli.init
+import prefect_dbt.cli.block

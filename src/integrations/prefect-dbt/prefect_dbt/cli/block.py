@@ -10,7 +10,6 @@ from slugify import slugify
 
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import with_cli_exception_handling
-from prefect_dbt._cli.root import app
 from prefect_dbt.cli import DbtCliProfile
 from prefect_dbt.cli.configs import (
     BigQueryTargetConfigs,
@@ -18,6 +17,7 @@ from prefect_dbt.cli.configs import (
     SnowflakeTargetConfigs,
     TargetConfigs,
 )
+from prefect_dbt.cli.root import app
 
 block_app = PrefectTyper(
     name="block",
