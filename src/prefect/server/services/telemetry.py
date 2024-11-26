@@ -94,6 +94,8 @@ class Telemetry(LoopService):
                 "python_version": platform.python_version(),
                 "python_implementation": platform.python_implementation(),
                 "environment": self.telemetry_environment,
+                "ephemeral_server": bool(os.getenv("PREFECT__SERVER_EPHEMERAL"))
+                or False,
                 "api_version": SERVER_API_VERSION,
                 "prefect_version": prefect.__version__,
                 "session_id": self.session_id,
