@@ -164,7 +164,7 @@ class TargetConfigs(BaseTargetConfigs):
             profile_name: Name of the profile to use
 
         Returns:
-            A BigQueryTargetConfigs instance configured from the profile
+            A TargetConfigs instance configured from the profile
 
         Raises:
             ValueError: If the profile is not found or is not a BigQuery profile
