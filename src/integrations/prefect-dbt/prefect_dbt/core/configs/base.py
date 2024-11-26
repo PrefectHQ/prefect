@@ -154,8 +154,7 @@ class TargetConfigs(BaseTargetConfigs):
         profiles_dir: str,
         profile_name: str,
         output_name: Optional[str] = None,
-        save_credentials: bool = False,
-    ) -> list["BaseTargetConfigs"]:
+    ) -> list["TargetConfigs"]:
         """Create TargetConfigs instances from a dbt profile.
         Only works for duckdb right now.
 
