@@ -3,13 +3,151 @@ title: Set up a data platform
 description: Give your data team the ability to deploy and run workflows.
 ---
 
-1. Install the Prefect Server or create a Prefect Cloud account
-2. Set up work pool(s)
-3. Set up user account(s)
-   - Pretend these are for team members who need access to the data platform
-4. Set up access permissions so that users can deploy to the work pools
-5. Simulate users deploying to the work pool
-   - We'll provide a Prefect repo they can just clone and run. This repo should contain a more complex set of flows and tasks than the author quickstart, since operators are primarily interested in managing data platforms and the associated level of complexity. Assign fake team labels so that we can demonstrate filtering.
-6. View the run details in the UI (Dashboard), filter by team label.
+In this tutorial, you'll learn how to set up a data platform with Prefect Cloud.
+We'll show you how to create teams, work pools, workers, and then deploy flows to the infrastructure you've provisioned.
 
-Next steps: [Debug a flow run](/v3/tutorials/debug)
+## Prerequisites
+
+To complete this tutorial, you'll need:
+
+- Git
+- Docker
+- Python 3.9
+- A forever free [Prefect Cloud](https://app.prefect.cloud/) account
+
+You'll also need to clone the Prefect demo repository and install the Prefect SDK and CLI:
+
+```bash
+# Clone the demo repository
+git clone https://github.com/PrefectHQ/demos.git
+cd demos
+```
+
+```bash
+# Create a virtual environment and install dependencies
+python -m venv env # You may need to use `python3` instead
+source env/bin/activate
+pip install -r requirements.txt
+```
+
+```bash
+# Show that the Prefect CLI is installed
+prefect --version
+```
+
+## Create a workspace
+
+To create a workspace on Prefect Cloud, you'll need a forever free account.
+
+1. Head to https://app.prefect.cloud/ and sign in or create an account.
+1. If you haven't created a workspace yet, you'll be prompted to choose a name for your workspace.
+
+<Note>
+You can also set up a self-managed instance with [Prefect server](/v3/manage/self-host).
+</Note>
+
+## Define your team structure
+
+Most data platforms serve multiple teams.
+In Prefect Cloud, you can create teams to control access to your infrastructure.
+
+### Create teams
+
+First, you need to create teams in your Prefect account.
+
+1. Click the workspace switcher in the sidebar, and then click **Account settings**.
+1. Click **Teams** in the sidebar.
+1. Create two teams, named `team-a` and `team-b`.
+1. Optional: Choose the team you want to add members to, and then click **Add team members**.
+
+<Note>
+Learn how to set up [user accounts](/v3/manage/cloud/manage-users/index), [service accounts](/v3/manage/cloud/manage-users/service-accounts), or [SSO](/v3/manage/cloud/manage-users/configure-sso).
+</Note>
+
+### Grant workspace access
+
+You need to explicitly grant teams access to workspaces.
+
+1. Click the workspace switcher in the sidebar, and then click **Invite and manage members**.
+1. In the **Teams** section, add the two teams you created (`team-a` and `team-b`) with the **Developer** role.
+
+Your teams now have developer access to your workspace.
+
+## Provision infrastructure
+
+You must provision infrastructure before you can deploy and run flows on Prefect Cloud.
+
+### Create Docker work pools
+
+Work pools let you dynamically provision infrastructure for your flows.
+
+1. Click **Work pools** in the sidebar.
+1. Create a new **Docker** hybrid work pool, named `team-a-pool` and using the default configuration.
+1. Repeat and create a second work pool named `team-b-pool`.
+
+### Optional: Grant team access to work pools
+
+By default, your teams have access to all work pools in the workspace.
+However, you can partition your infrastructure by granting teams access to only specific work pools.
+
+1. Click **Work pools** in the sidebar.
+1. Open the actions menu for the `team-a-pool` work pool, and then click **Manage Access**.
+1. Click **Add Users, Service Accounts, & Teams**.
+1. Click the **Actors** dropdown, and then select the `team-a` team.
+1. Click the **Access Level** dropdown, and then select **Run**.
+1. Click **Add**.
+
+Repeat these steps to grant `team-b` access to the `team-b-pool` work pool.
+You've now set up your infrastructure so that `team-a` can only run flows on `team-a-pool` and `team-b` can only run flows on `team-b-pool`.
+
+## Start Docker workers
+
+Because you're using hybrid work pools, you need to start at least one worker for each work pool to process flow runs.
+On your local machine, run two workers in the background:
+
+```bash
+prefect worker start --pool team-a-pool &
+prefect worker start --pool team-b-pool &
+```
+
+## Deploy and run flows
+
+Run the following script from the demo repository to create flow runs:
+
+```bash
+# Run the script to create deployments and flow runs
+python simulate_failures.py
+```
+
+Wait a few minutes for the script to finish.
+You will see multiple flow runs for each team you created.
+
+<Note>
+Check out the [Quickstart](/v3/get-started/quickstart) for how to write and deploy a flow from scratch.
+</Note>
+
+## View flow runs in Prefect Cloud
+
+Now that you've deployed and run your flows, you can view the run details in the UI.
+If you go to the **Deployments** page, you can see run activity broken out by deployment.
+
+![Deployments page](/v3/img/ui/deployments-page.png)
+
+Here's what happened:
+
+- The script created two deployments of the flow, one deployment per work pool.
+- The script then generated multiple flow runs for each deployment.
+- The activity graph on the **Deployments** page shows successful runs as green and failed runs as red.
+- Notice that the flow runs on the `team-a-pipeline` deployment succeeded, but some of the flow runs on the `team-b-pipeline` deployment failed.
+
+This output is expected, you'll learn how to debug these failures in the next tutorial.
+
+## Next steps
+
+In this tutorial, you successfully set up a data platform for multiple teams, and then deployed and ran flows on the infrastructure you provisioned.
+
+Next, learn how to [debug a flow run](/v3/tutorials/debug) when things go wrong.
+
+<Tip>
+Need help? [Book a meeting](https://calendly.com/prefect-experts/prefect-product-advocates?utm_campaign=prefect_docs_cloud&utm_content=prefect_docs&utm_medium=docs&utm_source=docs) with a Prefect Product Advocate to get your questions answered.
+</Tip>
