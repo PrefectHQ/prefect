@@ -656,7 +656,7 @@ def root_settings_context():
                 stacklevel=2,
             )
     current_profile = profiles[active_name]
-    # Attatch profile to settings
+    # Attach profile to settings
     settings = settings.copy_with_update(updates=current_profile.settings)
     return SettingsContext(profile=current_profile, settings=settings)
 
