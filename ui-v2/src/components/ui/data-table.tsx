@@ -63,6 +63,7 @@ export function DataTable<TData>({
 											key={cell.id}
 											style={{
 												maxWidth: `${cell.column.columnDef.maxSize}px`,
+												minWidth: `${cell.column.columnDef.minSize}px`,
 											}}
 										>
 											{flexRender(

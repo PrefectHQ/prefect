@@ -8,11 +8,12 @@ import {
 import { useMemo, useCallback } from "react";
 import { DataTable } from "@/components/ui/data-table";
 import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
-import { ActionsCell } from "./cells";
+import { ActionsCell, ActivityCell } from "./cells";
 import { DeploymentStatusBadge } from "@/components/ui/deployment-status-badge";
 import type { DeploymentWithFlowName } from "./types";
 import { Workflow } from "lucide-react";
 import { Link } from "@tanstack/react-router";
+import { FlowRunActivityBarChart } from "@/components/ui/flow-run-activity-bar-chart";
 
 type DeploymentsDataTableProps = {
 	deployments: DeploymentWithFlowName[];
@@ -84,6 +85,8 @@ const createColumns = () => {
 		{
 			id: "activity",
 			header: "Activity",
+			cell: ActivityCell,
+			minSize: 200,
 		},
 		columnHelper.accessor("tags", {
 			header: () => null,

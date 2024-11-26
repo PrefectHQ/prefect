@@ -1,27 +1,29 @@
-import { FlowRunActivityGraph } from ".";
+import { FlowRunActivityBarChart } from ".";
 import type { Meta, StoryObj } from "@storybook/react";
 import type { ComponentProps } from "react";
+import { ChartContainer } from "../chart";
 
 export default {
-	title: "Components/UI/FlowRunActivityGraph",
-	component: FlowRunActivityGraph,
+	title: "Components/UI/FlowRunActivityBarChart",
+	component: FlowRunActivityBarChart,
 	args: {
 		flowRuns: [],
 		startDate: new Date(),
 		endDate: new Date(),
 	},
-	render: function Render(args: ComponentProps<typeof FlowRunActivityGraph>) {
+	render: function Render(
+		args: ComponentProps<typeof FlowRunActivityBarChart>,
+	) {
 		args.endDate = new Date(args.endDate);
 		args.startDate = new Date(args.startDate);
-		return <FlowRunActivityGraph {...args} />;
+		return <FlowRunActivityBarChart {...args} className="h-96" />;
 	},
-} satisfies Meta<typeof FlowRunActivityGraph>;
+} satisfies Meta<typeof FlowRunActivityBarChart>;
 
-type Story = StoryObj<typeof FlowRunActivityGraph>;
+type Story = StoryObj<typeof FlowRunActivityBarChart>;
 
-export const Small: Story = {
+export const Example: Story = {
 	args: {
-		size: "sm",
 		startDate: new Date("2024-11-23T17:45:28.722Z"),
 		endDate: new Date("2024-11-26T17:45:28.722"),
 		flowRuns: [
@@ -62,19 +64,12 @@ export const Small: Story = {
 				estimated_start_time_delta: 21.072876,
 				auto_scheduled: false,
 				infrastructure_document_id: null,
-				infrastructure_pid:
-					"a7a08b62-0b4d-4a2e-ba14-fc7da36bfc17:integrations:update-prefect-aws-2024-11-26-17-00-47-330059-lqwz8",
-				created_by: {
-					id: "b77cddad-a004-4feb-af29-205ea5ffefea",
-					type: "BOT",
-					display_value: "gcpprefect-prd-internal-toolsworkerintegrations",
-				},
+				infrastructure_pid: "",
 				state: {
 					id: "936856ab-bc72-45ec-83c4-5be20bfd2490",
 					type: "COMPLETED",
 					name: "Completed",
 					timestamp: "2024-11-26T17:01:46.800218Z",
-					message: "Successfully updated prefect-aws",
 					data: null,
 					state_details: {
 						flow_run_id: "ca6ac603-c402-4e42-9680-ee3156452453",
@@ -121,8 +116,8 @@ export const Small: Story = {
 				},
 				tags: [],
 				parent_task_run_id: "af1faaa7-1ec2-4960-a6d6-071ec7568bce",
-				state_type: "COMPLETED",
-				state_name: "Completed",
+				state_type: "FAILED",
+				state_name: "Failed",
 				run_count: 1,
 				expected_start_time: "2024-11-26T17:00:47.380500Z",
 				next_scheduled_start_time: null,
@@ -133,19 +128,12 @@ export const Small: Story = {
 				estimated_start_time_delta: 20.561617,
 				auto_scheduled: false,
 				infrastructure_document_id: null,
-				infrastructure_pid:
-					"a7a08b62-0b4d-4a2e-ba14-fc7da36bfc17:integrations:update-prefect-2024-11-26-17-00-47-330110-00-vt5kg",
-				created_by: {
-					id: "b77cddad-a004-4feb-af29-205ea5ffefea",
-					type: "BOT",
-					display_value: "gcpprefect-prd-internal-toolsworkerintegrations",
-				},
+				infrastructure_pid: "",
 				state: {
 					id: "d7b649e0-34e9-48a7-8395-59c57619f2f0",
-					type: "COMPLETED",
-					name: "Completed",
+					type: "FAILED",
+					name: "Failed",
 					timestamp: "2024-11-26T17:01:54.765875Z",
-					message: "Successfully updated prefect",
 					data: null,
 					state_details: {
 						flow_run_id: "6ef685e2-18ea-42d3-a76a-083826b9e9f1",
@@ -193,8 +181,8 @@ export const Small: Story = {
 				},
 				tags: [],
 				parent_task_run_id: "a8b945f0-18a1-4f33-af3e-977ed5612ff8",
-				state_type: "COMPLETED",
-				state_name: "Completed",
+				state_type: "CRASHED",
+				state_name: "Crashed",
 				run_count: 1,
 				expected_start_time: "2024-11-26T11:00:39.661449Z",
 				next_scheduled_start_time: null,
@@ -205,19 +193,12 @@ export const Small: Story = {
 				estimated_start_time_delta: 19.222237,
 				auto_scheduled: false,
 				infrastructure_document_id: null,
-				infrastructure_pid:
-					"a7a08b62-0b4d-4a2e-ba14-fc7da36bfc17:integrations:update-prefect-aws-2024-11-26-11-00-39-637158-q7wk6",
-				created_by: {
-					id: "b77cddad-a004-4feb-af29-205ea5ffefea",
-					type: "BOT",
-					display_value: "gcpprefect-prd-internal-toolsworkerintegrations",
-				},
+				infrastructure_pid: "",
 				state: {
 					id: "cc7067cb-fece-4fb0-a252-21298f8d80fb",
-					type: "COMPLETED",
-					name: "Completed",
+					type: "CRASHED",
+					name: "Crashed",
 					timestamp: "2024-11-26T11:01:33.652746Z",
-					message: "Successfully updated prefect-aws",
 					data: null,
 					state_details: {
 						flow_run_id: "9c33b42d-67d5-4274-9fd0-06af5e8e6d93",
@@ -264,8 +245,8 @@ export const Small: Story = {
 				},
 				tags: [],
 				parent_task_run_id: "907629cc-3371-4df8-8484-740361ded08e",
-				state_type: "COMPLETED",
-				state_name: "Completed",
+				state_type: "CANCELLED",
+				state_name: "Cancelled",
 				run_count: 1,
 				expected_start_time: "2024-11-26T11:00:39.684550Z",
 				next_scheduled_start_time: null,
@@ -276,19 +257,12 @@ export const Small: Story = {
 				estimated_start_time_delta: 18.582356,
 				auto_scheduled: false,
 				infrastructure_document_id: null,
-				infrastructure_pid:
-					"a7a08b62-0b4d-4a2e-ba14-fc7da36bfc17:integrations:update-prefect-2024-11-26-11-00-39-637209-00-wvn7r",
-				created_by: {
-					id: "b77cddad-a004-4feb-af29-205ea5ffefea",
-					type: "BOT",
-					display_value: "gcpprefect-prd-internal-toolsworkerintegrations",
-				},
+				infrastructure_pid: "",
 				state: {
 					id: "49b955a1-be06-4a42-95cb-f1a163b646fb",
-					type: "COMPLETED",
-					name: "Completed",
+					type: "CANCELLED",
+					name: "Cancelled",
 					timestamp: "2024-11-26T11:01:42.806357Z",
-					message: "Successfully updated prefect",
 					data: null,
 					state_details: {
 						flow_run_id: "4e8312af-1725-4f85-86e7-9439f54c186b",
@@ -336,8 +310,8 @@ export const Small: Story = {
 				},
 				tags: [],
 				parent_task_run_id: "9758b96e-314d-4761-adda-9ec99f04a75d",
-				state_type: "COMPLETED",
-				state_name: "Completed",
+				state_type: "RUNNING",
+				state_name: "Running",
 				run_count: 1,
 				expected_start_time: "2024-11-25T23:00:40.526998Z",
 				next_scheduled_start_time: null,
@@ -348,17 +322,11 @@ export const Small: Story = {
 				estimated_start_time_delta: 19.904938,
 				auto_scheduled: false,
 				infrastructure_document_id: null,
-				infrastructure_pid:
-					"a7a08b62-0b4d-4a2e-ba14-fc7da36bfc17:integrations:update-prefect-aws-2024-11-25-23-00-40-502499-tg8cc",
-				created_by: {
-					id: "b77cddad-a004-4feb-af29-205ea5ffefea",
-					type: "BOT",
-					display_value: "gcpprefect-prd-internal-toolsworkerintegrations",
-				},
+				infrastructure_pid: "",
 				state: {
 					id: "59dd132a-fbe4-4231-bc61-40336df9d0c3",
-					type: "COMPLETED",
-					name: "Completed",
+					type: "RUNNING",
+					name: "Running",
 					timestamp: "2024-11-25T23:01:36.886969Z",
 					message: "Successfully updated prefect-aws",
 					data: null,
@@ -408,8 +376,8 @@ export const Small: Story = {
 				},
 				tags: [],
 				parent_task_run_id: "402d1561-793e-4cf4-8c80-b009adff64ab",
-				state_type: "COMPLETED",
-				state_name: "Completed",
+				state_type: "RUNNING",
+				state_name: "Running",
 				run_count: 1,
 				expected_start_time: "2024-11-25T23:00:40.551183Z",
 				next_scheduled_start_time: null,
@@ -420,19 +388,12 @@ export const Small: Story = {
 				estimated_start_time_delta: 19.871207,
 				auto_scheduled: false,
 				infrastructure_document_id: null,
-				infrastructure_pid:
-					"a7a08b62-0b4d-4a2e-ba14-fc7da36bfc17:integrations:update-prefect-2024-11-25-23-00-40-502551-00-l59mw",
-				created_by: {
-					id: "b77cddad-a004-4feb-af29-205ea5ffefea",
-					type: "BOT",
-					display_value: "gcpprefect-prd-internal-toolsworkerintegrations",
-				},
+				infrastructure_pid: "",
 				state: {
 					id: "abe3735f-cba3-4b4b-ac8f-5cafeba995b3",
-					type: "COMPLETED",
-					name: "Completed",
+					type: "RUNNING",
+					name: "Running",
 					timestamp: "2024-11-25T23:01:43.011228Z",
-					message: "Successfully updated prefect",
 					data: null,
 					state_details: {
 						flow_run_id: "07ce289f-dcf1-4fb9-91af-22f29c831f81",
@@ -480,8 +441,8 @@ export const Small: Story = {
 				},
 				tags: [],
 				parent_task_run_id: "468094ba-af34-4ce7-a8b6-3086944471c9",
-				state_type: "COMPLETED",
-				state_name: "Completed",
+				state_type: "PENDING",
+				state_name: "Pending",
 				run_count: 1,
 				expected_start_time: "2024-11-25T17:00:44.412803Z",
 				next_scheduled_start_time: null,
@@ -492,19 +453,12 @@ export const Small: Story = {
 				estimated_start_time_delta: 21.697369,
 				auto_scheduled: false,
 				infrastructure_document_id: null,
-				infrastructure_pid:
-					"a7a08b62-0b4d-4a2e-ba14-fc7da36bfc17:integrations:update-prefect-2024-11-25-17-00-44-362993-00-8fwmr",
-				created_by: {
-					id: "b77cddad-a004-4feb-af29-205ea5ffefea",
-					type: "BOT",
-					display_value: "gcpprefect-prd-internal-toolsworkerintegrations",
-				},
+				infrastructure_pid: "",
 				state: {
 					id: "ccfb0518-a962-4001-824d-26550cb6f11b",
-					type: "COMPLETED",
-					name: "Completed",
+					type: "PENDING",
+					name: "Pending",
 					timestamp: "2024-11-25T17:01:51.648515Z",
-					message: "Successfully updated prefect",
 					data: null,
 					state_details: {
 						flow_run_id: "03e8c517-93d2-4a72-b4f3-4ecda4455e76",
@@ -552,8 +506,8 @@ export const Small: Story = {
 				},
 				tags: [],
 				parent_task_run_id: "958ebda7-57f6-438b-9d5c-588e9b447aa6",
-				state_type: "COMPLETED",
-				state_name: "Completed",
+				state_type: "SCHEDULED",
+				state_name: "Scheduled",
 				run_count: 1,
 				expected_start_time: "2024-11-25T17:00:44.387798Z",
 				next_scheduled_start_time: null,
@@ -564,19 +518,12 @@ export const Small: Story = {
 				estimated_start_time_delta: 21.235643,
 				auto_scheduled: false,
 				infrastructure_document_id: null,
-				infrastructure_pid:
-					"a7a08b62-0b4d-4a2e-ba14-fc7da36bfc17:integrations:update-prefect-aws-2024-11-25-17-00-44-362935-rg52x",
-				created_by: {
-					id: "b77cddad-a004-4feb-af29-205ea5ffefea",
-					type: "BOT",
-					display_value: "gcpprefect-prd-internal-toolsworkerintegrations",
-				},
+				infrastructure_pid: "",
 				state: {
 					id: "0174625b-e14e-43e1-99e2-a734da0f0f75",
-					type: "COMPLETED",
-					name: "Completed",
+					type: "SCHEDULED",
+					name: "Scheduled",
 					timestamp: "2024-11-25T17:01:44.218202Z",
-					message: "Successfully updated prefect-aws",
 					data: null,
 					state_details: {
 						flow_run_id: "b35e1e65-902c-4a68-a14f-946aa80ca01c",
@@ -624,8 +571,8 @@ export const Small: Story = {
 				},
 				tags: [],
 				parent_task_run_id: "cba9735c-b384-41a8-b1ac-6775ba7c36c9",
-				state_type: "COMPLETED",
-				state_name: "Completed",
+				state_type: "PAUSED",
+				state_name: "Paused",
 				run_count: 1,
 				expected_start_time: "2024-11-25T11:00:32.557535Z",
 				next_scheduled_start_time: null,
@@ -636,19 +583,12 @@ export const Small: Story = {
 				estimated_start_time_delta: 24.012698,
 				auto_scheduled: false,
 				infrastructure_document_id: null,
-				infrastructure_pid:
-					"a7a08b62-0b4d-4a2e-ba14-fc7da36bfc17:integrations:update-prefect-2024-11-25-11-00-32-509960-00-c5nqh",
-				created_by: {
-					id: "b77cddad-a004-4feb-af29-205ea5ffefea",
-					type: "BOT",
-					display_value: "gcpprefect-prd-internal-toolsworkerintegrations",
-				},
+				infrastructure_pid: "",
 				state: {
 					id: "38b6b433-f63b-42d1-b376-fa4108d5df78",
-					type: "COMPLETED",
-					name: "Completed",
+					type: "PAUSED",
+					name: "Paused",
 					timestamp: "2024-11-25T11:01:45.509595Z",
-					message: "Successfully updated prefect",
 					data: null,
 					state_details: {
 						flow_run_id: "5aa77817-5818-44db-9bdf-5a315da21503",
@@ -696,8 +636,8 @@ export const Small: Story = {
 				},
 				tags: [],
 				parent_task_run_id: "8dc263bf-1cd6-4719-9f64-498069db915d",
-				state_type: "COMPLETED",
-				state_name: "Completed",
+				state_type: "CANCELLING",
+				state_name: "Cancelling",
 				run_count: 1,
 				expected_start_time: "2024-11-25T11:00:32.533687Z",
 				next_scheduled_start_time: null,
@@ -708,19 +648,12 @@ export const Small: Story = {
 				estimated_start_time_delta: 23.924021,
 				auto_scheduled: false,
 				infrastructure_document_id: null,
-				infrastructure_pid:
-					"a7a08b62-0b4d-4a2e-ba14-fc7da36bfc17:integrations:update-prefect-aws-2024-11-25-11-00-32-509901-l82w9",
-				created_by: {
-					id: "b77cddad-a004-4feb-af29-205ea5ffefea",
-					type: "BOT",
-					display_value: "gcpprefect-prd-internal-toolsworkerintegrations",
-				},
+				infrastructure_pid: "",
 				state: {
 					id: "3ad980c3-0180-4999-a53d-71b5f27173d5",
-					type: "COMPLETED",
-					name: "Completed",
+					type: "CANCELLING",
+					name: "Cancelling",
 					timestamp: "2024-11-25T11:01:36.206902Z",
-					message: "Successfully updated prefect-aws",
 					data: null,
 					state_details: {
 						flow_run_id: "ff12c2bd-7808-4556-9fcf-49e43de77a88",

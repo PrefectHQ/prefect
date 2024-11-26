@@ -10,6 +10,7 @@ import { MoreVerticalIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { CellContext } from "@tanstack/react-table";
 import type { DeploymentWithFlowName } from "./types";
+import { FlowRunActivityBarChart } from "@/components/ui/flow-run-activity-bar-chart";
 
 export const ActionsCell = ({
 	row,
@@ -47,5 +48,18 @@ export const ActionsCell = ({
 				</DropdownMenuContent>
 			</DropdownMenu>
 		</div>
+	);
+};
+
+export const ActivityCell = ({
+	row,
+}: CellContext<DeploymentWithFlowName, unknown>) => {
+	return (
+		<FlowRunActivityBarChart
+			flowRuns={[]}
+			startDate={new Date()}
+			endDate={new Date()}
+			className="h-8 w-full"
+		/>
 	);
 };

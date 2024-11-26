@@ -1,8 +1,8 @@
-import { DeploymentsEmptyState } from "@/components/ui/deployments/empty-state";
-import { DeploymentsLayout } from "@/components/ui/deployments/layout";
+import { DeploymentsEmptyState } from "@/components/deployments/empty-state";
+import { DeploymentsLayout } from "@/components/deployments/layout";
 import { useDeployments } from "@/hooks/deployments";
 import { createFileRoute } from "@tanstack/react-router";
-import { DeploymentsDataTable } from "@/components/ui/deployments/data-table";
+import { DeploymentsDataTable } from "@/components/deployments/data-table";
 import { z } from "zod";
 import { zodSearchValidator } from "@tanstack/router-zod-adapter";
 import { useFlows } from "@/hooks/flows";

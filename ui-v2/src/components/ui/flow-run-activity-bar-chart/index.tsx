@@ -1,7 +1,19 @@
-import { Bar, BarChart, Cell } from "recharts";
-import { ChartContainer } from "@/components/ui/chart";
+import { Bar, BarChart, Cell, Tooltip, TooltipProps } from "recharts";
+import {
+	ChartContainer,
+	ChartTooltip,
+	ChartTooltipContent,
+} from "@/components/ui/chart";
 import type { components } from "@/api/prefect";
 import { useEffect, useRef, useState } from "react";
+import { cn } from "@/lib/utils";
+import {
+	HoverCard,
+	HoverCardContent,
+	HoverCardPortal,
+	HoverCardTrigger,
+} from "../hover-card";
+import { Card, CardContent, CardHeader, CardTitle } from "../card";
 
 interface CustomShapeProps {
 	fill?: string;
@@ -9,14 +21,11 @@ interface CustomShapeProps {
 	y?: number;
 	width?: number;
 	height?: number;
-	background?: boolean;
-	className?: string;
-	value?: number;
 	radius?: number[];
 }
 
 const CustomBar = (props: CustomShapeProps) => {
-	const minHeight = 6; // Minimum height for zero values
+	const minHeight = 4; // Minimum height for zero values
 	const {
 		x = 0,
 		y = 0,
@@ -41,21 +50,23 @@ const CustomBar = (props: CustomShapeProps) => {
 	);
 };
 
-type FlowRunActivityGraphProps = {
+type FlowRunActivityBarChartProps = {
 	flowRuns: components["schemas"]["FlowRun"][];
 	startDate: Date;
 	endDate: Date;
-	size?: "sm" | "md";
+	className?: string;
+	barSize?: number;
+	barGap?: number;
 };
 
-export const FlowRunActivityGraph = ({
+export const FlowRunActivityBarChart = ({
 	flowRuns,
 	startDate,
 	endDate,
-	size = "md",
-}: FlowRunActivityGraphProps) => {
-	const barSize = size === "sm" ? 4 : 8;
-	const barGap = size === "sm" ? 4 : 6;
+	barSize = 4,
+	barGap = 4,
+	className,
+}: FlowRunActivityBarChartProps) => {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const [numberOfBars, setNumberOfBars] = useState(10);
 	useEffect(() => {
@@ -74,45 +85,36 @@ export const FlowRunActivityGraph = ({
 		endDate,
 		numberOfBars,
 	);
-	console.log(buckets.length);
+
 	const data = buckets.map((flowRun) => ({
 		value: flowRun?.total_run_time,
 		id: flowRun?.id,
 		stateType: flowRun?.state_type,
+		flowRun,
 	}));
 	return (
 		<ChartContainer
 			ref={containerRef}
 			config={{
-				activity: {
-					label: "Activity",
-					color: "hsl(142.1 76.2% 36.3%)",
-				},
 				inactivity: {
-					label: "Inactivity",
 					color: "hsl(210 40% 45%)",
 				},
 			}}
-			className="h-24"
+			className={className}
 		>
 			<BarChart
 				data={data}
 				margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
 				barSize={barSize}
-				barGap={barGap}
+				barCategoryGap={barGap}
 			>
-				<Bar
-					dataKey="value"
-					shape={<CustomBar />}
-					fill="var(--color-activity)"
-					radius={[2, 2, 2, 2]}
-				>
+				<Bar dataKey="value" shape={<CustomBar />} radius={[2, 2, 2, 2]}>
 					{data.map((entry) => (
 						<Cell
 							key={`cell-${entry.id}`}
 							fill={
-								entry.stateType === "COMPLETED"
-									? "var(--color-activity)"
+								entry.stateType
+									? `var(--state-${entry.stateType?.toLowerCase()}-500)`
 									: "var(--color-inactivity)"
 							}
 						/>
