@@ -531,6 +531,15 @@ def create_app(
         if prefect.settings.PREFECT_SERVER_ANALYTICS_ENABLED.value():
             service_instances.append(services.telemetry.Telemetry())
 
+        if prefect.settings.PREFECT_API_SERVICES_TASK_RUN_RECORDER_ENABLED:
+            service_instances.append(TaskRunRecorder())
+
+        if prefect.settings.PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED:
+            service_instances.append(EventPersister())
+
+        if prefect.settings.PREFECT_API_EVENTS_STREAM_OUT_ENABLED:
+            service_instances.append(stream.Distributor())
+
         # don't run services in ephemeral mode
         if not ephemeral:
             if prefect.settings.PREFECT_API_SERVICES_SCHEDULER_ENABLED.value():
@@ -562,15 +571,6 @@ def create_app(
                 service_instances.append(ReactiveTriggers())
                 service_instances.append(ProactiveTriggers())
                 service_instances.append(Actions())
-
-            if prefect.settings.PREFECT_API_SERVICES_TASK_RUN_RECORDER_ENABLED:
-                service_instances.append(TaskRunRecorder())
-
-            if prefect.settings.PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED:
-                service_instances.append(EventPersister())
-
-            if prefect.settings.PREFECT_API_EVENTS_STREAM_OUT_ENABLED:
-                service_instances.append(stream.Distributor())
 
         loop = asyncio.get_running_loop()
 
