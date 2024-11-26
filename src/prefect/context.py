@@ -655,8 +655,10 @@ def root_settings_context():
                 (f"Failed to create the Prefect home directory at {settings.home}"),
                 stacklevel=2,
             )
-
-    return SettingsContext(profile=profiles[active_name], settings=settings)
+    current_profile = profiles[active_name]
+    # Attatch profile to settings
+    settings = settings.copy_with_update(updates=current_profile.settings)
+    return SettingsContext(profile=current_profile, settings=settings)
 
     # Note the above context is exited and the global settings context is used by
     # an override in the `SettingsContext.get` method.
