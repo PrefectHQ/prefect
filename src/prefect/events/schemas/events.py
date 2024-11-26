@@ -15,7 +15,6 @@ from uuid import UUID, uuid4
 
 from pydantic import (
     AfterValidator,
-    BeforeValidator,
     ConfigDict,
     Field,
     RootModel,
@@ -30,10 +29,6 @@ from prefect.settings import (
     PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE,
 )
 
-from ..validators import (
-    _validate_event_length,
-    _validate_related_resources,
-)
 from .labelling import Labelled
 
 logger = get_logger(__name__)
@@ -99,6 +94,17 @@ class RelatedResource(Resource):
         return self["prefect.resource.role"]
 
 
+def _validate_related_resources(value) -> List:
+    from prefect.settings import PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES
+
+    if len(value) > PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES.value():
+        raise ValueError(
+            "The maximum number of related resources "
+            f"is {PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES.value()}"
+        )
+    return value
+
+
 class Event(PrefectBaseModel):
     """The client-side view of an event that has happened to a Resource"""
 
@@ -108,8 +114,9 @@ class Event(PrefectBaseModel):
         default_factory=lambda: DateTime.now("UTC"),
         description="When the event happened from the sender's perspective",
     )
-    event: Annotated[str, BeforeValidator(_validate_event_length)] = Field(
+    event: str = Field(
         description="The name of the event that happened",
+        max_length=1024,
     )
     resource: Resource = Field(
         description="The primary Resource this event concerns",
