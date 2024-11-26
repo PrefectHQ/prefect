@@ -1872,6 +1872,7 @@ class S3Bucket(WritableFileSystem, WritableDeploymentStorage, ObjectStorageBlock
     ) -> str:
         """
         Asynchronously uploads an object from a path to the S3 bucket.
+        Added in version 0.5.3.
 
         Args:
             from_path: The path to the file to upload from.
