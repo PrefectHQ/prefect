@@ -633,3 +633,38 @@ async def with_system_labels_for_flow_run(
         )
 
     return parent_labels | default_labels | user_supplied_labels
+
+
+async def update_flow_run_labels(
+    session: AsyncSession,
+    flow_run_id: UUID,
+    labels: schemas.core.KeyValueLabels,
+) -> bool:
+    """
+    Update flow run labels by patching existing labels with new values.
+
+    Args:
+        session: A database session
+        flow_run_id: the flow run id to update
+        labels: the new labels to patch into existing labels
+
+    Returns:
+        bool: whether the update was successful
+    """
+    # First read the existing flow run to get current labels
+    flow_run = await read_flow_run(session, flow_run_id)
+    if not flow_run:
+        return False
+
+    # Merge existing labels with new labels
+    current_labels = flow_run.labels or {}
+    updated_labels = {**current_labels, **labels}
+
+    # Update the flow run with merged labels
+    result = await session.execute(
+        sa.update(orm_models.FlowRun)
+        .where(orm_models.FlowRun.id == flow_run_id)
+        .values(labels=updated_labels)
+    )
+
+    return result.rowcount > 0

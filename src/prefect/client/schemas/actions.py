@@ -393,6 +393,7 @@ class DeploymentFlowRunCreate(ActionBaseModel):
     parent_task_run_id: Optional[UUID] = Field(None)
     work_queue_name: Optional[str] = Field(None)
     job_variables: Optional[dict] = Field(None)
+    labels: KeyValueLabelsField
 
 
 class SavedSearchCreate(ActionBaseModel):

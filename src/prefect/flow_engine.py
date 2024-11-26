@@ -23,7 +23,7 @@ from typing import (
 from uuid import UUID
 
 from anyio import CancelScope
-from opentelemetry import trace
+from opentelemetry import propagate, trace
 from opentelemetry.trace import Tracer, get_tracer
 from typing_extensions import ParamSpec
 
@@ -647,7 +647,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                     empirical_policy=self.flow_run.empirical_policy,
                 )
 
-            self._span = self._tracer.start_span(
+            span = self._tracer.start_span(
                 name=self.flow_run.name,
                 attributes={
                     **self.flow_run.labels,
@@ -657,6 +657,24 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                     "prefect.flow.name": self.flow.name,
                 },
             )
+
+            if flow_run_ctx := FlowRunContext.get():
+                if traceparent := flow_run_ctx.flow_run.labels.get(
+                    "__OTEL_TRACEPARENT"
+                ):
+                    propagate.get_global_textmap().inject({"traceparent": traceparent})
+                else:
+                    carrier = {}
+                    propagate.get_global_textmap().inject(
+                        carrier, context=trace.set_span_in_context(span)
+                    )
+                    if carrier.get("traceparent"):
+                        self.client.update_flow_run_labels(
+                            flow_run_id=self.flow_run.id,
+                            labels={"__OTEL_TRACEPARENT": carrier["traceparent"]},
+                        )
+
+            self._span = span
 
             try:
                 yield self
@@ -1217,7 +1235,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     empirical_policy=self.flow_run.empirical_policy,
                 )
 
-            self._span = self._tracer.start_span(
+            span = self._tracer.start_span(
                 name=self.flow_run.name,
                 attributes={
                     **self.flow_run.labels,
@@ -1227,6 +1245,24 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     "prefect.flow.name": self.flow.name,
                 },
             )
+
+            if flow_run_ctx := FlowRunContext.get():
+                if traceparent := flow_run_ctx.flow_run.labels.get(
+                    "__OTEL_TRACEPARENT"
+                ):
+                    propagate.get_global_textmap().inject({"traceparent": traceparent})
+                else:
+                    carrier = {}
+                    propagate.get_global_textmap().inject(
+                        carrier, context=trace.set_span_in_context(span)
+                    )
+                    if carrier.get("traceparent"):
+                        self.client.update_flow_run_labels(
+                            flow_run_id=self.flow_run.id,
+                            labels={"__OTEL_TRACEPARENT": carrier["traceparent"]},
+                        )
+
+            self._span = span
 
             try:
                 yield self

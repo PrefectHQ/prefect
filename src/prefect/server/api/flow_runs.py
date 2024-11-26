@@ -838,3 +838,15 @@ async def download_logs(
                 "Content-Disposition": f"attachment; filename={flow_run.name}-logs.csv"
             },
         )
+
+
+@router.patch("/{id}/labels", status_code=status.HTTP_204_NO_CONTENT)
+async def update_flow_run_labels(
+    flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
+    labels: Dict[str, Any] = Body(..., description="The labels to update"),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+):
+    async with db.session_context() as session:
+        await models.flow_runs.update_flow_run_labels(
+            session=session, flow_run_id=flow_run_id, labels=labels
+        )
