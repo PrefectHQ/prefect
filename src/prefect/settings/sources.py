@@ -121,7 +121,7 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
         """Helper method to load the profile settings from the profiles.toml file"""
 
         if not self.profiles_path.exists():
-            return {}
+            return self._get_default_profile()
 
         try:
             all_profile_data = toml.load(self.profiles_path)
@@ -146,8 +146,15 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
         profiles_data = all_profile_data.get("profiles", {})
 
         if not active_profile or active_profile not in profiles_data:
-            return {}
+            return self._get_default_profile()
         return profiles_data[active_profile]
+
+    def _get_default_profile(self) -> Dict[str, Any]:
+        """Helper method to get the default profile"""
+        default_profile_data = toml.load(DEFAULT_PROFILES_PATH)
+        default_profile = default_profile_data.get("active", "ephemeral")
+        assert isinstance(default_profile, str)
+        return default_profile_data.get("profiles", {}).get(default_profile, {})
 
     def get_field_value(
         self, field: FieldInfo, field_name: str
