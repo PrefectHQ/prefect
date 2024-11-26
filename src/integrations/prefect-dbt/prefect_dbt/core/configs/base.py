@@ -167,7 +167,7 @@ class TargetConfigs(BaseTargetConfigs):
             A TargetConfigs instance configured from the profile
 
         Raises:
-            ValueError: If the profile is not found or is not a BigQuery profile
+            ValueError: If the profile is not found or is not a duckdb profile
         """
         profiles = load_profiles_yml(profiles_dir)
         profile_data = profiles.get(profile_name)
