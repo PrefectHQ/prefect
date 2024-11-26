@@ -33,6 +33,8 @@ async def adownload_from_bucket(
     """
     Downloads an object with a given key from a given S3 bucket.
 
+    Added in prefect-aws==0.5.3.
+
     Args:
         bucket: Name of bucket to download object from. Required if a default value was
             not supplied when creating the task.
@@ -158,6 +160,8 @@ async def aupload_to_bucket(
 ) -> str:
     """
     Asynchronously uploads data to an S3 bucket.
+
+    Added in prefect-aws==0.5.3.
 
     Args:
         data: Bytes representation of data to upload to S3.
@@ -294,6 +298,8 @@ async def acopy_objects(
     credentials must have permission to read the source object and write to the target
     object. If the credentials do not have those permissions, try using
     `S3Bucket.stream_from`.
+
+    Added in prefect-aws==0.5.3.
 
     Args:
         source_path: The path to the object to copy. Can be a string or `Path`.
@@ -499,6 +505,8 @@ async def amove_objects(
     permissions, this method will raise an error. If the credentials have permission to
     read the source object but not delete it, the object will be copied but not deleted.
 
+    Added in prefect-aws==0.5.3.
+
     Args:
         source_path: The path of the object to move
         target_path: The path to move the object to
@@ -626,6 +634,8 @@ async def alist_objects(
     """
     Asynchronously lists details of objects in a given S3 bucket.
 
+    Added in prefect-aws==0.5.3.
+
     Args:
         bucket: Name of bucket to list items from. Required if a default value was not
             supplied when creating the task.
@@ -699,7 +709,6 @@ def list_objects(
 ) -> List[Dict[str, Any]]:
     """
     Lists details of objects in a given S3 bucket.
-    Added in version 0.5.3.
 
     Args:
         bucket: Name of bucket to list items from. Required if a default value was not
@@ -2076,7 +2085,7 @@ class S3Bucket(WritableFileSystem, WritableDeploymentStorage, ObjectStorageBlock
     ) -> Union[str, None]:
         """
         Asynchronously uploads files *within* a folder (excluding the folder itself)
-        to the object storage service folder.
+        to the object storage service folder. Added in version prefect-aws==0.5.3.
 
         Args:
             from_folder: The path to the folder to upload from.
@@ -2148,7 +2157,6 @@ class S3Bucket(WritableFileSystem, WritableDeploymentStorage, ObjectStorageBlock
         """
         Uploads files *within* a folder (excluding the folder itself)
         to the object storage service folder.
-        Added in version 0.5.3.
 
         Args:
             from_folder: The path to the folder to upload from.
