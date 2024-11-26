@@ -100,8 +100,6 @@ class RelatedResource(Resource):
 def _validate_event_name_length(value: str) -> str:
     from prefect.settings import PREFECT_SERVER_EVENTS_MAXIMUM_EVENT_NAME_LENGTH
 
-    print(PREFECT_SERVER_EVENTS_MAXIMUM_EVENT_NAME_LENGTH.value())
-
     if len(value) > PREFECT_SERVER_EVENTS_MAXIMUM_EVENT_NAME_LENGTH.value():
         raise ValueError(
             f"Event name must be at most {PREFECT_SERVER_EVENTS_MAXIMUM_EVENT_NAME_LENGTH.value()} characters"
