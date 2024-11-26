@@ -31,8 +31,7 @@ export const Route = createFileRoute("/deployments")({
 	loaderDeps: ({ search }) => buildFilterBody(search),
 	loader: async (deps) => {
 		const { context } = deps;
-		const [deployments] =
-			await useDeployments.loader(deps);
+		const [deployments] = await useDeployments.loader(deps);
 		const flowIds = deployments?.map((d) => d.flow_id).sort();
 
 		await useFlows.loader({
