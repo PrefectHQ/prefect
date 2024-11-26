@@ -53,7 +53,7 @@ def slugify_schema(name: str, max_length: int = 45) -> Optional[str]:
         name: The name of the schema
 
     Returns:
-        The slugified job name or None if the slugified name is empty
+        The slugified schema name or None if the slugified name is empty
     """
     slug = slugify(
         name,

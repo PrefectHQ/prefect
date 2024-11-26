@@ -59,10 +59,19 @@ def init(
             )
 
             if should_create_blocks:
+                save_credentials = typer.confirm(
+                    (
+                        "\nIf GCP, AWS, or Snowflake credentials are found, would you like to create "
+                        "blocks for them?"
+                    ),
+                    default=False,
+                )
                 try:
                     # Use provided profiles_dir or default
                     profiles_dir = profiles_dir or get_profiles_dir()
-                    created_blocks = create_blocks_from_profile(profiles_dir)
+                    created_blocks = create_blocks_from_profile(
+                        profiles_dir, save_credentials
+                    )
 
                     if created_blocks:
                         print(

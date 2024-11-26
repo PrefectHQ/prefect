@@ -35,7 +35,9 @@ app.add_typer(block_app, name="block")
 
 
 def create_target_configs(
-    target_config: Dict[str, Any], profile_name: str
+    target_config: Dict[str, Any],
+    profile_name: str,
+    save_credentials: bool,
 ) -> TargetConfigs:
     """Create the appropriate target configs based on the profile type."""
 
@@ -47,18 +49,26 @@ def create_target_configs(
     if not config_class:
         raise ValueError(f"Unsupported adapter type: {adapter_type}")
 
-    target_config_block = config_class.create_from_profile(
-        get_profiles_dir(), profile_name
-    )
-    target_config_block.save(
-        name=f"dbt-target-configs-{adapter_type}-{slugify_schema(target_config_block.schema)}",
-        overwrite=True,
+    target_config_blocks = config_class.create_from_profile(
+        get_profiles_dir(),
+        profile_name,
+        save_credentials,
     )
 
-    return target_config_block
+    for block in target_config_blocks:
+        schema_slug = slugify_schema(block.model_dump(by_alias=True).get("schema"))
+        block.save(
+            name=f"dbt-target-configs-{adapter_type}-{schema_slug}",
+            overwrite=True,
+        )
+        print(
+            f"Saved {adapter_type.title()} Target Configs block dbt-target-configs-{adapter_type}-{schema_slug}"
+        )
+
+    return target_config_blocks
 
 
-def create_blocks_from_profile(profiles_dir: str) -> list:
+def create_blocks_from_profile(profiles_dir: str, save_credentials: bool) -> list:
     """Create blocks from all profiles in profiles.yml."""
     profiles = load_profiles_yml(profiles_dir)
     created_blocks = []
@@ -73,18 +83,20 @@ def create_blocks_from_profile(profiles_dir: str) -> list:
             block_name = f"dbt-{profile_name}-{target_name}"
 
             try:
-                target_configs = create_target_configs(target_config, profile_name)
-
-                block = DbtCliProfile(
-                    name=block_name,
-                    profiles_dir=profiles_dir,
-                    profile=profile_name,
-                    target=target_name,
-                    target_configs=target_configs,
+                target_configs_list = create_target_configs(
+                    target_config, profile_name, save_credentials
                 )
+                for target_configs in target_configs_list:
+                    block = DbtCliProfile(
+                        name=block_name,
+                        profiles_dir=profiles_dir,
+                        profile=profile_name,
+                        target=target_name,
+                        target_configs=target_configs,
+                    )
 
-                block_id = block.save(block_name, overwrite=True)
-                created_blocks.append((block_name, block_id, block))
+                    block_id = block.save(block_name, overwrite=True)
+                    created_blocks.append((block_name, block_id, block))
 
             except (ValueError, TypeError) as e:
                 print(f"Warning: Skipping {block_name} - {str(e)}")
@@ -128,6 +140,14 @@ def create(
         "--from-profile",
         help="Create blocks from all profiles in profiles.yml",
     ),
+    save_credentials: bool = typer.Option(
+        False,
+        "--save-credentials",
+        help=(
+            "If GCP, AWS, or Snowflake credentials are found in your dbt profile, "
+            "save them as their respective block type."
+        ),
+    ),
 ):
     """
     Create new dbt CLI Profile blocks. Either create a single block with specified
@@ -135,7 +155,7 @@ def create(
     """
     if from_profile:
         profiles_dir = profiles_dir or get_profiles_dir()
-        created_blocks = create_blocks_from_profile(profiles_dir)
+        created_blocks = create_blocks_from_profile(profiles_dir, save_credentials)
 
         print(f"\nCreated {len(created_blocks)} dbt CLI Profile blocks:")
         for block_name, block_id, block in created_blocks:
@@ -166,7 +186,7 @@ def create(
         if not target_config:
             raise typer.BadParameter(f"Target {target} not found in profile {profile}")
 
-        target_configs = create_target_configs(target_config)
+        target_configs = create_target_configs(target_config, profile, save_credentials)
 
         block = DbtCliProfile(
             name=name,

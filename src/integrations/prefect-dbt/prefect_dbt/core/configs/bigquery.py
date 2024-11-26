@@ -12,7 +12,7 @@ from pydantic import Field
 
 from prefect.blocks.core import SecretDict
 from prefect_dbt.core.configs.base import BaseTargetConfigs, MissingExtrasRequireError
-from prefect_dbt.utils import load_profiles_yml
+from prefect_dbt.utils import load_profiles_yml, slugify_schema
 
 try:
     from google.auth.transport.requests import Request
@@ -154,9 +154,10 @@ class BigQueryTargetConfigs(BaseTargetConfigs):
     def create_from_profile(
         cls, profiles_dir: str, profile_name: str, save_credentials: bool = False
     ) -> list["BigQueryTargetConfigs"]:
-        """Create a BigQueryTargetConfigs instance from a dbt profile.
+        """Create BigQueryTargetConfigs instances from a dbt profile.
         Will create and save nested GcpCredentials blocks if the connection
-        method is `service-account` or `service-account-json`.
+        method is `service-account` or `service-account-json` and `save_credentials`
+        is `True`.
 
         Args:
             profiles_dir: Path to the directory containing profiles.yml
@@ -178,18 +179,16 @@ class BigQueryTargetConfigs(BaseTargetConfigs):
         if not target:
             raise ValueError(f"No default target found in profile {profile_name}")
 
-        outputs = profile_data.get("outputs", {}).get(target)
+        outputs = profile_data.get("outputs", {})
         if not outputs:
             raise ValueError(f"Outputs not found in profile {profile_name}")
 
         configs = []
-
-        for output in outputs:
-            target_config = output.get("target")
+        for target_config in outputs.values():
             if target_config.get("type") != "bigquery":
                 continue
 
-            schema = target_config.get("schema", target_config.get("dataset"))
+            schema = target_config.get("dataset", target_config.get("schema"))
 
             if target_config.get("method") == "service-account":
                 credentials = GcpCredentials(
@@ -207,7 +206,12 @@ class BigQueryTargetConfigs(BaseTargetConfigs):
                 credentials = GcpCredentials()
 
             if save_credentials:
-                credentials.save(name=f"dbt-gcp-credentials-{schema}")
+                credentials.save(
+                    name=f"dbt-gcp-credentials-{slugify_schema(schema)}", overwrite=True
+                )
+                print(
+                    f"Saved GCP Credentials block: dbt-gcp-credentials-{slugify_schema(schema)}"
+                )
 
             config = cls(
                 type=target_config.get("type"),
