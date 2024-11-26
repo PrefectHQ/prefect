@@ -156,10 +156,8 @@ class TargetConfigs(BaseTargetConfigs):
         output_name: Optional[str] = None,
         save_credentials: bool = False,
     ) -> list["BaseTargetConfigs"]:
-        """Create BigQueryTargetConfigs instances from a dbt profile.
-        Will create and save nested GcpCredentials blocks if the connection
-        method is `service-account` or `service-account-json` and `save_credentials`
-        is `True`.
+        """Create TargetConfigs instances from a dbt profile.
+        Only works for duckdb right now.
 
         Args:
             profiles_dir: Path to the directory containing profiles.yml
