@@ -1681,6 +1681,7 @@ class S3Bucket(WritableFileSystem, WritableDeploymentStorage, ObjectStorageBlock
         """
         Downloads objects *within* a folder (excluding the folder itself)
         from the S3 bucket to a folder.
+        Changed in version 0.6.0.
 
         Args:
             from_folder: The path to the folder to download from.
