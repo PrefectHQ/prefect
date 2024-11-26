@@ -143,6 +143,5 @@ class ServerEventsSettings(PrefectBaseSettings):
         validation_alias=AliasChoices(
             AliasPath("maximum_event_name_length"),
             "prefect_server_events_maximum_event_name_length",
-            "prefect_events_maximum_event_name_length",
         ),
     )
