@@ -10,6 +10,7 @@ import datetime
 import importlib.util
 import inspect
 import os
+import sys
 import tempfile
 import warnings
 from functools import partial, update_wrapper
@@ -136,6 +137,16 @@ logger = get_logger("flows")
 
 if TYPE_CHECKING:
     from prefect.deployments.runner import FlexibleScheduleList, RunnerDeployment
+
+# Handle Python 3.8 compatibility for GenericAlias
+if sys.version_info >= (3, 9):
+    from types import GenericAlias  # novermin
+
+    GENERIC_ALIAS = (GenericAlias,)
+else:
+    from typing import _GenericAlias
+
+    GENERIC_ALIAS = (_GenericAlias,)
 
 
 @PrefectObjectRegistry.register_instances
@@ -530,18 +541,22 @@ class Flow(Generic[P, R]):
                 is_v1_type(param.annotation) for param in sig.parameters.values()
             )
             has_v1_models = any(
-                issubclass(param.annotation, V1BaseModel)
-                if isinstance(param.annotation, type)
-                else False
+                (
+                    isinstance(param.annotation, type)
+                    and not isinstance(param.annotation, GENERIC_ALIAS)
+                    and issubclass(param.annotation, V1BaseModel)
+                )
                 for param in sig.parameters.values()
             )
             has_v2_types = any(
                 is_v2_type(param.annotation) for param in sig.parameters.values()
             )
             has_v2_models = any(
-                issubclass(param.annotation, V2BaseModel)
-                if isinstance(param.annotation, type)
-                else False
+                (
+                    isinstance(param.annotation, type)
+                    and not isinstance(param.annotation, GENERIC_ALIAS)
+                    and issubclass(param.annotation, V2BaseModel)
+                )
                 for param in sig.parameters.values()
             )
 
@@ -1601,7 +1616,9 @@ flow.from_source = Flow.from_source
 
 
 def select_flow(
-    flows: Iterable[Flow], flow_name: str = None, from_message: str = None
+    flows: Iterable[Flow],
+    flow_name: Optional[str] = None,
+    from_message: Optional[str] = None,
 ) -> Flow:
     """
     Select the only flow in an iterable or a flow specified by name.

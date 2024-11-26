@@ -1517,6 +1517,23 @@ class TestFlowParameterTypes:
             "secret": SecretStr("my secret")
         }
 
+    @pytest.mark.skipif(
+        sys.version_info < (3, 9), reason="Python 3.9+ required for GenericAlias"
+    )
+    def test_flow_signature_can_contain_generic_type_hints(self):
+        """Test that generic type hints like dict[str, str] work correctly
+
+        this is a regression test for https://github.com/PrefectHQ/prefect/issues/16105
+        """
+
+        @flow
+        def my_flow(param: dict[str, str]):  # novermin
+            return param
+
+        test_data = {"foo": "bar"}
+        assert my_flow(test_data) == test_data
+        assert my_flow.validate_parameters({"param": test_data}) == {"param": test_data}
+
 
 class TestSubflowTaskInputs:
     async def test_subflow_with_one_upstream_task_future(self, prefect_client):
