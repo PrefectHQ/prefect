@@ -2144,6 +2144,7 @@ class S3Bucket(WritableFileSystem, WritableDeploymentStorage, ObjectStorageBlock
         """
         Uploads files *within* a folder (excluding the folder itself)
         to the object storage service folder.
+        Added in version 0.5.3.
 
         Args:
             from_folder: The path to the folder to upload from.
