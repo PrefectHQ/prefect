@@ -694,6 +694,8 @@ class TestSettingsClass:
         monkeypatch.delenv("PREFECT_TESTING_TEST_MODE", raising=False)
         monkeypatch.delenv("PREFECT_TESTING_UNIT_TEST_MODE", raising=False)
         assert Settings().testing.test_setting == "FOO"
+        # Should default to ephemeral profile
+        assert Settings().server.ephemeral.enabled
 
     def test_loads_when_profile_path_is_not_a_toml_file(self, monkeypatch, tmp_path):
         monkeypatch.setenv("PREFECT_PROFILES_PATH", str(tmp_path / "profiles.toml"))
@@ -1443,6 +1445,25 @@ class TestSettingsSources:
 
         assert not Settings().server.ephemeral.enabled
         assert not PREFECT_SERVER_ALLOW_EPHEMERAL_MODE.value()
+
+    def test_handle_profile_settings_without_active_profile(
+        self, monkeypatch, tmp_path
+    ):
+        profiles_path = tmp_path / "profiles.toml"
+
+        monkeypatch.delenv("PREFECT_TESTING_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_TESTING_UNIT_TEST_MODE", raising=False)
+        monkeypatch.setenv("PREFECT_PROFILES_PATH", str(profiles_path))
+
+        profiles_path.write_text(
+            textwrap.dedent(
+                """
+                """
+            )
+        )
+
+        # Should default to ephemeral profile
+        assert Settings().server.ephemeral.enabled
 
 
 class TestLoadProfiles:
