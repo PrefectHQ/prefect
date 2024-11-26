@@ -71,6 +71,9 @@ Homepage = "https://github.com/PrefectHQ/prefect/tree/main/src/integrations/pref
 [project.entry-points."prefect.collections"]
 prefect_dbt = "prefect_dbt"
 
+[project.scripts]
+prefect-dbt = "prefect_dbt._cli:app"
+
 [tool.setuptools_scm]
 version_file = "prefect_dbt/_version.py"
 root = "../../.."
