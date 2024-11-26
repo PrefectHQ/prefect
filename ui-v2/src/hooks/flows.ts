@@ -7,33 +7,33 @@ import {
 } from "@tanstack/react-query";
 
 type QueryKeys = {
-	all: readonly ["deployments"];
+	all: readonly ["flows"];
 	filtered: (
-		options?: UseDeploymentsOptions,
-	) => readonly ["deployments", "filtered", string];
+		options?: UseFlowsOptions,
+	) => readonly ["flows", "filtered", string];
 	filteredCount: (
-		options?: UseDeploymentsOptions,
-	) => readonly ["deployments", "filtered-count", string];
+		options?: UseFlowsOptions,
+	) => readonly ["flows", "filtered-count", string];
 };
 
 const queryKeys: QueryKeys = {
-	all: ["deployments"],
-	filtered: (options?: UseDeploymentsOptions) => [
+	all: ["flows"],
+	filtered: (options?: UseFlowsOptions) => [
 		...queryKeys.all,
 		"filtered",
 		JSON.stringify(options),
 	],
-	filteredCount: (options?: UseDeploymentsOptions) => [
+	filteredCount: (options?: UseFlowsOptions) => [
 		...queryKeys.all,
 		"filtered-count",
 		JSON.stringify(options),
 	],
 };
 
-const buildDeploymentsQuery = (options?: UseDeploymentsOptions) => ({
+const buildFlowsQuery = (options?: UseFlowsOptions) => ({
 	queryKey: queryKeys.filtered(options),
 	queryFn: async () => {
-		const response = await getQueryService().POST("/deployments/filter", {
+		const response = await getQueryService().POST("/flows/filter", {
 			body: options,
 		});
 		return response.data;
@@ -42,10 +42,10 @@ const buildDeploymentsQuery = (options?: UseDeploymentsOptions) => ({
 	placeholderData: keepPreviousData,
 });
 
-const buildCountQuery = (options?: UseDeploymentsOptions) => ({
+const buildCountQuery = (options?: UseFlowsOptions) => ({
 	queryKey: queryKeys.filteredCount(options),
 	queryFn: async () => {
-		const response = await getQueryService().POST("/deployments/count", {
+		const response = await getQueryService().POST("/flows/count", {
 			body: options,
 		});
 		return response.data;
@@ -54,38 +54,32 @@ const buildCountQuery = (options?: UseDeploymentsOptions) => ({
 	placeholderData: keepPreviousData,
 });
 
-type UseDeploymentsOptions =
-	components["schemas"]["Body_read_deployments_deployments_filter_post"];
+type UseFlowsOptions =
+	components["schemas"]["Body_read_flows_flows_filter_post"];
 
-export const useDeployments = (
-	options?: UseDeploymentsOptions,
-	enabled = true,
-) => {
+export const useFlows = (options?: UseFlowsOptions, enabled = true) => {
 	const results = useQueries({
 		queries: [
 			{
-				...buildDeploymentsQuery(options),
+				...buildFlowsQuery(options),
 				enabled,
 			},
 			{
 				...buildCountQuery(options),
 				enabled,
 			},
-			{
-				...buildCountQuery(),
-				enabled,
-			},
+			{ ...buildCountQuery(), enabled },
 		],
 	});
 
-	const [deploymentsQuery, filteredCountQuery, totalCountQuery] = results;
+	const [flowsQuery, filteredCountQuery, totalCountQuery] = results;
 
 	return {
-		// Deployments with pagination
-		deployments: deploymentsQuery.data ?? [],
-		isLoadingDeployments: deploymentsQuery.isLoading,
-		isErrorDeployments: deploymentsQuery.isError,
-		errorDeployments: deploymentsQuery.error,
+		// Flows with pagination
+		flows: flowsQuery.data ?? [],
+		isLoadingFlows: flowsQuery.isLoading,
+		isErrorFlows: flowsQuery.isError,
+		errorFlows: flowsQuery.error,
 
 		// Filtered count
 		filteredCount: filteredCountQuery.data ?? 0,
@@ -106,18 +100,18 @@ export const useDeployments = (
 };
 
 /**
- * Data loader for the useDeployments hook, used by TanStack Router
- * Prefetches deployments data, filtered count, and total count
+ * Data loader for the useFlows hook, used by TanStack Router
+ * Prefetches flows data, filtered count, and total count
  */
-useDeployments.loader = ({
+useFlows.loader = ({
 	deps,
 	context,
 }: {
-	deps: UseDeploymentsOptions;
+	deps: UseFlowsOptions;
 	context: { queryClient: QueryClient };
 }) =>
 	Promise.all([
-		context.queryClient.ensureQueryData(buildDeploymentsQuery(deps)),
+		context.queryClient.ensureQueryData(buildFlowsQuery(deps)),
 		context.queryClient.ensureQueryData(buildCountQuery(deps)),
 		context.queryClient.ensureQueryData(buildCountQuery()),
 	]);
