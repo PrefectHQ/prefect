@@ -489,6 +489,7 @@ def create_app(
     """
     settings = settings or prefect.settings.get_current_settings()
     cache_key = (settings.hash_key(), ephemeral)
+    ephemeral = ephemeral or bool(os.getenv("PREFECT__SERVER_EPHEMERAL"))
 
     from prefect.logging.configuration import setup_logging
 
@@ -525,41 +526,10 @@ def create_app(
     async def start_services():
         """Start additional services when the Prefect REST API starts up."""
 
-        if ephemeral:
-            app.state.services = None
-            return
-
         service_instances = []
-        if prefect.settings.PREFECT_API_SERVICES_SCHEDULER_ENABLED.value():
-            service_instances.append(services.scheduler.Scheduler())
-            service_instances.append(services.scheduler.RecentDeploymentsScheduler())
-
-        if prefect.settings.PREFECT_API_SERVICES_LATE_RUNS_ENABLED.value():
-            service_instances.append(services.late_runs.MarkLateRuns())
-
-        if prefect.settings.PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED.value():
-            service_instances.append(services.pause_expirations.FailExpiredPauses())
-
-        if prefect.settings.PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED.value():
-            service_instances.append(
-                services.cancellation_cleanup.CancellationCleanup()
-            )
 
         if prefect.settings.PREFECT_SERVER_ANALYTICS_ENABLED.value():
             service_instances.append(services.telemetry.Telemetry())
-
-        if prefect.settings.PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED.value():
-            service_instances.append(
-                services.flow_run_notifications.FlowRunNotifications()
-            )
-
-        if prefect.settings.PREFECT_API_SERVICES_FOREMAN_ENABLED.value():
-            service_instances.append(services.foreman.Foreman())
-
-        if prefect.settings.PREFECT_API_SERVICES_TRIGGERS_ENABLED.value():
-            service_instances.append(ReactiveTriggers())
-            service_instances.append(ProactiveTriggers())
-            service_instances.append(Actions())
 
         if prefect.settings.PREFECT_API_SERVICES_TASK_RUN_RECORDER_ENABLED:
             service_instances.append(TaskRunRecorder())
@@ -569,6 +539,38 @@ def create_app(
 
         if prefect.settings.PREFECT_API_EVENTS_STREAM_OUT_ENABLED:
             service_instances.append(stream.Distributor())
+
+        # don't run services in ephemeral mode
+        if not ephemeral:
+            if prefect.settings.PREFECT_API_SERVICES_SCHEDULER_ENABLED.value():
+                service_instances.append(services.scheduler.Scheduler())
+                service_instances.append(
+                    services.scheduler.RecentDeploymentsScheduler()
+                )
+
+            if prefect.settings.PREFECT_API_SERVICES_LATE_RUNS_ENABLED.value():
+                service_instances.append(services.late_runs.MarkLateRuns())
+
+            if prefect.settings.PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED.value():
+                service_instances.append(services.pause_expirations.FailExpiredPauses())
+
+            if prefect.settings.PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED.value():
+                service_instances.append(
+                    services.cancellation_cleanup.CancellationCleanup()
+                )
+
+            if prefect.settings.PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED.value():
+                service_instances.append(
+                    services.flow_run_notifications.FlowRunNotifications()
+                )
+
+            if prefect.settings.PREFECT_API_SERVICES_FOREMAN_ENABLED.value():
+                service_instances.append(services.foreman.Foreman())
+
+            if prefect.settings.PREFECT_API_SERVICES_TRIGGERS_ENABLED.value():
+                service_instances.append(ReactiveTriggers())
+                service_instances.append(ProactiveTriggers())
+                service_instances.append(Actions())
 
         loop = asyncio.get_running_loop()
 
@@ -828,6 +830,7 @@ class SubprocessASGIServer:
         # used to turn off serving the UI
         server_env = {
             "PREFECT_UI_ENABLED": "0",
+            "PREFECT__SERVER_EPHEMERAL": "1",
         }
         return subprocess.Popen(
             args=[
