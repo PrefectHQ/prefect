@@ -1746,6 +1746,7 @@ class S3Bucket(WritableFileSystem, WritableDeploymentStorage, ObjectStorageBlock
         """Asynchronously streams an object from another bucket to this bucket. Requires the
         object to be downloaded and uploaded in chunks. If `self`'s credentials
         allow for writes to the other bucket, try using `S3Bucket.copy_object`.
+        Added in version 0.5.3.
 
         Args:
             bucket: The bucket to stream from.
