@@ -38,6 +38,7 @@ def create_target_configs(
     target_config: Dict[str, Any],
     profile_name: str,
     save_credentials: bool,
+    output_name: Optional[str] = None,
 ) -> TargetConfigs:
     """Create the appropriate target configs based on the profile type."""
 
@@ -52,6 +53,7 @@ def create_target_configs(
     target_config_blocks = config_class.create_from_profile(
         get_profiles_dir(),
         profile_name,
+        output_name,
         save_credentials,
     )
 
@@ -84,7 +86,7 @@ def create_blocks_from_profile(profiles_dir: str, save_credentials: bool) -> lis
 
             try:
                 target_configs_list = create_target_configs(
-                    target_config, profile_name, save_credentials
+                    target_config, profile_name, save_credentials, target_name
                 )
                 for target_configs in target_configs_list:
                     block = DbtCliProfile(
@@ -157,9 +159,9 @@ def create(
         profiles_dir = profiles_dir or get_profiles_dir()
         created_blocks = create_blocks_from_profile(profiles_dir, save_credentials)
 
-        print(f"\nCreated {len(created_blocks)} dbt CLI Profile blocks:")
-        for block_name, block_id, block in created_blocks:
-            print(f"\nBlock: {block_name}")
+        print(f"\nSaved {len(created_blocks)} dbt CLI Profile blocks:")
+        for block_name, block_id, _ in created_blocks:
+            print(f"  - {block_name}")
 
         return [block_id for _, block_id, _ in created_blocks]
 
@@ -200,7 +202,3 @@ def create(
         block_id = block.save(name, overwrite=True)
 
         print(f"\nCreated dbt CLI Profile block '{name}' ({block_id})")
-        # print("Details:")
-        # print(block.name)
-
-        # return block_id

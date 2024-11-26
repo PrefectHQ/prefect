@@ -152,7 +152,11 @@ class BigQueryTargetConfigs(BaseTargetConfigs):
 
     @classmethod
     def create_from_profile(
-        cls, profiles_dir: str, profile_name: str, save_credentials: bool = False
+        cls,
+        profiles_dir: str,
+        profile_name: str,
+        output_name: Optional[str] = None,
+        save_credentials: bool = False,
     ) -> list["BigQueryTargetConfigs"]:
         """Create BigQueryTargetConfigs instances from a dbt profile.
         Will create and save nested GcpCredentials blocks if the connection
@@ -184,7 +188,10 @@ class BigQueryTargetConfigs(BaseTargetConfigs):
             raise ValueError(f"Outputs not found in profile {profile_name}")
 
         configs = []
-        for target_config in outputs.values():
+        for name, target_config in outputs.items():
+            if output_name and output_name != name:
+                continue
+
             if target_config.get("type") != "bigquery":
                 continue
 

@@ -7,6 +7,7 @@ from typing import Any, Dict, Optional
 from pydantic import BaseModel, Field
 
 from prefect.blocks.core import Block
+from prefect_dbt.utils import load_profiles_yml
 
 
 class DbtConfigs(Block, abc.ABC):
@@ -146,6 +147,62 @@ class TargetConfigs(BaseTargetConfigs):
     _block_type_name = "dbt CLI Target Configs"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/5zE9lxfzBHjw3tnEup4wWL/9a001902ed43a84c6c96d23b24622e19/dbt-bit_tm.png?h=250"  # noqa
     _documentation_url = "https://docs.prefect.io/integrations/prefect-dbt"  # noqa
+
+    @classmethod
+    def create_from_profile(
+        cls,
+        profiles_dir: str,
+        profile_name: str,
+        output_name: Optional[str] = None,
+        save_credentials: bool = False,
+    ) -> list["BaseTargetConfigs"]:
+        """Create BigQueryTargetConfigs instances from a dbt profile.
+        Will create and save nested GcpCredentials blocks if the connection
+        method is `service-account` or `service-account-json` and `save_credentials`
+        is `True`.
+
+        Args:
+            profiles_dir: Path to the directory containing profiles.yml
+            profile_name: Name of the profile to use
+
+        Returns:
+            A BigQueryTargetConfigs instance configured from the profile
+
+        Raises:
+            ValueError: If the profile is not found or is not a BigQuery profile
+        """
+        profiles = load_profiles_yml(profiles_dir)
+        profile_data = profiles.get(profile_name)
+
+        if not profile_data:
+            raise ValueError(f"Profile {profile_name} not found in profiles.yml")
+
+        target = profile_data.get("target")
+        if not target:
+            raise ValueError(f"No default target found in profile {profile_name}")
+
+        outputs = profile_data.get("outputs", {})
+        if not outputs:
+            raise ValueError(f"Outputs not found in profile {profile_name}")
+
+        configs = []
+        for name, target_config in outputs.items():
+            if output_name and output_name != name:
+                continue
+
+            if target_config.get("type") != "duckdb":
+                continue
+
+            schema = target_config.get("path", target_config.get("schema"))
+
+            config = cls(
+                type=target_config.get("type"),
+                schema=schema,
+                threads=target_config.get("threads", 4),
+            )
+            configs.append(config)
+
+        return configs
 
 
 class GlobalConfigs(DbtConfigs):

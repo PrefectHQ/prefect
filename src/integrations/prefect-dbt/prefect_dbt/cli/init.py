@@ -61,7 +61,9 @@ def init(
             if should_create_blocks:
                 save_credentials = typer.confirm(
                     (
-                        "\nIf GCP, AWS, or Snowflake credentials are found, would you like to create "
+                        "\nIf GCP secrive account file path or service account JSON, "
+                        "AWS credentials, or Snowflake credentials are found, Prefect can store them as blocks "
+                        "to make your dbt profile portable. If found, would you like to create "
                         "blocks for them?"
                     ),
                     default=False,
@@ -74,9 +76,7 @@ def init(
                     )
 
                     if created_blocks:
-                        print(
-                            f"\nCreated {len(created_blocks)} dbt CLI Profile blocks:"
-                        )
+                        print(f"\nSaved {len(created_blocks)} dbt CLI Profile blocks:")
                         for block_name, block_id, _ in created_blocks:
                             print(f"  - {block_name}")
                     else:
