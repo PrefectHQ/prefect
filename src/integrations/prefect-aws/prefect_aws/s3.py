@@ -699,6 +699,7 @@ def list_objects(
 ) -> List[Dict[str, Any]]:
     """
     Lists details of objects in a given S3 bucket.
+    Added in version 0.5.3.
 
     Args:
         bucket: Name of bucket to list items from. Required if a default value was not
