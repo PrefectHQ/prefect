@@ -10,7 +10,9 @@ except ImportError:
 
 from pydantic import Field
 
+from prefect.blocks.core import SecretDict
 from prefect_dbt.core.configs.base import BaseTargetConfigs, MissingExtrasRequireError
+from prefect_dbt.utils import load_profiles_yml
 
 try:
     from google.auth.transport.requests import Request
@@ -147,3 +149,73 @@ class BigQueryTargetConfigs(BaseTargetConfigs):
                 "GcpCredentials or BigQueryTargetConfigs"
             )
         return configs_json
+
+    @classmethod
+    def create_from_profile(
+        cls, profiles_dir: str, profile_name: str, save_credentials: bool = False
+    ) -> list["BigQueryTargetConfigs"]:
+        """Create a BigQueryTargetConfigs instance from a dbt profile.
+        Will create and save nested GcpCredentials blocks if the connection
+        method is `service-account` or `service-account-json`.
+
+        Args:
+            profiles_dir: Path to the directory containing profiles.yml
+            profile_name: Name of the profile to use
+
+        Returns:
+            A BigQueryTargetConfigs instance configured from the profile
+
+        Raises:
+            ValueError: If the profile is not found or is not a BigQuery profile
+        """
+        profiles = load_profiles_yml(profiles_dir)
+        profile_data = profiles.get(profile_name)
+
+        if not profile_data:
+            raise ValueError(f"Profile {profile_name} not found in profiles.yml")
+
+        target = profile_data.get("target")
+        if not target:
+            raise ValueError(f"No default target found in profile {profile_name}")
+
+        outputs = profile_data.get("outputs", {}).get(target)
+        if not outputs:
+            raise ValueError(f"Outputs not found in profile {profile_name}")
+
+        configs = []
+
+        for output in outputs:
+            target_config = output.get("target")
+            if target_config.get("type") != "bigquery":
+                continue
+
+            schema = target_config.get("schema", target_config.get("dataset"))
+
+            if target_config.get("method") == "service-account":
+                credentials = GcpCredentials(
+                    service_account_file=target_config.get("keyfile"),
+                    project=target_config.get("project"),
+                )
+
+            elif target_config.get("method") == "service-account-json":
+                credentials = GcpCredentials(
+                    service_account_info=SecretDict(target_config.get("keyfile_json")),
+                    project=target_config.get("project"),
+                )
+
+            else:
+                credentials = GcpCredentials()
+
+            if save_credentials:
+                credentials.save(name=f"dbt-gcp-credentials-{schema}")
+
+            config = cls(
+                type=target_config.get("type"),
+                schema=schema,
+                threads=target_config.get("threads", 4),
+                project=target_config.get("project"),
+                credentials=credentials,
+            )
+            configs.append(config)
+
+        return configs

@@ -1,7 +1,7 @@
 from . import _version
 
 from .cloud import DbtCloudCredentials, DbtCloudJob  # noqa
-from .cli import (  # noqa
+from .core import (  # noqa
     DbtCliProfile,
     GlobalConfigs,
     MissingExtrasRequireError,
@@ -10,17 +10,17 @@ from .cli import (  # noqa
 )
 
 try:
-    from .cli.configs.snowflake import SnowflakeTargetConfigs  # noqa
+    from .core.configs.snowflake import SnowflakeTargetConfigs  # noqa
 except MissingExtrasRequireError:
     pass
 
 try:
-    from .cli.configs.bigquery import BigQueryTargetConfigs  # noqa
+    from .core.configs.bigquery import BigQueryTargetConfigs  # noqa
 except MissingExtrasRequireError:
     pass
 
 try:
-    from .cli.configs.postgres import PostgresTargetConfigs  # noqa
+    from .core.configs.postgres import PostgresTargetConfigs  # noqa
 except MissingExtrasRequireError:
     pass
 

@@ -1,23 +1,29 @@
 """
 CLI interface for dbt block commands
 """
-import os
 from typing import Any, Dict, Optional
 
 import typer
-import yaml
-from slugify import slugify
 
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import with_cli_exception_handling
-from prefect_dbt.cli import DbtCliProfile
-from prefect_dbt.cli.configs import (
+from prefect_dbt.cli.root import app
+from prefect_dbt.core import DbtCliProfile
+from prefect_dbt.core.configs import (
     BigQueryTargetConfigs,
     PostgresTargetConfigs,
     SnowflakeTargetConfigs,
     TargetConfigs,
 )
-from prefect_dbt.cli.root import app
+from prefect_dbt.utils import get_profiles_dir, load_profiles_yml, slugify_schema
+
+TYPE_TO_CONFIG = {
+    "snowflake": SnowflakeTargetConfigs,
+    "bigquery": BigQueryTargetConfigs,
+    "postgres": PostgresTargetConfigs,
+    "redshift": PostgresTargetConfigs,  # Redshift uses Postgres configs
+    "duckdb": TargetConfigs,
+}
 
 block_app = PrefectTyper(
     name="block",
@@ -28,74 +34,25 @@ block_app = PrefectTyper(
 app.add_typer(block_app, name="block")
 
 
-def slugify_name(name: str, max_length: int = 45) -> Optional[str]:
-    """
-    Slugify text for use as a name.
-
-    Keeps only alphanumeric characters and dashes, and caps the length
-    of the slug at 45 chars.
-
-    Args:
-        name: The name of the job
-
-    Returns:
-        The slugified job name or None if the slugified name is empty
-    """
-    slug = slugify(
-        name,
-        max_length=max_length,  # Leave enough space for generateName
-        regex_pattern=r"[^a-zA-Z0-9-]+",
-    )
-
-    return slug if slug else None
-
-
-def get_profiles_dir() -> str:
-    """Get the dbt profiles directory from environment or default location."""
-    profiles_dir = os.getenv("DBT_PROFILES_DIR")
-    if not profiles_dir:
-        profiles_dir = os.path.expanduser("~/.dbt")
-    return profiles_dir
-
-
-def load_profiles_yml(profiles_dir: str) -> dict:
-    """Load and parse the profiles.yml file."""
-    profiles_path = os.path.join(profiles_dir, "profiles.yml")
-    if not os.path.exists(profiles_path):
-        raise typer.BadParameter(f"No profiles.yml found at {profiles_path}")
-
-    with open(profiles_path, "r") as f:
-        return yaml.safe_load(f)
-
-
-def create_target_configs(target_config: Dict[str, Any]) -> TargetConfigs:
+def create_target_configs(
+    target_config: Dict[str, Any], profile_name: str
+) -> TargetConfigs:
     """Create the appropriate target configs based on the profile type."""
-    type_to_config = {
-        "snowflake": SnowflakeTargetConfigs,
-        "bigquery": BigQueryTargetConfigs,
-        "postgres": PostgresTargetConfigs,
-        "redshift": PostgresTargetConfigs,  # Redshift uses Postgres configs
-        "duckdb": TargetConfigs,
-    }
 
     adapter_type = target_config.get("type")
     if not adapter_type:
         raise ValueError("No 'type' field found in target configuration")
 
-    config_class = type_to_config.get(adapter_type.lower())
+    config_class = TYPE_TO_CONFIG.get(adapter_type.lower())
     if not config_class:
         raise ValueError(f"Unsupported adapter type: {adapter_type}")
 
-    target_dict = target_config.copy()
-    schema = (
-        target_dict.get("schema")
-        if adapter_type != "duckdb"
-        else target_dict.get("path")
+    target_config_block = config_class.create_from_profile(
+        get_profiles_dir(), profile_name
     )
-
-    target_config_block = config_class(type=adapter_type, schema=schema)
     target_config_block.save(
-        name=f"dbt-target-configs-{adapter_type}-{slugify_name(schema)}", overwrite=True
+        name=f"dbt-target-configs-{adapter_type}-{slugify_schema(target_config_block.schema)}",
+        overwrite=True,
     )
 
     return target_config_block
@@ -116,7 +73,7 @@ def create_blocks_from_profile(profiles_dir: str) -> list:
             block_name = f"dbt-{profile_name}-{target_name}"
 
             try:
-                target_configs = create_target_configs(target_config)
+                target_configs = create_target_configs(target_config, profile_name)
 
                 block = DbtCliProfile(
                     name=block_name,
