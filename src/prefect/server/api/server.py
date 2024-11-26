@@ -528,12 +528,11 @@ def create_app(
 
         service_instances = []
 
-        if ephemeral:
-            if prefect.settings.PREFECT_SERVER_ANALYTICS_ENABLED.value():
-                service_instances.append(services.telemetry.Telemetry())
+        if prefect.settings.PREFECT_SERVER_ANALYTICS_ENABLED.value():
+            service_instances.append(services.telemetry.Telemetry())
 
         # don't run services in ephemeral mode
-        else:
+        if not ephemeral:
             if prefect.settings.PREFECT_API_SERVICES_SCHEDULER_ENABLED.value():
                 service_instances.append(services.scheduler.Scheduler())
                 service_instances.append(
