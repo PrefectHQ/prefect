@@ -7,7 +7,6 @@ import platform
 import sys
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as import_version
-from typing import Any, Dict
 
 import typer
 
@@ -17,6 +16,7 @@ import prefect.settings
 import prefect_dbt
 from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli._utilities import with_cli_exception_handling
+from prefect.cli.root import display
 from prefect.logging.configuration import setup_logging
 from prefect.settings import (
     PREFECT_CLI_WRAP_LINES,
@@ -93,28 +93,16 @@ def main(
 
 
 @app.command()
-async def version(
-    omit_integrations: bool = typer.Option(
-        False, "--omit-integrations", help="Omit integration information"
-    ),
-):
-    """Get the current Prefect version and integration information."""
+async def version():
+    """Get the current prefect-dbt version"""
 
     version_info = {
         "Version": prefect_dbt.__version__,
         "Prefect version": prefect.__version__,
-        # "API version": SERVER_API_VERSION,
         "Python version": platform.python_version(),
-        # "Git commit": prefect_dbt.__version_info__["full-revisionid"][:8],
-        # "Built": pendulum.parse(
-        #     prefect_dbt.__version_info__["date"]
-        # ).to_day_datetime_string(),
         "OS/Arch": f"{sys.platform}/{platform.machine()}",
         "Profile": prefect.context.get_settings_context().profile.name,
     }
-    # server_type = determine_server_type()
-
-    # version_info["Server type"] = server_type.lower()
 
     try:
         pydantic_version = import_version("pydantic")
@@ -123,43 +111,4 @@ async def version(
 
     version_info["Pydantic version"] = pydantic_version
 
-    # if server_type == ServerType.EPHEMERAL.value:
-    #     database = get_dialect(PREFECT_API_DATABASE_CONNECTION_URL.value()).name
-    #     version_info["Server"] = {"Database": database}
-    #     if database == "sqlite":
-    #         version_info["Server"]["SQLite version"] = sqlite3.sqlite_version
-
-    if not omit_integrations:
-        integrations = get_prefect_integrations()
-        if integrations:
-            version_info["Other integrations"] = integrations
-
     display(version_info)
-
-
-def get_prefect_integrations() -> Dict[str, str]:
-    """Get information about installed Prefect integrations."""
-    from importlib.metadata import distributions
-
-    integrations = {}
-    for dist in distributions():
-        if dist.metadata["Name"].startswith("prefect-") and not dist.metadata[
-            "Name"
-        ].startswith("prefect-dbt"):
-            author_email = dist.metadata.get("Author-email", "").strip()
-            if author_email.endswith("@prefect.io>"):
-                integrations[dist.metadata["Name"]] = dist.version
-
-    return integrations
-
-
-def display(object: Dict[str, Any], nesting: int = 0):
-    """Recursive display of a dictionary with nesting."""
-    for key, value in object.items():
-        key += ":"
-        if isinstance(value, dict):
-            app.console.print(" " * nesting + key)
-            display(value, nesting + 2)
-        else:
-            prefix = " " * nesting
-            app.console.print(f"{prefix}{key.ljust(20 - len(prefix))} {value}")
