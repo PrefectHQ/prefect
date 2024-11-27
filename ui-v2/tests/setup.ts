@@ -42,3 +42,8 @@ Object.defineProperty(window, "matchMedia", {
 vi.mock("@tanstack/router-devtools", () => ({
 	TanStackRouterDevtools: () => null,
 }));
+
+// Mock @tanstack/react-query-devtools
+vi.mock("@tanstack/react-query-devtool", () => ({
+	ReactQueryDevtools: () => null,
+}));
