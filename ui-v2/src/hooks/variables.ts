@@ -1,6 +1,5 @@
 import type { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
-import { useToast } from "@/hooks/use-toast";
 import { startsWith } from "@/lib/utils";
 import {
 	queryOptions,
@@ -185,11 +184,6 @@ useVariables.loader = ({
 		context.queryClient.ensureQueryData(buildCountQuery()),
 	]);
 
-type UseCreateVariableOptions = {
-	onSuccess: () => void;
-	onError: (error: Error) => void;
-};
-
 /**
  * Hook for creating a new variable
  *
@@ -219,12 +213,8 @@ type UseCreateVariableOptions = {
  * });
  * ```
  */
-export const useCreateVariable = ({
-	onSuccess,
-	onError,
-}: UseCreateVariableOptions) => {
+export const useCreateVariable = () => {
 	const queryClient = useQueryClient();
-	const { toast } = useToast();
 
 	const { mutate: createVariable, ...rest } = useMutation({
 		mutationFn: (variable: components["schemas"]["VariableCreate"]) => {
@@ -237,21 +227,9 @@ export const useCreateVariable = ({
 				predicate: (query) => startsWith(query.queryKey, variableKeys.all),
 			});
 		},
-		onSuccess: () => {
-			toast({
-				title: "Variable created",
-			});
-			onSuccess();
-		},
-		onError,
 	});
 
 	return { createVariable, ...rest };
-};
-
-type UseUpdateVariableProps = {
-	onSuccess: () => void;
-	onError: (error: Error) => void;
 };
 
 type VariableUpdateWithId = components["schemas"]["VariableUpdate"] & {
@@ -286,12 +264,8 @@ type VariableUpdateWithId = components["schemas"]["VariableUpdate"] & {
  * });
  * ```
  */
-export const useUpdateVariable = ({
-	onSuccess,
-	onError,
-}: UseUpdateVariableProps) => {
+export const useUpdateVariable = () => {
 	const queryClient = useQueryClient();
-	const { toast } = useToast();
 
 	const { mutate: updateVariable, ...rest } = useMutation({
 		mutationFn: (variable: VariableUpdateWithId) => {
@@ -306,13 +280,6 @@ export const useUpdateVariable = ({
 				predicate: (query) => startsWith(query.queryKey, variableKeys.all),
 			});
 		},
-		onSuccess: () => {
-			toast({
-				title: "Variable updated",
-			});
-			onSuccess();
-		},
-		onError,
 	});
 
 	return { updateVariable, ...rest };

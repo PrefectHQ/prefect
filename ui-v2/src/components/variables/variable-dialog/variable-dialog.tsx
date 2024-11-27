@@ -26,6 +26,7 @@ import { TagsInput } from "@/components/ui/tags-input";
 import { JsonInput } from "@/components/ui/json-input";
 import { useEffect, useMemo } from "react";
 import { useCreateVariable, useUpdateVariable } from "@/hooks/variables";
+import { useToast } from "@/hooks/use-toast";
 
 const formSchema = z.object({
 	name: z.string().min(2, { message: "Name must be at least 2 characters" }),
@@ -50,6 +51,8 @@ export const VariableDialog = ({
 	open,
 	variableToEdit,
 }: VariableDialogProps) => {
+	const { toast } = useToast();
+
 	const form = useForm<z.infer<typeof formSchema>>({
 		resolver: zodResolver(formSchema),
 		defaultValues: VARIABLE_FORM_DEFAULT_VALUES,
@@ -70,46 +73,58 @@ export const VariableDialog = ({
 		}
 	}, [initialValues, form, open]);
 
-	const { createVariable, isPending: isCreating } = useCreateVariable({
-		onSuccess: () => {
-			onOpenChange(false);
-		},
-		onError: (error) => {
-			const message = error.message || "Unknown error while creating variable.";
-			form.setError("root", {
-				message,
-			});
-		},
-	});
+	const { createVariable, isPending: isCreating } = useCreateVariable();
 
-	const { updateVariable, isPending: isUpdating } = useUpdateVariable({
-		onSuccess: () => {
-			onOpenChange(false);
-		},
-		onError: (error) => {
-			const message = error.message || "Unknown error while updating variable.";
-			form.setError("root", {
-				message,
-			});
-		},
-	});
+	const { updateVariable, isPending: isUpdating } = useUpdateVariable();
 
 	const onSubmit = (values: z.infer<typeof formSchema>) => {
 		try {
 			const value = JSON.parse(values.value) as JSONValue;
 			if (variableToEdit?.id) {
-				updateVariable({
-					id: variableToEdit.id,
-					name: values.name,
-					value,
-					tags: values.tags,
-				});
+				updateVariable(
+					{
+						id: variableToEdit.id,
+						name: values.name,
+						value,
+						tags: values.tags,
+					},
+					{
+						onSuccess: () => {
+							toast({
+								title: "Variable updated",
+							});
+						},
+						onError: (error) => {
+							const message =
+								error.message || "Unknown error while updating variable.";
+							form.setError("root", {
+								message,
+							});
+						},
+					},
+				);
 			} else {
-				createVariable({
-					name: values.name,
-					value,
-					tags: values.tags,
-				});
+				createVariable(
+					{
+						name: values.name,
+						value,
+						tags: values.tags,
+					},
+					{
+						onSuccess: () => {
+							toast({
+								title: "Variable created",
+							});
+						},
+						onError: (error) => {
+							const message =
+								error.message || "Unknown error while creating variable.";
+							form.setError("root", {
+								message,
+							});
+						},
+					},
+				);
 			}
 		} catch {
 			form.setError("value", { message: "Value must be valid JSON" });
