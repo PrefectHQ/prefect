@@ -669,6 +669,9 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                         carrier, context=trace.set_span_in_context(span)
                     )
                     if carrier.get("traceparent"):
+                        self.logger.info(
+                            f"Setting traceparent {carrier['traceparent']} for flow run {self.flow_run.name!r}"
+                        )
                         self.client.update_flow_run_labels(
                             flow_run_id=self.flow_run.id,
                             labels={"__OTEL_TRACEPARENT": carrier["traceparent"]},
