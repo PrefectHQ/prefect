@@ -350,6 +350,7 @@ Tasks allow for customization through optional arguments that can be provided to
 | `tags`                | An optional set of tags associated with runs of this task. These tags are combined with any tags defined by a `prefect.tags` context at task runtime.                                                             |
 | `timeout_seconds`     | An optional number of seconds indicating a maximum runtime for the task. If the task exceeds this runtime, it will be marked as failed. |
 | `cache_key_fn`        | An optional callable that, given the task run context and call parameters, generates a string key. If the key matches a previous completed state, that state result is restored instead of running the task again. |
+| `cache_policy`        | An optional policy that determines what information is used to generate cache keys. Available policies include `INPUTS` (default), `TASK_SOURCE`, `RUN_ID`, `FLOW_PARAMETERS`, and `NONE`. Can be combined using the + operator. |
 | `cache_expiration`    | An optional amount of time indicating how long cached states for this task are restorable; if not provided, cached states will never expire. |
 | `retries`             | An optional number of times to retry on task run failure. |
 | `retry_delay_seconds` | An optional number of seconds to wait before retrying the task after failure. This is only applicable if `retries` is nonzero.                                                                                          |
@@ -665,3 +666,125 @@ These settings will not override the `retries` or `retry_delay_seconds` that are
 prefect config set PREFECT_TASK_DEFAULT_RETRIES=2
 prefect config set PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS = [1, 10, 100]
 ```
+
+## Caching
+
+Caching saves you time and compute by allowing you to avoid re-running tasks unnecessarily. Prefect provides several built-in cache policies that can be combined to control how tasks are cached:
+
+### Cache Policies
+
+Cache policies are composable "strategies" that determine how a task's cache key is computed.
+
+| Cache Policy | Description |
+|-------------|-------------|
+| `INPUTS` | Cache based on task input parameters (like `task_input_hash`) |
+| `TASK_SOURCE` | Cache based on the task's source code |
+| `RUN_ID` | Cache based on the flow run ID or task run ID |
+| `FLOW_PARAMETERS` | Cache based on flow-level parameters |
+| `NONE` | Disable caching |
+| `CacheKeyFn` | Cache based on a custom function |
+
+You can use these policies individually or combine them with the `+` or `-` operators:
+
+```python
+from prefect import task
+from prefect.cache_policies import INPUTS, TASK_SOURCE, NONE, CacheKeyFnPolicy
+
+# Cache based only on inputs
+@task(cache_policy=INPUTS)
+def task1(): ...
+
+# Cache based on inputs AND source code
+@task(cache_policy=INPUTS + TASK_SOURCE)
+def task2(): ...
+
+# Cache based on a custom function
+@task(cache_policy=CacheKeyFnPolicy(lambda *args, **kwargs: "my-custom-key"))
+def task3(): ...
+
+# Disable caching entirely
+@task(cache_policy=NONE)
+def task4(): ...
+```
+
+### Handling Non-Serializable Objects
+
+When working with cached tasks, you might need to pass objects that can't (or shouldn't) be serialized as part of the cache key. There are two main approaches to handle this:
+
+
+1. Using a custom cache key function:
+```python
+from prefect import flow, task
+from prefect.cache_policies import CacheKeyFnPolicy, RUN_ID
+from prefect.context import TaskRunContext
+from pydantic import BaseModel, ConfigDict
+
+class NotSerializable:
+    def __getstate__(self):
+        raise TypeError("NooOoOOo! I will not be serialized!")
+
+class ContainsNonSerializableObject(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    name: str
+    bad_object: NotSerializable
+
+def custom_cache_key_fn(context: TaskRunContext, parameters: dict) -> str:
+    return parameters["some_object"].name
+
+@task(cache_policy=CacheKeyFnPolicy(cache_key_fn=custom_cache_key_fn) + RUN_ID)
+def use_object(some_object: ContainsNonSerializableObject) -> str:
+    return f"Used connection"
+
+
+@flow
+def demo_flow():
+    obj = ContainsNonSerializableObject(name="test", bad_object=NotSerializable())
+    state = use_object(obj, return_state=True) # Not cached!
+    assert state.name == "Completed"
+    other_state = use_object(obj, return_state=True) # Cached!
+    assert other_state.name == "Cached"
+    assert state.result() == other_state.result()
+```
+
+2. Using Pydantic's [custom serialization](https://docs.pydantic.dev/latest/concepts/serialization/#custom-serializers) on your input types:
+```python
+from pydantic import BaseModel, ConfigDict, model_serializer
+from prefect import flow, task
+from prefect.cache_policies import INPUTS, RUN_ID
+
+class NotSerializable:
+    def __getstate__(self):
+        raise TypeError("NooOoOOo! I will not be serialized!")
+
+class ContainsNonSerializableObject(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    name: str
+    bad_object: NotSerializable
+
+    @model_serializer
+    def ser_model(self) -> dict:
+        """Only serialize the name, not the problematic object"""
+        return {"name": self.name}
+
+@task(cache_policy=INPUTS + RUN_ID)
+def use_object(some_object: ContainsNonSerializableObject) -> str:
+    return f"Used {some_object.name}"
+
+@flow
+def demo_flow():
+    some_object = ContainsNonSerializableObject(
+        name="test",
+        bad_object=NotSerializable()
+    )
+    state = use_object(some_object, return_state=True) # Not cached!
+    assert state.name == "Completed"
+    other_state = use_object(some_object, return_state=True) # Cached!
+    assert other_state.name == "Cached"
+    assert state.result() == other_state.result()
+```
+
+Choose the approach that best fits your needs:
+- Use Pydantic models when you want consistent serialization across your application
+- Use custom cache key functions when you need different caching logic for different tasks
