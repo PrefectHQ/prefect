@@ -60,6 +60,30 @@ export default {
 					border: "hsl(var(--sidebar-border))",
 					ring: "hsl(var(--sidebar-ring))",
 				},
+				state: {
+					completed: {
+						DEFAULT: "hsl(var(--state-completed))",
+						foreground: "hsl(var(--state-completed-foreground))",
+					},
+					failed: {
+						DEFAULT: "hsl(var(--state-failed))",
+					},
+					running: {
+						DEFAULT: "hsl(var(--state-running))",
+					},
+					pending: {
+						DEFAULT: "hsl(var(--state-pending))",
+					},
+					paused: {
+						DEFAULT: "hsl(var(--state-paused))",
+					},
+					scheduled: {
+						DEFAULT: "hsl(var(--state-scheduled))",
+					},
+					cancelled: {
+						DEFAULT: "hsl(var(--state-cancelled))",
+					},
+				},
 			},
 		},
 	},

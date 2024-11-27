@@ -36,6 +36,17 @@
 		--sidebar-accent-foreground: 240 5.9% 10%;
 		--sidebar-border: 220 13% 91%;
 		--sidebar-ring: 217.2 91.2% 59.8%;
+
+		/* State colors for flow run states */
+		--state-completed: 134 61% 47%;
+		--state-failed: 0 96% 64%;
+		--state-running: 220 89% 52%;
+		--state-pending: 280 9% 65%;
+		--state-paused: 280 9% 65%;
+		--state-scheduled: 47 97% 65%;
+		--state-cancelled: 0 0% 24%;
+		--state-cancelling: 213 28% 35%;
+		--state-crashed: 24 94% 53%;
 	}
 	.dark {
 		--background: 0 0% 3.9%;

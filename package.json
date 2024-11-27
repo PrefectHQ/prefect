@@ -1,0 +1,9 @@
+{
+  "devDependencies": {
+    "@faker-js/faker": "^9.2.0",
+    "@types/lodash-es": "^4.17.12"
+  },
+  "dependencies": {
+    "lodash-es": "^4.17.21"
+  }
+}
