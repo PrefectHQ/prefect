@@ -693,17 +693,11 @@ async def _insert_scheduled_flow_runs(
 
     # query for the rows that were newly inserted (by checking for any flow runs with
     # no corresponding flow run states)
-    inserted_rows = (
-        sa.select(db.FlowRun.id)
-        .join(
-            db.FlowRunState,
-            db.FlowRun.id == db.FlowRunState.flow_run_id,
-            isouter=True,
-        )
-        .where(
-            db.FlowRun.id.in_([r["id"] for r in runs]),
-            db.FlowRunState.id.is_(None),
-        )
+    inserted_rows = sa.select(db.FlowRun.id).where(
+        db.FlowRun.id.in_([r["id"] for r in runs]),
+        ~select(db.FlowRunState.id)
+        .where(db.FlowRunState.flow_run_id == db.FlowRun.id)
+        .exists(),
     )
     inserted_flow_run_ids = (await session.execute(inserted_rows)).scalars().all()
 
