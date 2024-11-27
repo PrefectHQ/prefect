@@ -3,6 +3,7 @@ import { getQueryService } from "@/api/service";
 import { useToast } from "@/hooks/use-toast";
 import { startsWith } from "@/lib/utils";
 import {
+	queryOptions,
 	useMutation,
 	useQueryClient,
 	useQueries,
@@ -53,17 +54,18 @@ const variableKeys: VariableKeys = {
  *  - staleTime: How long the data should be considered fresh (1 second)
  *  - placeholderData: Uses previous data while loading new data
  */
-const buildVariablesQuery = (options: UseVariablesOptions) => ({
-	queryKey: variableKeys.filtered(options),
-	queryFn: async () => {
-		const response = await getQueryService().POST("/variables/filter", {
-			body: options,
-		});
-		return response.data;
-	},
-	staleTime: 1000,
-	placeholderData: keepPreviousData,
-});
+const buildVariablesQuery = (options: UseVariablesOptions) =>
+	queryOptions({
+		queryKey: variableKeys.filtered(options),
+		queryFn: async () => {
+			const response = await getQueryService().POST("/variables/filter", {
+				body: options,
+			});
+			return response.data;
+		},
+		staleTime: 1000,
+		placeholderData: keepPreviousData,
+	});
 
 /**
  * Builds a query configuration for counting variables with optional filters
@@ -74,18 +76,19 @@ const buildVariablesQuery = (options: UseVariablesOptions) => ({
  *  - staleTime: How long the data should be considered fresh (1 second)
  *  - placeholderData: Uses previous data while loading new data
  */
-const buildCountQuery = (options?: UseVariablesOptions) => ({
-	queryKey: variableKeys.filteredCount(options),
-	queryFn: async () => {
-		const body = options?.variables ? { variables: options.variables } : {};
-		const response = await getQueryService().POST("/variables/count", {
-			body,
-		});
-		return response.data;
-	},
-	staleTime: 1000,
-	placeholderData: keepPreviousData,
-});
+const buildCountQuery = (options?: UseVariablesOptions) =>
+	queryOptions({
+		queryKey: variableKeys.filteredCount(options),
+		queryFn: async () => {
+			const body = options?.variables ? { variables: options.variables } : {};
+			const response = await getQueryService().POST("/variables/count", {
+				body,
+			});
+			return response.data;
+		},
+		staleTime: 1000,
+		placeholderData: keepPreviousData,
+	});
 
 /**
  * Hook for fetching and managing variables data with filtering, pagination, and counts
