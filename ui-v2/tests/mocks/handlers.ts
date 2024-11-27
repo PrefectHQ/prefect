@@ -16,6 +16,9 @@ const variablesHandlers = [
 	http.patch("http://localhost:4200/api/variables/:id", () => {
 		return new HttpResponse(null, { status: 204 });
 	}),
+	http.delete("http://localhost:4200/api/variables/:id", () => {
+		return HttpResponse.json({ status: 204 });
+	}),
 ];
 
 export const handlers = [

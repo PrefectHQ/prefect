@@ -52,9 +52,12 @@ export const ActionsCell = ({ row, onVariableEdit }: ActionsCellProps) => {
 	if (!id) return null;
 
 	const onVariableDelete = () => {
-		deleteVariable(id);
-		toast({
-			title: "Variable deleted",
+		deleteVariable(id, {
+			onSuccess: () => {
+				toast({
+					title: "Variable deleted",
+				});
+			},
 		});
 	};
 
