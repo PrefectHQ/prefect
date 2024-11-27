@@ -314,11 +314,9 @@ export const useDeleteVariable = () => {
 				params: { path: { id } },
 			}),
 		onSettled: async () => {
-			return await Promise.all([
-				queryClient.invalidateQueries({
-					queryKey: variableKeys.all,
-				}),
-			]);
+			return await queryClient.invalidateQueries({
+				queryKey: variableKeys.all,
+			});
 		},
 	});
 
