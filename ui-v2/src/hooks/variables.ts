@@ -1,6 +1,5 @@
 import type { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
-import { startsWith } from "@/lib/utils";
 import {
 	queryOptions,
 	useMutation,
@@ -224,7 +223,7 @@ export const useCreateVariable = () => {
 		},
 		onSettled: async () => {
 			return await queryClient.invalidateQueries({
-				predicate: (query) => startsWith(query.queryKey, variableKeys.all),
+				queryKey: variableKeys.all,
 			});
 		},
 	});
@@ -277,7 +276,7 @@ export const useUpdateVariable = () => {
 		},
 		onSettled: async () => {
 			return await queryClient.invalidateQueries({
-				predicate: (query) => startsWith(query.queryKey, variableKeys.all),
+				queryKey: variableKeys.all,
 			});
 		},
 	});
