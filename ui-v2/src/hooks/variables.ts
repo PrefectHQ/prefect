@@ -287,9 +287,9 @@ export const useUpdateVariable = () => {
 
 /**
  * Hook for deleting a variable
- * 
+ *
  * @returns Mutation object for deleting a variable with loading/error states and trigger function
- * 
+ *
  * @example
  * ```ts
  * const { deleteVariable } = useDeleteVariable({
@@ -300,7 +300,7 @@ export const useUpdateVariable = () => {
  *     console.error('Failed to delete variable:', error);
  *   }
  * });
- * 
+ *
  * // Delete a variable by ID
  * deleteVariable('variable-id-to-delete');
  * ```
