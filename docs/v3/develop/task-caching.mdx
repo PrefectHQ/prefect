@@ -360,6 +360,93 @@ def my_cached_task(x: int):
 ```
 </Note>
 
+
+### Handling Non-Serializable Objects
+
+You may have task inputs that can't (or shouldn't) be serialized as part of the cache key. There are two direct approaches to handle this, both of which based on the same idea.
+
+
+You can **adjust the serialization logic** to only serialize certain properties of an input:
+
+
+
+1. Using a custom cache key function:
+```python
+from prefect import flow, task
+from prefect.cache_policies import CacheKeyFnPolicy, RUN_ID
+from prefect.context import TaskRunContext
+from pydantic import BaseModel, ConfigDict
+
+class NotSerializable:
+    def __getstate__(self):
+        raise TypeError("NooOoOOo! I will not be serialized!")
+
+class ContainsNonSerializableObject(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    name: str
+    bad_object: NotSerializable
+
+def custom_cache_key_fn(context: TaskRunContext, parameters: dict) -> str:
+    return parameters["some_object"].name
+
+@task(cache_policy=CacheKeyFnPolicy(cache_key_fn=custom_cache_key_fn) + RUN_ID)
+def use_object(some_object: ContainsNonSerializableObject) -> str:
+    return f"Used {some_object.name}"
+
+
+@flow
+def demo_flow():
+    obj = ContainsNonSerializableObject(name="test", bad_object=NotSerializable())
+    state = use_object(obj, return_state=True) # Not cached!
+    assert state.name == "Completed"
+    other_state = use_object(obj, return_state=True) # Cached!
+    assert other_state.name == "Cached"
+    assert state.result() == other_state.result()
+```
+
+2. Using Pydantic's [custom serialization](https://docs.pydantic.dev/latest/concepts/serialization/#custom-serializers) on your input types:
+```python
+from pydantic import BaseModel, ConfigDict, model_serializer
+from prefect import flow, task
+from prefect.cache_policies import INPUTS, RUN_ID
+
+class NotSerializable:
+    def __getstate__(self):
+        raise TypeError("NooOoOOo! I will not be serialized!")
+
+class ContainsNonSerializableObject(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    name: str
+    bad_object: NotSerializable
+
+    @model_serializer
+    def ser_model(self) -> dict:
+        """Only serialize the name, not the problematic object"""
+        return {"name": self.name}
+
+@task(cache_policy=INPUTS + RUN_ID)
+def use_object(some_object: ContainsNonSerializableObject) -> str:
+    return f"Used {some_object.name}"
+
+@flow
+def demo_flow():
+    some_object = ContainsNonSerializableObject(
+        name="test",
+        bad_object=NotSerializable()
+    )
+    state = use_object(some_object, return_state=True) # Not cached!
+    assert state.name == "Completed"
+    other_state = use_object(some_object, return_state=True) # Cached!
+    assert other_state.name == "Cached"
+    assert state.result() == other_state.result()
+```
+
+Choose the approach that best fits your needs:
+- Use Pydantic models when you want consistent serialization across your application
+- Use custom cache key functions when you need different caching logic for different tasks
+
 ## Multi-task caching
 
 There are many situations in which multiple tasks need to always run together or not at all.
