@@ -1125,3 +1125,88 @@ def test_set_workspace_with_less_than_10_workspaces(respx_mock):
         PREFECT_API_URL: bar_workspace.api_url(),
         PREFECT_API_KEY: "fake-key",
     }
+
+
+class TestCloudWorkspaceLs:
+    @pytest.fixture
+    def workspaces(self, respx_mock):
+        foo_workspace = gen_test_workspace(
+            account_handle="test1", workspace_handle="foo"
+        )
+        bar_workspace = gen_test_workspace(
+            account_handle="test2", workspace_handle="bar"
+        )
+
+        respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
+            return_value=httpx.Response(
+                status.HTTP_200_OK,
+                json=[
+                    foo_workspace.model_dump(mode="json"),
+                    bar_workspace.model_dump(mode="json"),
+                ],
+            )
+        )
+
+        cloud_profile = "cloud-foo"
+        save_profiles(
+            ProfilesCollection(
+                [
+                    Profile(
+                        name=cloud_profile,
+                        settings={
+                            PREFECT_API_URL: foo_workspace.api_url(),
+                            PREFECT_API_KEY: "fake-key",
+                        },
+                    )
+                ],
+                active=None,
+            )
+        )
+
+        with use_profile(cloud_profile):
+            yield foo_workspace, bar_workspace
+
+    def test_ls(self, respx_mock, monkeypatch, workspaces):
+        foo_workspace, bar_workspace = workspaces
+        invoke_and_assert(
+            ["cloud", "workspace", "ls"],
+            expected_code=0,
+            expected_output_contains=[
+                "* test1/foo",
+                "test2/bar",
+            ],
+        )
+
+    def test_ls_without_active_workspace(self, workspaces, monkeypatch):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/16098
+        """
+        wonky_profile = "wonky-profile"
+        save_profiles(
+            ProfilesCollection(
+                [
+                    Profile(
+                        name=wonky_profile,
+                        settings={
+                            PREFECT_API_URL: "http://something-else.com/api",
+                            PREFECT_API_KEY: "fake-key",
+                        },
+                    )
+                ],
+                active=None,
+            )
+        )
+
+        with use_profile(wonky_profile):
+            invoke_and_assert(
+                ["cloud", "workspace", "ls"],
+                expected_code=0,
+                expected_output_contains=[
+                    "test1/foo",
+                    "test2/bar",
+                ],
+                expected_output_does_not_contain=[
+                    "* test1/foo",
+                    "* test2/bar",
+                ],
+            )

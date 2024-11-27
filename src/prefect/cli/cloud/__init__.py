@@ -613,7 +613,7 @@ async def ls():
     )
 
     for workspace_handle in sorted(workspace.handle for workspace in workspaces):
-        if workspace_handle == current_workspace.handle:
+        if current_workspace and workspace_handle == current_workspace.handle:
             table.add_row(f"[green]* {workspace_handle}[/green]")
         else:
             table.add_row(f"  {workspace_handle}")
