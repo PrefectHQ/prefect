@@ -7,7 +7,7 @@ from datetime import timedelta
 from pathlib import Path
 from typing import List, Optional
 from unittest import mock
-from unittest.mock import AsyncMock, MagicMock, call
+from unittest.mock import AsyncMock, MagicMock, call, patch
 from uuid import UUID, uuid4
 
 import anyio
@@ -38,7 +38,7 @@ from prefect.settings import (
     PREFECT_TASK_DEFAULT_RETRIES,
     temporary_settings,
 )
-from prefect.states import Running, State
+from prefect.states import Completed, Running, State
 from prefect.task_engine import (
     AsyncTaskRunEngine,
     SyncTaskRunEngine,
@@ -78,6 +78,32 @@ class TestSyncTaskRunEngine:
         with pytest.raises(RuntimeError, match="not started"):
             engine.client
 
+    async def test_set_task_run_state(self):
+        engine = SyncTaskRunEngine(task=foo)
+        with engine.initialize_run():
+            running_state = Running()
+
+            new_state = engine.set_state(running_state)
+            assert new_state == running_state
+
+            completed_state = Completed()
+            new_state = engine.set_state(completed_state)
+            assert new_state == completed_state
+
+    async def test_set_task_run_state_duplicated_timestamp(self):
+        engine = SyncTaskRunEngine(task=foo)
+        with engine.initialize_run():
+            running_state = Running()
+            completed_state = Completed()
+            completed_state.timestamp = running_state.timestamp
+
+            new_state = engine.set_state(running_state)
+            assert new_state == running_state
+
+            new_state = engine.set_state(completed_state)
+            assert new_state == completed_state
+            assert new_state.timestamp > running_state.timestamp
+
 
 class TestAsyncTaskRunEngine:
     async def test_basic_init(self):
@@ -99,6 +125,32 @@ class TestAsyncTaskRunEngine:
 
         with pytest.raises(RuntimeError, match="not started"):
             engine.client
+
+    async def test_set_task_run_state(self):
+        engine = AsyncTaskRunEngine(task=foo)
+        async with engine.initialize_run():
+            running_state = Running()
+
+            new_state = await engine.set_state(running_state)
+            assert new_state == running_state
+
+            completed_state = Completed()
+            new_state = await engine.set_state(completed_state)
+            assert new_state == completed_state
+
+    async def test_set_task_run_state_duplicated_timestamp(self):
+        engine = AsyncTaskRunEngine(task=foo)
+        async with engine.initialize_run():
+            running_state = Running()
+            completed_state = Completed()
+            completed_state.timestamp = running_state.timestamp
+
+            new_state = await engine.set_state(running_state)
+            assert new_state == running_state
+
+            new_state = await engine.set_state(completed_state)
+            assert new_state == completed_state
+            assert new_state.timestamp > running_state.timestamp
 
 
 class TestRunTask:
@@ -519,6 +571,56 @@ class TestTaskRunsAsync:
         assert one == 42
         assert two == 42
 
+    async def test_task_run_states(
+        self,
+        prefect_client,
+        events_pipeline,
+    ):
+        @task
+        async def foo():
+            return TaskRunContext.get().task_run.id
+
+        task_run_id = await run_task_async(foo)
+        await events_pipeline.process_events()
+        states = await prefect_client.read_task_run_states(task_run_id)
+
+        state_names = [state.name for state in states]
+        assert state_names == [
+            "Pending",
+            "Running",
+            "Completed",
+        ]
+
+    async def test_task_run_states_with_equal_timestamps(
+        self,
+        prefect_client,
+        events_pipeline,
+    ):
+        @task
+        async def foo():
+            return TaskRunContext.get().task_run.id
+
+        original_set_state = AsyncTaskRunEngine.set_state
+
+        async def alter_new_state_timestamp(engine, state, force=False):
+            """Give the new state the same timestamp as the current state."""
+            state.timestamp = engine.task_run.state.timestamp
+            return await original_set_state(engine, state, force=force)
+
+        with patch.object(AsyncTaskRunEngine, "set_state", alter_new_state_timestamp):
+            task_run_id = await run_task_async(foo)
+
+            await events_pipeline.process_events()
+            states = await prefect_client.read_task_run_states(task_run_id)
+
+            state_names = [state.name for state in states]
+            assert state_names == [
+                "Pending",
+                "Running",
+                "Completed",
+            ]
+            assert states[0].timestamp < states[1].timestamp < states[2].timestamp
+
 
 class TestTaskRunsSync:
     def test_basic(self):
@@ -728,6 +830,56 @@ class TestTaskRunsSync:
 
         assert one == 42
         assert two == 42
+
+    async def test_task_run_states(
+        self,
+        prefect_client,
+        events_pipeline,
+    ):
+        @task
+        def foo():
+            return TaskRunContext.get().task_run.id
+
+        task_run_id = run_task_sync(foo)
+        await events_pipeline.process_events()
+        states = await prefect_client.read_task_run_states(task_run_id)
+
+        state_names = [state.name for state in states]
+        assert state_names == [
+            "Pending",
+            "Running",
+            "Completed",
+        ]
+
+    async def test_task_run_states_with_equal_timestamps(
+        self,
+        prefect_client,
+        events_pipeline,
+    ):
+        @task
+        def foo():
+            return TaskRunContext.get().task_run.id
+
+        original_set_state = SyncTaskRunEngine.set_state
+
+        def alter_new_state_timestamp(engine, state, force=False):
+            """Give the new state the same timestamp as the current state."""
+            state.timestamp = engine.task_run.state.timestamp
+            return original_set_state(engine, state, force=force)
+
+        with patch.object(SyncTaskRunEngine, "set_state", alter_new_state_timestamp):
+            task_run_id = run_task_sync(foo)
+
+            await events_pipeline.process_events()
+            states = await prefect_client.read_task_run_states(task_run_id)
+
+            state_names = [state.name for state in states]
+            assert state_names == [
+                "Pending",
+                "Running",
+                "Completed",
+            ]
+            assert states[0].timestamp < states[1].timestamp < states[2].timestamp
 
 
 class TestReturnState:
