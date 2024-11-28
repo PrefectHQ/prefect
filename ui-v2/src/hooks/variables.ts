@@ -11,82 +11,91 @@ import {
 
 type UseVariablesOptions =
 	components["schemas"]["Body_read_variables_variables_filter_post"];
+type Variables = UseVariablesOptions["variables"];
 
-type VariableKeys = {
-	all: readonly ["variables"];
-	filtered: (
-		options: UseVariablesOptions,
-	) => readonly ["variables", "filtered", string];
-	filteredCount: (options?: UseVariablesOptions) => readonly string[];
+// ----- 🌐 APIs 📨
+// ----------------------------
+const fetchVariablesRequest = async (body: UseVariablesOptions) => {
+	const response = await getQueryService().POST("/variables/filter", {
+		body,
+	});
+	return response.data;
 };
 
-/**
- * Query key factory for variables-related queries
- *
- * @property {readonly string[]} all - Base key for all variable queries
- * @property {function} filtered - Generates key for filtered variable queries, incorporating filter options
- * @property {function} filteredCount - Generates key for filtered count queries, including name and tag filters
- */
-const variableKeys: VariableKeys = {
-	all: ["variables"],
-	filtered: (options) => [
-		...variableKeys.all,
-		"filtered",
-		JSON.stringify(options),
-	],
-	filteredCount: (options) => {
-		const key = [...variableKeys.all, "filtered-count"];
-		if (options?.variables?.name?.like_) key.push(options.variables.name.like_);
-		if (options?.variables?.tags?.all_?.length)
-			key.push(JSON.stringify(options.variables.tags));
-		return key;
+const fetchVariableCountRequest = async (
+	body: UseVariablesOptions | Record<never, never>,
+) => {
+	const response = await getQueryService().POST("/variables/count", {
+		body,
+	});
+	return response.data;
+};
+
+const createVariableRequest = (
+	variable: components["schemas"]["VariableCreate"],
+) => {
+	return getQueryService().POST("/variables/", {
+		body: variable,
+	});
+};
+
+const updateVariableRequest = (
+	variable: components["schemas"]["VariableUpdate"] & {
+		id: string;
 	},
+) => {
+	const { id, ...body } = variable;
+	return getQueryService().PATCH("/variables/{id}", {
+		params: { path: { id } },
+		body,
+	});
 };
 
-/**
- * Builds a query configuration for fetching filtered variables
- * @param options - Filter options for the variables query including pagination, sorting, and filtering criteria
- * @returns A query configuration object compatible with TanStack Query including:
- *  - queryKey: A unique key for caching the query results
- *  - queryFn: The async function to fetch the filtered variables
- *  - staleTime: How long the data should be considered fresh (1 second)
- *  - placeholderData: Uses previous data while loading new data
- */
-const buildVariablesQuery = (options: UseVariablesOptions) =>
-	queryOptions({
-		queryKey: variableKeys.filtered(options),
-		queryFn: async () => {
-			const response = await getQueryService().POST("/variables/filter", {
-				body: options,
-			});
-			return response.data;
-		},
-		staleTime: 1000,
-		placeholderData: keepPreviousData,
+const deleteVariableRequest = (id: string) => {
+	return getQueryService().DELETE("/variables/{id}", {
+		params: { path: { id } },
 	});
+};
+
+// ----- 🔑 Queries 🗄️
+// ----------------------------
 
 /**
- * Builds a query configuration for counting variables with optional filters
- * @param options - Optional filter options for the variables count query
- * @returns A query configuration object compatible with TanStack Query including:
- *  - queryKey: A unique key for caching the count results
- *  - queryFn: The async function to fetch the filtered count
- *  - staleTime: How long the data should be considered fresh (1 second)
- *  - placeholderData: Uses previous data while loading new data
+ * ```
+ *  🏗️ Variable queries construction 👷
+ *  all   =>   ['variables'] // key to match ['variables', ..., ...]
+ *  list  =>   ['variables', 'list'] // key to match ['variables', 'list', ..., ...]
+ *             ['variables', 'list', { ...withOptionsFoo }]
+ *             ['variables', 'list', { ...withOptionsBar }]
+ *             ['variables', 'list', { ...withOptionsBaz }]
+ *  count =>   ['variables', 'count'] // key to match ['variables', 'count', ..., ...]
+ *             ['variables', 'count', {}] // all count
+ *             ['variables', 'count', { ...withOptionsFoo }]
+ *             ['variables', 'count', { ...withOptionsBar }]
+ *             ['variables', 'count', { ...withOptionsBaz }]
+ * ```
  */
-const buildCountQuery = (options?: UseVariablesOptions) =>
-	queryOptions({
-		queryKey: variableKeys.filteredCount(options),
-		queryFn: async () => {
-			const body = options?.variables ? { variables: options.variables } : {};
-			const response = await getQueryService().POST("/variables/count", {
-				body,
-			});
-			return response.data;
-		},
-		staleTime: 1000,
-		placeholderData: keepPreviousData,
-	});
+const variableQueries = {
+	all: () => ["variables"] as const,
+	lists: () => [...variableQueries.all(), "list"] as const,
+	list: (options: UseVariablesOptions) =>
+		queryOptions({
+			queryKey: [...variableQueries.lists(), options] as const,
+			queryFn: () => fetchVariablesRequest(options),
+			staleTime: 1000,
+			placeholderData: keepPreviousData,
+		}),
+	counts: () => [...variableQueries.all(), "count"] as const,
+	count: (variables?: Variables) => {
+		const body = { variables };
+		return queryOptions({
+			queryKey: [...variableQueries.counts(), body] as const,
+			queryFn: () => fetchVariableCountRequest(body),
+			staleTime: 1000,
+			placeholderData: keepPreviousData,
+		});
+	},
+} as const;
 
 /**
  * Hook for fetching and managing variables data with filtering, pagination, and counts
@@ -129,11 +138,11 @@ export const useVariables = (options: UseVariablesOptions) => {
 	const results = useQueries({
 		queries: [
 			// Filtered variables with pagination
-			buildVariablesQuery(options),
+			variableQueries.list(options),
 			// Filtered count
-			buildCountQuery(options),
+			variableQueries.count(options.variables),
 			// Total count
-			buildCountQuery(),
+			variableQueries.count(),
 		],
 	});
 
@@ -178,10 +187,13 @@ useVariables.loader = ({
 	context: { queryClient: QueryClient };
 }) =>
 	Promise.all([
-		context.queryClient.ensureQueryData(buildVariablesQuery(deps)),
-		context.queryClient.ensureQueryData(buildCountQuery(deps)),
-		context.queryClient.ensureQueryData(buildCountQuery()),
+		context.queryClient.ensureQueryData(variableQueries.list(deps)),
+		context.queryClient.ensureQueryData(variableQueries.count(deps.variables)),
+		context.queryClient.ensureQueryData(variableQueries.count()),
 	]);
+
+// ----- ✍🏼 Mutations 🗄️
+// ----------------------------
 
 /**
  * Hook for creating a new variable
@@ -193,7 +205,14 @@ useVariables.loader = ({
  *
  * @example
  * ```ts
- * const { createVariable, isLoading } = useCreateVariable({
+ * const { createVariable, isLoading } = useCreateVariable();
+ *
+ * // Create a new variable
+ * createVariable({
+ *   name: 'MY_VARIABLE',
+ *   value: 'secret-value',
+ *   tags: ['production', 'secrets']
+ * }, {
  *   onSuccess: () => {
  *     // Handle successful creation
  *     console.log('Variable created successfully');
@@ -203,36 +222,20 @@ useVariables.loader = ({
  *     console.error('Failed to create variable:', error);
  *   }
  * });
- *
- * // Create a new variable
- * createVariable({
- *   name: 'MY_VARIABLE',
- *   value: 'secret-value',
- *   tags: ['production', 'secrets']
- * });
  * ```
  */
 export const useCreateVariable = () => {
 	const queryClient = useQueryClient();
-
 	const { mutate: createVariable, ...rest } = useMutation({
-		mutationFn: (variable: components["schemas"]["VariableCreate"]) => {
-			return getQueryService().POST("/variables/", {
-				body: variable,
-			});
-		},
+		mutationFn: createVariableRequest,
 		onSettled: async () => {
 			return await queryClient.invalidateQueries({
-				queryKey: variableKeys.all,
+				queryKey: variableQueries.all(),
 			});
 		},
 	});
 
 	return { createVariable, ...rest };
-};
-
-type VariableUpdateWithId = components["schemas"]["VariableUpdate"] & {
-	id: string;
 };
 
 /**
@@ -245,14 +248,7 @@ type VariableUpdateWithId = components["schemas"]["VariableUpdate"] & {
  *
  * @example
  * ```ts
- * const { updateVariable } = useUpdateVariable({
- *   onSuccess: () => {
- *     // Handle successful update
- *   },
- *   onError: (error) => {
- *     console.error('Failed to update variable:', error);
- *   }
- * });
+ * const { updateVariable } = useUpdateVariable();
  *
  * // Update an existing variable
  * updateVariable({
@@ -260,6 +256,13 @@ type VariableUpdateWithId = components["schemas"]["VariableUpdate"] & {
  *   name: 'UPDATED_NAME',
  *   value: 'new-value',
  *   tags: ['production']
+ * }, {
+ *   onSuccess: () => {
+ *     // Handle successful update
+ *   },
+ *   onError: (error) => {
+ *     console.error('Failed to update variable:', error);
+ *   }
  * });
  * ```
  */
@@ -267,16 +270,10 @@ export const useUpdateVariable = () => {
 	const queryClient = useQueryClient();
 
 	const { mutate: updateVariable, ...rest } = useMutation({
-		mutationFn: (variable: VariableUpdateWithId) => {
-			const { id, ...body } = variable;
-			return getQueryService().PATCH("/variables/{id}", {
-				params: { path: { id } },
-				body,
-			});
-		},
+		mutationFn: updateVariableRequest,
 		onSettled: async () => {
 			return await queryClient.invalidateQueries({
-				queryKey: variableKeys.all,
+				queryKey: variableQueries.all(),
 			});
 		},
 	});
@@ -291,7 +288,10 @@ export const useUpdateVariable = () => {
  *
  * @example
  * ```ts
- * const { deleteVariable } = useDeleteVariable({
+ * const { deleteVariable } = useDeleteVariable();
+ *
+ * // Delete a variable by ID
+ * deleteVariable('variable-id-to-delete', {
  *   onSuccess: () => {
  *     // Handle successful deletion
  *   },
@@ -299,22 +299,16 @@ export const useUpdateVariable = () => {
  *     console.error('Failed to delete variable:', error);
  *   }
  * });
- *
- * // Delete a variable by ID
- * deleteVariable('variable-id-to-delete');
  * ```
  */
 export const useDeleteVariable = () => {
 	const queryClient = useQueryClient();
 
 	const { mutate: deleteVariable, ...rest } = useMutation({
-		mutationFn: async (id: string) =>
-			await getQueryService().DELETE("/variables/{id}", {
-				params: { path: { id } },
-			}),
+		mutationFn: deleteVariableRequest,
 		onSettled: async () => {
 			return await queryClient.invalidateQueries({
-				queryKey: variableKeys.all,
+				queryKey: variableQueries.all(),
 			});
 		},
 	});
