@@ -283,3 +283,41 @@ export const useUpdateVariable = () => {
 
 	return { updateVariable, ...rest };
 };
+
+/**
+ * Hook for deleting a variable
+ *
+ * @returns Mutation object for deleting a variable with loading/error states and trigger function
+ *
+ * @example
+ * ```ts
+ * const { deleteVariable } = useDeleteVariable({
+ *   onSuccess: () => {
+ *     // Handle successful deletion
+ *   },
+ *   onError: (error) => {
+ *     console.error('Failed to delete variable:', error);
+ *   }
+ * });
+ *
+ * // Delete a variable by ID
+ * deleteVariable('variable-id-to-delete');
+ * ```
+ */
+export const useDeleteVariable = () => {
+	const queryClient = useQueryClient();
+
+	const { mutate: deleteVariable, ...rest } = useMutation({
+		mutationFn: async (id: string) =>
+			await getQueryService().DELETE("/variables/{id}", {
+				params: { path: { id } },
+			}),
+		onSettled: async () => {
+			return await queryClient.invalidateQueries({
+				queryKey: variableKeys.all,
+			});
+		},
+	});
+
+	return { deleteVariable, ...rest };
+};
