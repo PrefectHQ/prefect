@@ -17,6 +17,7 @@ import {
 import { ChevronDownIcon, SearchIcon } from "lucide-react";
 import { useState } from "react";
 import { columns } from "./columns";
+import { useSet } from "@/hooks/use-set";
 
 const SearchComponent = () => {
 	const navigate = useNavigate();
@@ -41,19 +42,13 @@ const SearchComponent = () => {
 	);
 };
 const FilterComponent = () => {
-	const [selectedTags, setSelectedTags] = useState<string[]>([]);
+	const [selectedTags, selectedTagsUtils] = useSet<string>();
 	const [open, setOpen] = useState(false);
 
-	const toggleTag = (tag: string) => {
-		setSelectedTags((prev) =>
-			prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
-		);
-	};
-
 	const renderSelectedTags = () => {
-		if (selectedTags.length === 0) return "All tags";
-		if (selectedTags.length === 1) return selectedTags[0];
-		return `${selectedTags[0]}, ${selectedTags[1]}${selectedTags.length > 2 ? "..." : ""}`;
+		if (selectedTags.size === 0) return "All tags";
+		if (selectedTags.size === 1) return Array.from(selectedTags)[0];
+		return `${Array.from(selectedTags)[0]}, ${Array.from(selectedTags)[1]}${selectedTags.size > 2 ? "..." : ""}`;
 	};
 
 	return (
@@ -68,12 +63,12 @@ const FilterComponent = () => {
 				<DropdownMenuItem
 					onSelect={(e) => {
 						e.preventDefault();
-						toggleTag("Tag 1");
+						selectedTagsUtils.toggle("Tag 1");
 					}}
 				>
 					<input
 						type="checkbox"
-						checked={selectedTags.includes("Tag 1")}
+						checked={selectedTags.has("Tag 1")}
 						readOnly
 						className="mr-2"
 					/>
@@ -82,12 +77,12 @@ const FilterComponent = () => {
 				<DropdownMenuItem
 					onSelect={(e) => {
 						e.preventDefault();
-						toggleTag("Tag 2");
+						selectedTagsUtils.toggle("Tag 2");
 					}}
 				>
 					<input
 						type="checkbox"
-						checked={selectedTags.includes("Tag 2")}
+						checked={selectedTags.has("Tag 2")}
 						readOnly
 						className="mr-2"
 					/>
@@ -96,12 +91,12 @@ const FilterComponent = () => {
 				<DropdownMenuItem
 					onSelect={(e) => {
 						e.preventDefault();
-						toggleTag("Tag 3");
+						selectedTagsUtils.toggle("Tag 3");
 					}}
 				>
 					<input
 						type="checkbox"
-						checked={selectedTags.includes("Tag 3")}
+						checked={selectedTags.has("Tag 3")}
 						readOnly
 						className="mr-2"
 					/>
