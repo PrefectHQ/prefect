@@ -72,13 +72,13 @@ To set a flow to run on a schedule, you need to create a deployment.
 1. Create a deployment in code:
 
    ```python create_deployment.py
-   from prefect import flow
+   from prefect import Flow
 
    # Source for the code to deploy (here, a GitHub repo)
    SOURCE_REPO="https://github.com/prefecthq/demos.git"
 
    if __name__ == "__main__":
-       flow.from_source(
+       Flow.from_source(
            source=SOURCE_REPO,
            entrypoint="my_gh_workflow.py:repo_info", # Specific flow to run
        ).deploy(
