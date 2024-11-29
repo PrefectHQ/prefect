@@ -15,7 +15,6 @@ export default tseslint.config(
 		extends: [
 			js.configs.recommended,
 			...tseslint.configs.recommendedTypeChecked,
-			...pluginQuery.configs["flat/recommended"],
 		],
 		files: ["**/*.{ts,tsx}"],
 		languageOptions: {
@@ -46,6 +45,7 @@ export default tseslint.config(
 			...react.configs["jsx-runtime"].rules,
 		},
 	},
+	...pluginQuery.configs["flat/recommended"],
 	...pluginRouter.configs["flat/recommended"],
 	{
 		files: ["tests/**/*.{ts,tsx}"],
