@@ -11,51 +11,10 @@ import {
 
 type UseVariablesOptions =
 	components["schemas"]["Body_read_variables_variables_filter_post"];
-type Variables = UseVariablesOptions["variables"];
-
-// ----- 🌐 APIs 📨
-// ----------------------------
-const fetchVariablesRequest = async (body: UseVariablesOptions) => {
-	const response = await getQueryService().POST("/variables/filter", {
-		body,
-	});
-	return response.data;
+type VariableUpdateWithId = components["schemas"]["VariableUpdate"] & {
+	id: string;
 };
-
-const fetchVariableCountRequest = async (
-	body: UseVariablesOptions | Record<never, never>,
-) => {
-	const response = await getQueryService().POST("/variables/count", {
-		body,
-	});
-	return response.data;
-};
-
-const createVariableRequest = (
-	variable: components["schemas"]["VariableCreate"],
-) => {
-	return getQueryService().POST("/variables/", {
-		body: variable,
-	});
-};
-
-const updateVariableRequest = (
-	variable: components["schemas"]["VariableUpdate"] & {
-		id: string;
-	},
-) => {
-	const { id, ...body } = variable;
-	return getQueryService().PATCH("/variables/{id}", {
-		params: { path: { id } },
-		body,
-	});
-};
-
-const deleteVariableRequest = (id: string) => {
-	return getQueryService().DELETE("/variables/{id}", {
-		params: { path: { id } },
-	});
-};
+type VariablesFilter = components["schemas"]["VariableFilter"];
 
 // ----- 🔑 Queries 🗄️
 // ----------------------------
@@ -81,16 +40,27 @@ const variableQueries = {
 	list: (options: UseVariablesOptions) =>
 		queryOptions({
 			queryKey: [...variableQueries.lists(), options] as const,
-			queryFn: () => fetchVariablesRequest(options),
+			queryFn: async () => {
+				const response = await getQueryService().POST("/variables/filter", {
+					body: options,
+				});
+				return response.data;
+			},
 			staleTime: 1000,
 			placeholderData: keepPreviousData,
 		}),
 	counts: () => [...variableQueries.all(), "count"] as const,
-	count: (variables?: Variables) => {
+	count: (variables?: VariablesFilter | null) => {
 		const body = { variables };
 		return queryOptions({
 			queryKey: [...variableQueries.counts(), body] as const,
-			queryFn: () => fetchVariableCountRequest(body),
+			queryFn:
+				() => async (body: UseVariablesOptions | Record<never, never>) => {
+					const response = await getQueryService().POST("/variables/count", {
+						body,
+					});
+					return response.data;
+				},
 			staleTime: 1000,
 			placeholderData: keepPreviousData,
 		});
@@ -227,7 +197,11 @@ useVariables.loader = ({
 export const useCreateVariable = () => {
 	const queryClient = useQueryClient();
 	const { mutate: createVariable, ...rest } = useMutation({
-		mutationFn: createVariableRequest,
+		mutationFn: (variable: components["schemas"]["VariableCreate"]) => {
+			return getQueryService().POST("/variables/", {
+				body: variable,
+			});
+		},
 		onSettled: async () => {
 			return await queryClient.invalidateQueries({
 				queryKey: variableQueries.all(),
@@ -270,7 +244,13 @@ export const useUpdateVariable = () => {
 	const queryClient = useQueryClient();
 
 	const { mutate: updateVariable, ...rest } = useMutation({
-		mutationFn: updateVariableRequest,
+		mutationFn: (variable: VariableUpdateWithId) => {
+			const { id, ...body } = variable;
+			return getQueryService().PATCH("/variables/{id}", {
+				params: { path: { id } },
+				body,
+			});
+		},
 		onSettled: async () => {
 			return await queryClient.invalidateQueries({
 				queryKey: variableQueries.all(),
@@ -305,7 +285,11 @@ export const useDeleteVariable = () => {
 	const queryClient = useQueryClient();
 
 	const { mutate: deleteVariable, ...rest } = useMutation({
-		mutationFn: deleteVariableRequest,
+		mutationFn: (id: string) => {
+			return getQueryService().DELETE("/variables/{id}", {
+				params: { path: { id } },
+			});
+		},
 		onSettled: async () => {
 			return await queryClient.invalidateQueries({
 				queryKey: variableQueries.all(),
