@@ -5,6 +5,7 @@ import {
 	useMutation,
 	useQueryClient,
 	useQuery,
+	useQueries,
 	keepPreviousData,
 	type UseQueryOptions,
 } from "@tanstack/react-query";
@@ -37,7 +38,7 @@ const blockDocumentKeys: BlockDocumentKeys = {
 
 type BlockDocumentsResponse = Awaited<ReturnType<typeof getBlockDocuments>>;
 
-const getBlockDocuments = async ({
+export const getBlockDocuments = async ({
 	blockDocuments,
 	blockSchemas,
 	blockTypes,
@@ -68,7 +69,7 @@ const getBlockDocuments = async ({
 	return response.data;
 };
 
-const buildBlockDocumentsQuery = (
+export const buildBlockDocumentsQuery = (
 	params: Parameters<typeof getBlockDocuments>[0] = {},
 ) =>
 	queryOptions({
@@ -85,17 +86,48 @@ export const useBlockDocuments = (
 		"queryKey" | "queryFn"
 	> = {},
 ) => {
-	return useQuery({
-		...buildBlockDocumentsQuery(params),
+	const results = useQueries({
+		queries: [
+			// Filtered block documents with pagination
+			buildBlockDocumentsQuery(params),
+			// Filtered count
+			buildBlockDocumentsCountQuery(params),
+			// Total count
+			buildBlockDocumentsCountQuery(),
+		],
 		...options,
 	});
+
+	const [blockDocumentsQuery, filteredCountQuery, totalCountQuery] = results;
+
+	return {
+		// Block documents with pagination
+		blockDocuments: blockDocumentsQuery.data ?? [],
+		isLoadingBlockDocuments: blockDocumentsQuery.isLoading,
+		isErrorBlockDocuments: blockDocumentsQuery.isError,
+		errorBlockDocuments: blockDocumentsQuery.error,
+
+		// Filtered count
+		filteredCount: filteredCountQuery.data ?? 0,
+		isLoadingFilteredCount: filteredCountQuery.isLoading,
+		isErrorFilteredCount: filteredCountQuery.isError,
+
+		// Total count
+		totalCount: totalCountQuery?.data ?? filteredCountQuery.data ?? 0,
+		isLoadingTotalCount: totalCountQuery?.isLoading ?? false,
+		isErrorTotalCount: totalCountQuery?.isError ?? false,
+
+		// Overall loading state
+		isLoading: results.some((result) => result.isLoading),
+		isError: results.some((result) => result.isError),
+	};
 };
 
 type BlockDocumentsCountResponse = Awaited<
 	ReturnType<typeof getBlockDocumentsCount>
 >;
 
-const getBlockDocumentsCount = async ({
+export const getBlockDocumentsCount = async ({
 	blockDocuments,
 	blockSchemas,
 	blockTypes,
@@ -117,7 +149,7 @@ const getBlockDocumentsCount = async ({
 	return response.data;
 };
 
-const buildBlockDocumentsCountQuery = (
+export const buildBlockDocumentsCountQuery = (
 	params: Parameters<typeof getBlockDocumentsCount>[0] = {},
 ) =>
 	queryOptions({
