@@ -10,422 +10,422 @@
 
 // Import Routes
 
-import { Route as rootRoute } from './routes/__root'
-import { Route as WorkPoolsImport } from './routes/work-pools'
-import { Route as VariablesImport } from './routes/variables'
-import { Route as SettingsImport } from './routes/settings'
-import { Route as RunsImport } from './routes/runs'
-import { Route as NotificationsImport } from './routes/notifications'
-import { Route as EventsImport } from './routes/events'
-import { Route as DeploymentsImport } from './routes/deployments'
-import { Route as DashboardImport } from './routes/dashboard'
-import { Route as ConcurrencyLimitsImport } from './routes/concurrency-limits'
-import { Route as AutomationsImport } from './routes/automations'
-import { Route as IndexImport } from './routes/index'
-import { Route as FlowsIndexImport } from './routes/flows/index'
-import { Route as BlocksIndexImport } from './routes/blocks/index'
-import { Route as BlocksIdImport } from './routes/blocks/$id'
-import { Route as BlocksCatalogIndexImport } from './routes/blocks/catalog_/index'
-import { Route as FlowsFlowIdImport } from './routes/flows/flow.$id'
-import { Route as BlocksCatalogNameImport } from './routes/blocks/catalog_/$name'
+import { Route as rootRoute } from "./routes/__root";
+import { Route as WorkPoolsImport } from "./routes/work-pools";
+import { Route as VariablesImport } from "./routes/variables";
+import { Route as SettingsImport } from "./routes/settings";
+import { Route as RunsImport } from "./routes/runs";
+import { Route as NotificationsImport } from "./routes/notifications";
+import { Route as EventsImport } from "./routes/events";
+import { Route as DeploymentsImport } from "./routes/deployments";
+import { Route as DashboardImport } from "./routes/dashboard";
+import { Route as ConcurrencyLimitsImport } from "./routes/concurrency-limits";
+import { Route as AutomationsImport } from "./routes/automations";
+import { Route as IndexImport } from "./routes/index";
+import { Route as FlowsIndexImport } from "./routes/flows/index";
+import { Route as BlocksIndexImport } from "./routes/blocks/index";
+import { Route as BlocksIdImport } from "./routes/blocks/$id";
+import { Route as BlocksCatalogIndexImport } from "./routes/blocks/catalog_/index";
+import { Route as FlowsFlowIdImport } from "./routes/flows/flow.$id";
+import { Route as BlocksCatalogNameImport } from "./routes/blocks/catalog_/$name";
 
 // Create/Update Routes
 
 const WorkPoolsRoute = WorkPoolsImport.update({
-  id: '/work-pools',
-  path: '/work-pools',
-  getParentRoute: () => rootRoute,
-} as any)
+	id: "/work-pools",
+	path: "/work-pools",
+	getParentRoute: () => rootRoute,
+} as any);
 
 const VariablesRoute = VariablesImport.update({
-  id: '/variables',
-  path: '/variables',
-  getParentRoute: () => rootRoute,
-} as any)
+	id: "/variables",
+	path: "/variables",
+	getParentRoute: () => rootRoute,
+} as any);
 
 const SettingsRoute = SettingsImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => rootRoute,
-} as any)
+	id: "/settings",
+	path: "/settings",
+	getParentRoute: () => rootRoute,
+} as any);
 
 const RunsRoute = RunsImport.update({
-  id: '/runs',
-  path: '/runs',
-  getParentRoute: () => rootRoute,
-} as any)
+	id: "/runs",
+	path: "/runs",
+	getParentRoute: () => rootRoute,
+} as any);
 
 const NotificationsRoute = NotificationsImport.update({
-  id: '/notifications',
-  path: '/notifications',
-  getParentRoute: () => rootRoute,
-} as any)
+	id: "/notifications",
+	path: "/notifications",
+	getParentRoute: () => rootRoute,
+} as any);
 
 const EventsRoute = EventsImport.update({
-  id: '/events',
-  path: '/events',
-  getParentRoute: () => rootRoute,
-} as any)
+	id: "/events",
+	path: "/events",
+	getParentRoute: () => rootRoute,
+} as any);
 
 const DeploymentsRoute = DeploymentsImport.update({
-  id: '/deployments',
-  path: '/deployments',
-  getParentRoute: () => rootRoute,
-} as any)
+	id: "/deployments",
+	path: "/deployments",
+	getParentRoute: () => rootRoute,
+} as any);
 
 const DashboardRoute = DashboardImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => rootRoute,
-} as any)
+	id: "/dashboard",
+	path: "/dashboard",
+	getParentRoute: () => rootRoute,
+} as any);
 
 const ConcurrencyLimitsRoute = ConcurrencyLimitsImport.update({
-  id: '/concurrency-limits',
-  path: '/concurrency-limits',
-  getParentRoute: () => rootRoute,
-} as any)
+	id: "/concurrency-limits",
+	path: "/concurrency-limits",
+	getParentRoute: () => rootRoute,
+} as any);
 
 const AutomationsRoute = AutomationsImport.update({
-  id: '/automations',
-  path: '/automations',
-  getParentRoute: () => rootRoute,
-} as any)
+	id: "/automations",
+	path: "/automations",
+	getParentRoute: () => rootRoute,
+} as any);
 
 const IndexRoute = IndexImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRoute,
-} as any)
+	id: "/",
+	path: "/",
+	getParentRoute: () => rootRoute,
+} as any);
 
 const FlowsIndexRoute = FlowsIndexImport.update({
-  id: '/flows/',
-  path: '/flows/',
-  getParentRoute: () => rootRoute,
-} as any)
+	id: "/flows/",
+	path: "/flows/",
+	getParentRoute: () => rootRoute,
+} as any);
 
 const BlocksIndexRoute = BlocksIndexImport.update({
-  id: '/blocks/',
-  path: '/blocks/',
-  getParentRoute: () => rootRoute,
-} as any)
+	id: "/blocks/",
+	path: "/blocks/",
+	getParentRoute: () => rootRoute,
+} as any);
 
 const BlocksIdRoute = BlocksIdImport.update({
-  id: '/blocks/$id',
-  path: '/blocks/$id',
-  getParentRoute: () => rootRoute,
-} as any)
+	id: "/blocks/$id",
+	path: "/blocks/$id",
+	getParentRoute: () => rootRoute,
+} as any);
 
 const BlocksCatalogIndexRoute = BlocksCatalogIndexImport.update({
-  id: '/blocks/catalog_/',
-  path: '/blocks/catalog/',
-  getParentRoute: () => rootRoute,
-} as any)
+	id: "/blocks/catalog_/",
+	path: "/blocks/catalog/",
+	getParentRoute: () => rootRoute,
+} as any);
 
 const FlowsFlowIdRoute = FlowsFlowIdImport.update({
-  id: '/flows/flow/$id',
-  path: '/flows/flow/$id',
-  getParentRoute: () => rootRoute,
-} as any)
+	id: "/flows/flow/$id",
+	path: "/flows/flow/$id",
+	getParentRoute: () => rootRoute,
+} as any);
 
 const BlocksCatalogNameRoute = BlocksCatalogNameImport.update({
-  id: '/blocks/catalog_/$name',
-  path: '/blocks/catalog/$name',
-  getParentRoute: () => rootRoute,
-} as any)
+	id: "/blocks/catalog_/$name",
+	path: "/blocks/catalog/$name",
+	getParentRoute: () => rootRoute,
+} as any);
 
 // Populate the FileRoutesByPath interface
 
-declare module '@tanstack/react-router' {
-  interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexImport
-      parentRoute: typeof rootRoute
-    }
-    '/automations': {
-      id: '/automations'
-      path: '/automations'
-      fullPath: '/automations'
-      preLoaderRoute: typeof AutomationsImport
-      parentRoute: typeof rootRoute
-    }
-    '/concurrency-limits': {
-      id: '/concurrency-limits'
-      path: '/concurrency-limits'
-      fullPath: '/concurrency-limits'
-      preLoaderRoute: typeof ConcurrencyLimitsImport
-      parentRoute: typeof rootRoute
-    }
-    '/dashboard': {
-      id: '/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof DashboardImport
-      parentRoute: typeof rootRoute
-    }
-    '/deployments': {
-      id: '/deployments'
-      path: '/deployments'
-      fullPath: '/deployments'
-      preLoaderRoute: typeof DeploymentsImport
-      parentRoute: typeof rootRoute
-    }
-    '/events': {
-      id: '/events'
-      path: '/events'
-      fullPath: '/events'
-      preLoaderRoute: typeof EventsImport
-      parentRoute: typeof rootRoute
-    }
-    '/notifications': {
-      id: '/notifications'
-      path: '/notifications'
-      fullPath: '/notifications'
-      preLoaderRoute: typeof NotificationsImport
-      parentRoute: typeof rootRoute
-    }
-    '/runs': {
-      id: '/runs'
-      path: '/runs'
-      fullPath: '/runs'
-      preLoaderRoute: typeof RunsImport
-      parentRoute: typeof rootRoute
-    }
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsImport
-      parentRoute: typeof rootRoute
-    }
-    '/variables': {
-      id: '/variables'
-      path: '/variables'
-      fullPath: '/variables'
-      preLoaderRoute: typeof VariablesImport
-      parentRoute: typeof rootRoute
-    }
-    '/work-pools': {
-      id: '/work-pools'
-      path: '/work-pools'
-      fullPath: '/work-pools'
-      preLoaderRoute: typeof WorkPoolsImport
-      parentRoute: typeof rootRoute
-    }
-    '/blocks/$id': {
-      id: '/blocks/$id'
-      path: '/blocks/$id'
-      fullPath: '/blocks/$id'
-      preLoaderRoute: typeof BlocksIdImport
-      parentRoute: typeof rootRoute
-    }
-    '/blocks/': {
-      id: '/blocks/'
-      path: '/blocks'
-      fullPath: '/blocks'
-      preLoaderRoute: typeof BlocksIndexImport
-      parentRoute: typeof rootRoute
-    }
-    '/flows/': {
-      id: '/flows/'
-      path: '/flows'
-      fullPath: '/flows'
-      preLoaderRoute: typeof FlowsIndexImport
-      parentRoute: typeof rootRoute
-    }
-    '/blocks/catalog_/$name': {
-      id: '/blocks/catalog_/$name'
-      path: '/blocks/catalog/$name'
-      fullPath: '/blocks/catalog/$name'
-      preLoaderRoute: typeof BlocksCatalogNameImport
-      parentRoute: typeof rootRoute
-    }
-    '/flows/flow/$id': {
-      id: '/flows/flow/$id'
-      path: '/flows/flow/$id'
-      fullPath: '/flows/flow/$id'
-      preLoaderRoute: typeof FlowsFlowIdImport
-      parentRoute: typeof rootRoute
-    }
-    '/blocks/catalog_/': {
-      id: '/blocks/catalog_/'
-      path: '/blocks/catalog'
-      fullPath: '/blocks/catalog'
-      preLoaderRoute: typeof BlocksCatalogIndexImport
-      parentRoute: typeof rootRoute
-    }
-  }
+declare module "@tanstack/react-router" {
+	interface FileRoutesByPath {
+		"/": {
+			id: "/";
+			path: "/";
+			fullPath: "/";
+			preLoaderRoute: typeof IndexImport;
+			parentRoute: typeof rootRoute;
+		};
+		"/automations": {
+			id: "/automations";
+			path: "/automations";
+			fullPath: "/automations";
+			preLoaderRoute: typeof AutomationsImport;
+			parentRoute: typeof rootRoute;
+		};
+		"/concurrency-limits": {
+			id: "/concurrency-limits";
+			path: "/concurrency-limits";
+			fullPath: "/concurrency-limits";
+			preLoaderRoute: typeof ConcurrencyLimitsImport;
+			parentRoute: typeof rootRoute;
+		};
+		"/dashboard": {
+			id: "/dashboard";
+			path: "/dashboard";
+			fullPath: "/dashboard";
+			preLoaderRoute: typeof DashboardImport;
+			parentRoute: typeof rootRoute;
+		};
+		"/deployments": {
+			id: "/deployments";
+			path: "/deployments";
+			fullPath: "/deployments";
+			preLoaderRoute: typeof DeploymentsImport;
+			parentRoute: typeof rootRoute;
+		};
+		"/events": {
+			id: "/events";
+			path: "/events";
+			fullPath: "/events";
+			preLoaderRoute: typeof EventsImport;
+			parentRoute: typeof rootRoute;
+		};
+		"/notifications": {
+			id: "/notifications";
+			path: "/notifications";
+			fullPath: "/notifications";
+			preLoaderRoute: typeof NotificationsImport;
+			parentRoute: typeof rootRoute;
+		};
+		"/runs": {
+			id: "/runs";
+			path: "/runs";
+			fullPath: "/runs";
+			preLoaderRoute: typeof RunsImport;
+			parentRoute: typeof rootRoute;
+		};
+		"/settings": {
+			id: "/settings";
+			path: "/settings";
+			fullPath: "/settings";
+			preLoaderRoute: typeof SettingsImport;
+			parentRoute: typeof rootRoute;
+		};
+		"/variables": {
+			id: "/variables";
+			path: "/variables";
+			fullPath: "/variables";
+			preLoaderRoute: typeof VariablesImport;
+			parentRoute: typeof rootRoute;
+		};
+		"/work-pools": {
+			id: "/work-pools";
+			path: "/work-pools";
+			fullPath: "/work-pools";
+			preLoaderRoute: typeof WorkPoolsImport;
+			parentRoute: typeof rootRoute;
+		};
+		"/blocks/$id": {
+			id: "/blocks/$id";
+			path: "/blocks/$id";
+			fullPath: "/blocks/$id";
+			preLoaderRoute: typeof BlocksIdImport;
+			parentRoute: typeof rootRoute;
+		};
+		"/blocks/": {
+			id: "/blocks/";
+			path: "/blocks";
+			fullPath: "/blocks";
+			preLoaderRoute: typeof BlocksIndexImport;
+			parentRoute: typeof rootRoute;
+		};
+		"/flows/": {
+			id: "/flows/";
+			path: "/flows";
+			fullPath: "/flows";
+			preLoaderRoute: typeof FlowsIndexImport;
+			parentRoute: typeof rootRoute;
+		};
+		"/blocks/catalog_/$name": {
+			id: "/blocks/catalog_/$name";
+			path: "/blocks/catalog/$name";
+			fullPath: "/blocks/catalog/$name";
+			preLoaderRoute: typeof BlocksCatalogNameImport;
+			parentRoute: typeof rootRoute;
+		};
+		"/flows/flow/$id": {
+			id: "/flows/flow/$id";
+			path: "/flows/flow/$id";
+			fullPath: "/flows/flow/$id";
+			preLoaderRoute: typeof FlowsFlowIdImport;
+			parentRoute: typeof rootRoute;
+		};
+		"/blocks/catalog_/": {
+			id: "/blocks/catalog_/";
+			path: "/blocks/catalog";
+			fullPath: "/blocks/catalog";
+			preLoaderRoute: typeof BlocksCatalogIndexImport;
+			parentRoute: typeof rootRoute;
+		};
+	}
 }
 
 // Create and export the route tree
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/automations': typeof AutomationsRoute
-  '/concurrency-limits': typeof ConcurrencyLimitsRoute
-  '/dashboard': typeof DashboardRoute
-  '/deployments': typeof DeploymentsRoute
-  '/events': typeof EventsRoute
-  '/notifications': typeof NotificationsRoute
-  '/runs': typeof RunsRoute
-  '/settings': typeof SettingsRoute
-  '/variables': typeof VariablesRoute
-  '/work-pools': typeof WorkPoolsRoute
-  '/blocks/$id': typeof BlocksIdRoute
-  '/blocks': typeof BlocksIndexRoute
-  '/flows': typeof FlowsIndexRoute
-  '/blocks/catalog/$name': typeof BlocksCatalogNameRoute
-  '/flows/flow/$id': typeof FlowsFlowIdRoute
-  '/blocks/catalog': typeof BlocksCatalogIndexRoute
+	"/": typeof IndexRoute;
+	"/automations": typeof AutomationsRoute;
+	"/concurrency-limits": typeof ConcurrencyLimitsRoute;
+	"/dashboard": typeof DashboardRoute;
+	"/deployments": typeof DeploymentsRoute;
+	"/events": typeof EventsRoute;
+	"/notifications": typeof NotificationsRoute;
+	"/runs": typeof RunsRoute;
+	"/settings": typeof SettingsRoute;
+	"/variables": typeof VariablesRoute;
+	"/work-pools": typeof WorkPoolsRoute;
+	"/blocks/$id": typeof BlocksIdRoute;
+	"/blocks": typeof BlocksIndexRoute;
+	"/flows": typeof FlowsIndexRoute;
+	"/blocks/catalog/$name": typeof BlocksCatalogNameRoute;
+	"/flows/flow/$id": typeof FlowsFlowIdRoute;
+	"/blocks/catalog": typeof BlocksCatalogIndexRoute;
 }
 
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/automations': typeof AutomationsRoute
-  '/concurrency-limits': typeof ConcurrencyLimitsRoute
-  '/dashboard': typeof DashboardRoute
-  '/deployments': typeof DeploymentsRoute
-  '/events': typeof EventsRoute
-  '/notifications': typeof NotificationsRoute
-  '/runs': typeof RunsRoute
-  '/settings': typeof SettingsRoute
-  '/variables': typeof VariablesRoute
-  '/work-pools': typeof WorkPoolsRoute
-  '/blocks/$id': typeof BlocksIdRoute
-  '/blocks': typeof BlocksIndexRoute
-  '/flows': typeof FlowsIndexRoute
-  '/blocks/catalog/$name': typeof BlocksCatalogNameRoute
-  '/flows/flow/$id': typeof FlowsFlowIdRoute
-  '/blocks/catalog': typeof BlocksCatalogIndexRoute
+	"/": typeof IndexRoute;
+	"/automations": typeof AutomationsRoute;
+	"/concurrency-limits": typeof ConcurrencyLimitsRoute;
+	"/dashboard": typeof DashboardRoute;
+	"/deployments": typeof DeploymentsRoute;
+	"/events": typeof EventsRoute;
+	"/notifications": typeof NotificationsRoute;
+	"/runs": typeof RunsRoute;
+	"/settings": typeof SettingsRoute;
+	"/variables": typeof VariablesRoute;
+	"/work-pools": typeof WorkPoolsRoute;
+	"/blocks/$id": typeof BlocksIdRoute;
+	"/blocks": typeof BlocksIndexRoute;
+	"/flows": typeof FlowsIndexRoute;
+	"/blocks/catalog/$name": typeof BlocksCatalogNameRoute;
+	"/flows/flow/$id": typeof FlowsFlowIdRoute;
+	"/blocks/catalog": typeof BlocksCatalogIndexRoute;
 }
 
 export interface FileRoutesById {
-  __root__: typeof rootRoute
-  '/': typeof IndexRoute
-  '/automations': typeof AutomationsRoute
-  '/concurrency-limits': typeof ConcurrencyLimitsRoute
-  '/dashboard': typeof DashboardRoute
-  '/deployments': typeof DeploymentsRoute
-  '/events': typeof EventsRoute
-  '/notifications': typeof NotificationsRoute
-  '/runs': typeof RunsRoute
-  '/settings': typeof SettingsRoute
-  '/variables': typeof VariablesRoute
-  '/work-pools': typeof WorkPoolsRoute
-  '/blocks/$id': typeof BlocksIdRoute
-  '/blocks/': typeof BlocksIndexRoute
-  '/flows/': typeof FlowsIndexRoute
-  '/blocks/catalog_/$name': typeof BlocksCatalogNameRoute
-  '/flows/flow/$id': typeof FlowsFlowIdRoute
-  '/blocks/catalog_/': typeof BlocksCatalogIndexRoute
+	__root__: typeof rootRoute;
+	"/": typeof IndexRoute;
+	"/automations": typeof AutomationsRoute;
+	"/concurrency-limits": typeof ConcurrencyLimitsRoute;
+	"/dashboard": typeof DashboardRoute;
+	"/deployments": typeof DeploymentsRoute;
+	"/events": typeof EventsRoute;
+	"/notifications": typeof NotificationsRoute;
+	"/runs": typeof RunsRoute;
+	"/settings": typeof SettingsRoute;
+	"/variables": typeof VariablesRoute;
+	"/work-pools": typeof WorkPoolsRoute;
+	"/blocks/$id": typeof BlocksIdRoute;
+	"/blocks/": typeof BlocksIndexRoute;
+	"/flows/": typeof FlowsIndexRoute;
+	"/blocks/catalog_/$name": typeof BlocksCatalogNameRoute;
+	"/flows/flow/$id": typeof FlowsFlowIdRoute;
+	"/blocks/catalog_/": typeof BlocksCatalogIndexRoute;
 }
 
 export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | '/automations'
-    | '/concurrency-limits'
-    | '/dashboard'
-    | '/deployments'
-    | '/events'
-    | '/notifications'
-    | '/runs'
-    | '/settings'
-    | '/variables'
-    | '/work-pools'
-    | '/blocks/$id'
-    | '/blocks'
-    | '/flows'
-    | '/blocks/catalog/$name'
-    | '/flows/flow/$id'
-    | '/blocks/catalog'
-  fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | '/automations'
-    | '/concurrency-limits'
-    | '/dashboard'
-    | '/deployments'
-    | '/events'
-    | '/notifications'
-    | '/runs'
-    | '/settings'
-    | '/variables'
-    | '/work-pools'
-    | '/blocks/$id'
-    | '/blocks'
-    | '/flows'
-    | '/blocks/catalog/$name'
-    | '/flows/flow/$id'
-    | '/blocks/catalog'
-  id:
-    | '__root__'
-    | '/'
-    | '/automations'
-    | '/concurrency-limits'
-    | '/dashboard'
-    | '/deployments'
-    | '/events'
-    | '/notifications'
-    | '/runs'
-    | '/settings'
-    | '/variables'
-    | '/work-pools'
-    | '/blocks/$id'
-    | '/blocks/'
-    | '/flows/'
-    | '/blocks/catalog_/$name'
-    | '/flows/flow/$id'
-    | '/blocks/catalog_/'
-  fileRoutesById: FileRoutesById
+	fileRoutesByFullPath: FileRoutesByFullPath;
+	fullPaths:
+		| "/"
+		| "/automations"
+		| "/concurrency-limits"
+		| "/dashboard"
+		| "/deployments"
+		| "/events"
+		| "/notifications"
+		| "/runs"
+		| "/settings"
+		| "/variables"
+		| "/work-pools"
+		| "/blocks/$id"
+		| "/blocks"
+		| "/flows"
+		| "/blocks/catalog/$name"
+		| "/flows/flow/$id"
+		| "/blocks/catalog";
+	fileRoutesByTo: FileRoutesByTo;
+	to:
+		| "/"
+		| "/automations"
+		| "/concurrency-limits"
+		| "/dashboard"
+		| "/deployments"
+		| "/events"
+		| "/notifications"
+		| "/runs"
+		| "/settings"
+		| "/variables"
+		| "/work-pools"
+		| "/blocks/$id"
+		| "/blocks"
+		| "/flows"
+		| "/blocks/catalog/$name"
+		| "/flows/flow/$id"
+		| "/blocks/catalog";
+	id:
+		| "__root__"
+		| "/"
+		| "/automations"
+		| "/concurrency-limits"
+		| "/dashboard"
+		| "/deployments"
+		| "/events"
+		| "/notifications"
+		| "/runs"
+		| "/settings"
+		| "/variables"
+		| "/work-pools"
+		| "/blocks/$id"
+		| "/blocks/"
+		| "/flows/"
+		| "/blocks/catalog_/$name"
+		| "/flows/flow/$id"
+		| "/blocks/catalog_/";
+	fileRoutesById: FileRoutesById;
 }
 
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  AutomationsRoute: typeof AutomationsRoute
-  ConcurrencyLimitsRoute: typeof ConcurrencyLimitsRoute
-  DashboardRoute: typeof DashboardRoute
-  DeploymentsRoute: typeof DeploymentsRoute
-  EventsRoute: typeof EventsRoute
-  NotificationsRoute: typeof NotificationsRoute
-  RunsRoute: typeof RunsRoute
-  SettingsRoute: typeof SettingsRoute
-  VariablesRoute: typeof VariablesRoute
-  WorkPoolsRoute: typeof WorkPoolsRoute
-  BlocksIdRoute: typeof BlocksIdRoute
-  BlocksIndexRoute: typeof BlocksIndexRoute
-  FlowsIndexRoute: typeof FlowsIndexRoute
-  BlocksCatalogNameRoute: typeof BlocksCatalogNameRoute
-  FlowsFlowIdRoute: typeof FlowsFlowIdRoute
-  BlocksCatalogIndexRoute: typeof BlocksCatalogIndexRoute
+	IndexRoute: typeof IndexRoute;
+	AutomationsRoute: typeof AutomationsRoute;
+	ConcurrencyLimitsRoute: typeof ConcurrencyLimitsRoute;
+	DashboardRoute: typeof DashboardRoute;
+	DeploymentsRoute: typeof DeploymentsRoute;
+	EventsRoute: typeof EventsRoute;
+	NotificationsRoute: typeof NotificationsRoute;
+	RunsRoute: typeof RunsRoute;
+	SettingsRoute: typeof SettingsRoute;
+	VariablesRoute: typeof VariablesRoute;
+	WorkPoolsRoute: typeof WorkPoolsRoute;
+	BlocksIdRoute: typeof BlocksIdRoute;
+	BlocksIndexRoute: typeof BlocksIndexRoute;
+	FlowsIndexRoute: typeof FlowsIndexRoute;
+	BlocksCatalogNameRoute: typeof BlocksCatalogNameRoute;
+	FlowsFlowIdRoute: typeof FlowsFlowIdRoute;
+	BlocksCatalogIndexRoute: typeof BlocksCatalogIndexRoute;
 }
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  AutomationsRoute: AutomationsRoute,
-  ConcurrencyLimitsRoute: ConcurrencyLimitsRoute,
-  DashboardRoute: DashboardRoute,
-  DeploymentsRoute: DeploymentsRoute,
-  EventsRoute: EventsRoute,
-  NotificationsRoute: NotificationsRoute,
-  RunsRoute: RunsRoute,
-  SettingsRoute: SettingsRoute,
-  VariablesRoute: VariablesRoute,
-  WorkPoolsRoute: WorkPoolsRoute,
-  BlocksIdRoute: BlocksIdRoute,
-  BlocksIndexRoute: BlocksIndexRoute,
-  FlowsIndexRoute: FlowsIndexRoute,
-  BlocksCatalogNameRoute: BlocksCatalogNameRoute,
-  FlowsFlowIdRoute: FlowsFlowIdRoute,
-  BlocksCatalogIndexRoute: BlocksCatalogIndexRoute,
-}
+	IndexRoute: IndexRoute,
+	AutomationsRoute: AutomationsRoute,
+	ConcurrencyLimitsRoute: ConcurrencyLimitsRoute,
+	DashboardRoute: DashboardRoute,
+	DeploymentsRoute: DeploymentsRoute,
+	EventsRoute: EventsRoute,
+	NotificationsRoute: NotificationsRoute,
+	RunsRoute: RunsRoute,
+	SettingsRoute: SettingsRoute,
+	VariablesRoute: VariablesRoute,
+	WorkPoolsRoute: WorkPoolsRoute,
+	BlocksIdRoute: BlocksIdRoute,
+	BlocksIndexRoute: BlocksIndexRoute,
+	FlowsIndexRoute: FlowsIndexRoute,
+	BlocksCatalogNameRoute: BlocksCatalogNameRoute,
+	FlowsFlowIdRoute: FlowsFlowIdRoute,
+	BlocksCatalogIndexRoute: BlocksCatalogIndexRoute,
+};
 
 export const routeTree = rootRoute
-  ._addFileChildren(rootRouteChildren)
-  ._addFileTypes<FileRouteTypes>()
+	._addFileChildren(rootRouteChildren)
+	._addFileTypes<FileRouteTypes>();
 
 /* ROUTE_MANIFEST_START
 {

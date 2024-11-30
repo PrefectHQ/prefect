@@ -39,7 +39,7 @@ function BlocksPage() {
 	return (
 		<div>
 			{blocks.map((block) => (
-				<div key={block.id ?? 'unknown'}>
+				<div key={block.id ?? "unknown"}>
 					{block.id ? (
 						<Link to="/blocks/$id" params={{ id: block.id }}>
 							{block.name}
