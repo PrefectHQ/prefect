@@ -449,7 +449,7 @@ async def blocktype_delete(
         try:
             block_type = await client.read_block_type_by_slug(slug)
             if is_interactive() and not typer.confirm(
-                (f"Are you sure you want to delete block with id {id!r}?"),
+                (f"Are you sure you want to delete block type {block_type.slug!r}?"),
                 default=False,
             ):
                 exit_with_error("Deletion aborted.")

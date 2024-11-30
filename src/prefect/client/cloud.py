@@ -1,5 +1,6 @@
 import re
 from typing import Any, Dict, List, Optional, cast
+from uuid import UUID
 
 import anyio
 import httpx
@@ -21,6 +22,7 @@ from prefect.settings import (
     PREFECT_CLOUD_API_URL,
     PREFECT_TESTING_UNIT_TEST_MODE,
 )
+from prefect.types import KeyValueLabels
 
 PARSE_API_URL_REGEX = re.compile(r"accounts/(.{36})/workspaces/(.{36})")
 
@@ -150,6 +152,25 @@ class CloudClient:
     async def check_ip_allowlist_access(self) -> IPAllowlistMyAccessResponse:
         response = await self.get(f"{self.account_base_url}/ip_allowlist/my_access")
         return IPAllowlistMyAccessResponse.model_validate(response)
+
+    async def update_flow_run_labels(
+        self, flow_run_id: UUID, labels: KeyValueLabels
+    ) -> httpx.Response:
+        """
+        Update the labels for a flow run.
+
+        Args:
+            flow_run_id: The identifier for the flow run to update.
+            labels: A dictionary of labels to update for the flow run.
+
+        Returns:
+            an `httpx.Response` object from the PATCH request
+        """
+
+        return await self._client.patch(
+            f"{self.workspace_base_url}/flow_runs/{flow_run_id}/labels",
+            json=labels,
+        )
 
     async def __aenter__(self):
         await self._client.__aenter__()

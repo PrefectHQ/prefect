@@ -2209,6 +2209,13 @@ class PrefectClient:
             response.json()
         )
 
+    async def set_flow_run_name(self, flow_run_id: UUID, name: str):
+        flow_run_data = FlowRunUpdate(name=name)
+        return await self._client.patch(
+            f"/flow_runs/{flow_run_id}",
+            json=flow_run_data.model_dump(mode="json", exclude_unset=True),
+        )
+
     async def set_task_run_name(self, task_run_id: UUID, name: str):
         task_run_data = TaskRunUpdate(name=name)
         return await self._client.patch(
@@ -2613,7 +2620,7 @@ class PrefectClient:
             "heartbeat_interval_seconds": heartbeat_interval_seconds,
         }
         if worker_metadata:
-            params["worker_metadata"] = worker_metadata.model_dump(mode="json")
+            params["metadata"] = worker_metadata.model_dump(mode="json")
         if get_worker_id:
             params["return_id"] = get_worker_id
 
@@ -3925,13 +3932,13 @@ class SyncPrefectClient:
     def read_flow_runs(
         self,
         *,
-        flow_filter: FlowFilter = None,
-        flow_run_filter: FlowRunFilter = None,
-        task_run_filter: TaskRunFilter = None,
-        deployment_filter: DeploymentFilter = None,
-        work_pool_filter: WorkPoolFilter = None,
-        work_queue_filter: WorkQueueFilter = None,
-        sort: FlowRunSort = None,
+        flow_filter: Optional[FlowFilter] = None,
+        flow_run_filter: Optional[FlowRunFilter] = None,
+        task_run_filter: Optional[TaskRunFilter] = None,
+        deployment_filter: Optional[DeploymentFilter] = None,
+        work_pool_filter: Optional[WorkPoolFilter] = None,
+        work_queue_filter: Optional[WorkQueueFilter] = None,
+        sort: Optional[FlowRunSort] = None,
         limit: Optional[int] = None,
         offset: int = 0,
     ) -> List[FlowRun]:
@@ -4019,7 +4026,7 @@ class SyncPrefectClient:
         return OrchestrationResult.model_validate(response.json())
 
     def set_flow_run_name(self, flow_run_id: UUID, name: str):
-        flow_run_data = TaskRunUpdate(name=name)
+        flow_run_data = FlowRunUpdate(name=name)
         return self._client.patch(
             f"/flow_runs/{flow_run_id}",
             json=flow_run_data.model_dump(mode="json", exclude_unset=True),

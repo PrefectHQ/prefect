@@ -21,16 +21,23 @@ class TestCreateTaskRun:
             "task_key": "my-task-key",
             "name": "my-cool-task-run-name",
             "dynamic_key": "0",
+            "labels": {"env": "dev"},
         }
         response = await client.post("/task_runs/", json=task_run_data)
         assert response.status_code == status.HTTP_201_CREATED
         assert response.json()["flow_run_id"] == str(flow_run.id)
         assert response.json()["id"]
         assert response.json()["name"] == "my-cool-task-run-name"
+        assert response.json()["labels"] == {
+            "env": "dev",
+            "prefect.flow.id": str(flow_run.flow_id),
+            "prefect.flow-run.id": str(flow_run.id),
+        }
 
         task_run = await models.task_runs.read_task_run(
             session=session, task_run_id=response.json()["id"]
         )
+        assert task_run
         assert task_run.flow_run_id == flow_run.id
 
     async def test_create_task_run_gracefully_upserts(self, flow_run, client):

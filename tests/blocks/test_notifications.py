@@ -292,7 +292,7 @@ class TestOpsgenieWebhook:
 
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once_with(
-                f"opsgenie://{self.API_KEY}//?action=map&region=us&priority=normal&"
+                f"opsgenie://{self.API_KEY}//?action=new&region=us&priority=normal&"
                 "batch=no&%3Ainfo=note&%3Asuccess=close&%3Awarning=new&%3Afailure="
                 "new&format=text&overflow=upstream"
             )
@@ -304,7 +304,7 @@ class TestOpsgenieWebhook:
     def _test_notify_sync(self, targets="", params=None, **kwargs):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
             if params is None:
-                params = "action=map&region=us&priority=normal&batch=no"
+                params = "action=new&region=us&priority=normal&batch=no"
 
             apprise_instance_mock = AppriseMock.return_value
             apprise_instance_mock.async_notify = AsyncMock()
@@ -331,7 +331,7 @@ class TestOpsgenieWebhook:
         self._test_notify_sync()
 
     def test_notify_sync_params(self):
-        params = "action=map&region=eu&priority=low&batch=yes"
+        params = "action=new&region=eu&priority=low&batch=yes"
         self._test_notify_sync(params=params, region_name="eu", priority=1, batch=True)
 
     def test_notify_sync_targets(self):
@@ -349,7 +349,7 @@ class TestOpsgenieWebhook:
         self._test_notify_sync(targets=targets, target_user=["user1", "user2"])
 
     def test_notify_sync_details(self):
-        params = "action=map&region=us&priority=normal&batch=no&%2Bkey1=value1&%2Bkey2=value2"
+        params = "action=new&region=us&priority=normal&batch=no&%2Bkey1=value1&%2Bkey2=value2"
         self._test_notify_sync(
             params=params,
             details={

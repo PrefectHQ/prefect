@@ -1,7 +1,7 @@
 import uuid
 from typing import Any, Dict, Optional, Type
 from unittest import mock
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, Mock
 
 import httpx
 import pendulum
@@ -16,7 +16,7 @@ from prefect.blocks.core import Block
 from prefect.client.base import ServerType
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun
-from prefect.client.schemas.objects import WorkerMetadata
+from prefect.client.schemas.objects import StateType, WorkerMetadata
 from prefect.exceptions import (
     CrashedRun,
     ObjectNotFound,
@@ -28,13 +28,18 @@ from prefect.server.schemas.core import Deployment, Flow, WorkPool
 from prefect.server.schemas.responses import DeploymentResponse
 from prefect.settings import (
     PREFECT_API_URL,
-    PREFECT_EXPERIMENTS_WORKER_LOGGING_TO_API_ENABLED,
     PREFECT_TEST_MODE,
     PREFECT_WORKER_PREFETCH_SECONDS,
     get_current_settings,
     temporary_settings,
 )
-from prefect.states import Completed, Pending, Running, Scheduled
+from prefect.states import (
+    Completed,
+    Failed,
+    Pending,
+    Running,
+    Scheduled,
+)
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.pydantic import parse_obj_as
 from prefect.workers.base import (
@@ -83,14 +88,6 @@ async def variables(prefect_client: PrefectClient):
 @pytest.fixture
 def no_api_url():
     with temporary_settings(updates={PREFECT_TEST_MODE: False, PREFECT_API_URL: None}):
-        yield
-
-
-@pytest.fixture
-def experimental_logging_enabled():
-    with temporary_settings(
-        updates={PREFECT_EXPERIMENTS_WORKER_LOGGING_TO_API_ENABLED: True}
-    ):
         yield
 
 
@@ -197,7 +194,7 @@ async def test_worker_sends_heartbeat_gets_id(respx_mock):
         assert worker.backend_id == test_worker_id
 
 
-async def test_worker_sends_heartbeat_only_gets_id_once(experimental_logging_enabled):
+async def test_worker_sends_heartbeat_only_gets_id_once():
     async with WorkerTestImpl(name="test", work_pool_name="test-work-pool") as worker:
         worker._client.server_type = ServerType.CLOUD
         mock = AsyncMock(return_value="test")
@@ -300,6 +297,73 @@ async def test_worker_with_work_pool_and_work_queue(
     assert {flow_run.id for flow_run in submitted_flow_runs} == set(flow_run_ids[1:3])
 
 
+async def test_workers_do_not_submit_flow_runs_awaiting_retry(
+    prefect_client: PrefectClient,
+    work_queue_1,
+    work_pool,
+):
+    """
+    Regression test for https://github.com/PrefectHQ/prefect/issues/15458
+
+    Ensure that flows in `AwaitingRetry` state are not submitted by workers. Previously,
+    with a retry delay long enough, workers would pick up flow runs in `AwaitingRetry`
+    state and submit them, even though the process they were initiated from is responsible
+    for retrying them.
+
+    The flows would be picked up by the worker because `AwaitingRetry` is a `SCHEDULED`
+    state type.
+
+    This test goes through the following steps:
+        - Create a flow
+        - Create a deployment for the flow
+        - Create a flow run for the deployment
+        - Set the flow run to `Running`
+        - Set the flow run to failed
+            - The server will reject this transition and put the flow run in an `AwaitingRetry` state
+        - Have the worker pick up any available flow runs to make sure that the flow run in `AwaitingRetry` state
+            is not picked up by the worker
+    """
+
+    @flow(retries=2)
+    def test_flow():
+        pass
+
+    flow_id = await prefect_client.create_flow(
+        flow=test_flow,
+    )
+    deployment_id = await prefect_client.create_deployment(
+        flow_id=flow_id,
+        name="test-deployment",
+        work_queue_name=work_queue_1.name,
+        work_pool_name=work_pool.name,
+    )
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        deployment_id, state=Running()
+    )
+    # Need to update empirical policy so the server is aware of the retries
+    flow_run.empirical_policy.retries = 2
+    await prefect_client.update_flow_run(
+        flow_run_id=flow_run.id,
+        flow_version=test_flow.version,
+        empirical_policy=flow_run.empirical_policy,
+    )
+    # Set the flow run to failed
+    response = await prefect_client.set_flow_run_state(flow_run.id, state=Failed())
+    # The transition should be rejected and the flow run should be in `AwaitingRetry` state
+    assert response.state.name == "AwaitingRetry"
+    assert response.state.type == StateType.SCHEDULED
+
+    flow_run = await prefect_client.read_flow_run(flow_run.id)
+    # Check to ensure that the flow has a scheduled time earlier than now to rule out
+    # that the worker doesn't pick up the flow run due to its scheduled time being in the future
+    assert flow_run.state.state_details.scheduled_time < pendulum.now("utc")
+
+    async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+        submitted_flow_runs = await worker.get_and_submit_flow_runs()
+
+    assert submitted_flow_runs == []
+
+
 async def test_priority_trumps_lateness(
     prefect_client: PrefectClient,
     worker_deployment_wq1,
@@ -336,6 +400,34 @@ async def test_priority_trumps_lateness(
         submitted_flow_runs = await worker.get_and_submit_flow_runs()
 
     assert {flow_run.id for flow_run in submitted_flow_runs} == set(flow_run_ids[1:2])
+
+
+async def test_worker_releases_limit_slot_when_aborting_a_change_to_pending(
+    prefect_client: PrefectClient, worker_deployment_wq1, work_pool
+):
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/15952"""
+
+    def create_run_with_deployment(state):
+        return prefect_client.create_flow_run_from_deployment(
+            worker_deployment_wq1.id, state=state
+        )
+
+    flow_run = await create_run_with_deployment(
+        Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1))
+    )
+
+    run_mock = AsyncMock()
+    release_mock = Mock()
+
+    async with WorkerTestImpl(work_pool_name=work_pool.name, limit=1) as worker:
+        worker.run = run_mock
+        worker._propose_pending_state = AsyncMock(return_value=False)
+        worker._release_limit_slot = release_mock
+
+        await worker.get_and_submit_flow_runs()
+
+    run_mock.assert_not_called()
+    release_mock.assert_called_once_with(flow_run.id)
 
 
 async def test_worker_with_work_pool_and_limit(
@@ -1100,7 +1192,7 @@ async def test_job_configuration_from_template_overrides_with_remote_variables()
 
     class ArbitraryJobConfiguration(BaseJobConfiguration):
         var1: str
-        env: Dict[str, str]
+        env: Dict[str, str] = Field(default_factory=dict)
 
     config = await ArbitraryJobConfiguration.from_template_and_values(
         base_job_template=template,
@@ -1567,7 +1659,6 @@ async def test_get_flow_run_logger_with_worker_id_set(
     prefect_client: PrefectClient,
     worker_deployment_wq1,
     work_pool,
-    experimental_logging_enabled,
 ):
     flow_run = await prefect_client.create_flow_run_from_deployment(
         worker_deployment_wq1.id
@@ -1781,6 +1872,12 @@ class TestBaseWorkerStart:
         ),
         (
             {"A": "1", "B": "2"},
+            {"A": "1", "B": "3"},
+            {},
+            {"A": "1", "B": "3"},
+        ),
+        (
+            {"A": "1", "B": "2"},
             {"C": "3", "D": "4"},
             {},
             {"A": "1", "B": "2", "C": "3", "D": "4"},
@@ -1793,14 +1890,15 @@ class TestBaseWorkerStart:
         ),
         (
             {"A": "1", "B": "2"},
-            {"B": ""},  # will be treated as unset and not apply
+            {"B": ""},  # empty strings are considered values and will still override
             {},
-            {"A": "1", "B": "2"},
+            {"A": "1", "B": ""},
         ),
     ],
     ids=[
         "flow_run_into_deployment",
-        "deployment_into_work_pool",
+        "deployment_into_work_pool_overlap",
+        "deployment_into_work_pool_no_overlap",
         "flow_run_into_work_pool",
         "try_overwrite_with_empty_str",
     ],
@@ -1883,7 +1981,7 @@ async def test_env_merge_logic_is_deep(
 
 class TestBaseWorkerHeartbeat:
     async def test_worker_heartbeat_sends_integrations(
-        self, work_pool, hosted_api_server, experimental_logging_enabled
+        self, work_pool, hosted_api_server
     ):
         async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
             await worker.start(run_once=True)
@@ -1914,7 +2012,7 @@ class TestBaseWorkerHeartbeat:
                     json={
                         "name": worker.name,
                         "heartbeat_interval_seconds": worker.heartbeat_interval_seconds,
-                        "worker_metadata": {
+                        "metadata": {
                             "integrations": [
                                 {"name": "prefect-aws", "version": "1.0.0"}
                             ]
@@ -1926,7 +2024,7 @@ class TestBaseWorkerHeartbeat:
             assert worker._worker_metadata_sent
 
     async def test_custom_worker_can_send_arbitrary_metadata(
-        self, work_pool, hosted_api_server, experimental_logging_enabled
+        self, work_pool, hosted_api_server
     ):
         class CustomWorker(BaseWorker):
             type: str = "test-custom-metadata"
@@ -1972,7 +2070,7 @@ class TestBaseWorkerHeartbeat:
                     json={
                         "name": worker.name,
                         "heartbeat_interval_seconds": worker.heartbeat_interval_seconds,
-                        "worker_metadata": {
+                        "metadata": {
                             "integrations": [
                                 {"name": "prefect-aws", "version": "1.0.0"}
                             ],
@@ -1983,3 +2081,60 @@ class TestBaseWorkerHeartbeat:
                 )
 
             assert worker._worker_metadata_sent
+
+
+async def test_worker_gives_labels_to_flow_runs_when_using_cloud_api(
+    prefect_client: PrefectClient, worker_deployment_wq1, work_pool
+):
+    CloudClientMock = AsyncMock()
+
+    def create_run_with_deployment(state):
+        return prefect_client.create_flow_run_from_deployment(
+            worker_deployment_wq1.id, state=state
+        )
+
+    flow_run = await create_run_with_deployment(
+        Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1))
+    )
+
+    async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+        assert worker._client is not None
+        worker._client.server_type = ServerType.CLOUD
+        worker._cloud_client = CloudClientMock
+
+        worker._work_pool = work_pool
+        worker.run = AsyncMock()
+
+        await worker.get_and_submit_flow_runs()
+
+    CloudClientMock.update_flow_run_labels.assert_awaited_once_with(
+        flow_run.id,
+        {"prefect.worker.name": worker.name, "prefect.worker.type": worker.type},
+    )
+
+
+async def test_worker_does_not_give_labels_to_flow_runs_when_not_using_cloud_api(
+    prefect_client: PrefectClient, worker_deployment_wq1, work_pool
+):
+    update_labels_mock = AsyncMock()
+
+    def create_run_with_deployment(state):
+        return prefect_client.create_flow_run_from_deployment(
+            worker_deployment_wq1.id, state=state
+        )
+
+    await create_run_with_deployment(
+        Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1))
+    )
+
+    async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+        assert worker._client is not None
+        worker._client.server_type = ServerType.SERVER  # Not cloud
+        worker._client.update_flow_run_labels = update_labels_mock
+
+        worker._work_pool = work_pool
+        worker.run = AsyncMock()
+
+        await worker.get_and_submit_flow_runs()
+
+    update_labels_mock.assert_not_awaited()

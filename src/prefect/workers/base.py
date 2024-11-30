@@ -18,6 +18,7 @@ from typing_extensions import Literal
 import prefect
 from prefect._internal.schemas.validators import return_v_or_none
 from prefect.client.base import ServerType
+from prefect.client.cloud import CloudClient, get_cloud_client
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
 from prefect.client.schemas.objects import (
@@ -145,26 +146,26 @@ class BaseJobConfiguration(BaseModel):
         Important: this method expects that the base_job_template was already
         validated server-side.
         """
-        job_config: Dict[str, Any] = base_job_template["job_configuration"]
+        base_config: Dict[str, Any] = base_job_template["job_configuration"]
         variables_schema = base_job_template["variables"]
         variables = cls._get_base_config_defaults(
             variables_schema.get("properties", {})
         )
 
-        # copy variable defaults for `env` to job config before they're replaced by
+        # copy variable defaults for `env` to base config before they're replaced by
         # deployment overrides
         if variables.get("env"):
-            job_config["env"] = variables.get("env")
+            base_config["env"] = variables.get("env")
 
         variables.update(values)
 
         # deep merge `env`
-        if isinstance(job_config.get("env"), dict) and (
-            hardcoded_env := variables.get("env")
+        if isinstance(base_config.get("env"), dict) and (
+            deployment_env := variables.get("env")
         ):
-            job_config["env"] = hardcoded_env | job_config.get("env")
+            base_config["env"] = base_config.get("env") | deployment_env
 
-        populated_configuration = apply_values(template=job_config, values=variables)
+        populated_configuration = apply_values(template=base_config, values=variables)
         populated_configuration = await resolve_block_document_references(
             template=populated_configuration, client=client
         )
@@ -439,6 +440,7 @@ class BaseWorker(abc.ABC):
         self._exit_stack: AsyncExitStack = AsyncExitStack()
         self._runs_task_group: Optional[anyio.abc.TaskGroup] = None
         self._client: Optional[PrefectClient] = None
+        self._cloud_client: Optional[CloudClient] = None
         self._last_polled_time: pendulum.DateTime = pendulum.now("utc")
         self._limit = limit
         self._limiter: Optional[anyio.CapacityLimiter] = None
@@ -630,8 +632,13 @@ class BaseWorker(abc.ABC):
             raise ValueError("`PREFECT_API_URL` must be set to start a Worker.")
 
         self._client = get_client()
+
         await self._exit_stack.enter_async_context(self._client)
         await self._exit_stack.enter_async_context(self._runs_task_group)
+
+        if self._client.server_type == ServerType.CLOUD:
+            self._cloud_client = get_cloud_client()
+            await self._exit_stack.enter_async_context(self._cloud_client)
 
         self.is_setup = True
 
@@ -642,9 +649,14 @@ class BaseWorker(abc.ABC):
         for scope in self._scheduled_task_scopes:
             scope.cancel()
 
-        await self._exit_stack.__aexit__(*exc_info)
+        # Emit stopped event before closing client
         if self._started_event:
-            await self._emit_worker_stopped_event(self._started_event)
+            try:
+                await self._emit_worker_stopped_event(self._started_event)
+            except Exception:
+                self._logger.exception("Failed to emit worker stopped event")
+
+        await self._exit_stack.__aexit__(*exc_info)
         self._runs_task_group = None
         self._client = None
 
@@ -809,14 +821,14 @@ class BaseWorker(abc.ABC):
             self._logger = get_worker_logger(self)
 
         self._logger.debug(
-            f"Worker synchronized with the Prefect API server. Remote ID: {self.backend_id}"
+            "Worker synchronized with the Prefect API server. "
+            + (f"Remote ID: {self.backend_id}" if self.backend_id else "")
         )
 
     def _should_get_worker_id(self):
         """Determines if the worker should request an ID from the API server."""
         return (
-            get_current_settings().experiments.worker_logging_to_api_enabled
-            and self._client
+            self._client
             and self._client.server_type == ServerType.CLOUD
             and self.backend_id is None
         )
@@ -874,16 +886,19 @@ class BaseWorker(abc.ABC):
                 run_logger.info(
                     f"Worker '{self.name}' submitting flow run '{flow_run.id}'"
                 )
-                if (
-                    get_current_settings().experiments.worker_logging_to_api_enabled
-                    and self.backend_id
-                ):
-                    worker_path = f"worker/{self.backend_id}"
-                    base_url = url_for("work-pool", self._work_pool.id)
+                if self.backend_id:
+                    try:
+                        worker_url = url_for(
+                            "worker",
+                            obj_id=self.backend_id,
+                            work_pool_name=self._work_pool_name,
+                        )
 
-                    run_logger.info(
-                        f"Running on worker id: {self.backend_id}. See worker logs here: {base_url}/{worker_path}"
-                    )
+                        run_logger.info(
+                            f"Running on worker id: {self.backend_id}. See worker logs here: {worker_url}"
+                        )
+                    except ValueError as ve:
+                        run_logger.warning(f"Failed to generate worker URL: {ve}")
 
                 self._submitting_flow_run_ids.add(flow_run.id)
                 self._runs_task_group.start_soon(
@@ -958,10 +973,11 @@ class BaseWorker(abc.ABC):
 
             else:
                 # If the run is not ready to submit, release the concurrency slot
-                if self._limiter:
-                    self._limiter.release_on_behalf_of(flow_run.id)
+                self._release_limit_slot(flow_run.id)
 
             self._submitting_flow_run_ids.remove(flow_run.id)
+        else:
+            self._release_limit_slot(flow_run.id)
 
     async def _submit_run_and_capture_errors(
         self, flow_run: "FlowRun", task_status: Optional[anyio.abc.TaskStatus] = None
@@ -971,6 +987,7 @@ class BaseWorker(abc.ABC):
         try:
             configuration = await self._get_configuration(flow_run)
             submitted_event = self._emit_flow_run_submitted_event(configuration)
+            await self._give_worker_labels_to_flow_run(flow_run.id)
             result = await self.run(
                 flow_run=flow_run,
                 task_status=task_status,
@@ -995,8 +1012,7 @@ class BaseWorker(abc.ABC):
                 )
             return exc
         finally:
-            if self._limiter:
-                self._limiter.release_on_behalf_of(flow_run.id)
+            self._release_limit_slot(flow_run.id)
 
         if not task_status._future.done():
             run_logger.error(
@@ -1020,6 +1036,14 @@ class BaseWorker(abc.ABC):
         self._emit_flow_run_executed_event(result, configuration, submitted_event)
 
         return result
+
+    def _release_limit_slot(self, flow_run_id: str) -> None:
+        """
+        Frees up a slot taken by the given flow run id.
+        """
+        if self._limiter:
+            self._limiter.release_on_behalf_of(flow_run_id)
+            self._logger.debug("Limit slot released for flow run '%s'", flow_run_id)
 
     def get_status(self):
         """
@@ -1191,6 +1215,19 @@ class BaseWorker(abc.ABC):
                 await result
 
         await self._runs_task_group.start(wrapper)
+
+    async def _give_worker_labels_to_flow_run(self, flow_run_id: UUID):
+        """
+        Give this worker's identifying labels to the specified flow run.
+        """
+        if self._cloud_client:
+            await self._cloud_client.update_flow_run_labels(
+                flow_run_id,
+                {
+                    "prefect.worker.name": self.name,
+                    "prefect.worker.type": self.type,
+                },
+            )
 
     async def __aenter__(self):
         self._logger.debug("Entering worker context...")

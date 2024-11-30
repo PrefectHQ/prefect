@@ -5,9 +5,12 @@ import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import globals from "globals";
 import tseslint from "typescript-eslint";
+import testingLibrary from "eslint-plugin-testing-library";
+import jestDom from "eslint-plugin-jest-dom";
+import pluginQuery from "@tanstack/eslint-plugin-query";
 
 export default tseslint.config(
-	{ ignores: ["dist", "src/api/prefect.tsx"] },
+	{ ignores: ["dist", "src/api/prefect.ts"] },
 	{
 		extends: [
 			js.configs.recommended,
@@ -42,5 +45,11 @@ export default tseslint.config(
 			...react.configs["jsx-runtime"].rules,
 		},
 	},
+	...pluginQuery.configs["flat/recommended"],
 	...pluginRouter.configs["flat/recommended"],
+	{
+		files: ["tests/**/*.{ts,tsx}"],
+		...testingLibrary.configs["flat/react"],
+		...jestDom.configs["flat/recommended"],
+	},
 );
