@@ -1829,7 +1829,7 @@ def serve(
         runner.add_deployment(deployment)
 
     if print_starting_message:
-        display_start_message(*args)
+        _display_serve_start_message(*args)
 
     try:
         asyncio.run(runner.start())
@@ -1846,7 +1846,7 @@ async def aserve(
 ):
     """
     Asynchronously serve the provided list of deployments.
-    
+
     Use `serve` instead if calling from a synchronous context.
 
     Args:
@@ -1905,7 +1905,7 @@ async def aserve(
         await runner.add_deployment(deployment)
 
     if print_starting_message:
-        display_start_message(*args)
+        _display_serve_start_message(*args)
 
     await runner.start()
 
