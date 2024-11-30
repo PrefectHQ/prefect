@@ -193,7 +193,14 @@ useVariables.loader = ({
  *
  * @example
  * ```ts
- * const { createVariable, isLoading } = useCreateVariable({
+ * const { createVariable, isLoading } = useCreateVariable();
+ *
+ * // Create a new variable
+ * createVariable({
+ *   name: 'MY_VARIABLE',
+ *   value: 'secret-value',
+ *   tags: ['production', 'secrets']
+ * }, {
  *   onSuccess: () => {
  *     // Handle successful creation
  *     console.log('Variable created successfully');
@@ -202,13 +209,6 @@ useVariables.loader = ({
  *     // Handle error
  *     console.error('Failed to create variable:', error);
  *   }
- * });
- *
- * // Create a new variable
- * createVariable({
- *   name: 'MY_VARIABLE',
- *   value: 'secret-value',
- *   tags: ['production', 'secrets']
  * });
  * ```
  */
@@ -245,14 +245,7 @@ type VariableUpdateWithId = components["schemas"]["VariableUpdate"] & {
  *
  * @example
  * ```ts
- * const { updateVariable } = useUpdateVariable({
- *   onSuccess: () => {
- *     // Handle successful update
- *   },
- *   onError: (error) => {
- *     console.error('Failed to update variable:', error);
- *   }
- * });
+ * const { updateVariable } = useUpdateVariable();
  *
  * // Update an existing variable
  * updateVariable({
@@ -260,6 +253,13 @@ type VariableUpdateWithId = components["schemas"]["VariableUpdate"] & {
  *   name: 'UPDATED_NAME',
  *   value: 'new-value',
  *   tags: ['production']
+ * }, {
+ *   onSuccess: () => {
+ *     // Handle successful update
+ *   },
+ *   onError: (error) => {
+ *     console.error('Failed to update variable:', error);
+ *   }
  * });
  * ```
  */
@@ -291,7 +291,10 @@ export const useUpdateVariable = () => {
  *
  * @example
  * ```ts
- * const { deleteVariable } = useDeleteVariable({
+ * const { deleteVariable } = useDeleteVariable();
+ *
+ * // Delete a variable by ID
+ * deleteVariable('variable-id-to-delete', {
  *   onSuccess: () => {
  *     // Handle successful deletion
  *   },
@@ -299,9 +302,6 @@ export const useUpdateVariable = () => {
  *     console.error('Failed to delete variable:', error);
  *   }
  * });
- *
- * // Delete a variable by ID
- * deleteVariable('variable-id-to-delete');
  * ```
  */
 export const useDeleteVariable = () => {
