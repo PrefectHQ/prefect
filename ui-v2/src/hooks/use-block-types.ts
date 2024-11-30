@@ -12,6 +12,7 @@ export type BlockTypeKeys = {
 	filtered: (
 		options?: components["schemas"]["BlockTypeFilter"],
 	) => readonly ["block-types", "filtered", string];
+	detail: (slug: string) => readonly ["block-types", "detail", string];
 };
 
 export const blockTypeKeys: BlockTypeKeys = {
@@ -21,9 +22,11 @@ export const blockTypeKeys: BlockTypeKeys = {
 		"filtered",
 		JSON.stringify(options),
 	],
+	detail: (slug) => [...blockTypeKeys.all, "detail", slug],
 };
 
 export type BlockTypesResponse = Awaited<ReturnType<typeof getBlockTypes>>;
+export type BlockTypeResponse = Awaited<ReturnType<typeof getBlockType>>;
 
 export const getBlockTypes = async ({
 	blockTypes,
@@ -43,6 +46,14 @@ export const getBlockTypes = async ({
 	});
 	return response.data;
 };
+export const getBlockType = async (slug: string) => {
+	const response = await getQueryService().GET(`/block_types/slug/{slug}`, {
+		params: {
+			path: { slug },
+		},
+	});
+	return response.data;
+};
 
 export const buildBlockTypesQuery = (
 	params: Parameters<typeof getBlockTypes>[0] = {},
@@ -52,6 +63,13 @@ export const buildBlockTypesQuery = (
 		queryFn: () => getBlockTypes(params),
 		staleTime: 1000,
 		placeholderData: keepPreviousData,
+	});
+
+export const buildBlockTypeQuery = (slug: string) =>
+	queryOptions({
+		queryKey: blockTypeKeys.detail(slug),
+		queryFn: () => getBlockType(slug),
+		staleTime: 1000,
 	});
 
 export const useBlockTypes = (
@@ -68,6 +86,26 @@ export const useBlockTypes = (
 
 	return {
 		blockTypes: query.data ?? [],
+		isLoading: query.isLoading,
+		isError: query.isError,
+		error: query.error,
+	};
+};
+
+export const useBlockType = (
+	slug: string,
+	options: Omit<
+		UseQueryOptions<BlockTypeResponse>,
+		"queryKey" | "queryFn"
+	> = {},
+) => {
+	const query = useQuery({
+		...buildBlockTypeQuery(slug),
+		...options,
+	});
+
+	return {
+		blockType: query.data,
 		isLoading: query.isLoading,
 		isError: query.isError,
 		error: query.error,
