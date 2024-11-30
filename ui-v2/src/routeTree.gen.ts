@@ -24,9 +24,9 @@ import { Route as AutomationsImport } from './routes/automations'
 import { Route as IndexImport } from './routes/index'
 import { Route as FlowsIndexImport } from './routes/flows/index'
 import { Route as BlocksIndexImport } from './routes/blocks/index'
-import { Route as BlocksCatalogImport } from './routes/blocks/catalog'
+import { Route as BlocksCatalogIndexImport } from './routes/blocks/catalog_/index'
 import { Route as FlowsFlowIdImport } from './routes/flows/flow.$id'
-import { Route as BlocksCatalogNameImport } from './routes/blocks/catalog_.$name'
+import { Route as BlocksCatalogNameImport } from './routes/blocks/catalog_/$name'
 
 // Create/Update Routes
 
@@ -108,9 +108,9 @@ const BlocksIndexRoute = BlocksIndexImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
-const BlocksCatalogRoute = BlocksCatalogImport.update({
-  id: '/blocks/catalog',
-  path: '/blocks/catalog',
+const BlocksCatalogIndexRoute = BlocksCatalogIndexImport.update({
+  id: '/blocks/catalog_/',
+  path: '/blocks/catalog/',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -207,13 +207,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkPoolsImport
       parentRoute: typeof rootRoute
     }
-    '/blocks/catalog': {
-      id: '/blocks/catalog'
-      path: '/blocks/catalog'
-      fullPath: '/blocks/catalog'
-      preLoaderRoute: typeof BlocksCatalogImport
-      parentRoute: typeof rootRoute
-    }
     '/blocks/': {
       id: '/blocks/'
       path: '/blocks'
@@ -242,6 +235,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FlowsFlowIdImport
       parentRoute: typeof rootRoute
     }
+    '/blocks/catalog_/': {
+      id: '/blocks/catalog_/'
+      path: '/blocks/catalog'
+      fullPath: '/blocks/catalog'
+      preLoaderRoute: typeof BlocksCatalogIndexImport
+      parentRoute: typeof rootRoute
+    }
   }
 }
 
@@ -259,11 +259,11 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/variables': typeof VariablesRoute
   '/work-pools': typeof WorkPoolsRoute
-  '/blocks/catalog': typeof BlocksCatalogRoute
   '/blocks': typeof BlocksIndexRoute
   '/flows': typeof FlowsIndexRoute
   '/blocks/catalog/$name': typeof BlocksCatalogNameRoute
   '/flows/flow/$id': typeof FlowsFlowIdRoute
+  '/blocks/catalog': typeof BlocksCatalogIndexRoute
 }
 
 export interface FileRoutesByTo {
@@ -278,11 +278,11 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/variables': typeof VariablesRoute
   '/work-pools': typeof WorkPoolsRoute
-  '/blocks/catalog': typeof BlocksCatalogRoute
   '/blocks': typeof BlocksIndexRoute
   '/flows': typeof FlowsIndexRoute
   '/blocks/catalog/$name': typeof BlocksCatalogNameRoute
   '/flows/flow/$id': typeof FlowsFlowIdRoute
+  '/blocks/catalog': typeof BlocksCatalogIndexRoute
 }
 
 export interface FileRoutesById {
@@ -298,11 +298,11 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/variables': typeof VariablesRoute
   '/work-pools': typeof WorkPoolsRoute
-  '/blocks/catalog': typeof BlocksCatalogRoute
   '/blocks/': typeof BlocksIndexRoute
   '/flows/': typeof FlowsIndexRoute
   '/blocks/catalog_/$name': typeof BlocksCatalogNameRoute
   '/flows/flow/$id': typeof FlowsFlowIdRoute
+  '/blocks/catalog_/': typeof BlocksCatalogIndexRoute
 }
 
 export interface FileRouteTypes {
@@ -319,11 +319,11 @@ export interface FileRouteTypes {
     | '/settings'
     | '/variables'
     | '/work-pools'
-    | '/blocks/catalog'
     | '/blocks'
     | '/flows'
     | '/blocks/catalog/$name'
     | '/flows/flow/$id'
+    | '/blocks/catalog'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -337,11 +337,11 @@ export interface FileRouteTypes {
     | '/settings'
     | '/variables'
     | '/work-pools'
-    | '/blocks/catalog'
     | '/blocks'
     | '/flows'
     | '/blocks/catalog/$name'
     | '/flows/flow/$id'
+    | '/blocks/catalog'
   id:
     | '__root__'
     | '/'
@@ -355,11 +355,11 @@ export interface FileRouteTypes {
     | '/settings'
     | '/variables'
     | '/work-pools'
-    | '/blocks/catalog'
     | '/blocks/'
     | '/flows/'
     | '/blocks/catalog_/$name'
     | '/flows/flow/$id'
+    | '/blocks/catalog_/'
   fileRoutesById: FileRoutesById
 }
 
@@ -375,11 +375,11 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   VariablesRoute: typeof VariablesRoute
   WorkPoolsRoute: typeof WorkPoolsRoute
-  BlocksCatalogRoute: typeof BlocksCatalogRoute
   BlocksIndexRoute: typeof BlocksIndexRoute
   FlowsIndexRoute: typeof FlowsIndexRoute
   BlocksCatalogNameRoute: typeof BlocksCatalogNameRoute
   FlowsFlowIdRoute: typeof FlowsFlowIdRoute
+  BlocksCatalogIndexRoute: typeof BlocksCatalogIndexRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
@@ -394,11 +394,11 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   VariablesRoute: VariablesRoute,
   WorkPoolsRoute: WorkPoolsRoute,
-  BlocksCatalogRoute: BlocksCatalogRoute,
   BlocksIndexRoute: BlocksIndexRoute,
   FlowsIndexRoute: FlowsIndexRoute,
   BlocksCatalogNameRoute: BlocksCatalogNameRoute,
   FlowsFlowIdRoute: FlowsFlowIdRoute,
+  BlocksCatalogIndexRoute: BlocksCatalogIndexRoute,
 }
 
 export const routeTree = rootRoute
@@ -422,11 +422,11 @@ export const routeTree = rootRoute
         "/settings",
         "/variables",
         "/work-pools",
-        "/blocks/catalog",
         "/blocks/",
         "/flows/",
         "/blocks/catalog_/$name",
-        "/flows/flow/$id"
+        "/flows/flow/$id",
+        "/blocks/catalog_/"
       ]
     },
     "/": {
@@ -462,9 +462,6 @@ export const routeTree = rootRoute
     "/work-pools": {
       "filePath": "work-pools.tsx"
     },
-    "/blocks/catalog": {
-      "filePath": "blocks/catalog.tsx"
-    },
     "/blocks/": {
       "filePath": "blocks/index.tsx"
     },
@@ -472,10 +469,13 @@ export const routeTree = rootRoute
       "filePath": "flows/index.tsx"
     },
     "/blocks/catalog_/$name": {
-      "filePath": "blocks/catalog_.$name.tsx"
+      "filePath": "blocks/catalog_/$name.tsx"
     },
     "/flows/flow/$id": {
       "filePath": "flows/flow.$id.tsx"
+    },
+    "/blocks/catalog_/": {
+      "filePath": "blocks/catalog_/index.tsx"
     }
   }
 }
