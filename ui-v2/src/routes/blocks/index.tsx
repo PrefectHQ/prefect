@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { z } from "zod";
 import { zodSearchValidator } from "@tanstack/router-zod-adapter";
 import {
@@ -36,7 +36,21 @@ function BlocksPage() {
 			: undefined,
 	});
 
-	return <pre>{JSON.stringify(blocks, null, 2)}</pre>;
+	return (
+		<div>
+			{blocks.map((block) => (
+				<div key={block.id ?? 'unknown'}>
+					{block.id ? (
+						<Link to="/blocks/$id" params={{ id: block.id }}>
+							{block.name}
+						</Link>
+					) : (
+						<span>{block.name}</span>
+					)}
+				</div>
+			))}
+		</div>
+	);
 }
 
 /**

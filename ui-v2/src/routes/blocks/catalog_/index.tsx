@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { z } from "zod";
 import { zodSearchValidator } from "@tanstack/router-zod-adapter";
 import { useBlockTypes, buildBlockTypesQuery } from "@/hooks/use-block-types";
@@ -8,7 +8,17 @@ const searchParams = z.object({});
 function CatalogPage() {
 	const { blockTypes } = useBlockTypes();
 
-	return <pre>{JSON.stringify(blockTypes, null, 2)}</pre>;
+	return (
+		<div>
+			{blockTypes.map((blockType) => (
+				<div key={blockType.slug}>
+					<Link to="/blocks/catalog/$name" params={{ name: blockType.slug }}>
+						{blockType.name}
+					</Link>
+				</div>
+			))}
+		</div>
+	);
 }
 
 export const Route = createFileRoute("/blocks/catalog_/")({
