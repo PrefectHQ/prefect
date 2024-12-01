@@ -25,7 +25,7 @@ vale
 vermin
 virtualenv
 watchfiles
-respx
+respx@git+https://github.com/ndhansen/respx.git
 
 # type stubs
 types-cachetools
