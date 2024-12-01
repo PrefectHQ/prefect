@@ -59,7 +59,7 @@ const buildFilterBody = (
 	},
 	sort: search.sort,
 	include_secrets: false,
-})
+});
 
 export const Route = createFileRoute("/blocks/")({
 	validateSearch: zodSearchValidator(searchParams),

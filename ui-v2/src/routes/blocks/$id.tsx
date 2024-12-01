@@ -6,7 +6,7 @@ import {
 
 function RouteComponent() {
 	const { id } = Route.useParams();
-	const { data: block } = useBlockDocument(id)
+	const { data: block } = useBlockDocument(id);
 
 	return (
 		<div>
@@ -19,7 +19,9 @@ function RouteComponent() {
 export const Route = createFileRoute("/blocks/$id")({
 	component: RouteComponent,
 	loader: ({ context, params }) => {
-		return context.queryClient.ensureQueryData(buildBlockDocumentQuery(params.id));
+		return context.queryClient.ensureQueryData(
+			buildBlockDocumentQuery(params.id),
+		);
 	},
 	wrapInSuspense: true,
 });

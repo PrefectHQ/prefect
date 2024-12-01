@@ -10,8 +10,14 @@ import {
 	type UseQueryOptions,
 } from "@tanstack/react-query";
 
-type BlockDocumentsOptions = components["schemas"]["Body_read_block_documents_block_documents_filter_post"];
-type BlockDocumentsCountOptions = Partial<Pick<BlockDocumentsOptions, 'block_documents' | 'block_schemas' | 'block_types'>>;
+type BlockDocumentsOptions =
+	components["schemas"]["Body_read_block_documents_block_documents_filter_post"];
+type BlockDocumentsCountOptions = Partial<
+	Pick<
+		BlockDocumentsOptions,
+		"block_documents" | "block_schemas" | "block_types"
+	>
+>;
 
 type BlockDocumentKeys = {
 	all: readonly ["block-documents"];
@@ -19,9 +25,7 @@ type BlockDocumentKeys = {
 		options?: BlockDocumentsOptions,
 	) => readonly ["block-documents", "filtered", string];
 	detail: (id: string) => readonly ["block-documents", "detail", string];
-	count: (
-		options?: BlockDocumentsCountOptions,
-	) => readonly string[];
+	count: (options?: BlockDocumentsCountOptions) => readonly string[];
 };
 
 const blockDocumentKeys: BlockDocumentKeys = {
@@ -48,16 +52,13 @@ export const getBlockDocuments = async (options: BlockDocumentsOptions) => {
 	return response.data;
 };
 
-export const buildBlockDocumentsQuery = (
-	params: BlockDocumentsOptions,
-) =>
+export const buildBlockDocumentsQuery = (params: BlockDocumentsOptions) =>
 	queryOptions({
 		queryKey: blockDocumentKeys.filtered(params),
 		queryFn: () => getBlockDocuments(params),
 		staleTime: 1000,
 		placeholderData: keepPreviousData,
 	});
-
 
 export const useBlockDocuments = (
 	params: BlockDocumentsOptions,
@@ -108,7 +109,8 @@ type BlockDocumentsCountResponse = Awaited<
 >;
 
 export const getBlockDocumentsCount = async (
-	params: BlockDocumentsCountOptions = {}) => {
+	params: BlockDocumentsCountOptions = {},
+) => {
 	const response = await getQueryService().POST("/block_documents/count", {
 		body: params,
 	});
