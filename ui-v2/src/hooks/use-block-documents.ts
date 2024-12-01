@@ -10,14 +10,17 @@ import {
 	type UseQueryOptions,
 } from "@tanstack/react-query";
 
+type BlockDocumentsOptions = components["schemas"]["Body_read_block_documents_block_documents_filter_post"];
+type BlockDocumentsCountOptions = Partial<Pick<BlockDocumentsOptions, 'block_documents' | 'block_schemas' | 'block_types'>>;
+
 type BlockDocumentKeys = {
 	all: readonly ["block-documents"];
 	filtered: (
-		options?: components["schemas"]["BlockDocumentFilter"],
+		options?: BlockDocumentsOptions,
 	) => readonly ["block-documents", "filtered", string];
 	detail: (id: string) => readonly ["block-documents", "detail", string];
 	count: (
-		options?: components["schemas"]["BlockDocumentFilter"],
+		options?: BlockDocumentsCountOptions,
 	) => readonly string[];
 };
 
@@ -38,49 +41,26 @@ const blockDocumentKeys: BlockDocumentKeys = {
 
 type BlockDocumentsResponse = Awaited<ReturnType<typeof getBlockDocuments>>;
 
-export const getBlockDocuments = async ({
-	blockDocuments,
-	blockSchemas,
-	blockTypes,
-	includeSecrets = false,
-	limit = 100,
-	offset = 0,
-	sort = "NAME_ASC",
-}: {
-	blockDocuments?: components["schemas"]["BlockDocumentFilter"];
-	blockSchemas?: components["schemas"]["BlockSchemaFilter"];
-	blockTypes?: components["schemas"]["BlockTypeFilter"];
-	includeSecrets?: boolean;
-	limit?: number;
-	offset?: number;
-	sort?: components["schemas"]["BlockDocumentSort"];
-} = {}) => {
+export const getBlockDocuments = async (options: BlockDocumentsOptions) => {
 	const response = await getQueryService().POST("/block_documents/filter", {
-		body: {
-			block_documents: blockDocuments,
-			block_schemas: blockSchemas,
-			block_types: blockTypes,
-			include_secrets: includeSecrets,
-			limit,
-			offset,
-			sort,
-		},
+		body: options,
 	});
 	return response.data;
 };
 
 export const buildBlockDocumentsQuery = (
-	params: Parameters<typeof getBlockDocuments>[0] = {},
+	params: BlockDocumentsOptions,
 ) =>
 	queryOptions({
-		queryKey: blockDocumentKeys.filtered(params.blockDocuments),
+		queryKey: blockDocumentKeys.filtered(params),
 		queryFn: () => getBlockDocuments(params),
 		staleTime: 1000,
 		placeholderData: keepPreviousData,
 	});
 
+
 export const useBlockDocuments = (
-	params: Parameters<typeof getBlockDocuments>[0] = {},
+	params: BlockDocumentsOptions,
 	options: Omit<
 		UseQueryOptions<BlockDocumentsResponse>,
 		"queryKey" | "queryFn"
@@ -127,40 +107,26 @@ type BlockDocumentsCountResponse = Awaited<
 	ReturnType<typeof getBlockDocumentsCount>
 >;
 
-export const getBlockDocumentsCount = async ({
-	blockDocuments,
-	blockSchemas,
-	blockTypes,
-	includeSecrets = false,
-}: {
-	blockDocuments?: components["schemas"]["BlockDocumentFilter"];
-	blockSchemas?: components["schemas"]["BlockSchemaFilter"];
-	blockTypes?: components["schemas"]["BlockTypeFilter"];
-	includeSecrets?: boolean;
-} = {}) => {
+export const getBlockDocumentsCount = async (
+	params: BlockDocumentsCountOptions = {}) => {
 	const response = await getQueryService().POST("/block_documents/count", {
-		body: {
-			block_documents: blockDocuments,
-			block_schemas: blockSchemas,
-			block_types: blockTypes,
-			include_secrets: includeSecrets,
-		},
+		body: params,
 	});
 	return response.data;
 };
 
 export const buildBlockDocumentsCountQuery = (
-	params: Parameters<typeof getBlockDocumentsCount>[0] = {},
+	params?: BlockDocumentsCountOptions,
 ) =>
 	queryOptions({
-		queryKey: blockDocumentKeys.count(params.blockDocuments),
+		queryKey: blockDocumentKeys.count(params),
 		queryFn: () => getBlockDocumentsCount(params),
 		staleTime: 1000,
 		placeholderData: keepPreviousData,
 	});
 
 export const useBlockDocumentsCount = (
-	params: Parameters<typeof getBlockDocumentsCount>[0] = {},
+	params: BlockDocumentsOptions,
 	options: Omit<
 		UseQueryOptions<BlockDocumentsCountResponse>,
 		"queryKey" | "queryFn"
@@ -181,7 +147,7 @@ const getBlockDocument = async (id: string) => {
 	return response.data;
 };
 
-const buildBlockDocumentQuery = (id: string) =>
+export const buildBlockDocumentQuery = (id: string) =>
 	queryOptions({
 		queryKey: blockDocumentKeys.detail(id),
 		queryFn: () => getBlockDocument(id),

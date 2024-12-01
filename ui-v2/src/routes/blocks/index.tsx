@@ -2,11 +2,11 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { z } from "zod";
 import { zodSearchValidator } from "@tanstack/router-zod-adapter";
 import {
-	getBlockDocuments,
 	useBlockDocuments,
 	buildBlockDocumentsQuery,
 	buildBlockDocumentsCountQuery,
 } from "@/hooks/use-block-documents";
+import { components } from "@/api/prefect";
 
 const searchParams = z.object({
 	offset: z.number().int().nonnegative().optional().default(0).catch(0),
@@ -23,18 +23,7 @@ const searchParams = z.object({
 function BlocksPage() {
 	const search = Route.useSearch();
 
-	const { blockDocuments: blocks } = useBlockDocuments({
-		offset: search.offset,
-		limit: search.limit,
-		sort: search.sort,
-		blockDocuments: search.name
-			? {
-					operator: "and_",
-					name: { like_: search.name },
-					is_anonymous: { eq_: search.isAnonymous },
-				}
-			: undefined,
-	});
+	const { blockDocuments: blocks } = useBlockDocuments(buildFilterBody(search));
 
 	return (
 		<div>
@@ -59,29 +48,27 @@ function BlocksPage() {
  * @returns An object containing pagination parameters and block document filters that can be passed to the blocks API
  */
 const buildFilterBody = (
-	search?: z.infer<typeof searchParams>,
-): Parameters<typeof getBlockDocuments>[0] => ({
-	offset: search?.offset ?? 0,
-	limit: search?.limit ?? 10,
-	sort: search?.sort ?? "NAME_ASC",
-	blockDocuments: {
+	search: z.infer<typeof searchParams> = searchParams.parse({}),
+): components["schemas"]["Body_read_block_documents_block_documents_filter_post"] => ({
+	offset: search.offset,
+	limit: search.limit,
+	block_documents: {
 		operator: "and_",
-		is_anonymous: { eq_: search?.isAnonymous },
+		name: { like_: search.name },
+		is_anonymous: { eq_: search.isAnonymous },
 	},
-});
+	sort: search.sort,
+	include_secrets: false,
+})
 
 export const Route = createFileRoute("/blocks/")({
 	validateSearch: zodSearchValidator(searchParams),
 	component: BlocksPage,
-	loaderDeps: ({ search }) => ({
-		body: buildFilterBody(search),
-	}),
+	loaderDeps: ({ search }) => buildFilterBody(search),
 	loader: ({ deps, context }) => {
 		return Promise.all([
-			context.queryClient.ensureQueryData(buildBlockDocumentsQuery(deps.body)),
-			context.queryClient.ensureQueryData(
-				buildBlockDocumentsCountQuery(deps.body),
-			),
+			context.queryClient.ensureQueryData(buildBlockDocumentsQuery(deps)),
+			context.queryClient.ensureQueryData(buildBlockDocumentsCountQuery(deps)),
 			context.queryClient.ensureQueryData(buildBlockDocumentsCountQuery()),
 		]);
 	},

@@ -1,20 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import {
-	useBlockDocuments,
-	buildBlockDocumentsQuery,
+	useBlockDocument,
+	buildBlockDocumentQuery,
 } from "@/hooks/use-block-documents";
 
 function RouteComponent() {
 	const { id } = Route.useParams();
-	const {
-		blockDocuments: [block],
-	} = useBlockDocuments({
-		blockDocuments: {
-			operator: "and_",
-			is_anonymous: { eq_: false },
-			id: { any_: [id] },
-		},
-	});
+	const { data: block } = useBlockDocument(id)
 
 	return (
 		<div>
@@ -27,15 +19,7 @@ function RouteComponent() {
 export const Route = createFileRoute("/blocks/$id")({
 	component: RouteComponent,
 	loader: ({ context, params }) => {
-		return context.queryClient.ensureQueryData(
-			buildBlockDocumentsQuery({
-				blockDocuments: {
-					operator: "and_",
-					is_anonymous: { eq_: false },
-					id: { any_: [params.id] },
-				},
-			}),
-		);
+		return context.queryClient.ensureQueryData(buildBlockDocumentQuery(params.id));
 	},
 	wrapInSuspense: true,
 });
