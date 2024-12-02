@@ -3,6 +3,7 @@ import subprocess
 import sys
 from threading import Thread
 from typing import List
+from uuid import uuid4
 
 from pydantic_extra_types.pendulum_dt import DateTime
 from uv import find_uv_bin
@@ -34,6 +35,10 @@ def main():
 
     listener_thread = Thread(target=run_event_listener, args=(events,), daemon=True)
     listener_thread.start()
+
+    subprocess.check_call(
+        [find_uv_bin(), "venv", str(uuid4())], stdout=sys.stdout, stderr=sys.stderr
+    )
 
     subprocess.check_call(
         [find_uv_bin(), "pip", "install", "prefect-kubernetes>=0.5.0"],
