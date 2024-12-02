@@ -115,11 +115,8 @@ async def client_context_lifespan_is_robust_to_mixed_concurrency():
 
 
 async def concurrency_tests():
-    print("Testing threaded concurrency")
     client_context_lifespan_is_robust_to_threaded_concurrency()
-    print("Testing high async concurrency")
     await client_context_lifespan_is_robust_to_high_async_concurrency()
-    print("Testing mixed concurrency")
     await client_context_lifespan_is_robust_to_mixed_concurrency()
 
 
