@@ -32,8 +32,10 @@ def run_script(script_path: str):
         result = subprocess.run(
             ["uv", "run", script_path], capture_output=True, text=True, check=True
         )
+        print(f"Finished {script_path}", flush=True)
         return result.stdout, result.stderr, None
     except subprocess.CalledProcessError as e:
+        print(f"Failed {script_path}", flush=True)
         return e.stdout, e.stderr, e
 
 
