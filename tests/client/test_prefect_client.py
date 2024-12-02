@@ -2216,7 +2216,9 @@ class TestAutomations:
         )
 
     async def test_create_automation(self, cloud_client, automation: AutomationCore):
-        with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
+        with respx.mock(
+            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+        ) as router:
             created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
             create_route = router.post("/automations/").mock(
@@ -2232,7 +2234,9 @@ class TestAutomations:
             assert automation_id == UUID(created_automation["id"])
 
     async def test_read_automation(self, cloud_client, automation: AutomationCore):
-        with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
+        with respx.mock(
+            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+        ) as router:
             created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
 
@@ -2250,7 +2254,9 @@ class TestAutomations:
     async def test_read_automation_not_found(
         self, cloud_client, automation: AutomationCore
     ):
-        with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
+        with respx.mock(
+            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+        ) as router:
             created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
 
@@ -2268,7 +2274,9 @@ class TestAutomations:
     async def test_read_automations_by_name(
         self, cloud_client, automation: AutomationCore
     ):
-        with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
+        with respx.mock(
+            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+        ) as router:
             created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
             read_route = router.post("/automations/filter").mock(
@@ -2301,7 +2309,9 @@ class TestAutomations:
     async def test_read_automations_by_name_multiple_same_name(
         self, cloud_client, automation: AutomationCore, automation2: AutomationCore
     ):
-        with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
+        with respx.mock(
+            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+        ) as router:
             created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
 
@@ -2331,7 +2341,9 @@ class TestAutomations:
     async def test_read_automations_by_name_not_found(
         self, cloud_client, automation: AutomationCore
     ):
-        with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
+        with respx.mock(
+            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+        ) as router:
             created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
             created_automation["name"] = "nonexistent"
@@ -2348,7 +2360,9 @@ class TestAutomations:
             assert nonexistent_automation == []
 
     async def test_delete_owned_automations(self, cloud_client):
-        with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
+        with respx.mock(
+            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+        ) as router:
             resource_id = f"prefect.deployment.{uuid4()}"
             delete_route = router.delete(f"/automations/owned-by/{resource_id}").mock(
                 return_value=httpx.Response(204)
