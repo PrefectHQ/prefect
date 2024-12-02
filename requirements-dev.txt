@@ -25,8 +25,7 @@ vale
 vermin
 virtualenv
 watchfiles
-# TODO: go back to `respx` once fix is released
-respx@git+https://github.com/ndhansen/respx.git
+respx
 
 # type stubs
 types-cachetools
