@@ -62,7 +62,7 @@ async def kubernetes_work_pool(prefect_client: PrefectClient):
     )
 
     with respx.mock(
-        assert_all_mocked=False, base_url=PREFECT_API_URL.value()
+        assert_all_mocked=False, base_url=PREFECT_API_URL.value(), using="httpx"
     ) as respx_mock:
         respx_mock.get("/csrf-token", params={"client": ANY}).pass_through()
         respx_mock.route(path__startswith="/work_pools/").pass_through()

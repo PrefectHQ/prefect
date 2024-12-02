@@ -81,8 +81,8 @@ class TestChangingProfileAndCheckingServerConnection:
     def authorized_cloud(self):
         # attempts to reach the Cloud 2 workspaces endpoint implies a good connection
         # to Prefect Cloud as opposed to a hosted Prefect server instance
-        with respx.mock:
-            authorized = respx.get(
+        with respx.mock(using="httpx") as respx_mock:
+            authorized = respx_mock.get(
                 "https://mock-cloud.prefect.io/api/me/workspaces",
             ).mock(return_value=Response(200, json=[]))
 
@@ -91,8 +91,8 @@ class TestChangingProfileAndCheckingServerConnection:
     @pytest.fixture
     def unauthorized_cloud(self):
         # requests to cloud with an invalid key will result in a 401 response
-        with respx.mock:
-            unauthorized = respx.get(
+        with respx.mock(using="httpx") as respx_mock:
+            unauthorized = respx_mock.get(
                 "https://mock-cloud.prefect.io/api/me/workspaces",
             ).mock(return_value=Response(401, json={}))
 
@@ -101,8 +101,8 @@ class TestChangingProfileAndCheckingServerConnection:
     @pytest.fixture
     def unhealthy_cloud(self):
         # Cloud may respond with a 500 error when having connection issues
-        with respx.mock:
-            unhealthy_cloud = respx.get(
+        with respx.mock(using="httpx") as respx_mock:
+            unhealthy_cloud = respx_mock.get(
                 "https://mock-cloud.prefect.io/api/me/workspaces",
             ).mock(return_value=Response(500, json={}))
 
@@ -111,8 +111,8 @@ class TestChangingProfileAndCheckingServerConnection:
     @pytest.fixture
     def hosted_server_has_no_cloud_api(self):
         # if the API URL points to a hosted Prefect server instance, no Cloud API will be found
-        with respx.mock:
-            hosted = respx.get(
+        with respx.mock(using="httpx") as respx_mock:
+            hosted = respx_mock.get(
                 "https://hosted-server.prefect.io/api/me/workspaces",
             ).mock(return_value=Response(404, json={}))
 
@@ -120,8 +120,8 @@ class TestChangingProfileAndCheckingServerConnection:
 
     @pytest.fixture
     def healthy_hosted_server(self):
-        with respx.mock:
-            hosted = respx.get(
+        with respx.mock(using="httpx") as respx_mock:
+            hosted = respx_mock.get(
                 "https://hosted-server.prefect.io/api/health",
             ).mock(return_value=Response(200, json={}))
 
@@ -132,8 +132,8 @@ class TestChangingProfileAndCheckingServerConnection:
 
     @pytest.fixture
     def unhealthy_hosted_server(self):
-        with respx.mock:
-            badly_hosted = respx.get(
+        with respx.mock(using="httpx") as respx_mock:
+            badly_hosted = respx_mock.get(
                 "https://hosted-server.prefect.io/api/health",
             ).mock(side_effect=self.connection_error)
 

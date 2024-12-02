@@ -428,6 +428,7 @@ def mock_collection_registry(
     }
 
     with respx.mock(
+        using="httpx",
         assert_all_mocked=False,
         assert_all_called=False,
         base_url=PREFECT_API_URL.value(),

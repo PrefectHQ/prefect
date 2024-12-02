@@ -15,7 +15,6 @@ Example:
 
 import subprocess
 import sys
-from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 from typing import Union
 
@@ -38,20 +37,18 @@ def run_script(script_path: str):
 
 
 def run_flows(search_path: Union[str, Path]):
-    count = 0
     print(f"Running integration tests with client version: {__version__}")
     scripts = sorted(Path(search_path).glob("**/*.py"))
-    with ProcessPoolExecutor(max_workers=4) as executor:
-        results = list(executor.map(run_script, scripts))
+    errors = []
+    for script in scripts:
+        print(f"Running {script}")
+        try:
+            run_script(str(script))
+        except Exception as e:
+            print(f"Error running {script}: {e}")
+            errors.append(e)
 
-    for script, (stdout, stderr, error) in zip(scripts, results):
-        print(f" {script.relative_to(search_path)} ".center(90, "-"), flush=True)
-        print(stdout)
-        print(stderr)
-        if error:
-            raise error
-        print("".center(90, "-") + "\n", flush=True)
-        count += 1
+    assert not errors, "Errors occurred while running flows"
 
 
 if __name__ == "__main__":

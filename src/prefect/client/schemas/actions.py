@@ -702,23 +702,23 @@ class FlowRunNotificationPolicyCreate(ActionBaseModel):
 class FlowRunNotificationPolicyUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a flow run notification policy."""
 
-    is_active: Optional[bool] = Field(None)
-    state_names: Optional[List[str]] = Field(None)
-    tags: Optional[List[str]] = Field(None)
-    block_document_id: Optional[UUID] = Field(None)
-    message_template: Optional[str] = Field(None)
+    is_active: Optional[bool] = Field(default=None)
+    state_names: Optional[List[str]] = Field(default=None)
+    tags: Optional[List[str]] = Field(default=None)
+    block_document_id: Optional[UUID] = Field(default=None)
+    message_template: Optional[str] = Field(default=None)
 
 
 class ArtifactCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create an artifact."""
 
-    key: Optional[str] = Field(None)
-    type: Optional[str] = Field(None)
-    description: Optional[str] = Field(None)
-    data: Optional[Union[Dict[str, Any], Any]] = Field(None)
-    metadata_: Optional[Dict[str, str]] = Field(None)
-    flow_run_id: Optional[UUID] = Field(None)
-    task_run_id: Optional[UUID] = Field(None)
+    key: Optional[str] = Field(default=None)
+    type: Optional[str] = Field(default=None)
+    description: Optional[str] = Field(default=None)
+    data: Optional[Union[Dict[str, Any], Any]] = Field(default=None)
+    metadata_: Optional[Dict[str, str]] = Field(default=None)
+    flow_run_id: Optional[UUID] = Field(default=None)
+    task_run_id: Optional[UUID] = Field(default=None)
 
     _validate_artifact_format = field_validator("key")(validate_artifact_key)
 

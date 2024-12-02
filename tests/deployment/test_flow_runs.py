@@ -111,7 +111,7 @@ class TestRunDeployment:
         }
 
         with respx.mock(
-            base_url=PREFECT_API_URL.value(), assert_all_mocked=True
+            base_url=PREFECT_API_URL.value(), assert_all_mocked=True, using="httpx"
         ) as router:
             router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
             router.get(f"/deployments/name/foo/{deployment.name}").pass_through()
@@ -146,6 +146,7 @@ class TestRunDeployment:
             base_url=PREFECT_API_URL.value(),
             assert_all_mocked=True,
             assert_all_called=False,
+            using="httpx",
         ) as router:
             router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
             router.get(f"/deployments/name/foo/{deployment.name}").pass_through()
@@ -198,6 +199,7 @@ class TestRunDeployment:
             base_url=PREFECT_API_URL.value(),
             assert_all_mocked=True,
             assert_all_called=False,
+            using="httpx",
         ) as router:
             router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
             router.get(f"/deployments/name/foo/{deployment.name}").pass_through()
@@ -239,6 +241,7 @@ class TestRunDeployment:
             base_url=PREFECT_API_URL.value(),
             assert_all_mocked=True,
             assert_all_called=False,
+            using="httpx",
         ) as router:
             router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
             router.get(f"/deployments/name/foo/{deployment.name}").pass_through()

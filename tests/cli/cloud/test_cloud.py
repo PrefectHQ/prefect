@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 import httpx
 import pytest
 import readchar
+import respx
 from starlette import status
 from typer import Exit
 
@@ -507,15 +508,6 @@ def test_login_with_browser_single_workspace(respx_mock, mock_webbrowser):
 
 @pytest.mark.usefixtures("interactive_console")
 def test_login_with_browser_failure_in_browser(respx_mock, mock_webbrowser):
-    foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
-
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json=[foo_workspace.model_dump(mode="json")],
-        )
-    )
-
     def post_failure(ui_url):
         # Parse the callback url that the UI would send a response to
         callback = urllib.parse.unquote(
@@ -1013,70 +1005,54 @@ def test_set_workspace_updates_profile(respx_mock):
 
 
 @pytest.mark.usefixtures("interactive_console")
-def test_set_workspace_with_account_selection(respx_mock):
+def test_set_workspace_with_account_selection():
     foo_workspace = gen_test_workspace(account_handle="test1", workspace_handle="foo")
     bar_workspace = gen_test_workspace(account_handle="test2", workspace_handle="bar")
 
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json=[
-                foo_workspace.model_dump(mode="json"),
-                bar_workspace.model_dump(mode="json"),
-            ],
-        )
-    )
-
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/accounts").mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json=[
-                {"account_handle": "test1", "account_id": "account1"},
-                {"account_handle": "test2", "account_id": "account2"},
-            ],
-        )
-    )
-
-    respx_mock.get(
-        PREFECT_CLOUD_API_URL.value() + "/me/workspaces?account_id=account2"
-    ).mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json=[bar_workspace.model_dump(mode="json")],
-        )
-    )
-
-    cloud_profile = "cloud-foo"
-    save_profiles(
-        ProfilesCollection(
-            [
-                Profile(
-                    name=cloud_profile,
-                    settings={
-                        PREFECT_API_URL: foo_workspace.api_url(),
-                        PREFECT_API_KEY: "fake-key",
-                    },
-                )
-            ],
-            active=None,
-        )
-    )
-
-    with use_profile(cloud_profile):
-        invoke_and_assert(
-            ["cloud", "workspace", "set"],
-            expected_code=0,
-            user_input=readchar.key.DOWN + readchar.key.ENTER + readchar.key.ENTER,
-            expected_output_contains=[
-                f"Successfully set workspace to {bar_workspace.handle!r} in profile {cloud_profile!r}.",
-            ],
+    with respx.mock(
+        using="httpx", base_url=PREFECT_CLOUD_API_URL.value()
+    ) as respx_mock:
+        respx_mock.get("/me/workspaces").mock(
+            return_value=httpx.Response(
+                status.HTTP_200_OK,
+                json=[
+                    foo_workspace.model_dump(mode="json"),
+                    bar_workspace.model_dump(mode="json"),
+                ],
+            )
         )
 
-    profiles = load_profiles()
-    assert profiles[cloud_profile].settings == {
-        PREFECT_API_URL: bar_workspace.api_url(),
-        PREFECT_API_KEY: "fake-key",
-    }
+        cloud_profile = "cloud-foo"
+        save_profiles(
+            ProfilesCollection(
+                [
+                    Profile(
+                        name=cloud_profile,
+                        settings={
+                            PREFECT_API_URL: foo_workspace.api_url(),
+                            PREFECT_API_KEY: "fake-key",
+                        },
+                    )
+                ],
+                active=None,
+            )
+        )
+
+        with use_profile(cloud_profile):
+            invoke_and_assert(
+                ["cloud", "workspace", "set"],
+                expected_code=0,
+                user_input=readchar.key.DOWN + readchar.key.ENTER + readchar.key.ENTER,
+                expected_output_contains=[
+                    f"Successfully set workspace to {bar_workspace.handle!r} in profile {cloud_profile!r}.",
+                ],
+            )
+
+        profiles = load_profiles()
+        assert profiles[cloud_profile].settings == {
+            PREFECT_API_URL: bar_workspace.api_url(),
+            PREFECT_API_KEY: "fake-key",
+        }
 
 
 @pytest.mark.usefixtures("interactive_console")
@@ -1166,7 +1142,7 @@ class TestCloudWorkspaceLs:
         with use_profile(cloud_profile):
             yield foo_workspace, bar_workspace
 
-    def test_ls(self, respx_mock, monkeypatch, workspaces):
+    def test_ls(self, monkeypatch, workspaces):
         foo_workspace, bar_workspace = workspaces
         invoke_and_assert(
             ["cloud", "workspace", "ls"],

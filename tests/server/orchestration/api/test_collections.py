@@ -59,38 +59,48 @@ class TestReadCollectionViews:
         mock_block_response,
         mock_worker_response,
     ):
-        respx_mock.get(self.collection_view_url("flow")).mock(
-            return_value=Response(200, json=mock_flow_response)
-        )
-        respx_mock.get(self.collection_view_url("block")).mock(
-            return_value=Response(200, json=mock_block_response)
-        )
-        respx_mock.get(self.collection_view_url("worker")).mock(
-            return_value=Response(200, json=mock_worker_response)
-        )
+        with respx.mock(
+            using="httpx", assert_all_mocked=False, assert_all_called=False
+        ) as respx_mock:
+            flow_route = respx_mock.get(self.collection_view_url("flow")).mock(
+                return_value=Response(200, json=mock_flow_response)
+            )
+            block_route = respx_mock.get(self.collection_view_url("block")).mock(
+                return_value=Response(200, json=mock_block_response)
+            )
+            worker_route = respx_mock.get(self.collection_view_url("worker")).mock(
+                return_value=Response(200, json=mock_worker_response)
+            )
+            respx_mock.route(host="test").pass_through()
 
-        return respx_mock
+            yield respx_mock, flow_route, block_route, worker_route
 
     @respx.mock
     @pytest.fixture
     def mock_get_missing_view(
         self,
-        respx_mock,
         mock_flow_response,
         mock_block_response,
         mock_collection_response,
     ):
-        respx_mock.get(self.collection_view_url("flow")).mock(
-            return_value=Response(404, json=mock_flow_response)
-        )
-        respx_mock.get(self.collection_view_url("block")).mock(
-            return_value=Response(404, json=mock_block_response)
-        )
-        respx_mock.get(self.collection_view_url("worker")).mock(
-            return_value=Response(404, json=mock_collection_response)
-        )
+        with respx.mock(
+            using="httpx",
+            assert_all_mocked=False,
+            assert_all_called=False,
+            base_url="https://raw.githubusercontent.com",
+        ) as respx_mock:
+            respx_mock.get(self.collection_view_url("flow")).mock(
+                return_value=Response(404, json=mock_flow_response)
+            )
+            respx_mock.get(self.collection_view_url("block")).mock(
+                return_value=Response(404, json=mock_block_response)
+            )
+            respx_mock.get(self.collection_view_url("worker")).mock(
+                return_value=Response(404, json=mock_collection_response)
+            )
+            respx_mock.route(host="test").pass_through()
 
-        return respx_mock
+            yield respx_mock
 
     @pytest.mark.parametrize(
         "view", ["aggregate-flow-metadata", "aggregate-block-metadata"]
@@ -121,6 +131,7 @@ class TestReadCollectionViews:
         "view", ["aggregate-flow-metadata", "aggregate-block-metadata"]
     )
     async def test_collection_view_cached(self, client, mock_get_view, view):
+        respx_mock, flow_route, block_route, worker_route = mock_get_view
         res1 = await client.get(f"/collections/views/{view}")
 
         assert res1.status_code == 200
@@ -132,7 +143,10 @@ class TestReadCollectionViews:
         assert isinstance(res2.json(), dict)
 
         assert res1.json() == res2.json()
-        mock_get_view.calls.assert_called_once()
+        if view == "aggregate-flow-metadata":
+            flow_route.calls.assert_called_once()
+        elif view == "aggregate-block-metadata":
+            block_route.calls.assert_called_once()
 
     async def test_read_worker_view_failed_fetch(self, client, mock_get_missing_view):
         res = await client.get("/collections/views/aggregate-worker-metadata")

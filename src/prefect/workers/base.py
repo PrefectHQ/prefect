@@ -637,8 +637,9 @@ class BaseWorker(abc.ABC):
         await self._exit_stack.enter_async_context(self._runs_task_group)
 
         if self._client.server_type == ServerType.CLOUD:
-            self._cloud_client = get_cloud_client()
-            await self._exit_stack.enter_async_context(self._cloud_client)
+            self._cloud_client = await self._exit_stack.enter_async_context(
+                get_cloud_client()
+            )
 
         self.is_setup = True
 

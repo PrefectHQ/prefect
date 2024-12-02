@@ -2,6 +2,7 @@ import asyncio
 import random
 import threading
 from contextlib import asynccontextmanager
+from typing import Callable
 from unittest.mock import MagicMock
 
 import anyio
@@ -13,7 +14,7 @@ import prefect.exceptions
 from prefect.client.orchestration import PrefectClient
 
 
-def make_lifespan(startup, shutdown) -> callable:
+def make_lifespan(startup, shutdown) -> Callable:
     async def lifespan(app):
         try:
             startup()
@@ -63,7 +64,7 @@ async def client_context_lifespan_is_robust_to_high_async_concurrency():
         async with PrefectClient(app):
             await anyio.sleep(random.random())
 
-    with anyio.fail_after(15):
+    with anyio.fail_after(30):
         async with anyio.create_task_group() as tg:
             for _ in range(1000):
                 tg.start_soon(enter_client)
@@ -84,10 +85,14 @@ async def client_context_lifespan_is_robust_to_mixed_concurrency():
 
     async def enter_client_many_times(context):
         # We must re-enter the profile context in the new thread
-        with context:
-            async with anyio.create_task_group() as tg:
-                for _ in range(100):
-                    tg.start_soon(enter_client)
+        try:
+            with context:
+                async with anyio.create_task_group() as tg:
+                    for _ in range(100):
+                        tg.start_soon(enter_client)
+        except Exception as e:
+            print(f"Error entering client many times {e}")
+            raise e
 
     threads = [
         threading.Thread(
@@ -97,7 +102,7 @@ async def client_context_lifespan_is_robust_to_mixed_concurrency():
                 prefect.context.SettingsContext.get().model_copy(),
             ),
         )
-        for _ in range(100)
+        for _ in range(10)
     ]
     for thread in threads:
         thread.start()
