@@ -85,10 +85,14 @@ async def client_context_lifespan_is_robust_to_mixed_concurrency():
 
     async def enter_client_many_times(context):
         # We must re-enter the profile context in the new thread
-        with context:
-            async with anyio.create_task_group() as tg:
-                for _ in range(10):
-                    tg.start_soon(enter_client)
+        try:
+            with context:
+                async with anyio.create_task_group() as tg:
+                    for _ in range(100):
+                        tg.start_soon(enter_client)
+        except Exception as e:
+            print(f"Error entering client many times {e}")
+            raise e
 
     threads = [
         threading.Thread(
