@@ -53,59 +53,17 @@ Next, you need to create a second workspace for workflows in staging:
 
 You should now have two workspaces named `production` and `staging`.
 
-{/* ## Define your team structure
-
-Most data platforms serve multiple teams.
-In Prefect Cloud, you can create teams to control access to your infrastructure.
-
-### Create teams
-
-First, you need to create teams in your Prefect account.
-
-1. Click the workspace switcher in the sidebar, and then click **Account settings**.
-1. Click **Teams** in the sidebar.
-1. Create two teams, named `team-a` and `team-b`.
-1. Optional: Choose the team you want to add members to, and then click **Add team members**.
-
-### Grant workspace access
-
-You need to explicitly grant teams access to workspaces.
-
-1. Click the workspace switcher in the sidebar, and then click **Invite and manage members**.
-1. In the **Teams** section, add the two teams you created (`team-a` and `team-b`) with the **Developer** role.
-
-Your teams now have developer access to your workspace.
-
-## Provision infrastructure
-
-Since this tutorial uses Docker, you must provision infrastructure before you can deploy and run flows on Prefect Cloud. */}
-
 ## Create work pools
 
 Work pools let you dynamically provision infrastructure for your flows.
 First, create a work pool for your production workspace.
 
-1. Switch to the **production** workspace using the workspace switcher in the sidebar.
+1. Switch to the `production` workspace using the workspace switcher in the sidebar.
 1. Click **Work pools** in the sidebar.
 1. Create a new **Docker** hybrid work pool, named `default-work-pool` and using the default configuration.
 
-Next, repeat this steps and create a second work pool named `default-work-pool` in the **staging** workspace.
+Next, repeat this steps and create a second work pool named `default-work-pool` in the `staging` workspace.
 You should now have one work pool in each workspace.
-
-{/* ### Optional: Grant team access to work pools
-
-By default, your teams have access to all work pools in the workspace.
-However, you can partition your infrastructure by granting teams access to only specific work pools.
-
-1. Click **Work pools** in the sidebar.
-1. Open the actions menu for the `team-a-pool` work pool, and then click **Manage Access**.
-1. Click **Add Users, Service Accounts, & Teams**.
-1. Click the **Actors** dropdown, and then select the `team-a` team.
-1. Click the **Access Level** dropdown, and then select **Run**.
-1. Click **Add**.
-
-Repeat these steps to grant `team-b` access to the `team-b-pool` work pool.
-You've now set up your infrastructure so that `team-a` can only run flows on `team-a-pool` and `team-b` can only run flows on `team-b-pool`. */}
 
 ## Start workers
 
@@ -170,9 +128,56 @@ Here's what happened:
 - The script created two deployments of the flow, one deployment per workspace.
 - The script then generated multiple flow runs for each deployment.
 - The activity graph on the **Home** page shows successful runs as green and failed runs as red.
-- Notice that the flow runs in the **production** workspace succeeded, but some of the flow runs in the **staging** workspace failed.
+- Notice that the flow runs in the `production` workspace succeeded, but some of the flow runs in the `staging` workspace failed.
 
 This output is expected, you'll learn how to debug these failures in the next tutorial.
+
+## Optional: Manage team access
+
+If you're a Prefect Enterprise customer, you can use Teams to manage access to your workspaces and work pools.
+
+<Expandable title="steps">
+### Define your team structure
+
+Most data platforms serve multiple teams.
+In Prefect Enterprise, you can create teams to control access to your infrastructure.
+
+#### Create teams
+
+First, you need to create teams in your Prefect Cloud account.
+
+1. Click the workspace switcher in the sidebar, and then click **Account settings**.
+1. Click **Teams** in the sidebar.
+1. Create two teams, named `everyone` and `developers`.
+1. Optional: Choose the team you want to add members to, and then click **Add team members**.
+
+#### Grant workspace access
+
+You need to explicitly grant teams access to workspaces.
+
+1. Select the `production` workspace using the workspace switcher.
+1. From the workspace switcher, click **Invite and manage members**.
+1. In the **Teams** section, add the two teams you created (`everyone` and `developers`) with the **Developer** role.
+
+Repeat these steps for the `staging` workspace.
+Your teams now have developer access to both workspaces.
+
+### Grant team access to work pools
+
+By default, your teams have access to all work pools in the workspace.
+However, you can partition your infrastructure by granting teams access to only specific work pools.
+
+1. Select the `staging` workspace using the workspace switcher.
+1. Click **Work pools** in the sidebar.
+1. Open the actions menu for the `default-work-pool` work pool, and then click **Manage Access**.
+1. Click **Add Users, Service Accounts, & Teams**.
+1. Click the **Actors** dropdown, and then select the `everyone` and `developers` teams.
+1. Click the **Access Level** dropdown, and then select **Run**.
+1. Click **Add**.
+
+Repeat these steps to grant `developers` access to the `production` work pool.
+You've now set up your infrastructure so that the `developers` team can run flows on the work pool in either `production` or `staging`, but the `everyone` team can run flows only on the work pool in `staging`.
+</Expandable>
 
 ## Next steps
 
