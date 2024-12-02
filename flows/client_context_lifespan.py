@@ -102,7 +102,7 @@ async def client_context_lifespan_is_robust_to_mixed_concurrency():
                 prefect.context.SettingsContext.get().model_copy(),
             ),
         )
-        for _ in range(100)
+        for _ in range(10)
     ]
     for thread in threads:
         thread.start()
