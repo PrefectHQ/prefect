@@ -114,10 +114,7 @@ class Event(PrefectBaseModel):
         default_factory=lambda: DateTime.now("UTC"),
         description="When the event happened from the sender's perspective",
     )
-    event: str = Field(
-        description="The name of the event that happened",
-        max_length=1024,
-    )
+    event: str = Field(description="The name of the event that happened")
     resource: Resource = Field(
         description="The primary Resource this event concerns",
     )
