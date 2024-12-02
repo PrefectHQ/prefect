@@ -2209,6 +2209,13 @@ class PrefectClient:
             response.json()
         )
 
+    async def set_flow_run_name(self, flow_run_id: UUID, name: str):
+        flow_run_data = FlowRunUpdate(name=name)
+        return await self._client.patch(
+            f"/flow_runs/{flow_run_id}",
+            json=flow_run_data.model_dump(mode="json", exclude_unset=True),
+        )
+
     async def set_task_run_name(self, task_run_id: UUID, name: str):
         task_run_data = TaskRunUpdate(name=name)
         return await self._client.patch(
@@ -4019,7 +4026,7 @@ class SyncPrefectClient:
         return OrchestrationResult.model_validate(response.json())
 
     def set_flow_run_name(self, flow_run_id: UUID, name: str):
-        flow_run_data = TaskRunUpdate(name=name)
+        flow_run_data = FlowRunUpdate(name=name)
         return self._client.patch(
             f"/flow_runs/{flow_run_id}",
             json=flow_run_data.model_dump(mode="json", exclude_unset=True),

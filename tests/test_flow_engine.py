@@ -16,7 +16,7 @@ import prefect
 from prefect import Flow, __development_base_path__, flow, task
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.filters import FlowFilter, FlowRunFilter
-from prefect.client.schemas.objects import FlowRun, StateType
+from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.sorting import FlowRunSort
 from prefect.concurrency.asyncio import concurrency as aconcurrency
 from prefect.concurrency.sync import concurrency
@@ -32,6 +32,7 @@ from prefect.exceptions import (
     Pause,
 )
 from prefect.flow_engine import (
+    AsyncFlowRunEngine,
     FlowRunEngine,
     load_flow_and_flow_run,
     run_flow,
@@ -45,7 +46,6 @@ from prefect.logging import get_run_logger
 from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.server.schemas.core import FlowRun as ServerFlowRun
 from prefect.testing.utilities import AsyncMock
-from prefect.types import KeyValueLabels
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.filesystem import tmpchdir
 
@@ -58,24 +58,24 @@ async def foo():
 
 
 class TestFlowRunEngine:
-    async def test_basic_init(self):
+    def test_basic_init(self):
         engine = FlowRunEngine(flow=foo)
         assert isinstance(engine.flow, Flow)
         assert engine.flow.name == "foo"
         assert engine.parameters == {}
 
-    async def test_empty_init(self):
+    def test_empty_init(self):
         with pytest.raises(
             TypeError, match="missing 1 required positional argument: 'flow'"
         ):
             FlowRunEngine()
 
-    async def test_client_attr_raises_informative_error(self):
+    def test_client_attr_raises_informative_error(self):
         engine = FlowRunEngine(flow=foo)
         with pytest.raises(RuntimeError, match="not started"):
             engine.client
 
-    async def test_client_attr_returns_client_after_starting(self):
+    def test_client_attr_returns_client_after_starting(self):
         engine = FlowRunEngine(flow=foo)
         with engine.initialize_run():
             client = engine.client
@@ -84,21 +84,33 @@ class TestFlowRunEngine:
         with pytest.raises(RuntimeError, match="not started"):
             engine.client
 
-    async def test_load_flow_from_entrypoint(self, monkeypatch, tmp_path, flow_run):
-        flow_code = """
-        from prefect import flow
 
-        @flow
-        def dog():
-            return "woof!"
-        """
-        fpath = tmp_path / "f.py"
-        fpath.write_text(dedent(flow_code))
+class TestAsyncFlowRunEngine:
+    def test_basic_init(self):
+        engine = AsyncFlowRunEngine(flow=foo)
+        assert isinstance(engine.flow, Flow)
+        assert engine.flow.name == "foo"
+        assert engine.parameters == {}
 
-        monkeypatch.setenv("PREFECT__FLOW_ENTRYPOINT", f"{fpath}:dog")
-        loaded_flow_run, flow = load_flow_and_flow_run(flow_run.id)
-        assert loaded_flow_run.id == flow_run.id
-        assert flow.fn() == "woof!"
+    def test_empty_init(self):
+        with pytest.raises(
+            TypeError, match="missing 1 required positional argument: 'flow'"
+        ):
+            AsyncFlowRunEngine()
+
+    def test_client_attr_raises_informative_error(self):
+        engine = AsyncFlowRunEngine(flow=foo)
+        with pytest.raises(RuntimeError, match="not started"):
+            engine.client
+
+    async def test_client_attr_returns_client_after_starting(self):
+        engine = AsyncFlowRunEngine(flow=foo)
+        async with engine.initialize_run():
+            client = engine.client
+            assert isinstance(client, PrefectClient)
+
+        with pytest.raises(RuntimeError, match="not started"):
+            engine.client
 
 
 class TestStartFlowRunEngine:
@@ -118,6 +130,25 @@ class TestStartFlowRunEngine:
 
             # avoid error on teardown
             engine.begin_run()
+
+
+class TestStartAsyncFlowRunEngine:
+    async def test_start_updates_empirical_policy_on_provided_flow_run(
+        self, prefect_client: PrefectClient
+    ):
+        @flow(retries=3, retry_delay_seconds=10)
+        def flow_with_retries():
+            pass
+
+        flow_run = await prefect_client.create_flow_run(flow_with_retries)
+
+        engine = AsyncFlowRunEngine(flow=flow_with_retries, flow_run=flow_run)
+        async with engine.start():
+            assert engine.flow_run.empirical_policy.retries == 3
+            assert engine.flow_run.empirical_policy.retry_delay == 10
+
+            # avoid error on teardown
+            await engine.begin_run()
 
 
 class TestFlowRunsAsync:
@@ -927,11 +958,11 @@ class TestFlowCrashDetection:
         )
 
         @flow
-        async def my_flow():
+        def my_flow():
             pass
 
         with pytest.raises(interrupt_type):
-            await my_flow()
+            my_flow()
 
         flow_runs = await prefect_client.read_flow_runs()
         assert len(flow_runs) == 1
@@ -1745,6 +1776,22 @@ class TestAsyncGenerators:
 
 
 class TestLoadFlowAndFlowRun:
+    def test_load_flow_from_entrypoint(self, monkeypatch, tmp_path, flow_run):
+        flow_code = """
+        from prefect import flow
+
+        @flow
+        def dog():
+            return "woof!"
+        """
+        fpath = tmp_path / "f.py"
+        fpath.write_text(dedent(flow_code))
+
+        monkeypatch.setenv("PREFECT__FLOW_ENTRYPOINT", f"{fpath}:dog")
+        loaded_flow_run, flow = load_flow_and_flow_run(flow_run.id)
+        assert loaded_flow_run.id == flow_run.id
+        assert flow.fn() == "woof!"
+
     async def test_load_flow_from_script_with_module_level_sync_compatible_call(
         self, prefect_client: PrefectClient, tmp_path
     ):
@@ -1891,27 +1938,18 @@ class TestFlowRunInstrumentation:
         assert span.status.status_code == trace.StatusCode.OK
 
     def test_flow_run_instrumentation_captures_labels(
-        self, instrumentation: InstrumentationTester, monkeypatch
+        self,
+        instrumentation: InstrumentationTester,
+        sync_prefect_client: SyncPrefectClient,
     ):
-        # simulate server responding with labels on flow run
-        class FlowRunWithLabels(FlowRun):
-            labels: KeyValueLabels = pydantic.Field(
-                default_factory=lambda: {
-                    "prefect.deployment.id": "some-id",
-                    "my-label": "my-value",
-                }
-            )
-
-        monkeypatch.setattr(
-            "prefect.client.orchestration.FlowRun",
-            FlowRunWithLabels,
-        )
-
         @flow
         def instrumented_flow():
             pass
 
-        instrumented_flow()
+        state = instrumented_flow(return_state=True)
+
+        assert state.state_details.flow_run_id is not None
+        flow_run = sync_prefect_client.read_flow_run(state.state_details.flow_run_id)
 
         spans = instrumentation.get_finished_spans()
         assert len(spans) == 1
@@ -1921,11 +1959,10 @@ class TestFlowRunInstrumentation:
         instrumentation.assert_has_attributes(
             span,
             {
+                **flow_run.labels,
                 "prefect.run.type": "flow",
                 "prefect.flow.name": "instrumented-flow",
                 "prefect.run.id": mock.ANY,
-                "prefect.deployment.id": "some-id",
-                "my-label": "my-value",
             },
         )
 
