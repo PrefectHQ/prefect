@@ -4,7 +4,7 @@ description: Give your data team the ability to deploy and run workflows.
 ---
 
 In this tutorial, you'll learn how to set up a platform for data pipelines with Prefect Cloud.
-We'll show you how to create teams, work pools, workers, and then deploy flows to the infrastructure you've provisioned.
+We'll show you how to create workspaces, work pools, workers, and then deploy flows to the infrastructure you've provisioned.
 
 ## Prerequisites
 
@@ -35,14 +35,25 @@ pip install -r requirements.txt
 prefect --version
 ```
 
-## Create a workspace
+## Create workspaces
 
+Prefect recommends having one workspace per development environment.
+In this tutorial, we'll create a production workspace and a staging workspace.
 To create a workspace on Prefect Cloud, you'll need a forever free account.
 
 1. Head to https://app.prefect.cloud/ and sign in or create an account.
-1. If you haven't created a workspace yet, you'll be prompted to choose a name for your workspace.
+1. If you haven't created a workspace yet, you'll be prompted to choose a name for your workspace. 
+Name your first workspace `production`.
 
-## Define your team structure
+Next, you need to create a second workspace for workflows in staging:
+
+1. Click the workspace switcher in the sidebar
+1. Go to **Switch workspace** / **Create a new workspace**
+1. Name this workspace `staging`.
+
+You should now have two workspaces named `production` and `staging`.
+
+{/* ## Define your team structure
 
 Most data platforms serve multiple teams.
 In Prefect Cloud, you can create teams to control access to your infrastructure.
@@ -67,17 +78,21 @@ Your teams now have developer access to your workspace.
 
 ## Provision infrastructure
 
-Since this tutorial uses Docker, you must provision infrastructure before you can deploy and run flows on Prefect Cloud.
+Since this tutorial uses Docker, you must provision infrastructure before you can deploy and run flows on Prefect Cloud. */}
 
-### Create Docker work pools
+## Create work pools
 
 Work pools let you dynamically provision infrastructure for your flows.
+First, create a work pool for your production workspace.
 
+1. Switch to the **production** workspace using the workspace switcher in the sidebar.
 1. Click **Work pools** in the sidebar.
-1. Create a new **Docker** hybrid work pool, named `team-a-pool` and using the default configuration.
-1. Repeat and create a second work pool named `team-b-pool`.
+1. Create a new **Docker** hybrid work pool, named `default-work-pool` and using the default configuration.
 
-### Optional: Grant team access to work pools
+Next, repeat this steps and create a second work pool named `default-work-pool` in the **staging** workspace.
+You should now have one work pool in each workspace.
+
+{/* ### Optional: Grant team access to work pools
 
 By default, your teams have access to all work pools in the workspace.
 However, you can partition your infrastructure by granting teams access to only specific work pools.
@@ -90,43 +105,72 @@ However, you can partition your infrastructure by granting teams access to only 
 1. Click **Add**.
 
 Repeat these steps to grant `team-b` access to the `team-b-pool` work pool.
-You've now set up your infrastructure so that `team-a` can only run flows on `team-a-pool` and `team-b` can only run flows on `team-b-pool`.
+You've now set up your infrastructure so that `team-a` can only run flows on `team-a-pool` and `team-b` can only run flows on `team-b-pool`. */}
 
-## Start Docker workers
+## Start workers
 
 Because you're using hybrid work pools, you need to start at least one worker for each work pool to process flow runs.
-On your local machine, run two workers in the background:
+
+First, you need to authenticate to Prefect Cloud using the CLI.
 
 ```bash
-prefect worker start --pool team-a-pool &
-prefect worker start --pool team-b-pool &
+prefect cloud login
 ```
+
+Once you've authenticated to Prefect Cloud, open two terminal windows and run two workers:
+
+```bash Terminal 1
+# Switch to the production workspace
+prefect cloud workspace set --workspace "<account>/production"
+
+# Start a worker for the production work pool
+prefect worker start --pool default-work-pool
+```
+
+```bash Terminal 2
+# Switch to the staging workspace
+prefect cloud workspace set --workspace "<account>/staging"
+
+# Start a worker for the staging work pool
+prefect worker start --pool default-work-pool
+```
+
+<Note>
+You can use `prefect cloud workspace ls` to see the fully qualified names of the workspaces in your account
+</Note>
 
 ## Deploy and run flows
 
-Run the following script from the demo repository to create flow runs:
+Run the following script from the demo repository to create flow runs in each workspace:
 
 ```bash
-# Run the script to create deployments and flow runs
+# Run flows in the production workspace
+prefect cloud workspace --set "<account>/production"
 python simulate_failures.py
 ```
 
-Wait a few minutes for the script to finish.
-You will see multiple flow runs for each team you created.
+```bash
+# Run flows in the staging workspace 
+prefect cloud workspace --set "<account>/staging"
+python simulate_failures.py --fail-at-run 3
+```
+
+Each script invocation will take approximately one minute to finish.
+If you check the logs for the worker running in the staging workspace, you will see errors, this is expected.
 
 ## View flow run activity
 
 Now that you've deployed and run your flows, you can view the run details in the UI.
-If you go to the **Deployments** page, you can see run activity broken out by deployment.
+If you go to the **Home** page for each workspace, you can see run activity.
 
-![Deployments page](/v3/img/ui/deployments-page.png)
+![Home page](/v3/img/ui/home-page.png)
 
 Here's what happened:
 
-- The script created two deployments of the flow, one deployment per work pool/team.
+- The script created two deployments of the flow, one deployment per workspace.
 - The script then generated multiple flow runs for each deployment.
-- The activity graph on the **Deployments** page shows successful runs as green and failed runs as red.
-- Notice that the flow runs on the `team-a-pipeline` deployment succeeded, but some of the flow runs on the `team-b-pipeline` deployment failed.
+- The activity graph on the **Home** page shows successful runs as green and failed runs as red.
+- Notice that the flow runs in the **production** workspace succeeded, but some of the flow runs in the **staging** workspace failed.
 
 This output is expected, you'll learn how to debug these failures in the next tutorial.
 
@@ -140,7 +184,7 @@ If this doesn't perfectly match your use case, here are some variations you can 
 - You can deploy flows with [Kubernetes](/v3/deploy/infrastructure-examples/kubernetes), [serverless compute](/v3/deploy/infrastructure-examples/serverless), or [Prefect Managed infrastructure](/v3/deploy/infrastructure-examples/managed).
 - You can [write flows from scratch](/v3/develop/write-flows).
 
-In the next tutorial, learn how to [set up CI/CD for your teams](/v3/tutorials/cicd).
+In the next tutorial, learn how to [automate deployments with CI/CD](/v3/tutorials/cicd).
 
 <Tip>
 Need help? [Book a meeting](https://calendly.com/prefect-experts/prefect-product-advocates?utm_campaign=prefect_docs_cloud&utm_content=prefect_docs&utm_medium=docs&utm_source=docs) with a Prefect Product Advocate to get your questions answered.
