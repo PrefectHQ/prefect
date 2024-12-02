@@ -42,10 +42,6 @@ To create a workspace on Prefect Cloud, you'll need a forever free account.
 1. Head to https://app.prefect.cloud/ and sign in or create an account.
 1. If you haven't created a workspace yet, you'll be prompted to choose a name for your workspace.
 
-<Note>
-You can also set up a self-managed instance with [Prefect server](/v3/manage/self-host).
-</Note>
-
 ## Define your team structure
 
 Most data platforms serve multiple teams.
@@ -59,10 +55,6 @@ First, you need to create teams in your Prefect account.
 1. Click **Teams** in the sidebar.
 1. Create two teams, named `team-a` and `team-b`.
 1. Optional: Choose the team you want to add members to, and then click **Add team members**.
-
-<Note>
-Learn how to set up [user accounts](/v3/manage/cloud/manage-users/index), [service accounts](/v3/manage/cloud/manage-users/service-accounts), or [SSO](/v3/manage/cloud/manage-users/configure-sso).
-</Note>
 
 ### Grant workspace access
 
@@ -84,10 +76,6 @@ Work pools let you dynamically provision infrastructure for your flows.
 1. Click **Work pools** in the sidebar.
 1. Create a new **Docker** hybrid work pool, named `team-a-pool` and using the default configuration.
 1. Repeat and create a second work pool named `team-b-pool`.
-
-<Note>
-See [Deploy overview](/v3/deploy/index) for options other than Docker.
-</Note>
 
 ### Optional: Grant team access to work pools
 
@@ -126,10 +114,6 @@ python simulate_failures.py
 Wait a few minutes for the script to finish.
 You will see multiple flow runs for each team you created.
 
-<Note>
-Check out the [Quickstart](/v3/get-started/quickstart) for how to write and deploy a flow from scratch.
-</Note>
-
 ## View flow run activity
 
 Now that you've deployed and run your flows, you can view the run details in the UI.
@@ -148,9 +132,15 @@ This output is expected, you'll learn how to debug these failures in the next tu
 
 ## Next steps
 
-In this tutorial, you successfully set up a data platform for multiple teams, and then deployed and ran flows on the infrastructure you provisioned.
+In this tutorial, you successfully set up a platform for data pipelines, and then deployed and ran flows on the infrastructure you provisioned.
+If this doesn't perfectly match your use case, here are some variations you can explore:
 
-Next, learn how to [debug a flow run](/v3/tutorials/debug) when things go wrong.
+- You can set up a self-managed instance with [Prefect server](/v3/manage/self-host).
+- You can provision users with [SSO](/v3/manage/cloud/manage-users/configure-sso) or just use [service accounts](/v3/manage/cloud/manage-users/service-accounts).
+- You can deploy flows with [Kubernetes](/v3/deploy/infrastructure-examples/kubernetes), [serverless compute](/v3/deploy/infrastructure-examples/serverless), or [Prefect Managed infrastructure](/v3/deploy/infrastructure-examples/managed).
+- You can [write flows from scratch](/v3/develop/write-flows).
+
+In the next tutorial, learn how to [debug a flow run](/v3/tutorials/debug) when things go wrong.
 
 <Tip>
 Need help? [Book a meeting](https://calendly.com/prefect-experts/prefect-product-advocates?utm_campaign=prefect_docs_cloud&utm_content=prefect_docs&utm_medium=docs&utm_source=docs) with a Prefect Product Advocate to get your questions answered.
