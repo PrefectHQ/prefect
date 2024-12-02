@@ -64,24 +64,74 @@ export default {
 					completed: {
 						DEFAULT: "hsl(var(--state-completed))",
 						foreground: "hsl(var(--state-completed-foreground))",
+						badge: {
+							DEFAULT: "hsl(var(--state-completed-badge))",
+							foreground: "hsl(var(--state-completed-badge-foreground))",
+						},
 					},
 					failed: {
 						DEFAULT: "hsl(var(--state-failed))",
+						foreground: "hsl(var(--state-failed-foreground))",
+						badge: {
+							DEFAULT: "hsl(var(--state-failed-badge))",
+							foreground: "hsl(var(--state-failed-badge-foreground))",
+						},
 					},
 					running: {
 						DEFAULT: "hsl(var(--state-running))",
+						foreground: "hsl(var(--state-running-foreground))",
+						badge: {
+							DEFAULT: "hsl(var(--state-running-badge))",
+							foreground: "hsl(var(--state-running-badge-foreground))",
+						},
 					},
 					pending: {
 						DEFAULT: "hsl(var(--state-pending))",
+						foreground: "hsl(var(--state-pending-foreground))",
+						badge: {
+							DEFAULT: "hsl(var(--state-pending-badge))",
+							foreground: "hsl(var(--state-pending-badge-foreground))",
+						},
 					},
 					paused: {
 						DEFAULT: "hsl(var(--state-paused))",
+						foreground: "hsl(var(--state-paused-foreground))",
+						badge: {
+							DEFAULT: "hsl(var(--state-paused-badge))",
+							foreground: "hsl(var(--state-paused-badge-foreground))",
+						},
 					},
 					scheduled: {
 						DEFAULT: "hsl(var(--state-scheduled))",
+						foreground: "hsl(var(--state-scheduled-foreground))",
+						badge: {
+							DEFAULT: "hsl(var(--state-scheduled-badge))",
+							foreground: "hsl(var(--state-scheduled-badge-foreground))",
+						},
 					},
 					cancelled: {
 						DEFAULT: "hsl(var(--state-cancelled))",
+						foreground: "hsl(var(--state-cancelled-foreground))",
+						badge: {
+							DEFAULT: "hsl(var(--state-cancelled-badge))",
+							foreground: "hsl(var(--state-cancelled-badge-foreground))",
+						},
+					},
+					cancelling: {
+						DEFAULT: "hsl(var(--state-cancelling))",
+						foreground: "hsl(var(--state-cancelling-foreground))",
+						badge: {
+							DEFAULT: "hsl(var(--state-cancelling-badge))",
+							foreground: "hsl(var(--state-cancelling-badge-foreground))",
+						},
+					},
+					crashed: {
+						DEFAULT: "hsl(var(--state-crashed))",
+						foreground: "hsl(var(--state-crashed-foreground))",
+						badge: {
+							DEFAULT: "hsl(var(--state-crashed-badge))",
+							foreground: "hsl(var(--state-crashed-badge-foreground))",
+						},
 					},
 				},
 			},

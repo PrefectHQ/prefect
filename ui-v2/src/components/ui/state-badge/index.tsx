@@ -1,18 +1,68 @@
 import { cn } from "@/lib/utils";
 import { Badge } from "../badge";
 import type { components } from "@/api/prefect";
+import {
+	ClockIcon,
+	PauseIcon,
+	XIcon,
+	CheckIcon,
+	ServerCrashIcon,
+	BanIcon,
+	PlayIcon,
+} from "lucide-react";
 
-// These classes are needed to ensure Tailwind builds the state color classes
-// bg-state-completed bg-state-pending bg-state-scheduled bg-state-running bg-state-failed bg-state-cancelled bg-state-crashed bg-state-paused bg-state-cancelling
-// text-state-completed-foreground text-state-pending-foreground text-state-scheduled-foreground text-state-running-foreground text-state-failed-foreground text-state-cancelled-foreground text-state-crashed-foreground text-state-paused-foreground text-state-cancelling-foreground
+const ICONS = {
+	COMPLETED: CheckIcon,
+	FAILED: XIcon,
+	RUNNING: PlayIcon,
+	CANCELLED: BanIcon,
+	CANCELLING: BanIcon,
+	CRASHED: ServerCrashIcon,
+	PAUSED: PauseIcon,
+	PENDING: ClockIcon,
+	SCHEDULED: ClockIcon,
+} as const;
 
 export const StateBadge = ({
 	state,
 }: { state: components["schemas"]["State"] }) => {
 	const className = cn(
-		`bg-state-${state.type.toLowerCase()}`,
-		`hover:bg-state-${state.type.toLowerCase()}/80`,
-		`text-state-${state.type.toLowerCase()}-foreground`,
+		`bg-state-${state.type.toLowerCase()}-badge`,
+		`hover:bg-state-${state.type.toLowerCase()}-badge`,
+		`text-state-${state.type.toLowerCase()}-badge-foreground`,
 	);
-	return <Badge className={className}>{state.name}</Badge>;
+	const Icon = ICONS[state.type];
+	return (
+		<Badge className={className}>
+			<div className="flex items-center gap-1">
+				<Icon size={16} />
+
+				{state.name}
+			</div>
+		</Badge>
+	);
 };
+
+// These classes are needed to ensure Tailwind builds the state color classes
+// These comments will ensure the classes are generated
+// Background colors
+// bg-state-completed-badge
+// bg-state-pending-badge
+// bg-state-scheduled-badge
+// bg-state-running-badge
+// bg-state-failed-badge
+// bg-state-cancelled-badge
+// bg-state-crashed-badge
+// bg-state-paused-badge
+// bg-state-cancelling-badge
+
+// Foreground colors
+// text-state-completed-badge-foreground
+// text-state-pending-badge-foreground
+// text-state-scheduled-badge-foreground
+// text-state-running-badge-foreground
+// text-state-failed-badge-foreground
+// text-state-cancelled-badge-foreground
+// text-state-crashed-badge-foreground
+// text-state-paused-badge-foreground
+// text-state-cancelling-badge-foreground

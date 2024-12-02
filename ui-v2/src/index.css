@@ -37,16 +37,64 @@
 		--sidebar-border: 220 13% 91%;
 		--sidebar-ring: 217.2 91.2% 59.8%;
 
-		/* State colors for flow run states */
+		/*
+		 * ----------------------------------------
+		 * STATE COLORS FOR FLOW RUN STATES
+		 * ----------------------------------------
+		 */
+		/* Completed */
 		--state-completed: 134 61% 47%;
+		--state-completed-foreground: 0 0% 100%;
+		--state-completed-badge: 164 67% 92%;
+		--state-completed-badge-foreground: 134 61% 37%;
+
+		/* Failed */
 		--state-failed: 0 96% 64%;
+		--state-failed-foreground: 0 0% 100%;
+		--state-failed-badge: 359 100% 92%;
+		--state-failed-badge-foreground: 359 100% 37%;
+
+		/* Running */
 		--state-running: 220 89% 52%;
+		--state-running-foreground: 0 0% 100%;
+		--state-running-badge: 228 89% 92%;
+		--state-running-badge-foreground: 217 91% 32%;
+
+		/* Pending */
 		--state-pending: 280 9% 65%;
+		--state-pending-foreground: 0 0% 100%;
+		--state-pending-badge: 280 9% 87%;
+		--state-pending-badge-foreground: 280 9% 32%;
+
+		/* Paused */
 		--state-paused: 280 9% 65%;
+		--state-paused-foreground: 0 0% 100%;
+		--state-paused-badge: 280 9% 87%;
+		--state-paused-badge-foreground: 280 9% 32%;
+
+		/* Scheduled */
 		--state-scheduled: 47 97% 65%;
+		--state-scheduled-foreground: 0 0% 100%;
+		--state-scheduled-badge: 58 89% 92%;
+		--state-scheduled-badge-foreground: 32 97% 45%;
+
+		/* Cancelled */
 		--state-cancelled: 0 0% 24%;
+		--state-cancelled-foreground: 0 0% 100%;
+		--state-cancelled-badge: 0 0% 80%;
+		--state-cancelled-badge-foreground: 0 0% 20%;
+
+		/* Cancelling */
 		--state-cancelling: 213 28% 35%;
+		--state-cancelling-foreground: 0 0% 100%;
+		--state-cancelling-badge: 213 28% 83%;
+		--state-cancelling-badge-foreground: 213 28% 29%;
+
+		/* Crashed */
 		--state-crashed: 24 94% 53%;
+		--state-crashed-foreground: 0 0% 100%;
+		--state-crashed-badge: 24 100% 97%;
+		--state-crashed-badge-foreground: 24 94% 48%;
 	}
 	.dark {
 		--background: 0 0% 3.9%;
