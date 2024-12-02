@@ -74,8 +74,7 @@
           "group": "For platform engineers",
           "pages": [
             "v3/tutorials/platform",
-            "v3/tutorials/debug",
-            "v3/tutorials/alert"
+            "v3/tutorials/cicd"
           ]
         }
       ],
