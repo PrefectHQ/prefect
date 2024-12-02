@@ -83,7 +83,7 @@ async def test_get_cloud_work_pool_types():
         }
     ):
         with respx.mock(
-            assert_all_mocked=False, base_url=PREFECT_API_URL.value()
+            assert_all_mocked=False, base_url=PREFECT_API_URL.value(), using="httpx"
         ) as respx_mock:
             respx_mock.route(
                 M(
@@ -111,7 +111,7 @@ async def test_read_current_workspace():
 
     with temporary_settings(updates={PREFECT_API_URL: api_url}):
         with respx.mock(
-            assert_all_mocked=False, base_url=PREFECT_API_URL.value()
+            assert_all_mocked=False, base_url=PREFECT_API_URL.value(), using="httpx"
         ) as respx_mock:
             respx_mock.get("https://api.prefect.cloud/api/me/workspaces").mock(
                 return_value=httpx.Response(

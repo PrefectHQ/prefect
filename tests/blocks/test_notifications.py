@@ -546,9 +546,8 @@ class TestTwilioSMS:
 
 class TestCustomWebhook:
     async def test_notify_async(self):
-        with respx.mock as xmock:
+        with respx.mock(using="httpx") as xmock:
             xmock.post("https://example.com/")
-            xmock.route(host="localhost").pass_through()
 
             custom_block = CustomWebhookNotificationBlock(
                 name="test name",
@@ -562,16 +561,15 @@ class TestCustomWebhook:
             assert last_req.headers["user-agent"] == "Prefect Notifications"
             assert (
                 last_req.content
-                == b'{"msg": "subject\\ntest", "token": "someSecretToken"}'
+                == b'{"msg":"subject\\ntest","token":"someSecretToken"}'
             )
             assert last_req.extensions == {
                 "timeout": {"connect": 10, "pool": 10, "read": 10, "write": 10}
             }
 
     def test_notify_sync(self):
-        with respx.mock as xmock:
+        with respx.mock(using="httpx") as xmock:
             xmock.post("https://example.com/")
-            xmock.route(host="localhost").pass_through()
 
             custom_block = CustomWebhookNotificationBlock(
                 name="test name",
@@ -586,14 +584,14 @@ class TestCustomWebhook:
             assert last_req.headers["user-agent"] == "Prefect Notifications"
             assert (
                 last_req.content
-                == b'{"msg": "subject\\ntest", "token": "someSecretToken"}'
+                == b'{"msg":"subject\\ntest","token":"someSecretToken"}'
             )
             assert last_req.extensions == {
                 "timeout": {"connect": 10, "pool": 10, "read": 10, "write": 10}
             }
 
     async def test_user_agent_override(self):
-        with respx.mock as xmock:
+        with respx.mock(using="httpx") as xmock:
             xmock.post("https://example.com/")
 
             custom_block = CustomWebhookNotificationBlock(
@@ -609,14 +607,14 @@ class TestCustomWebhook:
             assert last_req.headers["user-agent"] == "CustomUA"
             assert (
                 last_req.content
-                == b'{"msg": "subject\\ntest", "token": "someSecretToken"}'
+                == b'{"msg":"subject\\ntest","token":"someSecretToken"}'
             )
             assert last_req.extensions == {
                 "timeout": {"connect": 10, "pool": 10, "read": 10, "write": 10}
             }
 
     async def test_timeout_override(self):
-        with respx.mock as xmock:
+        with respx.mock(using="httpx") as xmock:
             xmock.post("https://example.com/")
 
             custom_block = CustomWebhookNotificationBlock(
@@ -631,14 +629,14 @@ class TestCustomWebhook:
             last_req = xmock.calls.last.request
             assert (
                 last_req.content
-                == b'{"msg": "subject\\ntest", "token": "someSecretToken"}'
+                == b'{"msg":"subject\\ntest","token":"someSecretToken"}'
             )
             assert last_req.extensions == {
                 "timeout": {"connect": 30, "pool": 30, "read": 30, "write": 30}
             }
 
     async def test_request_cookie(self):
-        with respx.mock as xmock:
+        with respx.mock(using="httpx") as xmock:
             xmock.post("https://example.com/")
 
             custom_block = CustomWebhookNotificationBlock(
@@ -655,14 +653,14 @@ class TestCustomWebhook:
             assert last_req.headers["cookie"] == "key=secretCookieValue"
             assert (
                 last_req.content
-                == b'{"msg": "subject\\ntest", "token": "someSecretToken"}'
+                == b'{"msg":"subject\\ntest","token":"someSecretToken"}'
             )
             assert last_req.extensions == {
                 "timeout": {"connect": 30, "pool": 30, "read": 30, "write": 30}
             }
 
     async def test_subst_nested_list(self):
-        with respx.mock as xmock:
+        with respx.mock(using="httpx")(using="httpx") as xmock:
             xmock.post("https://example.com/")
 
             custom_block = CustomWebhookNotificationBlock(
@@ -679,14 +677,14 @@ class TestCustomWebhook:
             assert last_req.headers["user-agent"] == "Prefect Notifications"
             assert (
                 last_req.content
-                == b'{"data": {"sub1": [{"in-list": "test", "name": "test name"}]}}'
+                == b'{"data":{"sub1":[{"in-list":"test","name":"test name"}]}}'
             )
             assert last_req.extensions == {
                 "timeout": {"connect": 10, "pool": 10, "read": 10, "write": 10}
             }
 
     async def test_subst_none(self):
-        with respx.mock as xmock:
+        with respx.mock(using="httpx") as xmock:
             xmock.post("https://example.com/")
 
             custom_block = CustomWebhookNotificationBlock(
@@ -701,8 +699,7 @@ class TestCustomWebhook:
             last_req = xmock.calls.last.request
             assert last_req.headers["user-agent"] == "Prefect Notifications"
             assert (
-                last_req.content
-                == b'{"msg": "null\\ntest", "token": "someSecretToken"}'
+                last_req.content == b'{"msg":"null\\ntest","token":"someSecretToken"}'
             )
             assert last_req.extensions == {
                 "timeout": {"connect": 10, "pool": 10, "read": 10, "write": 10}

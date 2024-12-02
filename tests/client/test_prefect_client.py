@@ -1,10 +1,11 @@
 import json
 import os
+import ssl
 from contextlib import asynccontextmanager
 from datetime import timedelta
 from typing import Generator, List
 from unittest import mock
-from unittest.mock import ANY, MagicMock, Mock
+from unittest.mock import MagicMock, Mock
 from uuid import UUID, uuid4
 
 import anyio
@@ -1446,15 +1447,14 @@ async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_true(monkeypa
         )
         get_client()
 
-    mock.assert_called_once_with(
-        headers=ANY,
-        verify=False,
-        base_url=ANY,
-        limits=ANY,
-        http2=ANY,
-        timeout=ANY,
-        enable_csrf_support=ANY,
-    )
+    # Get the verify argument from the mock call
+    call_kwargs = mock.call_args[1]
+    verify_ctx = call_kwargs["verify"]
+
+    # Verify it's an SSL context with the correct insecure settings
+    assert isinstance(verify_ctx, ssl.SSLContext)
+    assert verify_ctx.verify_mode == ssl.CERT_NONE
+    assert verify_ctx.check_hostname is False
 
 
 async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_false(monkeypatch):
@@ -1465,102 +1465,118 @@ async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_false(monkeyp
         )
         get_client()
 
-    mock.assert_called_once_with(
-        headers=ANY,
-        verify=ANY,
-        base_url=ANY,
-        limits=ANY,
-        http2=ANY,
-        timeout=ANY,
-        enable_csrf_support=ANY,
-    )
+    # Get the verify argument from the mock call
+    call_kwargs = mock.call_args[1]
+    verify_ctx = call_kwargs["verify"]
+
+    # Verify it's an SSL context with secure settings
+    assert isinstance(verify_ctx, ssl.SSLContext)
+    assert verify_ctx.verify_mode == ssl.CERT_REQUIRED
+    assert verify_ctx.check_hostname is True
 
 
 async def test_prefect_api_tls_insecure_skip_verify_default_setting(monkeypatch):
     mock = Mock()
     monkeypatch.setattr("prefect.client.orchestration.PrefectHttpxAsyncClient", mock)
     get_client()
-    mock.assert_called_once_with(
-        headers=ANY,
-        verify=ANY,
-        base_url=ANY,
-        limits=ANY,
-        http2=ANY,
-        timeout=ANY,
-        enable_csrf_support=ANY,
-    )
+
+    # Get the verify argument from the mock call
+    call_kwargs = mock.call_args[1]
+    verify_ctx = call_kwargs["verify"]
+
+    # Verify it's an SSL context with secure settings (default)
+    assert isinstance(verify_ctx, ssl.SSLContext)
+    assert verify_ctx.verify_mode == ssl.CERT_REQUIRED
+    assert verify_ctx.check_hostname is True
 
 
 async def test_prefect_api_ssl_cert_file_setting_explicitly_set(monkeypatch):
+    cert_path = "my_cert.pem"
+
+    # Mock the SSL context creation
+    mock_context = Mock()
+    mock_create_default_context = Mock(return_value=mock_context)
+    monkeypatch.setattr("ssl.create_default_context", mock_create_default_context)
+
     with temporary_settings(
         updates={
             PREFECT_API_TLS_INSECURE_SKIP_VERIFY: False,
-            PREFECT_API_SSL_CERT_FILE: "my_cert.pem",
+            PREFECT_API_SSL_CERT_FILE: cert_path,
         }
     ):
-        mock = Mock()
+        mock_client = Mock()
         monkeypatch.setattr(
-            "prefect.client.orchestration.PrefectHttpxAsyncClient", mock
+            "prefect.client.orchestration.PrefectHttpxAsyncClient", mock_client
         )
         get_client()
 
-    mock.assert_called_once_with(
-        headers=ANY,
-        verify="my_cert.pem",
-        base_url=ANY,
-        limits=ANY,
-        http2=ANY,
-        timeout=ANY,
-        enable_csrf_support=ANY,
-    )
+    # Verify SSL context was created with correct cert file
+    mock_create_default_context.assert_called_once_with(cafile=cert_path)
+
+    # Get the verify argument from the mock call
+    call_kwargs = mock_client.call_args[1]
+    verify_ctx = call_kwargs["verify"]
+
+    # Verify the context was passed to the client
+    assert verify_ctx == mock_context
 
 
 async def test_prefect_api_ssl_cert_file_default_setting(monkeypatch):
     os.environ["SSL_CERT_FILE"] = "my_cert.pem"
 
+    # Mock the SSL context creation
+    mock_context = Mock()
+    mock_create_default_context = Mock(return_value=mock_context)
+    monkeypatch.setattr("ssl.create_default_context", mock_create_default_context)
+
     with temporary_settings(
         updates={PREFECT_API_TLS_INSECURE_SKIP_VERIFY: False},
         set_defaults={PREFECT_API_SSL_CERT_FILE: os.environ.get("SSL_CERT_FILE")},
     ):
-        mock = Mock()
+        mock_client = Mock()
         monkeypatch.setattr(
-            "prefect.client.orchestration.PrefectHttpxAsyncClient", mock
+            "prefect.client.orchestration.PrefectHttpxAsyncClient", mock_client
         )
         get_client()
 
-    mock.assert_called_once_with(
-        headers=ANY,
-        verify="my_cert.pem",
-        base_url=ANY,
-        limits=ANY,
-        http2=ANY,
-        timeout=ANY,
-        enable_csrf_support=ANY,
-    )
+    # Verify SSL context was created with correct cert file
+    mock_create_default_context.assert_called_once_with(cafile="my_cert.pem")
+
+    # Get the verify argument from the mock call
+    call_kwargs = mock_client.call_args[1]
+    verify_ctx = call_kwargs["verify"]
+
+    # Verify the context was passed to the client
+    assert verify_ctx == mock_context
 
 
 async def test_prefect_api_ssl_cert_file_default_setting_fallback(monkeypatch):
     os.environ["SSL_CERT_FILE"] = ""
 
+    # Mock the SSL context creation
+    mock_context = Mock()
+    mock_create_default_context = Mock(return_value=mock_context)
+    monkeypatch.setattr("ssl.create_default_context", mock_create_default_context)
+
     with temporary_settings(
         updates={PREFECT_API_TLS_INSECURE_SKIP_VERIFY: False},
         set_defaults={PREFECT_API_SSL_CERT_FILE: os.environ.get("SSL_CERT_FILE")},
     ):
-        mock = Mock()
+        mock_client = Mock()
         monkeypatch.setattr(
-            "prefect.client.orchestration.PrefectHttpxAsyncClient", mock
+            "prefect.client.orchestration.PrefectHttpxAsyncClient", mock_client
         )
         get_client()
 
-    mock.assert_called_once_with(
-        headers=ANY,
-        verify=certifi.where(),
-        base_url=ANY,
-        limits=ANY,
-        http2=ANY,
-        timeout=ANY,
-        enable_csrf_support=ANY,
-    )
+    # Verify SSL context was created with certifi's default cert
+    mock_create_default_context.assert_called_once_with(cafile=certifi.where())
+
+    # Get the verify argument from the mock call
+    call_kwargs = mock_client.call_args[1]
+    verify_ctx = call_kwargs["verify"]
+
+    # Verify the context was passed to the client
+    assert verify_ctx == mock_context
 
 
 class TestClientAPIVersionRequests:
@@ -2200,7 +2216,9 @@ class TestAutomations:
         )
 
     async def test_create_automation(self, cloud_client, automation: AutomationCore):
-        with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
+        with respx.mock(
+            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+        ) as router:
             created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
             create_route = router.post("/automations/").mock(
@@ -2216,7 +2234,9 @@ class TestAutomations:
             assert automation_id == UUID(created_automation["id"])
 
     async def test_read_automation(self, cloud_client, automation: AutomationCore):
-        with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
+        with respx.mock(
+            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+        ) as router:
             created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
 
@@ -2234,7 +2254,9 @@ class TestAutomations:
     async def test_read_automation_not_found(
         self, cloud_client, automation: AutomationCore
     ):
-        with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
+        with respx.mock(
+            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+        ) as router:
             created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
 
@@ -2252,7 +2274,9 @@ class TestAutomations:
     async def test_read_automations_by_name(
         self, cloud_client, automation: AutomationCore
     ):
-        with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
+        with respx.mock(
+            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+        ) as router:
             created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
             read_route = router.post("/automations/filter").mock(
@@ -2285,7 +2309,9 @@ class TestAutomations:
     async def test_read_automations_by_name_multiple_same_name(
         self, cloud_client, automation: AutomationCore, automation2: AutomationCore
     ):
-        with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
+        with respx.mock(
+            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+        ) as router:
             created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
 
@@ -2315,7 +2341,9 @@ class TestAutomations:
     async def test_read_automations_by_name_not_found(
         self, cloud_client, automation: AutomationCore
     ):
-        with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
+        with respx.mock(
+            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+        ) as router:
             created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
             created_automation["name"] = "nonexistent"
@@ -2332,7 +2360,9 @@ class TestAutomations:
             assert nonexistent_automation == []
 
     async def test_delete_owned_automations(self, cloud_client):
-        with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
+        with respx.mock(
+            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+        ) as router:
             resource_id = f"prefect.deployment.{uuid4()}"
             delete_route = router.delete(f"/automations/owned-by/{resource_id}").mock(
                 return_value=httpx.Response(204)
