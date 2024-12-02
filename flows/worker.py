@@ -5,6 +5,7 @@ from threading import Thread
 from typing import List
 
 from pydantic_extra_types.pendulum_dt import DateTime
+from uv import find_uv_bin
 
 from prefect.events import Event
 from prefect.events.clients import get_events_subscriber
@@ -35,7 +36,7 @@ def main():
     listener_thread.start()
 
     subprocess.check_call(
-        ["python", "-m", "pip", "install", "prefect-kubernetes>=0.5.0"],
+        [find_uv_bin(), "pip", "install", "prefect-kubernetes>=0.5.0"],
         stdout=sys.stdout,
         stderr=sys.stderr,
     )
@@ -77,7 +78,7 @@ def main():
         stderr=sys.stderr,
     )
     subprocess.check_call(
-        ["python", "-m", "pip", "uninstall", "prefect-kubernetes", "-y"],
+        [find_uv_bin(), "pip", "uninstall", "prefect-kubernetes", "-y"],
         stdout=sys.stdout,
         stderr=sys.stderr,
     )
