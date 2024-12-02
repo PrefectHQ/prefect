@@ -78,7 +78,7 @@ def main():
         stderr=sys.stderr,
     )
     subprocess.check_call(
-        [find_uv_bin(), "pip", "uninstall", "prefect-kubernetes", "-y"],
+        [find_uv_bin(), "pip", "uninstall", "prefect-kubernetes"],
         stdout=sys.stdout,
         stderr=sys.stderr,
     )

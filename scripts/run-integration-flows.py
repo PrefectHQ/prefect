@@ -30,7 +30,7 @@ def run_script(script_path: str):
     print(f" {script_path} ".center(90, "-"), flush=True)
     try:
         result = subprocess.run(
-            ["uv", "run", script_path], capture_output=True, text=True, check=True
+            ["uv", "run", script_path], stdout=sys.stdout, stderr=sys.stderr, check=True
         )
         return result.stdout, result.stderr, None
     except subprocess.CalledProcessError as e:
