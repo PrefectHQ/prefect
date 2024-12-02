@@ -1220,7 +1220,7 @@ class BaseWorker(abc.ABC):
         """
         Give this worker's identifying labels to the specified flow run.
         """
-        if self._cloud_client:
+        if self._cloud_client and self._cloud_client._started:
             await self._cloud_client.update_flow_run_labels(
                 flow_run_id,
                 {

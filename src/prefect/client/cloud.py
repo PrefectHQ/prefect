@@ -83,6 +83,8 @@ class CloudClient:
         ):
             self.account_id, self.workspace_id = match.groups()
 
+        self._started = False
+
     @property
     def account_base_url(self) -> str:
         if not self.account_id:
@@ -174,9 +176,11 @@ class CloudClient:
 
     async def __aenter__(self):
         await self._client.__aenter__()
+        self._started = True
         return self
 
     async def __aexit__(self, *exc_info):
+        self._started = False
         return await self._client.__aexit__(*exc_info)
 
     def __enter__(self):
