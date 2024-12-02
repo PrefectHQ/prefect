@@ -9108,9 +9108,6 @@
                                     "additionalProperties": {
                                         "type": "integer"
                                     },
-                                    "propertyNames": {
-                                        "format": "uuid"
-                                    },
                                     "title": "Response Count Deployments By Flow Ui Flows Count Deployments Post"
                                 }
                             }
@@ -9175,9 +9172,6 @@
                                                 "type": "null"
                                             }
                                         ]
-                                    },
-                                    "propertyNames": {
-                                        "format": "uuid"
                                     },
                                     "title": "Response Next Runs By Flow Ui Flows Next Runs Post"
                                 }
@@ -9292,9 +9286,6 @@
                                     "type": "object",
                                     "additionalProperties": {
                                         "type": "integer"
-                                    },
-                                    "propertyNames": {
-                                        "format": "uuid"
                                     },
                                     "title": "Response Count Task Runs By Flow Run Ui Flow Runs Count Task Runs Post"
                                 }
@@ -9872,7 +9863,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Metadata",
+                        "title": "Metadata ",
                         "description": "User-defined artifact metadata. Content must be string key and value pairs."
                     },
                     "flow_run_id": {
@@ -9996,7 +9987,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Metadata",
+                        "title": "Metadata ",
                         "description": "User-defined artifact metadata. Content must be string key and value pairs."
                     },
                     "flow_run_id": {
@@ -10116,7 +10107,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of flow run IDs to include"
                     }
                 },
@@ -10139,7 +10130,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of artifact keys to include"
                     },
                     "like_": {
@@ -10151,7 +10142,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Like",
+                        "title": "Like ",
                         "description": "A string to match artifact keys against. This can include SQL wildcard characters like `%` and `_`.",
                         "examples": [
                             "my-artifact-%"
@@ -10166,7 +10157,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Exists",
+                        "title": "Exists ",
                         "description": "If `true`, only include artifacts with a non-null key. If `false`, only include artifacts with a null key. Should return all rows in the ArtifactCollection table if specified."
                     }
                 },
@@ -10190,7 +10181,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of artifact ids to include"
                     }
                 },
@@ -10214,7 +10205,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of task run IDs to include"
                     }
                 },
@@ -10237,7 +10228,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of artifact types to include"
                     },
                     "not_any_": {

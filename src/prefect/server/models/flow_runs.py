@@ -29,6 +29,7 @@ from sqlalchemy.sql import Select
 
 import prefect.server.models as models
 import prefect.server.schemas as schemas
+from prefect.logging.loggers import get_logger
 from prefect.server.database import orm_models
 from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
@@ -46,6 +47,9 @@ from prefect.settings import (
     PREFECT_API_MAX_FLOW_RUN_GRAPH_ARTIFACTS,
     PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES,
 )
+
+logger = get_logger("flow_runs")
+
 
 T = TypeVar("T", bound=tuple)
 
@@ -642,23 +646,28 @@ async def update_flow_run_labels(
 ) -> bool:
     """
     Update flow run labels by patching existing labels with new values.
-
     Args:
         session: A database session
         flow_run_id: the flow run id to update
         labels: the new labels to patch into existing labels
-
     Returns:
         bool: whether the update was successful
     """
+    logger.debug(
+        f"Attempting to update labels for flow run {flow_run_id} with {labels}"
+    )
+
     # First read the existing flow run to get current labels
     flow_run = await read_flow_run(session, flow_run_id)
     if not flow_run:
+        logger.warning(f"Flow run {flow_run_id} not found")
         return False
 
     # Merge existing labels with new labels
     current_labels = flow_run.labels or {}
+    logger.debug(f"Current labels for {flow_run_id}: {current_labels}")
     updated_labels = {**current_labels, **labels}
+    logger.debug(f"Updated labels will be: {updated_labels}")
 
     # Update the flow run with merged labels
     result = await session.execute(
@@ -666,5 +675,6 @@ async def update_flow_run_labels(
         .where(orm_models.FlowRun.id == flow_run_id)
         .values(labels=updated_labels)
     )
-
-    return result.rowcount > 0
+    success = result.rowcount > 0
+    logger.debug(f"Update for {flow_run_id} {'succeeded' if success else 'failed'}")
+    return success
