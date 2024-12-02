@@ -14,6 +14,8 @@ def my_flow():
 
 
 class TestWarnings(TestCase):
+    """this is a regression test for https://github.com/PrefectHQ/prefect/issues/16171"""
+
     def test_warning(self):
         with self.assertWarns(UserWarning):
             function_that_warns()
