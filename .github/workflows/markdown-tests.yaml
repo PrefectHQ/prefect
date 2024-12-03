@@ -4,6 +4,7 @@ env:
   # enable colored output
   # https://github.com/pytest-dev/pytest/issues/7443
   PY_COLORS: 1
+  UV_SYSTEM_PYTHON: 1
 
 on:
   workflow_dispatch:
@@ -93,9 +94,9 @@ jobs:
       - name: Install packages
         run: |
           python -m pip install -U uv
-          uv pip install --upgrade --system -e '.[dev]'
-          uv pip install --upgrade --system -r requirements-markdown-tests.txt
-          uv pip uninstall --system pytest-benchmark
+          uv pip install --upgrade -r requirements-markdown-tests.txt
+          uv pip install --upgrade -e '.[dev]'
+          uv pip uninstall pytest-benchmark
 
       - name: Start server
         run: |

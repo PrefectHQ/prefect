@@ -427,6 +427,11 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
         self.task_run.state = new_state = state
 
+        if last_state.timestamp == new_state.timestamp:
+            # Ensure that the state timestamp is unique, or at least not equal to the last state.
+            # This might occur especially on Windows where the timestamp resolution is limited.
+            new_state.timestamp += pendulum.duration(microseconds=1)
+
         # Ensure that the state_details are populated with the current run IDs
         new_state.state_details.task_run_id = self.task_run.id
         new_state.state_details.flow_run_id = self.task_run.flow_run_id
@@ -941,6 +946,11 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             raise ValueError("Task run is not set")
 
         self.task_run.state = new_state = state
+
+        if last_state.timestamp == new_state.timestamp:
+            # Ensure that the state timestamp is unique, or at least not equal to the last state.
+            # This might occur especially on Windows where the timestamp resolution is limited.
+            new_state.timestamp += pendulum.duration(microseconds=1)
 
         # Ensure that the state_details are populated with the current run IDs
         new_state.state_details.task_run_id = self.task_run.id

@@ -96,7 +96,7 @@ def cast_none_to_empty_dict(value: Any) -> dict[str, Any]:
 
 
 KeyValueLabels = Annotated[
-    dict[str, Union[StrictBool, StrictInt, StrictFloat, str]],
+    Dict[str, Union[StrictBool, StrictInt, StrictFloat, str]],
     BeforeValidator(cast_none_to_empty_dict),
 ]
 
@@ -147,9 +147,6 @@ LogLevel = Annotated[
     Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
     BeforeValidator(lambda x: x.upper()),
 ]
-
-
-KeyValueLabels: TypeAlias = dict[str, Union[StrictBool, StrictInt, StrictFloat, str]]
 
 
 def convert_none_to_empty_dict(v: Optional[KeyValueLabels]) -> KeyValueLabels:
