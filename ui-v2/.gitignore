@@ -28,3 +28,4 @@ dist-ssr
 oss_schema.json
 *.tsbuildinfo
 *storybook.log
+*.orig
