@@ -97,6 +97,7 @@ from prefect.utilities.filesystem import relative_path_to_current_platform
 from prefect.utilities.hashing import file_hash
 from prefect.utilities.importtools import import_object, safe_load_namespace
 
+from ._internal.compatibility.async_dispatch import is_in_async_context
 from ._internal.pydantic.v2_schema import is_v2_type
 from ._internal.pydantic.v2_validated_func import V2ValidatedFunction
 from ._internal.pydantic.v2_validated_func import (
@@ -1815,7 +1816,7 @@ def serve(
 
     from prefect.runner import Runner
 
-    if is_in_async_context:
+    if is_in_async_context():
         raise RuntimeError(
             "Cannot call `serve` in an asynchronous context. Use `aserve` instead."
         )
