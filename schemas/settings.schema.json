@@ -1183,6 +1183,16 @@
                     ],
                     "title": "Messaging Cache",
                     "type": "string"
+                },
+                "maximum_event_name_length": {
+                    "default": 1024,
+                    "description": "The maximum length of an event name.",
+                    "exclusiveMinimum": 0,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_EVENTS_MAXIMUM_EVENT_NAME_LENGTH"
+                    ],
+                    "title": "Maximum Event Name Length",
+                    "type": "integer"
                 }
             },
             "title": "ServerEventsSettings",

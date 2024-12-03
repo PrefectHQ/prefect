@@ -2,9 +2,8 @@ import json
 from datetime import timezone
 from uuid import UUID, uuid4
 
-import pendulum
 import pytest
-from pendulum.datetime import DateTime
+from pydantic_extra_types.pendulum_dt import DateTime
 
 from prefect.events import Event, RelatedResource, Resource
 
@@ -19,12 +18,12 @@ def test_client_events_generate_an_id_by_default():
 
 def test_client_events_generate_occurred_by_default(start_of_test: DateTime):
     event = Event(event="hello", resource={"prefect.resource.id": "hello"})
-    assert start_of_test <= event.occurred <= pendulum.now("UTC")
+    assert start_of_test <= event.occurred <= DateTime.now("UTC")
 
 
 def test_client_events_may_have_empty_related_resources():
     event = Event(
-        occurred=pendulum.now("UTC"),
+        occurred=DateTime.now("UTC"),
         event="hello",
         resource={"prefect.resource.id": "hello"},
         id=uuid4(),
@@ -34,7 +33,7 @@ def test_client_events_may_have_empty_related_resources():
 
 def test_client_event_resources_have_correct_types():
     event = Event(
-        occurred=pendulum.now("UTC"),
+        occurred=DateTime.now("UTC"),
         event="hello",
         resource={"prefect.resource.id": "hello"},
         related=[
@@ -49,7 +48,7 @@ def test_client_event_resources_have_correct_types():
 
 def test_client_events_may_have_multiple_related_resources():
     event = Event(
-        occurred=pendulum.now("UTC"),
+        occurred=DateTime.now("UTC"),
         event="hello",
         resource={"prefect.resource.id": "hello"},
         related=[
@@ -69,7 +68,7 @@ def test_client_events_may_have_multiple_related_resources():
 
 def test_json_representation():
     event = Event(
-        occurred=pendulum.DateTime(2021, 2, 3, 4, 5, 6, 7, tzinfo=timezone.utc),
+        occurred=DateTime(2021, 2, 3, 4, 5, 6, 7, tzinfo=timezone.utc),
         event="hello",
         resource={"prefect.resource.id": "hello"},
         related=[
@@ -101,7 +100,7 @@ def test_json_representation():
 
 def test_client_event_involved_resources():
     event = Event(
-        occurred=pendulum.now("UTC"),
+        occurred=DateTime.now("UTC"),
         event="hello",
         resource={"prefect.resource.id": "hello"},
         related=[
@@ -118,7 +117,7 @@ def test_client_event_involved_resources():
 
 def test_client_events_may_have_a_name_label():
     event = Event(
-        occurred=pendulum.now("UTC"),
+        occurred=DateTime.now("UTC"),
         event="hello",
         resource={"prefect.resource.id": "hello", "prefect.resource.name": "Hello!"},
         related=[
@@ -151,7 +150,7 @@ def test_client_events_may_have_a_name_label():
 @pytest.fixture
 def example_event() -> Event:
     return Event(
-        occurred=pendulum.now("UTC"),
+        occurred=DateTime.now("UTC"),
         event="hello",
         resource={
             "prefect.resource.id": "hello",
