@@ -97,6 +97,7 @@ from prefect.utilities.filesystem import relative_path_to_current_platform
 from prefect.utilities.hashing import file_hash
 from prefect.utilities.importtools import import_object, safe_load_namespace
 
+from ._internal.compatibility.async_dispatch import is_in_async_context
 from ._internal.pydantic.v2_schema import is_v2_type
 from ._internal.pydantic.v2_validated_func import V2ValidatedFunction
 from ._internal.pydantic.v2_validated_func import (
@@ -1812,61 +1813,129 @@ def serve(
             serve(hello_deploy, bye_deploy)
         ```
     """
-    from rich.console import Console, Group
-    from rich.table import Table
 
     from prefect.runner import Runner
+
+    if is_in_async_context():
+        raise RuntimeError(
+            "Cannot call `serve` in an asynchronous context. Use `aserve` instead."
+        )
 
     runner = Runner(pause_on_shutdown=pause_on_shutdown, limit=limit, **kwargs)
     for deployment in args:
         runner.add_deployment(deployment)
 
     if print_starting_message:
-        help_message_top = (
-            "[green]Your deployments are being served and polling for"
-            " scheduled runs!\n[/]"
-        )
-
-        table = Table(title="Deployments", show_header=False)
-
-        table.add_column(style="blue", no_wrap=True)
-
-        for deployment in args:
-            table.add_row(f"{deployment.flow_name}/{deployment.name}")
-
-        help_message_bottom = (
-            "\nTo trigger any of these deployments, use the"
-            " following command:\n[blue]\n\t$ prefect deployment run"
-            " [DEPLOYMENT_NAME]\n[/]"
-        )
-        if PREFECT_UI_URL:
-            help_message_bottom += (
-                "\nYou can also trigger your deployments via the Prefect UI:"
-                f" [blue]{PREFECT_UI_URL.value()}/deployments[/]\n"
-            )
-
-        console = Console()
-        console.print(
-            Group(help_message_top, table, help_message_bottom), soft_wrap=True
-        )
+        _display_serve_start_message(*args)
 
     try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError as exc:
-        if "no running event loop" in str(exc):
-            loop = None
-        else:
-            raise
-
-    try:
-        if loop is not None:
-            loop.run_until_complete(runner.start())
-        else:
-            asyncio.run(runner.start())
+        asyncio.run(runner.start())
     except (KeyboardInterrupt, TerminationSignal) as exc:
         logger.info(f"Received {type(exc).__name__}, shutting down...")
-        if loop is not None:
-            loop.stop()
+
+
+async def aserve(
+    *args: "RunnerDeployment",
+    pause_on_shutdown: bool = True,
+    print_starting_message: bool = True,
+    limit: Optional[int] = None,
+    **kwargs,
+):
+    """
+    Asynchronously serve the provided list of deployments.
+
+    Use `serve` instead if calling from a synchronous context.
+
+    Args:
+        *args: A list of deployments to serve.
+        pause_on_shutdown: A boolean for whether or not to automatically pause
+            deployment schedules on shutdown.
+        print_starting_message: Whether or not to print message to the console
+            on startup.
+        limit: The maximum number of runs that can be executed concurrently.
+        **kwargs: Additional keyword arguments to pass to the runner.
+
+    Examples:
+        Prepare deployment and asynchronous initialization function and serve them:
+
+        ```python
+        import asyncio
+        import datetime
+
+        from prefect import flow, aserve, get_client
+
+
+        async def init():
+            await set_concurrency_limit()
+
+
+        async def set_concurrency_limit():
+            async with get_client() as client:
+                await client.create_concurrency_limit(tag='dev', concurrency_limit=3)
+
+
+        @flow
+        async def my_flow(name):
+            print(f"hello {name}")
+
+
+        async def main():
+            # Initialization function
+            await init()
+
+            # Run once a day
+            hello_deploy = await my_flow.to_deployment(
+                "hello", tags=["dev"], interval=datetime.timedelta(days=1)
+            )
+
+            await aserve(hello_deploy)
+
+
+        if __name__ == "__main__":
+            asyncio.run(main())
+    """
+
+    from prefect.runner import Runner
+
+    runner = Runner(pause_on_shutdown=pause_on_shutdown, limit=limit, **kwargs)
+    for deployment in args:
+        await runner.add_deployment(deployment)
+
+    if print_starting_message:
+        _display_serve_start_message(*args)
+
+    await runner.start()
+
+
+def _display_serve_start_message(*args: "RunnerDeployment"):
+    from rich.console import Console, Group
+    from rich.table import Table
+
+    help_message_top = (
+        "[green]Your deployments are being served and polling for"
+        " scheduled runs!\n[/]"
+    )
+
+    table = Table(title="Deployments", show_header=False)
+
+    table.add_column(style="blue", no_wrap=True)
+
+    for deployment in args:
+        table.add_row(f"{deployment.flow_name}/{deployment.name}")
+
+    help_message_bottom = (
+        "\nTo trigger any of these deployments, use the"
+        " following command:\n[blue]\n\t$ prefect deployment run"
+        " [DEPLOYMENT_NAME]\n[/]"
+    )
+    if PREFECT_UI_URL:
+        help_message_bottom += (
+            "\nYou can also trigger your deployments via the Prefect UI:"
+            f" [blue]{PREFECT_UI_URL.value()}/deployments[/]\n"
+        )
+
+    console = Console()
+    console.print(Group(help_message_top, table, help_message_bottom), soft_wrap=True)
 
 
 @client_injector

@@ -21,7 +21,7 @@ import pytest
 from starlette import status
 
 import prefect.runner
-from prefect import __version__, flow, serve, task
+from prefect import __version__, aserve, flow, serve, task
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.objects import (
@@ -290,6 +290,98 @@ class TestServe:
                 mock_uvicorn.assert_called_once_with(
                     webserver_mock, host=mock.ANY, port=mock.ANY, log_level="debug"
                 )
+
+    def test_serve_in_async_context_raises_error(self, monkeypatch):
+        monkeypatch.setattr(
+            "asyncio.get_running_loop", lambda: asyncio.get_event_loop()
+        )
+
+        deployment = dummy_flow_1.to_deployment("test")
+
+        with pytest.raises(
+            RuntimeError,
+            match="Cannot call `serve` in an asynchronous context. Use `aserve` instead.",
+        ):
+            serve(deployment)
+
+
+class TestAServe:
+    @pytest.fixture(autouse=True)
+    async def mock_runner_start(self, monkeypatch):
+        mock = AsyncMock()
+        monkeypatch.setattr("prefect.runner.Runner.start", mock)
+        return mock
+
+    async def test_aserve_prints_help_message_on_startup(self, capsys):
+        await aserve(
+            await dummy_flow_1.to_deployment(__file__),
+            await dummy_flow_2.to_deployment(__file__),
+            await tired_flow.to_deployment(__file__),
+        )
+
+        captured = capsys.readouterr()
+
+        assert (
+            "Your deployments are being served and polling for scheduled runs!"
+            in captured.out
+        )
+        assert "dummy-flow-1/test_runner" in captured.out
+        assert "dummy-flow-2/test_runner" in captured.out
+        assert "tired-flow/test_runner" in captured.out
+        assert "$ prefect deployment run [DEPLOYMENT_NAME]" in captured.out
+
+    async def test_aserve_typed_container_inputs_flow(self, capsys):
+        @flow
+        def type_container_input_flow(arg1: List[str]) -> str:
+            print(arg1)
+            return ",".join(arg1)
+
+        await aserve(
+            await type_container_input_flow.to_deployment(__file__),
+        )
+
+        captured = capsys.readouterr()
+
+        assert (
+            "Your deployments are being served and polling for scheduled runs!"
+            in captured.out
+        )
+        assert "type-container-input-flow/test_runner" in captured.out
+        assert "$ prefect deployment run [DEPLOYMENT_NAME]" in captured.out
+
+    async def test_aserve_can_create_multiple_deployments(
+        self,
+        prefect_client: PrefectClient,
+    ):
+        deployment_1 = dummy_flow_1.to_deployment(__file__, interval=3600)
+        deployment_2 = dummy_flow_2.to_deployment(__file__, cron="* * * * *")
+
+        await aserve(await deployment_1, await deployment_2)
+
+        deployment = await prefect_client.read_deployment_by_name(
+            name="dummy-flow-1/test_runner"
+        )
+
+        assert deployment is not None
+        assert deployment.schedules[0].schedule.interval == datetime.timedelta(
+            seconds=3600
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            name="dummy-flow-2/test_runner"
+        )
+
+        assert deployment is not None
+        assert deployment.schedules[0].schedule.cron == "* * * * *"
+
+    async def test_aserve_starts_a_runner(
+        self, prefect_client: PrefectClient, mock_runner_start: AsyncMock
+    ):
+        deployment = dummy_flow_1.to_deployment("test")
+
+        await aserve(await deployment)
+
+        mock_runner_start.assert_awaited_once()
 
 
 class TestRunner:
