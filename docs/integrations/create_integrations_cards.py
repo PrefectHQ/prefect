@@ -33,7 +33,7 @@ with mkdocs_gen_files.open("./integrations/index.md", "w") as markdown_file:
         loader=FileSystemLoader("./"),
         autoescape=select_autoescape(enabled_extensions="html"),
     )
-    template = env.get_template("index.md")
+    template = env.get_template("docs/integrations/integration-cards.md")
 
     # Use jinja2 template and in index.md and write out to index.html
     markdown_file.write(
