@@ -62,9 +62,20 @@
     {
       "group": "Tutorials",
       "pages": [
-        "v3/tutorials/schedule",
-        "v3/tutorials/pipelines",
-        "v3/tutorials/scraping"
+        {
+          "group": "For data engineers",
+          "pages": [
+            "v3/tutorials/schedule",
+            "v3/tutorials/pipelines",
+            "v3/tutorials/scraping"
+          ]
+        },
+        {
+          "group": "For platform engineers",
+          "pages": [
+            "v3/tutorials/platform"
+          ]
+        }
       ],
       "version": "v3"
     },
