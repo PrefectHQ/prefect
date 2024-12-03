@@ -20,7 +20,10 @@ const ICONS = {
 	PAUSED: PauseIcon,
 	PENDING: ClockIcon,
 	SCHEDULED: ClockIcon,
-} as const satisfies Record<components["schemas"]["StateType"], React.ElementType>;
+} as const satisfies Record<
+	components["schemas"]["StateType"],
+	React.ElementType
+>;
 
 const CLASSES = {
 	COMPLETED: "bg-green-50 text-green-600 hover:bg-green-50",
