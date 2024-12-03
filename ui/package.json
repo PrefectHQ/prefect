@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@prefecthq/prefect-design": "2.14.14",
-    "@prefecthq/prefect-ui-library": "3.11.20",
+    "@prefecthq/prefect-ui-library": "3.11.21",
     "@prefecthq/vue-charts": "2.0.5",
     "@prefecthq/vue-compositions": "1.11.5",
     "@types/lodash.debounce": "4.0.9",
