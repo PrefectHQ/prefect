@@ -548,6 +548,9 @@ class TestHydratedContext:
     async def test_with_flow_run_context_with_custom_result_store(
         self, prefect_client, flow_run, tmp_path
     ):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/15783
+        """
         block = LocalFileSystem(basepath=str(tmp_path / "test"))
         await block.save(f"test-{uuid.uuid4()}")
 
@@ -616,6 +619,9 @@ class TestHydratedContext:
     async def test_with_task_run_context_with_custom_result_store(
         self, prefect_client, flow_run, tmp_path
     ):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/15783
+        """
         block = LocalFileSystem(basepath=str(tmp_path / "test"))
         await block.save(f"test-{uuid.uuid4()}")
 
