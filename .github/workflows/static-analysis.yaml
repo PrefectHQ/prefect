@@ -84,6 +84,6 @@ jobs:
 
       - name: Generate type completeness score
         run: |
-          output=$(uv tool run --with . pyright --verifytypes prefect --ignoreexternal --outputjson)
-          score=$(echo "$output" | jq -r '.typeCompleteness.completenessScore')
+          uv tool run --with . pyright --verifytypes prefect --ignoreexternal --outputjson > prefect-analysis.json
+          score=$(jq -r '.typeCompleteness.completenessScore' prefect-analysis.json)
           echo "Type completeness score: $score"
