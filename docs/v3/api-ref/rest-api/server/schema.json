@@ -16968,7 +16968,9 @@
                     "next_page": {
                         "anyOf": [
                             {
-                                "type": "string"
+                                "type": "string",
+                                "minLength": 1,
+                                "format": "uri"
                             },
                             {
                                 "type": "null"

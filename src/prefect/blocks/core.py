@@ -1229,7 +1229,7 @@ class Block(BaseModel, ABC):
         """
         block_type_slug = kwargs.pop("block_type_slug", None)
         if block_type_slug:
-            subcls = lookup_type(cls, dispatch_key=block_type_slug)
+            subcls = cls.get_block_class_from_key(block_type_slug)
             return super().__new__(subcls)
         else:
             return super().__new__(cls)

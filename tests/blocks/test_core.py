@@ -2976,3 +2976,9 @@ class TestDumpSecrets:
                 }
             ).decode()
         )
+
+
+@patch("prefect.blocks.core.load_prefect_collections")
+def test_dunder_new_loads_collections(mock_load_prefect_collections):
+    Block.__new__(FunSecretModel, block_type_slug="funsecretmodel")
+    mock_load_prefect_collections.assert_called_once()
