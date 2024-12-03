@@ -8,8 +8,6 @@ from prefect_aws.secrets_manager import (
     AwsSecret,
     create_secret,
     delete_secret,
-    read_secret,
-    update_secret,
 )
 
 from prefect import flow
@@ -57,47 +55,159 @@ def secret_under_test(secretsmanager_client, request):
     )
 
 
-async def test_read_secret(secret_under_test, aws_credentials):
-    expected_value = secret_under_test.pop("expected_value")
+class TestAwsSecretSync:
+    """Test synchronous AwsSecret methods"""
 
-    @flow
-    async def test_flow():
-        return await read_secret(
-            aws_credentials=aws_credentials,
-            **secret_under_test,
+    async def test_read_secret(self, secret_under_test, aws_credentials):
+        expected_value = secret_under_test.pop("expected_value")
+        secret_name = secret_under_test.pop(
+            "secret_name"
+        )  # Remove secret_name from kwargs
+
+        @flow
+        async def test_flow():
+            secret = AwsSecret(
+                aws_credentials=aws_credentials,
+                secret_name=secret_name,  # Use for AwsSecret initialization
+            )
+            # Pass remaining kwargs (version_id, version_stage) if present
+            return await secret.read_secret(**secret_under_test)
+
+        assert (await test_flow()) == expected_value
+
+    async def test_write_secret(self, aws_credentials, secretsmanager_client):
+        secret = AwsSecret(aws_credentials=aws_credentials, secret_name="my-test")
+        secret_value = b"test-secret-value"
+
+        @flow
+        async def test_flow():
+            return await secret.write_secret(secret_value)
+
+        arn = await test_flow()
+        assert arn.startswith("arn:aws:secretsmanager")
+
+        # Verify the secret was written correctly
+        response = secretsmanager_client.get_secret_value(SecretId="my-test")
+        assert response["SecretBinary"] == secret_value
+
+    async def test_delete_secret(self, aws_credentials, secretsmanager_client):
+        # First create a secret to delete
+        secret = AwsSecret(aws_credentials=aws_credentials, secret_name="test-delete")
+        secret_value = b"delete-me"
+
+        @flow
+        async def setup_flow():
+            return await secret.write_secret(secret_value)
+
+        arn = await setup_flow()
+
+        # Now test deletion
+        @flow
+        async def test_flow():
+            return await secret.delete_secret(
+                recovery_window_in_days=7, force_delete_without_recovery=False
+            )
+
+        deleted_arn = await test_flow()
+        assert deleted_arn == arn
+
+        # Verify the secret is scheduled for deletion
+        with pytest.raises(secretsmanager_client.exceptions.InvalidRequestException):
+            secretsmanager_client.get_secret_value(SecretId="test-delete")
+
+    async def test_delete_secret_validation(self, aws_credentials):
+        secret = AwsSecret(
+            aws_credentials=aws_credentials, secret_name="test-validation"
         )
 
-    assert (await test_flow()) == expected_value
+        with pytest.raises(ValueError, match="Cannot specify recovery window"):
+            await secret.delete_secret(
+                force_delete_without_recovery=True, recovery_window_in_days=10
+            )
+
+        with pytest.raises(
+            ValueError, match="Recovery window must be between 7 and 30 days"
+        ):
+            await secret.delete_secret(recovery_window_in_days=42)
 
 
-async def test_update_secret(secret_under_test, aws_credentials, secretsmanager_client):
-    current_secret_value = secret_under_test["expected_value"]
-    new_secret_value = (
-        current_secret_value + "2"
-        if isinstance(current_secret_value, str)
-        else current_secret_value + b"2"
-    )
+class TestAwsSecretAsync:
+    """Test asynchronous AwsSecret methods"""
 
-    @flow
-    async def test_flow():
-        return await update_secret(
-            aws_credentials=aws_credentials,
-            secret_name=secret_under_test["secret_name"],
-            secret_value=new_secret_value,
+    async def test_read_secret(self, secret_under_test, aws_credentials):
+        expected_value = secret_under_test.pop("expected_value")
+        secret_name = secret_under_test.pop(
+            "secret_name"
+        )  # Remove secret_name from kwargs
+
+        @flow
+        async def test_flow():
+            secret = AwsSecret(
+                aws_credentials=aws_credentials,
+                secret_name=secret_name,  # Use for AwsSecret initialization
+            )
+            # Pass remaining kwargs (version_id, version_stage) if present
+            return await secret.aread_secret(**secret_under_test)
+
+        assert (await test_flow()) == expected_value
+
+    async def test_write_secret(self, aws_credentials, secretsmanager_client):
+        secret = AwsSecret(aws_credentials=aws_credentials, secret_name="my-test")
+        secret_value = b"test-secret-value"
+
+        @flow
+        async def test_flow():
+            return await secret.awrite_secret(secret_value)
+
+        arn = await test_flow()
+        assert arn.startswith("arn:aws:secretsmanager")
+
+        # Verify the secret was written correctly
+        response = secretsmanager_client.get_secret_value(SecretId="my-test")
+        assert response["SecretBinary"] == secret_value
+
+    async def test_delete_secret(self, aws_credentials, secretsmanager_client):
+        # First create a secret to delete
+        secret = AwsSecret(aws_credentials=aws_credentials, secret_name="test-delete")
+        secret_value = b"delete-me"
+
+        @flow
+        async def setup_flow():
+            return await secret.awrite_secret(secret_value)
+
+        arn = await setup_flow()
+
+        # Now test deletion
+        @flow
+        async def test_flow():
+            return await secret.adelete_secret(
+                recovery_window_in_days=7, force_delete_without_recovery=False
+            )
+
+        deleted_arn = await test_flow()
+        assert deleted_arn == arn
+
+        # Verify the secret is scheduled for deletion
+        with pytest.raises(secretsmanager_client.exceptions.InvalidRequestException):
+            secretsmanager_client.get_secret_value(SecretId="test-delete")
+
+    async def test_delete_secret_validation(self, aws_credentials):
+        secret = AwsSecret(
+            aws_credentials=aws_credentials, secret_name="test-validation"
         )
 
-    flow_state = await test_flow()
-    assert flow_state.get("Name") == secret_under_test["secret_name"]
+        with pytest.raises(ValueError, match="Cannot specify recovery window"):
+            await secret.adelete_secret(
+                force_delete_without_recovery=True, recovery_window_in_days=10
+            )
 
-    updated_secret = secretsmanager_client.get_secret_value(
-        SecretId=secret_under_test["secret_name"]
-    )
-    assert (
-        updated_secret.get("SecretString") == new_secret_value
-        or updated_secret.get("SecretBinary") == new_secret_value
-    )
+        with pytest.raises(
+            ValueError, match="Recovery window must be between 7 and 30 days"
+        ):
+            await secret.adelete_secret(recovery_window_in_days=42)
 
 
+# Keep existing task-based tests
 @pytest.mark.parametrize(
     ["secret_name", "secret_value"], [["string_secret", "42"], ["binary_secret", b"42"]]
 )
@@ -134,7 +244,7 @@ async def test_create_secret(
         [29, True],
     ],
 )
-async def test_delete_secret(
+async def test_delete_secret_task(
     aws_credentials,
     secret_under_test,
     recovery_window_in_days,
@@ -163,47 +273,3 @@ async def test_delete_secret(
             )
         else:
             assert deletion_date.date() == pendulum.now("UTC").date()
-
-
-class TestAwsSecret:
-    @pytest.fixture
-    def aws_secret(self, aws_credentials, secretsmanager_client):
-        yield AwsSecret(aws_credentials=aws_credentials, secret_name="my-test")
-
-    def test_roundtrip_read_write_delete(self, aws_secret):
-        arn = "arn:aws:secretsmanager:us-east-1:123456789012:secret"
-        assert aws_secret.write_secret("my-secret").startswith(arn)
-        assert aws_secret.read_secret() == b"my-secret"
-        assert aws_secret.write_secret("my-updated-secret").startswith(arn)
-        assert aws_secret.read_secret() == b"my-updated-secret"
-        assert aws_secret.delete_secret().startswith(arn)
-
-    def test_read_secret_version_id(self, aws_secret: AwsSecret):
-        client = aws_secret.aws_credentials.get_secrets_manager_client()
-        client.create_secret(Name="my-test", SecretBinary="my-secret")
-        response = client.update_secret(
-            SecretId="my-test", SecretBinary="my-updated-secret"
-        )
-        assert (
-            aws_secret.read_secret(version_id=response["VersionId"])
-            == b"my-updated-secret"
-        )
-
-    def test_delete_secret_conflict(self, aws_secret: AwsSecret):
-        with pytest.raises(ValueError, match="Cannot specify recovery window"):
-            aws_secret.delete_secret(
-                force_delete_without_recovery=True, recovery_window_in_days=10
-            )
-
-    def test_delete_secret_recovery_window(self, aws_secret: AwsSecret):
-        with pytest.raises(
-            ValueError, match="Recovery window must be between 7 and 30 days"
-        ):
-            aws_secret.delete_secret(recovery_window_in_days=42)
-
-    async def test_read_secret(self, secret_under_test, aws_credentials):
-        secret = AwsSecret(
-            aws_credentials=aws_credentials,
-            secret_name=secret_under_test["secret_name"],
-        )
-        assert await secret.read_secret() == secret_under_test["expected_value"]
