@@ -80,13 +80,8 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v4
         with:
-          enable-cache: true
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        id: setup_python
-        with:
           python-version: "3.12"
+          enable-cache: true
 
       - name: Install packages
         run: |
