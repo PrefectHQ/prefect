@@ -10,7 +10,7 @@ import {
 	PlayIcon,
 } from "lucide-react";
 
-const ICONS: Record<components["schemas"]["StateType"], React.ElementType> = {
+const ICONS = {
 	COMPLETED: CheckIcon,
 	FAILED: XIcon,
 	RUNNING: PlayIcon,
@@ -20,9 +20,9 @@ const ICONS: Record<components["schemas"]["StateType"], React.ElementType> = {
 	PAUSED: PauseIcon,
 	PENDING: ClockIcon,
 	SCHEDULED: ClockIcon,
-} as const;
+} as const satisfies Record<components["schemas"]["StateType"], React.ElementType>;
 
-const CLASSES: Record<components["schemas"]["StateType"], string> = {
+const CLASSES = {
 	COMPLETED: "bg-green-50 text-green-600 hover:bg-green-50",
 	FAILED: "bg-red-50 text-red-600 hover:bg-red-50",
 	RUNNING: "bg-blue-100 text-blue-700 hover:bg-blue-100",
@@ -32,7 +32,7 @@ const CLASSES: Record<components["schemas"]["StateType"], string> = {
 	PAUSED: "bg-gray-300 text-gray-800 hover:bg-gray-300",
 	PENDING: "bg-gray-300 text-gray-800 hover:bg-gray-300",
 	SCHEDULED: "bg-yellow-100 text-yellow-700 hover:bg-yellow-100",
-} as const;
+} as const satisfies Record<components["schemas"]["StateType"], string>;
 
 export const StateBadge = ({
 	state,
