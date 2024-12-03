@@ -13,12 +13,8 @@ _public_api: dict[str, tuple[str, str]] = {
 def __getattr__(name: str) -> object:
     from importlib import import_module
 
-    # Let Python handle its own special attributes
-    if name.startswith("__") and name.endswith("__"):
-        return object.__getattribute__(object(), name)
-
     if name in _public_api:
         module, attr = _public_api[name]
         return getattr(import_module(module), attr)
 
-    raise ImportError(f"module {__name__!r} has no attribute {name!r}")
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
