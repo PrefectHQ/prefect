@@ -135,3 +135,13 @@ class ServerEventsSettings(PrefectBaseSettings):
             "prefect_messaging_cache",
         ),
     )
+
+    maximum_event_name_length: int = Field(
+        default=1024,
+        gt=0,
+        description="The maximum length of an event name.",
+        validation_alias=AliasChoices(
+            AliasPath("maximum_event_name_length"),
+            "prefect_server_events_maximum_event_name_length",
+        ),
+    )

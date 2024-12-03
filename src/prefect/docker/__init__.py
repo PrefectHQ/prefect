@@ -17,4 +17,4 @@ def __getattr__(name: str) -> object:
         module, attr = _public_api[name]
         return getattr(import_module(module), attr)
 
-    raise ImportError(f"module {__name__!r} has no attribute {name!r}")
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
