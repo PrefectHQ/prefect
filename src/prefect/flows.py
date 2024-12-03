@@ -1815,14 +1815,10 @@ def serve(
 
     from prefect.runner import Runner
 
-    try:
-        asyncio.get_running_loop()
+    if is_in_async_context:
         raise RuntimeError(
             "Cannot call `serve` in an asynchronous context. Use `aserve` instead."
         )
-    except RuntimeError as exc:
-        if "no running event loop" not in str(exc):
-            raise
 
     runner = Runner(pause_on_shutdown=pause_on_shutdown, limit=limit, **kwargs)
     for deployment in args:
