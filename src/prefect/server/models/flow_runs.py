@@ -653,21 +653,14 @@ async def update_flow_run_labels(
     Returns:
         bool: whether the update was successful
     """
-    print(
-        f"DEBUG: Attempting to update labels for flow run {flow_run_id} with {labels}"
-    )
-
     # First read the existing flow run to get current labels
     flow_run = await read_flow_run(session, flow_run_id)
     if not flow_run:
-        print(f"WARNING: Flow run {flow_run_id} not found")
         return False
 
     # Merge existing labels with new labels
     current_labels = flow_run.labels or {}
-    print(f"DEBUG: Current labels for {flow_run_id}: {current_labels}")
     updated_labels = {**current_labels, **labels}
-    print(f"DEBUG: Updated labels will be: {updated_labels}")
 
     try:
         # Update the flow run with merged labels
@@ -677,10 +670,8 @@ async def update_flow_run_labels(
             .values(labels=updated_labels)
         )
         success = result.rowcount > 0
-        print(f"DEBUG: Update for {flow_run_id} {'succeeded' if success else 'failed'}")
         if success:
             await session.commit()  # Explicitly commit
         return success
-    except Exception as e:
-        print(f"ERROR during update: {type(e).__name__}: {str(e)}")
+    except Exception:
         raise

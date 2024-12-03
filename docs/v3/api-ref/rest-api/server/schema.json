@@ -10243,7 +10243,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Not Any",
+                        "title": "Not Any ",
                         "description": "A list of artifact types to exclude"
                     }
                 },
@@ -10327,7 +10327,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Metadata",
+                        "title": "Metadata ",
                         "description": "User-defined artifact metadata. Content must be string key and value pairs."
                     },
                     "flow_run_id": {
@@ -10445,7 +10445,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of flow run IDs to include"
                     }
                 },
@@ -10469,7 +10469,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of artifact ids to include"
                     }
                 },
@@ -10492,7 +10492,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of artifact keys to include"
                     },
                     "like_": {
@@ -10504,7 +10504,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Like",
+                        "title": "Like ",
                         "description": "A string to match artifact keys against. This can include SQL wildcard characters like `%` and `_`.",
                         "examples": [
                             "my-artifact-%"
@@ -10519,7 +10519,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Exists",
+                        "title": "Exists ",
                         "description": "If `true`, only include artifacts with a non-null key. If `false`, only include artifacts with a null key."
                     }
                 },
@@ -10543,7 +10543,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of task run IDs to include"
                     }
                 },
@@ -10566,7 +10566,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of artifact types to include"
                     },
                     "not_any_": {
@@ -10581,7 +10581,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Not Any",
+                        "title": "Not Any ",
                         "description": "A list of artifact types to exclude"
                     }
                 },
@@ -10639,7 +10639,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Metadata"
+                        "title": "Metadata "
                     }
                 },
                 "additionalProperties": false,
@@ -11163,7 +11163,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Before",
+                        "title": "Before ",
                         "description": "Only include automations created before this datetime"
                     }
                 },
@@ -11186,7 +11186,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "Only include automations with names that match any of these strings"
                     }
                 },
@@ -11674,7 +11674,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of block type ids to include"
                     }
                 },
@@ -11698,7 +11698,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of block ids to include"
                     }
                 },
@@ -11718,7 +11718,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Eq",
+                        "title": "Eq ",
                         "description": "Filter block documents for only those that are or are not anonymous."
                     }
                 },
@@ -11741,7 +11741,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of block names to include"
                     },
                     "like_": {
@@ -11753,7 +11753,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Like",
+                        "title": "Like ",
                         "description": "A string to match block names against. This can include SQL wildcard characters like `%` and `_`.",
                         "examples": [
                             "my-block%"
@@ -12002,7 +12002,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of block type ids to include"
                     }
                 },
@@ -12025,7 +12025,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "All",
+                        "title": "All ",
                         "description": "A list of block capabilities. Block entities will be returned only if an associated block schema has a superset of the defined capabilities.",
                         "examples": [
                             [
@@ -12055,7 +12055,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of IDs to include"
                     }
                 },
@@ -12078,7 +12078,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of block schema versions.",
                         "examples": [
                             [
@@ -12310,7 +12310,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Like",
+                        "title": "Like ",
                         "description": "A case-insensitive partial match. For example,  passing 'marvin' will match 'marvin', 'sad-Marvin', and 'marvin-robot'.",
                         "examples": [
                             "marvin"
@@ -12336,7 +12336,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of slugs to match"
                     }
                 },
@@ -14348,6 +14348,9 @@
                 "properties": {
                     "type": {
                         "type": "string",
+                        "enum": [
+                            "call-webhook"
+                        ],
                         "const": "call-webhook",
                         "title": "Type",
                         "default": "call-webhook"
@@ -14376,6 +14379,9 @@
                 "properties": {
                     "type": {
                         "type": "string",
+                        "enum": [
+                            "cancel-flow-run"
+                        ],
                         "const": "cancel-flow-run",
                         "title": "Type",
                         "default": "cancel-flow-run"
@@ -14389,6 +14395,9 @@
                 "properties": {
                     "type": {
                         "type": "string",
+                        "enum": [
+                            "change-flow-run-state"
+                        ],
                         "const": "change-flow-run-state",
                         "title": "Type",
                         "default": "change-flow-run-state"
@@ -14433,6 +14442,9 @@
                 "properties": {
                     "type": {
                         "type": "string",
+                        "enum": [
+                            "compound"
+                        ],
                         "const": "compound",
                         "title": "Type",
                         "default": "compound"
@@ -14500,6 +14512,9 @@
                 "properties": {
                     "type": {
                         "type": "string",
+                        "enum": [
+                            "compound"
+                        ],
                         "const": "compound",
                         "title": "Type",
                         "default": "compound"
@@ -14881,6 +14896,9 @@
                 "properties": {
                     "input_type": {
                         "type": "string",
+                        "enum": [
+                            "constant"
+                        ],
                         "const": "constant",
                         "title": "Input Type",
                         "default": "constant"
@@ -15551,7 +15569,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Ge",
+                        "title": "Ge ",
                         "description": "Only include deployments with a concurrency limit greater than or equal to this value"
                     },
                     "le_": {
@@ -15563,7 +15581,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Le",
+                        "title": "Le ",
                         "description": "Only include deployments with a concurrency limit less than or equal to this value"
                     },
                     "is_null_": {
@@ -15575,7 +15593,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Is Null",
+                        "title": "Is Null ",
                         "description": "If true, only include deployments without a concurrency limit"
                     }
                 },
@@ -15599,7 +15617,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of deployment ids to include"
                     }
                 },
@@ -15622,7 +15640,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of deployment names to include",
                         "examples": [
                             [
@@ -15640,7 +15658,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Like",
+                        "title": "Like ",
                         "description": "A case-insensitive partial match. For example,  passing 'marvin' will match 'marvin', 'sad-Marvin', and 'marvin-robot'.",
                         "examples": [
                             "marvin"
@@ -15663,7 +15681,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Eq",
+                        "title": "Eq ",
                         "description": "Only returns where deployment is/is not paused"
                     }
                 },
@@ -15691,7 +15709,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "All",
+                        "title": "All ",
                         "description": "A list of tags. Deployments will be returned only if their tags are a superset of the list",
                         "examples": [
                             [
@@ -15709,7 +15727,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Is Null",
+                        "title": "Is Null ",
                         "description": "If true, only include deployments without tags"
                     }
                 },
@@ -15732,7 +15750,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of work queue names to include",
                         "examples": [
                             [
@@ -15881,7 +15899,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Like",
+                        "title": "Like ",
                         "description": "A case-insensitive partial match on deployment or flow names. For example, passing 'example' might match deployments or flows with 'example' in their names."
                     }
                 },
@@ -16647,6 +16665,9 @@
                 "properties": {
                     "type": {
                         "type": "string",
+                        "enum": [
+                            "do-nothing"
+                        ],
                         "const": "do-nothing",
                         "title": "Type",
                         "default": "do-nothing"
@@ -17018,7 +17039,9 @@
                     "next_page": {
                         "anyOf": [
                             {
-                                "type": "string"
+                                "type": "string",
+                                "minLength": 1,
+                                "format": "uri"
                             },
                             {
                                 "type": "null"
@@ -17168,6 +17191,9 @@
                 "properties": {
                     "type": {
                         "type": "string",
+                        "enum": [
+                            "event"
+                        ],
                         "const": "event",
                         "title": "Type",
                         "default": "event"
@@ -17479,7 +17505,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Is Null",
+                        "title": "Is Null ",
                         "description": "If true, only include flows without deployments"
                     }
                 },
@@ -17503,7 +17529,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of flow ids to include"
                     }
                 },
@@ -17526,7 +17552,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of flow names to include",
                         "examples": [
                             [
@@ -17544,7 +17570,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Like",
+                        "title": "Like ",
                         "description": "A case-insensitive partial match. For example,  passing 'marvin' will match 'marvin', 'sad-Marvin', and 'marvin-robot'.",
                         "examples": [
                             "marvin"
@@ -17575,7 +17601,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "All",
+                        "title": "All ",
                         "description": "A list of tags. Flows will be returned only if their tags are a superset of the list",
                         "examples": [
                             [
@@ -17593,7 +17619,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Is Null",
+                        "title": "Is Null ",
                         "description": "If true, only include flows without tags"
                     }
                 },
@@ -18373,7 +18399,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of flow run deployment ids to include"
                     },
                     "is_null_": {
@@ -18385,7 +18411,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Is Null",
+                        "title": "Is Null ",
                         "description": "If true, only include flow runs without deployment ids"
                     }
                 },
@@ -18406,7 +18432,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Before",
+                        "title": "Before ",
                         "description": "Only include flow runs ending at or before this time"
                     },
                     "after_": {
@@ -18419,7 +18445,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "After",
+                        "title": "After ",
                         "description": "Only include flow runs ending at or after this time"
                     },
                     "is_null_": {
@@ -18431,7 +18457,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Is Null",
+                        "title": "Is Null ",
                         "description": "If true, only return flow runs without an end time"
                     }
                 },
@@ -18452,7 +18478,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Before",
+                        "title": "Before ",
                         "description": "Only include flow runs scheduled to start at or before this time"
                     },
                     "after_": {
@@ -18465,7 +18491,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "After",
+                        "title": "After ",
                         "description": "Only include flow runs scheduled to start at or after this time"
                     }
                 },
@@ -18488,7 +18514,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of flow run flow_versions to include"
                     }
                 },
@@ -18512,7 +18538,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of flow run ids to include"
                     },
                     "not_any_": {
@@ -18528,7 +18554,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Not Any",
+                        "title": "Not Any ",
                         "description": "A list of flow run ids to exclude"
                     }
                 },
@@ -18551,7 +18577,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of flow run idempotency keys to include"
                     },
                     "not_any_": {
@@ -18566,7 +18592,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Not Any",
+                        "title": "Not Any ",
                         "description": "A list of flow run idempotency keys to exclude"
                     }
                 },
@@ -18589,7 +18615,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of flow run names to include",
                         "examples": [
                             [
@@ -18607,7 +18633,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Like",
+                        "title": "Like ",
                         "description": "A case-insensitive partial match. For example,  passing 'marvin' will match 'marvin', 'sad-Marvin', and 'marvin-robot'.",
                         "examples": [
                             "marvin"
@@ -18631,7 +18657,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Before",
+                        "title": "Before ",
                         "description": "Only include flow runs with a next_scheduled_start_time or before this time"
                     },
                     "after_": {
@@ -18644,7 +18670,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "After",
+                        "title": "After ",
                         "description": "Only include flow runs with a next_scheduled_start_time at or after this time"
                     }
                 },
@@ -18673,7 +18699,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of parent flow run ids to include"
                     }
                 },
@@ -18702,7 +18728,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of flow run parent_task_run_ids to include"
                     },
                     "is_null_": {
@@ -18714,7 +18740,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Is Null",
+                        "title": "Is Null ",
                         "description": "If true, only include flow runs without parent_task_run_id"
                     }
                 },
@@ -18735,7 +18761,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Before",
+                        "title": "Before ",
                         "description": "Only include flow runs starting at or before this time"
                     },
                     "after_": {
@@ -18748,7 +18774,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "After",
+                        "title": "After ",
                         "description": "Only include flow runs starting at or after this time"
                     },
                     "is_null_": {
@@ -18760,7 +18786,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Is Null",
+                        "title": "Is Null ",
                         "description": "If true, only return flow runs without a start time"
                     }
                 },
@@ -18818,7 +18844,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of flow run state names to include"
                     },
                     "not_any_": {
@@ -18833,7 +18859,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Not Any",
+                        "title": "Not Any ",
                         "description": "A list of flow run state names to exclude"
                     }
                 },
@@ -18856,7 +18882,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of flow run state types to include"
                     },
                     "not_any_": {
@@ -18871,7 +18897,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Not Any",
+                        "title": "Not Any ",
                         "description": "A list of flow run state types to exclude"
                     }
                 },
@@ -18899,7 +18925,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "All",
+                        "title": "All ",
                         "description": "A list of tags. Flow runs will be returned only if their tags are a superset of the list",
                         "examples": [
                             [
@@ -18920,7 +18946,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of tags to include",
                         "examples": [
                             [
@@ -18938,7 +18964,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Is Null",
+                        "title": "Is Null ",
                         "description": "If true, only include flow runs without tags"
                     }
                 },
@@ -18966,7 +18992,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of work queue names to include",
                         "examples": [
                             [
@@ -18984,7 +19010,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Is Null",
+                        "title": "Is Null ",
                         "description": "If true, only include flow runs without work queue names"
                     }
                 },
@@ -19234,7 +19260,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Eq",
+                        "title": "Eq ",
                         "description": "Filter notification policies for only those that are or are not active."
                     }
                 },
@@ -20521,7 +20547,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of flow run IDs to include"
                     }
                 },
@@ -20541,7 +20567,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Ge",
+                        "title": "Ge ",
                         "description": "Include logs with a level greater than or equal to this level",
                         "examples": [
                             20
@@ -20556,7 +20582,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Le",
+                        "title": "Le ",
                         "description": "Include logs with a level less than or equal to this level",
                         "examples": [
                             50
@@ -20583,7 +20609,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of task run IDs to include"
                     },
                     "is_null_": {
@@ -20595,7 +20621,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Is Null",
+                        "title": "Is Null ",
                         "description": "If true, only include logs without a task run id"
                     }
                 },
@@ -20616,7 +20642,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Before",
+                        "title": "Before ",
                         "description": "Only include logs with a timestamp at or before this time"
                     },
                     "after_": {
@@ -20629,7 +20655,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "After",
+                        "title": "After ",
                         "description": "Only include logs with a timestamp at or after this time"
                     }
                 },
@@ -20809,6 +20835,9 @@
                 "properties": {
                     "input_type": {
                         "type": "string",
+                        "enum": [
+                            "parameter"
+                        ],
                         "const": "parameter",
                         "title": "Input Type",
                         "default": "parameter"
@@ -20829,6 +20858,9 @@
                 "properties": {
                     "type": {
                         "type": "string",
+                        "enum": [
+                            "pause-automation"
+                        ],
                         "const": "pause-automation",
                         "title": "Type",
                         "default": "pause-automation"
@@ -20865,6 +20897,9 @@
                 "properties": {
                     "type": {
                         "type": "string",
+                        "enum": [
+                            "pause-deployment"
+                        ],
                         "const": "pause-deployment",
                         "title": "Type",
                         "default": "pause-deployment"
@@ -20901,6 +20936,9 @@
                 "properties": {
                     "type": {
                         "type": "string",
+                        "enum": [
+                            "pause-work-pool"
+                        ],
                         "const": "pause-work-pool",
                         "title": "Type",
                         "default": "pause-work-pool"
@@ -20937,6 +20975,9 @@
                 "properties": {
                     "type": {
                         "type": "string",
+                        "enum": [
+                            "pause-work-queue"
+                        ],
                         "const": "pause-work-queue",
                         "title": "Type",
                         "default": "pause-work-queue"
@@ -21142,6 +21183,9 @@
                 "properties": {
                     "type": {
                         "type": "string",
+                        "enum": [
+                            "resume-automation"
+                        ],
                         "const": "resume-automation",
                         "title": "Type",
                         "default": "resume-automation"
@@ -21178,6 +21222,9 @@
                 "properties": {
                     "type": {
                         "type": "string",
+                        "enum": [
+                            "resume-deployment"
+                        ],
                         "const": "resume-deployment",
                         "title": "Type",
                         "default": "resume-deployment"
@@ -21214,6 +21261,9 @@
                 "properties": {
                     "type": {
                         "type": "string",
+                        "enum": [
+                            "resume-flow-run"
+                        ],
                         "const": "resume-flow-run",
                         "title": "Type",
                         "default": "resume-flow-run"
@@ -21227,6 +21277,9 @@
                 "properties": {
                     "type": {
                         "type": "string",
+                        "enum": [
+                            "resume-work-pool"
+                        ],
                         "const": "resume-work-pool",
                         "title": "Type",
                         "default": "resume-work-pool"
@@ -21263,6 +21316,9 @@
                 "properties": {
                     "type": {
                         "type": "string",
+                        "enum": [
+                            "resume-work-queue"
+                        ],
                         "const": "resume-work-queue",
                         "title": "Type",
                         "default": "resume-work-queue"
@@ -21299,6 +21355,9 @@
                 "properties": {
                     "type": {
                         "type": "string",
+                        "enum": [
+                            "run-deployment"
+                        ],
                         "const": "run-deployment",
                         "title": "Type",
                         "default": "run-deployment"
@@ -21473,6 +21532,9 @@
                 "properties": {
                     "type": {
                         "type": "string",
+                        "enum": [
+                            "send-notification"
+                        ],
                         "const": "send-notification",
                         "title": "Type",
                         "default": "send-notification"
@@ -21506,6 +21568,9 @@
                 "properties": {
                     "type": {
                         "type": "string",
+                        "enum": [
+                            "sequence"
+                        ],
                         "const": "sequence",
                         "title": "Type",
                         "default": "sequence"
@@ -21557,6 +21622,9 @@
                 "properties": {
                     "type": {
                         "type": "string",
+                        "enum": [
+                            "sequence"
+                        ],
                         "const": "sequence",
                         "title": "Type",
                         "default": "sequence"
@@ -21615,7 +21683,10 @@
                 "title": "SetStateStatus",
                 "description": "Enumerates return statuses for setting run states."
             },
-            "Settings": {},
+            "Settings": {
+                "title": "Settings",
+                "description": "Settings for Prefect using Pydantic settings.\n\nSee https://docs.pydantic.dev/latest/concepts/pydantic_settings"
+            },
             "SimpleFlowRun": {
                 "properties": {
                     "id": {
@@ -21766,6 +21837,9 @@
                 "properties": {
                     "type": {
                         "type": "string",
+                        "enum": [
+                            "abort_details"
+                        ],
                         "const": "abort_details",
                         "title": "Type",
                         "description": "The type of state transition detail. Used to ensure pydantic does not coerce into a different type.",
@@ -21792,6 +21866,9 @@
                 "properties": {
                     "type": {
                         "type": "string",
+                        "enum": [
+                            "accept_details"
+                        ],
                         "const": "accept_details",
                         "title": "Type",
                         "description": "The type of state transition detail. Used to ensure pydantic does not coerce into a different type.",
@@ -22041,6 +22118,9 @@
                 "properties": {
                     "type": {
                         "type": "string",
+                        "enum": [
+                            "reject_details"
+                        ],
                         "const": "reject_details",
                         "title": "Type",
                         "description": "The type of state transition detail. Used to ensure pydantic does not coerce into a different type.",
@@ -22083,6 +22163,9 @@
                 "properties": {
                     "type": {
                         "type": "string",
+                        "enum": [
+                            "wait_details"
+                        ],
                         "const": "wait_details",
                         "title": "Type",
                         "description": "The type of state transition detail. Used to ensure pydantic does not coerce into a different type.",
@@ -22117,6 +22200,9 @@
                 "properties": {
                     "type": {
                         "type": "string",
+                        "enum": [
+                            "suspend-flow-run"
+                        ],
                         "const": "suspend-flow-run",
                         "title": "Type",
                         "default": "suspend-flow-run"
@@ -22435,7 +22521,8 @@
                 "description": "An ORM representation of task run data."
             },
             "TaskRunCount": {
-                "type": "object"
+                "type": "object",
+                "title": "TaskRunCount"
             },
             "TaskRunCreate": {
                 "properties": {
@@ -22725,7 +22812,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Before",
+                        "title": "Before ",
                         "description": "Only include task runs expected to start at or before this time"
                     },
                     "after_": {
@@ -22738,7 +22825,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "After",
+                        "title": "After ",
                         "description": "Only include task runs expected to start at or after this time"
                     }
                 },
@@ -22767,7 +22854,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of task run flow run ids to include"
                     },
                     "is_null_": {
@@ -22779,7 +22866,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Is Null",
+                        "title": "Is Null ",
                         "description": "Filter for task runs with None as their flow run id",
                         "default": false
                     }
@@ -22804,7 +22891,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of task run ids to include"
                     }
                 },
@@ -22827,7 +22914,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of task run names to include",
                         "examples": [
                             [
@@ -22845,7 +22932,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Like",
+                        "title": "Like ",
                         "description": "A case-insensitive partial match. For example,  passing 'marvin' will match 'marvin', 'sad-Marvin', and 'marvin-robot'.",
                         "examples": [
                             "marvin"
@@ -22869,7 +22956,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Before",
+                        "title": "Before ",
                         "description": "Only include task runs starting at or before this time"
                     },
                     "after_": {
@@ -22882,7 +22969,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "After",
+                        "title": "After ",
                         "description": "Only include task runs starting at or after this time"
                     },
                     "is_null_": {
@@ -22894,7 +22981,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Is Null",
+                        "title": "Is Null ",
                         "description": "If true, only return task runs without a start time"
                     }
                 },
@@ -22952,7 +23039,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of task run state names to include"
                     }
                 },
@@ -22975,7 +23062,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of task run state types to include"
                     }
                 },
@@ -22995,7 +23082,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Exists",
+                        "title": "Exists ",
                         "description": "If true, only include task runs that are subflow run parents; if false, exclude parent task runs"
                     }
                 },
@@ -23023,7 +23110,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "All",
+                        "title": "All ",
                         "description": "A list of tags. Task runs will be returned only if their tags are a superset of the list",
                         "examples": [
                             [
@@ -23041,7 +23128,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Is Null",
+                        "title": "Is Null ",
                         "description": "If true, only include task runs without tags"
                     }
                 },
@@ -23117,6 +23204,9 @@
                 "properties": {
                     "input_type": {
                         "type": "string",
+                        "enum": [
+                            "task_run"
+                        ],
                         "const": "task_run",
                         "title": "Input Type",
                         "default": "task_run"
@@ -23513,7 +23603,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of variable ids to include"
                     }
                 },
@@ -23536,7 +23626,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of variables names to include"
                     },
                     "like_": {
@@ -23548,7 +23638,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Like",
+                        "title": "Like ",
                         "description": "A string to match variable names against. This can include SQL wildcard characters like `%` and `_`.",
                         "examples": [
                             "my_variable_%"
@@ -23579,7 +23669,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "All",
+                        "title": "All ",
                         "description": "A list of tags. Variables will be returned only if their tags are a superset of the list",
                         "examples": [
                             [
@@ -23597,7 +23687,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Is Null",
+                        "title": "Is Null ",
                         "description": "If true, only include Variables without tags"
                     }
                 },
@@ -23924,7 +24014,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of work pool ids to include"
                     }
                 },
@@ -23947,7 +24037,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of work pool names to include"
                     }
                 },
@@ -23970,7 +24060,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of work pool types to include"
                     }
                 },
@@ -24288,7 +24378,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of work queue ids to include"
                     }
                 },
@@ -24311,7 +24401,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of work queue names to include",
                         "examples": [
                             [
@@ -24332,7 +24422,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Startswith",
+                        "title": "Startswith ",
                         "description": "A list of case-insensitive starts-with matches. For example,  passing 'marvin' will match 'marvin', and 'Marvin-robot', but not 'sad-marvin'.",
                         "examples": [
                             [
@@ -24702,7 +24792,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Before",
+                        "title": "Before ",
                         "description": "Only include processes whose last heartbeat was at or before this time"
                     },
                     "after_": {
@@ -24715,7 +24805,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "After",
+                        "title": "After ",
                         "description": "Only include processes whose last heartbeat was at or after this time"
                     }
                 },
@@ -24738,7 +24828,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Any",
+                        "title": "Any ",
                         "description": "A list of worker statuses to include"
                     },
                     "not_any_": {
@@ -24753,7 +24843,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Not Any",
+                        "title": "Not Any ",
                         "description": "A list of worker statuses to exclude"
                     }
                 },

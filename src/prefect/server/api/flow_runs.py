@@ -847,7 +847,6 @@ async def update_flow_run_labels(
     db: PrefectDBInterface = Depends(provide_database_interface),
 ):
     async with db.session_context(begin_transaction=True) as session:
-        logger.info(f"Updating flow run {flow_run_id} with labels {labels}")
         await models.flow_runs.update_flow_run_labels(
             session=session, flow_run_id=flow_run_id, labels=labels
         )
