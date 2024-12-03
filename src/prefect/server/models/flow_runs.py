@@ -653,28 +653,34 @@ async def update_flow_run_labels(
     Returns:
         bool: whether the update was successful
     """
-    logger.debug(
-        f"Attempting to update labels for flow run {flow_run_id} with {labels}"
+    print(
+        f"DEBUG: Attempting to update labels for flow run {flow_run_id} with {labels}"
     )
 
     # First read the existing flow run to get current labels
     flow_run = await read_flow_run(session, flow_run_id)
     if not flow_run:
-        logger.warning(f"Flow run {flow_run_id} not found")
+        print(f"WARNING: Flow run {flow_run_id} not found")
         return False
 
     # Merge existing labels with new labels
     current_labels = flow_run.labels or {}
-    logger.debug(f"Current labels for {flow_run_id}: {current_labels}")
+    print(f"DEBUG: Current labels for {flow_run_id}: {current_labels}")
     updated_labels = {**current_labels, **labels}
-    logger.debug(f"Updated labels will be: {updated_labels}")
+    print(f"DEBUG: Updated labels will be: {updated_labels}")
 
-    # Update the flow run with merged labels
-    result = await session.execute(
-        sa.update(orm_models.FlowRun)
-        .where(orm_models.FlowRun.id == flow_run_id)
-        .values(labels=updated_labels)
-    )
-    success = result.rowcount > 0
-    logger.debug(f"Update for {flow_run_id} {'succeeded' if success else 'failed'}")
-    return success
+    try:
+        # Update the flow run with merged labels
+        result = await session.execute(
+            sa.update(orm_models.FlowRun)
+            .where(orm_models.FlowRun.id == flow_run_id)
+            .values(labels=updated_labels)
+        )
+        success = result.rowcount > 0
+        print(f"DEBUG: Update for {flow_run_id} {'succeeded' if success else 'failed'}")
+        if success:
+            await session.commit()  # Explicitly commit
+        return success
+    except Exception as e:
+        print(f"ERROR during update: {type(e).__name__}: {str(e)}")
+        raise
