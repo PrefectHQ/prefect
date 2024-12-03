@@ -645,3 +645,21 @@ class TestURL:
         monkeypatch.setenv(name="PREFECT__FLOW_RUN_ID", value=str(run.id))
 
         assert getattr(flow_run, url_type) == expected_url
+
+
+class TestJobVariables:
+    async def test_job_variables_is_attribute(self):
+        assert "job_variables" in dir(flow_run)
+
+    async def test_job_variables_is_none_when_not_set(self):
+        assert flow_run.job_variables is None
+
+    async def test_job_variables_returns_variables_when_present_dynamically(self):
+        assert flow_run.job_variables is None
+
+        with FlowRunContext.model_construct(
+            flow_run=FlowRun.model_construct(job_variables={"foo": "bar"})
+        ):
+            assert flow_run.job_variables == {"foo": "bar"}
+
+        assert flow_run.job_variables is None

@@ -18,29 +18,26 @@ import {
 	FormItem,
 	FormLabel,
 	FormMessage,
-} from "../ui/form";
-import { Input } from "../ui/input";
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import type { components } from "@/api/prefect";
 import type { JSONValue } from "@/lib/types";
-import { TagsInput } from "../ui/tags-input";
+import { TagsInput } from "@/components/ui/tags-input";
 import { JsonInput } from "@/components/ui/json-input";
 import { useEffect, useMemo } from "react";
-import { useCreateVariable, useUpdateVariable } from "./hooks";
+import { useCreateVariable, useUpdateVariable } from "@/hooks/variables";
+import { useToast } from "@/hooks/use-toast";
 
 const formSchema = z.object({
 	name: z.string().min(2, { message: "Name must be at least 2 characters" }),
 	value: z.string(),
-	tags: z
-		.string()
-		.min(2, { message: "Tags must be at least 2 characters" })
-		.array()
-		.optional(),
+	tags: z.string().array().optional(),
 });
 
 export type VariableDialogProps = {
 	onOpenChange: (open: boolean) => void;
 	open: boolean;
-	existingVariable?: components["schemas"]["Variable"];
+	variableToEdit?: components["schemas"]["Variable"];
 };
 
 const VARIABLE_FORM_DEFAULT_VALUES = {
@@ -52,20 +49,22 @@ const VARIABLE_FORM_DEFAULT_VALUES = {
 export const VariableDialog = ({
 	onOpenChange,
 	open,
-	existingVariable,
+	variableToEdit,
 }: VariableDialogProps) => {
+	const { toast } = useToast();
+
 	const form = useForm<z.infer<typeof formSchema>>({
 		resolver: zodResolver(formSchema),
 		defaultValues: VARIABLE_FORM_DEFAULT_VALUES,
 	});
 	const initialValues = useMemo(() => {
-		if (!existingVariable) return undefined;
+		if (!variableToEdit) return undefined;
 		return {
-			name: existingVariable.name,
-			value: JSON.stringify(existingVariable.value),
-			tags: existingVariable.tags,
+			name: variableToEdit.name,
+			value: JSON.stringify(variableToEdit.value, null, 2),
+			tags: variableToEdit.tags,
 		};
-	}, [existingVariable]);
+	}, [variableToEdit]);
 
 	useEffect(() => {
 		// Ensure we start with the initial values when the dialog opens
@@ -74,53 +73,65 @@ export const VariableDialog = ({
 		}
 	}, [initialValues, form, open]);
 
-	const { mutate: createVariable, isPending: isCreating } = useCreateVariable({
-		onSuccess: () => {
-			onOpenChange(false);
-		},
-		onError: (error) => {
-			const message = error.message || "Unknown error while creating variable.";
-			form.setError("root", {
-				message,
-			});
-		},
-	});
+	const { createVariable, isPending: isCreating } = useCreateVariable();
 
-	const { mutate: updateVariable, isPending: isUpdating } = useUpdateVariable({
-		onSuccess: () => {
-			onOpenChange(false);
-		},
-		onError: (error) => {
-			const message = error.message || "Unknown error while updating variable.";
-			form.setError("root", {
-				message,
-			});
-		},
-	});
+	const { updateVariable, isPending: isUpdating } = useUpdateVariable();
 
 	const onSubmit = (values: z.infer<typeof formSchema>) => {
 		try {
 			const value = JSON.parse(values.value) as JSONValue;
-			if (existingVariable?.id) {
-				updateVariable({
-					id: existingVariable.id,
-					name: values.name,
-					value,
-					tags: values.tags,
-				});
+			if (variableToEdit?.id) {
+				updateVariable(
+					{
+						id: variableToEdit.id,
+						name: values.name,
+						value,
+						tags: values.tags,
+					},
+					{
+						onSuccess: () => {
+							toast({
+								title: "Variable updated",
+							});
+						},
+						onError: (error) => {
+							const message =
+								error.message || "Unknown error while updating variable.";
+							form.setError("root", {
+								message,
+							});
+						},
+					},
+				);
 			} else {
-				createVariable({
-					name: values.name,
-					value,
-					tags: values.tags,
-				});
+				createVariable(
+					{
+						name: values.name,
+						value,
+						tags: values.tags,
+					},
+					{
+						onSuccess: () => {
+							toast({
+								title: "Variable created",
+							});
+						},
+						onError: (error) => {
+							const message =
+								error.message || "Unknown error while creating variable.";
+							form.setError("root", {
+								message,
+							});
+						},
+					},
+				);
 			}
 		} catch {
 			form.setError("value", { message: "Value must be valid JSON" });
 		}
 	};
-	const dialogTitle = existingVariable ? "Edit Variable" : "New Variable";
-	const dialogDescription = existingVariable
+	const dialogTitle = variableToEdit ? "Edit Variable" : "New Variable";
+	const dialogDescription = variableToEdit
 		? "Edit the variable by changing the name, value, or tags."
 		: "Add a new variable by providing a name, value, and optional tags. Values can be any valid JSON value.";
 
@@ -181,7 +192,7 @@ export const VariableDialog = ({
 								<Button variant="outline">Close</Button>
 							</DialogTrigger>
 							<Button type="submit" loading={isCreating || isUpdating}>
-								{existingVariable ? "Save" : "Create"}
+								{variableToEdit ? "Save" : "Create"}
 							</Button>
 						</DialogFooter>
 					</form>

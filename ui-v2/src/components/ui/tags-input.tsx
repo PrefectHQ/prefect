@@ -2,8 +2,7 @@ import React from "react";
 import { useState } from "react";
 import type { KeyboardEvent, ChangeEvent, FocusEvent } from "react";
 import { Input, type InputProps } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { X } from "lucide-react";
+import { TagBadgeGroup } from "./tag-badge-group";
 
 type TagsInputProps = InputProps & {
 	value?: string[];
@@ -62,21 +61,11 @@ const TagsInput = React.forwardRef<HTMLInputElement, TagsInputProps>(
 
 		return (
 			<div className="flex items-center border rounded-md focus-within:ring-1 focus-within:ring-ring ">
-				<div className="flex items-center">
-					{value.map((tag, index) => (
-						<Badge key={tag} variant="secondary" className="ml-1">
-							{tag}
-							<button
-								type="button"
-								onClick={() => removeTag(index)}
-								className="text-muted-foreground hover:text-foreground"
-								aria-label={`Remove ${tag} tag`}
-							>
-								<X size={14} />
-							</button>
-						</Badge>
-					))}
-				</div>
+				<TagBadgeGroup
+					tags={value}
+					onTagsChange={onChange}
+					variant="secondary"
+				/>
 				<Input
 					type="text"
 					value={inputValue}
