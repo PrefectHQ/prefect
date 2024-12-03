@@ -1354,6 +1354,18 @@ Which cache implementation to use for the events system. Should point to a modul
 **Supported environment variables**:
 `PREFECT_SERVER_EVENTS_MESSAGING_CACHE`, `PREFECT_MESSAGING_CACHE`
 
+### `maximum_event_name_length`
+The maximum length of an event name.
+
+**Type**: `integer`
+
+**Default**: `1024`
+
+**TOML dotted key path**: `server.events.maximum_event_name_length`
+
+**Supported environment variables**:
+`PREFECT_SERVER_EVENTS_MAXIMUM_EVENT_NAME_LENGTH`
+
 ---
 ## ServerFlowRunGraphSettings
 Settings for controlling behavior of the flow run graph
