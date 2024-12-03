@@ -1,6 +1,7 @@
-import { ExternalLinkIcon, PlusIcon, VariableIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { DocsLink } from "@/components/ui/docs-link";
+import { PlusIcon, VariableIcon } from "lucide-react";
 
 type VariablesEmptyStateProps = {
 	onAddVariableClick: () => void;
@@ -19,15 +20,7 @@ export const VariablesEmptyState = ({
 				<Button onClick={() => onAddVariableClick()}>
 					Add Variable <PlusIcon className="h-4 w-4 ml-2" />
 				</Button>
-				<a
-					href="https://docs.prefect.io/latest/guides/variables/"
-					target="_blank"
-					rel="noreferrer"
-				>
-					<Button variant="outline">
-						View Docs <ExternalLinkIcon className="h-4 w-4 ml-2" />
-					</Button>
-				</a>
+				<DocsLink id="variables-guide" />
 			</div>
 		</CardContent>
 	</Card>
