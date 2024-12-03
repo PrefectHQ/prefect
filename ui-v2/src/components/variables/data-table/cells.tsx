@@ -7,8 +7,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { MoreVerticalIcon } from "lucide-react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { getQueryService } from "@/api/service";
 import type { CellContext } from "@tanstack/react-table";
 import type { components } from "@/api/prefect";
 import { useToast } from "@/hooks/use-toast";
@@ -20,6 +18,7 @@ import {
 } from "@/components/ui/hover-card";
 import { useRef } from "react";
 import { useIsOverflowing } from "@/hooks/use-is-overflowing";
+import { useDeleteVariable } from "@/hooks/variables";
 
 type ActionsCellProps = CellContext<
 	components["schemas"]["Variable"],
@@ -30,31 +29,17 @@ type ActionsCellProps = CellContext<
 
 export const ActionsCell = ({ row, onVariableEdit }: ActionsCellProps) => {
 	const id = row.original.id;
-	const queryClient = useQueryClient();
-	const { mutate: deleteVariable } = useMutation({
-		mutationKey: ["delete-variable"],
-		mutationFn: async (id: string) =>
-			await getQueryService().DELETE("/variables/{id}", {
-				params: { path: { id } },
-			}),
-		onSettled: async () => {
-			return await Promise.all([
-				queryClient.invalidateQueries({
-					predicate: (query) => query.queryKey[0] === "variables",
-				}),
-				queryClient.invalidateQueries({
-					queryKey: ["total-variable-count"],
-				}),
-			]);
-		},
-	});
 	const { toast } = useToast();
+	const { deleteVariable } = useDeleteVariable();
 	if (!id) return null;
 
 	const onVariableDelete = () => {
-		deleteVariable(id);
-		toast({
-			title: "Variable deleted",
+		deleteVariable(id, {
+			onSuccess: () => {
+				toast({
+					title: "Variable deleted",
+				});
+			},
 		});
 	};
 

@@ -1,13 +1,12 @@
 import type { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
-import { useToast } from "@/hooks/use-toast";
-import { startsWith } from "@/lib/utils";
 import {
-	useMutation,
-	useQueryClient,
-	useQueries,
-	keepPreviousData,
 	type QueryClient,
+	keepPreviousData,
+	queryOptions,
+	useMutation,
+	useQueries,
+	useQueryClient,
 } from "@tanstack/react-query";
 
 type UseVariablesOptions =
@@ -53,17 +52,18 @@ const variableKeys: VariableKeys = {
  *  - staleTime: How long the data should be considered fresh (1 second)
  *  - placeholderData: Uses previous data while loading new data
  */
-const buildVariablesQuery = (options: UseVariablesOptions) => ({
-	queryKey: variableKeys.filtered(options),
-	queryFn: async () => {
-		const response = await getQueryService().POST("/variables/filter", {
-			body: options,
-		});
-		return response.data;
-	},
-	staleTime: 1000,
-	placeholderData: keepPreviousData,
-});
+export const buildVariablesQuery = (options: UseVariablesOptions) =>
+	queryOptions({
+		queryKey: variableKeys.filtered(options),
+		queryFn: async () => {
+			const response = await getQueryService().POST("/variables/filter", {
+				body: options,
+			});
+			return response.data;
+		},
+		staleTime: 1000,
+		placeholderData: keepPreviousData,
+	});
 
 /**
  * Builds a query configuration for counting variables with optional filters
@@ -74,18 +74,19 @@ const buildVariablesQuery = (options: UseVariablesOptions) => ({
  *  - staleTime: How long the data should be considered fresh (1 second)
  *  - placeholderData: Uses previous data while loading new data
  */
-const buildCountQuery = (options?: UseVariablesOptions) => ({
-	queryKey: variableKeys.filteredCount(options),
-	queryFn: async () => {
-		const body = options?.variables ? { variables: options.variables } : {};
-		const response = await getQueryService().POST("/variables/count", {
-			body,
-		});
-		return response.data;
-	},
-	staleTime: 1000,
-	placeholderData: keepPreviousData,
-});
+export const buildCountQuery = (options?: UseVariablesOptions) =>
+	queryOptions({
+		queryKey: variableKeys.filteredCount(options),
+		queryFn: async () => {
+			const body = options?.variables ? { variables: options.variables } : {};
+			const response = await getQueryService().POST("/variables/count", {
+				body,
+			});
+			return response.data;
+		},
+		staleTime: 1000,
+		placeholderData: keepPreviousData,
+	});
 
 /**
  * Hook for fetching and managing variables data with filtering, pagination, and counts
@@ -182,11 +183,6 @@ useVariables.loader = ({
 		context.queryClient.ensureQueryData(buildCountQuery()),
 	]);
 
-type UseCreateVariableOptions = {
-	onSuccess: () => void;
-	onError: (error: Error) => void;
-};
-
 /**
  * Hook for creating a new variable
  *
@@ -197,7 +193,14 @@ type UseCreateVariableOptions = {
  *
  * @example
  * ```ts
- * const { createVariable, isLoading } = useCreateVariable({
+ * const { createVariable, isLoading } = useCreateVariable();
+ *
+ * // Create a new variable
+ * createVariable({
+ *   name: 'MY_VARIABLE',
+ *   value: 'secret-value',
+ *   tags: ['production', 'secrets']
+ * }, {
  *   onSuccess: () => {
  *     // Handle successful creation
  *     console.log('Variable created successfully');
@@ -207,21 +210,10 @@ type UseCreateVariableOptions = {
  *     console.error('Failed to create variable:', error);
  *   }
  * });
- *
- * // Create a new variable
- * createVariable({
- *   name: 'MY_VARIABLE',
- *   value: 'secret-value',
- *   tags: ['production', 'secrets']
- * });
  * ```
  */
-export const useCreateVariable = ({
-	onSuccess,
-	onError,
-}: UseCreateVariableOptions) => {
+export const useCreateVariable = () => {
 	const queryClient = useQueryClient();
-	const { toast } = useToast();
 
 	const { mutate: createVariable, ...rest } = useMutation({
 		mutationFn: (variable: components["schemas"]["VariableCreate"]) => {
@@ -231,24 +223,12 @@ export const useCreateVariable = ({
 		},
 		onSettled: async () => {
 			return await queryClient.invalidateQueries({
-				predicate: (query) => startsWith(query.queryKey, variableKeys.all),
+				queryKey: variableKeys.all,
 			});
 		},
-		onSuccess: () => {
-			toast({
-				title: "Variable created",
-			});
-			onSuccess();
-		},
-		onError,
 	});
 
 	return { createVariable, ...rest };
-};
-
-type UseUpdateVariableProps = {
-	onSuccess: () => void;
-	onError: (error: Error) => void;
 };
 
 type VariableUpdateWithId = components["schemas"]["VariableUpdate"] & {
@@ -265,14 +245,7 @@ type VariableUpdateWithId = components["schemas"]["VariableUpdate"] & {
  *
  * @example
  * ```ts
- * const { updateVariable } = useUpdateVariable({
- *   onSuccess: () => {
- *     // Handle successful update
- *   },
- *   onError: (error) => {
- *     console.error('Failed to update variable:', error);
- *   }
- * });
+ * const { updateVariable } = useUpdateVariable();
  *
  * // Update an existing variable
  * updateVariable({
@@ -280,15 +253,18 @@ type VariableUpdateWithId = components["schemas"]["VariableUpdate"] & {
  *   name: 'UPDATED_NAME',
  *   value: 'new-value',
  *   tags: ['production']
+ * }, {
+ *   onSuccess: () => {
+ *     // Handle successful update
+ *   },
+ *   onError: (error) => {
+ *     console.error('Failed to update variable:', error);
+ *   }
  * });
  * ```
  */
-export const useUpdateVariable = ({
-	onSuccess,
-	onError,
-}: UseUpdateVariableProps) => {
+export const useUpdateVariable = () => {
 	const queryClient = useQueryClient();
-	const { toast } = useToast();
 
 	const { mutate: updateVariable, ...rest } = useMutation({
 		mutationFn: (variable: VariableUpdateWithId) => {
@@ -300,17 +276,48 @@ export const useUpdateVariable = ({
 		},
 		onSettled: async () => {
 			return await queryClient.invalidateQueries({
-				predicate: (query) => startsWith(query.queryKey, variableKeys.all),
+				queryKey: variableKeys.all,
 			});
 		},
-		onSuccess: () => {
-			toast({
-				title: "Variable updated",
-			});
-			onSuccess();
-		},
-		onError,
 	});
 
 	return { updateVariable, ...rest };
+};
+
+/**
+ * Hook for deleting a variable
+ *
+ * @returns Mutation object for deleting a variable with loading/error states and trigger function
+ *
+ * @example
+ * ```ts
+ * const { deleteVariable } = useDeleteVariable();
+ *
+ * // Delete a variable by ID
+ * deleteVariable('variable-id-to-delete', {
+ *   onSuccess: () => {
+ *     // Handle successful deletion
+ *   },
+ *   onError: (error) => {
+ *     console.error('Failed to delete variable:', error);
+ *   }
+ * });
+ * ```
+ */
+export const useDeleteVariable = () => {
+	const queryClient = useQueryClient();
+
+	const { mutate: deleteVariable, ...rest } = useMutation({
+		mutationFn: async (id: string) =>
+			await getQueryService().DELETE("/variables/{id}", {
+				params: { path: { id } },
+			}),
+		onSettled: async () => {
+			return await queryClient.invalidateQueries({
+				queryKey: variableKeys.all,
+			});
+		},
+	});
+
+	return { deleteVariable, ...rest };
 };
