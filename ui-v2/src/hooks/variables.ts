@@ -1,12 +1,12 @@
 import type { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
 import {
+	type QueryClient,
+	keepPreviousData,
 	queryOptions,
 	useMutation,
-	useQueryClient,
 	useQueries,
-	keepPreviousData,
-	type QueryClient,
+	useQueryClient,
 } from "@tanstack/react-query";
 
 type UseVariablesOptions =
@@ -52,7 +52,7 @@ const variableKeys: VariableKeys = {
  *  - staleTime: How long the data should be considered fresh (1 second)
  *  - placeholderData: Uses previous data while loading new data
  */
-const buildVariablesQuery = (options: UseVariablesOptions) =>
+export const buildVariablesQuery = (options: UseVariablesOptions) =>
 	queryOptions({
 		queryKey: variableKeys.filtered(options),
 		queryFn: async () => {
@@ -74,7 +74,7 @@ const buildVariablesQuery = (options: UseVariablesOptions) =>
  *  - staleTime: How long the data should be considered fresh (1 second)
  *  - placeholderData: Uses previous data while loading new data
  */
-const buildCountQuery = (options?: UseVariablesOptions) =>
+export const buildCountQuery = (options?: UseVariablesOptions) =>
 	queryOptions({
 		queryKey: variableKeys.filteredCount(options),
 		queryFn: async () => {
