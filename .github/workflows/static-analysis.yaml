@@ -67,3 +67,29 @@ jobs:
       - name: Run pre-commit
         run: |
           pre-commit run --show-diff-on-failure --color=always --all-files
+
+  type-completeness-check:
+    name: Type completeness check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        id: setup_python
+        with:
+          python-version: "3.12"
+
+      - name: Install packages
+        run: |
+          output=$(uv tool run pyright --verifytypes prefect --ignoreexternal --outputjson)
+          score=$(echo "$output" | jq -r '.typeCompleteness.completenessScore')
+          echo "Type completeness score: $score"
