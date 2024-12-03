@@ -82,7 +82,6 @@ def test_global_configs():
 
 
 def test_from_profiles_yml_default_profile_target(mock_load_profiles):
-    """Test loading with default profile and target"""
     target_configs = TargetConfigs.from_profiles_yml()
 
     assert target_configs.type == "duckdb"
@@ -92,7 +91,6 @@ def test_from_profiles_yml_default_profile_target(mock_load_profiles):
 
 
 def test_from_profiles_yml_explicit_profile_target(mock_load_profiles):
-    """Test loading with explicitly specified profile and target"""
     target_configs = TargetConfigs.from_profiles_yml(
         profile_name="other_project", target_name="dev"
     )
@@ -104,13 +102,11 @@ def test_from_profiles_yml_explicit_profile_target(mock_load_profiles):
 
 
 def test_from_profiles_yml_invalid_profile(mock_load_profiles):
-    """Test error when invalid profile name provided"""
     with pytest.raises(ValueError, match="Profile invalid_profile not found"):
         TargetConfigs.from_profiles_yml(profile_name="invalid_profile")
 
 
 def test_from_profiles_yml_invalid_target(mock_load_profiles):
-    """Test error when invalid target name provided"""
     with pytest.raises(ValueError, match="Target invalid_target not found"):
         TargetConfigs.from_profiles_yml(
             profile_name="jaffle_shop", target_name="invalid_target"
@@ -118,14 +114,12 @@ def test_from_profiles_yml_invalid_target(mock_load_profiles):
 
 
 def test_from_profiles_yml_no_outputs(mock_load_profiles):
-    """Test error when profile has no outputs section"""
     mock_load_profiles.return_value = {"broken": {"some_other_key": {}}}
     with pytest.raises(ValueError, match="No outputs found in profile broken"):
         TargetConfigs.from_profiles_yml(profile_name="broken")
 
 
 def test_from_profiles_yml_no_schema(mock_load_profiles):
-    """Test error when target has no schema or equivalent field"""
     mock_load_profiles.return_value = {
         "test": {
             "outputs": {
@@ -143,7 +137,6 @@ def test_from_profiles_yml_no_schema(mock_load_profiles):
 
 
 def test_from_profiles_yml_alternative_schema_keys(mock_load_profiles):
-    """Test that alternative schema keys (dataset, database) work"""
     mock_profiles = {
         "test": {
             "outputs": {
