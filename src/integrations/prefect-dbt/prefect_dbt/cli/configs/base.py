@@ -166,6 +166,8 @@ class TargetConfigs(BaseTargetConfigs):
                          If None, uses the first target in the selected profile.
             profiles_dir: Path to the directory containing profiles.yml.
                          If None, uses the default profiles directory.
+            allow_field_overrides: If enabled, fields from dbt target configs
+                         will override fields provided in extras and credentials.
 
         Returns:
             A TargetConfigs instance populated from the profiles.yml target.
@@ -212,7 +214,11 @@ class TargetConfigs(BaseTargetConfigs):
             raise ValueError(f"No schema found. Expected one of: {possible_keys}")
         threads = target_config.pop("threads", 4)
         return cls(
-            type=type, schema=schema, threads=threads, extras=target_config or None
+            type=type,
+            schema=schema,
+            threads=threads,
+            extras=target_config or None,
+            allow_field_overrides=allow_field_overrides,
         )
 
 
