@@ -378,6 +378,7 @@ class EngineContext(RunContext):
                 "persist_result",
             },
             exclude_unset=True,
+            serialize_as_any=True,
         )
 
 
@@ -418,6 +419,7 @@ class TaskRunContext(RunContext):
                 "persist_result",
             },
             exclude_unset=True,
+            serialize_as_any=True,
         )
 
 

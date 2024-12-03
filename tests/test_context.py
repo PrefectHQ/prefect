@@ -1,5 +1,7 @@
 import textwrap
+import uuid
 from contextvars import ContextVar
+from typing import cast
 from unittest.mock import MagicMock
 
 import pytest
@@ -24,6 +26,7 @@ from prefect.context import (
     use_profile,
 )
 from prefect.exceptions import MissingContextError
+from prefect.filesystems import LocalFileSystem
 from prefect.results import ResultStore, get_result_store
 from prefect.settings import (
     PREFECT_API_KEY,
@@ -542,6 +545,49 @@ class TestHydratedContext:
             future = hydrated_flow_run_context.task_runner.submit(bar, parameters={})
             assert future.result() == 42
 
+    async def test_with_flow_run_context_with_custom_result_store(
+        self, prefect_client, flow_run, tmp_path
+    ):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/15783
+        """
+        block = LocalFileSystem(basepath=str(tmp_path / "test"))
+        await block.save(f"test-{uuid.uuid4()}")
+
+        @flow(result_storage=block)
+        def foo():
+            pass
+
+        test_task_runner = ThreadPoolTaskRunner()
+        flow_run = await prefect_client.create_flow_run(foo, state=Running())
+        result_store = await ResultStore().update_for_flow(foo)
+
+        flow_run_context = FlowRunContext(
+            flow=foo,
+            flow_run=flow_run,
+            client=prefect_client,
+            task_runner=test_task_runner,
+            result_store=result_store,
+            parameters={"x": "y"},
+        )
+
+        with hydrated_context(
+            {
+                "flow_run_context": flow_run_context.serialize(),
+            }
+        ):
+            hydrated_flow_run_context = FlowRunContext.get()
+            assert hydrated_flow_run_context
+            assert hydrated_flow_run_context.result_store is not None
+            assert hydrated_flow_run_context.result_store.result_storage is not None
+            assert (
+                cast(
+                    LocalFileSystem,
+                    hydrated_flow_run_context.result_store.result_storage,
+                ).basepath
+                == block.basepath
+            )
+
     async def test_with_task_run_context(self, prefect_client, flow_run):
         @task
         def bar():
@@ -569,6 +615,46 @@ class TestHydratedContext:
             assert hydrated_task_ctx.result_store is not None
             assert isinstance(hydrated_task_ctx.start_time, DateTime)
             assert hydrated_task_ctx.parameters == {"foo": "bar"}
+
+    async def test_with_task_run_context_with_custom_result_store(
+        self, prefect_client, flow_run, tmp_path
+    ):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/15783
+        """
+        block = LocalFileSystem(basepath=str(tmp_path / "test"))
+        await block.save(f"test-{uuid.uuid4()}")
+
+        @task(result_storage=block)
+        def bar():
+            pass
+
+        task_run = await prefect_client.create_task_run(
+            bar, flow_run.id, dynamic_key=""
+        )
+        task_ctx = TaskRunContext(
+            task=bar,
+            task_run=task_run,
+            client=prefect_client,
+            result_store=await get_result_store().update_for_task(bar),
+            parameters={"foo": "bar"},
+        )
+
+        with hydrated_context(
+            {
+                "task_run_context": task_ctx.serialize(),
+            }
+        ):
+            hydrated_task_ctx = TaskRunContext.get()
+            assert hydrated_task_ctx
+            assert hydrated_task_ctx.result_store is not None
+            assert hydrated_task_ctx.result_store.result_storage is not None
+            assert (
+                cast(
+                    LocalFileSystem, hydrated_task_ctx.result_store.result_storage
+                ).basepath
+                == block.basepath
+            )
 
     def test_with_tags_context(self):
         with hydrated_context(
