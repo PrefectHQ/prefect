@@ -15,7 +15,7 @@ To complete this tutorial, you'll need:
 - Python 3.9 or newer
 - A forever free [Prefect Cloud](https://app.prefect.cloud/) account
 
-You'll also need to clone the Prefect demo repository and install the Prefect SDK and CLI:
+You'll also need to clone the Prefect demo repository and install the prefect library:
 
 ```bash
 # Clone the demo repository
@@ -37,7 +37,7 @@ prefect --version
 
 ## Create workspaces
 
-Prefect recommends having one workspace per development environment.
+We recommend one workspace per development environment.
 In this tutorial, we'll create a production workspace and a staging workspace.
 To create a workspace on Prefect Cloud, you'll need a forever free account.
 
@@ -45,7 +45,7 @@ To create a workspace on Prefect Cloud, you'll need a forever free account.
 1. If you haven't created a workspace yet, you'll be prompted to choose a name for your workspace. 
 Name your first workspace `production`.
 
-Next, you need to create a second workspace for workflows in staging:
+Next, create a staging workspace:
 
 1. Click the workspace switcher in the sidebar
 1. Go to **Switch workspace** / **Create a new workspace**
