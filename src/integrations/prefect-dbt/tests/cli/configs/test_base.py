@@ -19,7 +19,8 @@ SAMPLE_PROFILES = {
                 "schema": "main",
                 "threads": 8,
             },
-        }
+        },
+        "target": "prod",
     },
     "other_project": {
         "outputs": {
@@ -29,7 +30,8 @@ SAMPLE_PROFILES = {
                 "schema": "analytics",
                 "threads": 4,
             }
-        }
+        },
+        "target": "dev",
     },
     "config": {"partial_parse": True},
 }
@@ -86,8 +88,8 @@ def test_from_profiles_yml_default_profile_target(mock_load_profiles):
 
     assert target_configs.type == "duckdb"
     assert target_configs.schema_ == "main"
-    assert target_configs.threads == 4
-    assert target_configs.extras == {"path": "jaffle_shop.duckdb"}
+    assert target_configs.threads == 8
+    assert target_configs.extras == {"path": "/data/prod/jaffle_shop.duckdb"}
 
 
 def test_from_profiles_yml_explicit_profile_target(mock_load_profiles):
@@ -129,7 +131,8 @@ def test_from_profiles_yml_no_schema(mock_load_profiles):
                     # Missing schema field
                     "host": "localhost",
                 }
-            }
+            },
+            "target": "dev",
         }
     }
     with pytest.raises(ValueError, match="No schema found"):
@@ -146,7 +149,8 @@ def test_from_profiles_yml_alternative_schema_keys(mock_load_profiles):
                     "dataset": "my_dataset",  # Alternative to schema
                     "project": "my_project",
                 }
-            }
+            },
+            "target": "dev",
         }
     }
     mock_load_profiles.return_value = mock_profiles

@@ -163,7 +163,7 @@ class TargetConfigs(BaseTargetConfigs):
             profile_name: Name of the profile to use from profiles.yml.
                          If None, uses the first profile.
             target_name: Name of the target to use from the profile.
-                         If None, uses the first target in the selected profile.
+                         If None, uses the default target in the selected profile.
             profiles_dir: Path to the directory containing profiles.yml.
                          If None, uses the default profiles directory.
             allow_field_overrides: If enabled, fields from dbt target configs
@@ -192,9 +192,9 @@ class TargetConfigs(BaseTargetConfigs):
 
         outputs = profile["outputs"]
 
-        # If no target specified, use first one
+        # If no target specified, use default target
         if target_name is None:
-            target_name = next(iter(outputs))
+            target_name = profile["target"]
         elif target_name not in outputs:
             raise ValueError(
                 f"Target {target_name} not found in profile {profile_name}"
