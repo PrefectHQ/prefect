@@ -98,7 +98,9 @@ Start with our [friendly tutorial](https://docs.prefect.io/tutorials) or explore
 
 ## Join the community
 
-Prefect is made possible by the fastest growing community of thousands of friendly data engineers. Join us in building a new kind of workflow system. The [Prefect Slack community](https://prefect.io/slack) is a fantastic place to learn more about Prefect, ask questions, or get help with workflow design. All community forums, including code contributions, issue discussions, and slack messages are subject to our [Code of Conduct](https://discourse.prefect.io/faq).
+Prefect is made possible by the fastest growing community of thousands of friendly data engineers. Join us in building a new kind of workflow system. 
+The [Prefect Slack community](https://prefect.io/slack) is a fantastic place to learn more about Prefect, ask questions, or get help with workflow design. 
+All community forums, including code contributions, issue discussions, and Slack messages are subject to our [Code of Conduct](https://github.com/PrefectHQ/prefect/blob/main/CODE_OF_CONDUCT.md).
 
 ## Contribute
 
