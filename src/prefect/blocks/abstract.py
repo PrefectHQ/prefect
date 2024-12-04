@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
-from logging import Logger
+from logging import Logger, LoggerAdapter
 from pathlib import Path
 from typing import (
     Any,
@@ -15,13 +15,15 @@ from typing import (
     Union,
 )
 
-from typing_extensions import Self
+from typing_extensions import Self, TypeAlias
 
 from prefect.blocks.core import Block
 from prefect.exceptions import MissingContextError
 from prefect.logging.loggers import get_logger, get_run_logger
 
 T = TypeVar("T")
+
+LoggerOrAdapter: TypeAlias = Union[Logger, LoggerAdapter]
 
 
 class CredentialsBlock(Block, ABC):
@@ -34,7 +36,7 @@ class CredentialsBlock(Block, ABC):
     """
 
     @property
-    def logger(self) -> Logger:
+    def logger(self) -> LoggerOrAdapter:
         """
         Returns a logger based on whether the CredentialsBlock
         is called from within a flow or task run context.
@@ -73,10 +75,10 @@ class NotificationBlock(Block, ABC):
     """
 
     _block_schema_capabilities = ["notify"]
-    _events_excluded_methods = Block._events_excluded_methods.default + ["notify"]
+    _events_excluded_methods = Block._events_excluded_methods + ["notify"]
 
     @property
-    def logger(self) -> Logger:
+    def logger(self) -> LoggerOrAdapter:
         """
         Returns a logger based on whether the NotificationBlock
         is called from within a flow or task run context.
@@ -123,7 +125,7 @@ class JobRun(ABC, Generic[T]):  # not a block
     """
 
     @property
-    def logger(self) -> Logger:
+    def logger(self) -> LoggerOrAdapter:
         """
         Returns a logger based on whether the JobRun
         is called from within a flow or task run context.
@@ -158,7 +160,7 @@ class JobBlock(Block, ABC):
     """
 
     @property
-    def logger(self) -> Logger:
+    def logger(self) -> LoggerOrAdapter:
         """
         Returns a logger based on whether the JobBlock
         is called from within a flow or task run context.
@@ -202,7 +204,7 @@ class DatabaseBlock(Block, ABC):
     """
 
     @property
-    def logger(self) -> Logger:
+    def logger(self) -> LoggerOrAdapter:
         """
         Returns a logger based on whether the DatabaseBlock
         is called from within a flow or task run context.
@@ -337,7 +339,7 @@ class ObjectStorageBlock(Block, ABC):
     """
 
     @property
-    def logger(self) -> Logger:
+    def logger(self) -> LoggerOrAdapter:
         """
         Returns a logger based on whether the ObjectStorageBlock
         is called from within a flow or task run context.
@@ -469,7 +471,7 @@ class SecretBlock(Block, ABC):
     """
 
     @property
-    def logger(self) -> Logger:
+    def logger(self) -> LoggerOrAdapter:
         """
         Returns a logger based on whether the SecretBlock
         is called from within a flow or task run context.
