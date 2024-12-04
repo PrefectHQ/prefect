@@ -94,6 +94,8 @@ from prefect.utilities.urls import url_for
 
 P = ParamSpec("P")
 R = TypeVar("R")
+LABELS_TRACEPARENT_KEY = "__OTEL_TRACEPARENT"
+TRACEPARENT_KEY = "traceparent"
 
 
 class FlowRunTimeoutError(TimeoutError):
@@ -660,21 +662,23 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
 
             if flow_run_ctx := FlowRunContext.get():
                 if traceparent := flow_run_ctx.flow_run.labels.get(
-                    "__OTEL_TRACEPARENT"
+                    LABELS_TRACEPARENT_KEY
                 ):
-                    propagate.get_global_textmap().inject({"traceparent": traceparent})
+                    propagate.get_global_textmap().inject(
+                        {TRACEPARENT_KEY: traceparent}
+                    )
                 else:
                     carrier = {}
                     propagate.get_global_textmap().inject(
                         carrier, context=trace.set_span_in_context(span)
                     )
-                    if carrier.get("traceparent"):
+                    if carrier.get(TRACEPARENT_KEY):
                         self.logger.info(
-                            f"Setting traceparent {carrier['traceparent']} for flow run {self.flow_run.name!r}"
+                            f"Setting traceparent {carrier[TRACEPARENT_KEY]} for flow run {self.flow_run.name!r}"
                         )
                         self.client.update_flow_run_labels(
                             flow_run_id=self.flow_run.id,
-                            labels={"__OTEL_TRACEPARENT": carrier["traceparent"]},
+                            labels={LABELS_TRACEPARENT_KEY: carrier[TRACEPARENT_KEY]},
                         )
 
             self._span = span
@@ -1251,18 +1255,20 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
 
             if flow_run_ctx := FlowRunContext.get():
                 if traceparent := flow_run_ctx.flow_run.labels.get(
-                    "__OTEL_TRACEPARENT"
+                    LABELS_TRACEPARENT_KEY
                 ):
-                    propagate.get_global_textmap().inject({"traceparent": traceparent})
+                    propagate.get_global_textmap().inject(
+                        {TRACEPARENT_KEY: traceparent}
+                    )
                 else:
                     carrier = {}
                     propagate.get_global_textmap().inject(
                         carrier, context=trace.set_span_in_context(span)
                     )
-                    if carrier.get("traceparent"):
+                    if carrier.get(TRACEPARENT_KEY):
                         self.client.update_flow_run_labels(
                             flow_run_id=self.flow_run.id,
-                            labels={"__OTEL_TRACEPARENT": carrier["traceparent"]},
+                            labels={LABELS_TRACEPARENT_KEY: carrier[TRACEPARENT_KEY]},
                         )
 
             self._span = span

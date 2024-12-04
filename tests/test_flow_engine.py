@@ -615,7 +615,7 @@ class TestFlowRetries:
         # after a flow run retry, the stale value will be pulled from the cache.
 
     async def test_flow_retry_with_no_error_in_flow_and_one_failed_child_flow(
-        self, sync_prefect_client
+        self, sync_prefect_client: SyncPrefectClient
     ):
         child_run_count = 0
         flow_run_count = 0
