@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, TypeVar, Union
 from uuid import UUID, uuid4
 
 import jsonschema
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, HttpUrl, field_validator, model_validator
 from pydantic_extra_types.pendulum_dt import DateTime
 
 import prefect.client.schemas.objects as objects
@@ -449,10 +449,10 @@ class BlockTypeCreate(ActionBaseModel):
 
     name: str = Field(default=..., description="A block type's name")
     slug: str = Field(default=..., description="A block type's slug")
-    logo_url: Optional[objects.HttpUrl] = Field(
+    logo_url: Optional[HttpUrl] = Field(
         default=None, description="Web URL for the block type's logo"
     )
-    documentation_url: Optional[objects.HttpUrl] = Field(
+    documentation_url: Optional[HttpUrl] = Field(
         default=None, description="Web URL for the block type's documentation"
     )
     description: Optional[str] = Field(
@@ -471,8 +471,8 @@ class BlockTypeCreate(ActionBaseModel):
 class BlockTypeUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a block type."""
 
-    logo_url: Optional[objects.HttpUrl] = Field(None)
-    documentation_url: Optional[objects.HttpUrl] = Field(None)
+    logo_url: Optional[HttpUrl] = Field(None)
+    documentation_url: Optional[HttpUrl] = Field(None)
     description: Optional[str] = Field(None)
     code_example: Optional[str] = Field(None)
 

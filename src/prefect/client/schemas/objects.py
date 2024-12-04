@@ -49,11 +49,6 @@ from prefect._internal.schemas.validators import (
     validate_not_negative,
     validate_parent_and_ref_diff,
 )
-from prefect.client.schemas.actions import (
-    BlockSchemaCreate,
-    BlockTypeCreate,
-    BlockTypeUpdate,
-)
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.settings import PREFECT_CLOUD_API_URL, PREFECT_CLOUD_UI_URL
 from prefect.types import (
@@ -69,6 +64,11 @@ from prefect.utilities.names import generate_slug
 from prefect.utilities.pydantic import handle_secret_render
 
 if TYPE_CHECKING:
+    from prefect.client.schemas.actions import (
+        BlockSchemaCreate,
+        BlockTypeCreate,
+        BlockTypeUpdate,
+    )
     from prefect.results import BaseResult, ResultRecordMetadata
 
 
@@ -973,7 +973,9 @@ class BlockType(ObjectBaseModel):
         default=False, description="Protected block types cannot be modified via API."
     )
 
-    def to_block_type_create(self) -> BlockTypeCreate:
+    def to_block_type_create(self) -> "BlockTypeCreate":
+        from prefect.client.schemas.actions import BlockTypeCreate
+
         return BlockTypeCreate(
             name=self.name,
             slug=self.slug,
@@ -983,7 +985,9 @@ class BlockType(ObjectBaseModel):
             code_example=self.code_example,
         )
 
-    def to_block_type_update(self) -> BlockTypeUpdate:
+    def to_block_type_update(self) -> "BlockTypeUpdate":
+        from prefect.client.schemas.actions import BlockTypeUpdate
+
         return BlockTypeUpdate(
             logo_url=self.logo_url,
             documentation_url=self.documentation_url,
@@ -1012,7 +1016,9 @@ class BlockSchema(ObjectBaseModel):
         description="Human readable identifier for the block schema",
     )
 
-    def to_block_schema_create(self) -> BlockSchemaCreate:
+    def to_block_schema_create(self) -> "BlockSchemaCreate":
+        from prefect.client.schemas.actions import BlockSchemaCreate
+
         return BlockSchemaCreate(
             fields=self.fields,
             block_type_id=self.block_type_id,
