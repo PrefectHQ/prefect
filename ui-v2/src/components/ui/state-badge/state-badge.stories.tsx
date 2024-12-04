@@ -14,7 +14,9 @@ const badgesByState: Record<components["schemas"]["StateType"], string[]> = {
 	SCHEDULED: ["Scheduled", "Late"],
 };
 
-const meta = {
+export const story: StoryObj = { name: "StateBadge" };
+
+export default {
 	title: "UI/StateBadge",
 	component: function StateBadgeStories() {
 		return (
@@ -30,9 +32,4 @@ const meta = {
 			</div>
 		);
 	},
-} satisfies Meta<typeof StateBadge>;
-
-export default meta;
-type Story = StoryObj<typeof meta>;
-
-export const States: Story = {};
+} satisfies Meta;
