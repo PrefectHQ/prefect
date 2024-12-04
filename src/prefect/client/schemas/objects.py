@@ -49,6 +49,11 @@ from prefect._internal.schemas.validators import (
     validate_not_negative,
     validate_parent_and_ref_diff,
 )
+from prefect.client.schemas.actions import (
+    BlockSchemaCreate,
+    BlockTypeCreate,
+    BlockTypeUpdate,
+)
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.settings import PREFECT_CLOUD_API_URL, PREFECT_CLOUD_UI_URL
 from prefect.types import (
@@ -968,6 +973,24 @@ class BlockType(ObjectBaseModel):
         default=False, description="Protected block types cannot be modified via API."
     )
 
+    def to_block_type_create(self) -> BlockTypeCreate:
+        return BlockTypeCreate(
+            name=self.name,
+            slug=self.slug,
+            logo_url=self.logo_url,
+            documentation_url=self.documentation_url,
+            description=self.description,
+            code_example=self.code_example,
+        )
+
+    def to_block_type_update(self) -> BlockTypeUpdate:
+        return BlockTypeUpdate(
+            logo_url=self.logo_url,
+            documentation_url=self.documentation_url,
+            description=self.description,
+            code_example=self.code_example,
+        )
+
 
 class BlockSchema(ObjectBaseModel):
     """A representation of a block schema."""
@@ -988,6 +1011,14 @@ class BlockSchema(ObjectBaseModel):
         default=DEFAULT_BLOCK_SCHEMA_VERSION,
         description="Human readable identifier for the block schema",
     )
+
+    def to_block_schema_create(self) -> BlockSchemaCreate:
+        return BlockSchemaCreate(
+            fields=self.fields,
+            block_type_id=self.block_type_id,
+            capabilities=self.capabilities,
+            version=self.version,
+        )
 
 
 class BlockDocument(ObjectBaseModel):

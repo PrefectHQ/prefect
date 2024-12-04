@@ -50,7 +50,6 @@ from prefect.client.schemas import (
     BlockType,
     BlockTypeUpdate,
 )
-from prefect.client.schemas.actions import BlockSchemaCreate, BlockTypeCreate
 from prefect.client.utilities import inject_client
 from prefect.events import emit_event
 from prefect.logging.loggers import disable_logger
@@ -1121,15 +1120,11 @@ class Block(BaseModel, ABC):
             ):
                 await _client.update_block_type(
                     block_type_id=block_type.id,
-                    block_type=BlockTypeUpdate.model_construct(
-                        **local_block_type.model_dump()
-                    ),
+                    block_type=local_block_type.to_block_type_update(),
                 )
         except prefect.exceptions.ObjectNotFound:
             block_type = await _client.create_block_type(
-                block_type=BlockTypeCreate.model_construct(
-                    **local_block_type.model_dump()
-                )
+                block_type=local_block_type.to_block_type_create()
             )
             cls._block_type_id = block_type.id
 
@@ -1140,9 +1135,9 @@ class Block(BaseModel, ABC):
             )
         except prefect.exceptions.ObjectNotFound:
             block_schema = await _client.create_block_schema(
-                block_schema=BlockSchemaCreate.model_construct(
-                    **cls._to_block_schema(block_type_id=block_type.id).model_dump()
-                )
+                block_schema=cls._to_block_schema(
+                    block_type_id=block_type.id
+                ).to_block_schema_create()
             )
 
         cls._block_schema_id = block_schema.id
