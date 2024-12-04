@@ -1,15 +1,15 @@
 import { render, screen } from "@testing-library/react";
-import { StateBadge } from "./index";
 import {
+	BanIcon,
+	CheckIcon,
 	ClockIcon,
 	PauseIcon,
-	XIcon,
-	CheckIcon,
-	ServerCrashIcon,
-	BanIcon,
 	PlayIcon,
+	ServerCrashIcon,
+	XIcon,
 } from "lucide-react";
 import { describe, expect, test } from "vitest";
+import { StateBadge } from "./index";
 
 describe("StateBadge", () => {
 	const states = [
@@ -87,7 +87,7 @@ describe("StateBadge", () => {
 				SCHEDULED: "bg-yellow-100 text-yellow-700 hover:bg-yellow-100",
 			}[type];
 
-			expect(badge?.parentElement).toHaveClass(...expectedClasses.split(" "));
+			expect(badge).toHaveClass(...expectedClasses.split(" "));
 		},
 	);
 });
