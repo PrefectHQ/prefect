@@ -881,7 +881,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
 
         if self._span:
             self._span.add_event(
-                state.name,
+                state.name or state.type,
                 {
                     "prefect.state.message": state.message or "",
                     "prefect.state.type": state.type,

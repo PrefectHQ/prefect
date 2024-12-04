@@ -7,6 +7,7 @@ import sqlalchemy as sa
 from prefect.server import models, schemas
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.schemas.core import TaskRunResult
+from prefect.types import KeyValueLabels
 
 
 class TestCreateFlowRun:
@@ -259,14 +260,14 @@ class TestUpdateFlowRun:
         """Test that flow run labels can be updated by patching existing labels"""
 
         # Create a flow run with initial labels
-        initial_labels = {"env": "test", "version": "1.0"}
+        initial_labels: KeyValueLabels = {"env": "test", "version": "1.0"}
         flow_run = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(flow_id=flow.id, labels=initial_labels),
         )
 
         # Update with new labels
-        new_labels = {"version": "2.0", "new_key": "new_value"}
+        new_labels: KeyValueLabels = {"version": "2.0", "new_key": "new_value"}
         update_success = await models.flow_runs.update_flow_run_labels(
             session=session, flow_run_id=flow_run.id, labels=new_labels
         )
@@ -276,6 +277,7 @@ class TestUpdateFlowRun:
         updated_flow_run = await models.flow_runs.read_flow_run(
             session=session, flow_run_id=flow_run.id
         )
+        assert updated_flow_run
         assert updated_flow_run.labels == {
             "prefect.flow.id": str(flow.id),
             "env": "test",  # Kept from initial labels
@@ -307,7 +309,7 @@ class TestUpdateFlowRun:
         )
 
         # Update with new labels
-        new_labels = {"env": "test", "version": "1.0"}
+        new_labels: KeyValueLabels = {"env": "test", "version": "1.0"}
         update_success = await models.flow_runs.update_flow_run_labels(
             session=session, flow_run_id=flow_run.id, labels=new_labels
         )
@@ -317,6 +319,7 @@ class TestUpdateFlowRun:
         updated_flow_run = await models.flow_runs.read_flow_run(
             session=session, flow_run_id=flow_run.id
         )
+        assert updated_flow_run
         assert updated_flow_run.labels == {
             "prefect.flow.id": str(flow.id),
             **new_labels,

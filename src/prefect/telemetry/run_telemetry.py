@@ -13,7 +13,7 @@ from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import State
 
 if TYPE_CHECKING:
-    from opentelemetry.sdk.trace import Tracer
+    from opentelemetry.trace import Tracer
 
 
 @dataclass
@@ -67,7 +67,7 @@ class RunTelemetry:
     def update_state(self, new_state: State):
         if self._span:
             self._span.add_event(
-                new_state.name,
+                new_state.name or new_state.type,
                 {
                     "prefect.state.message": new_state.message or "",
                     "prefect.state.type": new_state.type,
