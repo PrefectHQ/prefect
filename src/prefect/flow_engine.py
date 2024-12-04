@@ -24,6 +24,7 @@ from uuid import UUID
 
 from anyio import CancelScope
 from opentelemetry import propagate, trace
+from opentelemetry.propagators.textmap import Setter
 from opentelemetry.trace import Tracer, get_tracer
 from typing_extensions import ParamSpec
 
@@ -100,6 +101,10 @@ TRACEPARENT_KEY = "traceparent"
 
 class FlowRunTimeoutError(TimeoutError):
     """Raised when a flow run exceeds its defined timeout."""
+
+
+def set_otel_headers(carrier: Dict[str, str], key: str, value: str) -> None:
+    carrier[key] = value
 
 
 def load_flow_and_flow_run(flow_run_id: UUID) -> Tuple[FlowRun, Flow]:
@@ -664,8 +669,10 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                 if traceparent := flow_run_ctx.flow_run.labels.get(
                     LABELS_TRACEPARENT_KEY
                 ):
+                    carrier = {}
                     propagate.get_global_textmap().inject(
-                        {TRACEPARENT_KEY: traceparent}
+                        carrier={TRACEPARENT_KEY: traceparent},
+                        setter=cast(Setter, set_otel_headers),
                     )
                 else:
                     carrier = {}
@@ -1258,7 +1265,8 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     LABELS_TRACEPARENT_KEY
                 ):
                     propagate.get_global_textmap().inject(
-                        {TRACEPARENT_KEY: traceparent}
+                        {TRACEPARENT_KEY: traceparent},
+                        setter=cast(Setter, set_otel_headers),
                     )
                 else:
                     carrier = {}
