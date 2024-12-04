@@ -1665,7 +1665,7 @@ class AsyncPostgresORMConfiguration(BaseORMConfiguration):
         """Directory containing migrations"""
         return (
             Path(prefect.server.database.__file__).parent
-            / "migrations"
+            / "_migrations"
             / "versions"
             / "postgresql"
         )
@@ -1679,7 +1679,7 @@ class AioSqliteORMConfiguration(BaseORMConfiguration):
         """Directory containing migrations"""
         return (
             Path(prefect.server.database.__file__).parent
-            / "migrations"
+            / "_migrations"
             / "versions"
             / "sqlite"
         )

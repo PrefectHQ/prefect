@@ -1,14 +1,14 @@
+import { Icon } from "@/components/ui/icons";
 import { IconInput } from "@/components/ui/input";
 import {
 	Select,
+	SelectContent,
+	SelectItem,
 	SelectTrigger,
 	SelectValue,
-	SelectItem,
-	SelectContent,
 } from "@/components/ui/select";
 import { TagsInput } from "@/components/ui/tags-input";
 import useDebounce from "@/hooks/use-debounce";
-import { SearchIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
 type VariablesDataTableSearchProps = {
@@ -32,7 +32,7 @@ export const VariablesDataTableSearch = ({
 	return (
 		<div className="flex items-center gap-2 w-1/2 max-w-md">
 			<IconInput
-				Icon={SearchIcon}
+				Icon={() => <Icon id="Search" />}
 				placeholder="Search variables"
 				value={searchValue}
 				onChange={(e) => setSearchValue(e.target.value)}
