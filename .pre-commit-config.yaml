@@ -29,6 +29,7 @@ repos:
             src/prefect/concurrency/.*|
             src/prefect/events/.*|
             src/prefect/input/.*
+            src/prefect/blocks/.*
           )$
   - repo: local
     hooks:

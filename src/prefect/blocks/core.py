@@ -1107,6 +1107,8 @@ class Block(BaseModel, ABC):
             if field.annotation:
                 await register_blocks_in_annotation(field.annotation)
 
+        local_block_type = cls._to_block_type()
+
         try:
             block_type = await _client.read_block_type_by_slug(
                 slug=cls.get_block_type_slug()
@@ -1114,19 +1116,20 @@ class Block(BaseModel, ABC):
 
             cls._block_type_id = block_type.id
 
-            local_block_type = cls._to_block_type()
             if _should_update_block_type(
                 local_block_type=local_block_type, server_block_type=block_type
             ):
                 await _client.update_block_type(
                     block_type_id=block_type.id,
-                    block_type=BlockTypeUpdate.model_validate(
-                        local_block_type.model_dump()
+                    block_type=BlockTypeUpdate.model_construct(
+                        **local_block_type.model_dump()
                     ),
                 )
         except prefect.exceptions.ObjectNotFound:
             block_type = await _client.create_block_type(
-                block_type=BlockTypeCreate.model_validate(local_block_type.model_dump())
+                block_type=BlockTypeCreate.model_construct(
+                    **local_block_type.model_dump()
+                )
             )
             cls._block_type_id = block_type.id
 
@@ -1137,8 +1140,8 @@ class Block(BaseModel, ABC):
             )
         except prefect.exceptions.ObjectNotFound:
             block_schema = await _client.create_block_schema(
-                block_schema=BlockSchemaCreate.model_validate(
-                    cls._to_block_schema(block_type_id=block_type.id).model_dump()
+                block_schema=BlockSchemaCreate.model_construct(
+                    **cls._to_block_schema(block_type_id=block_type.id).model_dump()
                 )
             )
 
