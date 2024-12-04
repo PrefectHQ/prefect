@@ -82,8 +82,29 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Generate type completeness score
+      - name: Calculate type completeness score
         run: |
           uv tool run --with . pyright --verifytypes prefect --ignoreexternal --outputjson > prefect-analysis.json || true
-          score=$(jq -r '.typeCompleteness.completenessScore' prefect-analysis.json)
-          echo "Type completeness score: $score"
+          SCORE=$(jq -r '.typeCompleteness.completenessScore' prefect-analysis.json)
+          echo "current_score=$SCORE" >> $GITHUB_OUTPUT
+
+      - name: Checkout base branch
+        run: |
+          git checkout ${{ github.base_ref }}
+
+      - name: Calculate base branch score
+        run: |
+          uv tool run --with . pyright --verifytypes prefect --ignoreexternal --outputjson > prefect-analysis-base.json || true
+          BASE_SCORE=$(jq -r '.typeCompleteness.completenessScore' prefect-analysis-base.json)
+          echo "base_score=$BASE_SCORE" >> $GITHUB_OUTPUT
+
+      - name: Compare scores
+        run: |
+          if (( $(echo "$BASE_SCORE > $CURRENT_SCORE" | bc -l) )); then
+            echo "❌ Type completeness score has decreased from $BASE_SCORE to $CURRENT_SCORE" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else if (( $(echo "$BASE_SCORE < $CURRENT_SCORE" | bc -l) )); then
+            echo "✅ Type completeness score has increased from $BASE_SCORE to $CURRENT_SCORE" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ Type completeness score has not changed from $BASE_SCORE to $CURRENT_SCORE" >> $GITHUB_STEP_SUMMARY
+          fi
