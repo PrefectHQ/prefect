@@ -2,11 +2,13 @@
 
 import abc
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Type
 
 from pydantic import BaseModel, Field
+from typing_extensions import Self
 
 from prefect.blocks.core import Block
+from prefect_dbt.utilities import load_profiles_yml
 
 
 class DbtConfigs(Block, abc.ABC):
@@ -146,6 +148,79 @@ class TargetConfigs(BaseTargetConfigs):
     _block_type_name = "dbt CLI Target Configs"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/5zE9lxfzBHjw3tnEup4wWL/9a001902ed43a84c6c96d23b24622e19/dbt-bit_tm.png?h=250"  # noqa
     _documentation_url = "https://docs.prefect.io/integrations/prefect-dbt"  # noqa
+
+    @classmethod
+    def from_profiles_yml(
+        cls: Type[Self],
+        profile_name: Optional[str] = None,
+        target_name: Optional[str] = None,
+        profiles_dir: Optional[str] = None,
+        allow_field_overrides: bool = False,
+    ) -> "TargetConfigs":
+        """
+        Create a TargetConfigs instance from a dbt profiles.yml file.
+
+        Args:
+            profile_name: Name of the profile to use from profiles.yml.
+                If None, uses the first profile.
+            target_name: Name of the target to use from the profile.
+                If None, uses the default target in the selected profile.
+            profiles_dir: Path to the directory containing profiles.yml.
+                If None, uses the default profiles directory.
+            allow_field_overrides: If enabled, fields from dbt target configs
+                will override fields provided in extras and credentials.
+
+        Returns:
+            A TargetConfigs instance populated from the profiles.yml target.
+
+        Raises:
+            ValueError: If profiles.yml is not found or if profile/target is invalid
+        """
+        profiles = load_profiles_yml(profiles_dir)
+
+        # If no profile specified, use first non-config one
+        if profile_name is None:
+            for name in profiles:
+                if name != "config":
+                    profile_name = name
+                    break
+        elif profile_name not in profiles:
+            raise ValueError(f"Profile {profile_name} not found in profiles.yml")
+
+        profile = profiles[profile_name]
+        if "outputs" not in profile:
+            raise ValueError(f"No outputs found in profile {profile_name}")
+
+        outputs = profile["outputs"]
+
+        # If no target specified, use default target
+        if target_name is None:
+            target_name = profile["target"]
+        elif target_name not in outputs:
+            raise ValueError(
+                f"Target {target_name} not found in profile {profile_name}"
+            )
+
+        target_config = outputs[target_name]
+
+        type = target_config.pop("type")
+        schema = None
+        possible_keys = ["schema", "path", "dataset", "database"]
+        for key in possible_keys:
+            if key in target_config:
+                schema = target_config.pop(key)
+                break
+
+        if schema is None:
+            raise ValueError(f"No schema found. Expected one of: {possible_keys}")
+        threads = target_config.pop("threads", 4)
+        return cls(
+            type=type,
+            schema=schema,
+            threads=threads,
+            extras=target_config or None,
+            allow_field_overrides=allow_field_overrides,
+        )
 
 
 class GlobalConfigs(DbtConfigs):
