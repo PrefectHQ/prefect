@@ -7,7 +7,7 @@ import {
 	EmptyStateIcon,
 	EmptyStateTitle,
 } from "@/components/ui/empty-state";
-import { PlusIcon } from "lucide-react";
+import { Icon } from "@/components/ui/icons";
 
 type VariablesEmptyStateProps = {
 	onAddVariableClick: () => void;
@@ -23,7 +23,7 @@ export const VariablesEmptyState = ({
 		</EmptyStateDescription>
 		<EmptyStateActions>
 			<Button onClick={() => onAddVariableClick()}>
-				Add Variable <PlusIcon className="h-4 w-4 ml-2" />
+				Add Variable <Icon id="Plus" className="h-4 w-4 ml-2" />
 			</Button>
 			<DocsLink id="variables-guide" />
 		</EmptyStateActions>

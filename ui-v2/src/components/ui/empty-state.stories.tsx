@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
-import { PlusIcon } from "lucide-react";
+import { Icon } from "@/components/ui/icons";
 import { Button } from "./button";
 import { DocsLink } from "./docs-link";
 import {
@@ -40,7 +40,7 @@ function EmptyStateExample(): JSX.Element {
 			</EmptyStateDescription>
 			<EmptyStateActions>
 				<Button onClick={console.log}>
-					Add Variable <PlusIcon className="h-4 w-4 ml-2" />
+					Add Variable <Icon id="Plus" className="h-4 w-4 ml-2" />
 				</Button>
 				<DocsLink id="variables-guide" />
 			</EmptyStateActions>

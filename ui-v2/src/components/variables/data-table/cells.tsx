@@ -1,3 +1,5 @@
+import type { components } from "@/api/prefect";
+import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -5,20 +7,18 @@ import {
 	DropdownMenuLabel,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
-import { MoreVerticalIcon } from "lucide-react";
-import type { CellContext } from "@tanstack/react-table";
-import type { components } from "@/api/prefect";
-import { useToast } from "@/hooks/use-toast";
-import { JsonInput } from "@/components/ui/json-input";
 import {
 	HoverCard,
 	HoverCardContent,
 	HoverCardTrigger,
 } from "@/components/ui/hover-card";
-import { useRef } from "react";
+import { Icon } from "@/components/ui/icons";
+import { JsonInput } from "@/components/ui/json-input";
 import { useIsOverflowing } from "@/hooks/use-is-overflowing";
+import { useToast } from "@/hooks/use-toast";
 import { useDeleteVariable } from "@/hooks/variables";
+import type { CellContext } from "@tanstack/react-table";
+import { useRef } from "react";
 
 type ActionsCellProps = CellContext<
 	components["schemas"]["Variable"],
@@ -49,7 +49,7 @@ export const ActionsCell = ({ row, onVariableEdit }: ActionsCellProps) => {
 				<DropdownMenuTrigger asChild>
 					<Button variant="outline" className="h-8 w-8 p-0">
 						<span className="sr-only">Open menu</span>
-						<MoreVerticalIcon className="h-4 w-4" />
+						<Icon id="MoreVertical" className="h-4 w-4" />
 					</Button>
 				</DropdownMenuTrigger>
 				<DropdownMenuContent align="end">

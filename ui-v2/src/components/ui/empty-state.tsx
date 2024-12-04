@@ -1,9 +1,8 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { icons } from "lucide-react";
+import { Icon, type IconId } from "./icons";
 
-const EmptyStateIcon = ({ id }: { id: keyof typeof icons }): JSX.Element => {
-	const LucideIcon = icons[id];
-	return <LucideIcon className="h-12 w-12 text-muted-foreground mb-8" />;
+const EmptyStateIcon = ({ id }: { id: IconId }): JSX.Element => {
+	return <Icon id={id} className="h-12 w-12 text-muted-foreground mb-8" />;
 };
 const EmptyStateTitle = ({
 	children,

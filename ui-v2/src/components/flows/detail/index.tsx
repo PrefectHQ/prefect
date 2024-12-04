@@ -16,13 +16,13 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Icon } from "@/components/ui/icons";
 import { Input } from "@/components/ui/input";
 import {
 	getCoreRowModel,
 	getPaginationRowModel,
 	useReactTable,
 } from "@tanstack/react-table";
-import { ChevronDownIcon, SearchIcon } from "lucide-react";
 
 const SearchComponent = () => {
 	const navigate = useNavigate();
@@ -42,7 +42,8 @@ const SearchComponent = () => {
 					})
 				}
 			/>
-			<SearchIcon
+			<Icon
+				id="Search"
 				className="absolute left-3 top-2.5 text-muted-foreground"
 				size={18}
 			/>
@@ -57,7 +58,7 @@ const SortComponent = () => {
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
 				<Button variant="outline">
-					Sort <ChevronDownIcon className="ml-2 h-4 w-4" />
+					Sort <Icon id="ChevronDown" className="ml-2 h-4 w-4" />
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent>
