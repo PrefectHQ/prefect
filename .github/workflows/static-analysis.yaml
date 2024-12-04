@@ -100,10 +100,10 @@ jobs:
 
       - name: Compare scores
         run: |
-          if (( $(echo "$BASE_SCORE > $CURRENT_SCORE" | bc -l) )); then
+          if (( $(awk 'BEGIN {print ('$BASE_SCORE' > '$CURRENT_SCORE')}') )); then
             echo "❌ Type completeness score has decreased from $BASE_SCORE to $CURRENT_SCORE" >> $GITHUB_STEP_SUMMARY
             exit 1
-          elif (( $(echo "$BASE_SCORE < $CURRENT_SCORE" | bc -l) )); then
+          elif (( $(awk 'BEGIN {print ('$BASE_SCORE' < '$CURRENT_SCORE')}') )); then
             echo "✅ Type completeness score has increased from $BASE_SCORE to $CURRENT_SCORE" >> $GITHUB_STEP_SUMMARY
           else
             echo "✅ Type completeness score has not changed from $BASE_SCORE to $CURRENT_SCORE" >> $GITHUB_STEP_SUMMARY
