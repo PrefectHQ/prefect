@@ -7,7 +7,7 @@ import {
 	EmptyStateIcon,
 	EmptyStateTitle,
 } from "@/components/ui/empty-state";
-import { PlusIcon } from "lucide-react";
+import { Icon } from "@/components/ui/icons";
 
 type Props = {
 	onClick: () => void;
@@ -24,7 +24,7 @@ export const TaskRunConcurrencyLimitEmptyState = ({ onClick }: Props) => (
 		</EmptyStateDescription>
 		<EmptyStateActions>
 			<Button onClick={onClick}>
-				Add Concurrency Limit <PlusIcon className="h-4 w-4 ml-2" />
+				Add Concurrency Limit <Icon id="Plus" className="h-4 w-4 ml-2" />
 			</Button>
 			<DocsLink id="task-concurrency-guide" />
 		</EmptyStateActions>

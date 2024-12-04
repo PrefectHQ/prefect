@@ -17,7 +17,6 @@ except ImportError:
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.responses import MinimalConcurrencyLimitResponse
 from prefect.logging.loggers import get_run_logger
-from prefect.utilities.asyncutils import sync_compatible
 
 from .context import ConcurrencyContext
 from .events import (
@@ -79,7 +78,7 @@ async def concurrency(
 
     names = names if isinstance(names, list) else [names]
 
-    limits = await _acquire_concurrency_slots(
+    limits = await _aacquire_concurrency_slots(
         names,
         occupy,
         timeout_seconds=timeout_seconds,
@@ -95,7 +94,7 @@ async def concurrency(
     finally:
         occupancy_period = cast(Interval, (pendulum.now("UTC") - acquisition_time))
         try:
-            await _release_concurrency_slots(
+            await _arelease_concurrency_slots(
                 names, occupy, occupancy_period.total_seconds()
             )
         except anyio.get_cancelled_exc_class():
@@ -138,7 +137,7 @@ async def rate_limit(
 
     names = names if isinstance(names, list) else [names]
 
-    limits = await _acquire_concurrency_slots(
+    limits = await _aacquire_concurrency_slots(
         names,
         occupy,
         mode="rate_limit",
@@ -149,7 +148,6 @@ async def rate_limit(
     _emit_concurrency_acquisition_events(limits, occupy)
 
 
-@sync_compatible
 @deprecated_parameter(
     name="create_if_missing",
     start_date="Sep 2024",
@@ -157,10 +155,10 @@ async def rate_limit(
     when=lambda x: x is not None,
     help="Limits must be explicitly created before acquiring concurrency slots; see `strict` if you want to enforce this behavior.",
 )
-async def _acquire_concurrency_slots(
+async def _aacquire_concurrency_slots(
     names: List[str],
     slots: int,
-    mode: Union[Literal["concurrency"], Literal["rate_limit"]] = "concurrency",
+    mode: Literal["concurrency", "rate_limit"] = "concurrency",
     timeout_seconds: Optional[float] = None,
     create_if_missing: Optional[bool] = None,
     max_retries: Optional[int] = None,
@@ -199,8 +197,7 @@ async def _acquire_concurrency_slots(
     return retval
 
 
-@sync_compatible
-async def _release_concurrency_slots(
+async def _arelease_concurrency_slots(
     names: List[str], slots: int, occupancy_seconds: float
 ) -> List[MinimalConcurrencyLimitResponse]:
     async with get_client() as client:

@@ -1,26 +1,20 @@
 import type { components } from "@/api/prefect";
 import { cva } from "class-variance-authority";
-import {
-	BanIcon,
-	CheckIcon,
-	ClockIcon,
-	PauseIcon,
-	PlayIcon,
-	ServerCrashIcon,
-	XIcon,
-} from "lucide-react";
+
+import { ICONS as COMPONENT_ICONS } from "@/components/ui/icons";
+
 import { Badge } from "../badge";
 
 const ICONS = {
-	COMPLETED: CheckIcon,
-	FAILED: XIcon,
-	RUNNING: PlayIcon,
-	CANCELLED: BanIcon,
-	CANCELLING: BanIcon,
-	CRASHED: ServerCrashIcon,
-	PAUSED: PauseIcon,
-	PENDING: ClockIcon,
-	SCHEDULED: ClockIcon,
+	COMPLETED: COMPONENT_ICONS.Check,
+	FAILED: COMPONENT_ICONS.X,
+	RUNNING: COMPONENT_ICONS.Play,
+	CANCELLED: COMPONENT_ICONS.Ban,
+	CANCELLING: COMPONENT_ICONS.Ban,
+	CRASHED: COMPONENT_ICONS.ServerCrash,
+	PAUSED: COMPONENT_ICONS.Pause,
+	PENDING: COMPONENT_ICONS.Clock,
+	SCHEDULED: COMPONENT_ICONS.Clock,
 } as const satisfies Record<
 	components["schemas"]["StateType"],
 	React.ElementType
@@ -49,7 +43,6 @@ export const StateBadge = ({
 	return (
 		<Badge className={stateBadgeVariants({ state: state.type })}>
 			<Icon size={16} />
-
 			{state.name}
 		</Badge>
 	);

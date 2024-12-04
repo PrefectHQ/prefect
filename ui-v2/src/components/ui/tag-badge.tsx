@@ -1,4 +1,4 @@
-import { X } from "lucide-react";
+import { Icon } from "@/components/ui/icons";
 import { Badge, type BadgeProps } from "./badge";
 
 type TagBadgeProps = {
@@ -18,7 +18,7 @@ export const TagBadge = ({ tag, variant, onRemove }: TagBadgeProps) => {
 					className="text-muted-foreground hover:text-foreground"
 					aria-label={`Remove ${tag} tag`}
 				>
-					<X size={14} />
+					<Icon id="X" size={14} />
 				</button>
 			)}
 		</Badge>
