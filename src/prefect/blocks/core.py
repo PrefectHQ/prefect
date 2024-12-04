@@ -326,7 +326,9 @@ class Block(BaseModel, ABC):
 
     # Exclude `save` as it uses the `sync_compatible` decorator and needs to be
     # decorated directly.
-    _events_excluded_methods = ["block_initialization", "save", "dict"]
+    _events_excluded_methods: ClassVar[List[str]] = PrivateAttr(
+        default=["block_initialization", "save", "dict"]
+    )
 
     @classmethod
     def __dispatch_key__(cls):
