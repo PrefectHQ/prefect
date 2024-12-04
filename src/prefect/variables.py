@@ -73,17 +73,18 @@ class Variable(BaseModel):
                 raise ValueError(
                     f"Variable {name!r} already exists. Use `overwrite=True` to update it."
                 )
-            await client.update_variable(variable=VariableUpdate(**var_dict))
+            await client.update_variable(
+                variable=VariableUpdate.model_validate(var_dict)
+            )
             variable = await client.read_variable_by_name(name)
-            var_dict = {
-                "name": variable.name,
-                "value": variable.value,
-                "tags": variable.tags or [],
-            }
+            for key in var_dict.keys():
+                var_dict.update({key: getattr(variable, key)})
         else:
-            await client.create_variable(variable=VariableCreate(**var_dict))
+            await client.create_variable(
+                variable=VariableCreate.model_validate(var_dict)
+            )
 
-        return cls(**var_dict)
+        return cls.model_validate(var_dict)
 
     @classmethod
     @sync_compatible
