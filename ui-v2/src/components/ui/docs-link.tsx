@@ -5,6 +5,8 @@ import { Button } from "./button";
 const DOCS_LINKS = {
 	"global-concurrency-guide":
 		"https://docs.prefect.io/v3/develop/global-concurrency-limits",
+	"task-concurrency-guide":
+		"https://docs.prefect.io/v3/develop/task-run-limits",
 	"variables-guide": "https://docs.prefect.io/latest/guides/variables/",
 } as const;
 
