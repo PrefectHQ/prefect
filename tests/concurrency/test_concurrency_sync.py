@@ -5,12 +5,13 @@ from httpx import HTTPStatusError, Request, Response
 from starlette import status
 
 from prefect import flow, task
-from prefect.concurrency.asyncio import (
-    ConcurrencySlotAcquisitionError,
+from prefect.concurrency.asyncio import ConcurrencySlotAcquisitionError
+from prefect.concurrency.sync import (
     _acquire_concurrency_slots,
     _release_concurrency_slots,
+    concurrency,
+    rate_limit,
 )
-from prefect.concurrency.sync import concurrency, rate_limit
 from prefect.events.clients import AssertingEventsClient
 from prefect.events.worker import EventsWorker
 from prefect.server.schemas.core import ConcurrencyLimitV2

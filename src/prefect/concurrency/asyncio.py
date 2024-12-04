@@ -7,7 +7,6 @@ import httpx
 import pendulum
 
 from prefect._internal.compatibility.deprecated import deprecated_parameter
-from prefect.utilities.asyncutils import run_coro_as_sync
 
 try:
     from pendulum import Interval
@@ -198,25 +197,6 @@ async def _aacquire_concurrency_slots(
     return retval
 
 
-def _acquire_concurrency_slots(
-    names: List[str],
-    slots: int,
-    mode: Literal["concurrency", "rate_limit"] = "concurrency",
-    timeout_seconds: Optional[float] = None,
-    create_if_missing: Optional[bool] = None,
-    max_retries: Optional[int] = None,
-    strict: bool = False,
-) -> List[MinimalConcurrencyLimitResponse]:
-    result = run_coro_as_sync(
-        _aacquire_concurrency_slots(
-            names, slots, mode, timeout_seconds, create_if_missing, max_retries, strict
-        )
-    )
-    if result is None:
-        raise RuntimeError("Failed to acquire concurrency slots")
-    return result
-
-
 async def _arelease_concurrency_slots(
     names: List[str], slots: int, occupancy_seconds: float
 ) -> List[MinimalConcurrencyLimitResponse]:
@@ -225,17 +205,6 @@ async def _arelease_concurrency_slots(
             names=names, slots=slots, occupancy_seconds=occupancy_seconds
         )
         return _response_to_minimal_concurrency_limit_response(response)
-
-
-def _release_concurrency_slots(
-    names: List[str], slots: int, occupancy_seconds: float
-) -> List[MinimalConcurrencyLimitResponse]:
-    result = run_coro_as_sync(
-        _arelease_concurrency_slots(names, slots, occupancy_seconds)
-    )
-    if result is None:
-        raise RuntimeError("Failed to release concurrency slots")
-    return result
 
 
 def _response_to_minimal_concurrency_limit_response(
