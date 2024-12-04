@@ -81,7 +81,6 @@ def concurrency(
         create_if_missing=create_if_missing,
         strict=strict,
         max_retries=max_retries,
-        _sync=True,
     )
     acquisition_time = pendulum.now("UTC")
     emitted_events = _emit_concurrency_acquisition_events(limits, occupy)
@@ -94,7 +93,6 @@ def concurrency(
             names,
             occupy,
             occupancy_period.total_seconds(),
-            _sync=True,
         )
         _emit_concurrency_release_events(limits, occupy, emitted_events)
 
@@ -134,6 +132,5 @@ def rate_limit(
         timeout_seconds=timeout_seconds,
         create_if_missing=create_if_missing,
         strict=strict,
-        _sync=True,
     )
     _emit_concurrency_acquisition_events(limits, occupy)

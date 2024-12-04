@@ -7,8 +7,8 @@ from starlette import status
 from prefect import flow, task
 from prefect.concurrency.asyncio import (
     ConcurrencySlotAcquisitionError,
-    _acquire_concurrency_slots,
-    _release_concurrency_slots,
+    _aacquire_concurrency_slots,
+    _arelease_concurrency_slots,
     concurrency,
     rate_limit,
 )
@@ -28,12 +28,12 @@ async def test_concurrency_orchestrates_api(concurrency_limit: ConcurrencyLimitV
     assert not executed
 
     with mock.patch(
-        "prefect.concurrency.asyncio._acquire_concurrency_slots",
-        wraps=_acquire_concurrency_slots,
+        "prefect.concurrency.asyncio._aacquire_concurrency_slots",
+        wraps=_aacquire_concurrency_slots,
     ) as acquire_spy:
         with mock.patch(
-            "prefect.concurrency.asyncio._release_concurrency_slots",
-            wraps=_release_concurrency_slots,
+            "prefect.concurrency.asyncio._arelease_concurrency_slots",
+            wraps=_arelease_concurrency_slots,
         ) as release_spy:
             await resource_heavy()
 
@@ -221,12 +221,12 @@ async def test_rate_limit_orchestrates_api(
     assert not executed
 
     with mock.patch(
-        "prefect.concurrency.asyncio._acquire_concurrency_slots",
-        wraps=_acquire_concurrency_slots,
+        "prefect.concurrency.asyncio._aacquire_concurrency_slots",
+        wraps=_aacquire_concurrency_slots,
     ) as acquire_spy:
         with mock.patch(
-            "prefect.concurrency.asyncio._release_concurrency_slots",
-            wraps=_release_concurrency_slots,
+            "prefect.concurrency.asyncio._arelease_concurrency_slots",
+            wraps=_arelease_concurrency_slots,
         ) as release_spy:
             await resource_heavy()
 
@@ -377,7 +377,7 @@ async def test_rate_limit_without_limit_names(names):
         wraps=lambda *args, **kwargs: None,
     ) as acquire_spy:
         with mock.patch(
-            "prefect.concurrency.asyncio._release_concurrency_slots",
+            "prefect.concurrency.asyncio._arelease_concurrency_slots",
             wraps=lambda *args, **kwargs: None,
         ) as release_spy:
             await resource_heavy()
@@ -401,12 +401,12 @@ async def test_concurrency_creates_new_limits_if_requested(
     assert not executed
 
     with mock.patch(
-        "prefect.concurrency.asyncio._acquire_concurrency_slots",
-        wraps=_acquire_concurrency_slots,
+        "prefect.concurrency.asyncio._aacquire_concurrency_slots",
+        wraps=_aacquire_concurrency_slots,
     ) as acquire_spy:
         with mock.patch(
-            "prefect.concurrency.asyncio._release_concurrency_slots",
-            wraps=_release_concurrency_slots,
+            "prefect.concurrency.asyncio._arelease_concurrency_slots",
+            wraps=_arelease_concurrency_slots,
         ) as release_spy:
             await resource_heavy()
 
