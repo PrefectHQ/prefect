@@ -1,15 +1,10 @@
 import math
 import random
-from typing import Union
-
-_Number = Union[int, float]
 
 
 def poisson_interval(
-    average_interval: _Number,
-    lower: _Number = 0,
-    upper: _Number = 1,
-) -> _Number:
+    average_interval: float, lower: float = 0, upper: float = 1
+) -> float:
     """
     Generates an "inter-arrival time" for a Poisson process.
 
@@ -23,12 +18,12 @@ def poisson_interval(
     return -math.log(max(1 - random.uniform(lower, upper), 1e-10)) * average_interval
 
 
-def exponential_cdf(x: _Number, average_interval: _Number) -> _Number:
+def exponential_cdf(x: float, average_interval: float) -> float:
     ld = 1 / average_interval
     return 1 - math.exp(-ld * x)
 
 
-def lower_clamp_multiple(k: _Number) -> _Number:
+def lower_clamp_multiple(k: float) -> float:
     """
     Computes a lower clamp multiple that can be used to bound a random variate drawn
     from an exponential distribution.
@@ -46,8 +41,8 @@ def lower_clamp_multiple(k: _Number) -> _Number:
 
 
 def clamped_poisson_interval(
-    average_interval: _Number, clamping_factor: _Number = 0.3
-) -> _Number:
+    average_interval: float, clamping_factor: float = 0.3
+) -> float:
     """
     Bounds Poisson "inter-arrival times" to a range defined by the clamping factor.
 
@@ -66,9 +61,7 @@ def clamped_poisson_interval(
     return poisson_interval(average_interval, lower_rv, upper_rv)
 
 
-def bounded_poisson_interval(
-    lower_bound: Union[int, float], upper_bound: Union[int, float]
-) -> int:
+def bounded_poisson_interval(lower_bound: float, upper_bound: float) -> float:
     """
     Bounds Poisson "inter-arrival times" to a range.
 
@@ -80,4 +73,4 @@ def bounded_poisson_interval(
     average = (float(lower_bound) + float(upper_bound)) / 2.0
     upper_rv = exponential_cdf(upper_bound, average)
     lower_rv = exponential_cdf(lower_bound, average)
-    return int(poisson_interval(average, lower_rv, upper_rv))
+    return poisson_interval(average, lower_rv, upper_rv)
