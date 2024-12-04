@@ -15,7 +15,7 @@ def docs_path() -> Path:
 
 SKIPPED = [
     "prefect._internal",
-    "prefect.server.database.migrations",
+    "prefect.server.database._migrations",
 ]
 
 

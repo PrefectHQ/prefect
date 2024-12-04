@@ -25,9 +25,9 @@ include src/prefect/server/api/collections_data/views/*.json
 
 # Migrations
 include src/prefect/server/database/alembic.ini
-include src/prefect/server/database/migrations/*
-include src/prefect/server/database/migrations/versions/*
-include src/prefect/server/database/migrations/versions/*/*
+include src/prefect/server/database/_migrations/*
+include src/prefect/server/database/_migrations/versions/*
+include src/prefect/server/database/_migrations/versions/*/*
 
 # SQL templates
 graft src/prefect/server/database/sql
