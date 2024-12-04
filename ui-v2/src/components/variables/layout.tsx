@@ -4,7 +4,7 @@ import {
 	BreadcrumbList,
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
-import { PlusIcon } from "lucide-react";
+import { Icon } from "@/components/ui/icons";
 
 export const VariablesLayout = ({
 	onAddVariableClick,
@@ -29,7 +29,7 @@ export const VariablesLayout = ({
 					variant="outline"
 					onClick={() => onAddVariableClick()}
 				>
-					<PlusIcon className="h-4 w-4" />
+					<Icon id="Plus" className="h-4 w-4" />
 				</Button>
 			</div>
 			{children}

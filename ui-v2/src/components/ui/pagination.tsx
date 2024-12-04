@@ -1,11 +1,6 @@
+import { Icon } from "@/components/ui/icons";
 import { DotsHorizontalIcon } from "@radix-ui/react-icons";
-import {
-	ChevronsLeft,
-	ChevronsRight,
-	ChevronLeft,
-	ChevronRight,
-} from "lucide-react";
-import * as React from "react";
+
 import {
 	Button,
 	type ButtonProps,
@@ -13,6 +8,7 @@ import {
 } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Link, type LinkProps } from "@tanstack/react-router";
+import * as React from "react";
 
 type PaginationProps = React.ComponentProps<"nav"> & {
 	className?: string;
@@ -89,7 +85,7 @@ const PaginationPrevious = ({
 		className={cn("gap-1 pl-2.5", className)}
 		{...props}
 	>
-		<ChevronLeft className="h-4 w-4" />
+		<Icon id="ChevronLeft" className="h-4 w-4" />
 		<span>Previous</span>
 	</PaginationLink>
 );
@@ -106,7 +102,7 @@ const PaginationPreviousButton = ({
 		className={cn("gap-1 pl-2.5", className)}
 		{...props}
 	>
-		<ChevronLeft className="h-4 w-4" />
+		<Icon id="ChevronLeft" className="h-4 w-4" />
 	</Button>
 );
 PaginationPreviousButton.displayName = "PaginationPreviousButton";
@@ -122,7 +118,7 @@ const PaginationNext = ({
 		{...props}
 	>
 		<span>Next</span>
-		<ChevronRight className="h-4 w-4" />
+		<Icon id="ChevronRight" className="h-4 w-4" />
 	</PaginationLink>
 );
 PaginationNext.displayName = "PaginationNext";
@@ -138,7 +134,7 @@ const PaginationNextButton = ({
 		className={cn("gap-1 pr-2.5", className)}
 		{...props}
 	>
-		<ChevronRight className="h-4 w-4" />
+		<Icon id="ChevronRight" className="h-4 w-4" />
 	</Button>
 );
 PaginationNextButton.displayName = "PaginationNextButton";
@@ -173,7 +169,7 @@ const PaginationFirstButton = ({
 		className={cn("gap-1 pl-2.5", className)}
 		{...props}
 	>
-		<ChevronsLeft className="h-4 w-4" />
+		<Icon id="ChevronsLeft" className="h-4 w-4" />
 	</Button>
 );
 PaginationFirstButton.displayName = "PaginationFirstButton";
@@ -189,7 +185,7 @@ const PaginationLastButton = ({
 		className={cn("gap-1 pr-2.5", className)}
 		{...props}
 	>
-		<ChevronsRight className="h-4 w-4" />
+		<Icon id="ChevronsRight" className="h-4 w-4" />
 	</Button>
 );
 
