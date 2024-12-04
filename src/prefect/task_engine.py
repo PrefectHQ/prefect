@@ -29,6 +29,7 @@ from uuid import UUID
 
 import anyio
 import pendulum
+from opentelemetry import trace
 from typing_extensions import ParamSpec
 
 from prefect import Task
@@ -79,6 +80,7 @@ from prefect.states import (
     exception_to_failed_state,
     return_value_to_state,
 )
+from prefect.telemetry.run_telemetry import RunTelemetry
 from prefect.transactions import IsolationLevel, Transaction, transaction
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_coro_as_sync
@@ -120,6 +122,7 @@ class BaseTaskRunEngine(Generic[P, R]):
     _is_started: bool = False
     _task_name_set: bool = False
     _last_event: Optional[PrefectEvent] = None
+    _telemetry: RunTelemetry = field(default_factory=RunTelemetry)
 
     def __post_init__(self):
         if self.parameters is None:
@@ -465,7 +468,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             validated_state=self.task_run.state,
             follows=self._last_event,
         )
-
+        self._telemetry.update_state(new_state)
         return new_state
 
     def result(self, raise_on_failure: bool = True) -> "Union[R, State, None]":
@@ -519,6 +522,8 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         self.record_terminal_state_timing(terminal_state)
         self.set_state(terminal_state)
         self._return_value = result
+
+        self._telemetry.end_span_on_success(terminal_state.message)
         return result
 
     def handle_retry(self, exc: Exception) -> bool:
@@ -567,6 +572,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
     def handle_exception(self, exc: Exception) -> None:
         # If the task fails, and we have retries left, set the task to retrying.
+        self._telemetry.record_exception(exc)
         if not self.handle_retry(exc):
             # If the task has no retries left, or the retry condition is not met, set the task to failed.
             state = run_coro_as_sync(
@@ -580,6 +586,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             self.record_terminal_state_timing(state)
             self.set_state(state)
             self._raised = exc
+            self._telemetry.end_span_on_failure(state.message)
 
     def handle_timeout(self, exc: TimeoutError) -> None:
         if not self.handle_retry(exc):
@@ -603,6 +610,8 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         self.record_terminal_state_timing(state)
         self.set_state(state, force=True)
         self._raised = exc
+        self._telemetry.record_exception(exc)
+        self._telemetry.end_span_on_failure(state.message)
 
     @contextmanager
     def setup_run_context(self, client: Optional[SyncPrefectClient] = None):
@@ -660,14 +669,17 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             with SyncClientContext.get_or_create() as client_ctx:
                 self._client = client_ctx.client
                 self._is_started = True
+                flow_run_context = FlowRunContext.get()
+                parent_task_run_context = TaskRunContext.get()
+
                 try:
                     if not self.task_run:
                         self.task_run = run_coro_as_sync(
                             self.task.create_local_run(
                                 id=task_run_id,
                                 parameters=self.parameters,
-                                flow_run_context=FlowRunContext.get(),
-                                parent_task_run_context=TaskRunContext.get(),
+                                flow_run_context=flow_run_context,
+                                parent_task_run_context=parent_task_run_context,
                                 wait_for=self.wait_for,
                                 extra_task_inputs=dependencies,
                             )
@@ -684,6 +696,13 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                         self.logger.debug(
                             f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
                         )
+                        labels = (
+                            flow_run_context.flow_run.labels if flow_run_context else {}
+                        )
+                        self._telemetry.start_span(
+                            self.task_run, self.parameters, labels
+                        )
+
                         yield self
 
                 except TerminationSignal as exc:
@@ -735,11 +754,12 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
     ) -> Generator[None, None, None]:
         with self.initialize_run(task_run_id=task_run_id, dependencies=dependencies):
-            self.begin_run()
-            try:
-                yield
-            finally:
-                self.call_hooks()
+            with trace.use_span(self._telemetry._span):
+                self.begin_run()
+                try:
+                    yield
+                finally:
+                    self.call_hooks()
 
     @contextmanager
     def transaction_context(self) -> Generator[Transaction, None, None]:
@@ -987,6 +1007,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             follows=self._last_event,
         )
 
+        self._telemetry.update_state(new_state)
         return new_state
 
     async def result(self, raise_on_failure: bool = True) -> "Union[R, State, None]":
@@ -1035,6 +1056,9 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         self.record_terminal_state_timing(terminal_state)
         await self.set_state(terminal_state)
         self._return_value = result
+
+        self._telemetry.end_span_on_success(terminal_state.message)
+
         return result
 
     async def handle_retry(self, exc: Exception) -> bool:
@@ -1083,6 +1107,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
     async def handle_exception(self, exc: Exception) -> None:
         # If the task fails, and we have retries left, set the task to retrying.
+        self._telemetry.record_exception(exc)
         if not await self.handle_retry(exc):
             # If the task has no retries left, or the retry condition is not met, set the task to failed.
             state = await exception_to_failed_state(
@@ -1094,7 +1119,10 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             await self.set_state(state)
             self._raised = exc
 
+            self._telemetry.end_span_on_failure(state.message)
+
     async def handle_timeout(self, exc: TimeoutError) -> None:
+        self._telemetry.record_exception(exc)
         if not await self.handle_retry(exc):
             if isinstance(exc, TaskRunTimeoutError):
                 message = f"Task run exceeded timeout of {self.task.timeout_seconds} second(s)"
@@ -1108,6 +1136,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             )
             await self.set_state(state)
             self._raised = exc
+            self._telemetry.end_span_on_failure(state.message)
 
     async def handle_crash(self, exc: BaseException) -> None:
         state = await exception_to_crashed_state(exc)
@@ -1116,6 +1145,9 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         self.record_terminal_state_timing(state)
         await self.set_state(state, force=True)
         self._raised = exc
+
+        self._telemetry.record_exception(exc)
+        self._telemetry.end_span_on_failure(state.message)
 
     @asynccontextmanager
     async def setup_run_context(self, client: Optional[PrefectClient] = None):
@@ -1172,12 +1204,14 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             async with AsyncClientContext.get_or_create():
                 self._client = get_client()
                 self._is_started = True
+                flow_run_context = FlowRunContext.get()
+
                 try:
                     if not self.task_run:
                         self.task_run = await self.task.create_local_run(
                             id=task_run_id,
                             parameters=self.parameters,
-                            flow_run_context=FlowRunContext.get(),
+                            flow_run_context=flow_run_context,
                             parent_task_run_context=TaskRunContext.get(),
                             wait_for=self.wait_for,
                             extra_task_inputs=dependencies,
@@ -1194,6 +1228,14 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                         self.logger.debug(
                             f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
                         )
+
+                        labels = (
+                            flow_run_context.flow_run.labels if flow_run_context else {}
+                        )
+                        self._telemetry.start_span(
+                            self.task_run, self.parameters, labels
+                        )
+
                         yield self
 
                 except TerminationSignal as exc:
@@ -1247,11 +1289,12 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         async with self.initialize_run(
             task_run_id=task_run_id, dependencies=dependencies
         ):
-            await self.begin_run()
-            try:
-                yield
-            finally:
-                await self.call_hooks()
+            with trace.use_span(self._telemetry._span):
+                await self.begin_run()
+                try:
+                    yield
+                finally:
+                    await self.call_hooks()
 
     @asynccontextmanager
     async def transaction_context(self) -> AsyncGenerator[Transaction, None]:
