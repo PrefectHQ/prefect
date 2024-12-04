@@ -30,7 +30,7 @@ PARSE_API_URL_REGEX = re.compile(r"accounts/(.{36})/workspaces/(.{36})")
 def get_cloud_client(
     host: Optional[str] = None,
     api_key: Optional[str] = None,
-    httpx_settings: Optional[dict] = None,
+    httpx_settings: Optional[Dict[str, Any]] = None,
     infer_cloud_url: bool = False,
 ) -> "CloudClient":
     """
@@ -44,6 +44,9 @@ def get_cloud_client(
     else:
         configured_url = prefect.settings.PREFECT_API_URL.value()
         host = re.sub(PARSE_API_URL_REGEX, "", configured_url)
+
+    if host is None:
+        raise ValueError("Host was not provided and could not be inferred")
 
     return CloudClient(
         host=host,
@@ -176,7 +179,7 @@ class CloudClient:
         await self._client.__aenter__()
         return self
 
-    async def __aexit__(self, *exc_info):
+    async def __aexit__(self, *exc_info: Any) -> None:
         return await self._client.__aexit__(*exc_info)
 
     def __enter__(self):
@@ -188,10 +191,10 @@ class CloudClient:
     def __exit__(self, *_):
         assert False, "This should never be called but must be defined for __enter__"
 
-    async def get(self, route, **kwargs):
+    async def get(self, route: str, **kwargs: Any) -> Any:
         return await self.request("GET", route, **kwargs)
 
-    async def request(self, method, route, **kwargs):
+    async def request(self, method: str, route: str, **kwargs: Any) -> Any:
         try:
             res = await self._client.request(method, route, **kwargs)
             res.raise_for_status()
