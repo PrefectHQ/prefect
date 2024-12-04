@@ -39,13 +39,10 @@ def test_get_profiles_dir_default():
     assert get_profiles_dir() == expected
 
 
-def test_get_profiles_dir_from_env():
+def test_get_profiles_dir_from_env(monkeypatch):
     test_path = "/custom/path"
-    os.environ["DBT_PROFILES_DIR"] = test_path
-    try:
-        assert get_profiles_dir() == test_path
-    finally:
-        del os.environ["DBT_PROFILES_DIR"]
+    monkeypatch.setenv("DBT_PROFILES_DIR", test_path)
+    assert get_profiles_dir() == test_path
 
 
 def test_load_profiles_yml_success(temp_profiles_dir):

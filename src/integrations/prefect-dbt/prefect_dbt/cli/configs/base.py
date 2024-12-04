@@ -2,9 +2,10 @@
 
 import abc
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Type
 
 from pydantic import BaseModel, Field
+from typing_extensions import Self
 
 from prefect.blocks.core import Block
 from prefect_dbt.utilities import load_profiles_yml
@@ -150,7 +151,7 @@ class TargetConfigs(BaseTargetConfigs):
 
     @classmethod
     def from_profiles_yml(
-        cls,
+        cls: Type[Self],
         profile_name: Optional[str] = None,
         target_name: Optional[str] = None,
         profiles_dir: Optional[str] = None,
@@ -161,13 +162,13 @@ class TargetConfigs(BaseTargetConfigs):
 
         Args:
             profile_name: Name of the profile to use from profiles.yml.
-                         If None, uses the first profile.
+                If None, uses the first profile.
             target_name: Name of the target to use from the profile.
-                         If None, uses the default target in the selected profile.
+                If None, uses the default target in the selected profile.
             profiles_dir: Path to the directory containing profiles.yml.
-                         If None, uses the default profiles directory.
+                If None, uses the default profiles directory.
             allow_field_overrides: If enabled, fields from dbt target configs
-                         will override fields provided in extras and credentials.
+                will override fields provided in extras and credentials.
 
         Returns:
             A TargetConfigs instance populated from the profiles.yml target.
