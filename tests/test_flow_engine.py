@@ -2106,7 +2106,10 @@ class TestFlowRunInstrumentation:
 
         @flow
         def parent_flow():
-            flow_run = FlowRunContext.get().flow_run
+            flow_run_ctx = FlowRunContext.get()
+            assert flow_run_ctx
+            assert flow_run_ctx.flow_run
+            flow_run = flow_run_ctx.flow_run
             mock_traceparent = "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
             flow_run.labels["__OTEL_TRACEPARENT"] = mock_traceparent
 
@@ -2129,7 +2132,7 @@ class TestFlowRunInstrumentation:
 
         assert parent_span is not None
         assert child_span is not None
-
+        assert child_span.context and parent_span.context
         assert child_span.context.trace_id == parent_span.context.trace_id
 
     async def test_flow_run_creates_and_stores_otel_traceparent(

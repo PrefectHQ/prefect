@@ -285,7 +285,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
 
         if self._span:
             self._span.add_event(
-                state.name,
+                state.name or state.type,
                 {
                     "prefect.state.message": state.message or "",
                     "prefect.state.type": state.type,
@@ -1266,7 +1266,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                         carrier, context=trace.set_span_in_context(span)
                     )
                     if carrier.get(TRACEPARENT_KEY):
-                        self.client.update_flow_run_labels(
+                        await self.client.update_flow_run_labels(
                             flow_run_id=self.flow_run.id,
                             labels={LABELS_TRACEPARENT_KEY: carrier[TRACEPARENT_KEY]},
                         )
