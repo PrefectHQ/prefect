@@ -1502,7 +1502,7 @@ class PrefectClient:
         self,
         block_document_id: UUID,
         include_secrets: bool = True,
-    ):
+    ) -> BlockDocument:
         """
         Read the block document with the specified ID.
 

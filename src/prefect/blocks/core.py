@@ -15,11 +15,13 @@ from typing import (
     Dict,
     FrozenSet,
     List,
+    Mapping,
     Optional,
     Tuple,
     Type,
     TypeVar,
     Union,
+    cast,
     get_origin,
 )
 from uuid import UUID, uuid4
@@ -48,6 +50,7 @@ from prefect.client.schemas import (
     BlockType,
     BlockTypeUpdate,
 )
+from prefect.client.schemas.actions import BlockSchemaCreate, BlockTypeCreate
 from prefect.client.utilities import inject_client
 from prefect.events import emit_event
 from prefect.logging.loggers import disable_logger
@@ -76,6 +79,8 @@ def block_schema_to_key(schema: BlockSchema) -> str:
     """
     Defines the unique key used to lookup the Block class for a given schema.
     """
+    if schema.block_type is None:
+        raise ValueError("Block schema must have a corresponding block type")
     return f"{schema.block_type.slug}"
 
 
@@ -134,7 +139,7 @@ def _is_subclass(cls, parent_cls) -> bool:
 
 
 def _collect_secret_fields(
-    name: str, type_: Type[BaseModel], secrets: List[str]
+    name: str, type_: Union[Type[BaseModel], None], secrets: List[str]
 ) -> None:
     """
     Recursively collects all secret fields from a given type and adds them to the
@@ -145,7 +150,7 @@ def _collect_secret_fields(
         for nested_type in get_args(type_):
             _collect_secret_fields(name, nested_type, secrets)
         return
-    elif _is_subclass(type_, BaseModel):
+    elif _is_subclass(type_, BaseModel) and type_ is not None:
         for field_name, field in type_.model_fields.items():
             _collect_secret_fields(f"{name}.{field_name}", field.annotation, secrets)
         return
@@ -160,7 +165,7 @@ def _collect_secret_fields(
         # Append .* to field name to signify that all values under this
         # field are secret and should be obfuscated.
         secrets.append(f"{name}.*")
-    elif Block.is_block_class(type_):
+    elif Block.is_block_class(type_) and type_ is not None:
         secrets.extend(
             f"{name}.{s}" for s in type_.model_json_schema()["secret_fields"]
         )
@@ -237,12 +242,14 @@ def schema_extra(schema: Dict[str, Any], model: Type["Block"]):
     # create block schema references
     refs = schema["block_schema_references"] = {}
 
-    def collect_block_schema_references(field_name: str, annotation: type) -> None:
+    def collect_block_schema_references(
+        field_name: str, annotation: Union[type, None]
+    ) -> None:
         """Walk through the annotation and collect block schemas for any nested blocks."""
-        if Block.is_block_class(annotation):
+        if Block.is_block_class(annotation) and annotation is not None:
             if isinstance(refs.get(field_name), list):
                 refs[field_name].append(annotation._to_block_schema_reference_dict())
-            elif isinstance(refs.get(field_name), dict):
+            elif isinstance(refs.get(field_name), dict) and annotation is not None:
                 refs[field_name] = [
                     refs[field_name],
                     annotation._to_block_schema_reference_dict(),
@@ -512,11 +519,19 @@ class Block(BaseModel, ABC):
                     "$ref": {"block_document_id": field_value._block_document_id}
                 }
 
+        block_schema_id = block_schema_id or self._block_schema_id
+        block_type_id = block_type_id or self._block_type_id
+
+        if block_schema_id is None or block_type_id is None:
+            raise ValueError(
+                "No block schema ID or block type ID provided, either as an argument or on the block."
+            )
+
         return BlockDocument(
             id=self._block_document_id or uuid4(),
             name=(name or self._block_document_name) if not is_anonymous else None,
-            block_schema_id=block_schema_id or self._block_schema_id,
-            block_type_id=block_type_id or self._block_type_id,
+            block_schema_id=block_schema_id,
+            block_type_id=block_type_id,
             data=block_document_data,
             block_schema=self._to_block_schema(
                 block_type_id=block_type_id or self._block_type_id,
@@ -558,7 +573,7 @@ class Block(BaseModel, ABC):
         because griffe is unable to parse the types from pydantic.BaseModel.
         """
         with disable_logger("griffe"):
-            docstring = Docstring(cls.__doc__)
+            docstring = Docstring(cls.__doc__ or "")
             parsed = parse(docstring, Parser.google)
         return parsed
 
@@ -788,9 +803,10 @@ class Block(BaseModel, ABC):
         else:
             block_type_slug = cls.get_block_type_slug()
             block_document_name = name
-
         try:
-            block_document = await client.read_block_document_by_name(
+            block_document = await cast(
+                "PrefectClient", client
+            ).read_block_document_by_name(
                 name=block_document_name, block_type_slug=block_type_slug
             )
         except prefect.exceptions.ObjectNotFound as e:
@@ -802,7 +818,6 @@ class Block(BaseModel, ABC):
         return block_document, block_document_name
 
     @classmethod
-    @sync_compatible
     @inject_client
     async def _get_block_document_by_id(
         cls,
@@ -818,7 +833,7 @@ class Block(BaseModel, ABC):
                 )
 
         try:
-            block_document = await client.read_block_document(
+            block_document = await cast("PrefectClient", client).read_block_document(
                 block_document_id=block_document_id
             )
         except prefect.exceptions.ObjectNotFound:
@@ -1030,7 +1045,9 @@ class Block(BaseModel, ABC):
                     f' `{cls.__name__}.save("{block_document.name}", overwrite=True)`,'
                     " and load this block again before attempting to use it."
                 )
-                return cls.model_construct(**block_document.data, **missing_block_data)
+                return cls.model_construct(
+                    **block_document.data, **cast(Mapping, missing_block_data)
+                )
             raise RuntimeError(
                 f"Unable to load {block_document.name!r} of block type"
                 f" {cls.get_block_type_slug()!r} due to failed validation. To load without"
@@ -1066,6 +1083,7 @@ class Block(BaseModel, ABC):
                 Prefect API. A new client will be created and used if one is not
                 provided.
         """
+        _client = cast("PrefectClient", client)
         if cls.__name__ == "Block":
             raise InvalidBlockRegistration(
                 "`register_type_and_schema` should be called on a Block "
@@ -1086,10 +1104,11 @@ class Block(BaseModel, ABC):
                     await register_blocks_in_annotation(inner_annotation)
 
         for field in cls.model_fields.values():
-            await register_blocks_in_annotation(field.annotation)
+            if field.annotation:
+                await register_blocks_in_annotation(field.annotation)
 
         try:
-            block_type = await client.read_block_type_by_slug(
+            block_type = await _client.read_block_type_by_slug(
                 slug=cls.get_block_type_slug()
             )
 
@@ -1099,21 +1118,28 @@ class Block(BaseModel, ABC):
             if _should_update_block_type(
                 local_block_type=local_block_type, server_block_type=block_type
             ):
-                await client.update_block_type(
-                    block_type_id=block_type.id, block_type=local_block_type
+                await _client.update_block_type(
+                    block_type_id=block_type.id,
+                    block_type=BlockTypeUpdate.model_validate(
+                        local_block_type.model_dump()
+                    ),
                 )
         except prefect.exceptions.ObjectNotFound:
-            block_type = await client.create_block_type(block_type=cls._to_block_type())
+            block_type = await _client.create_block_type(
+                block_type=BlockTypeCreate.model_validate(local_block_type.model_dump())
+            )
             cls._block_type_id = block_type.id
 
         try:
-            block_schema = await client.read_block_schema_by_checksum(
+            block_schema = await _client.read_block_schema_by_checksum(
                 checksum=cls._calculate_schema_checksum(),
                 version=cls.get_block_schema_version(),
             )
         except prefect.exceptions.ObjectNotFound:
-            block_schema = await client.create_block_schema(
-                block_schema=cls._to_block_schema(block_type_id=block_type.id)
+            block_schema = await _client.create_block_schema(
+                block_schema=BlockSchemaCreate.model_validate(
+                    cls._to_block_schema(block_type_id=block_type.id).model_dump()
+                )
             )
 
         cls._block_schema_id = block_schema.id
@@ -1126,6 +1152,7 @@ class Block(BaseModel, ABC):
         overwrite: bool = False,
         client: Optional["PrefectClient"] = None,
     ):
+        _client = cast("PrefectClient", client)
         """
         Saves the values of a block as a block document with an option to save as an
         anonymous block document.
@@ -1156,27 +1183,28 @@ class Block(BaseModel, ABC):
         self._is_anonymous = is_anonymous
 
         # Ensure block type and schema are registered before saving block document.
-        await self.register_type_and_schema(client=client)
+        await self.register_type_and_schema(client=client)  # type: ignore[reportGeneralTypeIssues]
 
         try:
-            block_document = await client.create_block_document(
+            block_document = await _client.create_block_document(
                 block_document=self._to_block_document(name=name)
             )
         except prefect.exceptions.ObjectAlreadyExists as err:
             if overwrite:
                 block_document_id = self._block_document_id
                 if block_document_id is None:
-                    existing_block_document = await client.read_block_document_by_name(
-                        name=name, block_type_slug=self.get_block_type_slug()
+                    existing_block_document = await _client.read_block_document_by_name(
+                        name=name,  # type: ignore[reportArgumentType]
+                        block_type_slug=self.get_block_type_slug(),
                     )
                     block_document_id = existing_block_document.id
-                await client.update_block_document(
+                await _client.update_block_document(
                     block_document_id=block_document_id,
-                    block_document=self._to_block_document(
+                    block_document=self._to_block_document(  # type: ignore[reportArgumentType]
                         name=name, include_secrets=True
                     ),
                 )
-                block_document = await client.read_block_document(
+                block_document = await _client.read_block_document(
                     block_document_id=block_document_id
                 )
             else:
@@ -1220,9 +1248,9 @@ class Block(BaseModel, ABC):
         name: str,
         client: Optional["PrefectClient"] = None,
     ):
-        block_document, block_document_name = await cls._get_block_document(name)
+        block_document, _ = await cls._get_block_document(name)
 
-        await client.delete_block_document(block_document.id)
+        await cast("PrefectClient", client).delete_block_document(block_document.id)
 
     def __new__(cls: Type[Self], **kwargs) -> Self:
         """
@@ -1311,8 +1339,8 @@ class Block(BaseModel, ABC):
         self,
         *,
         mode: Union[Literal["json", "python"], str] = "python",
-        include: "IncEx" = None,
-        exclude: "IncEx" = None,
+        include: Optional["IncEx"] = None,
+        exclude: Optional["IncEx"] = None,
         context: Optional[Dict[str, Any]] = None,
         by_alias: bool = False,
         exclude_unset: bool = False,
