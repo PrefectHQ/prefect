@@ -93,11 +93,13 @@ WORKDIR /opt/prefect
 # - tini: Used in the entrypoint
 # - build-essential: Required for Python dependencies without wheels
 # - git: Required for retrieving workflows from git sources
+# - sqlite: Required for running an embedded database
 RUN apt-get update && \
     apt-get install --no-install-recommends -y \
     tini=0.19.* \
     build-essential \
     git=1:2.* \
+    sqlite3=3.40.* \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Pin the pip version
