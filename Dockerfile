@@ -14,7 +14,7 @@ ARG NODE_VERSION=16.15
 ARG EXTRA_PIP_PACKAGES=""
 
 # Build the UI distributable.
-FROM node:${NODE_VERSION}-bullseye-slim as ui-builder
+FROM node:${NODE_VERSION}-bullseye-slim AS ui-builder
 
 WORKDIR /opt/ui
 
@@ -61,7 +61,7 @@ RUN mv "dist/$(python setup.py --fullname).tar.gz" "dist/prefect.tar.gz"
 
 
 # Setup a base final image from miniconda
-FROM continuumio/miniconda3 as prefect-conda
+FROM continuumio/miniconda3 AS prefect-conda
 
 # Create a new conda environment with our required Python version
 ARG PYTHON_VERSION
@@ -76,49 +76,51 @@ SHELL ["/bin/bash", "--login", "-c"]
 
 
 # Build the final image with Prefect installed and our entrypoint configured
-FROM ${BASE_IMAGE} as final
+FROM ${BASE_IMAGE} AS final
 
-ENV LC_ALL C.UTF-8
-ENV LANG C.UTF-8
+ENV LC_ALL=C.UTF-8
+ENV LANG=C.UTF-8
 
-LABEL maintainer="help@prefect.io"
-LABEL io.prefect.python-version=${PYTHON_VERSION}
-LABEL org.label-schema.schema-version = "1.0"
-LABEL org.label-schema.name="prefect"
-LABEL org.label-schema.url="https://www.prefect.io/"
+LABEL maintainer="help@prefect.io" \
+    io.prefect.python-version=${PYTHON_VERSION} \
+    org.label-schema.schema-version="1.0" \
+    org.label-schema.name="prefect" \
+    org.label-schema.url="https://www.prefect.io/"
 
 WORKDIR /opt/prefect
 
-# Install requirements
-# - tini: Used in the entrypoint
-# - build-essential: Required for Python dependencies without wheels
-# - git: Required for retrieving workflows from git sources
+# Install system requirements
 RUN apt-get update && \
     apt-get install --no-install-recommends -y \
     tini=0.19.* \
     build-essential \
     git=1:2.* \
+    curl \
+    ca-certificates \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Pin the pip version
-RUN python -m pip install --no-cache-dir pip==24.2
+# Install UV
+ADD https://astral.sh/uv/install.sh /uv-installer.sh
+RUN sh /uv-installer.sh && rm /uv-installer.sh
+ENV PATH="/root/.local/bin:$PATH"
 
-# Install the base requirements separately so they cache
+# Install the base requirements using UV instead of pip
 COPY requirements-client.txt requirements.txt ./
-RUN pip install --upgrade --upgrade-strategy eager --no-cache-dir -r requirements.txt
+RUN uv pip install --system -r requirements.txt
 
 # Install prefect from the sdist
 COPY --from=python-builder /opt/prefect/dist ./dist
 
-# Extras to include during `pip install`. Must be wrapped in brackets, e.g. "[dev]"
-ARG PREFECT_EXTRAS=${PREFECT_EXTRAS:-""}
-RUN pip install --no-cache-dir "./dist/prefect.tar.gz${PREFECT_EXTRAS}"
+# Extras to include during installation
+ARG PREFECT_EXTRAS
+RUN uv pip install --system "./dist/prefect.tar.gz${PREFECT_EXTRAS:-""}"
 
-# Remove setuptools from the image
-RUN pip uninstall -y setuptools
+# Remove setuptools
+RUN uv pip uninstall --system setuptools
 
-ARG EXTRA_PIP_PACKAGES=${EXTRA_PIP_PACKAGES:-""}
-RUN [ -z "${EXTRA_PIP_PACKAGES}" ] || pip install --no-cache-dir "${EXTRA_PIP_PACKAGES}"
+# Install any extra packages
+ARG EXTRA_PIP_PACKAGES
+RUN [ -z "${EXTRA_PIP_PACKAGES:-""}" ] || uv pip install --system "${EXTRA_PIP_PACKAGES}"
 
 # Smoke test
 RUN prefect version
