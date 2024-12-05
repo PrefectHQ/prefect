@@ -1,5 +1,26 @@
 import { http, HttpResponse } from "msw";
 
+const globalConcurrencyLimitsHandlers = [
+	http.post("http://localhost:4200/api/v2/concurrency_limits/filter", () => {
+		return HttpResponse.json([]);
+	}),
+	http.post("http://localhost:4200/api/v2/concurrency_limits/", () => {
+		return HttpResponse.json({ status: "success" }, { status: 201 });
+	}),
+	http.patch(
+		"http://localhost:4200/api/v2/concurrency_limits/:id_or_name",
+		() => {
+			return new HttpResponse(null, { status: 204 });
+		},
+	),
+	http.delete(
+		"http://localhost:4200/api/v2/concurrency_limits/:id_or_name",
+		() => {
+			return HttpResponse.json({ status: 204 });
+		},
+	),
+];
+
 const variablesHandlers = [
 	http.post("http://localhost:4200/api/variables/", () => {
 		return HttpResponse.json({ status: "success" }, { status: 201 });
@@ -40,5 +61,6 @@ export const handlers = [
 	http.post("http://localhost:4200/api/deployments/count", () => {
 		return HttpResponse.json(1);
 	}),
+	...globalConcurrencyLimitsHandlers,
 	...variablesHandlers,
 ];
