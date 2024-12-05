@@ -1,10 +1,23 @@
-import { Bar, BarChart, Cell } from "recharts";
+import { Bar, BarChart, Cell, type TooltipProps } from "recharts";
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import type { components } from "@/api/prefect";
 import { useEffect, useRef, useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../card";
-import { ChevronRight } from "lucide-react";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "../card";
+import { Calendar, ChevronRight, Clock, Rocket } from "lucide-react";
 import { StateBadge } from "../state-badge";
+import useDebounce from "@/hooks/use-debounce";
+import { Link } from "@tanstack/react-router";
+import {
+	format,
+} from "date-fns";
+import { secondsToApproximateString } from "@/lib/duration";
+import { TagBadgeGroup } from "../tag-badge-group";
 
 interface CustomShapeProps {
 	fill?: string;
@@ -30,7 +43,7 @@ const CustomBar = (props: CustomShapeProps) => {
 		<g>
 			<rect
 				x={x}
-				y={y + height - Math.max(height, minHeight)}
+				y={y + height - Math.max(height, minHeight, width)}
 				width={width}
 				height={Math.max(height, minHeight)}
 				rx={radius[0]}
@@ -59,10 +72,12 @@ export const FlowRunActivityBarChart = ({
 	enrichedFlowRuns,
 	startDate,
 	endDate,
-	barSize = 4,
+	barSize = 8,
 	barGap = 10,
 	className,
 }: FlowRunActivityBarChartProps) => {
+	const [isTooltipActive, setIsTooltipActive] = useState(false);
+	const debouncedIsTooltipActive = useDebounce(isTooltipActive, 300);
 	const containerRef = useRef<HTMLDivElement>(null);
 	const [numberOfBars, setNumberOfBars] = useState(10);
 	useEffect(() => {
@@ -105,11 +120,28 @@ export const FlowRunActivityBarChart = ({
 				barCategoryGap={barGap}
 			>
 				<ChartTooltip
-					content={<FlowRunTooltip />}
-					position={{ y: 0 }}
+					content={
+						<FlowRunTooltip
+							onMouseEnter={() => setIsTooltipActive(true)}
+							onMouseLeave={() => setIsTooltipActive(false)}
+						/>
+					}
+					position={{
+						y: (containerRef.current?.getBoundingClientRect().height ?? 0) + 10,
+					}}
 					isAnimationActive={false}
+					allowEscapeViewBox={{ x: true, y: true }}
+					active={debouncedIsTooltipActive}
+					wrapperStyle={{ pointerEvents: "auto" }}
+					cursor={false}
 				/>
-				<Bar dataKey="value" shape={<CustomBar />} radius={[2, 2, 2, 2]}>
+				<Bar
+					dataKey="value"
+					shape={<CustomBar />}
+					radius={[5, 5, 5, 5]}
+					onMouseEnter={() => setIsTooltipActive(true)}
+					onMouseLeave={() => setIsTooltipActive(false)}
+				>
 					{data.map((entry) => (
 						<Cell
 							key={`cell-${entry.id}`}
@@ -206,23 +238,70 @@ function organizeFlowRunsWithGaps(
 	return buckets;
 }
 
+type FlowRunTooltipProps = TooltipProps<number, string> & {
+	onMouseEnter: () => void;
+	onMouseLeave: () => void;
+};
+
 const FlowRunTooltip = ({
 	payload,
-}: {
-	active?: boolean;
-	payload?: unknown[];
-}) => {
-	const flowRun = payload?.[0]?.payload?.flowRun as EnrichedFlowRun;
-	if (!flowRun) {
+	active,
+	onMouseEnter,
+	onMouseLeave,
+}: FlowRunTooltipProps) => {
+	if (!active || !payload || !payload.length) {
 		return null;
 	}
+	const nestedPayload: unknown = payload[0]?.payload;
+	if (
+		!nestedPayload ||
+		typeof nestedPayload !== "object" ||
+		!("flowRun" in nestedPayload)
+	) {
+		return null;
+	}
+	const flowRun = nestedPayload.flowRun as EnrichedFlowRun;
+	if (!flowRun || !flowRun.id) {
+		return null;
+	}
+
+	const flow = flowRun.flow;
+	if (!flow || !flow.id) {
+		return null;
+	}
+
+	const deployment = flowRun.deployment;
+	if (!deployment || !deployment.id) {
+		return null;
+	}
+
 	return (
-		<Card>
+		<Card
+			className="-translate-x-1/2"
+			onMouseEnter={() => {
+				onMouseEnter();
+			}}
+			onMouseLeave={() => {
+				onMouseLeave();
+			}}
+		>
 			<CardHeader>
 				<CardTitle className="text-lg flex items-center gap-1">
-					<span className="font-medium">{flowRun.deployment.name}</span>
+					<Link
+						to={"/flows/flow/$id"}
+						params={{ id: flow.id }}
+						className="font-medium"
+					>
+						{flowRun.flow.name}
+					</Link>
 					<ChevronRight className="w-4 h-4" />
-					<span className="font-medium">{flowRun.name}</span>
+					<Link
+						to={"/runs/flow-run/$id"}
+						params={{ id: flowRun.id }}
+						className="font-medium"
+					>
+						{flowRun.name}
+					</Link>
 				</CardTitle>
 				{flowRun.state && (
 					<CardDescription>
@@ -230,7 +309,37 @@ const FlowRunTooltip = ({
 					</CardDescription>
 				)}
 			</CardHeader>
-			<CardContent>
+			<CardContent className="flex flex-col gap-1">
+				<Link
+					to={"/deployments/deployment/$id"}
+					params={{ id: deployment.id }}
+					className="text-sm font-medium flex items-center gap-1"
+				>
+					<Rocket className="w-4 h-4" />
+					<p className="whitespace-nowrap">{deployment.name}</p>
+				</Link>
+				<span className="text-sm flex items-center gap-1">
+					<Clock className="w-4 h-4" />
+					<p className="whitespace-nowrap">
+						{secondsToApproximateString(flowRun.total_run_time)}
+					</p>
+				</span>
+				<span className="text-sm flex items-center gap-1">
+					<Calendar className="w-4 h-4" />
+					<p>
+						{flowRun.start_time
+							? format(new Date(flowRun.start_time), "yyyy/MM/dd HH:mm a")
+							: flowRun.expected_start_time
+								? format(
+										new Date(flowRun.expected_start_time),
+										"yyyy/MM/dd HH:mm",
+									)
+								: ""}
+					</p>
+				</span>
+				<div>
+					<TagBadgeGroup tags={flowRun.tags ?? []} maxTagsDisplayed={5} />
+				</div>
 			</CardContent>
 		</Card>
 	);

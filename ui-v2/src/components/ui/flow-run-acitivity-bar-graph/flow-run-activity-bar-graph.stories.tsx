@@ -5,6 +5,9 @@ import type { ComponentProps } from "react";
 import { faker } from "@faker-js/faker";
 import { startCase, lowerCase } from "lodash-es";
 
+import { RouterContextProvider } from "@tanstack/react-router";
+import { router } from "@/router";
+
 const STATE_TYPE_VALUES = [
 	"COMPLETED",
 	"FAILED",
@@ -44,14 +47,16 @@ function createRandomEnrichedFlowRun(): React.ComponentProps<
 			pause_keys: [],
 			resuming: faker.datatype.boolean(),
 		},
-		tags: [],
+		tags: Array.from({ length: faker.number.int({ min: 0, max: 3 }) }, () =>
+			faker.lorem.word(),
+		),
 		parent_task_run_id: faker.string.uuid(),
 		state_type: stateType,
 		state_name: stateName,
 		run_count: faker.number.int(),
 		start_time: faker.date.past({ years: 0.1 }).toISOString(),
-		total_run_time: faker.number.int(),
-		estimated_run_time: faker.number.int(),
+		total_run_time: faker.number.int({ min: 1, max: 100 }),
+		estimated_run_time: faker.number.int({ min: 1, max: 100 }),
 		estimated_start_time_delta: faker.number.int(),
 		auto_scheduled: faker.datatype.boolean(),
 		infrastructure_document_id: faker.string.uuid(),
@@ -72,7 +77,7 @@ function createRandomEnrichedFlowRun(): React.ComponentProps<
 		},
 		flow: {
 			id: faker.string.uuid(),
-			name: faker.string.uuid(),
+			name: `${faker.finance.currencyName()} ${faker.commerce.product()}`,
 		},
 	};
 }
@@ -80,6 +85,9 @@ function createRandomEnrichedFlowRun(): React.ComponentProps<
 export default {
 	title: "UI/FlowRunActivityBarChart",
 	component: FlowRunActivityBarChart,
+	parameters: {
+		layout: "centered",
+	},
 	args: {
 		enrichedFlowRuns: [],
 		startDate: new Date(),
@@ -90,7 +98,11 @@ export default {
 	) {
 		args.endDate = new Date(args.endDate);
 		args.startDate = new Date(args.startDate);
-		return <FlowRunActivityBarChart {...args} className="h-96" />;
+		return (
+			<RouterContextProvider router={router}>
+				<FlowRunActivityBarChart {...args} className="h-96" />
+			</RouterContextProvider>
+		);
 	},
 } satisfies Meta<typeof FlowRunActivityBarChart>;
 
