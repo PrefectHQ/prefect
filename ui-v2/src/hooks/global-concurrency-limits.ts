@@ -19,9 +19,6 @@ export type GlobalConcurrencyLimitsFilter =
  *  list  =>   ['global-concurrency-limits', 'list'] // key to match ['global-concurrency-limits', 'list', ...
  *             ['global-concurrency-limits', 'list', { ...filter1 }]
  *             ['global-concurrency-limits', 'list', { ...filter2 }]
- *  details => ['global-concurrency-limits', 'details'] // key to match ['global-concurrency-limits', 'details', ...]
- *             ['global-concurrency-limits', 'details', { ...globalConcurrencyLimit1 }]
- *             ['global-concurrency-limits', 'details', { ...globalConcurrencyLimit2 }]
  * ```
  * */
 export const queryKeyFactory = {
@@ -29,9 +26,6 @@ export const queryKeyFactory = {
 	lists: () => [...queryKeyFactory.all(), "list"] as const,
 	list: (filter: GlobalConcurrencyLimitsFilter) =>
 		[...queryKeyFactory.lists(), filter] as const,
-	details: () => [...queryKeyFactory.all(), "details"] as const,
-	detail: (id_or_name: string) =>
-		[...queryKeyFactory.details(), id_or_name] as const,
 };
 
 // ----- 🔑 Queries 🗄️
@@ -50,18 +44,6 @@ export const buildListGlobalConcurrencyLimitsQuery = (
 		},
 	});
 
-export const buildGetGlobalConcurrencyLimitQuery = (id_or_name: string) =>
-	queryOptions({
-		queryKey: queryKeyFactory.detail(id_or_name),
-		queryFn: async () => {
-			const res = await getQueryService().GET(
-				"/v2/concurrency_limits/{id_or_name}",
-				{ params: { path: { id_or_name } } },
-			);
-			return res.data ?? null;
-		},
-	});
-
 /**
  *
  * @param filter
@@ -70,14 +52,6 @@ export const buildGetGlobalConcurrencyLimitQuery = (id_or_name: string) =>
 export const useListGlobalConcurrencyLimits = (
 	filter: GlobalConcurrencyLimitsFilter,
 ) => useQuery(buildListGlobalConcurrencyLimitsQuery(filter));
-
-/**
- *
- * @param id_or_name
- * @returns details about the specified global concurrency limit as a QueryResult object
- */
-export const useGetGlobalConcurrencyLimit = (id_or_name: string) =>
-	useQuery(buildGetGlobalConcurrencyLimitQuery(id_or_name));
 
 // ----- ✍🏼 Mutations 🗄️
 // ----------------------------
@@ -208,18 +182,11 @@ export const useUpdateGlobalConcurrencyLimit = () => {
 				body,
 				params: { path: { id_or_name } },
 			}),
-		onSuccess: (_, { id_or_name }) => {
-			// After a successful creation, invalidate lists and sepecfic details queries
-			return Promise.all([
-				// list queries
-				queryClient.invalidateQueries({
-					queryKey: queryKeyFactory.lists(),
-				}),
-				// Specific limit details
-				queryClient.invalidateQueries({
-					queryKey: queryKeyFactory.detail(id_or_name),
-				}),
-			]);
+		onSuccess: () => {
+			// After a successful creation, invalidate lists queries
+			return queryClient.invalidateQueries({
+				queryKey: queryKeyFactory.lists(),
+			});
 		},
 	});
 	return {

@@ -8,7 +8,6 @@ import {
 	queryKeyFactory,
 	useCreateGlobalConcurrencyLimit,
 	useDeleteGlobalConcurrencyLimit,
-	useGetGlobalConcurrencyLimit,
 	useListGlobalConcurrencyLimits,
 	useUpdateGlobalConcurrencyLimit,
 } from "./global-concurrency-limits";
@@ -29,17 +28,6 @@ describe("global concurrency limits hooks", () => {
 		},
 	];
 
-	const seedGlobalConcurrencyLimitDetails = () => ({
-		id: "0",
-		created: "2021-01-01T00:00:00Z",
-		updated: "2021-01-01T00:00:00Z",
-		active: false,
-		name: "global concurrency limit 0",
-		limit: 0,
-		active_slots: 0,
-		slot_decay_per_second: 0,
-	});
-
 	const mockFetchGlobalConcurrencyLimitsAPI = (
 		globalConcurrencyLimits: Array<GlobalConcurrencyLimit>,
 	) => {
@@ -48,19 +36,6 @@ describe("global concurrency limits hooks", () => {
 				"http://localhost:4200/api/v2/concurrency_limits/filter",
 				() => {
 					return HttpResponse.json(globalConcurrencyLimits);
-				},
-			),
-		);
-	};
-
-	const mockFetchGlobalConcurrencyLimitDetailsAPI = (
-		globalConcurrencyLimit: GlobalConcurrencyLimit,
-	) => {
-		server.use(
-			http.get(
-				"http://localhost:4200/api/v2/concurrency_limits/:id_or_name",
-				() => {
-					return HttpResponse.json(globalConcurrencyLimit);
 				},
 			),
 		);
@@ -95,26 +70,6 @@ describe("global concurrency limits hooks", () => {
 		// ------------ Assert
 		await waitFor(() => expect(result.current.isSuccess).toBe(true));
 		expect(result.current.data).toEqual(mockList);
-	});
-
-	/**
-	 * Data Management:
-	 * - Asserts global concurrency limit details data is fetched based on the APIs invoked for the hook
-	 */
-	it("is stores details data into the appropriate details query when using useQuery()", async () => {
-		// ------------ Mock API requests when cache is empty
-		const mockDetails = seedGlobalConcurrencyLimitDetails();
-		mockFetchGlobalConcurrencyLimitDetailsAPI(mockDetails);
-
-		// ------------ Initialize hooks to test
-		const { result } = renderHook(
-			() => useGetGlobalConcurrencyLimit(mockDetails.id),
-			{ wrapper: createQueryWrapper({}) },
-		);
-
-		// ------------ Assert
-		await waitFor(() => expect(result.current.isSuccess).toBe(true));
-		expect(result.current.data).toEqual(mockDetails);
 	});
 
 	/**
@@ -256,13 +211,8 @@ describe("global concurrency limits hooks", () => {
 			limit.id === MOCK_UPDATE_LIMIT_ID ? UPDATED_LIMIT : limit,
 		);
 		mockFetchGlobalConcurrencyLimitsAPI(mockData);
-		mockFetchGlobalConcurrencyLimitDetailsAPI(UPDATED_LIMIT);
 
 		// ------------ Initialize cache
-		queryClient.setQueryData(
-			queryKeyFactory.detail(MOCK_UPDATE_LIMIT_ID),
-			seedGlobalConcurrencyLimitDetails(),
-		);
 
 		queryClient.setQueryData(
 			queryKeyFactory.list(filter),
@@ -275,10 +225,6 @@ describe("global concurrency limits hooks", () => {
 			{ wrapper: createQueryWrapper({ queryClient }) },
 		);
 
-		const { result: useGetGlobalConcurrencyLimitResult } = renderHook(
-			() => useGetGlobalConcurrencyLimit(MOCK_UPDATE_LIMIT_ID),
-			{ wrapper: createQueryWrapper({ queryClient }) },
-		);
 		const { result: useUpdateGlobalConcurrencyLimitResult } = renderHook(
 			useUpdateGlobalConcurrencyLimit,
 			{ wrapper: createQueryWrapper({ queryClient }) },
@@ -300,9 +246,7 @@ describe("global concurrency limits hooks", () => {
 				true,
 			),
 		);
-		expect(useGetGlobalConcurrencyLimitResult.current.data).toMatchObject(
-			UPDATED_LIMIT,
-		);
+
 		const limit = useListGlobalConcurrencyLimitsResult.current.data?.find(
 			(limit) => limit.id === MOCK_UPDATE_LIMIT_ID,
 		);

@@ -4,12 +4,6 @@ const globalConcurrencyLimitsHandlers = [
 	http.post("http://localhost:4200/api/v2/concurrency_limits/filter", () => {
 		return HttpResponse.json([]);
 	}),
-	http.get(
-		"http://localhost:4200/api/v2/concurrency_limits/:id_or_name",
-		() => {
-			return HttpResponse.json([]);
-		},
-	),
 	http.post("http://localhost:4200/api/v2/concurrency_limits/", () => {
 		return HttpResponse.json({ status: "success" }, { status: 201 });
 	}),
