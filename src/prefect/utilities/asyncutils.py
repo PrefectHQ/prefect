@@ -12,6 +12,7 @@ from contextvars import ContextVar, copy_context
 from functools import partial, wraps
 from typing import (
     Any,
+    AsyncGenerator,
     Awaitable,
     Callable,
     Coroutine,
@@ -410,7 +411,9 @@ def sync_compatible(
 
 
 @asynccontextmanager
-async def asyncnullcontext(value=None, *args, **kwargs):
+async def asyncnullcontext(
+    value: Optional[Any] = None, *args: Any, **kwargs: Any
+) -> AsyncGenerator[Any, None]:
     yield value
 
 

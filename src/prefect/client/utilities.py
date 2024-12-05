@@ -15,13 +15,14 @@ from typing import (
     Optional,
     Tuple,
     TypeVar,
+    Union,
     cast,
 )
 
 from typing_extensions import Concatenate, ParamSpec
 
 if TYPE_CHECKING:
-    from prefect.client.orchestration import PrefectClient
+    from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -29,7 +30,7 @@ R = TypeVar("R")
 
 def get_or_create_client(
     client: Optional["PrefectClient"] = None,
-) -> Tuple["PrefectClient", bool]:
+) -> Tuple[Union["PrefectClient", "SyncPrefectClient"], bool]:
     """
     Returns provided client, infers a client from context if available, or creates a new client.
 
@@ -48,7 +49,7 @@ def get_or_create_client(
     flow_run_context = FlowRunContext.get()
     task_run_context = TaskRunContext.get()
 
-    if async_client_context and async_client_context.client._loop == get_running_loop():
+    if async_client_context and async_client_context.client._loop == get_running_loop():  # type: ignore[reportPrivateUsage]
         return async_client_context.client, True
     elif (
         flow_run_context
@@ -72,7 +73,7 @@ def client_injector(
     @wraps(func)
     async def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
         client, _ = get_or_create_client()
-        return await func(client, *args, **kwargs)
+        return await func(cast("PrefectClient", client), *args, **kwargs)
 
     return wrapper
 
@@ -90,16 +91,18 @@ def inject_client(
 
     @wraps(fn)
     async def with_injected_client(*args: P.args, **kwargs: P.kwargs) -> R:
-        client = cast(Optional["PrefectClient"], kwargs.pop("client", None))
-        client, inferred = get_or_create_client(client)
+        client, inferred = get_or_create_client(
+            cast(Optional["PrefectClient"], kwargs.pop("client", None))
+        )
+        _client = cast("PrefectClient", client)
         if not inferred:
-            context = client
+            context = _client
         else:
             from prefect.utilities.asyncutils import asyncnullcontext
 
             context = asyncnullcontext()
         async with context as new_client:
-            kwargs.setdefault("client", new_client or client)
+            kwargs.setdefault("client", new_client or _client)
             return await fn(*args, **kwargs)
 
     return with_injected_client
