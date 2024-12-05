@@ -70,7 +70,8 @@ from prefect.states import (
     exception_to_failed_state,
     return_value_to_state,
 )
-from prefect.telemetry.run_telemetry import RunTelemetry
+from prefect.telemetry.run_telemetry import OTELSetter, RunTelemetry
+from prefect.types import KeyValueLabels
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.callables import (
@@ -93,6 +94,9 @@ from prefect.utilities.urls import url_for
 
 P = ParamSpec("P")
 R = TypeVar("R")
+
+LABELS_TRACEPARENT_KEY = "__OTEL_TRACEPARENT"
+TRACEPARENT_KEY = "traceparent"
 
 
 class FlowRunTimeoutError(TimeoutError):
@@ -133,7 +137,6 @@ class BaseFlowRunEngine(Generic[P, R]):
     short_circuit: bool = False
     _flow_run_name_set: bool = False
     _telemetry: RunTelemetry = field(default_factory=RunTelemetry)
-    _span: Optional[trace.Span] = None
 
     def __post_init__(self):
         if self.flow is None and self.flow_run_id is None:
@@ -145,21 +148,6 @@ class BaseFlowRunEngine(Generic[P, R]):
     @property
     def state(self) -> State:
         return self.flow_run.state  # type: ignore
-
-    def _end_span_on_success(self):
-        if not self._span:
-            return
-        self._span.set_status(trace.Status(trace.StatusCode.OK))
-        self._span.end(time.time_ns())
-        self._span = None
-
-    def _end_span_on_error(self, exc: BaseException, description: Optional[str]):
-        if not self._span:
-            return
-        self._span.record_exception(exc)
-        self._span.set_status(trace.Status(trace.StatusCode.ERROR, description))
-        self._span.end(time.time_ns())
-        self._span = None
 
     def is_running(self) -> bool:
         if getattr(self, "flow_run", None) is None:
@@ -328,7 +316,9 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         self.set_state(terminal_state)
         self._return_value = resolved_result
 
-        self._telemetry.end_span_on_success()
+        self._telemetry.end_span_on_success(
+            terminal_state.message if terminal_state else None
+        )
 
         return result
 
@@ -390,7 +380,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         self.set_state(state, force=True)
         self._raised = exc
         self._telemetry.record_exception(exc)
-        self._telemetry.end_span_on_failure(state.message)
+        self._telemetry.end_span_on_failure(state.message if state else None)
 
     def load_subflow_run(
         self,
@@ -634,35 +624,39 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                     flow_version=self.flow.version,
                     empirical_policy=self.flow_run.empirical_policy,
                 )
-
-            self._telemetry.start_span(
-                name=self.flow_run.name,
-                attributes={
-                    **self.flow_run.labels,
-                    "prefect.run.type": "flow",
-                    "prefect.run.id": str(self.flow_run.id),
-                    "prefect.tags": self.flow_run.tags,
-                    "prefect.flow.name": self.flow.name,
-                },
+            parent_flow_run_ctx = FlowRunContext.get()
+            parent_labels = (
+                parent_flow_run_ctx.flow_run.labels
+                if parent_flow_run_ctx and parent_flow_run_ctx.flow_run
+                else {}
+            )
+            span = self._telemetry.start_span(
+                run=self.flow_run, name=self.flow.name, parent_labels=parent_labels
             )
 
-            if flow_run_ctx := FlowRunContext.get():
-                if traceparent := flow_run_ctx.flow_run.labels.get(
-                    "__OTEL_TRACEPARENT"
+            parent_flow_run_ctx = FlowRunContext.get()
+            if parent_flow_run_ctx and parent_flow_run_ctx.flow_run:
+                if traceparent := parent_flow_run_ctx.flow_run.labels.get(
+                    LABELS_TRACEPARENT_KEY
                 ):
-                    propagate.get_global_textmap().inject({"traceparent": traceparent})
-                else:
-                    carrier = {}
                     propagate.get_global_textmap().inject(
-                        carrier, context=trace.set_span_in_context(self._telemetry.span)
+                        carrier={TRACEPARENT_KEY: traceparent},
+                        setter=OTELSetter(),
                     )
-                    if carrier.get("traceparent"):
+                else:
+                    carrier: KeyValueLabels = {}
+                    propagate.get_global_textmap().inject(
+                        carrier,
+                        context=trace.set_span_in_context(span),
+                        setter=OTELSetter(),
+                    )
+                    if carrier.get(TRACEPARENT_KEY):
                         self.logger.info(
-                            f"Setting traceparent {carrier['traceparent']} for flow run {self.flow_run.name!r}"
+                            f"__________Setting traceparent {carrier[TRACEPARENT_KEY]} for flow run {self.flow_run.name!r}"
                         )
                         self.client.update_flow_run_labels(
                             flow_run_id=self.flow_run.id,
-                            labels={"__OTEL_TRACEPARENT": carrier["traceparent"]},
+                            labels={LABELS_TRACEPARENT_KEY: carrier[TRACEPARENT_KEY]},
                         )
 
             try:
@@ -1217,22 +1211,38 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     empirical_policy=self.flow_run.empirical_policy,
                 )
 
-            self._telemetry.start_span(self.flow_run)
+            parent_flow_run_ctx = FlowRunContext.get()
+            parent_labels = (
+                parent_flow_run_ctx.flow_run.labels
+                if parent_flow_run_ctx and parent_flow_run_ctx.flow_run
+                else {}
+            )
+            span = self._telemetry.start_span(
+                run=self.flow_run, name=self.flow.name, parent_labels=parent_labels
+            )
 
-            if flow_run_ctx := FlowRunContext.get():
-                if traceparent := flow_run_ctx.flow_run.labels.get(
-                    "__OTEL_TRACEPARENT"
+            if parent_flow_run_ctx and parent_flow_run_ctx.flow_run:
+                if traceparent := parent_flow_run_ctx.flow_run.labels.get(
+                    LABELS_TRACEPARENT_KEY
                 ):
-                    propagate.get_global_textmap().inject({"traceparent": traceparent})
-                else:
-                    carrier = {}
-                    propagate.get_global_textmap().inject(
-                        carrier, context=trace.set_span_in_context(self._telemetry.span)
+                    self.logger.info(
+                        f"Propagating traceparent {traceparent} from parent flow run {parent_flow_run_ctx.flow_run.name!r} to child flow run {self.flow_run.name!r}"
                     )
-                    if carrier.get("traceparent"):
-                        self.client.update_flow_run_labels(
+                    propagate.get_global_textmap().inject(
+                        carrier={TRACEPARENT_KEY: traceparent},
+                        setter=OTELSetter(),
+                    )
+                else:
+                    carrier: KeyValueLabels = {}
+                    propagate.get_global_textmap().inject(
+                        carrier,
+                        context=trace.set_span_in_context(span),
+                        setter=OTELSetter(),
+                    )
+                    if carrier.get(TRACEPARENT_KEY):
+                        await self.client.update_flow_run_labels(
                             flow_run_id=self.flow_run.id,
-                            labels={"__OTEL_TRACEPARENT": carrier["traceparent"]},
+                            labels={LABELS_TRACEPARENT_KEY: carrier[TRACEPARENT_KEY]},
                         )
 
             try:

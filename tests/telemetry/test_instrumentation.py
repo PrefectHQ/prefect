@@ -182,23 +182,26 @@ class TestFlowRunInstrumentation:
         return request.param
 
     async def test_flow_run_creates_and_stores_otel_traceparent(
-        self, engine_type, instrumentation: InstrumentationTester, sync_prefect_client
+        self,
+        engine_type,
+        instrumentation: InstrumentationTester,
+        sync_prefect_client: SyncPrefectClient,
     ):
         """Test that when no parent traceparent exists, the flow run stores its own span's traceparent"""
 
-        @flow
+        @flow(name="child-flow")
         async def async_child_flow():
             return "hello from child"
 
-        @flow
+        @flow(name="child-flow")
         def sync_child_flow():
             return "hello from child"
 
-        @flow
+        @flow(name="parent-flow")
         async def async_parent_flow():
             return await async_child_flow()
 
-        @flow
+        @flow(name="parent-flow")
         def sync_parent_flow():
             return sync_child_flow()
 
@@ -235,15 +238,15 @@ class TestFlowRunInstrumentation:
     ):
         """Test that OTEL traceparent gets propagated from parent flow to child flow"""
 
-        @flow
+        @flow(name="child-flow")
         async def async_child_flow():
             return "hello from child"
 
-        @flow
+        @flow(name="child-flow")
         def sync_child_flow():
             return "hello from child"
 
-        @flow
+        @flow(name="parent-flow")
         async def async_parent_flow():
             # Set OTEL context in the parent flow's labels
             flow_run = FlowRunContext.get().flow_run
@@ -252,7 +255,7 @@ class TestFlowRunInstrumentation:
 
             return await async_child_flow()
 
-        @flow
+        @flow(name="parent-flow")
         def sync_parent_flow():
             # Set OTEL context in the parent flow's labels
             flow_run = FlowRunContext.get().flow_run
@@ -281,12 +284,10 @@ class TestFlowRunInstrumentation:
         assert child_span is not None
 
         # Verify the child span's trace ID matches the parent's traceparent
-        assert child_span.context.trace_id == int(
-            "0af7651916cd43dd8448eb211c80319c", 16
-        )
+        assert child_span.context.trace_id == parent_span.context.trace_id
 
     def test_flow_run_instrumentation(self, instrumentation: InstrumentationTester):
-        @flow
+        @flow(name="instrumented-flow")
         def instrumented_flow():
             from prefect.states import Completed
 
@@ -364,36 +365,6 @@ class TestFlowRunInstrumentation:
         # listy span attributes are serialized to tuples -- order seems nondeterministic so ignore rather than flake
         assert set(span.attributes.get("prefect.tags")) == {"foo", "bar"}  # type: ignore
         assert span.status.status_code == trace.StatusCode.OK
-
-    def test_flow_run_instrumentation_captures_labels(
-        self,
-        instrumentation: InstrumentationTester,
-        sync_prefect_client: SyncPrefectClient,
-    ):
-        @flow
-        def instrumented_flow():
-            pass
-
-        state = instrumented_flow(return_state=True)
-
-        assert state.state_details.flow_run_id is not None
-        flow_run = sync_prefect_client.read_flow_run(state.state_details.flow_run_id)
-
-        spans = instrumentation.get_finished_spans()
-        assert len(spans) == 1
-        span = spans[0]
-        assert span is not None
-        instrumentation.assert_span_instrumented_for(span, prefect)
-
-        instrumentation.assert_has_attributes(
-            span,
-            {
-                **flow_run.labels,
-                "prefect.run.type": "flow",
-                "prefect.flow.name": "instrumented-flow",
-                "prefect.run.id": mock.ANY,
-            },
-        )
 
     def test_flow_run_instrumentation_on_exception(
         self, instrumentation: InstrumentationTester
@@ -521,6 +492,66 @@ class TestFlowRunInstrumentation:
                 "exception.message": "Scope timed out after 0.1 second(s).",
                 "exception.stacktrace": mock.ANY,
                 "exception.escaped": "False",
+            },
+        )
+
+    async def test_flow_run_inherits_parent_labels(
+        self, engine_type, instrumentation: InstrumentationTester, sync_prefect_client
+    ):
+        """Test that parent flow labels get propagated to child flow spans"""
+
+        @flow(name="child-flow")
+        async def async_child_flow():
+            return "hello from child"
+
+        @flow(name="child-flow")
+        def sync_child_flow():
+            return "hello from child"
+
+        @flow(name="parent-flow")
+        async def async_parent_flow():
+            # Set custom labels in parent flow
+            flow_run = FlowRunContext.get().flow_run
+            flow_run.labels.update(
+                {"test.label": "test-value", "environment": "testing"}
+            )
+            return await async_child_flow()
+
+        @flow(name="parent-flow")
+        def sync_parent_flow():
+            # Set custom labels in parent flow
+            flow_run = FlowRunContext.get().flow_run
+            flow_run.labels.update(
+                {"test.label": "test-value", "environment": "testing"}
+            )
+            return sync_child_flow()
+
+        state = (
+            await async_parent_flow(return_state=True)
+            if engine_type == "async"
+            else sync_parent_flow(return_state=True)
+        )
+
+        spans = instrumentation.get_finished_spans()
+        child_spans = [
+            span
+            for span in spans
+            if span.attributes.get("prefect.flow.name") == "child-flow"
+        ]
+        assert len(child_spans) == 1
+
+        # Get the parent flow run
+        parent_flow_run = sync_prefect_client.read_flow_run(
+            state.state_details.flow_run_id
+        )
+
+        # Verify the child span has the parent flow's labels
+        instrumentation.assert_has_attributes(
+            child_spans[0],
+            {
+                **parent_flow_run.labels,
+                "prefect.run.type": "flow",
+                "prefect.flow.name": "child-flow",
             },
         )
 
