@@ -2122,12 +2122,14 @@ class TestFlowRunInstrumentation:
         parent_span = next(
             span
             for span in spans
-            if span.attributes.get("prefect.flow.name") == "parent-flow"
+            if span.attributes
+            and span.attributes.get("prefect.flow.name") == "parent-flow"
         )
         child_span = next(
             span
             for span in spans
-            if span.attributes.get("prefect.flow.name") == "child-flow"
+            if span.attributes
+            and span.attributes.get("prefect.flow.name") == "child-flow"
         )
 
         assert parent_span is not None
@@ -2155,15 +2157,18 @@ class TestFlowRunInstrumentation:
         next(
             span
             for span in spans
-            if span.attributes.get("prefect.flow.name") == "parent-flow"
+            if span.attributes
+            and span.attributes.get("prefect.flow.name") == "parent-flow"
         )
         child_span = next(
             span
             for span in spans
-            if span.attributes.get("prefect.flow.name") == "child-flow"
+            if span.attributes
+            and span.attributes.get("prefect.flow.name") == "child-flow"
         )
 
         child_flow_run_id = child_span.attributes.get("prefect.run.id")
+        assert child_flow_run_id
         child_flow_run = sync_prefect_client.read_flow_run(UUID(child_flow_run_id))
 
         assert "__OTEL_TRACEPARENT" in child_flow_run.labels

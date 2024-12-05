@@ -2,7 +2,7 @@ import asyncio
 import logging
 import os
 import time
-from contextlib import ExitStack, asynccontextmanager, contextmanager
+from contextlib import ExitStack, asynccontextmanager, contextmanager, nullcontext
 from dataclasses import dataclass, field
 from typing import (
     Any,
@@ -664,12 +664,12 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                     "prefect.flow.name": self.flow.name,
                 },
             )
+            parent_flow_run_ctx = FlowRunContext.get()
 
-            if flow_run_ctx := FlowRunContext.get():
-                if traceparent := flow_run_ctx.flow_run.labels.get(
+            if parent_flow_run_ctx and parent_flow_run_ctx.flow_run:
+                if traceparent := parent_flow_run_ctx.flow_run.labels.get(
                     LABELS_TRACEPARENT_KEY
                 ):
-                    carrier = {}
                     propagate.get_global_textmap().inject(
                         carrier={TRACEPARENT_KEY: traceparent},
                         setter=cast(Setter, set_otel_headers),
@@ -730,12 +730,13 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
 
     @contextmanager
     def start(self) -> Generator[None, None, None]:
-        with self.initialize_run(), trace.use_span(self._span):
-            self.begin_run()
+        with self.initialize_run():
+            with trace.use_span(self._span) if self._span else nullcontext():
+                self.begin_run()
 
-            if self.state.is_running():
-                self.call_hooks()
-            yield
+                if self.state.is_running():
+                    self.call_hooks()
+                yield
 
     @contextmanager
     def run_context(self):
@@ -1259,13 +1260,13 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     "prefect.flow.name": self.flow.name,
                 },
             )
-
-            if flow_run_ctx := FlowRunContext.get():
-                if traceparent := flow_run_ctx.flow_run.labels.get(
+            parent_flow_run_ctx = FlowRunContext.get()
+            if parent_flow_run_ctx and parent_flow_run_ctx.flow_run:
+                if traceparent := parent_flow_run_ctx.flow_run.labels.get(
                     LABELS_TRACEPARENT_KEY
                 ):
                     propagate.get_global_textmap().inject(
-                        {TRACEPARENT_KEY: traceparent},
+                        carrier={TRACEPARENT_KEY: traceparent},
                         setter=cast(Setter, set_otel_headers),
                     )
                 else:
@@ -1274,6 +1275,9 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                         carrier, context=trace.set_span_in_context(span)
                     )
                     if carrier.get(TRACEPARENT_KEY):
+                        self.logger.info(
+                            f"Setting traceparent {carrier[TRACEPARENT_KEY]} for flow run {self.flow_run.name!r}"
+                        )
                         await self.client.update_flow_run_labels(
                             flow_run_id=self.flow_run.id,
                             labels={LABELS_TRACEPARENT_KEY: carrier[TRACEPARENT_KEY]},
@@ -1322,7 +1326,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
     @asynccontextmanager
     async def start(self) -> AsyncGenerator[None, None]:
         async with self.initialize_run():
-            with trace.use_span(self._span):
+            with trace.use_span(self._span) if self._span else nullcontext():
                 await self.begin_run()
 
                 if self.state.is_running():
