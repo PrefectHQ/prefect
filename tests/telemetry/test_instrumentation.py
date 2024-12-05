@@ -25,7 +25,9 @@ from prefect.task_engine import (
     run_task_sync,
 )
 from prefect.telemetry.bootstrap import setup_telemetry
-from prefect.telemetry.instrumentation import extract_account_and_workspace_id
+from prefect.telemetry.instrumentation import (
+    extract_account_and_workspace_id,
+)
 from prefect.telemetry.logging import get_log_handler
 from prefect.telemetry.processors import InFlightSpanProcessor
 

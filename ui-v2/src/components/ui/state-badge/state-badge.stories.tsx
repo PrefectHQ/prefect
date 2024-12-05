@@ -1,47 +1,35 @@
+import type { components } from "@/api/prefect.ts";
 import type { Meta, StoryObj } from "@storybook/react";
 import { StateBadge } from ".";
 
-const meta = {
-	title: "UI/StateBadge",
-	component: StateBadge,
-	argTypes: {
-		state: {
-			options: [
-				"COMPLETED",
-				"FAILED",
-				"RUNNING",
-				"PENDING",
-				"PAUSED",
-				"CANCELLED",
-				"CANCELLING",
-				"CRASHED",
-				"SCHEDULED",
-				"LATE",
-			],
-			mapping: {
-				COMPLETED: { type: "COMPLETED", name: "Completed" },
-				FAILED: { type: "FAILED", name: "Failed" },
-				RUNNING: { type: "RUNNING", name: "Running" },
-				PENDING: { type: "PENDING", name: "Pending" },
-				PAUSED: { type: "PAUSED", name: "Paused" },
-				CANCELLED: { type: "CANCELLED", name: "Cancelled" },
-				CANCELLING: { type: "CANCELLING", name: "Cancelling" },
-				CRASHED: { type: "CRASHED", name: "Crashed" },
-				SCHEDULED: { type: "SCHEDULED", name: "Scheduled" },
-				LATE: { type: "SCHEDULED", name: "Late" },
-			},
-		},
-	},
-} satisfies Meta<typeof StateBadge>;
-
-export default meta;
-type Story = StoryObj<typeof meta>;
-
-export const States: Story = {
-	args: {
-		state: {
-			type: "COMPLETED",
-			name: "Completed",
-		},
-	},
+const badgesByState: Record<components["schemas"]["StateType"], string[]> = {
+	COMPLETED: ["Completed"],
+	FAILED: ["Failed"],
+	RUNNING: ["Running"],
+	PENDING: ["Pending"],
+	PAUSED: ["Paused"],
+	CANCELLED: ["Cancelled"],
+	CANCELLING: ["Cancelling"],
+	CRASHED: ["Crashed"],
+	SCHEDULED: ["Scheduled", "Late"],
 };
+
+export const story: StoryObj = { name: "StateBadge" };
+
+export default {
+	title: "UI/StateBadge",
+	component: function StateBadgeStories() {
+		return (
+			<div className="flex flex-col gap-4 items-start">
+				{Object.entries(badgesByState).map(([type, names]) =>
+					names.map((name) => (
+						<StateBadge
+							key={name}
+							state={{ type, name } as components["schemas"]["State"]}
+						/>
+					)),
+				)}
+			</div>
+		);
+	},
+} satisfies Meta;

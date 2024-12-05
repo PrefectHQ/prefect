@@ -1,67 +1,61 @@
 import { render, screen } from "@testing-library/react";
-import { StateBadge } from "./index";
-import {
-	ClockIcon,
-	PauseIcon,
-	XIcon,
-	CheckIcon,
-	ServerCrashIcon,
-	BanIcon,
-	PlayIcon,
-} from "lucide-react";
+
+import { ICONS } from "@/components/ui/icons";
+
 import { describe, expect, test } from "vitest";
+import { StateBadge } from "./index";
 
 describe("StateBadge", () => {
 	const states = [
 		{
 			type: "COMPLETED" as const,
 			name: "Completed",
-			expectedIcon: CheckIcon,
+			expectedIcon: ICONS.Check,
 		},
 		{
 			type: "FAILED" as const,
 			name: "Failed",
-			expectedIcon: XIcon,
+			expectedIcon: ICONS.X,
 		},
 		{
 			type: "RUNNING" as const,
 			name: "Running",
-			expectedIcon: PlayIcon,
+			expectedIcon: ICONS.Play,
 		},
 		{
 			type: "CANCELLED" as const,
 			name: "Cancelled",
-			expectedIcon: BanIcon,
+			expectedIcon: ICONS.Ban,
 		},
 		{
 			type: "CANCELLING" as const,
 			name: "Cancelling",
-			expectedIcon: BanIcon,
+			expectedIcon: ICONS.Ban,
 		},
 		{
 			type: "CRASHED" as const,
 			name: "Crashed",
-			expectedIcon: ServerCrashIcon,
+			expectedIcon: ICONS.ServerCrash,
 		},
 		{
 			type: "PAUSED" as const,
 			name: "Paused",
-			expectedIcon: PauseIcon,
+			expectedIcon: ICONS.Pause,
 		},
 		{
 			type: "PENDING" as const,
 			name: "Pending",
-			expectedIcon: ClockIcon,
+			expectedIcon: ICONS.Clock,
 		},
 		{
 			type: "SCHEDULED" as const,
 			name: "Scheduled",
-			expectedIcon: ClockIcon,
+			expectedIcon: ICONS.Clock,
 		},
 		{
 			type: "SCHEDULED" as const,
 			name: "Late",
-			expectedIcon: ClockIcon,
+			expectedIcon: ICONS.Clock,
 		},
 	];
 
@@ -87,7 +81,7 @@ describe("StateBadge", () => {
 				SCHEDULED: "bg-yellow-100 text-yellow-700 hover:bg-yellow-100",
 			}[type];
 
-			expect(badge?.parentElement).toHaveClass(...expectedClasses.split(" "));
+			expect(badge).toHaveClass(...expectedClasses.split(" "));
 		},
 	);
 });

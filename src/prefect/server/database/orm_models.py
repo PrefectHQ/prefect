@@ -2,7 +2,7 @@ import datetime
 import uuid
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Dict, Hashable, List, Tuple, Union, cast
+from typing import Any, Dict, Hashable, Iterable, List, Optional, Tuple, Union, cast
 
 import pendulum
 import sqlalchemy as sa
@@ -141,7 +141,7 @@ class Flow(Base):
     tags: Mapped[List[str]] = mapped_column(
         JSON, server_default="[]", default=list, nullable=False
     )
-    labels: Mapped[Union[schemas.core.KeyValueLabels, None]] = mapped_column(
+    labels: Mapped[Optional[schemas.core.KeyValueLabels]] = mapped_column(
         JSON, nullable=True
     )
 
@@ -151,6 +151,9 @@ class Flow(Base):
     __table_args__ = (
         sa.UniqueConstraint("name"),
         sa.Index("ix_flow__created", "created"),
+        sa.Index("trgm_ix_flow_name", "name", postgresql_using="gin").ddl_if(
+            dialect="postgresql"
+        ),
     )
 
 
@@ -178,7 +181,7 @@ class FlowRunState(Base):
         default=schemas.states.StateDetails,
         nullable=False,
     )
-    _data = sa.Column(sa.JSON, nullable=True, name="data")
+    _data: Optional[Any] = sa.Column(JSON, nullable=True, name="data")
 
     result_artifact_id = sa.Column(
         UUID(),
@@ -216,14 +219,17 @@ class FlowRunState(Base):
     def as_state(self) -> schemas.states.State:
         return schemas.states.State.model_validate(self, from_attributes=True)
 
-    __table_args__ = (
-        sa.Index(
-            "uq_flow_run_state__flow_run_id_timestamp_desc",
-            "flow_run_id",
-            sa.desc("timestamp"),
-            unique=True,
-        ),
-    )
+    @declared_attr.directive
+    @classmethod
+    def __table_args__(cls) -> Iterable[sa.Index]:
+        return (
+            sa.Index(
+                "uq_flow_run_state__flow_run_id_timestamp_desc",
+                cls.flow_run_id,
+                cls.timestamp.desc(),
+                unique=True,
+            ),
+        )
 
 
 class TaskRunState(Base):
@@ -252,7 +258,7 @@ class TaskRunState(Base):
         default=schemas.states.StateDetails,
         nullable=False,
     )
-    _data = sa.Column(sa.JSON, nullable=True, name="data")
+    _data: Optional[Any] = sa.Column(JSON, nullable=True, name="data")
 
     result_artifact_id = sa.Column(
         UUID(),
@@ -290,14 +296,17 @@ class TaskRunState(Base):
     def as_state(self) -> schemas.states.State:
         return schemas.states.State.model_validate(self, from_attributes=True)
 
-    __table_args__ = (
-        sa.Index(
-            "uq_task_run_state__task_run_id_timestamp_desc",
-            "task_run_id",
-            sa.desc("timestamp"),
-            unique=True,
-        ),
-    )
+    @declared_attr.directive
+    @classmethod
+    def __table_args__(cls) -> Iterable[sa.Index]:
+        return (
+            sa.Index(
+                "uq_task_run_state__task_run_id_timestamp_desc",
+                cls.task_run_id,
+                cls.timestamp.desc(),
+                unique=True,
+            ),
+        )
 
 
 class Artifact(Base):
@@ -330,12 +339,27 @@ class Artifact(Base):
     # Suffixed with underscore as attribute name 'metadata' is reserved for the MetaData instance when using a declarative base class.
     metadata_ = sa.Column(sa.JSON, nullable=True)
 
-    __table_args__ = (
-        sa.Index(
-            "ix_artifact__key",
-            "key",
-        ),
-    )
+    @declared_attr.directive
+    @classmethod
+    def __table_args__(cls) -> Iterable[sa.Index]:
+        return (
+            sa.Index(
+                "ix_artifact__key",
+                cls.key,
+            ),
+            sa.Index(
+                "ix_artifact__key_created_desc",
+                cls.key,
+                cls.created.desc(),
+                postgresql_include=[
+                    "id",
+                    "updated",
+                    "type",
+                    "task_run_id",
+                    "flow_run_id",
+                ],
+            ),
+        )
 
 
 class ArtifactCollection(Base):
@@ -383,13 +407,16 @@ class TaskRunStateCache(Base):
     )
     task_run_state_id = sa.Column(UUID(), nullable=False)
 
-    __table_args__ = (
-        sa.Index(
-            "ix_task_run_state_cache__cache_key_created_desc",
-            "cache_key",
-            sa.desc("created"),
-        ),
-    )
+    @declared_attr.directive
+    @classmethod
+    def __table_args__(cls) -> Iterable[sa.Index]:
+        return (
+            sa.Index(
+                "ix_task_run_state_cache__cache_key_created_desc",
+                cls.cache_key,
+                cls.created.desc(),
+            ),
+        )
 
 
 class Run(Base):
@@ -407,14 +434,16 @@ class Run(Base):
     )
     state_type = sa.Column(sa.Enum(schemas.states.StateType, name="state_type"))
     state_name = sa.Column(sa.String, nullable=True)
-    state_timestamp: Mapped[Union[pendulum.DateTime, None]] = mapped_column(
+    state_timestamp: Mapped[Optional[pendulum.DateTime]] = mapped_column(
         Timestamp(), nullable=True
     )
     run_count = sa.Column(sa.Integer, server_default="0", default=0, nullable=False)
-    expected_start_time: Mapped[pendulum.DateTime] = mapped_column(Timestamp())
+    expected_start_time: Mapped[Optional[pendulum.DateTime]] = mapped_column(
+        Timestamp()
+    )
     next_scheduled_start_time = sa.Column(Timestamp())
-    start_time: Mapped[pendulum.DateTime] = mapped_column(Timestamp())
-    end_time: Mapped[pendulum.DateTime] = mapped_column(Timestamp())
+    start_time: Mapped[Optional[pendulum.DateTime]] = mapped_column(Timestamp())
+    end_time: Mapped[Optional[pendulum.DateTime]] = mapped_column(Timestamp())
     total_run_time: Mapped[datetime.timedelta] = mapped_column(
         sa.Interval(),
         server_default="0",
@@ -501,7 +530,7 @@ class FlowRun(Run):
         index=True,
     )
 
-    deployment_id: Mapped[Union[uuid.UUID, None]] = mapped_column(UUID(), nullable=True)
+    deployment_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(), nullable=True)
     work_queue_name = sa.Column(sa.String, index=True)
     flow_version = sa.Column(sa.String, index=True)
     deployment_version = sa.Column(sa.String, index=True)
@@ -517,11 +546,11 @@ class FlowRun(Run):
     tags: Mapped[List[str]] = mapped_column(
         JSON, server_default="[]", default=list, nullable=False
     )
-    labels: Mapped[Union[schemas.core.KeyValueLabels, None]] = mapped_column(
+    labels: Mapped[Optional[schemas.core.KeyValueLabels]] = mapped_column(
         JSON, nullable=True
     )
 
-    created_by: Mapped[Union[schemas.core.CreatedBy, None]] = mapped_column(
+    created_by: Mapped[Optional[schemas.core.CreatedBy]] = mapped_column(
         Pydantic(schemas.core.CreatedBy),
         server_default=None,
         default=None,
@@ -538,7 +567,7 @@ class FlowRun(Run):
         index=True,
     )
 
-    parent_task_run_id: Mapped[uuid.UUID] = mapped_column(
+    parent_task_run_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(),
         sa.ForeignKey(
             "task_run.id",
@@ -563,7 +592,7 @@ class FlowRun(Run):
         index=True,
     )
 
-    work_queue_id: Mapped[Union[uuid.UUID, None]] = mapped_column(
+    work_queue_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID,
         sa.ForeignKey("work_queue.id", ondelete="SET NULL"),
         nullable=True,
@@ -629,50 +658,65 @@ class FlowRun(Run):
         foreign_keys=[work_queue_id],
     )
 
-    __table_args__ = (
-        sa.Index(
-            "uq_flow_run__flow_id_idempotency_key",
-            "flow_id",
-            "idempotency_key",
-            unique=True,
-        ),
-        sa.Index(
-            "ix_flow_run__coalesce_start_time_expected_start_time_desc",
-            sa.desc(coalesce("start_time", "expected_start_time")),
-        ),
-        sa.Index(
-            "ix_flow_run__coalesce_start_time_expected_start_time_asc",
-            sa.asc(coalesce("start_time", "expected_start_time")),
-        ),
-        sa.Index(
-            "ix_flow_run__expected_start_time_desc",
-            sa.desc("expected_start_time"),
-        ),
-        sa.Index(
-            "ix_flow_run__next_scheduled_start_time_asc",
-            sa.asc("next_scheduled_start_time"),
-        ),
-        sa.Index(
-            "ix_flow_run__end_time_desc",
-            sa.desc("end_time"),
-        ),
-        sa.Index(
-            "ix_flow_run__start_time",
-            "start_time",
-        ),
-        sa.Index(
-            "ix_flow_run__state_type",
-            "state_type",
-        ),
-        sa.Index(
-            "ix_flow_run__state_name",
-            "state_name",
-        ),
-        sa.Index(
-            "ix_flow_run__state_timestamp",
-            "state_timestamp",
-        ),
-    )
+    @declared_attr.directive
+    @classmethod
+    def __table_args__(cls) -> Iterable[sa.Index]:
+        return (
+            sa.Index(
+                "uq_flow_run__flow_id_idempotency_key",
+                cls.flow_id,
+                cls.idempotency_key,
+                unique=True,
+            ),
+            sa.Index(
+                "ix_flow_run__coalesce_start_time_expected_start_time_desc",
+                coalesce(cls.start_time, cls.expected_start_time).desc(),
+            ),
+            sa.Index(
+                "ix_flow_run__coalesce_start_time_expected_start_time_asc",
+                coalesce(cls.start_time, cls.expected_start_time).asc(),
+            ),
+            sa.Index(
+                "ix_flow_run__expected_start_time_desc",
+                cls.expected_start_time.desc(),
+            ),
+            sa.Index(
+                "ix_flow_run__next_scheduled_start_time_asc",
+                cls.next_scheduled_start_time.asc(),
+            ),
+            sa.Index(
+                "ix_flow_run__end_time_desc",
+                cls.end_time.desc(),
+            ),
+            sa.Index(
+                "ix_flow_run__start_time",
+                cls.start_time,
+            ),
+            sa.Index(
+                "ix_flow_run__state_type",
+                cls.state_type,
+            ),
+            sa.Index(
+                "ix_flow_run__state_name",
+                cls.state_name,
+            ),
+            sa.Index(
+                "ix_flow_run__state_timestamp",
+                cls.state_timestamp,
+            ),
+            sa.Index("trgm_ix_flow_run_name", cls.name, postgresql_using="gin").ddl_if(
+                dialect="postgresql"
+            ),
+            sa.Index(
+                # index names are at most 63 characters long.
+                "ix_flow_run__scheduler_deployment_id_auto_scheduled_next_schedu",
+                cls.deployment_id,
+                cls.auto_scheduled,
+                cls.next_scheduled_start_time,
+                postgresql_where=cls.state_type == schemas.states.StateType.SCHEDULED,
+                sqlite_where=cls.state_type == schemas.states.StateType.SCHEDULED,
+            ),
+        )
 
 
 class TaskRun(Run):
@@ -719,7 +763,7 @@ class TaskRun(Run):
     tags: Mapped[List[str]] = mapped_column(
         JSON, server_default="[]", default=list, nullable=False
     )
-    labels: Mapped[Union[schemas.core.KeyValueLabels, None]] = mapped_column(
+    labels: Mapped[Optional[schemas.core.KeyValueLabels]] = mapped_column(
         JSON, nullable=True
     )
 
@@ -786,43 +830,49 @@ class TaskRun(Run):
         uselist=False,
     )
 
-    __table_args__ = (
-        sa.Index(
-            "uq_task_run__flow_run_id_task_key_dynamic_key",
-            "flow_run_id",
-            "task_key",
-            "dynamic_key",
-            unique=True,
-        ),
-        sa.Index(
-            "ix_task_run__expected_start_time_desc",
-            sa.desc("expected_start_time"),
-        ),
-        sa.Index(
-            "ix_task_run__next_scheduled_start_time_asc",
-            sa.asc("next_scheduled_start_time"),
-        ),
-        sa.Index(
-            "ix_task_run__end_time_desc",
-            sa.desc("end_time"),
-        ),
-        sa.Index(
-            "ix_task_run__start_time",
-            "start_time",
-        ),
-        sa.Index(
-            "ix_task_run__state_type",
-            "state_type",
-        ),
-        sa.Index(
-            "ix_task_run__state_name",
-            "state_name",
-        ),
-        sa.Index(
-            "ix_task_run__state_timestamp",
-            "state_timestamp",
-        ),
-    )
+    @declared_attr.directive
+    @classmethod
+    def __table_args__(cls) -> Iterable[sa.Index]:
+        return (
+            sa.Index(
+                "uq_task_run__flow_run_id_task_key_dynamic_key",
+                cls.flow_run_id,
+                cls.task_key,
+                cls.dynamic_key,
+                unique=True,
+            ),
+            sa.Index(
+                "ix_task_run__expected_start_time_desc",
+                cls.expected_start_time.desc(),
+            ),
+            sa.Index(
+                "ix_task_run__next_scheduled_start_time_asc",
+                cls.next_scheduled_start_time.asc(),
+            ),
+            sa.Index(
+                "ix_task_run__end_time_desc",
+                cls.end_time.desc(),
+            ),
+            sa.Index(
+                "ix_task_run__start_time",
+                cls.start_time,
+            ),
+            sa.Index(
+                "ix_task_run__state_type",
+                cls.state_type,
+            ),
+            sa.Index(
+                "ix_task_run__state_name",
+                cls.state_name,
+            ),
+            sa.Index(
+                "ix_task_run__state_timestamp",
+                cls.state_timestamp,
+            ),
+            sa.Index("trgm_ix_task_run_name", cls.name, postgresql_using="gin").ddl_if(
+                dialect="postgresql"
+            ),
+        )
 
 
 class DeploymentSchedule(Base):
@@ -868,7 +918,7 @@ class Deployment(Base):
         index=True,
     )
 
-    work_queue_id: Mapped[uuid.UUID] = mapped_column(
+    work_queue_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID,
         sa.ForeignKey("work_queue.id", ondelete="SET NULL"),
         nullable=True,
@@ -885,21 +935,21 @@ class Deployment(Base):
     )
 
     # deprecated in favor of `concurrency_limit_id` FK
-    _concurrency_limit: Mapped[Union[int, None]] = mapped_column(
+    _concurrency_limit: Mapped[Optional[int]] = mapped_column(
         sa.Integer, default=None, nullable=True, name="concurrency_limit"
     )
-    concurrency_limit_id: Mapped[Union[uuid.UUID, None]] = mapped_column(
+    concurrency_limit_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID,
         sa.ForeignKey("concurrency_limit_v2.id", ondelete="SET NULL"),
         nullable=True,
     )
     global_concurrency_limit: Mapped[
-        Union["ConcurrencyLimitV2", None]
+        Optional["ConcurrencyLimitV2"]
     ] = sa.orm.relationship(
         lazy="selectin",
     )
     concurrency_options: Mapped[
-        Union[schemas.core.ConcurrencyOptions, None]
+        Optional[schemas.core.ConcurrencyOptions]
     ] = mapped_column(
         Pydantic(schemas.core.ConcurrencyOptions),
         server_default=None,
@@ -910,7 +960,7 @@ class Deployment(Base):
     tags: Mapped[List[str]] = mapped_column(
         JSON, server_default="[]", default=list, nullable=False
     )
-    labels: Mapped[Union[schemas.core.KeyValueLabels, None]] = mapped_column(
+    labels: Mapped[Optional[schemas.core.KeyValueLabels]] = mapped_column(
         JSON, nullable=True
     )
     parameters = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
@@ -962,6 +1012,9 @@ class Deployment(Base):
         sa.Index(
             "ix_deployment__created",
             "created",
+        ),
+        sa.Index("trgm_ix_deployment_name", "name", postgresql_using="gin").ddl_if(
+            dialect="postgresql"
         ),
     )
 
@@ -1029,6 +1082,9 @@ class BlockType(Base):
             "slug",
             unique=True,
         ),
+        sa.Index("trgm_ix_block_type_name", "name", postgresql_using="gin").ddl_if(
+            dialect="postgresql"
+        ),
     )
 
 
@@ -1059,6 +1115,9 @@ class BlockSchema(Base):
             unique=True,
         ),
         sa.Index("ix_block_schema__created", "created"),
+        sa.Index(
+            "ix_block_schema__capabilities", "capabilities", postgresql_using="gin"
+        ).ddl_if(dialect="postgresql"),
     )
 
 
@@ -1107,6 +1166,10 @@ class BlockDocument(Base):
             "block_type_id",
             "name",
             unique=True,
+        ),
+        sa.Index("ix_block_document__block_type_name__name", "block_type_name", "name"),
+        sa.Index("trgm_ix_block_document_name", "name", postgresql_using="gin").ddl_if(
+            dialect="postgresql"
         ),
     )
 
@@ -1181,9 +1244,9 @@ class WorkQueue(Base):
         sa.Integer,
         nullable=True,
     )
-    priority: Mapped[int] = mapped_column(sa.Integer, index=True, nullable=False)
+    priority: Mapped[int] = mapped_column(sa.Integer, nullable=False)
 
-    last_polled: Mapped[Union[pendulum.DateTime, None]] = mapped_column(
+    last_polled: Mapped[Optional[pendulum.DateTime]] = mapped_column(
         Timestamp(),
         nullable=True,
     )
@@ -1193,8 +1256,6 @@ class WorkQueue(Base):
         default=WorkQueueStatus.NOT_READY,
         server_default=WorkQueueStatus.NOT_READY.value,
     )
-
-    __table_args__ = (sa.UniqueConstraint("work_pool_id", "name"),)
 
     work_pool_id: Mapped[uuid.UUID] = mapped_column(
         UUID,
@@ -1209,18 +1270,30 @@ class WorkQueue(Base):
         foreign_keys=[work_pool_id],
     )
 
+    __table_args__ = (
+        sa.UniqueConstraint("work_pool_id", "name"),
+        sa.Index("ix_work_queue__work_pool_id_priority", "work_pool_id", "priority"),
+        sa.Index("trgm_ix_work_queue_name", "name", postgresql_using="gin").ddl_if(
+            dialect="postgresql"
+        ),
+    )
+
 
 class WorkPool(Base):
     """SQLAlchemy model of an worker"""
 
     name = sa.Column(sa.String, nullable=False)
     description = sa.Column(sa.String)
-    type: Mapped[str] = mapped_column(sa.String)
+    type: Mapped[str] = mapped_column(sa.String, index=True)
     base_job_template = sa.Column(JSON, nullable=False, server_default="{}", default={})
     is_paused: Mapped[bool] = mapped_column(
         sa.Boolean, nullable=False, server_default="0", default=False
     )
-    default_queue_id: Mapped[UUID] = mapped_column(UUID, nullable=True)
+    default_queue_id: Mapped[UUID] = mapped_column(
+        UUID,
+        sa.ForeignKey("work_queue.id", ondelete="RESTRICT", use_alter=True),
+        nullable=True,
+    )
     concurrency_limit = sa.Column(
         sa.Integer,
         nullable=True,
@@ -1232,10 +1305,12 @@ class WorkPool(Base):
         default=WorkPoolStatus.NOT_READY,
         server_default=WorkPoolStatus.NOT_READY.value,
     )
-    last_transitioned_status_at: Mapped[Union[pendulum.DateTime, None]] = mapped_column(
+    last_transitioned_status_at: Mapped[Optional[pendulum.DateTime]] = mapped_column(
         Timestamp(), nullable=True
     )
-    last_status_event_id: Mapped[uuid.UUID] = mapped_column(UUID, nullable=True)
+    last_status_event_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID, nullable=True
+    )
 
     __table_args__ = (sa.UniqueConstraint("name"),)
 
@@ -1258,7 +1333,6 @@ class Worker(Base):
         nullable=False,
         server_default=now(),
         default=lambda: pendulum.now("UTC"),
-        index=True,
     )
     heartbeat_interval_seconds = sa.Column(sa.Integer, nullable=True)
 
@@ -1269,7 +1343,14 @@ class Worker(Base):
         server_default=WorkerStatus.OFFLINE.value,
     )
 
-    __table_args__ = (sa.UniqueConstraint("work_pool_id", "name"),)
+    __table_args__ = (
+        sa.UniqueConstraint("work_pool_id", "name"),
+        sa.Index(
+            "ix_worker__work_pool_id_last_heartbeat_time",
+            "work_pool_id",
+            "last_heartbeat_time",
+        ),
+    )
 
 
 class Agent(Base):
@@ -1325,7 +1406,7 @@ class FlowRunNotificationQueue(Base):
 
 class Variable(Base):
     name = sa.Column(sa.String, nullable=False)
-    value = sa.Column(sa.JSON, nullable=False)
+    value: Optional[Any] = sa.Column(JSON)
     tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
 
     __table_args__ = (sa.UniqueConstraint("name"),)
@@ -1665,7 +1746,7 @@ class AsyncPostgresORMConfiguration(BaseORMConfiguration):
         """Directory containing migrations"""
         return (
             Path(prefect.server.database.__file__).parent
-            / "migrations"
+            / "_migrations"
             / "versions"
             / "postgresql"
         )
@@ -1679,7 +1760,7 @@ class AioSqliteORMConfiguration(BaseORMConfiguration):
         """Directory containing migrations"""
         return (
             Path(prefect.server.database.__file__).parent
-            / "migrations"
+            / "_migrations"
             / "versions"
             / "sqlite"
         )

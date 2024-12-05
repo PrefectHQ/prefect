@@ -1,8 +1,8 @@
-import * as React from "react";
-import { useEffect, useState } from "react";
 import useDebounce from "@/hooks/use-debounce";
 import { cn } from "@/lib/utils";
-import { SearchIcon } from "lucide-react";
+import * as React from "react";
+import { useEffect, useState } from "react";
+import { ICONS } from "./icons";
 
 type InputProps = React.ComponentProps<"input"> & {
 	className?: string;
@@ -66,7 +66,7 @@ const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(
 
 		return (
 			<IconInput
-				Icon={SearchIcon}
+				Icon={ICONS.Search}
 				className={className}
 				ref={ref}
 				value={state.value}

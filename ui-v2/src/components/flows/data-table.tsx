@@ -7,6 +7,7 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Icon } from "@/components/ui/icons";
 import { Input } from "@/components/ui/input";
 import { useNavigate } from "@tanstack/react-router";
 import {
@@ -14,10 +15,10 @@ import {
 	getPaginationRowModel,
 	useReactTable,
 } from "@tanstack/react-table";
-import { ChevronDownIcon, SearchIcon } from "lucide-react";
+
+import { useSet } from "@/hooks/use-set";
 import { useState } from "react";
 import { columns } from "./columns";
-import { useSet } from "@/hooks/use-set";
 
 const SearchComponent = () => {
 	const navigate = useNavigate();
@@ -34,7 +35,8 @@ const SearchComponent = () => {
 					})
 				}
 			/>
-			<SearchIcon
+			<Icon
+				id="Search"
 				className="absolute left-3 top-2.5 text-muted-foreground"
 				size={18}
 			/>
@@ -56,7 +58,7 @@ const FilterComponent = () => {
 			<DropdownMenuTrigger asChild>
 				<Button variant="outline" className="w-[150px] justify-between">
 					<span className="truncate">{renderSelectedTags()}</span>
-					<ChevronDownIcon className="h-4 w-4 flex-shrink-0" />
+					<Icon id="ChevronDown" className="h-4 w-4 flex-shrink-0" />
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent>
@@ -114,7 +116,7 @@ const SortComponent = () => {
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
 				<Button variant="outline">
-					Sort <ChevronDownIcon className="ml-2 h-4 w-4" />
+					Sort <Icon id="ChevronDown" className="ml-2 h-4 w-4" />
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent>

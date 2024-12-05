@@ -2,6 +2,7 @@
 # https://alembic.sqlalchemy.org/en/latest/tutorial.html#creating-an-environment
 
 import contextlib
+from typing import Optional
 
 import sqlalchemy
 from alembic import context
@@ -23,7 +24,7 @@ def include_object(
     name: str,
     type_: str,
     reflected: bool,
-    compare_to: sqlalchemy.schema.SchemaItem,
+    compare_to: Optional[sqlalchemy.schema.SchemaItem],
 ) -> bool:
     """
     Determines whether or not alembic should include an object when autogenerating
@@ -53,13 +54,34 @@ def include_object(
     # * functional indexes (ending in 'desc', 'asc'), if an index with the same name already exists
     # * trigram indexes that already exist
     # * case_insensitive indexes that already exist
+    # * indexes that don't yet exist but have .ddl_if(dialect=...) metadata that doesn't match
+    #   the current dialect.
     if type_ == "index":
-        if not reflected and any([name.endswith(suffix) for suffix in {"asc", "desc"}]):
-            return compare_to is None or object.name != compare_to.name
-        elif reflected and (
-            name.startswith("gin") or name.endswith("case_insensitive")
-        ):
-            return False
+        if not reflected:
+            if name.endswith(("asc", "desc")):
+                return compare_to is None or object.name != compare_to.name
+            if (ddl_if := object._ddl_if) is not None and ddl_if.dialect is not None:
+                desired: set[str] = (
+                    {ddl_if.dialect}
+                    if isinstance(ddl_if.dialect, str)
+                    else set(ddl_if.dialect)
+                )
+                return dialect.name in desired
+
+        else:  # reflected
+            if name.startswith("gin") or name.endswith("case_insensitive"):
+                return False
+
+    # SQLite doesn't have an enum type, so reflection always comes back with
+    # a VARCHAR column, which doesn't match. Skip columns where the type
+    # doesn't match
+    if (
+        dialect.name == "sqlite"
+        and type_ == "column"
+        and object.type.__visit_name__ == "enum"
+        and compare_to is not None
+    ):
+        return compare_to.type.__visit_name__ == "enum"
 
     return True
 
