@@ -3,8 +3,10 @@ from uuid import uuid4
 import pendulum
 import pytest
 import sqlalchemy as sa
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models, schemas
+from prefect.server.database import orm_models
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.schemas.core import TaskRunResult
 from prefect.types import KeyValueLabels
@@ -256,7 +258,9 @@ class TestUpdateFlowRun:
             )
         )
 
-    async def test_update_flow_run_labels(self, flow, session):
+    async def test_update_flow_run_labels(
+        self, flow: orm_models.Flow, session: AsyncSession
+    ):
         """Test that flow run labels can be updated by patching existing labels"""
 
         # Create a flow run with initial labels
@@ -286,7 +290,7 @@ class TestUpdateFlowRun:
         }
 
     async def test_update_flow_run_labels_returns_false_if_flow_run_does_not_exist(
-        self, session
+        self, session: AsyncSession
     ):
         """Test that updating labels for a non-existent flow run returns False"""
 
@@ -296,7 +300,7 @@ class TestUpdateFlowRun:
         assert update_success is False
 
     async def test_update_flow_run_labels_with_empty_initial_labels(
-        self, flow, session
+        self, flow: orm_models.Flow, session: AsyncSession
     ):
         """Test that labels can be added to a flow run with no existing labels"""
 
