@@ -286,11 +286,11 @@ const FlowRunTooltip = ({
 			}}
 		>
 			<CardHeader>
-				<CardTitle className="text-lg flex items-center gap-1">
+				<CardTitle className="flex items-center gap-1">
 					<Link
 						to={"/flows/flow/$id"}
 						params={{ id: flow.id }}
-						className="font-medium"
+						className="text-base font-medium"
 					>
 						{flowRun.flow.name}
 					</Link>
@@ -298,7 +298,7 @@ const FlowRunTooltip = ({
 					<Link
 						to={"/runs/flow-run/$id"}
 						params={{ id: flowRun.id }}
-						className="font-medium"
+						className="text-base font-medium"
 					>
 						{flowRun.name}
 					</Link>
@@ -313,20 +313,20 @@ const FlowRunTooltip = ({
 				<Link
 					to={"/deployments/deployment/$id"}
 					params={{ id: deployment.id }}
-					className="text-sm font-medium flex items-center gap-1"
+					className="flex items-center gap-1"
 				>
 					<Rocket className="w-4 h-4" />
-					<p className="whitespace-nowrap">{deployment.name}</p>
+					<p className="text-sm font-medium whitespace-nowrap">{deployment.name}</p>
 				</Link>
-				<span className="text-sm flex items-center gap-1">
+				<span className="flex items-center gap-1">
 					<Clock className="w-4 h-4" />
-					<p className="whitespace-nowrap">
+					<p className="text-sm whitespace-nowrap">
 						{secondsToApproximateString(flowRun.total_run_time)}
 					</p>
 				</span>
-				<span className="text-sm flex items-center gap-1">
+				<span className="flex items-center gap-1">
 					<Calendar className="w-4 h-4" />
-					<p>
+					<p className="text-sm">
 						{flowRun.start_time
 							? format(new Date(flowRun.start_time), "yyyy/MM/dd HH:mm a")
 							: flowRun.expected_start_time
