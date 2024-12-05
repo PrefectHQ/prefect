@@ -1,6 +1,6 @@
 import time
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 
 from opentelemetry.propagators.textmap import Setter
 from opentelemetry.trace import (
@@ -32,7 +32,7 @@ class RunTelemetry:
 
     def start_span(
         self,
-        run: TaskRun | FlowRun,
+        run: Union[TaskRun, FlowRun],
         name: Optional[str] = None,
         parameters: Optional[Dict[str, Any]] = None,
         parent_labels: Optional[Dict[str, Any]] = None,
@@ -46,7 +46,7 @@ class RunTelemetry:
             for k, v in parameters.items()
         }
         run_type = "task" if isinstance(run, TaskRun) else "flow"
-        print(f"__________parent_labels: {parent_labels}")
+
         self._span = self._tracer.start_span(
             name=name or run.name,
             attributes={
