@@ -24,7 +24,6 @@ from uuid import UUID
 
 from anyio import CancelScope
 from opentelemetry import propagate, trace
-from opentelemetry.propagators.textmap import Setter
 from opentelemetry.trace import Tracer, get_tracer
 from typing_extensions import ParamSpec
 
@@ -73,6 +72,8 @@ from prefect.states import (
     exception_to_failed_state,
     return_value_to_state,
 )
+from prefect.telemetry.run_telemetry import OTELSetter
+from prefect.types import KeyValueLabels
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.callables import (
@@ -101,10 +102,6 @@ TRACEPARENT_KEY = "traceparent"
 
 class FlowRunTimeoutError(TimeoutError):
     """Raised when a flow run exceeds its defined timeout."""
-
-
-def set_otel_headers(carrier: Dict[str, str], key: str, value: str) -> None:
-    carrier[key] = value
 
 
 def load_flow_and_flow_run(flow_run_id: UUID) -> Tuple[FlowRun, Flow]:
@@ -409,7 +406,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         self.set_state(state, force=True)
         self._raised = exc
 
-        self._end_span_on_error(exc, state.message)
+        self._end_span_on_error(exc, state.message if state else "")
 
     def load_subflow_run(
         self,
@@ -670,14 +667,17 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                 if traceparent := parent_flow_run_ctx.flow_run.labels.get(
                     LABELS_TRACEPARENT_KEY
                 ):
+                    carrier: KeyValueLabels = {TRACEPARENT_KEY: traceparent}
                     propagate.get_global_textmap().inject(
                         carrier={TRACEPARENT_KEY: traceparent},
-                        setter=cast(Setter, set_otel_headers),
+                        setter=OTELSetter(),
                     )
                 else:
-                    carrier = {}
+                    carrier: KeyValueLabels = {}
                     propagate.get_global_textmap().inject(
-                        carrier, context=trace.set_span_in_context(span)
+                        carrier,
+                        context=trace.set_span_in_context(span),
+                        setter=OTELSetter(),
                     )
                     if carrier.get(TRACEPARENT_KEY):
                         self.logger.info(
@@ -1267,12 +1267,14 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                 ):
                     propagate.get_global_textmap().inject(
                         carrier={TRACEPARENT_KEY: traceparent},
-                        setter=cast(Setter, set_otel_headers),
+                        setter=OTELSetter(),
                     )
                 else:
-                    carrier = {}
+                    carrier: KeyValueLabels = {}
                     propagate.get_global_textmap().inject(
-                        carrier, context=trace.set_span_in_context(span)
+                        carrier,
+                        context=trace.set_span_in_context(span),
+                        setter=OTELSetter(),
                     )
                     if carrier.get(TRACEPARENT_KEY):
                         self.logger.info(

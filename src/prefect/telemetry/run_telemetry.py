@@ -2,6 +2,7 @@ import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
+from opentelemetry.propagators.textmap import Setter
 from opentelemetry.trace import (
     Status,
     StatusCode,
@@ -11,9 +12,15 @@ from opentelemetry.trace import (
 import prefect
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import State
+from prefect.types import KeyValueLabels
 
 if TYPE_CHECKING:
     from opentelemetry.trace import Tracer
+
+
+class OTELSetter(Setter[KeyValueLabels]):
+    def set(self, carrier: KeyValueLabels, key: str, value: str) -> None:
+        carrier[key] = value
 
 
 @dataclass
