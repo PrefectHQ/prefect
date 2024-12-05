@@ -1,5 +1,6 @@
 import json
 from typing import List
+from uuid import UUID
 
 import pytest
 
@@ -282,7 +283,7 @@ class TestCreateArtifacts:
         my_table = [[1, 2], [None, 4]]
 
         @flow
-        async def my_flow():
+        async def my_flow() -> UUID:
             return await create_table_artifact(
                 key=artifact.key,
                 table=my_table,

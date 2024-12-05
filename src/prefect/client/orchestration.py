@@ -2956,10 +2956,10 @@ class PrefectClient:
     async def read_artifacts(
         self,
         *,
-        artifact_filter: ArtifactFilter = None,
-        flow_run_filter: FlowRunFilter = None,
-        task_run_filter: TaskRunFilter = None,
-        sort: ArtifactSort = None,
+        artifact_filter: Optional[ArtifactFilter] = None,
+        flow_run_filter: Optional[FlowRunFilter] = None,
+        task_run_filter: Optional[TaskRunFilter] = None,
+        sort: Optional[ArtifactSort] = None,
         limit: Optional[int] = None,
         offset: int = 0,
     ) -> List[Artifact]:
@@ -2996,10 +2996,10 @@ class PrefectClient:
     async def read_latest_artifacts(
         self,
         *,
-        artifact_filter: ArtifactCollectionFilter = None,
-        flow_run_filter: FlowRunFilter = None,
-        task_run_filter: TaskRunFilter = None,
-        sort: ArtifactCollectionSort = None,
+        artifact_filter: Optional[ArtifactCollectionFilter] = None,
+        flow_run_filter: Optional[FlowRunFilter] = None,
+        task_run_filter: Optional[TaskRunFilter] = None,
+        sort: Optional[ArtifactCollectionSort] = None,
         limit: Optional[int] = None,
         offset: int = 0,
     ) -> List[ArtifactCollection]:
@@ -4298,6 +4298,46 @@ class SyncPrefectClient:
         )
 
         return Artifact.model_validate(response.json())
+
+    def read_artifacts(
+        self,
+        *,
+        artifact_filter: Optional[ArtifactFilter] = None,
+        flow_run_filter: Optional[FlowRunFilter] = None,
+        task_run_filter: Optional[TaskRunFilter] = None,
+        sort: Optional[ArtifactSort] = None,
+        limit: Optional[int] = None,
+        offset: int = 0,
+    ) -> List[Artifact]:
+        """
+        Query the Prefect API for artifacts. Only artifacts matching all criteria will
+        be returned.
+        Args:
+            artifact_filter: filter criteria for artifacts
+            flow_run_filter: filter criteria for flow runs
+            task_run_filter: filter criteria for task runs
+            sort: sort criteria for the artifacts
+            limit: limit for the artifact query
+            offset: offset for the artifact query
+        Returns:
+            a list of Artifact model representations of the artifacts
+        """
+        body = {
+            "artifacts": (
+                artifact_filter.model_dump(mode="json") if artifact_filter else None
+            ),
+            "flow_runs": (
+                flow_run_filter.model_dump(mode="json") if flow_run_filter else None
+            ),
+            "task_runs": (
+                task_run_filter.model_dump(mode="json") if task_run_filter else None
+            ),
+            "sort": sort,
+            "limit": limit,
+            "offset": offset,
+        }
+        response = self._client.post("/artifacts/filter", json=body)
+        return pydantic.TypeAdapter(List[Artifact]).validate_python(response.json())
 
     def release_concurrency_slots(
         self, names: List[str], slots: int, occupancy_seconds: float

@@ -7,16 +7,17 @@ from __future__ import annotations
 import json  # noqa: I001
 import math
 import warnings
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Type, Union, cast
 from uuid import UUID
 
+from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect.client.schemas.actions import ArtifactCreate as ArtifactRequest
 from prefect.client.schemas.actions import ArtifactUpdate
 from prefect.client.schemas.filters import ArtifactFilter, ArtifactFilterKey
 from prefect.client.schemas.sorting import ArtifactSort
 from prefect.client.utilities import get_or_create_client, inject_client
 from prefect.logging.loggers import get_logger
-from prefect.utilities.asyncutils import sync_compatible
+from prefect.utilities.asyncutils import run_coro_as_sync, sync_compatible
 from prefect.utilities.context import get_task_and_flow_run_ids
 
 logger = get_logger("artifacts")
@@ -24,7 +25,7 @@ logger = get_logger("artifacts")
 if TYPE_CHECKING:
     from typing_extensions import Self
 
-    from prefect.client.orchestration import PrefectClient
+    from prefect.client.orchestration import PrefectClient, SyncPrefectClient
     from prefect.client.schemas.objects import Artifact as ArtifactResponse
 
 
@@ -41,8 +42,45 @@ class Artifact(ArtifactRequest):
         data: A JSON payload that allows for a result to be retrieved.
     """
 
-    @sync_compatible
-    async def create(
+    async def acreate(
+        self: "Self",
+        client: Optional["PrefectClient"] = None,
+    ) -> "ArtifactResponse":
+        """
+        An asynchronous method to create an artifact.
+
+        Arguments:
+            client: The PrefectClient
+
+        Returns:
+            - The created artifact.
+        """
+        from prefect.context import MissingContextError, get_run_context
+
+        _client, _ = get_or_create_client(client)
+        task_run_id, flow_run_id = get_task_and_flow_run_ids()
+
+        try:
+            get_run_context()
+        except MissingContextError:
+            warnings.warn(
+                "Artifact creation outside of a flow or task run is deprecated and will be removed in a later version.",
+                FutureWarning,
+            )
+
+        return await cast("PrefectClient", _client).create_artifact(
+            artifact=ArtifactRequest(
+                type=self.type,
+                key=self.key,
+                description=self.description,
+                task_run_id=self.task_run_id or task_run_id,
+                flow_run_id=self.flow_run_id or flow_run_id,
+                data=await self.format(),
+            )
+        )
+
+    @async_dispatch(acreate)
+    def create(
         self: "Self",
         client: Optional["PrefectClient"] = None,
     ) -> "ArtifactResponse":
@@ -57,8 +95,7 @@ class Artifact(ArtifactRequest):
         """
         from prefect.context import MissingContextError, get_run_context
 
-        client, _ = get_or_create_client(client)
-        task_run_id, flow_run_id = get_task_and_flow_run_ids()
+        _client, _ = get_or_create_client(client)
 
         try:
             get_run_context()
@@ -68,24 +105,23 @@ class Artifact(ArtifactRequest):
                 FutureWarning,
             )
 
-        return await client.create_artifact(
+        return cast("SyncPrefectClient", _client).create_artifact(
             artifact=ArtifactRequest(
                 type=self.type,
                 key=self.key,
                 description=self.description,
-                task_run_id=self.task_run_id or task_run_id,
-                flow_run_id=self.flow_run_id or flow_run_id,
-                data=await self.format(),
+                data=run_coro_as_sync(self.format()),
             )
         )
 
     @classmethod
-    @sync_compatible
-    async def get(
-        cls, key: Optional[str] = None, client: Optional["PrefectClient"] = None
+    async def aget(
+        cls: "Type[Self]",
+        key: Optional[str] = None,
+        client: Optional["PrefectClient"] = None,
     ) -> Optional["ArtifactResponse"]:
         """
-        A method to get an artifact.
+        An asynchronous method to get an artifact.
 
         Arguments:
             key (str, optional): The key of the artifact to get.
@@ -94,17 +130,42 @@ class Artifact(ArtifactRequest):
         Returns:
             (ArtifactResponse, optional): The artifact (if found).
         """
-        client, _ = get_or_create_client(client)
-        return next(
-            iter(
-                await client.read_artifacts(
-                    limit=1,
-                    sort=ArtifactSort.UPDATED_DESC,
-                    artifact_filter=ArtifactFilter(key=ArtifactFilterKey(any_=[key])),
-                )
+        _client, _ = get_or_create_client(client)
+        artifacts = await cast("PrefectClient", _client).read_artifacts(
+            limit=1,
+            sort=ArtifactSort.UPDATED_DESC,
+            artifact_filter=ArtifactFilter(
+                key=ArtifactFilterKey(any_=[key] if key else None)
             ),
-            None,
         )
+        return next(iter(artifacts), None)
+
+    @async_dispatch(aget)
+    @classmethod
+    def get(
+        cls: "Type[Self]",
+        key: Optional[str] = None,
+        client: Optional["PrefectClient"] = None,
+    ) -> Optional["ArtifactResponse"]:
+        """
+        An asynchronous method to get an artifact.
+
+        Arguments:
+            key (str, optional): The key of the artifact to get.
+            client (PrefectClient, optional): The PrefectClient
+
+        Returns:
+            (ArtifactResponse, optional): The artifact (if found).
+        """
+        _client, _ = get_or_create_client(client)
+        artifacts = cast("SyncPrefectClient", _client).read_artifacts(
+            limit=1,
+            sort=ArtifactSort.UPDATED_DESC,
+            artifact_filter=ArtifactFilter(
+                key=ArtifactFilterKey(any_=[key] if key else None)
+            ),
+        )
+        return next(iter(artifacts), None)
 
     @classmethod
     @sync_compatible
@@ -128,14 +189,14 @@ class Artifact(ArtifactRequest):
         Returns:
             (ArtifactResponse): The artifact, either retrieved or created.
         """
-        artifact = await cls.get(key, client)
+        artifact = await cls.aget(key, client)
         if artifact:
             return artifact, False
         else:
             return (
-                await cls(key=key, description=description, data=data, **kwargs).create(
-                    client
-                ),
+                await cls(
+                    key=key, description=description, data=data, **kwargs
+                ).acreate(client),
                 True,
             )
 
