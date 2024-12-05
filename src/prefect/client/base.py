@@ -161,7 +161,7 @@ class PrefectResponse(httpx.Response):
     Provides more informative error messages.
     """
 
-    def raise_for_status(self) -> None:
+    def raise_for_status(self) -> Response:
         """
         Raise an exception if the response contains an HTTPStatusError.
 
@@ -174,7 +174,7 @@ class PrefectResponse(httpx.Response):
             raise PrefectHTTPStatusError.from_httpx_error(exc) from exc.__cause__
 
     @classmethod
-    def from_httpx_response(cls: Type[Self], response: httpx.Response) -> Self:
+    def from_httpx_response(cls: Type[Self], response: httpx.Response) -> Response:
         """
         Create a `PrefectReponse` from an `httpx.Response`.
 
@@ -200,10 +200,10 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
 
     def __init__(
         self,
-        *args,
+        *args: Any,
         enable_csrf_support: bool = False,
         raise_on_all_errors: bool = True,
-        **kwargs,
+        **kwargs: Any,
     ):
         self.enable_csrf_support: bool = enable_csrf_support
         self.csrf_token: Optional[str] = None
@@ -222,10 +222,10 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
         self,
         request: Request,
         send: Callable[[Request], Awaitable[Response]],
-        send_args: Tuple,
-        send_kwargs: Dict,
+        send_args: Tuple[Any, ...],
+        send_kwargs: Dict[str, Any],
         retry_codes: Set[int] = set(),
-        retry_exceptions: Tuple[Exception, ...] = tuple(),
+        retry_exceptions: Tuple[Type[Exception], ...] = tuple(),
     ):
         """
         Send a request and retry it if it fails.
@@ -297,7 +297,7 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
                     if exc_info
                     else (
                         "Received response with retryable status code"
-                        f" {response.status_code}. "
+                        f" {response.status_code if response else 'unknown'}. "
                     )
                 )
                 + f"Another attempt will be made in {retry_seconds}s. "
@@ -314,7 +314,7 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
         # We ran out of retries, return the failed response
         return response
 
-    async def send(self, request: Request, *args, **kwargs) -> Response:
+    async def send(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """
         Send a request with automatic retry behavior for the following status codes:
 
@@ -414,10 +414,10 @@ class PrefectHttpxSyncClient(httpx.Client):
 
     def __init__(
         self,
-        *args,
+        *args: Any,
         enable_csrf_support: bool = False,
         raise_on_all_errors: bool = True,
-        **kwargs,
+        **kwargs: Any,
     ):
         self.enable_csrf_support: bool = enable_csrf_support
         self.csrf_token: Optional[str] = None
@@ -436,10 +436,10 @@ class PrefectHttpxSyncClient(httpx.Client):
         self,
         request: Request,
         send: Callable[[Request], Response],
-        send_args: Tuple,
-        send_kwargs: Dict,
+        send_args: Tuple[Any, ...],
+        send_kwargs: Dict[str, Any],
         retry_codes: Set[int] = set(),
-        retry_exceptions: Tuple[Exception, ...] = tuple(),
+        retry_exceptions: Tuple[Type[Exception], ...] = tuple(),
     ):
         """
         Send a request and retry it if it fails.
@@ -511,7 +511,7 @@ class PrefectHttpxSyncClient(httpx.Client):
                     if exc_info
                     else (
                         "Received response with retryable status code"
-                        f" {response.status_code}. "
+                        f" {response.status_code if response else 'unknown'}. "
                     )
                 )
                 + f"Another attempt will be made in {retry_seconds}s. "
@@ -528,7 +528,7 @@ class PrefectHttpxSyncClient(httpx.Client):
         # We ran out of retries, return the failed response
         return response
 
-    def send(self, request: Request, *args, **kwargs) -> Response:
+    def send(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """
         Send a request with automatic retry behavior for the following status codes:
 
