@@ -1527,6 +1527,7 @@
                     "Flow Runs"
                 ],
                 "summary": "Update Flow Run Labels",
+                "description": "Update the labels of a flow run.",
                 "operationId": "update_flow_run_labels_flow_runs__id__labels_patch",
                 "parameters": [
                     {

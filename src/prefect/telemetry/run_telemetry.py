@@ -25,6 +25,10 @@ class OTELSetter(Setter[KeyValueLabels]):
 
 @dataclass
 class RunTelemetry:
+    """
+    A class for managing the telemetry of runs.
+    """
+
     _tracer: "Tracer" = field(
         default_factory=lambda: get_tracer("prefect", prefect.__version__)
     )
