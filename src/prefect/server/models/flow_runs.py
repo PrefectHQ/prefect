@@ -655,7 +655,7 @@ async def update_flow_run_labels(
         bool: whether the update was successful
     """
     # First read the existing flow run to get current labels
-    flow_run = await read_flow_run(session, flow_run_id)
+    flow_run: Optional[orm_models.FlowRun] = await read_flow_run(session, flow_run_id)
     if not flow_run:
         return False
 
