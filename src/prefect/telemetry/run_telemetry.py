@@ -19,6 +19,10 @@ if TYPE_CHECKING:
 
 
 class OTELSetter(Setter[KeyValueLabels]):
+    """
+    A setter for OpenTelemetry that supports Prefect's custom labels.
+    """
+
     def set(self, carrier: KeyValueLabels, key: str, value: str) -> None:
         carrier[key] = value
 
@@ -40,6 +44,9 @@ class RunTelemetry:
         parameters: Optional[Dict[str, Any]] = None,
         labels: Optional[Dict[str, Any]] = None,
     ):
+        """
+        Start a span for a task run.
+        """
         if parameters is None:
             parameters = {}
         if labels is None:
@@ -60,22 +67,34 @@ class RunTelemetry:
         )
 
     def end_span_on_success(self, terminal_message: str):
+        """
+        End a span for a task run on success.
+        """
         if self._span:
             self._span.set_status(Status(StatusCode.OK), terminal_message)
             self._span.end(time.time_ns())
             self._span = None
 
     def end_span_on_failure(self, terminal_message: str):
+        """
+        End a span for a task run on failure.
+        """
         if self._span:
             self._span.set_status(Status(StatusCode.ERROR, terminal_message))
             self._span.end(time.time_ns())
             self._span = None
 
     def record_exception(self, exc: Exception):
+        """
+        Record an exception on a span.
+        """
         if self._span:
             self._span.record_exception(exc)
 
     def update_state(self, new_state: State):
+        """
+        Update a span with the state of a task run.
+        """
         if self._span:
             self._span.add_event(
                 new_state.name or new_state.type,

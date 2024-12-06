@@ -182,7 +182,7 @@ class BaseFlowRunEngine(Generic[P, R]):
         if hasattr(self.flow.task_runner, "cancel_all"):
             self.flow.task_runner.cancel_all()  # type: ignore
 
-    def update_otel_labels(
+    def _update_otel_labels(
         self, span: trace.Span, client: Union[SyncPrefectClient, PrefectClient]
     ):
         parent_flow_run_ctx = FlowRunContext.get()
@@ -692,7 +692,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                     "prefect.flow.name": self.flow.name,
                 },
             )
-            self.update_otel_labels(span, self.client)
+            self._update_otel_labels(span, self.client)
 
             self._span = span
 
@@ -1266,7 +1266,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     "prefect.flow.name": self.flow.name,
                 },
             )
-            self.update_otel_labels(span, self.client)
+            self._update_otel_labels(span, self.client)
             self._span = span
 
             try:
