@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional, Type
+from typing import Optional, Type
 from uuid import UUID
 
 from pydantic import Field
@@ -40,9 +40,6 @@ from prefect.events.schemas.automations import (
 )
 from prefect.exceptions import PrefectHTTPStatusError
 from prefect.utilities.asyncutils import sync_compatible
-
-if TYPE_CHECKING:
-    pass
 
 __all__ = [
     "AutomationCore",
