@@ -81,7 +81,7 @@ repos:
         name: Format UI v2
         language: system
         entry: sh
-        args: ['-c', 'cd ui-v2 && npm run format']
+        args: ['-c', 'cd ui-v2 && npm ci && npm run format']
         files: |
           (?x)^(
               .pre-commit-config.yaml|
@@ -91,7 +91,7 @@ repos:
         name: Sync UI v2 OpenAPI
         language: system
         entry: sh
-        args: ['-c', 'cd ui-v2 && npm run service-sync']
+        args: ['-c', 'cd ui-v2 && npm ci && npm run service-sync']
         files: |
           (?x)^(
               .pre-commit-config.yaml|
