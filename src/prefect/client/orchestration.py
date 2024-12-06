@@ -138,6 +138,7 @@ from prefect.settings import (
     PREFECT_TESTING_UNIT_TEST_MODE,
     get_current_settings,
 )
+from prefect.types import KeyValueLabelsField
 
 if TYPE_CHECKING:
     from prefect.flows import Flow as FlowObject
@@ -3441,6 +3442,19 @@ class PrefectClient:
                 f"Major versions must match."
             )
 
+    async def update_flow_run_labels(
+        self, flow_run_id: UUID, labels: KeyValueLabelsField
+    ) -> httpx.Response:
+        """
+        Updates the labels of a flow run.
+        """
+
+        response = await self._client.patch(
+            f"/flow_runs/{flow_run_id}/labels", json=labels
+        )
+        response.raise_for_status()
+        return response
+
     async def __aenter__(self):
         """
         Start the client.
@@ -4346,3 +4360,16 @@ class SyncPrefectClient:
                 "task_run_id": str(task_run_id),
             },
         )
+
+    def update_flow_run_labels(
+        self, flow_run_id: UUID, labels: KeyValueLabelsField
+    ) -> httpx.Response:
+        """
+        Updates the labels of a flow run.
+        """
+        response = self._client.patch(
+            f"/flow_runs/{flow_run_id}/labels",
+            json=labels,
+        )
+        response.raise_for_status()
+        return response
