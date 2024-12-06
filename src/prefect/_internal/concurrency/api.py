@@ -7,6 +7,7 @@ import asyncio
 import concurrent.futures
 import contextlib
 from typing import (
+    Any,
     Awaitable,
     Callable,
     ContextManager,
@@ -31,11 +32,11 @@ from prefect._internal.concurrency.waiters import (
 
 P = ParamSpec("P")
 T = TypeVar("T")
-Future = Union[concurrent.futures.Future, asyncio.Future]
+Future = Union[concurrent.futures.Future[T], asyncio.Future[T]]
 
 
 def create_call(__fn: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> Call[T]:
-    return Call.new(__fn, *args, **kwargs)
+    return Call[T].new(__fn, *args, **kwargs)
 
 
 def _cast_to_call(call_like: Union[Callable[[], T], Call[T]]) -> Call[T]:
@@ -48,9 +49,9 @@ def _cast_to_call(call_like: Union[Callable[[], T], Call[T]]) -> Call[T]:
 class _base(abc.ABC):
     @abc.abstractstaticmethod
     def wait_for_call_in_loop_thread(
-        __call: Union[Callable[[], T], Call[T]],
+        __call: Union[Callable[[], T], Call[T]],  # type: ignore[reportGeneralTypeIssues]
         timeout: Optional[float] = None,
-        done_callbacks: Optional[Iterable[Call]] = None,
+        done_callbacks: Optional[Iterable[Call[Any]]] = None,
     ) -> T:
         """
         Schedule a function in the global worker thread and wait for completion.
@@ -61,9 +62,9 @@ class _base(abc.ABC):
 
     @abc.abstractstaticmethod
     def wait_for_call_in_new_thread(
-        __call: Union[Callable[[], T], Call[T]],
+        __call: Union[Callable[[], T], Call[T]],  # type: ignore[reportGeneralTypeIssues]
         timeout: Optional[float] = None,
-        done_callbacks: Optional[Iterable[Call]] = None,
+        done_callbacks: Optional[Iterable[Call[Any]]] = None,
     ) -> T:
         """
         Schedule a function in a new worker thread.
@@ -132,8 +133,8 @@ class from_async(_base):
     async def wait_for_call_in_loop_thread(
         __call: Union[Callable[[], Awaitable[T]], Call[Awaitable[T]]],
         timeout: Optional[float] = None,
-        done_callbacks: Optional[Iterable[Call]] = None,
-        contexts: Optional[Iterable[ContextManager]] = None,
+        done_callbacks: Optional[Iterable[Call[Any]]] = None,
+        contexts: Optional[Iterable[ContextManager[Any]]] = None,
     ) -> Awaitable[T]:
         call = _cast_to_call(__call)
         waiter = AsyncWaiter(call)
@@ -150,7 +151,7 @@ class from_async(_base):
     async def wait_for_call_in_new_thread(
         __call: Union[Callable[[], T], Call[T]],
         timeout: Optional[float] = None,
-        done_callbacks: Optional[Iterable[Call]] = None,
+        done_callbacks: Optional[Iterable[Call[Any]]] = None,
     ) -> T:
         call = _cast_to_call(__call)
         waiter = AsyncWaiter(call=call)
