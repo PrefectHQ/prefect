@@ -1179,7 +1179,7 @@ class Task(Generic[P, R]):
         self: "Task[P, R]",
         *args: Any,
         return_state: Literal[True],
-        wait_for: Optional[Iterable[Union[PrefectFuture[T], T]]] = ...,
+        wait_for: Optional[Iterable[Union[PrefectFuture[R], R]]] = ...,
         deferred: bool = ...,
         **kwargs: Any,
     ) -> List[State[R]]:
@@ -1189,7 +1189,7 @@ class Task(Generic[P, R]):
     def map(
         self: "Task[P, R]",
         *args: Any,
-        wait_for: Optional[Iterable[Union[PrefectFuture[T], T]]] = ...,
+        wait_for: Optional[Iterable[Union[PrefectFuture[R], R]]] = ...,
         deferred: bool = ...,
         **kwargs: Any,
     ) -> PrefectFutureList[R]:
@@ -1200,7 +1200,7 @@ class Task(Generic[P, R]):
         self: "Task[P, R]",
         *args: Any,
         return_state: Literal[True],
-        wait_for: Optional[Iterable[Union[PrefectFuture[T], T]]] = ...,
+        wait_for: Optional[Iterable[Union[PrefectFuture[R], R]]] = ...,
         deferred: bool = ...,
         **kwargs: Any,
     ) -> List[State[R]]:
@@ -1210,7 +1210,7 @@ class Task(Generic[P, R]):
     def map(
         self: "Task[P, R]",
         *args: Any,
-        wait_for: Optional[Iterable[Union[PrefectFuture[T], T]]] = ...,
+        wait_for: Optional[Iterable[Union[PrefectFuture[R], R]]] = ...,
         deferred: bool = ...,
         **kwargs: Any,
     ) -> PrefectFutureList[R]:
@@ -1221,7 +1221,7 @@ class Task(Generic[P, R]):
         self: "Task[P, Coroutine[Any, Any, R]]",
         *args: Any,
         return_state: Literal[True],
-        wait_for: Optional[Iterable[Union[PrefectFuture[T], T]]] = ...,
+        wait_for: Optional[Iterable[Union[PrefectFuture[R], R]]] = ...,
         deferred: bool = ...,
         **kwargs: Any,
     ) -> List[State[R]]:
@@ -1232,7 +1232,7 @@ class Task(Generic[P, R]):
         self: "Task[P, Coroutine[Any, Any, R]]",
         *args: Any,
         return_state: Literal[False],
-        wait_for: Optional[Iterable[Union[PrefectFuture[T], T]]] = ...,
+        wait_for: Optional[Iterable[Union[PrefectFuture[R], R]]] = ...,
         deferred: bool = ...,
         **kwargs: Any,
     ) -> PrefectFutureList[R]:
@@ -1242,10 +1242,10 @@ class Task(Generic[P, R]):
         self,
         *args: Any,
         return_state: bool = False,
-        wait_for: Optional[Iterable[Union[PrefectFuture[T], T]]] = None,
+        wait_for: Optional[Iterable[Union[PrefectFuture[R], R]]] = None,
         deferred: bool = False,
         **kwargs: Any,
-    ):
+    ) -> Union[List[State[R]], PrefectFutureList[R]]:
         """
         Submit a mapped run of the task to a worker.
 
@@ -1394,7 +1394,7 @@ class Task(Generic[P, R]):
                 " execution."
             )
         if return_state:
-            states = []
+            states: list[State[R]] = []
             for future in futures:
                 future.wait()
                 states.append(future.state)
@@ -1406,9 +1406,9 @@ class Task(Generic[P, R]):
         self,
         args: Optional[Tuple[Any, ...]] = None,
         kwargs: Optional[Dict[str, Any]] = None,
-        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
         dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
-    ) -> PrefectDistributedFuture:
+    ) -> PrefectDistributedFuture[R]:
         """
         Create a pending task run for a task worker to execute.
 

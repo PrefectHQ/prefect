@@ -25,7 +25,6 @@ from typing import (
     Union,
 )
 
-import pendulum
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Self
@@ -50,9 +49,12 @@ from prefect.task_runners import TaskRunner
 from prefect.utilities.services import start_client_metrics_server
 
 T = TypeVar("T")
+P = TypeVar("P")
+R = TypeVar("R")
 
 if TYPE_CHECKING:
     from prefect.flows import Flow
+    from prefect.futures import PrefectFuture
     from prefect.tasks import Task
 
 # Define the global settings context variable
@@ -121,8 +123,8 @@ class ContextModel(BaseModel):
     """
 
     # The context variable for storing data must be defined by the child class
-    __var__: ContextVar
-    _token: Optional[Token] = PrivateAttr(None)
+    __var__: ContextVar[Self]
+    _token: Optional[Token[Self]] = PrivateAttr(None)
     model_config = ConfigDict(
         arbitrary_types_allowed=True,
         extra="forbid",
@@ -150,7 +152,7 @@ class ContextModel(BaseModel):
         return cls.__var__.get(None)
 
     def model_copy(
-        self: Self, *, update: Optional[Dict[str, Any]] = None, deep: bool = False
+        self: Self, *, update: Optional[Mapping[str, Any]] = None, deep: bool = False
     ):
         """
         Duplicate the context model, optionally choosing which fields to include, exclude, or change.
@@ -310,11 +312,11 @@ class RunContext(ContextModel):
 
         start_client_metrics_server()
 
-    start_time: DateTime = Field(default_factory=lambda: pendulum.now("UTC"))
+    start_time: DateTime = Field(default_factory=lambda: DateTime.now("UTC"))
     input_keyset: Optional[Dict[str, Dict[str, str]]] = None
     client: Union[PrefectClient, SyncPrefectClient]
 
-    def serialize(self):
+    def serialize(self: Self) -> Dict[str, Any]:
         return self.model_dump(
             include={"start_time", "input_keyset"},
             exclude_unset=True,
@@ -336,9 +338,9 @@ class EngineContext(RunContext):
         flow_run_states: A list of states for flow runs created within this flow run
     """
 
-    flow: Optional["Flow"] = None
+    flow: Optional["Flow[Any, Any]"] = None
     flow_run: Optional[FlowRun] = None
-    task_runner: TaskRunner
+    task_runner: TaskRunner["PrefectFuture[Any]"]
     log_prints: bool = False
     parameters: Optional[Dict[str, Any]] = None
 

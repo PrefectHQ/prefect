@@ -23,13 +23,11 @@ from typing import (
     Awaitable,
     Callable,
     Coroutine,
-    Dict,
     Generic,
+    Hashable,
     Iterable,
-    List,
     NoReturn,
     Optional,
-    Set,
     Tuple,
     Type,
     TypeVar,
@@ -186,7 +184,9 @@ class Flow(Generic[P, R]):
         flow_run_name: Optional[Union[Callable[[], str], str]] = None,
         retries: Optional[int] = None,
         retry_delay_seconds: Optional[Union[int, float]] = None,
-        task_runner: Union[Type[TaskRunner], TaskRunner, None] = None,
+        task_runner: Union[
+            Type[TaskRunner[PrefectFuture[R]]], TaskRunner[PrefectFuture[R]], None
+        ] = None,
         description: Optional[str] = None,
         timeout_seconds: Union[int, float, None] = None,
         validate_parameters: bool = True,
@@ -196,14 +196,14 @@ class Flow(Generic[P, R]):
         cache_result_in_memory: bool = True,
         log_prints: Optional[bool] = None,
         on_completion: Optional[
-            List[Callable[[FlowSchema, FlowRun, State], None]]
+            list[Callable[[FlowSchema, FlowRun, State], None]]
         ] = None,
-        on_failure: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
+        on_failure: Optional[list[Callable[[FlowSchema, FlowRun, State], None]]] = None,
         on_cancellation: Optional[
-            List[Callable[[FlowSchema, FlowRun, State], None]]
+            list[Callable[[FlowSchema, FlowRun, State], None]]
         ] = None,
-        on_crashed: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
-        on_running: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
+        on_crashed: Optional[list[Callable[[FlowSchema, FlowRun, State], None]]] = None,
+        on_running: Optional[list[Callable[[FlowSchema, FlowRun, State], None]]] = None,
     ):
         if name is not None and not isinstance(name, str):
             raise TypeError(
@@ -411,14 +411,14 @@ class Flow(Generic[P, R]):
         cache_result_in_memory: Optional[bool] = None,
         log_prints: Optional[bool] = NotSet,  # type: ignore
         on_completion: Optional[
-            List[Callable[[FlowSchema, FlowRun, State], None]]
+            list[Callable[[FlowSchema, FlowRun, State], None]]
         ] = None,
-        on_failure: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
+        on_failure: Optional[list[Callable[[FlowSchema, FlowRun, State], None]]] = None,
         on_cancellation: Optional[
-            List[Callable[[FlowSchema, FlowRun, State], None]]
+            list[Callable[[FlowSchema, FlowRun, State], None]]
         ] = None,
-        on_crashed: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
-        on_running: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
+        on_crashed: Optional[list[Callable[[FlowSchema, FlowRun, State], None]]] = None,
+        on_running: Optional[list[Callable[[FlowSchema, FlowRun, State], None]]] = None,
     ) -> Self:
         """
         Create a new flow from the current object, updating provided options.
@@ -522,7 +522,7 @@ class Flow(Generic[P, R]):
         new_flow._entrypoint = self._entrypoint
         return new_flow
 
-    def validate_parameters(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
+    def validate_parameters(self, parameters: dict[str, Any]) -> dict[str, Any]:
         """
         Validate parameters for compatibility with the flow by attempting to cast the inputs to the
         associated types specified by the function's type annotations.
@@ -599,7 +599,7 @@ class Flow(Generic[P, R]):
         }
         return cast_parameters
 
-    def serialize_parameters(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
+    def serialize_parameters(self, parameters: dict[str, Any]) -> dict[str, Any]:
         """
         Convert parameters to a serializable form.
 
@@ -646,14 +646,14 @@ class Flow(Generic[P, R]):
         schedules: Optional["FlexibleScheduleList"] = None,
         concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
         parameters: Optional[dict] = None,
-        triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
+        triggers: Optional[list[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
-        tags: Optional[List[str]] = None,
+        tags: Optional[list[str]] = None,
         version: Optional[str] = None,
         enforce_parameter_schema: bool = True,
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
-        job_variables: Optional[Dict[str, Any]] = None,
+        job_variables: Optional[dict[str, Any]] = None,
         entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
     ) -> "RunnerDeployment":
         """
@@ -801,10 +801,10 @@ class Flow(Generic[P, R]):
         paused: Optional[bool] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
         global_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
-        triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
-        parameters: Optional[Dict[str, Any]] = None,
+        triggers: Optional[list[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
+        parameters: Optional[dict[str, Any]] = None,
         description: Optional[str] = None,
-        tags: Optional[List[str]] = None,
+        tags: Optional[list[str]] = None,
         version: Optional[str] = None,
         enforce_parameter_schema: bool = True,
         pause_on_shutdown: bool = True,
@@ -1056,17 +1056,17 @@ class Flow(Generic[P, R]):
         build: bool = True,
         push: bool = True,
         work_queue_name: Optional[str] = None,
-        job_variables: Optional[dict] = None,
+        job_variables: Optional[dict[str, Any]] = None,
         interval: Optional[Union[int, float, datetime.timedelta]] = None,
         cron: Optional[str] = None,
         rrule: Optional[str] = None,
         paused: Optional[bool] = None,
-        schedules: Optional[List[DeploymentScheduleCreate]] = None,
+        schedules: Optional[list[DeploymentScheduleCreate]] = None,
         concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
-        triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
-        parameters: Optional[dict] = None,
+        triggers: Optional[list[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
+        parameters: Optional[dict[str, Any]] = None,
         description: Optional[str] = None,
-        tags: Optional[List[str]] = None,
+        tags: Optional[list[str]] = None,
         version: Optional[str] = None,
         enforce_parameter_schema: bool = True,
         entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
@@ -1361,7 +1361,7 @@ class Flow(Generic[P, R]):
         )
 
     @sync_compatible
-    async def visualize(self, *args: Any, **kwargs: Any):
+    async def visualize(self, *args: "P.args", **kwargs: "P.kwargs"):
         """
         Generates a graphviz object representing the current flow. In IPython notebooks,
         it's rendered inline, otherwise in a new window as a PNG.
@@ -1390,7 +1390,7 @@ class Flow(Generic[P, R]):
         try:
             with TaskVizTracker() as tracker:
                 if self.isasync:
-                    await self.fn(*args, **kwargs)
+                    await self.fn(*args, **kwargs)  # type: ignore[reportGeneralTypeIssues]
                 else:
                     self.fn(*args, **kwargs)
 
@@ -1433,7 +1433,7 @@ def flow(
     flow_run_name: Optional[Union[Callable[[], str], str]] = None,
     retries: Optional[int] = None,
     retry_delay_seconds: Optional[Union[int, float]] = None,
-    task_runner: Optional[TaskRunner[PrefectFuture[Any]]] = None,
+    task_runner: Optional[TaskRunner[PrefectFuture[R]]] = None,
     description: Optional[str] = None,
     timeout_seconds: Union[int, float, None] = None,
     validate_parameters: bool = True,
@@ -1443,16 +1443,16 @@ def flow(
     cache_result_in_memory: bool = True,
     log_prints: Optional[bool] = None,
     on_completion: Optional[
-        List[Callable[[FlowSchema, FlowRun, State], Union[Awaitable[None], None]]]
+        list[Callable[[FlowSchema, FlowRun, State], Union[Awaitable[None], None]]]
     ] = None,
     on_failure: Optional[
-        List[Callable[[FlowSchema, FlowRun, State], Union[Awaitable[None], None]]]
+        list[Callable[[FlowSchema, FlowRun, State], Union[Awaitable[None], None]]]
     ] = None,
     on_cancellation: Optional[
-        List[Callable[[FlowSchema, FlowRun, State], None]]
+        list[Callable[[FlowSchema, FlowRun, State], None]]
     ] = None,
-    on_crashed: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
-    on_running: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
+    on_crashed: Optional[list[Callable[[FlowSchema, FlowRun, State], None]]] = None,
+    on_running: Optional[list[Callable[[FlowSchema, FlowRun, State], None]]] = None,
 ) -> Callable[[Callable[P, R]], Flow[P, R]]:
     ...
 
@@ -1465,7 +1465,7 @@ def flow(
     flow_run_name: Optional[Union[Callable[[], str], str]] = None,
     retries: Optional[int] = None,
     retry_delay_seconds: Union[int, float, None] = None,
-    task_runner: Optional[TaskRunner[PrefectFuture[Any]]] = None,
+    task_runner: Optional[TaskRunner[PrefectFuture[R]]] = None,
     description: Optional[str] = None,
     timeout_seconds: Union[int, float, None] = None,
     validate_parameters: bool = True,
@@ -1475,16 +1475,16 @@ def flow(
     cache_result_in_memory: bool = True,
     log_prints: Optional[bool] = None,
     on_completion: Optional[
-        List[Callable[[FlowSchema, FlowRun, State], Union[Awaitable[None], None]]]
+        list[Callable[[FlowSchema, FlowRun, State], Union[Awaitable[None], None]]]
     ] = None,
     on_failure: Optional[
-        List[Callable[[FlowSchema, FlowRun, State], Union[Awaitable[None], None]]]
+        list[Callable[[FlowSchema, FlowRun, State], Union[Awaitable[None], None]]]
     ] = None,
     on_cancellation: Optional[
-        List[Callable[[FlowSchema, FlowRun, State], None]]
+        list[Callable[[FlowSchema, FlowRun, State], None]]
     ] = None,
-    on_crashed: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
-    on_running: Optional[List[Callable[[FlowSchema, FlowRun, State], None]]] = None,
+    on_crashed: Optional[list[Callable[[FlowSchema, FlowRun, State], None]]] = None,
+    on_running: Optional[list[Callable[[FlowSchema, FlowRun, State], None]]] = None,
 ):
     """
     Decorator to designate a function as a Prefect workflow.
@@ -2041,10 +2041,10 @@ def load_placeholder_flow(entrypoint: str, raises: Exception):
     def _base_placeholder():
         raise raises
 
-    def sync_placeholder_flow(*args, **kwargs):
+    def sync_placeholder_flow(*args: "P.args", **kwargs: "P.kwargs"):
         _base_placeholder()
 
-    async def async_placeholder_flow(*args, **kwargs):
+    async def async_placeholder_flow(*args: "P.args", **kwargs: "P.kwargs"):
         _base_placeholder()
 
     placeholder_flow = (
@@ -2059,7 +2059,7 @@ def load_placeholder_flow(entrypoint: str, raises: Exception):
     return Flow(**arguments)
 
 
-def safe_load_flow_from_entrypoint(entrypoint: str) -> Optional[Flow]:
+def safe_load_flow_from_entrypoint(entrypoint: str) -> Optional[Flow[P, Any]]:
     """
     Load a flow from an entrypoint and return None if an exception is raised.
 
@@ -2084,8 +2084,8 @@ def safe_load_flow_from_entrypoint(entrypoint: str) -> Optional[Flow]:
 
 
 def _sanitize_and_load_flow(
-    func_def: Union[ast.FunctionDef, ast.AsyncFunctionDef], namespace: Dict[str, Any]
-) -> Optional[Flow]:
+    func_def: Union[ast.FunctionDef, ast.AsyncFunctionDef], namespace: dict[str, Any]
+) -> Optional[Flow[P, Any]]:
     """
     Attempt to load a flow from the function definition after sanitizing the annotations
     and defaults that can't be compiled.
@@ -2122,7 +2122,7 @@ def _sanitize_and_load_flow(
                 arg.annotation = None
 
     # Remove defaults that can't be compiled
-    new_defaults = []
+    new_defaults: list[Any] = []
     for default in func_def.args.defaults:
         try:
             code = compile(ast.Expression(default), "<ast>", "eval")
@@ -2142,7 +2142,7 @@ def _sanitize_and_load_flow(
     func_def.args.defaults = new_defaults
 
     # Remove kw_defaults that can't be compiled
-    new_kw_defaults = []
+    new_kw_defaults: list[Any] = []
     for default in func_def.args.kw_defaults:
         if default is not None:
             try:
@@ -2201,8 +2201,8 @@ def _sanitize_and_load_flow(
 
 
 def load_flow_arguments_from_entrypoint(
-    entrypoint: str, arguments: Optional[Union[List[str], Set[str]]] = None
-) -> dict[str, Any]:
+    entrypoint: str, arguments: Optional[Union[list[str], set[str]]] = None
+) -> dict[Hashable, Any]:
     """
     Extract flow arguments from an entrypoint string.
 
@@ -2235,7 +2235,7 @@ def load_flow_arguments_from_entrypoint(
             "log_prints",
         }
 
-    result = {}
+    result: dict[Hashable, Any] = {}
 
     for decorator in func_def.decorator_list:
         if (
