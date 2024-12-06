@@ -289,15 +289,15 @@ class TestUpdateFlowRun:
             "new_key": "new_value",  # Added from new labels
         }
 
-    async def test_update_flow_run_labels_returns_false_if_flow_run_does_not_exist(
-        self, session: AsyncSession
+    async def test_update_flow_run_labels_raises_if_flow_run_does_not_exist(
+        self, session: AsyncSession, caplog: pytest.LogCaptureFixture
     ):
-        """Test that updating labels for a non-existent flow run returns False"""
-
-        update_success = await models.flow_runs.update_flow_run_labels(
-            session=session, flow_run_id=uuid4(), labels={"test": "label"}
-        )
-        assert update_success is False
+        """Test that updating labels for a non-existent flow run raises"""
+        with pytest.raises(ObjectNotFoundError) as exc:
+            await models.flow_runs.update_flow_run_labels(
+                session=session, flow_run_id=uuid4(), labels={"test": "label"}
+            )
+        assert "Flow run with id" in str(exc.value)
 
     async def test_update_flow_run_labels_with_empty_initial_labels(
         self, flow: orm_models.Flow, session: AsyncSession
