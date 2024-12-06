@@ -406,7 +406,9 @@ You can create and use these block types through the UI without installing any a
 | Twilio SMS                  | `twilio-sms`             | Send notifications through Twilio SMS.                                       |
 
 <Note>
-If you're using a self-hosted prefect server, you need to register the built-in blocks, for example using `prefect block register -m prefect.blocks.notifications`.
+Built-in blocks should be registered the first time you start a Prefect server. If the auto-registration fails, you can manually register the blocks using `prefect blocks register`. 
+
+For example, to register all built-in notification blocks, run `prefect block register -m prefect.blocks.notifications`.
 </Note>
 
 <Warning>
