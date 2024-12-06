@@ -54,7 +54,6 @@ R = TypeVar("R")
 
 if TYPE_CHECKING:
     from prefect.flows import Flow
-    from prefect.futures import PrefectFuture
     from prefect.tasks import Task
 
 # Define the global settings context variable
@@ -340,7 +339,7 @@ class EngineContext(RunContext):
 
     flow: Optional["Flow[Any, Any]"] = None
     flow_run: Optional[FlowRun] = None
-    task_runner: TaskRunner["PrefectFuture[Any]"]
+    task_runner: TaskRunner[Any]
     log_prints: bool = False
     parameters: Optional[Dict[str, Any]] = None
 
