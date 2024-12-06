@@ -99,21 +99,21 @@ RUN apt-get update && \
     ca-certificates \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install UV
-ADD https://astral.sh/uv/install.sh /uv-installer.sh
-RUN sh /uv-installer.sh && rm /uv-installer.sh
-ENV PATH="/root/.local/bin:$PATH"
+# Install UV from official image
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Install the base requirements using UV instead of pip
-COPY requirements-client.txt requirements.txt ./
-RUN uv pip install --system -r requirements.txt
+# Install dependencies using a temporary mount for requirements files
+RUN --mount=type=bind,source=requirements-client.txt,target=/tmp/requirements-client.txt \
+    --mount=type=bind,source=requirements.txt,target=/tmp/requirements.txt \
+    uv pip install --system -r /tmp/requirements.txt
 
 # Install prefect from the sdist
 COPY --from=python-builder /opt/prefect/dist ./dist
 
 # Extras to include during installation
 ARG PREFECT_EXTRAS
-RUN uv pip install --system "./dist/prefect.tar.gz${PREFECT_EXTRAS:-""}"
+RUN uv pip install --system "./dist/prefect.tar.gz${PREFECT_EXTRAS:-""}" && \
+    rm -rf dist/
 
 # Remove setuptools
 RUN uv pip uninstall --system setuptools
