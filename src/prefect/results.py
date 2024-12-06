@@ -492,15 +492,13 @@ class ResultStore(BaseModel):
             assert (
                 metadata.storage_key is not None
             ), "Did not find storage key in metadata"
-            result_content = await self.result_storage.read_path(
-                metadata.storage_key
-            )  # remote read event
+            result_content = await self.result_storage.read_path(metadata.storage_key)
             result_record = ResultRecord.deserialize_from_result_and_metadata(
                 result=result_content, metadata=metadata_content
             )
             await emit_result_read_event(self, resolved_key_path)
         else:
-            content = await self.result_storage.read_path(key)  # remote read event
+            content = await self.result_storage.read_path(key)
             result_record = ResultRecord.deserialize(
                 content, backup_serializer=self.serializer
             )
@@ -601,7 +599,7 @@ class ResultStore(BaseModel):
         result_record = self.create_result_record(
             key=key, obj=obj, expiration=expiration
         )
-        return self._persist_result_record(
+        return self.persist_result_record(
             result_record=result_record,
             holder=holder,
         )
