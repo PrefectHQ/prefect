@@ -11,11 +11,8 @@ import {
 } from "../card";
 import { Calendar, ChevronRight, Clock, Rocket } from "lucide-react";
 import { StateBadge } from "../state-badge";
-import useDebounce from "@/hooks/use-debounce";
 import { Link } from "@tanstack/react-router";
-import {
-	format,
-} from "date-fns";
+import { format } from "date-fns";
 import { secondsToApproximateString } from "@/lib/duration";
 import { TagBadgeGroup } from "../tag-badge-group";
 
@@ -59,6 +56,40 @@ type EnrichedFlowRun = components["schemas"]["FlowRun"] & {
 	flow: components["schemas"]["Flow"];
 };
 
+/**
+ * Custom hook to manage tooltip active state with a delayed hide effect. When the tooltip is set to inactive, it will wait for the specified delay before
+ * surrendering control.
+ *
+ * @param initialValue - Initial active state of the tooltip (default: undefined)
+ * @param leaveDelay - Delay in milliseconds before hiding the tooltip after becoming inactive (default: 500ms)
+ * @returns A tuple containing [isActive, setIsActive] where isActive is the current tooltip state
+ *          and setIsActive is a function to update the internal state
+ */
+const useIsTooltipActive = (
+	initialValue: boolean | undefined = undefined,
+	leaveDelay: number = 500,
+) => {
+	const [internalValue, setInternalValue] = useState<boolean | undefined>(
+		initialValue,
+	);
+	const [externalValue, setExternalValue] = useState<boolean | undefined>(
+		initialValue,
+	);
+
+	useEffect(() => {
+		if (internalValue) {
+			setExternalValue(true);
+		} else {
+			const timer = setTimeout(() => {
+				setExternalValue(undefined);
+			}, leaveDelay);
+			return () => clearTimeout(timer);
+		}
+	}, [internalValue, leaveDelay]);
+
+	return [externalValue, setInternalValue] as const;
+};
+
 type FlowRunActivityBarChartProps = {
 	enrichedFlowRuns: EnrichedFlowRun[];
 	startDate: Date;
@@ -73,11 +104,10 @@ export const FlowRunActivityBarChart = ({
 	startDate,
 	endDate,
 	barSize = 8,
-	barGap = 10,
+	barGap = 4,
 	className,
 }: FlowRunActivityBarChartProps) => {
-	const [isTooltipActive, setIsTooltipActive] = useState(false);
-	const debouncedIsTooltipActive = useDebounce(isTooltipActive, 300);
+	const [isTooltipActive, setIsTooltipActive] = useIsTooltipActive();
 	const containerRef = useRef<HTMLDivElement>(null);
 	const [numberOfBars, setNumberOfBars] = useState(10);
 	useEffect(() => {
@@ -118,29 +148,30 @@ export const FlowRunActivityBarChart = ({
 				margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
 				barSize={barSize}
 				barCategoryGap={barGap}
+				onMouseMove={() => {
+					setIsTooltipActive(true);
+				}}
+				onMouseLeave={() => {
+					setIsTooltipActive(undefined);
+				}}
 			>
 				<ChartTooltip
-					content={
-						<FlowRunTooltip
-							onMouseEnter={() => setIsTooltipActive(true)}
-							onMouseLeave={() => setIsTooltipActive(false)}
-						/>
-					}
+					content={<FlowRunTooltip />}
 					position={{
-						y: (containerRef.current?.getBoundingClientRect().height ?? 0) + 10,
+						y: containerRef.current?.getBoundingClientRect().height ?? 0,
 					}}
 					isAnimationActive={false}
 					allowEscapeViewBox={{ x: true, y: true }}
-					active={debouncedIsTooltipActive}
+					active={isTooltipActive}
 					wrapperStyle={{ pointerEvents: "auto" }}
-					cursor={false}
+					cursor={true}
 				/>
 				<Bar
 					dataKey="value"
 					shape={<CustomBar />}
 					radius={[5, 5, 5, 5]}
 					onMouseEnter={() => setIsTooltipActive(true)}
-					onMouseLeave={() => setIsTooltipActive(false)}
+					onMouseLeave={() => setIsTooltipActive(undefined)}
 				>
 					{data.map((entry) => (
 						<Cell
@@ -158,6 +189,21 @@ export const FlowRunActivityBarChart = ({
 	);
 };
 
+/**
+ * Organizes flow runs into time-based buckets with gaps for visualization.
+ * 
+ * @param flowRuns - Array of flow runs to organize
+ * @param startDate - Start date of the time range to organize runs into
+ * @param endDate - End date of the time range to organize runs into  
+ * @param numberOfBars - Number of buckets/bars to divide the time range into
+ * @returns Array of flow runs or null values representing empty buckets. The length matches numberOfBars.
+ * 
+ * This function:
+ * 1. Divides the time range into equal-sized buckets
+ * 2. Sorts runs by start time if the time range extends into the future
+ * 3. Places each run into an appropriate bucket, maintaining order and gaps
+ * 4. Returns null for buckets with no runs
+ */
 function organizeFlowRunsWithGaps(
 	flowRuns: components["schemas"]["FlowRun"][],
 	startDate: Date,
@@ -238,17 +284,9 @@ function organizeFlowRunsWithGaps(
 	return buckets;
 }
 
-type FlowRunTooltipProps = TooltipProps<number, string> & {
-	onMouseEnter: () => void;
-	onMouseLeave: () => void;
-};
+type FlowRunTooltipProps = TooltipProps<number, string>;
 
-const FlowRunTooltip = ({
-	payload,
-	active,
-	onMouseEnter,
-	onMouseLeave,
-}: FlowRunTooltipProps) => {
+const FlowRunTooltip = ({ payload, active }: FlowRunTooltipProps) => {
 	if (!active || !payload || !payload.length) {
 		return null;
 	}
@@ -269,22 +307,16 @@ const FlowRunTooltip = ({
 	if (!flow || !flow.id) {
 		return null;
 	}
-
 	const deployment = flowRun.deployment;
-	if (!deployment || !deployment.id) {
-		return null;
-	}
+
+	const startTime = flowRun.start_time
+		? new Date(flowRun.start_time)
+		: flowRun.expected_start_time
+			? new Date(flowRun.expected_start_time)
+			: null;
 
 	return (
-		<Card
-			className="-translate-x-1/2"
-			onMouseEnter={() => {
-				onMouseEnter();
-			}}
-			onMouseLeave={() => {
-				onMouseLeave();
-			}}
-		>
+		<Card className="-translate-x-1/2">
 			<CardHeader>
 				<CardTitle className="flex items-center gap-1">
 					<Link
@@ -310,33 +342,30 @@ const FlowRunTooltip = ({
 				)}
 			</CardHeader>
 			<CardContent className="flex flex-col gap-1">
-				<Link
-					to={"/deployments/deployment/$id"}
-					params={{ id: deployment.id }}
-					className="flex items-center gap-1"
-				>
-					<Rocket className="w-4 h-4" />
-					<p className="text-sm font-medium whitespace-nowrap">{deployment.name}</p>
-				</Link>
+				{deployment?.id && (
+					<Link
+						to={"/deployments/deployment/$id"}
+						params={{ id: deployment.id }}
+						className="flex items-center gap-1"
+					>
+						<Rocket className="w-4 h-4" />
+						<p className="text-sm font-medium whitespace-nowrap">
+							{deployment.name}
+						</p>
+					</Link>
+				)}
 				<span className="flex items-center gap-1">
 					<Clock className="w-4 h-4" />
 					<p className="text-sm whitespace-nowrap">
 						{secondsToApproximateString(flowRun.total_run_time)}
 					</p>
 				</span>
-				<span className="flex items-center gap-1">
-					<Calendar className="w-4 h-4" />
-					<p className="text-sm">
-						{flowRun.start_time
-							? format(new Date(flowRun.start_time), "yyyy/MM/dd HH:mm a")
-							: flowRun.expected_start_time
-								? format(
-										new Date(flowRun.expected_start_time),
-										"yyyy/MM/dd HH:mm",
-									)
-								: ""}
-					</p>
-				</span>
+				{startTime && (
+					<span className="flex items-center gap-1">
+						<Calendar className="w-4 h-4" />
+						<p className="text-sm">{format(startTime, "yyyy/MM/dd HH:mm")}</p>
+					</span>
+				)}
 				<div>
 					<TagBadgeGroup tags={flowRun.tags ?? []} maxTagsDisplayed={5} />
 				</div>
@@ -344,3 +373,5 @@ const FlowRunTooltip = ({
 		</Card>
 	);
 };
+
+FlowRunTooltip.displayName = "FlowRunTooltip";
