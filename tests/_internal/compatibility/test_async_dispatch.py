@@ -1,5 +1,5 @@
 import asyncio
-from typing import List, Optional
+from typing import Optional
 
 import pytest
 
@@ -12,7 +12,7 @@ from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 class TestAsyncDispatchBasicUsage:
     def test_async_compatible_fn_in_sync_context(self):
-        data: List[str] = []
+        data: list[str] = []
 
         async def my_function_async() -> None:
             data.append("async")
@@ -25,7 +25,7 @@ class TestAsyncDispatchBasicUsage:
         assert data == ["sync"]
 
     async def test_async_compatible_fn_in_async_context(self):
-        data: List[str] = []
+        data: list[str] = []
 
         async def my_function_async() -> None:
             data.append("async")
@@ -34,12 +34,12 @@ class TestAsyncDispatchBasicUsage:
         def my_function() -> None:
             data.append("sync")
 
-        await my_function()
+        await my_function()  # type: ignore[reportGeneralTypeIssues]
         assert data == ["async"]
 
     async def test_can_force_sync_or_async_dispatch(self):
         """Verify that we can force sync or async dispatch regardless of context"""
-        data: List[str] = []
+        data: list[str] = []
 
         async def my_function_async() -> None:
             data.append("async")
@@ -49,13 +49,13 @@ class TestAsyncDispatchBasicUsage:
             data.append("sync")
 
         # Force sync even in async context
-        my_function(_sync=True)
+        my_function(_sync=True)  # type: ignore[reportCallIssue]
         assert data == ["sync"]
 
         data.clear()
 
         # Force async
-        await my_function(_sync=False)
+        await my_function(_sync=False)  # type: ignore[reportCallIssue]
         assert data == ["async"]
 
 
@@ -68,7 +68,7 @@ class TestAsyncDispatchValidation:
 
         with pytest.raises(TypeError, match="async_impl must be an async function"):
 
-            @async_dispatch(not_async)
+            @async_dispatch(not_async)  # type: ignore[reportArgumentType]
             def my_function() -> None:
                 pass
 
@@ -117,7 +117,7 @@ class TestMethodBinding:
         class Counter:
             def __init__(self) -> None:
                 self.count = 0
-                self.calls: List[str] = []
+                self.calls: list[str] = []
 
             async def increment_async(self) -> None:
                 self.calls.append("async")
@@ -182,3 +182,21 @@ class TestIsInAsyncContext:
             assert (
                 is_in_async_context() is False
             ), "the loop should be closed and not considered an async context"
+
+
+class TestClassMethods:
+    async def test_class_methods_are_compatible(self):
+        """Verify that class methods are compatible"""
+
+        class MyClass:
+            @classmethod
+            async def amethod(cls) -> int:
+                return 42
+
+            @async_dispatch(amethod)
+            @classmethod
+            def method(cls) -> int:
+                return 42
+
+        assert await MyClass.amethod() == 42
+        assert MyClass.method() == 42

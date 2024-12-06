@@ -15,9 +15,9 @@ from prefect.client.schemas.actions import ArtifactCreate as ArtifactRequest
 from prefect.client.schemas.actions import ArtifactUpdate
 from prefect.client.schemas.filters import ArtifactFilter, ArtifactFilterKey
 from prefect.client.schemas.sorting import ArtifactSort
-from prefect.client.utilities import get_or_create_client, inject_client
+from prefect.client.utilities import get_or_create_client
 from prefect.logging.loggers import get_logger
-from prefect.utilities.asyncutils import run_coro_as_sync, sync_compatible
+from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.context import get_task_and_flow_run_ids
 
 logger = get_logger("artifacts")
@@ -79,7 +79,6 @@ class Artifact(ArtifactRequest):
             )
         )
 
-    @async_dispatch(acreate)
     def create(
         self: "Self",
         client: Optional["PrefectClient"] = None,
@@ -140,7 +139,6 @@ class Artifact(ArtifactRequest):
         )
         return next(iter(artifacts), None)
 
-    @async_dispatch(aget)
     @classmethod
     def get(
         cls: "Type[Self]",
@@ -168,7 +166,6 @@ class Artifact(ArtifactRequest):
         return next(iter(artifacts), None)
 
     @classmethod
-    @sync_compatible
     async def get_or_create(
         cls,
         key: Optional[str] = None,
@@ -291,41 +288,7 @@ class ImageArtifact(Artifact):
         return self.image_url
 
 
-@inject_client
-async def _create_artifact(
-    type: str,
-    key: Optional[str] = None,
-    description: Optional[str] = None,
-    data: Optional[Union[Dict[str, Any], Any]] = None,
-    client: Optional["PrefectClient"] = None,
-) -> UUID:
-    """
-    Helper function to create an artifact.
-
-    Arguments:
-        type: A string identifying the type of artifact.
-        key: A user-provided string identifier.
-          The key must only contain lowercase letters, numbers, and dashes.
-        description: A user-specified description of the artifact.
-        data: A JSON payload that allows for a result to be retrieved.
-        client: The PrefectClient
-
-    Returns:
-        - The table artifact ID.
-    """
-
-    artifact = await Artifact(
-        type=type,
-        key=key,
-        description=description,
-        data=data,
-    ).create(client)
-
-    return artifact.id
-
-
-@sync_compatible
-async def create_link_artifact(
+async def acreate_link_artifact(
     link: str,
     link_text: Optional[str] = None,
     key: Optional[str] = None,
@@ -333,7 +296,7 @@ async def create_link_artifact(
     client: Optional["PrefectClient"] = None,
 ) -> UUID:
     """
-    Create a link artifact.
+    An asynchronous method to create a link artifact.
 
     Arguments:
         link: The link to create.
@@ -352,19 +315,52 @@ async def create_link_artifact(
         description=description,
         link=link,
         link_text=link_text,
+    ).acreate(client)
+
+    return artifact.id
+
+
+@async_dispatch(acreate_link_artifact)
+def create_link_artifact(
+    link: str,
+    link_text: Optional[str] = None,
+    key: Optional[str] = None,
+    description: Optional[str] = None,
+    client: Optional["PrefectClient"] = None,
+) -> UUID:
+    """
+    An asynchronous method to create a link artifact.
+
+    Arguments:
+        link: The link to create.
+        link_text: The link text.
+        key: A user-provided string identifier.
+          Required for the artifact to show in the Artifacts page in the UI.
+          The key must only contain lowercase letters, numbers, and dashes.
+        description: A user-specified description of the artifact.
+
+
+    Returns:
+        The table artifact ID.
+    """
+    artifact = LinkArtifact(
+        key=key,
+        description=description,
+        link=link,
+        link_text=link_text,
     ).create(client)
 
     return artifact.id
 
 
-@sync_compatible
-async def create_markdown_artifact(
+async def acreate_markdown_artifact(
     markdown: str,
     key: Optional[str] = None,
     description: Optional[str] = None,
+    client: Optional["PrefectClient"] = None,
 ) -> UUID:
     """
-    Create a markdown artifact.
+    An asynchronous method to create a markdown artifact.
 
     Arguments:
         markdown: The markdown to create.
@@ -380,19 +376,48 @@ async def create_markdown_artifact(
         key=key,
         description=description,
         markdown=markdown,
-    ).create()
+    ).acreate(client)
 
     return artifact.id
 
 
-@sync_compatible
-async def create_table_artifact(
+@async_dispatch(acreate_markdown_artifact)
+def create_markdown_artifact(
+    markdown: str,
+    key: Optional[str] = None,
+    description: Optional[str] = None,
+    client: Optional["PrefectClient"] = None,
+) -> UUID:
+    """
+    A method to create a markdown artifact.
+
+    Arguments:
+        markdown: The markdown to create.
+        key: A user-provided string identifier.
+          Required for the artifact to show in the Artifacts page in the UI.
+          The key must only contain lowercase letters, numbers, and dashes.
+        description: A user-specified description of the artifact.
+
+    Returns:
+        The table artifact ID.
+    """
+    artifact = MarkdownArtifact(
+        key=key,
+        description=description,
+        markdown=markdown,
+    ).create(client)
+
+    return artifact.id
+
+
+async def acreate_table_artifact(
     table: Union[Dict[str, List[Any]], List[Dict[str, Any]], List[List[Any]]],
     key: Optional[str] = None,
     description: Optional[str] = None,
+    client: Optional["PrefectClient"] = None,
 ) -> UUID:
     """
-    Create a table artifact.
+    An asynchronous method to create a table artifact.
 
     Arguments:
         table: The table to create.
@@ -409,19 +434,49 @@ async def create_table_artifact(
         key=key,
         description=description,
         table=table,
-    ).create()
+    ).acreate(client)
 
     return artifact.id
 
 
-@sync_compatible
-async def create_progress_artifact(
+@async_dispatch(acreate_table_artifact)
+def create_table_artifact(
+    table: Union[Dict[str, List[Any]], List[Dict[str, Any]], List[List[Any]]],
+    key: Optional[str] = None,
+    description: Optional[str] = None,
+    client: Optional["PrefectClient"] = None,
+) -> UUID:
+    """
+    A method to create a table artifact.
+
+    Arguments:
+        table: The table to create.
+        key: A user-provided string identifier.
+          Required for the artifact to show in the Artifacts page in the UI.
+          The key must only contain lowercase letters, numbers, and dashes.
+        description: A user-specified description of the artifact.
+
+    Returns:
+        The table artifact ID.
+    """
+
+    artifact = TableArtifact(
+        key=key,
+        description=description,
+        table=table,
+    ).create(client)
+
+    return artifact.id
+
+
+async def acreate_progress_artifact(
     progress: float,
     key: Optional[str] = None,
     description: Optional[str] = None,
+    client: Optional["PrefectClient"] = None,
 ) -> UUID:
     """
-    Create a progress artifact.
+    An asynchronous method to create a progress artifact.
 
     Arguments:
         progress: The percentage of progress represented by a float between 0 and 100.
@@ -438,20 +493,49 @@ async def create_progress_artifact(
         key=key,
         description=description,
         progress=progress,
-    ).create()
+    ).acreate(client)
 
     return artifact.id
 
 
-@sync_compatible
-async def update_progress_artifact(
+@async_dispatch(acreate_progress_artifact)
+def create_progress_artifact(
+    progress: float,
+    key: Optional[str] = None,
+    description: Optional[str] = None,
+    client: Optional["PrefectClient"] = None,
+) -> UUID:
+    """
+    A method to create a progress artifact.
+
+    Arguments:
+        progress: The percentage of progress represented by a float between 0 and 100.
+        key: A user-provided string identifier.
+          Required for the artifact to show in the Artifacts page in the UI.
+          The key must only contain lowercase letters, numbers, and dashes.
+        description: A user-specified description of the artifact.
+
+    Returns:
+        The progress artifact ID.
+    """
+
+    artifact = ProgressArtifact(
+        key=key,
+        description=description,
+        progress=progress,
+    ).create(client)
+
+    return artifact.id
+
+
+async def aupdate_progress_artifact(
     artifact_id: UUID,
     progress: float,
     description: Optional[str] = None,
     client: Optional[PrefectClient] = None,
 ) -> UUID:
     """
-    Update a progress artifact.
+    An asynchronous method to update a progress artifact.
 
     Arguments:
         artifact_id: The ID of the artifact to update.
@@ -462,7 +546,7 @@ async def update_progress_artifact(
         The progress artifact ID.
     """
 
-    client, _ = get_or_create_client(client)
+    _client, _ = get_or_create_client(client)
 
     artifact = ProgressArtifact(
         description=description,
@@ -477,7 +561,7 @@ async def update_progress_artifact(
         else ArtifactUpdate(data=await artifact.format())
     )
 
-    await client.update_artifact(
+    await cast("PrefectClient", _client).update_artifact(
         artifact_id=artifact_id,
         artifact=update,
     )
@@ -485,14 +569,55 @@ async def update_progress_artifact(
     return artifact_id
 
 
-@sync_compatible
-async def create_image_artifact(
+@async_dispatch(aupdate_progress_artifact)
+def update_progress_artifact(
+    artifact_id: UUID,
+    progress: float,
+    description: Optional[str] = None,
+    client: Optional[PrefectClient] = None,
+) -> UUID:
+    """
+    A method to update a progress artifact.
+
+    Arguments:
+        artifact_id: The ID of the artifact to update.
+        progress: The percentage of progress represented by a float between 0 and 100.
+        description: A user-specified description of the artifact.
+
+    Returns:
+        The progress artifact ID.
+    """
+
+    _client, _ = get_or_create_client(client)
+
+    artifact = ProgressArtifact(
+        description=description,
+        progress=progress,
+    )
+    update = (
+        ArtifactUpdate(
+            description=artifact.description,
+            data=run_coro_as_sync(artifact.format()),
+        )
+        if description
+        else ArtifactUpdate(data=run_coro_as_sync(artifact.format()))
+    )
+
+    cast("SyncPrefectClient", _client).update_artifact(
+        artifact_id=artifact_id,
+        artifact=update,
+    )
+
+    return artifact_id
+
+
+async def acreate_image_artifact(
     image_url: str,
     key: Optional[str] = None,
     description: Optional[str] = None,
 ) -> UUID:
     """
-    Create an image artifact.
+    An asynchronous method to create an image artifact.
 
     Arguments:
         image_url: The URL of the image to display.
@@ -509,6 +634,35 @@ async def create_image_artifact(
         key=key,
         description=description,
         image_url=image_url,
-    ).create()
+    ).acreate()
+
+    return artifact.id
+
+
+@async_dispatch(acreate_image_artifact)
+def create_image_artifact(
+    image_url: str,
+    key: Optional[str] = None,
+    description: Optional[str] = None,
+    client: Optional["PrefectClient"] = None,
+) -> UUID:
+    """
+    A method to create an image artifact.
+
+    Arguments:
+        image_url: The URL of the image to display.
+        key: A user-provided string identifier.
+          Required for the artifact to show in the Artifacts page in the UI.
+          The key must only contain lowercase letters, numbers, and dashes.
+        description: A user-specified description of the artifact.
+    Returns:
+        The image artifact ID.
+    """
+
+    artifact = ImageArtifact(
+        key=key,
+        description=description,
+        image_url=image_url,
+    ).create(client)
 
     return artifact.id

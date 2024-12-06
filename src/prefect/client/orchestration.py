@@ -4299,6 +4299,25 @@ class SyncPrefectClient:
 
         return Artifact.model_validate(response.json())
 
+    def update_artifact(
+        self,
+        artifact_id: UUID,
+        artifact: ArtifactUpdate,
+    ) -> None:
+        """
+        Updates an artifact
+
+        Args:
+            artifact: Desired values for the updated artifact.
+        Returns:
+            Information about the updated artifact.
+        """
+
+        self._client.patch(
+            f"/artifacts/{artifact_id}",
+            json=artifact.model_dump(mode="json", exclude_unset=True),
+        )
+
     def read_artifacts(
         self,
         *,

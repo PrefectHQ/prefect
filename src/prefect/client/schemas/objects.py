@@ -202,7 +202,7 @@ class State(ObjectBaseModel, Generic[R]):
 
     type: StateType
     name: Optional[str] = Field(default=None)
-    timestamp: DateTime = Field(default_factory=lambda: pendulum.now("UTC"))
+    timestamp: DateTime = Field(default_factory=lambda: DateTime.now("UTC"))
     message: Optional[str] = Field(default=None, examples=["Run started"])
     state_details: StateDetails = Field(default_factory=StateDetails)
     data: Annotated[
@@ -865,7 +865,7 @@ class TaskRun(ObjectBaseModel):
 
     @field_validator("name", mode="before")
     @classmethod
-    def set_default_name(cls, name):
+    def set_default_name(cls, name: Optional[str]) -> str:
         return get_or_create_run_name(name)
 
 

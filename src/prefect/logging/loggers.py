@@ -5,7 +5,7 @@ from builtins import print
 from contextlib import contextmanager
 from functools import lru_cache
 from logging import LoggerAdapter, LogRecord
-from typing import TYPE_CHECKING, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from typing_extensions import Self
 
@@ -83,8 +83,8 @@ def get_logger(name: Optional[str] = None) -> logging.Logger:
 
 
 def get_run_logger(
-    context: Optional["RunContext"] = None, **kwargs: str
-) -> Union[logging.Logger, logging.LoggerAdapter]:
+    context: Optional["RunContext"] = None, **kwargs: Any
+) -> Union[logging.Logger, logging.LoggerAdapter[logging.Logger]]:
     """
     Get a Prefect logger for the current task run or flow run.
 
@@ -151,9 +151,9 @@ def get_run_logger(
 
 def flow_run_logger(
     flow_run: Union["FlowRun", "ClientFlowRun"],
-    flow: Optional["Flow"] = None,
+    flow: Optional["Flow[Any, Any]"] = None,
     **kwargs: str,
-) -> LoggerAdapter:
+) -> LoggerAdapter[logging.Logger]:
     """
     Create a flow run logger with the run's metadata attached.
 
@@ -177,11 +177,11 @@ def flow_run_logger(
 
 def task_run_logger(
     task_run: "TaskRun",
-    task: "Task" = None,
-    flow_run: "FlowRun" = None,
-    flow: "Flow" = None,
-    **kwargs: str,
-):
+    task: Optional["Task[Any, Any]"] = None,
+    flow_run: Optional["FlowRun"] = None,
+    flow: Optional["Flow[Any, Any]"] = None,
+    **kwargs: Any,
+) -> LoggerAdapter[logging.Logger]:
     """
     Create a task run logger with the run's metadata attached.
 
@@ -201,7 +201,7 @@ def task_run_logger(
 
     return PrefectLogAdapter(
         get_logger("prefect.task_runs"),
-        extra={
+        extra={  # type: ignore
             **{
                 "task_run_id": str(task_run.id),
                 "flow_run_id": str(task_run.flow_run_id),
@@ -269,7 +269,7 @@ def disable_run_logger():
         yield
 
 
-def print_as_log(*args, **kwargs):
+def print_as_log(*args: Any, **kwargs: Any):
     """
     A patch for `print` to send printed messages to the Prefect run logger.
 
@@ -333,7 +333,7 @@ class LogEavesdropper(logging.Handler):
         # Outputs: "Hello, world!\nAnother one!"
     """
 
-    _target_logger: logging.Logger
+    _target_logger: Optional[logging.Logger]
     _lines: List[str]
 
     def __init__(self, eavesdrop_on: str, level: int = logging.NOTSET):

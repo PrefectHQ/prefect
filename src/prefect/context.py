@@ -15,7 +15,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     AsyncGenerator,
-    Dict,
     Generator,
     Mapping,
     Optional,
@@ -64,7 +63,7 @@ if TYPE_CHECKING:
 GLOBAL_SETTINGS_CONTEXT = None  # type: ignore
 
 
-def serialize_context() -> Dict[str, Any]:
+def serialize_context() -> dict[str, Any]:
     """
     Serialize the current context for use in a remote execution environment.
     """
@@ -84,7 +83,7 @@ def serialize_context() -> Dict[str, Any]:
 
 @contextmanager
 def hydrated_context(
-    serialized_context: Optional[Dict[str, Any]] = None,
+    serialized_context: Optional[dict[str, Any]] = None,
     client: Union[PrefectClient, SyncPrefectClient, None] = None,
 ):
     with ExitStack() as stack:
@@ -173,7 +172,7 @@ class ContextModel(BaseModel):
         new._token = None
         return new
 
-    def serialize(self, include_secrets: bool = True) -> Dict[str, Any]:
+    def serialize(self, include_secrets: bool = True) -> dict[str, Any]:
         """
         Serialize the context model to a dictionary that can be pickled with cloudpickle.
         """
@@ -314,10 +313,10 @@ class RunContext(ContextModel):
         start_client_metrics_server()
 
     start_time: DateTime = Field(default_factory=lambda: DateTime.now("UTC"))
-    input_keyset: Optional[Dict[str, Dict[str, str]]] = None
+    input_keyset: Optional[dict[str, dict[str, str]]] = None
     client: Union[PrefectClient, SyncPrefectClient]
 
-    def serialize(self: Self, include_secrets: bool = True) -> Dict[str, Any]:
+    def serialize(self: Self, include_secrets: bool = True) -> dict[str, Any]:
         return self.model_dump(
             include={"start_time", "input_keyset"},
             exclude_unset=True,
@@ -344,7 +343,7 @@ class EngineContext(RunContext):
     flow_run: Optional[FlowRun] = None
     task_runner: TaskRunner[Any]
     log_prints: bool = False
-    parameters: Optional[Dict[str, Any]] = None
+    parameters: Optional[dict[str, Any]] = None
 
     # Flag signaling if the flow run context has been serialized and sent
     # to remote infrastructure.
@@ -355,10 +354,10 @@ class EngineContext(RunContext):
     persist_result: bool = Field(default_factory=get_default_persist_setting)
 
     # Counter for task calls allowing unique
-    task_run_dynamic_keys: Dict[str, int] = Field(default_factory=dict)
+    task_run_dynamic_keys: dict[str, int] = Field(default_factory=dict)
 
     # Counter for flow pauses
-    observed_flow_pauses: Dict[str, int] = Field(default_factory=dict)
+    observed_flow_pauses: dict[str, int] = Field(default_factory=dict)
 
     # Tracking for result from task runs in this flow run for dependency tracking
     # Holds the ID of the object returned by the task run and task run state
@@ -369,7 +368,7 @@ class EngineContext(RunContext):
 
     __var__: ContextVar[Self] = ContextVar("flow_run")
 
-    def serialize(self: Self, include_secrets: bool = True) -> Dict[str, Any]:
+    def serialize(self: Self, include_secrets: bool = True) -> dict[str, Any]:
         return self.model_dump(
             include={
                 "flow_run",
@@ -403,15 +402,15 @@ class TaskRunContext(RunContext):
     task: "Task[Any, Any]"
     task_run: TaskRun
     log_prints: bool = False
-    parameters: Dict[str, Any]
+    parameters: dict[str, Any]
 
     # Result handling
     result_store: ResultStore
     persist_result: bool = Field(default_factory=get_default_persist_setting_for_tasks)
 
-    __var__ = ContextVar("task_run")
+    __var__: ContextVar[Self] = ContextVar("task_run")
 
-    def serialize(self: Self, include_secrets: bool = True) -> Dict[str, Any]:
+    def serialize(self: Self, include_secrets: bool = True) -> dict[str, Any]:
         return self.model_dump(
             include={
                 "task_run",

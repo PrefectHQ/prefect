@@ -69,7 +69,6 @@ def async_dispatch(
             **kwargs: P.kwargs,
         ) -> Union[R, Coroutine[Any, Any, R]]:
             should_run_sync = _sync if _sync is not None else not is_in_async_context()
-
             if should_run_sync:
                 return sync_fn(*args, **kwargs)
             return async_impl(*args, **kwargs)

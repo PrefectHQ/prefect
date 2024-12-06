@@ -8,7 +8,7 @@ import inspect
 import warnings
 from functools import partial
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Callable, Iterable, List, Optional, Tuple
 
 import cloudpickle
 import pydantic
@@ -36,11 +36,11 @@ logger = get_logger(__name__)
 
 
 def get_call_parameters(
-    fn: Callable,
+    fn: Callable[..., Any],
     call_args: Tuple[Any, ...],
-    call_kwargs: Dict[str, Any],
+    call_kwargs: dict[str, Any],
     apply_defaults: bool = True,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Bind a call to a function to get parameter/value mapping. Default values on
     the signature will be included if not overridden.
@@ -75,7 +75,7 @@ def get_call_parameters(
 
 def get_parameter_defaults(
     fn: Callable,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Get default parameter values for a callable.
     """
@@ -91,8 +91,8 @@ def get_parameter_defaults(
 
 
 def explode_variadic_parameter(
-    fn: Callable, parameters: Dict[str, Any]
-) -> Dict[str, Any]:
+    fn: Callable, parameters: dict[str, Any]
+) -> dict[str, Any]:
     """
     Given a parameter dictionary, move any parameters stored in a variadic keyword
     argument parameter (i.e. **kwargs) into the top level.
@@ -125,8 +125,8 @@ def explode_variadic_parameter(
 
 
 def collapse_variadic_parameters(
-    fn: Callable, parameters: Dict[str, Any]
-) -> Dict[str, Any]:
+    fn: Callable, parameters: dict[str, Any]
+) -> dict[str, Any]:
     """
     Given a parameter dictionary, move any parameters stored not present in the
     signature into the variadic keyword argument.
@@ -173,8 +173,8 @@ def collapse_variadic_parameters(
 
 def parameters_to_args_kwargs(
     fn: Callable,
-    parameters: Dict[str, Any],
-) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
+    parameters: dict[str, Any],
+) -> Tuple[Tuple[Any, ...], dict[str, Any]]:
     """
     Convert a `parameters` dictionary to positional and keyword arguments
 
@@ -194,7 +194,7 @@ def parameters_to_args_kwargs(
     return bound_signature.args, bound_signature.kwargs
 
 
-def call_with_parameters(fn: Callable, parameters: Dict[str, Any]):
+def call_with_parameters(fn: Callable, parameters: dict[str, Any]):
     """
     Call a function with parameters extracted with `get_call_parameters`
 
@@ -236,18 +236,18 @@ class ParameterSchema(pydantic.BaseModel):
 
     title: Literal["Parameters"] = "Parameters"
     type: Literal["object"] = "object"
-    properties: Dict[str, Any] = pydantic.Field(default_factory=dict)
+    properties: dict[str, Any] = pydantic.Field(default_factory=dict)
     required: List[str] = pydantic.Field(default_factory=list)
-    definitions: Dict[str, Any] = pydantic.Field(default_factory=dict)
+    definitions: dict[str, Any] = pydantic.Field(default_factory=dict)
 
-    def model_dump_for_openapi(self) -> Dict[str, Any]:
+    def model_dump_for_openapi(self) -> dict[str, Any]:
         result = self.model_dump(mode="python", exclude_none=True)
         if "required" in result and not result["required"]:
             del result["required"]
         return result
 
 
-def parameter_docstrings(docstring: Optional[str]) -> Dict[str, str]:
+def parameter_docstrings(docstring: Optional[str]) -> dict[str, str]:
     """
     Given a docstring in Google docstring format, parse the parameter section
     and return a dictionary that maps parameter names to docstring.
@@ -279,8 +279,8 @@ def process_v1_params(
     param: inspect.Parameter,
     *,
     position: int,
-    docstrings: Dict[str, str],
-    aliases: Dict,
+    docstrings: dict[str, str],
+    aliases: dict[str, str],
 ) -> Tuple[str, Any, "pydantic.Field"]:
     # Pydantic model creation will fail if names collide with the BaseModel type
     if hasattr(pydantic.BaseModel, param.name):
@@ -378,7 +378,7 @@ def parameter_schema_from_entrypoint(entrypoint: str) -> ParameterSchema:
 
 
 def generate_parameter_schema(
-    signature: inspect.Signature, docstrings: Dict[str, str]
+    signature: inspect.Signature, docstrings: dict[str, str]
 ) -> ParameterSchema:
     """
     Generate a parameter schema from a function signature and docstrings.
@@ -642,8 +642,8 @@ def _get_docstring_from_source(source_code: str, func_name: str) -> Optional[str
 
 
 def expand_mapping_parameters(
-    func: Callable, parameters: Dict[str, Any]
-) -> List[Dict[str, Any]]:
+    func: Callable, parameters: dict[str, Any]
+) -> List[dict[str, Any]]:
     """
     Generates a list of call parameters to be used for individual calls in a mapping
     operation.

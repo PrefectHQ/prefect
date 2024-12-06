@@ -402,7 +402,9 @@ class Flow(Generic[P, R]):
         retry_delay_seconds: Optional[Union[int, float]] = None,
         description: Optional[str] = None,
         flow_run_name: Optional[Union[Callable[[], str], str]] = None,
-        task_runner: Union[Type[TaskRunner], TaskRunner, None] = None,
+        task_runner: Union[
+            Type[TaskRunner[PrefectFuture[Any]]], TaskRunner[PrefectFuture[Any]], None
+        ] = None,
         timeout_seconds: Union[int, float, None] = None,
         validate_parameters: Optional[bool] = None,
         persist_result: Optional[bool] = NotSet,  # type: ignore
@@ -645,7 +647,7 @@ class Flow(Generic[P, R]):
         paused: Optional[bool] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
         concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
-        parameters: Optional[dict] = None,
+        parameters: Optional[dict[str, Any]] = None,
         triggers: Optional[list[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
         tags: Optional[list[str]] = None,

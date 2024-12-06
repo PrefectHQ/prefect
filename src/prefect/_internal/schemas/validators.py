@@ -460,7 +460,7 @@ def get_or_create_state_name(v: str, values: dict) -> str:
     return v
 
 
-def get_or_create_run_name(name):
+def get_or_create_run_name(name: Optional[str]) -> str:
     return name or generate_slug(2)
 
 

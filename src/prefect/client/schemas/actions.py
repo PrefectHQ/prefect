@@ -726,9 +726,9 @@ class ArtifactCreate(ActionBaseModel):
 class ArtifactUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update an artifact."""
 
-    data: Optional[Union[Dict[str, Any], Any]] = Field(None)
-    description: Optional[str] = Field(None)
-    metadata_: Optional[Dict[str, str]] = Field(None)
+    data: Optional[Union[Dict[str, Any], Any]] = Field(default=None)
+    description: Optional[str] = Field(default=None)
+    metadata_: Optional[Dict[str, str]] = Field(default=None)
 
 
 class VariableCreate(ActionBaseModel):

@@ -1,6 +1,5 @@
 import json
 from typing import List
-from uuid import UUID
 
 import pytest
 
@@ -44,6 +43,7 @@ class TestCreateArtifacts:
 
         artifact_id = await my_flow()
         response = await client.get(f"/artifacts/{artifact_id}")
+        assert response.status_code == 200, response.text
         result = schemas.core.Artifact.model_validate(response.json())
         assert result.data == f"[{link_text}]({my_link})"
 
@@ -68,6 +68,7 @@ class TestCreateArtifacts:
         my_artifact_id, flow_run_id, task_run_id = my_flow()
 
         response = await client.get(f"/artifacts/{my_artifact_id}")
+        assert response.status_code == 200, response.text
         my_link_artifact = schemas.core.Artifact.model_validate(response.json())
 
         assert my_link_artifact.flow_run_id == flow_run_id
@@ -89,6 +90,7 @@ class TestCreateArtifacts:
         my_artifact_id, flow_run_id = my_flow()
 
         response = await client.get(f"/artifacts/{my_artifact_id}")
+        assert response.status_code == 200, response.text
         my_link_artifact = schemas.core.Artifact.model_validate(response.json())
 
         assert my_link_artifact.flow_run_id == flow_run_id
@@ -115,6 +117,7 @@ class TestCreateArtifacts:
         my_artifact_id, flow_run_id = my_flow()
 
         response = await client.get(f"/artifacts/{my_artifact_id}")
+        assert response.status_code == 200, response.text
         my_link_artifact = schemas.core.Artifact.model_validate(response.json())
 
         assert my_link_artifact.flow_run_id == flow_run_id
@@ -165,6 +168,7 @@ class TestCreateArtifacts:
         my_artifact_id, flow_run_id, task_run_id = my_flow()
 
         response = await client.get(f"/artifacts/{my_artifact_id}")
+        assert response.status_code == 200, response.text
         my_markdown_artifact = schemas.core.Artifact.model_validate(response.json())
 
         assert my_markdown_artifact.flow_run_id == flow_run_id
@@ -179,6 +183,7 @@ class TestCreateArtifacts:
                 key="task-link-artifact-4",
                 markdown="my markdown",
                 description="my-artifact-description",
+                _sync=True,  # type: ignore[reportCallIssue]
             )
 
             return artifact_id, flow_run_id
@@ -186,6 +191,7 @@ class TestCreateArtifacts:
         my_artifact_id, flow_run_id = my_flow()
 
         response = await client.get(f"/artifacts/{my_artifact_id}")
+        assert response.status_code == 200, response.text
         my_markdown_artifact = schemas.core.Artifact.model_validate(response.json())
 
         assert my_markdown_artifact.flow_run_id == flow_run_id
@@ -211,6 +217,7 @@ class TestCreateArtifacts:
         my_artifact_id, flow_run_id = my_flow()
 
         response = await client.get(f"/artifacts/{my_artifact_id}")
+        assert response.status_code == 200, response.text
         my_markdown_artifact = schemas.core.Artifact.model_validate(response.json())
 
         assert my_markdown_artifact.flow_run_id == flow_run_id
@@ -253,6 +260,7 @@ class TestCreateArtifacts:
 
         artifact_id = await my_flow()
         response = await client.get(f"/artifacts/{artifact_id}")
+        assert response.status_code == 200, response.text
         result = schemas.core.Artifact.model_validate(response.json())
         result_data = json.loads(result.data)
         assert result_data == my_table
@@ -272,6 +280,7 @@ class TestCreateArtifacts:
 
         artifact_id = await my_flow()
         response = await client.get(f"/artifacts/{artifact_id}")
+        assert response.status_code == 200, response.text
         result = schemas.core.Artifact.model_validate(response.json())
 
         result_data = json.loads(result.data)
@@ -283,7 +292,7 @@ class TestCreateArtifacts:
         my_table = [[1, 2], [None, 4]]
 
         @flow
-        async def my_flow() -> UUID:
+        async def my_flow():
             return await create_table_artifact(
                 key=artifact.key,
                 table=my_table,
@@ -292,6 +301,7 @@ class TestCreateArtifacts:
 
         artifact_id = await my_flow()
         response = await client.get(f"/artifacts/{artifact_id}")
+        assert response.status_code == 200, response.text
         result = schemas.core.Artifact.model_validate(response.json())
         result_data = json.loads(result.data)
         assert result_data == my_table
@@ -318,6 +328,7 @@ class TestCreateArtifacts:
         my_artifact_id, flow_run_id, task_run_id = my_flow()
 
         response = await client.get(f"/artifacts/{my_artifact_id}")
+        assert response.status_code == 200, response.text
         my_table_artifact = schemas.core.Artifact.model_validate(response.json())
 
         assert my_table_artifact.flow_run_id == flow_run_id
@@ -342,6 +353,7 @@ class TestCreateArtifacts:
         my_artifact_id, flow_run_id = my_flow()
 
         response = await client.get(f"/artifacts/{my_artifact_id}")
+        assert response.status_code == 200, response.text
         my_table_artifact = schemas.core.Artifact.model_validate(response.json())
 
         assert my_table_artifact.flow_run_id == flow_run_id
@@ -370,6 +382,7 @@ class TestCreateArtifacts:
         my_artifact_id, flow_run_id = my_flow()
 
         response = await client.get(f"/artifacts/{my_artifact_id}")
+        assert response.status_code == 200, response.text
         my_table_artifact = schemas.core.Artifact.model_validate(response.json())
 
         assert my_table_artifact.flow_run_id == flow_run_id
@@ -525,6 +538,7 @@ class TestCreateArtifacts:
         my_artifact_id, flow_run_id, task_run_id = my_flow()
 
         response = await client.get(f"/artifacts/{my_artifact_id}")
+        assert response.status_code == 200, response.text
         my_progress_artifact = schemas.core.Artifact.model_validate(response.json())
 
         assert my_progress_artifact.flow_run_id == flow_run_id
@@ -549,6 +563,7 @@ class TestCreateArtifacts:
         my_artifact_id, flow_run_id = my_flow()
 
         response = await client.get(f"/artifacts/{my_artifact_id}")
+        assert response.status_code == 200, response.text
         my_progress_artifact = schemas.core.Artifact.model_validate(response.json())
 
         assert my_progress_artifact.flow_run_id == flow_run_id
@@ -578,6 +593,7 @@ class TestCreateArtifacts:
         my_artifact_id, flow_run_id, task_run_id = my_flow()
 
         response = await client.get(f"/artifacts/{my_artifact_id}")
+        assert response.status_code == 200, response.text
         my_image_artifact = schemas.core.Artifact.model_validate(response.json())
 
         assert my_image_artifact.flow_run_id == flow_run_id
@@ -605,6 +621,7 @@ class TestCreateArtifacts:
         my_artifact_id, flow_run_id = my_flow()
 
         response = await client.get(f"/artifacts/{my_artifact_id}")
+        assert response.status_code == 200, response.text
         my_image_artifact = schemas.core.Artifact.model_validate(response.json())
 
         assert my_image_artifact.flow_run_id == flow_run_id
@@ -630,6 +647,7 @@ class TestUpdateArtifacts:
             artifact_id = await create_progress_artifact(progress)
 
             response = await client.get(f"/artifacts/{artifact_id}")
+            assert response.status_code == 200, response.text
             my_artifact = schemas.core.Artifact.model_validate(response.json())
             assert my_artifact.data == progress
             assert my_artifact.type == "progress"
@@ -637,6 +655,7 @@ class TestUpdateArtifacts:
             new_progress = 50.0
             await update_progress_artifact(artifact_id, new_progress)
             response = await client.get(f"/artifacts/{artifact_id}")
+            assert response.status_code == 200, response.text
             my_artifact = schemas.core.Artifact.model_validate(response.json())
             assert my_artifact.data == new_progress
 
@@ -664,6 +683,7 @@ class TestUpdateArtifacts:
         my_artifact_id, flow_run_id, task_run_id = my_flow()
 
         response = await client.get(f"/artifacts/{my_artifact_id}")
+        assert response.status_code == 200, response.text
         my_progress_artifact = schemas.core.Artifact.model_validate(response.json())
 
         assert my_progress_artifact.flow_run_id == flow_run_id
@@ -689,6 +709,7 @@ class TestUpdateArtifacts:
         my_artifact_id, flow_run_id = my_flow()
 
         response = await client.get(f"/artifacts/{my_artifact_id}")
+        assert response.status_code == 200, response.text
         my_progress_artifact = schemas.core.Artifact.model_validate(response.json())
 
         assert my_progress_artifact.flow_run_id == flow_run_id
