@@ -54,7 +54,6 @@ export const ConcurrencyTabs = ({
 				>
 					{TAB_OPTIONS.global.displayValue}
 				</TabsTrigger>
-
 				<TabsTrigger
 					value={TAB_OPTIONS["task-run"].tabSearchValue}
 					onClick={() => {
