@@ -756,32 +756,32 @@ class Flow(Generic[P, R]):
             )
 
     def on_completion(
-        self, fn: Callable[["Flow", FlowRun, State], None]
-    ) -> Callable[["Flow", FlowRun, State], None]:
+        self, fn: Callable[[FlowSchema, FlowRun, State], None]
+    ) -> Callable[[FlowSchema, FlowRun, State], None]:
         self.on_completion_hooks.append(fn)
         return fn
 
     def on_cancellation(
-        self, fn: Callable[["Flow", FlowRun, State], None]
-    ) -> Callable[["Flow", FlowRun, State], None]:
+        self, fn: Callable[[FlowSchema, FlowRun, State], None]
+    ) -> Callable[[FlowSchema, FlowRun, State], None]:
         self.on_cancellation_hooks.append(fn)
         return fn
 
     def on_crashed(
-        self, fn: Callable[["Flow", FlowRun, State], None]
-    ) -> Callable[["Flow", FlowRun, State], None]:
+        self, fn: Callable[[FlowSchema, FlowRun, State], None]
+    ) -> Callable[[FlowSchema, FlowRun, State], None]:
         self.on_crashed_hooks.append(fn)
         return fn
 
     def on_running(
-        self, fn: Callable[["Flow", FlowRun, State], None]
-    ) -> Callable[["Flow", FlowRun, State], None]:
+        self, fn: Callable[[FlowSchema, FlowRun, State], None]
+    ) -> Callable[[FlowSchema, FlowRun, State], None]:
         self.on_running_hooks.append(fn)
         return fn
 
     def on_failure(
-        self, fn: Callable[["Flow", FlowRun, State], None]
-    ) -> Callable[["Flow", FlowRun, State], None]:
+        self, fn: Callable[[FlowSchema, FlowRun, State], None]
+    ) -> Callable[[FlowSchema, FlowRun, State], None]:
         self.on_failure_hooks.append(fn)
         return fn
 
@@ -802,7 +802,7 @@ class Flow(Generic[P, R]):
         schedules: Optional["FlexibleScheduleList"] = None,
         global_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
-        parameters: Optional[dict] = None,
+        parameters: Optional[Dict[str, Any]] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
@@ -1289,7 +1289,7 @@ class Flow(Generic[P, R]):
         self,
         *args: "P.args",
         return_state: bool = False,
-        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        wait_for: Optional[Iterable[PrefectFuture[Any]]] = None,
         **kwargs: "P.kwargs",
     ):
         """
@@ -1361,7 +1361,7 @@ class Flow(Generic[P, R]):
         )
 
     @sync_compatible
-    async def visualize(self, *args, **kwargs):
+    async def visualize(self, *args: Any, **kwargs: Any):
         """
         Generates a graphviz object representing the current flow. In IPython notebooks,
         it's rendered inline, otherwise in a new window as a PNG.
@@ -1433,7 +1433,7 @@ def flow(
     flow_run_name: Optional[Union[Callable[[], str], str]] = None,
     retries: Optional[int] = None,
     retry_delay_seconds: Optional[Union[int, float]] = None,
-    task_runner: Optional[TaskRunner] = None,
+    task_runner: Optional[TaskRunner[PrefectFuture[Any]]] = None,
     description: Optional[str] = None,
     timeout_seconds: Union[int, float, None] = None,
     validate_parameters: bool = True,
@@ -1458,14 +1458,14 @@ def flow(
 
 
 def flow(
-    __fn=None,
+    __fn: Optional[Callable[P, R]] = None,
     *,
     name: Optional[str] = None,
     version: Optional[str] = None,
     flow_run_name: Optional[Union[Callable[[], str], str]] = None,
     retries: Optional[int] = None,
     retry_delay_seconds: Union[int, float, None] = None,
-    task_runner: Optional[TaskRunner] = None,
+    task_runner: Optional[TaskRunner[PrefectFuture[Any]]] = None,
     description: Optional[str] = None,
     timeout_seconds: Union[int, float, None] = None,
     validate_parameters: bool = True,

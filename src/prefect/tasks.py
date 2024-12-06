@@ -1606,16 +1606,18 @@ def task(
     timeout_seconds: Union[int, float, None] = None,
     log_prints: Optional[bool] = None,
     refresh_cache: Optional[bool] = None,
-    on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
-    on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
-    retry_condition_fn: Optional[Callable[["Task", TaskRun, State], bool]] = None,
+    on_completion: Optional[
+        List[Callable[["Task[P, R]", TaskRun, State], None]]
+    ] = None,
+    on_failure: Optional[List[Callable[["Task[P, R]", TaskRun, State], None]]] = None,
+    retry_condition_fn: Optional[Callable[["Task[P, R]", TaskRun, State], bool]] = None,
     viz_return_value: Any = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]:
     ...
 
 
 def task(
-    __fn=None,
+    __fn: Optional[Callable[P, R]] = None,
     *,
     name: Optional[str] = None,
     description: Optional[str] = None,
@@ -1642,9 +1644,11 @@ def task(
     timeout_seconds: Union[int, float, None] = None,
     log_prints: Optional[bool] = None,
     refresh_cache: Optional[bool] = None,
-    on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
-    on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
-    retry_condition_fn: Optional[Callable[["Task", TaskRun, State], bool]] = None,
+    on_completion: Optional[
+        List[Callable[["Task[P, R]", TaskRun, State], None]]
+    ] = None,
+    on_failure: Optional[List[Callable[["Task[P, R]", TaskRun, State], None]]] = None,
+    retry_condition_fn: Optional[Callable[["Task[P, R]", TaskRun, State], bool]] = None,
     viz_return_value: Any = None,
 ):
     """
