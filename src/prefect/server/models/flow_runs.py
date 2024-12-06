@@ -657,7 +657,7 @@ async def update_flow_run_labels(
     # First read the existing flow run to get current labels
     flow_run: Optional[orm_models.FlowRun] = await read_flow_run(session, flow_run_id)
     if not flow_run:
-        return False
+        raise ObjectNotFoundError(f"Flow run with id {flow_run_id} not found")
 
     # Merge existing labels with new labels
     current_labels = flow_run.labels or {}
