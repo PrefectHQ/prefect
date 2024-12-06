@@ -405,6 +405,11 @@ You can create and use these block types through the UI without installing any a
 | SMB                         | `smb`                    | Store data as a file on a SMB share.                                         |
 | Twilio SMS                  | `twilio-sms`             | Send notifications through Twilio SMS.                                       |
 
+<Note>
+Built-in blocks should be registered the first time you start a Prefect server. If the auto-registration fails, you can manually register the blocks using `prefect blocks register`. 
+
+For example, to register all built-in notification blocks, run `prefect block register -m prefect.blocks.notifications`.
+</Note>
 
 <Warning>
 The `S3`, `Azure`, `GCS`, and `GitHub` blocks are deprecated in favor of the corresponding `S3Bucket`, 
