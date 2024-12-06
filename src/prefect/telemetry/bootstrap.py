@@ -39,7 +39,7 @@ def setup_telemetry() -> (
         raise ValueError(
             "Unable to import OpenTelemetry instrumentation libraries. Please "
             "ensure you have installed the `otel` extra when installing Prefect: "
-            "`pip install prefect[otel]`"
+            "`pip install 'prefect[otel]'`"
         ) from exc
 
     return setup_exporters(settings.api.url, settings.api.key.get_secret_value())
