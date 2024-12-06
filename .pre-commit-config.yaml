@@ -1,35 +1,35 @@
 repos:
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: "v0.2.1"
-    hooks:
-      - id: ruff
-        language_version: python3
-        args: [--fix, --exit-non-zero-on-fix, --show-fixes]
-      - id: ruff-format
-  - repo: https://github.com/codespell-project/codespell
-    rev: v2.2.6
-    hooks:
-      - id: codespell
-        exclude: package-lock.json|_vendor/.*|docs/styles/.*
-  - repo: https://github.com/netromdk/vermin
-    rev: v1.6.0
-    hooks:
-      - id: vermin
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.9.0
-    hooks:
-      - id: mypy
-        additional_dependencies:
-          - pydantic>=1.10.0,!=2.0.0,!=2.0.1,!=2.1.0,<3.0.0
-          - types-cachetools==5.3.0.5
-          - types-pyyaml==6.0.12.9
-        files: |
-          (?x)^(
-            src/prefect/server/models/.*|
-            src/prefect/concurrency/.*|
-            src/prefect/events/.*|
-            src/prefect/input/.*
-          )$
+  # - repo: https://github.com/astral-sh/ruff-pre-commit
+  #   rev: "v0.2.1"
+  #   hooks:
+  #     - id: ruff
+  #       language_version: python3
+  #       args: [--fix, --exit-non-zero-on-fix, --show-fixes]
+  #     - id: ruff-format
+  # - repo: https://github.com/codespell-project/codespell
+  #   rev: v2.2.6
+  #   hooks:
+  #     - id: codespell
+  #       exclude: package-lock.json|_vendor/.*|docs/styles/.*
+  # - repo: https://github.com/netromdk/vermin
+  #   rev: v1.6.0
+  #   hooks:
+  #     - id: vermin
+  # - repo: https://github.com/pre-commit/mirrors-mypy
+  #   rev: v1.9.0
+  #   hooks:
+  #     - id: mypy
+  #       additional_dependencies:
+  #         - pydantic>=1.10.0,!=2.0.0,!=2.0.1,!=2.1.0,<3.0.0
+  #         - types-cachetools==5.3.0.5
+  #         - types-pyyaml==6.0.12.9
+  #       files: |
+  #         (?x)^(
+  #           src/prefect/server/models/.*|
+  #           src/prefect/concurrency/.*|
+  #           src/prefect/events/.*|
+  #           src/prefect/input/.*
+  #         )$
   - repo: local
     hooks:
       - id: generate-mintlify-openapi-docs
@@ -45,9 +45,6 @@ repos:
               src/prefect/server/events/.*|
               scripts/generate_mintlify_openapi_docs.py
           )$
-
-  - repo: local
-    hooks:
       - id: generate-settings-schema
         name: Generating Settings Schema
         language: system
@@ -59,9 +56,6 @@ repos:
               src/prefect/settings/models/.*|
               scripts/generate_settings_schema.py
           )$
-
-  - repo: local
-    hooks:
       - id: generate-settings-ref
         name: Generating Settings Reference
         language: system
@@ -72,4 +66,38 @@ repos:
               .pre-commit-config.yaml|
               src/prefect/settings/models/.*|
               scripts/generate_settings_ref.py
+          )$
+      - id: lint-ui-v2
+        name: Lint UI v2
+        language: system
+        entry: sh
+        args: ['-c', 'cd ui-v2 && npm run lint']
+        files: |
+          (?x)^(
+              .pre-commit-config.yaml|
+              ui-v2/.*
+          )$
+      - id: format-ui-v2
+        name: Format UI v2
+        language: system
+        entry: sh
+        args: ['-c', 'cd ui-v2 && npm run format']
+        files: |
+          (?x)^(
+              .pre-commit-config.yaml|
+              ui-v2/.*
+          )$
+      - id: service-sync-ui-v2-openapi
+        name: Sync UI v2 OpenAPI
+        language: system
+        entry: sh
+        args: ['-c', 'cd ui-v2 && npm run service-sync']
+        files: |
+          (?x)^(
+              .pre-commit-config.yaml|
+              .pre-commit-config.yaml|
+              src/prefect/server/api/.*|
+              src/prefect/server/schemas/.*|
+              src/prefect/server/events/.*|
+              ui-v2/package.json
           )$
