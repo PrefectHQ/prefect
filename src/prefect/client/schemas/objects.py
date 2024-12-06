@@ -796,7 +796,7 @@ class TaskRun(ObjectBaseModel):
         description="A list of tags for the task run.",
         examples=[["tag-1", "tag-2"]],
     )
-    labels: KeyValueLabelsField
+    labels: KeyValueLabelsField = Field(default_factory=dict)
     state_id: Optional[UUID] = Field(
         default=None, description="The id of the current task run state."
     )

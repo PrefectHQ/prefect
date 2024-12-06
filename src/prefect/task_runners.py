@@ -97,9 +97,9 @@ class TaskRunner(abc.ABC, Generic[F]):
 
     def map(
         self,
-        task: "Task",
+        task: "Task[P, R]",
         parameters: Dict[str, Any],
-        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
     ) -> PrefectFutureList[F]:
         """
         Submit multiple tasks to the task run engine.
