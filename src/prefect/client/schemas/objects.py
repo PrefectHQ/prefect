@@ -64,6 +64,11 @@ from prefect.utilities.names import generate_slug
 from prefect.utilities.pydantic import handle_secret_render
 
 if TYPE_CHECKING:
+    from prefect.client.schemas.actions import (
+        BlockSchemaCreate,
+        BlockTypeCreate,
+        BlockTypeUpdate,
+    )
     from prefect.results import BaseResult, ResultRecordMetadata
 
 
@@ -968,6 +973,28 @@ class BlockType(ObjectBaseModel):
         default=False, description="Protected block types cannot be modified via API."
     )
 
+    def to_block_type_create(self) -> "BlockTypeCreate":
+        from prefect.client.schemas.actions import BlockTypeCreate
+
+        return BlockTypeCreate(
+            name=self.name,
+            slug=self.slug,
+            logo_url=self.logo_url,
+            documentation_url=self.documentation_url,
+            description=self.description,
+            code_example=self.code_example,
+        )
+
+    def to_block_type_update(self) -> "BlockTypeUpdate":
+        from prefect.client.schemas.actions import BlockTypeUpdate
+
+        return BlockTypeUpdate(
+            logo_url=self.logo_url,
+            documentation_url=self.documentation_url,
+            description=self.description,
+            code_example=self.code_example,
+        )
+
 
 class BlockSchema(ObjectBaseModel):
     """A representation of a block schema."""
@@ -989,6 +1016,16 @@ class BlockSchema(ObjectBaseModel):
         description="Human readable identifier for the block schema",
     )
 
+    def to_block_schema_create(self) -> "BlockSchemaCreate":
+        from prefect.client.schemas.actions import BlockSchemaCreate
+
+        return BlockSchemaCreate(
+            fields=self.fields,
+            block_type_id=self.block_type_id,
+            capabilities=self.capabilities,
+            version=self.version,
+        )
+
 
 class BlockDocument(ObjectBaseModel):
     """An ORM representation of a block document."""
@@ -1007,7 +1044,9 @@ class BlockDocument(ObjectBaseModel):
         default=None, description="The associated block schema"
     )
     block_type_id: UUID = Field(default=..., description="A block type ID")
-    block_type_name: Optional[str] = Field(None, description="A block type name")
+    block_type_name: Optional[str] = Field(
+        default=None, description="A block type name"
+    )
     block_type: Optional[BlockType] = Field(
         default=None, description="The associated block type"
     )
