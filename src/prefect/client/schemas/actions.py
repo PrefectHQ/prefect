@@ -311,8 +311,8 @@ class TaskRunCreate(ActionBaseModel):
             " within the same flow run."
         ),
     )
-    cache_key: Optional[str] = Field(None)
-    cache_expiration: Optional[objects.DateTime] = Field(None)
+    cache_key: Optional[str] = Field(default=None)
+    cache_expiration: Optional[objects.DateTime] = Field(default=None)
     task_version: Optional[str] = Field(None)
     empirical_policy: objects.TaskRunPolicy = Field(
         default_factory=objects.TaskRunPolicy,
@@ -347,20 +347,21 @@ class FlowRunCreate(ActionBaseModel):
 
     name: Optional[str] = Field(default=None, description="The name of the flow run.")
     flow_id: UUID = Field(default=..., description="The id of the flow being run.")
-    deployment_id: Optional[UUID] = Field(None)
-    flow_version: Optional[str] = Field(None)
+    deployment_id: Optional[UUID] = Field(default=None)
+    flow_version: Optional[str] = Field(default=None)
     parameters: Dict[str, Any] = Field(
         default_factory=dict, description="The parameters for the flow run."
     )
     context: Dict[str, Any] = Field(
         default_factory=dict, description="The context for the flow run."
     )
-    parent_task_run_id: Optional[UUID] = Field(None)
-    infrastructure_document_id: Optional[UUID] = Field(None)
+    parent_task_run_id: Optional[UUID] = Field(default=None)
+    infrastructure_document_id: Optional[UUID] = Field(default=None)
     empirical_policy: objects.FlowRunPolicy = Field(
         default_factory=objects.FlowRunPolicy
     )
     tags: List[str] = Field(default_factory=list)
+    idempotency_key: Optional[str] = Field(default=None)
     labels: KeyValueLabelsField
     idempotency_key: Optional[str] = Field(None)
 
@@ -384,15 +385,15 @@ class DeploymentFlowRunCreate(ActionBaseModel):
     context: Dict[str, Any] = Field(
         default_factory=dict, description="The context for the flow run."
     )
-    infrastructure_document_id: Optional[UUID] = Field(None)
+    infrastructure_document_id: Optional[UUID] = Field(default=None)
     empirical_policy: objects.FlowRunPolicy = Field(
         default_factory=objects.FlowRunPolicy
     )
     tags: List[str] = Field(default_factory=list)
-    idempotency_key: Optional[str] = Field(None)
-    parent_task_run_id: Optional[UUID] = Field(None)
-    work_queue_name: Optional[str] = Field(None)
-    job_variables: Optional[dict] = Field(None)
+    idempotency_key: Optional[str] = Field(default=None)
+    parent_task_run_id: Optional[UUID] = Field(default=None)
+    work_queue_name: Optional[str] = Field(default=None)
+    job_variables: Optional[dict] = Field(default=None)
 
 
 class SavedSearchCreate(ActionBaseModel):
@@ -616,7 +617,7 @@ class WorkQueueCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a work queue."""
 
     name: str = Field(default=..., description="The name of the work queue.")
-    description: Optional[str] = Field(None)
+    description: Optional[str] = Field(default=None)
     is_paused: bool = Field(
         default=False,
         description="Whether the work queue is paused.",
@@ -801,8 +802,8 @@ class GlobalConcurrencyLimitCreate(ActionBaseModel):
 class GlobalConcurrencyLimitUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a global concurrency limit."""
 
-    name: Optional[Name] = Field(None)
-    limit: Optional[NonNegativeInteger] = Field(None)
-    active: Optional[bool] = Field(None)
-    active_slots: Optional[NonNegativeInteger] = Field(None)
-    slot_decay_per_second: Optional[NonNegativeFloat] = Field(None)
+    name: Optional[Name] = Field(default=None)
+    limit: Optional[NonNegativeInteger] = Field(default=None)
+    active: Optional[bool] = Field(default=None)
+    active_slots: Optional[NonNegativeInteger] = Field(default=None)
+    slot_decay_per_second: Optional[NonNegativeFloat] = Field(default=None)
