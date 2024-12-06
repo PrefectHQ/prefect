@@ -1,10 +1,11 @@
 import type { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
 import {
+	QueryClient,
 	queryOptions,
 	useMutation,
-	useQuery,
 	useQueryClient,
+	useSuspenseQuery,
 } from "@tanstack/react-query";
 
 export type GlobalConcurrencyLimit =
@@ -31,7 +32,7 @@ export const queryKeyFactory = {
 // ----- 🔑 Queries 🗄️
 // ----------------------------
 export const buildListGlobalConcurrencyLimitsQuery = (
-	filter: GlobalConcurrencyLimitsFilter,
+	filter: GlobalConcurrencyLimitsFilter = { offset: 0 },
 ) =>
 	queryOptions({
 		queryKey: queryKeyFactory.list(filter),
@@ -47,11 +48,19 @@ export const buildListGlobalConcurrencyLimitsQuery = (
 /**
  *
  * @param filter
- * @returns list of global concurrency limits as a QueryResult object
+ * @returns list of global concurrency limits as a SuspenseQueryResult object
  */
+
 export const useListGlobalConcurrencyLimits = (
-	filter: GlobalConcurrencyLimitsFilter,
-) => useQuery(buildListGlobalConcurrencyLimitsQuery(filter));
+	filter: GlobalConcurrencyLimitsFilter = { offset: 0 },
+) => useSuspenseQuery(buildListGlobalConcurrencyLimitsQuery(filter));
+
+useListGlobalConcurrencyLimits.loader = ({
+	context,
+}: {
+	context: { queryClient: QueryClient };
+}) =>
+	context.queryClient.ensureQueryData(buildListGlobalConcurrencyLimitsQuery());
 
 // ----- ✍🏼 Mutations 🗄️
 // ----------------------------
