@@ -61,6 +61,10 @@ jobs:
           node-version-file: ".nvmrc"
           cache-dependency-path: "**/package-lock.json"
 
+      - name: Install NodeJS packages
+        run: |
+          cd ui-v2 && npm ci --no-upgrade --quiet --no-progress
+
       - name: Install mintlify-scrape
         run: npm install -g @mintlify/scraping
 
