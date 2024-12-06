@@ -53,6 +53,7 @@ from prefect.states import (
     Pending,
     exception_to_failed_state,
 )
+from prefect.types import KeyValueLabels
 from prefect.utilities.dispatch import get_registry_for_type, register_base_type
 from prefect.utilities.engine import propose_state
 from prefect.utilities.services import critical_service_loop
@@ -1222,13 +1223,20 @@ class BaseWorker(abc.ABC):
         Give this worker's identifying labels to the specified flow run.
         """
         if self._cloud_client:
-            await self._cloud_client.update_flow_run_labels(
-                flow_run_id,
-                {
-                    "prefect.worker.name": self.name,
-                    "prefect.worker.type": self.type,
-                },
-            )
+            labels: KeyValueLabels = {
+                "prefect.worker.name": self.name,
+                "prefect.worker.type": self.type,
+            }
+
+            if self._work_pool:
+                labels.update(
+                    {
+                        "prefect.work-pool.name": self._work_pool.name,
+                        "prefect.work-pool.id": str(self._work_pool.id),
+                    }
+                )
+
+            await self._cloud_client.update_flow_run_labels(flow_run_id, labels)
 
     async def __aenter__(self):
         self._logger.debug("Entering worker context...")
