@@ -86,7 +86,7 @@ REMOVED_IN_V3 = {
 # See src/prefect/filesystems.py for an example
 
 
-def import_string_class_method(new_location: str) -> Callable:
+def import_string_class_method(new_location: str) -> Callable[..., Any]:
     """
     Handle moved class methods.
 
