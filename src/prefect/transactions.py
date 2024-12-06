@@ -316,17 +316,21 @@ class Transaction(ContextModel):
             if self.store and self.key and self.write_on_commit:
                 if isinstance(self.store, ResultStore):
                     if isinstance(self._staged_value, BaseResult):
-                        self.store.write(
+                        self.store.write(  # remote write event
                             key=self.key, obj=self._staged_value.get(_sync=True)
                         )
                     elif isinstance(self._staged_value, ResultRecord):
-                        self.store.persist_result_record(
+                        self.store.persist_result_record(  # remote write event
                             result_record=self._staged_value
                         )
                     else:
-                        self.store.write(key=self.key, obj=self._staged_value)
+                        self.store.write(
+                            key=self.key, obj=self._staged_value
+                        )  # remote write event
                 else:
-                    self.store.write(key=self.key, result=self._staged_value)
+                    self.store.write(
+                        key=self.key, result=self._staged_value
+                    )  # remote write event -- ignore because this is the record store
 
             self.state = TransactionState.COMMITTED
             if (

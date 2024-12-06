@@ -25,6 +25,7 @@ def emit_event(
     payload: Optional[Dict[str, Any]] = None,
     id: Optional[UUID] = None,
     follows: Optional[Event] = None,
+    **kwargs,
 ) -> Optional[Event]:
     """
     Send an event to Prefect Cloud.
@@ -63,6 +64,7 @@ def emit_event(
     event_kwargs: Dict[str, Any] = {
         "event": event,
         "resource": resource,
+        **kwargs,
     }
 
     if occurred is None:

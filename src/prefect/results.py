@@ -48,6 +48,10 @@ from prefect.exceptions import (
     MissingContextError,
     SerializationError,
 )
+from prefect.experimental.lineage import (
+    emit_result_read_event,
+    emit_result_write_event,
+)
 from prefect.filesystems import (
     LocalFileSystem,
     NullFileSystem,
@@ -446,6 +450,13 @@ class ResultStore(BaseModel):
         """
         return await self._exists(key=key, _sync=False)
 
+    def _resolved_key_path(self, key: str) -> str:
+        if self.result_storage_block_id is None and hasattr(
+            self.result_storage, "_resolve_path"
+        ):
+            return str(self.result_storage._resolve_path(key))
+        return key
+
     @sync_compatible
     async def _read(self, key: str, holder: str) -> "ResultRecord":
         """
@@ -465,8 +476,12 @@ class ResultStore(BaseModel):
         if self.lock_manager is not None and not self.is_lock_holder(key, holder):
             await self.await_for_lock(key)
 
-        if key in self.cache:
-            return self.cache[key]
+        resolved_key_path = self._resolved_key_path(key)
+
+        if resolved_key_path in self.cache:
+            cached_result = self.cache[resolved_key_path]
+            await emit_result_read_event(self, resolved_key_path, cached=True)
+            return cached_result
 
         if self.result_storage is None:
             self.result_storage = await get_default_result_storage()
@@ -477,25 +492,22 @@ class ResultStore(BaseModel):
             assert (
                 metadata.storage_key is not None
             ), "Did not find storage key in metadata"
-            result_content = await self.result_storage.read_path(metadata.storage_key)
+            result_content = await self.result_storage.read_path(
+                metadata.storage_key
+            )  # remote read event
             result_record = ResultRecord.deserialize_from_result_and_metadata(
                 result=result_content, metadata=metadata_content
             )
+            await emit_result_read_event(self, resolved_key_path)
         else:
-            content = await self.result_storage.read_path(key)
+            content = await self.result_storage.read_path(key)  # remote read event
             result_record = ResultRecord.deserialize(
                 content, backup_serializer=self.serializer
             )
+            await emit_result_read_event(self, resolved_key_path)
 
         if self.cache_result_in_memory:
-            if self.result_storage_block_id is None and hasattr(
-                self.result_storage, "_resolve_path"
-            ):
-                cache_key = str(self.result_storage._resolve_path(key))
-            else:
-                cache_key = key
-
-            self.cache[cache_key] = result_record
+            self.cache[resolved_key_path] = result_record
         return result_record
 
     def read(
@@ -589,7 +601,7 @@ class ResultStore(BaseModel):
         result_record = self.create_result_record(
             key=key, obj=obj, expiration=expiration
         )
-        return self.persist_result_record(
+        return self._persist_result_record(
             result_record=result_record,
             holder=holder,
         )
@@ -663,12 +675,13 @@ class ResultStore(BaseModel):
                 base_key,
                 content=result_record.serialize_metadata(),
             )
+            await emit_result_write_event(self, result_record.metadata.storage_key)
         # Otherwise, write the result metadata and result together
         else:
             await self.result_storage.write_path(
                 result_record.metadata.storage_key, content=result_record.serialize()
             )
-
+            await emit_result_write_event(self, result_record.metadata.storage_key)
         if self.cache_result_in_memory:
             self.cache[key] = result_record
 
