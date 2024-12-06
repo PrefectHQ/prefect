@@ -8,6 +8,7 @@ Currently supported entrypoints:
         should be imported when Prefect is imported.
 """
 
+from functools import lru_cache
 from types import ModuleType
 from typing import Any, Dict, Union
 
@@ -26,7 +27,7 @@ def safe_load_entrypoints(entrypoints: EntryPoints) -> Dict[str, Union[Exception
     #       also want to validate the type for the group for entrypoints that have
     #       a specific type we expect.
 
-    results = {}
+    results: dict[str, Union[Exception, Any]] = {}
 
     for entrypoint in entrypoints:
         result = None
@@ -40,15 +41,12 @@ def safe_load_entrypoints(entrypoints: EntryPoints) -> Dict[str, Union[Exception
     return results
 
 
+@lru_cache(maxsize=None)
 def load_prefect_collections() -> Dict[str, Union[ModuleType, Exception]]:
     """
     Load all Prefect collections that define an entrypoint in the group
     `prefect.collections`.
     """
-    global COLLECTIONS
-
-    if COLLECTIONS is not None:
-        return COLLECTIONS
 
     collection_entrypoints: EntryPoints = entry_points(group="prefect.collections")
     collections = safe_load_entrypoints(collection_entrypoints)
@@ -68,5 +66,4 @@ def load_prefect_collections() -> Dict[str, Union[ModuleType, Exception]]:
             if prefect.settings.PREFECT_DEBUG_MODE:
                 print(f"Loaded collection {name!r}.")
 
-    COLLECTIONS = collections
     return collections
