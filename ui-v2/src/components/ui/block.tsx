@@ -4,7 +4,14 @@ import { UtilityProps, spacingUtiltiesClasses } from "./utils/spacing-utils";
 
 type Props = Omit<
 	UtilityProps,
-	"alignItems" | "alignSelf" | "display" | "flexDirection" | "gap"
+	| "alignItems"
+	| "alignSelf"
+	| "display"
+	| "flexDirection"
+	| "gap"
+	| "justifyContent"
+	| "justifyItems"
+	| "justifySelf"
 > & {
 	className?: string;
 	children: React.ReactNode;

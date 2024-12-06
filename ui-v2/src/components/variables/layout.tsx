@@ -4,6 +4,7 @@ import {
 	BreadcrumbList,
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
+import { Flex } from "@/components/ui/flex";
 import { Icon } from "@/components/ui/icons";
 
 export const VariablesLayout = ({
@@ -14,8 +15,8 @@ export const VariablesLayout = ({
 	children: React.ReactNode;
 }) => {
 	return (
-		<div className="flex flex-col gap-4">
-			<div className="flex items-center gap-2">
+		<Flex flexDirection="column" gap={4}>
+			<Flex alignItems="center" gap={2}>
 				<Breadcrumb>
 					<BreadcrumbList>
 						<BreadcrumbItem className="text-xl font-semibold">
@@ -31,8 +32,8 @@ export const VariablesLayout = ({
 				>
 					<Icon id="Plus" className="h-4 w-4" />
 				</Button>
-			</div>
+			</Flex>
 			{children}
-		</div>
+		</Flex>
 	);
 };

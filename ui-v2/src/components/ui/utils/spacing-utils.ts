@@ -27,6 +27,18 @@ type AlignItems = "center" | "start" | "end" | "stretch" | "baseline";
 
 type AlignSelf = "auto" | "center" | "start" | "end" | "stretch" | "baseline";
 
+type JustifyContent =
+	| "center"
+	| "start"
+	| "end"
+	| "space-between"
+	| "space-around"
+	| "space-evenly";
+
+type JustifyItems = "center" | "start" | "end" | "stretch";
+
+type JustifySelf = "auto" | "center" | "start" | "end" | "stretch";
+
 type Spaces =
 	| 0
 	| 0.5
@@ -56,6 +68,9 @@ export type UtilityProps = Partial<{
 	display: Displays;
 	flexDirection: FlexDirection;
 	gap: Spaces;
+	justifyContent: JustifyContent;
+	justifyItems: JustifyItems;
+	justifySelf: JustifySelf;
 	m: Spaces;
 	mb: Spaces;
 	ml: Spaces;
@@ -139,6 +154,28 @@ export const spacingUtiltiesClasses = cva("", {
 			48: "gap-48",
 			64: "gap-64",
 		},
+		justifyContent: {
+			center: "justify-center",
+			start: "justify-start",
+			end: "justify-end",
+			"space-between": "justify-between",
+			"space-around": "justify-around",
+			"space-evenly": "justify-evenly",
+		},
+		justifyItems: {
+			center: "justify-items-center",
+			start: "justify-items-start",
+			end: "justify-items-end",
+			stretch: "justify-items-stretch",
+		},
+		justifySelf: {
+			auto: "justify-self-auto",
+			center: "justify-self-center",
+			start: "start",
+			end: "end",
+			stretch: "stretch",
+		},
+
 		m: {
 			0: "m-0",
 			0.5: "m-0.5",

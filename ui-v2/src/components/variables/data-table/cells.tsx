@@ -7,6 +7,7 @@ import {
 	DropdownMenuLabel,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Flex } from "@/components/ui/flex";
 import {
 	HoverCard,
 	HoverCardContent,
@@ -44,7 +45,7 @@ export const ActionsCell = ({ row, onVariableEdit }: ActionsCellProps) => {
 	};
 
 	return (
-		<div className="flex flex-row justify-end">
+		<Flex flexDirection="row" justifyContent="end">
 			<DropdownMenu>
 				<DropdownMenuTrigger asChild>
 					<Button variant="outline" className="h-8 w-8 p-0">
@@ -96,7 +97,7 @@ export const ActionsCell = ({ row, onVariableEdit }: ActionsCellProps) => {
 					<DropdownMenuItem onClick={onVariableDelete}>Delete</DropdownMenuItem>
 				</DropdownMenuContent>
 			</DropdownMenu>
-		</div>
+		</Flex>
 	);
 };
 
