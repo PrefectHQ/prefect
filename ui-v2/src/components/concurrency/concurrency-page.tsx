@@ -1,3 +1,4 @@
+import { Flex } from "@/components/ui/flex";
 import { Typography } from "@/components/ui/typography";
 
 import { ConcurrencyTabs } from "./concurrency-tabs";
@@ -6,14 +7,12 @@ import { TaskRunConcurrencyView } from "./task-run-concurrenct-view";
 
 export const ConcurrencyPage = (): JSX.Element => {
 	return (
-		<div className="flex flex-col gap-4">
+		<Flex flexDirection="column" gap={4}>
 			<Typography variant="h2">Concurrency</Typography>
-			<div className="flex flex-col gap-6">
-				<ConcurrencyTabs
-					globalView={<GlobalConcurrencyView />}
-					taskRunView={<TaskRunConcurrencyView />}
-				/>
-			</div>
-		</div>
+			<ConcurrencyTabs
+				globalView={<GlobalConcurrencyView />}
+				taskRunView={<TaskRunConcurrencyView />}
+			/>
+		</Flex>
 	);
 };
