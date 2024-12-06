@@ -45,9 +45,6 @@ repos:
               src/prefect/server/events/.*|
               scripts/generate_mintlify_openapi_docs.py
           )$
-
-  - repo: local
-    hooks:
       - id: generate-settings-schema
         name: Generating Settings Schema
         language: system
@@ -59,9 +56,6 @@ repos:
               src/prefect/settings/models/.*|
               scripts/generate_settings_schema.py
           )$
-
-  - repo: local
-    hooks:
       - id: generate-settings-ref
         name: Generating Settings Reference
         language: system
@@ -73,3 +67,40 @@ repos:
               src/prefect/settings/models/.*|
               scripts/generate_settings_ref.py
           )$
+      - id: lint-ui-v2
+        name: Lint UI v2
+        language: system
+        entry: sh
+        args: ['-c', 'cd ui-v2 && npm i --no-upgrade --silent --no-progress && npm run lint']
+        files: |
+          (?x)^(
+              .pre-commit-config.yaml|
+              ui-v2/.*
+          )$
+        pass_filenames: false
+      - id: format-ui-v2
+        name: Format UI v2
+        language: system
+        entry: sh
+        args: ['-c', 'cd ui-v2 && npm i --no-upgrade --silent --no-progress && npm run format']
+        files: |
+          (?x)^(
+              .pre-commit-config.yaml|
+              ui-v2/.*
+          )$
+        pass_filenames: false
+      - id: service-sync-ui-v2-openapi
+        name: Sync UI v2 OpenAPI
+        language: system
+        entry: sh
+        args: ['-c', 'cd ui-v2 && npm i --no-upgrade --silent --no-progress && npm run service-sync']
+        files: |
+          (?x)^(
+              .pre-commit-config.yaml|
+              .pre-commit-config.yaml|
+              src/prefect/server/api/.*|
+              src/prefect/server/schemas/.*|
+              src/prefect/server/events/.*|
+              ui-v2/package.json
+          )$
+        pass_filenames: false

@@ -1,3 +1,0 @@
-cd ui-v2
-npm run lint
-npm run format
