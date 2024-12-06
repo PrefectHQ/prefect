@@ -3448,7 +3448,12 @@ class PrefectClient:
         """
         Updates the labels of a flow run.
         """
-        return await self._client.patch(f"/flow_runs/{flow_run_id}/labels", json=labels)
+
+        response = await self._client.patch(
+            f"/flow_runs/{flow_run_id}/labels", json=labels
+        )
+        response.raise_for_status()
+        return response
 
     async def __aenter__(self):
         """
