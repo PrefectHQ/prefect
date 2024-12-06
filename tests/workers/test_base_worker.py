@@ -2109,7 +2109,12 @@ async def test_worker_gives_labels_to_flow_runs_when_using_cloud_api(
 
     CloudClientMock.update_flow_run_labels.assert_awaited_once_with(
         flow_run.id,
-        {"prefect.worker.name": worker.name, "prefect.worker.type": worker.type},
+        {
+            "prefect.worker.name": worker.name,
+            "prefect.worker.type": worker.type,
+            "prefect.work-pool.name": work_pool.name,
+            "prefect.work-pool.id": str(work_pool.id),
+        },
     )
 
 
