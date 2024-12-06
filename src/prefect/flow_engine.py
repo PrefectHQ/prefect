@@ -182,6 +182,37 @@ class BaseFlowRunEngine(Generic[P, R]):
         if hasattr(self.flow.task_runner, "cancel_all"):
             self.flow.task_runner.cancel_all()  # type: ignore
 
+    def update_otel_labels(
+        self, span: trace.Span, client: Union[SyncPrefectClient, PrefectClient]
+    ):
+        parent_flow_run_ctx = FlowRunContext.get()
+        if parent_flow_run_ctx and parent_flow_run_ctx.flow_run:
+            if traceparent := parent_flow_run_ctx.flow_run.labels.get(
+                LABELS_TRACEPARENT_KEY
+            ):
+                carrier: KeyValueLabels = {TRACEPARENT_KEY: traceparent}
+                propagate.get_global_textmap().inject(
+                    carrier={TRACEPARENT_KEY: traceparent},
+                    setter=OTELSetter(),
+                )
+            else:
+                carrier: KeyValueLabels = {}
+                propagate.get_global_textmap().inject(
+                    carrier,
+                    context=trace.set_span_in_context(span),
+                    setter=OTELSetter(),
+                )
+            if carrier.get(TRACEPARENT_KEY):
+                if self.flow_run:
+                    client.update_flow_run_labels(
+                        flow_run_id=self.flow_run.id,
+                        labels={LABELS_TRACEPARENT_KEY: carrier[TRACEPARENT_KEY]},
+                    )
+                else:
+                    self.logger.info(
+                        f"Tried to set traceparent {carrier[TRACEPARENT_KEY]} for flow run, but None was found"
+                    )
+
 
 @dataclass
 class FlowRunEngine(BaseFlowRunEngine[P, R]):
@@ -661,32 +692,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                     "prefect.flow.name": self.flow.name,
                 },
             )
-            parent_flow_run_ctx = FlowRunContext.get()
-
-            if parent_flow_run_ctx and parent_flow_run_ctx.flow_run:
-                if traceparent := parent_flow_run_ctx.flow_run.labels.get(
-                    LABELS_TRACEPARENT_KEY
-                ):
-                    carrier: KeyValueLabels = {TRACEPARENT_KEY: traceparent}
-                    propagate.get_global_textmap().inject(
-                        carrier={TRACEPARENT_KEY: traceparent},
-                        setter=OTELSetter(),
-                    )
-                else:
-                    carrier: KeyValueLabels = {}
-                    propagate.get_global_textmap().inject(
-                        carrier,
-                        context=trace.set_span_in_context(span),
-                        setter=OTELSetter(),
-                    )
-                    if carrier.get(TRACEPARENT_KEY):
-                        self.logger.info(
-                            f"Setting traceparent {carrier[TRACEPARENT_KEY]} for flow run {self.flow_run.name!r}"
-                        )
-                        self.client.update_flow_run_labels(
-                            flow_run_id=self.flow_run.id,
-                            labels={LABELS_TRACEPARENT_KEY: carrier[TRACEPARENT_KEY]},
-                        )
+            self.update_otel_labels(span, self.client)
 
             self._span = span
 
@@ -1260,31 +1266,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     "prefect.flow.name": self.flow.name,
                 },
             )
-            parent_flow_run_ctx = FlowRunContext.get()
-            if parent_flow_run_ctx and parent_flow_run_ctx.flow_run:
-                if traceparent := parent_flow_run_ctx.flow_run.labels.get(
-                    LABELS_TRACEPARENT_KEY
-                ):
-                    propagate.get_global_textmap().inject(
-                        carrier={TRACEPARENT_KEY: traceparent},
-                        setter=OTELSetter(),
-                    )
-                else:
-                    carrier: KeyValueLabels = {}
-                    propagate.get_global_textmap().inject(
-                        carrier,
-                        context=trace.set_span_in_context(span),
-                        setter=OTELSetter(),
-                    )
-                    if carrier.get(TRACEPARENT_KEY):
-                        self.logger.info(
-                            f"Setting traceparent {carrier[TRACEPARENT_KEY]} for flow run {self.flow_run.name!r}"
-                        )
-                        await self.client.update_flow_run_labels(
-                            flow_run_id=self.flow_run.id,
-                            labels={LABELS_TRACEPARENT_KEY: carrier[TRACEPARENT_KEY]},
-                        )
-
+            self.update_otel_labels(span, self.client)
             self._span = span
 
             try:
