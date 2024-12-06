@@ -1392,7 +1392,7 @@ async def run_generator_flow_async(
     flow: Flow[P, R],
     flow_run: Optional[FlowRun] = None,
     parameters: Optional[Dict[str, Any]] = None,
-    wait_for: Optional[Iterable[PrefectFuture]] = None,
+    wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
     return_type: Literal["state", "result"] = "result",
 ) -> AsyncGenerator[R, None]:
     if return_type != "result":
@@ -1430,7 +1430,7 @@ def run_flow(
     flow: Flow[P, R],
     flow_run: Optional[FlowRun] = None,
     parameters: Optional[Dict[str, Any]] = None,
-    wait_for: Optional[Iterable[PrefectFuture]] = None,
+    wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
     return_type: Literal["state", "result"] = "result",
 ) -> Union[R, State, None]:
     kwargs = dict(

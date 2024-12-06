@@ -2,11 +2,22 @@ import datetime
 import uuid
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Dict, Hashable, List, Tuple, Union, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    ClassVar,
+    Dict,
+    Hashable,
+    Iterable,
+    Optional,
+    Union,
+    cast,
+)
 
 import pendulum
 import sqlalchemy as sa
 from sqlalchemy import FetchedValue
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import (
     DeclarativeBase,
@@ -14,12 +25,12 @@ from sqlalchemy.orm import (
     declared_attr,
     mapped_column,
     registry,
+    relationship,
     synonym,
 )
-from sqlalchemy.sql.expression import ColumnElement
+from sqlalchemy.sql import roles
 from sqlalchemy.sql.functions import coalesce
 
-import prefect
 import prefect.server.schemas as schemas
 from prefect.server.events.actions import ServerActionTypes
 from prefect.server.events.schemas.automations import (
@@ -55,7 +66,7 @@ class Base(DeclarativeBase):
     and provides ID, created, and updated columns
     """
 
-    registry = registry(
+    registry: ClassVar[sa.orm.registry] = registry(
         metadata=sa.schema.MetaData(
             # define naming conventions for our Base class to use
             # sqlalchemy will use the following templated strings
@@ -82,6 +93,7 @@ class Base(DeclarativeBase):
         ),
         type_annotation_map={
             uuid.UUID: UUID,
+            pendulum.DateTime: Timestamp,
         },
     )
 
@@ -93,13 +105,13 @@ class Base(DeclarativeBase):
     # an INSERT, for example
     #
     # https://docs.sqlalchemy.org/en/14/orm/extensions/asyncio.html#preventing-implicit-io-when-using-asyncsession
-    __mapper_args__ = {"eager_defaults": True}
+    __mapper_args__: dict[str, Any] = {"eager_defaults": True}
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{self.__class__.__name__}(id={self.id})"
 
-    @declared_attr
-    def __tablename__(cls):
+    @declared_attr.directive
+    def __tablename__(cls) -> str:
         """
         By default, turn the model's camel-case class name
         into a snake-case table name. Override by providing
@@ -114,18 +126,13 @@ class Base(DeclarativeBase):
     )
 
     created: Mapped[pendulum.DateTime] = mapped_column(
-        Timestamp(),
-        nullable=False,
-        server_default=now(),
-        default=lambda: pendulum.now("UTC"),
+        server_default=now(), default=lambda: pendulum.now("UTC")
     )
 
     # onupdate is only called when statements are actually issued
     # against the database. until COMMIT is issued, this column
     # will not be updated
-    updated = sa.Column(
-        Timestamp(),
-        nullable=False,
+    updated: Mapped[pendulum.DateTime] = mapped_column(
         index=True,
         server_default=now(),
         default=lambda: pendulum.now("UTC"),
@@ -137,93 +144,87 @@ class Base(DeclarativeBase):
 class Flow(Base):
     """SQLAlchemy mixin of a flow."""
 
-    name = sa.Column(sa.String, nullable=False)
-    tags: Mapped[List[str]] = mapped_column(
-        JSON, server_default="[]", default=list, nullable=False
+    name: Mapped[str]
+    tags: Mapped[list[str]] = mapped_column(JSON, server_default="[]", default=list)
+    labels: Mapped[Optional[schemas.core.KeyValueLabels]] = mapped_column(JSON)
+
+    flow_runs: Mapped[list["FlowRun"]] = relationship(
+        back_populates="flow", lazy="raise"
     )
-    labels: Mapped[Union[schemas.core.KeyValueLabels, None]] = mapped_column(
-        JSON, nullable=True
+    deployments: Mapped[list["Deployment"]] = relationship(
+        back_populates="flow", lazy="raise"
     )
 
-    flow_runs = sa.orm.relationship("FlowRun", back_populates="flow", lazy="raise")
-    deployments = sa.orm.relationship("Deployment", back_populates="flow", lazy="raise")
-
-    __table_args__ = (
+    __table_args__: Any = (
         sa.UniqueConstraint("name"),
         sa.Index("ix_flow__created", "created"),
+        sa.Index("trgm_ix_flow_name", "name", postgresql_using="gin").ddl_if(
+            dialect="postgresql"
+        ),
     )
 
 
 class FlowRunState(Base):
     """SQLAlchemy mixin of a flow run state."""
 
-    flow_run_id = sa.Column(
-        UUID(), sa.ForeignKey("flow_run.id", ondelete="cascade"), nullable=False
+    flow_run_id: Mapped[uuid.UUID] = mapped_column(
+        sa.ForeignKey("flow_run.id", ondelete="cascade")
     )
 
-    type = sa.Column(
-        sa.Enum(schemas.states.StateType, name="state_type"), nullable=False, index=True
+    type: Mapped[schemas.states.StateType] = mapped_column(
+        sa.Enum(schemas.states.StateType, name="state_type"), index=True
     )
-    timestamp = sa.Column(
-        Timestamp(),
-        nullable=False,
-        server_default=now(),
-        default=lambda: pendulum.now("UTC"),
+    timestamp: Mapped[pendulum.DateTime] = mapped_column(
+        server_default=now(), default=lambda: pendulum.now("UTC")
     )
-    name = sa.Column(sa.String, nullable=False, index=True)
-    message = sa.Column(sa.String)
-    state_details = sa.Column(
+    name: Mapped[str] = mapped_column(index=True)
+    message: Mapped[Optional[str]]
+    state_details: Mapped[schemas.states.StateDetails] = mapped_column(
         Pydantic(schemas.states.StateDetails),
         server_default="{}",
         default=schemas.states.StateDetails,
-        nullable=False,
     )
-    _data = sa.Column(sa.JSON, nullable=True, name="data")
+    _data: Mapped[Optional[Any]] = mapped_column(JSON, name="data")
 
-    result_artifact_id = sa.Column(
-        UUID(),
-        sa.ForeignKey(
-            "artifact.id",
-            ondelete="SET NULL",
-            use_alter=True,
-        ),
+    result_artifact_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        sa.ForeignKey("artifact.id", ondelete="SET NULL", use_alter=True),
         index=True,
     )
 
-    _result_artifact = sa.orm.relationship(
-        "Artifact",
+    _result_artifact: Mapped[Optional["Artifact"]] = relationship(
         lazy="selectin",
         foreign_keys=[result_artifact_id],
         primaryjoin="Artifact.id==FlowRunState.result_artifact_id",
     )
 
     @hybrid_property
-    def data(self):
+    def data(self) -> Optional[Any]:
         if self._data:
             # ensures backwards compatibility for results stored on state objects
             return self._data
         if not self.result_artifact_id:
             # do not try to load the relationship if there's no artifact id
             return None
+        if TYPE_CHECKING:
+            assert self._result_artifact is not None
         return self._result_artifact.data
 
-    flow_run = sa.orm.relationship(
-        "FlowRun",
-        lazy="raise",
-        foreign_keys=[flow_run_id],
-    )
+    flow_run: Mapped["FlowRun"] = relationship(lazy="raise", foreign_keys=[flow_run_id])
 
     def as_state(self) -> schemas.states.State:
         return schemas.states.State.model_validate(self, from_attributes=True)
 
-    __table_args__ = (
-        sa.Index(
-            "uq_flow_run_state__flow_run_id_timestamp_desc",
-            "flow_run_id",
-            sa.desc("timestamp"),
-            unique=True,
-        ),
-    )
+    @declared_attr.directive
+    @classmethod
+    def __table_args__(cls) -> Iterable[sa.Index]:
+        return (
+            sa.Index(
+                "uq_flow_run_state__flow_run_id_timestamp_desc",
+                cls.flow_run_id,
+                cls.timestamp.desc(),
+                unique=True,
+            ),
+        )
 
 
 class TaskRunState(Base):
@@ -231,73 +232,63 @@ class TaskRunState(Base):
 
     # this column isn't explicitly indexed because it is included in
     # the unique compound index on (task_run_id, timestamp)
-    task_run_id = sa.Column(
-        UUID(), sa.ForeignKey("task_run.id", ondelete="cascade"), nullable=False
+    task_run_id: Mapped[uuid.UUID] = mapped_column(
+        sa.ForeignKey("task_run.id", ondelete="cascade")
     )
 
-    type = sa.Column(
-        sa.Enum(schemas.states.StateType, name="state_type"), nullable=False, index=True
+    type: Mapped[schemas.states.StateType] = mapped_column(
+        sa.Enum(schemas.states.StateType, name="state_type"), index=True
     )
-    timestamp = sa.Column(
-        Timestamp(),
-        nullable=False,
-        server_default=now(),
-        default=lambda: pendulum.now("UTC"),
+    timestamp: Mapped[pendulum.DateTime] = mapped_column(
+        server_default=now(), default=lambda: pendulum.now("UTC")
     )
-    name = sa.Column(sa.String, nullable=False, index=True)
-    message = sa.Column(sa.String)
-    state_details = sa.Column(
+    name: Mapped[str] = mapped_column(index=True)
+    message: Mapped[Optional[str]]
+    state_details: Mapped[schemas.states.StateDetails] = mapped_column(
         Pydantic(schemas.states.StateDetails),
         server_default="{}",
         default=schemas.states.StateDetails,
-        nullable=False,
     )
-    _data = sa.Column(sa.JSON, nullable=True, name="data")
+    _data: Mapped[Optional[Any]] = mapped_column(JSON, name="data")
 
-    result_artifact_id = sa.Column(
-        UUID(),
-        sa.ForeignKey(
-            "artifact.id",
-            ondelete="SET NULL",
-            use_alter=True,
-        ),
-        index=True,
+    result_artifact_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        sa.ForeignKey("artifact.id", ondelete="SET NULL", use_alter=True), index=True
     )
 
-    _result_artifact = sa.orm.relationship(
-        "Artifact",
+    _result_artifact: Mapped[Optional["Artifact"]] = relationship(
         lazy="selectin",
         foreign_keys=[result_artifact_id],
         primaryjoin="Artifact.id==TaskRunState.result_artifact_id",
     )
 
     @hybrid_property
-    def data(self):
+    def data(self) -> Optional[Any]:
         if self._data:
             # ensures backwards compatibility for results stored on state objects
             return self._data
         if not self.result_artifact_id:
             # do not try to load the relationship if there's no artifact id
             return None
+        if TYPE_CHECKING:
+            assert self._result_artifact is not None
         return self._result_artifact.data
 
-    task_run = sa.orm.relationship(
-        "TaskRun",
-        lazy="raise",
-        foreign_keys=[task_run_id],
-    )
+    task_run: Mapped["TaskRun"] = relationship(lazy="raise", foreign_keys=[task_run_id])
 
     def as_state(self) -> schemas.states.State:
         return schemas.states.State.model_validate(self, from_attributes=True)
 
-    __table_args__ = (
-        sa.Index(
-            "uq_task_run_state__task_run_id_timestamp_desc",
-            "task_run_id",
-            sa.desc("timestamp"),
-            unique=True,
-        ),
-    )
+    @declared_attr.directive
+    @classmethod
+    def __table_args__(cls) -> Iterable[sa.Index]:
+        return (
+            sa.Index(
+                "uq_task_run_state__task_run_id_timestamp_desc",
+                cls.task_run_id,
+                cls.timestamp.desc(),
+                unique=True,
+            ),
+        )
 
 
 class Artifact(Base):
@@ -305,63 +296,57 @@ class Artifact(Base):
     SQLAlchemy model of artifacts.
     """
 
-    key = sa.Column(
-        sa.String,
-        nullable=True,
-        index=True,
-    )
+    key: Mapped[Optional[str]] = mapped_column(index=True)
 
-    task_run_id = sa.Column(
-        UUID(),
-        nullable=True,
-        index=True,
-    )
+    task_run_id: Mapped[Optional[uuid.UUID]] = mapped_column(index=True)
 
-    flow_run_id = sa.Column(
-        UUID(),
-        nullable=True,
-        index=True,
-    )
+    flow_run_id: Mapped[Optional[uuid.UUID]] = mapped_column(index=True)
 
-    type = sa.Column(sa.String)
-    data = sa.Column(sa.JSON, nullable=True)
-    description = sa.Column(sa.String, nullable=True)
+    type: Mapped[Optional[str]]
+    data: Mapped[Optional[Any]] = mapped_column(sa.JSON)
+    description: Mapped[Optional[str]]
 
     # Suffixed with underscore as attribute name 'metadata' is reserved for the MetaData instance when using a declarative base class.
-    metadata_ = sa.Column(sa.JSON, nullable=True)
+    metadata_: Mapped[Optional[dict[str, str]]] = mapped_column(sa.JSON)
 
-    __table_args__ = (
-        sa.Index(
-            "ix_artifact__key",
-            "key",
-        ),
-    )
+    @declared_attr.directive
+    @classmethod
+    def __table_args__(cls) -> Iterable[sa.Index]:
+        return (
+            sa.Index(
+                "ix_artifact__key",
+                cls.key,
+            ),
+            sa.Index(
+                "ix_artifact__key_created_desc",
+                cls.key,
+                cls.created.desc(),
+                postgresql_include=[
+                    "id",
+                    "updated",
+                    "type",
+                    "task_run_id",
+                    "flow_run_id",
+                ],
+            ),
+        )
 
 
 class ArtifactCollection(Base):
-    key = sa.Column(
-        sa.String,
-        nullable=False,
-    )
+    key: Mapped[str]
 
-    latest_id: Mapped[UUID] = mapped_column(UUID(), nullable=False)
+    latest_id: Mapped[uuid.UUID]
 
-    task_run_id = sa.Column(
-        UUID(),
-        nullable=True,
-    )
+    task_run_id: Mapped[Optional[uuid.UUID]]
 
-    flow_run_id = sa.Column(
-        UUID(),
-        nullable=True,
-    )
+    flow_run_id: Mapped[Optional[uuid.UUID]]
 
-    type = sa.Column(sa.String)
-    data = sa.Column(sa.JSON, nullable=True)
-    description = sa.Column(sa.String, nullable=True)
-    metadata_ = sa.Column(sa.JSON, nullable=True)
+    type: Mapped[Optional[str]]
+    data: Mapped[Optional[Any]] = mapped_column(sa.JSON)
+    description: Mapped[Optional[str]]
+    metadata_: Mapped[Optional[dict[str, str]]] = mapped_column(sa.JSON)
 
-    __table_args__ = (
+    __table_args__: Any = (
         sa.UniqueConstraint("key"),
         sa.Index(
             "ix_artifact_collection__key_latest_id",
@@ -376,20 +361,20 @@ class TaskRunStateCache(Base):
     SQLAlchemy model of a task run state cache.
     """
 
-    cache_key = sa.Column(sa.String, nullable=False)
-    cache_expiration = sa.Column(
-        Timestamp(),
-        nullable=True,
-    )
-    task_run_state_id = sa.Column(UUID(), nullable=False)
+    cache_key: Mapped[str] = mapped_column()
+    cache_expiration: Mapped[Optional[pendulum.DateTime]]
+    task_run_state_id: Mapped[uuid.UUID]
 
-    __table_args__ = (
-        sa.Index(
-            "ix_task_run_state_cache__cache_key_created_desc",
-            "cache_key",
-            sa.desc("created"),
-        ),
-    )
+    @declared_attr.directive
+    @classmethod
+    def __table_args__(cls) -> Iterable[sa.Index]:
+        return (
+            sa.Index(
+                "ix_task_run_state_cache__cache_key_created_desc",
+                cls.cache_key,
+                cls.created.desc(),
+            ),
+        )
 
 
 class Run(Base):
@@ -399,41 +384,36 @@ class Run(Base):
 
     __abstract__ = True
 
-    name: Mapped[str] = mapped_column(
-        sa.String,
-        default=lambda: generate_slug(2),
-        nullable=False,
-        index=True,
+    name: Mapped[str] = mapped_column(default=lambda: generate_slug(2), index=True)
+    state_type: Mapped[Optional[schemas.states.StateType]] = mapped_column(
+        sa.Enum(schemas.states.StateType, name="state_type")
     )
-    state_type = sa.Column(sa.Enum(schemas.states.StateType, name="state_type"))
-    state_name = sa.Column(sa.String, nullable=True)
-    state_timestamp: Mapped[Union[pendulum.DateTime, None]] = mapped_column(
-        Timestamp(), nullable=True
-    )
-    run_count = sa.Column(sa.Integer, server_default="0", default=0, nullable=False)
-    expected_start_time: Mapped[pendulum.DateTime] = mapped_column(Timestamp())
-    next_scheduled_start_time = sa.Column(Timestamp())
-    start_time: Mapped[pendulum.DateTime] = mapped_column(Timestamp())
-    end_time: Mapped[pendulum.DateTime] = mapped_column(Timestamp())
+    state_name: Mapped[Optional[str]]
+    state_timestamp: Mapped[Optional[pendulum.DateTime]]
+    run_count: Mapped[int] = mapped_column(server_default="0", default=0)
+    expected_start_time: Mapped[Optional[pendulum.DateTime]]
+    next_scheduled_start_time: Mapped[Optional[pendulum.DateTime]]
+    start_time: Mapped[Optional[pendulum.DateTime]]
+    end_time: Mapped[Optional[pendulum.DateTime]]
     total_run_time: Mapped[datetime.timedelta] = mapped_column(
-        sa.Interval(),
-        server_default="0",
-        default=datetime.timedelta(0),
-        nullable=False,
+        server_default="0", default=datetime.timedelta(0)
     )
 
     @hybrid_property
-    def estimated_run_time(self):
+    def estimated_run_time(self) -> datetime.timedelta:
         """Total run time is incremented in the database whenever a RUNNING
         state is exited. To give up-to-date estimates, we estimate incremental
         run time for any runs currently in a RUNNING state."""
         if self.state_type and self.state_type == schemas.states.StateType.RUNNING:
+            if TYPE_CHECKING:
+                assert self.state_timestamp is not None
             return self.total_run_time + (pendulum.now("UTC") - self.state_timestamp)
         else:
             return self.total_run_time
 
-    @estimated_run_time.expression
-    def estimated_run_time(cls):
+    @estimated_run_time.inplace.expression
+    @classmethod
+    def _estimated_run_time_expression(cls) -> sa.Label[datetime.timedelta]:
         return (
             sa.select(
                 sa.case(
@@ -460,7 +440,11 @@ class Run(Base):
         give up-to-date estimates, we estimate lateness for any runs that don't
         have a start time and are not in a final state and were expected to
         start already."""
-        if self.start_time and self.start_time > self.expected_start_time:
+        if (
+            self.start_time
+            and self.expected_start_time is not None
+            and self.start_time > (self.expected_start_time)
+        ):
             return self.start_time - self.expected_start_time
         elif (
             self.start_time is None
@@ -472,8 +456,11 @@ class Run(Base):
         else:
             return datetime.timedelta(0)
 
-    @estimated_start_time_delta.expression
-    def estimated_start_time_delta(cls):
+    @estimated_start_time_delta.inplace.expression
+    @classmethod
+    def _estimated_start_time_delta_expression(
+        cls,
+    ) -> sa.SQLColumnExpression[datetime.timedelta]:
         return sa.case(
             (
                 cls.start_time > cls.expected_start_time,
@@ -495,97 +482,72 @@ class FlowRun(Run):
     """SQLAlchemy model of a flow run."""
 
     flow_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(),
-        sa.ForeignKey("flow.id", ondelete="cascade"),
-        nullable=False,
-        index=True,
+        sa.ForeignKey("flow.id", ondelete="cascade"), index=True
     )
 
-    deployment_id: Mapped[Union[uuid.UUID, None]] = mapped_column(UUID(), nullable=True)
-    work_queue_name = sa.Column(sa.String, index=True)
-    flow_version = sa.Column(sa.String, index=True)
-    deployment_version = sa.Column(sa.String, index=True)
-    parameters = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
-    idempotency_key = sa.Column(sa.String)
-    context = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
-    empirical_policy = sa.Column(
+    deployment_id: Mapped[Optional[uuid.UUID]] = mapped_column()
+    work_queue_name: Mapped[Optional[str]] = mapped_column(index=True)
+    flow_version: Mapped[Optional[str]] = mapped_column(index=True)
+    deployment_version: Mapped[Optional[str]] = mapped_column(index=True)
+    parameters: Mapped[dict[str, Any]] = mapped_column(
+        JSON, server_default="{}", default=dict
+    )
+    idempotency_key: Mapped[Optional[str]] = mapped_column()
+    context: Mapped[dict[str, Any]] = mapped_column(
+        JSON, server_default="{}", default=dict
+    )
+    empirical_policy: Mapped[schemas.core.FlowRunPolicy] = mapped_column(
         Pydantic(schemas.core.FlowRunPolicy),
         server_default="{}",
         default=schemas.core.FlowRunPolicy,
-        nullable=False,
     )
-    tags: Mapped[List[str]] = mapped_column(
-        JSON, server_default="[]", default=list, nullable=False
-    )
-    labels: Mapped[Union[schemas.core.KeyValueLabels, None]] = mapped_column(
-        JSON, nullable=True
+    tags: Mapped[list[str]] = mapped_column(JSON, server_default="[]", default=list)
+    labels: Mapped[Optional[schemas.core.KeyValueLabels]] = mapped_column(JSON)
+
+    created_by: Mapped[Optional[schemas.core.CreatedBy]] = mapped_column(
+        Pydantic(schemas.core.CreatedBy)
     )
 
-    created_by: Mapped[Union[schemas.core.CreatedBy, None]] = mapped_column(
-        Pydantic(schemas.core.CreatedBy),
-        server_default=None,
-        default=None,
-        nullable=True,
+    infrastructure_pid: Mapped[Optional[str]]
+    job_variables: Mapped[Optional[dict[str, Any]]] = mapped_column(
+        JSON, server_default="{}", default=dict
     )
 
-    infrastructure_pid = sa.Column(sa.String)
-    job_variables = sa.Column(JSON, server_default="{}", default=dict, nullable=True)
-
-    infrastructure_document_id = sa.Column(
-        UUID,
-        sa.ForeignKey("block_document.id", ondelete="CASCADE"),
-        nullable=True,
-        index=True,
+    infrastructure_document_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        sa.ForeignKey("block_document.id", ondelete="CASCADE"), index=True
     )
 
-    parent_task_run_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(),
-        sa.ForeignKey(
-            "task_run.id",
-            ondelete="SET NULL",
-            use_alter=True,
-        ),
-        index=True,
+    parent_task_run_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        sa.ForeignKey("task_run.id", ondelete="SET NULL", use_alter=True), index=True
     )
 
-    auto_scheduled = sa.Column(
-        sa.Boolean, server_default="0", default=False, nullable=False
-    )
+    auto_scheduled: Mapped[bool] = mapped_column(server_default="0", default=False)
 
     # TODO remove this foreign key for significant delete performance gains
-    state_id = sa.Column(
-        UUID(),
-        sa.ForeignKey(
-            "flow_run_state.id",
-            ondelete="SET NULL",
-            use_alter=True,
-        ),
+    state_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        sa.ForeignKey("flow_run_state.id", ondelete="SET NULL", use_alter=True),
         index=True,
     )
 
-    work_queue_id: Mapped[Union[uuid.UUID, None]] = mapped_column(
-        UUID,
-        sa.ForeignKey("work_queue.id", ondelete="SET NULL"),
-        nullable=True,
-        index=True,
+    work_queue_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        sa.ForeignKey("work_queue.id", ondelete="SET NULL"), index=True
     )
 
     # -------------------------- relationships
 
     # current states are eagerly loaded unless otherwise specified
-    _state = sa.orm.relationship(
-        "FlowRunState",
+    _state: Mapped[Optional["FlowRunState"]] = relationship(
         lazy="selectin",
         foreign_keys=[state_id],
         primaryjoin="FlowRunState.id==FlowRun.state_id",
     )
 
     @hybrid_property
-    def state(self):
+    def state(self) -> Optional[FlowRunState]:
         return self._state
 
-    @state.setter
-    def state(self, value):
+    @state.inplace.setter
+    def _set_state(self, value: Optional[FlowRunState]) -> None:
         # because this is a slightly non-standard SQLAlchemy relationship, we
         # prefer an explicit setter method to a setter property, because
         # user expectations about SQLAlchemy attribute assignment might not be
@@ -594,7 +556,7 @@ class FlowRun(Run):
         # still works because the ORM model's __init__ depends on it.
         return self.set_state(value)
 
-    def set_state(self, state):
+    def set_state(self, state: Optional[FlowRunState]) -> None:
         """
         If a state is assigned to this run, populate its run id.
 
@@ -606,150 +568,137 @@ class FlowRun(Run):
             state.flow_run_id = self.id
         self._state = state
 
-    flow = sa.orm.relationship("Flow", back_populates="flow_runs", lazy="raise")
+    flow: Mapped["Flow"] = relationship(back_populates="flow_runs", lazy="raise")
 
-    task_runs = sa.orm.relationship(
-        "TaskRun",
+    task_runs: Mapped[list["TaskRun"]] = relationship(
         back_populates="flow_run",
         lazy="raise",
         # foreign_keys=lambda: [flow_run_id],
         primaryjoin="TaskRun.flow_run_id==FlowRun.id",
     )
 
-    parent_task_run = sa.orm.relationship(
-        "TaskRun",
+    parent_task_run: Mapped[Optional["TaskRun"]] = relationship(
         back_populates="subflow_run",
         lazy="raise",
         foreign_keys=[parent_task_run_id],
     )
 
-    work_queue = sa.orm.relationship(
-        "WorkQueue",
-        lazy="selectin",
-        foreign_keys=[work_queue_id],
+    work_queue: Mapped[Optional["WorkQueue"]] = relationship(
+        lazy="selectin", foreign_keys=[work_queue_id]
     )
 
-    __table_args__ = (
-        sa.Index(
-            "uq_flow_run__flow_id_idempotency_key",
-            "flow_id",
-            "idempotency_key",
-            unique=True,
-        ),
-        sa.Index(
-            "ix_flow_run__coalesce_start_time_expected_start_time_desc",
-            sa.desc(coalesce("start_time", "expected_start_time")),
-        ),
-        sa.Index(
-            "ix_flow_run__coalesce_start_time_expected_start_time_asc",
-            sa.asc(coalesce("start_time", "expected_start_time")),
-        ),
-        sa.Index(
-            "ix_flow_run__expected_start_time_desc",
-            sa.desc("expected_start_time"),
-        ),
-        sa.Index(
-            "ix_flow_run__next_scheduled_start_time_asc",
-            sa.asc("next_scheduled_start_time"),
-        ),
-        sa.Index(
-            "ix_flow_run__end_time_desc",
-            sa.desc("end_time"),
-        ),
-        sa.Index(
-            "ix_flow_run__start_time",
-            "start_time",
-        ),
-        sa.Index(
-            "ix_flow_run__state_type",
-            "state_type",
-        ),
-        sa.Index(
-            "ix_flow_run__state_name",
-            "state_name",
-        ),
-        sa.Index(
-            "ix_flow_run__state_timestamp",
-            "state_timestamp",
-        ),
-    )
+    @declared_attr.directive
+    @classmethod
+    def __table_args__(cls) -> Iterable[sa.Index]:
+        return (
+            sa.Index(
+                "uq_flow_run__flow_id_idempotency_key",
+                cls.flow_id,
+                cls.idempotency_key,
+                unique=True,
+            ),
+            sa.Index(
+                "ix_flow_run__coalesce_start_time_expected_start_time_desc",
+                coalesce(cls.start_time, cls.expected_start_time).desc(),
+            ),
+            sa.Index(
+                "ix_flow_run__coalesce_start_time_expected_start_time_asc",
+                coalesce(cls.start_time, cls.expected_start_time).asc(),
+            ),
+            sa.Index(
+                "ix_flow_run__expected_start_time_desc",
+                cls.expected_start_time.desc(),
+            ),
+            sa.Index(
+                "ix_flow_run__next_scheduled_start_time_asc",
+                cls.next_scheduled_start_time.asc(),
+            ),
+            sa.Index(
+                "ix_flow_run__end_time_desc",
+                cls.end_time.desc(),
+            ),
+            sa.Index(
+                "ix_flow_run__start_time",
+                cls.start_time,
+            ),
+            sa.Index(
+                "ix_flow_run__state_type",
+                cls.state_type,
+            ),
+            sa.Index(
+                "ix_flow_run__state_name",
+                cls.state_name,
+            ),
+            sa.Index(
+                "ix_flow_run__state_timestamp",
+                cls.state_timestamp,
+            ),
+            sa.Index("trgm_ix_flow_run_name", cls.name, postgresql_using="gin").ddl_if(
+                dialect="postgresql"
+            ),
+            sa.Index(
+                # index names are at most 63 characters long.
+                "ix_flow_run__scheduler_deployment_id_auto_scheduled_next_schedu",
+                cls.deployment_id,
+                cls.auto_scheduled,
+                cls.next_scheduled_start_time,
+                postgresql_where=cls.state_type == schemas.states.StateType.SCHEDULED,
+                sqlite_where=cls.state_type == schemas.states.StateType.SCHEDULED,
+            ),
+        )
+
+
+_TaskInput = Union[
+    schemas.core.TaskRunResult, schemas.core.Parameter, schemas.core.Constant
+]
+_TaskInputs = dict[str, list[_TaskInput]]
 
 
 class TaskRun(Run):
     """SQLAlchemy model of a task run."""
 
-    flow_run_id = sa.Column(
-        UUID(),
-        sa.ForeignKey("flow_run.id", ondelete="cascade"),
-        nullable=True,
-        index=True,
+    flow_run_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        sa.ForeignKey("flow_run.id", ondelete="cascade"), index=True
     )
 
-    task_key = sa.Column(sa.String, nullable=False)
-    dynamic_key = sa.Column(sa.String, nullable=False)
-    cache_key = sa.Column(sa.String)
-    cache_expiration = sa.Column(Timestamp())
-    task_version = sa.Column(sa.String)
-    flow_run_run_count = sa.Column(
-        sa.Integer, server_default="0", default=0, nullable=False
-    )
-    empirical_policy = sa.Column(
+    task_key: Mapped[str] = mapped_column()
+    dynamic_key: Mapped[str] = mapped_column()
+    cache_key: Mapped[Optional[str]]
+    cache_expiration: Mapped[Optional[pendulum.DateTime]]
+    task_version: Mapped[Optional[str]]
+    flow_run_run_count: Mapped[int] = mapped_column(server_default="0", default=0)
+    empirical_policy: Mapped[schemas.core.TaskRunPolicy] = mapped_column(
         Pydantic(schemas.core.TaskRunPolicy),
         server_default="{}",
         default=schemas.core.TaskRunPolicy,
-        nullable=False,
     )
-    task_inputs = sa.Column(
-        Pydantic(
-            Dict[
-                str,
-                List[
-                    Union[
-                        schemas.core.TaskRunResult,
-                        schemas.core.Parameter,
-                        schemas.core.Constant,
-                    ]
-                ],
-            ]
-        ),
-        server_default="{}",
-        default=dict,
-        nullable=False,
+    task_inputs: Mapped[_TaskInputs] = mapped_column(
+        Pydantic(_TaskInputs), server_default="{}", default=dict
     )
-    tags: Mapped[List[str]] = mapped_column(
-        JSON, server_default="[]", default=list, nullable=False
-    )
-    labels: Mapped[Union[schemas.core.KeyValueLabels, None]] = mapped_column(
-        JSON, nullable=True
-    )
+    tags: Mapped[list[str]] = mapped_column(JSON, server_default="[]", default=list)
+    labels: Mapped[Optional[schemas.core.KeyValueLabels]] = mapped_column(JSON)
 
     # TODO remove this foreign key for significant delete performance gains
-    state_id = sa.Column(
-        UUID(),
-        sa.ForeignKey(
-            "task_run_state.id",
-            ondelete="SET NULL",
-            use_alter=True,
-        ),
+    state_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        sa.ForeignKey("task_run_state.id", ondelete="SET NULL", use_alter=True),
         index=True,
     )
 
     # -------------------------- relationships
 
     # current states are eagerly loaded unless otherwise specified
-    _state = sa.orm.relationship(
-        "TaskRunState",
+    _state: Mapped[Optional[TaskRunState]] = relationship(
         lazy="selectin",
         foreign_keys=[state_id],
         primaryjoin="TaskRunState.id==TaskRun.state_id",
     )
 
     @hybrid_property
-    def state(self):
+    def state(self) -> Optional[TaskRunState]:
         return self._state
 
-    @state.setter
-    def state(self, value):
+    @state.inplace.setter
+    def _set_state(self, value: Optional[TaskRunState]) -> None:
         # because this is a slightly non-standard SQLAlchemy relationship, we
         # prefer an explicit setter method to a setter property, because
         # user expectations about SQLAlchemy attribute assignment might not be
@@ -758,7 +707,7 @@ class TaskRun(Run):
         # still works because the ORM model's __init__ depends on it.
         return self.set_state(value)
 
-    def set_state(self, state):
+    def set_state(self, state: Optional[TaskRunState]) -> None:
         """
         If a state is assigned to this run, populate its run id.
 
@@ -770,15 +719,13 @@ class TaskRun(Run):
             state.task_run_id = self.id
         self._state = state
 
-    flow_run = sa.orm.relationship(
-        "FlowRun",
+    flow_run: Mapped[Optional["FlowRun"]] = relationship(
         back_populates="task_runs",
         lazy="raise",
         foreign_keys=[flow_run_id],
     )
 
-    subflow_run = sa.orm.relationship(
-        "FlowRun",
+    subflow_run: Mapped["FlowRun"] = relationship(
         back_populates="parent_task_run",
         lazy="raise",
         # foreign_keys=["FlowRun.parent_task_run_id"],
@@ -786,120 +733,112 @@ class TaskRun(Run):
         uselist=False,
     )
 
-    __table_args__ = (
-        sa.Index(
-            "uq_task_run__flow_run_id_task_key_dynamic_key",
-            "flow_run_id",
-            "task_key",
-            "dynamic_key",
-            unique=True,
-        ),
-        sa.Index(
-            "ix_task_run__expected_start_time_desc",
-            sa.desc("expected_start_time"),
-        ),
-        sa.Index(
-            "ix_task_run__next_scheduled_start_time_asc",
-            sa.asc("next_scheduled_start_time"),
-        ),
-        sa.Index(
-            "ix_task_run__end_time_desc",
-            sa.desc("end_time"),
-        ),
-        sa.Index(
-            "ix_task_run__start_time",
-            "start_time",
-        ),
-        sa.Index(
-            "ix_task_run__state_type",
-            "state_type",
-        ),
-        sa.Index(
-            "ix_task_run__state_name",
-            "state_name",
-        ),
-        sa.Index(
-            "ix_task_run__state_timestamp",
-            "state_timestamp",
-        ),
-    )
+    @declared_attr.directive
+    @classmethod
+    def __table_args__(cls) -> Iterable[sa.Index]:
+        return (
+            sa.Index(
+                "uq_task_run__flow_run_id_task_key_dynamic_key",
+                cls.flow_run_id,
+                cls.task_key,
+                cls.dynamic_key,
+                unique=True,
+            ),
+            sa.Index(
+                "ix_task_run__expected_start_time_desc",
+                cls.expected_start_time.desc(),
+            ),
+            sa.Index(
+                "ix_task_run__next_scheduled_start_time_asc",
+                cls.next_scheduled_start_time.asc(),
+            ),
+            sa.Index(
+                "ix_task_run__end_time_desc",
+                cls.end_time.desc(),
+            ),
+            sa.Index(
+                "ix_task_run__start_time",
+                cls.start_time,
+            ),
+            sa.Index(
+                "ix_task_run__state_type",
+                cls.state_type,
+            ),
+            sa.Index(
+                "ix_task_run__state_name",
+                cls.state_name,
+            ),
+            sa.Index(
+                "ix_task_run__state_timestamp",
+                cls.state_timestamp,
+            ),
+            sa.Index("trgm_ix_task_run_name", cls.name, postgresql_using="gin").ddl_if(
+                dialect="postgresql"
+            ),
+        )
 
 
 class DeploymentSchedule(Base):
-    deployment_id = sa.Column(
-        UUID(),
-        sa.ForeignKey("deployment.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
+    deployment_id: Mapped[uuid.UUID] = mapped_column(
+        sa.ForeignKey("deployment.id", ondelete="CASCADE"), index=True
     )
 
-    schedule = sa.Column(Pydantic(schemas.schedules.SCHEDULE_TYPES), nullable=False)
-    active = sa.Column(sa.Boolean, nullable=False, default=True)
-    max_scheduled_runs = sa.Column(sa.Integer, nullable=True)
+    schedule: Mapped[schemas.schedules.SCHEDULE_TYPES] = mapped_column(
+        Pydantic(schemas.schedules.SCHEDULE_TYPES)
+    )
+    active: Mapped[bool] = mapped_column(default=True)
+    max_scheduled_runs: Mapped[Optional[int]]
 
 
 class Deployment(Base):
     """SQLAlchemy model of a deployment."""
 
-    name = sa.Column(sa.String, nullable=False)
-    version = sa.Column(sa.String, nullable=True)
-    description = sa.Column(sa.Text(), nullable=True)
-    work_queue_name = sa.Column(sa.String, nullable=True, index=True)
-    infra_overrides = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
-    path = sa.Column(sa.String, nullable=True)
-    entrypoint = sa.Column(sa.String, nullable=True)
+    name: Mapped[str]
+    version: Mapped[Optional[str]]
+    description: Mapped[Optional[str]] = mapped_column(sa.Text())
+    work_queue_name: Mapped[Optional[str]] = mapped_column(index=True)
+    infra_overrides: Mapped[dict[str, Any]] = mapped_column(
+        JSON, server_default="{}", default=dict
+    )
+    path: Mapped[Optional[str]]
+    entrypoint: Mapped[Optional[str]]
 
-    last_polled = sa.Column(Timestamp(), nullable=True)
-    status = sa.Column(
+    last_polled: Mapped[Optional[pendulum.DateTime]]
+    status: Mapped[DeploymentStatus] = mapped_column(
         sa.Enum(DeploymentStatus, name="deployment_status"),
-        nullable=False,
         default=DeploymentStatus.NOT_READY,
         server_default="NOT_READY",
     )
 
     @declared_attr
-    def job_variables(self):
+    def job_variables(self) -> Mapped[dict[str, Any]]:
         return synonym("infra_overrides")
 
     flow_id: Mapped[uuid.UUID] = mapped_column(
-        UUID,
-        sa.ForeignKey("flow.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
+        sa.ForeignKey("flow.id", ondelete="CASCADE"), index=True
     )
 
-    work_queue_id: Mapped[uuid.UUID] = mapped_column(
-        UUID,
-        sa.ForeignKey("work_queue.id", ondelete="SET NULL"),
-        nullable=True,
-        index=True,
+    work_queue_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        sa.ForeignKey("work_queue.id", ondelete="SET NULL"), index=True
     )
-    paused = sa.Column(
-        sa.Boolean, nullable=False, server_default="0", default=False, index=True
-    )
+    paused: Mapped[bool] = mapped_column(server_default="0", default=False, index=True)
 
-    schedules = sa.orm.relationship(
-        "DeploymentSchedule",
-        lazy="selectin",
-        order_by=sa.desc(sa.text("updated")),
+    schedules: Mapped[list["DeploymentSchedule"]] = relationship(
+        lazy="selectin", order_by=sa.desc(sa.text("updated"))
     )
 
     # deprecated in favor of `concurrency_limit_id` FK
-    _concurrency_limit: Mapped[Union[int, None]] = mapped_column(
-        sa.Integer, default=None, nullable=True, name="concurrency_limit"
-    )
-    concurrency_limit_id: Mapped[Union[uuid.UUID, None]] = mapped_column(
-        UUID,
+    _concurrency_limit: Mapped[Optional[int]] = mapped_column(name="concurrency_limit")
+    concurrency_limit_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         sa.ForeignKey("concurrency_limit_v2.id", ondelete="SET NULL"),
-        nullable=True,
     )
     global_concurrency_limit: Mapped[
-        Union["ConcurrencyLimitV2", None]
+        Optional["ConcurrencyLimitV2"]
     ] = sa.orm.relationship(
         lazy="selectin",
     )
     concurrency_options: Mapped[
-        Union[schemas.core.ConcurrencyOptions, None]
+        Optional[schemas.core.ConcurrencyOptions]
     ] = mapped_column(
         Pydantic(schemas.core.ConcurrencyOptions),
         server_default=None,
@@ -907,52 +846,45 @@ class Deployment(Base):
         default=None,
     )
 
-    tags: Mapped[List[str]] = mapped_column(
-        JSON, server_default="[]", default=list, nullable=False
+    tags: Mapped[list[str]] = mapped_column(JSON, server_default="[]", default=list)
+    labels: Mapped[Optional[schemas.core.KeyValueLabels]] = mapped_column(JSON)
+    parameters: Mapped[dict[str, Any]] = mapped_column(
+        JSON, server_default="{}", default=dict
     )
-    labels: Mapped[Union[schemas.core.KeyValueLabels, None]] = mapped_column(
-        JSON, nullable=True
+    pull_steps: Mapped[Optional[list[dict[str, Any]]]] = mapped_column(
+        JSON, default=list
     )
-    parameters = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
-    pull_steps = sa.Column(JSON, default=list, nullable=True)
-    parameter_openapi_schema = sa.Column(JSON, default=dict, nullable=True)
-    enforce_parameter_schema = sa.Column(
-        sa.Boolean, default=True, server_default="0", nullable=False
+    parameter_openapi_schema: Mapped[Optional[dict[str, Any]]] = mapped_column(
+        JSON, default=dict
     )
-    created_by = sa.Column(
-        Pydantic(schemas.core.CreatedBy),
-        server_default=None,
-        default=None,
-        nullable=True,
+    enforce_parameter_schema: Mapped[bool] = mapped_column(
+        default=True, server_default="0"
     )
-    updated_by = sa.Column(
-        Pydantic(schemas.core.UpdatedBy),
-        server_default=None,
-        default=None,
-        nullable=True,
+    created_by: Mapped[Optional[schemas.core.CreatedBy]] = mapped_column(
+        Pydantic(schemas.core.CreatedBy)
+    )
+    updated_by: Mapped[Optional[schemas.core.UpdatedBy]] = mapped_column(
+        Pydantic(schemas.core.UpdatedBy)
     )
 
-    infrastructure_document_id = sa.Column(
-        UUID,
+    infrastructure_document_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        sa.ForeignKey("block_document.id", ondelete="CASCADE"), index=False
+    )
+
+    storage_document_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         sa.ForeignKey("block_document.id", ondelete="CASCADE"),
-        nullable=True,
         index=False,
     )
 
-    storage_document_id = sa.Column(
-        UUID,
-        sa.ForeignKey("block_document.id", ondelete="CASCADE"),
-        nullable=True,
-        index=False,
+    flow: Mapped["Flow"] = relationship(
+        "Flow", back_populates="deployments", lazy="raise"
     )
 
-    flow = sa.orm.relationship("Flow", back_populates="deployments", lazy="raise")
-
-    work_queue = sa.orm.relationship(
-        "WorkQueue", lazy="selectin", foreign_keys=[work_queue_id]
+    work_queue: Mapped[Optional["WorkQueue"]] = relationship(
+        lazy="selectin", foreign_keys=[work_queue_id]
     )
 
-    __table_args__ = (
+    __table_args__: Any = (
         sa.Index(
             "uq_deployment__flow_id_name",
             "flow_id",
@@ -963,6 +895,9 @@ class Deployment(Base):
             "ix_deployment__created",
             "created",
         ),
+        sa.Index("trgm_ix_deployment_name", "name", postgresql_using="gin").ddl_if(
+            dialect="postgresql"
+        ),
     )
 
 
@@ -971,16 +906,16 @@ class Log(Base):
     SQLAlchemy model of a logging statement.
     """
 
-    name = sa.Column(sa.String, nullable=False)
-    level = sa.Column(sa.SmallInteger, nullable=False, index=True)
-    flow_run_id = sa.Column(UUID(), nullable=True, index=True)
-    task_run_id = sa.Column(UUID(), nullable=True, index=True)
-    message = sa.Column(sa.Text, nullable=False)
+    name: Mapped[str]
+    level: Mapped[int] = mapped_column(sa.SmallInteger, index=True)
+    flow_run_id: Mapped[Optional[uuid.UUID]] = mapped_column(index=True)
+    task_run_id: Mapped[Optional[uuid.UUID]] = mapped_column(index=True)
+    message: Mapped[str] = mapped_column(sa.Text)
 
     # The client-side timestamp of this logged statement.
-    timestamp = sa.Column(Timestamp(), nullable=False, index=True)
+    timestamp: Mapped[pendulum.DateTime] = mapped_column(index=True)
 
-    __table_args__ = (
+    __table_args__: Any = (
         sa.Index(
             "ix_log__flow_run_id_timestamp",
             "flow_run_id",
@@ -990,68 +925,68 @@ class Log(Base):
 
 
 class ConcurrencyLimit(Base):
-    tag = sa.Column(sa.String, nullable=False)
-    concurrency_limit = sa.Column(sa.Integer, nullable=False)
-    active_slots: Mapped[List[str]] = mapped_column(
-        JSON, server_default="[]", default=list, nullable=False
+    tag: Mapped[str]
+    concurrency_limit: Mapped[int]
+    active_slots: Mapped[list[str]] = mapped_column(
+        JSON, server_default="[]", default=list
     )
 
-    __table_args__ = (sa.Index("uq_concurrency_limit__tag", "tag", unique=True),)
+    __table_args__: Any = (sa.Index("uq_concurrency_limit__tag", "tag", unique=True),)
 
 
 class ConcurrencyLimitV2(Base):
-    active = sa.Column(sa.Boolean, nullable=False, default=True)
-    name = sa.Column(sa.String, nullable=False)
-    limit = sa.Column(sa.Integer, nullable=False)
-    active_slots = sa.Column(sa.Integer, nullable=False, default=0)
-    denied_slots = sa.Column(sa.Integer, nullable=False, default=0)
+    active: Mapped[bool] = mapped_column(default=True)
+    name: Mapped[str]
+    limit: Mapped[int]
+    active_slots: Mapped[int] = mapped_column(default=0)
+    denied_slots: Mapped[int] = mapped_column(default=0)
 
-    slot_decay_per_second = sa.Column(sa.Float, default=0.0, nullable=False)
-    avg_slot_occupancy_seconds = sa.Column(sa.Float, default=2.0, nullable=False)
+    slot_decay_per_second: Mapped[float] = mapped_column(default=0.0)
+    avg_slot_occupancy_seconds: Mapped[float] = mapped_column(default=2.0)
 
-    __table_args__ = (sa.UniqueConstraint("name"),)
+    __table_args__: Any = (sa.UniqueConstraint("name"),)
 
 
 class BlockType(Base):
-    name = sa.Column(sa.String, nullable=False)
-    slug = sa.Column(sa.String, nullable=False)
-    logo_url = sa.Column(sa.String, nullable=True)
-    documentation_url = sa.Column(sa.String, nullable=True)
-    description = sa.Column(sa.String, nullable=True)
-    code_example = sa.Column(sa.String, nullable=True)
-    is_protected = sa.Column(
-        sa.Boolean, nullable=False, server_default="0", default=False
-    )
+    name: Mapped[str]
+    slug: Mapped[str]
+    logo_url: Mapped[Optional[str]]
+    documentation_url: Mapped[Optional[str]]
+    description: Mapped[Optional[str]]
+    code_example: Mapped[Optional[str]]
+    is_protected: Mapped[bool] = mapped_column(server_default="0", default=False)
 
-    __table_args__ = (
+    __table_args__: Any = (
         sa.Index(
             "uq_block_type__slug",
             "slug",
             unique=True,
         ),
+        sa.Index("trgm_ix_block_type_name", "name", postgresql_using="gin").ddl_if(
+            dialect="postgresql"
+        ),
     )
 
 
 class BlockSchema(Base):
-    checksum = sa.Column(sa.String, nullable=False)
-    fields = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
-    capabilities = sa.Column(JSON, server_default="[]", default=list, nullable=False)
-    version = sa.Column(
-        sa.String,
+    checksum: Mapped[str]
+    fields: Mapped[dict[str, Any]] = mapped_column(
+        JSON, server_default="{}", default=dict
+    )
+    capabilities: Mapped[list[str]] = mapped_column(
+        JSON, server_default="[]", default=list
+    )
+    version: Mapped[str] = mapped_column(
         server_default=schemas.core.DEFAULT_BLOCK_SCHEMA_VERSION,
-        nullable=False,
     )
 
-    block_type_id: Mapped[UUID] = mapped_column(
-        UUID(),
-        sa.ForeignKey("block_type.id", ondelete="cascade"),
-        nullable=False,
-        index=True,
+    block_type_id: Mapped[uuid.UUID] = mapped_column(
+        sa.ForeignKey("block_type.id", ondelete="cascade"), index=True
     )
 
-    block_type = sa.orm.relationship("BlockType", lazy="selectin")
+    block_type: Mapped["BlockType"] = relationship(lazy="selectin")
 
-    __table_args__ = (
+    __table_args__: Any = (
         sa.Index(
             "uq_block_schema__checksum_version",
             "checksum",
@@ -1059,58 +994,57 @@ class BlockSchema(Base):
             unique=True,
         ),
         sa.Index("ix_block_schema__created", "created"),
+        sa.Index(
+            "ix_block_schema__capabilities", "capabilities", postgresql_using="gin"
+        ).ddl_if(dialect="postgresql"),
     )
 
 
 class BlockSchemaReference(Base):
-    name = sa.Column(sa.String, nullable=False)
+    name: Mapped[str]
 
-    parent_block_schema_id = sa.Column(
-        UUID(),
-        sa.ForeignKey("block_schema.id", ondelete="cascade"),
-        nullable=False,
+    parent_block_schema_id: Mapped[uuid.UUID] = mapped_column(
+        sa.ForeignKey("block_schema.id", ondelete="cascade")
     )
 
-    reference_block_schema_id = sa.Column(
-        UUID(),
-        sa.ForeignKey("block_schema.id", ondelete="cascade"),
-        nullable=False,
+    reference_block_schema_id: Mapped[uuid.UUID] = mapped_column(
+        sa.ForeignKey("block_schema.id", ondelete="cascade")
     )
 
 
 class BlockDocument(Base):
-    name = sa.Column(sa.String, nullable=False, index=True)
-    data = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
-    is_anonymous = sa.Column(sa.Boolean, server_default="0", index=True, nullable=False)
+    name: Mapped[str] = mapped_column(index=True)
+    data: Mapped[Any] = mapped_column(JSON, server_default="{}", default=dict)
+    is_anonymous: Mapped[bool] = mapped_column(server_default="0", index=True)
 
-    block_type_name = sa.Column(sa.String, nullable=True)
+    block_type_name: Mapped[Optional[str]]
 
-    block_type_id = sa.Column(
-        UUID(),
-        sa.ForeignKey("block_type.id", ondelete="cascade"),
-        nullable=False,
+    block_type_id: Mapped[uuid.UUID] = mapped_column(
+        sa.ForeignKey("block_type.id", ondelete="cascade")
     )
 
-    block_type = sa.orm.relationship("BlockType", lazy="selectin")
+    block_type: Mapped["BlockType"] = relationship(lazy="selectin")
 
-    block_schema_id = sa.Column(
-        UUID(),
-        sa.ForeignKey("block_schema.id", ondelete="cascade"),
-        nullable=False,
+    block_schema_id: Mapped[uuid.UUID] = mapped_column(
+        sa.ForeignKey("block_schema.id", ondelete="cascade")
     )
 
-    block_schema = sa.orm.relationship("BlockSchema", lazy="selectin")
+    block_schema: Mapped["BlockSchema"] = relationship(lazy="selectin")
 
-    __table_args__ = (
+    __table_args__: Any = (
         sa.Index(
             "uq_block__type_id_name",
             "block_type_id",
             "name",
             unique=True,
         ),
+        sa.Index("ix_block_document__block_type_name__name", "block_type_name", "name"),
+        sa.Index("trgm_ix_block_document_name", "name", postgresql_using="gin").ddl_if(
+            dialect="postgresql"
+        ),
     )
 
-    async def encrypt_data(self, session, data):
+    async def encrypt_data(self, session: AsyncSession, data: dict[str, Any]) -> None:
         """
         Store encrypted data on the ORM model
 
@@ -1118,7 +1052,7 @@ class BlockDocument(Base):
         """
         self.data = await encrypt_fernet(session, data)
 
-    async def decrypt_data(self, session):
+    async def decrypt_data(self, session: AsyncSession) -> dict[str, Any]:
         """
         Retrieve decrypted data from the ORM model.
 
@@ -1128,190 +1062,159 @@ class BlockDocument(Base):
 
 
 class BlockDocumentReference(Base):
-    name: Mapped[str] = mapped_column(sa.String, nullable=False)
+    name: Mapped[str]
 
-    parent_block_document_id: Mapped[UUID] = mapped_column(
-        UUID(),
+    parent_block_document_id: Mapped[uuid.UUID] = mapped_column(
         sa.ForeignKey("block_document.id", ondelete="cascade"),
-        nullable=False,
     )
 
-    reference_block_document_id: Mapped[UUID] = mapped_column(
-        UUID(),
+    reference_block_document_id: Mapped[uuid.UUID] = mapped_column(
         sa.ForeignKey("block_document.id", ondelete="cascade"),
-        nullable=False,
     )
 
 
 class Configuration(Base):
-    key = sa.Column(sa.String, nullable=False, index=True)
-    value: Mapped[Dict[str, Any]] = mapped_column(JSON, nullable=False)
+    key: Mapped[str] = mapped_column(index=True)
+    value: Mapped[Dict[str, Any]] = mapped_column(JSON)
 
-    __table_args__ = (sa.UniqueConstraint("key"),)
+    __table_args__: Any = (sa.UniqueConstraint("key"),)
 
 
 class SavedSearch(Base):
     """SQLAlchemy model of a saved search."""
 
-    name = sa.Column(sa.String, nullable=False)
-    filters = sa.Column(
-        JSON,
-        server_default="[]",
-        default=list,
-        nullable=False,
+    name: Mapped[str]
+    filters: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSON, server_default="[]", default=list
     )
 
-    __table_args__ = (sa.UniqueConstraint("name"),)
+    __table_args__: Any = (sa.UniqueConstraint("name"),)
 
 
 class WorkQueue(Base):
     """SQLAlchemy model of a work queue"""
 
-    name = sa.Column(sa.String, nullable=False)
+    name: Mapped[str]
 
-    filter = sa.Column(
-        Pydantic(schemas.core.QueueFilter),
-        server_default=None,
-        default=None,
-        nullable=True,
+    filter: Mapped[Optional[schemas.core.QueueFilter]] = mapped_column(
+        Pydantic(schemas.core.QueueFilter)
     )
-    description = sa.Column(sa.String, nullable=False, default="", server_default="")
-    is_paused = sa.Column(sa.Boolean, nullable=False, server_default="0", default=False)
-    concurrency_limit: Mapped[int] = mapped_column(
-        sa.Integer,
-        nullable=True,
-    )
-    priority: Mapped[int] = mapped_column(sa.Integer, index=True, nullable=False)
+    description: Mapped[str] = mapped_column(default="", server_default="")
+    is_paused: Mapped[bool] = mapped_column(server_default="0", default=False)
+    concurrency_limit: Mapped[Optional[int]]
+    priority: Mapped[int]
 
-    last_polled: Mapped[Union[pendulum.DateTime, None]] = mapped_column(
-        Timestamp(),
-        nullable=True,
-    )
-    status = sa.Column(
+    last_polled: Mapped[Optional[pendulum.DateTime]]
+    status: Mapped[WorkQueueStatus] = mapped_column(
         sa.Enum(WorkQueueStatus, name="work_queue_status"),
-        nullable=False,
         default=WorkQueueStatus.NOT_READY,
-        server_default=WorkQueueStatus.NOT_READY.value,
+        server_default=WorkQueueStatus.NOT_READY,
     )
-
-    __table_args__ = (sa.UniqueConstraint("work_pool_id", "name"),)
 
     work_pool_id: Mapped[uuid.UUID] = mapped_column(
-        UUID,
-        sa.ForeignKey("work_pool.id", ondelete="cascade"),
-        nullable=False,
-        index=True,
+        sa.ForeignKey("work_pool.id", ondelete="cascade"), index=True
     )
 
-    work_pool = sa.orm.relationship(
-        "WorkPool",
-        lazy="selectin",
-        foreign_keys=[work_pool_id],
+    work_pool: Mapped["WorkPool"] = relationship(
+        lazy="selectin", foreign_keys=[work_pool_id]
+    )
+
+    __table_args__ = (
+        sa.UniqueConstraint("work_pool_id", "name"),
+        sa.Index("ix_work_queue__work_pool_id_priority", "work_pool_id", "priority"),
+        sa.Index("trgm_ix_work_queue_name", "name", postgresql_using="gin").ddl_if(
+            dialect="postgresql"
+        ),
     )
 
 
 class WorkPool(Base):
     """SQLAlchemy model of an worker"""
 
-    name = sa.Column(sa.String, nullable=False)
-    description = sa.Column(sa.String)
-    type: Mapped[str] = mapped_column(sa.String)
-    base_job_template = sa.Column(JSON, nullable=False, server_default="{}", default={})
-    is_paused: Mapped[bool] = mapped_column(
-        sa.Boolean, nullable=False, server_default="0", default=False
+    name: Mapped[str]
+    description: Mapped[Optional[str]]
+    type: Mapped[str] = mapped_column(index=True)
+    base_job_template: Mapped[dict[str, Any]] = mapped_column(
+        JSON, server_default="{}", default={}
     )
-    default_queue_id: Mapped[UUID] = mapped_column(UUID, nullable=True)
-    concurrency_limit = sa.Column(
-        sa.Integer,
+    is_paused: Mapped[bool] = mapped_column(server_default="0", default=False)
+    default_queue_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID,
+        sa.ForeignKey("work_queue.id", ondelete="RESTRICT", use_alter=True),
         nullable=True,
     )
+    concurrency_limit: Mapped[Optional[int]]
 
     status: Mapped[WorkPoolStatus] = mapped_column(
         sa.Enum(WorkPoolStatus, name="work_pool_status"),
-        nullable=False,
         default=WorkPoolStatus.NOT_READY,
-        server_default=WorkPoolStatus.NOT_READY.value,
+        server_default=WorkPoolStatus.NOT_READY,
     )
-    last_transitioned_status_at: Mapped[Union[pendulum.DateTime, None]] = mapped_column(
-        Timestamp(), nullable=True
-    )
-    last_status_event_id: Mapped[uuid.UUID] = mapped_column(UUID, nullable=True)
+    last_transitioned_status_at: Mapped[Optional[pendulum.DateTime]]
+    last_status_event_id: Mapped[Optional[uuid.UUID]]
 
-    __table_args__ = (sa.UniqueConstraint("name"),)
+    __table_args__: Any = (sa.UniqueConstraint("name"),)
 
 
 class Worker(Base):
     """SQLAlchemy model of an worker"""
 
-    @declared_attr
-    def work_pool_id(cls):
-        return sa.Column(
-            UUID,
-            sa.ForeignKey("work_pool.id", ondelete="cascade"),
-            nullable=False,
-            index=True,
-        )
-
-    name = sa.Column(sa.String, nullable=False)
-    last_heartbeat_time = sa.Column(
-        Timestamp(),
-        nullable=False,
-        server_default=now(),
-        default=lambda: pendulum.now("UTC"),
-        index=True,
+    work_pool_id: Mapped[uuid.UUID] = mapped_column(
+        sa.ForeignKey("work_pool.id", ondelete="cascade"), index=True
     )
-    heartbeat_interval_seconds = sa.Column(sa.Integer, nullable=True)
 
-    status = sa.Column(
+    name: Mapped[str]
+    last_heartbeat_time: Mapped[pendulum.DateTime] = mapped_column(
+        server_default=now(), default=lambda: pendulum.now("UTC")
+    )
+    heartbeat_interval_seconds: Mapped[Optional[int]]
+
+    status: Mapped[WorkerStatus] = mapped_column(
         sa.Enum(WorkerStatus, name="worker_status"),
-        nullable=False,
         default=WorkerStatus.OFFLINE,
-        server_default=WorkerStatus.OFFLINE.value,
+        server_default=WorkerStatus.OFFLINE,
     )
 
-    __table_args__ = (sa.UniqueConstraint("work_pool_id", "name"),)
+    __table_args__: Any = (
+        sa.UniqueConstraint("work_pool_id", "name"),
+        sa.Index(
+            "ix_worker__work_pool_id_last_heartbeat_time",
+            "work_pool_id",
+            "last_heartbeat_time",
+        ),
+    )
 
 
 class Agent(Base):
     """SQLAlchemy model of an agent"""
 
-    name = sa.Column(sa.String, nullable=False)
+    name: Mapped[str]
 
-    work_queue_id = sa.Column(
-        UUID,
-        sa.ForeignKey("work_queue.id"),
-        nullable=False,
-        index=True,
+    work_queue_id: Mapped[uuid.UUID] = mapped_column(
+        sa.ForeignKey("work_queue.id"), index=True
     )
 
-    last_activity_time = sa.Column(
-        Timestamp(),
-        nullable=False,
-        server_default=now(),
-        default=lambda: pendulum.now("UTC"),
+    last_activity_time: Mapped[pendulum.DateTime] = mapped_column(
+        server_default=now(), default=lambda: pendulum.now("UTC")
     )
 
-    __table_args__ = (sa.UniqueConstraint("name"),)
+    __table_args__: Any = (sa.UniqueConstraint("name"),)
 
 
 class FlowRunNotificationPolicy(Base):
-    is_active = sa.Column(sa.Boolean, server_default="1", default=True, nullable=False)
-    state_names = sa.Column(JSON, server_default="[]", default=[], nullable=False)
-    tags: Mapped[List[str]] = mapped_column(
-        JSON, server_default="[]", default=[], nullable=False
+    is_active: Mapped[bool] = mapped_column(server_default="1", default=True)
+    state_names: Mapped[list[str]] = mapped_column(
+        JSON, server_default="[]", default=[]
     )
-    message_template = sa.Column(sa.String, nullable=True)
+    tags: Mapped[list[str]] = mapped_column(JSON, server_default="[]", default=[])
+    message_template: Mapped[Optional[str]]
 
-    block_document_id = sa.Column(
-        UUID(),
-        sa.ForeignKey("block_document.id", ondelete="cascade"),
-        nullable=False,
+    block_document_id: Mapped[uuid.UUID] = mapped_column(
+        sa.ForeignKey("block_document.id", ondelete="cascade")
     )
 
-    block_document = sa.orm.relationship(
-        "BlockDocument",
-        lazy="selectin",
-        foreign_keys=[block_document_id],
+    block_document: Mapped["BlockDocument"] = relationship(
+        lazy="selectin", foreign_keys=[block_document_id]
     )
 
 
@@ -1319,64 +1222,60 @@ class FlowRunNotificationQueue(Base):
     # these are both foreign keys but there is no need to enforce that constraint
     # as this is just a queue for service workers; if the keys don't match at the
     # time work is pulled, the work can be discarded
-    flow_run_notification_policy_id = sa.Column(UUID, nullable=False)
-    flow_run_state_id = sa.Column(UUID, nullable=False)
+    flow_run_notification_policy_id: Mapped[uuid.UUID]
+    flow_run_state_id: Mapped[uuid.UUID]
 
 
 class Variable(Base):
-    name = sa.Column(sa.String, nullable=False)
-    value = sa.Column(sa.JSON, nullable=False)
-    tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
+    name: Mapped[str]
+    value: Mapped[Optional[Any]] = mapped_column(JSON)
+    tags: Mapped[list[str]] = mapped_column(JSON, server_default="[]", default=list)
 
-    __table_args__ = (sa.UniqueConstraint("name"),)
+    __table_args__: Any = (sa.UniqueConstraint("name"),)
 
 
 class FlowRunInput(Base):
-    flow_run_id = sa.Column(
-        UUID(), sa.ForeignKey("flow_run.id", ondelete="cascade"), nullable=False
+    flow_run_id: Mapped[uuid.UUID] = mapped_column(
+        sa.ForeignKey("flow_run.id", ondelete="cascade")
     )
 
-    key = sa.Column(sa.String, nullable=False)
-    value = sa.Column(sa.Text(), nullable=False)
-    sender = sa.Column(sa.String, nullable=True)
+    key: Mapped[str]
+    value: Mapped[str] = mapped_column(sa.Text())
+    sender: Mapped[Optional[str]]
 
-    __table_args__ = (sa.UniqueConstraint("flow_run_id", "key"),)
+    __table_args__: Any = (sa.UniqueConstraint("flow_run_id", "key"),)
 
 
 class CsrfToken(Base):
-    token = sa.Column(sa.String, nullable=False)
-    client = sa.Column(sa.String, nullable=False, unique=True)
-    expiration = sa.Column(Timestamp(), nullable=False)
+    token: Mapped[str]
+    client: Mapped[str] = mapped_column(unique=True)
+    expiration: Mapped[pendulum.DateTime]
 
 
 class Automation(Base):
-    name = sa.Column(sa.String, nullable=False)
-    description = sa.Column(sa.String, nullable=False, default="")
+    name: Mapped[str]
+    description: Mapped[str] = mapped_column(default="")
 
-    enabled = sa.Column(sa.Boolean, nullable=False, server_default="1", default=True)
+    enabled: Mapped[bool] = mapped_column(server_default="1", default=True)
 
-    trigger = sa.Column(Pydantic(ServerTriggerTypes), nullable=False)
+    trigger: Mapped[ServerTriggerTypes] = mapped_column(Pydantic(ServerTriggerTypes))
 
-    actions = sa.Column(Pydantic(List[ServerActionTypes]), nullable=False)
-    actions_on_trigger = sa.Column(
-        Pydantic(List[ServerActionTypes]),
-        server_default="[]",
-        default=list,
-        nullable=False,
+    actions: Mapped[ServerActionTypes] = mapped_column(
+        Pydantic(list[ServerActionTypes])
     )
-    actions_on_resolve = sa.Column(
-        Pydantic(List[ServerActionTypes]),
-        server_default="[]",
-        default=list,
-        nullable=False,
+    actions_on_trigger: Mapped[list[ServerActionTypes]] = mapped_column(
+        Pydantic(list[ServerActionTypes]), server_default="[]", default=list
+    )
+    actions_on_resolve: Mapped[list[ServerActionTypes]] = mapped_column(
+        Pydantic(list[ServerActionTypes]), server_default="[]", default=list
     )
 
-    related_resources = sa.orm.relationship(
+    related_resources: Mapped[list["AutomationRelatedResource"]] = relationship(
         "AutomationRelatedResource", back_populates="automation", lazy="raise"
     )
 
     @classmethod
-    def sort_expression(cls, value: AutomationSort) -> ColumnElement:
+    def sort_expression(cls, value: AutomationSort) -> sa.ColumnExpressionArgument[Any]:
         """Return an expression used to sort Automations"""
         sort_mapping = {
             AutomationSort.CREATED_DESC: cls.created.desc(),
@@ -1388,7 +1287,7 @@ class Automation(Base):
 
 
 class AutomationBucket(Base):
-    __table_args__ = (
+    __table_args__: Any = (
         sa.Index(
             "uq_automation_bucket__automation_id__trigger_id__bucketing_key",
             "automation_id",
@@ -1403,28 +1302,30 @@ class AutomationBucket(Base):
         ),
     )
 
-    automation_id = sa.Column(
-        UUID(), sa.ForeignKey("automation.id", ondelete="CASCADE"), nullable=False
+    automation_id: Mapped[uuid.UUID] = mapped_column(
+        sa.ForeignKey("automation.id", ondelete="CASCADE")
     )
 
-    trigger_id = sa.Column(UUID, nullable=False)
+    trigger_id: Mapped[uuid.UUID]
 
-    bucketing_key = sa.Column(JSON, server_default="[]", default=list, nullable=False)
+    bucketing_key: Mapped[list[str]] = mapped_column(
+        JSON, server_default="[]", default=list
+    )
 
-    last_event = sa.Column(Pydantic(ReceivedEvent), nullable=True)
+    last_event: Mapped[Optional[ReceivedEvent]] = mapped_column(Pydantic(ReceivedEvent))
 
-    start = sa.Column(Timestamp(), nullable=False)
-    end = sa.Column(Timestamp(), nullable=False)
+    start: Mapped[pendulum.DateTime]
+    end: Mapped[pendulum.DateTime]
 
-    count = sa.Column(sa.Integer, nullable=False)
+    count: Mapped[int]
 
-    last_operation = sa.Column(sa.String, nullable=True)
+    last_operation: Mapped[Optional[str]]
 
-    triggered_at = sa.Column(Timestamp(), nullable=True)
+    triggered_at: Mapped[Optional[pendulum.DateTime]]
 
 
 class AutomationRelatedResource(Base):
-    __table_args__ = (
+    __table_args__: Any = (
         sa.Index(
             "uq_automation_related_resource__automation_id__resource_id",
             "automation_id",
@@ -1433,22 +1334,22 @@ class AutomationRelatedResource(Base):
         ),
     )
 
-    automation_id = sa.Column(
-        UUID(), sa.ForeignKey("automation.id", ondelete="CASCADE"), nullable=False
+    automation_id: Mapped[uuid.UUID] = mapped_column(
+        sa.ForeignKey("automation.id", ondelete="CASCADE")
     )
 
-    resource_id = sa.Column(sa.String, index=True)
-    automation_owned_by_resource = sa.Column(
-        sa.Boolean, nullable=False, default=False, server_default="0"
+    resource_id: Mapped[Optional[str]] = mapped_column(index=True)
+    automation_owned_by_resource: Mapped[bool] = mapped_column(
+        default=False, server_default="0"
     )
 
-    automation = sa.orm.relationship(
+    automation: Mapped["Automation"] = relationship(
         "Automation", back_populates="related_resources", lazy="raise"
     )
 
 
 class CompositeTriggerChildFiring(Base):
-    __table_args__ = (
+    __table_args__: Any = (
         sa.Index(
             "uq_composite_trigger_child_firing__a_id__pt_id__ct__id",
             "automation_id",
@@ -1458,20 +1359,20 @@ class CompositeTriggerChildFiring(Base):
         ),
     )
 
-    automation_id = sa.Column(
-        UUID(), sa.ForeignKey("automation.id", ondelete="CASCADE"), nullable=False
+    automation_id: Mapped[uuid.UUID] = mapped_column(
+        sa.ForeignKey("automation.id", ondelete="CASCADE")
     )
 
-    parent_trigger_id = sa.Column(UUID(), nullable=False)
+    parent_trigger_id: Mapped[uuid.UUID]
 
-    child_trigger_id = sa.Column(UUID(), nullable=False)
-    child_firing_id = sa.Column(UUID(), nullable=False)
-    child_fired_at = sa.Column(Timestamp())
-    child_firing = sa.Column(Pydantic(Firing), nullable=False)
+    child_trigger_id: Mapped[uuid.UUID]
+    child_firing_id: Mapped[uuid.UUID]
+    child_fired_at: Mapped[Optional[pendulum.DateTime]]
+    child_firing: Mapped[Firing] = mapped_column(Pydantic(Firing))
 
 
 class AutomationEventFollower(Base):
-    __table_args__ = (
+    __table_args__: Any = (
         sa.Index(
             "uq_follower_for_scope",
             "scope",
@@ -1479,19 +1380,19 @@ class AutomationEventFollower(Base):
             unique=True,
         ),
     )
-    scope = sa.Column(sa.String, nullable=False, default="", index=True)
-    leader_event_id = sa.Column(UUID(), nullable=False, index=True)
-    follower_event_id = sa.Column(UUID(), nullable=False)
-    received = sa.Column(Timestamp(), nullable=False, index=True)
-    follower = sa.Column(Pydantic(ReceivedEvent), nullable=False)
+    scope: Mapped[str] = mapped_column(default="", index=True)
+    leader_event_id: Mapped[uuid.UUID] = mapped_column(index=True)
+    follower_event_id: Mapped[uuid.UUID]
+    received: Mapped[pendulum.DateTime] = mapped_column(index=True)
+    follower: Mapped[ReceivedEvent] = mapped_column(Pydantic(ReceivedEvent))
 
 
 class Event(Base):
-    @declared_attr
-    def __tablename__(cls):
+    @declared_attr.directive
+    def __tablename__(cls) -> str:
         return "events"
 
-    __table_args__ = (
+    __table_args__: Any = (
         sa.Index("ix_events__related_resource_ids", "related_resource_ids"),
         sa.Index("ix_events__occurred", "occurred"),
         sa.Index("ix_events__event__id", "event", "id"),
@@ -1506,26 +1407,28 @@ class Event(Base):
         sa.Index("ix_events__event_related_occurred", "event", "related", "occurred"),
     )
 
-    occurred = sa.Column(Timestamp(), nullable=False)
-    event = sa.Column(sa.Text(), nullable=False)
-    resource_id = sa.Column(sa.Text(), nullable=False)
-    resource = sa.Column(JSON(), nullable=False)
-    related_resource_ids = sa.Column(
-        JSON(), server_default="[]", default=list, nullable=False
+    occurred: Mapped[pendulum.DateTime]
+    event: Mapped[str] = mapped_column(sa.Text())
+    resource_id: Mapped[str] = mapped_column(sa.Text())
+    resource: Mapped[dict[str, Any]] = mapped_column(JSON())
+    related_resource_ids: Mapped[list[str]] = mapped_column(
+        JSON(), server_default="[]", default=list
     )
-    related = sa.Column(JSON(), server_default="[]", default=list, nullable=False)
-    payload = sa.Column(JSON(), nullable=False)
-    received = sa.Column(Timestamp(), nullable=False)
-    recorded = sa.Column(Timestamp(), nullable=False)
-    follows = sa.Column(UUID(), nullable=True)
+    related: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSON(), server_default="[]", default=list
+    )
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON())
+    received: Mapped[pendulum.DateTime]
+    recorded: Mapped[pendulum.DateTime]
+    follows: Mapped[Optional[uuid.UUID]]
 
 
 class EventResource(Base):
-    @declared_attr
-    def __tablename__(cls):
+    @declared_attr.directive
+    def __tablename__(cls) -> str:
         return "event_resources"
 
-    __table_args__ = (
+    __table_args__: Any = (
         sa.Index(
             "ix_event_resources__resource_id__occurred",
             "resource_id",
@@ -1533,11 +1436,11 @@ class EventResource(Base):
         ),
     )
 
-    occurred = sa.Column("occurred", Timestamp(), nullable=False)
-    resource_id = sa.Column("resource_id", sa.Text(), nullable=False)
-    resource_role = sa.Column("resource_role", sa.Text(), nullable=False)
-    resource = sa.Column("resource", sa.JSON(), nullable=False)
-    event_id = sa.Column("event_id", UUID(), nullable=False)
+    occurred: Mapped[pendulum.DateTime]
+    resource_id: Mapped[str] = mapped_column(sa.Text())
+    resource_role: Mapped[str] = mapped_column(sa.Text())
+    resource: Mapped[dict[str, Any]] = mapped_column(sa.JSON())
+    event_id: Mapped[uuid.UUID]
 
 
 # These are temporary until we've migrated all the references to the new,
@@ -1582,6 +1485,9 @@ ORMEvent = Event
 ORMEventResource = EventResource
 
 
+_UpsertColumns = Iterable[Union[str, "sa.Column[Any]", roles.DDLConstraintColumnRole]]
+
+
 class BaseORMConfiguration(ABC):
     """
     Abstract base class used to inject database-specific ORM configuration into Prefect.
@@ -1590,7 +1496,7 @@ class BaseORMConfiguration(ABC):
     Use with caution.
     """
 
-    def _unique_key(self) -> Tuple[Hashable, ...]:
+    def _unique_key(self) -> tuple[Hashable, ...]:
         """
         Returns a key used to determine whether to instantiate a new DB interface.
         """
@@ -1598,52 +1504,52 @@ class BaseORMConfiguration(ABC):
 
     @property
     @abstractmethod
-    def versions_dir(self):
+    def versions_dir(self) -> Path:
         """Directory containing migrations"""
         ...
 
     @property
-    def deployment_unique_upsert_columns(self):
+    def deployment_unique_upsert_columns(self) -> _UpsertColumns:
         """Unique columns for upserting a Deployment"""
         return [Deployment.flow_id, Deployment.name]
 
     @property
-    def concurrency_limit_unique_upsert_columns(self):
+    def concurrency_limit_unique_upsert_columns(self) -> _UpsertColumns:
         """Unique columns for upserting a ConcurrencyLimit"""
         return [ConcurrencyLimit.tag]
 
     @property
-    def flow_run_unique_upsert_columns(self):
+    def flow_run_unique_upsert_columns(self) -> _UpsertColumns:
         """Unique columns for upserting a FlowRun"""
         return [FlowRun.flow_id, FlowRun.idempotency_key]
 
     @property
-    def block_type_unique_upsert_columns(self):
+    def block_type_unique_upsert_columns(self) -> _UpsertColumns:
         """Unique columns for upserting a BlockType"""
         return [BlockType.slug]
 
     @property
-    def artifact_collection_unique_upsert_columns(self):
+    def artifact_collection_unique_upsert_columns(self) -> _UpsertColumns:
         """Unique columns for upserting an ArtifactCollection"""
         return [ArtifactCollection.key]
 
     @property
-    def block_schema_unique_upsert_columns(self):
+    def block_schema_unique_upsert_columns(self) -> _UpsertColumns:
         """Unique columns for upserting a BlockSchema"""
         return [BlockSchema.checksum, BlockSchema.version]
 
     @property
-    def flow_unique_upsert_columns(self):
+    def flow_unique_upsert_columns(self) -> _UpsertColumns:
         """Unique columns for upserting a Flow"""
         return [Flow.name]
 
     @property
-    def saved_search_unique_upsert_columns(self):
+    def saved_search_unique_upsert_columns(self) -> _UpsertColumns:
         """Unique columns for upserting a SavedSearch"""
         return [SavedSearch.name]
 
     @property
-    def task_run_unique_upsert_columns(self):
+    def task_run_unique_upsert_columns(self) -> _UpsertColumns:
         """Unique columns for upserting a TaskRun"""
         return [
             TaskRun.flow_run_id,
@@ -1652,7 +1558,7 @@ class BaseORMConfiguration(ABC):
         ]
 
     @property
-    def block_document_unique_upsert_columns(self):
+    def block_document_unique_upsert_columns(self) -> _UpsertColumns:
         """Unique columns for upserting a BlockDocument"""
         return [BlockDocument.block_type_id, BlockDocument.name]
 
@@ -1663,6 +1569,8 @@ class AsyncPostgresORMConfiguration(BaseORMConfiguration):
     @property
     def versions_dir(self) -> Path:
         """Directory containing migrations"""
+        import prefect.server.database
+
         return (
             Path(prefect.server.database.__file__).parent
             / "_migrations"
@@ -1677,6 +1585,8 @@ class AioSqliteORMConfiguration(BaseORMConfiguration):
     @property
     def versions_dir(self) -> Path:
         """Directory containing migrations"""
+        import prefect.server.database
+
         return (
             Path(prefect.server.database.__file__).parent
             / "_migrations"

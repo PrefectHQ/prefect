@@ -13,7 +13,6 @@
 		"format": "biome format --write",
 		"preview": "vite preview",
 		"service-sync": "uv run ../scripts/generate_oss_openapi_schema.py && npx openapi-typescript oss_schema.json -o src/api/prefect.ts && rm oss_schema.json",
-		"prepare": "cd .. && husky ui-v2/.husky",
 		"storybook": "storybook dev -p 6006",
 		"build-storybook": "storybook build"
 	},
@@ -32,6 +31,7 @@
 		"@radix-ui/react-select": "^2.1.2",
 		"@radix-ui/react-separator": "^1.1.0",
 		"@radix-ui/react-slot": "^1.1.0",
+		"@radix-ui/react-switch": "^1.1.1",
 		"@radix-ui/react-tabs": "^1.1.1",
 		"@radix-ui/react-toast": "^1.2.2",
 		"@radix-ui/react-tooltip": "^1.1.3",
@@ -86,7 +86,6 @@
 		"eslint-plugin-testing-library": "^6.4.0",
 		"eslint-plugin-unused-imports": "^4.1.4",
 		"globals": "^15.10.0",
-		"husky": "^9.1.6",
 		"jsdom": "^25.0.1",
 		"msw": "^2.6.0",
 		"postcss": "^8.4.47",
