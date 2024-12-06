@@ -1,10 +1,10 @@
-from typing import TYPE_CHECKING, Optional, Type, cast
+from typing import TYPE_CHECKING, Optional, Type
 from uuid import UUID
 
 from pydantic import Field
 from typing_extensions import Self
 
-from prefect.client.utilities import get_or_create_client
+from prefect.client.orchestration import get_client
 from prefect.events.actions import (
     CallWebhook,
     CancelFlowRun,
@@ -42,7 +42,7 @@ from prefect.exceptions import PrefectHTTPStatusError
 from prefect.utilities.asyncutils import sync_compatible
 
 if TYPE_CHECKING:
-    from prefect.client.orchestration import PrefectClient
+    pass
 
 __all__ = [
     "AutomationCore",
@@ -78,11 +78,6 @@ __all__ = [
 ]
 
 
-def _get_or_create_and_cast_client() -> tuple["PrefectClient", bool]:
-    client, inferred = get_or_create_client()
-    return cast("PrefectClient", client), inferred
-
-
 class Automation(AutomationCore):
     id: Optional[UUID] = Field(default=None, description="The ID of this automation")
 
@@ -107,10 +102,10 @@ class Automation(AutomationCore):
         )
         created_automation = auto_to_create.create()
         """
-        client, _ = _get_or_create_and_cast_client()
-        automation = AutomationCore(**self.model_dump(exclude={"id"}))
-        self.id = await client.create_automation(automation=automation)
-        return self
+        async with get_client() as client:
+            automation = AutomationCore(**self.model_dump(exclude={"id"}))
+            self.id = await client.create_automation(automation=automation)
+            return self
 
     @sync_compatible
     async def update(self: Self):
@@ -120,10 +115,11 @@ class Automation(AutomationCore):
         auto.name = "new name"
         auto.update()
         """
-
-        client, _ = _get_or_create_and_cast_client()
-        automation = AutomationCore(**self.model_dump(exclude={"id", "owner_resource"}))
-        await client.update_automation(automation_id=self.id, automation=automation)
+        async with get_client() as client:
+            automation = AutomationCore(
+                **self.model_dump(exclude={"id", "owner_resource"})
+            )
+            await client.update_automation(automation_id=self.id, automation=automation)
 
     @classmethod
     @sync_compatible
@@ -142,23 +138,25 @@ class Automation(AutomationCore):
             raise ValueError("Only one of id or name can be provided")
         if not id and not name:
             raise ValueError("One of id or name must be provided")
-        client, _ = _get_or_create_and_cast_client()
-        if id:
-            try:
-                automation = await client.read_automation(automation_id=id)
-            except PrefectHTTPStatusError as exc:
-                if exc.response.status_code == 404:
+        async with get_client() as client:
+            if id:
+                try:
+                    automation = await client.read_automation(automation_id=id)
+                except PrefectHTTPStatusError as exc:
+                    if exc.response.status_code == 404:
+                        raise ValueError(f"Automation with ID {id!r} not found")
+                    raise
+                if automation is None:
                     raise ValueError(f"Automation with ID {id!r} not found")
-                raise
-            if automation is None:
-                raise ValueError(f"Automation with ID {id!r} not found")
-            return Automation(**automation.model_dump())
-        else:
-            automation = await client.read_automations_by_name(name=name)
-            if len(automation) > 0:
-                return Automation(**automation[0].model_dump()) if automation else None
+                return Automation(**automation.model_dump())
             else:
-                raise ValueError(f"Automation with name {name!r} not found")
+                automation = await client.read_automations_by_name(name=name)
+                if len(automation) > 0:
+                    return (
+                        Automation(**automation[0].model_dump()) if automation else None
+                    )
+                else:
+                    raise ValueError(f"Automation with name {name!r} not found")
 
     @sync_compatible
     async def delete(self: Self) -> bool:
@@ -166,14 +164,14 @@ class Automation(AutomationCore):
         auto = Automation.read(id = 123)
         auto.delete()
         """
-        try:
-            client, _ = _get_or_create_and_cast_client()
-            await client.delete_automation(self.id)
-            return True
-        except PrefectHTTPStatusError as exc:
-            if exc.response.status_code == 404:
-                return False
-            raise
+        async with get_client() as client:
+            try:
+                await client.delete_automation(self.id)
+                return True
+            except PrefectHTTPStatusError as exc:
+                if exc.response.status_code == 404:
+                    return False
+                raise
 
     @sync_compatible
     async def disable(self: Self) -> bool:
@@ -182,14 +180,14 @@ class Automation(AutomationCore):
         auto = Automation.read(id = 123)
         auto.disable()
         """
-        try:
-            client, _ = _get_or_create_and_cast_client()
-            await client.pause_automation(self.id)
-            return True
-        except PrefectHTTPStatusError as exc:
-            if exc.response.status_code == 404:
-                return False
-            raise
+        async with get_client() as client:
+            try:
+                await client.pause_automation(self.id)
+                return True
+            except PrefectHTTPStatusError as exc:
+                if exc.response.status_code == 404:
+                    return False
+                raise
 
     @sync_compatible
     async def enable(self: Self) -> bool:
@@ -198,11 +196,11 @@ class Automation(AutomationCore):
         auto = Automation.read(id = 123)
         auto.enable()
         """
-        try:
-            client, _ = _get_or_create_and_cast_client()
-            await client.resume_automation(self.id)
-            return True
-        except PrefectHTTPStatusError as exc:
-            if exc.response.status_code == 404:
-                return False
-            raise
+        async with get_client() as client:
+            try:
+                await client.resume_automation(self.id)
+                return True
+            except PrefectHTTPStatusError as exc:
+                if exc.response.status_code == 404:
+                    return False
+                raise
