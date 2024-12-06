@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import TYPE_CHECKING, Optional, Type, cast
 from uuid import UUID
 
 from pydantic import Field
@@ -41,6 +41,9 @@ from prefect.events.schemas.automations import (
 from prefect.exceptions import PrefectHTTPStatusError
 from prefect.utilities.asyncutils import sync_compatible
 
+if TYPE_CHECKING:
+    from prefect.client.orchestration import PrefectClient
+
 __all__ = [
     "AutomationCore",
     "EventTrigger",
@@ -75,6 +78,11 @@ __all__ = [
 ]
 
 
+def _get_or_create_and_cast_client() -> tuple["PrefectClient", bool]:
+    client, inferred = get_or_create_client()
+    return cast("PrefectClient", client), inferred
+
+
 class Automation(AutomationCore):
     id: Optional[UUID] = Field(default=None, description="The ID of this automation")
 
@@ -99,7 +107,7 @@ class Automation(AutomationCore):
         )
         created_automation = auto_to_create.create()
         """
-        client, _ = get_or_create_client()
+        client, _ = _get_or_create_and_cast_client()
         automation = AutomationCore(**self.model_dump(exclude={"id"}))
         self.id = await client.create_automation(automation=automation)
         return self
@@ -113,14 +121,14 @@ class Automation(AutomationCore):
         auto.update()
         """
 
-        client, _ = get_or_create_client()
+        client, _ = _get_or_create_and_cast_client()
         automation = AutomationCore(**self.model_dump(exclude={"id", "owner_resource"}))
         await client.update_automation(automation_id=self.id, automation=automation)
 
     @classmethod
     @sync_compatible
     async def read(
-        cls: Self, id: Optional[UUID] = None, name: Optional[str] = None
+        cls: Type[Self], id: Optional[UUID] = None, name: Optional[str] = None
     ) -> Self:
         """
         Read an automation by ID or name.
@@ -134,13 +142,16 @@ class Automation(AutomationCore):
             raise ValueError("Only one of id or name can be provided")
         if not id and not name:
             raise ValueError("One of id or name must be provided")
-        client, _ = get_or_create_client()
+        client, _ = _get_or_create_and_cast_client()
         if id:
             try:
                 automation = await client.read_automation(automation_id=id)
             except PrefectHTTPStatusError as exc:
                 if exc.response.status_code == 404:
                     raise ValueError(f"Automation with ID {id!r} not found")
+                raise
+            if automation is None:
+                raise ValueError(f"Automation with ID {id!r} not found")
             return Automation(**automation.model_dump())
         else:
             automation = await client.read_automations_by_name(name=name)
@@ -156,7 +167,7 @@ class Automation(AutomationCore):
         auto.delete()
         """
         try:
-            client, _ = get_or_create_client()
+            client, _ = _get_or_create_and_cast_client()
             await client.delete_automation(self.id)
             return True
         except PrefectHTTPStatusError as exc:
@@ -172,7 +183,7 @@ class Automation(AutomationCore):
         auto.disable()
         """
         try:
-            client, _ = get_or_create_client()
+            client, _ = _get_or_create_and_cast_client()
             await client.pause_automation(self.id)
             return True
         except PrefectHTTPStatusError as exc:
@@ -188,8 +199,8 @@ class Automation(AutomationCore):
         auto.enable()
         """
         try:
-            client, _ = get_or_create_client()
-            await client.resume_automation("asd")
+            client, _ = _get_or_create_and_cast_client()
+            await client.resume_automation(self.id)
             return True
         except PrefectHTTPStatusError as exc:
             if exc.response.status_code == 404:
