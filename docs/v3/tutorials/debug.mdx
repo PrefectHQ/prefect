@@ -3,7 +3,7 @@ title: Debug a data pipeline
 description: Find out when flow runs go wrong and how to troubleshoot them.
 ---
 
-In the [previous tutorial](/v3/tutorials/platform), you used Prefect Cloud to set up a platform for data pipelines.
+In [Set up a platform for data pipelines](/v3/tutorials/platform), you used Prefect Cloud to set up a platform for data pipelines.
 In this tutorial, you'll learn what to do when those data pipelines fail.
 
 <Info>
@@ -15,7 +15,7 @@ This tutorial starts where the [previous tutorial](/v3/tutorials/platform) leave
 You can use the Prefect Cloud dashboard to find failures.
 
 1. Sign in to Prefect Cloud
-1. Use the workspace switcher to open the `staging` workspace that we created in the last tutorial.
+1. Use the workspace switcher to open the `staging` workspace that you created in the last tutorial.
 1. Go to **Home**, and look for red bars in the **Flow Runs** section, these indicate failed flow runs.
 1. Hover over a red bar to see more details about the flow run: name, deployment, duration, timestamp, and tags.
 
@@ -23,12 +23,13 @@ You can use the Prefect Cloud dashboard to find failures.
 You can filter by a specific tag (e.g. `team-a`) if you're only interested in a specific set of flows.
 </Note>
 
-## Debug failures
+## Debug a failure
 
-You should usually start with the first failure in a series of failures.
+Flows commonly experience multiple failures in a row.
+When this happens, it is usually best to inspect the first failure in the series.
 
-1. In the **Flow Runs** section, expand the `data-pipeline` flow.
-1. You will see a list of `data-pipeline`'s failing flow runs, in reverse chronological order.
+1. In the **Flow Runs** section on the **Home** page, expand the `data-pipeline` flow.
+1. You will see a list of failing `data-pipeline` flow runs, in reverse chronological order.
 1. Use the pagination controls to navigate to the last failure in the list, this is the first failure that occurred.
 1. Click the name of the flow run to go to its detail page.
 1. From the flow run detail page, scroll down to the **Logs** section in the right panel.
@@ -46,7 +47,7 @@ Now that you've found the failure, the next step is to deploy a fix.
 
 Open the `simulate_failures.py` file and look at line 12.
 
-```python
+```python simulate_failures.py {12}
 from prefect import flow, task
 import argparse
 import asyncio
@@ -66,10 +67,10 @@ def process_data(run: int, fail_at_run: int | None = None) -> bool:
 ```
 
 The `if` statement is the problem.
-If you specify the `--fail_at_run` flag, once the flow runs over `fail_at_run` times, the flow will fail with an exception.
+If you specify the `--fail_at_run` flag, once the flow runs more than `fail_at_run` times, the flow fails with an exception.
 Remove the `if` statement to fix this failure.
 
-```python
+```python simulate_failures.py
 from prefect import flow, task
 import argparse
 import asyncio
@@ -84,15 +85,23 @@ def process_data(run: int, fail_at_run: int | None = None) -> bool:
 # ...
 ```
 
-Now, even if you specify the `--fail-at-run` flag, the flow run will not fail.
+Now, all flow runs succeed in spite of the `--fail-at-run` flag.
+Deploy the fix to the staging workspace to confirm this new behavior.
 
 ```
-# Run flows in the staging workspace 
 prefect cloud workspace --set "<account>/staging"
 python simulate_failures.py --fail-at-run 3
 ```
 
 After the script finishes, open the **Home** page in Prefect Cloud to verify that the flow run is no longer failing.
+
+You can now deploy the fix to the production workspace as well.
+
+```
+prefect cloud workspace --set "<account>/production"
+python simulate_failures.py
+```
+
 
 ## Next steps
 
