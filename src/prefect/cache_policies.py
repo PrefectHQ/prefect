@@ -75,12 +75,12 @@ class CachePolicy:
         task_ctx: TaskRunContext,
         inputs: Dict[str, Any],
         flow_parameters: Dict[str, Any],
-        **kwargs,
+        **kwargs: Any,
     ) -> Optional[str]:
         raise NotImplementedError
 
     def __sub__(self, other: str) -> "CachePolicy":
-        if not isinstance(other, str):
+        if not isinstance(other, str):  # type: ignore[reportUnnecessaryIsInstance]
             raise TypeError("Can only subtract strings from key policies.")
         new = Inputs(exclude=[other])
         return CompoundCachePolicy(policies=[self, new])
@@ -140,7 +140,7 @@ class CacheKeyFnPolicy(CachePolicy):
         task_ctx: TaskRunContext,
         inputs: Dict[str, Any],
         flow_parameters: Dict[str, Any],
-        **kwargs,
+        **kwargs: Any,
     ) -> Optional[str]:
         if self.cache_key_fn:
             return self.cache_key_fn(task_ctx, inputs)
@@ -162,9 +162,9 @@ class CompoundCachePolicy(CachePolicy):
         task_ctx: TaskRunContext,
         inputs: Dict[str, Any],
         flow_parameters: Dict[str, Any],
-        **kwargs,
+        **kwargs: Any,
     ) -> Optional[str]:
-        keys = []
+        keys: list[str] = []
         for policy in self.policies:
             policy_key = policy.compute_key(
                 task_ctx=task_ctx,
@@ -191,7 +191,7 @@ class _None(CachePolicy):
         task_ctx: TaskRunContext,
         inputs: Dict[str, Any],
         flow_parameters: Dict[str, Any],
-        **kwargs,
+        **kwargs: Any,
     ) -> Optional[str]:
         return None
 
@@ -211,7 +211,7 @@ class TaskSource(CachePolicy):
         task_ctx: TaskRunContext,
         inputs: Optional[Dict[str, Any]],
         flow_parameters: Optional[Dict[str, Any]],
-        **kwargs,
+        **kwargs: Any,
     ) -> Optional[str]:
         if not task_ctx:
             return None
@@ -238,7 +238,7 @@ class FlowParameters(CachePolicy):
         task_ctx: TaskRunContext,
         inputs: Dict[str, Any],
         flow_parameters: Dict[str, Any],
-        **kwargs,
+        **kwargs: Any,
     ) -> Optional[str]:
         if not flow_parameters:
             return None
@@ -257,7 +257,7 @@ class RunId(CachePolicy):
         task_ctx: TaskRunContext,
         inputs: Dict[str, Any],
         flow_parameters: Dict[str, Any],
-        **kwargs,
+        **kwargs: Any,
     ) -> Optional[str]:
         if not task_ctx:
             return None
@@ -280,7 +280,7 @@ class Inputs(CachePolicy):
         task_ctx: TaskRunContext,
         inputs: Dict[str, Any],
         flow_parameters: Dict[str, Any],
-        **kwargs,
+        **kwargs: Any,
     ) -> Optional[str]:
         hashed_inputs = {}
         inputs = inputs or {}
@@ -307,7 +307,7 @@ class Inputs(CachePolicy):
             raise ValueError(msg) from exc
 
     def __sub__(self, other: str) -> "CachePolicy":
-        if not isinstance(other, str):
+        if not isinstance(other, str):  # type: ignore[reportUnnecessaryIsInstance]
             raise TypeError("Can only subtract strings from key policies.")
         return Inputs(exclude=self.exclude + [other])
 

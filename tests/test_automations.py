@@ -183,3 +183,13 @@ async def test_nonexistent_id_raises_value_error():
 async def test_nonexistent_name_raises_value_error():
     with pytest.raises(ValueError):
         await Automation.read(name="nonexistent_name")
+
+
+async def test_disabled_automation_can_be_enabled(
+    prefect_client, automation: Automation
+):
+    await automation.disable()
+    await automation.enable()
+
+    updated_automation = await Automation.read(id=automation.id)
+    assert updated_automation.enabled is True

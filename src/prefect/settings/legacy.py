@@ -8,7 +8,7 @@ from pydantic_settings import BaseSettings
 from typing_extensions import Self
 
 from prefect.settings.base import PrefectBaseSettings
-from prefect.settings.constants import _SECRET_TYPES
+from prefect.settings.constants import _SECRET_TYPES  # type: ignore[reportPrivateUsage]
 from prefect.settings.context import get_current_settings
 from prefect.settings.models.root import Settings
 
