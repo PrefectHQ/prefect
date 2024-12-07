@@ -1,5 +1,6 @@
 import json
 from typing import List
+from uuid import UUID
 
 import pytest
 
@@ -55,6 +56,7 @@ class TestCreateArtifacts:
                 key="task-link-artifact-3",
                 link="google.com",
                 description="my-artifact-description",
+                _sync=True,  # type: ignore[reportCallIssue]
             )
             return artifact_id, task_run_id
 
@@ -76,13 +78,14 @@ class TestCreateArtifacts:
 
     async def test_create_link_artifact_in_flow_succeeds(self, client):
         @flow
-        def my_flow():
+        def my_flow() -> tuple[UUID, UUID]:
             flow_run_id = get_run_context().flow_run.id
 
             artifact_id = create_link_artifact(
                 key="task-link-artifact-4",
                 link="google.com",
                 description="my-artifact-description",
+                _sync=True,  # type: ignore[reportCallIssue]
             )
 
             return artifact_id, flow_run_id
@@ -104,6 +107,7 @@ class TestCreateArtifacts:
                 key="task-link-artifact-5",
                 link="google.com",
                 description="my-artifact-description",
+                _sync=True,  # type: ignore[reportCallIssue]
             )
 
             return artifact_id, flow_run_id
@@ -136,6 +140,7 @@ class TestCreateArtifacts:
                 # key="new-markdown-artifact",
                 link="s3://my-bucket/my-file",
                 description="my-artifact-description",
+                _sync=True,  # type: ignore[reportCallIssue]
             )
             return x + 10
 
@@ -155,6 +160,7 @@ class TestCreateArtifacts:
                 key="task-link-artifact-3",
                 markdown="my markdown",
                 description="my-artifact-description",
+                _sync=True,  # type: ignore[reportCallIssue]
             )
             return artifact_id, task_run_id
 
@@ -205,6 +211,7 @@ class TestCreateArtifacts:
                 key="task-link-artifact-3",
                 markdown="my markdown",
                 description="my-artifact-description",
+                _sync=True,  # type: ignore[reportCallIssue]
             )
             return artifact_id, flow_run_id
 
@@ -234,6 +241,7 @@ class TestCreateArtifacts:
                 key="new-markdown-artifact",
                 markdown="my markdown",
                 description="my-artifact-description",
+                _sync=True,  # type: ignore[reportCallIssue]
             )
             return x + 10
 
@@ -315,6 +323,7 @@ class TestCreateArtifacts:
                 key="task-link-artifact-3",
                 table=my_table,
                 description="my-artifact-description",
+                _sync=True,  # type: ignore[reportCallIssue]
             )
             return artifact_id, task_run_id
 
@@ -346,6 +355,7 @@ class TestCreateArtifacts:
                 key="task-link-artifact-4",
                 table=my_table,
                 description="my-artifact-description",
+                _sync=True,  # type: ignore[reportCallIssue]
             )
 
             return artifact_id, flow_run_id
@@ -370,6 +380,7 @@ class TestCreateArtifacts:
                 key="task-link-artifact-3",
                 table=my_table,
                 description="my-artifact-description",
+                _sync=True,  # type: ignore[reportCallIssue]
             )
             return artifact_id, flow_run_id
 
@@ -525,6 +536,7 @@ class TestCreateArtifacts:
                 key="task-link-artifact-3",
                 progress=0.0,
                 description="my-artifact-description",
+                _sync=True,  # type: ignore[reportCallIssue]
             )
             return artifact_id, task_run_id
 
@@ -556,6 +568,7 @@ class TestCreateArtifacts:
                 key="task-link-artifact-4",
                 progress=0.0,
                 description="my-artifact-description",
+                _sync=True,  # type: ignore[reportCallIssue]
             )
 
             return artifact_id, flow_run_id
@@ -580,6 +593,7 @@ class TestCreateArtifacts:
                 image_url="https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png",
                 key="task-link-artifact-3",
                 description="my-artifact-description",
+                _sync=True,  # type: ignore[reportCallIssue]
             )
             return artifact_id, task_run_id
 
@@ -614,6 +628,7 @@ class TestCreateArtifacts:
                 image_url="https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png",
                 key="task-link-artifact-4",
                 description="my-artifact-description",
+                _sync=True,  # type: ignore[reportCallIssue]
             )
 
             return artifact_id, flow_run_id
@@ -669,8 +684,9 @@ class TestUpdateArtifacts:
                 key="task-link-artifact-3",
                 progress=0.0,
                 description="my-artifact-description",
+                _sync=True,  # type: ignore[reportCallIssue]
             )
-            update_progress_artifact(artifact_id, 50.0)
+            update_progress_artifact(artifact_id, 50.0, _sync=True)  # type: ignore[reportCallIssue]
             return artifact_id, task_run_id
 
         @flow
@@ -701,8 +717,9 @@ class TestUpdateArtifacts:
                 key="task-link-artifact-4",
                 progress=0.0,
                 description="my-artifact-description",
+                _sync=True,  # type: ignore[reportCallIssue]
             )
-            update_progress_artifact(artifact_id, 50.0)
+            update_progress_artifact(artifact_id, 50.0, _sync=True)  # type: ignore[reportCallIssue]
 
             return artifact_id, flow_run_id
 

@@ -720,7 +720,9 @@ class ArtifactCreate(ActionBaseModel):
     flow_run_id: Optional[UUID] = Field(default=None)
     task_run_id: Optional[UUID] = Field(default=None)
 
-    _validate_artifact_format = field_validator("key")(validate_artifact_key)
+    @field_validator("key")
+    def validate_artifact_format(cls, v: Any) -> Any:
+        return validate_artifact_key(v)
 
 
 class ArtifactUpdate(ActionBaseModel):
@@ -747,8 +749,9 @@ class VariableCreate(ActionBaseModel):
     )
     tags: Optional[List[str]] = Field(default=None)
 
-    # validators
-    _validate_name_format = field_validator("name")(validate_variable_name)
+    @field_validator("name")
+    def validate_variable_format(cls, v: Any) -> Any:
+        return validate_variable_name(v)
 
 
 class VariableUpdate(ActionBaseModel):

@@ -435,7 +435,7 @@ def visit_collection(
         return result
 
 
-def remove_nested_keys(keys_to_remove: List[Hashable], obj):
+def remove_nested_keys(keys_to_remove: list[Hashable], obj: Any) -> Any:
     """
     Recurses a dictionary returns a copy without all keys that match an entry in
     `key_to_remove`. Return `obj` unchanged if not a dictionary.

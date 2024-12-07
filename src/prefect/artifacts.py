@@ -7,15 +7,17 @@ from __future__ import annotations
 import json  # noqa: I001
 import math
 import warnings
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Type, Union, cast
+from typing import TYPE_CHECKING, Any, Optional, Type, Union
 from uuid import UUID
 
+from typing_extensions import TypeAlias
+
 from prefect._internal.compatibility.async_dispatch import async_dispatch
+from prefect.client.orchestration import get_client
 from prefect.client.schemas.actions import ArtifactCreate as ArtifactRequest
 from prefect.client.schemas.actions import ArtifactUpdate
 from prefect.client.schemas.filters import ArtifactFilter, ArtifactFilterKey
 from prefect.client.schemas.sorting import ArtifactSort
-from prefect.client.utilities import get_or_create_client
 from prefect.logging.loggers import get_logger
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.context import get_task_and_flow_run_ids
@@ -27,6 +29,8 @@ if TYPE_CHECKING:
 
     from prefect.client.orchestration import PrefectClient, SyncPrefectClient
     from prefect.client.schemas.objects import Artifact as ArtifactResponse
+
+SyncOrAsyncClient: TypeAlias = Union["SyncPrefectClient", "PrefectClient"]
 
 
 class Artifact(ArtifactRequest):
@@ -44,7 +48,7 @@ class Artifact(ArtifactRequest):
 
     async def acreate(
         self: "Self",
-        client: Optional["PrefectClient"] = None,
+        client: Optional[SyncOrAsyncClient] = None,
     ) -> "ArtifactResponse":
         """
         An asynchronous method to create an artifact.
@@ -55,9 +59,10 @@ class Artifact(ArtifactRequest):
         Returns:
             - The created artifact.
         """
+        from prefect.client.orchestration import PrefectClient
         from prefect.context import MissingContextError, get_run_context
 
-        _client, _ = get_or_create_client(client)
+        _client = client or get_client()
         task_run_id, flow_run_id = get_task_and_flow_run_ids()
 
         try:
@@ -68,7 +73,8 @@ class Artifact(ArtifactRequest):
                 FutureWarning,
             )
 
-        return await cast("PrefectClient", _client).create_artifact(
+        assert isinstance(_client, PrefectClient), "Client must be an async client"
+        return await _client.create_artifact(
             artifact=ArtifactRequest(
                 type=self.type,
                 key=self.key,
@@ -79,9 +85,10 @@ class Artifact(ArtifactRequest):
             )
         )
 
+    @async_dispatch(acreate)
     def create(
         self: "Self",
-        client: Optional["PrefectClient"] = None,
+        client: Optional[SyncOrAsyncClient] = None,
     ) -> "ArtifactResponse":
         """
         A method to create an artifact.
@@ -92,9 +99,11 @@ class Artifact(ArtifactRequest):
         Returns:
             - The created artifact.
         """
+        from prefect.client.orchestration import SyncPrefectClient
         from prefect.context import MissingContextError, get_run_context
 
-        _client, _ = get_or_create_client(client)
+        _client = client or get_client(sync_client=True)
+        task_run_id, flow_run_id = get_task_and_flow_run_ids()
 
         try:
             get_run_context()
@@ -104,11 +113,14 @@ class Artifact(ArtifactRequest):
                 FutureWarning,
             )
 
-        return cast("SyncPrefectClient", _client).create_artifact(
+        assert isinstance(_client, SyncPrefectClient), "Client must be a sync client"
+        return _client.create_artifact(
             artifact=ArtifactRequest(
                 type=self.type,
                 key=self.key,
                 description=self.description,
+                task_run_id=self.task_run_id or task_run_id,
+                flow_run_id=self.flow_run_id or flow_run_id,
                 data=run_coro_as_sync(self.format()),
             )
         )
@@ -117,7 +129,7 @@ class Artifact(ArtifactRequest):
     async def aget(
         cls: "Type[Self]",
         key: Optional[str] = None,
-        client: Optional["PrefectClient"] = None,
+        client: Optional[SyncOrAsyncClient] = None,
     ) -> Optional["ArtifactResponse"]:
         """
         An asynchronous method to get an artifact.
@@ -129,8 +141,9 @@ class Artifact(ArtifactRequest):
         Returns:
             (ArtifactResponse, optional): The artifact (if found).
         """
-        _client, _ = get_or_create_client(client)
-        artifacts = await cast("PrefectClient", _client).read_artifacts(
+        _client = client or get_client()
+        assert isinstance(_client, "PrefectClient"), "Client must be an async client"
+        artifacts = await _client.read_artifacts(
             limit=1,
             sort=ArtifactSort.UPDATED_DESC,
             artifact_filter=ArtifactFilter(
@@ -139,11 +152,12 @@ class Artifact(ArtifactRequest):
         )
         return next(iter(artifacts), None)
 
+    @async_dispatch(aget)
     @classmethod
     def get(
         cls: "Type[Self]",
         key: Optional[str] = None,
-        client: Optional["PrefectClient"] = None,
+        client: Optional[SyncOrAsyncClient] = None,
     ) -> Optional["ArtifactResponse"]:
         """
         An asynchronous method to get an artifact.
@@ -155,8 +169,11 @@ class Artifact(ArtifactRequest):
         Returns:
             (ArtifactResponse, optional): The artifact (if found).
         """
-        _client, _ = get_or_create_client(client)
-        artifacts = cast("SyncPrefectClient", _client).read_artifacts(
+        from prefect.client.orchestration import SyncPrefectClient
+
+        _client = client or get_client(sync_client=True)
+        assert isinstance(_client, SyncPrefectClient), "Client must be a sync client"
+        artifacts = _client.read_artifacts(
             limit=1,
             sort=ArtifactSort.UPDATED_DESC,
             artifact_filter=ArtifactFilter(
@@ -166,21 +183,21 @@ class Artifact(ArtifactRequest):
         return next(iter(artifacts), None)
 
     @classmethod
-    async def get_or_create(
-        cls,
+    async def aget_or_create(
+        cls: "Type[Self]",
         key: Optional[str] = None,
         description: Optional[str] = None,
-        data: Optional[Union[Dict[str, Any], Any]] = None,
-        client: Optional["PrefectClient"] = None,
+        data: Optional[Union[dict[str, Any], Any]] = None,
+        client: Optional[SyncOrAsyncClient] = None,
         **kwargs: Any,
-    ) -> Tuple["ArtifactResponse", bool]:
+    ) -> tuple["ArtifactResponse", bool]:
         """
-        A method to get or create an artifact.
+        An asynchronous method to get or create an artifact.
 
         Arguments:
             key (str, optional): The key of the artifact to get or create.
             description (str, optional): The description of the artifact to create.
-            data (Union[Dict[str, Any], Any], optional): The data of the artifact to create.
+            data (Union[dict[str, Any], Any], optional): The data of the artifact to create.
             client (PrefectClient, optional): The PrefectClient
 
         Returns:
@@ -197,7 +214,41 @@ class Artifact(ArtifactRequest):
                 True,
             )
 
-    async def format(self) -> Optional[Union[Dict[str, Any], Any]]:
+    @async_dispatch(aget_or_create)
+    @classmethod
+    def get_or_create(
+        cls: "Type[Self]",
+        key: Optional[str] = None,
+        description: Optional[str] = None,
+        data: Optional[Union[dict[str, Any], Any]] = None,
+        client: Optional[SyncOrAsyncClient] = None,
+        **kwargs: Any,
+    ) -> tuple["ArtifactResponse", bool]:
+        """
+        An asynchronous method to get or create an artifact.
+
+        Arguments:
+            key (str, optional): The key of the artifact to get or create.
+            description (str, optional): The description of the artifact to create.
+            data (Union[dict[str, Any], Any], optional): The data of the artifact to create.
+            client (PrefectClient, optional): The PrefectClient
+
+        Returns:
+            (ArtifactResponse): The artifact, either retrieved or created.
+        """
+        artifact = cls.get(key, client)
+        if isinstance(artifact, "ArtifactResponse"):
+            return artifact, False
+        else:
+            return (
+                cls(key=key, description=description, data=data, **kwargs).create(
+                    client,
+                    _sync=True,  # type: ignore[reportCallIssue]
+                ),
+                True,
+            )
+
+    async def format(self) -> Optional[Union[dict[str, Any], Any]]:
         return json.dumps(self.data)
 
 
@@ -223,13 +274,13 @@ class MarkdownArtifact(Artifact):
 
 
 class TableArtifact(Artifact):
-    table: Union[Dict[str, List[Any]], List[Dict[str, Any]], List[List[Any]]]
+    table: Union[dict[str, list[Any]], list[dict[str, Any]], list[list[Any]]]
     type: Optional[str] = "table"
 
     @classmethod
     def _sanitize(
-        cls, item: Union[Dict[str, Any], List[Any], float]
-    ) -> Union[Dict[str, Any], List[Any], int, float, None]:
+        cls, item: Union[dict[str, Any], list[Any], float]
+    ) -> Union[dict[str, Any], list[Any], int, float, None]:
         """
         Sanitize NaN values in a given item.
         The item can be a dict, list or float.
@@ -326,7 +377,7 @@ def create_link_artifact(
     link_text: Optional[str] = None,
     key: Optional[str] = None,
     description: Optional[str] = None,
-    client: Optional["PrefectClient"] = None,
+    client: Optional[SyncOrAsyncClient] = None,
 ) -> UUID:
     """
     An asynchronous method to create a link artifact.
@@ -343,14 +394,16 @@ def create_link_artifact(
     Returns:
         The table artifact ID.
     """
-    artifact = LinkArtifact(
-        key=key,
-        description=description,
-        link=link,
-        link_text=link_text,
-    ).create(client)
-
-    return artifact.id
+    return (
+        LinkArtifact(  # type: ignore[reportCallIssue]
+            key=key,
+            description=description,
+            link=link,
+            link_text=link_text,
+        )
+        .create(client, _sync=True)  # type: ignore[reportCallIssue]
+        .id
+    )
 
 
 async def acreate_markdown_artifact(
@@ -401,17 +454,20 @@ def create_markdown_artifact(
     Returns:
         The table artifact ID.
     """
-    artifact = MarkdownArtifact(
-        key=key,
-        description=description,
-        markdown=markdown,
-    ).create(client)
 
-    return artifact.id
+    return (
+        MarkdownArtifact(  # type: ignore[reportCallIssue]
+            key=key,
+            description=description,
+            markdown=markdown,
+        )
+        .create(client, _sync=True)  # type: ignore[reportCallIssue]
+        .id
+    )
 
 
 async def acreate_table_artifact(
-    table: Union[Dict[str, List[Any]], List[Dict[str, Any]], List[List[Any]]],
+    table: Union[dict[str, list[Any]], list[dict[str, Any]], list[list[Any]]],
     key: Optional[str] = None,
     description: Optional[str] = None,
     client: Optional["PrefectClient"] = None,
@@ -441,7 +497,7 @@ async def acreate_table_artifact(
 
 @async_dispatch(acreate_table_artifact)
 def create_table_artifact(
-    table: Union[Dict[str, List[Any]], List[Dict[str, Any]], List[List[Any]]],
+    table: Union[dict[str, list[Any]], list[dict[str, Any]], list[list[Any]]],
     key: Optional[str] = None,
     description: Optional[str] = None,
     client: Optional["PrefectClient"] = None,
@@ -460,13 +516,15 @@ def create_table_artifact(
         The table artifact ID.
     """
 
-    artifact = TableArtifact(
-        key=key,
-        description=description,
-        table=table,
-    ).create(client)
-
-    return artifact.id
+    return (
+        TableArtifact(  # type: ignore[reportCallIssue]
+            key=key,
+            description=description,
+            table=table,
+        )
+        .create(client, _sync=True)  # type: ignore[reportCallIssue]
+        .id
+    )
 
 
 async def acreate_progress_artifact(
@@ -503,7 +561,7 @@ def create_progress_artifact(
     progress: float,
     key: Optional[str] = None,
     description: Optional[str] = None,
-    client: Optional["PrefectClient"] = None,
+    client: Optional[SyncOrAsyncClient] = None,
 ) -> UUID:
     """
     A method to create a progress artifact.
@@ -519,13 +577,15 @@ def create_progress_artifact(
         The progress artifact ID.
     """
 
-    artifact = ProgressArtifact(
-        key=key,
-        description=description,
-        progress=progress,
-    ).create(client)
-
-    return artifact.id
+    return (
+        ProgressArtifact(  # type: ignore[reportCallIssue]
+            key=key,
+            description=description,
+            progress=progress,
+        )
+        .create(client, _sync=True)  # type: ignore[reportCallIssue]
+        .id
+    )
 
 
 async def aupdate_progress_artifact(
@@ -546,7 +606,7 @@ async def aupdate_progress_artifact(
         The progress artifact ID.
     """
 
-    _client, _ = get_or_create_client(client)
+    _client = client or get_client()
 
     artifact = ProgressArtifact(
         description=description,
@@ -561,7 +621,7 @@ async def aupdate_progress_artifact(
         else ArtifactUpdate(data=await artifact.format())
     )
 
-    await cast("PrefectClient", _client).update_artifact(
+    await _client.update_artifact(
         artifact_id=artifact_id,
         artifact=update,
     )
@@ -574,7 +634,7 @@ def update_progress_artifact(
     artifact_id: UUID,
     progress: float,
     description: Optional[str] = None,
-    client: Optional[PrefectClient] = None,
+    client: Optional[SyncOrAsyncClient] = None,
 ) -> UUID:
     """
     A method to update a progress artifact.
@@ -587,8 +647,9 @@ def update_progress_artifact(
     Returns:
         The progress artifact ID.
     """
+    from prefect.client.orchestration import SyncPrefectClient
 
-    _client, _ = get_or_create_client(client)
+    _client = client or get_client(sync_client=True)
 
     artifact = ProgressArtifact(
         description=description,
@@ -602,8 +663,8 @@ def update_progress_artifact(
         if description
         else ArtifactUpdate(data=run_coro_as_sync(artifact.format()))
     )
-
-    cast("SyncPrefectClient", _client).update_artifact(
+    assert isinstance(_client, SyncPrefectClient), "Client must be a sync client"
+    _client.update_artifact(
         artifact_id=artifact_id,
         artifact=update,
     )
@@ -659,10 +720,12 @@ def create_image_artifact(
         The image artifact ID.
     """
 
-    artifact = ImageArtifact(
-        key=key,
-        description=description,
-        image_url=image_url,
-    ).create(client)
-
-    return artifact.id
+    return (
+        ImageArtifact(  # type: ignore[reportCallIssue]
+            key=key,
+            description=description,
+            image_url=image_url,
+        )
+        .create(client, _sync=True)  # type: ignore[reportCallIssue]
+        .id
+    )

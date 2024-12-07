@@ -175,6 +175,8 @@ def get_client(
     """
     Retrieve a HTTP client for communicating with the Prefect REST API.
 
+    By default, this will return an asynchronous client.
+
     The client must be context managed; for example:
 
     ```python

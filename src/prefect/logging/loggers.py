@@ -82,9 +82,9 @@ def get_logger(name: Optional[str] = None) -> logging.Logger:
     return logger
 
 
-def get_run_logger(
+def get_run_logger(  # type: ignore
     context: Optional["RunContext"] = None, **kwargs: Any
-) -> Union[logging.Logger, logging.LoggerAdapter[logging.Logger]]:
+) -> Union[logging.Logger, logging.LoggerAdapter]:  # type: ignore[reportMissingTypeArguments]
     """
     Get a Prefect logger for the current task run or flow run.
 
@@ -149,11 +149,11 @@ def get_run_logger(
     return logger
 
 
-def flow_run_logger(
+def flow_run_logger(  # type: ignore
     flow_run: Union["FlowRun", "ClientFlowRun"],
     flow: Optional["Flow[Any, Any]"] = None,
     **kwargs: str,
-) -> LoggerAdapter[logging.Logger]:
+) -> LoggerAdapter:  # type: ignore[reportMissingTypeArguments]
     """
     Create a flow run logger with the run's metadata attached.
 
@@ -175,13 +175,13 @@ def flow_run_logger(
     )
 
 
-def task_run_logger(
+def task_run_logger(  # type: ignore
     task_run: "TaskRun",
     task: Optional["Task[Any, Any]"] = None,
     flow_run: Optional["FlowRun"] = None,
     flow: Optional["Flow[Any, Any]"] = None,
     **kwargs: Any,
-) -> LoggerAdapter[logging.Logger]:
+) -> LoggerAdapter:  # type: ignore[reportMissingTypeArguments]
     """
     Create a task run logger with the run's metadata attached.
 
