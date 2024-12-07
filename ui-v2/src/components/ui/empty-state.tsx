@@ -1,4 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
+import type { JSX } from "react";
 import { Icon, type IconId } from "./icons";
 
 const EmptyStateIcon = ({ id }: { id: IconId }): JSX.Element => {
