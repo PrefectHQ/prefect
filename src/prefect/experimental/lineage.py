@@ -1,8 +1,13 @@
-from typing import Dict, List, Literal, Optional
+from typing import Dict, Literal, Optional, Sequence, Union
 
 from prefect.events.related import related_resources_from_run_context
+from prefect.events.schemas.events import RelatedResource, Resource
 from prefect.events.utilities import emit_event
 from prefect.settings import get_current_settings
+
+UpstreamResources = Sequence[Union[RelatedResource, Dict[str, str]]]
+DownstreamResources = Sequence[Union[Resource, Dict[str, str]]]
+
 
 # Map block types to their URI schemes
 STORAGE_URI_SCHEMES = {
@@ -44,8 +49,8 @@ def get_result_resource_uri(store, key: str) -> Optional[str]:
 
 async def emit_lineage_event(
     event_name: str,
-    upstream_resources: Optional[List[Dict[str, str]]] = None,
-    downstream_resources: Optional[List[Dict[str, str]]] = None,
+    upstream_resources: Optional[UpstreamResources] = None,
+    downstream_resources: Optional[DownstreamResources] = None,
     direction_of_related_resources: Literal["upstream", "downstream"] = "upstream",
 ) -> None:
     """Emit lineage events showing relationships between resources.
@@ -60,15 +65,8 @@ async def emit_lineage_event(
     if not get_current_settings().experiments.lineage_events_enabled:
         return
 
-    upstream_resources = upstream_resources or []
-    downstream_resources = downstream_resources or []
-
-    for related_resource in upstream_resources:
-        role = related_resource.get("prefect.resource.role")
-        if not role:
-            # Upstream resources must have a role. Instead of failing if this is
-            # missing, we'll assign a generic role.
-            related_resource["prefect.resource.role"] = "related"
+    upstream_resources = list(upstream_resources) if upstream_resources else []
+    downstream_resources = list(downstream_resources) if downstream_resources else []
 
     if direction_of_related_resources == "downstream":
         # Set the involved resources to force the EventsWorker to exclude these
@@ -77,42 +75,39 @@ async def emit_lineage_event(
         # downstream resources.
         from prefect.client.orchestration import get_client  # Avoid a circular import
 
-        with get_client() as client:
+        async with get_client() as client:
             involved_resources = await related_resources_from_run_context(client)
+        downstream_resources.extend(involved_resources)
     else:
         # The EventsWorker will automatically include these as as upstream
         # resources for us, so no action is necessary.
-        involved_resources = []
+        involved_resources = None
 
     # Emit an event for each downstream resource. This is necessary because
     # our event schema allows one primary resource and many related resources,
     # and for the purposes of lineage, related resources can only represent
     # upstream resources.
     for resource in downstream_resources:
-        role = resource.get("prefect.resource.role")
-        # Downstream resources need to have the lineage-resource role for
-        # Prefect to consider them for lineage.
-        resource["prefect.resource.role"] = "lineage-resource"
+        # Downstream resources need to have the prefect.resource.lineage-group label.
+        if "prefect.resource.lineage-group" not in resource:
+            resource["prefect.resource.lineage-group"] = "global"
 
-        if role and role != "lineage-resource":
-            # TODO: The fact that lineage resources can only have the
-            # "lineage-resource" role is a sign that we should revisit how we're
-            # marking lineage resources. Should we be say there is a downstream
-            # role AND we want to track lineage?
-            resource["prefect.resource.downstream-role"] = role
+        emit_kwargs = {
+            "event": event_name,
+            "resource": resource,
+            "related": upstream_resources,
+        }
 
-        emit_event(
-            event=event_name,
-            resource=resource,
-            related=upstream_resources,
-            involved=involved_resources,
-        )
+        if involved_resources is not None:
+            emit_kwargs["involved"] = involved_resources
+
+        emit_event(**emit_kwargs)
 
 
 async def emit_result_read_event(
     store,
     result_key: str,
-    downstream_resources: Optional[List[Dict[str, str]]] = None,
+    downstream_resources: Optional[DownstreamResources] = None,
     cached: bool = False,
 ) -> None:
     """
@@ -132,10 +127,12 @@ async def emit_result_read_event(
     result_resource_uri = get_result_resource_uri(store, result_key)
     if result_resource_uri:
         upstream_resources = [
-            {
-                "prefect.resource.id": result_resource_uri,
-                "prefect.resource.role": "result",
-            }
+            RelatedResource(
+                root={
+                    "prefect.resource.id": result_resource_uri,
+                    "prefect.resource.role": "result",
+                }
+            )
         ]
         event_name = "prefect.result.read"
         if cached:
@@ -152,7 +149,7 @@ async def emit_result_read_event(
 async def emit_result_write_event(
     store,
     result_key: str,
-    upstream_resources: Optional[List[Dict[str, str]]] = None,
+    upstream_resources: Optional[UpstreamResources] = None,
 ) -> None:
     """
     Emit a lineage event showing a result was written
@@ -160,7 +157,7 @@ async def emit_result_write_event(
     Args:
         store: A `ResultStore` instance.
         result_key: The key of the result to generate a URI for.
-        upstream_resources: Optional list of RelatedResource objects that were
+        upstream_resources: Optional list of RelatedResources that were
             upstream of the event
 
     TODO: Can't type-hint `store` because of a circular import.
@@ -174,8 +171,7 @@ async def emit_result_write_event(
             {
                 "prefect.resource.id": result_resource_uri,
                 "prefect.resource.role": "result",
-                # TODO: See comment in emit_lineage_event about "downstream-role"
-                "prefect.resource.downstream-role": "result",
+                "prefect.resource.lineage-group": "global",
             }
         ]
         await emit_lineage_event(
