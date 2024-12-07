@@ -3,6 +3,7 @@ import pluginQuery from "@tanstack/eslint-plugin-query";
 import pluginRouter from "@tanstack/eslint-plugin-router";
 import jestDom from "eslint-plugin-jest-dom";
 import react from "eslint-plugin-react";
+import reactCompilerPlugin from "eslint-plugin-react-compiler";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import testingLibrary from "eslint-plugin-testing-library";
@@ -34,6 +35,7 @@ export default tseslint.config(
 			react,
 			"react-hooks": reactHooks,
 			"react-refresh": reactRefresh,
+			"react-compiler": reactCompilerPlugin,
 		},
 		rules: {
 			...reactHooks.configs.recommended.rules,
@@ -43,10 +45,12 @@ export default tseslint.config(
 			],
 			...react.configs.recommended.rules,
 			...react.configs["jsx-runtime"].rules,
+			"react-compiler/react-compiler": "warn", // Move to "error" once all warnings have been resolved
 		},
 	},
 	...pluginQuery.configs["flat/recommended"],
 	...pluginRouter.configs["flat/recommended"],
+
 	{
 		files: ["tests/**/*.{ts,tsx}"],
 		...testingLibrary.configs["flat/react"],
