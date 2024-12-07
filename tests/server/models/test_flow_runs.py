@@ -255,6 +255,73 @@ class TestUpdateFlowRun:
             )
         )
 
+    async def test_update_flow_run_labels(self, flow, session):
+        """Test that flow run labels can be updated by patching existing labels"""
+
+        # Create a flow run with initial labels
+        initial_labels = {"env": "test", "version": "1.0"}
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, labels=initial_labels),
+        )
+
+        # Update with new labels
+        new_labels = {"version": "2.0", "new_key": "new_value"}
+        update_success = await models.flow_runs.update_flow_run_labels(
+            session=session, flow_run_id=flow_run.id, labels=new_labels
+        )
+        assert update_success is True
+
+        # Read the flow run back and verify labels were merged correctly
+        updated_flow_run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run.id
+        )
+        assert updated_flow_run.labels == {
+            "prefect.flow.id": str(flow.id),
+            "env": "test",  # Kept from initial labels
+            "version": "2.0",  # Updated from new labels
+            "new_key": "new_value",  # Added from new labels
+        }
+
+    async def test_update_flow_run_labels_returns_false_if_flow_run_does_not_exist(
+        self, session
+    ):
+        """Test that updating labels for a non-existent flow run returns False"""
+
+        update_success = await models.flow_runs.update_flow_run_labels(
+            session=session, flow_run_id=uuid4(), labels={"test": "label"}
+        )
+        assert update_success is False
+
+    async def test_update_flow_run_labels_with_empty_initial_labels(
+        self, flow, session
+    ):
+        """Test that labels can be added to a flow run with no existing labels"""
+
+        # Create a flow run with no labels
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+            ),
+        )
+
+        # Update with new labels
+        new_labels = {"env": "test", "version": "1.0"}
+        update_success = await models.flow_runs.update_flow_run_labels(
+            session=session, flow_run_id=flow_run.id, labels=new_labels
+        )
+        assert update_success is True
+
+        # Read the flow run back and verify labels were added
+        updated_flow_run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run.id
+        )
+        assert updated_flow_run.labels == {
+            "prefect.flow.id": str(flow.id),
+            **new_labels,
+        }
+
 
 class TestReadFlowRun:
     async def test_read_flow_run(self, flow, session):
