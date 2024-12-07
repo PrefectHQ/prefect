@@ -1,3 +1,5 @@
+import type { JSX } from "react";
+
 import { Icon } from "./icons";
 
 import { Button } from "./button";

@@ -1,3 +1,5 @@
+import type { JSX } from "react";
+
 import type { Meta, StoryObj } from "@storybook/react";
 
 import { Icon } from "@/components/ui/icons";

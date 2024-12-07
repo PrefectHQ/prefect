@@ -1,3 +1,5 @@
+import type { JSX } from "react";
+
 import { Flex } from "@/components/ui/flex";
 import { Typography } from "@/components/ui/typography";
 
