@@ -5,12 +5,13 @@ from httpx import HTTPStatusError, Request, Response
 from starlette import status
 
 from prefect import flow, task
-from prefect.concurrency.asyncio import (
-    ConcurrencySlotAcquisitionError,
+from prefect.concurrency.asyncio import ConcurrencySlotAcquisitionError
+from prefect.concurrency.sync import (
     _acquire_concurrency_slots,
     _release_concurrency_slots,
+    concurrency,
+    rate_limit,
 )
-from prefect.concurrency.sync import concurrency, rate_limit
 from prefect.events.clients import AssertingEventsClient
 from prefect.events.worker import EventsWorker
 from prefect.server.schemas.core import ConcurrencyLimitV2
@@ -43,7 +44,6 @@ def test_concurrency_orchestrates_api(concurrency_limit: ConcurrencyLimitV2):
                 create_if_missing=None,
                 max_retries=None,
                 strict=False,
-                _sync=True,
             )
 
             # On release we calculate how many seconds the slots were occupied
@@ -275,7 +275,6 @@ def test_rate_limit_orchestrates_api(concurrency_limit_with_decay: ConcurrencyLi
                 timeout_seconds=None,
                 create_if_missing=None,
                 strict=False,
-                _sync=True,
             )
 
             # When used as a rate limit concurrency slots are not explicitly
