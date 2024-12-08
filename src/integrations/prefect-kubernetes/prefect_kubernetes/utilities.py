@@ -20,7 +20,7 @@ class KeepAliveClientRequest(ClientRequest):
     """
     aiohttp only directly implements socket keepalive for incoming connections
     in its RequestHandler. For client connections, we need to set the keepalive
-    ourselves.
+    ourselves. Added in version 0.5.1.
 
     Refer to https://github.com/aio-libs/aiohttp/issues/3904#issuecomment-759205696
     """
