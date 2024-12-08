@@ -16,6 +16,8 @@ $ python -m asyncio
 </div>
 """
 
+from collections.abc import Callable
+from typing import Any
 from prefect._internal.compatibility.migration import getattr_migration
 
-__getattr__ = getattr_migration(__name__)
+__getattr__: Callable[[str], Any] = getattr_migration(__name__)
