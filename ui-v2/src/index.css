@@ -36,6 +36,105 @@
 		--sidebar-accent-foreground: 240 5.9% 10%;
 		--sidebar-border: 220 13% 91%;
 		--sidebar-ring: 217.2 91.2% 59.8%;
+
+		--state-completed-50: #DEF8F0;
+		--state-completed-100: #C9F4E6;
+		--state-completed-200: #9FEBCD;
+		--state-completed-300: #75E2AF;
+		--state-completed-400: #4BD98D;
+		--state-completed-500: #2AC769;
+		--state-completed-600: #219D4B;
+		--state-completed-700: #187330;
+		--state-completed-800: #0F491B;
+		--state-completed-900: #061F0A;
+	  
+		--state-failed-50: #FED6BE;
+		--state-failed-100: #FDCBB2;
+		--state-failed-200: #FDB299;
+		--state-failed-300: #FC9580;
+		--state-failed-400: #FC7367;
+		--state-failed-500: #FB4E4E;
+		--state-failed-600: #FA1C2F;
+		--state-failed-700: #DE0529;
+		--state-failed-800: #AC042E;
+		--state-failed-900: #7A032B;
+	  
+		--state-running-50: #F1F4FE;
+		--state-running-100: #D9E0FD;
+		--state-running-200: #A9BCFA;
+		--state-running-300: #799AF7;
+		--state-running-400: #487BF5;
+		--state-running-500: #1860F2;
+		--state-running-600: #0B51CC;
+		--state-running-700: #09439B;
+		--state-running-800: #06316B;
+		--state-running-900: #031D3B;
+	  
+		--state-pending-50: #FFFFFF;
+		--state-pending-100: #F8F7F8;
+		--state-pending-200: #E4E1E5;
+		--state-pending-300: #D0CBD2;
+		--state-pending-400: #BDB5C0;
+		--state-pending-500: #A99FAD;
+		--state-pending-600: #8E8093;
+		--state-pending-700: #726576;
+		--state-pending-800: #554B58;
+		--state-pending-900: #38313A;
+	  
+		--state-paused-50: #FFFFFF;
+		--state-paused-100: #F8F7F8;
+		--state-paused-200: #E4E1E5;
+		--state-paused-300: #D0CBD2;
+		--state-paused-400: #BDB5C0;
+		--state-paused-500: #A99FAD;
+		--state-paused-600: #8E8093;
+		--state-paused-700: #726576;
+		--state-paused-800: #554B58;
+		--state-paused-900: #38313A;
+	  
+		--state-scheduled-50: #FCFFEC;
+		--state-scheduled-100: #FBFEDA;
+		--state-scheduled-200: #FEFEB7;
+		--state-scheduled-300: #FDF594;
+		--state-scheduled-400: #FDE671;
+		--state-scheduled-500: #FCD14E;
+		--state-scheduled-600: #FBB11C;
+		--state-scheduled-700: #E08504;
+		--state-scheduled-800: #AE5903;
+		--state-scheduled-900: #7C3502;
+	  
+		--state-cancelled-50: #DEDEDE;
+		--state-cancelled-100: #CCCCCC;
+		--state-cancelled-200: #A8A8A8;
+		--state-cancelled-300: #848484;
+		--state-cancelled-400: #616161;
+		--state-cancelled-500: #3D3D3D;
+		--state-cancelled-600: #333333;
+		--state-cancelled-700: #292929;
+		--state-cancelled-800: #1E1E1E;
+		--state-cancelled-900: #141414;
+	  
+		--state-cancelling-50: #DEE1E6;
+		--state-cancelling-100: #CCD2DB;
+		--state-cancelling-200: #A8B3C2;
+		--state-cancelling-300: #8494A9;
+		--state-cancelling-400: #617590;
+		--state-cancelling-500: #3D5677;
+		--state-cancelling-600: #334863;
+		--state-cancelling-700: #293A4F;
+		--state-cancelling-800: #1E2C3B;
+		--state-cancelling-900: #141D27;
+	  
+		--state-crashed-50: #FFF7ED;
+		--state-crashed-100: #FFEDD5;
+		--state-crashed-200: #FED7AA;
+		--state-crashed-300: #FDBA74;
+		--state-crashed-400: #FB923C;
+		--state-crashed-500: #F97316;
+		--state-crashed-600: #EA580C;
+		--state-crashed-700: #C2410C;
+		--state-crashed-800: #9A3412;
+		--state-crashed-900: #7C2D12;
 	}
 	.dark {
 		--background: 0 0% 3.9%;

@@ -8,7 +8,6 @@ export default {
 	args: {
 		tags: [],
 	},
-	// To control input value in Stories via useState()
 	render: function Render(args: ComponentProps<typeof TagBadgeGroup>) {
 		return <TagBadgeGroup {...args} />;
 	},

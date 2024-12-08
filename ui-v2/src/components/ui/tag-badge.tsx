@@ -9,7 +9,7 @@ type TagBadgeProps = {
 
 export const TagBadge = ({ tag, variant, onRemove }: TagBadgeProps) => {
 	return (
-		<Badge variant={variant} className="ml-1 max-w-20" title={tag}>
+		<Badge variant={variant} className="ml-1 max-w-24" title={tag}>
 			<span className="truncate">{tag}</span>
 			{onRemove && (
 				<button
