@@ -22,17 +22,15 @@ import { type GlobalConcurrencyLimit } from "@/hooks/global-concurrency-limits";
 import { useCreateOrEditLimitForm } from "./use-create-or-edit-limit-form";
 
 type Props = {
-	limitToUpdate: undefined | GlobalConcurrencyLimit;
+	limitToUpdate?: GlobalConcurrencyLimit;
 	onOpenChange: (open: boolean) => void;
 	onSubmit: () => void;
-	open: boolean;
 };
 
 export const CreateOrEditLimitDialog = ({
 	limitToUpdate,
 	onOpenChange,
 	onSubmit,
-	open,
 }: Props) => {
 	const { form, isLoading, saveOrUpdate } = useCreateOrEditLimitForm({
 		limitToUpdate,
@@ -44,7 +42,7 @@ export const CreateOrEditLimitDialog = ({
 		: "Add Concurrency Limit";
 
 	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
+		<Dialog open onOpenChange={onOpenChange}>
 			<DialogContent>
 				<DialogHeader>
 					<DialogTitle>{dialogTitle}</DialogTitle>
@@ -95,6 +93,21 @@ export const CreateOrEditLimitDialog = ({
 								</FormItem>
 							)}
 						/>
+						{limitToUpdate && (
+							<FormField
+								control={form.control}
+								name="active_slots"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>Active Slots</FormLabel>
+										<FormControl>
+											<Input type="number" {...field} />
+										</FormControl>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+						)}
 						<FormField
 							control={form.control}
 							name="active"
