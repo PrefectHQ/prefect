@@ -9,7 +9,7 @@ from collections.abc import Awaitable, Coroutine
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
-from typing_extensions import Concatenate, ParamSpec, TypeIs, TypeVar
+from typing_extensions import Concatenate, ParamSpec, TypeGuard, TypeVar
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient, SyncPrefectClient
@@ -20,7 +20,8 @@ R = TypeVar("R", infer_variance=True)
 
 def _current_async_client(
     client: Union["PrefectClient", "SyncPrefectClient"],
-) -> TypeIs["PrefectClient"]:
+) -> TypeGuard["PrefectClient"]:
+    """Determine if the client is a PrefectClient instance attached to the current loop"""
     from prefect._internal.concurrency.event_loop import get_running_loop
 
     # Only a PrefectClient will have a _loop attribute that is the current loop
