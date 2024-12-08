@@ -1,7 +1,7 @@
-import { Flex } from "@/components/ui/flex";
 import { useListGlobalConcurrencyLimits } from "@/hooks/global-concurrency-limits";
 import { useState } from "react";
 import { CreateOrEditLimitDialog } from "./create-or-edit-limit-dialog";
+import { GlobalConcurrencyDataTable } from "./data-table";
 import { GlobalConcurrencyLimitEmptyState } from "./global-concurrency-limit-empty-state";
 import { GlobalConcurrencyLimitsHeader } from "./global-concurrency-limits-header";
 
@@ -18,15 +18,10 @@ export const GlobalConcurrencyView = () => {
 			{data.length === 0 ? (
 				<GlobalConcurrencyLimitEmptyState onAdd={openAddDialog} />
 			) : (
-				<Flex flexDirection="column" gap={2}>
+				<div className="flex flex-col gap-4">
 					<GlobalConcurrencyLimitsHeader onAdd={openAddDialog} />
-					<div>TODO</div>
-					<ul>
-						{data.map((limit) => (
-							<li key={limit.id}>{JSON.stringify(limit)}</li>
-						))}
-					</ul>
-				</Flex>
+					<GlobalConcurrencyDataTable data={data} />
+				</div>
 			)}
 			<CreateOrEditLimitDialog
 				open={openDialog}
