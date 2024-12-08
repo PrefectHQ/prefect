@@ -1,4 +1,6 @@
 # Import user-facing API
+from typing import Any
+
 from prefect.deployments import deploy
 from prefect.states import State
 from prefect.logging import get_run_logger
@@ -25,28 +27,17 @@ import prefect.context
 # Perform any forward-ref updates needed for Pydantic models
 import prefect.client.schemas
 
-prefect.context.FlowRunContext.model_rebuild(
-    _types_namespace={
-        "Flow": Flow,
-        "BaseResult": BaseResult,
-        "ResultRecordMetadata": ResultRecordMetadata,
-    }
+_types: dict[str, Any] = dict(
+    Task=Task,
+    Flow=Flow,
+    BaseResult=BaseResult,
+    ResultRecordMetadata=ResultRecordMetadata,
 )
-prefect.context.TaskRunContext.model_rebuild(
-    _types_namespace={"Task": Task, "BaseResult": BaseResult}
-)
-prefect.client.schemas.State.model_rebuild(
-    _types_namespace={
-        "BaseResult": BaseResult,
-        "ResultRecordMetadata": ResultRecordMetadata,
-    }
-)
-prefect.client.schemas.StateCreate.model_rebuild(
-    _types_namespace={
-        "BaseResult": BaseResult,
-        "ResultRecordMetadata": ResultRecordMetadata,
-    }
-)
+prefect.context.FlowRunContext.model_rebuild(_types_namespace=_types)
+prefect.context.TaskRunContext.model_rebuild(_types_namespace=_types)
+prefect.client.schemas.State.model_rebuild(_types_namespace=_types)
+prefect.client.schemas.StateCreate.model_rebuild(_types_namespace=_types)
+prefect.client.schemas.OrchestrationResult.model_rebuild(_types_namespace=_types)
 Transaction.model_rebuild()
 
 # Configure logging

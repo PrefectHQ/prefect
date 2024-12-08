@@ -13,6 +13,7 @@ import warnings
 from copy import copy
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional, Tuple, Union
+from uuid import UUID
 
 import jsonschema
 import pendulum
@@ -653,7 +654,7 @@ def validate_message_template_variables(v: Optional[str]) -> Optional[str]:
     return v
 
 
-def validate_default_queue_id_not_none(v: Optional[str]) -> Optional[str]:
+def validate_default_queue_id_not_none(v: Optional[UUID]) -> UUID:
     if v is None:
         raise ValueError(
             "`default_queue_id` is a required field. If you are "
