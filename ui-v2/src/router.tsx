@@ -8,7 +8,7 @@ export const queryClient = new QueryClient();
 export const router = createRouter({
 	routeTree,
 	context: {
-		queryClient: queryClient,
+		queryClient,
 	},
 	defaultPreload: "intent",
 	// Since we're using React Query, we don't want loader calls to ever be stale

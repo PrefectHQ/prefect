@@ -15,6 +15,7 @@ import { Link } from "@tanstack/react-router";
 import { format } from "date-fns";
 import { secondsToApproximateString } from "@/lib/duration";
 import { TagBadgeGroup } from "../tag-badge-group";
+import { organizeFlowRunsWithGaps } from "./utils";
 
 interface CustomShapeProps {
 	fill?: string;
@@ -23,6 +24,8 @@ interface CustomShapeProps {
 	width?: number;
 	height?: number;
 	radius?: number[];
+	role?: string;
+	flowRun?: EnrichedFlowRun;
 }
 
 const CustomBar = (props: CustomShapeProps) => {
@@ -34,11 +37,14 @@ const CustomBar = (props: CustomShapeProps) => {
 		height = minHeight,
 		radius = [0, 0, 0, 0],
 		fill,
+		role,
+		flowRun,
 	} = props;
 
 	return (
-		<g>
+		<g role={role}>
 			<rect
+				data-testid={`bar-rect-${flowRun?.id}`}
 				x={x}
 				y={y + height - Math.max(height, minHeight, width)}
 				width={width}
@@ -67,7 +73,7 @@ type EnrichedFlowRun = components["schemas"]["FlowRun"] & {
  */
 const useIsTooltipActive = (
 	initialValue: boolean | undefined = undefined,
-	leaveDelay: number = 500,
+	leaveDelay = 500,
 ) => {
 	const [internalValue, setInternalValue] = useState<boolean | undefined>(
 		initialValue,
@@ -95,31 +101,21 @@ type FlowRunActivityBarChartProps = {
 	startDate: Date;
 	endDate: Date;
 	className?: string;
-	barSize?: number;
+	barWidth?: number;
 	barGap?: number;
+	numberOfBars: number;
 };
 
 export const FlowRunActivityBarChart = ({
 	enrichedFlowRuns,
 	startDate,
 	endDate,
-	barSize = 8,
-	barGap = 4,
+	barWidth = 8,
+	numberOfBars,
 	className,
 }: FlowRunActivityBarChartProps) => {
 	const [isTooltipActive, setIsTooltipActive] = useIsTooltipActive();
 	const containerRef = useRef<HTMLDivElement>(null);
-	const [numberOfBars, setNumberOfBars] = useState(10);
-	useEffect(() => {
-		if (containerRef.current) {
-			setNumberOfBars(
-				Math.floor(
-					containerRef.current.getBoundingClientRect().width /
-						(barSize + barGap),
-				),
-			);
-		}
-	}, [barSize, barGap]);
 	const buckets = organizeFlowRunsWithGaps(
 		enrichedFlowRuns,
 		startDate,
@@ -146,14 +142,14 @@ export const FlowRunActivityBarChart = ({
 			<BarChart
 				data={data}
 				margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
-				barSize={barSize}
-				barCategoryGap={barGap}
+				barSize={barWidth}
 				onMouseMove={() => {
 					setIsTooltipActive(true);
 				}}
 				onMouseLeave={() => {
 					setIsTooltipActive(undefined);
 				}}
+				role="graphics-document"
 			>
 				<ChartTooltip
 					content={<FlowRunTooltip />}
@@ -163,6 +159,7 @@ export const FlowRunActivityBarChart = ({
 					isAnimationActive={false}
 					allowEscapeViewBox={{ x: true, y: true }}
 					active={isTooltipActive}
+					// Allows the tooltip to react to mouse events
 					wrapperStyle={{ pointerEvents: "auto" }}
 					cursor={true}
 				/>
@@ -181,6 +178,7 @@ export const FlowRunActivityBarChart = ({
 									? `hsl(var(--state-${entry.stateType?.toLowerCase()}))`
 									: "var(--color-inactivity)"
 							}
+							role="graphics-symbol"
 						/>
 					))}
 				</Bar>
@@ -188,101 +186,6 @@ export const FlowRunActivityBarChart = ({
 		</ChartContainer>
 	);
 };
-
-/**
- * Organizes flow runs into time-based buckets with gaps for visualization.
- * 
- * @param flowRuns - Array of flow runs to organize
- * @param startDate - Start date of the time range to organize runs into
- * @param endDate - End date of the time range to organize runs into  
- * @param numberOfBars - Number of buckets/bars to divide the time range into
- * @returns Array of flow runs or null values representing empty buckets. The length matches numberOfBars.
- * 
- * This function:
- * 1. Divides the time range into equal-sized buckets
- * 2. Sorts runs by start time if the time range extends into the future
- * 3. Places each run into an appropriate bucket, maintaining order and gaps
- * 4. Returns null for buckets with no runs
- */
-function organizeFlowRunsWithGaps(
-	flowRuns: components["schemas"]["FlowRun"][],
-	startDate: Date,
-	endDate: Date,
-	numberOfBars: number,
-): (components["schemas"]["FlowRun"] | null)[] {
-	if (!startDate || !endDate) {
-		return [];
-	}
-
-	const totalTime = endDate.getTime() - startDate.getTime();
-	const bucketSize = totalTime / numberOfBars;
-	const buckets: (components["schemas"]["FlowRun"] | null)[] = new Array(
-		numberOfBars,
-	).fill(null) as null[];
-	const maxBucketIndex = buckets.length - 1;
-
-	const isFutureTimeSpan = endDate.getTime() > new Date().getTime();
-
-	const bucketIncrementDirection = isFutureTimeSpan ? 1 : -1;
-	const sortedRuns = isFutureTimeSpan
-		? flowRuns.sort((runA, runB) => {
-				const aStartTime = runA.start_time
-					? new Date(runA.start_time)
-					: runA.expected_start_time
-						? new Date(runA.expected_start_time)
-						: null;
-				const bStartTime = runB.start_time
-					? new Date(runB.start_time)
-					: runB.expected_start_time
-						? new Date(runB.expected_start_time)
-						: null;
-
-				if (!aStartTime || !bStartTime) {
-					return 0;
-				}
-
-				return aStartTime.getTime() - bStartTime.getTime();
-			})
-		: flowRuns;
-
-	function getEmptyBucket(index: number): number | null {
-		if (index < 0) {
-			return null;
-		}
-
-		if (buckets[index]) {
-			return getEmptyBucket(index + bucketIncrementDirection);
-		}
-
-		return index;
-	}
-
-	for (const flowRun of sortedRuns) {
-		const startTime = flowRun.start_time
-			? new Date(flowRun.start_time)
-			: flowRun.expected_start_time
-				? new Date(flowRun.expected_start_time)
-				: null;
-
-		if (!startTime) {
-			continue;
-		}
-
-		const bucketIndex = Math.min(
-			Math.floor((startTime.getTime() - startDate.getTime()) / bucketSize),
-			maxBucketIndex,
-		);
-		const emptyBucketIndex = getEmptyBucket(bucketIndex);
-
-		if (emptyBucketIndex === null) {
-			continue;
-		}
-
-		buckets[emptyBucketIndex] = flowRun;
-	}
-
-	return buckets;
-}
 
 type FlowRunTooltipProps = TooltipProps<number, string>;
 
@@ -363,7 +266,9 @@ const FlowRunTooltip = ({ payload, active }: FlowRunTooltipProps) => {
 				{startTime && (
 					<span className="flex items-center gap-1">
 						<Calendar className="w-4 h-4" />
-						<p className="text-sm">{format(startTime, "yyyy/MM/dd HH:mm")}</p>
+						<p className="text-sm">
+							{format(startTime, "yyyy/MM/dd hh:mm a")}
+						</p>
 					</span>
 				)}
 				<div>

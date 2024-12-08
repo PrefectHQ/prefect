@@ -27,8 +27,8 @@ function createRandomEnrichedFlowRun(): React.ComponentProps<
 	const stateName = startCase(lowerCase(stateType));
 	return {
 		id: faker.string.uuid(),
-		created: faker.date.past({ years: 0.1 }).toISOString(),
-		updated: faker.date.past({ years: 0.1 }).toISOString(),
+		created: faker.date.past().toISOString(),
+		updated: faker.date.past().toISOString(),
 		name: `${faker.word.adjective()}-${faker.animal.type()}`,
 		flow_id: faker.string.uuid(),
 		state_id: faker.string.uuid(),
@@ -92,6 +92,7 @@ export default {
 		enrichedFlowRuns: [],
 		startDate: new Date(),
 		endDate: new Date(),
+		numberOfBars: 18,
 	},
 	render: function Render(
 		args: ComponentProps<typeof FlowRunActivityBarChart>,
@@ -110,7 +111,7 @@ type Story = StoryObj<typeof FlowRunActivityBarChart>;
 
 export const Randomized: Story = {
 	args: {
-		startDate: faker.date.past({ years: 0.15 }),
+		startDate: faker.date.past(),
 		endDate: new Date(),
 		enrichedFlowRuns: Array.from({ length: 18 }, createRandomEnrichedFlowRun),
 	},
