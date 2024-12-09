@@ -3464,7 +3464,7 @@ class PrefectClient:
 
     async def update_flow_run_labels(
         self, flow_run_id: UUID, labels: KeyValueLabelsField
-    ) -> httpx.Response:
+    ) -> None:
         """
         Updates the labels of a flow run.
         """
@@ -3473,7 +3473,6 @@ class PrefectClient:
             f"/flow_runs/{flow_run_id}/labels", json=labels
         )
         response.raise_for_status()
-        return response
 
     async def __aenter__(self) -> Self:
         """
@@ -4389,7 +4388,7 @@ class SyncPrefectClient:
 
     def update_flow_run_labels(
         self, flow_run_id: UUID, labels: KeyValueLabelsField
-    ) -> httpx.Response:
+    ) -> None:
         """
         Updates the labels of a flow run.
         """
@@ -4398,4 +4397,3 @@ class SyncPrefectClient:
             json=labels,
         )
         response.raise_for_status()
-        return response
