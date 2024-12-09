@@ -48,14 +48,16 @@ Now that you've found the failure, the next step is to fix the underlying code.
 Open the `simulate_failures.py` file and look at line 12.
 
 ```python simulate_failures.py {12}
-from prefect import flow, task
 import argparse
 import asyncio
+from typing import Optional
+
+from prefect import flow, task
 from prefect.client.orchestration import get_client
 
 
 @task
-def process_data(run: int, fail_at_run: int | None = None) -> bool:
+def process_data(run: int, fail_at_run: Optional[int] = None) -> bool:
     """Simulate data processing with failures"""
     
     # Simulate persistent failures
@@ -73,13 +75,14 @@ Remove the `if` statement to fix this failure.
 We added this statement to give you something to fix. :) 
 
 ```python simulate_failures.py
-from prefect import flow, task
 import argparse
 import asyncio
+from typing import Optional
+from prefect import flow, task
 from prefect.client.orchestration import get_client
 
 @task
-def process_data(run: int, fail_at_run: int | None = None) -> bool:
+def process_data(run: int, fail_at_run: Optional[int] = None) -> bool:
     """Simulate data processing with failures"""
     
     return True
