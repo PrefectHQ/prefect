@@ -127,7 +127,7 @@ export const useDeleteGlobalConcurrencyLimit = () => {
  *   },
  *   onError: (error) => {
  *     // Handle error
- *     console.error('Failed to global concurrency limit:', error);
+ *     console.error('Failed to create global concurrency limit:', error);
  *   }
  * });
  * ```
@@ -178,7 +178,7 @@ type GlobalConcurrencyLimitUpdateWithId =
  *     // Handle successful update
  *   },
  *   onError: (error) => {
- *     console.error('Failed to update  global concurrency limit:', error);
+ *     console.error('Failed to update global concurrency limit:', error);
  *   }
  * });
  * ```
