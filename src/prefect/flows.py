@@ -1769,7 +1769,7 @@ def serve(
     pause_on_shutdown: bool = True,
     print_starting_message: bool = True,
     limit: Optional[int] = None,
-    **kwargs,
+    **kwargs: Any,
 ):
     """
     Serve the provided list of deployments.
@@ -1839,7 +1839,7 @@ async def aserve(
     pause_on_shutdown: bool = True,
     print_starting_message: bool = True,
     limit: Optional[int] = None,
-    **kwargs,
+    **kwargs: Any,
 ):
     """
     Asynchronously serve the provided list of deployments.
