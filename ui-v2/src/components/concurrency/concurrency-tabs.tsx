@@ -46,10 +46,9 @@ export const ConcurrencyTabs = ({
 					onClick={() => {
 						void navigate({
 							to: "/concurrency-limits",
-							search: (prev) => ({
-								...prev,
+							search: {
 								tab: TAB_OPTIONS.global.tabSearchValue,
-							}),
+							},
 						});
 					}}
 				>
@@ -60,10 +59,9 @@ export const ConcurrencyTabs = ({
 					onClick={() => {
 						void navigate({
 							to: "/concurrency-limits",
-							search: (prev) => ({
-								...prev,
+							search: {
 								tab: TAB_OPTIONS["task-run"].tabSearchValue,
-							}),
+							},
 						});
 					}}
 				>
