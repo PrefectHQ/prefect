@@ -34,10 +34,12 @@ if TYPE_CHECKING:
     )
     from prefect.events.schemas.automations import Automation
 
-
 defer_build_cfg = ConfigDict(defer_build=True)
 
-BlockTypeAdapter = TypeAdapter("BlockType", config=defer_build_cfg)
+# Create the adapters with forward refs
+BlockTypeAdapter: TypeAdapter["BlockType"] = TypeAdapter(
+    "BlockType", config=defer_build_cfg
+)
 BlockSchemaAdapter = TypeAdapter(List["BlockSchema"], config=defer_build_cfg)
 ConcurrencyLimitAdapter = TypeAdapter("ConcurrencyLimit", config=defer_build_cfg)
 ConcurrencyLimitListAdapter = TypeAdapter(
@@ -53,9 +55,6 @@ AutomationListAdapter = TypeAdapter(List["Automation"], config=defer_build_cfg)
 BlockDocumentListAdapter = TypeAdapter(List["BlockDocument"], config=defer_build_cfg)
 BlockSchemaListAdapter = TypeAdapter(List["BlockSchema"], config=defer_build_cfg)
 BlockTypeListAdapter = TypeAdapter(List["BlockType"], config=defer_build_cfg)
-ConcurrencyLimitListAdapter = TypeAdapter(
-    List["ConcurrencyLimit"], config=defer_build_cfg
-)
 DeploymentResponseListAdapter = TypeAdapter(
     List["DeploymentResponse"], config=defer_build_cfg
 )
