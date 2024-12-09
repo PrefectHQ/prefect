@@ -326,7 +326,7 @@ class State(ObjectBaseModel, Generic[R]):
             retry_result_failure=retry_result_failure,
         )
 
-    def to_state_create(self: "State[R]") -> "StateCreate[R]":
+    def to_state_create(self: "State[R]") -> "StateCreate":
         """
         Convert this state to a `StateCreate` type which can be used to set the state of
         a run in the API.
@@ -348,7 +348,7 @@ class State(ObjectBaseModel, Generic[R]):
         else:
             data = None
 
-        return StateCreate[R](
+        return StateCreate(
             type=self.type,
             name=self.name,
             message=self.message,
