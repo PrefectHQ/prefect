@@ -15,7 +15,7 @@ export const TaskRunConcurrencyLimitsHeader = ({ onAdd }: Props) => {
 				size="icon"
 				aria-label="add task run concurrency limit"
 			>
-				<Icon id="Plus" />
+				<Icon id="Plus" className="h-4 w-4" />
 			</Button>
 		</div>
 	);

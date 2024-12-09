@@ -15,7 +15,7 @@ export const GlobalConcurrencyLimitsHeader = ({ onAdd }: Props) => {
 				size="icon"
 				aria-label="add global concurrency limit"
 			>
-				<Icon id="Plus" />
+				<Icon id="Plus" className="h-4 w-4" />
 			</Button>
 		</div>
 	);

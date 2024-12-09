@@ -10,6 +10,7 @@ import { z } from "zod";
  * @property {'global' | 'task-run'} tab used designate which tab view to display
  */
 const searchParams = z.object({
+	search: z.string().optional(),
 	tab: z.enum(["global", "task-run"]).default("global"),
 });
 

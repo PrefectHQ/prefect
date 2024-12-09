@@ -1,8 +1,8 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { createWrapper, server } from "@tests/utils";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
-
 import {
 	type TaskRunConcurrencyLimit,
 	queryKeyFactory,
@@ -12,8 +12,6 @@ import {
 	useListTaskRunConcurrencyLimits,
 	useResetTaskRunConcurrencyLimitTag,
 } from "./task-run-concurrency-limits";
-
-import { server } from "../../tests/mocks/node";
 
 describe("task run concurrency limits hooks", () => {
 	const seedData = () => [
@@ -50,12 +48,6 @@ describe("task run concurrency limits hooks", () => {
 			}),
 		);
 	};
-	const createQueryWrapper = ({ queryClient = new QueryClient() }) => {
-		const QueryWrapper = ({ children }: { children: React.ReactNode }) => (
-			<QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-		);
-		return QueryWrapper;
-	};
 
 	const filter = {
 		offset: 0,
@@ -73,7 +65,7 @@ describe("task run concurrency limits hooks", () => {
 		// ------------ Initialize hooks to test
 		const { result } = renderHook(
 			() => useListTaskRunConcurrencyLimits(filter),
-			{ wrapper: createQueryWrapper({}) },
+			{ wrapper: createWrapper({}) },
 		);
 
 		// ------------ Assert
@@ -93,7 +85,7 @@ describe("task run concurrency limits hooks", () => {
 		// ------------ Initialize hooks to test
 		const { result } = renderHook(
 			() => useGetTaskRunConcurrencyLimit(mockData.id),
-			{ wrapper: createQueryWrapper({}) },
+			{ wrapper: createWrapper({}) },
 		);
 
 		// ------------ Assert
@@ -119,12 +111,12 @@ describe("task run concurrency limits hooks", () => {
 		// ------------ Initialize hooks to test
 		const { result: useListTaskRunConcurrencyLimitsResult } = renderHook(
 			() => useListTaskRunConcurrencyLimits(filter),
-			{ wrapper: createQueryWrapper({ queryClient }) },
+			{ wrapper: createWrapper({ queryClient }) },
 		);
 
 		const { result: useDeleteTaskRunConcurrencyLimitResult } = renderHook(
 			useDeleteTaskRunConcurrencyLimit,
-			{ wrapper: createQueryWrapper({ queryClient }) },
+			{ wrapper: createWrapper({ queryClient }) },
 		);
 
 		// ------------ Invoke mutation
@@ -175,11 +167,11 @@ describe("task run concurrency limits hooks", () => {
 		// ------------ Initialize hooks to test
 		const { result: useListTaskRunConcurrencyLimitsResult } = renderHook(
 			() => useListTaskRunConcurrencyLimits(filter),
-			{ wrapper: createQueryWrapper({ queryClient }) },
+			{ wrapper: createWrapper({ queryClient }) },
 		);
 		const { result: useCreateTaskRunConcurrencyLimitResult } = renderHook(
 			useCreateTaskRunConcurrencyLimit,
-			{ wrapper: createQueryWrapper({ queryClient }) },
+			{ wrapper: createWrapper({ queryClient }) },
 		);
 
 		// ------------ Invoke mutation
@@ -228,11 +220,11 @@ describe("task run concurrency limits hooks", () => {
 		// ------------ Initialize hooks to test
 		const { result: useListTaskRunConcurrencyLimitsResult } = renderHook(
 			() => useListTaskRunConcurrencyLimits(filter),
-			{ wrapper: createQueryWrapper({ queryClient }) },
+			{ wrapper: createWrapper({ queryClient }) },
 		);
 		const { result: useResetTaskRunConcurrencyLimitTagResults } = renderHook(
 			useResetTaskRunConcurrencyLimitTag,
-			{ wrapper: createQueryWrapper({ queryClient }) },
+			{ wrapper: createWrapper({ queryClient }) },
 		);
 
 		// ------------ Invoke mutation
