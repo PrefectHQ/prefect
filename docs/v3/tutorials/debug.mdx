@@ -3,7 +3,7 @@ title: Debug a data pipeline
 description: Find out when flow runs go wrong and how to troubleshoot them.
 ---
 
-In [Set up a platform for data pipelines](/v3/tutorials/platform), you used Prefect Cloud to set up a platform for data pipelines.
+In the [Set up a platform for data pipelines](/v3/tutorials/platform) tutorial, you used Prefect Cloud to set up a platform for data pipelines.
 In this tutorial, you'll learn what to do when those data pipelines fail.
 
 <Info>
@@ -25,8 +25,8 @@ You can filter by a specific tag (e.g. `team-a`) if you're only interested in a 
 
 ## Debug a failure
 
-Flows commonly experience multiple failures in a row.
-When this happens, it is usually best to inspect the first failure in the series.
+A single flow might experience failures on several runs.
+When this happens, it can be helpful to inspect the first failure in the series.
 
 1. In the **Flow Runs** section on the **Home** page, expand the `data-pipeline` flow.
 1. You will see a list of failing `data-pipeline` flow runs, in reverse chronological order.
@@ -41,9 +41,9 @@ File "/opt/prefect/demos/simulate_failures.py", line 12, in process_data
 ```
 
 It looks like there's an error in the `simulate_failures.py` file.
-Now that you've found the failure, the next step is to deploy a fix.
+Now that you've found the failure, the next step is to fix the underlying code.
 
-## Deploy a fix
+## Update the code
 
 Open the `simulate_failures.py` file and look at line 12.
 
@@ -52,6 +52,7 @@ from prefect import flow, task
 import argparse
 import asyncio
 from prefect.client.orchestration import get_client
+
 
 @task
 def process_data(run: int, fail_at_run: int | None = None) -> bool:
@@ -69,6 +70,7 @@ def process_data(run: int, fail_at_run: int | None = None) -> bool:
 The `if` statement is the problem.
 If you specify the `--fail_at_run` flag, once the flow runs more than `fail_at_run` times, the flow fails with an exception.
 Remove the `if` statement to fix this failure.
+We added this statement to give you something to fix. :) 
 
 ```python simulate_failures.py
 from prefect import flow, task
@@ -88,16 +90,16 @@ def process_data(run: int, fail_at_run: int | None = None) -> bool:
 Now, all flow runs succeed in spite of the `--fail-at-run` flag.
 Deploy the fix to the staging workspace to confirm this new behavior.
 
-```
+```bash
 prefect cloud workspace --set "<account>/staging"
 python simulate_failures.py --fail-at-run 3
 ```
 
 After the script finishes, open the **Home** page in Prefect Cloud to verify that the flow run is no longer failing.
 
-You can now deploy the fix to the production workspace as well.
+You can now switch workspaces to update the code used in the production workspace as well.
 
-```
+```bash
 prefect cloud workspace --set "<account>/production"
 python simulate_failures.py
 ```
