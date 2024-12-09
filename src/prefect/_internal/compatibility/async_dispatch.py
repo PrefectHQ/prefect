@@ -1,14 +1,15 @@
 import asyncio
 import inspect
 from functools import wraps
-from typing import Any, Callable, Coroutine, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, Optional, TypeVar, Union
 
 from typing_extensions import ParamSpec
 
-from prefect.tasks import Task
-
 R = TypeVar("R")
 P = ParamSpec("P")
+
+if TYPE_CHECKING:
+    from prefect.tasks import Task
 
 
 def is_in_async_context() -> bool:
@@ -22,10 +23,10 @@ def is_in_async_context() -> bool:
         return False
 
 
-def _is_acceptable_callable(obj: Union[Callable, Task]) -> bool:
+def _is_acceptable_callable(obj: Union[Callable[..., Any], "Task[..., Any]"]) -> bool:
     if inspect.iscoroutinefunction(obj):
         return True
-    if isinstance(obj, Task) and inspect.iscoroutinefunction(obj.fn):
+    if isinstance(obj, "Task") and inspect.iscoroutinefunction(obj.fn):
         return True
     return False
 
