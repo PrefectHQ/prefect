@@ -9,7 +9,7 @@ ARG BASE_IMAGE=python:${PYTHON_VERSION}-slim
 # The version used to build the Python distributable.
 ARG BUILD_PYTHON_VERSION=3.9
 # THe version used to build the UI distributable.
-ARG NODE_VERSION=16.15
+ARG NODE_VERSION=18.18.0
 # Any extra Python requirements to install
 ARG EXTRA_PIP_PACKAGES=""
 
