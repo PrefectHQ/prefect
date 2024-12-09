@@ -8,8 +8,8 @@ import {
 	queryKeyFactory,
 	useCreateTaskRunConcurrencyLimit,
 	useDeleteTaskRunConcurrencyLimit,
-	useGetGlobalConcurrencyLimit,
-	useListGlobalConcurrencyLimits,
+	useGetTaskRunConcurrencyLimit,
+	useListTaskRunConcurrencyLimits,
 	useResetTaskRunConcurrencyLimitTag,
 } from "./task-run-concurrency-limits";
 
@@ -65,14 +65,14 @@ describe("task run concurrency limits hooks", () => {
 	 * Data Management:
 	 * - Asserts task run concurrency limit list data is fetched based on the APIs invoked for the hook
 	 */
-	it("useListGlobalConcurrencyLimits() stores list data into the appropriate list query", async () => {
+	it("useListTaskRunConcurrencyLimits() stores list data into the appropriate list query", async () => {
 		// ------------ Mock API requests when cache is empty
 		const mockList = seedData();
 		mockFetchListAPI(seedData());
 
 		// ------------ Initialize hooks to test
 		const { result } = renderHook(
-			() => useListGlobalConcurrencyLimits(filter),
+			() => useListTaskRunConcurrencyLimits(filter),
 			{ wrapper: createQueryWrapper({}) },
 		);
 
@@ -85,14 +85,14 @@ describe("task run concurrency limits hooks", () => {
 	 * Data Management:
 	 * - Asserts task run concurrency limit detail data is fetched based on the APIs invoked for the hook
 	 */
-	it("useGetGlobalConcurrencyLimit() stores details data into the appropriate details query", async () => {
+	it("useGetTaskRunConcurrencyLimit() stores details data into the appropriate details query", async () => {
 		// ------------ Mock API requests when cache is empty
 		const mockData = seedData()[0];
 		mockFetchDetailsAPI(mockData);
 
 		// ------------ Initialize hooks to test
 		const { result } = renderHook(
-			() => useGetGlobalConcurrencyLimit(mockData.id),
+			() => useGetTaskRunConcurrencyLimit(mockData.id),
 			{ wrapper: createQueryWrapper({}) },
 		);
 
@@ -118,7 +118,7 @@ describe("task run concurrency limits hooks", () => {
 
 		// ------------ Initialize hooks to test
 		const { result: useListTaskRunConcurrencyLimitsResult } = renderHook(
-			() => useListGlobalConcurrencyLimits(filter),
+			() => useListTaskRunConcurrencyLimits(filter),
 			{ wrapper: createQueryWrapper({ queryClient }) },
 		);
 
@@ -174,7 +174,7 @@ describe("task run concurrency limits hooks", () => {
 
 		// ------------ Initialize hooks to test
 		const { result: useListTaskRunConcurrencyLimitsResult } = renderHook(
-			() => useListGlobalConcurrencyLimits(filter),
+			() => useListTaskRunConcurrencyLimits(filter),
 			{ wrapper: createQueryWrapper({ queryClient }) },
 		);
 		const { result: useCreateTaskRunConcurrencyLimitResult } = renderHook(
@@ -227,7 +227,7 @@ describe("task run concurrency limits hooks", () => {
 
 		// ------------ Initialize hooks to test
 		const { result: useListTaskRunConcurrencyLimitsResult } = renderHook(
-			() => useListGlobalConcurrencyLimits(filter),
+			() => useListTaskRunConcurrencyLimits(filter),
 			{ wrapper: createQueryWrapper({ queryClient }) },
 		);
 		const { result: useResetTaskRunConcurrencyLimitTagResults } = renderHook(
