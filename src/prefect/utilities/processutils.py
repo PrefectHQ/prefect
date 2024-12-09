@@ -4,28 +4,35 @@ import signal
 import subprocess
 import sys
 import threading
+from collections.abc import AsyncGenerator, Mapping
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from functools import partial
+from types import FrameType
 from typing import (
     IO,
+    TYPE_CHECKING,
     Any,
+    AnyStr,
     Callable,
-    List,
-    Mapping,
     Optional,
-    Sequence,
     TextIO,
-    Tuple,
     Union,
+    cast,
+    overload,
 )
 
 import anyio
 import anyio.abc
 from anyio.streams.text import TextReceiveStream, TextSendStream
+from typing_extensions import TypeAlias, TypeVar
 
-TextSink = Union[anyio.AsyncFile, TextIO, TextSendStream]
+if TYPE_CHECKING:
+    from _typeshed import StrOrBytesPath
 
+TextSink: TypeAlias = Union[anyio.AsyncFile[AnyStr], TextIO, TextSendStream]
+PrintFn: TypeAlias = Callable[[str], object]
+T = TypeVar("T", infer_variance=True)
 
 if sys.platform == "win32":
     from ctypes import WINFUNCTYPE, c_int, c_uint, windll
@@ -33,7 +40,7 @@ if sys.platform == "win32":
     _windows_process_group_pids = set()
 
     @WINFUNCTYPE(c_int, c_uint)
-    def _win32_ctrl_handler(dwCtrlType):
+    def _win32_ctrl_handler(dwCtrlType: object) -> int:
         """
         A callback function for handling CTRL events cleanly on Windows. When called,
         this function will terminate all running win32 subprocesses the current
@@ -125,16 +132,16 @@ if sys.platform == "win32":
             return self._stderr
 
     async def _open_anyio_process(
-        command: Union[str, bytes, Sequence[Union[str, bytes]]],
+        command: Union[str, bytes, list["StrOrBytesPath"]],
         *,
         stdin: Union[int, IO[Any], None] = None,
         stdout: Union[int, IO[Any], None] = None,
         stderr: Union[int, IO[Any], None] = None,
-        cwd: Union[str, bytes, os.PathLike, None] = None,
-        env: Union[Mapping[str, str], None] = None,
+        cwd: Optional["StrOrBytesPath"] = None,
+        env: Optional[Mapping[str, str]] = None,
         start_new_session: bool = False,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> Process:
         """
         Open a subprocess and return a `Process` object.
 
@@ -179,7 +186,9 @@ if sys.platform == "win32":
 
 
 @asynccontextmanager
-async def open_process(command: List[str], **kwargs):
+async def open_process(
+    command: list[str], **kwargs: Any
+) -> AsyncGenerator[anyio.abc.Process, Any]:
     """
     Like `anyio.open_process` but with:
     - Support for Windows command joining
@@ -189,11 +198,12 @@ async def open_process(command: List[str], **kwargs):
     # Passing a string to open_process is equivalent to shell=True which is
     # generally necessary for Unix-like commands on Windows but otherwise should
     # be avoided
-    if not isinstance(command, list):
-        raise TypeError(
-            "The command passed to open process must be a list. You passed the command"
-            f"'{command}', which is type '{type(command)}'."
-        )
+    if not TYPE_CHECKING:
+        if not isinstance(command, list):
+            raise TypeError(
+                "The command passed to open process must be a list. You passed the command"
+                f"'{command}', which is type '{type(command)}'."
+            )
 
     if sys.platform == "win32":
         command = " ".join(command)
@@ -222,7 +232,7 @@ async def open_process(command: List[str], **kwargs):
     finally:
         try:
             process.terminate()
-            if win32_process_group:
+            if sys.platform == "win32" and win32_process_group:
                 _windows_process_group_pids.remove(process.pid)
 
         except OSError:
@@ -236,13 +246,58 @@ async def open_process(command: List[str], **kwargs):
             await process.aclose()
 
 
+@overload
 async def run_process(
-    command: List[str],
-    stream_output: Union[bool, Tuple[Optional[TextSink], Optional[TextSink]]] = False,
-    task_status: Optional[anyio.abc.TaskStatus] = None,
-    task_status_handler: Optional[Callable[[anyio.abc.Process], Any]] = None,
-    **kwargs,
-):
+    command: list[str],
+    *,
+    stream_output: Union[
+        bool, tuple[Optional[TextSink[str]], Optional[TextSink[str]]]
+    ] = ...,
+    task_status: anyio.abc.TaskStatus[T] = ...,
+    task_status_handler: Callable[[anyio.abc.Process], T] = ...,
+    **kwargs: Any,
+) -> anyio.abc.Process:
+    ...
+
+
+@overload
+async def run_process(
+    command: list[str],
+    *,
+    stream_output: Union[
+        bool, tuple[Optional[TextSink[str]], Optional[TextSink[str]]]
+    ] = ...,
+    task_status: Optional[anyio.abc.TaskStatus[int]] = ...,
+    task_status_handler: None = None,
+    **kwargs: Any,
+) -> anyio.abc.Process:
+    ...
+
+
+@overload
+async def run_process(
+    command: list[str],
+    *,
+    stream_output: Union[
+        bool, tuple[Optional[TextSink[str]], Optional[TextSink[str]]]
+    ] = False,
+    task_status: Optional[anyio.abc.TaskStatus[T]] = None,
+    task_status_handler: Optional[Callable[[anyio.abc.Process], T]] = None,
+    **kwargs: Any,
+) -> anyio.abc.Process:
+    ...
+
+
+async def run_process(
+    command: list[str],
+    *,
+    stream_output: Union[
+        bool, tuple[Optional[TextSink[str]], Optional[TextSink[str]]]
+    ] = False,
+    task_status: Optional[anyio.abc.TaskStatus[T]] = None,
+    task_status_handler: Optional[Callable[[anyio.abc.Process], T]] = None,
+    **kwargs: Any,
+) -> anyio.abc.Process:
     """
     Like `anyio.run_process` but with:
 
@@ -262,12 +317,10 @@ async def run_process(
         **kwargs,
     ) as process:
         if task_status is not None:
-            if not task_status_handler:
-
-                def task_status_handler(process):
-                    return process.pid
-
-            task_status.started(task_status_handler(process))
+            value: T = cast(T, process.pid)
+            if task_status_handler:
+                value = task_status_handler(process)
+            task_status.started(value)
 
         if stream_output:
             await consume_process_output(
@@ -280,31 +333,36 @@ async def run_process(
 
 
 async def consume_process_output(
-    process,
-    stdout_sink: Optional[TextSink] = None,
-    stderr_sink: Optional[TextSink] = None,
-):
+    process: anyio.abc.Process,
+    stdout_sink: Optional[TextSink[str]] = None,
+    stderr_sink: Optional[TextSink[str]] = None,
+) -> None:
     async with anyio.create_task_group() as tg:
-        tg.start_soon(
-            stream_text,
-            TextReceiveStream(process.stdout),
-            stdout_sink,
-        )
-        tg.start_soon(
-            stream_text,
-            TextReceiveStream(process.stderr),
-            stderr_sink,
-        )
+        if process.stdout is not None:
+            tg.start_soon(
+                stream_text,
+                TextReceiveStream(process.stdout),
+                stdout_sink,
+            )
+        if process.stderr is not None:
+            tg.start_soon(
+                stream_text,
+                TextReceiveStream(process.stderr),
+                stderr_sink,
+            )
 
 
-async def stream_text(source: TextReceiveStream, *sinks: TextSink):
+async def stream_text(
+    source: TextReceiveStream, *sinks: Optional[TextSink[str]]
+) -> None:
     wrapped_sinks = [
         (
-            anyio.wrap_file(sink)
+            anyio.wrap_file(cast(IO[str], sink))
             if hasattr(sink, "write") and hasattr(sink, "flush")
             else sink
         )
         for sink in sinks
+        if sink is not None
     ]
     async for item in source:
         for sink in wrapped_sinks:
@@ -313,30 +371,32 @@ async def stream_text(source: TextReceiveStream, *sinks: TextSink):
             elif isinstance(sink, anyio.AsyncFile):
                 await sink.write(item)
                 await sink.flush()
-            elif sink is None:
-                pass  # Consume the item but perform no action
-            else:
-                raise TypeError(f"Unsupported sink type {type(sink).__name__}")
 
 
-def _register_signal(signum: int, handler: Callable):
+def _register_signal(
+    signum: int,
+    handler: Optional[
+        Union[Callable[[int, Optional[FrameType]], Any], int, signal.Handlers]
+    ],
+) -> None:
     if threading.current_thread() is threading.main_thread():
         signal.signal(signum, handler)
 
 
 def forward_signal_handler(
-    pid: int, signum: int, *signums: int, process_name: str, print_fn: Callable
-):
+    pid: int, signum: int, *signums: int, process_name: str, print_fn: PrintFn
+) -> None:
     """Forward subsequent signum events (e.g. interrupts) to respective signums."""
     current_signal, future_signals = signums[0], signums[1:]
 
     # avoid RecursionError when setting up a direct signal forward to the same signal for the main pid
+    original_handler = None
     avoid_infinite_recursion = signum == current_signal and pid == os.getpid()
     if avoid_infinite_recursion:
         # store the vanilla handler so it can be temporarily restored below
         original_handler = signal.getsignal(current_signal)
 
-    def handler(*args):
+    def handler(*arg: Any) -> None:
         print_fn(
             f"Received {getattr(signum, 'name', signum)}. "
             f"Sending {getattr(current_signal, 'name', current_signal)} to"
@@ -358,7 +418,9 @@ def forward_signal_handler(
     _register_signal(signum, handler)
 
 
-def setup_signal_handlers_server(pid: int, process_name: str, print_fn: Callable):
+def setup_signal_handlers_server(
+    pid: int, process_name: str, print_fn: PrintFn
+) -> None:
     """Handle interrupts of the server gracefully."""
     setup_handler = partial(
         forward_signal_handler, pid, process_name=process_name, print_fn=print_fn
@@ -375,7 +437,7 @@ def setup_signal_handlers_server(pid: int, process_name: str, print_fn: Callable
         setup_handler(signal.SIGTERM, signal.SIGTERM, signal.SIGKILL)
 
 
-def setup_signal_handlers_agent(pid: int, process_name: str, print_fn: Callable):
+def setup_signal_handlers_agent(pid: int, process_name: str, print_fn: PrintFn) -> None:
     """Handle interrupts of the agent gracefully."""
     setup_handler = partial(
         forward_signal_handler, pid, process_name=process_name, print_fn=print_fn
@@ -393,7 +455,9 @@ def setup_signal_handlers_agent(pid: int, process_name: str, print_fn: Callable)
         setup_handler(signal.SIGTERM, signal.SIGINT, signal.SIGKILL)
 
 
-def setup_signal_handlers_worker(pid: int, process_name: str, print_fn: Callable):
+def setup_signal_handlers_worker(
+    pid: int, process_name: str, print_fn: PrintFn
+) -> None:
     """Handle interrupts of workers gracefully."""
     setup_handler = partial(
         forward_signal_handler, pid, process_name=process_name, print_fn=print_fn

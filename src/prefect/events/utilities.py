@@ -3,7 +3,6 @@ from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
 import pendulum
-from pydantic_extra_types.pendulum_dt import DateTime
 
 from .clients import (
     AssertingEventsClient,
@@ -20,7 +19,7 @@ TIGHT_TIMING = timedelta(minutes=5)
 def emit_event(
     event: str,
     resource: Dict[str, str],
-    occurred: Optional[DateTime] = None,
+    occurred: Optional[pendulum.DateTime] = None,
     related: Optional[Union[List[Dict[str, str]], List[RelatedResource]]] = None,
     payload: Optional[Dict[str, Any]] = None,
     id: Optional[UUID] = None,

@@ -8,10 +8,13 @@ import re
 import string
 import urllib.parse
 from pathlib import Path
+from typing import Any, Optional, cast
 from xml.sax.saxutils import escape
 
 import mkdocs.plugins
-from mkdocs.structure.files import File
+from mkdocs.config.defaults import MkDocsConfig
+from mkdocs.structure.files import File, Files
+from mkdocs.structure.pages import Page
 
 USAGE_MSG = (
     "Usage: '!!swagger <filename>!!' or '!!swagger-http <url>!!'. "
@@ -50,7 +53,7 @@ TOKEN = re.compile(r"!!swagger(?: (?P<path>[^\\/\s><&:]+))?!!")
 TOKEN_HTTP = re.compile(r"!!swagger-http(?: (?P<path>https?://[^\s]+))?!!")
 
 
-def swagger_lib(config) -> dict:
+def swagger_lib(config: MkDocsConfig) -> dict[str, Any]:
     """
     Provides the actual swagger library used
     """
@@ -59,11 +62,14 @@ def swagger_lib(config) -> dict:
         "js": "https://unpkg.com/swagger-ui-dist@3/swagger-ui-bundle.js",
     }
 
-    extra_javascript = config.get("extra_javascript", [])
-    extra_css = config.get("extra_css", [])
+    extra_javascript = config.extra_javascript
+    extra_css = cast(list[str], config.extra_css)
     for lib in extra_javascript:
-        if os.path.basename(urllib.parse.urlparse(lib).path) == "swagger-ui-bundle.js":
-            lib_swagger["js"] = lib
+        if (
+            os.path.basename(urllib.parse.urlparse(str(lib)).path)
+            == "swagger-ui-bundle.js"
+        ):
+            lib_swagger["js"] = str(lib)
             break
 
     for css in extra_css:
@@ -73,8 +79,10 @@ def swagger_lib(config) -> dict:
     return lib_swagger
 
 
-class SwaggerPlugin(mkdocs.plugins.BasePlugin):
-    def on_page_markdown(self, markdown, page, config, files):
+class SwaggerPlugin(mkdocs.plugins.BasePlugin[Any]):
+    def on_page_markdown(
+        self, markdown: str, /, *, page: Page, config: MkDocsConfig, files: Files
+    ) -> Optional[str]:
         is_http = False
         match = TOKEN.search(markdown)
 
@@ -88,7 +96,7 @@ class SwaggerPlugin(mkdocs.plugins.BasePlugin):
         pre_token = markdown[: match.start()]
         post_token = markdown[match.end() :]
 
-        def _error(message):
+        def _error(message: str) -> str:
             return (
                 pre_token
                 + escape(ERROR_TEMPLATE.substitute(error=message))
@@ -103,8 +111,10 @@ class SwaggerPlugin(mkdocs.plugins.BasePlugin):
         if is_http:
             url = path
         else:
+            base = page.file.abs_src_path
+            assert base is not None
             try:
-                api_file = Path(page.file.abs_src_path).with_name(path)
+                api_file = Path(base).with_name(path)
             except ValueError as exc:
                 return _error(f"Invalid path. {exc.args[0]}")
 
@@ -114,7 +124,7 @@ class SwaggerPlugin(mkdocs.plugins.BasePlugin):
             src_dir = api_file.parent
             dest_dir = Path(page.file.abs_dest_path).parent
 
-            new_file = File(api_file.name, src_dir, dest_dir, False)
+            new_file = File(api_file.name, str(src_dir), str(dest_dir), False)
             files.append(new_file)
             url = Path(new_file.abs_dest_path).name
 
@@ -129,4 +139,4 @@ class SwaggerPlugin(mkdocs.plugins.BasePlugin):
         )
 
         # If multiple swaggers exist.
-        return self.on_page_markdown(markdown, page, config, files)
+        return self.on_page_markdown(markdown, page=page, config=config, files=files)
