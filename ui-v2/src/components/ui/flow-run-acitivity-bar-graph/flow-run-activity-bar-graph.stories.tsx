@@ -3,7 +3,6 @@ import type { Meta, StoryObj } from "@storybook/react";
 import type { ComponentProps } from "react";
 
 import { faker } from "@faker-js/faker";
-import { startCase, lowerCase } from "lodash-es";
 
 import { RouterContextProvider } from "@tanstack/react-router";
 import { router } from "@/router";
@@ -24,7 +23,8 @@ function createRandomEnrichedFlowRun(): React.ComponentProps<
 	typeof FlowRunActivityBarChart
 >["enrichedFlowRuns"][number] {
 	const stateType = faker.helpers.arrayElement(STATE_TYPE_VALUES);
-	const stateName = startCase(lowerCase(stateType));
+	const stateName =
+		stateType.charAt(0).toUpperCase() + stateType.slice(1).toLowerCase();
 	return {
 		id: faker.string.uuid(),
 		created: faker.date.past().toISOString(),
