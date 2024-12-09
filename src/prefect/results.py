@@ -43,6 +43,7 @@ from typing_extensions import ParamSpec, Self
 
 import prefect
 from prefect._internal.compatibility import deprecated
+from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect._internal.compatibility.deprecated import deprecated_field
 from prefect.blocks.core import Block
 from prefect.client.utilities import inject_client
@@ -875,7 +876,7 @@ class ResultStore(BaseModel):
         if self.result_storage is None:
             self.result_storage = await get_default_result_storage()
 
-        return await PersistedResult.create(
+        return await PersistedResult[R].create(
             obj,
             storage_block=self.result_storage,
             storage_block_id=self.result_storage_block_id,
@@ -886,10 +887,9 @@ class ResultStore(BaseModel):
             serialize_to_none=not should_persist_result,
         )
 
-    # TODO: These two methods need to find a new home
+    # TODO: These four methods need to find a new home
 
-    @sync_compatible
-    async def store_parameters(self, identifier: UUID, parameters: Dict[str, Any]):
+    async def astore_parameters(self, identifier: UUID, parameters: Dict[str, Any]):
         record = ResultRecord(
             result=parameters,
             metadata=ResultRecordMetadata(
@@ -897,13 +897,31 @@ class ResultStore(BaseModel):
             ),
         )
         await self.result_storage.write_path(
-            f"parameters/{identifier}", content=record.serialize()
+            f"parameters/{identifier}", content=record.serialize(), _sync=False
         )
 
-    @sync_compatible
-    async def read_parameters(self, identifier: UUID) -> Dict[str, Any]:
+    @async_dispatch(astore_parameters)
+    def store_parameters(self, identifier: UUID, parameters: Dict[str, Any]):
+        record = ResultRecord(
+            result=parameters,
+            metadata=ResultRecordMetadata(
+                serializer=self.serializer, storage_key=str(identifier)
+            ),
+        )
+        self.result_storage.write_path(
+            f"parameters/{identifier}", content=record.serialize(), _sync=True
+        )
+
+    async def aread_parameters(self, identifier: UUID) -> Dict[str, Any]:
         record = ResultRecord.deserialize(
-            await self.result_storage.read_path(f"parameters/{identifier}")
+            await self.result_storage.read_path(f"parameters/{identifier}", _sync=False)
+        )
+        return record.result
+
+    @async_dispatch(aread_parameters)
+    def read_parameters(self, identifier: UUID) -> Dict[str, Any]:
+        record = ResultRecord.deserialize(
+            self.result_storage.read_path(f"parameters/{identifier}", _sync=True)
         )
         return record.result
 
@@ -1335,7 +1353,7 @@ class PersistedResult(BaseResult[R]):
     @classmethod
     @sync_compatible
     async def create(
-        cls: "Type[PersistedResult]",
+        cls: "Type[PersistedResult[R]]",
         obj: R,
         storage_block: WritableFileSystem,
         storage_key_fn: Callable[[], str],
@@ -1352,7 +1370,7 @@ class PersistedResult(BaseResult[R]):
         key. It will then be cached on the returned result.
         """
         key = storage_key_fn()
-        if not isinstance(key, str):
+        if not isinstance(key, str):  # type: ignore[reportUnnecessaryIsInstance]
             raise TypeError(
                 f"Expected type 'str' for result storage key; got value {key!r}"
             )
@@ -1377,7 +1395,7 @@ class PersistedResult(BaseResult[R]):
 
         return result
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         if not isinstance(other, PersistedResult):
             return False
         return (
