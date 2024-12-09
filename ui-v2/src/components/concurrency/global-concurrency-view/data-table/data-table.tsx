@@ -3,6 +3,7 @@ import { type GlobalConcurrencyLimit } from "@/hooks/global-concurrency-limits";
 import {
 	createColumnHelper,
 	getCoreRowModel,
+	getPaginationRowModel,
 	useReactTable,
 } from "@tanstack/react-table";
 
@@ -57,6 +58,7 @@ export const GlobalConcurrencyDataTable = ({
 		data,
 		columns: createColumns({ onEditRow, onDeleteRow }),
 		getCoreRowModel: getCoreRowModel(),
+		getPaginationRowModel: getPaginationRowModel(), //load client-side pagination code
 	});
 
 	return <DataTable table={table} />;

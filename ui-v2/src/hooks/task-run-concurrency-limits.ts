@@ -45,6 +45,7 @@ export const buildListTaskRunConcurrencyLimitsQuery = (
 			});
 			return res.data ?? [];
 		},
+		refetchInterval: 30_000,
 	});
 
 export const buildDetailTaskRunConcurrencyLimitsQuery = (id: string) =>
@@ -63,7 +64,7 @@ export const buildDetailTaskRunConcurrencyLimitsQuery = (id: string) =>
  * @param filter
  * @returns list of task run concurrency limits as a SuspenseQueryResult object
  */
-export const useListGlobalConcurrencyLimits = (
+export const useListTaskRunConcurrencyLimits = (
 	filter: TaskRunConcurrencyLimitsFilter = { offset: 0 },
 ) => useSuspenseQuery(buildListTaskRunConcurrencyLimitsQuery(filter));
 
@@ -71,7 +72,7 @@ export const useListGlobalConcurrencyLimits = (
  *
  * @returns details of task run concurrency limits as a SuspenseQueryResult object
  */
-export const useGetGlobalConcurrencyLimit = (id: string) =>
+export const useGetTaskRunConcurrencyLimit = (id: string) =>
 	useSuspenseQuery(buildDetailTaskRunConcurrencyLimitsQuery(id));
 
 // ----- ✍🏼 Mutations 🗄️
@@ -175,7 +176,7 @@ export const useCreateTaskRunConcurrencyLimit = () => {
  * resetTaskRunConcurrencyLimitTag('my-tag', {
  *   onSuccess: () => {
  *     // Handle successful creation
- *     console.log('Task Run concurrency limit tag resetted successfully');
+ *     console.log('Task Run concurrency limit tag reset successfully');
  *   },
  *   onError: (error) => {
  *     // Handle error
