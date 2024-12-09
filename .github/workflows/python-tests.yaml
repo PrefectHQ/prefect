@@ -283,6 +283,7 @@ jobs:
           build-args: |
             PYTHON_VERSION=${{ matrix.python-version }}
             PREFECT_EXTRAS=[dev]
+            NODE_VERSION=$(cat .nvmrc)
           tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}
           outputs: type=docker,dest=/tmp/image.tar
 
