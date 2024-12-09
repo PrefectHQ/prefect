@@ -25,7 +25,6 @@ from typing import (
 from unittest.mock import Mock
 
 import pydantic
-from typing_extensions import Self
 
 # Quote moved to `prefect.utilities.annotations` but preserved here for compatibility
 from prefect.utilities.annotations import BaseAnnotation, Quote, quote  # noqa
@@ -51,8 +50,9 @@ class AutoEnum(str, Enum):
         ```
     """
 
+    @staticmethod
     def _generate_next_value_(
-        self: Self, name: str, start: int, count: int, last_values: list[str]
+        name: str, start: int, count: int, last_values: list[str]
     ) -> str:
         return name
 
