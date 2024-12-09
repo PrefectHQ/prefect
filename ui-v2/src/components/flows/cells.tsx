@@ -8,11 +8,12 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Icon } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { format, parseISO } from "date-fns";
-import { MoreVerticalIcon } from "lucide-react";
+
 import {
 	deploymentsCountQueryParams,
 	getLatestFlowRunsQueryParams,
@@ -85,7 +86,7 @@ export const FlowActionMenu = ({ row }: { row: { original: Flow } }) => {
 			<DropdownMenuTrigger asChild>
 				<Button variant="ghost" className="h-8 w-8 p-0">
 					<span className="sr-only">Open menu</span>
-					<MoreVerticalIcon className="h-4 w-4" />
+					<Icon id="MoreVertical" className="h-4 w-4" />
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="end">

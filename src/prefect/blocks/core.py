@@ -326,7 +326,9 @@ class Block(BaseModel, ABC):
 
     # Exclude `save` as it uses the `sync_compatible` decorator and needs to be
     # decorated directly.
-    _events_excluded_methods = ["block_initialization", "save", "dict"]
+    _events_excluded_methods: ClassVar[List[str]] = PrivateAttr(
+        default=["block_initialization", "save", "dict"]
+    )
 
     @classmethod
     def __dispatch_key__(cls):
@@ -1229,7 +1231,7 @@ class Block(BaseModel, ABC):
         """
         block_type_slug = kwargs.pop("block_type_slug", None)
         if block_type_slug:
-            subcls = lookup_type(cls, dispatch_key=block_type_slug)
+            subcls = cls.get_block_class_from_key(block_type_slug)
             return super().__new__(subcls)
         else:
             return super().__new__(cls)
