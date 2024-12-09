@@ -211,7 +211,7 @@ class TestTaskRunInstrumentation:
         instrumentation.assert_has_attributes(
             span, {"prefect.run.id": str(task_run_id), "prefect.run.type": "task"}
         )
-        assert spans[0].name == task_fn.__name__
+        assert spans[0].name == task_fn.name
 
     async def test_span_attributes(self, engine_type, instrumentation):
         @task

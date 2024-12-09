@@ -641,7 +641,6 @@ class TestFlowRetries:
         assert await state.result() == "hello"
         assert flow_run_count == 2
         assert child_run_count == 2, "Child flow should be reset and run again"
-
         # Ensure that the tracking task run for the subflow is reset and tracked
         task_runs = sync_prefect_client.read_task_runs(
             flow_run_filter=FlowRunFilter(
@@ -1955,6 +1954,7 @@ class TestFlowRunInstrumentation:
         assert len(spans) == 1
         span = spans[0]
         assert span is not None
+        instrumentation.assert_span_instrumented_for(span, prefect)
 
         instrumentation.assert_has_attributes(
             span,
@@ -2094,3 +2094,84 @@ class TestFlowRunInstrumentation:
                 "exception.escaped": "False",
             },
         )
+
+    async def test_flow_run_propagates_otel_traceparent_to_subflow(
+        self, instrumentation: InstrumentationTester
+    ):
+        """Test that OTEL traceparent gets propagated from parent flow to child flow"""
+
+        @flow
+        def child_flow():
+            return "hello from child"
+
+        @flow
+        def parent_flow():
+            flow_run_ctx = FlowRunContext.get()
+            assert flow_run_ctx
+            assert flow_run_ctx.flow_run
+            flow_run = flow_run_ctx.flow_run
+            mock_traceparent = "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
+            flow_run.labels["__OTEL_TRACEPARENT"] = mock_traceparent
+
+            return child_flow()
+
+        parent_flow()
+
+        spans = instrumentation.get_finished_spans()
+
+        parent_span = next(
+            span
+            for span in spans
+            if span.attributes
+            and span.attributes.get("prefect.flow.name") == "parent-flow"
+        )
+        child_span = next(
+            span
+            for span in spans
+            if span.attributes
+            and span.attributes.get("prefect.flow.name") == "child-flow"
+        )
+
+        assert parent_span is not None
+        assert child_span is not None
+        assert child_span.context and parent_span.context
+        assert child_span.context.trace_id == parent_span.context.trace_id
+
+    async def test_flow_run_creates_and_stores_otel_traceparent(
+        self, instrumentation: InstrumentationTester, sync_prefect_client
+    ):
+        """Test that when no parent traceparent exists, the flow run stores its own span's traceparent"""
+
+        @flow
+        def child_flow():
+            return "hello from child"
+
+        @flow
+        def parent_flow():
+            return child_flow()
+
+        parent_flow()
+
+        spans = instrumentation.get_finished_spans()
+
+        next(
+            span
+            for span in spans
+            if span.attributes
+            and span.attributes.get("prefect.flow.name") == "parent-flow"
+        )
+        child_span = next(
+            span
+            for span in spans
+            if span.attributes
+            and span.attributes.get("prefect.flow.name") == "child-flow"
+        )
+
+        child_flow_run_id = child_span.attributes.get("prefect.run.id")
+        assert child_flow_run_id
+        child_flow_run = sync_prefect_client.read_flow_run(UUID(child_flow_run_id))
+
+        assert "__OTEL_TRACEPARENT" in child_flow_run.labels
+        assert child_flow_run.labels["__OTEL_TRACEPARENT"].startswith("00-")
+        trace_id_hex = child_flow_run.labels["__OTEL_TRACEPARENT"].split("-")[1]
+        assert int(trace_id_hex, 16) == child_span.context.trace_id
