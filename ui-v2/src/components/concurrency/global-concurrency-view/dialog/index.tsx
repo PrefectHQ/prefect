@@ -2,12 +2,11 @@ import { GlobalConcurrencyLimit } from "@/hooks/global-concurrency-limits";
 
 import { CreateOrEditLimitDialog } from "./create-or-edit-limit-dialog";
 import { DeleteLimitDialog } from "./delete-limit-dialog";
-import { ResetLimitDialog } from "./reset-limit-dialog";
 
 export type DialogState =
 	| { dialog: null | "create"; data: undefined }
 	| {
-			dialog: "reset" | "delete" | "edit";
+			dialog: "delete" | "edit";
 			data: GlobalConcurrencyLimit;
 	  };
 
@@ -27,14 +26,6 @@ export const DialogView = ({
 				<CreateOrEditLimitDialog
 					onOpenChange={onOpenChange}
 					onSubmit={onCloseDialog}
-				/>
-			);
-		case "reset":
-			return (
-				<ResetLimitDialog
-					limit={data}
-					onOpenChange={onOpenChange}
-					onReset={onCloseDialog}
 				/>
 			);
 		case "delete":

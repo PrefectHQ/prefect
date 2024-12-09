@@ -14,11 +14,9 @@ const columnHelper = createColumnHelper<GlobalConcurrencyLimit>();
 const createColumns = ({
 	onEditRow,
 	onDeleteRow,
-	onResetRow,
 }: {
 	onEditRow: (row: GlobalConcurrencyLimit) => void;
 	onDeleteRow: (row: GlobalConcurrencyLimit) => void;
-	onResetRow: (row: GlobalConcurrencyLimit) => void;
 }) => [
 	columnHelper.accessor("name", {
 		header: "Name",
@@ -39,12 +37,7 @@ const createColumns = ({
 	columnHelper.display({
 		id: "actions",
 		cell: (props) => (
-			<ActionsCell
-				{...props}
-				onEditRow={onEditRow}
-				onDeleteRow={onDeleteRow}
-				onResetRow={onResetRow}
-			/>
+			<ActionsCell {...props} onEditRow={onEditRow} onDeleteRow={onDeleteRow} />
 		),
 	}),
 ];
@@ -53,18 +46,16 @@ type Props = {
 	data: Array<GlobalConcurrencyLimit>;
 	onEditRow: (row: GlobalConcurrencyLimit) => void;
 	onDeleteRow: (row: GlobalConcurrencyLimit) => void;
-	onResetRow: (row: GlobalConcurrencyLimit) => void;
 };
 
 export const GlobalConcurrencyDataTable = ({
 	data,
 	onEditRow,
 	onDeleteRow,
-	onResetRow,
 }: Props) => {
 	const table = useReactTable({
 		data,
-		columns: createColumns({ onEditRow, onDeleteRow, onResetRow }),
+		columns: createColumns({ onEditRow, onDeleteRow }),
 		getCoreRowModel: getCoreRowModel(),
 	});
 

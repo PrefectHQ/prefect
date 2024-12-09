@@ -14,15 +14,9 @@ import { CellContext } from "@tanstack/react-table";
 type Props = CellContext<GlobalConcurrencyLimit, unknown> & {
 	onEditRow: (row: GlobalConcurrencyLimit) => void;
 	onDeleteRow: (row: GlobalConcurrencyLimit) => void;
-	onResetRow: (row: GlobalConcurrencyLimit) => void;
 };
 
-export const ActionsCell = ({
-	onEditRow,
-	onDeleteRow,
-	onResetRow,
-	...props
-}: Props) => {
+export const ActionsCell = ({ onEditRow, onDeleteRow, ...props }: Props) => {
 	const { toast } = useToast();
 
 	const handleCopyId = (id: string | undefined) => {
@@ -54,9 +48,6 @@ export const ActionsCell = ({
 					</DropdownMenuItem>
 					<DropdownMenuItem onClick={() => onEditRow(row)}>
 						Edit
-					</DropdownMenuItem>
-					<DropdownMenuItem onClick={() => onResetRow(row)}>
-						Reset
 					</DropdownMenuItem>
 				</DropdownMenuContent>
 			</DropdownMenu>
