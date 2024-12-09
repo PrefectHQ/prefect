@@ -134,9 +134,11 @@ def get_run_logger(
             flow=flow_run_context.flow if flow_run_context else None,
             **kwargs,
         )
-    elif flow_run_context and flow_run_context.flow_run and flow_run_context.flow:
+    elif flow_run_context:
         logger = flow_run_logger(
-            flow_run=flow_run_context.flow_run, flow=flow_run_context.flow, **kwargs
+            flow_run=flow_run_context.flow_run,  # type: ignore
+            flow=flow_run_context.flow,
+            **kwargs,
         )
     elif (
         get_logger("prefect.flow_run").disabled
