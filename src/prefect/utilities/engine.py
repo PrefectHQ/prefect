@@ -4,18 +4,9 @@ import inspect
 import os
 import signal
 import time
+from collections.abc import Callable, Iterable
 from functools import partial
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Dict,
-    Iterable,
-    Optional,
-    Set,
-    TypeVar,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union
 from uuid import UUID, uuid4
 
 import anyio
@@ -69,12 +60,12 @@ if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 
 API_HEALTHCHECKS = {}
-UNTRACKABLE_TYPES = {bool, type(None), type(...), type(NotImplemented)}
+UNTRACKABLE_TYPES: set[type[Any]] = {bool, type(None), type(...), type(NotImplemented)}
 engine_logger = get_logger("engine")
 T = TypeVar("T")
 
 
-async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> Set[TaskRunInput]:
+async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> set[TaskRunInput]:
     """
     This function recurses through an expression to generate a set of any discernible
     task run inputs it finds in the data structure. It produces a set of all inputs
@@ -87,14 +78,11 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> Set[TaskRun
     """
     # TODO: This function needs to be updated to detect parameters and constants
 
-    inputs = set()
-    futures = set()
+    inputs: set[TaskRunInput] = set()
 
-    def add_futures_and_states_to_inputs(obj):
+    def add_futures_and_states_to_inputs(obj: Any) -> None:
         if isinstance(obj, PrefectFuture):
-            # We need to wait for futures to be submitted before we can get the task
-            # run id but we want to do so asynchronously
-            futures.add(obj)
+            inputs.add(TaskRunResult(id=obj.task_run_id))
         elif isinstance(obj, State):
             if obj.state_details.task_run_id:
                 inputs.add(TaskRunResult(id=obj.state_details.task_run_id))
@@ -113,16 +101,12 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> Set[TaskRun
         max_depth=max_depth,
     )
 
-    await asyncio.gather(*[future._wait_for_submission() for future in futures])
-    for future in futures:
-        inputs.add(TaskRunResult(id=future.task_run.id))
-
     return inputs
 
 
 def collect_task_run_inputs_sync(
     expr: Any, future_cls: Any = PrefectFuture, max_depth: int = -1
-) -> Set[TaskRunInput]:
+) -> set[TaskRunInput]:
     """
     This function recurses through an expression to generate a set of any discernible
     task run inputs it finds in the data structure. It produces a set of all inputs
@@ -135,9 +119,9 @@ def collect_task_run_inputs_sync(
     """
     # TODO: This function needs to be updated to detect parameters and constants
 
-    inputs = set()
+    inputs: set[TaskRunInput] = set()
 
-    def add_futures_and_states_to_inputs(obj):
+    def add_futures_and_states_to_inputs(obj: Any) -> None:
         if isinstance(obj, future_cls) and hasattr(obj, "task_run_id"):
             inputs.add(TaskRunResult(id=obj.task_run_id))
         elif isinstance(obj, State):
@@ -162,12 +146,14 @@ def collect_task_run_inputs_sync(
 
 
 async def wait_for_task_runs_and_report_crashes(
-    task_run_futures: Iterable[PrefectFuture], client: "PrefectClient"
+    task_run_futures: Iterable[PrefectFuture[Any]], client: "PrefectClient"
 ) -> Literal[True]:
     crash_exceptions = []
 
     # Gather states concurrently first
-    states = await gather(*(future._wait for future in task_run_futures))
+    states: list[State[Any]] = await gather(
+        *(future._wait for future in task_run_futures)
+    )
 
     for future, state in zip(task_run_futures, states):
         logger = task_run_logger(future.task_run)
@@ -241,8 +227,8 @@ def capture_sigterm():
 
 
 async def resolve_inputs(
-    parameters: Dict[str, Any], return_data: bool = True, max_depth: int = -1
-) -> Dict[str, Any]:
+    parameters: dict[str, Any], return_data: bool = True, max_depth: int = -1
+) -> dict[str, Any]:
     """
     Resolve any `Quote`, `PrefectFuture`, or `State` types nested in parameters into
     data.
@@ -664,7 +650,7 @@ def should_log_prints(flow_or_task: Union[Flow, Task]) -> bool:
     return flow_or_task.log_prints
 
 
-def _resolve_custom_flow_run_name(flow: Flow, parameters: Dict[str, Any]) -> str:
+def _resolve_custom_flow_run_name(flow: Flow, parameters: dict[str, Any]) -> str:
     if callable(flow.flow_run_name):
         flow_run_name = flow.flow_run_name()
         if not isinstance(flow_run_name, str):
@@ -683,7 +669,7 @@ def _resolve_custom_flow_run_name(flow: Flow, parameters: Dict[str, Any]) -> str
     return flow_run_name
 
 
-def _resolve_custom_task_run_name(task: Task, parameters: Dict[str, Any]) -> str:
+def _resolve_custom_task_run_name(task: Task, parameters: dict[str, Any]) -> str:
     if callable(task.task_run_name):
         sig = inspect.signature(task.task_run_name)
 
@@ -884,8 +870,8 @@ def resolve_to_final_result(expr, context):
 
 
 def resolve_inputs_sync(
-    parameters: Dict[str, Any], return_data: bool = True, max_depth: int = -1
-) -> Dict[str, Any]:
+    parameters: dict[str, Any], return_data: bool = True, max_depth: int = -1
+) -> dict[str, Any]:
     """
     Resolve any `Quote`, `PrefectFuture`, or `State` types nested in parameters into
     data.

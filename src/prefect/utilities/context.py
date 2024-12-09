@@ -1,6 +1,7 @@
+from collections.abc import Generator
 from contextlib import contextmanager
 from contextvars import Context, ContextVar, Token
-from typing import TYPE_CHECKING, Dict, Optional, Tuple, cast
+from typing import TYPE_CHECKING, Any, Optional, cast
 from uuid import UUID
 
 if TYPE_CHECKING:
@@ -8,8 +9,8 @@ if TYPE_CHECKING:
 
 
 @contextmanager
-def temporary_context(context: Context):
-    tokens: Dict[ContextVar, Token] = {}
+def temporary_context(context: Context) -> Generator[None, Any, None]:
+    tokens: dict[ContextVar[Any], Token[Any]] = {}
     for key, value in context.items():
         token = key.set(value)
         tokens[key] = token
@@ -38,11 +39,11 @@ def get_flow_run_id() -> Optional[UUID]:
     return None
 
 
-def get_task_and_flow_run_ids() -> Tuple[Optional[UUID], Optional[UUID]]:
+def get_task_and_flow_run_ids() -> tuple[Optional[UUID], Optional[UUID]]:
     """
     Get the task run and flow run ids from the context, if available.
 
     Returns:
-        Tuple[Optional[UUID], Optional[UUID]]: a tuple of the task run id and flow run id
+        tuple[Optional[UUID], Optional[UUID]]: a tuple of the task run id and flow run id
     """
     return get_task_run_id(), get_flow_run_id()
