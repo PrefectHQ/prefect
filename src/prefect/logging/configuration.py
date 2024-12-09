@@ -58,7 +58,7 @@ def load_logging_config(path: Path) -> dict:
     return flatdict_to_dict(flat_config)
 
 
-def setup_logging(incremental: Optional[bool] = None) -> dict:
+def setup_logging(incremental: Optional[bool] = None) -> dict[str, Any]:
     """
     Sets up logging.
 
