@@ -42,5 +42,3 @@ export function startsWith(
 ) {
 	return prefix.every((item, index) => array[index] === item);
 }
-
-

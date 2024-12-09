@@ -1,7 +1,11 @@
-import { Bar, BarChart, Cell, type TooltipProps } from "recharts";
-import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import type { components } from "@/api/prefect";
+import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
+import { Link } from "@tanstack/react-router";
+import { cva } from "class-variance-authority";
+import { format, formatDistanceStrict } from "date-fns";
+import { Calendar, ChevronRight, Clock, Rocket } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { Bar, BarChart, Cell, type TooltipProps } from "recharts";
 import {
 	Card,
 	CardContent,
@@ -9,16 +13,11 @@ import {
 	CardHeader,
 	CardTitle,
 } from "../card";
-import { Calendar, ChevronRight, Clock, Rocket } from "lucide-react";
 import { StateBadge } from "../state-badge";
-import { Link } from "@tanstack/react-router";
-import { format } from "date-fns";
-import { secondsToApproximateString } from "@/lib/duration";
 import { TagBadgeGroup } from "../tag-badge-group";
 import { organizeFlowRunsWithGaps } from "./utils";
 
-interface CustomShapeProps {
-	fill?: string;
+type CustomShapeProps = {
 	x?: number;
 	y?: number;
 	width?: number;
@@ -26,17 +25,36 @@ interface CustomShapeProps {
 	radius?: number[];
 	role?: string;
 	flowRun?: EnrichedFlowRun;
-}
+};
+
+const barVariants = cva("gap-1", {
+	variants: {
+		state: {
+			COMPLETED: "fill-green-600",
+			FAILED: "fill-red-600",
+			RUNNING: "fill-blue-700",
+			CANCELLED: "fill-gray-500",
+			CANCELLING: "fill-gray-600",
+			CRASHED: "fill-orange-600",
+			PAUSED: "fill-gray-500",
+			PENDING: "fill-gray-400",
+			SCHEDULED: "fill-yellow-400",
+			NONE: "fill-gray-300",
+		} satisfies Record<components["schemas"]["StateType"] | "NONE", string>,
+	},
+	defaultVariants: {
+		state: "NONE",
+	},
+});
 
 const CustomBar = (props: CustomShapeProps) => {
-	const minHeight = 4; // Minimum height for zero values
+	const minHeight = 10; // Minimum height for zero values
 	const {
 		x = 0,
 		y = 0,
 		width = 0,
 		height = minHeight,
 		radius = [0, 0, 0, 0],
-		fill,
 		role,
 		flowRun,
 	} = props;
@@ -51,7 +69,7 @@ const CustomBar = (props: CustomShapeProps) => {
 				height={Math.max(height, minHeight)}
 				rx={radius[0]}
 				ry={radius[0]}
-				fill={fill}
+				className={barVariants({ state: flowRun?.state_type })}
 			/>
 		</g>
 	);
@@ -171,15 +189,7 @@ export const FlowRunActivityBarChart = ({
 					onMouseLeave={() => setIsTooltipActive(undefined)}
 				>
 					{data.map((entry) => (
-						<Cell
-							key={`cell-${entry.id}`}
-							fill={
-								entry.stateType
-									? `hsl(var(--state-${entry.stateType?.toLowerCase()}))`
-									: "var(--color-inactivity)"
-							}
-							role="graphics-symbol"
-						/>
+						<Cell key={`cell-${entry.id}`} role="graphics-symbol" />
 					))}
 				</Bar>
 			</BarChart>
@@ -260,15 +270,15 @@ const FlowRunTooltip = ({ payload, active }: FlowRunTooltipProps) => {
 				<span className="flex items-center gap-1">
 					<Clock className="w-4 h-4" />
 					<p className="text-sm whitespace-nowrap">
-						{secondsToApproximateString(flowRun.total_run_time)}
+						{formatDistanceStrict(0, flowRun.total_run_time * 1000, {
+							addSuffix: false,
+						})}
 					</p>
 				</span>
 				{startTime && (
 					<span className="flex items-center gap-1">
 						<Calendar className="w-4 h-4" />
-						<p className="text-sm">
-							{format(startTime, "yyyy/MM/dd hh:mm a")}
-						</p>
+						<p className="text-sm">{format(startTime, "yyyy/MM/dd hh:mm a")}</p>
 					</span>
 				)}
 				<div>

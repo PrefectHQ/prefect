@@ -1,12 +1,4 @@
-import {
-	render,
-	screen,
-	fireEvent,
-	within,
-	act,
-	waitFor,
-	waitForElementToBeRemoved,
-} from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import { FlowRunActivityBarChart } from "./index";
 import { RouterContextProvider } from "@tanstack/react-router";
 import {
@@ -50,7 +42,7 @@ beforeAll(() => {
 		disconnect() {}
 	}
 
-	global.ResizeObserver = ResizeObserverMock as any;
+	global.ResizeObserver = ResizeObserverMock;
 });
 
 describe("FlowRunActivityBarChart", () => {
