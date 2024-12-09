@@ -11,6 +11,7 @@ from typing import (
     Annotated,
     Any,
     Callable,
+    ClassVar,
     Dict,
     Generic,
     Optional,
@@ -29,6 +30,8 @@ from pydantic import (
     Discriminator,
     Field,
     PrivateAttr,
+    SerializationInfo,
+    SerializerFunctionWrapHandler,
     Tag,
     ValidationError,
     model_serializer,
@@ -269,7 +272,7 @@ class ResultStore(BaseModel):
         storage_key_fn: The function to generate storage keys.
     """
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(arbitrary_types_allowed=True)
 
     result_storage: Optional[WritableFileSystem] = Field(default=None)
     metadata_storage: Annotated[
@@ -284,7 +287,7 @@ class ResultStore(BaseModel):
     cache_result_in_memory: bool = Field(default=True)
     serializer: Serializer = Field(default_factory=get_default_result_serializer)
     storage_key_fn: Callable[[], str] = Field(default=DEFAULT_STORAGE_KEY_FN)
-    cache: LRUCache = Field(default_factory=lambda: LRUCache(maxsize=1000))
+    cache: LRUCache[str, Any] = Field(default_factory=lambda: LRUCache(maxsize=1000))
 
     # Deprecated fields
     persist_result: Optional[bool] = Field(default=None)
@@ -447,7 +450,7 @@ class ResultStore(BaseModel):
         return await self._exists(key=key, _sync=False)
 
     @sync_compatible
-    async def _read(self, key: str, holder: str) -> "ResultRecord":
+    async def _read(self: Self, key: str, holder: str) -> "ResultRecord[Any]":
         """
         Read a result record from storage.
 
@@ -478,12 +481,12 @@ class ResultStore(BaseModel):
                 metadata.storage_key is not None
             ), "Did not find storage key in metadata"
             result_content = await self.result_storage.read_path(metadata.storage_key)
-            result_record = ResultRecord.deserialize_from_result_and_metadata(
+            result_record = ResultRecord[Any].deserialize_from_result_and_metadata(
                 result=result_content, metadata=metadata_content
             )
         else:
             content = await self.result_storage.read_path(key)
-            result_record = ResultRecord.deserialize(
+            result_record = ResultRecord[Any].deserialize(
                 content, backup_serializer=self.serializer
             )
 
@@ -499,10 +502,10 @@ class ResultStore(BaseModel):
         return result_record
 
     def read(
-        self,
+        self: Self,
         key: str,
         holder: Optional[str] = None,
-    ) -> "ResultRecord":
+    ) -> "ResultRecord[Any]":
         """
         Read a result record from storage.
 
@@ -517,10 +520,10 @@ class ResultStore(BaseModel):
         return self._read(key=key, holder=holder, _sync=True)
 
     async def aread(
-        self,
+        self: Self,
         key: str,
         holder: Optional[str] = None,
-    ) -> "ResultRecord":
+    ) -> "ResultRecord[Any]":
         """
         Read a result record from storage.
 
@@ -539,7 +542,7 @@ class ResultStore(BaseModel):
         obj: Any,
         key: Optional[str] = None,
         expiration: Optional[DateTime] = None,
-    ) -> "ResultRecord":
+    ) -> "ResultRecord[Any]":
         """
         Create a result record.
 
@@ -955,7 +958,7 @@ class ResultRecordMetadata(BaseModel):
         """
         return cls.model_validate_json(data)
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         if not isinstance(other, ResultRecordMetadata):
             return False
         return (
@@ -1029,7 +1032,7 @@ class ResultRecord(BaseModel, Generic[R]):
 
     @model_validator(mode="before")
     @classmethod
-    def coerce_old_format(cls, value: Any):
+    def coerce_old_format(cls: Type[Self], value: Any) -> Self:
         if isinstance(value, dict):
             if "data" in value:
                 value["result"] = value.pop("data")
@@ -1150,7 +1153,7 @@ class ResultRecord(BaseModel, Generic[R]):
 )
 @register_base_type
 class BaseResult(BaseModel, abc.ABC, Generic[R]):
-    model_config = ConfigDict(extra="forbid")
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
     type: str
 
     def __init__(self, **data: Any) -> None:
@@ -1160,7 +1163,7 @@ class BaseResult(BaseModel, abc.ABC, Generic[R]):
         data.setdefault("type", type_string)
         super().__init__(**data)
 
-    def __new__(cls: Type[Self], **kwargs) -> Self:
+    def __new__(cls: Type[Self], **kwargs: Any) -> Self:
         if "type" in kwargs:
             try:
                 subcls = lookup_type(cls, dispatch_key=kwargs["type"])
@@ -1193,7 +1196,7 @@ class BaseResult(BaseModel, abc.ABC, Generic[R]):
         ...
 
     @classmethod
-    def __dispatch_key__(cls, **kwargs):
+    def __dispatch_key__(cls, **kwargs: Any) -> str:
         default = cls.model_fields.get("type").get_default()
         return cls.__name__ if isinstance(default, PydanticUndefinedType) else default
 
@@ -1201,7 +1204,7 @@ class BaseResult(BaseModel, abc.ABC, Generic[R]):
 @deprecated.deprecated_class(
     start_date="Sep 2024", end_date="Nov 2024", help="Use `ResultRecord` instead."
 )
-class PersistedResult(BaseResult):
+class PersistedResult(BaseResult[R]):
     """
     Result type which stores a reference to a persisted result.
 
@@ -1221,11 +1224,13 @@ class PersistedResult(BaseResult):
 
     _persisted: bool = PrivateAttr(default=False)
     _should_cache_object: bool = PrivateAttr(default=True)
-    _storage_block: WritableFileSystem = PrivateAttr(default=None)
-    _serializer: Serializer = PrivateAttr(default=None)
+    _storage_block: Optional[WritableFileSystem] = PrivateAttr(default=None)
+    _serializer: Optional[Serializer] = PrivateAttr(default=None)
 
     @model_serializer(mode="wrap")
-    def serialize_model(self, handler, info):
+    def serialize_model(
+        self: Self, handler: SerializerFunctionWrapHandler, info: SerializationInfo
+    ):
         if self.serialize_to_none:
             return None
         return handler(self, info)
@@ -1233,8 +1238,8 @@ class PersistedResult(BaseResult):
     def _cache_object(
         self,
         obj: Any,
-        storage_block: WritableFileSystem = None,
-        serializer: Serializer = None,
+        storage_block: Optional[WritableFileSystem] = None,
+        serializer: Optional[Serializer] = None,
     ) -> None:
         self._cache = obj
         self._storage_block = storage_block
@@ -1254,7 +1259,7 @@ class PersistedResult(BaseResult):
     @sync_compatible
     @inject_client
     async def get(
-        self, ignore_cache: bool = False, client: "PrefectClient" = None
+        self: Self, ignore_cache: bool = False, client: Optional["PrefectClient"] = None
     ) -> R:
         """
         Retrieve the data and deserialize it into the original object.
