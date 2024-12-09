@@ -56,12 +56,12 @@ router = PrefectRouter(prefix="/flow_runs", tags=["Flow Runs"])
 async def create_flow_run(
     flow_run: schemas.actions.FlowRunCreate,
     db: PrefectDBInterface = Depends(provide_database_interface),
-    response: Response = None,
+    response: Response = None,  # type: ignore
     created_by: Optional[schemas.core.CreatedBy] = Depends(dependencies.get_created_by),
     orchestration_parameters: Dict[str, Any] = Depends(
         orchestration_dependencies.provide_flow_orchestration_parameters
     ),
-    api_version=Depends(dependencies.provide_request_api_version),
+    api_version: str = Depends(dependencies.provide_request_api_version),
 ) -> schemas.responses.FlowRunResponse:
     """
     Create a flow run. If a flow run with the same flow_id and
@@ -70,20 +70,22 @@ async def create_flow_run(
     If no state is provided, the flow run will be created in a PENDING state.
     """
     # hydrate the input model into a full flow run / state model
-    flow_run = schemas.core.FlowRun(**flow_run.model_dump(), created_by=created_by)
+    flow_run_object = schemas.core.FlowRun(
+        **flow_run.model_dump(), created_by=created_by
+    )
 
     # pass the request version to the orchestration engine to support compatibility code
     orchestration_parameters.update({"api-version": api_version})
 
-    if not flow_run.state:
-        flow_run.state = schemas.states.Pending()
+    if not flow_run_object.state:
+        flow_run_object.state = schemas.states.Pending()
 
     now = pendulum.now("UTC")
 
     async with db.session_context(begin_transaction=True) as session:
         model = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=flow_run,
+            flow_run=flow_run_object,
             orchestration_parameters=orchestration_parameters,
         )
         if model.created >= now:
