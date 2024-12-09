@@ -5225,3 +5225,30 @@ class TestSafeLoadFlowFromEntrypoint:
 
         with pytest.raises(NameError, match="name 'not_a_function' is not defined"):
             safe_load_flow_from_entrypoint(entrypoint)()
+
+    def test_remove_callback_hooks_for_missing_import(self, tmp_path: Path):
+        flow_source = dedent(
+            """
+        from prefect import flow
+
+        from non_existent import DEFAULT_NAME, DEFAULT_AGE
+
+        def test_callback():
+            print(DEFAULT_NAME)
+            def wrapper(*args, **kwargs):
+                pass
+
+            return wrapper
+
+        @flow(on_running=[test_callback()])
+        def flow_function(name = DEFAULT_NAME, age = DEFAULT_AGE) -> str:
+            return name, age
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = safe_load_flow_from_entrypoint(entrypoint)
+        assert result is not None
