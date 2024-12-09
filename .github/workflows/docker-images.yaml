@@ -101,6 +101,11 @@ jobs:
           flavor: |
             latest=false
 
+      - name: Get node version
+        id: get_node_version
+        run: |
+          echo "NODE_VERSION=$(cat .nvmrc)" >> $GITHUB_OUTPUT
+
       - name: Build and push image
         uses: docker/build-push-action@v6
         with:
@@ -108,6 +113,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           build-args: |
             PYTHON_VERSION=${{ matrix.python-version }}
+            NODE_VERSION=${{ steps.get_node_version.outputs.NODE_VERSION }}
             ${{ ( endsWith(matrix.flavor, 'conda') && 'BASE_IMAGE=prefect-conda' ) || '' }}
             ${{ ( endsWith(matrix.flavor, 'kubernetes') && 'PREFECT_EXTRAS=[kubernetes]' ) || '' }}
           tags: ${{ join(steps.metadata-dev.outputs.tags) }},${{ join(steps.metadata-prod.outputs.tags) }}
