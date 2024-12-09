@@ -269,7 +269,7 @@ jobs:
       - name: Get node version
         id: get_node_version
         run: |
-          echo "NODE_VERSION=$(cat .nvmrc)" >> $GITHUB_ENV
+          echo "NODE_VERSION=$(cat .nvmrc)" >> $GITHUB_OUTPUT
 
       - name: Login to DockerHub
         uses: docker/login-action@v3
