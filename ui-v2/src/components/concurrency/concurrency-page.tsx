@@ -1,6 +1,5 @@
 import type { JSX } from "react";
 
-import { Flex } from "@/components/ui/flex";
 import { Typography } from "@/components/ui/typography";
 
 import { ConcurrencyTabs } from "./concurrency-tabs";
@@ -9,12 +8,12 @@ import { TaskRunConcurrencyView } from "./task-run-concurrenct-view";
 
 export const ConcurrencyPage = (): JSX.Element => {
 	return (
-		<Flex flexDirection="column" gap={4}>
+		<div className="flex flex-col gap-4">
 			<Typography variant="h2">Concurrency</Typography>
 			<ConcurrencyTabs
 				globalView={<GlobalConcurrencyView />}
 				taskRunView={<TaskRunConcurrencyView />}
 			/>
-		</Flex>
+		</div>
 	);
 };
