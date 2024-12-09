@@ -245,7 +245,7 @@ class State(ObjectBaseModel, Generic[R]):
         help="Please ensure you are awaiting the call to `result()` when calling in an async context.",
     )
     def result(
-        self,
+        self: "State[R]",
         raise_on_failure: bool = True,
         fetch: bool = True,
         retry_result_failure: bool = True,
@@ -326,7 +326,7 @@ class State(ObjectBaseModel, Generic[R]):
             retry_result_failure=retry_result_failure,
         )
 
-    def to_state_create(self) -> "StateCreate":
+    def to_state_create(self: "State[R]") -> "StateCreate[R]":
         """
         Convert this state to a `StateCreate` type which can be used to set the state of
         a run in the API.
@@ -348,7 +348,7 @@ class State(ObjectBaseModel, Generic[R]):
         else:
             data = None
 
-        return StateCreate(
+        return StateCreate[R](
             type=self.type,
             name=self.name,
             message=self.message,

@@ -14,15 +14,10 @@ from enum import Enum, auto
 from typing import (
     Any,
     Callable,
-    Dict,
     Generator,
     Hashable,
     Iterable,
-    List,
     Optional,
-    Set,
-    Tuple,
-    Type,
     TypeVar,
     Union,
     cast,
@@ -30,6 +25,7 @@ from typing import (
 from unittest.mock import Mock
 
 import pydantic
+from typing_extensions import Self
 
 # Quote moved to `prefect.utilities.annotations` but preserved here for compatibility
 from prefect.utilities.annotations import BaseAnnotation, Quote, quote  # noqa
@@ -50,12 +46,14 @@ class AutoEnum(str, Enum):
     Example:
         ```python
         class MyEnum(AutoEnum):
-            RED = AutoEnum.auto() # equivalent to RED = 'RED'
-            BLUE = AutoEnum.auto() # equivalent to BLUE = 'BLUE'
+            RED = AutoEnum.auto()  # equivalent to RED = 'RED'
+            BLUE = AutoEnum.auto()  # equivalent to BLUE = 'BLUE'
         ```
     """
 
-    def _generate_next_value_(name, start, count, last_values):
+    def _generate_next_value_(
+        self: Self, name: str, start: int, count: int, last_values: list[str]
+    ) -> str:
         return name
 
     @staticmethod
@@ -74,8 +72,8 @@ VT = TypeVar("VT")
 
 
 def dict_to_flatdict(
-    dct: Dict[KT, Union[Any, Dict[KT, Any]]], _parent: Tuple[KT, ...] = None
-) -> Dict[Tuple[KT, ...], Any]:
+    dct: dict[KT, Union[Any, dict[KT, Any]]], _parent: Optional[tuple[KT, ...]] = None
+) -> dict[tuple[KT, ...], Any]:
     """Converts a (nested) dictionary to a flattened representation.
 
     Each key of the flat dict will be a CompoundKey tuple containing the "chain of keys"
@@ -88,8 +86,8 @@ def dict_to_flatdict(
     Returns:
         A flattened dict of the same type as dct
     """
-    typ = cast(Type[Dict[Tuple[KT, ...], Any]], type(dct))
-    items: List[Tuple[Tuple[KT, ...], Any]] = []
+    typ = cast(type[dict[tuple[KT, ...], Any]], type(dct))
+    items: list[tuple[tuple[KT, ...], Any]] = []
     parent = _parent or tuple()
 
     for k, v in dct.items():
@@ -103,8 +101,8 @@ def dict_to_flatdict(
 
 
 def flatdict_to_dict(
-    dct: Dict[Tuple[KT, ...], VT],
-) -> Dict[KT, Union[VT, Dict[KT, VT]]]:
+    dct: dict[tuple[KT, ...], VT],
+) -> dict[KT, Union[VT, dict[KT, VT]]]:
     """Converts a flattened dictionary back to a nested dictionary.
 
     Args:
@@ -115,7 +113,7 @@ def flatdict_to_dict(
         A nested dict of the same type as dct
     """
     typ = type(dct)
-    result = cast(Dict[KT, Union[VT, Dict[KT, VT]]], typ())
+    result = cast(dict[KT, Union[VT, dict[KT, VT]]], typ())
     for key_tuple, value in dct.items():
         current_dict = result
         for prefix_key in key_tuple[:-1]:
@@ -149,7 +147,7 @@ def isiterable(obj: Any) -> bool:
 
 
 def ensure_iterable(obj: Union[T, Iterable[T]]) -> Iterable[T]:
-    if isinstance(obj, Sequence) or isinstance(obj, Set):
+    if isinstance(obj, Sequence) or isinstance(obj, set):
         return obj
     obj = cast(T, obj)  # No longer in the iterable case
     return [obj]
@@ -160,9 +158,9 @@ def listrepr(objs: Iterable[Any], sep: str = " ") -> str:
 
 
 def extract_instances(
-    objects: Iterable,
-    types: Union[Type[T], Tuple[Type[T], ...]] = object,
-) -> Union[List[T], Dict[Type[T], T]]:
+    objects: Iterable[Any],
+    types: Union[type[T], tuple[type[T], ...]] = object,
+) -> Union[list[T], dict[type[T], T]]:
     """
     Extract objects from a file and returns a dict of type -> instances
 
@@ -174,26 +172,26 @@ def extract_instances(
         If a single type is given: a list of instances of that type
         If a tuple of types is given: a mapping of type to a list of instances
     """
-    types = ensure_iterable(types)
+    _types: Iterable[type[T]] = ensure_iterable(types)
 
     # Create a mapping of type -> instance from the exec values
-    ret = defaultdict(list)
+    ret: defaultdict[type[T], list[T]] = defaultdict(list)
 
     for o in objects:
         # We iterate here so that the key is the passed type rather than type(o)
-        for type_ in types:
+        for type_ in _types:
             if isinstance(o, type_):
                 ret[type_].append(o)
 
-    if len(types) == 1:
-        return ret[types[0]]
+    if len(_types) == 1:
+        return ret[_types[0]]
 
     return ret
 
 
 def batched_iterable(
     iterable: Iterable[T], size: int
-) -> Generator[Tuple[T, ...], None, None]:
+) -> Generator[tuple[T, ...], None, None]:
     """
     Yield batches of a certain size from an iterable
 
@@ -223,12 +221,12 @@ class StopVisiting(BaseException):
 
 def visit_collection(
     expr: Any,
-    visit_fn: Union[Callable[[Any, Optional[dict]], Any], Callable[[Any], Any]],
+    visit_fn: Callable[..., Any],
     return_data: bool = False,
     max_depth: int = -1,
-    context: Optional[dict] = None,
+    context: Optional[dict[str, Any]] = None,
     remove_annotations: bool = False,
-    _seen: Optional[Set[int]] = None,
+    _seen: Optional[set[int]] = None,
 ) -> Any:
     """
     Visits and potentially transforms every element of an arbitrary Python collection.
@@ -289,7 +287,7 @@ def visit_collection(
     if _seen is None:
         _seen = set()
 
-    def visit_nested(expr):
+    def visit_nested(expr: Any) -> Any:
         # Utility for a recursive call, preserving options and updating the depth.
         return visit_collection(
             expr,
@@ -302,7 +300,7 @@ def visit_collection(
             _seen=_seen,
         )
 
-    def visit_expression(expr):
+    def visit_expression(expr: Any) -> Any:
         if context is not None:
             return visit_fn(expr, context)
         else:
@@ -404,7 +402,7 @@ def visit_collection(
     # --- Pydantic models
 
     elif isinstance(expr, pydantic.BaseModel):
-        typ = cast(Type[pydantic.BaseModel], typ)
+        typ = cast(type[pydantic.BaseModel], typ)
 
         # when extra=allow, fields not in model_fields may be in model_fields_set
         model_fields = expr.model_fields_set.union(expr.model_fields.keys())
@@ -435,7 +433,9 @@ def visit_collection(
         return result
 
 
-def remove_nested_keys(keys_to_remove: List[Hashable], obj):
+def remove_nested_keys(
+    keys_to_remove: list[Hashable], obj: dict[Hashable, Any]
+) -> dict[Hashable, Any]:
     """
     Recurses a dictionary returns a copy without all keys that match an entry in
     `key_to_remove`. Return `obj` unchanged if not a dictionary.
@@ -448,7 +448,7 @@ def remove_nested_keys(keys_to_remove: List[Hashable], obj):
         `obj` without keys matching an entry in `keys_to_remove` if `obj` is a
             dictionary. `obj` if `obj` is not a dictionary.
     """
-    if not isinstance(obj, dict):
+    if not isinstance(obj, dict):  # type: ignore[reportUnnecessaryIsInstance]
         return obj
     return {
         key: remove_nested_keys(keys_to_remove, value)
@@ -461,7 +461,7 @@ def distinct(
     iterable: Iterable[T],
     key: Callable[[T], Any] = (lambda i: i),
 ) -> Generator[T, None, None]:
-    seen: Set = set()
+    seen: set[Any] = set()
     for item in iterable:
         if key(item) in seen:
             continue
@@ -469,7 +469,9 @@ def distinct(
         yield item
 
 
-def get_from_dict(dct: Dict, keys: Union[str, List[str]], default: Any = None) -> Any:
+def get_from_dict(
+    dct: dict[Hashable, Any], keys: Union[str, list[str]], default: Any = None
+) -> Any:
     """
     Fetch a value from a nested dictionary or list using a sequence of keys.
 
@@ -515,7 +517,9 @@ def get_from_dict(dct: Dict, keys: Union[str, List[str]], default: Any = None) -
         return default
 
 
-def set_in_dict(dct: Dict, keys: Union[str, List[str]], value: Any):
+def set_in_dict(
+    dct: dict[Hashable, Any], keys: Union[str, list[str]], value: Any
+) -> None:
     """
     Sets a value in a nested dictionary using a sequence of keys.
 
@@ -547,7 +551,9 @@ def set_in_dict(dct: Dict, keys: Union[str, List[str]], value: Any):
     dct[keys[-1]] = value
 
 
-def deep_merge(dct: Dict, merge: Dict):
+def deep_merge(
+    dct: dict[Hashable, Any], merge: dict[Hashable, Any]
+) -> dict[Hashable, Any]:
     """
     Recursively merges `merge` into `dct`.
 
@@ -569,7 +575,7 @@ def deep_merge(dct: Dict, merge: Dict):
     return result
 
 
-def deep_merge_dicts(*dicts):
+def deep_merge_dicts(*dicts: dict[Hashable, Any]) -> dict[Hashable, Any]:
     """
     Recursively merges multiple dictionaries.
 

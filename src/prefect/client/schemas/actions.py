@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar, Union
 from uuid import UUID, uuid4
 
 import jsonschema
@@ -44,14 +44,14 @@ if TYPE_CHECKING:
 R = TypeVar("R")
 
 
-class StateCreate(ActionBaseModel):
+class StateCreate(ActionBaseModel, Generic[R]):
     """Data used by the Prefect REST API to create a new state."""
 
     type: StateType
     name: Optional[str] = Field(default=None)
     message: Optional[str] = Field(default=None, examples=["Run started"])
     state_details: StateDetails = Field(default_factory=StateDetails)
-    data: Union["BaseResult[Any]", "ResultRecordMetadata", Any] = Field(
+    data: Union["BaseResult[R]", "ResultRecordMetadata", Any] = Field(
         default=None,
     )
 
