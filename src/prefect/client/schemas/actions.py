@@ -393,10 +393,11 @@ class DeploymentFlowRunCreate(ActionBaseModel):
         default_factory=objects.FlowRunPolicy
     )
     tags: list[str] = Field(default_factory=list)
-    idempotency_key: Optional[str] = Field(default=None)
-    parent_task_run_id: Optional[UUID] = Field(default=None)
-    work_queue_name: Optional[str] = Field(default=None)
-    job_variables: Optional[dict[str, Any]] = Field(default=None)
+    idempotency_key: Optional[str] = Field(None)
+    parent_task_run_id: Optional[UUID] = Field(None)
+    work_queue_name: Optional[str] = Field(None)
+    job_variables: Optional[dict] = Field(None)
+    labels: KeyValueLabelsField = Field(default_factory=dict)
 
 
 class SavedSearchCreate(ActionBaseModel):
