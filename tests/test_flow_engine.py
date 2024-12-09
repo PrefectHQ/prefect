@@ -32,6 +32,7 @@ from prefect.exceptions import (
     Pause,
 )
 from prefect.flow_engine import (
+    AsyncFlowRunEngine,
     FlowRunEngine,
     load_flow_and_flow_run,
     run_flow,
@@ -57,24 +58,24 @@ async def foo():
 
 
 class TestFlowRunEngine:
-    async def test_basic_init(self):
+    def test_basic_init(self):
         engine = FlowRunEngine(flow=foo)
         assert isinstance(engine.flow, Flow)
         assert engine.flow.name == "foo"
         assert engine.parameters == {}
 
-    async def test_empty_init(self):
+    def test_empty_init(self):
         with pytest.raises(
             TypeError, match="missing 1 required positional argument: 'flow'"
         ):
             FlowRunEngine()
 
-    async def test_client_attr_raises_informative_error(self):
+    def test_client_attr_raises_informative_error(self):
         engine = FlowRunEngine(flow=foo)
         with pytest.raises(RuntimeError, match="not started"):
             engine.client
 
-    async def test_client_attr_returns_client_after_starting(self):
+    def test_client_attr_returns_client_after_starting(self):
         engine = FlowRunEngine(flow=foo)
         with engine.initialize_run():
             client = engine.client
@@ -83,21 +84,33 @@ class TestFlowRunEngine:
         with pytest.raises(RuntimeError, match="not started"):
             engine.client
 
-    async def test_load_flow_from_entrypoint(self, monkeypatch, tmp_path, flow_run):
-        flow_code = """
-        from prefect import flow
 
-        @flow
-        def dog():
-            return "woof!"
-        """
-        fpath = tmp_path / "f.py"
-        fpath.write_text(dedent(flow_code))
+class TestAsyncFlowRunEngine:
+    def test_basic_init(self):
+        engine = AsyncFlowRunEngine(flow=foo)
+        assert isinstance(engine.flow, Flow)
+        assert engine.flow.name == "foo"
+        assert engine.parameters == {}
 
-        monkeypatch.setenv("PREFECT__FLOW_ENTRYPOINT", f"{fpath}:dog")
-        loaded_flow_run, flow = load_flow_and_flow_run(flow_run.id)
-        assert loaded_flow_run.id == flow_run.id
-        assert flow.fn() == "woof!"
+    def test_empty_init(self):
+        with pytest.raises(
+            TypeError, match="missing 1 required positional argument: 'flow'"
+        ):
+            AsyncFlowRunEngine()
+
+    def test_client_attr_raises_informative_error(self):
+        engine = AsyncFlowRunEngine(flow=foo)
+        with pytest.raises(RuntimeError, match="not started"):
+            engine.client
+
+    async def test_client_attr_returns_client_after_starting(self):
+        engine = AsyncFlowRunEngine(flow=foo)
+        async with engine.initialize_run():
+            client = engine.client
+            assert isinstance(client, PrefectClient)
+
+        with pytest.raises(RuntimeError, match="not started"):
+            engine.client
 
 
 class TestStartFlowRunEngine:
@@ -117,6 +130,25 @@ class TestStartFlowRunEngine:
 
             # avoid error on teardown
             engine.begin_run()
+
+
+class TestStartAsyncFlowRunEngine:
+    async def test_start_updates_empirical_policy_on_provided_flow_run(
+        self, prefect_client: PrefectClient
+    ):
+        @flow(retries=3, retry_delay_seconds=10)
+        def flow_with_retries():
+            pass
+
+        flow_run = await prefect_client.create_flow_run(flow_with_retries)
+
+        engine = AsyncFlowRunEngine(flow=flow_with_retries, flow_run=flow_run)
+        async with engine.start():
+            assert engine.flow_run.empirical_policy.retries == 3
+            assert engine.flow_run.empirical_policy.retry_delay == 10
+
+            # avoid error on teardown
+            await engine.begin_run()
 
 
 class TestFlowRunsAsync:
@@ -609,7 +641,6 @@ class TestFlowRetries:
         assert await state.result() == "hello"
         assert flow_run_count == 2
         assert child_run_count == 2, "Child flow should be reset and run again"
-
         # Ensure that the tracking task run for the subflow is reset and tracked
         task_runs = sync_prefect_client.read_task_runs(
             flow_run_filter=FlowRunFilter(
@@ -1744,6 +1775,22 @@ class TestAsyncGenerators:
 
 
 class TestLoadFlowAndFlowRun:
+    def test_load_flow_from_entrypoint(self, monkeypatch, tmp_path, flow_run):
+        flow_code = """
+        from prefect import flow
+
+        @flow
+        def dog():
+            return "woof!"
+        """
+        fpath = tmp_path / "f.py"
+        fpath.write_text(dedent(flow_code))
+
+        monkeypatch.setenv("PREFECT__FLOW_ENTRYPOINT", f"{fpath}:dog")
+        loaded_flow_run, flow = load_flow_and_flow_run(flow_run.id)
+        assert loaded_flow_run.id == flow_run.id
+        assert flow.fn() == "woof!"
+
     async def test_load_flow_from_script_with_module_level_sync_compatible_call(
         self, prefect_client: PrefectClient, tmp_path
     ):
@@ -1907,6 +1954,7 @@ class TestFlowRunInstrumentation:
         assert len(spans) == 1
         span = spans[0]
         assert span is not None
+        instrumentation.assert_span_instrumented_for(span, prefect)
 
         instrumentation.assert_has_attributes(
             span,
@@ -2046,3 +2094,84 @@ class TestFlowRunInstrumentation:
                 "exception.escaped": "False",
             },
         )
+
+    async def test_flow_run_propagates_otel_traceparent_to_subflow(
+        self, instrumentation: InstrumentationTester
+    ):
+        """Test that OTEL traceparent gets propagated from parent flow to child flow"""
+
+        @flow
+        def child_flow():
+            return "hello from child"
+
+        @flow
+        def parent_flow():
+            flow_run_ctx = FlowRunContext.get()
+            assert flow_run_ctx
+            assert flow_run_ctx.flow_run
+            flow_run = flow_run_ctx.flow_run
+            mock_traceparent = "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
+            flow_run.labels["__OTEL_TRACEPARENT"] = mock_traceparent
+
+            return child_flow()
+
+        parent_flow()
+
+        spans = instrumentation.get_finished_spans()
+
+        parent_span = next(
+            span
+            for span in spans
+            if span.attributes
+            and span.attributes.get("prefect.flow.name") == "parent-flow"
+        )
+        child_span = next(
+            span
+            for span in spans
+            if span.attributes
+            and span.attributes.get("prefect.flow.name") == "child-flow"
+        )
+
+        assert parent_span is not None
+        assert child_span is not None
+        assert child_span.context and parent_span.context
+        assert child_span.context.trace_id == parent_span.context.trace_id
+
+    async def test_flow_run_creates_and_stores_otel_traceparent(
+        self, instrumentation: InstrumentationTester, sync_prefect_client
+    ):
+        """Test that when no parent traceparent exists, the flow run stores its own span's traceparent"""
+
+        @flow
+        def child_flow():
+            return "hello from child"
+
+        @flow
+        def parent_flow():
+            return child_flow()
+
+        parent_flow()
+
+        spans = instrumentation.get_finished_spans()
+
+        next(
+            span
+            for span in spans
+            if span.attributes
+            and span.attributes.get("prefect.flow.name") == "parent-flow"
+        )
+        child_span = next(
+            span
+            for span in spans
+            if span.attributes
+            and span.attributes.get("prefect.flow.name") == "child-flow"
+        )
+
+        child_flow_run_id = child_span.attributes.get("prefect.run.id")
+        assert child_flow_run_id
+        child_flow_run = sync_prefect_client.read_flow_run(UUID(child_flow_run_id))
+
+        assert "__OTEL_TRACEPARENT" in child_flow_run.labels
+        assert child_flow_run.labels["__OTEL_TRACEPARENT"].startswith("00-")
+        trace_id_hex = child_flow_run.labels["__OTEL_TRACEPARENT"].split("-")[1]
+        assert int(trace_id_hex, 16) == child_span.context.trace_id

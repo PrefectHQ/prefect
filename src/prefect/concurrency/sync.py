@@ -9,6 +9,9 @@ from typing import (
 )
 
 import pendulum
+from typing_extensions import Literal
+
+from prefect.utilities.asyncutils import run_coro_as_sync
 
 try:
     from pendulum import Interval
@@ -19,8 +22,8 @@ except ImportError:
 from prefect.client.schemas.responses import MinimalConcurrencyLimitResponse
 
 from .asyncio import (
-    _acquire_concurrency_slots,
-    _release_concurrency_slots,
+    _aacquire_concurrency_slots,
+    _arelease_concurrency_slots,
 )
 from .events import (
     _emit_concurrency_acquisition_events,
@@ -28,6 +31,36 @@ from .events import (
 )
 
 T = TypeVar("T")
+
+
+def _release_concurrency_slots(
+    names: List[str], slots: int, occupancy_seconds: float
+) -> List[MinimalConcurrencyLimitResponse]:
+    result = run_coro_as_sync(
+        _arelease_concurrency_slots(names, slots, occupancy_seconds)
+    )
+    if result is None:
+        raise RuntimeError("Failed to release concurrency slots")
+    return result
+
+
+def _acquire_concurrency_slots(
+    names: List[str],
+    slots: int,
+    mode: Literal["concurrency", "rate_limit"] = "concurrency",
+    timeout_seconds: Optional[float] = None,
+    create_if_missing: Optional[bool] = None,
+    max_retries: Optional[int] = None,
+    strict: bool = False,
+) -> List[MinimalConcurrencyLimitResponse]:
+    result = run_coro_as_sync(
+        _aacquire_concurrency_slots(
+            names, slots, mode, timeout_seconds, create_if_missing, max_retries, strict
+        )
+    )
+    if result is None:
+        raise RuntimeError("Failed to acquire concurrency slots")
+    return result
 
 
 @contextmanager
@@ -81,7 +114,6 @@ def concurrency(
         create_if_missing=create_if_missing,
         strict=strict,
         max_retries=max_retries,
-        _sync=True,
     )
     acquisition_time = pendulum.now("UTC")
     emitted_events = _emit_concurrency_acquisition_events(limits, occupy)
@@ -94,7 +126,6 @@ def concurrency(
             names,
             occupy,
             occupancy_period.total_seconds(),
-            _sync=True,
         )
         _emit_concurrency_release_events(limits, occupy, emitted_events)
 
@@ -134,6 +165,5 @@ def rate_limit(
         timeout_seconds=timeout_seconds,
         create_if_missing=create_if_missing,
         strict=strict,
-        _sync=True,
     )
     _emit_concurrency_acquisition_events(limits, occupy)

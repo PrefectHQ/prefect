@@ -28,7 +28,7 @@ async def assert_flow_run_crashed(flow_run: FlowRun, expected_message: str):
     """
     Utility for asserting that flow runs are crashed.
     """
-    assert flow_run.state.is_crashed()
+    assert flow_run.state.is_crashed(), flow_run.state
     assert expected_message in flow_run.state.message
     with pytest.raises(prefect.exceptions.CrashedRun, match=expected_message):
         await flow_run.state.result()

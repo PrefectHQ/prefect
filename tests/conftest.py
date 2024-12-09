@@ -583,3 +583,13 @@ def leaves_no_extraneous_files():
             "One of the tests in this module left new files in the "
             f"working directory: {new_files}"
         )
+
+
+@pytest.fixture
+def respx_mock():
+    """
+    Temporary override of respx to mock httpx instead of httpcore until respx supports
+    httpx>=0.28.0
+    """
+    with respx.mock(using="httpx") as xmock:
+        yield xmock

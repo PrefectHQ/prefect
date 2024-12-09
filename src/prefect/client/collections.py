@@ -13,12 +13,12 @@ class CollectionsMetadataClient(Protocol):
     async def __aenter__(self) -> "CollectionsMetadataClient":
         ...
 
-    async def __aexit__(self, *exc_info) -> Any:
+    async def __aexit__(self, *exc_info: Any) -> Any:
         ...
 
 
 def get_collections_metadata_client(
-    httpx_settings: Optional[Dict] = None,
+    httpx_settings: Optional[Dict[str, Any]] = None,
 ) -> "CollectionsMetadataClient":
     """
     Creates a client that can be used to fetch metadata for
