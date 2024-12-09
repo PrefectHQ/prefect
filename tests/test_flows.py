@@ -1534,9 +1534,10 @@ class TestFlowTimeouts:
 
         @flow(timeout_seconds=0.1)
         def my_subflow():
-            time.sleep(0.5)
+            start = time.monotonic()
+            while time.monotonic() - start < 0.5:
+                pass
             timeout_noticing_task()
-            time.sleep(10)
             nonlocal completed
             completed = True
 
