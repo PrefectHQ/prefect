@@ -20,16 +20,16 @@ import { Route as EventsImport } from './routes/events'
 import { Route as DeploymentsImport } from './routes/deployments'
 import { Route as DashboardImport } from './routes/dashboard'
 import { Route as ConcurrencyLimitsImport } from './routes/concurrency-limits'
-import { Route as BlocksImport } from './routes/blocks'
 import { Route as AutomationsImport } from './routes/automations'
 import { Route as IndexImport } from './routes/index'
 import { Route as FlowsIndexImport } from './routes/flows/index'
-import { Route as BlocksCatalogImport } from './routes/blocks.catalog'
+import { Route as BlocksIndexImport } from './routes/blocks/index'
+import { Route as BlocksCatalogIndexImport } from './routes/blocks/catalog/index'
 import { Route as FlowsFlowIdImport } from './routes/flows/flow.$id'
-import { Route as BlocksCatalogBlockTypeSlugImport } from './routes/blocks.catalog.$blockTypeSlug'
-import { Route as BlocksBlockBlockDocumentIdImport } from './routes/blocks.block.$blockDocumentId'
-import { Route as BlocksCatalogBlockTypeSlugCreateImport } from './routes/blocks.catalog.$blockTypeSlug.create'
-import { Route as BlocksBlockBlockDocumentIdEditImport } from './routes/blocks.block.$blockDocumentId.edit'
+import { Route as BlocksCatalogBlockTypeSlugImport } from './routes/blocks/catalog/$blockTypeSlug'
+import { Route as BlocksBlockBlockDocumentIdImport } from './routes/blocks/block/$blockDocumentId'
+import { Route as BlocksCatalogBlockTypeSlugCreateImport } from './routes/blocks/catalog/$blockTypeSlug.create'
+import { Route as BlocksBlockBlockDocumentIdEditImport } from './routes/blocks/block/$blockDocumentId.edit'
 
 // Create/Update Routes
 
@@ -87,12 +87,6 @@ const ConcurrencyLimitsRoute = ConcurrencyLimitsImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
-const BlocksRoute = BlocksImport.update({
-  id: '/blocks',
-  path: '/blocks',
-  getParentRoute: () => rootRoute,
-} as any)
-
 const AutomationsRoute = AutomationsImport.update({
   id: '/automations',
   path: '/automations',
@@ -111,10 +105,16 @@ const FlowsIndexRoute = FlowsIndexImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
-const BlocksCatalogRoute = BlocksCatalogImport.update({
-  id: '/catalog',
-  path: '/catalog',
-  getParentRoute: () => BlocksRoute,
+const BlocksIndexRoute = BlocksIndexImport.update({
+  id: '/blocks/',
+  path: '/blocks/',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const BlocksCatalogIndexRoute = BlocksCatalogIndexImport.update({
+  id: '/blocks/catalog/',
+  path: '/blocks/catalog/',
+  getParentRoute: () => rootRoute,
 } as any)
 
 const FlowsFlowIdRoute = FlowsFlowIdImport.update({
@@ -125,17 +125,17 @@ const FlowsFlowIdRoute = FlowsFlowIdImport.update({
 
 const BlocksCatalogBlockTypeSlugRoute = BlocksCatalogBlockTypeSlugImport.update(
   {
-    id: '/$blockTypeSlug',
-    path: '/$blockTypeSlug',
-    getParentRoute: () => BlocksCatalogRoute,
+    id: '/blocks/catalog/$blockTypeSlug',
+    path: '/blocks/catalog/$blockTypeSlug',
+    getParentRoute: () => rootRoute,
   } as any,
 )
 
 const BlocksBlockBlockDocumentIdRoute = BlocksBlockBlockDocumentIdImport.update(
   {
-    id: '/block/$blockDocumentId',
-    path: '/block/$blockDocumentId',
-    getParentRoute: () => BlocksRoute,
+    id: '/blocks/block/$blockDocumentId',
+    path: '/blocks/block/$blockDocumentId',
+    getParentRoute: () => rootRoute,
   } as any,
 )
 
@@ -169,13 +169,6 @@ declare module '@tanstack/react-router' {
       path: '/automations'
       fullPath: '/automations'
       preLoaderRoute: typeof AutomationsImport
-      parentRoute: typeof rootRoute
-    }
-    '/blocks': {
-      id: '/blocks'
-      path: '/blocks'
-      fullPath: '/blocks'
-      preLoaderRoute: typeof BlocksImport
       parentRoute: typeof rootRoute
     }
     '/concurrency-limits': {
@@ -241,12 +234,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkPoolsImport
       parentRoute: typeof rootRoute
     }
-    '/blocks/catalog': {
-      id: '/blocks/catalog'
-      path: '/catalog'
-      fullPath: '/blocks/catalog'
-      preLoaderRoute: typeof BlocksCatalogImport
-      parentRoute: typeof BlocksImport
+    '/blocks/': {
+      id: '/blocks/'
+      path: '/blocks'
+      fullPath: '/blocks'
+      preLoaderRoute: typeof BlocksIndexImport
+      parentRoute: typeof rootRoute
     }
     '/flows/': {
       id: '/flows/'
@@ -257,23 +250,30 @@ declare module '@tanstack/react-router' {
     }
     '/blocks/block/$blockDocumentId': {
       id: '/blocks/block/$blockDocumentId'
-      path: '/block/$blockDocumentId'
+      path: '/blocks/block/$blockDocumentId'
       fullPath: '/blocks/block/$blockDocumentId'
       preLoaderRoute: typeof BlocksBlockBlockDocumentIdImport
-      parentRoute: typeof BlocksImport
+      parentRoute: typeof rootRoute
     }
     '/blocks/catalog/$blockTypeSlug': {
       id: '/blocks/catalog/$blockTypeSlug'
-      path: '/$blockTypeSlug'
+      path: '/blocks/catalog/$blockTypeSlug'
       fullPath: '/blocks/catalog/$blockTypeSlug'
       preLoaderRoute: typeof BlocksCatalogBlockTypeSlugImport
-      parentRoute: typeof BlocksCatalogImport
+      parentRoute: typeof rootRoute
     }
     '/flows/flow/$id': {
       id: '/flows/flow/$id'
       path: '/flows/flow/$id'
       fullPath: '/flows/flow/$id'
       preLoaderRoute: typeof FlowsFlowIdImport
+      parentRoute: typeof rootRoute
+    }
+    '/blocks/catalog/': {
+      id: '/blocks/catalog/'
+      path: '/blocks/catalog'
+      fullPath: '/blocks/catalog'
+      preLoaderRoute: typeof BlocksCatalogIndexImport
       parentRoute: typeof rootRoute
     }
     '/blocks/block/$blockDocumentId/edit': {
@@ -295,6 +295,20 @@ declare module '@tanstack/react-router' {
 
 // Create and export the route tree
 
+interface BlocksBlockBlockDocumentIdRouteChildren {
+  BlocksBlockBlockDocumentIdEditRoute: typeof BlocksBlockBlockDocumentIdEditRoute
+}
+
+const BlocksBlockBlockDocumentIdRouteChildren: BlocksBlockBlockDocumentIdRouteChildren =
+  {
+    BlocksBlockBlockDocumentIdEditRoute: BlocksBlockBlockDocumentIdEditRoute,
+  }
+
+const BlocksBlockBlockDocumentIdRouteWithChildren =
+  BlocksBlockBlockDocumentIdRoute._addFileChildren(
+    BlocksBlockBlockDocumentIdRouteChildren,
+  )
+
 interface BlocksCatalogBlockTypeSlugRouteChildren {
   BlocksCatalogBlockTypeSlugCreateRoute: typeof BlocksCatalogBlockTypeSlugCreateRoute
 }
@@ -310,49 +324,9 @@ const BlocksCatalogBlockTypeSlugRouteWithChildren =
     BlocksCatalogBlockTypeSlugRouteChildren,
   )
 
-interface BlocksCatalogRouteChildren {
-  BlocksCatalogBlockTypeSlugRoute: typeof BlocksCatalogBlockTypeSlugRouteWithChildren
-}
-
-const BlocksCatalogRouteChildren: BlocksCatalogRouteChildren = {
-  BlocksCatalogBlockTypeSlugRoute: BlocksCatalogBlockTypeSlugRouteWithChildren,
-}
-
-const BlocksCatalogRouteWithChildren = BlocksCatalogRoute._addFileChildren(
-  BlocksCatalogRouteChildren,
-)
-
-interface BlocksBlockBlockDocumentIdRouteChildren {
-  BlocksBlockBlockDocumentIdEditRoute: typeof BlocksBlockBlockDocumentIdEditRoute
-}
-
-const BlocksBlockBlockDocumentIdRouteChildren: BlocksBlockBlockDocumentIdRouteChildren =
-  {
-    BlocksBlockBlockDocumentIdEditRoute: BlocksBlockBlockDocumentIdEditRoute,
-  }
-
-const BlocksBlockBlockDocumentIdRouteWithChildren =
-  BlocksBlockBlockDocumentIdRoute._addFileChildren(
-    BlocksBlockBlockDocumentIdRouteChildren,
-  )
-
-interface BlocksRouteChildren {
-  BlocksCatalogRoute: typeof BlocksCatalogRouteWithChildren
-  BlocksBlockBlockDocumentIdRoute: typeof BlocksBlockBlockDocumentIdRouteWithChildren
-}
-
-const BlocksRouteChildren: BlocksRouteChildren = {
-  BlocksCatalogRoute: BlocksCatalogRouteWithChildren,
-  BlocksBlockBlockDocumentIdRoute: BlocksBlockBlockDocumentIdRouteWithChildren,
-}
-
-const BlocksRouteWithChildren =
-  BlocksRoute._addFileChildren(BlocksRouteChildren)
-
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/automations': typeof AutomationsRoute
-  '/blocks': typeof BlocksRouteWithChildren
   '/concurrency-limits': typeof ConcurrencyLimitsRoute
   '/dashboard': typeof DashboardRoute
   '/deployments': typeof DeploymentsRoute
@@ -362,11 +336,12 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/variables': typeof VariablesRoute
   '/work-pools': typeof WorkPoolsRoute
-  '/blocks/catalog': typeof BlocksCatalogRouteWithChildren
+  '/blocks': typeof BlocksIndexRoute
   '/flows': typeof FlowsIndexRoute
   '/blocks/block/$blockDocumentId': typeof BlocksBlockBlockDocumentIdRouteWithChildren
   '/blocks/catalog/$blockTypeSlug': typeof BlocksCatalogBlockTypeSlugRouteWithChildren
   '/flows/flow/$id': typeof FlowsFlowIdRoute
+  '/blocks/catalog': typeof BlocksCatalogIndexRoute
   '/blocks/block/$blockDocumentId/edit': typeof BlocksBlockBlockDocumentIdEditRoute
   '/blocks/catalog/$blockTypeSlug/create': typeof BlocksCatalogBlockTypeSlugCreateRoute
 }
@@ -374,7 +349,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/automations': typeof AutomationsRoute
-  '/blocks': typeof BlocksRouteWithChildren
   '/concurrency-limits': typeof ConcurrencyLimitsRoute
   '/dashboard': typeof DashboardRoute
   '/deployments': typeof DeploymentsRoute
@@ -384,11 +358,12 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/variables': typeof VariablesRoute
   '/work-pools': typeof WorkPoolsRoute
-  '/blocks/catalog': typeof BlocksCatalogRouteWithChildren
+  '/blocks': typeof BlocksIndexRoute
   '/flows': typeof FlowsIndexRoute
   '/blocks/block/$blockDocumentId': typeof BlocksBlockBlockDocumentIdRouteWithChildren
   '/blocks/catalog/$blockTypeSlug': typeof BlocksCatalogBlockTypeSlugRouteWithChildren
   '/flows/flow/$id': typeof FlowsFlowIdRoute
+  '/blocks/catalog': typeof BlocksCatalogIndexRoute
   '/blocks/block/$blockDocumentId/edit': typeof BlocksBlockBlockDocumentIdEditRoute
   '/blocks/catalog/$blockTypeSlug/create': typeof BlocksCatalogBlockTypeSlugCreateRoute
 }
@@ -397,7 +372,6 @@ export interface FileRoutesById {
   __root__: typeof rootRoute
   '/': typeof IndexRoute
   '/automations': typeof AutomationsRoute
-  '/blocks': typeof BlocksRouteWithChildren
   '/concurrency-limits': typeof ConcurrencyLimitsRoute
   '/dashboard': typeof DashboardRoute
   '/deployments': typeof DeploymentsRoute
@@ -407,11 +381,12 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/variables': typeof VariablesRoute
   '/work-pools': typeof WorkPoolsRoute
-  '/blocks/catalog': typeof BlocksCatalogRouteWithChildren
+  '/blocks/': typeof BlocksIndexRoute
   '/flows/': typeof FlowsIndexRoute
   '/blocks/block/$blockDocumentId': typeof BlocksBlockBlockDocumentIdRouteWithChildren
   '/blocks/catalog/$blockTypeSlug': typeof BlocksCatalogBlockTypeSlugRouteWithChildren
   '/flows/flow/$id': typeof FlowsFlowIdRoute
+  '/blocks/catalog/': typeof BlocksCatalogIndexRoute
   '/blocks/block/$blockDocumentId/edit': typeof BlocksBlockBlockDocumentIdEditRoute
   '/blocks/catalog/$blockTypeSlug/create': typeof BlocksCatalogBlockTypeSlugCreateRoute
 }
@@ -421,7 +396,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/automations'
-    | '/blocks'
     | '/concurrency-limits'
     | '/dashboard'
     | '/deployments'
@@ -431,18 +405,18 @@ export interface FileRouteTypes {
     | '/settings'
     | '/variables'
     | '/work-pools'
-    | '/blocks/catalog'
+    | '/blocks'
     | '/flows'
     | '/blocks/block/$blockDocumentId'
     | '/blocks/catalog/$blockTypeSlug'
     | '/flows/flow/$id'
+    | '/blocks/catalog'
     | '/blocks/block/$blockDocumentId/edit'
     | '/blocks/catalog/$blockTypeSlug/create'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/automations'
-    | '/blocks'
     | '/concurrency-limits'
     | '/dashboard'
     | '/deployments'
@@ -452,18 +426,18 @@ export interface FileRouteTypes {
     | '/settings'
     | '/variables'
     | '/work-pools'
-    | '/blocks/catalog'
+    | '/blocks'
     | '/flows'
     | '/blocks/block/$blockDocumentId'
     | '/blocks/catalog/$blockTypeSlug'
     | '/flows/flow/$id'
+    | '/blocks/catalog'
     | '/blocks/block/$blockDocumentId/edit'
     | '/blocks/catalog/$blockTypeSlug/create'
   id:
     | '__root__'
     | '/'
     | '/automations'
-    | '/blocks'
     | '/concurrency-limits'
     | '/dashboard'
     | '/deployments'
@@ -473,11 +447,12 @@ export interface FileRouteTypes {
     | '/settings'
     | '/variables'
     | '/work-pools'
-    | '/blocks/catalog'
+    | '/blocks/'
     | '/flows/'
     | '/blocks/block/$blockDocumentId'
     | '/blocks/catalog/$blockTypeSlug'
     | '/flows/flow/$id'
+    | '/blocks/catalog/'
     | '/blocks/block/$blockDocumentId/edit'
     | '/blocks/catalog/$blockTypeSlug/create'
   fileRoutesById: FileRoutesById
@@ -486,7 +461,6 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AutomationsRoute: typeof AutomationsRoute
-  BlocksRoute: typeof BlocksRouteWithChildren
   ConcurrencyLimitsRoute: typeof ConcurrencyLimitsRoute
   DashboardRoute: typeof DashboardRoute
   DeploymentsRoute: typeof DeploymentsRoute
@@ -496,14 +470,17 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   VariablesRoute: typeof VariablesRoute
   WorkPoolsRoute: typeof WorkPoolsRoute
+  BlocksIndexRoute: typeof BlocksIndexRoute
   FlowsIndexRoute: typeof FlowsIndexRoute
+  BlocksBlockBlockDocumentIdRoute: typeof BlocksBlockBlockDocumentIdRouteWithChildren
+  BlocksCatalogBlockTypeSlugRoute: typeof BlocksCatalogBlockTypeSlugRouteWithChildren
   FlowsFlowIdRoute: typeof FlowsFlowIdRoute
+  BlocksCatalogIndexRoute: typeof BlocksCatalogIndexRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AutomationsRoute: AutomationsRoute,
-  BlocksRoute: BlocksRouteWithChildren,
   ConcurrencyLimitsRoute: ConcurrencyLimitsRoute,
   DashboardRoute: DashboardRoute,
   DeploymentsRoute: DeploymentsRoute,
@@ -513,8 +490,12 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   VariablesRoute: VariablesRoute,
   WorkPoolsRoute: WorkPoolsRoute,
+  BlocksIndexRoute: BlocksIndexRoute,
   FlowsIndexRoute: FlowsIndexRoute,
+  BlocksBlockBlockDocumentIdRoute: BlocksBlockBlockDocumentIdRouteWithChildren,
+  BlocksCatalogBlockTypeSlugRoute: BlocksCatalogBlockTypeSlugRouteWithChildren,
   FlowsFlowIdRoute: FlowsFlowIdRoute,
+  BlocksCatalogIndexRoute: BlocksCatalogIndexRoute,
 }
 
 export const routeTree = rootRoute
@@ -529,7 +510,6 @@ export const routeTree = rootRoute
       "children": [
         "/",
         "/automations",
-        "/blocks",
         "/concurrency-limits",
         "/dashboard",
         "/deployments",
@@ -539,8 +519,12 @@ export const routeTree = rootRoute
         "/settings",
         "/variables",
         "/work-pools",
+        "/blocks/",
         "/flows/",
-        "/flows/flow/$id"
+        "/blocks/block/$blockDocumentId",
+        "/blocks/catalog/$blockTypeSlug",
+        "/flows/flow/$id",
+        "/blocks/catalog/"
       ]
     },
     "/": {
@@ -548,13 +532,6 @@ export const routeTree = rootRoute
     },
     "/automations": {
       "filePath": "automations.tsx"
-    },
-    "/blocks": {
-      "filePath": "blocks.tsx",
-      "children": [
-        "/blocks/catalog",
-        "/blocks/block/$blockDocumentId"
-      ]
     },
     "/concurrency-limits": {
       "filePath": "concurrency-limits.tsx"
@@ -583,26 +560,20 @@ export const routeTree = rootRoute
     "/work-pools": {
       "filePath": "work-pools.tsx"
     },
-    "/blocks/catalog": {
-      "filePath": "blocks.catalog.tsx",
-      "parent": "/blocks",
-      "children": [
-        "/blocks/catalog/$blockTypeSlug"
-      ]
+    "/blocks/": {
+      "filePath": "blocks/index.tsx"
     },
     "/flows/": {
       "filePath": "flows/index.tsx"
     },
     "/blocks/block/$blockDocumentId": {
-      "filePath": "blocks.block.$blockDocumentId.tsx",
-      "parent": "/blocks",
+      "filePath": "blocks/block/$blockDocumentId.tsx",
       "children": [
         "/blocks/block/$blockDocumentId/edit"
       ]
     },
     "/blocks/catalog/$blockTypeSlug": {
-      "filePath": "blocks.catalog.$blockTypeSlug.tsx",
-      "parent": "/blocks/catalog",
+      "filePath": "blocks/catalog/$blockTypeSlug.tsx",
       "children": [
         "/blocks/catalog/$blockTypeSlug/create"
       ]
@@ -610,12 +581,15 @@ export const routeTree = rootRoute
     "/flows/flow/$id": {
       "filePath": "flows/flow.$id.tsx"
     },
+    "/blocks/catalog/": {
+      "filePath": "blocks/catalog/index.tsx"
+    },
     "/blocks/block/$blockDocumentId/edit": {
-      "filePath": "blocks.block.$blockDocumentId.edit.tsx",
+      "filePath": "blocks/block/$blockDocumentId.edit.tsx",
       "parent": "/blocks/block/$blockDocumentId"
     },
     "/blocks/catalog/$blockTypeSlug/create": {
-      "filePath": "blocks.catalog.$blockTypeSlug.create.tsx",
+      "filePath": "blocks/catalog/$blockTypeSlug.create.tsx",
       "parent": "/blocks/catalog/$blockTypeSlug"
     }
   }
