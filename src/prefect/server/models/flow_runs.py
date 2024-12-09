@@ -47,6 +47,10 @@ from prefect.settings import (
     PREFECT_API_MAX_FLOW_RUN_GRAPH_ARTIFACTS,
     PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES,
 )
+from prefect.types import KeyValueLabels
+
+logger = get_logger("flow_runs")
+
 
 logger = get_logger("flow_runs")
 
@@ -642,7 +646,7 @@ async def with_system_labels_for_flow_run(
 async def update_flow_run_labels(
     session: AsyncSession,
     flow_run_id: UUID,
-    labels: schemas.core.KeyValueLabels,
+    labels: KeyValueLabels,
 ) -> bool:
     """
     Update flow run labels by patching existing labels with new values.
@@ -654,9 +658,9 @@ async def update_flow_run_labels(
         bool: whether the update was successful
     """
     # First read the existing flow run to get current labels
-    flow_run = await read_flow_run(session, flow_run_id)
+    flow_run: Optional[orm_models.FlowRun] = await read_flow_run(session, flow_run_id)
     if not flow_run:
-        return False
+        raise ObjectNotFoundError(f"Flow run with id {flow_run_id} not found")
 
     # Merge existing labels with new labels
     current_labels = flow_run.labels or {}

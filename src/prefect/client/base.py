@@ -4,22 +4,11 @@ import threading
 import time
 import uuid
 from collections import defaultdict
+from collections.abc import AsyncGenerator, Awaitable, MutableMapping
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from typing import (
-    Any,
-    AsyncGenerator,
-    Awaitable,
-    Callable,
-    Dict,
-    MutableMapping,
-    Optional,
-    Protocol,
-    Set,
-    Tuple,
-    Type,
-    runtime_checkable,
-)
+from logging import Logger
+from typing import TYPE_CHECKING, Any, Callable, Optional, Protocol, runtime_checkable
 
 import anyio
 import httpx
@@ -46,14 +35,14 @@ from prefect.utilities.math import bounded_poisson_interval, clamped_poisson_int
 
 # Datastores for lifespan management, keys should be a tuple of thread and app
 # identities.
-APP_LIFESPANS: Dict[Tuple[int, int], LifespanManager] = {}
-APP_LIFESPANS_REF_COUNTS: Dict[Tuple[int, int], int] = {}
+APP_LIFESPANS: dict[tuple[int, int], LifespanManager] = {}
+APP_LIFESPANS_REF_COUNTS: dict[tuple[int, int], int] = {}
 # Blocks concurrent access to the above dicts per thread. The index should be the thread
 # identity.
-APP_LIFESPANS_LOCKS: Dict[int, anyio.Lock] = defaultdict(anyio.Lock)
+APP_LIFESPANS_LOCKS: dict[int, anyio.Lock] = defaultdict(anyio.Lock)
 
 
-logger = get_logger("client")
+logger: Logger = get_logger("client")
 
 
 # Define ASGI application types for type checking
@@ -174,9 +163,9 @@ class PrefectResponse(httpx.Response):
             raise PrefectHTTPStatusError.from_httpx_error(exc) from exc.__cause__
 
     @classmethod
-    def from_httpx_response(cls: Type[Self], response: httpx.Response) -> Response:
+    def from_httpx_response(cls: type[Self], response: httpx.Response) -> Response:
         """
-        Create a `PrefectReponse` from an `httpx.Response`.
+        Create a `PrefectResponse` from an `httpx.Response`.
 
         By changing the `__class__` attribute of the Response, we change the method
         resolution order to look for methods defined in PrefectResponse, while leaving
@@ -222,10 +211,10 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
         self,
         request: Request,
         send: Callable[[Request], Awaitable[Response]],
-        send_args: Tuple[Any, ...],
-        send_kwargs: Dict[str, Any],
-        retry_codes: Set[int] = set(),
-        retry_exceptions: Tuple[Type[Exception], ...] = tuple(),
+        send_args: tuple[Any, ...],
+        send_kwargs: dict[str, Any],
+        retry_codes: set[int] = set(),
+        retry_exceptions: tuple[type[Exception], ...] = tuple(),
     ):
         """
         Send a request and retry it if it fails.
@@ -239,6 +228,11 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
         """
         try_count = 0
         response = None
+
+        if TYPE_CHECKING:
+            # older httpx versions type method as str | bytes | Unknown
+            # but in reality it is always a string.
+            assert isinstance(request.method, str)  # type: ignore
 
         is_change_request = request.method.lower() in {"post", "put", "patch", "delete"}
 
@@ -436,10 +430,10 @@ class PrefectHttpxSyncClient(httpx.Client):
         self,
         request: Request,
         send: Callable[[Request], Response],
-        send_args: Tuple[Any, ...],
-        send_kwargs: Dict[str, Any],
-        retry_codes: Set[int] = set(),
-        retry_exceptions: Tuple[Type[Exception], ...] = tuple(),
+        send_args: tuple[Any, ...],
+        send_kwargs: dict[str, Any],
+        retry_codes: set[int] = set(),
+        retry_exceptions: tuple[type[Exception], ...] = tuple(),
     ):
         """
         Send a request and retry it if it fails.
@@ -453,6 +447,11 @@ class PrefectHttpxSyncClient(httpx.Client):
         """
         try_count = 0
         response = None
+
+        if TYPE_CHECKING:
+            # older httpx versions type method as str | bytes | Unknown
+            # but in reality it is always a string.
+            assert isinstance(request.method, str)  # type: ignore
 
         is_change_request = request.method.lower() in {"post", "put", "patch", "delete"}
 

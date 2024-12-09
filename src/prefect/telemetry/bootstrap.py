@@ -23,10 +23,23 @@ def setup_telemetry() -> (
     if server_type != ServerType.CLOUD:
         return None, None, None
 
-    assert settings.api.key
+    if not settings.api.key:
+        raise ValueError(
+            "A Prefect Cloud API key is required to enable telemetry. Please set "
+            "the `PREFECT_API_KEY` environment variable or authenticate with "
+            "Prefect Cloud via the `prefect cloud login` command."
+        )
+
     assert settings.api.url
 
     # This import is here to defer importing of the `opentelemetry` packages.
-    from .instrumentation import setup_exporters
+    try:
+        from .instrumentation import setup_exporters
+    except ImportError as exc:
+        raise ValueError(
+            "Unable to import OpenTelemetry instrumentation libraries. Please "
+            "ensure you have installed the `otel` extra when installing Prefect: "
+            "`pip install 'prefect[otel]'`"
+        ) from exc
 
     return setup_exporters(settings.api.url, settings.api.key.get_secret_value())

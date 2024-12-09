@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 
 from opentelemetry.propagators.textmap import Setter
 from opentelemetry.trace import (
+    Span,
     Status,
     StatusCode,
     get_tracer,
@@ -19,16 +20,24 @@ if TYPE_CHECKING:
 
 
 class OTELSetter(Setter[KeyValueLabels]):
+    """
+    A setter for OpenTelemetry that supports Prefect's custom labels.
+    """
+
     def set(self, carrier: KeyValueLabels, key: str, value: str) -> None:
         carrier[key] = value
 
 
 @dataclass
 class RunTelemetry:
+    """
+    A class for managing the telemetry of runs.
+    """
+
     _tracer: "Tracer" = field(
         default_factory=lambda: get_tracer("prefect", prefect.__version__)
     )
-    _span = None
+    span: Optional[Span] = None
 
     def start_span(
         self,
@@ -37,6 +46,9 @@ class RunTelemetry:
         parameters: Optional[Dict[str, Any]] = None,
         parent_labels: Optional[Dict[str, Any]] = None,
     ):
+        """
+        Start a span for a task run.
+        """
         if parameters is None:
             parameters = {}
         if parent_labels is None:
@@ -47,7 +59,7 @@ class RunTelemetry:
         }
         run_type = "task" if isinstance(run, TaskRun) else "flow"
 
-        self._span = self._tracer.start_span(
+        self.span = self._tracer.start_span(
             name=name or run.name,
             attributes={
                 f"prefect.{run_type}.name": name or run.name,
@@ -58,27 +70,39 @@ class RunTelemetry:
                 **parent_labels,
             },
         )
-        return self._span
+        return self.span
 
-    def end_span_on_success(self, terminal_message: Optional[str] = None):
-        if self._span:
-            self._span.set_status(Status(StatusCode.OK), terminal_message)
-            self._span.end(time.time_ns())
-            self._span = None
+    def end_span_on_success(self, terminal_message: str) -> None:
+        """
+        End a span for a task run on success.
+        """
+        if self.span:
+            self.span.set_status(Status(StatusCode.OK), terminal_message)
+            self.span.end(time.time_ns())
+            self.span = None
 
-    def end_span_on_failure(self, terminal_message: Optional[str] = None):
-        if self._span:
-            self._span.set_status(Status(StatusCode.ERROR, terminal_message))
-            self._span.end(time.time_ns())
-            self._span = None
+    def end_span_on_failure(self, terminal_message: str) -> None:
+        """
+        End a span for a task run on failure.
+        """
+        if self.span:
+            self.span.set_status(Status(StatusCode.ERROR, terminal_message))
+            self.span.end(time.time_ns())
+            self.span = None
 
-    def record_exception(self, exc: BaseException):
-        if self._span:
-            self._span.record_exception(exc)
+    def record_exception(self, exc: BaseException) -> None:
+        """
+        Record an exception on a span.
+        """
+        if self.span:
+            self.span.record_exception(exc)
 
-    def update_state(self, new_state: State):
-        if self._span:
-            self._span.add_event(
+    def update_state(self, new_state: State) -> None:
+        """
+        Update a span with the state of a task run.
+        """
+        if self.span:
+            self.span.add_event(
                 new_state.name or new_state.type,
                 {
                     "prefect.state.message": new_state.message or "",
