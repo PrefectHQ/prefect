@@ -1,33 +1,40 @@
 import warnings
-from abc import ABC
-from collections import namedtuple
-from typing import Generic, TypeVar
+from operator import itemgetter
+from typing import Any, cast
 
-T = TypeVar("T")
+from typing_extensions import Self, TypeVar
+
+T = TypeVar("T", infer_variance=True)
 
 
-class BaseAnnotation(
-    namedtuple("BaseAnnotation", field_names="value"), ABC, Generic[T]
-):
+class BaseAnnotation(tuple[T]):
     """
     Base class for Prefect annotation types.
 
-    Inherits from `namedtuple` for unpacking support in another tools.
+    Inherits from `tuple` for unpacking support in other tools.
     """
 
-    def unwrap(self) -> T:
-        return self.value
+    __slots__ = ()
 
-    def rewrap(self, value: T) -> "BaseAnnotation[T]":
+    def __new__(cls, value: T) -> Self:
+        return super().__new__(cls, (value,))
+
+    # use itemgetter to minimise overhead, just like namedtuple generated code would
+    value: T = cast(T, property(itemgetter(0)))
+
+    def unwrap(self) -> T:
+        return self[0]
+
+    def rewrap(self, value: T) -> Self:
         return type(self)(value)
 
-    def __eq__(self, other: "BaseAnnotation[T]") -> bool:
+    def __eq__(self, other: Any) -> bool:
         if type(self) is not type(other):
             return False
-        return self.unwrap() == other.unwrap()
+        return super().__eq__(other)
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}({self.value!r})"
+        return f"{type(self).__name__}({self[0]!r})"
 
 
 class unmapped(BaseAnnotation[T]):
@@ -38,9 +45,9 @@ class unmapped(BaseAnnotation[T]):
     operation instead of being split.
     """
 
-    def __getitem__(self, _) -> T:
+    def __getitem__(self, _: object) -> T:  # type: ignore[override]  # pyright: ignore[reportIncompatibleMethodOverride]
         # Internally, this acts as an infinite array where all items are the same value
-        return self.unwrap()
+        return super().__getitem__(0)
 
 
 class allow_failure(BaseAnnotation[T]):
@@ -87,14 +94,14 @@ class quote(BaseAnnotation[T]):
 
 
 # Backwards compatibility stub for `Quote` class
-class Quote(quote):
-    def __init__(self, expr):
+class Quote(quote[T]):
+    def __new__(cls, expr: T) -> Self:
         warnings.warn(
             "Use of `Quote` is deprecated. Use `quote` instead.",
             DeprecationWarning,
             stacklevel=2,
         )
-        super().__init__(expr)
+        return super().__new__(cls, expr)
 
 
 class NotSet:

@@ -6,24 +6,12 @@ import asyncio
 import inspect
 import threading
 import warnings
-from concurrent.futures import ThreadPoolExecutor
-from contextlib import asynccontextmanager
-from contextvars import ContextVar, copy_context
+from collections.abc import AsyncGenerator, Awaitable, Coroutine
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
+from contextvars import ContextVar
 from functools import partial, wraps
-from typing import (
-    Any,
-    AsyncGenerator,
-    Awaitable,
-    Callable,
-    Coroutine,
-    Dict,
-    List,
-    Optional,
-    TypeVar,
-    Union,
-    cast,
-    overload,
-)
+from logging import Logger
+from typing import TYPE_CHECKING, Any, Callable, NoReturn, Optional, Union, overload
 from uuid import UUID, uuid4
 
 import anyio
@@ -31,9 +19,18 @@ import anyio.abc
 import anyio.from_thread
 import anyio.to_thread
 import sniffio
-from typing_extensions import Literal, ParamSpec, TypeGuard
+from typing_extensions import (
+    Literal,
+    ParamSpec,
+    Self,
+    TypeAlias,
+    TypeGuard,
+    TypeVar,
+    TypeVarTuple,
+    Unpack,
+)
 
-from prefect._internal.concurrency.api import _cast_to_call, from_sync
+from prefect._internal.concurrency.api import cast_to_call, from_sync
 from prefect._internal.concurrency.threads import (
     get_run_sync_loop,
     in_run_sync_loop,
@@ -42,62 +39,65 @@ from prefect.logging import get_logger
 
 T = TypeVar("T")
 P = ParamSpec("P")
-R = TypeVar("R")
+R = TypeVar("R", infer_variance=True)
 F = TypeVar("F", bound=Callable[..., Any])
 Async = Literal[True]
 Sync = Literal[False]
 A = TypeVar("A", Async, Sync, covariant=True)
+PosArgsT = TypeVarTuple("PosArgsT")
+
+_SyncOrAsyncCallable: TypeAlias = Callable[P, Union[R, Awaitable[R]]]
 
 # Global references to prevent garbage collection for `add_event_loop_shutdown_callback`
-EVENT_LOOP_GC_REFS = {}
+EVENT_LOOP_GC_REFS: dict[int, AsyncGenerator[None, Any]] = {}
 
-PREFECT_THREAD_LIMITER: Optional[anyio.CapacityLimiter] = None
 
 RUNNING_IN_RUN_SYNC_LOOP_FLAG = ContextVar("running_in_run_sync_loop", default=False)
 RUNNING_ASYNC_FLAG = ContextVar("run_async", default=False)
-BACKGROUND_TASKS: set[asyncio.Task] = set()
-background_task_lock = threading.Lock()
+BACKGROUND_TASKS: set[asyncio.Task[Any]] = set()
+background_task_lock: threading.Lock = threading.Lock()
 
 # Thread-local storage to keep track of worker thread state
 _thread_local = threading.local()
 
-logger = get_logger()
+logger: Logger = get_logger()
 
 
-def get_thread_limiter():
-    global PREFECT_THREAD_LIMITER
+_prefect_thread_limiter: Optional[anyio.CapacityLimiter] = None
 
-    if PREFECT_THREAD_LIMITER is None:
-        PREFECT_THREAD_LIMITER = anyio.CapacityLimiter(250)
 
-    return PREFECT_THREAD_LIMITER
+def get_thread_limiter() -> anyio.CapacityLimiter:
+    global _prefect_thread_limiter
+
+    if _prefect_thread_limiter is None:
+        _prefect_thread_limiter = anyio.CapacityLimiter(250)
+
+    return _prefect_thread_limiter
 
 
 def is_async_fn(
-    func: Union[Callable[P, R], Callable[P, Awaitable[R]]],
+    func: _SyncOrAsyncCallable[P, R],
 ) -> TypeGuard[Callable[P, Awaitable[R]]]:
     """
     Returns `True` if a function returns a coroutine.
 
     See https://github.com/microsoft/pyright/issues/2142 for an example use
     """
-    while hasattr(func, "__wrapped__"):
-        func = func.__wrapped__
-
+    func = inspect.unwrap(func)
     return asyncio.iscoroutinefunction(func)
 
 
-def is_async_gen_fn(func):
+def is_async_gen_fn(
+    func: Callable[P, Any],
+) -> TypeGuard[Callable[P, AsyncGenerator[Any, Any]]]:
     """
     Returns `True` if a function is an async generator.
     """
-    while hasattr(func, "__wrapped__"):
-        func = func.__wrapped__
-
+    func = inspect.unwrap(func)
     return inspect.isasyncgenfunction(func)
 
 
-def create_task(coroutine: Coroutine) -> asyncio.Task:
+def create_task(coroutine: Coroutine[Any, Any, R]) -> asyncio.Task[R]:
     """
     Replacement for asyncio.create_task that will ensure that tasks aren't
     garbage collected before they complete. Allows for "fire and forget"
@@ -123,68 +123,32 @@ def create_task(coroutine: Coroutine) -> asyncio.Task:
     return task
 
 
-def _run_sync_in_new_thread(coroutine: Coroutine[Any, Any, T]) -> T:
-    """
-    Note: this is an OLD implementation of `run_coro_as_sync` which liberally created
-    new threads and new loops. This works, but prevents sharing any objects
-    across coroutines, in particular httpx clients, which are very expensive to
-    instantiate.
+@overload
+def run_coro_as_sync(
+    coroutine: Coroutine[Any, Any, R],
+    *,
+    force_new_thread: bool = ...,
+    wait_for_result: Literal[True] = ...,
+) -> R:
+    ...
 
-    This is here for historical purposes and can be removed if/when it is no
-    longer needed for reference.
 
-    ---
-
-    Runs a coroutine from a synchronous context. A thread will be spawned to run
-    the event loop if necessary, which allows coroutines to run in environments
-    like Jupyter notebooks where the event loop runs on the main thread.
-
-    Args:
-        coroutine: The coroutine to run.
-
-    Returns:
-        The return value of the coroutine.
-
-    Example:
-        Basic usage: ```python async def my_async_function(x: int) -> int:
-            return x + 1
-
-        run_sync(my_async_function(1)) ```
-    """
-
-    # ensure context variables are properly copied to the async frame
-    async def context_local_wrapper():
-        """
-        Wrapper that is submitted using copy_context().run to ensure
-        the RUNNING_ASYNC_FLAG mutations are tightly scoped to this coroutine's frame.
-        """
-        token = RUNNING_ASYNC_FLAG.set(True)
-        try:
-            result = await coroutine
-        finally:
-            RUNNING_ASYNC_FLAG.reset(token)
-        return result
-
-    context = copy_context()
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        loop = None
-
-    if loop and loop.is_running():
-        with ThreadPoolExecutor() as executor:
-            future = executor.submit(context.run, asyncio.run, context_local_wrapper())
-            result = cast(T, future.result())
-    else:
-        result = context.run(asyncio.run, context_local_wrapper())
-    return result
+@overload
+def run_coro_as_sync(
+    coroutine: Coroutine[Any, Any, R],
+    *,
+    force_new_thread: bool = ...,
+    wait_for_result: Literal[False] = False,
+) -> R:
+    ...
 
 
 def run_coro_as_sync(
-    coroutine: Awaitable[R],
+    coroutine: Coroutine[Any, Any, R],
+    *,
     force_new_thread: bool = False,
     wait_for_result: bool = True,
-) -> Union[R, None]:
+) -> Optional[R]:
     """
     Runs a coroutine from a synchronous context, as if it were a synchronous
     function.
@@ -211,7 +175,7 @@ def run_coro_as_sync(
         The result of the coroutine if wait_for_result is True, otherwise None.
     """
 
-    async def coroutine_wrapper() -> Union[R, None]:
+    async def coroutine_wrapper() -> Optional[R]:
         """
         Set flags so that children (and grandchildren...) of this task know they are running in a new
         thread and do not try to run on the run_sync thread, which would cause a
@@ -232,12 +196,13 @@ def run_coro_as_sync(
     # that is running in the run_sync loop, we need to run this coroutine in a
     # new thread
     if in_run_sync_loop() or RUNNING_IN_RUN_SYNC_LOOP_FLAG.get() or force_new_thread:
-        return from_sync.call_in_new_thread(coroutine_wrapper)
+        result = from_sync.call_in_new_thread(coroutine_wrapper)
+        return result
 
     # otherwise, we can run the coroutine in the run_sync loop
     # and wait for the result
     else:
-        call = _cast_to_call(coroutine_wrapper)
+        call = cast_to_call(coroutine_wrapper)
         runner = get_run_sync_loop()
         runner.submit(call)
         try:
@@ -250,8 +215,8 @@ def run_coro_as_sync(
 
 
 async def run_sync_in_worker_thread(
-    __fn: Callable[..., T], *args: Any, **kwargs: Any
-) -> T:
+    __fn: Callable[P, R], *args: P.args, **kwargs: P.kwargs
+) -> R:
     """
     Runs a sync function in a new worker thread so that the main thread's event loop
     is not blocked.
@@ -275,14 +240,14 @@ async def run_sync_in_worker_thread(
         RUNNING_ASYNC_FLAG.reset(token)
 
 
-def call_with_mark(call):
+def call_with_mark(call: Callable[..., R]) -> R:
     mark_as_worker_thread()
     return call()
 
 
 def run_async_from_worker_thread(
-    __fn: Callable[..., Awaitable[T]], *args: Any, **kwargs: Any
-) -> T:
+    __fn: Callable[P, Awaitable[R]], *args: P.args, **kwargs: P.kwargs
+) -> R:
     """
     Runs an async function in the main thread's event loop, blocking the worker
     thread until completion
@@ -291,11 +256,13 @@ def run_async_from_worker_thread(
     return anyio.from_thread.run(call)
 
 
-def run_async_in_new_loop(__fn: Callable[..., Awaitable[T]], *args: Any, **kwargs: Any):
+def run_async_in_new_loop(
+    __fn: Callable[P, Awaitable[R]], *args: P.args, **kwargs: P.kwargs
+) -> R:
     return anyio.run(partial(__fn, *args, **kwargs))
 
 
-def mark_as_worker_thread():
+def mark_as_worker_thread() -> None:
     _thread_local.is_worker_thread = True
 
 
@@ -313,23 +280,9 @@ def in_async_main_thread() -> bool:
         return not in_async_worker_thread()
 
 
-@overload
 def sync_compatible(
-    async_fn: Callable[..., Coroutine[Any, Any, R]],
-) -> Callable[..., R]:
-    ...
-
-
-@overload
-def sync_compatible(
-    async_fn: Callable[..., Coroutine[Any, Any, R]],
-) -> Callable[..., Coroutine[Any, Any, R]]:
-    ...
-
-
-def sync_compatible(
-    async_fn: Callable[..., Coroutine[Any, Any, R]],
-) -> Callable[..., Union[R, Coroutine[Any, Any, R]]]:
+    async_fn: Callable[P, Coroutine[Any, Any, R]],
+) -> Callable[P, Union[R, Coroutine[Any, Any, R]]]:
     """
     Converts an async function into a dual async and sync function.
 
@@ -394,7 +347,7 @@ def sync_compatible(
 
         if _sync is True:
             return run_coro_as_sync(ctx_call())
-        elif _sync is False or RUNNING_ASYNC_FLAG.get() or is_async:
+        elif RUNNING_ASYNC_FLAG.get() or is_async:
             return ctx_call()
         else:
             return run_coro_as_sync(ctx_call())
@@ -410,10 +363,24 @@ def sync_compatible(
     return wrapper
 
 
+@overload
+def asyncnullcontext(
+    value: None = None, *args: Any, **kwargs: Any
+) -> AbstractAsyncContextManager[None, None]:
+    ...
+
+
+@overload
+def asyncnullcontext(
+    value: R, *args: Any, **kwargs: Any
+) -> AbstractAsyncContextManager[R, None]:
+    ...
+
+
 @asynccontextmanager
 async def asyncnullcontext(
-    value: Optional[Any] = None, *args: Any, **kwargs: Any
-) -> AsyncGenerator[Any, None]:
+    value: Optional[R] = None, *args: Any, **kwargs: Any
+) -> AsyncGenerator[Any, Optional[R]]:
     yield value
 
 
@@ -429,7 +396,7 @@ def sync(__async_fn: Callable[P, Awaitable[T]], *args: P.args, **kwargs: P.kwarg
             "`sync` called from an asynchronous context; "
             "you should `await` the async function directly instead."
         )
-        with anyio.start_blocking_portal() as portal:
+        with anyio.from_thread.start_blocking_portal() as portal:
             return portal.call(partial(__async_fn, *args, **kwargs))
     elif in_async_worker_thread():
         # In a sync context but we can access the event loop thread; send the async
@@ -441,7 +408,9 @@ def sync(__async_fn: Callable[P, Awaitable[T]], *args: P.args, **kwargs: P.kwarg
         return run_async_in_new_loop(__async_fn, *args, **kwargs)
 
 
-async def add_event_loop_shutdown_callback(coroutine_fn: Callable[[], Awaitable]):
+async def add_event_loop_shutdown_callback(
+    coroutine_fn: Callable[[], Awaitable[Any]],
+) -> None:
     """
     Adds a callback to the given callable on event loop closure. The callable must be
     a coroutine function. It will be awaited when the current event loop is shutting
@@ -457,7 +426,7 @@ async def add_event_loop_shutdown_callback(coroutine_fn: Callable[[], Awaitable]
     loop is about to close.
     """
 
-    async def on_shutdown(key):
+    async def on_shutdown(key: int) -> AsyncGenerator[None, Any]:
         # It appears that EVENT_LOOP_GC_REFS is somehow being garbage collected early.
         # We hold a reference to it so as to preserve it, at least for the lifetime of
         # this coroutine. See the issue below for the initial report/discussion:
@@ -496,7 +465,7 @@ class GatherTaskGroup(anyio.abc.TaskGroup):
     """
     A task group that gathers results.
 
-    AnyIO does not include support `gather`. This class extends the `TaskGroup`
+    AnyIO does not include `gather` support. This class extends the `TaskGroup`
     interface to allow simple gathering.
 
     See https://github.com/agronholm/anyio/issues/100
@@ -505,21 +474,31 @@ class GatherTaskGroup(anyio.abc.TaskGroup):
     """
 
     def __init__(self, task_group: anyio.abc.TaskGroup):
-        self._results: Dict[UUID, Any] = {}
+        self._results: dict[UUID, Any] = {}
         # The concrete task group implementation to use
         self._task_group: anyio.abc.TaskGroup = task_group
 
-    async def _run_and_store(self, key, fn, args):
+    async def _run_and_store(
+        self,
+        key: UUID,
+        fn: Callable[[Unpack[PosArgsT]], Awaitable[Any]],
+        *args: Unpack[PosArgsT],
+    ) -> None:
         self._results[key] = await fn(*args)
 
-    def start_soon(self, fn, *args) -> UUID:
+    def start_soon(  # pyright: ignore[reportIncompatibleMethodOverride]
+        self,
+        func: Callable[[Unpack[PosArgsT]], Awaitable[Any]],
+        *args: Unpack[PosArgsT],
+        name: object = None,
+    ) -> UUID:
         key = uuid4()
         # Put a placeholder in-case the result is retrieved earlier
         self._results[key] = GatherIncomplete
-        self._task_group.start_soon(self._run_and_store, key, fn, args)
+        self._task_group.start_soon(self._run_and_store, key, func, *args, name=name)
         return key
 
-    async def start(self, fn, *args):
+    async def start(self, func: object, *args: object, name: object = None) -> NoReturn:
         """
         Since `start` returns the result of `task_status.started()` but here we must
         return the key instead, we just won't support this method for now.
@@ -535,11 +514,11 @@ class GatherTaskGroup(anyio.abc.TaskGroup):
             )
         return result
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> Self:
         await self._task_group.__aenter__()
         return self
 
-    async def __aexit__(self, *tb):
+    async def __aexit__(self, *tb: Any) -> Optional[bool]:
         try:
             retval = await self._task_group.__aexit__(*tb)
             return retval
@@ -555,14 +534,14 @@ def create_gather_task_group() -> GatherTaskGroup:
     return GatherTaskGroup(anyio.create_task_group())
 
 
-async def gather(*calls: Callable[[], Coroutine[Any, Any, T]]) -> List[T]:
+async def gather(*calls: Callable[[], Coroutine[Any, Any, T]]) -> list[T]:
     """
     Run calls concurrently and gather their results.
 
     Unlike `asyncio.gather` this expects to receive _callables_ not _coroutines_.
     This matches `anyio` semantics.
     """
-    keys = []
+    keys: list[UUID] = []
     async with create_gather_task_group() as tg:
         for call in calls:
             keys.append(tg.start_soon(call))
@@ -570,19 +549,23 @@ async def gather(*calls: Callable[[], Coroutine[Any, Any, T]]) -> List[T]:
 
 
 class LazySemaphore:
-    def __init__(self, initial_value_func):
-        self._semaphore = None
+    def __init__(self, initial_value_func: Callable[[], int]) -> None:
+        self._semaphore: Optional[asyncio.Semaphore] = None
         self._initial_value_func = initial_value_func
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> asyncio.Semaphore:
         self._initialize_semaphore()
+        if TYPE_CHECKING:
+            assert self._semaphore is not None
         await self._semaphore.__aenter__()
         return self._semaphore
 
-    async def __aexit__(self, exc_type, exc, tb):
-        await self._semaphore.__aexit__(exc_type, exc, tb)
+    async def __aexit__(self, *args: Any) -> None:
+        if TYPE_CHECKING:
+            assert self._semaphore is not None
+        await self._semaphore.__aexit__(*args)
 
-    def _initialize_semaphore(self):
+    def _initialize_semaphore(self) -> None:
         if self._semaphore is None:
             initial_value = self._initial_value_func()
             self._semaphore = asyncio.Semaphore(initial_value)

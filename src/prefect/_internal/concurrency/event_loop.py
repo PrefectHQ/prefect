@@ -5,7 +5,8 @@ Thread-safe utilities for working with asynchronous event loops.
 import asyncio
 import concurrent.futures
 import functools
-from typing import Awaitable, Callable, Coroutine, Optional, TypeVar
+from collections.abc import Coroutine
+from typing import Any, Callable, Optional, TypeVar
 
 from typing_extensions import ParamSpec
 
@@ -13,7 +14,7 @@ P = ParamSpec("P")
 T = TypeVar("T")
 
 
-def get_running_loop() -> Optional[asyncio.BaseEventLoop]:
+def get_running_loop() -> Optional[asyncio.AbstractEventLoop]:
     """
     Get the current running loop.
 
@@ -30,7 +31,7 @@ def call_soon_in_loop(
     __fn: Callable[P, T],
     *args: P.args,
     **kwargs: P.kwargs,
-) -> concurrent.futures.Future:
+) -> concurrent.futures.Future[T]:
     """
     Run a synchronous call in an event loop's thread from another thread.
 
@@ -38,7 +39,7 @@ def call_soon_in_loop(
 
     Returns a future that can be used to retrieve the result of the call.
     """
-    future = concurrent.futures.Future()
+    future: concurrent.futures.Future[T] = concurrent.futures.Future()
 
     @functools.wraps(__fn)
     def wrapper() -> None:
@@ -62,8 +63,8 @@ def call_soon_in_loop(
 
 
 async def run_coroutine_in_loop_from_async(
-    __loop: asyncio.AbstractEventLoop, __coro: Coroutine
-) -> Awaitable:
+    __loop: asyncio.AbstractEventLoop, __coro: Coroutine[Any, Any, T]
+) -> T:
     """
     Run an asynchronous call in an event loop from an asynchronous context.
 

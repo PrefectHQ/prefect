@@ -12,5 +12,6 @@ __all__ = [
     "HydrationError",
     "ValidationError",
     "hydrate",
+    "is_valid_schema",
     "validate",
 ]
