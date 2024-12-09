@@ -20,7 +20,7 @@ The `flow_runs`, `task_runs`, and `flows` endpoints and their subroutes are limi
 - 400 requests per minute for Free accounts
 - 2,000 requests per minute for Pro accounts
 
-These endpoints return a `429` response with an appropriate `Retry-After` header if this limit is triggered.
+These endpoints return a `429` response with an appropriate `Retry-After` header if this limit is triggered. See [ClientSettings](/v3/develop/settings-ref#clientsettings) for more information on how retries are handled client-side and how to modify the default behavior.
 
 The `logs` endpoint is limited to:
 
