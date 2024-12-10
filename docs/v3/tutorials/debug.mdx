@@ -93,8 +93,8 @@ def process_data(run: int, fail_at_run: Optional[int] = None) -> bool:
 Now, all flow runs succeed in spite of the `--fail-at-run` flag.
 Deploy the fix to the staging workspace to confirm this new behavior.
 
-```bash
-prefect cloud workspace --set "<account>/staging"
+```
+prefect cloud workspace set --workspace "<account>/staging"
 python simulate_failures.py --fail-at-run 3
 ```
 
@@ -102,8 +102,8 @@ After the script finishes, open the **Home** page in Prefect Cloud to verify tha
 
 You can now switch workspaces to update the code used in the production workspace as well.
 
-```bash
-prefect cloud workspace --set "<account>/production"
+```
+prefect cloud workspace set --workspace "<account>/production"
 python simulate_failures.py
 ```
 
