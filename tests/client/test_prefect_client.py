@@ -567,6 +567,19 @@ async def test_create_then_read_flow(prefect_client):
     assert lookup.name == foo.name
 
 
+async def test_create_then_delete_flow(prefect_client):
+    @flow
+    def foo():
+        pass
+
+    flow_id = await prefect_client.create_flow(foo)
+    assert isinstance(flow_id, UUID)
+
+    await prefect_client.delete_flow(flow_id)
+    with pytest.raises(prefect.exceptions.PrefectHTTPStatusError, match="404"):
+        await prefect_client.read_flow(flow_id)
+
+
 async def test_create_then_read_deployment(
     prefect_client, infrastructure_document_id, storage_document_id
 ):
