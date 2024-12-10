@@ -22,7 +22,7 @@ from prefect.settings import (
     PREFECT_RUNNER_SERVER_MISSED_POLLS_TOLERANCE,
     PREFECT_RUNNER_SERVER_PORT,
 )
-from prefect.utilities.asyncutils import sync_compatible
+from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.importtools import load_script_as_module
 
 if TYPE_CHECKING:
@@ -241,7 +241,6 @@ def _build_generic_endpoint_for_flows(
     return _create_flow_run_for_flow_from_fqn
 
 
-@sync_compatible
 async def build_server(runner: "Runner") -> FastAPI:
     """
     Build a FastAPI server for a runner.
@@ -297,16 +296,7 @@ def start_webserver(runner: "Runner", log_level: Optional[str] = None) -> None:
     host = PREFECT_RUNNER_SERVER_HOST.value()
     port = PREFECT_RUNNER_SERVER_PORT.value()
     log_level = log_level or PREFECT_RUNNER_SERVER_LOG_LEVEL.value()
-    webserver = build_server(runner)
+    webserver = run_coro_as_sync(build_server(runner))
     uvicorn.run(
         webserver, host=host, port=port, log_level=log_level.lower()
     )  # Uvicorn supports only lowercase log_level
-    # From the Uvicorn config file:
-    # LOG_LEVELS: dict[str, int] = {
-    #     "critical": logging.CRITICAL,
-    #     "error": logging.ERROR,
-    #     "warning": logging.WARNING,
-    #     "info": logging.INFO,
-    #     "debug": logging.DEBUG,
-    #     "trace": TRACE_LOG_LEVEL,
-    # }
