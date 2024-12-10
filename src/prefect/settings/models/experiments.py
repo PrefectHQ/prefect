@@ -26,9 +26,4 @@ class ExperimentsSettings(PrefectBaseSettings):
     lineage_events_enabled: bool = Field(
         default=False,
         description="If `True`, enables emitting lineage events. Set to `False` to disable lineage event emission.",
-        validation_alias=AliasChoices(
-            AliasPath("lineage_events_enabled"),
-            "prefect_experiments_lineage_events_enabled",
-            "prefect_experimental_lineage_events_enabled",
-        ),
     )
