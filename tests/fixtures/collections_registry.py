@@ -437,9 +437,9 @@ def mock_collection_registry(
     }
 
     with respx.mock(
-        using="httpx",
         assert_all_mocked=False,
         assert_all_called=False,
+        using="httpx",
         base_url=PREFECT_API_URL.value(),
     ) as respx_mock:
         respx_mock.get("/csrf-token", params={"client": ANY}).pass_through()

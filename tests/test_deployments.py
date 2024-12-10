@@ -1036,7 +1036,8 @@ class TestDeploymentApply:
         assert not get_client().server_type.supports_automations()
 
         with respx.mock(
-            base_url=PREFECT_API_URL.value(), assert_all_called=False, using="httpx"
+            assert_all_mocked=False,
+            assert_all_called=False,
         ) as router:
             router.post("/flows/").mock(
                 return_value=httpx.Response(201, json={"id": str(uuid4())})
