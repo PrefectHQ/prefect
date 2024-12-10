@@ -10,6 +10,7 @@ const DOCS_LINKS = {
 	"task-concurrency-guide":
 		"https://docs.prefect.io/v3/develop/task-run-limits",
 	"variables-guide": "https://docs.prefect.io/latest/guides/variables/",
+	"deployments-guide": "https://docs.prefect.io/v3/deploy/index",
 } as const;
 
 type DocsID = keyof typeof DOCS_LINKS;
