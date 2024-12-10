@@ -570,7 +570,7 @@ class TestCustomWebhook:
             assert last_req.headers["user-agent"] == "Prefect Notifications"
             assert (
                 last_req.content
-                == b'{"msg": "subject\\ntest", "token": "someSecretToken"}'
+                == b'{"msg":"subject\\ntest","token":"someSecretToken"}'
             )
             assert last_req.extensions == {
                 "timeout": {"connect": 10, "pool": 10, "read": 10, "write": 10}
@@ -592,7 +592,7 @@ class TestCustomWebhook:
             assert last_req.headers["user-agent"] == "Prefect Notifications"
             assert (
                 last_req.content
-                == b'{"msg": "subject\\ntest", "token": "someSecretToken"}'
+                == b'{"msg":"subject\\ntest","token":"someSecretToken"}'
             )
             assert last_req.extensions == {
                 "timeout": {"connect": 10, "pool": 10, "read": 10, "write": 10}
@@ -615,7 +615,7 @@ class TestCustomWebhook:
             assert last_req.headers["user-agent"] == "CustomUA"
             assert (
                 last_req.content
-                == b'{"msg": "subject\\ntest", "token": "someSecretToken"}'
+                == b'{"msg":"subject\\ntest","token":"someSecretToken"}'
             )
             assert last_req.extensions == {
                 "timeout": {"connect": 10, "pool": 10, "read": 10, "write": 10}
@@ -637,7 +637,7 @@ class TestCustomWebhook:
             last_req = xmock.calls.last.request
             assert (
                 last_req.content
-                == b'{"msg": "subject\\ntest", "token": "someSecretToken"}'
+                == b'{"msg":"subject\\ntest","token":"someSecretToken"}'
             )
             assert last_req.extensions == {
                 "timeout": {"connect": 30, "pool": 30, "read": 30, "write": 30}
@@ -661,7 +661,7 @@ class TestCustomWebhook:
             assert last_req.headers["cookie"] == "key=secretCookieValue"
             assert (
                 last_req.content
-                == b'{"msg": "subject\\ntest", "token": "someSecretToken"}'
+                == b'{"msg":"subject\\ntest","token":"someSecretToken"}'
             )
             assert last_req.extensions == {
                 "timeout": {"connect": 30, "pool": 30, "read": 30, "write": 30}
@@ -685,7 +685,7 @@ class TestCustomWebhook:
             assert last_req.headers["user-agent"] == "Prefect Notifications"
             assert (
                 last_req.content
-                == b'{"data": {"sub1": [{"in-list": "test", "name": "test name"}]}}'
+                == b'{"data":{"sub1":[{"in-list":"test","name":"test name"}]}}'
             )
             assert last_req.extensions == {
                 "timeout": {"connect": 10, "pool": 10, "read": 10, "write": 10}
@@ -707,8 +707,7 @@ class TestCustomWebhook:
             last_req = xmock.calls.last.request
             assert last_req.headers["user-agent"] == "Prefect Notifications"
             assert (
-                last_req.content
-                == b'{"msg": "null\\ntest", "token": "someSecretToken"}'
+                last_req.content == b'{"msg":"null\\ntest","token":"someSecretToken"}'
             )
             assert last_req.extensions == {
                 "timeout": {"connect": 10, "pool": 10, "read": 10, "write": 10}
