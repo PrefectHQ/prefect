@@ -111,7 +111,7 @@ jobs:
             echo "❌ Type completeness score has decreased from $BASE_SCORE to $CURRENT_SCORE" >> $GITHUB_STEP_SUMMARY
             echo "Please add type annotations to your code to increase the type completeness score." >> $GITHUB_STEP_SUMMARY
             echo "Possible areas to add type annotations:"
-            python scripts/type-analysis-report.py ${{ github.base_ref }}
+            uv run scripts/type-analysis-report.py ${{ github.base_ref }} >> $GITHUB_STEP_SUMMARY
             exit 1
           elif (( $(echo "$BASE_SCORE < $CURRENT_SCORE" | bc -l) )); then
             echo "✅ Type completeness score has increased from $BASE_SCORE to $CURRENT_SCORE" >> $GITHUB_STEP_SUMMARY
