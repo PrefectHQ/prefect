@@ -1,17 +1,7 @@
 import enum
 import os
 import re
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Dict,
-    NamedTuple,
-    Optional,
-    Set,
-    Type,
-    TypeVar,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, NamedTuple, Optional, TypeVar, Union, cast
 
 from prefect.client.utilities import inject_client
 from prefect.utilities.annotations import NotSet
@@ -21,7 +11,7 @@ if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
 
 
-T = TypeVar("T", str, int, float, bool, dict, list, None)
+T = TypeVar("T", str, int, float, bool, dict[Any, Any], list[Any], None)
 
 PLACEHOLDER_CAPTURE_REGEX = re.compile(r"({{\s*([\w\.\-\[\]$]+)\s*}})")
 BLOCK_DOCUMENT_PLACEHOLDER_PREFIX = "prefect.blocks."
@@ -62,7 +52,7 @@ def determine_placeholder_type(name: str) -> PlaceholderType:
         return PlaceholderType.STANDARD
 
 
-def find_placeholders(template: T) -> Set[Placeholder]:
+def find_placeholders(template: T) -> set[Placeholder]:
     """
     Finds all placeholders in a template.
 
@@ -72,8 +62,9 @@ def find_placeholders(template: T) -> Set[Placeholder]:
     Returns:
         A set of all placeholders in the template
     """
+    seed: set[Placeholder] = set()
     if isinstance(template, (int, float, bool)):
-        return set()
+        return seed
     if isinstance(template, str):
         result = PLACEHOLDER_CAPTURE_REGEX.findall(template)
         return {
@@ -81,18 +72,16 @@ def find_placeholders(template: T) -> Set[Placeholder]:
             for full_match, name in result
         }
     elif isinstance(template, dict):
-        return set().union(
-            *[find_placeholders(value) for key, value in template.items()]
-        )
+        return seed.union(*[find_placeholders(value) for value in template.values()])
     elif isinstance(template, list):
-        return set().union(*[find_placeholders(item) for item in template])
+        return seed.union(*[find_placeholders(item) for item in template])
     else:
         raise ValueError(f"Unexpected type: {type(template)}")
 
 
 def apply_values(
-    template: T, values: Dict[str, Any], remove_notset: bool = True
-) -> Union[T, Type[NotSet]]:
+    template: T, values: dict[str, Any], remove_notset: bool = True
+) -> Union[T, type[NotSet]]:
     """
     Replaces placeholders in a template with values from a supplied dictionary.
 
@@ -120,7 +109,7 @@ def apply_values(
     Returns:
         The template with the values applied
     """
-    if isinstance(template, (int, float, bool, type(NotSet), type(None))):
+    if template in (NotSet, None) or isinstance(template, (int, float)):
         return template
     if isinstance(template, str):
         placeholders = find_placeholders(template)
@@ -155,7 +144,7 @@ def apply_values(
 
             return template
     elif isinstance(template, dict):
-        updated_template = {}
+        updated_template: dict[str, Any] = {}
         for key, value in template.items():
             updated_value = apply_values(value, values, remove_notset=remove_notset)
             if updated_value is not NotSet:
@@ -163,22 +152,22 @@ def apply_values(
             elif not remove_notset:
                 updated_template[key] = value
 
-        return updated_template
+        return cast(T, updated_template)
     elif isinstance(template, list):
-        updated_list = []
+        updated_list: list[Any] = []
         for value in template:
             updated_value = apply_values(value, values, remove_notset=remove_notset)
             if updated_value is not NotSet:
                 updated_list.append(updated_value)
-        return updated_list
+        return cast(T, updated_list)
     else:
         raise ValueError(f"Unexpected template type {type(template).__name__!r}")
 
 
 @inject_client
 async def resolve_block_document_references(
-    template: T, client: "PrefectClient" = None
-) -> Union[T, Dict[str, Any]]:
+    template: T, client: Optional["PrefectClient"] = None
+) -> Union[T, dict[str, Any]]:
     """
     Resolve block document references in a template by replacing each reference with
     the data of the block document.
@@ -242,12 +231,17 @@ async def resolve_block_document_references(
     Returns:
         The template with block documents resolved
     """
+    if TYPE_CHECKING:
+        # The @inject_client decorator takes care of providing the client, but
+        # the function signature must mark it as optional to callers.
+        assert client is not None
+
     if isinstance(template, dict):
         block_document_id = template.get("$ref", {}).get("block_document_id")
         if block_document_id:
             block_document = await client.read_block_document(block_document_id)
             return block_document.data
-        updated_template = {}
+        updated_template: dict[str, Any] = {}
         for key, value in template.items():
             updated_value = await resolve_block_document_references(
                 value, client=client
@@ -265,7 +259,7 @@ async def resolve_block_document_references(
             placeholder.type is PlaceholderType.BLOCK_DOCUMENT
             for placeholder in placeholders
         )
-        if len(placeholders) == 0 or not has_block_document_placeholder:
+        if not (placeholders and has_block_document_placeholder):
             return template
         elif (
             len(placeholders) == 1
@@ -274,31 +268,32 @@ async def resolve_block_document_references(
         ):
             # value_keypath will be a list containing a dot path if additional
             # attributes are accessed and an empty list otherwise.
-            block_type_slug, block_document_name, *value_keypath = (
-                list(placeholders)[0]
-                .name.replace(BLOCK_DOCUMENT_PLACEHOLDER_PREFIX, "")
-                .split(".", 2)
-            )
+            [placeholder] = placeholders
+            parts = placeholder.name.replace(
+                BLOCK_DOCUMENT_PLACEHOLDER_PREFIX, ""
+            ).split(".", 2)
+            block_type_slug, block_document_name, *value_keypath = parts
             block_document = await client.read_block_document_by_name(
                 name=block_document_name, block_type_slug=block_type_slug
             )
-            value = block_document.data
+            data = block_document.data
+            value: Union[T, dict[str, Any]] = data
 
             # resolving system blocks to their data for backwards compatibility
-            if len(value) == 1 and "value" in value:
+            if len(data) == 1 and "value" in data:
                 # only resolve the value if the keypath is not already pointing to "value"
-                if len(value_keypath) == 0 or value_keypath[0][:5] != "value":
-                    value = value["value"]
+                if not (value_keypath and value_keypath[0].startswith("value")):
+                    data = value = value["value"]
 
             # resolving keypath/block attributes
-            if len(value_keypath) > 0:
-                value_keypath: str = value_keypath[0]
-                value = get_from_dict(value, value_keypath, default=NotSet)
-                if value is NotSet:
+            if value_keypath:
+                from_dict: Any = get_from_dict(data, value_keypath[0], default=NotSet)
+                if from_dict is NotSet:
                     raise ValueError(
                         f"Invalid template: {template!r}. Could not resolve the"
                         " keypath in the block document data."
                     )
+                value = from_dict
 
             return value
         else:
@@ -311,7 +306,7 @@ async def resolve_block_document_references(
 
 
 @inject_client
-async def resolve_variables(template: T, client: Optional["PrefectClient"] = None):
+async def resolve_variables(template: T, client: Optional["PrefectClient"] = None) -> T:
     """
     Resolve variables in a template by replacing each variable placeholder with the
     value of the variable.
@@ -326,6 +321,11 @@ async def resolve_variables(template: T, client: Optional["PrefectClient"] = Non
     Returns:
         The template with variables resolved
     """
+    if TYPE_CHECKING:
+        # The @inject_client decorator takes care of providing the client, but
+        # the function signature must mark it as optional to callers.
+        assert client is not None
+
     if isinstance(template, str):
         placeholders = find_placeholders(template)
         has_variable_placeholder = any(
@@ -346,7 +346,7 @@ async def resolve_variables(template: T, client: Optional["PrefectClient"] = Non
             if variable is None:
                 return ""
             else:
-                return variable.value
+                return cast(T, variable.value)
         else:
             for full_match, name, placeholder_type in placeholders:
                 if placeholder_type is PlaceholderType.VARIABLE:
@@ -355,7 +355,7 @@ async def resolve_variables(template: T, client: Optional["PrefectClient"] = Non
                     if variable is None:
                         template = template.replace(full_match, "")
                     else:
-                        template = template.replace(full_match, variable.value)
+                        template = template.replace(full_match, str(variable.value))
             return template
     elif isinstance(template, dict):
         return {
