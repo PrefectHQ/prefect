@@ -42,7 +42,9 @@ class RunnerGenericFlowRunRequest(BaseModel):
     parent_task_run_id: Optional[uuid.UUID] = None
 
 
-def perform_health_check(runner, delay_threshold: Optional[int] = None) -> JSONResponse:
+def perform_health_check(
+    runner: "Runner", delay_threshold: Optional[int] = None
+) -> Callable[..., JSONResponse]:
     if delay_threshold is None:
         delay_threshold = (
             PREFECT_RUNNER_SERVER_MISSED_POLLS_TOLERANCE.value()
@@ -65,7 +67,7 @@ def perform_health_check(runner, delay_threshold: Optional[int] = None) -> JSONR
 
 def run_count(runner: "Runner") -> Callable[..., int]:
     def _run_count() -> int:
-        run_count = len(runner._flow_run_process_map)
+        run_count = len(runner._flow_run_process_map)  # pyright: ignore[reportPrivateUsage]
         return run_count
 
     return _run_count

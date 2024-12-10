@@ -104,7 +104,7 @@ from ._internal.pydantic.v2_validated_func import (
 T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
 R = TypeVar("R")  # The return type of the user's function
 P = ParamSpec("P")  # The parameters of the flow
-F = TypeVar("F", bound="Flow")  # The type of the flow
+F = TypeVar("F", bound="Flow[Any, Any]")  # The type of the flow
 
 StateHookCallable: TypeAlias = Callable[
     [FlowSchema, FlowRun, State], Union[Awaitable[None], None]
@@ -1026,8 +1026,11 @@ class Flow(Generic[P, R]):
                 await storage.pull_code()
 
             full_entrypoint = str(storage.destination / entrypoint)
-            flow: Flow[P, R] = await from_async.wait_for_call_in_new_thread(
-                create_call(load_flow_from_entrypoint, full_entrypoint)
+            flow = cast(
+                Flow[P, R],
+                await from_async.wait_for_call_in_new_thread(
+                    create_call(load_flow_from_entrypoint, full_entrypoint)
+                ),
             )
             flow._storage = storage
             flow._entrypoint = entrypoint
@@ -1742,7 +1745,7 @@ def serve(
     print_starting_message: bool = True,
     limit: Optional[int] = None,
     **kwargs: Any,
-):
+) -> None:
     """
     Serve the provided list of deployments.
 
@@ -1812,7 +1815,7 @@ async def aserve(
     print_starting_message: bool = True,
     limit: Optional[int] = None,
     **kwargs: Any,
-):
+) -> None:
     """
     Asynchronously serve the provided list of deployments.
 
