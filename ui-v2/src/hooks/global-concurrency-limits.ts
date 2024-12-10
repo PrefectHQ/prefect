@@ -1,7 +1,6 @@
 import type { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
 import {
-	QueryClient,
 	queryOptions,
 	useMutation,
 	useQueryClient,
@@ -54,13 +53,6 @@ export const buildListGlobalConcurrencyLimitsQuery = (
 export const useListGlobalConcurrencyLimits = (
 	filter: GlobalConcurrencyLimitsFilter = { offset: 0 },
 ) => useSuspenseQuery(buildListGlobalConcurrencyLimitsQuery(filter));
-
-useListGlobalConcurrencyLimits.loader = ({
-	context,
-}: {
-	context: { queryClient: QueryClient };
-}) =>
-	context.queryClient.ensureQueryData(buildListGlobalConcurrencyLimitsQuery());
 
 // ----- ✍🏼 Mutations 🗄️
 // ----------------------------
@@ -127,7 +119,7 @@ export const useDeleteGlobalConcurrencyLimit = () => {
  *   },
  *   onError: (error) => {
  *     // Handle error
- *     console.error('Failed to global concurrency limit:', error);
+ *     console.error('Failed to create global concurrency limit:', error);
  *   }
  * });
  * ```
@@ -178,7 +170,7 @@ type GlobalConcurrencyLimitUpdateWithId =
  *     // Handle successful update
  *   },
  *   onError: (error) => {
- *     console.error('Failed to update  global concurrency limit:', error);
+ *     console.error('Failed to update global concurrency limit:', error);
  *   }
  * });
  * ```

@@ -39,17 +39,16 @@ export const ConcurrencyTabs = ({
 	const navigate = routeApi.useNavigate();
 
 	return (
-		<Tabs defaultValue="Global" value={tab}>
+		<Tabs className="flex flex-col gap-4" defaultValue="Global" value={tab}>
 			<TabsList className="grid w-full grid-cols-2">
 				<TabsTrigger
 					value={TAB_OPTIONS.global.tabSearchValue}
 					onClick={() => {
 						void navigate({
 							to: "/concurrency-limits",
-							search: (prev) => ({
-								...prev,
+							search: {
 								tab: TAB_OPTIONS.global.tabSearchValue,
-							}),
+							},
 						});
 					}}
 				>
@@ -60,10 +59,9 @@ export const ConcurrencyTabs = ({
 					onClick={() => {
 						void navigate({
 							to: "/concurrency-limits",
-							search: (prev) => ({
-								...prev,
+							search: {
 								tab: TAB_OPTIONS["task-run"].tabSearchValue,
-							}),
+							},
 						});
 					}}
 				>
