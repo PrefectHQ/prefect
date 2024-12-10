@@ -2,6 +2,7 @@ import inspect
 import ipaddress
 import socket
 import urllib.parse
+from logging import Logger
 from string import Formatter
 from typing import TYPE_CHECKING, Any, Literal, Optional, Union
 from urllib.parse import urlparse
@@ -19,7 +20,7 @@ if TYPE_CHECKING:
     from prefect.futures import PrefectFuture
     from prefect.variables import Variable
 
-logger = get_logger("utilities.urls")
+logger: Logger = get_logger("utilities.urls")
 
 # The following objects are excluded from UI URL generation because we lack a
 # directly-addressable URL:
@@ -64,7 +65,7 @@ URLType = Literal["ui", "api"]
 RUN_TYPES = {"flow-run", "task-run"}
 
 
-def validate_restricted_url(url: str):
+def validate_restricted_url(url: str) -> None:
     """
     Validate that the provided URL is safe for outbound requests.  This prevents
     attacks like SSRF (Server Side Request Forgery), where an attacker can make
@@ -123,7 +124,7 @@ def convert_class_to_name(obj: Any) -> str:
 
 def url_for(
     obj: Union[
-        "PrefectFuture",
+        "PrefectFuture[Any]",
         "Block",
         "Variable",
         "Automation",
@@ -163,6 +164,7 @@ def url_for(
         url_for("flow-run", obj_id="123e4567-e89b-12d3-a456-426614174000")
     """
     from prefect.blocks.core import Block
+    from prefect.client.schemas.objects import WorkPool
     from prefect.events.schemas.automations import Automation
     from prefect.events.schemas.events import ReceivedEvent, Resource
     from prefect.futures import PrefectFuture
@@ -228,8 +230,10 @@ def url_for(
         elif name == "block":
             # Blocks are client-side objects whose API representation is a
             # BlockDocument.
-            obj_id = obj._block_document_id
+            obj_id = getattr(obj, "_block_document_id")
         elif name in ("variable", "work-pool"):
+            if TYPE_CHECKING:
+                assert isinstance(obj, (Variable, WorkPool))
             obj_id = obj.name
         elif isinstance(obj, Resource):
             obj_id = obj.id.rpartition(".")[2]
@@ -244,6 +248,7 @@ def url_for(
     url_format = (
         UI_URL_FORMATS.get(name) if url_type == "ui" else API_URL_FORMATS.get(name)
     )
+    assert url_format is not None
 
     if isinstance(obj, ReceivedEvent):
         url = url_format.format(

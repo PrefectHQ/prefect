@@ -355,14 +355,14 @@ class EngineContext(RunContext):
     persist_result: bool = Field(default_factory=get_default_persist_setting)
 
     # Counter for task calls allowing unique
-    task_run_dynamic_keys: Dict[str, int] = Field(default_factory=dict)
+    task_run_dynamic_keys: Dict[str, Union[str, int]] = Field(default_factory=dict)
 
     # Counter for flow pauses
     observed_flow_pauses: Dict[str, int] = Field(default_factory=dict)
 
     # Tracking for result from task runs in this flow run for dependency tracking
     # Holds the ID of the object returned by the task run and task run state
-    task_run_results: Mapping[int, State] = Field(default_factory=dict)
+    task_run_results: dict[int, State] = Field(default_factory=dict)
 
     # Events worker to emit events
     events: Optional[EventsWorker] = None

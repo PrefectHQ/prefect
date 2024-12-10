@@ -6,14 +6,17 @@ import ast
 import importlib.util
 import inspect
 import warnings
+from collections import OrderedDict
+from collections.abc import Iterable
 from functools import partial
+from logging import Logger
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Callable, Optional, Union, cast
 
-import cloudpickle
+import cloudpickle  # type: ignore  # no stubs available
 import pydantic
 from griffe import Docstring, DocstringSectionKind, Parser, parse
-from typing_extensions import Literal
+from typing_extensions import Literal, TypeVar
 
 from prefect._internal.pydantic.v1_schema import has_v1_type_as_param
 from prefect._internal.pydantic.v2_schema import (
@@ -32,15 +35,17 @@ from prefect.utilities.annotations import allow_failure, quote, unmapped
 from prefect.utilities.collections import isiterable
 from prefect.utilities.importtools import safe_load_namespace
 
-logger = get_logger(__name__)
+logger: Logger = get_logger(__name__)
+
+R = TypeVar("R", infer_variance=True)
 
 
 def get_call_parameters(
-    fn: Callable,
-    call_args: Tuple[Any, ...],
-    call_kwargs: Dict[str, Any],
+    fn: Callable[..., Any],
+    call_args: tuple[Any, ...],
+    call_kwargs: dict[str, Any],
     apply_defaults: bool = True,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Bind a call to a function to get parameter/value mapping. Default values on
     the signature will be included if not overridden.
@@ -57,7 +62,7 @@ def get_call_parameters(
     function
     """
     if hasattr(fn, "__prefect_self__"):
-        call_args = (fn.__prefect_self__,) + call_args
+        call_args = (getattr(fn, "__prefect_self__"), *call_args)
 
     try:
         bound_signature = inspect.signature(fn).bind(*call_args, **call_kwargs)
@@ -74,14 +79,14 @@ def get_call_parameters(
 
 
 def get_parameter_defaults(
-    fn: Callable,
-) -> Dict[str, Any]:
+    fn: Callable[..., Any],
+) -> dict[str, Any]:
     """
     Get default parameter values for a callable.
     """
     signature = inspect.signature(fn)
 
-    parameter_defaults = {}
+    parameter_defaults: dict[str, Any] = {}
 
     for name, param in signature.parameters.items():
         if param.default is not signature.empty:
@@ -91,8 +96,8 @@ def get_parameter_defaults(
 
 
 def explode_variadic_parameter(
-    fn: Callable, parameters: Dict[str, Any]
-) -> Dict[str, Any]:
+    fn: Callable[..., Any], parameters: dict[str, Any]
+) -> dict[str, Any]:
     """
     Given a parameter dictionary, move any parameters stored in a variadic keyword
     argument parameter (i.e. **kwargs) into the top level.
@@ -125,8 +130,8 @@ def explode_variadic_parameter(
 
 
 def collapse_variadic_parameters(
-    fn: Callable, parameters: Dict[str, Any]
-) -> Dict[str, Any]:
+    fn: Callable[..., Any], parameters: dict[str, Any]
+) -> dict[str, Any]:
     """
     Given a parameter dictionary, move any parameters stored not present in the
     signature into the variadic keyword argument.
@@ -151,50 +156,47 @@ def collapse_variadic_parameters(
 
     missing_parameters = set(parameters.keys()) - set(signature_parameters.keys())
 
-    if not variadic_key and missing_parameters:
+    if not missing_parameters:
+        # no missing parameters, return parameters unchanged
+        return parameters
+
+    if not variadic_key:
         raise ValueError(
             f"Signature for {fn} does not include any variadic keyword argument "
             "but parameters were given that are not present in the signature."
         )
 
-    if variadic_key and not missing_parameters:
-        # variadic key is present but no missing parameters, return parameters unchanged
-        return parameters
-
     new_parameters = parameters.copy()
-    if variadic_key:
-        new_parameters[variadic_key] = {}
-
-    for key in missing_parameters:
-        new_parameters[variadic_key][key] = new_parameters.pop(key)
-
+    new_parameters[variadic_key] = {
+        key: new_parameters.pop(key) for key in missing_parameters
+    }
     return new_parameters
 
 
 def parameters_to_args_kwargs(
-    fn: Callable,
-    parameters: Dict[str, Any],
-) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
+    fn: Callable[..., Any],
+    parameters: dict[str, Any],
+) -> tuple[tuple[Any, ...], dict[str, Any]]:
     """
     Convert a `parameters` dictionary to positional and keyword arguments
 
     The function _must_ have an identical signature to the original function or this
     will return an empty tuple and dict.
     """
-    function_params = dict(inspect.signature(fn).parameters).keys()
+    function_params = inspect.signature(fn).parameters.keys()
     # Check for parameters that are not present in the function signature
     unknown_params = parameters.keys() - function_params
     if unknown_params:
         raise SignatureMismatchError.from_bad_params(
-            list(function_params), list(parameters.keys())
+            list(function_params), list(parameters)
         )
     bound_signature = inspect.signature(fn).bind_partial()
-    bound_signature.arguments = parameters
+    bound_signature.arguments = OrderedDict(parameters)
 
     return bound_signature.args, bound_signature.kwargs
 
 
-def call_with_parameters(fn: Callable, parameters: Dict[str, Any]):
+def call_with_parameters(fn: Callable[..., R], parameters: dict[str, Any]) -> R:
     """
     Call a function with parameters extracted with `get_call_parameters`
 
@@ -207,7 +209,7 @@ def call_with_parameters(fn: Callable, parameters: Dict[str, Any]):
 
 
 def cloudpickle_wrapped_call(
-    __fn: Callable, *args: Any, **kwargs: Any
+    __fn: Callable[..., Any], *args: Any, **kwargs: Any
 ) -> Callable[[], bytes]:
     """
     Serializes a function call using cloudpickle then returns a callable which will
@@ -217,18 +219,18 @@ def cloudpickle_wrapped_call(
     built-in pickler (e.g. `anyio.to_process` and `multiprocessing`) but may require
     a wider range of pickling support.
     """
-    payload = cloudpickle.dumps((__fn, args, kwargs))
+    payload = cloudpickle.dumps((__fn, args, kwargs))  # type: ignore   # no stubs available
     return partial(_run_serialized_call, payload)
 
 
-def _run_serialized_call(payload) -> bytes:
+def _run_serialized_call(payload: bytes) -> bytes:
     """
     Defined at the top-level so it can be pickled by the Python pickler.
     Used by `cloudpickle_wrapped_call`.
     """
     fn, args, kwargs = cloudpickle.loads(payload)
     retval = fn(*args, **kwargs)
-    return cloudpickle.dumps(retval)
+    return cloudpickle.dumps(retval)  # type: ignore   # no stubs available
 
 
 class ParameterSchema(pydantic.BaseModel):
@@ -236,18 +238,18 @@ class ParameterSchema(pydantic.BaseModel):
 
     title: Literal["Parameters"] = "Parameters"
     type: Literal["object"] = "object"
-    properties: Dict[str, Any] = pydantic.Field(default_factory=dict)
-    required: List[str] = pydantic.Field(default_factory=list)
-    definitions: Dict[str, Any] = pydantic.Field(default_factory=dict)
+    properties: dict[str, Any] = pydantic.Field(default_factory=dict)
+    required: list[str] = pydantic.Field(default_factory=list)
+    definitions: dict[str, Any] = pydantic.Field(default_factory=dict)
 
-    def model_dump_for_openapi(self) -> Dict[str, Any]:
+    def model_dump_for_openapi(self) -> dict[str, Any]:
         result = self.model_dump(mode="python", exclude_none=True)
         if "required" in result and not result["required"]:
             del result["required"]
         return result
 
 
-def parameter_docstrings(docstring: Optional[str]) -> Dict[str, str]:
+def parameter_docstrings(docstring: Optional[str]) -> dict[str, str]:
     """
     Given a docstring in Google docstring format, parse the parameter section
     and return a dictionary that maps parameter names to docstring.
@@ -258,7 +260,7 @@ def parameter_docstrings(docstring: Optional[str]) -> Dict[str, str]:
     Returns:
         Mapping from parameter names to docstrings.
     """
-    param_docstrings = {}
+    param_docstrings: dict[str, str] = {}
 
     if not docstring:
         return param_docstrings
@@ -279,9 +281,9 @@ def process_v1_params(
     param: inspect.Parameter,
     *,
     position: int,
-    docstrings: Dict[str, str],
-    aliases: Dict,
-) -> Tuple[str, Any, "pydantic.Field"]:
+    docstrings: dict[str, str],
+    aliases: dict[str, str],
+) -> tuple[str, Any, Any]:
     # Pydantic model creation will fail if names collide with the BaseModel type
     if hasattr(pydantic.BaseModel, param.name):
         name = param.name + "__"
@@ -289,13 +291,13 @@ def process_v1_params(
     else:
         name = param.name
 
-    type_ = Any if param.annotation is inspect._empty else param.annotation
+    type_ = Any if param.annotation is inspect.Parameter.empty else param.annotation
 
     with warnings.catch_warnings():
         warnings.filterwarnings(
             "ignore", category=pydantic.warnings.PydanticDeprecatedSince20
         )
-        field = pydantic.Field(
+        field: Any = pydantic.Field(  # type: ignore   # this uses the v1 signature, not v2
             default=... if param.default is param.empty else param.default,
             title=param.name,
             description=docstrings.get(param.name, None),
@@ -305,19 +307,24 @@ def process_v1_params(
     return name, type_, field
 
 
-def create_v1_schema(name_: str, model_cfg, **model_fields):
+def create_v1_schema(
+    name_: str, model_cfg: type[Any], model_fields: Optional[dict[str, Any]] = None
+) -> dict[str, Any]:
     with warnings.catch_warnings():
         warnings.filterwarnings(
             "ignore", category=pydantic.warnings.PydanticDeprecatedSince20
         )
 
-        model: "pydantic.BaseModel" = pydantic.create_model(
-            name_, __config__=model_cfg, **model_fields
+        model_fields = model_fields or {}
+        model: type[pydantic.BaseModel] = pydantic.create_model(  # type: ignore   # this uses the v1 signature, not v2
+            name_,
+            __config__=model_cfg,  # type: ignore   # this uses the v1 signature, not v2
+            **model_fields,
         )
-        return model.schema(by_alias=True)
+        return model.schema(by_alias=True)  # type: ignore   # this uses the v1 signature, not v2
 
 
-def parameter_schema(fn: Callable) -> ParameterSchema:
+def parameter_schema(fn: Callable[..., Any]) -> ParameterSchema:
     """Given a function, generates an OpenAPI-compatible description
     of the function's arguments, including:
         - name
@@ -378,7 +385,7 @@ def parameter_schema_from_entrypoint(entrypoint: str) -> ParameterSchema:
 
 
 def generate_parameter_schema(
-    signature: inspect.Signature, docstrings: Dict[str, str]
+    signature: inspect.Signature, docstrings: dict[str, str]
 ) -> ParameterSchema:
     """
     Generate a parameter schema from a function signature and docstrings.
@@ -394,22 +401,22 @@ def generate_parameter_schema(
         ParameterSchema: The parameter schema.
     """
 
-    model_fields = {}
-    aliases = {}
+    model_fields: dict[str, Any] = {}
+    aliases: dict[str, str] = {}
 
     if not has_v1_type_as_param(signature):
-        create_schema = create_v2_schema
+        config = pydantic.ConfigDict(arbitrary_types_allowed=True)
+
+        create_schema = partial(create_v2_schema, model_cfg=config)
         process_params = process_v2_params
 
-        config = pydantic.ConfigDict(arbitrary_types_allowed=True)
     else:
-        create_schema = create_v1_schema
-        process_params = process_v1_params
 
         class ModelConfig:
             arbitrary_types_allowed = True
 
-        config = ModelConfig
+        create_schema = partial(create_v1_schema, model_cfg=ModelConfig)
+        process_params = process_v1_params
 
     for position, param in enumerate(signature.parameters.values()):
         name, type_, field = process_params(
@@ -418,24 +425,26 @@ def generate_parameter_schema(
         # Generate a Pydantic model at each step so we can check if this parameter
         # type supports schema generation
         try:
-            create_schema("CheckParameter", model_cfg=config, **{name: (type_, field)})
+            create_schema("CheckParameter", model_fields={name: (type_, field)})
         except (ValueError, TypeError):
             # This field's type is not valid for schema creation, update it to `Any`
             type_ = Any
         model_fields[name] = (type_, field)
 
     # Generate the final model and schema
-    schema = create_schema("Parameters", model_cfg=config, **model_fields)
+    schema = create_schema("Parameters", model_fields=model_fields)
     return ParameterSchema(**schema)
 
 
-def raise_for_reserved_arguments(fn: Callable, reserved_arguments: Iterable[str]):
+def raise_for_reserved_arguments(
+    fn: Callable[..., Any], reserved_arguments: Iterable[str]
+) -> None:
     """Raise a ReservedArgumentError if `fn` has any parameters that conflict
     with the names contained in `reserved_arguments`."""
-    function_paremeters = inspect.signature(fn).parameters
+    function_parameters = inspect.signature(fn).parameters
 
     for argument in reserved_arguments:
-        if argument in function_paremeters:
+        if argument in function_parameters:
             raise ReservedArgumentError(
                 f"{argument!r} is a reserved argument name and cannot be used."
             )
@@ -479,7 +488,7 @@ def _generate_signature_from_source(
     )
     if func_def is None:
         raise ValueError(f"Function {func_name} not found in source code")
-    parameters = []
+    parameters: list[inspect.Parameter] = []
 
     # Handle annotations for positional only args e.g. def func(a, /, b, c)
     for arg in func_def.args.posonlyargs:
@@ -642,8 +651,8 @@ def _get_docstring_from_source(source_code: str, func_name: str) -> Optional[str
 
 
 def expand_mapping_parameters(
-    func: Callable, parameters: Dict[str, Any]
-) -> List[Dict[str, Any]]:
+    func: Callable[..., Any], parameters: dict[str, Any]
+) -> list[dict[str, Any]]:
     """
     Generates a list of call parameters to be used for individual calls in a mapping
     operation.
@@ -653,29 +662,29 @@ def expand_mapping_parameters(
         parameters: A dictionary of parameters with iterables to be mapped over
 
     Returns:
-        List: A list of dictionaries to be used as parameters for each
+        list: A list of dictionaries to be used as parameters for each
             call in the mapping operation
     """
     # Ensure that any parameters in kwargs are expanded before this check
     parameters = explode_variadic_parameter(func, parameters)
 
-    iterable_parameters = {}
-    static_parameters = {}
-    annotated_parameters = {}
+    iterable_parameters: dict[str, list[Any]] = {}
+    static_parameters: dict[str, Any] = {}
+    annotated_parameters: dict[str, Union[allow_failure[Any], quote[Any]]] = {}
     for key, val in parameters.items():
         if isinstance(val, (allow_failure, quote)):
             # Unwrap annotated parameters to determine if they are iterable
             annotated_parameters[key] = val
-            val = val.unwrap()
+            val: Any = val.unwrap()
 
         if isinstance(val, unmapped):
-            static_parameters[key] = val.value
+            static_parameters[key] = cast(unmapped[Any], val).value
         elif isiterable(val):
             iterable_parameters[key] = list(val)
         else:
             static_parameters[key] = val
 
-    if not len(iterable_parameters):
+    if not iterable_parameters:
         raise MappingMissingIterable(
             "No iterable parameters were received. Parameters for map must "
             f"include at least one iterable. Parameters: {parameters}"
@@ -693,7 +702,7 @@ def expand_mapping_parameters(
 
     map_length = list(lengths)[0]
 
-    call_parameters_list = []
+    call_parameters_list: list[dict[str, Any]] = []
     for i in range(map_length):
         call_parameters = {key: value[i] for key, value in iterable_parameters.items()}
         call_parameters.update({key: value for key, value in static_parameters.items()})

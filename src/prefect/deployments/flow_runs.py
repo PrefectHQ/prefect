@@ -113,10 +113,8 @@ async def run_deployment(
     task_run_ctx = TaskRunContext.get()
     if as_subflow and (flow_run_ctx or task_run_ctx):
         # TODO: this logic can likely be simplified by using `Task.create_run`
-        from prefect.utilities.engine import (
-            _dynamic_key_for_task_run,
-            collect_task_run_inputs,
-        )
+        from prefect.utilities._engine import dynamic_key_for_task_run
+        from prefect.utilities.engine import collect_task_run_inputs
 
         # This was called from a flow. Link the flow run as a subflow.
         task_inputs = {
@@ -143,7 +141,7 @@ async def run_deployment(
             else task_run_ctx.task_run.flow_run_id
         )
         dynamic_key = (
-            _dynamic_key_for_task_run(flow_run_ctx, dummy_task)
+            dynamic_key_for_task_run(flow_run_ctx, dummy_task)
             if flow_run_ctx
             else task_run_ctx.task_run.dynamic_key
         )

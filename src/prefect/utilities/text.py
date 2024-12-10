@@ -1,5 +1,6 @@
 import difflib
-from typing import Iterable, Optional
+from collections.abc import Iterable
+from typing import Optional
 
 
 def truncated_to(length: int, value: Optional[str]) -> str:

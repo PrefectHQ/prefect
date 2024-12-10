@@ -1,10 +1,12 @@
 import json
-from typing import Any, Callable, Dict, Optional
+from abc import ABC, abstractmethod
+from collections.abc import Callable, Sequence
+from typing import Any, Optional, cast
 
 import jinja2
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing_extensions import TypeAlias
+from typing_extensions import Self, TypeAlias, TypeIs
 
 from prefect.server.utilities.user_templates import (
     TemplateSecurityError,
@@ -15,14 +17,14 @@ from prefect.types import StrictVariableValue
 
 
 class HydrationContext(BaseModel):
-    workspace_variables: Dict[
+    workspace_variables: dict[
         str,
         StrictVariableValue,
     ] = Field(default_factory=dict)
     render_workspace_variables: bool = Field(default=False)
     raise_on_error: bool = Field(default=False)
     render_jinja: bool = Field(default=False)
-    jinja_context: Dict[str, Any] = Field(default_factory=dict)
+    jinja_context: dict[str, Any] = Field(default_factory=dict)
 
     @classmethod
     async def build(
@@ -31,9 +33,11 @@ class HydrationContext(BaseModel):
         raise_on_error: bool = False,
         render_jinja: bool = False,
         render_workspace_variables: bool = False,
-    ) -> "HydrationContext":
+    ) -> Self:
+        from prefect.server.database.orm_models import Variable
         from prefect.server.models.variables import read_variables
 
+        variables: Sequence[Variable]
         if render_workspace_variables:
             variables = await read_variables(
                 session=session,
@@ -51,14 +55,14 @@ class HydrationContext(BaseModel):
         )
 
 
-Handler: TypeAlias = Callable[[dict, HydrationContext], Any]
+Handler: TypeAlias = Callable[[dict[str, Any], HydrationContext], Any]
 PrefectKind: TypeAlias = Optional[str]
 
-_handlers: Dict[PrefectKind, Handler] = {}
+_handlers: dict[PrefectKind, Handler] = {}
 
 
 class Placeholder:
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return isinstance(other, type(self))
 
     @property
@@ -70,11 +74,11 @@ class RemoveValue(Placeholder):
     pass
 
 
-def _remove_value(value) -> bool:
+def _remove_value(value: Any) -> TypeIs[RemoveValue]:
     return isinstance(value, RemoveValue)
 
 
-class HydrationError(Placeholder, Exception):
+class HydrationError(Placeholder, Exception, ABC):
     def __init__(self, detail: Optional[str] = None):
         self.detail = detail
 
@@ -83,47 +87,49 @@ class HydrationError(Placeholder, Exception):
         return True
 
     @property
-    def message(self):
+    @abstractmethod
+    def message(self) -> str:
         raise NotImplementedError("Must be implemented by subclass")
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return isinstance(other, type(self)) and self.message == other.message
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.message
 
 
 class KeyNotFound(HydrationError):
     @property
-    def message(self):
+    def message(self) -> str:
         return f"Missing '{self.key}' key in __prefect object"
 
     @property
+    @abstractmethod
     def key(self) -> str:
         raise NotImplementedError("Must be implemented by subclass")
 
 
 class ValueNotFound(KeyNotFound):
     @property
-    def key(self):
+    def key(self) -> str:
         return "value"
 
 
 class TemplateNotFound(KeyNotFound):
     @property
-    def key(self):
+    def key(self) -> str:
         return "template"
 
 
 class VariableNameNotFound(KeyNotFound):
     @property
-    def key(self):
+    def key(self) -> str:
         return "variable_name"
 
 
 class InvalidJSON(HydrationError):
     @property
-    def message(self):
+    def message(self) -> str:
         message = "Invalid JSON"
         if self.detail:
             message += f": {self.detail}"
@@ -132,7 +138,7 @@ class InvalidJSON(HydrationError):
 
 class InvalidJinja(HydrationError):
     @property
-    def message(self):
+    def message(self) -> str:
         message = "Invalid jinja"
         if self.detail:
             message += f": {self.detail}"
@@ -146,29 +152,29 @@ class WorkspaceVariableNotFound(HydrationError):
         return self.detail
 
     @property
-    def message(self):
+    def message(self) -> str:
         return f"Variable '{self.detail}' not found in workspace."
 
 
 class WorkspaceVariable(Placeholder):
-    def __init__(self, variable_name: str):
+    def __init__(self, variable_name: str) -> None:
         self.variable_name = variable_name
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return (
             isinstance(other, type(self)) and self.variable_name == other.variable_name
         )
 
 
 class ValidJinja(Placeholder):
-    def __init__(self, template: str):
+    def __init__(self, template: str) -> None:
         self.template = template
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return isinstance(other, type(self)) and self.template == other.template
 
 
-def handler(kind: PrefectKind) -> Callable:
+def handler(kind: PrefectKind) -> Callable[[Handler], Handler]:
     def decorator(func: Handler) -> Handler:
         _handlers[kind] = func
         return func
@@ -176,9 +182,9 @@ def handler(kind: PrefectKind) -> Callable:
     return decorator
 
 
-def call_handler(kind: PrefectKind, obj: dict, ctx: HydrationContext) -> Any:
+def call_handler(kind: PrefectKind, obj: dict[str, Any], ctx: HydrationContext) -> Any:
     if kind not in _handlers:
-        return (obj or {}).get("value", None)
+        return obj.get("value", None)
 
     res = _handlers[kind](obj, ctx)
     if ctx.raise_on_error and isinstance(res, HydrationError):
@@ -187,7 +193,7 @@ def call_handler(kind: PrefectKind, obj: dict, ctx: HydrationContext) -> Any:
 
 
 @handler("none")
-def null_handler(obj: dict, ctx: HydrationContext):
+def null_handler(obj: dict[str, Any], ctx: HydrationContext):
     if "value" in obj:
         # null handler is a pass through, so we want to continue to hydrate
         return _hydrate(obj["value"], ctx)
@@ -196,7 +202,7 @@ def null_handler(obj: dict, ctx: HydrationContext):
 
 
 @handler("json")
-def json_handler(obj: dict, ctx: HydrationContext):
+def json_handler(obj: dict[str, Any], ctx: HydrationContext):
     if "value" in obj:
         if isinstance(obj["value"], dict):
             dehydrated_json = _hydrate(obj["value"], ctx)
@@ -222,7 +228,7 @@ def json_handler(obj: dict, ctx: HydrationContext):
 
 
 @handler("jinja")
-def jinja_handler(obj: dict, ctx: HydrationContext):
+def jinja_handler(obj: dict[str, Any], ctx: HydrationContext) -> Any:
     if "template" in obj:
         if isinstance(obj["template"], dict):
             dehydrated_jinja = _hydrate(obj["template"], ctx)
@@ -247,7 +253,7 @@ def jinja_handler(obj: dict, ctx: HydrationContext):
 
 
 @handler("workspace_variable")
-def workspace_variable_handler(obj: dict, ctx: HydrationContext):
+def workspace_variable_handler(obj: dict[str, Any], ctx: HydrationContext) -> Any:
     if "variable_name" in obj:
         if isinstance(obj["variable_name"], dict):
             dehydrated_variable = _hydrate(obj["variable_name"], ctx)
@@ -259,7 +265,7 @@ def workspace_variable_handler(obj: dict, ctx: HydrationContext):
             return dehydrated_variable
 
         if not ctx.render_workspace_variables:
-            return WorkspaceVariable(variable_name=obj["variable_name"])
+            return WorkspaceVariable(variable_name=dehydrated_variable)
 
         if dehydrated_variable in ctx.workspace_variables:
             return ctx.workspace_variables[dehydrated_variable]
@@ -277,35 +283,36 @@ def workspace_variable_handler(obj: dict, ctx: HydrationContext):
         return RemoveValue()
 
 
-def hydrate(obj: dict, ctx: Optional[HydrationContext] = None):
-    res = _hydrate(obj, ctx)
+def hydrate(
+    obj: dict[str, Any], ctx: Optional[HydrationContext] = None
+) -> dict[str, Any]:
+    res: dict[str, Any] = _hydrate(obj, ctx)
 
     if _remove_value(res):
-        return {}
+        res = {}
 
     return res
 
 
-def _hydrate(obj, ctx: Optional[HydrationContext] = None) -> Any:
+def _hydrate(obj: Any, ctx: Optional[HydrationContext] = None) -> Any:
     if ctx is None:
         ctx = HydrationContext()
 
-    prefect_object = isinstance(obj, dict) and "__prefect_kind" in obj
-
-    if prefect_object:
-        prefect_kind = obj.get("__prefect_kind")
-        return call_handler(prefect_kind, obj, ctx)
+    if isinstance(obj, dict) and "__prefect_kind" in obj:
+        obj_dict: dict[str, Any] = obj
+        prefect_kind = obj_dict["__prefect_kind"]
+        return call_handler(prefect_kind, obj_dict, ctx)
     else:
         if isinstance(obj, dict):
             return {
                 key: hydrated_value
-                for key, value in obj.items()
+                for key, value in cast(dict[str, Any], obj).items()
                 if not _remove_value(hydrated_value := _hydrate(value, ctx))
             }
         elif isinstance(obj, list):
             return [
                 hydrated_element
-                for element in obj
+                for element in cast(list[Any], obj)
                 if not _remove_value(hydrated_element := _hydrate(element, ctx))
             ]
         else:

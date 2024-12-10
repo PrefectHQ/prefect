@@ -1,6 +1,6 @@
 from typing import Any
 
-import coolname
+import coolname  # type: ignore # the version after coolname 2.2.0 should have stubs.
 
 OBFUSCATED_PREFIX = "****"
 
@@ -42,7 +42,7 @@ def generate_slug(n_words: int) -> str:
     return "-".join(words)
 
 
-def obfuscate(s: Any, show_tail=False) -> str:
+def obfuscate(s: Any, show_tail: bool = False) -> str:
     """
     Obfuscates any data type's string representation. See `obfuscate_string`.
     """
@@ -52,7 +52,7 @@ def obfuscate(s: Any, show_tail=False) -> str:
     return obfuscate_string(str(s), show_tail=show_tail)
 
 
-def obfuscate_string(s: str, show_tail=False) -> str:
+def obfuscate_string(s: str, show_tail: bool = False) -> str:
     """
     Obfuscates a string by returning a new string of 8 characters. If the input
     string is longer than 10 characters and show_tail is True, then up to 4 of

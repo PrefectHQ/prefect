@@ -2,8 +2,8 @@ from .hydration import HydrationContext, HydrationError, hydrate
 from .validation import (
     CircularSchemaRefError,
     ValidationError,
-    validate,
     is_valid_schema,
+    validate,
 )
 
 __all__ = [
@@ -12,5 +12,6 @@ __all__ = [
     "HydrationError",
     "ValidationError",
     "hydrate",
+    "is_valid_schema",
     "validate",
 ]

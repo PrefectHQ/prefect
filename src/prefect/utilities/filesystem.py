@@ -5,14 +5,16 @@ Utilities for working with file systems
 import os
 import pathlib
 import threading
+from collections.abc import Iterable
 from contextlib import contextmanager
 from pathlib import Path, PureWindowsPath
-from typing import Optional, Union, cast
+from typing import AnyStr, Optional, Union, cast
 
-import fsspec
+# fsspec has no stubs, see https://github.com/fsspec/filesystem_spec/issues/625
+import fsspec  # type: ignore
 import pathspec
-from fsspec.core import OpenFile
-from fsspec.implementations.local import LocalFileSystem
+from fsspec.core import OpenFile  # type: ignore
+from fsspec.implementations.local import LocalFileSystem  # type: ignore
 
 import prefect
 
@@ -33,8 +35,10 @@ def create_default_ignore_file(path: str) -> bool:
 
 
 def filter_files(
-    root: str = ".", ignore_patterns: Optional[list] = None, include_dirs: bool = True
-) -> set:
+    root: str = ".",
+    ignore_patterns: Optional[Iterable[AnyStr]] = None,
+    include_dirs: bool = True,
+) -> set[str]:
     """
     This function accepts a root directory path and a list of file patterns to ignore, and returns
     a list of files that excludes those that should be ignored.
@@ -51,7 +55,7 @@ def filter_files(
     return included_files
 
 
-chdir_lock = threading.Lock()
+chdir_lock: threading.Lock = threading.Lock()
 
 
 def _normalize_path(path: Union[str, Path]) -> str:
@@ -103,33 +107,32 @@ def tmpchdir(path: str):
 def filename(path: str) -> str:
     """Extract the file name from a path with remote file system support"""
     try:
-        of: OpenFile = cast(OpenFile, fsspec.open(path))
-        sep = of.fs.sep
+        of: OpenFile = cast(OpenFile, fsspec.open(path))  # type: ignore  # no typing stubs available
+        sep = cast(str, of.fs.sep)  # type: ignore  # no typing stubs available
     except (ImportError, AttributeError):
         sep = "\\" if "\\" in path else "/"
     return path.split(sep)[-1]
 
 
-def is_local_path(path: Union[str, pathlib.Path, OpenFile]):
+def is_local_path(path: Union[str, pathlib.Path, OpenFile]) -> bool:
     """Check if the given path points to a local or remote file system"""
     if isinstance(path, str):
         try:
-            of = fsspec.open(path)
+            of = cast(OpenFile, fsspec.open(path))  # type: ignore  # no typing stubs available
         except ImportError:
             # The path is a remote file system that uses a lib that is not installed
             return False
     elif isinstance(path, pathlib.Path):
         return True
-    elif isinstance(path, OpenFile):
-        of = path
     else:
-        raise TypeError(f"Invalid path of type {type(path).__name__!r}")
+        of = path
 
     return isinstance(of.fs, LocalFileSystem)
 
 
 def to_display_path(
-    path: Union[pathlib.Path, str], relative_to: Union[pathlib.Path, str] = None
+    path: Union[pathlib.Path, str],
+    relative_to: Optional[Union[pathlib.Path, str]] = None,
 ) -> str:
     """
     Convert a path to a displayable path. The absolute path or relative path to the

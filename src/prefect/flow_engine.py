@@ -74,6 +74,7 @@ from prefect.states import (
 )
 from prefect.telemetry.run_telemetry import OTELSetter
 from prefect.types import KeyValueLabels
+from prefect.utilities._engine import get_hook_name, resolve_custom_flow_run_name
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.callables import (
@@ -83,8 +84,6 @@ from prefect.utilities.callables import (
 )
 from prefect.utilities.collections import visit_collection
 from prefect.utilities.engine import (
-    _get_hook_name,
-    _resolve_custom_flow_run_name,
     capture_sigterm,
     link_state_to_result,
     propose_state,
@@ -572,7 +571,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
             hooks = None
 
         for hook in hooks or []:
-            hook_name = _get_hook_name(hook)
+            hook_name = get_hook_name(hook)
 
             try:
                 self.logger.info(
@@ -635,7 +634,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
 
             # update the flow run name if necessary
             if not self._flow_run_name_set and self.flow.flow_run_name:
-                flow_run_name = _resolve_custom_flow_run_name(
+                flow_run_name = resolve_custom_flow_run_name(
                     flow=self.flow, parameters=self.parameters
                 )
                 self.client.set_flow_run_name(
@@ -1146,7 +1145,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             hooks = None
 
         for hook in hooks or []:
-            hook_name = _get_hook_name(hook)
+            hook_name = get_hook_name(hook)
 
             try:
                 self.logger.info(
@@ -1209,7 +1208,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
 
             # update the flow run name if necessary
             if not self._flow_run_name_set and self.flow.flow_run_name:
-                flow_run_name = _resolve_custom_flow_run_name(
+                flow_run_name = resolve_custom_flow_run_name(
                     flow=self.flow, parameters=self.parameters
                 )
                 await self.client.set_flow_run_name(
