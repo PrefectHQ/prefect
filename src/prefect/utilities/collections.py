@@ -6,33 +6,40 @@ import io
 import itertools
 import types
 import warnings
-from collections import OrderedDict, defaultdict
-from collections.abc import Iterator as IteratorABC
-from collections.abc import Sequence
-from dataclasses import fields, is_dataclass
-from enum import Enum, auto
-from typing import (
-    Any,
+from collections import OrderedDict
+from collections.abc import (
     Callable,
-    Dict,
+    Collection,
     Generator,
     Hashable,
     Iterable,
-    List,
-    Optional,
+    Iterator,
+    Sequence,
     Set,
-    Tuple,
-    Type,
-    TypeVar,
+)
+from dataclasses import fields, is_dataclass, replace
+from enum import Enum, auto
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Literal,
+    Optional,
     Union,
     cast,
+    overload,
 )
 from unittest.mock import Mock
 
 import pydantic
+from typing_extensions import TypeAlias, TypeVar
 
 # Quote moved to `prefect.utilities.annotations` but preserved here for compatibility
-from prefect.utilities.annotations import BaseAnnotation, Quote, quote  # noqa
+from prefect.utilities.annotations import BaseAnnotation as BaseAnnotation
+from prefect.utilities.annotations import Quote as Quote
+from prefect.utilities.annotations import quote as quote
+
+if TYPE_CHECKING:
+    pass
 
 
 class AutoEnum(str, Enum):
@@ -55,11 +62,12 @@ class AutoEnum(str, Enum):
         ```
     """
 
-    def _generate_next_value_(name, start, count, last_values):
+    @staticmethod
+    def _generate_next_value_(name: str, *_: object, **__: object) -> str:
         return name
 
     @staticmethod
-    def auto():
+    def auto() -> str:
         """
         Exposes `enum.auto()` to avoid requiring a second import to use `AutoEnum`
         """
@@ -70,12 +78,15 @@ class AutoEnum(str, Enum):
 
 
 KT = TypeVar("KT")
-VT = TypeVar("VT")
+VT = TypeVar("VT", infer_variance=True)
+VT1 = TypeVar("VT1", infer_variance=True)
+VT2 = TypeVar("VT2", infer_variance=True)
+R = TypeVar("R", infer_variance=True)
+NestedDict: TypeAlias = dict[KT, Union[VT, "NestedDict[KT, VT]"]]
+HashableT = TypeVar("HashableT", bound=Hashable)
 
 
-def dict_to_flatdict(
-    dct: Dict[KT, Union[Any, Dict[KT, Any]]], _parent: Tuple[KT, ...] = None
-) -> Dict[Tuple[KT, ...], Any]:
+def dict_to_flatdict(dct: NestedDict[KT, VT]) -> dict[tuple[KT, ...], VT]:
     """Converts a (nested) dictionary to a flattened representation.
 
     Each key of the flat dict will be a CompoundKey tuple containing the "chain of keys"
@@ -83,28 +94,28 @@ def dict_to_flatdict(
 
     Args:
         dct (dict): The dictionary to flatten
-        _parent (Tuple, optional): The current parent for recursion
 
     Returns:
         A flattened dict of the same type as dct
     """
-    typ = cast(Type[Dict[Tuple[KT, ...], Any]], type(dct))
-    items: List[Tuple[Tuple[KT, ...], Any]] = []
-    parent = _parent or tuple()
 
-    for k, v in dct.items():
-        k_parent = tuple(parent + (k,))
-        # if v is a non-empty dict, recurse
-        if isinstance(v, dict) and v:
-            items.extend(dict_to_flatdict(v, _parent=k_parent).items())
-        else:
-            items.append((k_parent, v))
-    return typ(items)
+    def flatten(
+        dct: NestedDict[KT, VT], _parent: tuple[KT, ...] = ()
+    ) -> Iterator[tuple[tuple[KT, ...], VT]]:
+        parent = _parent or ()
+        for k, v in dct.items():
+            k_parent = (*parent, k)
+            # if v is a non-empty dict, recurse
+            if isinstance(v, dict) and v:
+                yield from flatten(cast(NestedDict[KT, VT], v), _parent=k_parent)
+            else:
+                yield (k_parent, cast(VT, v))
+
+    type_ = cast(type[dict[tuple[KT, ...], VT]], type(dct))
+    return type_(flatten(dct))
 
 
-def flatdict_to_dict(
-    dct: Dict[Tuple[KT, ...], VT],
-) -> Dict[KT, Union[VT, Dict[KT, VT]]]:
+def flatdict_to_dict(dct: dict[tuple[KT, ...], VT]) -> NestedDict[KT, VT]:
     """Converts a flattened dictionary back to a nested dictionary.
 
     Args:
@@ -114,16 +125,26 @@ def flatdict_to_dict(
     Returns
         A nested dict of the same type as dct
     """
-    typ = type(dct)
-    result = cast(Dict[KT, Union[VT, Dict[KT, VT]]], typ())
+
+    type_ = cast(type[NestedDict[KT, VT]], type(dct))
+
+    def new(type_: type[NestedDict[KT, VT]] = type_) -> NestedDict[KT, VT]:
+        return type_()
+
+    result = new()
     for key_tuple, value in dct.items():
-        current_dict = result
-        for prefix_key in key_tuple[:-1]:
+        current = result
+        *prefix_keys, last_key = key_tuple
+        for prefix_key in prefix_keys:
             # Build nested dictionaries up for the current key tuple
-            # Use `setdefault` in case the nested dict has already been created
-            current_dict = current_dict.setdefault(prefix_key, typ())  # type: ignore
+            try:
+                current = cast(NestedDict[KT, VT], current[prefix_key])
+            except KeyError:
+                new_dict = current[prefix_key] = new()
+                current = new_dict
+
         # Set the value
-        current_dict[key_tuple[-1]] = value
+        current[last_key] = value
 
     return result
 
@@ -148,9 +169,9 @@ def isiterable(obj: Any) -> bool:
         return not isinstance(obj, (str, bytes, io.IOBase))
 
 
-def ensure_iterable(obj: Union[T, Iterable[T]]) -> Iterable[T]:
+def ensure_iterable(obj: Union[T, Iterable[T]]) -> Collection[T]:
     if isinstance(obj, Sequence) or isinstance(obj, Set):
-        return obj
+        return cast(Collection[T], obj)
     obj = cast(T, obj)  # No longer in the iterable case
     return [obj]
 
@@ -160,9 +181,9 @@ def listrepr(objs: Iterable[Any], sep: str = " ") -> str:
 
 
 def extract_instances(
-    objects: Iterable,
-    types: Union[Type[T], Tuple[Type[T], ...]] = object,
-) -> Union[List[T], Dict[Type[T], T]]:
+    objects: Iterable[Any],
+    types: Union[type[T], tuple[type[T], ...]] = object,
+) -> Union[list[T], dict[type[T], list[T]]]:
     """
     Extract objects from a file and returns a dict of type -> instances
 
@@ -174,26 +195,27 @@ def extract_instances(
         If a single type is given: a list of instances of that type
         If a tuple of types is given: a mapping of type to a list of instances
     """
-    types = ensure_iterable(types)
+    types_collection = ensure_iterable(types)
 
     # Create a mapping of type -> instance from the exec values
-    ret = defaultdict(list)
+    ret: dict[type[T], list[Any]] = {}
 
     for o in objects:
         # We iterate here so that the key is the passed type rather than type(o)
-        for type_ in types:
+        for type_ in types_collection:
             if isinstance(o, type_):
-                ret[type_].append(o)
+                ret.setdefault(type_, []).append(o)
 
-    if len(types) == 1:
-        return ret[types[0]]
+    if len(types_collection) == 1:
+        [type_] = types_collection
+        return ret[type_]
 
     return ret
 
 
 def batched_iterable(
     iterable: Iterable[T], size: int
-) -> Generator[Tuple[T, ...], None, None]:
+) -> Generator[tuple[T, ...], None, None]:
     """
     Yield batches of a certain size from an iterable
 
@@ -221,15 +243,86 @@ class StopVisiting(BaseException):
     """
 
 
+@overload
 def visit_collection(
     expr: Any,
-    visit_fn: Union[Callable[[Any, Optional[dict]], Any], Callable[[Any], Any]],
+    visit_fn: Callable[[Any, dict[str, VT]], Any],
+    *,
+    return_data: Literal[True] = ...,
+    max_depth: int = ...,
+    context: dict[str, VT] = ...,
+    remove_annotations: bool = ...,
+    _seen: Optional[set[int]] = ...,
+) -> Any:
+    ...
+
+
+@overload
+def visit_collection(
+    expr: Any,
+    visit_fn: Callable[[Any], Any],
+    *,
+    return_data: Literal[True] = ...,
+    max_depth: int = ...,
+    context: None = None,
+    remove_annotations: bool = ...,
+    _seen: Optional[set[int]] = ...,
+) -> Any:
+    ...
+
+
+@overload
+def visit_collection(
+    expr: Any,
+    visit_fn: Callable[[Any, dict[str, VT]], Any],
+    *,
+    return_data: bool = ...,
+    max_depth: int = ...,
+    context: dict[str, VT] = ...,
+    remove_annotations: bool = ...,
+    _seen: Optional[set[int]] = ...,
+) -> Optional[Any]:
+    ...
+
+
+@overload
+def visit_collection(
+    expr: Any,
+    visit_fn: Callable[[Any], Any],
+    *,
+    return_data: bool = ...,
+    max_depth: int = ...,
+    context: None = None,
+    remove_annotations: bool = ...,
+    _seen: Optional[set[int]] = ...,
+) -> Optional[Any]:
+    ...
+
+
+@overload
+def visit_collection(
+    expr: Any,
+    visit_fn: Callable[[Any, dict[str, VT]], Any],
+    *,
+    return_data: Literal[False] = False,
+    max_depth: int = ...,
+    context: dict[str, VT] = ...,
+    remove_annotations: bool = ...,
+    _seen: Optional[set[int]] = ...,
+) -> None:
+    ...
+
+
+def visit_collection(
+    expr: Any,
+    visit_fn: Union[Callable[[Any, dict[str, VT]], Any], Callable[[Any], Any]],
+    *,
     return_data: bool = False,
     max_depth: int = -1,
-    context: Optional[dict] = None,
+    context: Optional[dict[str, VT]] = None,
     remove_annotations: bool = False,
-    _seen: Optional[Set[int]] = None,
-) -> Any:
+    _seen: Optional[set[int]] = None,
+) -> Optional[Any]:
     """
     Visits and potentially transforms every element of an arbitrary Python collection.
 
@@ -289,24 +382,39 @@ def visit_collection(
     if _seen is None:
         _seen = set()
 
-    def visit_nested(expr):
-        # Utility for a recursive call, preserving options and updating the depth.
-        return visit_collection(
-            expr,
-            visit_fn=visit_fn,
-            return_data=return_data,
-            remove_annotations=remove_annotations,
-            max_depth=max_depth - 1,
-            # Copy the context on nested calls so it does not "propagate up"
-            context=context.copy() if context is not None else None,
-            _seen=_seen,
-        )
+    if context is not None:
+        _callback = cast(Callable[[Any, dict[str, VT]], Any], visit_fn)
 
-    def visit_expression(expr):
-        if context is not None:
-            return visit_fn(expr, context)
-        else:
-            return visit_fn(expr)
+        def visit_nested(expr: Any) -> Optional[Any]:
+            return visit_collection(
+                expr,
+                _callback,
+                return_data=return_data,
+                remove_annotations=remove_annotations,
+                max_depth=max_depth - 1,
+                # Copy the context on nested calls so it does not "propagate up"
+                context=context.copy(),
+                _seen=_seen,
+            )
+
+        def visit_expression(expr: Any) -> Any:
+            return _callback(expr, context)
+    else:
+        _callback = cast(Callable[[Any], Any], visit_fn)
+
+        def visit_nested(expr: Any) -> Optional[Any]:
+            # Utility for a recursive call, preserving options and updating the depth.
+            return visit_collection(
+                expr,
+                _callback,
+                return_data=return_data,
+                remove_annotations=remove_annotations,
+                max_depth=max_depth - 1,
+                _seen=_seen,
+            )
+
+        def visit_expression(expr: Any) -> Any:
+            return _callback(expr)
 
     # --- 1. Visit every expression
     try:
@@ -329,10 +437,6 @@ def visit_collection(
     else:
         _seen.add(id(expr))
 
-    # Get the expression type; treat iterators like lists
-    typ = list if isinstance(expr, IteratorABC) and isiterable(expr) else type(expr)
-    typ = cast(type, typ)  # mypy treats this as 'object' otherwise and complains
-
     # Then visit every item in the expression if it is a collection
 
     # presume that the result is the original expression.
@@ -354,9 +458,10 @@ def visit_collection(
     # --- Annotations (unmapped, quote, etc.)
 
     elif isinstance(expr, BaseAnnotation):
+        annotated = cast(BaseAnnotation[Any], expr)
         if context is not None:
-            context["annotation"] = expr
-        unwrapped = expr.unwrap()
+            context["annotation"] = cast(VT, annotated)
+        unwrapped = annotated.unwrap()
         value = visit_nested(unwrapped)
 
         if return_data:
@@ -365,47 +470,49 @@ def visit_collection(
                 result = value
             # if the value was modified, rewrap it
             elif value is not unwrapped:
-                result = expr.rewrap(value)
+                result = annotated.rewrap(value)
             # otherwise return the expr
 
     # --- Sequences
 
     elif isinstance(expr, (list, tuple, set)):
-        items = [visit_nested(o) for o in expr]
+        seq = cast(Union[list[Any], tuple[Any], set[Any]], expr)
+        items = [visit_nested(o) for o in seq]
         if return_data:
-            modified = any(item is not orig for item, orig in zip(items, expr))
+            modified = any(item is not orig for item, orig in zip(items, seq))
             if modified:
-                result = typ(items)
+                result = type(seq)(items)
 
     # --- Dictionaries
 
-    elif typ in (dict, OrderedDict):
-        assert isinstance(expr, (dict, OrderedDict))  # typecheck assertion
-        items = [(visit_nested(k), visit_nested(v)) for k, v in expr.items()]
+    elif isinstance(expr, (dict, OrderedDict)):
+        mapping = cast(dict[Any, Any], expr)
+        items = [(visit_nested(k), visit_nested(v)) for k, v in mapping.items()]
         if return_data:
             modified = any(
                 k1 is not k2 or v1 is not v2
-                for (k1, v1), (k2, v2) in zip(items, expr.items())
+                for (k1, v1), (k2, v2) in zip(items, mapping.items())
             )
             if modified:
-                result = typ(items)
+                result = type(mapping)(items)
 
     # --- Dataclasses
 
     elif is_dataclass(expr) and not isinstance(expr, type):
-        values = [visit_nested(getattr(expr, f.name)) for f in fields(expr)]
+        expr_fields = fields(expr)
+        values = [visit_nested(getattr(expr, f.name)) for f in expr_fields]
         if return_data:
             modified = any(
-                getattr(expr, f.name) is not v for f, v in zip(fields(expr), values)
+                getattr(expr, f.name) is not v for f, v in zip(expr_fields, values)
             )
             if modified:
-                result = typ(**{f.name: v for f, v in zip(fields(expr), values)})
+                result = replace(
+                    expr, **{f.name: v for f, v in zip(expr_fields, values)}
+                )
 
     # --- Pydantic models
 
     elif isinstance(expr, pydantic.BaseModel):
-        typ = cast(Type[pydantic.BaseModel], typ)
-
         # when extra=allow, fields not in model_fields may be in model_fields_set
         model_fields = expr.model_fields_set.union(expr.model_fields.keys())
 
@@ -424,7 +531,7 @@ def visit_collection(
             )
             if modified:
                 # Use construct to avoid validation and handle immutability
-                model_instance = typ.model_construct(
+                model_instance = expr.model_construct(
                     _fields_set=expr.model_fields_set, **updated_data
                 )
                 for private_attr in expr.__private_attributes__:
@@ -435,7 +542,21 @@ def visit_collection(
         return result
 
 
-def remove_nested_keys(keys_to_remove: List[Hashable], obj):
+@overload
+def remove_nested_keys(
+    keys_to_remove: list[HashableT], obj: NestedDict[HashableT, VT]
+) -> NestedDict[HashableT, VT]:
+    ...
+
+
+@overload
+def remove_nested_keys(keys_to_remove: list[HashableT], obj: Any) -> Any:
+    ...
+
+
+def remove_nested_keys(
+    keys_to_remove: list[HashableT], obj: Union[NestedDict[HashableT, VT], Any]
+) -> Union[NestedDict[HashableT, VT], Any]:
     """
     Recurses a dictionary returns a copy without all keys that match an entry in
     `key_to_remove`. Return `obj` unchanged if not a dictionary.
@@ -452,24 +573,56 @@ def remove_nested_keys(keys_to_remove: List[Hashable], obj):
         return obj
     return {
         key: remove_nested_keys(keys_to_remove, value)
-        for key, value in obj.items()
+        for key, value in cast(NestedDict[HashableT, VT], obj).items()
         if key not in keys_to_remove
     }
 
 
+@overload
+def distinct(iterable: Iterable[HashableT], key: None = None) -> Iterator[HashableT]:
+    ...
+
+
+@overload
+def distinct(iterable: Iterable[T], key: Callable[[T], Hashable]) -> Iterator[T]:
+    ...
+
+
 def distinct(
-    iterable: Iterable[T],
-    key: Callable[[T], Any] = (lambda i: i),
-) -> Generator[T, None, None]:
-    seen: Set = set()
+    iterable: Iterable[Union[T, HashableT]],
+    key: Optional[Callable[[T], Hashable]] = None,
+) -> Iterator[Union[T, HashableT]]:
+    def _key(__i: Any) -> Hashable:
+        return __i
+
+    if key is not None:
+        _key = cast(Callable[[Any], Hashable], key)
+
+    seen: set[Hashable] = set()
     for item in iterable:
-        if key(item) in seen:
+        if _key(item) in seen:
             continue
-        seen.add(key(item))
+        seen.add(_key(item))
         yield item
 
 
-def get_from_dict(dct: Dict, keys: Union[str, List[str]], default: Any = None) -> Any:
+@overload
+def get_from_dict(
+    dct: NestedDict[str, VT], keys: Union[str, list[str]], default: None = None
+) -> Optional[VT]:
+    ...
+
+
+@overload
+def get_from_dict(
+    dct: NestedDict[str, VT], keys: Union[str, list[str]], default: R
+) -> Union[VT, R]:
+    ...
+
+
+def get_from_dict(
+    dct: NestedDict[str, VT], keys: Union[str, list[str]], default: Optional[R] = None
+) -> Union[VT, R, None]:
     """
     Fetch a value from a nested dictionary or list using a sequence of keys.
 
@@ -500,6 +653,7 @@ def get_from_dict(dct: Dict, keys: Union[str, List[str]], default: Any = None) -
     """
     if isinstance(keys, str):
         keys = keys.replace("[", ".").replace("]", "").split(".")
+    value = dct
     try:
         for key in keys:
             try:
@@ -509,13 +663,15 @@ def get_from_dict(dct: Dict, keys: Union[str, List[str]], default: Any = None) -
                 # If it's not an int, use the key as-is
                 # for dict lookup
                 pass
-            dct = dct[key]
-        return dct
+            value = value[key]  # type: ignore
+        return cast(VT, value)
     except (TypeError, KeyError, IndexError):
         return default
 
 
-def set_in_dict(dct: Dict, keys: Union[str, List[str]], value: Any):
+def set_in_dict(
+    dct: NestedDict[str, VT], keys: Union[str, list[str]], value: VT
+) -> None:
     """
     Sets a value in a nested dictionary using a sequence of keys.
 
@@ -543,11 +699,13 @@ def set_in_dict(dct: Dict, keys: Union[str, List[str]], value: Any):
             raise TypeError(f"Key path exists and contains a non-dict value: {keys}")
         if k not in dct:
             dct[k] = {}
-        dct = dct[k]
+        dct = cast(NestedDict[str, VT], dct[k])
     dct[keys[-1]] = value
 
 
-def deep_merge(dct: Dict, merge: Dict):
+def deep_merge(
+    dct: NestedDict[str, VT1], merge: NestedDict[str, VT2]
+) -> NestedDict[str, Union[VT1, VT2]]:
     """
     Recursively merges `merge` into `dct`.
 
@@ -558,18 +716,21 @@ def deep_merge(dct: Dict, merge: Dict):
     Returns:
         A new dictionary with the merged contents.
     """
-    result = dct.copy()  # Start with keys and values from `dct`
+    result: dict[str, Any] = dct.copy()  # Start with keys and values from `dct`
     for key, value in merge.items():
         if key in result and isinstance(result[key], dict) and isinstance(value, dict):
             # If both values are dictionaries, merge them recursively
-            result[key] = deep_merge(result[key], value)
+            result[key] = deep_merge(
+                cast(NestedDict[str, VT1], result[key]),
+                cast(NestedDict[str, VT2], value),
+            )
         else:
             # Otherwise, overwrite with the new value
-            result[key] = value
+            result[key] = cast(Union[VT2, NestedDict[str, VT2]], value)
     return result
 
 
-def deep_merge_dicts(*dicts):
+def deep_merge_dicts(*dicts: NestedDict[str, Any]) -> NestedDict[str, Any]:
     """
     Recursively merges multiple dictionaries.
 
@@ -579,7 +740,7 @@ def deep_merge_dicts(*dicts):
     Returns:
         A new dictionary with the merged contents.
     """
-    result = {}
+    result: NestedDict[str, Any] = {}
     for dictionary in dicts:
         result = deep_merge(result, dictionary)
     return result

@@ -23,26 +23,37 @@ lookup_type(Base, key) # Foo
 import abc
 import inspect
 import warnings
-from typing import Any, Dict, Optional, Type, TypeVar
+from typing import Any, Literal, Optional, TypeVar, overload
 
-T = TypeVar("T", bound=Type)
+T = TypeVar("T", bound=type[Any])
 
-_TYPE_REGISTRIES: Dict[Type, Dict[str, Type]] = {}
+_TYPE_REGISTRIES: dict[Any, dict[str, Any]] = {}
 
 
-def get_registry_for_type(cls: T) -> Optional[Dict[str, T]]:
+def get_registry_for_type(cls: T) -> Optional[dict[str, T]]:
     """
     Get the first matching registry for a class or any of its base classes.
 
     If not found, `None` is returned.
     """
     return next(
-        filter(
-            lambda registry: registry is not None,
-            (_TYPE_REGISTRIES.get(cls) for cls in cls.mro()),
-        ),
+        (reg for cls in cls.mro() if (reg := _TYPE_REGISTRIES.get(cls)) is not None),
         None,
     )
+
+
+@overload
+def get_dispatch_key(
+    cls_or_instance: Any, allow_missing: Literal[False] = False
+) -> str:
+    ...
+
+
+@overload
+def get_dispatch_key(
+    cls_or_instance: Any, allow_missing: Literal[True] = ...
+) -> Optional[str]:
+    ...
 
 
 def get_dispatch_key(
@@ -89,14 +100,14 @@ def get_dispatch_key(
 
 
 @classmethod
-def _register_subclass_of_base_type(cls, **kwargs):
+def _register_subclass_of_base_type(cls: type[Any], **kwargs: Any) -> None:
     if hasattr(cls, "__init_subclass_original__"):
         cls.__init_subclass_original__(**kwargs)
     elif hasattr(cls, "__pydantic_init_subclass_original__"):
         cls.__pydantic_init_subclass_original__(**kwargs)
 
     # Do not register abstract base classes
-    if abc.ABC in getattr(cls, "__bases__", []):
+    if abc.ABC in cls.__bases__:
         return
 
     register_type(cls)
@@ -123,7 +134,7 @@ def register_base_type(cls: T) -> T:
         cls.__pydantic_init_subclass__ = _register_subclass_of_base_type
     else:
         cls.__init_subclass_original__ = getattr(cls, "__init_subclass__")
-        cls.__init_subclass__ = _register_subclass_of_base_type
+        setattr(cls, "__init_subclass__", _register_subclass_of_base_type)
 
     return cls
 
@@ -190,7 +201,7 @@ def lookup_type(cls: T, dispatch_key: str) -> T:
     Look up a dispatch key in the type registry for the given class.
     """
     # Get the first matching registry for the class or one of its bases
-    registry = get_registry_for_type(cls)
+    registry = get_registry_for_type(cls) or {}
 
     # Look up this type in the registry
     subcls = registry.get(dispatch_key)

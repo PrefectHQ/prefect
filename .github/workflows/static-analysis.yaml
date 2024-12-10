@@ -102,7 +102,7 @@ jobs:
           BASE_SCORE=$(jq -r '.typeCompleteness.completenessScore' prefect-analysis-base.json)
           echo "base_score=$BASE_SCORE" >> $GITHUB_OUTPUT
 
-      - name: Check out current branch
+      - name: Checkout current branch
         run: |
           git checkout ${{ github.head_ref || github.ref_name }}
 
@@ -114,6 +114,7 @@ jobs:
           if (( $(echo "$BASE_SCORE > $CURRENT_SCORE" | bc -l) )); then
             echo "❌ Type completeness score has decreased from $BASE_SCORE to $CURRENT_SCORE" >> $GITHUB_STEP_SUMMARY
             echo "Please add type annotations to your code to increase the type completeness score." >> $GITHUB_STEP_SUMMARY
+            uv run scripts/pyright_diff.py prefect-analysis-base.json prefect-analysis.json >> $GITHUB_STEP_SUMMARY
             exit 1
           elif (( $(echo "$BASE_SCORE < $CURRENT_SCORE" | bc -l) )); then
             echo "✅ Type completeness score has increased from $BASE_SCORE to $CURRENT_SCORE" >> $GITHUB_STEP_SUMMARY
