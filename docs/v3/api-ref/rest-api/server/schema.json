@@ -20034,6 +20034,9 @@
                 },
                 "type": "object",
                 "required": [
+                    "id",
+                    "created",
+                    "updated",
                     "name",
                     "limit",
                     "active_slots"
