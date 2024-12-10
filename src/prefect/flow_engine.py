@@ -349,9 +349,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         self.set_state(terminal_state)
         self._return_value = resolved_result
 
-        self._telemetry.end_span_on_success(
-            terminal_state.message if terminal_state else None
-        )
+        self._telemetry.end_span_on_success()
 
         return result
 

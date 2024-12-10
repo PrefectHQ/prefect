@@ -72,21 +72,23 @@ class RunTelemetry:
         )
         return self.span
 
-    def end_span_on_success(self, terminal_message: str) -> None:
+    def end_span_on_success(self) -> None:
         """
         End a span for a task run on success.
         """
         if self.span:
-            self.span.set_status(Status(StatusCode.OK), terminal_message)
+            self.span.set_status(Status(StatusCode.OK))
             self.span.end(time.time_ns())
             self.span = None
 
-    def end_span_on_failure(self, terminal_message: str) -> None:
+    def end_span_on_failure(self, terminal_message: Optional[str] = None) -> None:
         """
         End a span for a task run on failure.
         """
         if self.span:
-            self.span.set_status(Status(StatusCode.ERROR, terminal_message))
+            self.span.set_status(
+                Status(StatusCode.ERROR, terminal_message or "Run failed")
+            )
             self.span.end(time.time_ns())
             self.span = None
 
