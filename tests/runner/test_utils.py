@@ -1,3 +1,4 @@
+from typing import Any, Callable
 from unittest.mock import create_autospec
 
 import pytest
@@ -13,7 +14,7 @@ from prefect.runner.utils import (
 
 
 class MockRoute(APIRoute):
-    def __init__(self, path: str, endpoint: callable):
+    def __init__(self, path: str, endpoint: Callable[..., Any]):
         super().__init__(path, endpoint)
 
 

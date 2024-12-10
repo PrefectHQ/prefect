@@ -710,7 +710,7 @@ def _resolve_custom_task_run_name(task: Task, parameters: Dict[str, Any]) -> str
     return task_run_name
 
 
-def _get_hook_name(hook: Callable) -> str:
+def _get_hook_name(hook: Callable[..., Any]) -> str:  # pyright: ignore[reportUnusedFunction]
     return (
         hook.__name__
         if hasattr(hook, "__name__")

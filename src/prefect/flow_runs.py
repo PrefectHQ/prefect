@@ -307,7 +307,7 @@ async def suspend_flow_run(
     flow_run_id: Optional[UUID] = None,
     timeout: Optional[int] = 3600,
     key: Optional[str] = None,
-    client: PrefectClient = None,
+    client: Optional[PrefectClient] = None,
 ) -> None:
     ...
 
@@ -318,7 +318,7 @@ async def suspend_flow_run(
     flow_run_id: Optional[UUID] = None,
     timeout: Optional[int] = 3600,
     key: Optional[str] = None,
-    client: PrefectClient = None,
+    client: Optional[PrefectClient] = None,
 ) -> T:
     ...
 
@@ -330,7 +330,7 @@ async def suspend_flow_run(
     flow_run_id: Optional[UUID] = None,
     timeout: Optional[int] = 3600,
     key: Optional[str] = None,
-    client: PrefectClient = None,
+    client: Optional[PrefectClient] = None,
 ) -> Optional[T]:
     """
     Suspends a flow run by stopping code execution until resumed.
