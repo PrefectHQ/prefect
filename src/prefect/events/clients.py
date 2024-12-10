@@ -20,8 +20,8 @@ import pendulum
 from cachetools import TTLCache
 from prometheus_client import Counter
 from typing_extensions import Self
-from websockets import Subprotocol
-from websockets.client import WebSocketClientProtocol, connect
+from websockets import Subprotocol, connect
+from websockets.asyncio.client import ClientConnection
 from websockets.exceptions import (
     ConnectionClosed,
     ConnectionClosedError,
@@ -241,7 +241,7 @@ def _get_api_url_and_key(
 class PrefectEventsClient(EventsClient):
     """A Prefect Events client that streams events to a Prefect server"""
 
-    _websocket: Optional[WebSocketClientProtocol]
+    _websocket: Optional[ClientConnection]
     _unconfirmed_events: List[Event]
 
     def __init__(
@@ -437,7 +437,7 @@ class PrefectCloudEventsClient(PrefectEventsClient):
         )
         self._connect = connect(
             self._events_socket_url,
-            extra_headers={"Authorization": f"bearer {api_key}"},
+            additional_headers={"Authorization": f"bearer {api_key}"},
         )
 
 
@@ -462,7 +462,7 @@ class PrefectEventSubscriber:
 
     """
 
-    _websocket: Optional[WebSocketClientProtocol]
+    _websocket: Optional[ClientConnection]
     _filter: "EventFilter"
     _seen_events: MutableMapping[UUID, bool]
 
