@@ -8,21 +8,17 @@ from prefect.settings import get_current_settings
 UpstreamResources = Sequence[Union[RelatedResource, Dict[str, str]]]
 DownstreamResources = Sequence[Union[Resource, Dict[str, str]]]
 
-
 # Map block types to their URI schemes
 STORAGE_URI_SCHEMES = {
-    "local-file-system": lambda storage, path: f"file://{storage._resolve_path(path)}",
-    "s3-bucket": lambda storage,
-    path: f"s3://{storage.bucket_name}/{storage._resolve_path(path)}",
-    "gcs-bucket": lambda storage,
-    path: f"gs://{storage.bucket}/{storage._resolve_path(path)}",
-    "azure-blob-storage": lambda storage,
-    path: f"azure-blob://{storage.container_name}/{storage._resolve_path(path)}",
+    "local-file-system": "file://{path}",
+    "s3-bucket": "s3://{storage.bucket_name}/{path}",
+    "gcs-bucket": "gs://{storage.bucket}/{path}",
+    "azure-blob-storage": "azure-blob://{storage.container_name}/{path}",
 }
 
 
 def get_result_resource_uri(
-    store,  #  type: ignore
+    store,  # type: ignore
     key: str,
 ) -> Optional[str]:
     """
@@ -34,20 +30,18 @@ def get_result_resource_uri(
 
     TODO: Can't type-hint `store` because of a circular import.
     """
-    from prefect.results import ResultStore
+    storage = store.result_storage
+    if storage is None:
+        return
 
-    if isinstance(store, ResultStore):
-        storage = store.result_storage
-        if storage is None:
-            return
+    path = store._resolved_key_path(key)
 
-        # Get the block type name
-        block_type = storage.get_block_type_slug()
-        if block_type and block_type in STORAGE_URI_SCHEMES:
-            return STORAGE_URI_SCHEMES[block_type](storage, key)
+    block_type = storage.get_block_type_slug()
+    if block_type and block_type in STORAGE_URI_SCHEMES:
+        return STORAGE_URI_SCHEMES[block_type].format(storage=storage, path=path)
 
     # Generic fallback
-    return f"prefect://{block_type}/{key}"
+    return f"prefect://{block_type}/{path}"
 
 
 async def emit_lineage_event(
