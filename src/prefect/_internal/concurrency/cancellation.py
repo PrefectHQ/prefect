@@ -12,14 +12,15 @@ import signal
 import sys
 import threading
 import time
-from typing import Callable, Dict, Optional, Type
+from types import TracebackType
+from typing import TYPE_CHECKING, Any, Callable, Optional, overload
 
 import anyio
 
 from prefect._internal.concurrency import logger
 from prefect._internal.concurrency.event_loop import get_running_loop
 
-_THREAD_SHIELDS: Dict[threading.Thread, "ThreadShield"] = {}
+_THREAD_SHIELDS: dict[threading.Thread, "ThreadShield"] = {}
 _THREAD_SHIELDS_LOCK = threading.Lock()
 
 
@@ -42,14 +43,14 @@ class ThreadShield:
         # Uses the Python implementation of the RLock instead of the C implementation
         # because we need to inspect `_count` directly to check if the lock is active
         # which is needed for delayed exception raising during alarms
-        self._lock = threading._RLock()
+        self._lock = threading._RLock()  # type: ignore  # yes, we want the private version
         self._exception = None
         self._owner = owner
 
     def __enter__(self) -> None:
         self._lock.__enter__()
 
-    def __exit__(self, *exc_info):
+    def __exit__(self, *exc_info: Any):
         retval = self._lock.__exit__(*exc_info)
 
         # Raise the exception if this is the last shield to exit in the owner thread
@@ -65,14 +66,14 @@ class ThreadShield:
 
         return retval
 
-    def set_exception(self, exc: Exception):
+    def set_exception(self, exc: BaseException):
         self._exception = exc
 
     def active(self) -> bool:
         """
         Returns true if the shield is active.
         """
-        return self._lock._count > 0
+        return getattr(self._lock, "_count") > 0
 
 
 class CancelledError(asyncio.CancelledError):
@@ -82,7 +83,7 @@ class CancelledError(asyncio.CancelledError):
     pass
 
 
-def _get_thread_shield(thread) -> ThreadShield:
+def _get_thread_shield(thread: threading.Thread) -> ThreadShield:
     with _THREAD_SHIELDS_LOCK:
         if thread not in _THREAD_SHIELDS:
             _THREAD_SHIELDS[thread] = ThreadShield(thread)
@@ -139,7 +140,7 @@ class CancelScope(abc.ABC):
         self._end_time = None
         self._timeout = timeout
         self._lock = threading.Lock()
-        self._callbacks = []
+        self._callbacks: list[Callable[[], None]] = []
         super().__init__()
 
     def __enter__(self):
@@ -151,7 +152,9 @@ class CancelScope(abc.ABC):
         logger.debug("%r entered", self)
         return self
 
-    def __exit__(self, *_):
+    def __exit__(
+        self, exc_type: type[BaseException], exc_val: Exception, exc_tb: TracebackType
+    ) -> Optional[bool]:
         with self._lock:
             if not self._cancelled:
                 self._completed = True
@@ -195,7 +198,7 @@ class CancelScope(abc.ABC):
         throw the cancelled error.
         """
         with self._lock:
-            if not self.started:
+            if not self._started:
                 raise RuntimeError("Scope has not been entered.")
 
             if self._completed:
@@ -247,7 +250,6 @@ class AsyncCancelScope(CancelScope):
         self, name: Optional[str] = None, timeout: Optional[float] = None
     ) -> None:
         super().__init__(name=name, timeout=timeout)
-        self.loop = None
 
     def __enter__(self):
         self.loop = asyncio.get_running_loop()
@@ -262,7 +264,9 @@ class AsyncCancelScope(CancelScope):
 
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self, exc_type: type[BaseException], exc_val: Exception, exc_tb: TracebackType
+    ) -> bool:
         if self._anyio_scope.cancel_called:
             # Mark as cancelled
             self.cancel(throw=False)
@@ -310,7 +314,7 @@ class NullCancelScope(CancelScope):
         super().__init__(name, timeout)
         self.reason = reason or "null cancel scope"
 
-    def cancel(self):
+    def cancel(self, throw: bool = True) -> bool:
         logger.warning("%r cannot cancel %s.", self, self.reason)
         return False
 
@@ -355,7 +359,7 @@ class AlarmCancelScope(CancelScope):
 
         return self
 
-    def _sigalarm_to_error(self, *args):
+    def _sigalarm_to_error(self, *args: object) -> None:
         logger.debug("%r captured alarm raising as cancelled error", self)
         if self.cancel(throw=False):
             shield = _get_thread_shield(threading.main_thread())
@@ -365,11 +369,13 @@ class AlarmCancelScope(CancelScope):
             else:
                 raise CancelledError()
 
-    def __exit__(self, *_):
+    def __exit__(self, *_: Any) -> Optional[bool]:
         retval = super().__exit__(*_)
 
         if self.timeout is not None:
             # Restore the previous timer
+            if TYPE_CHECKING:
+                assert self._previous_timer is not None
             signal.setitimer(signal.ITIMER_REAL, *self._previous_timer)
 
         # Restore the previous signal handler
@@ -417,7 +423,7 @@ class WatcherThreadCancelScope(CancelScope):
 
         return self
 
-    def __exit__(self, *_):
+    def __exit__(self, *_: Any) -> Optional[bool]:
         retval = super().__exit__(*_)
         self._event.set()
         if self._enforcer_thread:
@@ -466,7 +472,17 @@ class WatcherThreadCancelScope(CancelScope):
         return True
 
 
-def get_deadline(timeout: Optional[float]):
+@overload
+def get_deadline(timeout: float) -> float:
+    ...
+
+
+@overload
+def get_deadline(timeout: None) -> None:
+    ...
+
+
+def get_deadline(timeout: Optional[float]) -> Optional[float]:
     """
     Compute an deadline given a timeout.
 
@@ -572,7 +588,7 @@ def cancel_sync_after(timeout: Optional[float], name: Optional[str] = None):
         yield scope
 
 
-def _send_exception_to_thread(thread: threading.Thread, exc_type: Type[BaseException]):
+def _send_exception_to_thread(thread: threading.Thread, exc_type: type[BaseException]):
     """
     Raise an exception in a thread.
 

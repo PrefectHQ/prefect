@@ -16,7 +16,7 @@ from prefect._internal.pydantic.annotations.pendulum import (
 from prefect._internal.pydantic.schemas import GenerateEmptySchemaForUserClasses
 
 
-def is_v2_model(v) -> bool:
+def is_v2_model(v: t.Any) -> bool:
     if isinstance(v, V2BaseModel):
         return True
     try:
@@ -28,7 +28,7 @@ def is_v2_model(v) -> bool:
     return False
 
 
-def is_v2_type(v) -> bool:
+def is_v2_type(v: t.Any) -> bool:
     if is_v2_model(v):
         return True
 
@@ -56,9 +56,9 @@ def process_v2_params(
     param: inspect.Parameter,
     *,
     position: int,
-    docstrings: t.Dict[str, str],
-    aliases: t.Dict,
-) -> t.Tuple[str, t.Any, "pydantic.Field"]:
+    docstrings: dict[str, str],
+    aliases: dict[str, str],
+) -> tuple[str, t.Any, t.Any]:
     """
     Generate a sanitized name, type, and pydantic.Field for a given parameter.
 
@@ -72,7 +72,7 @@ def process_v2_params(
     else:
         name = param.name
 
-    type_ = t.Any if param.annotation is inspect._empty else param.annotation
+    type_ = t.Any if param.annotation is inspect.Parameter.empty else param.annotation
 
     # Replace pendulum type annotations with our own so that they are pydantic compatible
     if type_ == pendulum.DateTime:
@@ -95,12 +95,13 @@ def process_v2_params(
 def create_v2_schema(
     name_: str,
     model_cfg: t.Optional[ConfigDict] = None,
-    model_base: t.Optional[t.Type[V2BaseModel]] = None,
-    **model_fields,
-):
+    model_base: t.Optional[type[V2BaseModel]] = None,
+    model_fields: t.Optional[dict[str, t.Any]] = None,
+) -> dict[str, t.Any]:
     """
     Create a pydantic v2 model and craft a v1 compatible schema from it.
     """
+    model_fields = model_fields or {}
     model = create_model(
         name_, __config__=model_cfg, __base__=model_base, **model_fields
     )

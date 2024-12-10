@@ -1,6 +1,6 @@
 from asyncio import CancelledError
 from contextlib import contextmanager
-from typing import Optional, Type
+from typing import Optional
 
 from prefect._internal.concurrency.cancellation import (
     cancel_async_after,
@@ -8,7 +8,7 @@ from prefect._internal.concurrency.cancellation import (
 )
 
 
-def fail_if_not_timeout_error(timeout_exc_type: Type[Exception]) -> None:
+def fail_if_not_timeout_error(timeout_exc_type: type[Exception]) -> None:
     if not issubclass(timeout_exc_type, TimeoutError):
         raise ValueError(
             "The `timeout_exc_type` argument must be a subclass of `TimeoutError`."
@@ -17,7 +17,7 @@ def fail_if_not_timeout_error(timeout_exc_type: Type[Exception]) -> None:
 
 @contextmanager
 def timeout_async(
-    seconds: Optional[float] = None, timeout_exc_type: Type[TimeoutError] = TimeoutError
+    seconds: Optional[float] = None, timeout_exc_type: type[TimeoutError] = TimeoutError
 ):
     fail_if_not_timeout_error(timeout_exc_type)
 
@@ -34,7 +34,7 @@ def timeout_async(
 
 @contextmanager
 def timeout(
-    seconds: Optional[float] = None, timeout_exc_type: Type[TimeoutError] = TimeoutError
+    seconds: Optional[float] = None, timeout_exc_type: type[TimeoutError] = TimeoutError
 ):
     fail_if_not_timeout_error(timeout_exc_type)
 

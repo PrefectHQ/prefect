@@ -32,11 +32,9 @@ from prefect.results import (
     ResultStore,
     get_result_store,
 )
+from prefect.utilities._engine import get_hook_name
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.collections import AutoEnum
-from prefect.utilities.engine import (
-    _get_hook_name,  # pyright: ignore[reportPrivateUsage]
-)
 
 
 class IsolationLevel(AutoEnum):
@@ -357,7 +355,7 @@ class Transaction(ContextModel):
             return False
 
     def run_hook(self, hook: Callable[..., Any], hook_type: str) -> None:
-        hook_name = _get_hook_name(hook)
+        hook_name = get_hook_name(hook)
         # Undocumented way to disable logging for a hook. Subject to change.
         should_log = getattr(hook, "log_on_run", True)
 

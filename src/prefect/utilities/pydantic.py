@@ -1,18 +1,18 @@
-from functools import partial
 from typing import (
     Any,
     Callable,
-    Dict,
     Generic,
     Optional,
-    Type,
     TypeVar,
+    Union,
     cast,
     get_origin,
     overload,
 )
 
-from jsonpatch import JsonPatch as JsonPatchBase
+from jsonpatch import (  # type: ignore  # no typing stubs available, see https://github.com/stefankoegl/python-json-patch/issues/158
+    JsonPatch as JsonPatchBase,
+)
 from pydantic import (
     BaseModel,
     GetJsonSchemaHandler,
@@ -33,7 +33,7 @@ M = TypeVar("M", bound=BaseModel)
 T = TypeVar("T", bound=Any)
 
 
-def _reduce_model(model: BaseModel):
+def _reduce_model(self: BaseModel) -> tuple[Any, ...]:
     """
     Helper for serializing a cythonized model with cloudpickle.
 
@@ -43,31 +43,33 @@ def _reduce_model(model: BaseModel):
     return (
         _unreduce_model,
         (
-            to_qualified_name(type(model)),
-            model.model_dump_json(**getattr(model, "__reduce_kwargs__", {})),
+            to_qualified_name(type(self)),
+            self.model_dump_json(**getattr(self, "__reduce_kwargs__", {})),
         ),
     )
 
 
-def _unreduce_model(model_name, json):
+def _unreduce_model(model_name: str, json: str) -> Any:
     """Helper for restoring model after serialization"""
     model = from_qualified_name(model_name)
     return model.model_validate_json(json)
 
 
 @overload
-def add_cloudpickle_reduction(__model_cls: Type[M]) -> Type[M]:
+def add_cloudpickle_reduction(__model_cls: type[M]) -> type[M]:
     ...
 
 
 @overload
 def add_cloudpickle_reduction(
-    **kwargs: Any,
-) -> Callable[[Type[M]], Type[M]]:
+    __model_cls: None = None, **kwargs: Any
+) -> Callable[[type[M]], type[M]]:
     ...
 
 
-def add_cloudpickle_reduction(__model_cls: Optional[Type[M]] = None, **kwargs: Any):
+def add_cloudpickle_reduction(
+    __model_cls: Optional[type[M]] = None, **kwargs: Any
+) -> Union[type[M], Callable[[type[M]], type[M]]]:
     """
     Adds a `__reducer__` to the given class that ensures it is cloudpickle compatible.
 
@@ -85,25 +87,22 @@ def add_cloudpickle_reduction(__model_cls: Optional[Type[M]] = None, **kwargs: A
     """
     if __model_cls:
         __model_cls.__reduce__ = _reduce_model
-        __model_cls.__reduce_kwargs__ = kwargs
+        setattr(__model_cls, "__reduce_kwargs__", kwargs)
         return __model_cls
-    else:
-        return cast(
-            Callable[[Type[M]], Type[M]],
-            partial(
-                add_cloudpickle_reduction,
-                **kwargs,
-            ),
-        )
+
+    def reducer_with_kwargs(__model_cls: type[M]) -> type[M]:
+        return add_cloudpickle_reduction(__model_cls, **kwargs)
+
+    return reducer_with_kwargs
 
 
-def get_class_fields_only(model: Type[BaseModel]) -> set:
+def get_class_fields_only(model: type[BaseModel]) -> set[str]:
     """
     Gets all the field names defined on the model class but not any parent classes.
     Any fields that are on the parent but redefined on the subclass are included.
     """
     subclass_class_fields = set(model.__annotations__.keys())
-    parent_class_fields = set()
+    parent_class_fields: set[str] = set()
 
     for base in model.__class__.__bases__:
         if issubclass(base, BaseModel):
@@ -114,7 +113,7 @@ def get_class_fields_only(model: Type[BaseModel]) -> set:
     )
 
 
-def add_type_dispatch(model_cls: Type[M]) -> Type[M]:
+def add_type_dispatch(model_cls: type[M]) -> type[M]:
     """
     Extend a Pydantic model to add a 'type' field that is used as a discriminator field
     to dynamically determine the subtype that when deserializing models.
@@ -149,7 +148,7 @@ def add_type_dispatch(model_cls: Type[M]) -> Type[M]:
 
     elif not defines_dispatch_key and defines_type_field:
         field_type_annotation = model_cls.model_fields["type"].annotation
-        if field_type_annotation != str:
+        if field_type_annotation != str and field_type_annotation is not None:
             raise TypeError(
                 f"Model class {model_cls.__name__!r} defines a 'type' field with "
                 f"type {field_type_annotation.__name__!r} but it must be 'str'."
@@ -157,10 +156,10 @@ def add_type_dispatch(model_cls: Type[M]) -> Type[M]:
 
         # Set the dispatch key to retrieve the value from the type field
         @classmethod
-        def dispatch_key_from_type_field(cls):
+        def dispatch_key_from_type_field(cls: type[M]) -> str:
             return cls.model_fields["type"].default
 
-        model_cls.__dispatch_key__ = dispatch_key_from_type_field
+        setattr(model_cls, "__dispatch_key__", dispatch_key_from_type_field)
 
     else:
         raise ValueError(
@@ -171,7 +170,7 @@ def add_type_dispatch(model_cls: Type[M]) -> Type[M]:
     cls_init = model_cls.__init__
     cls_new = model_cls.__new__
 
-    def __init__(__pydantic_self__, **data: Any) -> None:
+    def __init__(__pydantic_self__: M, **data: Any) -> None:
         type_string = (
             get_dispatch_key(__pydantic_self__)
             if type(__pydantic_self__) != model_cls
@@ -180,12 +179,16 @@ def add_type_dispatch(model_cls: Type[M]) -> Type[M]:
         data.setdefault("type", type_string)
         cls_init(__pydantic_self__, **data)
 
-    def __new__(cls: Type[M], **kwargs: Any) -> M:
+    def __new__(cls: type[M], **kwargs: Any) -> M:
         if "type" in kwargs:
             try:
                 subcls = lookup_type(cls, dispatch_key=kwargs["type"])
             except KeyError as exc:
-                raise ValidationError(errors=[exc], model=cls)
+                raise ValidationError.from_exception_data(
+                    title=cls.__name__,
+                    line_errors=[{"type": str(exc), "input": kwargs["type"]}],
+                    input_type="python",
+                )
             return cls_new(subcls)
         else:
             return cls_new(cls)
@@ -221,7 +224,7 @@ class PartialModel(Generic[M]):
         >>> model = partial_model.finalize(z=3.0)
     """
 
-    def __init__(self, __model_cls: Type[M], **kwargs: Any) -> None:
+    def __init__(self, __model_cls: type[M], **kwargs: Any) -> None:
         self.fields = kwargs
         # Set fields first to avoid issues if `fields` is also set on the `model_cls`
         # in our custom `setattr` implementation.
@@ -236,11 +239,11 @@ class PartialModel(Generic[M]):
             self.raise_if_not_in_model(name)
         return self.model_cls(**self.fields, **kwargs)
 
-    def raise_if_already_set(self, name):
+    def raise_if_already_set(self, name: str) -> None:
         if name in self.fields:
             raise ValueError(f"Field {name!r} has already been set.")
 
-    def raise_if_not_in_model(self, name):
+    def raise_if_not_in_model(self, name: str) -> None:
         if name not in self.model_cls.model_fields:
             raise ValueError(f"Field {name!r} is not present in the model.")
 
@@ -290,7 +293,7 @@ class JsonPatch(JsonPatchBase):
 
 
 def custom_pydantic_encoder(
-    type_encoders: Optional[Dict[Any, Callable[[Type[Any]], Any]]], obj: Any
+    type_encoders: dict[Any, Callable[[type[Any]], Any]], obj: Any
 ) -> Any:
     # Check the class type and its superclasses for a matching encoder
     for base in obj.__class__.__mro__[:-1]:
@@ -359,8 +362,10 @@ def parse_obj_as(
     """
     adapter = TypeAdapter(type_)
 
-    if get_origin(type_) is list and isinstance(data, dict):
-        data = next(iter(data.values()))
+    origin: Optional[Any] = get_origin(type_)
+    if origin is list and isinstance(data, dict):
+        values_dict: dict[Any, Any] = data
+        data = next(iter(values_dict.values()))
 
     parser: Callable[[Any], T] = getattr(adapter, f"validate_{mode}")
 

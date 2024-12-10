@@ -6,7 +6,7 @@ import pydantic
 from pydantic.v1 import BaseModel as V1BaseModel
 
 
-def is_v1_model(v) -> bool:
+def is_v1_model(v: typing.Any) -> bool:
     with warnings.catch_warnings():
         warnings.filterwarnings(
             "ignore", category=pydantic.warnings.PydanticDeprecatedSince20
@@ -23,7 +23,7 @@ def is_v1_model(v) -> bool:
         return False
 
 
-def is_v1_type(v) -> bool:
+def is_v1_type(v: typing.Any) -> bool:
     if is_v1_model(v):
         return True
 

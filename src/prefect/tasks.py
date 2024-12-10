@@ -21,6 +21,7 @@ from typing import (
     List,
     NoReturn,
     Optional,
+    Protocol,
     Set,
     Tuple,
     Type,
@@ -31,7 +32,7 @@ from typing import (
 )
 from uuid import UUID, uuid4
 
-from typing_extensions import Literal, ParamSpec
+from typing_extensions import Literal, ParamSpec, Self, TypeIs
 
 import prefect.states
 from prefect.cache_policies import DEFAULT, NONE, CachePolicy
@@ -223,6 +224,16 @@ def _generate_task_key(fn: Callable[..., Any]) -> str:
     return f"{qualname}-{code_hash}"
 
 
+class TaskRunNameCallbackWithParameters(Protocol):
+    @classmethod
+    def is_callback_with_parameters(cls, callable: Callable[..., str]) -> TypeIs[Self]:
+        sig = inspect.signature(callable)
+        return "parameters" in sig.parameters
+
+    def __call__(self, parameters: dict[str, Any]) -> str:
+        ...
+
+
 class Task(Generic[P, R]):
     """
     A Prefect task definition.
@@ -311,7 +322,7 @@ class Task(Generic[P, R]):
         ] = None,
         cache_expiration: Optional[datetime.timedelta] = None,
         task_run_name: Optional[
-            Union[Callable[[], str], Callable[[Dict[str, Any]], str], str]
+            Union[Callable[[], str], TaskRunNameCallbackWithParameters, str]
         ] = None,
         retries: Optional[int] = None,
         retry_delay_seconds: Optional[
@@ -534,7 +545,9 @@ class Task(Generic[P, R]):
             Callable[["TaskRunContext", Dict[str, Any]], Optional[str]]
         ] = None,
         task_run_name: Optional[
-            Union[Callable[[], str], Callable[[Dict[str, Any]], str], str, Type[NotSet]]
+            Union[
+                Callable[[], str], TaskRunNameCallbackWithParameters, str, Type[NotSet]
+            ]
         ] = NotSet,
         cache_expiration: Optional[datetime.timedelta] = None,
         retries: Union[int, Type[NotSet]] = NotSet,
@@ -732,10 +745,8 @@ class Task(Generic[P, R]):
         extra_task_inputs: Optional[Dict[str, Set[TaskRunInput]]] = None,
         deferred: bool = False,
     ) -> TaskRun:
-        from prefect.utilities.engine import (
-            _dynamic_key_for_task_run,
-            collect_task_run_inputs_sync,
-        )
+        from prefect.utilities._engine import dynamic_key_for_task_run
+        from prefect.utilities.engine import collect_task_run_inputs_sync
 
         if flow_run_context is None:
             flow_run_context = FlowRunContext.get()
@@ -751,7 +762,7 @@ class Task(Generic[P, R]):
                 dynamic_key = f"{self.task_key}-{str(uuid4().hex)}"
                 task_run_name = self.name
             else:
-                dynamic_key = _dynamic_key_for_task_run(
+                dynamic_key = dynamic_key_for_task_run(
                     context=flow_run_context, task=self
                 )
                 task_run_name = f"{self.name}-{dynamic_key}"
@@ -835,10 +846,8 @@ class Task(Generic[P, R]):
         extra_task_inputs: Optional[Dict[str, Set[TaskRunInput]]] = None,
         deferred: bool = False,
     ) -> TaskRun:
-        from prefect.utilities.engine import (
-            _dynamic_key_for_task_run,
-            collect_task_run_inputs_sync,
-        )
+        from prefect.utilities._engine import dynamic_key_for_task_run
+        from prefect.utilities.engine import collect_task_run_inputs_sync
 
         if flow_run_context is None:
             flow_run_context = FlowRunContext.get()
@@ -854,7 +863,7 @@ class Task(Generic[P, R]):
                 dynamic_key = f"{self.task_key}-{str(uuid4().hex)}"
                 task_run_name = self.name
             else:
-                dynamic_key = _dynamic_key_for_task_run(
+                dynamic_key = dynamic_key_for_task_run(
                     context=flow_run_context, task=self, stable=False
                 )
                 task_run_name = f"{self.name}-{dynamic_key[:3]}"
@@ -1588,7 +1597,7 @@ def task(
     ] = None,
     cache_expiration: Optional[datetime.timedelta] = None,
     task_run_name: Optional[
-        Union[Callable[[], str], Callable[[Dict[str, Any]], str], str]
+        Union[Callable[[], str], TaskRunNameCallbackWithParameters, str]
     ] = None,
     retries: int = 0,
     retry_delay_seconds: Union[
@@ -1629,7 +1638,7 @@ def task(
     ] = None,
     cache_expiration: Optional[datetime.timedelta] = None,
     task_run_name: Optional[
-        Union[Callable[[], str], Callable[[Dict[str, Any]], str], str]
+        Union[Callable[[], str], TaskRunNameCallbackWithParameters, str]
     ] = None,
     retries: Optional[int] = None,
     retry_delay_seconds: Union[

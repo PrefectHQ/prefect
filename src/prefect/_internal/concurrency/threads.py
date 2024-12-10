@@ -8,13 +8,17 @@ import concurrent.futures
 import itertools
 import queue
 import threading
-from typing import List, Optional
+from typing import Any, Optional
+
+from typing_extensions import TypeVar
 
 from prefect._internal.concurrency import logger
 from prefect._internal.concurrency.calls import Call, Portal
 from prefect._internal.concurrency.cancellation import CancelledError
 from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect._internal.concurrency.primitives import Event
+
+T = TypeVar("T", infer_variance=True)
 
 
 class WorkerThread(Portal):
@@ -33,7 +37,7 @@ class WorkerThread(Portal):
         self.thread = threading.Thread(
             name=name, daemon=daemon, target=self._entrypoint
         )
-        self._queue = queue.Queue()
+        self._queue: queue.Queue[Optional[Call[Any]]] = queue.Queue()
         self._run_once: bool = run_once
         self._started: bool = False
         self._submitted_count: int = 0
@@ -42,7 +46,7 @@ class WorkerThread(Portal):
         if not daemon:
             atexit.register(self.shutdown)
 
-    def start(self):
+    def start(self) -> None:
         """
         Start the worker thread.
         """
@@ -51,7 +55,7 @@ class WorkerThread(Portal):
                 self._started = True
                 self.thread.start()
 
-    def submit(self, call: Call) -> Call:
+    def submit(self, call: Call[T]) -> Call[T]:
         if self._submitted_count > 0 and self._run_once:
             raise RuntimeError(
                 "Worker configured to only run once. A call has already been submitted."
@@ -83,7 +87,7 @@ class WorkerThread(Portal):
     def name(self) -> str:
         return self.thread.name
 
-    def _entrypoint(self):
+    def _entrypoint(self) -> None:
         """
         Entrypoint for the thread.
         """
@@ -129,12 +133,14 @@ class EventLoopThread(Portal):
         self.thread = threading.Thread(
             name=name, daemon=daemon, target=self._entrypoint
         )
-        self._ready_future = concurrent.futures.Future()
+        self._ready_future: concurrent.futures.Future[
+            bool
+        ] = concurrent.futures.Future()
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._shutdown_event: Event = Event()
         self._run_once: bool = run_once
         self._submitted_count: int = 0
-        self._on_shutdown: List[Call] = []
+        self._on_shutdown: list[Call[Any]] = []
         self._lock = threading.Lock()
 
         if not daemon:
@@ -149,7 +155,7 @@ class EventLoopThread(Portal):
                 self.thread.start()
                 self._ready_future.result()
 
-    def submit(self, call: Call) -> Call:
+    def submit(self, call: Call[T]) -> Call[T]:
         if self._loop is None:
             self.start()
 
@@ -167,6 +173,7 @@ class EventLoopThread(Portal):
             call.set_runner(self)
 
             # Submit the call to the event loop
+            assert self._loop is not None
             asyncio.run_coroutine_threadsafe(self._run_call(call), self._loop)
 
             self._submitted_count += 1
@@ -180,14 +187,15 @@ class EventLoopThread(Portal):
         Shutdown the worker thread. Does not wait for the thread to stop.
         """
         with self._lock:
-            if self._shutdown_event is None:
-                return
-
             self._shutdown_event.set()
 
     @property
     def name(self) -> str:
         return self.thread.name
+
+    @property
+    def running(self) -> bool:
+        return not self._shutdown_event.is_set()
 
     def _entrypoint(self):
         """
@@ -218,12 +226,12 @@ class EventLoopThread(Portal):
         # Empty the list to allow calls to be garbage collected. Issue #10338.
         self._on_shutdown = []
 
-    async def _run_call(self, call: Call) -> None:
+    async def _run_call(self, call: Call[Any]) -> None:
         task = call.run()
         if task is not None:
             await task
 
-    def add_shutdown_call(self, call: Call) -> None:
+    def add_shutdown_call(self, call: Call[Any]) -> None:
         self._on_shutdown.append(call)
 
     def __enter__(self):
@@ -235,9 +243,9 @@ class EventLoopThread(Portal):
 
 
 # the GLOBAL LOOP is used for background services, like logs
-GLOBAL_LOOP: Optional[EventLoopThread] = None
+_global_loop: Optional[EventLoopThread] = None
 # the RUN SYNC LOOP is used exclusively for running async functions in a sync context via asyncutils.run_sync
-RUN_SYNC_LOOP: Optional[EventLoopThread] = None
+_run_sync_loop: Optional[EventLoopThread] = None
 
 
 def get_global_loop() -> EventLoopThread:
@@ -246,29 +254,29 @@ def get_global_loop() -> EventLoopThread:
 
     Creates a new one if there is not one available.
     """
-    global GLOBAL_LOOP
+    global _global_loop
 
     # Create a new worker on first call or if the existing worker is dead
     if (
-        GLOBAL_LOOP is None
-        or not GLOBAL_LOOP.thread.is_alive()
-        or GLOBAL_LOOP._shutdown_event.is_set()
+        _global_loop is None
+        or not _global_loop.thread.is_alive()
+        or not _global_loop.running
     ):
-        GLOBAL_LOOP = EventLoopThread(daemon=True, name="GlobalEventLoopThread")
-        GLOBAL_LOOP.start()
+        _global_loop = EventLoopThread(daemon=True, name="GlobalEventLoopThread")
+        _global_loop.start()
 
-    return GLOBAL_LOOP
+    return _global_loop
 
 
 def in_global_loop() -> bool:
     """
     Check if called from the global loop.
     """
-    if GLOBAL_LOOP is None:
+    if _global_loop is None:
         # Avoid creating a global loop if there isn't one
         return False
 
-    return get_global_loop()._loop == get_running_loop()
+    return getattr(get_global_loop(), "_loop") == get_running_loop()
 
 
 def get_run_sync_loop() -> EventLoopThread:
@@ -277,29 +285,29 @@ def get_run_sync_loop() -> EventLoopThread:
 
     Creates a new one if there is not one available.
     """
-    global RUN_SYNC_LOOP
+    global _run_sync_loop
 
     # Create a new worker on first call or if the existing worker is dead
     if (
-        RUN_SYNC_LOOP is None
-        or not RUN_SYNC_LOOP.thread.is_alive()
-        or RUN_SYNC_LOOP._shutdown_event.is_set()
+        _run_sync_loop is None
+        or not _run_sync_loop.thread.is_alive()
+        or not _run_sync_loop.running
     ):
-        RUN_SYNC_LOOP = EventLoopThread(daemon=True, name="RunSyncEventLoopThread")
-        RUN_SYNC_LOOP.start()
+        _run_sync_loop = EventLoopThread(daemon=True, name="RunSyncEventLoopThread")
+        _run_sync_loop.start()
 
-    return RUN_SYNC_LOOP
+    return _run_sync_loop
 
 
 def in_run_sync_loop() -> bool:
     """
     Check if called from the global loop.
     """
-    if RUN_SYNC_LOOP is None:
+    if _run_sync_loop is None:
         # Avoid creating a global loop if there isn't one
         return False
 
-    return get_run_sync_loop()._loop == get_running_loop()
+    return getattr(get_run_sync_loop(), "_loop") == get_running_loop()
 
 
 def wait_for_global_loop_exit(timeout: Optional[float] = None) -> None:
