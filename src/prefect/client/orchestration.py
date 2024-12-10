@@ -509,7 +509,7 @@ class PrefectClient:
             flow_id: ID of the flow to be deleted
         Raises:
             prefect.exceptions.ObjectNotFound: If request returns 404
-            httpx.RequestError: If requests fails
+            httpx.RequestError: If requests fail
         """
         try:
             await self._client.delete(f"/flows/{flow_id}")
