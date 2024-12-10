@@ -212,7 +212,7 @@ class ResponseBaseModel(PrefectBaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-    id: UUID = Field(default_factory=uuid4)
+    id: UUID
 
-    created: Optional[DateTime] = Field(default=None, repr=False)
-    updated: Optional[DateTime] = Field(default=None, repr=False)
+    created: Optional[DateTime]
+    updated: Optional[DateTime]
