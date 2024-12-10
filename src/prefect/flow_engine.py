@@ -702,7 +702,9 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
     @contextmanager
     def start(self) -> Generator[None, None, None]:
         with self.initialize_run():
-            with trace.use_span(self._span) if self._span else nullcontext():
+            with trace.use_span(
+                self._telemetry.span
+            ) if self._telemetry.span else nullcontext():
                 self.begin_run()
 
                 if self.state.is_running():
