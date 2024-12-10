@@ -1,6 +1,6 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { server } from "@tests/mocks";
+import { createWrapper, server } from "@tests/utils";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 
@@ -40,13 +40,6 @@ describe("global concurrency limits hooks", () => {
 		);
 	};
 
-	const createQueryWrapper = ({ queryClient = new QueryClient() }) => {
-		const QueryWrapper = ({ children }: { children: React.ReactNode }) => (
-			<QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-		);
-		return QueryWrapper;
-	};
-
 	const filter = {
 		offset: 0,
 	};
@@ -63,7 +56,7 @@ describe("global concurrency limits hooks", () => {
 		// ------------ Initialize hooks to test
 		const { result } = renderHook(
 			() => useListGlobalConcurrencyLimits(filter),
-			{ wrapper: createQueryWrapper({}) },
+			{ wrapper: createWrapper() },
 		);
 
 		// ------------ Assert
@@ -94,12 +87,12 @@ describe("global concurrency limits hooks", () => {
 		// ------------ Initialize hooks to test
 		const { result: useListGlobalConcurrencyLimitsResult } = renderHook(
 			() => useListGlobalConcurrencyLimits(filter),
-			{ wrapper: createQueryWrapper({ queryClient }) },
+			{ wrapper: createWrapper({ queryClient }) },
 		);
 
 		const { result: useDeleteGlobalConcurrencyLimitResult } = renderHook(
 			useDeleteGlobalConcurrencyLimit,
-			{ wrapper: createQueryWrapper({ queryClient }) },
+			{ wrapper: createWrapper({ queryClient }) },
 		);
 
 		// ------------ Invoke mutation
@@ -157,11 +150,11 @@ describe("global concurrency limits hooks", () => {
 		// ------------ Initialize hooks to test
 		const { result: useListGlobalConcurrencyLimitsResult } = renderHook(
 			() => useListGlobalConcurrencyLimits(filter),
-			{ wrapper: createQueryWrapper({ queryClient }) },
+			{ wrapper: createWrapper({ queryClient }) },
 		);
 		const { result: useCreateGlobalConcurrencyLimitResult } = renderHook(
 			useCreateGlobalConcurrencyLimit,
-			{ wrapper: createQueryWrapper({ queryClient }) },
+			{ wrapper: createWrapper({ queryClient }) },
 		);
 
 		// ------------ Invoke mutation
@@ -221,12 +214,12 @@ describe("global concurrency limits hooks", () => {
 		// ------------ Initialize hooks to test
 		const { result: useListGlobalConcurrencyLimitsResult } = renderHook(
 			() => useListGlobalConcurrencyLimits(filter),
-			{ wrapper: createQueryWrapper({ queryClient }) },
+			{ wrapper: createWrapper({ queryClient }) },
 		);
 
 		const { result: useUpdateGlobalConcurrencyLimitResult } = renderHook(
 			useUpdateGlobalConcurrencyLimit,
-			{ wrapper: createQueryWrapper({ queryClient }) },
+			{ wrapper: createWrapper({ queryClient }) },
 		);
 
 		// ------------ Invoke mutation
