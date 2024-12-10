@@ -12,7 +12,7 @@ from prefect.client.orchestration import get_client
 from prefect.exceptions import MissingFlowError, ScriptError
 from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.logging import get_logger
-from prefect.runner._utils import (
+from prefect.runner.utils import (
     inject_schemas_into_openapi,
 )
 from prefect.settings import (

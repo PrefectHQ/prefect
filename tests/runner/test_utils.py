@@ -1,3 +1,4 @@
+from typing import Any, Callable
 from unittest.mock import create_autospec
 
 import pytest
@@ -5,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.routing import APIRoute
 
 from prefect import __version__ as PREFECT_VERSION
-from prefect.runner._utils import (
+from prefect.runner.utils import (
     inject_schemas_into_openapi,
     merge_definitions,
     update_refs_to_components,
@@ -13,7 +14,7 @@ from prefect.runner._utils import (
 
 
 class MockRoute(APIRoute):
-    def __init__(self, path: str, endpoint: callable):
+    def __init__(self, path: str, endpoint: Callable[..., Any]):
         super().__init__(path, endpoint)
 
 
