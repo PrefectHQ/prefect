@@ -1,17 +1,6 @@
 import type { components } from "@/api/prefect";
-import {
-	useReactTable,
-	getCoreRowModel,
-	createColumnHelper,
-	type PaginationState,
-	type OnChangeFn,
-	type ColumnFiltersState,
-} from "@tanstack/react-table";
 import { DataTable } from "@/components/ui/data-table";
-import { ActionsCell, ValueCell } from "./cells";
-import { useCallback, useMemo } from "react";
 import { SearchInput } from "@/components/ui/input";
-import { TagsInput } from "@/components/ui/tags-input";
 import {
 	Select,
 	SelectContent,
@@ -19,8 +8,19 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import type React from "react";
 import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
+import { TagsInput } from "@/components/ui/tags-input";
+import {
+	type ColumnFiltersState,
+	type OnChangeFn,
+	type PaginationState,
+	createColumnHelper,
+	getCoreRowModel,
+	useReactTable,
+} from "@tanstack/react-table";
+import { useCallback, useMemo } from "react";
+import type React from "react";
+import { ActionsCell, ValueCell } from "./cells";
 
 const columnHelper = createColumnHelper<components["schemas"]["Variable"]>();
 

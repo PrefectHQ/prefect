@@ -20,8 +20,8 @@ import {
 	Rocket,
 	Search,
 	ServerCrash,
-	Workflow,
 	Variable,
+	Workflow,
 	X,
 } from "lucide-react";
 

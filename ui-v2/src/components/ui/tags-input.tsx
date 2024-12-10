@@ -1,7 +1,7 @@
+import { Input, type InputProps } from "@/components/ui/input";
 import React from "react";
 import { useState } from "react";
-import type { KeyboardEvent, ChangeEvent, FocusEvent } from "react";
-import { Input, type InputProps } from "@/components/ui/input";
+import type { ChangeEvent, FocusEvent, KeyboardEvent } from "react";
 import { TagBadgeGroup } from "./tag-badge-group";
 
 type TagsInputProps = InputProps & {

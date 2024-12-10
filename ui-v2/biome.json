@@ -14,7 +14,8 @@
 		"indentStyle": "tab"
 	},
 	"organizeImports": {
-		"enabled": true
+		"enabled": true,
+		"ignore": ["src/api/prefect.ts"]
 	},
 	"linter": {
 		"enabled": false,
