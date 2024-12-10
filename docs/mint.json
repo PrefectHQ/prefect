@@ -73,7 +73,8 @@
         {
           "group": "For platform engineers",
           "pages": [
-            "v3/tutorials/platform"
+            "v3/tutorials/platform",
+            "v3/tutorials/debug"
           ]
         }
       ],
@@ -445,6 +446,7 @@
                     "v3/api-ref/rest-api/server/flow-runs/delete-flow-run-input",
                     "v3/api-ref/rest-api/server/flow-runs/paginate-flow-runs",
                     "v3/api-ref/rest-api/server/flow-runs/download-logs",
+                    "v3/api-ref/rest-api/server/flow-runs/update-flow-run-labels",
                     "v3/api-ref/rest-api/server/flow-runs/read-flow-run-history",
                     "v3/api-ref/rest-api/server/flow-runs/count-task-runs-by-flow-run"
                   ]

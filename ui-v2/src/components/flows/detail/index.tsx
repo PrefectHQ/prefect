@@ -1,7 +1,7 @@
-import { components } from "@/api/prefect";
 import { DataTable } from "@/components/ui/data-table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate } from "@tanstack/react-router";
+import { JSX } from "react";
 import { columns as deploymentColumns } from "./deployment-columns";
 import {
 	getFlowMetadata,
@@ -9,6 +9,7 @@ import {
 } from "./metadata-columns";
 import { columns as flowRunColumns } from "./runs-columns";
 
+import { components } from "@/api/prefect";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -99,7 +100,7 @@ export default function FlowDetail({
 	activity: components["schemas"]["FlowRun"][];
 	deployments: components["schemas"]["DeploymentResponse"][];
 	tab: "runs" | "deployments" | "details";
-}): React.ReactElement {
+}): JSX.Element {
 	const navigate = useNavigate();
 	console.log(activity);
 
