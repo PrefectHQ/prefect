@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { server } from "@tests/mocks";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 
@@ -11,8 +12,6 @@ import {
 	useListGlobalConcurrencyLimits,
 	useUpdateGlobalConcurrencyLimit,
 } from "./global-concurrency-limits";
-
-import { server } from "../../tests/mocks/node";
 
 describe("global concurrency limits hooks", () => {
 	const seedGlobalConcurrencyLimits = () => [
