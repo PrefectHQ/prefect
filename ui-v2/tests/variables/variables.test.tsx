@@ -2,7 +2,6 @@ import "./mocks";
 import { Toaster } from "@/components/ui/toaster";
 import { VariablesDataTable } from "@/components/variables/data-table";
 import { router } from "@/router";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import {
 	getByLabelText,
@@ -12,7 +11,7 @@ import {
 	screen,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { server } from "@tests/mocks";
+import { createWrapper, server } from "@tests/utils";
 import { http, HttpResponse } from "msw";
 import {
 	afterEach,
@@ -26,13 +25,10 @@ import {
 
 const renderVariablesPage = async () => {
 	const user = userEvent.setup();
-	const queryClient = new QueryClient();
 	// Render with router provider
-	const result = render(
-		<QueryClientProvider client={queryClient}>
-			<RouterProvider router={router} />
-		</QueryClientProvider>,
-	);
+	const result = render(<RouterProvider router={router} />, {
+		wrapper: createWrapper(),
+	});
 	await user.click(screen.getByRole("link", { name: "Variables" }));
 	return result;
 };
@@ -335,21 +331,19 @@ describe("Variables page", () => {
 					tags: ["tag2"],
 				},
 			];
-			const queryClient = new QueryClient();
 			render(
-				<QueryClientProvider client={queryClient}>
-					<VariablesDataTable
-						variables={variables}
-						currentVariableCount={2}
-						pagination={{ pageIndex: 0, pageSize: 10 }}
-						onPaginationChange={vi.fn()}
-						columnFilters={[]}
-						onColumnFiltersChange={vi.fn()}
-						sorting="CREATED_DESC"
-						onSortingChange={vi.fn()}
-						onVariableEdit={vi.fn()}
-					/>
-				</QueryClientProvider>,
+				<VariablesDataTable
+					variables={variables}
+					currentVariableCount={2}
+					pagination={{ pageIndex: 0, pageSize: 10 }}
+					onPaginationChange={vi.fn()}
+					columnFilters={[]}
+					onColumnFiltersChange={vi.fn()}
+					sorting="CREATED_DESC"
+					onSortingChange={vi.fn()}
+					onVariableEdit={vi.fn()}
+				/>,
+				{ wrapper: createWrapper() },
 			);
 			expect(screen.getByText("2 Variables")).toBeVisible();
 			// Table headers
@@ -381,21 +375,19 @@ describe("Variables page", () => {
 			}));
 			const onPaginationChange = vi.fn();
 			const user = userEvent.setup();
-			const queryClient = new QueryClient();
 			const { rerender } = render(
-				<QueryClientProvider client={queryClient}>
-					<VariablesDataTable
-						variables={variables.slice(0, 10)}
-						currentVariableCount={20}
-						pagination={{ pageIndex: 0, pageSize: 10 }}
-						onPaginationChange={onPaginationChange}
-						columnFilters={[]}
-						onColumnFiltersChange={vi.fn()}
-						sorting="CREATED_DESC"
-						onSortingChange={vi.fn()}
-						onVariableEdit={vi.fn()}
-					/>
-				</QueryClientProvider>,
+				<VariablesDataTable
+					variables={variables.slice(0, 10)}
+					currentVariableCount={20}
+					pagination={{ pageIndex: 0, pageSize: 10 }}
+					onPaginationChange={onPaginationChange}
+					columnFilters={[]}
+					onColumnFiltersChange={vi.fn()}
+					sorting="CREATED_DESC"
+					onSortingChange={vi.fn()}
+					onVariableEdit={vi.fn()}
+				/>,
+				{ wrapper: createWrapper() },
 			);
 			expect(screen.getByText("20 Variables")).toBeVisible();
 
@@ -412,19 +404,17 @@ describe("Variables page", () => {
 			expect(onPaginationChange).toHaveBeenCalled();
 
 			rerender(
-				<QueryClientProvider client={queryClient}>
-					<VariablesDataTable
-						variables={variables.slice(10, 20)}
-						currentVariableCount={20}
-						pagination={{ pageIndex: 1, pageSize: 10 }}
-						onPaginationChange={onPaginationChange}
-						columnFilters={[]}
-						onColumnFiltersChange={vi.fn()}
-						sorting="CREATED_DESC"
-						onSortingChange={vi.fn()}
-						onVariableEdit={vi.fn()}
-					/>
-				</QueryClientProvider>,
+				<VariablesDataTable
+					variables={variables.slice(10, 20)}
+					currentVariableCount={20}
+					pagination={{ pageIndex: 1, pageSize: 10 }}
+					onPaginationChange={onPaginationChange}
+					columnFilters={[]}
+					onColumnFiltersChange={vi.fn()}
+					sorting="CREATED_DESC"
+					onSortingChange={vi.fn()}
+					onVariableEdit={vi.fn()}
+				/>,
 			);
 
 			expect(screen.getByText("Page 2 of 2")).toBeVisible();
@@ -452,21 +442,19 @@ describe("Variables page", () => {
 					tags: ["tag1"],
 				},
 			];
-			const queryClient = new QueryClient();
 			render(
-				<QueryClientProvider client={queryClient}>
-					<VariablesDataTable
-						variables={variables}
-						currentVariableCount={1}
-						pagination={{ pageIndex: 0, pageSize: 10 }}
-						onPaginationChange={vi.fn()}
-						columnFilters={[]}
-						onColumnFiltersChange={vi.fn()}
-						sorting="CREATED_DESC"
-						onSortingChange={vi.fn()}
-						onVariableEdit={vi.fn()}
-					/>
-				</QueryClientProvider>,
+				<VariablesDataTable
+					variables={variables}
+					currentVariableCount={1}
+					pagination={{ pageIndex: 0, pageSize: 10 }}
+					onPaginationChange={vi.fn()}
+					columnFilters={[]}
+					onColumnFiltersChange={vi.fn()}
+					sorting="CREATED_DESC"
+					onSortingChange={vi.fn()}
+					onVariableEdit={vi.fn()}
+				/>,
+				{ wrapper: createWrapper() },
 			);
 
 			await user.click(screen.getByRole("button", { expanded: false }));
@@ -486,21 +474,19 @@ describe("Variables page", () => {
 					tags: ["tag1"],
 				},
 			];
-			const queryClient = new QueryClient();
 			render(
-				<QueryClientProvider client={queryClient}>
-					<VariablesDataTable
-						variables={variables}
-						currentVariableCount={1}
-						pagination={{ pageIndex: 0, pageSize: 10 }}
-						onPaginationChange={vi.fn()}
-						columnFilters={[]}
-						onColumnFiltersChange={vi.fn()}
-						sorting="CREATED_DESC"
-						onSortingChange={vi.fn()}
-						onVariableEdit={vi.fn()}
-					/>
-				</QueryClientProvider>,
+				<VariablesDataTable
+					variables={variables}
+					currentVariableCount={1}
+					pagination={{ pageIndex: 0, pageSize: 10 }}
+					onPaginationChange={vi.fn()}
+					columnFilters={[]}
+					onColumnFiltersChange={vi.fn()}
+					sorting="CREATED_DESC"
+					onSortingChange={vi.fn()}
+					onVariableEdit={vi.fn()}
+				/>,
+				{ wrapper: createWrapper() },
 			);
 
 			await user.click(screen.getByRole("button", { expanded: false }));
@@ -520,21 +506,19 @@ describe("Variables page", () => {
 					tags: ["tag1"],
 				},
 			];
-			const queryClient = new QueryClient();
 			render(
-				<QueryClientProvider client={queryClient}>
-					<VariablesDataTable
-						variables={variables}
-						currentVariableCount={1}
-						pagination={{ pageIndex: 0, pageSize: 10 }}
-						onPaginationChange={vi.fn()}
-						columnFilters={[]}
-						onColumnFiltersChange={vi.fn()}
-						sorting="CREATED_DESC"
-						onSortingChange={vi.fn()}
-						onVariableEdit={vi.fn()}
-					/>
-				</QueryClientProvider>,
+				<VariablesDataTable
+					variables={variables}
+					currentVariableCount={1}
+					pagination={{ pageIndex: 0, pageSize: 10 }}
+					onPaginationChange={vi.fn()}
+					columnFilters={[]}
+					onColumnFiltersChange={vi.fn()}
+					sorting="CREATED_DESC"
+					onSortingChange={vi.fn()}
+					onVariableEdit={vi.fn()}
+				/>,
+				{ wrapper: createWrapper() },
 			);
 
 			await user.click(screen.getByRole("button", { expanded: false }));
@@ -554,9 +538,8 @@ describe("Variables page", () => {
 					tags: ["tag1"],
 				},
 			];
-			const queryClient = new QueryClient();
 			render(
-				<QueryClientProvider client={queryClient}>
+				<>
 					<Toaster />
 					<VariablesDataTable
 						variables={variables}
@@ -569,7 +552,8 @@ describe("Variables page", () => {
 						onSortingChange={vi.fn()}
 						onVariableEdit={vi.fn()}
 					/>
-				</QueryClientProvider>,
+				</>,
+				{ wrapper: createWrapper() },
 			);
 
 			await user.click(screen.getByRole("button", { expanded: false }));
@@ -590,21 +574,19 @@ describe("Variables page", () => {
 				},
 			];
 			const onColumnFiltersChange = vi.fn();
-			const queryClient = new QueryClient();
 			render(
-				<QueryClientProvider client={queryClient}>
-					<VariablesDataTable
-						variables={variables}
-						currentVariableCount={1}
-						pagination={{ pageIndex: 0, pageSize: 10 }}
-						onPaginationChange={vi.fn()}
-						columnFilters={[{ id: "name", value: "start value" }]}
-						onColumnFiltersChange={onColumnFiltersChange}
-						sorting="CREATED_DESC"
-						onSortingChange={vi.fn()}
-						onVariableEdit={vi.fn()}
-					/>
-				</QueryClientProvider>,
+				<VariablesDataTable
+					variables={variables}
+					currentVariableCount={1}
+					pagination={{ pageIndex: 0, pageSize: 10 }}
+					onPaginationChange={vi.fn()}
+					columnFilters={[{ id: "name", value: "start value" }]}
+					onColumnFiltersChange={onColumnFiltersChange}
+					sorting="CREATED_DESC"
+					onSortingChange={vi.fn()}
+					onVariableEdit={vi.fn()}
+				/>,
+				{ wrapper: createWrapper() },
 			);
 
 			// Clear any initial calls from mounting
@@ -635,21 +617,19 @@ describe("Variables page", () => {
 			];
 
 			const onColumnFiltersChange = vi.fn();
-			const queryClient = new QueryClient();
 			render(
-				<QueryClientProvider client={queryClient}>
-					<VariablesDataTable
-						variables={variables}
-						currentVariableCount={1}
-						pagination={{ pageIndex: 0, pageSize: 10 }}
-						onPaginationChange={vi.fn()}
-						columnFilters={[{ id: "tags", value: ["tag2"] }]}
-						onColumnFiltersChange={onColumnFiltersChange}
-						sorting="CREATED_DESC"
-						onSortingChange={vi.fn()}
-						onVariableEdit={vi.fn()}
-					/>
-				</QueryClientProvider>,
+				<VariablesDataTable
+					variables={variables}
+					currentVariableCount={1}
+					pagination={{ pageIndex: 0, pageSize: 10 }}
+					onPaginationChange={vi.fn()}
+					columnFilters={[{ id: "tags", value: ["tag2"] }]}
+					onColumnFiltersChange={onColumnFiltersChange}
+					sorting="CREATED_DESC"
+					onSortingChange={vi.fn()}
+					onVariableEdit={vi.fn()}
+				/>,
+				{ wrapper: createWrapper() },
 			);
 
 			// Clear any initial calls from mounting
@@ -680,21 +660,19 @@ describe("Variables page", () => {
 			];
 
 			const onSortingChange = vi.fn();
-			const queryClient = new QueryClient();
 			render(
-				<QueryClientProvider client={queryClient}>
-					<VariablesDataTable
-						variables={variables}
-						currentVariableCount={1}
-						pagination={{ pageIndex: 0, pageSize: 10 }}
-						onPaginationChange={vi.fn()}
-						columnFilters={[]}
-						onColumnFiltersChange={vi.fn()}
-						sorting="CREATED_DESC"
-						onSortingChange={onSortingChange}
-						onVariableEdit={vi.fn()}
-					/>
-				</QueryClientProvider>,
+				<VariablesDataTable
+					variables={variables}
+					currentVariableCount={1}
+					pagination={{ pageIndex: 0, pageSize: 10 }}
+					onPaginationChange={vi.fn()}
+					columnFilters={[]}
+					onColumnFiltersChange={vi.fn()}
+					sorting="CREATED_DESC"
+					onSortingChange={onSortingChange}
+					onVariableEdit={vi.fn()}
+				/>,
+				{ wrapper: createWrapper() },
 			);
 
 			const select = screen.getByRole("combobox", {
@@ -724,21 +702,19 @@ describe("Variables page", () => {
 				},
 			];
 			const onPaginationChange = vi.fn();
-			const queryClient = new QueryClient();
 			render(
-				<QueryClientProvider client={queryClient}>
-					<VariablesDataTable
-						variables={variables}
-						currentVariableCount={1}
-						pagination={{ pageIndex: 0, pageSize: 10 }}
-						onPaginationChange={onPaginationChange}
-						columnFilters={[]}
-						onColumnFiltersChange={vi.fn()}
-						sorting="CREATED_DESC"
-						onSortingChange={vi.fn()}
-						onVariableEdit={vi.fn()}
-					/>
-				</QueryClientProvider>,
+				<VariablesDataTable
+					variables={variables}
+					currentVariableCount={1}
+					pagination={{ pageIndex: 0, pageSize: 10 }}
+					onPaginationChange={onPaginationChange}
+					columnFilters={[]}
+					onColumnFiltersChange={vi.fn()}
+					sorting="CREATED_DESC"
+					onSortingChange={vi.fn()}
+					onVariableEdit={vi.fn()}
+				/>,
+				{ wrapper: createWrapper() },
 			);
 
 			const select = screen.getByRole("combobox", {
