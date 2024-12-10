@@ -1,5 +1,6 @@
 import { ConcurrencyPage } from "@/components/concurrency/concurrency-page";
-import { useListGlobalConcurrencyLimits } from "@/hooks/global-concurrency-limits";
+import { buildListGlobalConcurrencyLimitsQuery } from "@/hooks/global-concurrency-limits";
+import { buildListTaskRunConcurrencyLimitsQuery } from "@/hooks/task-run-concurrency-limits";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodSearchValidator } from "@tanstack/router-zod-adapter";
 import { z } from "zod";
@@ -9,6 +10,7 @@ import { z } from "zod";
  * @property {'global' | 'task-run'} tab used designate which tab view to display
  */
 const searchParams = z.object({
+	search: z.string().optional(),
 	tab: z.enum(["global", "task-run"]).default("global"),
 });
 
@@ -18,5 +20,13 @@ export const Route = createFileRoute("/concurrency-limits")({
 	validateSearch: zodSearchValidator(searchParams),
 	component: ConcurrencyPage,
 	wrapInSuspense: true,
-	loader: useListGlobalConcurrencyLimits.loader,
+	loader: ({ context }) =>
+		Promise.all([
+			context.queryClient.ensureQueryData(
+				buildListGlobalConcurrencyLimitsQuery(),
+			),
+			context.queryClient.ensureQueryData(
+				buildListTaskRunConcurrencyLimitsQuery(),
+			),
+		]),
 });

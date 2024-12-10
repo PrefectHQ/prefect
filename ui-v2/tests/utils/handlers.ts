@@ -21,6 +21,21 @@ const globalConcurrencyLimitsHandlers = [
 	),
 ];
 
+const taskRunConcurrencyLimitsHandlers = [
+	http.post("http://localhost:4200/api/concurrency_limits/filter", () => {
+		return HttpResponse.json([]);
+	}),
+	http.post(
+		"http://localhost:4200/api/concurrency_limits/tag/:tag/reset",
+		() => {
+			return HttpResponse.json({ status: 200 });
+		},
+	),
+	http.delete("http://localhost:4200/api/concurrency_limits/:id", () => {
+		return HttpResponse.json({ status: 204 });
+	}),
+];
+
 const variablesHandlers = [
 	http.post("http://localhost:4200/api/variables/", () => {
 		return HttpResponse.json({ status: "success" }, { status: 201 });
@@ -62,5 +77,6 @@ export const handlers = [
 		return HttpResponse.json(1);
 	}),
 	...globalConcurrencyLimitsHandlers,
+	...taskRunConcurrencyLimitsHandlers,
 	...variablesHandlers,
 ];
