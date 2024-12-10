@@ -49,10 +49,10 @@ def format_markdown_table(diagnostics: list[Diagnostic]) -> str:
     table = ["| File | Location | Message |", "|------|----------|---------|"]
 
     for diag in sorted(diagnostics, key=lambda x: (x.file, x.line, x.character)):
-        # Escape pipe characters in the message to prevent table formatting issues
-        message = diag.message.replace("|", "\\|")
+        # Escape pipe characters and replace newlines with HTML breaks
+        message = diag.message.replace("|", "\\|").replace("\n", "<br>")
         location = f"L{diag.line}:{diag.character}"
-        table.append(f"| {diag.file} | {location} | {message.replace('\n', '\\n')} |")
+        table.append(f"| {diag.file} | {location} | {message} |")
 
     return "\n".join(table)
 
