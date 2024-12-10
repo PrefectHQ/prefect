@@ -52,7 +52,7 @@ def format_markdown_table(diagnostics: list[Diagnostic]) -> str:
         # Escape pipe characters in the message to prevent table formatting issues
         message = diag.message.replace("|", "\\|")
         location = f"L{diag.line}:{diag.character}"
-        table.append(f"| {diag.file} | {location} | {message} |")
+        table.append(f"| {diag.file} | {location} | {message.replace('\n', '\\n')} |")
 
     return "\n".join(table)
 
