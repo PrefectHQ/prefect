@@ -19,7 +19,6 @@ if TYPE_CHECKING:
     from prefect.context import RunContext
     from prefect.flows import Flow
     from prefect.tasks import Task
-    from prefect.workers.base import BaseWorker
 
 if sys.version_info >= (3, 12):
     LoggingAdapter = logging.LoggerAdapter[logging.Logger]
@@ -225,7 +224,7 @@ def task_run_logger(
     )
 
 
-def get_worker_logger(worker: "BaseWorker", name: Optional[str] = None):
+def get_worker_logger(worker, name: Optional[str] = None):
     """
     Create a worker logger with the worker's metadata attached.
 
@@ -249,7 +248,7 @@ def get_worker_logger(worker: "BaseWorker", name: Optional[str] = None):
 
 
 @contextmanager
-def disable_logger(name: str):
+def disable_logger(name):
     """
     Get a logger by name and disables it within the context manager.
     Upon exiting the context manager, the logger is returned to its
@@ -279,7 +278,7 @@ def disable_run_logger():
         yield
 
 
-def print_as_log(*args: Any, **kwargs: Any) -> None:
+def print_as_log(*args, **kwargs) -> None:
     """
     A patch for `print` to send printed messages to the Prefect run logger.
 
