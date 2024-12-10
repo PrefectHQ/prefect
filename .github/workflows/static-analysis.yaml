@@ -104,7 +104,7 @@ jobs:
 
       - name: Checkout current branch
         run: |
-          git checkout ${{ github.ref }}
+          git checkout ${{ github.head_ref || github.ref_name }}
 
       - name: Compare scores
         run: |
