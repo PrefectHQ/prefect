@@ -523,7 +523,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         self.set_state(terminal_state)
         self._return_value = result
 
-        self._telemetry.end_span_on_success(terminal_state.message)
+        self._telemetry.end_span_on_success()
         return result
 
     def handle_retry(self, exc: Exception) -> bool:
@@ -586,7 +586,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             self.record_terminal_state_timing(state)
             self.set_state(state)
             self._raised = exc
-            self._telemetry.end_span_on_failure(state.message)
+            self._telemetry.end_span_on_failure(state.message if state else None)
 
     def handle_timeout(self, exc: TimeoutError) -> None:
         if not self.handle_retry(exc):
@@ -611,7 +611,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         self.set_state(state, force=True)
         self._raised = exc
         self._telemetry.record_exception(exc)
-        self._telemetry.end_span_on_failure(state.message)
+        self._telemetry.end_span_on_failure(state.message if state else None)
 
     @contextmanager
     def setup_run_context(self, client: Optional[SyncPrefectClient] = None):
@@ -1064,7 +1064,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         await self.set_state(terminal_state)
         self._return_value = result
 
-        self._telemetry.end_span_on_success(terminal_state.message)
+        self._telemetry.end_span_on_success()
 
         return result
 
@@ -1126,7 +1126,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             await self.set_state(state)
             self._raised = exc
 
-            self._telemetry.end_span_on_failure(state.message or "Task run failed")
+            self._telemetry.end_span_on_failure(state.message)
 
     async def handle_timeout(self, exc: TimeoutError) -> None:
         self._telemetry.record_exception(exc)
@@ -1143,7 +1143,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             )
             await self.set_state(state)
             self._raised = exc
-            self._telemetry.end_span_on_failure(state.message or "Task run timed out")
+            self._telemetry.end_span_on_failure(state.message)
 
     async def handle_crash(self, exc: BaseException) -> None:
         state = await exception_to_crashed_state(exc)
@@ -1154,7 +1154,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         self._raised = exc
 
         self._telemetry.record_exception(exc)
-        self._telemetry.end_span_on_failure(state.message or "Task run crashed")
+        self._telemetry.end_span_on_failure(state.message)
 
     @asynccontextmanager
     async def setup_run_context(self, client: Optional[PrefectClient] = None):
