@@ -4,6 +4,7 @@ import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 
 import { components } from "@/api/prefect";
+import { server } from "@tests/mocks";
 
 import {
 	buildCountQuery,
@@ -13,8 +14,6 @@ import {
 	useUpdateVariable,
 	useVariables,
 } from "./variables";
-
-import { server } from "../../tests/mocks/node";
 
 describe("variable hooks", () => {
 	const seedVariables = () => [

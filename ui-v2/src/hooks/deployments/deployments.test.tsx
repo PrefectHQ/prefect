@@ -5,11 +5,11 @@ import { describe, expect, it } from "vitest";
 
 import {
 	type Deployment,
-	usePaginateDeployments,
 	useCountDeployments,
+	usePaginateDeployments,
 } from "./index";
 
-import { server } from "../../../tests/mocks/node";
+import { server } from "@tests/mocks";
 
 describe("deployments hooks", () => {
 	const seedDeployments = (): Deployment[] => [

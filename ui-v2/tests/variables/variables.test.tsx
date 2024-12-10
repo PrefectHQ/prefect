@@ -1,4 +1,9 @@
 import "./mocks";
+import { Toaster } from "@/components/ui/toaster";
+import { VariablesDataTable } from "@/components/variables/data-table";
+import { router } from "@/router";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { RouterProvider } from "@tanstack/react-router";
 import {
 	getByLabelText,
 	getByTestId,
@@ -6,24 +11,18 @@ import {
 	render,
 	screen,
 } from "@testing-library/react";
-import { VariablesDataTable } from "@/components/variables/data-table";
 import userEvent from "@testing-library/user-event";
+import { server } from "@tests/mocks";
+import { http, HttpResponse } from "msw";
 import {
-	describe,
-	it,
-	expect,
-	vi,
 	afterEach,
-	beforeEach,
 	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	vi,
 } from "vitest";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
-import { server } from "../mocks/node";
-import { HttpResponse } from "msw";
-import { http } from "msw";
-import { router } from "@/router";
-import { RouterProvider } from "@tanstack/react-router";
 
 const renderVariablesPage = async () => {
 	const user = userEvent.setup();
