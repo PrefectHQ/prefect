@@ -101,13 +101,13 @@ Run the following script from the demo repository to create flow runs in each wo
 
 ```bash
 # Run flows in the production workspace
-prefect cloud workspace --set "<account>/production"
+prefect cloud workspace set --workspace "<account>/production"
 python simulate_failures.py
 ```
 
 ```bash
 # Run flows in the staging workspace 
-prefect cloud workspace --set "<account>/staging"
+prefect cloud workspace set --workspace "<account>/staging"
 python simulate_failures.py --fail-at-run 3
 ```
 
