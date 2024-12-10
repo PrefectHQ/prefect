@@ -1,9 +1,12 @@
-from typing import Dict, Literal, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Dict, Literal, Optional, Sequence, Union
 
 from prefect.events.related import related_resources_from_run_context
 from prefect.events.schemas.events import RelatedResource, Resource
 from prefect.events.utilities import emit_event
 from prefect.settings import get_current_settings
+
+if TYPE_CHECKING:
+    from prefect.results import ResultStore
 
 UpstreamResources = Sequence[Union[RelatedResource, Dict[str, str]]]
 DownstreamResources = Sequence[Union[Resource, Dict[str, str]]]
@@ -18,7 +21,7 @@ STORAGE_URI_SCHEMES = {
 
 
 def get_result_resource_uri(
-    store,  # type: ignore
+    store: "ResultStore",
     key: str,
 ) -> Optional[str]:
     """
@@ -27,8 +30,6 @@ def get_result_resource_uri(
     Args:
         store: A `ResultStore` instance.
         key: The key of the result to generate a URI for.
-
-    TODO: Can't type-hint `store` because of a circular import.
     """
     storage = store.result_storage
     if storage is None:
@@ -102,7 +103,7 @@ async def emit_lineage_event(
 
 
 async def emit_result_read_event(
-    store,  # type: ignore
+    store: "ResultStore",
     result_key: str,
     downstream_resources: Optional[DownstreamResources] = None,
     cached: bool = False,
@@ -115,8 +116,6 @@ async def emit_result_read_event(
         result_key: The key of the result to generate a URI for.
         downstream_resources: List of Resource objects that were
             downstream of the event
-
-    TODO: Can't type-hint `store` because of a circular import.
     """
     if not get_current_settings().experiments.lineage_events_enabled:
         return
@@ -144,7 +143,7 @@ async def emit_result_read_event(
 
 
 async def emit_result_write_event(
-    store,  # type: ignore
+    store: "ResultStore",
     result_key: str,
     upstream_resources: Optional[UpstreamResources] = None,
 ) -> None:
@@ -156,8 +155,6 @@ async def emit_result_write_event(
         result_key: The key of the result to generate a URI for.
         upstream_resources: Optional list of RelatedResources that were
             upstream of the event
-
-    TODO: Can't type-hint `store` because of a circular import.
     """
     if not get_current_settings().experiments.lineage_events_enabled:
         return
