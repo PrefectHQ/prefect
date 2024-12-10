@@ -491,7 +491,7 @@ class PrefectClient:
         """
         response = await self._client.get(f"/flows/{flow_id}")
         return Flow.parse_obj(response.json())
-    
+
     async def delete_flow(self, flow_id: UUID) -> None:
         """
         Delete a flow by UUID.
