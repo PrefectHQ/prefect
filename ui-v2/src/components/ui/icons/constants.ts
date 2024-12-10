@@ -17,8 +17,10 @@ import {
 	Pause,
 	Play,
 	Plus,
+	Rocket,
 	Search,
 	ServerCrash,
+	Workflow,
 	Variable,
 	X,
 } from "lucide-react";
@@ -42,8 +44,10 @@ export const ICONS = {
 	Pause,
 	Play,
 	Plus,
+	Rocket,
 	Search,
 	ServerCrash,
+	Workflow,
 	Variable,
 	X,
 } as const;
