@@ -13,8 +13,10 @@ import httpx
 import pendulum
 import pytest
 from starlette.status import WS_1008_POLICY_VIOLATION
+from websockets.asyncio.server import Server as WebSocketServer
+from websockets.asyncio.server import ServerConnection as WebSocketServerConnection
+from websockets.asyncio.server import serve as websocket_serve
 from websockets.exceptions import ConnectionClosed
-from websockets.legacy.server import WebSocketServer, WebSocketServerProtocol, serve
 
 from prefect.events import Event
 from prefect.events.clients import (
@@ -291,7 +293,7 @@ async def events_server(
 ) -> AsyncGenerator[WebSocketServer, None]:
     server: WebSocketServer
 
-    async def handler(socket: WebSocketServerProtocol) -> None:
+    async def handler(socket: WebSocketServerConnection) -> None:
         path = socket.path
         recorder.connections += 1
         if puppeteer.refuse_any_further_connections:
@@ -304,7 +306,7 @@ async def events_server(
         elif path.endswith("/events/out"):
             await outgoing_events(socket)
 
-    async def incoming_events(socket: WebSocketServerProtocol):
+    async def incoming_events(socket: WebSocketServerConnection):
         while True:
             try:
                 message = await socket.recv()
@@ -317,7 +319,7 @@ async def events_server(
             if puppeteer.hard_disconnect_after == event.id:
                 raise ValueError("zonk")
 
-    async def outgoing_events(socket: WebSocketServerProtocol):
+    async def outgoing_events(socket: WebSocketServerConnection):
         # 1. authentication
         auth_message = json.loads(await socket.recv())
 
@@ -352,7 +354,9 @@ async def events_server(
                 puppeteer.hard_disconnect_after = None
                 raise ValueError("zonk")
 
-    async with serve(handler, host="localhost", port=unused_tcp_port) as server:
+    async with websocket_serve(
+        handler, host="localhost", port=unused_tcp_port
+    ) as server:
         yield server
 
 
