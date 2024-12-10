@@ -189,7 +189,6 @@ class BaseFlowRunEngine(Generic[P, R]):
                 )
             if carrier.get(TRACEPARENT_KEY):
                 if self.flow_run:
-                    print(f"parent_flow_run_ctx: {parent_flow_run_ctx.flow_run}")
                     client.update_flow_run_labels(
                         flow_run_id=self.flow_run.id,
                         labels={LABELS_TRACEPARENT_KEY: carrier[TRACEPARENT_KEY]},
