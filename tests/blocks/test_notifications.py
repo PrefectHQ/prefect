@@ -555,7 +555,7 @@ class TestTwilioSMS:
 
 class TestCustomWebhook:
     async def test_notify_async(self):
-        with respx.mock as xmock:
+        with respx.mock(using="httpx") as xmock:
             xmock.post("https://example.com/")
 
             custom_block = CustomWebhookNotificationBlock(
@@ -577,7 +577,7 @@ class TestCustomWebhook:
             }
 
     def test_notify_sync(self):
-        with respx.mock as xmock:
+        with respx.mock(using="httpx") as xmock:
             xmock.post("https://example.com/")
 
             custom_block = CustomWebhookNotificationBlock(
@@ -599,7 +599,7 @@ class TestCustomWebhook:
             }
 
     def test_user_agent_override(self):
-        with respx.mock as xmock:
+        with respx.mock(using="httpx") as xmock:
             xmock.post("https://example.com/")
 
             custom_block = CustomWebhookNotificationBlock(
@@ -622,7 +622,7 @@ class TestCustomWebhook:
             }
 
     def test_timeout_override(self):
-        with respx.mock as xmock:
+        with respx.mock(using="httpx") as xmock:
             xmock.post("https://example.com/")
 
             custom_block = CustomWebhookNotificationBlock(
@@ -644,7 +644,7 @@ class TestCustomWebhook:
             }
 
     def test_request_cookie(self):
-        with respx.mock as xmock:
+        with respx.mock(using="httpx") as xmock:
             xmock.post("https://example.com/")
 
             custom_block = CustomWebhookNotificationBlock(
@@ -668,7 +668,7 @@ class TestCustomWebhook:
             }
 
     def test_subst_nested_list(self):
-        with respx.mock as xmock:
+        with respx.mock(using="httpx") as xmock:
             xmock.post("https://example.com/")
 
             custom_block = CustomWebhookNotificationBlock(
@@ -692,7 +692,7 @@ class TestCustomWebhook:
             }
 
     def test_subst_none(self):
-        with respx.mock as xmock:
+        with respx.mock(using="httpx") as xmock:
             xmock.post("https://example.com/")
 
             custom_block = CustomWebhookNotificationBlock(

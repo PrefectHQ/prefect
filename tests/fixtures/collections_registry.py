@@ -435,6 +435,7 @@ def mock_collection_registry(
     with respx.mock(
         assert_all_mocked=False,
         assert_all_called=False,
+        using="httpx",
     ) as respx_mock:
         respx_mock.get(
             "https://raw.githubusercontent.com/PrefectHQ/prefect-collection-registry/main/views/aggregate-worker-metadata.json"

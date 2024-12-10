@@ -937,7 +937,7 @@ class TestDeploymentApply:
         ):
             assert get_client().server_type.supports_automations()
 
-            with respx.mock(base_url=PREFECT_API_URL.value()) as router:
+            with respx.mock(base_url=PREFECT_API_URL.value(), using="httpx") as router:
                 router.post("/flows/").mock(
                     return_value=httpx.Response(201, json={"id": str(uuid4())})
                 )
@@ -989,7 +989,7 @@ class TestDeploymentApply:
         ):
             assert get_client().server_type.supports_automations()
 
-            with respx.mock(base_url=PREFECT_API_URL.value()) as router:
+            with respx.mock(base_url=PREFECT_API_URL.value(), using="httpx") as router:
                 router.post("/flows/").mock(
                     return_value=httpx.Response(201, json={"id": str(uuid4())})
                 )
@@ -1036,7 +1036,7 @@ class TestDeploymentApply:
         assert not get_client().server_type.supports_automations()
 
         with respx.mock(
-            base_url=PREFECT_API_URL.value(), assert_all_called=False
+            base_url=PREFECT_API_URL.value(), assert_all_called=False, using="httpx"
         ) as router:
             router.post("/flows/").mock(
                 return_value=httpx.Response(201, json={"id": str(uuid4())})
@@ -1084,7 +1084,7 @@ class TestDeploymentApply:
         }
 
         with temporary_settings(updates=updates):
-            with respx.mock(base_url=PREFECT_API_URL.value()) as router:
+            with respx.mock(base_url=PREFECT_API_URL.value(), using="httpx") as router:
                 router.post("/flows/").mock(
                     return_value=httpx.Response(201, json={"id": str(uuid4())})
                 )
@@ -1169,6 +1169,7 @@ class TestRunDeployment:
         with respx.mock(
             base_url=PREFECT_API_URL.value(),
             assert_all_mocked=True,
+            using="httpx",
         ) as router:
             poll_responses = [
                 Response(
@@ -1217,6 +1218,7 @@ class TestRunDeployment:
         async with respx.mock(
             base_url=PREFECT_API_URL.value(),
             assert_all_mocked=True,
+            using="httpx",
         ) as router:
             poll_responses = [
                 Response(
@@ -1330,7 +1332,7 @@ class TestRunDeployment:
         }
 
         with respx.mock(
-            base_url=PREFECT_API_URL.value(), assert_all_mocked=True
+            base_url=PREFECT_API_URL.value(), assert_all_mocked=True, using="httpx"
         ) as router:
             router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
             router.get(f"/deployments/name/{d.flow_name}/{d.name}").pass_through()
@@ -1365,6 +1367,7 @@ class TestRunDeployment:
             base_url=PREFECT_API_URL.value(),
             assert_all_mocked=True,
             assert_all_called=False,
+            using="httpx",
         ) as router:
             router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
             router.get(f"/deployments/name/{d.flow_name}/{d.name}").pass_through()
@@ -1410,6 +1413,7 @@ class TestRunDeployment:
             base_url=PREFECT_API_URL.value(),
             assert_all_mocked=True,
             assert_all_called=False,
+            using="httpx",
         ) as router:
             router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
             router.get(f"/deployments/name/{d.flow_name}/{d.name}").pass_through()
