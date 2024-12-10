@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 
-import type { paths } from "../../src/api/prefect";
 import createClient from "openapi-fetch";
+import type { paths } from "../../src/api/prefect";
 
 describe("API Service", () => {
 	it("can paginate flows", async () => {

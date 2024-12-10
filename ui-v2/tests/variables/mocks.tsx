@@ -1,5 +1,5 @@
-import { vi } from "vitest";
 import React from "react";
+import { vi } from "vitest";
 
 //  Mock out JsonInput because the underlying CodeMirror editor
 //  relies on browser APIs that are not available in JSDOM.

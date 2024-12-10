@@ -1,8 +1,8 @@
 import React, { useRef, useEffect } from "react";
 
-import { json } from "@codemirror/lang-json";
 import { cn } from "@/lib/utils";
-import { useCodeMirror, EditorView } from "@uiw/react-codemirror";
+import { json } from "@codemirror/lang-json";
+import { EditorView, useCodeMirror } from "@uiw/react-codemirror";
 
 const extensions = [json(), EditorView.lineWrapping];
 
