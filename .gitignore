@@ -52,7 +52,6 @@ src/prefect/server/ui_build/*
 
 # API artifacts
 
-
 # MacOS
 .DS_Store
 
@@ -77,3 +76,6 @@ libcairo.2.dylib
 # setuptools-scm generated files
 src/integrations/*/**/_version.py
 *.log
+
+# Pyright type analysis report
+prefect-analysis.json

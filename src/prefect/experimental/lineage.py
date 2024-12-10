@@ -21,7 +21,10 @@ STORAGE_URI_SCHEMES = {
 }
 
 
-def get_result_resource_uri(store, key: str) -> Optional[str]:
+def get_result_resource_uri(
+    store,  #  type: ignore
+    key: str,
+) -> Optional[str]:
     """
     Generate a URI for a result based on its storage backend.
 
@@ -105,7 +108,7 @@ async def emit_lineage_event(
 
 
 async def emit_result_read_event(
-    store,
+    store,  # type: ignore
     result_key: str,
     downstream_resources: Optional[DownstreamResources] = None,
     cached: bool = False,
@@ -147,7 +150,7 @@ async def emit_result_read_event(
 
 
 async def emit_result_write_event(
-    store,
+    store,  # type: ignore
     result_key: str,
     upstream_resources: Optional[UpstreamResources] = None,
 ) -> None:
