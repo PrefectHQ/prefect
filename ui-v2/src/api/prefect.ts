@@ -7177,11 +7177,11 @@ export interface components {
              * Id
              * Format: uuid
              */
-            id?: string;
+            id: string;
             /** Created */
-            created?: string | null;
+            created: string | null;
             /** Updated */
-            updated?: string | null;
+            updated: string | null;
             /**
              * Active
              * @description Whether the global concurrency limit is active.

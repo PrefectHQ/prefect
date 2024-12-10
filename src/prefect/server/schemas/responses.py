@@ -18,7 +18,11 @@ from prefect.server.schemas.core import (
     UpdatedBy,
     WorkQueueStatusDetail,
 )
-from prefect.server.utilities.schemas.bases import ORMBaseModel, PrefectBaseModel
+from prefect.server.utilities.schemas.bases import (
+    ORMBaseModel,
+    PrefectBaseModel,
+    ResponseBaseModel,
+)
 from prefect.types import KeyValueLabelsField
 from prefect.utilities.collections import AutoEnum
 from prefect.utilities.names import generate_slug
@@ -546,7 +550,7 @@ class WorkerResponse(schemas.core.Worker):
         return worker
 
 
-class GlobalConcurrencyLimitResponse(ORMBaseModel):
+class GlobalConcurrencyLimitResponse(ResponseBaseModel):
     """
     A response object for global concurrency limits.
     """
