@@ -892,47 +892,6 @@ class KubernetesWorker(BaseWorker):
                 exc_info=True,
             )
 
-    async def _job_events(
-        self,
-        batch_client: BatchV1Api,
-        job_name: str,
-        namespace: str,
-        watch_kwargs: dict,
-    ):
-        """
-        Stream job events.
-
-        Pick up from the current resource version returned by the API
-        in the case of a 410.
-
-        See https://kubernetes.io/docs/reference/using-api/api-concepts/#efficient-detection-of-changes  # noqa
-        """
-        watch = kubernetes_asyncio.watch.Watch()
-        resource_version = None
-        async with watch:
-            while True:
-                try:
-                    async for event in watch.stream(
-                        func=batch_client.list_namespaced_job,
-                        namespace=namespace,
-                        field_selector=f"metadata.name={job_name}",
-                        _request_timeout=aiohttp.ClientTimeout(),
-                        **watch_kwargs,
-                    ):
-                        yield event
-                except ApiException as e:
-                    if e.status == 410:
-                        job_list = await batch_client.list_namespaced_job(
-                            namespace=namespace,
-                            field_selector=f"metadata.name={job_name}",
-                            _request_timeout=aiohttp.ClientTimeout(),
-                        )
-
-                        resource_version = job_list.metadata.resource_version
-                        watch_kwargs["resource_version"] = resource_version
-                    else:
-                        raise
-
     async def _monitor_job_events(self, batch_client, job_name, logger, configuration):
         job = await batch_client.read_namespaced_job(
             name=job_name, namespace=configuration.namespace
@@ -944,40 +903,59 @@ class KubernetesWorker(BaseWorker):
             else {}
         )
 
+        watch = kubernetes_asyncio.watch.Watch()
+
         while not completed:
-            async for event in self._job_events(
-                batch_client,
-                job_name,
-                configuration.namespace,
-                watch_kwargs,
-            ):
-                if event["type"] == "DELETED":
-                    logger.error(f"Job {job_name!r}: Job has been deleted.")
-                    completed = True
-                elif event["object"].status.completion_time:
-                    if not event["object"].status.succeeded:
-                        # Job failed, exit while loop and return pod exit code
-                        logger.error(f"Job {job_name!r}: Job failed.")
-                    completed = True
-                # Check if the job has reached its backoff limit
-                # and stop watching if it has
-                elif (
-                    event["object"].spec.backoff_limit is not None
-                    and event["object"].status.failed is not None
-                    and event["object"].status.failed
-                    > event["object"].spec.backoff_limit
-                ):
-                    logger.error(f"Job {job_name!r}: Job reached backoff limit.")
-                    completed = True
-                # If the job has no backoff limit, check if it has failed
-                # and stop watching if it has
-                elif (
-                    not event["object"].spec.backoff_limit
-                    and event["object"].status.failed
-                ):
-                    completed = True
-                if completed:
-                    break
+            try:
+                async with watch:
+                    async for event in watch.stream(
+                        func=batch_client.list_namespaced_job,
+                        namespace=configuration.namespace,
+                        field_selector=f"metadata.name={job_name}",
+                        _request_timeout=aiohttp.ClientTimeout(),
+                        **watch_kwargs,
+                    ):
+                        if event["type"] == "DELETED":
+                            logger.error(f"Job {job_name!r}: Job has been deleted.")
+                            completed = True
+                        elif event["object"].status.completion_time:
+                            if not event["object"].status.succeeded:
+                                # Job failed, exit while loop and return pod exit code
+                                logger.error(f"Job {job_name!r}: Job failed.")
+                            completed = True
+                        # Check if the job has reached its backoff limit
+                        # and stop watching if it has
+                        elif (
+                            event["object"].spec.backoff_limit is not None
+                            and event["object"].status.failed is not None
+                            and event["object"].status.failed
+                            > event["object"].spec.backoff_limit
+                        ):
+                            logger.error(
+                                f"Job {job_name!r}: Job reached backoff limit."
+                            )
+                            completed = True
+                        # If the job has no backoff limit, check if it has failed
+                        # and stop watching if it has
+                        elif (
+                            not event["object"].spec.backoff_limit
+                            and event["object"].status.failed
+                        ):
+                            completed = True
+                        if completed:
+                            break
+            except ApiException as e:
+                if e.status == 410:
+                    job_list = await batch_client.list_namespaced_job(
+                        namespace=configuration.namespace,
+                        field_selector=f"metadata.name={job_name}",
+                        _request_timeout=aiohttp.ClientTimeout(),
+                    )
+
+                    resource_version = job_list.metadata.resource_version
+                    watch_kwargs["resource_version"] = resource_version
+                else:
+                    raise
 
     async def _watch_job(
         self,
