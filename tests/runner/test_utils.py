@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.routing import APIRoute
 
 from prefect import __version__ as PREFECT_VERSION
-from prefect.runner.utils import (
+from prefect.runner._utils import (
     inject_schemas_into_openapi,
     merge_definitions,
     update_refs_to_components,
