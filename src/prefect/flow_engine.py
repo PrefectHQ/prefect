@@ -657,8 +657,17 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                     flow_version=self.flow.version,
                     empirical_policy=self.flow_run.empirical_policy,
                 )
+            parent_flow_run = FlowRunContext.get()
+            parent_labels = {}
+            if parent_flow_run and parent_flow_run.flow_run:
+                parent_labels = parent_flow_run.flow_run.labels
 
-            span = self._telemetry.start_span(name=self.flow.name, run=self.flow_run)
+            span = self._telemetry.start_span(
+                name=self.flow.name,
+                run=self.flow_run,
+                parameters=self.parameters,
+                parent_labels=parent_labels,
+            )
             self._update_otel_labels(span, self.client)
 
             try:
@@ -1215,8 +1224,17 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     flow_version=self.flow.version,
                     empirical_policy=self.flow_run.empirical_policy,
                 )
+            parent_labels = {}
+            parent_flow_run = FlowRunContext.get()
+            if parent_flow_run and parent_flow_run.flow_run:
+                parent_labels = parent_flow_run.flow_run.labels
 
-            span = self._telemetry.start_span(name=self.flow.name, run=self.flow_run)
+            span = self._telemetry.start_span(
+                name=self.flow.name,
+                run=self.flow_run,
+                parameters=self.parameters,
+                parent_labels=parent_labels,
+            )
             self._update_otel_labels(span, self.client)
 
             try:
