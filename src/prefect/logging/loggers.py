@@ -188,7 +188,7 @@ def task_run_logger(
     task: Optional["Task[Any, Any]"] = None,
     flow_run: Optional["FlowRun"] = None,
     flow: Optional["Flow[Any, Any]"] = None,
-    **kwargs: Any,
+    **kwargs,
 ):
     """
     Create a task run logger with the run's metadata attached.
