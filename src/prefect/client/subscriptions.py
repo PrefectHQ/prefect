@@ -8,6 +8,7 @@ import websockets
 import websockets.exceptions
 from starlette.status import WS_1008_POLICY_VIOLATION
 from typing_extensions import Self
+from websockets.asyncio.client import ClientConnection
 
 from prefect._internal.schemas.bases import IDBaseModel
 from prefect.logging import get_logger
@@ -44,7 +45,7 @@ class Subscription(Generic[S]):
         return self
 
     @property
-    def websocket(self) -> websockets.WebSocketClientProtocol:
+    def websocket(self) -> ClientConnection:
         if not self._websocket:
             raise RuntimeError("Subscription is not connected")
         return self._websocket
