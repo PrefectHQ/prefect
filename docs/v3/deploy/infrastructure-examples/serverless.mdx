@@ -678,6 +678,11 @@ With your deployment created, navigate to its detail page and create a new flow 
 You'll see the flow start running without polling the work pool, because Prefect Cloud securely connected 
 to your serverless infrastructure, created a job, ran the job, and reported on its execution.
 
+## Usage Limits
+
+Push work pool usage is unlimited. However push work pools only support flow runs with
+a max run time of 24 hours.
+
 ## Next steps
 
 Learn more about [work pools](/v3/deploy/infrastructure-concepts/work-pools/) and [workers](/v3/deploy/infrastructure-concepts/workers/).
