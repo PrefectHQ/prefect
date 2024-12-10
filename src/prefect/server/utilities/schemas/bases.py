@@ -9,6 +9,7 @@ from typing import (
     Set,
     Type,
     TypeVar,
+    cast,
 )
 from uuid import UUID, uuid4
 
@@ -22,19 +23,20 @@ from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Self
 
 if TYPE_CHECKING:
+    import rich.repr
     from pydantic.main import IncEx
 
 T = TypeVar("T")
 B = TypeVar("B", bound=BaseModel)
 
 
-def get_class_fields_only(model: Type[BaseModel]) -> set:
+def get_class_fields_only(model: Type[BaseModel]) -> set[str]:
     """
     Gets all the field names defined on the model class but not any parent classes.
     Any fields that are on the parent but redefined on the subclass are included.
     """
     subclass_class_fields = set(model.__annotations__.keys())
-    parent_class_fields = set()
+    parent_class_fields: set[str] = set()
 
     for base in model.__class__.__bases__:
         if issubclass(base, BaseModel):
@@ -83,7 +85,7 @@ class PrefectBaseModel(BaseModel):
         else:
             return copy_dict == other
 
-    def __rich_repr__(self):
+    def __rich_repr__(self) -> "rich.repr.RichReprResult":
         # Display all of the fields in the model if they differ from the default value
         for name, field in self.model_fields.items():
             value = getattr(self, name)
@@ -96,9 +98,9 @@ class PrefectBaseModel(BaseModel):
                 and name == "timestamp"
                 and value
             ):
-                value = pendulum.instance(value).isoformat()
+                value = cast(DateTime, pendulum.instance(value)).isoformat()
             elif isinstance(field.annotation, datetime.datetime) and value:
-                value = pendulum.instance(value).diff_for_humans()
+                value = cast(DateTime, pendulum.instance(value)).diff_for_humans()
 
             yield name, value, field.get_default()
 
@@ -201,3 +203,16 @@ class ORMBaseModel(IDBaseModel):
 
 class ActionBaseModel(PrefectBaseModel):
     model_config: ConfigDict = ConfigDict(extra="forbid")
+
+
+class ResponseBaseModel(PrefectBaseModel):
+    """
+    A base model for all response models.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID = Field(default_factory=uuid4)
+
+    created: Optional[DateTime] = Field(default=None, repr=False)
+    updated: Optional[DateTime] = Field(default=None, repr=False)
