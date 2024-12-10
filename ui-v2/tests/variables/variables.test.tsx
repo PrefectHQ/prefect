@@ -1,4 +1,9 @@
 import "./mocks";
+import { Toaster } from "@/components/ui/toaster";
+import { VariablesDataTable } from "@/components/variables/data-table";
+import { router } from "@/router";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { RouterProvider } from "@tanstack/react-router";
 import {
 	getByLabelText,
 	getByTestId,
@@ -6,24 +11,19 @@ import {
 	render,
 	screen,
 } from "@testing-library/react";
-import { VariablesDataTable } from "@/components/variables/data-table";
 import userEvent from "@testing-library/user-event";
-import {
-	describe,
-	it,
-	expect,
-	vi,
-	afterEach,
-	beforeEach,
-	beforeAll,
-} from "vitest";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
-import { server } from "../mocks/node";
 import { HttpResponse } from "msw";
 import { http } from "msw";
-import { router } from "@/router";
-import { RouterProvider } from "@tanstack/react-router";
+import {
+	afterEach,
+	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	vi,
+} from "vitest";
+import { server } from "../mocks/node";
 
 const renderVariablesPage = async () => {
 	const user = userEvent.setup();
@@ -41,6 +41,8 @@ const renderVariablesPage = async () => {
 describe("Variables page", () => {
 	it("should render with empty state", async () => {
 		await renderVariablesPage();
+		screen.logTestingPlaygroundURL();
+
 		expect(screen.getByText("Add a variable to get started")).toBeVisible();
 		expect(screen.getByRole("button", { name: "Add Variable" })).toBeVisible();
 	});
