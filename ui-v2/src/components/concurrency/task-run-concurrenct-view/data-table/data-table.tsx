@@ -1,5 +1,5 @@
 import { DataTable } from "@/components/ui/data-table";
-import { type GlobalConcurrencyLimit } from "@/hooks/global-concurrency-limits";
+import { type TaskRunConcurrencyLimit } from "@/hooks/task-run-concurrency-limits";
 import { getRouteApi } from "@tanstack/react-router";
 import {
 	createColumnHelper,
@@ -11,53 +11,49 @@ import {
 import { SearchInput } from "@/components/ui/input";
 import { useDeferredValue, useMemo } from "react";
 import { ActionsCell } from "./actions-cell";
-import { ActiveCell } from "./active-cell";
 
 const routeApi = getRouteApi("/concurrency-limits");
 
-const columnHelper = createColumnHelper<GlobalConcurrencyLimit>();
+const columnHelper = createColumnHelper<TaskRunConcurrencyLimit>();
 
 const createColumns = ({
-	onEditRow,
 	onDeleteRow,
+	onResetRow,
 }: {
-	onEditRow: (row: GlobalConcurrencyLimit) => void;
-	onDeleteRow: (row: GlobalConcurrencyLimit) => void;
+	onDeleteRow: (row: TaskRunConcurrencyLimit) => void;
+	onResetRow: (row: TaskRunConcurrencyLimit) => void;
 }) => [
-	columnHelper.accessor("name", {
-		header: "Name",
+	columnHelper.accessor("tag", {
+		header: "Tag", // TODO: Make this a link when starting the tak run concurrency page
 	}),
-	columnHelper.accessor("limit", {
-		header: "Limit",
+	columnHelper.accessor("concurrency_limit", {
+		header: "Slots",
 	}),
 	columnHelper.accessor("active_slots", {
-		header: "Active Slots",
-	}),
-	columnHelper.accessor("slot_decay_per_second", {
-		header: "Slots Decay Per Second",
-	}),
-	columnHelper.accessor("active", {
-		header: "Active",
-		cell: ActiveCell,
+		header: "Active Task Runs", // TODO: Give this styling once knowing what it looks like
 	}),
 	columnHelper.display({
 		id: "actions",
 		cell: (props) => (
-			<ActionsCell {...props} onEditRow={onEditRow} onDeleteRow={onDeleteRow} />
+			<ActionsCell
+				{...props}
+				onDeleteRow={onDeleteRow}
+				onResetRow={onResetRow}
+			/>
 		),
 	}),
 ];
 
 type Props = {
-	data: Array<GlobalConcurrencyLimit>;
-	onEditRow: (row: GlobalConcurrencyLimit) => void;
-	onDeleteRow: (row: GlobalConcurrencyLimit) => void;
+	data: Array<TaskRunConcurrencyLimit>;
+	onDeleteRow: (row: TaskRunConcurrencyLimit) => void;
+	onResetRow: (row: TaskRunConcurrencyLimit) => void;
 };
 
-export const GlobalConcurrencyDataTable = ({
+export const TaskRunConcurrencyDataTable = ({
 	data,
-	onEditRow,
 	onDeleteRow,
+	onResetRow,
 }: Props) => {
 	const navigate = routeApi.useNavigate();
 	const { search } = routeApi.useSearch();
@@ -65,13 +61,13 @@ export const GlobalConcurrencyDataTable = ({
 
 	const filteredData = useMemo(() => {
 		return data.filter((row) =>
-			row.name.toLowerCase().includes(deferredSearch.toLowerCase()),
+			row.tag.toLowerCase().includes(deferredSearch.toLowerCase()),
 		);
 	}, [data, deferredSearch]);
 
 	const table = useReactTable({
 		data: filteredData,
-		columns: createColumns({ onEditRow, onDeleteRow }),
+		columns: createColumns({ onDeleteRow, onResetRow }),
 		getCoreRowModel: getCoreRowModel(),
 		getPaginationRowModel: getPaginationRowModel(), //load client-side pagination code
 	});
@@ -79,7 +75,7 @@ export const GlobalConcurrencyDataTable = ({
 	return (
 		<div className="flex flex-col gap-4">
 			<SearchInput
-				placeholder="Search global concurrency limit"
+				placeholder="Search active task limit"
 				value={search}
 				onChange={(e) =>
 					void navigate({

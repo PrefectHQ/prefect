@@ -9,27 +9,27 @@ import {
 	DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-	GlobalConcurrencyLimit,
-	useDeleteGlobalConcurrencyLimit,
-} from "@/hooks/global-concurrency-limits";
+	TaskRunConcurrencyLimit,
+	useDeleteTaskRunConcurrencyLimit,
+} from "@/hooks/task-run-concurrency-limits";
 import { useToast } from "@/hooks/use-toast";
 
 type Props = {
-	limit: GlobalConcurrencyLimit;
+	data: TaskRunConcurrencyLimit;
 	onOpenChange: (open: boolean) => void;
 	onDelete: () => void;
 };
 
-export const DeleteLimitDialog = ({ limit, onOpenChange, onDelete }: Props) => {
+export const DeleteLimitDialog = ({ data, onOpenChange, onDelete }: Props) => {
 	const { toast } = useToast();
-	const { deleteGlobalConcurrencyLimit, isPending } =
-		useDeleteGlobalConcurrencyLimit();
+	const { deleteTaskRunConcurrencyLimit, isPending } =
+		useDeleteTaskRunConcurrencyLimit();
 
 	const handleOnClick = (id: string | undefined) => {
 		if (!id) {
-			throw new Error("'id' field expected in TaskRunConcurrencyLimit");
+			throw new Error("'id' field expected in GlobalConcurrencyLimit");
 		}
-		deleteGlobalConcurrencyLimit(id, {
+		deleteTaskRunConcurrencyLimit(id, {
 			onSuccess: () => {
 				toast({ description: "Concurrency limit deleted" });
 			},
@@ -49,7 +49,7 @@ export const DeleteLimitDialog = ({ limit, onOpenChange, onDelete }: Props) => {
 					<DialogTitle>Delete Concurrency Limit</DialogTitle>
 				</DialogHeader>
 				<DialogDescription>
-					Are you sure you want to delete {limit.name}
+					Are you sure you want to delete {data.tag}
 				</DialogDescription>
 				<DialogFooter>
 					<DialogTrigger asChild>
@@ -57,7 +57,7 @@ export const DeleteLimitDialog = ({ limit, onOpenChange, onDelete }: Props) => {
 					</DialogTrigger>
 					<Button
 						variant="destructive"
-						onClick={() => handleOnClick(limit?.id)}
+						onClick={() => handleOnClick(data.id)}
 						loading={isPending}
 					>
 						Delete
