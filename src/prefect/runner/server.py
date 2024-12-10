@@ -1,5 +1,5 @@
 import uuid
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, Hashable, Optional, Tuple
 
 import pendulum
 import uvicorn
@@ -38,7 +38,7 @@ RunnableEndpoint = Literal["deployment", "flow", "task"]
 
 class RunnerGenericFlowRunRequest(BaseModel):
     entrypoint: str
-    parameters: Optional[Dict[str, Any]] = None
+    parameters: Optional[dict[str, Any]] = None
     parent_task_run_id: Optional[uuid.UUID] = None
 
 
@@ -63,15 +63,15 @@ def perform_health_check(runner, delay_threshold: Optional[int] = None) -> JSONR
     return _health_check
 
 
-def run_count(runner) -> int:
-    def _run_count():
+def run_count(runner: "Runner") -> Callable[..., int]:
+    def _run_count() -> int:
         run_count = len(runner._flow_run_process_map)
         return run_count
 
     return _run_count
 
 
-def shutdown(runner) -> int:
+def shutdown(runner: "Runner") -> Callable[..., JSONResponse]:
     def _shutdown():
         runner.stop()
         return JSONResponse(status_code=status.HTTP_200_OK, content={"message": "OK"})
@@ -81,9 +81,9 @@ def shutdown(runner) -> int:
 
 async def _build_endpoint_for_deployment(
     deployment: "DeploymentResponse", runner: "Runner"
-) -> Callable:
+) -> Callable[..., Coroutine[Any, Any, JSONResponse]]:
     async def _create_flow_run_for_deployment(
-        body: Optional[Dict[Any, Any]] = None,
+        body: Optional[dict[Any, Any]] = None,
     ) -> JSONResponse:
         body = body or {}
         if deployment.enforce_parameter_schema and deployment.parameter_openapi_schema:
@@ -116,11 +116,11 @@ async def _build_endpoint_for_deployment(
 
 async def get_deployment_router(
     runner: "Runner",
-) -> Tuple[APIRouter, Dict[str, Dict]]:
+) -> Tuple[APIRouter, dict[Hashable, Any]]:
     router = APIRouter()
-    schemas = {}
+    schemas: dict[Hashable, Any] = {}
     async with get_client() as client:
-        for deployment_id in runner._deployment_ids:
+        for deployment_id in runner._deployment_ids:  # pyright: ignore[reportPrivateUsage]
             deployment = await client.read_deployment(deployment_id)
             router.add_api_route(
                 f"/deployment/{deployment.id}/run",
@@ -142,21 +142,21 @@ async def get_deployment_router(
     return router, schemas
 
 
-async def get_subflow_schemas(runner: "Runner") -> Dict[str, Dict]:
+async def get_subflow_schemas(runner: "Runner") -> dict[str, dict[str, Any]]:
     """
     Load available subflow schemas by filtering for only those subflows in the
     deployment entrypoint's import space.
     """
-    schemas = {}
+    schemas: dict[str, dict[str, Any]] = {}
     async with get_client() as client:
-        for deployment_id in runner._deployment_ids:
+        for deployment_id in runner._deployment_ids:  # pyright: ignore[reportPrivateUsage]
             deployment = await client.read_deployment(deployment_id)
             if deployment.entrypoint is None:
                 continue
 
             script = deployment.entrypoint.split(":")[0]
             module = load_script_as_module(script)
-            subflows = [
+            subflows: list[Flow[Any, Any]] = [
                 obj for obj in module.__dict__.values() if isinstance(obj, Flow)
             ]
             for flow in subflows:
@@ -165,7 +165,7 @@ async def get_subflow_schemas(runner: "Runner") -> Dict[str, Dict]:
     return schemas
 
 
-def _flow_in_schemas(flow: Flow, schemas: Dict[str, Dict]) -> bool:
+def _flow_in_schemas(flow: Flow[Any, Any], schemas: dict[str, dict[str, Any]]) -> bool:
     """
     Check if a flow is in the schemas dict, either by name or by name with
     dashes replaced with underscores.
@@ -174,7 +174,9 @@ def _flow_in_schemas(flow: Flow, schemas: Dict[str, Dict]) -> bool:
     return flow.name in schemas or flow_name_with_dashes in schemas
 
 
-def _flow_schema_changed(flow: Flow, schemas: Dict[str, Dict]) -> bool:
+def _flow_schema_changed(
+    flow: Flow[Any, Any], schemas: dict[str, dict[str, Any]]
+) -> bool:
     """
     Check if a flow's schemas have changed, either by bame of by name with
     dashes replaced with underscores.
@@ -188,8 +190,8 @@ def _flow_schema_changed(flow: Flow, schemas: Dict[str, Dict]) -> bool:
 
 
 def _build_generic_endpoint_for_flows(
-    runner: "Runner", schemas: Dict[str, Dict]
-) -> Callable:
+    runner: "Runner", schemas: dict[str, dict[str, Any]]
+) -> Callable[..., Coroutine[Any, Any, JSONResponse]]:
     async def _create_flow_run_for_flow_from_fqn(
         body: RunnerGenericFlowRunRequest,
     ) -> JSONResponse:
@@ -297,6 +299,10 @@ def start_webserver(runner: "Runner", log_level: Optional[str] = None) -> None:
     port = PREFECT_RUNNER_SERVER_PORT.value()
     log_level = log_level or PREFECT_RUNNER_SERVER_LOG_LEVEL.value()
     webserver = run_coro_as_sync(build_server(runner))
+    if TYPE_CHECKING:
+        assert webserver is not None, "webserver should be built"
+        assert log_level is not None, "log_level should be set"
+
     uvicorn.run(
         webserver, host=host, port=port, log_level=log_level.lower()
     )  # Uvicorn supports only lowercase log_level

@@ -200,7 +200,7 @@ class Runner:
         self._cancelling_flow_run_ids = set()
         self._scheduled_task_scopes = set()
         self._deployment_ids: Set[UUID] = set()
-        self._flow_run_process_map: Dict[UUID, Dict] = dict()
+        self._flow_run_process_map: dict[UUID, dict[str, Any]] = dict()
 
         self._tmp_dir: Path = (
             Path(tempfile.gettempdir()) / "runner_storage" / str(uuid4())
