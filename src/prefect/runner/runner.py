@@ -43,7 +43,17 @@ import threading
 from copy import deepcopy
 from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Optional, Set, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Set,
+    Union,
+)
 from uuid import UUID, uuid4
 
 import anyio
@@ -432,10 +442,14 @@ class Runner:
                     )
                 )
 
-    def execute_in_background(self, func, *args, **kwargs):
+    def execute_in_background(
+        self, func: Callable[..., Any], *args: Any, **kwargs: Any
+    ):
         """
         Executes a function in the background.
         """
+        if TYPE_CHECKING:
+            assert self._loop is not None
 
         return asyncio.run_coroutine_threadsafe(func(*args, **kwargs), self._loop)
 
@@ -536,7 +550,7 @@ class Runner:
     async def _run_process(
         self,
         flow_run: "FlowRun",
-        task_status: Optional[anyio.abc.TaskStatus] = None,
+        task_status: Optional[anyio.abc.TaskStatus[Any]] = None,
         entrypoint: Optional[str] = None,
     ):
         """
@@ -723,7 +737,9 @@ class Runner:
         return await self._submit_scheduled_flow_runs(flow_run_response=runs_response)
 
     async def _check_for_cancelled_flow_runs(
-        self, should_stop: Callable = lambda: False, on_stop: Callable = lambda: None
+        self,
+        should_stop: Callable[[], bool] = lambda: False,
+        on_stop: Callable[[], None] = lambda: None,
     ):
         """
         Checks for flow runs with CANCELLING a cancelling state and attempts to
@@ -862,31 +878,37 @@ class Runner:
         flow: "Optional[APIFlow]",
         deployment: "Optional[Deployment]",
     ):
-        related = []
-        tags = []
+        related: list[RelatedResource] = []
+        tags: list[str] = []
         if deployment:
             related.append(
-                {
-                    "prefect.resource.id": f"prefect.deployment.{deployment.id}",
-                    "prefect.resource.role": "deployment",
-                    "prefect.resource.name": deployment.name,
-                }
+                RelatedResource(
+                    {
+                        "prefect.resource.id": f"prefect.deployment.{deployment.id}",
+                        "prefect.resource.role": "deployment",
+                        "prefect.resource.name": deployment.name,
+                    }
+                )
             )
             tags.extend(deployment.tags)
         if flow:
             related.append(
-                {
-                    "prefect.resource.id": f"prefect.flow.{flow.id}",
-                    "prefect.resource.role": "flow",
-                    "prefect.resource.name": flow.name,
-                }
+                RelatedResource(
+                    {
+                        "prefect.resource.id": f"prefect.flow.{flow.id}",
+                        "prefect.resource.role": "flow",
+                        "prefect.resource.name": flow.name,
+                    }
+                )
             )
         related.append(
-            {
-                "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
-                "prefect.resource.role": "flow-run",
-                "prefect.resource.name": flow_run.name,
-            }
+            RelatedResource(
+                {
+                    "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
+                    "prefect.resource.role": "flow-run",
+                    "prefect.resource.name": flow_run.name,
+                }
+            )
         )
         tags.extend(flow_run.tags)
 
