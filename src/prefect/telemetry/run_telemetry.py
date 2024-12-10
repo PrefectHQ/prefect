@@ -2,6 +2,7 @@ import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 
+from opentelemetry import propagate, trace
 from opentelemetry.propagators.textmap import Setter
 from opentelemetry.trace import (
     Span,
@@ -13,10 +14,14 @@ from opentelemetry.trace import (
 import prefect
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.objects import State
+from prefect.context import FlowRunContext
 from prefect.types import KeyValueLabels
 
 if TYPE_CHECKING:
     from opentelemetry.trace import Tracer
+
+LABELS_TRACEPARENT_KEY = "__OTEL_TRACEPARENT"
+TRACEPARENT_KEY = "traceparent"
 
 
 class OTELSetter(Setter[KeyValueLabels]):
@@ -113,3 +118,29 @@ class RunTelemetry:
                     "prefect.state.id": str(new_state.id),
                 },
             )
+
+    def propagate_traceparent(self) -> Optional[KeyValueLabels]:
+        """
+        Propagate a traceparent to a span.
+        """
+        parent_flow_run_ctx = FlowRunContext.get()
+
+        if parent_flow_run_ctx and parent_flow_run_ctx.flow_run:
+            if traceparent := parent_flow_run_ctx.flow_run.labels.get(
+                LABELS_TRACEPARENT_KEY
+            ):
+                carrier: KeyValueLabels = {TRACEPARENT_KEY: traceparent}
+                propagate.get_global_textmap().inject(
+                    carrier={TRACEPARENT_KEY: traceparent},
+                    setter=OTELSetter(),
+                )
+                return carrier
+            else:
+                if self.span:
+                    carrier: KeyValueLabels = {}
+                    propagate.get_global_textmap().inject(
+                        carrier,
+                        context=trace.set_span_in_context(self.span),
+                        setter=OTELSetter(),
+                    )
+                    return carrier

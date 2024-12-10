@@ -669,7 +669,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             with SyncClientContext.get_or_create() as client_ctx:
                 self._client = client_ctx.client
                 self._is_started = True
-                flow_run_context = FlowRunContext.get()
+                parent_flow_run_context = FlowRunContext.get()
                 parent_task_run_context = TaskRunContext.get()
 
                 try:
@@ -678,7 +678,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                             self.task.create_local_run(
                                 id=task_run_id,
                                 parameters=self.parameters,
-                                flow_run_context=flow_run_context,
+                                flow_run_context=parent_flow_run_context,
                                 parent_task_run_context=parent_task_run_context,
                                 wait_for=self.wait_for,
                                 extra_task_inputs=dependencies,
@@ -698,8 +698,8 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                         )
 
                         parent_labels = {}
-                        if parent_task_run_context and parent_task_run_context.task_run:
-                            parent_labels = parent_task_run_context.task_run.labels
+                        if parent_flow_run_context and parent_flow_run_context.flow_run:
+                            parent_labels = parent_flow_run_context.flow_run.labels
 
                         self._telemetry.start_span(
                             run=self.task_run,
