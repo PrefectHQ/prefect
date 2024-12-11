@@ -630,6 +630,48 @@ class TestGitCloneStep:
         assert "Network timeout" in caplog.text
         assert "Server busy" in caplog.text
 
+    async def test_agit_clone_via_steps(self, monkeypatch, caplog):
+        """Test that async-only steps work when called via step syntax"""
+        mock_git_repo = MagicMock()
+        mock_git_repo.return_value.pull_code = AsyncMock(
+            side_effect=[
+                RuntimeError("Network timeout"),
+                RuntimeError("Server busy"),
+                None,  # Success on third try
+            ]
+        )
+        mock_git_repo.return_value.destination.relative_to.return_value = "repo"
+        monkeypatch.setattr(
+            "prefect.deployments.steps.pull.GitRepository", mock_git_repo
+        )
+
+        async def mock_sleep(seconds):
+            pass
+
+        monkeypatch.setattr("asyncio.sleep", mock_sleep)
+
+        with caplog.at_level("WARNING"):
+            result = await run_step(
+                {
+                    "prefect.deployments.steps.pull.agit_clone": {
+                        "repository": "https://github.com/org/repo.git"
+                    }
+                }
+            )
+
+        assert result == {"directory": "repo"}
+        assert mock_git_repo.return_value.pull_code.await_count == 3
+        assert "Network timeout" in caplog.text
+        assert "Server busy" in caplog.text
+
+        expected_call = call(
+            url="https://github.com/org/repo.git",
+            credentials=None,
+            branch=None,
+            include_submodules=False,
+        )
+        assert mock_git_repo.call_args_list == [expected_call]
+
 
 class TestPullFromRemoteStorage:
     @pytest.fixture
