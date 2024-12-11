@@ -82,12 +82,12 @@ from prefect.states import (
 )
 from prefect.telemetry.run_telemetry import RunTelemetry
 from prefect.transactions import IsolationLevel, Transaction, transaction
+from prefect.utilities._engine import get_hook_name
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.callables import call_with_parameters, parameters_to_args_kwargs
 from prefect.utilities.collections import visit_collection
 from prefect.utilities.engine import (
-    _get_hook_name,
     emit_task_run_state_change_event,
     link_state_to_result,
     resolve_to_final_result,
@@ -196,11 +196,11 @@ class BaseTaskRunEngine(Generic[P, R]):
         self.parameters = resolved_parameters
 
     def _set_custom_task_run_name(self):
-        from prefect.utilities.engine import _resolve_custom_task_run_name
+        from prefect.utilities._engine import resolve_custom_task_run_name
 
         # update the task run name if necessary
         if not self._task_name_set and self.task.task_run_name:
-            task_run_name = _resolve_custom_task_run_name(
+            task_run_name = resolve_custom_task_run_name(
                 task=self.task, parameters=self.parameters or {}
             )
 
@@ -354,7 +354,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             hooks = None
 
         for hook in hooks or []:
-            hook_name = _get_hook_name(hook)
+            hook_name = get_hook_name(hook)
 
             try:
                 self.logger.info(
@@ -892,7 +892,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             hooks = None
 
         for hook in hooks or []:
-            hook_name = _get_hook_name(hook)
+            hook_name = get_hook_name(hook)
 
             try:
                 self.logger.info(
