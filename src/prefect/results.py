@@ -916,8 +916,10 @@ class ResultStore(BaseModel):
 
     @sync_compatible
     async def read_parameters(self, identifier: UUID) -> dict[str, Any]:
-        if TYPE_CHECKING:
-            assert self.result_storage is not None
+        if self.result_storage is None:
+            raise ValueError(
+                "Result store is not configured - must have a result storage block to read parameters"
+            )
         record = ResultRecord.deserialize(
             await self.result_storage.read_path(f"parameters/{identifier}")
         )
