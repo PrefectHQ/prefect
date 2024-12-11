@@ -107,7 +107,6 @@ async def get_default_result_storage() -> WritableFileSystem:
     return storage
 
 
-@sync_compatible
 async def resolve_result_storage(
     result_storage: Union[ResultStorage, UUID, Path],
 ) -> WritableFileSystem:
@@ -118,28 +117,20 @@ async def resolve_result_storage(
     from prefect.client.orchestration import get_client
 
     client = get_client()
-    if isinstance(result_storage, Block):
+    if isinstance(result_storage, WritableFileSystem):
         storage_block = result_storage
-
-        if storage_block._block_document_id is not None:
-            # Avoid saving the block if it already has an identifier assigned
-            storage_block_id = storage_block._block_document_id
-        else:
-            storage_block_id = None
     elif isinstance(result_storage, Path):
         storage_block = LocalFileSystem(basepath=str(result_storage))
     elif isinstance(result_storage, str):
         storage_block = await Block.aload(result_storage, client=client)
-        storage_block_id = storage_block._block_document_id
-        assert storage_block_id is not None, "Loaded storage blocks must have ids"
-    elif isinstance(result_storage, UUID):
-        block_document = await client.read_block_document(result_storage)
-        storage_block = Block._from_block_document(block_document)
+        if TYPE_CHECKING:
+            assert isinstance(storage_block, WritableFileSystem)
     else:
-        raise TypeError(
-            "Result storage must be one of the following types: 'UUID', 'Block', "
-            f"'str'. Got unsupported type {type(result_storage).__name__!r}."
-        )
+        block_document = await client.read_block_document(result_storage)
+        from_block_document = getattr(Block, "_from_block_document", None)
+        if TYPE_CHECKING:
+            assert from_block_document is not None
+        storage_block = from_block_document(block_document)
 
     return storage_block
 
@@ -151,13 +142,8 @@ def resolve_serializer(serializer: ResultSerializer) -> Serializer:
     """
     if isinstance(serializer, Serializer):
         return serializer
-    elif isinstance(serializer, str):
-        return Serializer(type=serializer)
     else:
-        raise TypeError(
-            "Result serializer must be one of the following types: 'Serializer', "
-            f"'str'. Got unsupported type {type(serializer).__name__!r}."
-        )
+        return Serializer(type=serializer)
 
 
 async def get_or_create_default_task_scheduling_storage() -> ResultStorage:
@@ -1180,8 +1166,7 @@ class BaseResult(BaseModel, abc.ABC, Generic[R]):
 
     @abc.abstractmethod
     @sync_compatible
-    async def get(self) -> R:
-        ...
+    async def get(self) -> R: ...
 
     @abc.abstractclassmethod
     @sync_compatible
@@ -1189,8 +1174,7 @@ class BaseResult(BaseModel, abc.ABC, Generic[R]):
         cls: "Type[BaseResult[R]]",
         obj: R,
         **kwargs: Any,
-    ) -> "BaseResult[R]":
-        ...
+    ) -> "BaseResult[R]": ...
 
     @classmethod
     def __dispatch_key__(cls, **kwargs):

@@ -33,6 +33,7 @@ LOWERCASE_LETTERS_NUMBERS_AND_UNDERSCORES_REGEX = "^[a-z0-9_]*$"
 
 if TYPE_CHECKING:
     from prefect.blocks.core import Block
+    from prefect.serializers import Serializer
     from prefect.utilities.callables import ParameterSchema
 
 
@@ -578,7 +579,7 @@ def validate_picklelib_and_modules(values: dict) -> dict:
     return values
 
 
-def validate_dump_kwargs(value: dict) -> dict:
+def validate_dump_kwargs(value: dict[str, Any]) -> dict[str, Any]:
     # `default` is set by `object_encoder`. A user provided callable would make this
     # class unserializable anyway.
     if "default" in value:
@@ -586,7 +587,7 @@ def validate_dump_kwargs(value: dict) -> dict:
     return value
 
 
-def validate_load_kwargs(value: dict) -> dict:
+def validate_load_kwargs(value: dict[str, Any]) -> dict[str, Any]:
     # `object_hook` is set by `object_decoder`. A user provided callable would make
     # this class unserializable anyway.
     if "object_hook" in value:
@@ -596,7 +597,7 @@ def validate_load_kwargs(value: dict) -> dict:
     return value
 
 
-def cast_type_names_to_serializers(value):
+def cast_type_names_to_serializers(value: Union[str, Serializer]) -> "Serializer":
     from prefect.serializers import Serializer
 
     if isinstance(value, str):
