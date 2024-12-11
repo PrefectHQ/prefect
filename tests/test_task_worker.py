@@ -106,9 +106,10 @@ async def test_task_worker_basic_context_management():
 async def test_handle_sigterm(mock_create_subscription):
     task_worker = TaskWorker(...)
 
-    with patch("sys.exit") as mock_exit, patch.object(
-        task_worker, "stop", new_callable=AsyncMock
-    ) as mock_stop:
+    with (
+        patch("sys.exit") as mock_exit,
+        patch.object(task_worker, "stop", new_callable=AsyncMock) as mock_stop,
+    ):
         await task_worker.start()
 
         mock_create_subscription.assert_called_once()
@@ -120,8 +121,9 @@ async def test_handle_sigterm(mock_create_subscription):
 
 
 async def test_task_worker_client_id_is_set():
-    with patch("socket.gethostname", return_value="foo"), patch(
-        "os.getpid", return_value=42
+    with (
+        patch("socket.gethostname", return_value="foo"),
+        patch("os.getpid", return_value=42),
     ):
         task_worker = TaskWorker(...)
         task_worker._client = MagicMock(api_url="http://localhost:4200")
@@ -225,6 +227,13 @@ async def test_task_worker_can_execute_a_single_sync_single_task_run(
     assert updated_task_run.state.is_completed()
 
     assert await updated_task_run.state.result() == 42
+
+
+def test_task_worker_cannot_be_instantiated_outside_of_async_context(foo_task):
+    with pytest.raises(
+        RuntimeError, match="TaskWorker must be initialized within an async context."
+    ):
+        TaskWorker(foo_task).start()
 
 
 class TestTaskWorkerTaskRunRetries:
