@@ -594,3 +594,13 @@ def reset_sys_modules():
             del sys.modules[module]
 
     importlib.invalidate_caches()
+
+
+@pytest.fixture
+def respx_mock():
+    """
+    Temporary override of respx to mock httpx instead of httpcore until respx supports
+    httpx>=0.28.0
+    """
+    with respx.mock(using="httpx") as xmock:
+        yield xmock

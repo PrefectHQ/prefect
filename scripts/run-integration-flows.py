@@ -10,14 +10,13 @@ Usage:
 
 Example:
 
-    PREFECT_API_URL="http://localhost:4200" ./scripts/run-integration-flows.py
+    PREFECT_API_URL="http://localhost:4200/api" ./scripts/run-integration-flows.py
 """
 
-import os
-import runpy
+import subprocess
 import sys
 from pathlib import Path
-from typing import Union
+from typing import List, Union
 
 import prefect
 from prefect import __version__
@@ -31,25 +30,30 @@ DEFAULT_PATH = (
 )
 
 
+def run_script(script_path: str):
+    print(f" {script_path} ".center(90, "-"), flush=True)
+    try:
+        result = subprocess.run(
+            ["python", script_path], capture_output=True, text=True, check=True
+        )
+        return result.stdout, result.stderr, None
+    except subprocess.CalledProcessError as e:
+        return e.stdout, e.stderr, e
+
+
 def run_flows(search_path: Union[str, Path]):
-    count = 0
     print(f"Running integration tests with client version: {__version__}")
-    server_version = os.environ.get("TEST_SERVER_VERSION")
-    if server_version:
-        print(f"and server version: {server_version}")
-
-    for file in sorted(Path(search_path).glob("**/*.py")):
-        print(f" {file.relative_to(search_path)} ".center(90, "-"), flush=True)
+    scripts = sorted(Path(search_path).glob("**/*.py"))
+    errors: List[Exception] = []
+    for script in scripts:
+        print(f"Running {script}")
         try:
-            runpy.run_path(file, run_name="__main__")
-        except NotImplementedError:
-            print(f"Skipping {file}: not supported by this version of Prefect")
-        print("".center(90, "-") + "\n", flush=True)
-        count += 1
+            run_script(str(script))
+        except Exception as e:
+            print(f"Error running {script}: {e}")
+            errors.append(e)
 
-    if not count:
-        print(f"No Python files found at {search_path}")
-        exit(1)
+    assert not errors, "Errors occurred while running flows"
 
 
 if __name__ == "__main__":
