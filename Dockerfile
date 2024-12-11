@@ -81,6 +81,9 @@ FROM ${BASE_IMAGE} AS final
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
 
+ENV UV_LINK_MODE=copy
+ENV UV_SYSTEM_PYTHON=1
+
 LABEL maintainer="help@prefect.io" \
     io.prefect.python-version=${PYTHON_VERSION} \
     org.label-schema.schema-version="1.0" \
@@ -95,8 +98,6 @@ RUN apt-get update && \
     tini=0.19.* \
     build-essential \
     git=1:2.* \
-    curl \
-    ca-certificates \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install UV from official image
@@ -105,22 +106,25 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 # Install dependencies using a temporary mount for requirements files
 RUN --mount=type=bind,source=requirements-client.txt,target=/tmp/requirements-client.txt \
     --mount=type=bind,source=requirements.txt,target=/tmp/requirements.txt \
-    uv pip install --system -r /tmp/requirements.txt
+    --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --system -r /tmp/requirements.txt -r /tmp/requirements-client.txt
 
 # Install prefect from the sdist
 COPY --from=python-builder /opt/prefect/dist ./dist
 
 # Extras to include during installation
 ARG PREFECT_EXTRAS
-RUN uv pip install --system "./dist/prefect.tar.gz${PREFECT_EXTRAS:-""}" && \
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install "./dist/prefect.tar.gz${PREFECT_EXTRAS:-""}" && \
     rm -rf dist/
 
 # Remove setuptools
-RUN uv pip uninstall --system setuptools
+RUN uv pip uninstall setuptools
 
 # Install any extra packages
 ARG EXTRA_PIP_PACKAGES
-RUN [ -z "${EXTRA_PIP_PACKAGES:-""}" ] || uv pip install --system "${EXTRA_PIP_PACKAGES}"
+RUN --mount=type=cache,target=/root/.cache/uv \
+    [ -z "${EXTRA_PIP_PACKAGES:-""}" ] || uv pip install "${EXTRA_PIP_PACKAGES}"
 
 # Smoke test
 RUN prefect version
