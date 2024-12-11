@@ -18,16 +18,15 @@ import prefect
 from prefect import flow, task
 from prefect.client.orchestration import SyncPrefectClient
 from prefect.context import FlowRunContext
-from prefect.task_engine import (
-    run_task_async,
-    run_task_sync,
-)
+from prefect.flow_engine import run_flow_async, run_flow_sync
+from prefect.task_engine import run_task_async, run_task_sync
 from prefect.telemetry.bootstrap import setup_telemetry
 from prefect.telemetry.instrumentation import (
     extract_account_and_workspace_id,
 )
 from prefect.telemetry.logging import get_log_handler
 from prefect.telemetry.processors import InFlightSpanProcessor
+from prefect.telemetry.run_telemetry import LABELS_TRACEPARENT_KEY
 
 
 def test_extract_account_and_workspace_id_valid_url(
@@ -181,6 +180,59 @@ class TestFlowRunInstrumentation:
     ) -> Literal["async", "sync"]:
         return request.param
 
+    async def test_traceparent_propagates_from_server_side(
+        self,
+        engine_type: Literal["async", "sync"],
+        instrumentation: InstrumentationTester,
+        sync_prefect_client: SyncPrefectClient,
+    ):
+        """Test that when no parent traceparent exists, the flow run stores its own span's traceparent"""
+
+        @flow
+        async def my_async_flow():
+            pass
+
+        @flow
+        def my_sync_flow():
+            pass
+
+        if engine_type == "async":
+            the_flow = my_async_flow
+        else:
+            the_flow = my_sync_flow
+
+        flow_run = sync_prefect_client.create_flow_run(the_flow)  # type: ignore
+
+        # Give the flow run a traceparent. This can occur when the server has
+        # already created a trace for the run, likely because it was Late.
+        #
+        # Trace ID: 314419354619557650326501540139523824930
+        # Span ID: 5357380918965115138
+        sync_prefect_client.update_flow_run_labels(
+            flow_run.id,
+            {
+                LABELS_TRACEPARENT_KEY: "00-ec8af70b445d54387035c27eb182dd22-4a593d8fa95f1902-01"
+            },
+        )
+
+        flow_run = sync_prefect_client.read_flow_run(flow_run.id)
+        assert flow_run.labels[LABELS_TRACEPARENT_KEY] == (
+            "00-ec8af70b445d54387035c27eb182dd22-4a593d8fa95f1902-01"
+        )
+
+        if engine_type == "async":
+            await run_flow_async(the_flow, flow_run=flow_run)  # type: ignore
+        else:
+            run_flow_sync(the_flow, flow_run=flow_run)  # type: ignore
+
+        spans = instrumentation.get_finished_spans()
+        assert len(spans) == 1
+        span = spans[0]
+
+        assert span.parent is not None
+        assert span.parent.trace_id == 314419354619557650326501540139523824930
+        assert span.parent.span_id == 5357380918965115138
+
     async def test_flow_run_creates_and_stores_otel_traceparent(
         self,
         engine_type: Literal["async", "sync"],
@@ -249,20 +301,12 @@ class TestFlowRunInstrumentation:
             return "hello from child"
 
         @flow(name="parent-flow")
-        async def async_parent_flow() -> str:
-            # Set OTEL context in the parent flow's labels
-            flow_run = FlowRunContext.get().flow_run
-            mock_traceparent = "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
-            flow_run.labels["__OTEL_TRACEPARENT"] = mock_traceparent
-            return await async_child_flow()
+        async def async_parent_flow():
+            await async_child_flow()
 
         @flow(name="parent-flow")
-        def sync_parent_flow() -> str:
-            # Set OTEL context in the parent flow's labels
-            flow_run = FlowRunContext.get().flow_run
-            mock_traceparent = "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
-            flow_run.labels["__OTEL_TRACEPARENT"] = mock_traceparent
-            return sync_child_flow()
+        def sync_parent_flow():
+            sync_child_flow()
 
         parent_flow = async_parent_flow if engine_type == "async" else sync_parent_flow
         await parent_flow() if engine_type == "async" else parent_flow()
