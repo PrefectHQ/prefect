@@ -1,11 +1,12 @@
 import asyncio
 import inspect
 from functools import wraps
-from typing import Any, Callable, Coroutine, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, Optional, TypeVar, Union
 
 from typing_extensions import ParamSpec
 
-from prefect.tasks import Task
+if TYPE_CHECKING:
+    from prefect.tasks import Task
 
 R = TypeVar("R")
 P = ParamSpec("P")
@@ -13,20 +14,44 @@ P = ParamSpec("P")
 
 def is_in_async_context() -> bool:
     """
-    Returns True if called from within an async context (coroutine or running event loop)
+    Returns True if called from within an async context.
+
+    An async context is one of:
+        - a coroutine
+        - a running event loop
+        - a task or flow that is async
     """
+    from prefect.context import get_run_context
+    from prefect.exceptions import MissingContextError
+
     try:
-        asyncio.get_running_loop()
-        return True
-    except RuntimeError:
-        return False
+        run_ctx = get_run_context()
+        parent_obj = getattr(run_ctx, "task", None)
+        if not parent_obj:
+            parent_obj = getattr(run_ctx, "flow", None)
+        return getattr(parent_obj, "isasync", True)
+    except MissingContextError:
+        # not in an execution context, make best effort to
+        # decide whether to syncify
+        try:
+            asyncio.get_running_loop()
+            return True
+        except RuntimeError:
+            return False
 
 
-def _is_acceptable_callable(obj: Union[Callable, Task]) -> bool:
+def _is_acceptable_callable(obj: Union[Callable, "Task", classmethod]) -> bool:
     if inspect.iscoroutinefunction(obj):
         return True
-    if isinstance(obj, Task) and inspect.iscoroutinefunction(obj.fn):
+
+    # Check if a task or flow. Need to avoid importing `Task` or `Flow` here
+    # due to circular imports.
+    if (fn := getattr(obj, "fn", None)) and inspect.iscoroutinefunction(fn):
         return True
+
+    if isinstance(obj, classmethod) and inspect.iscoroutinefunction(obj.__func__):
+        return True
+
     return False
 
 
@@ -56,6 +81,8 @@ def async_dispatch(
 
             if should_run_sync:
                 return sync_fn(*args, **kwargs)
+            if isinstance(async_impl, classmethod):
+                return async_impl.__func__(*args, **kwargs)
             return async_impl(*args, **kwargs)
 
         return wrapper  # type: ignore

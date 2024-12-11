@@ -7,7 +7,7 @@ Utilities for working with clients.
 
 from collections.abc import Awaitable, Coroutine
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Optional, Union, overload
 
 from typing_extensions import Concatenate, ParamSpec, TypeGuard, TypeVar
 
@@ -71,9 +71,23 @@ def client_injector(
     return wrapper
 
 
+@overload
 def inject_client(
     fn: Callable[P, Coroutine[Any, Any, R]],
 ) -> Callable[P, Coroutine[Any, Any, R]]:
+    ...
+
+
+@overload
+def inject_client(
+    fn: Callable[P, R],
+) -> Callable[P, R]:
+    ...
+
+
+def inject_client(
+    fn: Callable[P, Union[Coroutine[Any, Any, R], R]],
+) -> Callable[P, Union[Coroutine[Any, Any, R], R]]:
     """
     Simple helper to provide a context managed client to an asynchronous function.
 

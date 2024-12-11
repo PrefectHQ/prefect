@@ -4415,3 +4415,41 @@ class SyncPrefectClient:
             json=labels,
         )
         response.raise_for_status()
+
+    def read_block_document_by_name(
+        self,
+        name: str,
+        block_type_slug: str,
+        include_secrets: bool = True,
+    ) -> BlockDocument:
+        """
+        Read the block document with the specified name that corresponds to a
+        specific block type name.
+
+        Args:
+            name: The block document name.
+            block_type_slug: The block type slug.
+            include_secrets (bool): whether to include secret values
+                on the Block, corresponding to Pydantic's `SecretStr` and
+                `SecretBytes` fields. These fields are automatically obfuscated
+                by Pydantic, but users can additionally choose not to receive
+                their values from the API. Note that any business logic on the
+                Block may not work if this is `False`.
+
+        Raises:
+            httpx.RequestError: if the block document was not found for any reason
+
+        Returns:
+            A block document or None.
+        """
+        try:
+            response = self._client.get(
+                f"/block_types/slug/{block_type_slug}/block_documents/name/{name}",
+                params=dict(include_secrets=include_secrets),
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+        return BlockDocument.model_validate(response.json())

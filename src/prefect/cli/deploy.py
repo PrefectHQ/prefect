@@ -1028,7 +1028,7 @@ async def _generate_git_clone_pull_step(
         )
 
         try:
-            await Secret.load(token_secret_block_name)
+            await Secret.aload(token_secret_block_name)
             if not confirm(
                 (
                     "We found an existing token saved for this deployment. Would"

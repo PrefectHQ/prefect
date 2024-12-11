@@ -129,7 +129,7 @@ async def resolve_result_storage(
     elif isinstance(result_storage, Path):
         storage_block = LocalFileSystem(basepath=str(result_storage))
     elif isinstance(result_storage, str):
-        storage_block = await Block.load(result_storage, client=client)
+        storage_block = await Block.aload(result_storage, client=client)
         storage_block_id = storage_block._block_document_id
         assert storage_block_id is not None, "Loaded storage blocks must have ids"
     elif isinstance(result_storage, UUID):
@@ -168,7 +168,7 @@ async def get_or_create_default_task_scheduling_storage() -> ResultStorage:
     default_block = settings.tasks.scheduling.default_storage_block
 
     if default_block is not None:
-        return await Block.load(default_block)
+        return await Block.aload(default_block)
 
     # otherwise, use the local file system
     basepath = settings.results.local_storage_path
