@@ -2,13 +2,13 @@ from unittest.mock import patch
 
 import pytest
 
-from prefect.events.schemas.events import RelatedResource
-from prefect.experimental.lineage import (
+from prefect._experimental.lineage import (
     emit_lineage_event,
     emit_result_read_event,
     emit_result_write_event,
     get_result_resource_uri,
 )
+from prefect.events.schemas.events import RelatedResource
 from prefect.filesystems import (
     LocalFileSystem,
     WritableDeploymentStorage,
@@ -30,7 +30,7 @@ def result_store(local_storage):
 @pytest.fixture
 def mock_emit_event():
     """Mock the emit_event function used by all lineage event emission."""
-    with patch("prefect.experimental.lineage.emit_event") as mock:
+    with patch("prefect._experimental.lineage.emit_event") as mock:
         yield mock
 
 

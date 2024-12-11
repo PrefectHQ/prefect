@@ -39,6 +39,10 @@ from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import ParamSpec, Self
 
 import prefect
+from prefect._experimental.lineage import (
+    emit_result_read_event,
+    emit_result_write_event,
+)
 from prefect._internal.compatibility import deprecated
 from prefect._internal.compatibility.deprecated import deprecated_field
 from prefect.blocks.core import Block
@@ -47,10 +51,6 @@ from prefect.exceptions import (
     ConfigurationError,
     MissingContextError,
     SerializationError,
-)
-from prefect.experimental.lineage import (
-    emit_result_read_event,
-    emit_result_write_event,
 )
 from prefect.filesystems import (
     LocalFileSystem,

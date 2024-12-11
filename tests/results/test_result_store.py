@@ -942,7 +942,9 @@ class TestResultStoreEmitsEvents:
         filesystem = LocalFileSystem(basepath=tmp_path)
         result_store = ResultStore(result_storage=filesystem)
 
-        with mock.patch("prefect.experimental.lineage.emit_lineage_event") as mock_emit:
+        with mock.patch(
+            "prefect._experimental.lineage.emit_lineage_event"
+        ) as mock_emit:
             await result_store.awrite(key="test", obj="test")
             mock_emit.assert_not_called()
 
@@ -953,6 +955,8 @@ class TestResultStoreEmitsEvents:
         result_store = ResultStore(result_storage=filesystem)
         await result_store.awrite(key="test", obj="test")
 
-        with mock.patch("prefect.experimental.lineage.emit_lineage_event") as mock_emit:
+        with mock.patch(
+            "prefect._experimental.lineage.emit_lineage_event"
+        ) as mock_emit:
             await result_store.aread(key="test")
             mock_emit.assert_not_called()
