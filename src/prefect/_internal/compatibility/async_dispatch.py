@@ -40,7 +40,9 @@ def is_in_async_context() -> bool:
             return False
 
 
-def _is_acceptable_callable(obj: Union[Callable, "Task", classmethod]) -> bool:
+def _is_acceptable_callable(
+    obj: Union[Callable[P, R], "Task[P, R]", classmethod],
+) -> bool:
     if inspect.iscoroutinefunction(obj):
         return True
 

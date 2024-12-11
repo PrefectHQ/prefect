@@ -7,7 +7,7 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import AsyncExitStack
 from contextvars import copy_context
-from typing import Optional
+from typing import TYPE_CHECKING, Any, Optional
 from uuid import UUID
 
 import anyio
@@ -16,6 +16,7 @@ import pendulum
 import uvicorn
 from exceptiongroup import BaseExceptionGroup  # novermin
 from fastapi import FastAPI
+from typing_extensions import ParamSpec, TypeVar
 from websockets.exceptions import InvalidStatusCode
 
 from prefect import Task
@@ -35,11 +36,16 @@ from prefect.task_engine import run_task_async, run_task_sync
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
 from prefect.utilities.engine import emit_task_run_state_change_event
-from prefect.utilities.processutils import _register_signal
+from prefect.utilities.processutils import (
+    _register_signal,  # pyright: ignore[reportPrivateUsage]
+)
 from prefect.utilities.services import start_client_metrics_server
 from prefect.utilities.urls import url_for
 
 logger = get_logger("task_worker")
+
+P = ParamSpec("P")
+R = TypeVar("R", infer_variance=True)
 
 
 class StopTaskWorker(Exception):
@@ -48,8 +54,10 @@ class StopTaskWorker(Exception):
     pass
 
 
-def should_try_to_read_parameters(task: Task, task_run: TaskRun) -> bool:
+def should_try_to_read_parameters(task: Task[P, R], task_run: TaskRun) -> bool:
     """Determines whether a task run should read parameters from the result store."""
+    if TYPE_CHECKING:
+        assert task_run.state is not None
     new_enough_state_details = hasattr(
         task_run.state.state_details, "task_parameters_id"
     )
@@ -76,20 +84,23 @@ class TaskWorker:
 
     def __init__(
         self,
-        *tasks: Task,
+        *tasks: Task[P, R],
         limit: Optional[int] = 10,
     ):
-        self.tasks = []
+        self.tasks: list["Task[..., Any]"] = []
         for t in tasks:
-            if isinstance(t, Task):
-                if t.cache_policy in [None, NONE, NotSet]:
-                    self.tasks.append(
-                        t.with_options(persist_result=True, cache_policy=DEFAULT)
-                    )
-                else:
-                    self.tasks.append(t.with_options(persist_result=True))
+            if not TYPE_CHECKING:
+                if not isinstance(t, Task):
+                    continue
 
-        self.task_keys = set(t.task_key for t in tasks if isinstance(t, Task))
+            if t.cache_policy in [None, NONE, NotSet]:
+                self.tasks.append(
+                    t.with_options(persist_result=True, cache_policy=DEFAULT)
+                )
+            else:
+                self.tasks.append(t.with_options(persist_result=True))
+
+        self.task_keys = set(t.task_key for t in tasks if isinstance(t, Task))  # pyright: ignore[reportUnnecessaryIsInstance]
 
         self._started_at: Optional[pendulum.DateTime] = None
         self.stopping: bool = False
@@ -97,7 +108,9 @@ class TaskWorker:
         self._client = get_client()
         self._exit_stack = AsyncExitStack()
 
-        if not asyncio.get_event_loop().is_running():
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
             raise RuntimeError(
                 "TaskWorker must be initialized within an async context."
             )
@@ -141,7 +154,7 @@ class TaskWorker:
     def available_tasks(self) -> Optional[int]:
         return int(self._limiter.available_tokens) if self._limiter else None
 
-    def handle_sigterm(self, signum, frame):
+    def handle_sigterm(self, signum: int, frame: object):
         """
         Shuts down the task worker when a SIGTERM is received.
         """
@@ -153,7 +166,7 @@ class TaskWorker:
     @sync_compatible
     async def start(self) -> None:
         """
-        Starts a task worker, which runs the tasks provided in the constructor.
+        Asynchronously starts a task worker, which runs the tasks provided in the constructor.
         """
         _register_signal(signal.SIGTERM, self.handle_sigterm)
 
@@ -252,6 +265,8 @@ class TaskWorker:
             self._release_token(task_run.id)
 
     async def _submit_scheduled_task_run(self, task_run: TaskRun):
+        if TYPE_CHECKING:
+            assert task_run.state is not None
         logger.debug(
             f"Found task run: {task_run.name!r} in state: {task_run.state.name!r}"
         )
@@ -280,7 +295,7 @@ class TaskWorker:
                 result_storage=await get_or_create_default_task_scheduling_storage()
             ).update_for_task(task)
             try:
-                run_data = await store.read_parameters(parameters_id)
+                run_data: dict[str, Any] = await store.read_parameters(parameters_id)
                 parameters = run_data.get("parameters", {})
                 wait_for = run_data.get("wait_for", [])
                 run_context = run_data.get("context", None)
@@ -350,7 +365,7 @@ class TaskWorker:
     async def __aenter__(self):
         logger.debug("Starting task worker...")
 
-        if self._client._closed:
+        if self._client._closed:  # pyright: ignore[reportPrivateUsage]
             self._client = get_client()
         self._runs_task_group = anyio.create_task_group()
 
@@ -362,7 +377,7 @@ class TaskWorker:
         self._started_at = pendulum.now()
         return self
 
-    async def __aexit__(self, *exc_info):
+    async def __aexit__(self, *exc_info: Any):
         logger.debug("Stopping task worker...")
         self._started_at = None
         await self._exit_stack.__aexit__(*exc_info)
@@ -372,7 +387,9 @@ def create_status_server(task_worker: TaskWorker) -> FastAPI:
     status_app = FastAPI()
 
     @status_app.get("/status")
-    def status():
+    def status():  # pyright: ignore[reportUnusedFunction]
+        if TYPE_CHECKING:
+            assert task_worker.started_at is not None
         return {
             "client_id": task_worker.client_id,
             "started_at": task_worker.started_at.isoformat(),
@@ -393,11 +410,13 @@ def create_status_server(task_worker: TaskWorker) -> FastAPI:
 
 @sync_compatible
 async def serve(
-    *tasks: Task, limit: Optional[int] = 10, status_server_port: Optional[int] = None
+    *tasks: Task[P, R],
+    limit: Optional[int] = 10,
+    status_server_port: Optional[int] = None,
 ):
-    """Serve the provided tasks so that their runs may be submitted to and executed.
-    in the engine. Tasks do not need to be within a flow run context to be submitted.
-    You must `.submit` the same task object that you pass to `serve`.
+    """Serve the provided tasks so that their runs may be submitted to
+    and executed in the engine. Tasks do not need to be within a flow run context to be
+    submitted. You must `.submit` the same task object that you pass to `serve`.
 
     Args:
         - tasks: A list of tasks to serve. When a scheduled task run is found for a
@@ -422,8 +441,7 @@ async def serve(
             print(message.upper())
 
         # starts a long-lived process that listens for scheduled runs of these tasks
-        if __name__ == "__main__":
-            serve(say, yell)
+        serve(say, yell)
         ```
     """
     task_worker = TaskWorker(*tasks, limit=limit)
