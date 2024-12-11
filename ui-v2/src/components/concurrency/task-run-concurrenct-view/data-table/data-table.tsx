@@ -65,8 +65,39 @@ export const TaskRunConcurrencyDataTable = ({
 		);
 	}, [data, deferredSearch]);
 
+	return (
+		<Table
+			data={filteredData}
+			onDeleteRow={onDeleteRow}
+			onResetRow={onResetRow}
+			searchValue={search}
+			onSearchChange={(value) =>
+				void navigate({
+					to: ".",
+					search: (prev) => ({ ...prev, search: value }),
+				})
+			}
+		/>
+	);
+};
+
+type TableProps = {
+	data: Array<TaskRunConcurrencyLimit>;
+	onDeleteRow: (row: TaskRunConcurrencyLimit) => void;
+	onResetRow: (row: TaskRunConcurrencyLimit) => void;
+	onSearchChange: (value: string) => void;
+	searchValue: string | undefined;
+};
+
+export function Table({
+	data,
+	onDeleteRow,
+	onResetRow,
+	onSearchChange,
+	searchValue,
+}: TableProps) {
 	const table = useReactTable({
-		data: filteredData,
+		data,
 		columns: createColumns({ onDeleteRow, onResetRow }),
 		getCoreRowModel: getCoreRowModel(),
 		getPaginationRowModel: getPaginationRowModel(), //load client-side pagination code
@@ -76,15 +107,10 @@ export const TaskRunConcurrencyDataTable = ({
 		<div className="flex flex-col gap-4">
 			<SearchInput
 				placeholder="Search active task limit"
-				value={search}
-				onChange={(e) =>
-					void navigate({
-						to: ".",
-						search: (prev) => ({ ...prev, search: e.target.value }),
-					})
-				}
+				value={searchValue}
+				onChange={(e) => onSearchChange(e.target.value)}
 			/>
 			<DataTable table={table} />
 		</div>
 	);
-};
+}

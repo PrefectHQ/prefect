@@ -69,9 +69,40 @@ export const GlobalConcurrencyDataTable = ({
 		);
 	}, [data, deferredSearch]);
 
+	return (
+		<Table
+			data={filteredData}
+			onDeleteRow={onDeleteRow}
+			onEditRow={onEditRow}
+			searchValue={search}
+			onSearchChange={(value) =>
+				void navigate({
+					to: ".",
+					search: (prev) => ({ ...prev, search: value }),
+				})
+			}
+		/>
+	);
+};
+
+type TableProps = {
+	data: Array<GlobalConcurrencyLimit>;
+	onDeleteRow: (row: GlobalConcurrencyLimit) => void;
+	onEditRow: (row: GlobalConcurrencyLimit) => void;
+	onSearchChange: (value: string) => void;
+	searchValue: string | undefined;
+};
+
+export function Table({
+	data,
+	onDeleteRow,
+	onEditRow,
+	onSearchChange,
+	searchValue,
+}: TableProps) {
 	const table = useReactTable({
-		data: filteredData,
-		columns: createColumns({ onEditRow, onDeleteRow }),
+		data,
+		columns: createColumns({ onDeleteRow, onEditRow }),
 		getCoreRowModel: getCoreRowModel(),
 		getPaginationRowModel: getPaginationRowModel(), //load client-side pagination code
 	});
@@ -80,15 +111,10 @@ export const GlobalConcurrencyDataTable = ({
 		<div className="flex flex-col gap-4">
 			<SearchInput
 				placeholder="Search global concurrency limit"
-				value={search}
-				onChange={(e) =>
-					void navigate({
-						to: ".",
-						search: (prev) => ({ ...prev, search: e.target.value }),
-					})
-				}
+				value={searchValue}
+				onChange={(e) => onSearchChange(e.target.value)}
 			/>
 			<DataTable table={table} />
 		</div>
 	);
-};
+}
