@@ -196,8 +196,7 @@
         "v3/automate/events/events",
         "v3/automate/events/automations-triggers",
         "v3/automate/events/custom-triggers",
-        "v3/automate/events/webhook-triggers",
-        "v3/automate/incidents"
+        "v3/automate/events/webhook-triggers"
       ],
       "version": "v3"
     },
