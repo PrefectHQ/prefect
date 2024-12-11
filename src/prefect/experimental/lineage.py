@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Dict, Literal, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Sequence, Union
 
 from prefect.events.related import related_resources_from_run_context
 from prefect.events.schemas.events import RelatedResource, Resource
@@ -21,7 +21,7 @@ STORAGE_URI_SCHEMES = {
 
 
 def get_result_resource_uri(
-    store: "ResultStore",  # pyright: ignore[reportUnknownParameterType]
+    store: "ResultStore",
     key: str,
 ) -> Optional[str]:
     """
@@ -35,7 +35,7 @@ def get_result_resource_uri(
     if storage is None:
         return
 
-    path = store._resolved_key_path(key)
+    path = store._resolved_key_path(key)  # pyright: ignore[reportPrivateUsage]
 
     block_type = storage.get_block_type_slug()
     if block_type and block_type in STORAGE_URI_SCHEMES:
@@ -98,7 +98,7 @@ async def emit_lineage_event(
         if "prefect.resource.lineage-group" not in resource:
             resource["prefect.resource.lineage-group"] = "global"
 
-        emit_kwargs = {
+        emit_kwargs: dict[str, Any] = {
             "event": event_name,
             "resource": resource,
             "related": upstream_resources,
@@ -111,7 +111,7 @@ async def emit_lineage_event(
 
 
 async def emit_result_read_event(
-    store: "ResultStore",  # pyright: ignore[reportUnknownParameterType]
+    store: "ResultStore",
     result_key: str,
     downstream_resources: Optional[DownstreamResources] = None,
     cached: bool = False,
