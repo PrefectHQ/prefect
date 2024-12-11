@@ -11,7 +11,7 @@ updates:
     directory: '/ui/'
     schedule:
       interval: "weekly"
-    labels: ["ui", "development"]
+    labels: ["ui", "ui-dependency"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
