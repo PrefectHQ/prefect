@@ -783,8 +783,6 @@ class Block(BaseModel, ABC):
         name: str,
         client: "PrefectClient",
     ) -> tuple[BlockDocument, str]:
-        if TYPE_CHECKING:
-            assert isinstance(client, PrefectClient)
         if cls.__name__ == "Block":
             block_type_slug, block_document_name = name.split("/", 1)
         else:
@@ -809,8 +807,6 @@ class Block(BaseModel, ABC):
         name: str,
         client: "SyncPrefectClient",
     ) -> tuple[BlockDocument, str]:
-        if TYPE_CHECKING:
-            assert isinstance(client, PrefectClient)
         if cls.__name__ == "Block":
             block_type_slug, block_document_name = name.split("/", 1)
         else:
@@ -1034,9 +1030,10 @@ class Block(BaseModel, ABC):
             # If a client wasn't provided, we get to use a sync client
             from prefect.client.orchestration import get_client
 
-            sync_client = get_client(sync_client=True)
-            block_document, _ = cls._get_block_document(name, client=sync_client)
+            with get_client(sync_client=True) as sync_client:
+                block_document, _ = cls._get_block_document(name, client=sync_client)
         else:
+            # If a client was provided, reuse it, even though it's async, to avoid excessive client creation
             block_document, _ = run_coro_as_sync(
                 cls._aget_block_document(name, client=client)
             )
