@@ -1166,7 +1166,8 @@ class BaseResult(BaseModel, abc.ABC, Generic[R]):
 
     @abc.abstractmethod
     @sync_compatible
-    async def get(self) -> R: ...
+    async def get(self) -> R:
+        ...
 
     @abc.abstractclassmethod
     @sync_compatible
@@ -1174,7 +1175,8 @@ class BaseResult(BaseModel, abc.ABC, Generic[R]):
         cls: "Type[BaseResult[R]]",
         obj: R,
         **kwargs: Any,
-    ) -> "BaseResult[R]": ...
+    ) -> "BaseResult[R]":
+        ...
 
     @classmethod
     def __dispatch_key__(cls, **kwargs):
