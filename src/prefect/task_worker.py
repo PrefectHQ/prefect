@@ -377,7 +377,7 @@ class TaskWorker:
         self._started_at = pendulum.now()
         return self
 
-    async def __aexit__(self, *exc_info: Any):
+    async def __aexit__(self, *exc_info: Any) -> None:
         logger.debug("Stopping task worker...")
         self._started_at = None
         await self._exit_stack.__aexit__(*exc_info)
