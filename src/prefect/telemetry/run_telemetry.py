@@ -54,16 +54,10 @@ class RunTelemetry:
         parameters: Optional[Dict[str, Any]] = None,
         parent_labels: Optional[Dict[str, Any]] = None,
     ):
+        should_set_traceparent = self._should_set_traceparent(run)
         traceparent, span = self._start_span(run, name, parameters, parent_labels)
 
-        if (
-            traceparent
-            and LABELS_TRACEPARENT_KEY not in run.labels
-            and self._run_type(run) == "flow"
-        ):
-            # If the run is a flow run we need to update the flow run labels
-            # with the traceparent so that the traceparent is propagated to
-            # child runs.
+        if should_set_traceparent and traceparent:
             await client.update_flow_run_labels(
                 run.id, {LABELS_TRACEPARENT_KEY: traceparent}
             )
@@ -78,16 +72,10 @@ class RunTelemetry:
         parameters: Optional[Dict[str, Any]] = None,
         parent_labels: Optional[Dict[str, Any]] = None,
     ):
+        should_set_traceparent = self._should_set_traceparent(run)
         traceparent, span = self._start_span(run, name, parameters, parent_labels)
 
-        if (
-            traceparent
-            and LABELS_TRACEPARENT_KEY not in run.labels
-            and self._run_type(run) == "flow"
-        ):
-            # If the run is a flow run we need to update the flow run labels
-            # with the traceparent so that the traceparent is propagated to
-            # child runs.
+        if should_set_traceparent and traceparent:
             client.update_flow_run_labels(run.id, {LABELS_TRACEPARENT_KEY: traceparent})
 
         return span
@@ -132,10 +120,22 @@ class RunTelemetry:
         if not traceparent:
             traceparent = self._traceparent_from_span(self.span)
 
+        if traceparent and LABELS_TRACEPARENT_KEY not in run.labels:
+            run.labels[LABELS_TRACEPARENT_KEY] = traceparent
+
         return traceparent, self.span
 
     def _run_type(self, run: Union[TaskRun, FlowRun]) -> str:
         return "task" if isinstance(run, TaskRun) else "flow"
+
+    def _should_set_traceparent(self, run: Union[TaskRun, FlowRun]) -> bool:
+        # If the run is a flow run and it doesn't already have a traceparent,
+        # we need to update its labels with the traceparent so that its
+        # propagated to child runs. Task runs are updated via events so we
+        # don't need to update them via the client in the same way.
+        return (
+            LABELS_TRACEPARENT_KEY not in run.labels and self._run_type(run) == "flow"
+        )
 
     def _traceparent_and_context_from_labels(
         self, labels: Optional[KeyValueLabels]

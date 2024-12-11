@@ -225,9 +225,17 @@ class TestFlowRunInstrumentation:
         else:
             run_flow_sync(the_flow, flow_run=flow_run)  # type: ignore
 
+        assert flow_run.labels[LABELS_TRACEPARENT_KEY] == (
+            "00-ec8af70b445d54387035c27eb182dd22-4a593d8fa95f1902-01"
+        )
+
         spans = instrumentation.get_finished_spans()
         assert len(spans) == 1
         span = spans[0]
+
+        span_context = span.get_span_context()
+        assert span_context is not None
+        assert span_context.trace_id == 314419354619557650326501540139523824930
 
         assert span.parent is not None
         assert span.parent.trace_id == 314419354619557650326501540139523824930
