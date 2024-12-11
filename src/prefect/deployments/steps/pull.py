@@ -45,6 +45,8 @@ async def git_clone(
     include_submodules: bool = False,
     access_token: Optional[str] = None,
     credentials: Optional["Block"] = None,
+    directories: Optional[str] = None,
+    cone_mode: bool = True,
 ) -> dict:
     """
     Clones a git repository into the current working directory.
@@ -57,6 +59,8 @@ async def git_clone(
             the repository will be cloned using the default git credentials
         credentials: a GitHubCredentials, GitLabCredentials, or BitBucketCredentials block can be used to specify the
             credentials to use for cloning the repository.
+        directories: directories to clone
+        cone_mode: whether to use sparse-checkout cone mode
 
     Returns:
         dict: a dictionary containing a `directory` key of the new directory that was created
@@ -127,6 +131,8 @@ async def git_clone(
         credentials=credentials,
         branch=branch,
         include_submodules=include_submodules,
+        directories=directories,
+        cone_mode=cone_mode,
     )
 
     await storage.pull_code()
