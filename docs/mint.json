@@ -67,7 +67,8 @@
           "pages": [
             "v3/tutorials/schedule",
             "v3/tutorials/pipelines",
-            "v3/tutorials/scraping"
+            "v3/tutorials/scraping",
+            "v3/tutorials/ml"
           ]
         },
         {

@@ -1,0 +1,44 @@
+---
+title: Train a machine learning model
+description: Use an automation to train a machine learning model when data changes
+---
+
+In the [Extract data from websites](/v3/tutorials/scraping) tutorial, you learned how to handle data dependencies and ingest large amounts of data.
+Now, you'll learn how to train a machine learning model using that data.
+
+## Create a GPU work pool
+
+TBD
+Maybe just an EC2 instance on AWS?
+
+## Store training data in S3
+
+TBD.
+Show the scraping code, but give people file(s) they can upload to S3 (original data plus changes to trigger the flow).
+
+## Train a model when the training data changes
+
+TBD.
+Use automations and blocks to trigger a flow after receiving a webhook event from S3.
+Flow trains a simple model (e.g. linear regression?) and saves the fitted model to storage (Prefect artifact? S3?)
+
+## Test the model
+
+TBD.
+Interactive flow which asks for X, then runs and returns the prediction.
+Store model performance metrics (AUC?) as artifacts in Prefect and view in the UI.
+
+## Next steps
+
+In this tutorial, you learned how to publish data to S3 and train a machine learning model whenever that data changes.
+You're well on your way to becoming a Prefect expert!
+
+Now that you've finished this tutorial series, continue your learning journey by going deep on the following topics:
+
+- Write [flows](/v3/develop/write-flows) and [tasks](/v3/develop/write-tasks)
+- Manage [Prefect Cloud and server instances](/v3/manage)
+- Run workflows on [work pools](/v3/deploy/infrastructure-concepts/work-pools) using Kubernetes, Docker, and serverless infrastructure.
+
+<Tip>
+Need help? [Book a meeting](https://calendly.com/prefect-experts/prefect-product-advocates?utm_campaign=prefect_docs_cloud&utm_content=prefect_docs&utm_medium=docs&utm_source=docs) with a Prefect Product Advocate to get your questions answered.
+</Tip>
