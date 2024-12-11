@@ -166,7 +166,7 @@ class TaskWorker:
     @sync_compatible
     async def start(self) -> None:
         """
-        Asynchronously starts a task worker, which runs the tasks provided in the constructor.
+        Starts a task worker, which runs the tasks provided in the constructor.
         """
         _register_signal(signal.SIGTERM, self.handle_sigterm)
 
