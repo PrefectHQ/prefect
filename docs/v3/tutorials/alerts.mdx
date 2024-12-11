@@ -12,7 +12,7 @@ This tutorial starts where the [Set up a platform for data pipelines](/v3/tutori
 You will need a paid Prefect Cloud account.
 </Info>
 
-## Set up an alert
+## Set up an automation
 
 Automations are used to set up alerts in Prefect.
 First, you need to create a new automation.
@@ -20,13 +20,17 @@ First, you need to create a new automation.
 1. Sign in to Prefect Cloud, and use the workspace switcher to open the `staging` workspace.
 1. Go to **Automations**, and then click **Add Automation**.
 
-Next, specify the trigger for the alert.
+### Specify the trigger
+
+An automation triggers whenever a specified condition is met.
 
 1. Select the **Flow run state** trigger type.
 1. Trigger whenever the `data-pipeline` flow has flow runs that enter the **Failed** state.
 1. Click **Next**.
 
-Next, specify the action to take when the trigger condition is met.
+### Specify the action
+
+Once an automation triggers, it can perform one or more actions.
 
 1. Choose the **Send a notification** action type
 1. In order to send a notification to Slack, you need to create a block.
@@ -37,7 +41,9 @@ Blocks store configuration and provide an interface for external systems like Sl
   1. Choose the **failure** notify type, and then click **Create**.
 1. Click **Next**.
 
-Finally, give the automation a name and description.
+### Save the automation
+
+Give the automation a name and description so that you can identify its purpose later.
 
 1. Name: `slack-alert`
 2. Description: `Send a Slack message when the 'data-pipeline' flow fails`
