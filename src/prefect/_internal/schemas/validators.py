@@ -597,7 +597,7 @@ def validate_load_kwargs(value: dict[str, Any]) -> dict[str, Any]:
     return value
 
 
-def cast_type_names_to_serializers(value: Union[str, Serializer]) -> "Serializer":
+def cast_type_names_to_serializers(value: Union[str, "Serializer"]) -> "Serializer":
     from prefect.serializers import Serializer
 
     if isinstance(value, str):
