@@ -41,6 +41,7 @@ from pydantic.json_schema import GenerateJsonSchema
 from typing_extensions import Literal, ParamSpec, Self, get_args
 
 import prefect.exceptions
+from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect.client.schemas import (
     DEFAULT_BLOCK_SCHEMA_VERSION,
     BlockDocument,
@@ -53,7 +54,7 @@ from prefect.events import emit_event
 from prefect.logging.loggers import disable_logger
 from prefect.plugins import load_prefect_collections
 from prefect.types import SecretDict
-from prefect.utilities.asyncutils import sync_compatible
+from prefect.utilities.asyncutils import run_coro_as_sync, sync_compatible
 from prefect.utilities.collections import listrepr, remove_nested_keys, visit_collection
 from prefect.utilities.dispatch import lookup_type, register_base_type
 from prefect.utilities.hashing import hash_objects
@@ -64,7 +65,7 @@ from prefect.utilities.slugify import slugify
 if TYPE_CHECKING:
     from pydantic.main import IncEx
 
-    from prefect.client.orchestration import PrefectClient
+    from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 
 R = TypeVar("R")
 P = ParamSpec("P")
@@ -777,12 +778,13 @@ class Block(BaseModel, ABC):
                 )
 
     @classmethod
-    @inject_client
-    async def _get_block_document(
+    async def _aget_block_document(
         cls,
         name: str,
-        client: Optional["PrefectClient"] = None,
-    ):
+        client: "PrefectClient",
+    ) -> tuple[BlockDocument, str]:
+        if TYPE_CHECKING:
+            assert isinstance(client, PrefectClient)
         if cls.__name__ == "Block":
             block_type_slug, block_document_name = name.split("/", 1)
         else:
@@ -791,6 +793,32 @@ class Block(BaseModel, ABC):
 
         try:
             block_document = await client.read_block_document_by_name(
+                name=block_document_name, block_type_slug=block_type_slug
+            )
+        except prefect.exceptions.ObjectNotFound as e:
+            raise ValueError(
+                f"Unable to find block document named {block_document_name} for block"
+                f" type {block_type_slug}"
+            ) from e
+
+        return block_document, block_document_name
+
+    @classmethod
+    def _get_block_document(
+        cls,
+        name: str,
+        client: "SyncPrefectClient",
+    ) -> tuple[BlockDocument, str]:
+        if TYPE_CHECKING:
+            assert isinstance(client, PrefectClient)
+        if cls.__name__ == "Block":
+            block_type_slug, block_document_name = name.split("/", 1)
+        else:
+            block_type_slug = cls.get_block_type_slug()
+            block_document_name = name
+
+        try:
+            block_document = client.read_block_document_by_name(
                 name=block_document_name, block_type_slug=block_type_slug
             )
         except prefect.exceptions.ObjectNotFound as e:
@@ -829,9 +857,97 @@ class Block(BaseModel, ABC):
         return block_document, block_document.name
 
     @classmethod
-    @sync_compatible
     @inject_client
-    async def load(
+    async def aload(
+        cls,
+        name: str,
+        validate: bool = True,
+        client: Optional["PrefectClient"] = None,
+    ) -> "Self":
+        """
+        Retrieves data from the block document with the given name for the block type
+        that corresponds with the current class and returns an instantiated version of
+        the current class with the data stored in the block document.
+
+        If a block document for a given block type is saved with a different schema
+        than the current class calling `aload`, a warning will be raised.
+
+        If the current class schema is a subset of the block document schema, the block
+        can be loaded as normal using the default `validate = True`.
+
+        If the current class schema is a superset of the block document schema, `aload`
+        must be called with `validate` set to False to prevent a validation error. In
+        this case, the block attributes will default to `None` and must be set manually
+        and saved to a new block document before the block can be used as expected.
+
+        Args:
+            name: The name or slug of the block document. A block document slug is a
+                string with the format <block_type_slug>/<block_document_name>
+            validate: If False, the block document will be loaded without Pydantic
+                validating the block schema. This is useful if the block schema has
+                changed client-side since the block document referred to by `name` was saved.
+            client: The client to use to load the block document. If not provided, the
+                default client will be injected.
+
+        Raises:
+            ValueError: If the requested block document is not found.
+
+        Returns:
+            An instance of the current class hydrated with the data stored in the
+            block document with the specified name.
+
+        Examples:
+            Load from a Block subclass with a block document name:
+            ```python
+            class Custom(Block):
+                message: str
+
+            Custom(message="Hello!").save("my-custom-message")
+
+            loaded_block = await Custom.aload("my-custom-message")
+            ```
+
+            Load from Block with a block document slug:
+            ```python
+            class Custom(Block):
+                message: str
+
+            Custom(message="Hello!").save("my-custom-message")
+
+            loaded_block = await Block.aload("custom/my-custom-message")
+            ```
+
+            Migrate a block document to a new schema:
+            ```python
+            # original class
+            class Custom(Block):
+                message: str
+
+            Custom(message="Hello!").save("my-custom-message")
+
+            # Updated class with new required field
+            class Custom(Block):
+                message: str
+                number_of_ducks: int
+
+            loaded_block = await Custom.aload("my-custom-message", validate=False)
+
+            # Prints UserWarning about schema mismatch
+
+            loaded_block.number_of_ducks = 42
+
+            loaded_block.save("my-custom-message", overwrite=True)
+            ```
+        """
+        if TYPE_CHECKING:
+            assert isinstance(client, PrefectClient)
+        block_document, _ = await cls._aget_block_document(name, client=client)
+
+        return cls._load_from_block_document(block_document, validate=validate)
+
+    @classmethod
+    @async_dispatch(aload)
+    def load(
         cls,
         name: str,
         validate: bool = True,
@@ -912,9 +1028,18 @@ class Block(BaseModel, ABC):
             loaded_block.save("my-custom-message", overwrite=True)
             ```
         """
-        block_document, block_document_name = await cls._get_block_document(
-            name, client=client
-        )
+        # Need to use a `PrefectClient` here to ensure `Block.load` and `Block.aload` signatures match
+        # TODO: replace with only sync client once all internal calls are updated to use `Block.aload` and `@async_dispatch` is removed
+        if client is None:
+            # If a client wasn't provided, we get to use a sync client
+            from prefect.client.orchestration import get_client
+
+            sync_client = get_client(sync_client=True)
+            block_document, _ = cls._get_block_document(name, client=sync_client)
+        else:
+            block_document, _ = run_coro_as_sync(
+                cls._aget_block_document(name, client=client)
+            )
 
         return cls._load_from_block_document(block_document, validate=validate)
 
@@ -968,14 +1093,16 @@ class Block(BaseModel, ABC):
         """
         block_document = None
         if isinstance(ref, (str, UUID)):
-            block_document, _ = await cls._get_block_document_by_id(ref)
+            block_document, _ = await cls._get_block_document_by_id(ref, client=client)
         elif isinstance(ref, dict):
             if block_document_id := ref.get("block_document_id"):
                 block_document, _ = await cls._get_block_document_by_id(
-                    block_document_id
+                    block_document_id, client=client
                 )
             elif block_document_slug := ref.get("block_document_slug"):
-                block_document, _ = await cls._get_block_document(block_document_slug)
+                block_document, _ = await cls._get_block_document(
+                    block_document_slug, client=client
+                )
 
         if not block_document:
             raise ValueError(f"Invalid reference format {ref!r}.")
@@ -1220,7 +1347,9 @@ class Block(BaseModel, ABC):
         name: str,
         client: Optional["PrefectClient"] = None,
     ):
-        block_document, block_document_name = await cls._get_block_document(name)
+        if TYPE_CHECKING:
+            assert isinstance(client, PrefectClient)
+        block_document, _ = await cls._aget_block_document(name, client=client)
 
         await client.delete_block_document(block_document.id)
 
