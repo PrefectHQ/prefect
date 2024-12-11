@@ -190,7 +190,7 @@ async def pull_with_block(block_document_name: str, block_type_slug: str):
 
     full_slug = f"{block_type_slug}/{block_document_name}"
     try:
-        block = await Block.load(full_slug)
+        block = await Block.aload(full_slug)
     except Exception:
         deployment_logger.exception("Unable to load block '%s'", full_slug)
         raise
