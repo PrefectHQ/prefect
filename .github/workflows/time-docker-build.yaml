@@ -2,6 +2,8 @@ name: Docker Build Time Benchmark
 
 on:
   push:
+    branches:
+      - main
     paths:
       - "Dockerfile"
       - ".dockerignore"
