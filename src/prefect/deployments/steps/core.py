@@ -99,7 +99,9 @@ def _get_function_for_step(
     return step_func
 
 
-async def run_step(step: Dict, upstream_outputs: Optional[Dict] = None) -> Dict:
+async def run_step(
+    step: dict[str, Any], upstream_outputs: Optional[dict[str, Any]] = None
+) -> dict[str, Any]:
     """
     Runs a step, returns the step's output.
 
