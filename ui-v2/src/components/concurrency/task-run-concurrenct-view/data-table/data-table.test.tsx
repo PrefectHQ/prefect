@@ -3,22 +3,20 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { Table } from "./data-table";
 
-const MOCK_DATA = [
-	{
-		id: "0",
-		created: "2021-01-01T00:00:00Z",
-		updated: "2021-01-01T00:00:00Z",
-		tag: "my tag 0",
-		concurrency_limit: 1,
-		active_slots: [] as Array<string>,
-	},
-];
+const MOCK_ROW = {
+	id: "0",
+	created: "2021-01-01T00:00:00Z",
+	updated: "2021-01-01T00:00:00Z",
+	tag: "my tag 0",
+	concurrency_limit: 1,
+	active_slots: [] as Array<string>,
+};
 
 describe("TaskRunDataTable -- table", () => {
 	it("renders row data", () => {
 		render(
 			<Table
-				data={MOCK_DATA}
+				data={[MOCK_ROW]}
 				onDeleteRow={vi.fn()}
 				onResetRow={vi.fn()}
 				searchValue=""
@@ -35,7 +33,7 @@ describe("TaskRunDataTable -- table", () => {
 
 		render(
 			<Table
-				data={MOCK_DATA}
+				data={[MOCK_ROW]}
 				onDeleteRow={mockFn}
 				onResetRow={vi.fn()}
 				searchValue=""
@@ -46,7 +44,7 @@ describe("TaskRunDataTable -- table", () => {
 			screen.getByRole("button", { name: /open menu/i, hidden: true }),
 		);
 		await user.click(screen.getByRole("menuitem", { name: /delete/i }));
-		expect(mockFn).toHaveBeenCalledOnce();
+		expect(mockFn).toHaveBeenCalledWith(MOCK_ROW);
 	});
 	it("calls onReset upon clicking rest action menu item", async () => {
 		const user = userEvent.setup();
@@ -54,7 +52,7 @@ describe("TaskRunDataTable -- table", () => {
 
 		render(
 			<Table
-				data={MOCK_DATA}
+				data={[MOCK_ROW]}
 				onDeleteRow={vi.fn()}
 				onResetRow={mockFn}
 				searchValue=""
@@ -65,6 +63,6 @@ describe("TaskRunDataTable -- table", () => {
 			screen.getByRole("button", { name: /open menu/i, hidden: true }),
 		);
 		await user.click(screen.getByRole("menuitem", { name: /reset/i }));
-		expect(mockFn).toHaveBeenCalledOnce();
+		expect(mockFn).toHaveBeenCalledWith(MOCK_ROW);
 	});
 });
