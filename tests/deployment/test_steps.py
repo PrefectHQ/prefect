@@ -15,6 +15,7 @@ from prefect.blocks.system import Secret
 from prefect.client.orchestration import PrefectClient
 from prefect.deployments.steps import run_step
 from prefect.deployments.steps.core import StepExecutionError, run_steps
+from prefect.deployments.steps.pull import agit_clone
 from prefect.deployments.steps.utility import run_shell_script
 from prefect.testing.utilities import AsyncMock, MagicMock
 from prefect.utilities.filesystem import tmpchdir
@@ -518,22 +519,10 @@ class TestGitCloneStep:
         monkeypatch.setattr("asyncio.sleep", mock_sleep)
 
         with caplog.at_level("WARNING"):
-            result = await run_step(
-                {
-                    "prefect.deployments.steps.git_clone": {
-                        "repository": "https://github.com/org/repo.git"
-                    }
-                }
-            )
+            result = await agit_clone(repository="https://github.com/org/repo.git")
 
-        assert (
-            "Attempt 1 of function 'git_clone' failed with RuntimeError. Retrying in "
-            in caplog.text
-        )
-        assert (
-            "Attempt 2 of function 'git_clone' failed with RuntimeError. Retrying in "
-            in caplog.text
-        )
+        assert "Octocat went out to lunch" in caplog.text
+        assert "Octocat is playing chess in the break room" in caplog.text
 
         assert result == {"directory": "repo"}
 
@@ -544,7 +533,102 @@ class TestGitCloneStep:
             include_submodules=False,
         )
 
-        assert mock_git_repo.call_args_list == [expected_call] * 3
+        assert mock_git_repo.call_args_list == [expected_call]
+
+    async def test_agit_clone_basic(self, git_repository_mock):
+        """Test basic async git clone functionality"""
+        output = await agit_clone(repository="https://github.com/org/repo.git")
+
+        assert output["directory"] == "repo"
+        git_repository_mock.assert_called_once_with(
+            url="https://github.com/org/repo.git",
+            credentials=None,
+            branch=None,
+            include_submodules=False,
+        )
+        git_repository_mock.return_value.pull_code.assert_awaited_once()
+
+    async def test_agit_clone_with_all_options(self, git_repository_mock):
+        """Test async git clone with all options specified"""
+        await Secret(value="my-access-token").save(name="test-token")
+
+        output = await agit_clone(
+            repository="https://github.com/org/repo.git",
+            branch="dev",
+            include_submodules=True,
+            access_token="my-access-token",
+        )
+
+        assert output["directory"] == "repo"
+        git_repository_mock.assert_called_once_with(
+            url="https://github.com/org/repo.git",
+            credentials={"access_token": "my-access-token"},
+            branch="dev",
+            include_submodules=True,
+        )
+        git_repository_mock.return_value.pull_code.assert_awaited_once()
+
+    async def test_agit_clone_with_credentials_block(self, git_repository_mock):
+        """Test async git clone with credentials block"""
+
+        class MockGitCredentials(Block):
+            username: str
+            password: str
+
+        creds = MockGitCredentials(username="marvin42", password="hunter2")
+
+        output = await agit_clone(
+            repository="https://github.com/org/repo.git", credentials=creds
+        )
+
+        assert output["directory"] == "repo"
+        git_repository_mock.assert_called_once_with(
+            url="https://github.com/org/repo.git",
+            credentials=creds,
+            branch=None,
+            include_submodules=False,
+        )
+        git_repository_mock.return_value.pull_code.assert_awaited_once()
+
+    async def test_agit_clone_raises_on_both_auth_methods(self):
+        """Test that providing both access_token and credentials raises an error"""
+        with pytest.raises(
+            ValueError,
+            match="Please provide either an access token or credentials but not both",
+        ):
+            await agit_clone(
+                repository="https://github.com/org/repo.git",
+                access_token="token",
+                credentials=MagicMock(),
+            )
+
+    async def test_agit_clone_retry(self, monkeypatch, caplog):
+        """Test retry behavior of async git clone"""
+        mock_git_repo = MagicMock()
+        mock_git_repo.return_value.pull_code = AsyncMock(
+            side_effect=[
+                RuntimeError("Network timeout"),
+                RuntimeError("Server busy"),
+                None,  # Success on third try
+            ]
+        )
+        mock_git_repo.return_value.destination.relative_to.return_value = "repo"
+        monkeypatch.setattr(
+            "prefect.deployments.steps.pull.GitRepository", mock_git_repo
+        )
+
+        async def mock_sleep(seconds):
+            pass
+
+        monkeypatch.setattr("asyncio.sleep", mock_sleep)
+
+        with caplog.at_level("WARNING"):
+            result = await agit_clone(repository="https://github.com/org/repo.git")
+
+        assert result == {"directory": "repo"}
+        assert mock_git_repo.return_value.pull_code.await_count == 3
+        assert "Network timeout" in caplog.text
+        assert "Server busy" in caplog.text
 
 
 class TestPullFromRemoteStorage:
