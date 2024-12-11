@@ -8,8 +8,8 @@ from prefect.settings import get_current_settings
 if TYPE_CHECKING:
     from prefect.results import ResultStore
 
-UpstreamResources = Sequence[Union[RelatedResource, Dict[str, str]]]
-DownstreamResources = Sequence[Union[Resource, Dict[str, str]]]
+UpstreamResources = Sequence[Union[RelatedResource, dict[str, str]]]
+DownstreamResources = Sequence[Union[Resource, dict[str, str]]]
 
 # Map block types to their URI schemes
 STORAGE_URI_SCHEMES = {
