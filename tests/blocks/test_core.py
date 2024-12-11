@@ -887,8 +887,8 @@ class TestAPICompatibility:
     async def test_block_load(
         self, test_block, block_document, in_memory_prefect_client
     ):
-        my_block = await test_block.load(
-            block_document.name, client=in_memory_prefect_client
+        my_block = test_block.load(
+            block_document.name, client=in_memory_prefect_client, _sync=True
         )
 
         assert my_block._block_document_name == block_document.name
@@ -896,6 +896,16 @@ class TestAPICompatibility:
         assert my_block._block_type_id == block_document.block_type_id
         assert my_block._block_schema_id == block_document.block_schema_id
         assert my_block.foo == "bar"
+
+        my_aloaded_block = await test_block.aload(
+            block_document.name, client=in_memory_prefect_client
+        )
+
+        assert my_aloaded_block._block_document_name == block_document.name
+        assert my_aloaded_block._block_document_id == block_document.id
+        assert my_aloaded_block._block_type_id == block_document.block_type_id
+        assert my_aloaded_block._block_schema_id == block_document.block_schema_id
+        assert my_aloaded_block.foo == "bar"
 
     @patch("prefect.blocks.core.load_prefect_collections")
     async def test_block_load_loads_collections(
@@ -905,7 +915,16 @@ class TestAPICompatibility:
         block_document: BlockDocument,
         in_memory_prefect_client,
     ):
-        await Block.load(
+        Block.load(
+            block_document.block_type.slug + "/" + block_document.name,
+            client=in_memory_prefect_client,
+            _sync=True,
+        )
+        mock_load_prefect_collections.assert_called_once()
+
+        mock_load_prefect_collections.reset_mock()
+
+        await Block.aload(
             block_document.block_type.slug + "/" + block_document.name,
             client=in_memory_prefect_client,
         )
@@ -918,8 +937,11 @@ class TestAPICompatibility:
         my_custom_block = Custom(message="hello")
         await my_custom_block.save("my-custom-block")
 
-        loaded_block = await Block.load("custom/my-custom-block")
+        loaded_block = Block.load("custom/my-custom-block", _sync=True)
         assert loaded_block.message == "hello"
+
+        aloaded_block = await Block.aload("custom/my-custom-block")
+        assert aloaded_block.message == "hello"
 
     async def test_load_nested_block(self, session, in_memory_prefect_client):
         class B(Block):
@@ -1018,8 +1040,8 @@ class TestAPICompatibility:
 
         await session.commit()
 
-        block_instance = await E.load(
-            "outer-block-document", client=in_memory_prefect_client
+        block_instance = E.load(
+            "outer-block-document", client=in_memory_prefect_client, _sync=True
         )
         assert isinstance(block_instance, E)
         assert isinstance(block_instance.c, C)
@@ -1051,12 +1073,56 @@ class TestAPICompatibility:
             "block_type_slug": "d",
         }
 
+        aloaded_block_instance = await E.aload(
+            "outer-block-document", client=in_memory_prefect_client
+        )
+        assert isinstance(aloaded_block_instance, E)
+        assert isinstance(aloaded_block_instance.c, C)
+        assert isinstance(aloaded_block_instance.d, D)
+
+        assert aloaded_block_instance._block_document_name == outer_block_document.name
+        assert aloaded_block_instance._block_document_id == outer_block_document.id
+        assert (
+            aloaded_block_instance._block_type_id == outer_block_document.block_type_id
+        )
+        assert (
+            aloaded_block_instance._block_schema_id
+            == outer_block_document.block_schema_id
+        )
+        assert aloaded_block_instance.c.model_dump() == {
+            "y": 2,
+            "_block_document_id": middle_block_document_1.id,
+            "_block_document_name": "middle-block-document-1",
+            "_is_anonymous": False,
+            "block_type_slug": "c",
+        }
+        assert aloaded_block_instance.d.model_dump() == {
+            "b": {
+                "x": 1,
+                "_block_document_id": inner_block_document.id,
+                "_block_document_name": "inner-block-document",
+                "_is_anonymous": False,
+                "block_type_slug": "b",
+            },
+            "z": "ztop",
+            "_block_document_id": middle_block_document_2.id,
+            "_block_document_name": "middle-block-document-2",
+            "_is_anonymous": False,
+            "block_type_slug": "d",
+        }
+
     async def test_create_block_from_nonexistent_name(self, test_block):
         with pytest.raises(
             ValueError,
             match="Unable to find block document named blocky for block type x",
         ):
-            await test_block.load("blocky")
+            test_block.load("blocky", _sync=True)
+
+        with pytest.raises(
+            ValueError,
+            match="Unable to find block document named blocky for block type x",
+        ):
+            await test_block.aload("blocky")
 
     async def test_save_block_from_flow(self):
         class Test(Block):

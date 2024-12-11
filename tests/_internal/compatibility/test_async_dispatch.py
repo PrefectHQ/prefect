@@ -7,7 +7,9 @@ from prefect._internal.compatibility.async_dispatch import (
     async_dispatch,
     is_in_async_context,
 )
-from prefect.utilities.asyncutils import run_sync_in_worker_thread
+from prefect.flows import flow
+from prefect.tasks import task
+from prefect.utilities.asyncutils import run_coro_as_sync, run_sync_in_worker_thread
 
 
 class TestAsyncDispatchBasicUsage:
@@ -57,6 +59,38 @@ class TestAsyncDispatchBasicUsage:
         # Force async
         await my_function(_sync=False)
         assert data == ["async"]
+
+    async def test_works_with_classmethods(self):
+        """Verify that async_impl can be a classmethod"""
+
+        class MyClass:
+            @classmethod
+            async def my_amethod(cls) -> str:
+                return "async"
+
+            @classmethod
+            @async_dispatch(my_amethod)
+            def my_method(cls) -> str:
+                return "sync"
+
+        assert await MyClass.my_amethod() == "async"
+        assert MyClass.my_method(_sync=True) == "sync"
+        assert await MyClass.my_method() == "async"
+
+    def test_works_with_classmethods_in_sync_context(self):
+        """Verify that classmethods work in sync context"""
+
+        class MyClass:
+            @classmethod
+            async def my_amethod(cls) -> str:
+                return "async"
+
+            @classmethod
+            @async_dispatch(my_amethod)
+            def my_method(cls) -> str:
+                return "sync"
+
+        assert MyClass.my_method() == "sync"
 
 
 class TestAsyncDispatchValidation:
@@ -182,3 +216,89 @@ class TestIsInAsyncContext:
             assert (
                 is_in_async_context() is False
             ), "the loop should be closed and not considered an async context"
+
+
+class TestIsInARunContext:
+    def test_dispatches_to_async_in_async_flow(self):
+        """
+        Verify that async_dispatch dispatches to async in async flow
+
+        The test function is sync, but the flow is async, so we should dispatch to
+        the async implementation.
+        """
+
+        async def my_afunction() -> str:
+            return "async"
+
+        @async_dispatch(my_afunction)
+        def my_function() -> str:
+            return "sync"
+
+        @flow
+        async def my_flow() -> str:
+            return await my_function()
+
+        assert run_coro_as_sync(my_flow()) == "async"
+
+    async def test_dispatches_to_sync_in_sync_flow(self):
+        """
+        Verify that async_dispatch dispatches to sync in sync flow
+
+        The test function is async, but the flow is sync, so we should dispatch to
+        the sync implementation.
+        """
+
+        async def my_afunction() -> str:
+            return "async"
+
+        @async_dispatch(my_afunction)
+        def my_function() -> str:
+            return "sync"
+
+        @flow
+        def my_flow() -> str:
+            return my_function()
+
+        assert my_flow() == "sync"
+
+    def test_dispatches_to_async_in_an_async_task(self):
+        """
+        Verify that async_dispatch dispatches to async in an async task
+
+        The test function is sync, but the task is async, so we should dispatch to
+        the async implementation.
+        """
+
+        async def my_afunction() -> str:
+            return "async"
+
+        @async_dispatch(my_afunction)
+        def my_function() -> str:
+            return "sync"
+
+        @task
+        async def my_task() -> str:
+            return await my_function()
+
+        assert run_coro_as_sync(my_task()) == "async"
+
+    async def test_dispatches_to_sync_in_a_sync_task(self):
+        """
+        Verify that async_dispatch dispatches to sync in a sync task
+
+        The test function is async, but the task is sync, so we should dispatch to
+        the sync implementation.
+        """
+
+        async def my_afunction() -> str:
+            return "async"
+
+        @async_dispatch(my_afunction)
+        def my_function() -> str:
+            return "sync"
+
+        @task
+        def my_task() -> str:
+            return my_function()
+
+        assert my_task() == "sync"
