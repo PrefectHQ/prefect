@@ -15,7 +15,3 @@ upstream dependency:
 
 2.x:
   - base-branch: '2.x'
-
-ui-replatform:
-  - changed-files:
-      - any-glob-to-any-file: ui-v2/**
