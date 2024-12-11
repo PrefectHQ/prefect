@@ -1,16 +1,16 @@
-import { render, screen, fireEvent, within } from "@testing-library/react";
-import { FlowRunActivityBarChart } from "./index";
+import { router } from "@/router";
 import { RouterContextProvider } from "@tanstack/react-router";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import {
 	afterEach,
-	beforeEach,
-	vi,
-	describe,
-	it,
-	expect,
 	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	vi,
 } from "vitest";
-import { router } from "@/router";
+import { FlowRunActivityBarChart } from "./index";
 
 const mockFlowRun = {
 	id: "test-flow-run-1",
