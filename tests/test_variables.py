@@ -5,12 +5,12 @@ from prefect.variables import Variable
 
 
 @pytest.fixture
-async def variable():
-    var = await Variable.set(name="my_variable", value="my-value", tags=["123", "456"])
+async def variable() -> Variable:
+    var = await Variable.aset(name="my_variable", value="my-value", tags=["123", "456"])
     return var
 
 
-async def test_set_sync(variable):
+async def test_set_sync(variable: Variable):
     @flow
     def test_flow():
         # confirm variable doesn't exist
@@ -46,7 +46,7 @@ async def test_set_sync(variable):
     test_flow()
 
 
-async def test_set_async(variable):
+async def test_set_async(variable: Variable):
     # confirm variable doesn't exist
     variable_doesnt_exist = await Variable.get("my_new_variable")
     assert variable_doesnt_exist is None
@@ -96,7 +96,7 @@ async def test_json_types(value):
     assert set_value.value == value
 
 
-async def test_get(variable):
+async def test_get(variable: Variable):
     # get value
     value = await Variable.get(variable.name)
     assert value == variable.value
@@ -110,7 +110,7 @@ async def test_get(variable):
     assert doesnt_exist_default == 42
 
 
-async def test_get_async(variable):
+async def test_get_async(variable: Variable):
     # get value
     value = await Variable.get(variable.name)
     assert value == variable.value
@@ -124,7 +124,7 @@ async def test_get_async(variable):
     assert doesnt_exist_default == 42
 
 
-async def test_unset(variable):
+async def test_unset(variable: Variable):
     # unset a variable
     unset = await Variable.unset(variable.name)
     assert unset is True
@@ -138,7 +138,7 @@ async def test_unset(variable):
     assert unset_doesnt_exist is False
 
 
-async def test_unset_async(variable):
+async def test_unset_async(variable: Variable):
     # unset a variable
     unset = await Variable.unset(variable.name)
     assert unset is True
@@ -152,7 +152,7 @@ async def test_unset_async(variable):
     assert unset_doesnt_exist is False
 
 
-def test_get_in_sync_flow(variable):
+def test_get_in_sync_flow(variable: Variable):
     @flow
     def foo():
         var = Variable.get("my_variable")
@@ -162,7 +162,7 @@ def test_get_in_sync_flow(variable):
     assert value == variable.value
 
 
-async def test_get_in_async_flow(variable):
+async def test_get_in_async_flow(variable: Variable):
     @flow
     async def foo():
         var = await Variable.get("my_variable")
@@ -192,7 +192,7 @@ async def test_set_in_async_flow():
     assert res.value == "my-value"
 
 
-async def test_unset_in_sync_flow(variable):
+async def test_unset_in_sync_flow(variable: Variable):
     @flow
     def foo():
         Variable.unset(variable.name)
@@ -202,7 +202,7 @@ async def test_unset_in_sync_flow(variable):
     assert value is None
 
 
-async def test_unset_in_async_flow(variable):
+async def test_unset_in_async_flow(variable: Variable):
     @flow
     async def foo():
         await Variable.unset(variable.name)
@@ -210,3 +210,19 @@ async def test_unset_in_async_flow(variable):
     await foo()
     value = await Variable.get(variable.name)
     assert value is None
+
+
+async def test_explicit_async_methods_from_async_context(variable: Variable):
+    variable = await Variable.aset("some_variable", value="my value", tags=["marvin"])
+    assert variable.value == "my value"
+    assert variable.tags == ["marvin"]
+    assert variable.name == "some_variable"
+
+    updated = await Variable.aset(
+        "some_variable", value="my updated value", overwrite=True
+    )
+    assert updated.value == "my updated value"
+    assert updated.tags == []
+
+    await Variable.aunset("some_variable")
+    assert await Variable.aget("some_variable") is None
