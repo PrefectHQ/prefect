@@ -172,7 +172,7 @@ async def test_get_in_async_flow(variable: Variable):
     assert value == variable.value
 
 
-def test_set_in_sync_flow(variable: Variable):
+def test_set_in_sync_flow():
     @flow
     def foo():
         return Variable.set("my_variable", value="my-value")
@@ -182,7 +182,7 @@ def test_set_in_sync_flow(variable: Variable):
     assert res.value == "my-value"
 
 
-async def test_set_in_async_flow(variable: Variable):
+async def test_set_in_async_flow():
     @flow
     async def foo():
         return await Variable.set("my_variable", value="my-value")
