@@ -21,7 +21,7 @@ STORAGE_URI_SCHEMES = {
 
 
 def get_result_resource_uri(
-    store: "ResultStore",
+    store: "ResultStore",  # pyright: ignore[reportUnknownParameterType]
     key: str,
 ) -> Optional[str]:
     """
@@ -111,7 +111,7 @@ async def emit_lineage_event(
 
 
 async def emit_result_read_event(
-    store: "ResultStore",
+    store: "ResultStore",  # pyright: ignore[reportUnknownParameterType]
     result_key: str,
     downstream_resources: Optional[DownstreamResources] = None,
     cached: bool = False,
@@ -151,7 +151,7 @@ async def emit_result_read_event(
 
 
 async def emit_result_write_event(
-    store: "ResultStore",
+    store: "ResultStore",  # pyright: ignore[reportUnknownParameterType]
     result_key: str,
     upstream_resources: Optional[UpstreamResources] = None,
 ) -> None:
