@@ -1,6 +1,9 @@
 # .github/release.yml
 
 changelog:
+  exclude:
+    labels:
+      - ui-dependency # these dont affect user environments
   categories:
     - title: Breaking Changes ⚠️
       labels:
@@ -26,6 +29,8 @@ changelog:
     - title: Development & Tidiness 🧹
       labels:
         - development
+    - title: Documentation 📓
+      labels:
         - docs
     - title: Uncategorized
       labels:
