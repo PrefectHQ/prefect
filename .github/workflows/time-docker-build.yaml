@@ -2,8 +2,6 @@ name: Docker Build Time Benchmark
 
 on:
   push:
-    branches:
-      - main
     paths:
       - "Dockerfile"
       - ".dockerignore"
@@ -23,37 +21,51 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build and time Docker image
-        id: build_time
-        run: |
-          start_time=$(date +%s)
-          DOCKER_BUILDKIT=1 docker build . --progress=plain
-          end_time=$(date +%s)
-          build_time=$((end_time - start_time))
-          echo "BUILD_TIME=$build_time" >> $GITHUB_ENV
-          echo "build_time=$build_time" >> $GITHUB_OUTPUT
-
+      # Build base branch first
       - name: Checkout base branch
         if: github.base_ref
         run: |
           git checkout ${{ github.base_ref }}
+
+      - name: Clean Docker system
+        run: |
+          docker system prune -af
+          docker builder prune -af
 
       - name: Build base branch image
         if: github.base_ref
         id: base_build_time
         run: |
           start_time=$(date +%s)
-          DOCKER_BUILDKIT=1 docker build . --progress=plain
+          DOCKER_BUILDKIT=1 docker build . --no-cache --progress=plain
           end_time=$(date +%s)
           base_time=$((end_time - start_time))
           echo "base_time=$base_time" >> $GITHUB_OUTPUT
+
+      # Now build current branch with fresh cache
+      - name: Checkout current branch
+        run: |
+          git checkout ${{ github.head_ref || github.ref_name }}
+
+      - name: Clean Docker system again
+        run: |
+          docker system prune -af
+          docker builder prune -af
+
+      - name: Build and time Docker image
+        id: build_time
+        run: |
+          start_time=$(date +%s)
+          DOCKER_BUILDKIT=1 docker build . --no-cache --progress=plain
+          end_time=$(date +%s)
+          build_time=$((end_time - start_time))
+          echo "build_time=$build_time" >> $GITHUB_OUTPUT
 
       - name: Compare build times
         run: |
           CURRENT_TIME=${{ steps.build_time.outputs.build_time }}
 
           if [ "${{ github.base_ref }}" != "" ]; then
-            # PR comparison mode
             BASE_TIME=${{ steps.base_build_time.outputs.base_time }}
             
             echo "### 🏗️ Docker Build Time Comparison" >> $GITHUB_STEP_SUMMARY
@@ -87,15 +99,7 @@ jobs:
               echo "Great job optimizing the build!" >> $GITHUB_STEP_SUMMARY
             fi
           else
-            # Push comparison mode (compare with previous runs)
             echo "### 🏗️ Docker Build Time" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "Build completed in ${CURRENT_TIME} seconds" >> $GITHUB_STEP_SUMMARY
           fi
-
-      - name: Upload build time data
-        uses: actions/upload-artifact@v3
-        with:
-          name: build-time-results
-          path: |
-            ${{ github.workspace }}/*-analysis.json
