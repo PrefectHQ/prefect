@@ -6,16 +6,18 @@ Specifically it allows for us to validate v2 models used as flow/task
 arguments.
 """
 
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type, Union
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any, ClassVar, Optional, Union
 
 # importing directly from v2 to be able to create a v2 model
 from pydantic import BaseModel, ConfigDict, create_model, field_validator
 from pydantic.v1.decorator import ValidatedFunction
 from pydantic.v1.errors import ConfigError
 from pydantic.v1.utils import to_camel
+from typing_extensions import TypeAlias
 
 if TYPE_CHECKING:
-    ConfigType = Union[None, Type[Any], Dict[str, Any]]
+    ConfigType: TypeAlias = Union[None, type[Any], dict[str, Any]]
 
 V_POSITIONAL_ONLY_NAME = "v__positional_only"
 V_DUPLICATE_KWARGS = "v__duplicate_kwargs"
@@ -24,12 +26,15 @@ V_DUPLICATE_KWARGS = "v__duplicate_kwargs"
 class V2ValidatedFunction(ValidatedFunction):
     def create_model(
         self,
-        fields: Dict[str, Any],
+        fields: dict[str, Any],
         takes_args: bool,
         takes_kwargs: bool,
-        config: ConfigDict,
+        config: "ConfigType",
     ) -> None:
         pos_args = len(self.arg_mapping)
+
+        if TYPE_CHECKING:
+            assert isinstance(config, Mapping)
 
         if config.get("fields") or config.get("alias_generator"):
             raise ConfigError(
@@ -42,11 +47,11 @@ class V2ValidatedFunction(ValidatedFunction):
 
         # This is the key change -- inheriting the BaseModel class from v2
         class DecoratorBaseModel(BaseModel):
-            model_config = config
+            model_config: ClassVar[ConfigDict] = ConfigDict(**config)
 
             @field_validator(self.v_args_name, check_fields=False)
             @classmethod
-            def check_args(cls, v: Optional[List[Any]]) -> Optional[List[Any]]:
+            def check_args(cls, v: Optional[list[Any]]) -> Optional[list[Any]]:
                 if takes_args or v is None:
                     return v
 
@@ -58,8 +63,8 @@ class V2ValidatedFunction(ValidatedFunction):
             @field_validator(self.v_kwargs_name, check_fields=False)
             @classmethod
             def check_kwargs(
-                cls, v: Optional[Dict[str, Any]]
-            ) -> Optional[Dict[str, Any]]:
+                cls, v: Optional[dict[str, Any]]
+            ) -> Optional[dict[str, Any]]:
                 if takes_kwargs or v is None:
                     return v
 
@@ -69,7 +74,7 @@ class V2ValidatedFunction(ValidatedFunction):
 
             @field_validator(V_POSITIONAL_ONLY_NAME, check_fields=False)
             @classmethod
-            def check_positional_only(cls, v: Optional[List[str]]) -> None:
+            def check_positional_only(cls, v: Optional[list[str]]) -> None:
                 if v is None:
                     return
 
@@ -82,7 +87,7 @@ class V2ValidatedFunction(ValidatedFunction):
 
             @field_validator(V_DUPLICATE_KWARGS, check_fields=False)
             @classmethod
-            def check_duplicate_kwargs(cls, v: Optional[List[str]]) -> None:
+            def check_duplicate_kwargs(cls, v: Optional[list[str]]) -> None:
                 if v is None:
                     return
 

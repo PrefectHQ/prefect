@@ -564,14 +564,12 @@ class Flow(Generic[P, R]):
                 "Cannot mix Pydantic v1 and v2 types as arguments to a flow."
             )
 
+        validated_fn_kwargs = dict(arbitrary_types_allowed=True)
+
         if has_v1_models:
-            validated_fn = V1ValidatedFunction(
-                self.fn, config={"arbitrary_types_allowed": True}
-            )
+            validated_fn = V1ValidatedFunction(self.fn, config=validated_fn_kwargs)
         else:
-            validated_fn = V2ValidatedFunction(
-                self.fn, config=pydantic.ConfigDict(arbitrary_types_allowed=True)
-            )
+            validated_fn = V2ValidatedFunction(self.fn, config=validated_fn_kwargs)
 
         try:
             with warnings.catch_warnings():
