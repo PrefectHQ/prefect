@@ -11,6 +11,7 @@ import {
 import { SearchInput } from "@/components/ui/input";
 import { useDeferredValue, useMemo } from "react";
 import { ActionsCell } from "./actions-cell";
+import { ActiveTaskRunCells } from "./active-task-runs-cell";
 
 const routeApi = getRouteApi("/concurrency-limits");
 
@@ -30,7 +31,8 @@ const createColumns = ({
 		header: "Slots",
 	}),
 	columnHelper.accessor("active_slots", {
-		header: "Active Task Runs", // TODO: Give this styling once knowing what it looks like
+		header: "Active Task Runs",
+		cell: ActiveTaskRunCells,
 	}),
 	columnHelper.display({
 		id: "actions",

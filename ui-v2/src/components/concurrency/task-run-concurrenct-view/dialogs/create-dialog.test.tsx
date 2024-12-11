@@ -3,7 +3,7 @@ import { CreateLimitDialog } from "./create-dialog";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createWrapper } from "@tests/utils";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { expect, test, vi } from "vitest";
 
 const MOCK_DATA = {
 	id: "0",
@@ -14,35 +14,31 @@ const MOCK_DATA = {
 	active_slots: [] as Array<string>,
 };
 
-describe("CreateLimitDialog", () => {
-	beforeAll(() => {
-		class ResizeObserverMock {
-			observe() {}
-			unobserve() {}
-			disconnect() {}
-		}
-		global.ResizeObserver = ResizeObserverMock;
-	});
+test.skip("CreateLimitDialog calls onSubmit upon entering form data", async () => {
+	class ResizeObserverMock {
+		observe() {}
+		unobserve() {}
+		disconnect() {}
+	}
+	global.ResizeObserver = ResizeObserverMock;
 
-	it.skip("calls onSubmit upon entering form data", async () => {
-		const user = userEvent.setup();
+	const user = userEvent.setup();
 
-		// ------------ Setup
-		const mockOnSubmitFn = vi.fn();
-		render(
-			<CreateLimitDialog onOpenChange={vi.fn()} onSubmit={mockOnSubmitFn} />,
-			{ wrapper: createWrapper() },
-		);
-		// ------------ Act
-		await user.type(screen.getByLabelText(/tag/i), MOCK_DATA.tag);
-		await user.type(
-			screen.getByLabelText("Concurrency Limit"),
-			MOCK_DATA.concurrency_limit.toString(),
-		);
+	// ------------ Setup
+	const mockOnSubmitFn = vi.fn();
+	render(
+		<CreateLimitDialog onOpenChange={vi.fn()} onSubmit={mockOnSubmitFn} />,
+		{ wrapper: createWrapper() },
+	);
 
-		await user.click(screen.getByRole("button", { name: /add/i }));
+	// ------------ Act
+	await user.type(screen.getByLabelText(/tag/i), MOCK_DATA.tag);
+	await user.type(
+		screen.getByLabelText("Concurrency Limit"),
+		String(MOCK_DATA.concurrency_limit),
+	);
+	await user.click(screen.getByRole("button", { name: /add/i }));
 
-		// ------------ Assert
-		expect(mockOnSubmitFn).toHaveBeenCalledOnce();
-	});
+	// ------------ Assert
+	expect(mockOnSubmitFn).toHaveBeenCalledOnce();
 });
