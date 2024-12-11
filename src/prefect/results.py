@@ -236,6 +236,10 @@ def _format_user_supplied_storage_key(key: str) -> str:
 T = TypeVar("T")
 
 
+def default_cache() -> LRUCache[str, "ResultRecord[Any]"]:
+    return LRUCache(maxsize=1000)
+
+
 def result_storage_discriminator(x: Any) -> str:
     if isinstance(x, dict):
         if "block_type_slug" in x:
@@ -288,7 +292,7 @@ class ResultStore(BaseModel):
     cache_result_in_memory: bool = Field(default=True)
     serializer: Serializer = Field(default_factory=get_default_result_serializer)
     storage_key_fn: Callable[[], str] = Field(default=DEFAULT_STORAGE_KEY_FN)
-    cache: LRUCache = Field(default_factory=lambda: LRUCache(maxsize=1000))
+    cache: LRUCache[str, "ResultRecord[Any]"] = Field(default_factory=default_cache)
 
     # Deprecated fields
     persist_result: Optional[bool] = Field(default=None)
@@ -458,7 +462,7 @@ class ResultStore(BaseModel):
         return key
 
     @sync_compatible
-    async def _read(self, key: str, holder: str) -> "ResultRecord":
+    async def _read(self, key: str, holder: str) -> "ResultRecord[Any]":
         """
         Read a result record from storage.
 
