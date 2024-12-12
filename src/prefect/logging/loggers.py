@@ -14,11 +14,7 @@ from prefect.logging.filters import ObfuscateApiKeyFilter
 from prefect.telemetry.logging import add_telemetry_log_handler
 
 if TYPE_CHECKING:
-    from prefect.client.schemas import FlowRun as ClientFlowRun
-    from prefect.client.schemas.objects import FlowRun, TaskRun
     from prefect.context import RunContext
-    from prefect.flows import Flow
-    from prefect.tasks import Task
     from prefect.workers.base import BaseWorker
 
 if sys.version_info >= (3, 12):
@@ -87,7 +83,7 @@ def get_logger(name: Optional[str] = None) -> logging.Logger:
 
 
 def get_run_logger(
-    context: Optional["RunContext"] = None, **kwargs: Any
+    context: Optional["RunContext"] = None, **kwargs
 ) -> Union[logging.Logger, LoggingAdapter]:
     """
     Get a Prefect logger for the current task run or flow run.
@@ -158,9 +154,9 @@ def get_run_logger(
 
 
 def flow_run_logger(
-    flow_run: Union["FlowRun", "ClientFlowRun"],
-    flow: Optional["Flow[Any, Any]"] = None,
-    **kwargs: str,
+    flow_run,
+    flow=None,
+    **kwargs,
 ) -> LoggingAdapter:
     """
     Create a flow run logger with the run's metadata attached.
@@ -184,11 +180,11 @@ def flow_run_logger(
 
 
 def task_run_logger(
-    task_run: "TaskRun",
-    task: Optional["Task[Any, Any]"] = None,
-    flow_run: Optional["FlowRun"] = None,
-    flow: Optional["Flow[Any, Any]"] = None,
-    **kwargs: Any,
+    task_run,
+    task=None,
+    flow_run=None,
+    flow=None,
+    **kwargs,
 ):
     """
     Create a task run logger with the run's metadata attached.
