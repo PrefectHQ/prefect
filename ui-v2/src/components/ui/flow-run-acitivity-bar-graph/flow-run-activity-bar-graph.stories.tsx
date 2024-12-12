@@ -4,8 +4,11 @@ import { FlowRunActivityBarChart } from ".";
 
 import { faker } from "@faker-js/faker";
 
+import type { components } from "@/api/prefect";
 import { router } from "@/router";
 import { RouterContextProvider } from "@tanstack/react-router";
+
+type StateType = components["schemas"]["StateType"];
 
 const STATE_TYPE_VALUES = [
 	"COMPLETED",
@@ -17,7 +20,7 @@ const STATE_TYPE_VALUES = [
 	"SCHEDULED",
 	"PAUSED",
 	"CANCELLING",
-] as const;
+] as const satisfies readonly StateType[];
 
 function createRandomEnrichedFlowRun(): React.ComponentProps<
 	typeof FlowRunActivityBarChart
