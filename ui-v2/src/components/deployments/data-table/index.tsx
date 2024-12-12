@@ -73,10 +73,16 @@ const createColumns = ({
 	columnHelper.display({
 		id: "schedules",
 		header: "Schedules",
-		cell: ({ row }) =>
-			row.original.schedules?.map((entry) => (
-				<ScheduleBadge key={entry.id} schedule={entry.schedule} />
-			)),
+		cell: ({ row }) => {
+			if (!row.original.schedules) return null;
+			return (
+				<div className="flex flex-row gap-2">
+					{row.original.schedules.map((schedule) => (
+						<ScheduleBadge key={schedule.id} schedule={schedule} />
+					))}
+				</div>
+			);
+		},
 	}),
 	columnHelper.display({
 		id: "actions",

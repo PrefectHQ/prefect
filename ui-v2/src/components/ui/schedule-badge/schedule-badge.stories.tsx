@@ -10,6 +10,9 @@ import { ScheduleBadge } from ".";
 export default {
 	title: "UI/ScheduleBadge",
 	component: ScheduleBadge,
+	parameters: {
+		layout: "centered",
+	},
 } satisfies Meta<typeof ScheduleBadge>;
 
 type Story = StoryObj<typeof ScheduleBadge>;

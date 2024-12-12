@@ -11,7 +11,7 @@ export function createRandomCronSchedule(): components["schemas"]["CronSchedule"
 
 export function createRandomIntervalSchedule(): components["schemas"]["IntervalSchedule"] {
 	return {
-		interval: faker.number.int({ min: 1, max: 100 }),
+		interval: faker.number.int({ min: 1, max: 100_000 }),
 		anchor_date: faker.date.recent().toISOString(),
 		timezone: faker.location.timeZone(),
 	};
