@@ -4179,6 +4179,14 @@ class TestTaskConstructorValidation:
             async def insanity():
                 raise RuntimeError("try again!")
 
+        with pytest.raises(TypeError, match="Invalid"):
+
+            @task(retries=42, retry_delay_seconds=2)
+            async def sanity():
+                raise RuntimeError("try again!")
+
+            more_insanity = sanity.with_options(retry_delay_seconds=dict(x=4))
+
     async def test_task_cannot_configure_too_many_custom_retry_delays(self):
         with pytest.raises(ValueError, match="Can not configure more"):
 
