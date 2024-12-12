@@ -5,7 +5,7 @@ from builtins import print
 from contextlib import contextmanager
 from functools import lru_cache
 from logging import LogRecord
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from typing_extensions import Self
 
@@ -14,7 +14,12 @@ from prefect.logging.filters import ObfuscateApiKeyFilter
 from prefect.telemetry.logging import add_telemetry_log_handler
 
 if TYPE_CHECKING:
-    pass
+    from prefect.client.schemas import FlowRun as ClientFlowRun
+    from prefect.client.schemas.objects import FlowRun, TaskRun
+    from prefect.context import RunContext
+    from prefect.flows import Flow
+    from prefect.tasks import Task
+    from prefect.workers.base import BaseWorker
 
 if sys.version_info >= (3, 12):
     LoggingAdapter = logging.LoggerAdapter[logging.Logger]
@@ -52,7 +57,7 @@ class PrefectLogAdapter(LoggingAdapter):
 
 
 @lru_cache()
-def get_logger(name=None) -> logging.Logger:
+def get_logger(name: Optional[str] = None) -> logging.Logger:
     """
     Get a `prefect` logger. These loggers are intended for internal use within the
     `prefect` package.
@@ -81,7 +86,9 @@ def get_logger(name=None) -> logging.Logger:
     return logger
 
 
-def get_run_logger(context=None, **kwargs):
+def get_run_logger(
+    context: Optional["RunContext"] = None, **kwargs: Any
+) -> Union[logging.Logger, LoggingAdapter]:
     """
     Get a Prefect logger for the current task run or flow run.
 
@@ -151,9 +158,9 @@ def get_run_logger(context=None, **kwargs):
 
 
 def flow_run_logger(
-    flow_run,
-    flow=None,
-    **kwargs,
+    flow_run: Union["FlowRun", "ClientFlowRun"],
+    flow: Optional["Flow[Any, Any]"] = None,
+    **kwargs: str,
 ) -> LoggingAdapter:
     """
     Create a flow run logger with the run's metadata attached.
@@ -177,11 +184,11 @@ def flow_run_logger(
 
 
 def task_run_logger(
-    task_run,
-    task=None,
-    flow_run=None,
-    flow=None,
-    **kwargs,
+    task_run: "TaskRun",
+    task: Optional["Task[Any, Any]"] = None,
+    flow_run: Optional["FlowRun"] = None,
+    flow: Optional["Flow[Any, Any]"] = None,
+    **kwargs: Any,
 ):
     """
     Create a task run logger with the run's metadata attached.
@@ -218,7 +225,7 @@ def task_run_logger(
     )
 
 
-def get_worker_logger(worker, name=None):
+def get_worker_logger(worker: "BaseWorker", name: Optional[str] = None):
     """
     Create a worker logger with the worker's metadata attached.
 
@@ -242,7 +249,7 @@ def get_worker_logger(worker, name=None):
 
 
 @contextmanager
-def disable_logger(name):
+def disable_logger(name: str):
     """
     Get a logger by name and disables it within the context manager.
     Upon exiting the context manager, the logger is returned to its
