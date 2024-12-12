@@ -7,7 +7,7 @@
 	},
 	"files": {
 		"ignoreUnknown": false,
-		"ignore": ["src/api/prefect.ts"]
+		"ignore": ["src/api/prefect.ts", "src/routeTree.gen.ts"]
 	},
 	"formatter": {
 		"enabled": true,
@@ -15,7 +15,7 @@
 	},
 	"organizeImports": {
 		"enabled": true,
-		"ignore": ["src/api/prefect.ts"]
+		"ignore": ["src/api/prefect.ts", "src/routeTree.gen.ts"]
 	},
 	"linter": {
 		"enabled": false,
