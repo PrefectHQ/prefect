@@ -1,6 +1,6 @@
 from typing import (
     TYPE_CHECKING,
-    Dict,
+    Any,
     Optional,
     Type,
     TypeVar,
@@ -430,7 +430,9 @@ async def suspend_flow_run(
 
 
 @sync_compatible
-async def resume_flow_run(flow_run_id, run_input: Optional[Dict] = None):
+async def resume_flow_run(
+    flow_run_id: UUID, run_input: Optional[dict[str, Any]] = None
+) -> None:
     """
     Resumes a paused flow.
 
