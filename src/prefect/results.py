@@ -497,13 +497,15 @@ class ResultStore(BaseModel):
                 metadata.storage_key is not None
             ), "Did not find storage key in metadata"
             result_content = await self.result_storage.read_path(metadata.storage_key)
-            result_record = ResultRecord.deserialize_from_result_and_metadata(
+            result_record: ResultRecord[
+                Any
+            ] = ResultRecord.deserialize_from_result_and_metadata(
                 result=result_content, metadata=metadata_content
             )
             await emit_result_read_event(self, resolved_key_path)
         else:
             content = await self.result_storage.read_path(key)
-            result_record = ResultRecord.deserialize(
+            result_record: ResultRecord[Any] = ResultRecord.deserialize(
                 content, backup_serializer=self.serializer
             )
             await emit_result_read_event(self, resolved_key_path)
@@ -516,7 +518,7 @@ class ResultStore(BaseModel):
         self,
         key: str,
         holder: Optional[str] = None,
-    ) -> "ResultRecord":
+    ) -> "ResultRecord[Any]":
         """
         Read a result record from storage.
 
@@ -534,7 +536,7 @@ class ResultStore(BaseModel):
         self,
         key: str,
         holder: Optional[str] = None,
-    ) -> "ResultRecord":
+    ) -> "ResultRecord[Any]":
         """
         Read a result record from storage.
 

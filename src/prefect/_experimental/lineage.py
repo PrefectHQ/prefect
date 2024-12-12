@@ -63,28 +63,29 @@ async def emit_lineage_event(
             the event. E.g., if we're in a flow run and
             `direction_of_run_from_event` is "downstream", then the flow run is
             considered downstream of the resource's event.
+
+    NOTE: We handle adding run-related resources to the event here instead of in
+    the EventsWorker because not all run-related resources are upstream from
+    every lineage event (they might be downstream). The EventsWorker only adds
+    related resources to the "related" field in the event, which, for
+    lineage-related events, tracks upstream resources only. For downstream
+    resources, we need to emit an event for each downstream resource.
     """
+    from prefect.client.orchestration import get_client  # Avoid a circular import
+
     if not get_current_settings().experiments.lineage_events_enabled:
         return
-
-    involved_resources = None
 
     upstream_resources = list(upstream_resources) if upstream_resources else []
     downstream_resources = list(downstream_resources) if downstream_resources else []
 
-    # The EventsWorker automatically includes run-related resources as upstream
-    # resources for this event by adding them to `event.related`. However, if
-    # the current run is downstream of the event, run-related resources should
-    # be downstream, not upstream. So here, we set `involved_resources` to
-    # force the EventsWorker to avoid adding run-related resources to the event.
-    # This function will handle emitting a downstream event for each downstream
-    # resource instead.
-    if direction_of_run_from_event == "downstream":
-        from prefect.client.orchestration import get_client  # Avoid a circular import
+    async with get_client() as client:
+        related_resources = await related_resources_from_run_context(client)
 
-        async with get_client() as client:
-            involved_resources = await related_resources_from_run_context(client)
-        downstream_resources.extend(involved_resources)
+    if direction_of_run_from_event == "downstream":
+        downstream_resources.extend(related_resources)
+    else:
+        upstream_resources.extend(related_resources)
 
     # Emit an event for each downstream resource. This is necessary because
     # our event schema allows one primary resource and many related resources,
@@ -103,9 +104,6 @@ async def emit_lineage_event(
             "resource": resource,
             "related": upstream_resources,
         }
-
-        if involved_resources is not None:
-            emit_kwargs["involved"] = involved_resources
 
         emit_event(**emit_kwargs)
 
