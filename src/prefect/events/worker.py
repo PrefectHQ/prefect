@@ -83,6 +83,14 @@ class EventsWorker(QueueService[Event]):
         await self._client.emit(event)
 
     async def attach_related_resources_from_context(self, event: Event):
+        if "prefect.resource.lineage-group" in event.resource:
+            # We attach related resources to lineage events in `emit_lineage_event`,
+            # instead of the worker, because not all run-related resources are
+            # upstream from every lineage event (they might be downstream).
+            # The "related" field in the event schema tracks upstream resources
+            # only.
+            return
+
         exclude = {resource.id for resource in event.involved_resources}
         event.related += await related_resources_from_run_context(
             client=self._orchestration_client, exclude=exclude

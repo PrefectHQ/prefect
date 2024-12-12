@@ -27,6 +27,7 @@ from prefect.server.api.server import SubprocessASGIServer
 from prefect.server.events.pipeline import EventsPipeline
 from prefect.settings import (
     PREFECT_API_URL,
+    PREFECT_EXPERIMENTS_LINEAGE_EVENTS_ENABLED,
     PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
     PREFECT_SERVER_CSRF_PROTECTION_ENABLED,
     get_current_settings,
@@ -452,3 +453,10 @@ def reset_worker_events(asserting_events_worker: EventsWorker):
     yield
     assert isinstance(asserting_events_worker._client, AssertingEventsClient)
     asserting_events_worker._client.events = []
+
+
+@pytest.fixture
+def enable_lineage_events():
+    """A fixture that ensures lineage events are enabled."""
+    with temporary_settings(updates={PREFECT_EXPERIMENTS_LINEAGE_EVENTS_ENABLED: True}):
+        yield
