@@ -76,7 +76,6 @@ def compare_pyright_outputs(base_file: str, new_file: str) -> None:
     # Find new errors
     new_errors = list(new_diags - base_diags)
 
-    print("\n## New Pyright Errors\n")
     print(format_markdown_table(new_errors))
 
 
