@@ -1,5 +1,6 @@
 import { DataTable } from "@/components/ui/data-table";
 import { Icon } from "@/components/ui/icons";
+import { ScheduleBadge } from "@/components/ui/schedule-badge";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
 import type { DeploymentWithFlow } from "@/hooks/deployments";
@@ -72,7 +73,10 @@ const createColumns = ({
 	columnHelper.display({
 		id: "schedules",
 		header: "Schedules",
-		cell: () => "TODO",
+		cell: ({ row }) =>
+			row.original.schedules?.map((entry) => (
+				<ScheduleBadge key={entry.id} schedule={entry.schedule} />
+			)),
 	}),
 	columnHelper.display({
 		id: "actions",
