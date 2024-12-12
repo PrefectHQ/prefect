@@ -11,6 +11,7 @@ from opentelemetry.trace import (
     StatusCode,
     get_tracer,
 )
+from typing_extensions import TypeAlias
 
 import prefect
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
@@ -24,6 +25,8 @@ if TYPE_CHECKING:
 
 LABELS_TRACEPARENT_KEY = "__OTEL_TRACEPARENT"
 TRACEPARENT_KEY = "traceparent"
+
+FlowOrTaskRun: TypeAlias = Union[FlowRun, TaskRun]
 
 
 class OTELSetter(Setter[KeyValueLabels]):
@@ -48,7 +51,7 @@ class RunTelemetry:
 
     async def async_start_span(
         self,
-        run: Union[TaskRun, FlowRun],
+        run: FlowOrTaskRun,
         client: PrefectClient,
         name: Optional[str] = None,
         parameters: Optional[dict[str, Any]] = None,
@@ -66,7 +69,7 @@ class RunTelemetry:
 
     def start_span(
         self,
-        run: Union[TaskRun, FlowRun],
+        run: FlowOrTaskRun,
         client: SyncPrefectClient,
         name: Optional[str] = None,
         parameters: Optional[dict[str, Any]] = None,
@@ -82,7 +85,7 @@ class RunTelemetry:
 
     def _start_span(
         self,
-        run: Union[TaskRun, FlowRun],
+        run: FlowOrTaskRun,
         name: Optional[str] = None,
         parameters: Optional[dict[str, Any]] = None,
         parent_labels: Optional[dict[str, Any]] = None,
@@ -125,10 +128,10 @@ class RunTelemetry:
 
         return traceparent, self.span
 
-    def _run_type(self, run: Union[TaskRun, FlowRun]) -> str:
+    def _run_type(self, run: FlowOrTaskRun) -> str:
         return "task" if isinstance(run, TaskRun) else "flow"
 
-    def _should_set_traceparent(self, run: Union[TaskRun, FlowRun]) -> bool:
+    def _should_set_traceparent(self, run: FlowOrTaskRun) -> bool:
         # If the run is a flow run and it doesn't already have a traceparent,
         # we need to update its labels with the traceparent so that its
         # propagated to child runs. Task runs are updated via events so we
@@ -139,7 +142,7 @@ class RunTelemetry:
 
     def _traceparent_and_context_from_labels(
         self, labels: Optional[KeyValueLabels]
-    ) -> tuple[Optional[str], Union[Context, None]]:
+    ) -> tuple[Optional[str], Optional[Context]]:
         """Get trace context from run labels if it exists."""
         if not labels or LABELS_TRACEPARENT_KEY not in labels:
             return None, None
