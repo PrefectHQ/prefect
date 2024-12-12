@@ -14,7 +14,7 @@ from websockets.legacy.client import Connect
 class WebsocketProxyConnect(Connect):
     def __init__(self: Self, uri: str, **kwargs: Any):
         # super() is intentionally deferred to the __proxy_connect__ method
-        # to allow for the proxy to be established before the connection is made
+        # to allow for the socket to be established first
 
         self.uri = uri
         self.__kwargs = kwargs
