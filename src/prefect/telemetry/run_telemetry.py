@@ -1,8 +1,9 @@
 import time
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from opentelemetry import propagate, trace
+from opentelemetry.context import Context
 from opentelemetry.propagators.textmap import Setter
 from opentelemetry.trace import (
     Span,
@@ -10,8 +11,10 @@ from opentelemetry.trace import (
     StatusCode,
     get_tracer,
 )
+from typing_extensions import TypeAlias
 
 import prefect
+from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.objects import State
 from prefect.context import FlowRunContext
@@ -22,6 +25,8 @@ if TYPE_CHECKING:
 
 LABELS_TRACEPARENT_KEY = "__OTEL_TRACEPARENT"
 TRACEPARENT_KEY = "traceparent"
+
+FlowOrTaskRun: TypeAlias = Union[FlowRun, TaskRun]
 
 
 class OTELSetter(Setter[KeyValueLabels]):
@@ -44,13 +49,47 @@ class RunTelemetry:
     )
     span: Optional[Span] = None
 
+    async def async_start_span(
+        self,
+        run: FlowOrTaskRun,
+        client: PrefectClient,
+        name: Optional[str] = None,
+        parameters: Optional[dict[str, Any]] = None,
+        parent_labels: Optional[dict[str, Any]] = None,
+    ):
+        should_set_traceparent = self._should_set_traceparent(run)
+        traceparent, span = self._start_span(run, name, parameters, parent_labels)
+
+        if should_set_traceparent and traceparent:
+            await client.update_flow_run_labels(
+                run.id, {LABELS_TRACEPARENT_KEY: traceparent}
+            )
+
+        return span
+
     def start_span(
         self,
-        run: Union[TaskRun, FlowRun],
+        run: FlowOrTaskRun,
+        client: SyncPrefectClient,
         name: Optional[str] = None,
-        parameters: Optional[Dict[str, Any]] = None,
-        parent_labels: Optional[Dict[str, Any]] = None,
+        parameters: Optional[dict[str, Any]] = None,
+        parent_labels: Optional[dict[str, Any]] = None,
     ):
+        should_set_traceparent = self._should_set_traceparent(run)
+        traceparent, span = self._start_span(run, name, parameters, parent_labels)
+
+        if should_set_traceparent and traceparent:
+            client.update_flow_run_labels(run.id, {LABELS_TRACEPARENT_KEY: traceparent})
+
+        return span
+
+    def _start_span(
+        self,
+        run: FlowOrTaskRun,
+        name: Optional[str] = None,
+        parameters: Optional[dict[str, Any]] = None,
+        parent_labels: Optional[dict[str, Any]] = None,
+    ) -> tuple[Optional[str], Span]:
         """
         Start a span for a task run.
         """
@@ -62,10 +101,15 @@ class RunTelemetry:
             f"prefect.run.parameter.{k}": type(v).__name__
             for k, v in parameters.items()
         }
-        run_type = "task" if isinstance(run, TaskRun) else "flow"
+
+        traceparent, context = self._traceparent_and_context_from_labels(
+            {**parent_labels, **run.labels}
+        )
+        run_type = self._run_type(run)
 
         self.span = self._tracer.start_span(
             name=name or run.name,
+            context=context,
             attributes={
                 f"prefect.{run_type}.name": name or run.name,
                 "prefect.run.type": run_type,
@@ -75,7 +119,41 @@ class RunTelemetry:
                 **parent_labels,
             },
         )
-        return self.span
+
+        if not traceparent:
+            traceparent = self._traceparent_from_span(self.span)
+
+        if traceparent and LABELS_TRACEPARENT_KEY not in run.labels:
+            run.labels[LABELS_TRACEPARENT_KEY] = traceparent
+
+        return traceparent, self.span
+
+    def _run_type(self, run: FlowOrTaskRun) -> str:
+        return "task" if isinstance(run, TaskRun) else "flow"
+
+    def _should_set_traceparent(self, run: FlowOrTaskRun) -> bool:
+        # If the run is a flow run and it doesn't already have a traceparent,
+        # we need to update its labels with the traceparent so that its
+        # propagated to child runs. Task runs are updated via events so we
+        # don't need to update them via the client in the same way.
+        return (
+            LABELS_TRACEPARENT_KEY not in run.labels and self._run_type(run) == "flow"
+        )
+
+    def _traceparent_and_context_from_labels(
+        self, labels: Optional[KeyValueLabels]
+    ) -> tuple[Optional[str], Optional[Context]]:
+        """Get trace context from run labels if it exists."""
+        if not labels or LABELS_TRACEPARENT_KEY not in labels:
+            return None, None
+        traceparent = labels[LABELS_TRACEPARENT_KEY]
+        carrier = {TRACEPARENT_KEY: traceparent}
+        return str(traceparent), propagate.extract(carrier)
+
+    def _traceparent_from_span(self, span: Span) -> Optional[str]:
+        carrier = {}
+        propagate.inject(carrier, context=trace.set_span_in_context(span))
+        return carrier.get(TRACEPARENT_KEY)
 
     def end_span_on_success(self) -> None:
         """
