@@ -100,8 +100,8 @@ RUN apt-get update && \
     git=1:2.* \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install UV from official image
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+# Install UV from official image - pin to specific version for build caching
+COPY --from=ghcr.io/astral-sh/uv:0.5.8 /uv /uvx /bin/
 
 # Install dependencies using a temporary mount for requirements files
 RUN --mount=type=bind,source=requirements-client.txt,target=/tmp/requirements-client.txt \
