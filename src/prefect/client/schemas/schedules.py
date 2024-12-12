@@ -19,14 +19,7 @@ from prefect._internal.schemas.validators import (
     validate_cron_string,
     validate_rrule_string,
 )
-
-if TYPE_CHECKING:
-    # type checkers have difficulty accepting that
-    # pydantic_extra_types.pendulum_dt and pendulum.DateTime can be used
-    # together.
-    DateTime = pendulum.DateTime
-else:
-    from prefect.types import DateTime
+from prefect.types import DateTime
 
 MAX_ITERATIONS = 1000
 # approx. 1 years worth of RDATEs + buffer
