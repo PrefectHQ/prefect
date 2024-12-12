@@ -6,7 +6,6 @@ Specifically it allows for us to validate v2 models used as flow/task
 arguments.
 """
 
-from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, ClassVar, Optional, Union
 
 # importing directly from v2 to be able to create a v2 model
@@ -33,8 +32,9 @@ class V2ValidatedFunction(ValidatedFunction):
     ) -> None:
         pos_args = len(self.arg_mapping)
 
-        if TYPE_CHECKING:
-            assert isinstance(config, Mapping)
+        config = {} if config is None else config
+        if not isinstance(config, dict):
+            raise TypeError(f"config must be None or a dict, got {type(config)}")
 
         if config.get("fields") or config.get("alias_generator"):
             raise ConfigError(
