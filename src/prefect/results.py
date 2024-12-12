@@ -38,6 +38,10 @@ from pydantic_core import PydanticUndefinedType
 from typing_extensions import ParamSpec, Self
 
 import prefect
+from prefect._experimental.lineage import (
+    emit_result_read_event,
+    emit_result_write_event,
+)
 from prefect._internal.compatibility import deprecated
 from prefect._internal.compatibility.deprecated import deprecated_field
 from prefect.blocks.core import Block
@@ -232,6 +236,10 @@ def _format_user_supplied_storage_key(key: str) -> str:
 T = TypeVar("T")
 
 
+def default_cache() -> LRUCache[str, "ResultRecord[Any]"]:
+    return LRUCache(maxsize=1000)
+
+
 def result_storage_discriminator(x: Any) -> str:
     if isinstance(x, dict):
         if "block_type_slug" in x:
@@ -284,7 +292,7 @@ class ResultStore(BaseModel):
     cache_result_in_memory: bool = Field(default=True)
     serializer: Serializer = Field(default_factory=get_default_result_serializer)
     storage_key_fn: Callable[[], str] = Field(default=DEFAULT_STORAGE_KEY_FN)
-    cache: LRUCache = Field(default_factory=lambda: LRUCache(maxsize=1000))
+    cache: LRUCache[str, "ResultRecord[Any]"] = Field(default_factory=default_cache)
 
     # Deprecated fields
     persist_result: Optional[bool] = Field(default=None)
@@ -319,7 +327,7 @@ class ResultStore(BaseModel):
         return self.model_copy(update=update)
 
     @sync_compatible
-    async def update_for_task(self: Self, task: "Task") -> Self:
+    async def update_for_task(self: Self, task: "Task[P, R]") -> Self:
         """
         Create a new result store for a task.
 
@@ -446,8 +454,15 @@ class ResultStore(BaseModel):
         """
         return await self._exists(key=key, _sync=False)
 
+    def _resolved_key_path(self, key: str) -> str:
+        if self.result_storage_block_id is None and hasattr(
+            self.result_storage, "_resolve_path"
+        ):
+            return str(self.result_storage._resolve_path(key))
+        return key
+
     @sync_compatible
-    async def _read(self, key: str, holder: str) -> "ResultRecord":
+    async def _read(self, key: str, holder: str) -> "ResultRecord[Any]":
         """
         Read a result record from storage.
 
@@ -465,8 +480,12 @@ class ResultStore(BaseModel):
         if self.lock_manager is not None and not self.is_lock_holder(key, holder):
             await self.await_for_lock(key)
 
-        if key in self.cache:
-            return self.cache[key]
+        resolved_key_path = self._resolved_key_path(key)
+
+        if resolved_key_path in self.cache:
+            cached_result = self.cache[resolved_key_path]
+            await emit_result_read_event(self, resolved_key_path, cached=True)
+            return cached_result
 
         if self.result_storage is None:
             self.result_storage = await get_default_result_storage()
@@ -478,31 +497,28 @@ class ResultStore(BaseModel):
                 metadata.storage_key is not None
             ), "Did not find storage key in metadata"
             result_content = await self.result_storage.read_path(metadata.storage_key)
-            result_record = ResultRecord.deserialize_from_result_and_metadata(
+            result_record: ResultRecord[
+                Any
+            ] = ResultRecord.deserialize_from_result_and_metadata(
                 result=result_content, metadata=metadata_content
             )
+            await emit_result_read_event(self, resolved_key_path)
         else:
             content = await self.result_storage.read_path(key)
-            result_record = ResultRecord.deserialize(
+            result_record: ResultRecord[Any] = ResultRecord.deserialize(
                 content, backup_serializer=self.serializer
             )
+            await emit_result_read_event(self, resolved_key_path)
 
         if self.cache_result_in_memory:
-            if self.result_storage_block_id is None and hasattr(
-                self.result_storage, "_resolve_path"
-            ):
-                cache_key = str(self.result_storage._resolve_path(key))
-            else:
-                cache_key = key
-
-            self.cache[cache_key] = result_record
+            self.cache[resolved_key_path] = result_record
         return result_record
 
     def read(
         self,
         key: str,
         holder: Optional[str] = None,
-    ) -> "ResultRecord":
+    ) -> "ResultRecord[Any]":
         """
         Read a result record from storage.
 
@@ -520,7 +536,7 @@ class ResultStore(BaseModel):
         self,
         key: str,
         holder: Optional[str] = None,
-    ) -> "ResultRecord":
+    ) -> "ResultRecord[Any]":
         """
         Read a result record from storage.
 
@@ -663,12 +679,13 @@ class ResultStore(BaseModel):
                 base_key,
                 content=result_record.serialize_metadata(),
             )
+            await emit_result_write_event(self, result_record.metadata.storage_key)
         # Otherwise, write the result metadata and result together
         else:
             await self.result_storage.write_path(
                 result_record.metadata.storage_key, content=result_record.serialize()
             )
-
+            await emit_result_write_event(self, result_record.metadata.storage_key)
         if self.cache_result_in_memory:
             self.cache[key] = result_record
 
@@ -898,7 +915,11 @@ class ResultStore(BaseModel):
         )
 
     @sync_compatible
-    async def read_parameters(self, identifier: UUID) -> Dict[str, Any]:
+    async def read_parameters(self, identifier: UUID) -> dict[str, Any]:
+        if self.result_storage is None:
+            raise ValueError(
+                "Result store is not configured - must have a result storage block to read parameters"
+            )
         record = ResultRecord.deserialize(
             await self.result_storage.read_path(f"parameters/{identifier}")
         )

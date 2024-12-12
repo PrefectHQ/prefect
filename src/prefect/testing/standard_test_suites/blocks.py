@@ -1,6 +1,5 @@
 import re
 from abc import ABC, abstractmethod
-from typing import Type
 from urllib.request import urlopen
 
 import pytest
@@ -12,16 +11,16 @@ from prefect.blocks.core import Block
 class BlockStandardTestSuite(ABC):
     @pytest.fixture
     @abstractmethod
-    def block(self) -> Type[Block]:
+    def block(self) -> type[Block]:
         pass
 
-    def test_has_a_description(self, block: Type[Block]):
+    def test_has_a_description(self, block: type[Block]):
         assert block.get_description()
 
-    def test_has_a_documentation_url(self, block: Type[Block]):
+    def test_has_a_documentation_url(self, block: type[Block]):
         assert block._documentation_url
 
-    def test_all_fields_have_a_description(self, block: Type[Block]):
+    def test_all_fields_have_a_description(self, block: type[Block]):
         for name, field in block.model_fields.items():
             if Block.annotation_refers_to_block_class(field.annotation):
                 # TODO: Block field descriptions aren't currently handled by the UI, so
@@ -35,21 +34,28 @@ class BlockStandardTestSuite(ABC):
                 "."
             ), f"{name} description on {block.__name__} does not end with a period"
 
-    def test_has_a_valid_code_example(self, block: Type[Block]):
+    def test_has_a_valid_code_example(self, block: type[Block]):
         code_example = block.get_code_example()
         assert code_example is not None, f"{block.__name__} is missing a code example"
-        import_pattern = rf"from .* import {block.__name__}"
+
+        # Extract base name without generic parameters
+        base_name = block.__name__.partition("[")[0]
+
+        # Check for proper import statement
+        import_pattern = rf"from .* import {base_name}"
         assert re.search(import_pattern, code_example) is not None, (
-            f"The code example for {block.__name__} is missing an import statement"
+            f"The code example for {base_name} is missing an import statement"
             f" matching the pattern {import_pattern}"
         )
-        block_load_pattern = rf'.* = {block.__name__}\.load\("BLOCK_NAME"\)'
+
+        # Check for proper load statement
+        block_load_pattern = rf'.* = {base_name}\.load\("BLOCK_NAME"\)'
         assert re.search(block_load_pattern, code_example), (
-            f"The code example for {block.__name__} is missing a .load statement"
+            f"The code example for {base_name} is missing a .load statement"
             f" matching the pattern {block_load_pattern}"
         )
 
-    def test_has_a_valid_image(self, block: Type[Block]):
+    def test_has_a_valid_image(self, block: type[Block]):
         logo_url = block._logo_url
         assert (
             logo_url is not None

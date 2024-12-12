@@ -705,6 +705,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                         self._telemetry.start_span(
                             run=self.task_run,
                             name=self.task.name,
+                            client=self.client,
                             parameters=self.parameters,
                             parent_labels=parent_labels,
                         )
@@ -1243,9 +1244,10 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                         if parent_flow_run_context and parent_flow_run_context.flow_run:
                             parent_labels = parent_flow_run_context.flow_run.labels
 
-                        self._telemetry.start_span(
+                        await self._telemetry.async_start_span(
                             run=self.task_run,
                             name=self.task.name,
+                            client=self.client,
                             parameters=self.parameters,
                             parent_labels=parent_labels,
                         )
@@ -1386,7 +1388,7 @@ def run_task_sync(
     task_run_id: Optional[UUID] = None,
     task_run: Optional[TaskRun] = None,
     parameters: Optional[Dict[str, Any]] = None,
-    wait_for: Optional[Iterable[PrefectFuture]] = None,
+    wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
     return_type: Literal["state", "result"] = "result",
     dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
     context: Optional[Dict[str, Any]] = None,
@@ -1413,7 +1415,7 @@ async def run_task_async(
     task_run_id: Optional[UUID] = None,
     task_run: Optional[TaskRun] = None,
     parameters: Optional[Dict[str, Any]] = None,
-    wait_for: Optional[Iterable[PrefectFuture]] = None,
+    wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
     return_type: Literal["state", "result"] = "result",
     dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
     context: Optional[Dict[str, Any]] = None,
@@ -1440,7 +1442,7 @@ def run_generator_task_sync(
     task_run_id: Optional[UUID] = None,
     task_run: Optional[TaskRun] = None,
     parameters: Optional[Dict[str, Any]] = None,
-    wait_for: Optional[Iterable[PrefectFuture]] = None,
+    wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
     return_type: Literal["state", "result"] = "result",
     dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
     context: Optional[Dict[str, Any]] = None,
@@ -1495,7 +1497,7 @@ async def run_generator_task_async(
     task_run_id: Optional[UUID] = None,
     task_run: Optional[TaskRun] = None,
     parameters: Optional[Dict[str, Any]] = None,
-    wait_for: Optional[Iterable[PrefectFuture]] = None,
+    wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
     return_type: Literal["state", "result"] = "result",
     dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
     context: Optional[Dict[str, Any]] = None,
@@ -1551,7 +1553,7 @@ def run_task(
     task_run_id: Optional[UUID] = None,
     task_run: Optional[TaskRun] = None,
     parameters: Optional[Dict[str, Any]] = None,
-    wait_for: Optional[Iterable[PrefectFuture]] = None,
+    wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
     return_type: Literal["state", "result"] = "result",
     dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
     context: Optional[Dict[str, Any]] = None,
