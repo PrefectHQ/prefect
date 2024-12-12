@@ -4172,6 +4172,13 @@ class TestTaskMap:
 
 
 class TestTaskConstructorValidation:
+    async def test_task_cannot_configure_poorly_typed_retry_delay(self):
+        with pytest.raises(TypeError, match="Invalid"):
+
+            @task(retries=42, retry_delay_seconds=dict(x=4))
+            async def insanity():
+                raise RuntimeError("try again!")
+
     async def test_task_cannot_configure_too_many_custom_retry_delays(self):
         with pytest.raises(ValueError, match="Can not configure more"):
 
