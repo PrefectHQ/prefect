@@ -41,6 +41,7 @@ export const ActiveCell = (
 
 	return (
 		<Switch
+			aria-label="toggle active"
 			checked={rowActive}
 			onCheckedChange={(checked) => handleCheckedChange(checked, rowId)}
 		/>
