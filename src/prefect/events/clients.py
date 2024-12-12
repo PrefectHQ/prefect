@@ -90,7 +90,7 @@ class WebsocketProxyConnect(Connect):
         # to allow for the socket to be established first
 
         self.uri = uri
-        self.__kwargs = kwargs
+        self._kwargs = kwargs
 
         u = urlparse(uri)
         host = u.hostname
@@ -107,19 +107,19 @@ class WebsocketProxyConnect(Connect):
                 "Unsupported scheme %s. Expected 'ws' or 'wss'. " % u.scheme
             )
 
-        self.__proxy = Proxy.from_url(proxy_url) if proxy_url else None
-        self.__host = host
-        self.__port = port
+        self._proxy = Proxy.from_url(proxy_url) if proxy_url else None
+        self._host = host
+        self._port = port
 
     async def _proxy_connect(self: Self) -> WebSocketClientProtocol:
         if self.__proxy:
-            sock = await self.__proxy.connect(
-                dest_host=self.__host,
-                dest_port=self.__port,
+            sock = await self._proxy.connect(
+                dest_host=self._host,
+                dest_port=self._port,
             )
             self.__kwargs["sock"] = sock
 
-        super().__init__(self.uri, **self.__kwargs)
+        super().__init__(self.uri, **self._kwargs)
         proto = await self.__await_impl__()
         return proto
 
