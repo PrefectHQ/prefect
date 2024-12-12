@@ -12,11 +12,28 @@ import { ActionsCell } from "./cells";
 
 type DeploymentsDataTableProps = {
 	deployments: DeploymentWithFlow[];
+	onQuickRun: (deployment: DeploymentWithFlow) => void;
+	onCustomRun: (deployment: DeploymentWithFlow) => void;
+	onEdit: (deployment: DeploymentWithFlow) => void;
+	onDelete: (deployment: DeploymentWithFlow) => void;
+	onDuplicate: (deployment: DeploymentWithFlow) => void;
 };
 
 const columnHelper = createColumnHelper<DeploymentWithFlow>();
 
-const createColumns = () => [
+const createColumns = ({
+	onQuickRun,
+	onCustomRun,
+	onEdit,
+	onDelete,
+	onDuplicate,
+}: {
+	onQuickRun: (deployment: DeploymentWithFlow) => void;
+	onCustomRun: (deployment: DeploymentWithFlow) => void;
+	onEdit: (deployment: DeploymentWithFlow) => void;
+	onDelete: (deployment: DeploymentWithFlow) => void;
+	onDuplicate: (deployment: DeploymentWithFlow) => void;
+}) => [
 	columnHelper.display({
 		id: "name",
 		header: "Deployment",
@@ -59,16 +76,36 @@ const createColumns = () => [
 	}),
 	columnHelper.display({
 		id: "actions",
-		cell: (props) => <ActionsCell {...props} />,
+		cell: (props) => (
+			<ActionsCell
+				{...props}
+				onQuickRun={onQuickRun}
+				onCustomRun={onCustomRun}
+				onEdit={onEdit}
+				onDelete={onDelete}
+				onDuplicate={onDuplicate}
+			/>
+		),
 	}),
 ];
 
 export const DeploymentsDataTable = ({
 	deployments,
+	onQuickRun,
+	onCustomRun,
+	onEdit,
+	onDelete,
+	onDuplicate,
 }: DeploymentsDataTableProps) => {
 	const table = useReactTable({
 		data: deployments,
-		columns: createColumns(),
+		columns: createColumns({
+			onQuickRun,
+			onCustomRun,
+			onEdit,
+			onDelete,
+			onDuplicate,
+		}),
 		getCoreRowModel: getCoreRowModel(),
 		manualPagination: true,
 		defaultColumn: {

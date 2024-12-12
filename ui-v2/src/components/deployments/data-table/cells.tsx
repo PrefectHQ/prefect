@@ -12,9 +12,22 @@ import type { DeploymentWithFlow } from "@/hooks/deployments";
 import { useToast } from "@/hooks/use-toast";
 import type { CellContext } from "@tanstack/react-table";
 
-type ActionsCellProps = CellContext<DeploymentWithFlow, unknown>;
+type ActionsCellProps = CellContext<DeploymentWithFlow, unknown> & {
+	onQuickRun: (deployment: DeploymentWithFlow) => void;
+	onCustomRun: (deployment: DeploymentWithFlow) => void;
+	onEdit: (deployment: DeploymentWithFlow) => void;
+	onDelete: (deployment: DeploymentWithFlow) => void;
+	onDuplicate: (deployment: DeploymentWithFlow) => void;
+};
 
-export const ActionsCell = ({ row }: ActionsCellProps) => {
+export const ActionsCell = ({
+	row,
+	onQuickRun,
+	onCustomRun,
+	onEdit,
+	onDelete,
+	onDuplicate,
+}: ActionsCellProps) => {
 	const id = row.original.id;
 	const { toast } = useToast();
 	if (!id) return null;
@@ -30,6 +43,12 @@ export const ActionsCell = ({ row }: ActionsCellProps) => {
 				</DropdownMenuTrigger>
 				<DropdownMenuContent align="end">
 					<DropdownMenuLabel>Actions</DropdownMenuLabel>
+					<DropdownMenuItem onClick={() => onQuickRun(row.original)}>
+						Quick Run
+					</DropdownMenuItem>
+					<DropdownMenuItem onClick={() => onCustomRun(row.original)}>
+						Custom Run
+					</DropdownMenuItem>
 					<DropdownMenuItem
 						onClick={() => {
 							void navigator.clipboard.writeText(id);
@@ -40,8 +59,15 @@ export const ActionsCell = ({ row }: ActionsCellProps) => {
 					>
 						Copy ID
 					</DropdownMenuItem>
-					<DropdownMenuItem>Edit</DropdownMenuItem>
-					<DropdownMenuItem>Delete</DropdownMenuItem>
+					<DropdownMenuItem onClick={() => onEdit(row.original)}>
+						Edit
+					</DropdownMenuItem>
+					<DropdownMenuItem onClick={() => onDelete(row.original)}>
+						Delete
+					</DropdownMenuItem>
+					<DropdownMenuItem onClick={() => onDuplicate(row.original)}>
+						Duplicate
+					</DropdownMenuItem>
 				</DropdownMenuContent>
 			</DropdownMenu>
 		</div>

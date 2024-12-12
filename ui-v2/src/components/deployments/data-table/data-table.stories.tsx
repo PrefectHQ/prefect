@@ -1,6 +1,7 @@
 import type { DeploymentWithFlow } from "@/hooks/deployments";
 import { faker } from "@faker-js/faker";
 import type { Meta, StoryObj } from "@storybook/react";
+import { fn } from "@storybook/test";
 import { DeploymentsDataTable } from ".";
 
 export default {
@@ -28,5 +29,19 @@ function createRandomDeployment(): DeploymentWithFlow {
 
 export const Default: StoryObj = {
 	name: "DataTable",
-	args: { deployments: Array.from({ length: 10 }, createRandomDeployment) },
+	args: {
+		deployments: Array.from({ length: 10 }, createRandomDeployment),
+		onQuickRun: fn(),
+		onCustomRun: fn(),
+		onEdit: fn(),
+		onDelete: fn(),
+		onDuplicate: fn(),
+	},
+};
+
+export const Empty: StoryObj = {
+	name: "Empty",
+	args: {
+		deployments: [],
+	},
 };
