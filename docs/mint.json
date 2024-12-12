@@ -62,9 +62,20 @@
     {
       "group": "Tutorials",
       "pages": [
-        "v3/tutorials/schedule",
-        "v3/tutorials/pipelines",
-        "v3/tutorials/scraping"
+        {
+          "group": "For data engineers",
+          "pages": [
+            "v3/tutorials/schedule",
+            "v3/tutorials/pipelines",
+            "v3/tutorials/scraping"
+          ]
+        },
+        {
+          "group": "For platform engineers",
+          "pages": [
+            "v3/tutorials/platform"
+          ]
+        }
       ],
       "version": "v3"
     },
@@ -434,6 +445,7 @@
                     "v3/api-ref/rest-api/server/flow-runs/delete-flow-run-input",
                     "v3/api-ref/rest-api/server/flow-runs/paginate-flow-runs",
                     "v3/api-ref/rest-api/server/flow-runs/download-logs",
+                    "v3/api-ref/rest-api/server/flow-runs/update-flow-run-labels",
                     "v3/api-ref/rest-api/server/flow-runs/read-flow-run-history",
                     "v3/api-ref/rest-api/server/flow-runs/count-task-runs-by-flow-run"
                   ]

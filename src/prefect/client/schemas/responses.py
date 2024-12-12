@@ -1,5 +1,5 @@
 import datetime
-from typing import Any, Dict, List, Optional, TypeVar, Union
+from typing import Any, ClassVar, Generic, Optional, TypeVar, Union
 from uuid import UUID
 
 from pydantic import ConfigDict, Field
@@ -13,7 +13,7 @@ from prefect.types import KeyValueLabelsField
 from prefect.utilities.collections import AutoEnum
 from prefect.utilities.names import generate_slug
 
-R = TypeVar("R")
+T = TypeVar("T")
 
 
 class SetStateStatus(AutoEnum):
@@ -120,7 +120,7 @@ class HistoryResponse(PrefectBaseModel):
     interval_end: DateTime = Field(
         default=..., description="The end date of the interval."
     )
-    states: List[HistoryResponseState] = Field(
+    states: list[HistoryResponseState] = Field(
         default=..., description="A list of state histories during the interval."
     )
 
@@ -130,18 +130,18 @@ StateResponseDetails = Union[
 ]
 
 
-class OrchestrationResult(PrefectBaseModel):
+class OrchestrationResult(PrefectBaseModel, Generic[T]):
     """
     A container for the output of state orchestration.
     """
 
-    state: Optional[objects.State]
+    state: Optional[objects.State[T]]
     status: SetStateStatus
     details: StateResponseDetails
 
 
 class WorkerFlowRunResponse(PrefectBaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(arbitrary_types_allowed=True)
 
     work_pool_id: UUID
     work_queue_id: UUID
@@ -179,7 +179,7 @@ class FlowRunResponse(ObjectBaseModel):
         description="The version of the flow executed in this flow run.",
         examples=["1.0"],
     )
-    parameters: Dict[str, Any] = Field(
+    parameters: dict[str, Any] = Field(
         default_factory=dict, description="Parameters for the flow run."
     )
     idempotency_key: Optional[str] = Field(
@@ -189,7 +189,7 @@ class FlowRunResponse(ObjectBaseModel):
             " run is not created multiple times."
         ),
     )
-    context: Dict[str, Any] = Field(
+    context: dict[str, Any] = Field(
         default_factory=dict,
         description="Additional context for the flow run.",
         examples=[{"my_var": "my_val"}],
@@ -197,7 +197,7 @@ class FlowRunResponse(ObjectBaseModel):
     empirical_policy: objects.FlowRunPolicy = Field(
         default_factory=objects.FlowRunPolicy,
     )
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         default_factory=list,
         description="A list of tags on the flow run",
         examples=[["tag-1", "tag-2"]],
@@ -275,7 +275,7 @@ class FlowRunResponse(ObjectBaseModel):
         description="The state of the flow run.",
         examples=["objects.State(type=objects.StateType.COMPLETED)"],
     )
-    job_variables: Optional[dict] = Field(
+    job_variables: Optional[dict[str, Any]] = Field(
         default=None, description="Job variables for the flow run."
     )
 
@@ -335,22 +335,22 @@ class DeploymentResponse(ObjectBaseModel):
         default=None,
         description="The concurrency options for the deployment.",
     )
-    schedules: List[objects.DeploymentSchedule] = Field(
+    schedules: list[objects.DeploymentSchedule] = Field(
         default_factory=list, description="A list of schedules for the deployment."
     )
-    job_variables: Dict[str, Any] = Field(
+    job_variables: dict[str, Any] = Field(
         default_factory=dict,
         description="Overrides to apply to flow run infrastructure at runtime.",
     )
-    parameters: Dict[str, Any] = Field(
+    parameters: dict[str, Any] = Field(
         default_factory=dict,
         description="Parameters for flow runs scheduled by the deployment.",
     )
-    pull_steps: Optional[List[dict]] = Field(
+    pull_steps: Optional[list[dict[str, Any]]] = Field(
         default=None,
         description="Pull steps for cloning and running this deployment.",
     )
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         default_factory=list,
         description="A list of tags for the deployment",
         examples=[["tag-1", "tag-2"]],
@@ -367,7 +367,7 @@ class DeploymentResponse(ObjectBaseModel):
         default=None,
         description="The last time the deployment was polled for status updates.",
     )
-    parameter_openapi_schema: Optional[Dict[str, Any]] = Field(
+    parameter_openapi_schema: Optional[dict[str, Any]] = Field(
         default=None,
         description="The parameter schema of the flow, including defaults.",
     )
@@ -400,7 +400,7 @@ class DeploymentResponse(ObjectBaseModel):
         default=None,
         description="Optional information about the updater of this deployment.",
     )
-    work_queue_id: UUID = Field(
+    work_queue_id: Optional[UUID] = Field(
         default=None,
         description=(
             "The id of the work pool queue to which this deployment is assigned."
@@ -423,7 +423,7 @@ class DeploymentResponse(ObjectBaseModel):
 
 
 class MinimalConcurrencyLimitResponse(PrefectBaseModel):
-    model_config = ConfigDict(extra="ignore")
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="ignore")
 
     id: UUID
     name: str

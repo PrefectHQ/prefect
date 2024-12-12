@@ -44,6 +44,7 @@ __all__ = [
     "run_count",
     "api_url",
     "ui_url",
+    "job_variables",
 ]
 
 
@@ -317,6 +318,11 @@ def get_flow_run_ui_url() -> Optional[str]:
     return f"{PREFECT_UI_URL.value()}/flow-runs/flow-run/{flow_run_id}"
 
 
+def get_job_variables() -> Optional[Dict[str, Any]]:
+    flow_run_ctx = FlowRunContext.get()
+    return flow_run_ctx.flow_run.job_variables if flow_run_ctx else None
+
+
 FIELDS = {
     "id": get_id,
     "tags": get_tags,
@@ -331,4 +337,5 @@ FIELDS = {
     "api_url": get_flow_run_api_url,
     "ui_url": get_flow_run_ui_url,
     "flow_version": get_flow_version,
+    "job_variables": get_job_variables,
 }

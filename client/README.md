@@ -12,8 +12,6 @@
     <br>
     <a href="https://prefect.io/slack" alt="Slack">
         <img src="https://img.shields.io/badge/slack-join_community-red.svg?color=0052FF&labelColor=090422&logo=slack" /></a>
-    <a href="https://discourse.prefect.io/" alt="Discourse">
-        <img src="https://img.shields.io/badge/discourse-browse_forum-red.svg?color=0052FF&labelColor=090422&logo=discourse" /></a>
     <a href="https://www.youtube.com/c/PrefectIO/" alt="YouTube">
         <img src="https://img.shields.io/badge/youtube-watch_videos-red.svg?color=0052FF&labelColor=090422&logo=youtube" /></a>
 </p>
@@ -100,7 +98,9 @@ Start with our [friendly tutorial](https://docs.prefect.io/tutorials) or explore
 
 ## Join the community
 
-Prefect is made possible by the fastest growing community of thousands of friendly data engineers. Join us in building a new kind of workflow system. The [Prefect Slack community](https://prefect.io/slack) is a fantastic place to learn more about Prefect, ask questions, or get help with workflow design. All community forums, including code contributions, issue discussions, and slack messages are subject to our [Code of Conduct](https://discourse.prefect.io/faq).
+Prefect is made possible by the fastest growing community of thousands of friendly data engineers. Join us in building a new kind of workflow system. 
+The [Prefect Slack community](https://prefect.io/slack) is a fantastic place to learn more about Prefect, ask questions, or get help with workflow design. 
+All community forums, including code contributions, issue discussions, and Slack messages are subject to our [Code of Conduct](https://github.com/PrefectHQ/prefect/blob/main/CODE_OF_CONDUCT.md).
 
 ## Contribute
 

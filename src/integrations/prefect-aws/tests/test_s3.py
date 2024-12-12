@@ -10,6 +10,10 @@ from prefect_aws import AwsCredentials, MinIOCredentials
 from prefect_aws.client_parameters import AwsClientParameters
 from prefect_aws.s3 import (
     S3Bucket,
+    acopy_objects,
+    adownload_from_bucket,
+    alist_objects,
+    amove_objects,
     s3_copy,
     s3_download,
     s3_list_objects,
@@ -1137,3 +1141,111 @@ class TestS3Bucket:
         assert hasattr(
             loaded.credentials, "aws_access_key_id"
         ), "`credentials` were not properly initialized"
+
+    @pytest.mark.parametrize(
+        "client_parameters",
+        [
+            pytest.param(
+                "aws_client_parameters_custom_endpoint",
+                marks=pytest.mark.is_public(False),
+            ),
+            pytest.param(
+                "aws_client_parameters_custom_endpoint",
+                marks=pytest.mark.is_public(True),
+            ),
+            pytest.param(
+                "aws_client_parameters_empty",
+                marks=pytest.mark.is_public(False),
+            ),
+            pytest.param(
+                "aws_client_parameters_empty",
+                marks=pytest.mark.is_public(True),
+            ),
+            pytest.param(
+                "aws_client_parameters_public_bucket",
+                marks=[
+                    pytest.mark.is_public(False),
+                    pytest.mark.xfail(reason="Bucket is not a public one"),
+                ],
+            ),
+            pytest.param(
+                "aws_client_parameters_public_bucket",
+                marks=pytest.mark.is_public(True),
+            ),
+        ],
+        indirect=True,
+    )
+    async def test_async_download_from_bucket(
+        self, object, client_parameters, aws_credentials
+    ):
+        @flow
+        async def test_flow():
+            return await adownload_from_bucket(
+                bucket="bucket",
+                key="object",
+                aws_credentials=aws_credentials,
+                aws_client_parameters=client_parameters,
+            )
+
+        result = await test_flow()
+        assert result == b"TEST"
+
+    @pytest.mark.parametrize("client_parameters", aws_clients, indirect=True)
+    async def test_async_list_objects(
+        self, object, object_in_folder, client_parameters, aws_credentials
+    ):
+        @flow
+        async def test_flow():
+            return await alist_objects(
+                bucket="bucket",
+                aws_credentials=aws_credentials,
+                aws_client_parameters=client_parameters,
+            )
+
+        objects = await test_flow()
+        assert len(objects) == 2
+        assert [object["Key"] for object in objects] == ["folder/object", "object"]
+
+    @pytest.mark.parametrize("client_parameters", aws_clients, indirect=True)
+    async def test_async_copy_objects(self, object, bucket, bucket_2, aws_credentials):
+        def read(bucket, key):
+            stream = io.BytesIO()
+            bucket.download_fileobj(key, stream)
+            stream.seek(0)
+            return stream.read()
+
+        @flow
+        async def test_flow():
+            await acopy_objects(
+                source_path="object",
+                target_path="subfolder/new_object",
+                source_bucket_name="bucket",
+                aws_credentials=aws_credentials,
+                target_bucket_name="bucket_2",
+            )
+
+        await test_flow()
+        assert read(bucket_2, "subfolder/new_object") == b"TEST"
+
+    @pytest.mark.parametrize("client_parameters", aws_clients, indirect=True)
+    async def test_async_move_objects(self, object, bucket, bucket_2, aws_credentials):
+        def read(bucket, key):
+            stream = io.BytesIO()
+            bucket.download_fileobj(key, stream)
+            stream.seek(0)
+            return stream.read()
+
+        @flow
+        async def test_flow():
+            await amove_objects(
+                source_path="object",
+                target_path="moved_object",
+                source_bucket_name="bucket",
+                target_bucket_name="bucket_2",
+                aws_credentials=aws_credentials,
+            )
+
+        await test_flow()
+        assert read(bucket_2, "moved_object") == b"TEST"
+        with pytest.raises(ClientError):
+            read(bucket, "object")

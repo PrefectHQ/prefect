@@ -1,21 +1,11 @@
 import asyncio
 import datetime
+import ssl
 import warnings
+from collections.abc import Iterable
 from contextlib import AsyncExitStack
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Dict,
-    Iterable,
-    List,
-    Literal,
-    Optional,
-    Set,
-    Tuple,
-    TypeVar,
-    Union,
-    overload,
-)
+from logging import Logger
+from typing import TYPE_CHECKING, Any, Literal, NoReturn, Optional, Union, overload
 from uuid import UUID, uuid4
 
 import certifi
@@ -26,7 +16,7 @@ import pydantic
 from asgi_lifespan import LifespanManager
 from packaging import version
 from starlette import status
-from typing_extensions import ParamSpec
+from typing_extensions import ParamSpec, Self, TypeVar
 
 import prefect
 import prefect.exceptions
@@ -137,6 +127,7 @@ from prefect.settings import (
     PREFECT_TESTING_UNIT_TEST_MODE,
     get_current_settings,
 )
+from prefect.types import KeyValueLabelsField
 
 if TYPE_CHECKING:
     from prefect.flows import Flow as FlowObject
@@ -151,26 +142,29 @@ from prefect.client.base import (
 )
 
 P = ParamSpec("P")
-R = TypeVar("R")
+R = TypeVar("R", infer_variance=True)
+T = TypeVar("T")
 
 
 @overload
 def get_client(
-    httpx_settings: Optional[Dict[str, Any]] = None, sync_client: Literal[False] = False
+    *,
+    httpx_settings: Optional[dict[str, Any]] = ...,
+    sync_client: Literal[False] = False,
 ) -> "PrefectClient":
     ...
 
 
 @overload
 def get_client(
-    httpx_settings: Optional[Dict[str, Any]] = None, sync_client: Literal[True] = True
+    *, httpx_settings: Optional[dict[str, Any]] = ..., sync_client: Literal[True] = ...
 ) -> "SyncPrefectClient":
     ...
 
 
 def get_client(
-    httpx_settings: Optional[Dict[str, Any]] = None, sync_client: bool = False
-):
+    httpx_settings: Optional[dict[str, Any]] = None, sync_client: bool = False
+) -> Union["SyncPrefectClient", "PrefectClient"]:
     """
     Retrieve a HTTP client for communicating with the Prefect REST API.
 
@@ -199,18 +193,21 @@ def get_client(
 
     if sync_client:
         if client_ctx := prefect.context.SyncClientContext.get():
-            if client_ctx.client and client_ctx._httpx_settings == httpx_settings:
+            if (
+                client_ctx.client
+                and getattr(client_ctx, "_httpx_settings", None) == httpx_settings
+            ):
                 return client_ctx.client
     else:
         if client_ctx := prefect.context.AsyncClientContext.get():
             if (
                 client_ctx.client
-                and client_ctx._httpx_settings == httpx_settings
-                and loop in (client_ctx.client._loop, None)
+                and getattr(client_ctx, "_httpx_settings", None) == httpx_settings
+                and loop in (getattr(client_ctx.client, "_loop", None), None)
             ):
                 return client_ctx.client
 
-    api = PREFECT_API_URL.value()
+    api: str = PREFECT_API_URL.value()
     server_type = None
 
     if not api and PREFECT_SERVER_ALLOW_EPHEMERAL_MODE:
@@ -276,19 +273,25 @@ class PrefectClient:
         *,
         api_key: Optional[str] = None,
         api_version: Optional[str] = None,
-        httpx_settings: Optional[Dict[str, Any]] = None,
+        httpx_settings: Optional[dict[str, Any]] = None,
         server_type: Optional[ServerType] = None,
     ) -> None:
         httpx_settings = httpx_settings.copy() if httpx_settings else {}
         httpx_settings.setdefault("headers", {})
 
         if PREFECT_API_TLS_INSECURE_SKIP_VERIFY:
-            httpx_settings.setdefault("verify", False)
+            # Create an unverified context for insecure connections
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            httpx_settings.setdefault("verify", ctx)
         else:
             cert_file = PREFECT_API_SSL_CERT_FILE.value()
             if not cert_file:
                 cert_file = certifi.where()
-            httpx_settings.setdefault("verify", cert_file)
+            # Create a verified context with the certificate file
+            ctx = ssl.create_default_context(cafile=cert_file)
+            httpx_settings.setdefault("verify", ctx)
 
         if api_version is None:
             api_version = SERVER_API_VERSION
@@ -350,7 +353,7 @@ class PrefectClient:
                 )
 
         # Connect to an in-process application
-        elif isinstance(api, ASGIApp):
+        else:
             self._ephemeral_app = api
             self.server_type = ServerType.EPHEMERAL
 
@@ -369,12 +372,6 @@ class PrefectClient:
                 ),
             )
             httpx_settings.setdefault("base_url", "http://ephemeral-prefect/api")
-
-        else:
-            raise TypeError(
-                f"Unexpected type {type(api).__name__!r} for argument `api`. Expected"
-                " 'str' or 'ASGIApp/FastAPI'"
-            )
 
         # See https://www.python-httpx.org/advanced/#timeout-configuration
         httpx_settings.setdefault(
@@ -419,9 +416,9 @@ class PrefectClient:
                 if isinstance(server_transport, httpx.AsyncHTTPTransport):
                     pool = getattr(server_transport, "_pool", None)
                     if isinstance(pool, httpcore.AsyncConnectionPool):
-                        pool._retries = 3
+                        setattr(pool, "_retries", 3)
 
-        self.logger = get_logger("client")
+        self.logger: Logger = get_logger("client")
 
     @property
     def api_url(self) -> httpx.URL:
@@ -451,7 +448,7 @@ class PrefectClient:
         """
         return await self._client.get("/hello")
 
-    async def create_flow(self, flow: "FlowObject") -> UUID:
+    async def create_flow(self, flow: "FlowObject[Any, Any]") -> UUID:
         """
         Create a flow in the Prefect API.
 
@@ -507,16 +504,16 @@ class PrefectClient:
     async def read_flows(
         self,
         *,
-        flow_filter: FlowFilter = None,
-        flow_run_filter: FlowRunFilter = None,
-        task_run_filter: TaskRunFilter = None,
-        deployment_filter: DeploymentFilter = None,
-        work_pool_filter: WorkPoolFilter = None,
-        work_queue_filter: WorkQueueFilter = None,
-        sort: FlowSort = None,
+        flow_filter: Optional[FlowFilter] = None,
+        flow_run_filter: Optional[FlowRunFilter] = None,
+        task_run_filter: Optional[TaskRunFilter] = None,
+        deployment_filter: Optional[DeploymentFilter] = None,
+        work_pool_filter: Optional[WorkPoolFilter] = None,
+        work_queue_filter: Optional[WorkQueueFilter] = None,
+        sort: Optional[FlowSort] = None,
         limit: Optional[int] = None,
         offset: int = 0,
-    ) -> List[Flow]:
+    ) -> list[Flow]:
         """
         Query the Prefect API for flows. Only flows matching all criteria will
         be returned.
@@ -535,7 +532,7 @@ class PrefectClient:
         Returns:
             a list of Flow model representations of the flows
         """
-        body = {
+        body: dict[str, Any] = {
             "flows": flow_filter.model_dump(mode="json") if flow_filter else None,
             "flow_runs": (
                 flow_run_filter.model_dump(mode="json", exclude_unset=True)
@@ -560,7 +557,7 @@ class PrefectClient:
         }
 
         response = await self._client.post("/flows/filter", json=body)
-        return pydantic.TypeAdapter(List[Flow]).validate_python(response.json())
+        return pydantic.TypeAdapter(list[Flow]).validate_python(response.json())
 
     async def read_flow_by_name(
         self,
@@ -582,15 +579,15 @@ class PrefectClient:
         self,
         deployment_id: UUID,
         *,
-        parameters: Optional[Dict[str, Any]] = None,
-        context: Optional[Dict[str, Any]] = None,
-        state: Optional[prefect.states.State] = None,
+        parameters: Optional[dict[str, Any]] = None,
+        context: Optional[dict[str, Any]] = None,
+        state: Optional[prefect.states.State[Any]] = None,
         name: Optional[str] = None,
         tags: Optional[Iterable[str]] = None,
         idempotency_key: Optional[str] = None,
         parent_task_run_id: Optional[UUID] = None,
         work_queue_name: Optional[str] = None,
-        job_variables: Optional[Dict[str, Any]] = None,
+        job_variables: Optional[dict[str, Any]] = None,
     ) -> FlowRun:
         """
         Create a flow run for a deployment.
@@ -631,7 +628,7 @@ class PrefectClient:
             parameters=parameters,
             context=context,
             state=state.to_state_create(),
-            tags=tags,
+            tags=list(tags),
             name=name,
             idempotency_key=idempotency_key,
             parent_task_run_id=parent_task_run_id,
@@ -650,13 +647,13 @@ class PrefectClient:
 
     async def create_flow_run(
         self,
-        flow: "FlowObject",
+        flow: "FlowObject[Any, R]",
         name: Optional[str] = None,
-        parameters: Optional[Dict[str, Any]] = None,
-        context: Optional[Dict[str, Any]] = None,
+        parameters: Optional[dict[str, Any]] = None,
+        context: Optional[dict[str, Any]] = None,
         tags: Optional[Iterable[str]] = None,
         parent_task_run_id: Optional[UUID] = None,
-        state: Optional["prefect.states.State"] = None,
+        state: Optional["prefect.states.State[R]"] = None,
     ) -> FlowRun:
         """
         Create a flow run for a flow.
@@ -698,7 +695,7 @@ class PrefectClient:
             state=state.to_state_create(),
             empirical_policy=FlowRunPolicy(
                 retries=flow.retries,
-                retry_delay=flow.retry_delay_seconds,
+                retry_delay=int(flow.retry_delay_seconds or 0),
             ),
         )
 
@@ -716,12 +713,12 @@ class PrefectClient:
         self,
         flow_run_id: UUID,
         flow_version: Optional[str] = None,
-        parameters: Optional[dict] = None,
+        parameters: Optional[dict[str, Any]] = None,
         name: Optional[str] = None,
         tags: Optional[Iterable[str]] = None,
         empirical_policy: Optional[FlowRunPolicy] = None,
         infrastructure_pid: Optional[str] = None,
-        job_variables: Optional[dict] = None,
+        job_variables: Optional[dict[str, Any]] = None,
     ) -> httpx.Response:
         """
         Update a flow run's details.
@@ -742,7 +739,7 @@ class PrefectClient:
         Returns:
             an `httpx.Response` object from the PATCH request
         """
-        params = {}
+        params: dict[str, Any] = {}
         if flow_version is not None:
             params["flow_version"] = flow_version
         if parameters is not None:
@@ -825,7 +822,7 @@ class PrefectClient:
     async def read_concurrency_limit_by_tag(
         self,
         tag: str,
-    ):
+    ) -> ConcurrencyLimit:
         """
         Read the concurrency limit set on a specific tag.
 
@@ -861,7 +858,7 @@ class PrefectClient:
         self,
         limit: int,
         offset: int,
-    ):
+    ) -> list[ConcurrencyLimit]:
         """
         Lists concurrency limits set on task run tags.
 
@@ -879,15 +876,15 @@ class PrefectClient:
         }
 
         response = await self._client.post("/concurrency_limits/filter", json=body)
-        return pydantic.TypeAdapter(List[ConcurrencyLimit]).validate_python(
+        return pydantic.TypeAdapter(list[ConcurrencyLimit]).validate_python(
             response.json()
         )
 
     async def reset_concurrency_limit_by_tag(
         self,
         tag: str,
-        slot_override: Optional[List[Union[UUID, str]]] = None,
-    ):
+        slot_override: Optional[list[Union[UUID, str]]] = None,
+    ) -> None:
         """
         Resets the concurrency limit slots set on a specific tag.
 
@@ -920,7 +917,7 @@ class PrefectClient:
     async def delete_concurrency_limit_by_tag(
         self,
         tag: str,
-    ):
+    ) -> None:
         """
         Delete the concurrency limit set on a specific tag.
 
@@ -944,7 +941,7 @@ class PrefectClient:
 
     async def increment_v1_concurrency_slots(
         self,
-        names: List[str],
+        names: list[str],
         task_run_id: UUID,
     ) -> httpx.Response:
         """
@@ -954,7 +951,7 @@ class PrefectClient:
             names (List[str]): A list of limit names for which to increment limits.
             task_run_id (UUID): The task run ID incrementing the limits.
         """
-        data = {
+        data: dict[str, Any] = {
             "names": names,
             "task_run_id": str(task_run_id),
         }
@@ -966,7 +963,7 @@ class PrefectClient:
 
     async def decrement_v1_concurrency_slots(
         self,
-        names: List[str],
+        names: list[str],
         task_run_id: UUID,
         occupancy_seconds: float,
     ) -> httpx.Response:
@@ -982,7 +979,7 @@ class PrefectClient:
         Returns:
             httpx.Response: The HTTP response from the server.
         """
-        data = {
+        data: dict[str, Any] = {
             "names": names,
             "task_run_id": str(task_run_id),
             "occupancy_seconds": occupancy_seconds,
@@ -1082,7 +1079,7 @@ class PrefectClient:
 
         return WorkQueue.model_validate(response.json())
 
-    async def update_work_queue(self, id: UUID, **kwargs):
+    async def update_work_queue(self, id: UUID, **kwargs: Any) -> None:
         """
         Update properties of a work queue.
 
@@ -1112,8 +1109,8 @@ class PrefectClient:
         self,
         id: UUID,
         limit: int = 10,
-        scheduled_before: datetime.datetime = None,
-    ) -> List[FlowRun]:
+        scheduled_before: Optional[datetime.datetime] = None,
+    ) -> list[FlowRun]:
         """
         Read flow runs off a work queue.
 
@@ -1146,7 +1143,7 @@ class PrefectClient:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
-        return pydantic.TypeAdapter(List[FlowRun]).validate_python(response.json())
+        return pydantic.TypeAdapter(list[FlowRun]).validate_python(response.json())
 
     async def read_work_queue(
         self,
@@ -1202,9 +1199,9 @@ class PrefectClient:
 
     async def match_work_queues(
         self,
-        prefixes: List[str],
+        prefixes: list[str],
         work_pool_name: Optional[str] = None,
-    ) -> List[WorkQueue]:
+    ) -> list[WorkQueue]:
         """
         Query the Prefect API for work queues with names with a specific prefix.
 
@@ -1218,7 +1215,7 @@ class PrefectClient:
         """
         page_length = 100
         current_page = 0
-        work_queues = []
+        work_queues: list[WorkQueue] = []
 
         while True:
             new_queues = await self.read_work_queues(
@@ -1239,7 +1236,7 @@ class PrefectClient:
     async def delete_work_queue_by_id(
         self,
         id: UUID,
-    ):
+    ) -> None:
         """
         Delete a work queue by its ID.
 
@@ -1336,7 +1333,7 @@ class PrefectClient:
         self,
         block_document_id: UUID,
         block_document: BlockDocumentUpdate,
-    ):
+    ) -> None:
         """
         Update a block document in the Prefect API.
         """
@@ -1355,7 +1352,7 @@ class PrefectClient:
             else:
                 raise
 
-    async def delete_block_document(self, block_document_id: UUID):
+    async def delete_block_document(self, block_document_id: UUID) -> None:
         """
         Delete a block document.
         """
@@ -1398,7 +1395,9 @@ class PrefectClient:
                 raise
         return BlockSchema.model_validate(response.json())
 
-    async def update_block_type(self, block_type_id: UUID, block_type: BlockTypeUpdate):
+    async def update_block_type(
+        self, block_type_id: UUID, block_type: BlockTypeUpdate
+    ) -> None:
         """
         Update a block document in the Prefect API.
         """
@@ -1417,7 +1416,7 @@ class PrefectClient:
             else:
                 raise
 
-    async def delete_block_type(self, block_type_id: UUID):
+    async def delete_block_type(self, block_type_id: UUID) -> None:
         """
         Delete a block type.
         """
@@ -1437,7 +1436,7 @@ class PrefectClient:
             else:
                 raise
 
-    async def read_block_types(self) -> List[BlockType]:
+    async def read_block_types(self) -> list[BlockType]:
         """
         Read all block types
         Raises:
@@ -1447,9 +1446,9 @@ class PrefectClient:
             List of BlockTypes.
         """
         response = await self._client.post("/block_types/filter", json={})
-        return pydantic.TypeAdapter(List[BlockType]).validate_python(response.json())
+        return pydantic.TypeAdapter(list[BlockType]).validate_python(response.json())
 
-    async def read_block_schemas(self) -> List[BlockSchema]:
+    async def read_block_schemas(self) -> list[BlockSchema]:
         """
         Read all block schemas
         Raises:
@@ -1459,7 +1458,7 @@ class PrefectClient:
             A BlockSchema.
         """
         response = await self._client.post("/block_schemas/filter", json={})
-        return pydantic.TypeAdapter(List[BlockSchema]).validate_python(response.json())
+        return pydantic.TypeAdapter(list[BlockSchema]).validate_python(response.json())
 
     async def get_most_recent_block_schema_for_block_type(
         self,
@@ -1495,7 +1494,7 @@ class PrefectClient:
         self,
         block_document_id: UUID,
         include_secrets: bool = True,
-    ):
+    ) -> BlockDocument:
         """
         Read the block document with the specified ID.
 
@@ -1573,7 +1572,7 @@ class PrefectClient:
         offset: Optional[int] = None,
         limit: Optional[int] = None,
         include_secrets: bool = True,
-    ):
+    ) -> list[BlockDocument]:
         """
         Read block documents
 
@@ -1600,7 +1599,7 @@ class PrefectClient:
                 include_secrets=include_secrets,
             ),
         )
-        return pydantic.TypeAdapter(List[BlockDocument]).validate_python(
+        return pydantic.TypeAdapter(list[BlockDocument]).validate_python(
             response.json()
         )
 
@@ -1610,7 +1609,7 @@ class PrefectClient:
         offset: Optional[int] = None,
         limit: Optional[int] = None,
         include_secrets: bool = True,
-    ) -> List[BlockDocument]:
+    ) -> list[BlockDocument]:
         """Retrieve block documents by block type slug.
 
         Args:
@@ -1631,7 +1630,7 @@ class PrefectClient:
             ),
         )
 
-        return pydantic.TypeAdapter(List[BlockDocument]).validate_python(
+        return pydantic.TypeAdapter(list[BlockDocument]).validate_python(
             response.json()
         )
 
@@ -1640,23 +1639,23 @@ class PrefectClient:
         flow_id: UUID,
         name: str,
         version: Optional[str] = None,
-        schedules: Optional[List[DeploymentScheduleCreate]] = None,
+        schedules: Optional[list[DeploymentScheduleCreate]] = None,
         concurrency_limit: Optional[int] = None,
         concurrency_options: Optional[ConcurrencyOptions] = None,
-        parameters: Optional[Dict[str, Any]] = None,
+        parameters: Optional[dict[str, Any]] = None,
         description: Optional[str] = None,
         work_queue_name: Optional[str] = None,
         work_pool_name: Optional[str] = None,
-        tags: Optional[List[str]] = None,
+        tags: Optional[list[str]] = None,
         storage_document_id: Optional[UUID] = None,
         path: Optional[str] = None,
         entrypoint: Optional[str] = None,
         infrastructure_document_id: Optional[UUID] = None,
-        parameter_openapi_schema: Optional[Dict[str, Any]] = None,
+        parameter_openapi_schema: Optional[dict[str, Any]] = None,
         paused: Optional[bool] = None,
-        pull_steps: Optional[List[dict]] = None,
+        pull_steps: Optional[list[dict[str, Any]]] = None,
         enforce_parameter_schema: Optional[bool] = None,
-        job_variables: Optional[Dict[str, Any]] = None,
+        job_variables: Optional[dict[str, Any]] = None,
     ) -> UUID:
         """
         Create a deployment.
@@ -1736,7 +1735,9 @@ class PrefectClient:
 
         return UUID(deployment_id)
 
-    async def set_deployment_paused_state(self, deployment_id: UUID, paused: bool):
+    async def set_deployment_paused_state(
+        self, deployment_id: UUID, paused: bool
+    ) -> None:
         await self._client.patch(
             f"/deployments/{deployment_id}", json={"paused": paused}
         )
@@ -1745,7 +1746,7 @@ class PrefectClient:
         self,
         deployment_id: UUID,
         deployment: DeploymentUpdate,
-    ):
+    ) -> None:
         await self._client.patch(
             f"/deployments/{deployment_id}",
             json=deployment.model_dump(mode="json", exclude_unset=True),
@@ -1768,7 +1769,7 @@ class PrefectClient:
 
     async def read_deployment(
         self,
-        deployment_id: UUID,
+        deployment_id: Union[UUID, str],
     ) -> DeploymentResponse:
         """
         Query the Prefect API for a deployment by id.
@@ -1861,7 +1862,7 @@ class PrefectClient:
         limit: Optional[int] = None,
         sort: Optional[DeploymentSort] = None,
         offset: int = 0,
-    ) -> List[DeploymentResponse]:
+    ) -> list[DeploymentResponse]:
         """
         Query the Prefect API for deployments. Only deployments matching all
         the provided criteria will be returned.
@@ -1880,7 +1881,7 @@ class PrefectClient:
             a list of Deployment model representations
                 of the deployments
         """
-        body = {
+        body: dict[str, Any] = {
             "flows": flow_filter.model_dump(mode="json") if flow_filter else None,
             "flow_runs": (
                 flow_run_filter.model_dump(mode="json", exclude_unset=True)
@@ -1905,14 +1906,14 @@ class PrefectClient:
         }
 
         response = await self._client.post("/deployments/filter", json=body)
-        return pydantic.TypeAdapter(List[DeploymentResponse]).validate_python(
+        return pydantic.TypeAdapter(list[DeploymentResponse]).validate_python(
             response.json()
         )
 
     async def delete_deployment(
         self,
         deployment_id: UUID,
-    ):
+    ) -> None:
         """
         Delete deployment by id.
 
@@ -1933,8 +1934,8 @@ class PrefectClient:
     async def create_deployment_schedules(
         self,
         deployment_id: UUID,
-        schedules: List[Tuple[SCHEDULE_TYPES, bool]],
-    ) -> List[DeploymentSchedule]:
+        schedules: list[tuple[SCHEDULE_TYPES, bool]],
+    ) -> list[DeploymentSchedule]:
         """
         Create deployment schedules.
 
@@ -1961,14 +1962,14 @@ class PrefectClient:
         response = await self._client.post(
             f"/deployments/{deployment_id}/schedules", json=json
         )
-        return pydantic.TypeAdapter(List[DeploymentSchedule]).validate_python(
+        return pydantic.TypeAdapter(list[DeploymentSchedule]).validate_python(
             response.json()
         )
 
     async def read_deployment_schedules(
         self,
         deployment_id: UUID,
-    ) -> List[DeploymentSchedule]:
+    ) -> list[DeploymentSchedule]:
         """
         Query the Prefect API for a deployment's schedules.
 
@@ -1985,7 +1986,7 @@ class PrefectClient:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
-        return pydantic.TypeAdapter(List[DeploymentSchedule]).validate_python(
+        return pydantic.TypeAdapter(list[DeploymentSchedule]).validate_python(
             response.json()
         )
 
@@ -1995,7 +1996,7 @@ class PrefectClient:
         schedule_id: UUID,
         active: Optional[bool] = None,
         schedule: Optional[SCHEDULE_TYPES] = None,
-    ):
+    ) -> None:
         """
         Update a deployment schedule by ID.
 
@@ -2005,7 +2006,7 @@ class PrefectClient:
             active: whether or not the schedule should be active
             schedule: the cron, rrule, or interval schedule this deployment schedule should use
         """
-        kwargs = {}
+        kwargs: dict[str, Any] = {}
         if active is not None:
             kwargs["active"] = active
         if schedule is not None:
@@ -2069,8 +2070,8 @@ class PrefectClient:
         return FlowRun.model_validate(response.json())
 
     async def resume_flow_run(
-        self, flow_run_id: UUID, run_input: Optional[Dict] = None
-    ) -> OrchestrationResult:
+        self, flow_run_id: UUID, run_input: Optional[dict[str, Any]] = None
+    ) -> OrchestrationResult[Any]:
         """
         Resumes a paused flow run.
 
@@ -2088,21 +2089,24 @@ class PrefectClient:
         except httpx.HTTPStatusError:
             raise
 
-        return OrchestrationResult.model_validate(response.json())
+        result: OrchestrationResult[Any] = OrchestrationResult.model_validate(
+            response.json()
+        )
+        return result
 
     async def read_flow_runs(
         self,
         *,
-        flow_filter: FlowFilter = None,
-        flow_run_filter: FlowRunFilter = None,
-        task_run_filter: TaskRunFilter = None,
-        deployment_filter: DeploymentFilter = None,
-        work_pool_filter: WorkPoolFilter = None,
-        work_queue_filter: WorkQueueFilter = None,
-        sort: FlowRunSort = None,
+        flow_filter: Optional[FlowFilter] = None,
+        flow_run_filter: Optional[FlowRunFilter] = None,
+        task_run_filter: Optional[TaskRunFilter] = None,
+        deployment_filter: Optional[DeploymentFilter] = None,
+        work_pool_filter: Optional[WorkPoolFilter] = None,
+        work_queue_filter: Optional[WorkQueueFilter] = None,
+        sort: Optional[FlowRunSort] = None,
         limit: Optional[int] = None,
         offset: int = 0,
-    ) -> List[FlowRun]:
+    ) -> list[FlowRun]:
         """
         Query the Prefect API for flow runs. Only flow runs matching all criteria will
         be returned.
@@ -2122,7 +2126,7 @@ class PrefectClient:
             a list of Flow Run model representations
                 of the flow runs
         """
-        body = {
+        body: dict[str, Any] = {
             "flows": flow_filter.model_dump(mode="json") if flow_filter else None,
             "flow_runs": (
                 flow_run_filter.model_dump(mode="json", exclude_unset=True)
@@ -2147,14 +2151,14 @@ class PrefectClient:
         }
 
         response = await self._client.post("/flow_runs/filter", json=body)
-        return pydantic.TypeAdapter(List[FlowRun]).validate_python(response.json())
+        return pydantic.TypeAdapter(list[FlowRun]).validate_python(response.json())
 
     async def set_flow_run_state(
         self,
-        flow_run_id: UUID,
-        state: "prefect.states.State",
+        flow_run_id: Union[UUID, str],
+        state: "prefect.states.State[T]",
         force: bool = False,
-    ) -> OrchestrationResult:
+    ) -> OrchestrationResult[T]:
         """
         Set the state of a flow run.
 
@@ -2187,11 +2191,14 @@ class PrefectClient:
             else:
                 raise
 
-        return OrchestrationResult.model_validate(response.json())
+        result: OrchestrationResult[T] = OrchestrationResult.model_validate(
+            response.json()
+        )
+        return result
 
     async def read_flow_run_states(
         self, flow_run_id: UUID
-    ) -> List[prefect.states.State]:
+    ) -> list[prefect.states.State]:
         """
         Query for the states of a flow run
 
@@ -2205,18 +2212,18 @@ class PrefectClient:
         response = await self._client.get(
             "/flow_run_states/", params=dict(flow_run_id=str(flow_run_id))
         )
-        return pydantic.TypeAdapter(List[prefect.states.State]).validate_python(
+        return pydantic.TypeAdapter(list[prefect.states.State]).validate_python(
             response.json()
         )
 
-    async def set_flow_run_name(self, flow_run_id: UUID, name: str):
+    async def set_flow_run_name(self, flow_run_id: UUID, name: str) -> httpx.Response:
         flow_run_data = FlowRunUpdate(name=name)
         return await self._client.patch(
             f"/flow_runs/{flow_run_id}",
             json=flow_run_data.model_dump(mode="json", exclude_unset=True),
         )
 
-    async def set_task_run_name(self, task_run_id: UUID, name: str):
+    async def set_task_run_name(self, task_run_id: UUID, name: str) -> httpx.Response:
         task_run_data = TaskRunUpdate(name=name)
         return await self._client.patch(
             f"/task_runs/{task_run_id}",
@@ -2233,9 +2240,9 @@ class PrefectClient:
         extra_tags: Optional[Iterable[str]] = None,
         state: Optional[prefect.states.State[R]] = None,
         task_inputs: Optional[
-            Dict[
+            dict[
                 str,
-                List[
+                list[
                     Union[
                         TaskRunResult,
                         Parameter,
@@ -2269,6 +2276,12 @@ class PrefectClient:
         if state is None:
             state = prefect.states.Pending()
 
+        retry_delay = task.retry_delay_seconds
+        if isinstance(retry_delay, list):
+            retry_delay = [int(rd) for rd in retry_delay]
+        elif isinstance(retry_delay, float):
+            retry_delay = int(retry_delay)
+
         task_run_data = TaskRunCreate(
             id=id,
             name=name,
@@ -2279,7 +2292,7 @@ class PrefectClient:
             task_version=task.version,
             empirical_policy=TaskRunPolicy(
                 retries=task.retries,
-                retry_delay=task.retry_delay_seconds,
+                retry_delay=retry_delay,
                 retry_jitter_factor=task.retry_jitter_factor,
             ),
             state=state.to_state_create(),
@@ -2312,14 +2325,14 @@ class PrefectClient:
     async def read_task_runs(
         self,
         *,
-        flow_filter: FlowFilter = None,
-        flow_run_filter: FlowRunFilter = None,
-        task_run_filter: TaskRunFilter = None,
-        deployment_filter: DeploymentFilter = None,
-        sort: TaskRunSort = None,
+        flow_filter: Optional[FlowFilter] = None,
+        flow_run_filter: Optional[FlowRunFilter] = None,
+        task_run_filter: Optional[TaskRunFilter] = None,
+        deployment_filter: Optional[DeploymentFilter] = None,
+        sort: Optional[TaskRunSort] = None,
         limit: Optional[int] = None,
         offset: int = 0,
-    ) -> List[TaskRun]:
+    ) -> list[TaskRun]:
         """
         Query the Prefect API for task runs. Only task runs matching all criteria will
         be returned.
@@ -2337,7 +2350,7 @@ class PrefectClient:
             a list of Task Run model representations
                 of the task runs
         """
-        body = {
+        body: dict[str, Any] = {
             "flows": flow_filter.model_dump(mode="json") if flow_filter else None,
             "flow_runs": (
                 flow_run_filter.model_dump(mode="json", exclude_unset=True)
@@ -2355,7 +2368,7 @@ class PrefectClient:
             "offset": offset,
         }
         response = await self._client.post("/task_runs/filter", json=body)
-        return pydantic.TypeAdapter(List[TaskRun]).validate_python(response.json())
+        return pydantic.TypeAdapter(list[TaskRun]).validate_python(response.json())
 
     async def delete_task_run(self, task_run_id: UUID) -> None:
         """
@@ -2378,9 +2391,9 @@ class PrefectClient:
     async def set_task_run_state(
         self,
         task_run_id: UUID,
-        state: prefect.states.State,
+        state: prefect.states.State[T],
         force: bool = False,
-    ) -> OrchestrationResult:
+    ) -> OrchestrationResult[T]:
         """
         Set the state of a task run.
 
@@ -2399,11 +2412,14 @@ class PrefectClient:
             f"/task_runs/{task_run_id}/set_state",
             json=dict(state=state_create.model_dump(mode="json"), force=force),
         )
-        return OrchestrationResult.model_validate(response.json())
+        result: OrchestrationResult[T] = OrchestrationResult.model_validate(
+            response.json()
+        )
+        return result
 
     async def read_task_run_states(
         self, task_run_id: UUID
-    ) -> List[prefect.states.State]:
+    ) -> list[prefect.states.State]:
         """
         Query for the states of a task run
 
@@ -2416,11 +2432,13 @@ class PrefectClient:
         response = await self._client.get(
             "/task_run_states/", params=dict(task_run_id=str(task_run_id))
         )
-        return pydantic.TypeAdapter(List[prefect.states.State]).validate_python(
+        return pydantic.TypeAdapter(list[prefect.states.State]).validate_python(
             response.json()
         )
 
-    async def create_logs(self, logs: Iterable[Union[LogCreate, dict]]) -> None:
+    async def create_logs(
+        self, logs: Iterable[Union[LogCreate, dict[str, Any]]]
+    ) -> None:
         """
         Create logs for a flow or task run
 
@@ -2437,8 +2455,8 @@ class PrefectClient:
         self,
         block_document_id: UUID,
         is_active: bool = True,
-        tags: List[str] = None,
-        state_names: List[str] = None,
+        tags: Optional[list[str]] = None,
+        state_names: Optional[list[str]] = None,
         message_template: Optional[str] = None,
     ) -> UUID:
         """
@@ -2500,8 +2518,8 @@ class PrefectClient:
         id: UUID,
         block_document_id: Optional[UUID] = None,
         is_active: Optional[bool] = None,
-        tags: Optional[List[str]] = None,
-        state_names: Optional[List[str]] = None,
+        tags: Optional[list[str]] = None,
+        state_names: Optional[list[str]] = None,
         message_template: Optional[str] = None,
     ) -> None:
         """
@@ -2518,7 +2536,7 @@ class PrefectClient:
             prefect.exceptions.ObjectNotFound: If request returns 404
             httpx.RequestError: If requests fails
         """
-        params = {}
+        params: dict[str, Any] = {}
         if block_document_id is not None:
             params["block_document_id"] = block_document_id
         if is_active is not None:
@@ -2548,7 +2566,7 @@ class PrefectClient:
         flow_run_notification_policy_filter: FlowRunNotificationPolicyFilter,
         limit: Optional[int] = None,
         offset: int = 0,
-    ) -> List[FlowRunNotificationPolicy]:
+    ) -> list[FlowRunNotificationPolicy]:
         """
         Query the Prefect API for flow run notification policies. Only policies matching all criteria will
         be returned.
@@ -2562,7 +2580,7 @@ class PrefectClient:
             a list of FlowRunNotificationPolicy model representations
                 of the notification policies
         """
-        body = {
+        body: dict[str, Any] = {
             "flow_run_notification_policy_filter": (
                 flow_run_notification_policy_filter.model_dump(mode="json")
                 if flow_run_notification_policy_filter
@@ -2574,7 +2592,7 @@ class PrefectClient:
         response = await self._client.post(
             "/flow_run_notification_policies/filter", json=body
         )
-        return pydantic.TypeAdapter(List[FlowRunNotificationPolicy]).validate_python(
+        return pydantic.TypeAdapter(list[FlowRunNotificationPolicy]).validate_python(
             response.json()
         )
 
@@ -2584,11 +2602,11 @@ class PrefectClient:
         limit: Optional[int] = None,
         offset: Optional[int] = None,
         sort: LogSort = LogSort.TIMESTAMP_ASC,
-    ) -> List[Log]:
+    ) -> list[Log]:
         """
         Read flow and task run logs.
         """
-        body = {
+        body: dict[str, Any] = {
             "logs": log_filter.model_dump(mode="json") if log_filter else None,
             "limit": limit,
             "offset": offset,
@@ -2596,7 +2614,7 @@ class PrefectClient:
         }
 
         response = await self._client.post("/logs/filter", json=body)
-        return pydantic.TypeAdapter(List[Log]).validate_python(response.json())
+        return pydantic.TypeAdapter(list[Log]).validate_python(response.json())
 
     async def send_worker_heartbeat(
         self,
@@ -2615,7 +2633,7 @@ class PrefectClient:
             return_id: Whether to return the worker ID. Note: will return `None` if the connected server does not support returning worker IDs, even if `return_id` is `True`.
             worker_metadata: Metadata about the worker to send to the server.
         """
-        params = {
+        params: dict[str, Any] = {
             "name": worker_name,
             "heartbeat_interval_seconds": heartbeat_interval_seconds,
         }
@@ -2647,7 +2665,7 @@ class PrefectClient:
         worker_filter: Optional[WorkerFilter] = None,
         offset: Optional[int] = None,
         limit: Optional[int] = None,
-    ) -> List[Worker]:
+    ) -> list[Worker]:
         """
         Reads workers for a given work pool.
 
@@ -2671,7 +2689,7 @@ class PrefectClient:
             },
         )
 
-        return pydantic.TypeAdapter(List[Worker]).validate_python(response.json())
+        return pydantic.TypeAdapter(list[Worker]).validate_python(response.json())
 
     async def read_work_pool(self, work_pool_name: str) -> WorkPool:
         """
@@ -2698,7 +2716,7 @@ class PrefectClient:
         limit: Optional[int] = None,
         offset: int = 0,
         work_pool_filter: Optional[WorkPoolFilter] = None,
-    ) -> List[WorkPool]:
+    ) -> list[WorkPool]:
         """
         Reads work pools.
 
@@ -2711,7 +2729,7 @@ class PrefectClient:
             A list of work pools.
         """
 
-        body = {
+        body: dict[str, Any] = {
             "limit": limit,
             "offset": offset,
             "work_pools": (
@@ -2719,7 +2737,7 @@ class PrefectClient:
             ),
         }
         response = await self._client.post("/work_pools/filter", json=body)
-        return pydantic.TypeAdapter(List[WorkPool]).validate_python(response.json())
+        return pydantic.TypeAdapter(list[WorkPool]).validate_python(response.json())
 
     async def create_work_pool(
         self,
@@ -2769,7 +2787,7 @@ class PrefectClient:
         self,
         work_pool_name: str,
         work_pool: WorkPoolUpdate,
-    ):
+    ) -> None:
         """
         Updates a work pool.
 
@@ -2791,7 +2809,7 @@ class PrefectClient:
     async def delete_work_pool(
         self,
         work_pool_name: str,
-    ):
+    ) -> None:
         """
         Deletes a work pool.
 
@@ -2812,7 +2830,7 @@ class PrefectClient:
         work_queue_filter: Optional[WorkQueueFilter] = None,
         limit: Optional[int] = None,
         offset: Optional[int] = None,
-    ) -> List[WorkQueue]:
+    ) -> list[WorkQueue]:
         """
         Retrieves queues for a work pool.
 
@@ -2825,7 +2843,7 @@ class PrefectClient:
         Returns:
             List of queues for the specified work pool.
         """
-        json = {
+        json: dict[str, Any] = {
             "work_queues": (
                 work_queue_filter.model_dump(mode="json", exclude_unset=True)
                 if work_queue_filter
@@ -2849,15 +2867,15 @@ class PrefectClient:
         else:
             response = await self._client.post("/work_queues/filter", json=json)
 
-        return pydantic.TypeAdapter(List[WorkQueue]).validate_python(response.json())
+        return pydantic.TypeAdapter(list[WorkQueue]).validate_python(response.json())
 
     async def get_scheduled_flow_runs_for_deployments(
         self,
-        deployment_ids: List[UUID],
+        deployment_ids: list[UUID],
         scheduled_before: Optional[datetime.datetime] = None,
         limit: Optional[int] = None,
-    ) -> List[FlowRunResponse]:
-        body: Dict[str, Any] = dict(deployment_ids=[str(id) for id in deployment_ids])
+    ) -> list[FlowRunResponse]:
+        body: dict[str, Any] = dict(deployment_ids=[str(id) for id in deployment_ids])
         if scheduled_before:
             body["scheduled_before"] = str(scheduled_before)
         if limit:
@@ -2868,16 +2886,16 @@ class PrefectClient:
             json=body,
         )
 
-        return pydantic.TypeAdapter(List[FlowRunResponse]).validate_python(
+        return pydantic.TypeAdapter(list[FlowRunResponse]).validate_python(
             response.json()
         )
 
     async def get_scheduled_flow_runs_for_work_pool(
         self,
         work_pool_name: str,
-        work_queue_names: Optional[List[str]] = None,
+        work_queue_names: Optional[list[str]] = None,
         scheduled_before: Optional[datetime.datetime] = None,
-    ) -> List[WorkerFlowRunResponse]:
+    ) -> list[WorkerFlowRunResponse]:
         """
         Retrieves scheduled flow runs for the provided set of work pool queues.
 
@@ -2893,7 +2911,7 @@ class PrefectClient:
             A list of worker flow run responses containing information about the
             retrieved flow runs.
         """
-        body: Dict[str, Any] = {}
+        body: dict[str, Any] = {}
         if work_queue_names is not None:
             body["work_queue_names"] = list(work_queue_names)
         if scheduled_before:
@@ -2903,7 +2921,7 @@ class PrefectClient:
             f"/work_pools/{work_pool_name}/get_scheduled_flow_runs",
             json=body,
         )
-        return pydantic.TypeAdapter(List[WorkerFlowRunResponse]).validate_python(
+        return pydantic.TypeAdapter(list[WorkerFlowRunResponse]).validate_python(
             response.json()
         )
 
@@ -2949,13 +2967,13 @@ class PrefectClient:
     async def read_artifacts(
         self,
         *,
-        artifact_filter: ArtifactFilter = None,
-        flow_run_filter: FlowRunFilter = None,
-        task_run_filter: TaskRunFilter = None,
-        sort: ArtifactSort = None,
+        artifact_filter: Optional[ArtifactFilter] = None,
+        flow_run_filter: Optional[FlowRunFilter] = None,
+        task_run_filter: Optional[TaskRunFilter] = None,
+        sort: Optional[ArtifactSort] = None,
         limit: Optional[int] = None,
         offset: int = 0,
-    ) -> List[Artifact]:
+    ) -> list[Artifact]:
         """
         Query the Prefect API for artifacts. Only artifacts matching all criteria will
         be returned.
@@ -2969,7 +2987,7 @@ class PrefectClient:
         Returns:
             a list of Artifact model representations of the artifacts
         """
-        body = {
+        body: dict[str, Any] = {
             "artifacts": (
                 artifact_filter.model_dump(mode="json") if artifact_filter else None
             ),
@@ -2984,18 +3002,18 @@ class PrefectClient:
             "offset": offset,
         }
         response = await self._client.post("/artifacts/filter", json=body)
-        return pydantic.TypeAdapter(List[Artifact]).validate_python(response.json())
+        return pydantic.TypeAdapter(list[Artifact]).validate_python(response.json())
 
     async def read_latest_artifacts(
         self,
         *,
-        artifact_filter: ArtifactCollectionFilter = None,
-        flow_run_filter: FlowRunFilter = None,
-        task_run_filter: TaskRunFilter = None,
-        sort: ArtifactCollectionSort = None,
+        artifact_filter: Optional[ArtifactCollectionFilter] = None,
+        flow_run_filter: Optional[FlowRunFilter] = None,
+        task_run_filter: Optional[TaskRunFilter] = None,
+        sort: Optional[ArtifactCollectionSort] = None,
         limit: Optional[int] = None,
         offset: int = 0,
-    ) -> List[ArtifactCollection]:
+    ) -> list[ArtifactCollection]:
         """
         Query the Prefect API for artifacts. Only artifacts matching all criteria will
         be returned.
@@ -3009,7 +3027,7 @@ class PrefectClient:
         Returns:
             a list of Artifact model representations of the artifacts
         """
-        body = {
+        body: dict[str, Any] = {
             "artifacts": (
                 artifact_filter.model_dump(mode="json") if artifact_filter else None
             ),
@@ -3024,7 +3042,7 @@ class PrefectClient:
             "offset": offset,
         }
         response = await self._client.post("/artifacts/latest/filter", json=body)
-        return pydantic.TypeAdapter(List[ArtifactCollection]).validate_python(
+        return pydantic.TypeAdapter(list[ArtifactCollection]).validate_python(
             response.json()
         )
 
@@ -3083,7 +3101,7 @@ class PrefectClient:
             else:
                 raise
 
-    async def delete_variable_by_name(self, name: str):
+    async def delete_variable_by_name(self, name: str) -> None:
         """Deletes a variable by name."""
         try:
             await self._client.delete(f"/variables/name/{name}")
@@ -3093,12 +3111,12 @@ class PrefectClient:
             else:
                 raise
 
-    async def read_variables(self, limit: Optional[int] = None) -> List[Variable]:
+    async def read_variables(self, limit: Optional[int] = None) -> list[Variable]:
         """Reads all variables."""
         response = await self._client.post("/variables/filter", json={"limit": limit})
-        return pydantic.TypeAdapter(List[Variable]).validate_python(response.json())
+        return pydantic.TypeAdapter(list[Variable]).validate_python(response.json())
 
-    async def read_worker_metadata(self) -> Dict[str, Any]:
+    async def read_worker_metadata(self) -> dict[str, Any]:
         """Reads worker metadata stored in Prefect collection registry."""
         response = await self._client.get("collections/views/aggregate-worker-metadata")
         response.raise_for_status()
@@ -3106,7 +3124,7 @@ class PrefectClient:
 
     async def increment_concurrency_slots(
         self,
-        names: List[str],
+        names: list[str],
         slots: int,
         mode: str,
         create_if_missing: Optional[bool] = None,
@@ -3122,7 +3140,7 @@ class PrefectClient:
         )
 
     async def release_concurrency_slots(
-        self, names: List[str], slots: int, occupancy_seconds: float
+        self, names: list[str], slots: int, occupancy_seconds: float
     ) -> httpx.Response:
         """
         Release concurrency slots for the specified limits.
@@ -3194,7 +3212,9 @@ class PrefectClient:
             else:
                 raise
 
-    async def upsert_global_concurrency_limit_by_name(self, name: str, limit: int):
+    async def upsert_global_concurrency_limit_by_name(
+        self, name: str, limit: int
+    ) -> None:
         """Creates a global concurrency limit with the given name and limit if one does not already exist.
 
         If one does already exist matching the name then update it's limit if it is different.
@@ -3220,7 +3240,7 @@ class PrefectClient:
 
     async def read_global_concurrency_limits(
         self, limit: int = 10, offset: int = 0
-    ) -> List[GlobalConcurrencyLimitResponse]:
+    ) -> list[GlobalConcurrencyLimitResponse]:
         response = await self._client.post(
             "/v2/concurrency_limits/filter",
             json={
@@ -3229,12 +3249,12 @@ class PrefectClient:
             },
         )
         return pydantic.TypeAdapter(
-            List[GlobalConcurrencyLimitResponse]
+            list[GlobalConcurrencyLimitResponse]
         ).validate_python(response.json())
 
     async def create_flow_run_input(
         self, flow_run_id: UUID, key: str, value: str, sender: Optional[str] = None
-    ):
+    ) -> None:
         """
         Creates a flow run input.
 
@@ -3255,8 +3275,8 @@ class PrefectClient:
         response.raise_for_status()
 
     async def filter_flow_run_input(
-        self, flow_run_id: UUID, key_prefix: str, limit: int, exclude_keys: Set[str]
-    ) -> List[FlowRunInput]:
+        self, flow_run_id: UUID, key_prefix: str, limit: int, exclude_keys: set[str]
+    ) -> list[FlowRunInput]:
         response = await self._client.post(
             f"/flow_runs/{flow_run_id}/input/filter",
             json={
@@ -3266,7 +3286,7 @@ class PrefectClient:
             },
         )
         response.raise_for_status()
-        return pydantic.TypeAdapter(List[FlowRunInput]).validate_python(response.json())
+        return pydantic.TypeAdapter(list[FlowRunInput]).validate_python(response.json())
 
     async def read_flow_run_input(self, flow_run_id: UUID, key: str) -> str:
         """
@@ -3280,7 +3300,7 @@ class PrefectClient:
         response.raise_for_status()
         return response.content.decode()
 
-    async def delete_flow_run_input(self, flow_run_id: UUID, key: str):
+    async def delete_flow_run_input(self, flow_run_id: UUID, key: str) -> None:
         """
         Deletes a flow run input.
 
@@ -3300,7 +3320,9 @@ class PrefectClient:
 
         return UUID(response.json()["id"])
 
-    async def update_automation(self, automation_id: UUID, automation: AutomationCore):
+    async def update_automation(
+        self, automation_id: UUID, automation: AutomationCore
+    ) -> None:
         """Updates an automation in Prefect Cloud."""
         response = await self._client.put(
             f"/automations/{automation_id}",
@@ -3308,21 +3330,23 @@ class PrefectClient:
         )
         response.raise_for_status
 
-    async def read_automations(self) -> List[Automation]:
+    async def read_automations(self) -> list[Automation]:
         response = await self._client.post("/automations/filter")
         response.raise_for_status()
-        return pydantic.TypeAdapter(List[Automation]).validate_python(response.json())
+        return pydantic.TypeAdapter(list[Automation]).validate_python(response.json())
 
     async def find_automation(
         self, id_or_name: Union[str, UUID]
     ) -> Optional[Automation]:
         if isinstance(id_or_name, str):
+            name = id_or_name
             try:
                 id = UUID(id_or_name)
             except ValueError:
                 id = None
-        elif isinstance(id_or_name, UUID):
+        else:
             id = id_or_name
+            name = str(id)
 
         if id:
             try:
@@ -3336,24 +3360,26 @@ class PrefectClient:
 
         # Look for it by an exact name
         for automation in automations:
-            if automation.name == id_or_name:
+            if automation.name == name:
                 return automation
 
         # Look for it by a case-insensitive name
         for automation in automations:
-            if automation.name.lower() == id_or_name.lower():
+            if automation.name.lower() == name.lower():
                 return automation
 
         return None
 
-    async def read_automation(self, automation_id: UUID) -> Optional[Automation]:
+    async def read_automation(
+        self, automation_id: Union[UUID, str]
+    ) -> Optional[Automation]:
         response = await self._client.get(f"/automations/{automation_id}")
         if response.status_code == 404:
             return None
         response.raise_for_status()
         return Automation.model_validate(response.json())
 
-    async def read_automations_by_name(self, name: str) -> List[Automation]:
+    async def read_automations_by_name(self, name: str) -> list[Automation]:
         """
         Query the Prefect API for an automation by name. Only automations matching the provided name will be returned.
 
@@ -3363,7 +3389,9 @@ class PrefectClient:
         Returns:
             a list of Automation model representations of the automations
         """
-        automation_filter = filters.AutomationFilter(name=dict(any_=[name]))
+        automation_filter = filters.AutomationFilter(
+            name=filters.AutomationFilterName(any_=[name])
+        )
 
         response = await self._client.post(
             "/automations/filter",
@@ -3377,21 +3405,21 @@ class PrefectClient:
 
         response.raise_for_status()
 
-        return pydantic.TypeAdapter(List[Automation]).validate_python(response.json())
+        return pydantic.TypeAdapter(list[Automation]).validate_python(response.json())
 
-    async def pause_automation(self, automation_id: UUID):
+    async def pause_automation(self, automation_id: UUID) -> None:
         response = await self._client.patch(
             f"/automations/{automation_id}", json={"enabled": False}
         )
         response.raise_for_status()
 
-    async def resume_automation(self, automation_id: UUID):
+    async def resume_automation(self, automation_id: UUID) -> None:
         response = await self._client.patch(
             f"/automations/{automation_id}", json={"enabled": True}
         )
         response.raise_for_status()
 
-    async def delete_automation(self, automation_id: UUID):
+    async def delete_automation(self, automation_id: UUID) -> None:
         response = await self._client.delete(f"/automations/{automation_id}")
         if response.status_code == 404:
             return
@@ -3400,12 +3428,12 @@ class PrefectClient:
 
     async def read_resource_related_automations(
         self, resource_id: str
-    ) -> List[Automation]:
+    ) -> list[Automation]:
         response = await self._client.get(f"/automations/related-to/{resource_id}")
         response.raise_for_status()
-        return pydantic.TypeAdapter(List[Automation]).validate_python(response.json())
+        return pydantic.TypeAdapter(list[Automation]).validate_python(response.json())
 
-    async def delete_resource_owned_automations(self, resource_id: str):
+    async def delete_resource_owned_automations(self, resource_id: str) -> None:
         await self._client.delete(f"/automations/owned-by/{resource_id}")
 
     async def api_version(self) -> str:
@@ -3415,7 +3443,7 @@ class PrefectClient:
     def client_version(self) -> str:
         return prefect.__version__
 
-    async def raise_for_api_version_mismatch(self):
+    async def raise_for_api_version_mismatch(self) -> None:
         # Cloud is always compatible as a server
         if self.server_type == ServerType.CLOUD:
             return
@@ -3434,7 +3462,19 @@ class PrefectClient:
                 f"Major versions must match."
             )
 
-    async def __aenter__(self):
+    async def update_flow_run_labels(
+        self, flow_run_id: UUID, labels: KeyValueLabelsField
+    ) -> None:
+        """
+        Updates the labels of a flow run.
+        """
+
+        response = await self._client.patch(
+            f"/flow_runs/{flow_run_id}/labels", json=labels
+        )
+        response.raise_for_status()
+
+    async def __aenter__(self) -> Self:
         """
         Start the client.
 
@@ -3481,7 +3521,7 @@ class PrefectClient:
 
         return self
 
-    async def __aexit__(self, *exc_info):
+    async def __aexit__(self, *exc_info: Any) -> Optional[bool]:
         """
         Shutdown the client.
         """
@@ -3492,13 +3532,13 @@ class PrefectClient:
         self._closed = True
         return await self._exit_stack.__aexit__(*exc_info)
 
-    def __enter__(self):
+    def __enter__(self) -> NoReturn:
         raise RuntimeError(
             "The `PrefectClient` must be entered with an async context. Use 'async "
             "with PrefectClient(...)' not 'with PrefectClient(...)'"
         )
 
-    def __exit__(self, *_):
+    def __exit__(self, *_: object) -> NoReturn:
         assert False, "This should never be called but must be defined for __enter__"
 
 
@@ -3534,19 +3574,25 @@ class SyncPrefectClient:
         *,
         api_key: Optional[str] = None,
         api_version: Optional[str] = None,
-        httpx_settings: Optional[Dict[str, Any]] = None,
+        httpx_settings: Optional[dict[str, Any]] = None,
         server_type: Optional[ServerType] = None,
     ) -> None:
         httpx_settings = httpx_settings.copy() if httpx_settings else {}
         httpx_settings.setdefault("headers", {})
 
         if PREFECT_API_TLS_INSECURE_SKIP_VERIFY:
-            httpx_settings.setdefault("verify", False)
+            # Create an unverified context for insecure connections
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            httpx_settings.setdefault("verify", ctx)
         else:
             cert_file = PREFECT_API_SSL_CERT_FILE.value()
             if not cert_file:
                 cert_file = certifi.where()
-            httpx_settings.setdefault("verify", cert_file)
+            # Create a verified context with the certificate file
+            ctx = ssl.create_default_context(cafile=cert_file)
+            httpx_settings.setdefault("verify", ctx)
 
         if api_version is None:
             api_version = SERVER_API_VERSION
@@ -3604,15 +3650,9 @@ class SyncPrefectClient:
                 )
 
         # Connect to an in-process application
-        elif isinstance(api, ASGIApp):
+        else:
             self._ephemeral_app = api
             self.server_type = ServerType.EPHEMERAL
-
-        else:
-            raise TypeError(
-                f"Unexpected type {type(api).__name__!r} for argument `api`. Expected"
-                " 'str' or 'ASGIApp/FastAPI'"
-            )
 
         # See https://www.python-httpx.org/advanced/#timeout-configuration
         httpx_settings.setdefault(
@@ -3656,9 +3696,9 @@ class SyncPrefectClient:
                 if isinstance(server_transport, httpx.HTTPTransport):
                     pool = getattr(server_transport, "_pool", None)
                     if isinstance(pool, httpcore.ConnectionPool):
-                        pool._retries = 3
+                        setattr(pool, "_retries", 3)
 
-        self.logger = get_logger("client")
+        self.logger: Logger = get_logger("client")
 
     @property
     def api_url(self) -> httpx.URL:
@@ -3696,7 +3736,7 @@ class SyncPrefectClient:
 
         return self
 
-    def __exit__(self, *exc_info) -> None:
+    def __exit__(self, *exc_info: Any) -> None:
         """
         Shutdown the client.
         """
@@ -3734,7 +3774,7 @@ class SyncPrefectClient:
     def client_version(self) -> str:
         return prefect.__version__
 
-    def raise_for_api_version_mismatch(self):
+    def raise_for_api_version_mismatch(self) -> None:
         # Cloud is always compatible as a server
         if self.server_type == ServerType.CLOUD:
             return
@@ -3753,7 +3793,7 @@ class SyncPrefectClient:
                 f"Major versions must match."
             )
 
-    def create_flow(self, flow: "FlowObject") -> UUID:
+    def create_flow(self, flow: "FlowObject[Any, Any]") -> UUID:
         """
         Create a flow in the Prefect API.
 
@@ -3793,13 +3833,13 @@ class SyncPrefectClient:
 
     def create_flow_run(
         self,
-        flow: "FlowObject",
+        flow: "FlowObject[Any, R]",
         name: Optional[str] = None,
-        parameters: Optional[Dict[str, Any]] = None,
-        context: Optional[Dict[str, Any]] = None,
+        parameters: Optional[dict[str, Any]] = None,
+        context: Optional[dict[str, Any]] = None,
         tags: Optional[Iterable[str]] = None,
         parent_task_run_id: Optional[UUID] = None,
-        state: Optional["prefect.states.State"] = None,
+        state: Optional["prefect.states.State[R]"] = None,
     ) -> FlowRun:
         """
         Create a flow run for a flow.
@@ -3841,7 +3881,7 @@ class SyncPrefectClient:
             state=state.to_state_create(),
             empirical_policy=FlowRunPolicy(
                 retries=flow.retries,
-                retry_delay=flow.retry_delay_seconds,
+                retry_delay=int(flow.retry_delay_seconds or 0),
             ),
         )
 
@@ -3859,12 +3899,12 @@ class SyncPrefectClient:
         self,
         flow_run_id: UUID,
         flow_version: Optional[str] = None,
-        parameters: Optional[dict] = None,
+        parameters: Optional[dict[str, Any]] = None,
         name: Optional[str] = None,
         tags: Optional[Iterable[str]] = None,
         empirical_policy: Optional[FlowRunPolicy] = None,
         infrastructure_pid: Optional[str] = None,
-        job_variables: Optional[dict] = None,
+        job_variables: Optional[dict[str, Any]] = None,
     ) -> httpx.Response:
         """
         Update a flow run's details.
@@ -3885,7 +3925,7 @@ class SyncPrefectClient:
         Returns:
             an `httpx.Response` object from the PATCH request
         """
-        params = {}
+        params: dict[str, Any] = {}
         if flow_version is not None:
             params["flow_version"] = flow_version
         if parameters is not None:
@@ -3941,7 +3981,7 @@ class SyncPrefectClient:
         sort: Optional[FlowRunSort] = None,
         limit: Optional[int] = None,
         offset: int = 0,
-    ) -> List[FlowRun]:
+    ) -> list[FlowRun]:
         """
         Query the Prefect API for flow runs. Only flow runs matching all criteria will
         be returned.
@@ -3961,7 +4001,7 @@ class SyncPrefectClient:
             a list of Flow Run model representations
                 of the flow runs
         """
-        body = {
+        body: dict[str, Any] = {
             "flows": flow_filter.model_dump(mode="json") if flow_filter else None,
             "flow_runs": (
                 flow_run_filter.model_dump(mode="json", exclude_unset=True)
@@ -3986,14 +4026,14 @@ class SyncPrefectClient:
         }
 
         response = self._client.post("/flow_runs/filter", json=body)
-        return pydantic.TypeAdapter(List[FlowRun]).validate_python(response.json())
+        return pydantic.TypeAdapter(list[FlowRun]).validate_python(response.json())
 
     def set_flow_run_state(
         self,
         flow_run_id: UUID,
-        state: "prefect.states.State",
+        state: "prefect.states.State[T]",
         force: bool = False,
-    ) -> OrchestrationResult:
+    ) -> OrchestrationResult[T]:
         """
         Set the state of a flow run.
 
@@ -4023,16 +4063,19 @@ class SyncPrefectClient:
             else:
                 raise
 
-        return OrchestrationResult.model_validate(response.json())
+        result: OrchestrationResult[T] = OrchestrationResult.model_validate(
+            response.json()
+        )
+        return result
 
-    def set_flow_run_name(self, flow_run_id: UUID, name: str):
+    def set_flow_run_name(self, flow_run_id: UUID, name: str) -> httpx.Response:
         flow_run_data = FlowRunUpdate(name=name)
         return self._client.patch(
             f"/flow_runs/{flow_run_id}",
             json=flow_run_data.model_dump(mode="json", exclude_unset=True),
         )
 
-    def set_task_run_name(self, task_run_id: UUID, name: str):
+    def set_task_run_name(self, task_run_id: UUID, name: str) -> httpx.Response:
         task_run_data = TaskRunUpdate(name=name)
         return self._client.patch(
             f"/task_runs/{task_run_id}",
@@ -4049,9 +4092,9 @@ class SyncPrefectClient:
         extra_tags: Optional[Iterable[str]] = None,
         state: Optional[prefect.states.State[R]] = None,
         task_inputs: Optional[
-            Dict[
+            dict[
                 str,
-                List[
+                list[
                     Union[
                         TaskRunResult,
                         Parameter,
@@ -4085,6 +4128,12 @@ class SyncPrefectClient:
         if state is None:
             state = prefect.states.Pending()
 
+        retry_delay = task.retry_delay_seconds
+        if isinstance(retry_delay, list):
+            retry_delay = [int(rd) for rd in retry_delay]
+        elif isinstance(retry_delay, float):
+            retry_delay = int(retry_delay)
+
         task_run_data = TaskRunCreate(
             id=id,
             name=name,
@@ -4095,7 +4144,7 @@ class SyncPrefectClient:
             task_version=task.version,
             empirical_policy=TaskRunPolicy(
                 retries=task.retries,
-                retry_delay=task.retry_delay_seconds,
+                retry_delay=retry_delay,
                 retry_jitter_factor=task.retry_jitter_factor,
             ),
             state=state.to_state_create(),
@@ -4129,14 +4178,14 @@ class SyncPrefectClient:
     def read_task_runs(
         self,
         *,
-        flow_filter: FlowFilter = None,
-        flow_run_filter: FlowRunFilter = None,
-        task_run_filter: TaskRunFilter = None,
-        deployment_filter: DeploymentFilter = None,
-        sort: TaskRunSort = None,
+        flow_filter: Optional[FlowFilter] = None,
+        flow_run_filter: Optional[FlowRunFilter] = None,
+        task_run_filter: Optional[TaskRunFilter] = None,
+        deployment_filter: Optional[DeploymentFilter] = None,
+        sort: Optional[TaskRunSort] = None,
         limit: Optional[int] = None,
         offset: int = 0,
-    ) -> List[TaskRun]:
+    ) -> list[TaskRun]:
         """
         Query the Prefect API for task runs. Only task runs matching all criteria will
         be returned.
@@ -4154,7 +4203,7 @@ class SyncPrefectClient:
             a list of Task Run model representations
                 of the task runs
         """
-        body = {
+        body: dict[str, Any] = {
             "flows": flow_filter.model_dump(mode="json") if flow_filter else None,
             "flow_runs": (
                 flow_run_filter.model_dump(mode="json", exclude_unset=True)
@@ -4172,14 +4221,14 @@ class SyncPrefectClient:
             "offset": offset,
         }
         response = self._client.post("/task_runs/filter", json=body)
-        return pydantic.TypeAdapter(List[TaskRun]).validate_python(response.json())
+        return pydantic.TypeAdapter(list[TaskRun]).validate_python(response.json())
 
     def set_task_run_state(
         self,
         task_run_id: UUID,
-        state: prefect.states.State,
+        state: prefect.states.State[Any],
         force: bool = False,
-    ) -> OrchestrationResult:
+    ) -> OrchestrationResult[Any]:
         """
         Set the state of a task run.
 
@@ -4198,9 +4247,12 @@ class SyncPrefectClient:
             f"/task_runs/{task_run_id}/set_state",
             json=dict(state=state_create.model_dump(mode="json"), force=force),
         )
-        return OrchestrationResult.model_validate(response.json())
+        result: OrchestrationResult[Any] = OrchestrationResult.model_validate(
+            response.json()
+        )
+        return result
 
-    def read_task_run_states(self, task_run_id: UUID) -> List[prefect.states.State]:
+    def read_task_run_states(self, task_run_id: UUID) -> list[prefect.states.State]:
         """
         Query for the states of a task run
 
@@ -4213,7 +4265,7 @@ class SyncPrefectClient:
         response = self._client.get(
             "/task_run_states/", params=dict(task_run_id=str(task_run_id))
         )
-        return pydantic.TypeAdapter(List[prefect.states.State]).validate_python(
+        return pydantic.TypeAdapter(list[prefect.states.State]).validate_python(
             response.json()
         )
 
@@ -4287,7 +4339,7 @@ class SyncPrefectClient:
         return Artifact.model_validate(response.json())
 
     def release_concurrency_slots(
-        self, names: List[str], slots: int, occupancy_seconds: float
+        self, names: list[str], slots: int, occupancy_seconds: float
     ) -> httpx.Response:
         """
         Release concurrency slots for the specified limits.
@@ -4311,7 +4363,7 @@ class SyncPrefectClient:
         )
 
     def decrement_v1_concurrency_slots(
-        self, names: List[str], occupancy_seconds: float, task_run_id: UUID
+        self, names: list[str], occupancy_seconds: float, task_run_id: UUID
     ) -> httpx.Response:
         """
         Release the specified concurrency limits.
@@ -4333,3 +4385,15 @@ class SyncPrefectClient:
                 "task_run_id": str(task_run_id),
             },
         )
+
+    def update_flow_run_labels(
+        self, flow_run_id: UUID, labels: KeyValueLabelsField
+    ) -> None:
+        """
+        Updates the labels of a flow run.
+        """
+        response = self._client.patch(
+            f"/flow_runs/{flow_run_id}/labels",
+            json=labels,
+        )
+        response.raise_for_status()

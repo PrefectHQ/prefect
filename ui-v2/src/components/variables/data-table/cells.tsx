@@ -1,3 +1,5 @@
+import type { components } from "@/api/prefect";
+import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -5,21 +7,18 @@ import {
 	DropdownMenuLabel,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
-import { MoreVerticalIcon } from "lucide-react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { getQueryService } from "@/api/service";
-import type { CellContext } from "@tanstack/react-table";
-import type { components } from "@/api/prefect";
-import { useToast } from "@/hooks/use-toast";
-import { JsonInput } from "@/components/ui/json-input";
 import {
 	HoverCard,
 	HoverCardContent,
 	HoverCardTrigger,
 } from "@/components/ui/hover-card";
-import { useRef } from "react";
+import { Icon } from "@/components/ui/icons";
+import { JsonInput } from "@/components/ui/json-input";
 import { useIsOverflowing } from "@/hooks/use-is-overflowing";
+import { useToast } from "@/hooks/use-toast";
+import { useDeleteVariable } from "@/hooks/variables";
+import type { CellContext } from "@tanstack/react-table";
+import { useRef } from "react";
 
 type ActionsCellProps = CellContext<
 	components["schemas"]["Variable"],
@@ -30,31 +29,17 @@ type ActionsCellProps = CellContext<
 
 export const ActionsCell = ({ row, onVariableEdit }: ActionsCellProps) => {
 	const id = row.original.id;
-	const queryClient = useQueryClient();
-	const { mutate: deleteVariable } = useMutation({
-		mutationKey: ["delete-variable"],
-		mutationFn: async (id: string) =>
-			await getQueryService().DELETE("/variables/{id}", {
-				params: { path: { id } },
-			}),
-		onSettled: async () => {
-			return await Promise.all([
-				queryClient.invalidateQueries({
-					predicate: (query) => query.queryKey[0] === "variables",
-				}),
-				queryClient.invalidateQueries({
-					queryKey: ["total-variable-count"],
-				}),
-			]);
-		},
-	});
 	const { toast } = useToast();
+	const { deleteVariable } = useDeleteVariable();
 	if (!id) return null;
 
 	const onVariableDelete = () => {
-		deleteVariable(id);
-		toast({
-			title: "Variable deleted",
+		deleteVariable(id, {
+			onSuccess: () => {
+				toast({
+					title: "Variable deleted",
+				});
+			},
 		});
 	};
 
@@ -64,7 +49,7 @@ export const ActionsCell = ({ row, onVariableEdit }: ActionsCellProps) => {
 				<DropdownMenuTrigger asChild>
 					<Button variant="outline" className="h-8 w-8 p-0">
 						<span className="sr-only">Open menu</span>
-						<MoreVerticalIcon className="h-4 w-4" />
+						<Icon id="MoreVertical" className="h-4 w-4" />
 					</Button>
 				</DropdownMenuTrigger>
 				<DropdownMenuContent align="end">
