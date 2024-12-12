@@ -93,6 +93,7 @@ export const VariableDialog = ({
 							toast({
 								title: "Variable updated",
 							});
+							onOpenChange(false);
 						},
 						onError: (error) => {
 							const message =
@@ -115,6 +116,7 @@ export const VariableDialog = ({
 							toast({
 								title: "Variable created",
 							});
+							onOpenChange(false);
 						},
 						onError: (error) => {
 							const message =
