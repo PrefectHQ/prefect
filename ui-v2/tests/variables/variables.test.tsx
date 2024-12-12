@@ -84,6 +84,7 @@ describe("Variables page", () => {
 			await user.click(screen.getByRole("button", { name: "Create" }));
 
 			expect(screen.getByText("Variable created")).toBeVisible();
+			expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 		});
 
 		it("should show validation errors", async () => {
