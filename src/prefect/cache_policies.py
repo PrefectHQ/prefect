@@ -49,6 +49,7 @@ class CachePolicy:
     ) -> Self:
         """
         Configure the cache policy with the given key storage, lock manager, and isolation level.
+        Added in version 3.0.3.
 
         Args:
             key_storage: The storage to use for cache keys. If not provided,

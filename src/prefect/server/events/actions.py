@@ -1088,7 +1088,10 @@ class SuspendFlowRun(FlowRunStateChangeAction):
 
 
 class ResumeFlowRun(FlowRunAction):
-    """Resumes a paused or suspended flow run associated with the trigger"""
+    """
+    Resumes a paused or suspended flow run associated with the trigger.
+    Added in version 3.0.2.
+    """
 
     type: Literal["resume-flow-run"] = "resume-flow-run"
 
