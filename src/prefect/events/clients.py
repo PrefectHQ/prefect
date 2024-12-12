@@ -21,7 +21,7 @@ from cachetools import TTLCache
 from prometheus_client import Counter
 from typing_extensions import Self
 from websockets import Subprotocol
-from websockets.client import WebSocketClientProtocol, connect
+from websockets.client import WebSocketClientProtocol
 from websockets.exceptions import (
     ConnectionClosed,
     ConnectionClosedError,
@@ -37,6 +37,7 @@ from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
 )
+from prefect.utilities.proxy import websocket_connect
 
 if TYPE_CHECKING:
     from prefect.events.filters import EventFilter
@@ -265,7 +266,7 @@ class PrefectEventsClient(EventsClient):
             )
 
         self._events_socket_url = events_in_socket_from_api_url(api_url)
-        self._connect = connect(self._events_socket_url)
+        self._connect = websocket_connect(self._events_socket_url)
         self._websocket = None
         self._reconnection_attempts = reconnection_attempts
         self._unconfirmed_events = []
@@ -435,7 +436,7 @@ class PrefectCloudEventsClient(PrefectEventsClient):
             reconnection_attempts=reconnection_attempts,
             checkpoint_every=checkpoint_every,
         )
-        self._connect = connect(
+        self._connect = websocket_connect(
             self._events_socket_url,
             extra_headers={"Authorization": f"bearer {api_key}"},
         )
@@ -494,7 +495,7 @@ class PrefectEventSubscriber:
 
         logger.debug("Connecting to %s", socket_url)
 
-        self._connect = connect(
+        self._connect = websocket_connect(
             socket_url,
             subprotocols=[Subprotocol("prefect")],
         )
