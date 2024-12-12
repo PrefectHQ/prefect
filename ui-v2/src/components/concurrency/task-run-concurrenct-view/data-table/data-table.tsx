@@ -11,6 +11,7 @@ import {
 import { SearchInput } from "@/components/ui/input";
 import { useDeferredValue, useMemo } from "react";
 import { ActionsCell } from "./actions-cell";
+import { ActiveTaskRunCells } from "./active-task-runs-cell";
 
 const routeApi = getRouteApi("/concurrency-limits");
 
@@ -30,7 +31,8 @@ const createColumns = ({
 		header: "Slots",
 	}),
 	columnHelper.accessor("active_slots", {
-		header: "Active Task Runs", // TODO: Give this styling once knowing what it looks like
+		header: "Active Task Runs",
+		cell: ActiveTaskRunCells,
 	}),
 	columnHelper.display({
 		id: "actions",
@@ -65,8 +67,39 @@ export const TaskRunConcurrencyDataTable = ({
 		);
 	}, [data, deferredSearch]);
 
+	return (
+		<Table
+			data={filteredData}
+			onDeleteRow={onDeleteRow}
+			onResetRow={onResetRow}
+			searchValue={search}
+			onSearchChange={(value) =>
+				void navigate({
+					to: ".",
+					search: (prev) => ({ ...prev, search: value }),
+				})
+			}
+		/>
+	);
+};
+
+type TableProps = {
+	data: Array<TaskRunConcurrencyLimit>;
+	onDeleteRow: (row: TaskRunConcurrencyLimit) => void;
+	onResetRow: (row: TaskRunConcurrencyLimit) => void;
+	onSearchChange: (value: string) => void;
+	searchValue: string | undefined;
+};
+
+export function Table({
+	data,
+	onDeleteRow,
+	onResetRow,
+	onSearchChange,
+	searchValue,
+}: TableProps) {
 	const table = useReactTable({
-		data: filteredData,
+		data,
 		columns: createColumns({ onDeleteRow, onResetRow }),
 		getCoreRowModel: getCoreRowModel(),
 		getPaginationRowModel: getPaginationRowModel(), //load client-side pagination code
@@ -76,15 +109,10 @@ export const TaskRunConcurrencyDataTable = ({
 		<div className="flex flex-col gap-4">
 			<SearchInput
 				placeholder="Search active task limit"
-				value={search}
-				onChange={(e) =>
-					void navigate({
-						to: ".",
-						search: (prev) => ({ ...prev, search: e.target.value }),
-					})
-				}
+				value={searchValue}
+				onChange={(e) => onSearchChange(e.target.value)}
 			/>
 			<DataTable table={table} />
 		</div>
 	);
-};
+}
