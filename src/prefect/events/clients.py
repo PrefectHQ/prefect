@@ -1,11 +1,13 @@
 import abc
 import asyncio
+import os
 from types import TracebackType
 from typing import (
     TYPE_CHECKING,
     Any,
     ClassVar,
     Dict,
+    Generator,
     List,
     MutableMapping,
     Optional,
@@ -13,20 +15,22 @@ from typing import (
     Type,
     cast,
 )
+from urllib.parse import urlparse
 from uuid import UUID
 
 import orjson
 import pendulum
 from cachetools import TTLCache
 from prometheus_client import Counter
+from python_socks.async_.asyncio import Proxy
 from typing_extensions import Self
 from websockets import Subprotocol
-from websockets.client import WebSocketClientProtocol, connect
 from websockets.exceptions import (
     ConnectionClosed,
     ConnectionClosedError,
     ConnectionClosedOK,
 )
+from websockets.legacy.client import Connect, WebSocketClientProtocol
 
 from prefect.events import Event
 from prefect.logging import get_logger
@@ -78,6 +82,53 @@ def events_in_socket_from_api_url(url: str):
 
 def events_out_socket_from_api_url(url: str):
     return http_to_ws(url) + "/events/out"
+
+
+class WebsocketProxyConnect(Connect):
+    def __init__(self: Self, uri: str, **kwargs: Any):
+        # super() is intentionally deferred to the _proxy_connect method
+        # to allow for the socket to be established first
+
+        self.uri = uri
+        self._kwargs = kwargs
+
+        u = urlparse(uri)
+        host = u.hostname
+
+        if u.scheme == "ws":
+            port = u.port or 80
+            proxy_url = os.environ.get("HTTP_PROXY")
+        elif u.scheme == "wss":
+            port = u.port or 443
+            proxy_url = os.environ.get("HTTPS_PROXY")
+            kwargs["server_hostname"] = host
+        else:
+            raise ValueError(
+                "Unsupported scheme %s. Expected 'ws' or 'wss'. " % u.scheme
+            )
+
+        self._proxy = Proxy.from_url(proxy_url) if proxy_url else None
+        self._host = host
+        self._port = port
+
+    async def _proxy_connect(self: Self) -> WebSocketClientProtocol:
+        if self._proxy:
+            sock = await self._proxy.connect(
+                dest_host=self._host,
+                dest_port=self._port,
+            )
+            self._kwargs["sock"] = sock
+
+        super().__init__(self.uri, **self._kwargs)
+        proto = await self.__await_impl__()
+        return proto
+
+    def __await__(self: Self) -> Generator[Any, None, WebSocketClientProtocol]:
+        return self._proxy_connect().__await__()
+
+
+def websocket_connect(uri: str, **kwargs: Any) -> WebsocketProxyConnect:
+    return WebsocketProxyConnect(uri, **kwargs)
 
 
 def get_events_client(
@@ -265,7 +316,7 @@ class PrefectEventsClient(EventsClient):
             )
 
         self._events_socket_url = events_in_socket_from_api_url(api_url)
-        self._connect = connect(self._events_socket_url)
+        self._connect = websocket_connect(self._events_socket_url)
         self._websocket = None
         self._reconnection_attempts = reconnection_attempts
         self._unconfirmed_events = []
@@ -435,7 +486,7 @@ class PrefectCloudEventsClient(PrefectEventsClient):
             reconnection_attempts=reconnection_attempts,
             checkpoint_every=checkpoint_every,
         )
-        self._connect = connect(
+        self._connect = websocket_connect(
             self._events_socket_url,
             extra_headers={"Authorization": f"bearer {api_key}"},
         )
@@ -494,7 +545,7 @@ class PrefectEventSubscriber:
 
         logger.debug("Connecting to %s", socket_url)
 
-        self._connect = connect(
+        self._connect = websocket_connect(
             socket_url,
             subprotocols=[Subprotocol("prefect")],
         )

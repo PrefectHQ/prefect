@@ -1,0 +1,20 @@
+services:
+  server:
+    build: .
+    networks:
+      - internal_net
+
+  forward_proxy:
+    image: ubuntu/squid
+    ports:
+      - "3128:3128"
+    volumes:
+      - ./squid.conf:/etc/squid/squid.conf
+    networks:
+      - internal_net
+      - external_net
+
+networks:
+  internal_net:
+    internal: true
+  external_net:
