@@ -600,6 +600,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 message=message,
                 name="TimedOut",
             )
+            self.record_terminal_state_timing(state)
             self.set_state(state)
             self._raised = exc
 
@@ -1134,6 +1135,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 message=message,
                 name="TimedOut",
             )
+            self.record_terminal_state_timing(state)
             await self.set_state(state)
             self._raised = exc
             self._telemetry.end_span_on_failure(state.message)
