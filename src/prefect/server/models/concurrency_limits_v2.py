@@ -12,51 +12,25 @@ from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
 
 
-def greatest(
-    db: PrefectDBInterface, clamped_value: int, sql_value: ColumnElement
-) -> ColumnElement:
-    # Determine the greatest value based on the database type
-    if db.dialect.name == "sqlite":
-        # `sa.func.greatest` isn't available in SQLite, fallback to using a
-        # `case` statement.
-        return sa.case((clamped_value > sql_value, clamped_value), else_=sql_value)
-    else:
-        return sa.func.greatest(clamped_value, sql_value)
-
-
-def seconds_ago(db: PrefectDBInterface, field: ColumnElement) -> ColumnElement:
-    if db.dialect.name == "sqlite":
-        # `sa.func.timezone` isn't available in SQLite, fallback to using
-        # `julianday` .
-        return (sa.func.julianday("now") - sa.func.julianday(field)) * 86400.0
-    else:
-        return sa.func.extract(
-            "epoch",
-            sa.func.timezone("UTC", sa.func.now()) - sa.func.timezone("UTC", field),
-        ).cast(sa.Float)
-
-
-def active_slots_after_decay(db: PrefectDBInterface) -> ColumnElement[float]:
+def active_slots_after_decay() -> ColumnElement[float]:
     # Active slots will decay at a rate of `slot_decay_per_second` per second.
-    return greatest(
-        db,
+    return sa.func.greatest(
         0,
         orm_models.ConcurrencyLimitV2.active_slots
         - sa.func.floor(
             orm_models.ConcurrencyLimitV2.slot_decay_per_second
-            * seconds_ago(db, orm_models.ConcurrencyLimitV2.updated)
+            * sa.func.date_diff_seconds(orm_models.ConcurrencyLimitV2.updated)
         ),
     )
 
 
-def denied_slots_after_decay(db: PrefectDBInterface) -> ColumnElement[float]:
+def denied_slots_after_decay() -> ColumnElement[float]:
     # Denied slots decay at a rate of `slot_decay_per_second` per second if it's
     # greater than 0, otherwise it decays at a rate of `avg_slot_occupancy_seconds`.
     # The combination of `denied_slots` and `slot_decay_per_second` /
     # `avg_slot_occupancy_seconds` is used to by the API to give a best guess at
     # when slots will be available again.
-    return greatest(
-        db,
+    return sa.func.greatest(
         0,
         orm_models.ConcurrencyLimitV2.denied_slots
         - sa.func.floor(
@@ -73,7 +47,7 @@ def denied_slots_after_decay(db: PrefectDBInterface) -> ColumnElement[float]:
                     )
                 ),
             )
-            * seconds_ago(db, orm_models.ConcurrencyLimitV2.updated)
+            * sa.func.date_diff_seconds(orm_models.ConcurrencyLimitV2.updated)
         ),
     )
 
@@ -232,8 +206,8 @@ async def bulk_increment_active_slots(
     concurrency_limit_ids: List[UUID],
     slots: int,
 ) -> bool:
-    active_slots = active_slots_after_decay(db)
-    denied_slots = denied_slots_after_decay(db)
+    active_slots = active_slots_after_decay()
+    denied_slots = denied_slots_after_decay()
 
     query = (
         sa.update(orm_models.ConcurrencyLimitV2)

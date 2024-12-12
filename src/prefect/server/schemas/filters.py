@@ -151,11 +151,9 @@ class FlowFilterTags(PrefectOperatorFilterBaseModel):
     )
 
     def _get_filter_list(self) -> List:
-        from prefect.server.utilities.database import json_has_all_keys
-
         filters = []
         if self.all_ is not None:
-            filters.append(json_has_all_keys(orm_models.Flow.tags, self.all_))
+            filters.append(orm_models.Flow.tags.has_all(self.all_))
         if self.is_null_ is not None:
             filters.append(
                 orm_models.Flow.tags == []
@@ -266,16 +264,11 @@ class FlowRunFilterTags(PrefectOperatorFilterBaseModel):
     )
 
     def _get_filter_list(self) -> List:
-        from prefect.server.utilities.database import (
-            json_has_all_keys,
-            json_has_any_key,
-        )
-
         filters = []
         if self.all_ is not None:
-            filters.append(json_has_all_keys(orm_models.FlowRun.tags, self.all_))
+            filters.append(orm_models.FlowRun.tags.has_all(self.all_))
         if self.any_ is not None:
-            filters.append(json_has_any_key(orm_models.FlowRun.tags, self.any_))
+            filters.append(orm_models.FlowRun.tags.has_any(self.any_))
         if self.is_null_ is not None:
             filters.append(
                 orm_models.FlowRun.tags == []
@@ -765,11 +758,9 @@ class TaskRunFilterTags(PrefectOperatorFilterBaseModel):
     )
 
     def _get_filter_list(self) -> List:
-        from prefect.server.utilities.database import json_has_all_keys
-
         filters = []
         if self.all_ is not None:
-            filters.append(json_has_all_keys(orm_models.TaskRun.tags, self.all_))
+            filters.append(orm_models.TaskRun.tags.has_all(self.all_))
         if self.is_null_ is not None:
             filters.append(
                 orm_models.TaskRun.tags == []
@@ -1083,11 +1074,9 @@ class DeploymentFilterTags(PrefectOperatorFilterBaseModel):
     )
 
     def _get_filter_list(self) -> List:
-        from prefect.server.utilities.database import json_has_all_keys
-
         filters = []
         if self.all_ is not None:
-            filters.append(json_has_all_keys(orm_models.Deployment.tags, self.all_))
+            filters.append(orm_models.Deployment.tags.has_all(self.all_))
         if self.is_null_ is not None:
             filters.append(
                 orm_models.Deployment.tags == []
@@ -1420,13 +1409,9 @@ class BlockSchemaFilterCapabilities(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(self) -> List:
-        from prefect.server.utilities.database import json_has_all_keys
-
         filters = []
         if self.all_ is not None:
-            filters.append(
-                json_has_all_keys(orm_models.BlockSchema.capabilities, self.all_)
-            )
+            filters.append(orm_models.BlockSchema.capabilities.has_all(self.all_))
         return filters
 
 
@@ -2169,11 +2154,9 @@ class VariableFilterTags(PrefectOperatorFilterBaseModel):
     )
 
     def _get_filter_list(self) -> List:
-        from prefect.server.utilities.database import json_has_all_keys
-
         filters = []
         if self.all_ is not None:
-            filters.append(json_has_all_keys(orm_models.Variable.tags, self.all_))
+            filters.append(orm_models.Variable.tags.has_all(self.all_))
         if self.is_null_ is not None:
             filters.append(
                 orm_models.Variable.tags == []

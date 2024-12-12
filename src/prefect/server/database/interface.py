@@ -359,9 +359,6 @@ class PrefectDBInterface(metaclass=DBSingleton):
         """INSERTs a model into the database"""
         return self.queries.insert(model)
 
-    def greatest(self, *values):
-        return self.queries.greatest(*values)
-
     def make_timestamp_intervals(
         self,
         start_time: datetime.datetime,

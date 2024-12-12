@@ -8,16 +8,14 @@ from functools import partial
 from typing import Dict, Hashable, Optional, Tuple
 
 import sqlalchemy as sa
-
-try:
-    from sqlalchemy import AdaptedConnection
-    from sqlalchemy.pool import ConnectionPoolEntry
-except ImportError:
-    # SQLAlchemy 1.4 equivalents
-    from sqlalchemy.pool import _ConnectionFairy as AdaptedConnection
-    from sqlalchemy.pool.base import _ConnectionRecord as ConnectionPoolEntry
-
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
+from sqlalchemy import AdaptedConnection
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    AsyncSessionTransaction,
+    create_async_engine,
+)
+from sqlalchemy.pool import ConnectionPoolEntry
 from typing_extensions import Literal
 
 from prefect.settings import (

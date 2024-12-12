@@ -61,14 +61,6 @@ class BaseQueryComponents(ABC):
     def insert(self, obj) -> Union[postgresql.Insert, sqlite.Insert]:
         """dialect-specific insert statement"""
 
-    @abstractmethod
-    def greatest(self, *values):
-        """dialect-specific SqlAlchemy binding"""
-
-    @abstractmethod
-    def least(self, *values):
-        """dialect-specific SqlAlchemy binding"""
-
     # --- dialect-specific JSON handling
 
     @abstractproperty
@@ -179,7 +171,7 @@ class BaseQueryComponents(ABC):
         concurrency_queues = (
             sa.select(
                 orm_models.WorkQueue.id,
-                self.greatest(
+                sa.func.greatest(
                     0,
                     orm_models.WorkQueue.concurrency_limit
                     - sa.func.count(orm_models.FlowRun.id),
@@ -628,12 +620,6 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
     def insert(self, obj) -> postgresql.Insert:
         return postgresql.insert(obj)
 
-    def greatest(self, *values):
-        return sa.func.greatest(*values)
-
-    def least(self, *values):
-        return sa.func.least(*values)
-
     # --- Postgres-specific JSON handling
 
     @property
@@ -983,12 +969,6 @@ class AioSqliteQueryComponents(BaseQueryComponents):
 
     def insert(self, obj) -> sqlite.Insert:
         return sqlite.insert(obj)
-
-    def greatest(self, *values):
-        return sa.func.max(*values)
-
-    def least(self, *values):
-        return sa.func.min(*values)
 
     # --- Sqlite-specific JSON handling
 
