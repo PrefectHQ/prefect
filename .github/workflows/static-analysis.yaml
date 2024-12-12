@@ -109,12 +109,11 @@ jobs:
 
           if (( $(echo "$BASE_SCORE > $CURRENT_SCORE" | bc -l) )); then
             echo "::notice We noticed a decrease in type coverage with these changes. Check workflow summary for more details."
-            echo "ℹ️ Type Completeness Check" >> $GITHUB_STEP_SUMMARY
-            echo "We noticed a decrease in type coverage with these changes." >> $GITHUB_STEP_SUMMARY
-            echo "To maintain our codebase quality, we aim to keep or improve type coverage with each change." >> $GITHUB_STEP_SUMMARY
+            echo "### ℹ️ Type Completeness Check" >> $GITHUB_STEP_SUMMARY
+            echo "We noticed a decrease in type coverage with these changes. To maintain our codebase quality, we aim to keep or improve type coverage with each change." >> $GITHUB_STEP_SUMMARY
+            echo "Need help? Ping @desertaxle or @zzstoatzz for assistance!" >> $GITHUB_STEP_SUMMARY
             echo "Here's what changed:" >> $GITHUB_STEP_SUMMARY
             uv run scripts/pyright_diff.py prefect-analysis-base.json prefect-analysis.json >> $GITHUB_STEP_SUMMARY
-            echo "Need help? Ping @desertaxle or @zzstoatzz for assistance!" >> $GITHUB_STEP_SUMMARY
             SCORE_DIFF=$(echo "$BASE_SCORE - $CURRENT_SCORE" | bc -l)
             if (( $(echo "$SCORE_DIFF > 0.001" | bc -l) )); then
                 exit 1
