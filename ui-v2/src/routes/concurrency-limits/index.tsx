@@ -7,6 +7,7 @@ import { z } from "zod";
 
 /**
  * Schema for validating URL search parameters for the Concurrency Limits page.
+ * @property {string} search used to filter data table
  * @property {'global' | 'task-run'} tab used designate which tab view to display
  */
 const searchParams = z.object({
@@ -16,7 +17,7 @@ const searchParams = z.object({
 
 export type TabOptions = z.infer<typeof searchParams>["tab"];
 
-export const Route = createFileRoute("/concurrency-limits")({
+export const Route = createFileRoute("/concurrency-limits/")({
 	validateSearch: zodSearchValidator(searchParams),
 	component: ConcurrencyPage,
 	wrapInSuspense: true,
