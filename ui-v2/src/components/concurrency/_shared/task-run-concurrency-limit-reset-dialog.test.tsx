@@ -1,4 +1,4 @@
-import { DeleteLimitDialog } from "./delete-dialog";
+import { TaskRunConcurrencyLimitResetDialog } from "./task-run-concurrency-limit-reset-dialog";
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -14,28 +14,32 @@ const MOCK_DATA = {
 	active_slots: [] as Array<string>,
 };
 
-test("DeleteLimitDialog can successfully call delete", async () => {
+test("TaskRunConcurrencyLimitResetDialog can successfully call delete", async () => {
 	const user = userEvent.setup();
 
 	// ------------ Setup
-	const mockOnDeleteFn = vi.fn();
+	const mockOnResetFn = vi.fn();
 	render(
-		<DeleteLimitDialog
+		<TaskRunConcurrencyLimitResetDialog
 			data={MOCK_DATA}
-			onDelete={mockOnDeleteFn}
+			onReset={mockOnResetFn}
 			onOpenChange={vi.fn()}
 		/>,
 		{ wrapper: createWrapper() },
 	);
 
 	// ------------ Act
-	expect(screen.getByRole("heading", { name: /delete concurrency limit/i }));
+	expect(
+		screen.getByRole("heading", {
+			name: /reset concurrency limit for tag my tag 0/i,
+		}),
+	);
 	await user.click(
 		screen.getByRole("button", {
-			name: /delete/i,
+			name: /reset/i,
 		}),
 	);
 
 	// ------------ Assert
-	expect(mockOnDeleteFn).toHaveBeenCalledOnce();
+	expect(mockOnResetFn).toHaveBeenCalledOnce();
 });
