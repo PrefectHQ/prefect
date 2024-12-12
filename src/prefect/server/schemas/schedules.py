@@ -11,7 +11,6 @@ import pendulum
 import pytz
 from croniter import croniter
 from pydantic import AfterValidator, ConfigDict, Field, field_validator, model_validator
-from pydantic_extra_types.pendulum_dt import DateTime
 
 from prefect._internal.schemas.validators import (
     default_anchor_date,
@@ -20,7 +19,7 @@ from prefect._internal.schemas.validators import (
     validate_rrule_string,
 )
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
-from prefect.types import TimeZone
+from prefect.types import DateTime, TimeZone
 
 MAX_ITERATIONS = 1000
 
