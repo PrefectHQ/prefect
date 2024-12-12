@@ -9,10 +9,10 @@ from pydantic import (
     field_validator,
 )
 from pydantic import Secret as PydanticSecret
-from pydantic_extra_types.pendulum_dt import DateTime as PydanticDateTime
 
 from prefect._internal.compatibility.deprecated import deprecated_class
 from prefect.blocks.core import Block
+from prefect.types import DateTime as PydanticDateTime
 
 _SecretValueType = Union[
     Annotated[StrictStr, Field(title="string")],
