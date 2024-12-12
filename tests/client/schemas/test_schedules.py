@@ -2,7 +2,6 @@ import datetime
 from itertools import combinations
 
 import pytest
-from pydantic_extra_types.pendulum_dt import DateTime
 
 from prefect.client.schemas.schedules import (
     CronSchedule,
@@ -10,6 +9,7 @@ from prefect.client.schemas.schedules import (
     RRuleSchedule,
     construct_schedule,
 )
+from prefect.types import DateTime
 
 
 class TestConstructSchedule:
