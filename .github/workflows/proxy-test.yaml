@@ -8,7 +8,7 @@ on:
     paths:
       - .github/workflows/proxy-test.yaml
       - scripts/proxy-test/*
-      - "src/prefect/utilities/proxy.py"
+      - "src/prefect/events/clients.py"
       - requirements.txt
       - requirements-client.txt
       - requirements-dev.txt
@@ -18,7 +18,7 @@ on:
     paths:
       - .github/workflows/proxy-test.yaml
       - scripts/proxy-test/*
-      - "src/prefect/utilities/proxy.py"
+      - "src/prefect/events/clients.py"
       - requirements.txt
       - requirements-client.txt
       - requirements-dev.txt
