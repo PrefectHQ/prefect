@@ -5,7 +5,7 @@ from builtins import print
 from contextlib import contextmanager
 from functools import lru_cache
 from logging import LogRecord
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from typing_extensions import Self
 
@@ -14,8 +14,7 @@ from prefect.logging.filters import ObfuscateApiKeyFilter
 from prefect.telemetry.logging import add_telemetry_log_handler
 
 if TYPE_CHECKING:
-    from prefect.context import RunContext
-    from prefect.workers.base import BaseWorker
+    pass
 
 if sys.version_info >= (3, 12):
     LoggingAdapter = logging.LoggerAdapter[logging.Logger]
@@ -53,7 +52,7 @@ class PrefectLogAdapter(LoggingAdapter):
 
 
 @lru_cache()
-def get_logger(name: Optional[str] = None) -> logging.Logger:
+def get_logger(name=None) -> logging.Logger:
     """
     Get a `prefect` logger. These loggers are intended for internal use within the
     `prefect` package.
@@ -82,9 +81,7 @@ def get_logger(name: Optional[str] = None) -> logging.Logger:
     return logger
 
 
-def get_run_logger(
-    context: Optional["RunContext"] = None, **kwargs
-) -> Union[logging.Logger, LoggingAdapter]:
+def get_run_logger(context=None, **kwargs):
     """
     Get a Prefect logger for the current task run or flow run.
 
@@ -221,7 +218,7 @@ def task_run_logger(
     )
 
 
-def get_worker_logger(worker: "BaseWorker", name: Optional[str] = None):
+def get_worker_logger(worker, name=None):
     """
     Create a worker logger with the worker's metadata attached.
 
@@ -245,7 +242,7 @@ def get_worker_logger(worker: "BaseWorker", name: Optional[str] = None):
 
 
 @contextmanager
-def disable_logger(name: str):
+def disable_logger(name):
     """
     Get a logger by name and disables it within the context manager.
     Upon exiting the context manager, the logger is returned to its
