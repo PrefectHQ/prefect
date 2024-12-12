@@ -7,7 +7,7 @@ import { useState } from "react";
 import { GlobalConcurrencyDataTable } from "./data-table";
 import { type DialogState, DialogView } from "./dialog";
 import { GlobalConcurrencyLimitEmptyState } from "./empty-state";
-import { GlobalConcurrencyLimitsHeader } from "./global-concurrency-limits-header";
+import { GlobalConcurrencyLimitsHeader } from "./header";
 
 export const GlobalConcurrencyView = () => {
 	const [openDialog, setOpenDialog] = useState<DialogState>({

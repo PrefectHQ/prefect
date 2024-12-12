@@ -1,7 +1,6 @@
 from uuid import UUID, uuid4
 
 import pytest
-from pydantic_extra_types.pendulum_dt import DateTime
 
 import prefect.exceptions
 from prefect import flow
@@ -23,6 +22,7 @@ from prefect.states import (
     StateType,
 )
 from prefect.testing.cli import invoke_and_assert
+from prefect.types import DateTime
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 
 

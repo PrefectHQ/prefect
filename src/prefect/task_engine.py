@@ -4,7 +4,7 @@ import logging
 import threading
 import time
 from asyncio import CancelledError
-from contextlib import ExitStack, asynccontextmanager, contextmanager
+from contextlib import ExitStack, asynccontextmanager, contextmanager, nullcontext
 from dataclasses import dataclass, field
 from functools import partial
 from textwrap import dedent
@@ -523,7 +523,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         self.set_state(terminal_state)
         self._return_value = result
 
-        self._telemetry.end_span_on_success(terminal_state.message)
+        self._telemetry.end_span_on_success()
         return result
 
     def handle_retry(self, exc: Exception) -> bool:
@@ -586,7 +586,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             self.record_terminal_state_timing(state)
             self.set_state(state)
             self._raised = exc
-            self._telemetry.end_span_on_failure(state.message)
+            self._telemetry.end_span_on_failure(state.message if state else None)
 
     def handle_timeout(self, exc: TimeoutError) -> None:
         if not self.handle_retry(exc):
@@ -600,6 +600,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 message=message,
                 name="TimedOut",
             )
+            self.record_terminal_state_timing(state)
             self.set_state(state)
             self._raised = exc
 
@@ -611,7 +612,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         self.set_state(state, force=True)
         self._raised = exc
         self._telemetry.record_exception(exc)
-        self._telemetry.end_span_on_failure(state.message)
+        self._telemetry.end_span_on_failure(state.message if state else None)
 
     @contextmanager
     def setup_run_context(self, client: Optional[SyncPrefectClient] = None):
@@ -669,7 +670,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             with SyncClientContext.get_or_create() as client_ctx:
                 self._client = client_ctx.client
                 self._is_started = True
-                flow_run_context = FlowRunContext.get()
+                parent_flow_run_context = FlowRunContext.get()
                 parent_task_run_context = TaskRunContext.get()
 
                 try:
@@ -678,7 +679,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                             self.task.create_local_run(
                                 id=task_run_id,
                                 parameters=self.parameters,
-                                flow_run_context=flow_run_context,
+                                flow_run_context=parent_flow_run_context,
                                 parent_task_run_context=parent_task_run_context,
                                 wait_for=self.wait_for,
                                 extra_task_inputs=dependencies,
@@ -696,11 +697,16 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                         self.logger.debug(
                             f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
                         )
-                        labels = (
-                            flow_run_context.flow_run.labels if flow_run_context else {}
-                        )
+
+                        parent_labels = {}
+                        if parent_flow_run_context and parent_flow_run_context.flow_run:
+                            parent_labels = parent_flow_run_context.flow_run.labels
+
                         self._telemetry.start_span(
-                            self.task_run, self.parameters, labels
+                            run=self.task_run,
+                            name=self.task.name,
+                            parameters=self.parameters,
+                            parent_labels=parent_labels,
                         )
 
                         yield self
@@ -754,7 +760,9 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
     ) -> Generator[None, None, None]:
         with self.initialize_run(task_run_id=task_run_id, dependencies=dependencies):
-            with trace.use_span(self._telemetry._span):
+            with trace.use_span(
+                self._telemetry.span
+            ) if self._telemetry.span else nullcontext():
                 self.begin_run()
                 try:
                     yield
@@ -1057,7 +1065,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         await self.set_state(terminal_state)
         self._return_value = result
 
-        self._telemetry.end_span_on_success(terminal_state.message)
+        self._telemetry.end_span_on_success()
 
         return result
 
@@ -1134,6 +1142,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 message=message,
                 name="TimedOut",
             )
+            self.record_terminal_state_timing(state)
             await self.set_state(state)
             self._raised = exc
             self._telemetry.end_span_on_failure(state.message)
@@ -1204,15 +1213,16 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             async with AsyncClientContext.get_or_create():
                 self._client = get_client()
                 self._is_started = True
-                flow_run_context = FlowRunContext.get()
+                parent_flow_run_context = FlowRunContext.get()
+                parent_task_run_context = TaskRunContext.get()
 
                 try:
                     if not self.task_run:
                         self.task_run = await self.task.create_local_run(
                             id=task_run_id,
                             parameters=self.parameters,
-                            flow_run_context=flow_run_context,
-                            parent_task_run_context=TaskRunContext.get(),
+                            flow_run_context=parent_flow_run_context,
+                            parent_task_run_context=parent_task_run_context,
                             wait_for=self.wait_for,
                             extra_task_inputs=dependencies,
                         )
@@ -1229,11 +1239,15 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                             f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
                         )
 
-                        labels = (
-                            flow_run_context.flow_run.labels if flow_run_context else {}
-                        )
+                        parent_labels = {}
+                        if parent_flow_run_context and parent_flow_run_context.flow_run:
+                            parent_labels = parent_flow_run_context.flow_run.labels
+
                         self._telemetry.start_span(
-                            self.task_run, self.parameters, labels
+                            run=self.task_run,
+                            name=self.task.name,
+                            parameters=self.parameters,
+                            parent_labels=parent_labels,
                         )
 
                         yield self
@@ -1289,7 +1303,9 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         async with self.initialize_run(
             task_run_id=task_run_id, dependencies=dependencies
         ):
-            with trace.use_span(self._telemetry._span):
+            with trace.use_span(
+                self._telemetry.span
+            ) if self._telemetry.span else nullcontext():
                 await self.begin_run()
                 try:
                     yield
