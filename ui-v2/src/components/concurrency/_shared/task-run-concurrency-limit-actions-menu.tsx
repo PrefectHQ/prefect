@@ -7,16 +7,19 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icons";
-import { type TaskRunConcurrencyLimit } from "@/hooks/task-run-concurrency-limits";
 import { useToast } from "@/hooks/use-toast";
-import { CellContext } from "@tanstack/react-table";
 
-type Props = CellContext<TaskRunConcurrencyLimit, unknown> & {
-	onDeleteRow: (row: TaskRunConcurrencyLimit) => void;
-	onResetRow: (row: TaskRunConcurrencyLimit) => void;
+type Props = {
+	id: string | undefined;
+	onDelete: () => void;
+	onReset: () => void;
 };
 
-export const ActionsCell = ({ onDeleteRow, onResetRow, ...props }: Props) => {
+export const TaskRunConcurrencyLimitActionsMenu = ({
+	id,
+	onDelete,
+	onReset,
+}: Props) => {
 	const { toast } = useToast();
 
 	const handleCopyId = (id: string | undefined) => {
@@ -24,10 +27,8 @@ export const ActionsCell = ({ onDeleteRow, onResetRow, ...props }: Props) => {
 			throw new Error("'id' field expected in GlobalConcurrencyLimit");
 		}
 		void navigator.clipboard.writeText(id);
-		toast({ title: "Name copied" });
+		toast({ title: "ID copied" });
 	};
-
-	const row = props.row.original;
 
 	return (
 		<div className="flex flex-row justify-end">
@@ -40,15 +41,11 @@ export const ActionsCell = ({ onDeleteRow, onResetRow, ...props }: Props) => {
 				</DropdownMenuTrigger>
 				<DropdownMenuContent align="end">
 					<DropdownMenuLabel>Actions</DropdownMenuLabel>
-					<DropdownMenuItem onClick={() => handleCopyId(row.id)}>
+					<DropdownMenuItem onClick={() => handleCopyId(id)}>
 						Copy ID
 					</DropdownMenuItem>
-					<DropdownMenuItem onClick={() => onDeleteRow(row)}>
-						Delete
-					</DropdownMenuItem>
-					<DropdownMenuItem onClick={() => onResetRow(row)}>
-						Reset
-					</DropdownMenuItem>
+					<DropdownMenuItem onClick={onDelete}>Delete</DropdownMenuItem>
+					<DropdownMenuItem onClick={onReset}>Reset</DropdownMenuItem>
 				</DropdownMenuContent>
 			</DropdownMenu>
 		</div>

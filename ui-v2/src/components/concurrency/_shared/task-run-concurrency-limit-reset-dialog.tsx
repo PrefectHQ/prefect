@@ -20,7 +20,11 @@ type Props = {
 	onReset: () => void;
 };
 
-export const ResetLimitDialog = ({ data, onOpenChange, onReset }: Props) => {
+export const TaskRunConcurrencyLimitResetDialog = ({
+	data,
+	onOpenChange,
+	onReset,
+}: Props) => {
 	const { toast } = useToast();
 	const { resetTaskRunConcurrencyLimitTag, isPending } =
 		useResetTaskRunConcurrencyLimitTag();

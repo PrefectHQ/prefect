@@ -13,7 +13,7 @@ import { useDeferredValue, useMemo } from "react";
 import { ActionsCell } from "./actions-cell";
 import { ActiveCell } from "./active-cell";
 
-const routeApi = getRouteApi("/concurrency-limits");
+const routeApi = getRouteApi("/concurrency-limits/");
 
 const columnHelper = createColumnHelper<GlobalConcurrencyLimit>();
 

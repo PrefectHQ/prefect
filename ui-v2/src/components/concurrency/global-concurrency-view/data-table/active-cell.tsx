@@ -15,7 +15,7 @@ export const ActiveCell = (
 
 	const handleCheckedChange = (checked: boolean, id: string | undefined) => {
 		if (!id) {
-			throw new Error("Expecting 'id' of global concurrent limit");
+			throw new Error("Expecting 'id' of global concurrency limit");
 		}
 
 		updateGlobalConcurrencyLimit(

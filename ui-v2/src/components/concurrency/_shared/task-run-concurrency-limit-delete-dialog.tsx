@@ -20,7 +20,11 @@ type Props = {
 	onDelete: () => void;
 };
 
-export const DeleteLimitDialog = ({ data, onOpenChange, onDelete }: Props) => {
+export const TaskRunConcurrencyLimitDeleteDialog = ({
+	data,
+	onOpenChange,
+	onDelete,
+}: Props) => {
 	const { toast } = useToast();
 	const { deleteTaskRunConcurrencyLimit, isPending } =
 		useDeleteTaskRunConcurrencyLimit();
