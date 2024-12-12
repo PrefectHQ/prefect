@@ -1,9 +1,9 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TabOptions } from "@/routes/concurrency-limits";
+import type { TabOptions } from "@/routes/concurrency-limits";
 import { getRouteApi } from "@tanstack/react-router";
 import type { JSX } from "react";
 
-const routeApi = getRouteApi("/concurrency-limits");
+const routeApi = getRouteApi("/concurrency-limits/");
 
 type TabOptionValues = {
 	/** Value of search value in url */
@@ -18,7 +18,7 @@ const TAB_OPTIONS: Record<TabOptions, TabOptionValues> = {
 		tabSearchValue: "global",
 		displayValue: "Global",
 	},
-	["task-run"]: {
+	"task-run": {
 		tabSearchValue: "task-run",
 		displayValue: "Task Run",
 	},
