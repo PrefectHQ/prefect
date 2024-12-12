@@ -16,7 +16,7 @@ const searchParams = z.object({
 
 export type TabOptions = z.infer<typeof searchParams>["tab"];
 
-export const Route = createFileRoute("/concurrency-limits")({
+export const Route = createFileRoute("/concurrency-limits/")({
 	validateSearch: zodSearchValidator(searchParams),
 	component: ConcurrencyPage,
 	wrapInSuspense: true,
