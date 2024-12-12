@@ -1,21 +1,27 @@
 import time
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 
+from opentelemetry import propagate, trace
 from opentelemetry.propagators.textmap import Setter
 from opentelemetry.trace import (
+    Span,
     Status,
     StatusCode,
     get_tracer,
 )
 
 import prefect
-from prefect.client.schemas import TaskRun
+from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.objects import State
+from prefect.context import FlowRunContext
 from prefect.types import KeyValueLabels
 
 if TYPE_CHECKING:
     from opentelemetry.trace import Tracer
+
+LABELS_TRACEPARENT_KEY = "__OTEL_TRACEPARENT"
+TRACEPARENT_KEY = "traceparent"
 
 
 class OTELSetter(Setter[KeyValueLabels]):
@@ -36,67 +42,74 @@ class RunTelemetry:
     _tracer: "Tracer" = field(
         default_factory=lambda: get_tracer("prefect", prefect.__version__)
     )
-    _span = None
+    span: Optional[Span] = None
 
     def start_span(
         self,
-        task_run: TaskRun,
+        run: Union[TaskRun, FlowRun],
+        name: Optional[str] = None,
         parameters: Optional[Dict[str, Any]] = None,
-        labels: Optional[Dict[str, Any]] = None,
+        parent_labels: Optional[Dict[str, Any]] = None,
     ):
         """
         Start a span for a task run.
         """
         if parameters is None:
             parameters = {}
-        if labels is None:
-            labels = {}
+        if parent_labels is None:
+            parent_labels = {}
         parameter_attributes = {
             f"prefect.run.parameter.{k}": type(v).__name__
             for k, v in parameters.items()
         }
-        self._span = self._tracer.start_span(
-            name=task_run.name,
+        run_type = "task" if isinstance(run, TaskRun) else "flow"
+
+        self.span = self._tracer.start_span(
+            name=name or run.name,
             attributes={
-                "prefect.run.type": "task",
-                "prefect.run.id": str(task_run.id),
-                "prefect.tags": task_run.tags,
+                f"prefect.{run_type}.name": name or run.name,
+                "prefect.run.type": run_type,
+                "prefect.run.id": str(run.id),
+                "prefect.tags": run.tags,
                 **parameter_attributes,
-                **labels,
+                **parent_labels,
             },
         )
+        return self.span
 
-    def end_span_on_success(self, terminal_message: str) -> None:
+    def end_span_on_success(self) -> None:
         """
         End a span for a task run on success.
         """
-        if self._span:
-            self._span.set_status(Status(StatusCode.OK), terminal_message)
-            self._span.end(time.time_ns())
-            self._span = None
+        if self.span:
+            self.span.set_status(Status(StatusCode.OK))
+            self.span.end(time.time_ns())
+            self.span = None
 
-    def end_span_on_failure(self, terminal_message: str) -> None:
+    def end_span_on_failure(self, terminal_message: Optional[str] = None) -> None:
         """
         End a span for a task run on failure.
         """
-        if self._span:
-            self._span.set_status(Status(StatusCode.ERROR, terminal_message))
-            self._span.end(time.time_ns())
-            self._span = None
+        if self.span:
+            self.span.set_status(
+                Status(StatusCode.ERROR, terminal_message or "Run failed")
+            )
+            self.span.end(time.time_ns())
+            self.span = None
 
-    def record_exception(self, exc: Exception) -> None:
+    def record_exception(self, exc: BaseException) -> None:
         """
         Record an exception on a span.
         """
-        if self._span:
-            self._span.record_exception(exc)
+        if self.span:
+            self.span.record_exception(exc)
 
     def update_state(self, new_state: State) -> None:
         """
         Update a span with the state of a task run.
         """
-        if self._span:
-            self._span.add_event(
+        if self.span:
+            self.span.add_event(
                 new_state.name or new_state.type,
                 {
                     "prefect.state.message": new_state.message or "",
@@ -105,3 +118,29 @@ class RunTelemetry:
                     "prefect.state.id": str(new_state.id),
                 },
             )
+
+    def propagate_traceparent(self) -> Optional[KeyValueLabels]:
+        """
+        Propagate a traceparent to a span.
+        """
+        parent_flow_run_ctx = FlowRunContext.get()
+
+        if parent_flow_run_ctx and parent_flow_run_ctx.flow_run:
+            if traceparent := parent_flow_run_ctx.flow_run.labels.get(
+                LABELS_TRACEPARENT_KEY
+            ):
+                carrier: KeyValueLabels = {TRACEPARENT_KEY: traceparent}
+                propagate.get_global_textmap().inject(
+                    carrier={TRACEPARENT_KEY: traceparent},
+                    setter=OTELSetter(),
+                )
+                return carrier
+            else:
+                if self.span:
+                    carrier: KeyValueLabels = {}
+                    propagate.get_global_textmap().inject(
+                        carrier,
+                        context=trace.set_span_in_context(self.span),
+                        setter=OTELSetter(),
+                    )
+                    return carrier
