@@ -585,6 +585,11 @@ class DeploymentFlowRunCreate(ActionBaseModel):
             " has already been created, the existing flow run will be returned."
         ),
     )
+    labels: Union[schemas.core.KeyValueLabels, None] = Field(
+        None,
+        description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
+        examples=[{"key": "value1", "key2": 42}],
+    )
     parent_task_run_id: Optional[UUID] = Field(None)
     work_queue_name: Optional[str] = Field(None)
     job_variables: Optional[Dict[str, Any]] = Field(None)
