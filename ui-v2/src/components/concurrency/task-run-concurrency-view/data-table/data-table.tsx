@@ -12,8 +12,9 @@ import { SearchInput } from "@/components/ui/input";
 import { useDeferredValue, useMemo } from "react";
 import { ActionsCell } from "./actions-cell";
 import { ActiveTaskRunCells } from "./active-task-runs-cell";
+import { TagCell } from "./tag-cell";
 
-const routeApi = getRouteApi("/concurrency-limits");
+const routeApi = getRouteApi("/concurrency-limits/");
 
 const columnHelper = createColumnHelper<TaskRunConcurrencyLimit>();
 
@@ -25,7 +26,8 @@ const createColumns = ({
 	onResetRow: (row: TaskRunConcurrencyLimit) => void;
 }) => [
 	columnHelper.accessor("tag", {
-		header: "Tag", // TODO: Make this a link when starting the tak run concurrency page
+		header: "Tag",
+		cell: TagCell,
 	}),
 	columnHelper.accessor("concurrency_limit", {
 		header: "Slots",
