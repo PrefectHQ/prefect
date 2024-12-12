@@ -4,7 +4,6 @@ from uuid import uuid4
 
 import pendulum
 import pytest
-from pendulum.datetime import DateTime
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,6 +22,7 @@ from prefect.server.models import deployments, flows
 from prefect.server.schemas.actions import DeploymentScheduleCreate
 from prefect.server.schemas.core import Deployment, Flow
 from prefect.server.schemas.schedules import IntervalSchedule
+from prefect.types import DateTime
 from prefect.utilities.pydantic import parse_obj_as
 
 

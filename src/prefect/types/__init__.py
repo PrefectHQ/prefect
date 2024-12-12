@@ -3,7 +3,8 @@ from typing import Annotated, Any, Dict, List, Optional, Set, TypeVar, Union
 from typing_extensions import Literal, TypeAlias
 import orjson
 import pydantic
-
+from pydantic_extra_types.pendulum_dt import DateTime as PydanticDateTime
+from pydantic_extra_types.pendulum_dt import Date as PydanticDate
 from pydantic import (
     BeforeValidator,
     Field,
@@ -34,6 +35,8 @@ TimeZone = Annotated[
     ),
 ]
 
+DateTime: TypeAlias = PydanticDateTime
+Date: TypeAlias = PydanticDate
 
 BANNED_CHARACTERS = ["/", "%", "&", ">", "<"]
 

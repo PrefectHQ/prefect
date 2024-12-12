@@ -17,7 +17,6 @@ from fastapi import (
     WebSocket,
     status,
 )
-from pydantic_extra_types.pendulum_dt import DateTime
 from starlette.websockets import WebSocketDisconnect
 
 import prefect.server.api.dependencies as dependencies
@@ -34,6 +33,7 @@ from prefect.server.schemas.responses import OrchestrationResult
 from prefect.server.task_queue import MultiQueue, TaskQueue
 from prefect.server.utilities import subscriptions
 from prefect.server.utilities.server import PrefectRouter
+from prefect.types import DateTime
 
 logger = get_logger("server.api")
 

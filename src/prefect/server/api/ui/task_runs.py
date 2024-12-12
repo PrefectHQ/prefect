@@ -6,7 +6,6 @@ import pendulum
 import sqlalchemy as sa
 from fastapi import Depends, HTTPException, status
 from pydantic import Field, model_serializer
-from pydantic_extra_types.pendulum_dt import DateTime
 
 import prefect.server.schemas as schemas
 from prefect._internal.schemas.bases import PrefectBaseModel
@@ -15,6 +14,7 @@ from prefect.server import models
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.utilities.server import PrefectRouter
+from prefect.types import DateTime
 
 logger = get_logger("orion.api.ui.task_runs")
 

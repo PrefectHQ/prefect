@@ -26,7 +26,6 @@ from typing import (
 )
 
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
-from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Self
 
 import prefect.logging
@@ -48,6 +47,7 @@ from prefect.settings.legacy import (
 )
 from prefect.states import State
 from prefect.task_runners import TaskRunner
+from prefect.types import DateTime
 from prefect.utilities.services import start_client_metrics_server
 
 T = TypeVar("T")

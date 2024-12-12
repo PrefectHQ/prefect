@@ -15,7 +15,6 @@ from fastapi import (
     Path,
     status,
 )
-from pydantic_extra_types.pendulum_dt import DateTime
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
@@ -29,6 +28,7 @@ from prefect.server.models.work_queues import (
 )
 from prefect.server.schemas.statuses import WorkQueueStatus
 from prefect.server.utilities.server import PrefectRouter
+from prefect.types import DateTime
 
 router = PrefectRouter(prefix="/work_queues", tags=["Work Queues"])
 

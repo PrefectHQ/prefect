@@ -8,7 +8,6 @@ import orjson
 import pendulum
 import pytest
 from httpx import Response
-from pendulum.datetime import DateTime
 from pydantic import TypeAdapter
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -35,6 +34,7 @@ from prefect.server.events.schemas.events import ReceivedEvent, RelatedResource
 from prefect.server.models import deployments, flow_runs, flows, work_queues
 from prefect.server.schemas.actions import WorkQueueCreate
 from prefect.server.schemas.core import Deployment, Flow, FlowRun, WorkQueue
+from prefect.types import DateTime
 
 
 @pytest.fixture

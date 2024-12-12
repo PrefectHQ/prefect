@@ -4,7 +4,6 @@ from uuid import UUID, uuid4
 
 import jsonschema
 from pydantic import Field, field_validator, model_validator
-from pydantic_extra_types.pendulum_dt import DateTime
 
 import prefect.client.schemas.objects as objects
 from prefect._internal.schemas.bases import ActionBaseModel
@@ -27,6 +26,7 @@ from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
 from prefect.types import (
     MAX_VARIABLE_NAME_LENGTH,
+    DateTime,
     KeyValueLabelsField,
     Name,
     NonEmptyishName,

@@ -25,7 +25,6 @@ from pydantic import (
     field_validator,
     model_validator,
 )
-from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Self, TypeAlias
 
 from prefect.logging import get_logger
@@ -39,6 +38,7 @@ from prefect.server.events.schemas.events import (
 )
 from prefect.server.schemas.actions import ActionBaseModel
 from prefect.server.utilities.schemas import ORMBaseModel, PrefectBaseModel
+from prefect.types import DateTime
 from prefect.utilities.collections import AutoEnum
 
 logger = get_logger(__name__)

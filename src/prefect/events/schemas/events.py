@@ -20,7 +20,6 @@ from pydantic import (
     RootModel,
     model_validator,
 )
-from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Annotated, Self
 
 from prefect._internal.schemas.bases import PrefectBaseModel
@@ -28,6 +27,7 @@ from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE,
 )
+from prefect.types import DateTime
 
 from .labelling import Labelled
 

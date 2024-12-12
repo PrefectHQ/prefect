@@ -19,7 +19,6 @@ from uuid import UUID
 
 import pendulum
 import sqlalchemy as sa
-from pendulum.datetime import DateTime
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import Literal, TypeAlias
 
@@ -57,6 +56,7 @@ from prefect.server.events.schemas.automations import (
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.utilities.messaging import Message, MessageHandler
 from prefect.settings import PREFECT_EVENTS_EXPIRED_BUCKET_BUFFER
+from prefect.types import DateTime
 
 if TYPE_CHECKING:
     from prefect.server.database.orm_models import ORMAutomationBucket

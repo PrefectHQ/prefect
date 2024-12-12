@@ -35,7 +35,6 @@ from pydantic import (
     model_validator,
 )
 from pydantic_core import PydanticUndefinedType
-from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import ParamSpec, Self
 
 import prefect
@@ -57,6 +56,7 @@ from prefect.locking.protocol import LockManager
 from prefect.logging import get_logger
 from prefect.serializers import PickleSerializer, Serializer
 from prefect.settings.context import get_current_settings
+from prefect.types import DateTime
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.pydantic import get_dispatch_key, lookup_type, register_base_type

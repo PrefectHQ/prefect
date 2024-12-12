@@ -5,7 +5,6 @@ from typing import cast
 from unittest.mock import MagicMock
 
 import pytest
-from pendulum.datetime import DateTime
 
 import prefect.settings
 from prefect import flow, task
@@ -40,6 +39,7 @@ from prefect.settings import (
 )
 from prefect.states import Running
 from prefect.task_runners import ThreadPoolTaskRunner
+from prefect.types import DateTime
 
 
 class ExampleContext(ContextModel):

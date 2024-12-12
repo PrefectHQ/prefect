@@ -6,10 +6,10 @@ from typing import List, Optional
 from uuid import UUID
 
 from pydantic import Field
-from pydantic_extra_types.pendulum_dt import DateTime
 
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect.client.schemas.objects import StateType
+from prefect.types import DateTime
 from prefect.utilities.collections import AutoEnum
 
 

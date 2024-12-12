@@ -5,7 +5,6 @@ from uuid import uuid4
 
 import pendulum
 import pytest
-from pydantic_extra_types.pendulum_dt import Date, DateTime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.events.counting import PIVOT_DATETIME, Countable, TimeUnit
@@ -18,6 +17,7 @@ from prefect.server.events.storage.database import (
     count_events,
     write_events,
 )
+from prefect.types import Date, DateTime
 
 # Note: the counts in this module are sensitive to the number and shape of events
 # we produce in conftest.py and may need to be adjusted if we make changes.

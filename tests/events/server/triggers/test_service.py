@@ -7,7 +7,6 @@ from uuid import UUID, uuid4
 
 import pendulum
 import pytest
-from pendulum.datetime import DateTime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.events import actions, triggers
@@ -22,6 +21,7 @@ from prefect.server.events.schemas.automations import (
 )
 from prefect.server.utilities.messaging import MessageHandler
 from prefect.server.utilities.messaging.memory import MemoryMessage
+from prefect.types import DateTime
 
 
 async def test_acting_publishes_an_action_message_from_a_reactive_event(

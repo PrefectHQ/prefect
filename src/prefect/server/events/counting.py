@@ -4,12 +4,12 @@ from typing import TYPE_CHECKING
 
 import pendulum
 import sqlalchemy as sa
-from pendulum.datetime import DateTime
 from sqlalchemy.sql.selectable import Select
 
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.utilities.database import json_extract
+from prefect.types import DateTime
 from prefect.utilities.collections import AutoEnum
 
 if TYPE_CHECKING:

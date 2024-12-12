@@ -21,7 +21,6 @@ from fastapi import (
     status,
 )
 from fastapi.responses import ORJSONResponse, PlainTextResponse, StreamingResponse
-from pydantic_extra_types.pendulum_dt import DateTime
 from sqlalchemy.exc import IntegrityError
 
 import prefect.server.api.dependencies as dependencies
@@ -45,6 +44,7 @@ from prefect.server.schemas.responses import (
     OrchestrationResult,
 )
 from prefect.server.utilities.server import PrefectRouter
+from prefect.types import DateTime
 from prefect.utilities import schema_tools
 
 logger = get_logger("server.api")

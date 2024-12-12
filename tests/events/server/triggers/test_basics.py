@@ -4,7 +4,6 @@ from unittest import mock
 from uuid import uuid4
 
 import pytest
-from pendulum.datetime import DateTime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.events import actions, triggers
@@ -18,6 +17,7 @@ from prefect.server.events.schemas.automations import (
 )
 from prefect.server.events.schemas.events import ReceivedEvent, matches
 from prefect.settings import PREFECT_EVENTS_EXPIRED_BUCKET_BUFFER
+from prefect.types import DateTime
 
 
 def test_triggers_have_identifiers(arachnophobia: Automation):

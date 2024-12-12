@@ -6,7 +6,6 @@ from uuid import UUID, uuid4
 import pytest
 import sqlalchemy as sa
 from pydantic import ValidationError
-from pydantic_extra_types.pendulum_dt import DateTime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.database.dependencies import db_injector
@@ -17,6 +16,7 @@ from prefect.server.events.services import event_persister
 from prefect.server.events.storage.database import query_events, write_events
 from prefect.server.utilities.messaging import CapturedMessage, Message, MessageHandler
 from prefect.settings import PREFECT_EVENTS_RETENTION_PERIOD, temporary_settings
+from prefect.types import DateTime
 
 if TYPE_CHECKING:
     from prefect.server.database.orm_models import ORMEventResource

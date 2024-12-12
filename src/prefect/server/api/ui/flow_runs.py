@@ -5,7 +5,6 @@ from uuid import UUID
 import sqlalchemy as sa
 from fastapi import Body, Depends
 from pydantic import Field
-from pydantic_extra_types.pendulum_dt import DateTime
 
 import prefect.server.schemas as schemas
 from prefect._internal.schemas.bases import PrefectBaseModel
@@ -15,6 +14,7 @@ from prefect.server.database import orm_models
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.utilities.server import PrefectRouter
+from prefect.types import DateTime
 
 logger = get_logger("server.api.ui.flow_runs")
 

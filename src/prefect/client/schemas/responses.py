@@ -3,13 +3,12 @@ from typing import Any, ClassVar, Generic, Optional, TypeVar, Union
 from uuid import UUID
 
 from pydantic import ConfigDict, Field
-from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Literal
 
 import prefect.client.schemas.objects as objects
 from prefect._internal.schemas.bases import ObjectBaseModel, PrefectBaseModel
 from prefect._internal.schemas.fields import CreatedBy, UpdatedBy
-from prefect.types import KeyValueLabelsField
+from prefect.types import DateTime, KeyValueLabelsField
 from prefect.utilities.collections import AutoEnum
 from prefect.utilities.names import generate_slug
 

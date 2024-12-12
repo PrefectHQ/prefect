@@ -3,9 +3,9 @@ from uuid import UUID
 
 import pendulum
 from pydantic import Field, PrivateAttr
-from pydantic_extra_types.pendulum_dt import DateTime
 
 from prefect._internal.schemas.bases import PrefectBaseModel
+from prefect.types import DateTime
 from prefect.utilities.collections import AutoEnum
 
 from .schemas.events import Event, Resource, ResourceSpecification

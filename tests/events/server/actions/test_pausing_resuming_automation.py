@@ -4,7 +4,6 @@ from uuid import uuid4
 
 import pendulum
 import pytest
-from pendulum.datetime import DateTime
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,6 +24,7 @@ from prefect.settings import (
     PREFECT_API_SERVICES_TRIGGERS_ENABLED,
     temporary_settings,
 )
+from prefect.types import DateTime
 from prefect.utilities.pydantic import parse_obj_as
 
 

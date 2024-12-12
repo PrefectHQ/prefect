@@ -13,7 +13,6 @@ import pendulum
 import pytest
 from exceptiongroup import ExceptionGroup, catch
 from pydantic import BaseModel
-from pydantic_extra_types.pendulum_dt import DateTime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect
@@ -30,6 +29,7 @@ from prefect.server.schemas.actions import (
 )
 from prefect.states import Cancelled, Cancelling, Completed, Pending, Running, Scheduled
 from prefect.testing.utilities import AsyncMock, MagicMock
+from prefect.types import DateTime
 from prefect.workers.process import (
     ProcessWorker,
     ProcessWorkerResult,
