@@ -4,7 +4,7 @@ Intended for internal use by the Prefect REST API.
 """
 
 import datetime
-from typing import Dict, Iterable, List, Optional, Sequence, TypeVar, cast
+from typing import Any, Dict, Iterable, List, Optional, Sequence, TypeVar, cast
 from uuid import UUID, uuid4
 
 import pendulum
@@ -21,7 +21,7 @@ from prefect.server.events.clients import PrefectServerEventsClient
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models.events import deployment_status_event
 from prefect.server.schemas.statuses import DeploymentStatus
-from prefect.server.utilities.database import json_contains
+from prefect.server.utilities.database import JSON
 from prefect.settings import (
     PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS,
     PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME,
@@ -795,7 +795,7 @@ async def check_work_queues_for_deployment(
 
     - Our database currently allows either "null" and empty lists as
     null values in filters, so we need to catch both cases with "or".
-    - `json_contains(A, B)` should be interpreted as "True if A
+    - `A.contains(B)` should be interpreted as "True if A
     contains B".
 
     Returns:
@@ -804,6 +804,9 @@ async def check_work_queues_for_deployment(
     deployment = await session.get(orm_models.Deployment, deployment_id)
     if not deployment:
         raise ObjectNotFoundError(f"Deployment with id {deployment_id} not found")
+
+    def json_contains(a: Any, b: Any) -> sa.ColumnElement[bool]:
+        return sa.type_coerce(a, type_=JSON).contains(sa.type_coerce(b, type_=JSON))
 
     query = (
         select(orm_models.WorkQueue)
