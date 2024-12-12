@@ -63,13 +63,6 @@ async def emit_lineage_event(
             the event. E.g., if we're in a flow run and
             `direction_of_run_from_event` is "downstream", then the flow run is
             considered downstream of the resource's event.
-
-    NOTE: We handle adding run-related resources to the event here instead of in
-    the EventsWorker because not all run-related resources are upstream from
-    every lineage event (they might be downstream). The EventsWorker only adds
-    related resources to the "related" field in the event, which, for
-    lineage-related events, tracks upstream resources only. For downstream
-    resources, we need to emit an event for each downstream resource.
     """
     from prefect.client.orchestration import get_client  # Avoid a circular import
 
@@ -82,6 +75,12 @@ async def emit_lineage_event(
     async with get_client() as client:
         related_resources = await related_resources_from_run_context(client)
 
+    # NOTE: We handle adding run-related resources to the event here instead of in
+    # the EventsWorker because not all run-related resources are upstream from
+    # every lineage event (they might be downstream). The EventsWorker only adds
+    # related resources to the "related" field in the event, which, for
+    # lineage-related events, tracks upstream resources only. For downstream
+    # resources, we need to emit an event for each downstream resource.
     if direction_of_run_from_event == "downstream":
         downstream_resources.extend(related_resources)
     else:
