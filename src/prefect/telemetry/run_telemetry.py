@@ -1,6 +1,6 @@
 import time
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from opentelemetry import propagate, trace
 from opentelemetry.context import Context
@@ -51,8 +51,8 @@ class RunTelemetry:
         run: Union[TaskRun, FlowRun],
         client: PrefectClient,
         name: Optional[str] = None,
-        parameters: Optional[Dict[str, Any]] = None,
-        parent_labels: Optional[Dict[str, Any]] = None,
+        parameters: Optional[dict[str, Any]] = None,
+        parent_labels: Optional[dict[str, Any]] = None,
     ):
         should_set_traceparent = self._should_set_traceparent(run)
         traceparent, span = self._start_span(run, name, parameters, parent_labels)
@@ -139,7 +139,7 @@ class RunTelemetry:
 
     def _traceparent_and_context_from_labels(
         self, labels: Optional[KeyValueLabels]
-    ) -> Tuple[Optional[str], Union[Context, None]]:
+    ) -> tuple[Optional[str], Union[Context, None]]:
         """Get trace context from run labels if it exists."""
         if not labels or LABELS_TRACEPARENT_KEY not in labels:
             return None, None
