@@ -32,7 +32,7 @@ from typing import (
 )
 from uuid import UUID, uuid4
 
-from typing_extensions import Literal, ParamSpec, Self, TypeIs
+from typing_extensions import Literal, ParamSpec, Self, TypeAlias, TypeIs
 
 import prefect.states
 from prefect.cache_policies import DEFAULT, NONE, CachePolicy
@@ -64,10 +64,7 @@ from prefect.settings import (
 )
 from prefect.states import Pending, Scheduled, State
 from prefect.utilities.annotations import NotSet
-from prefect.utilities.asyncutils import (
-    run_coro_as_sync,
-    sync_compatible,
-)
+from prefect.utilities.asyncutils import run_coro_as_sync, sync_compatible
 from prefect.utilities.callables import (
     expand_mapping_parameters,
     get_call_parameters,
@@ -89,6 +86,10 @@ P = ParamSpec("P")  # The parameters of the task
 NUM_CHARS_DYNAMIC_KEY = 8
 
 logger = get_logger("tasks")
+
+StateHookCallable: TypeAlias = Callable[
+    ["Task[..., Any]", TaskRun, State], Union[Awaitable[None], None]
+]
 
 
 def task_input_hash(
@@ -142,8 +143,8 @@ def exponential_backoff(backoff_factor: float) -> Callable[[int], List[float]]:
 def _infer_parent_task_runs(
     flow_run_context: Optional[FlowRunContext],
     task_run_context: Optional[TaskRunContext],
-    parameters: Dict[str, Any],
-):
+    parameters: dict[str, Any],
+) -> list[TaskRunResult]:
     """
     Attempt to infer the parent task runs for this task run based on the
     provided flow run and task run contexts, as well as any parameters. It is
@@ -152,7 +153,7 @@ def _infer_parent_task_runs(
     a parent. This is expected to happen when task inputs are yielded from
     generator tasks.
     """
-    parents = []
+    parents: list[TaskRunResult] = []
 
     # check if this task has a parent task run based on running in another
     # task run's existing context. A task run is only considered a parent if
@@ -342,11 +343,13 @@ class Task(Generic[P, R]):
         timeout_seconds: Union[int, float, None] = None,
         log_prints: Optional[bool] = False,
         refresh_cache: Optional[bool] = None,
-        on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
-        on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
-        on_rollback: Optional[List[Callable[["Transaction"], None]]] = None,
-        on_commit: Optional[List[Callable[["Transaction"], None]]] = None,
-        retry_condition_fn: Optional[Callable[["Task", TaskRun, State], bool]] = None,
+        on_completion: Optional[list[StateHookCallable]] = None,
+        on_failure: Optional[list[StateHookCallable]] = None,
+        on_rollback: Optional[list[Callable[["Transaction"], None]]] = None,
+        on_commit: Optional[list[Callable[["Transaction"], None]]] = None,
+        retry_condition_fn: Optional[
+            Callable[["Task[..., Any]", TaskRun, State], bool]
+        ] = None,
         viz_return_value: Optional[Any] = None,
     ):
         # Validate if hook passed is list and contains callables
@@ -516,7 +519,7 @@ class Task(Generic[P, R]):
     def ismethod(self) -> bool:
         return hasattr(self.fn, "__prefect_self__")
 
-    def __get__(self, instance, owner):
+    def __get__(self, instance: Any, owner: Any):
         """
         Implement the descriptor protocol so that the task can be used as an instance method.
         When an instance method is loaded, this method is called with the "self" instance as
@@ -567,13 +570,11 @@ class Task(Generic[P, R]):
         timeout_seconds: Union[int, float, None] = None,
         log_prints: Union[bool, Type[NotSet]] = NotSet,
         refresh_cache: Union[bool, Type[NotSet]] = NotSet,
-        on_completion: Optional[
-            List[Callable[["Task", TaskRun, State], Union[Awaitable[None], None]]]
+        on_completion: Optional[list[StateHookCallable]] = None,
+        on_failure: Optional[list[StateHookCallable]] = None,
+        retry_condition_fn: Optional[
+            Callable[["Task[..., Any]", TaskRun, State], bool]
         ] = None,
-        on_failure: Optional[
-            List[Callable[["Task", TaskRun, State], Union[Awaitable[None], None]]]
-        ] = None,
-        retry_condition_fn: Optional[Callable[["Task", TaskRun, State], bool]] = None,
         viz_return_value: Optional[Any] = None,
     ):
         """
@@ -710,15 +711,11 @@ class Task(Generic[P, R]):
             viz_return_value=viz_return_value or self.viz_return_value,
         )
 
-    def on_completion(
-        self, fn: Callable[["Task", TaskRun, State], None]
-    ) -> Callable[["Task", TaskRun, State], None]:
+    def on_completion(self, fn: StateHookCallable) -> StateHookCallable:
         self.on_completion_hooks.append(fn)
         return fn
 
-    def on_failure(
-        self, fn: Callable[["Task", TaskRun, State], None]
-    ) -> Callable[["Task", TaskRun, State], None]:
+    def on_failure(self, fn: StateHookCallable) -> StateHookCallable:
         self.on_failure_hooks.append(fn)
         return fn
 
@@ -741,7 +738,7 @@ class Task(Generic[P, R]):
         parameters: Optional[Dict[str, Any]] = None,
         flow_run_context: Optional[FlowRunContext] = None,
         parent_task_run_context: Optional[TaskRunContext] = None,
-        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
         extra_task_inputs: Optional[Dict[str, Set[TaskRunInput]]] = None,
         deferred: bool = False,
     ) -> TaskRun:
@@ -842,7 +839,7 @@ class Task(Generic[P, R]):
         parameters: Optional[Dict[str, Any]] = None,
         flow_run_context: Optional[FlowRunContext] = None,
         parent_task_run_context: Optional[TaskRunContext] = None,
-        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
         extra_task_inputs: Optional[Dict[str, Set[TaskRunInput]]] = None,
         deferred: bool = False,
     ) -> TaskRun:
@@ -983,7 +980,7 @@ class Task(Generic[P, R]):
         self,
         *args: P.args,
         return_state: bool = False,
-        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
         **kwargs: P.kwargs,
     ):
         """
@@ -1063,7 +1060,7 @@ class Task(Generic[P, R]):
         self,
         *args: Any,
         return_state: bool = False,
-        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
         **kwargs: Any,
     ):
         """
@@ -1516,7 +1513,7 @@ class Task(Generic[P, R]):
 
         return PrefectDistributedFuture(task_run_id=task_run.id)
 
-    def delay(self, *args: P.args, **kwargs: P.kwargs) -> PrefectDistributedFuture:
+    def delay(self, *args: P.args, **kwargs: P.kwargs) -> PrefectDistributedFuture[R]:
         """
         An alias for `apply_async` with simpler calling semantics.
 
