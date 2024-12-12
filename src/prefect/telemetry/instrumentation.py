@@ -55,7 +55,7 @@ def _url_join(base_url: str, path: str) -> str:
 
 def setup_exporters(
     api_url: str, api_key: str
-) -> tuple[TracerProvider, MeterProvider, "LoggerProvider"]:
+) -> "tuple[TracerProvider, MeterProvider, LoggerProvider]":
     account_id, workspace_id = extract_account_and_workspace_id(api_url)
     telemetry_url = _url_join(api_url, "telemetry/")
 
