@@ -2083,6 +2083,7 @@ class TestBaseWorkerHeartbeat:
             assert worker._worker_metadata_sent
 
 
+@pytest.mark.skip(reason="Passing worker labels to flow run is temporarily disabled")
 async def test_worker_gives_labels_to_flow_runs_when_using_cloud_api(
     prefect_client: PrefectClient, worker_deployment_wq1, work_pool
 ):
@@ -2118,6 +2119,7 @@ async def test_worker_gives_labels_to_flow_runs_when_using_cloud_api(
     )
 
 
+@pytest.mark.skip(reason="Passing worker labels to flow run is temporarily disabled")
 async def test_worker_does_not_give_labels_to_flow_runs_when_not_using_cloud_api(
     prefect_client: PrefectClient, worker_deployment_wq1, work_pool
 ):

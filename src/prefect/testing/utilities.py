@@ -249,7 +249,7 @@ async def assert_uses_result_storage(
             (
                 storage
                 if isinstance(storage, Block)
-                else await Block.load(storage, client=client)
+                else await Block.aload(storage, client=client)
             ),
         )
     else:
@@ -260,7 +260,7 @@ async def assert_uses_result_storage(
             (
                 storage
                 if isinstance(storage, Block)
-                else await Block.load(storage, client=client)
+                else await Block.aload(storage, client=client)
             ),
         )
 
