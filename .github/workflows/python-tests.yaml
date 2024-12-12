@@ -16,6 +16,7 @@ on:
       - requirements-dev.txt
       - setup.cfg
       - Dockerfile
+      - scripts/entrypoint.sh
   push:
     branches:
       - main
@@ -28,7 +29,7 @@ on:
       - requirements-dev.txt
       - setup.cfg
       - Dockerfile
-
+      - scripts/entrypoint.sh
 permissions:
   contents: read
   actions: write
