@@ -1,14 +1,17 @@
 import time
 from threading import Event, Lock, Thread
-from typing import Dict, Optional
+from typing import TYPE_CHECKING, Dict, Optional
 
 from opentelemetry.context import Context
-from opentelemetry.sdk.trace import ReadableSpan, Span, SpanProcessor
-from opentelemetry.sdk.trace.export import SpanExporter
+from opentelemetry.sdk.trace import Span, SpanProcessor
+
+if TYPE_CHECKING:
+    from opentelemetry.sdk.trace import ReadableSpan, Span
+    from opentelemetry.sdk.trace.export import SpanExporter
 
 
 class InFlightSpanProcessor(SpanProcessor):
-    def __init__(self, span_exporter: SpanExporter):
+    def __init__(self, span_exporter: "SpanExporter"):
         self.span_exporter = span_exporter
         self._in_flight: Dict[int, Span] = {}
         self._lock = Lock()
@@ -26,7 +29,7 @@ class InFlightSpanProcessor(SpanProcessor):
                 if to_export:
                     self.span_exporter.export(to_export)
 
-    def _readable_span(self, span: Span) -> ReadableSpan:
+    def _readable_span(self, span: "Span") -> "ReadableSpan":
         readable = span._readable_span()
         readable._end_time = time.time_ns()
         readable._attributes = {
@@ -35,13 +38,13 @@ class InFlightSpanProcessor(SpanProcessor):
         }
         return readable
 
-    def on_start(self, span: Span, parent_context: Optional[Context] = None) -> None:
+    def on_start(self, span: "Span", parent_context: Optional[Context] = None) -> None:
         if not span.context or not span.context.trace_flags.sampled:
             return
         with self._lock:
             self._in_flight[span.context.span_id] = span
 
-    def on_end(self, span: ReadableSpan) -> None:
+    def on_end(self, span: "ReadableSpan") -> None:
         if not span.context or not span.context.trace_flags.sampled:
             return
         with self._lock:

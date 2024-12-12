@@ -41,7 +41,6 @@ from prefect.settings import (
 )
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.collections import listrepr
-from prefect.utilities.compat import raise_signal
 
 from pydantic import BaseModel
 

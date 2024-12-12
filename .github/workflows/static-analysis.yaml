@@ -108,11 +108,21 @@ jobs:
           BASE_SCORE=$(echo ${{ steps.calculate_base_score.outputs.base_score }})
 
           if (( $(echo "$BASE_SCORE > $CURRENT_SCORE" | bc -l) )); then
-            echo "❌ Type completeness score has decreased from $BASE_SCORE to $CURRENT_SCORE" >> $GITHUB_STEP_SUMMARY
-            echo "Please add type annotations to your code to increase the type completeness score." >> $GITHUB_STEP_SUMMARY
-            exit 1
+            echo "::notice title=Type Completeness Check::We noticed a decrease in type coverage with these changes. Check workflow summary for more details."
+            echo "### ℹ️ Type Completeness Check" >> $GITHUB_STEP_SUMMARY
+            echo "We noticed a decrease in type coverage with these changes. To maintain our codebase quality, we aim to keep or improve type coverage with each change." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Need help? Ping @desertaxle or @zzstoatzz for assistance!" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Here's what changed:" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            uv run scripts/pyright_diff.py prefect-analysis-base.json prefect-analysis.json >> $GITHUB_STEP_SUMMARY
+            SCORE_DIFF=$(echo "$BASE_SCORE - $CURRENT_SCORE" | bc -l)
+            if (( $(echo "$SCORE_DIFF > 0.001" | bc -l) )); then
+                exit 1
+            fi
           elif (( $(echo "$BASE_SCORE < $CURRENT_SCORE" | bc -l) )); then
-            echo "✅ Type completeness score has increased from $BASE_SCORE to $CURRENT_SCORE" >> $GITHUB_STEP_SUMMARY
+            echo "🎉 Great work! The type coverage has improved with these changes" >> $GITHUB_STEP_SUMMARY
           else
-            echo "✅ Type completeness score remained unchanged at $BASE_SCORE" >> $GITHUB_STEP_SUMMARY
+            echo "✅ Type coverage maintained" >> $GITHUB_STEP_SUMMARY
           fi

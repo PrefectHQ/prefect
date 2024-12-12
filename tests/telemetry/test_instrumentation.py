@@ -1,4 +1,5 @@
 import os
+from typing import Literal
 from uuid import UUID, uuid4
 
 import pytest
@@ -13,17 +14,19 @@ from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 from opentelemetry.sdk.trace import TracerProvider
 from tests.telemetry.instrumentation_tester import InstrumentationTester
 
+import prefect
 from prefect import flow, task
-from prefect.task_engine import (
-    run_task_async,
-    run_task_sync,
-)
+from prefect.client.orchestration import SyncPrefectClient
+from prefect.context import FlowRunContext
+from prefect.flow_engine import run_flow_async, run_flow_sync
+from prefect.task_engine import run_task_async, run_task_sync
 from prefect.telemetry.bootstrap import setup_telemetry
 from prefect.telemetry.instrumentation import (
     extract_account_and_workspace_id,
 )
 from prefect.telemetry.logging import get_log_handler
 from prefect.telemetry.processors import InFlightSpanProcessor
+from prefect.telemetry.run_telemetry import LABELS_TRACEPARENT_KEY
 
 
 def test_extract_account_and_workspace_id_valid_url(
@@ -170,9 +173,268 @@ def test_logger_provider(
     assert log_handler._logger_provider == logger_provider
 
 
+class TestFlowRunInstrumentation:
+    @pytest.fixture(params=["async", "sync"])
+    async def engine_type(
+        self, request: pytest.FixtureRequest
+    ) -> Literal["async", "sync"]:
+        return request.param
+
+    async def test_traceparent_propagates_from_server_side(
+        self,
+        engine_type: Literal["async", "sync"],
+        instrumentation: InstrumentationTester,
+        sync_prefect_client: SyncPrefectClient,
+    ):
+        """Test that when no parent traceparent exists, the flow run stores its own span's traceparent"""
+
+        @flow
+        async def my_async_flow():
+            pass
+
+        @flow
+        def my_sync_flow():
+            pass
+
+        if engine_type == "async":
+            the_flow = my_async_flow
+        else:
+            the_flow = my_sync_flow
+
+        flow_run = sync_prefect_client.create_flow_run(the_flow)  # type: ignore
+
+        # Give the flow run a traceparent. This can occur when the server has
+        # already created a trace for the run, likely because it was Late.
+        #
+        # Trace ID: 314419354619557650326501540139523824930
+        # Span ID: 5357380918965115138
+        sync_prefect_client.update_flow_run_labels(
+            flow_run.id,
+            {
+                LABELS_TRACEPARENT_KEY: "00-ec8af70b445d54387035c27eb182dd22-4a593d8fa95f1902-01"
+            },
+        )
+
+        flow_run = sync_prefect_client.read_flow_run(flow_run.id)
+        assert flow_run.labels[LABELS_TRACEPARENT_KEY] == (
+            "00-ec8af70b445d54387035c27eb182dd22-4a593d8fa95f1902-01"
+        )
+
+        if engine_type == "async":
+            await run_flow_async(the_flow, flow_run=flow_run)  # type: ignore
+        else:
+            run_flow_sync(the_flow, flow_run=flow_run)  # type: ignore
+
+        assert flow_run.labels[LABELS_TRACEPARENT_KEY] == (
+            "00-ec8af70b445d54387035c27eb182dd22-4a593d8fa95f1902-01"
+        )
+
+        spans = instrumentation.get_finished_spans()
+        assert len(spans) == 1
+        span = spans[0]
+
+        span_context = span.get_span_context()
+        assert span_context is not None
+        assert span_context.trace_id == 314419354619557650326501540139523824930
+
+        assert span.parent is not None
+        assert span.parent.trace_id == 314419354619557650326501540139523824930
+        assert span.parent.span_id == 5357380918965115138
+
+    async def test_flow_run_creates_and_stores_otel_traceparent(
+        self,
+        engine_type: Literal["async", "sync"],
+        instrumentation: InstrumentationTester,
+        sync_prefect_client: SyncPrefectClient,
+    ):
+        """Test that when no parent traceparent exists, the flow run stores its own span's traceparent"""
+
+        @flow(name="child-flow")
+        async def async_child_flow() -> str:
+            return "hello from child"
+
+        @flow(name="child-flow")
+        def sync_child_flow() -> str:
+            return "hello from child"
+
+        @flow(name="parent-flow")
+        async def async_parent_flow() -> str:
+            return await async_child_flow()
+
+        @flow(name="parent-flow")
+        def sync_parent_flow() -> str:
+            return sync_child_flow()
+
+        if engine_type == "async":
+            await async_parent_flow()
+        else:
+            sync_parent_flow()
+
+        spans = instrumentation.get_finished_spans()
+
+        next(
+            span
+            for span in spans
+            if span.attributes.get("prefect.flow.name") == "parent-flow"
+        )
+        child_span = next(
+            span
+            for span in spans
+            if span.attributes.get("prefect.flow.name") == "child-flow"
+        )
+
+        # Get the child flow run
+        child_flow_run_id = child_span.attributes.get("prefect.run.id")
+        child_flow_run = sync_prefect_client.read_flow_run(UUID(child_flow_run_id))
+
+        # Verify the child flow run has its span's traceparent in its labels
+        assert "__OTEL_TRACEPARENT" in child_flow_run.labels
+        assert child_flow_run.labels["__OTEL_TRACEPARENT"].startswith("00-")
+        trace_id_hex = child_flow_run.labels["__OTEL_TRACEPARENT"].split("-")[1]
+        assert int(trace_id_hex, 16) == child_span.context.trace_id
+
+    async def test_flow_run_propagates_otel_traceparent_to_subflow(
+        self,
+        engine_type: Literal["async", "sync"],
+        instrumentation: InstrumentationTester,
+    ):
+        """Test that OTEL traceparent gets propagated from parent flow to child flow"""
+
+        @flow(name="child-flow")
+        async def async_child_flow() -> str:
+            return "hello from child"
+
+        @flow(name="child-flow")
+        def sync_child_flow() -> str:
+            return "hello from child"
+
+        @flow(name="parent-flow")
+        async def async_parent_flow():
+            await async_child_flow()
+
+        @flow(name="parent-flow")
+        def sync_parent_flow():
+            sync_child_flow()
+
+        parent_flow = async_parent_flow if engine_type == "async" else sync_parent_flow
+        await parent_flow() if engine_type == "async" else parent_flow()
+
+        spans = instrumentation.get_finished_spans()
+
+        parent_span = next(
+            span
+            for span in spans
+            if span.attributes.get("prefect.flow.name") == "parent-flow"
+        )
+        child_span = next(
+            span
+            for span in spans
+            if span.attributes.get("prefect.flow.name") == "child-flow"
+        )
+
+        assert parent_span is not None
+        assert child_span is not None
+        assert child_span.context.trace_id == parent_span.context.trace_id
+
+    async def test_flow_run_instrumentation(
+        self,
+        engine_type: Literal["async", "sync"],
+        instrumentation: InstrumentationTester,
+    ):
+        @flow(name="instrumented-flow")
+        async def async_flow() -> str:
+            return 42
+
+        @flow(name="instrumented-flow")
+        def sync_flow() -> str:
+            return 42
+
+        test_flow = async_flow if engine_type == "async" else sync_flow
+        await test_flow() if engine_type == "async" else test_flow()
+
+        spans = instrumentation.get_finished_spans()
+        assert len(spans) == 1
+
+        span = spans[0]
+        assert span is not None
+        instrumentation.assert_span_instrumented_for(span, prefect)
+
+        instrumentation.assert_has_attributes(
+            span,
+            {
+                "prefect.flow.name": "instrumented-flow",
+                "prefect.run.type": "flow",
+            },
+        )
+
+    async def test_flow_run_inherits_parent_labels(
+        self,
+        engine_type: Literal["async", "sync"],
+        instrumentation: InstrumentationTester,
+        sync_prefect_client: SyncPrefectClient,
+    ):
+        """Test that parent flow labels get propagated to child flow spans"""
+
+        @flow(name="child-flow")
+        async def async_child_flow() -> str:
+            return "hello from child"
+
+        @flow(name="child-flow")
+        def sync_child_flow() -> str:
+            return "hello from child"
+
+        @flow(name="parent-flow")
+        async def async_parent_flow() -> str:
+            # Set custom labels in parent flow
+            flow_run = FlowRunContext.get().flow_run
+            flow_run.labels.update(
+                {"test.label": "test-value", "environment": "testing"}
+            )
+            return await async_child_flow()
+
+        @flow(name="parent-flow")
+        def sync_parent_flow() -> str:
+            # Set custom labels in parent flow
+            flow_run = FlowRunContext.get().flow_run
+            flow_run.labels.update(
+                {"test.label": "test-value", "environment": "testing"}
+            )
+            return sync_child_flow()
+
+        if engine_type == "async":
+            state = await async_parent_flow(return_state=True)
+        else:
+            state = sync_parent_flow(return_state=True)
+
+        spans = instrumentation.get_finished_spans()
+        child_spans = [
+            span
+            for span in spans
+            if span.attributes.get("prefect.flow.name") == "child-flow"
+        ]
+        assert len(child_spans) == 1
+
+        # Get the parent flow run
+        parent_flow_run = sync_prefect_client.read_flow_run(
+            state.state_details.flow_run_id
+        )
+
+        # Verify the child span has the parent flow's labels
+        instrumentation.assert_has_attributes(
+            child_spans[0],
+            {
+                **parent_flow_run.labels,
+                "prefect.run.type": "flow",
+                "prefect.flow.name": "child-flow",
+            },
+        )
+
+
 class TestTaskRunInstrumentation:
     @pytest.fixture(params=["async", "sync"])
-    async def engine_type(self, request):
+    async def engine_type(
+        self, request: pytest.FixtureRequest
+    ) -> Literal["async", "sync"]:
         return request.param
 
     async def run_task(self, task, task_run_id, parameters, engine_type):
@@ -184,7 +446,9 @@ class TestTaskRunInstrumentation:
             return run_task_sync(task, task_run_id=task_run_id, parameters=parameters)
 
     async def test_span_creation(
-        self, engine_type, instrumentation: InstrumentationTester
+        self,
+        engine_type: Literal["async", "sync"],
+        instrumentation: InstrumentationTester,
     ):
         @task
         async def async_task(x: int, y: int):
@@ -213,7 +477,11 @@ class TestTaskRunInstrumentation:
         )
         assert spans[0].name == task_fn.name
 
-    async def test_span_attributes(self, engine_type, instrumentation):
+    async def test_span_attributes(
+        self,
+        engine_type: Literal["async", "sync"],
+        instrumentation: InstrumentationTester,
+    ):
         @task
         async def async_task(x: int, y: int):
             return x + y
@@ -245,7 +513,11 @@ class TestTaskRunInstrumentation:
         )
         assert spans[0].name == task_fn.__name__
 
-    async def test_span_events(self, engine_type, instrumentation):
+    async def test_span_events(
+        self,
+        engine_type: Literal["async", "sync"],
+        instrumentation: InstrumentationTester,
+    ):
         @task
         async def async_task(x: int, y: int):
             return x + y
@@ -270,7 +542,11 @@ class TestTaskRunInstrumentation:
         assert events[0].name == "Running"
         assert events[1].name == "Completed"
 
-    async def test_span_status_on_success(self, engine_type, instrumentation):
+    async def test_span_status_on_success(
+        self,
+        engine_type: Literal["async", "sync"],
+        instrumentation: InstrumentationTester,
+    ):
         @task
         async def async_task(x: int, y: int):
             return x + y
@@ -293,7 +569,11 @@ class TestTaskRunInstrumentation:
         assert len(spans) == 1
         assert spans[0].status.status_code == trace.StatusCode.OK
 
-    async def test_span_status_on_failure(self, engine_type, instrumentation):
+    async def test_span_status_on_failure(
+        self,
+        engine_type: Literal["async", "sync"],
+        instrumentation: InstrumentationTester,
+    ):
         @task
         async def async_task(x: int, y: int):
             raise ValueError("Test error")
@@ -318,7 +598,11 @@ class TestTaskRunInstrumentation:
         assert spans[0].status.status_code == trace.StatusCode.ERROR
         assert "Test error" in spans[0].status.description
 
-    async def test_span_exception_recording(self, engine_type, instrumentation):
+    async def test_span_exception_recording(
+        self,
+        engine_type: Literal["async", "sync"],
+        instrumentation: InstrumentationTester,
+    ):
         @task
         async def async_task(x: int, y: int):
             raise Exception("Test error")
@@ -347,7 +631,12 @@ class TestTaskRunInstrumentation:
         assert exception_event.attributes["exception.type"] == "Exception"
         assert exception_event.attributes["exception.message"] == "Test error"
 
-    async def test_flow_labels(self, engine_type, instrumentation, sync_prefect_client):
+    async def test_flow_labels(
+        self,
+        engine_type: Literal["async", "sync"],
+        instrumentation: InstrumentationTester,
+        sync_prefect_client: SyncPrefectClient,
+    ):
         """Test that parent flow ID gets propagated to task spans"""
 
         @task

@@ -1,18 +1,14 @@
 import hashlib
-import sys
 from functools import partial
 from pathlib import Path
 from typing import Any, Callable, Optional, Union
 
-import cloudpickle
+import cloudpickle  # type: ignore  # no stubs available
 
 from prefect.exceptions import HashError
 from prefect.serializers import JSONSerializer
 
-if sys.version_info[:2] >= (3, 9):
-    _md5 = partial(hashlib.md5, usedforsecurity=False)
-else:
-    _md5 = hashlib.md5
+_md5 = partial(hashlib.md5, usedforsecurity=False)
 
 
 def stable_hash(*args: Union[str, bytes], hash_algo: Callable[..., Any] = _md5) -> str:

@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, List
 from uuid import UUID, uuid4
 
 import pytest
-from pendulum.datetime import DateTime
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,6 +20,7 @@ from prefect.server.events.schemas.automations import (
 from prefect.server.events.schemas.events import ReceivedEvent, RelatedResource
 from prefect.server.models import workers
 from prefect.server.schemas.actions import WorkPoolCreate
+from prefect.types import DateTime
 from prefect.utilities.pydantic import parse_obj_as
 
 if TYPE_CHECKING:

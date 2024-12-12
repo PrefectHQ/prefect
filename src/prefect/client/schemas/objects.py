@@ -69,7 +69,7 @@ if TYPE_CHECKING:
 
     DateTime = pendulum.DateTime
 else:
-    from pydantic_extra_types.pendulum_dt import DateTime
+    from prefect.types import DateTime
 
 
 R = TypeVar("R", default=Any)

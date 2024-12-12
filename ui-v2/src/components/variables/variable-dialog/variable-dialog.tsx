@@ -1,16 +1,14 @@
+import type { components } from "@/api/prefect";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-	DialogDescription,
 	DialogTrigger,
 } from "@/components/ui/dialog";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
 import {
 	Form,
 	FormControl,
@@ -20,13 +18,15 @@ import {
 	FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import type { components } from "@/api/prefect";
-import type { JSONValue } from "@/lib/types";
-import { TagsInput } from "@/components/ui/tags-input";
 import { JsonInput } from "@/components/ui/json-input";
-import { useEffect, useMemo } from "react";
-import { useCreateVariable, useUpdateVariable } from "@/hooks/variables";
+import { TagsInput } from "@/components/ui/tags-input";
 import { useToast } from "@/hooks/use-toast";
+import { useCreateVariable, useUpdateVariable } from "@/hooks/variables";
+import type { JSONValue } from "@/lib/types";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect, useMemo } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
 
 const formSchema = z.object({
 	name: z.string().min(2, { message: "Name must be at least 2 characters" }),
@@ -93,6 +93,7 @@ export const VariableDialog = ({
 							toast({
 								title: "Variable updated",
 							});
+							onOpenChange(false);
 						},
 						onError: (error) => {
 							const message =
@@ -115,6 +116,7 @@ export const VariableDialog = ({
 							toast({
 								title: "Variable created",
 							});
+							onOpenChange(false);
 						},
 						onError: (error) => {
 							const message =
