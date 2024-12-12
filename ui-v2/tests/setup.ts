@@ -14,7 +14,9 @@ beforeAll(() => {
 		},
 	});
 });
-afterEach(() => server.resetHandlers());
+afterEach(() => {
+	server.resetHandlers();
+});
 afterAll(() => server.close());
 
 expect.extend(matchers);
@@ -46,4 +48,26 @@ vi.mock("@tanstack/router-devtools", () => ({
 // Mock @tanstack/react-query-devtools
 vi.mock("@tanstack/react-query-devtool", () => ({
 	ReactQueryDevtools: () => null,
+}));
+
+// Add this to your existing setup.ts file
+class ResizeObserverMock {
+	observe() {}
+	unobserve() {}
+	disconnect() {}
+}
+
+global.ResizeObserver = ResizeObserverMock;
+
+// Add this along with the ResizeObserver mock
+Element.prototype.getBoundingClientRect = vi.fn(() => ({
+	width: 500,
+	height: 300,
+	top: 0,
+	left: 0,
+	bottom: 0,
+	right: 0,
+	x: 0,
+	y: 0,
+	toJSON: () => {},
 }));
