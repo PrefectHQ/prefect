@@ -9,6 +9,7 @@ from prefect.events.clients import (
     AssertingEventsClient,
     PrefectEventsClient,
 )
+from prefect.events.utilities import emit_event
 from prefect.events.worker import EventsWorker
 from prefect.settings import (
     PREFECT_API_URL,
@@ -88,3 +89,30 @@ async def test_includes_related_resources_from_run_context(
     assert event.related[1].id == f"prefect.flow.{db_flow.id}"
     assert event.related[1].role == "flow"
     assert event.related[1]["prefect.resource.name"] == db_flow.name
+
+
+async def test_does_not_include_related_resources_from_run_context_for_lineage_events(
+    asserting_events_worker: EventsWorker,
+    reset_worker_events,
+    prefect_client,
+):
+    @flow
+    def emitting_flow():
+        emit_event(
+            event="s3.read",
+            resource={
+                "prefect.resource.id": "s3://bucket-name/key-name",
+                "prefect.resource.role": "data-source",
+                "prefect.resource.lineage-group": "global",
+            },
+        )
+
+    emitting_flow(return_state=True)
+
+    await asserting_events_worker.drain()
+
+    assert len(asserting_events_worker._client.events) == 1
+    event = asserting_events_worker._client.events[0]
+    assert event.event == "s3.read"
+    assert event.resource.id == "s3://bucket-name/key-name"
+    assert len(event.related) == 0

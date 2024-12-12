@@ -22,3 +22,8 @@ class ExperimentsSettings(PrefectBaseSettings):
         default=False,
         description="Enables sending telemetry to Prefect Cloud.",
     )
+
+    lineage_events_enabled: bool = Field(
+        default=False,
+        description="If `True`, enables emitting lineage events. Set to `False` to disable lineage event emission.",
+    )
