@@ -2,9 +2,9 @@ import pendulum
 import pytest
 from pydantic import Secret as PydanticSecret
 from pydantic import SecretStr
-from pydantic_extra_types.pendulum_dt import DateTime as PydanticDateTime
 
 from prefect.blocks.system import DateTime, Secret
+from prefect.types import DateTime as PydanticDateTime
 
 
 def test_datetime(ignore_prefect_deprecation_warnings):

@@ -3,13 +3,13 @@ from unittest import mock
 
 import pendulum
 import pytest
-from pendulum.datetime import DateTime
 
 from prefect.server.events import actions
 from prefect.server.events.clients import AssertingEventsClient
 from prefect.server.events.schemas.automations import TriggeredAction
 from prefect.server.utilities.messaging import MessageHandler
 from prefect.server.utilities.messaging.memory import MemoryMessage
+from prefect.types import DateTime
 
 
 @pytest.fixture

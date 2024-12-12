@@ -6,7 +6,6 @@ from uuid import uuid4
 import pendulum
 import pytest
 import sqlalchemy as sa
-from pendulum.datetime import DateTime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.database.interface import PrefectDBInterface
@@ -21,6 +20,7 @@ from prefect.server.events.schemas.automations import (
 )
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.utilities.messaging import Message
+from prefect.types import DateTime
 from prefect.utilities.pydantic import parse_obj_as
 
 

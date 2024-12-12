@@ -4,7 +4,6 @@ from unittest.mock import ANY, AsyncMock
 
 import pendulum
 import pytest
-from pendulum.datetime import DateTime
 from pendulum.duration import Duration
 
 import prefect
@@ -12,6 +11,7 @@ from prefect.client.schemas.objects import FlowRun
 from prefect.exceptions import FlowRunWaitTimeout
 from prefect.states import Completed, Failed
 from prefect.testing.cli import invoke_and_assert
+from prefect.types import DateTime
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 

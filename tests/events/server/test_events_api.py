@@ -7,7 +7,6 @@ from uuid import UUID
 import pendulum
 import pytest
 from httpx import AsyncClient
-from pendulum.datetime import DateTime
 from pydantic.networks import AnyHttpUrl
 
 from prefect.server.events.counting import Countable, TimeUnit
@@ -23,6 +22,7 @@ from prefect.server.events.schemas.events import (
     Resource,
 )
 from prefect.server.events.storage import INTERACTIVE_PAGE_SIZE, InvalidTokenError
+from prefect.types import DateTime
 from prefect.utilities.pydantic import parse_obj_as
 
 

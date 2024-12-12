@@ -2,7 +2,6 @@ from datetime import timedelta
 from uuid import uuid4
 
 import pytest
-from pendulum.datetime import DateTime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.events import actions
@@ -23,6 +22,7 @@ from prefect.server.events.schemas.automations import (
 )
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.events.triggers import load_automation
+from prefect.types import DateTime
 
 
 @pytest.fixture

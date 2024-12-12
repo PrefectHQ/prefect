@@ -3,8 +3,9 @@ from collections import defaultdict
 from typing import Dict, List, Set
 
 from pydantic import BaseModel
-from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import TypeAlias
+
+from prefect.types import DateTime
 
 TaskKey: TypeAlias = str
 WorkerId: TypeAlias = str

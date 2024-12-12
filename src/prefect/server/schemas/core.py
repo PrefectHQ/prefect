@@ -17,7 +17,6 @@ from pydantic import (
     field_validator,
     model_validator,
 )
-from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Literal, Self
 
 from prefect._internal.schemas.validators import (
@@ -43,6 +42,7 @@ from prefect.server.utilities.schemas.bases import (
 from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
 from prefect.types import (
     MAX_VARIABLE_NAME_LENGTH,
+    DateTime,
     LaxUrl,
     Name,
     NameOrEmpty,

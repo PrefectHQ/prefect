@@ -9,13 +9,13 @@ from uuid import UUID, uuid4
 
 import pendulum
 from pydantic import ConfigDict, Field, field_validator, model_validator
-from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Self
 
 from prefect.server.utilities.schemas.bases import (
     IDBaseModel,
     PrefectBaseModel,
 )
+from prefect.types import DateTime
 from prefect.utilities.collections import AutoEnum
 
 if TYPE_CHECKING:

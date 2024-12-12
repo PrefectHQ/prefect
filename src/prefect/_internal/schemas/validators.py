@@ -18,9 +18,9 @@ from uuid import UUID
 import jsonschema
 import pendulum
 import yaml
-from pydantic_extra_types.pendulum_dt import DateTime
 
 from prefect.exceptions import InvalidRepositoryURLError
+from prefect.types import DateTime
 from prefect.utilities.collections import isiterable
 from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.filesystem import relative_path_to_current_platform

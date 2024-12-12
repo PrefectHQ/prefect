@@ -8,7 +8,6 @@ from typing import List, Optional
 
 import pydantic
 import sqlalchemy as sa
-from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Literal
 
 import prefect.server.models as models
@@ -16,6 +15,7 @@ import prefect.server.schemas as schemas
 from prefect.logging import get_logger
 from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
+from prefect.types import DateTime
 
 logger = get_logger("server.api")
 

@@ -18,8 +18,9 @@ from pydantic import (
     ConfigDict,
     Field,
 )
-from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Self
+
+from prefect.types import DateTime
 
 if TYPE_CHECKING:
     from pydantic.main import IncEx

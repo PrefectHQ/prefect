@@ -3,12 +3,12 @@ from typing import Tuple, cast
 import pendulum
 import pytest
 from httpx import AsyncClient
-from pydantic_extra_types.pendulum_dt import DateTime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models
 from prefect.server.api.ui.task_runs import TaskRunCount
 from prefect.server.schemas import core, filters, states
+from prefect.types import DateTime
 
 
 class TestReadDashboardTaskRunCounts:

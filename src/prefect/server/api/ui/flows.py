@@ -6,7 +6,6 @@ import pendulum
 import sqlalchemy as sa
 from fastapi import Body, Depends
 from pydantic import Field, field_validator
-from pydantic_extra_types.pendulum_dt import DateTime
 
 from prefect.logging import get_logger
 from prefect.server.database import orm_models
@@ -16,6 +15,7 @@ from prefect.server.schemas.states import StateType
 from prefect.server.utilities.database import UUID as UUIDTypeDecorator
 from prefect.server.utilities.schemas import PrefectBaseModel
 from prefect.server.utilities.server import PrefectRouter
+from prefect.types import DateTime
 
 logger = get_logger()
 

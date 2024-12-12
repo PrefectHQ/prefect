@@ -4,11 +4,10 @@ import sys
 from threading import Thread
 from typing import List
 
-from pydantic_extra_types.pendulum_dt import DateTime
-
 from prefect.events import Event
 from prefect.events.clients import get_events_subscriber
 from prefect.events.filters import EventFilter, EventNameFilter, EventOccurredFilter
+from prefect.types import DateTime
 
 
 async def watch_worker_events(events: List[Event]):

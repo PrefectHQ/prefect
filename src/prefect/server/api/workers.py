@@ -15,7 +15,6 @@ from fastapi import (
     Path,
     status,
 )
-from pydantic_extra_types.pendulum_dt import DateTime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.api.dependencies as dependencies
@@ -32,6 +31,7 @@ from prefect.server.models.work_queues import (
 from prefect.server.models.workers import emit_work_pool_status_event
 from prefect.server.schemas.statuses import WorkQueueStatus
 from prefect.server.utilities.server import PrefectRouter
+from prefect.types import DateTime
 
 if TYPE_CHECKING:
     from prefect.server.database.orm_models import ORMWorkQueue
