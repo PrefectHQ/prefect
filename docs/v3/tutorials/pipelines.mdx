@@ -91,14 +91,14 @@ if __name__ == "__main__":
 ## Concurrent execution of slow tasks
 
 If individual API requests are slow, you can speed them up in aggregate by making multiple requests concurrently.
-When you call the `map` method on a task, you submit a list of arguments to the task runner to run concurrently (if you want, you could also [`.submit()` each argument individually.](/v3/develop/task-runners#access-results-from-submitted-tasks)).
+When you call the `map` method on a task, you submit a list of arguments to the task runner to run concurrently (alternatively, you could [`.submit()` each argument individually](/v3/develop/task-runners#access-results-from-submitted-tasks)).
 
 ```python
 from prefect import flow
 
 @flow(log_prints=True)
 def show_stars(github_repos: list[str]) -> None:
-    """Flow: Show the number of stars that GitHub repos have"""
+    """Flow: Show number of GitHub repo stars"""
 
     # Task 1: Make HTTP requests concurrently
     stats_futures = fetch_stats.map(github_repos)
@@ -135,7 +135,7 @@ def get_stars(repo_stats: dict[str, Any]) -> int:
 
 @flow(log_prints=True)
 def show_stars(github_repos: list[str]) -> None:
-    """Flow: Show the number of stars that GitHub repos have"""
+    """Flow: Show number of GitHub repo stars"""
 
     # Task 1: Make HTTP requests concurrently
     stats_futures = fetch_stats.map(github_repos)
@@ -162,9 +162,9 @@ if __name__ == "__main__":
 </Expandable>
 
 <Tip>
-Calling `.result()` of the list of futures returned by `.map()` will block until all tasks are complete.
+Calling `.result()` on the list of futures returned by `.map()` will block until all tasks are complete.
 
-You can read more about this in the [`.map()` documentation](/v3/develop/task-runners#mapping-over-iterables).
+Read more in the [`.map()` documentation](/v3/develop/task-runners#mapping-over-iterables).
 </Tip>
 
 
@@ -217,7 +217,7 @@ def get_stars(repo_stats: dict[str, Any]) -> int:
 
 @flow(log_prints=True)
 def show_stars(github_repos: list[str]) -> None:
-    """Flow: Show the number of stars that GitHub repos have"""
+    """Flow: Show number of GitHub repo stars"""
 
     # Task 1: Make HTTP requests concurrently
     stats_futures = fetch_stats.map(github_repos)
@@ -289,7 +289,7 @@ def get_stars(repo_stats: dict[str, Any]) -> int:
 
 @flow(log_prints=True)
 def show_stars(github_repos: list[str]) -> None:
-    """Flow: Show the number of stars that GitHub repos have"""
+    """Flow: Show number of GitHub repo stars"""
 
     # Task 1: Make HTTP requests concurrently
     stats_futures = fetch_stats.map(github_repos)
@@ -344,7 +344,7 @@ def get_stars(repo_stats: dict[str, Any]) -> int:
 
 @flow(log_prints=True)
 def show_stars(github_repos: list[str]) -> None:
-    """Flow: Show the number of stars that GitHub repos have"""
+    """Flow: Show number of GitHub repo stars"""
 
     # Task 1: Make HTTP requests concurrently
     stats_futures = fetch_stats.map(github_repos)
