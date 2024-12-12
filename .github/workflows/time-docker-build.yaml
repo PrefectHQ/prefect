@@ -21,11 +21,13 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Build base branch first
+      # For PRs, checkout the base branch to compare against
       - name: Checkout base branch
         if: github.base_ref
-        run: |
-          git checkout ${{ github.base_ref }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.base_ref }}
+          clean: true
 
       - name: Clean Docker system
         run: |
@@ -42,10 +44,13 @@ jobs:
           base_time=$((end_time - start_time))
           echo "base_time=$base_time" >> $GITHUB_OUTPUT
 
-      # Now build current branch with fresh cache
-      - name: Checkout current branch
-        run: |
-          git checkout ${{ github.head_ref || github.ref_name }}
+      # For PRs, checkout back to the PR's HEAD
+      - name: Checkout PR branch
+        if: github.base_ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          clean: true
 
       - name: Clean Docker system again
         run: |
