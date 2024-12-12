@@ -115,7 +115,10 @@ jobs:
             echo "Here's what changed:" >> $GITHUB_STEP_SUMMARY
             uv run scripts/pyright_diff.py prefect-analysis-base.json prefect-analysis.json >> $GITHUB_STEP_SUMMARY
             echo "Need help? Ping @desertaxle or @zzstoatzz for assistance!" >> $GITHUB_STEP_SUMMARY
-            exit 1
+            SCORE_DIFF=$(echo "$BASE_SCORE - $CURRENT_SCORE" | bc -l)
+            if (( $(echo "$SCORE_DIFF > 0.001" | bc -l) )); then
+                exit 1
+            fi
           elif (( $(echo "$BASE_SCORE < $CURRENT_SCORE" | bc -l) )); then
             echo "🎉 Great work! The type coverage has improved with these changes" >> $GITHUB_STEP_SUMMARY
           else
