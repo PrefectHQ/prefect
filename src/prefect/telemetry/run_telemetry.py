@@ -69,8 +69,8 @@ class RunTelemetry:
         run: Union[TaskRun, FlowRun],
         client: SyncPrefectClient,
         name: Optional[str] = None,
-        parameters: Optional[Dict[str, Any]] = None,
-        parent_labels: Optional[Dict[str, Any]] = None,
+        parameters: Optional[dict[str, Any]] = None,
+        parent_labels: Optional[dict[str, Any]] = None,
     ):
         should_set_traceparent = self._should_set_traceparent(run)
         traceparent, span = self._start_span(run, name, parameters, parent_labels)
@@ -84,9 +84,9 @@ class RunTelemetry:
         self,
         run: Union[TaskRun, FlowRun],
         name: Optional[str] = None,
-        parameters: Optional[Dict[str, Any]] = None,
-        parent_labels: Optional[Dict[str, Any]] = None,
-    ) -> Tuple[Optional[str], Span]:
+        parameters: Optional[dict[str, Any]] = None,
+        parent_labels: Optional[dict[str, Any]] = None,
+    ) -> tuple[Optional[str], Span]:
         """
         Start a span for a task run.
         """
