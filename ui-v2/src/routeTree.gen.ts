@@ -15,13 +15,15 @@ import { Route as AutomationsImport } from "./routes/automations";
 import { Route as BlocksImport } from "./routes/blocks";
 import { Route as ConcurrencyLimitsImport } from "./routes/concurrency-limits";
 import { Route as DashboardImport } from "./routes/dashboard";
-import { Route as DeploymentsImport } from "./routes/deployments";
+import { Route as DeploymentsDeploymentIdImport } from "./routes/deployments/deployment.$id";
+import { Route as DeploymentsIndexImport } from "./routes/deployments/index";
 import { Route as EventsImport } from "./routes/events";
 import { Route as FlowsFlowIdImport } from "./routes/flows/flow.$id";
 import { Route as FlowsIndexImport } from "./routes/flows/index";
 import { Route as IndexImport } from "./routes/index";
 import { Route as NotificationsImport } from "./routes/notifications";
-import { Route as RunsImport } from "./routes/runs";
+import { Route as RunsFlowRunIdImport } from "./routes/runs/flow-run.$id";
+import { Route as RunsIndexImport } from "./routes/runs/index";
 import { Route as SettingsImport } from "./routes/settings";
 import { Route as VariablesImport } from "./routes/variables";
 import { Route as WorkPoolsImport } from "./routes/work-pools";
@@ -46,12 +48,6 @@ const SettingsRoute = SettingsImport.update({
 	getParentRoute: () => rootRoute,
 } as any);
 
-const RunsRoute = RunsImport.update({
-	id: "/runs",
-	path: "/runs",
-	getParentRoute: () => rootRoute,
-} as any);
-
 const NotificationsRoute = NotificationsImport.update({
 	id: "/notifications",
 	path: "/notifications",
@@ -61,12 +57,6 @@ const NotificationsRoute = NotificationsImport.update({
 const EventsRoute = EventsImport.update({
 	id: "/events",
 	path: "/events",
-	getParentRoute: () => rootRoute,
-} as any);
-
-const DeploymentsRoute = DeploymentsImport.update({
-	id: "/deployments",
-	path: "/deployments",
 	getParentRoute: () => rootRoute,
 } as any);
 
@@ -100,15 +90,39 @@ const IndexRoute = IndexImport.update({
 	getParentRoute: () => rootRoute,
 } as any);
 
+const RunsIndexRoute = RunsIndexImport.update({
+	id: "/runs/",
+	path: "/runs/",
+	getParentRoute: () => rootRoute,
+} as any);
+
 const FlowsIndexRoute = FlowsIndexImport.update({
 	id: "/flows/",
 	path: "/flows/",
 	getParentRoute: () => rootRoute,
 } as any);
 
+const DeploymentsIndexRoute = DeploymentsIndexImport.update({
+	id: "/deployments/",
+	path: "/deployments/",
+	getParentRoute: () => rootRoute,
+} as any);
+
+const RunsFlowRunIdRoute = RunsFlowRunIdImport.update({
+	id: "/runs/flow-run/$id",
+	path: "/runs/flow-run/$id",
+	getParentRoute: () => rootRoute,
+} as any);
+
 const FlowsFlowIdRoute = FlowsFlowIdImport.update({
 	id: "/flows/flow/$id",
 	path: "/flows/flow/$id",
+	getParentRoute: () => rootRoute,
+} as any);
+
+const DeploymentsDeploymentIdRoute = DeploymentsDeploymentIdImport.update({
+	id: "/deployments/deployment/$id",
+	path: "/deployments/deployment/$id",
 	getParentRoute: () => rootRoute,
 } as any);
 
@@ -151,13 +165,6 @@ declare module "@tanstack/react-router" {
 			preLoaderRoute: typeof DashboardImport;
 			parentRoute: typeof rootRoute;
 		};
-		"/deployments": {
-			id: "/deployments";
-			path: "/deployments";
-			fullPath: "/deployments";
-			preLoaderRoute: typeof DeploymentsImport;
-			parentRoute: typeof rootRoute;
-		};
 		"/events": {
 			id: "/events";
 			path: "/events";
@@ -170,13 +177,6 @@ declare module "@tanstack/react-router" {
 			path: "/notifications";
 			fullPath: "/notifications";
 			preLoaderRoute: typeof NotificationsImport;
-			parentRoute: typeof rootRoute;
-		};
-		"/runs": {
-			id: "/runs";
-			path: "/runs";
-			fullPath: "/runs";
-			preLoaderRoute: typeof RunsImport;
 			parentRoute: typeof rootRoute;
 		};
 		"/settings": {
@@ -200,6 +200,13 @@ declare module "@tanstack/react-router" {
 			preLoaderRoute: typeof WorkPoolsImport;
 			parentRoute: typeof rootRoute;
 		};
+		"/deployments/": {
+			id: "/deployments/";
+			path: "/deployments";
+			fullPath: "/deployments";
+			preLoaderRoute: typeof DeploymentsIndexImport;
+			parentRoute: typeof rootRoute;
+		};
 		"/flows/": {
 			id: "/flows/";
 			path: "/flows";
@@ -207,11 +214,32 @@ declare module "@tanstack/react-router" {
 			preLoaderRoute: typeof FlowsIndexImport;
 			parentRoute: typeof rootRoute;
 		};
+		"/runs/": {
+			id: "/runs/";
+			path: "/runs";
+			fullPath: "/runs";
+			preLoaderRoute: typeof RunsIndexImport;
+			parentRoute: typeof rootRoute;
+		};
+		"/deployments/deployment/$id": {
+			id: "/deployments/deployment/$id";
+			path: "/deployments/deployment/$id";
+			fullPath: "/deployments/deployment/$id";
+			preLoaderRoute: typeof DeploymentsDeploymentIdImport;
+			parentRoute: typeof rootRoute;
+		};
 		"/flows/flow/$id": {
 			id: "/flows/flow/$id";
 			path: "/flows/flow/$id";
 			fullPath: "/flows/flow/$id";
 			preLoaderRoute: typeof FlowsFlowIdImport;
+			parentRoute: typeof rootRoute;
+		};
+		"/runs/flow-run/$id": {
+			id: "/runs/flow-run/$id";
+			path: "/runs/flow-run/$id";
+			fullPath: "/runs/flow-run/$id";
+			preLoaderRoute: typeof RunsFlowRunIdImport;
 			parentRoute: typeof rootRoute;
 		};
 	}
@@ -225,15 +253,17 @@ export interface FileRoutesByFullPath {
 	"/blocks": typeof BlocksRoute;
 	"/concurrency-limits": typeof ConcurrencyLimitsRoute;
 	"/dashboard": typeof DashboardRoute;
-	"/deployments": typeof DeploymentsRoute;
 	"/events": typeof EventsRoute;
 	"/notifications": typeof NotificationsRoute;
-	"/runs": typeof RunsRoute;
 	"/settings": typeof SettingsRoute;
 	"/variables": typeof VariablesRoute;
 	"/work-pools": typeof WorkPoolsRoute;
+	"/deployments": typeof DeploymentsIndexRoute;
 	"/flows": typeof FlowsIndexRoute;
+	"/runs": typeof RunsIndexRoute;
+	"/deployments/deployment/$id": typeof DeploymentsDeploymentIdRoute;
 	"/flows/flow/$id": typeof FlowsFlowIdRoute;
+	"/runs/flow-run/$id": typeof RunsFlowRunIdRoute;
 }
 
 export interface FileRoutesByTo {
@@ -242,15 +272,17 @@ export interface FileRoutesByTo {
 	"/blocks": typeof BlocksRoute;
 	"/concurrency-limits": typeof ConcurrencyLimitsRoute;
 	"/dashboard": typeof DashboardRoute;
-	"/deployments": typeof DeploymentsRoute;
 	"/events": typeof EventsRoute;
 	"/notifications": typeof NotificationsRoute;
-	"/runs": typeof RunsRoute;
 	"/settings": typeof SettingsRoute;
 	"/variables": typeof VariablesRoute;
 	"/work-pools": typeof WorkPoolsRoute;
+	"/deployments": typeof DeploymentsIndexRoute;
 	"/flows": typeof FlowsIndexRoute;
+	"/runs": typeof RunsIndexRoute;
+	"/deployments/deployment/$id": typeof DeploymentsDeploymentIdRoute;
 	"/flows/flow/$id": typeof FlowsFlowIdRoute;
+	"/runs/flow-run/$id": typeof RunsFlowRunIdRoute;
 }
 
 export interface FileRoutesById {
@@ -260,15 +292,17 @@ export interface FileRoutesById {
 	"/blocks": typeof BlocksRoute;
 	"/concurrency-limits": typeof ConcurrencyLimitsRoute;
 	"/dashboard": typeof DashboardRoute;
-	"/deployments": typeof DeploymentsRoute;
 	"/events": typeof EventsRoute;
 	"/notifications": typeof NotificationsRoute;
-	"/runs": typeof RunsRoute;
 	"/settings": typeof SettingsRoute;
 	"/variables": typeof VariablesRoute;
 	"/work-pools": typeof WorkPoolsRoute;
+	"/deployments/": typeof DeploymentsIndexRoute;
 	"/flows/": typeof FlowsIndexRoute;
+	"/runs/": typeof RunsIndexRoute;
+	"/deployments/deployment/$id": typeof DeploymentsDeploymentIdRoute;
 	"/flows/flow/$id": typeof FlowsFlowIdRoute;
+	"/runs/flow-run/$id": typeof RunsFlowRunIdRoute;
 }
 
 export interface FileRouteTypes {
@@ -279,15 +313,17 @@ export interface FileRouteTypes {
 		| "/blocks"
 		| "/concurrency-limits"
 		| "/dashboard"
-		| "/deployments"
 		| "/events"
 		| "/notifications"
-		| "/runs"
 		| "/settings"
 		| "/variables"
 		| "/work-pools"
+		| "/deployments"
 		| "/flows"
-		| "/flows/flow/$id";
+		| "/runs"
+		| "/deployments/deployment/$id"
+		| "/flows/flow/$id"
+		| "/runs/flow-run/$id";
 	fileRoutesByTo: FileRoutesByTo;
 	to:
 		| "/"
@@ -295,15 +331,17 @@ export interface FileRouteTypes {
 		| "/blocks"
 		| "/concurrency-limits"
 		| "/dashboard"
-		| "/deployments"
 		| "/events"
 		| "/notifications"
-		| "/runs"
 		| "/settings"
 		| "/variables"
 		| "/work-pools"
+		| "/deployments"
 		| "/flows"
-		| "/flows/flow/$id";
+		| "/runs"
+		| "/deployments/deployment/$id"
+		| "/flows/flow/$id"
+		| "/runs/flow-run/$id";
 	id:
 		| "__root__"
 		| "/"
@@ -311,15 +349,17 @@ export interface FileRouteTypes {
 		| "/blocks"
 		| "/concurrency-limits"
 		| "/dashboard"
-		| "/deployments"
 		| "/events"
 		| "/notifications"
-		| "/runs"
 		| "/settings"
 		| "/variables"
 		| "/work-pools"
+		| "/deployments/"
 		| "/flows/"
-		| "/flows/flow/$id";
+		| "/runs/"
+		| "/deployments/deployment/$id"
+		| "/flows/flow/$id"
+		| "/runs/flow-run/$id";
 	fileRoutesById: FileRoutesById;
 }
 
@@ -329,15 +369,17 @@ export interface RootRouteChildren {
 	BlocksRoute: typeof BlocksRoute;
 	ConcurrencyLimitsRoute: typeof ConcurrencyLimitsRoute;
 	DashboardRoute: typeof DashboardRoute;
-	DeploymentsRoute: typeof DeploymentsRoute;
 	EventsRoute: typeof EventsRoute;
 	NotificationsRoute: typeof NotificationsRoute;
-	RunsRoute: typeof RunsRoute;
 	SettingsRoute: typeof SettingsRoute;
 	VariablesRoute: typeof VariablesRoute;
 	WorkPoolsRoute: typeof WorkPoolsRoute;
+	DeploymentsIndexRoute: typeof DeploymentsIndexRoute;
 	FlowsIndexRoute: typeof FlowsIndexRoute;
+	RunsIndexRoute: typeof RunsIndexRoute;
+	DeploymentsDeploymentIdRoute: typeof DeploymentsDeploymentIdRoute;
 	FlowsFlowIdRoute: typeof FlowsFlowIdRoute;
+	RunsFlowRunIdRoute: typeof RunsFlowRunIdRoute;
 }
 
 const rootRouteChildren: RootRouteChildren = {
@@ -346,15 +388,17 @@ const rootRouteChildren: RootRouteChildren = {
 	BlocksRoute: BlocksRoute,
 	ConcurrencyLimitsRoute: ConcurrencyLimitsRoute,
 	DashboardRoute: DashboardRoute,
-	DeploymentsRoute: DeploymentsRoute,
 	EventsRoute: EventsRoute,
 	NotificationsRoute: NotificationsRoute,
-	RunsRoute: RunsRoute,
 	SettingsRoute: SettingsRoute,
 	VariablesRoute: VariablesRoute,
 	WorkPoolsRoute: WorkPoolsRoute,
+	DeploymentsIndexRoute: DeploymentsIndexRoute,
 	FlowsIndexRoute: FlowsIndexRoute,
+	RunsIndexRoute: RunsIndexRoute,
+	DeploymentsDeploymentIdRoute: DeploymentsDeploymentIdRoute,
 	FlowsFlowIdRoute: FlowsFlowIdRoute,
+	RunsFlowRunIdRoute: RunsFlowRunIdRoute,
 };
 
 export const routeTree = rootRoute
@@ -372,15 +416,17 @@ export const routeTree = rootRoute
         "/blocks",
         "/concurrency-limits",
         "/dashboard",
-        "/deployments",
         "/events",
         "/notifications",
-        "/runs",
         "/settings",
         "/variables",
         "/work-pools",
+        "/deployments/",
         "/flows/",
-        "/flows/flow/$id"
+        "/runs/",
+        "/deployments/deployment/$id",
+        "/flows/flow/$id",
+        "/runs/flow-run/$id"
       ]
     },
     "/": {
@@ -398,17 +444,11 @@ export const routeTree = rootRoute
     "/dashboard": {
       "filePath": "dashboard.tsx"
     },
-    "/deployments": {
-      "filePath": "deployments.tsx"
-    },
     "/events": {
       "filePath": "events.tsx"
     },
     "/notifications": {
       "filePath": "notifications.tsx"
-    },
-    "/runs": {
-      "filePath": "runs.tsx"
     },
     "/settings": {
       "filePath": "settings.tsx"
@@ -419,11 +459,23 @@ export const routeTree = rootRoute
     "/work-pools": {
       "filePath": "work-pools.tsx"
     },
+    "/deployments/": {
+      "filePath": "deployments/index.tsx"
+    },
     "/flows/": {
       "filePath": "flows/index.tsx"
     },
+    "/runs/": {
+      "filePath": "runs/index.tsx"
+    },
+    "/deployments/deployment/$id": {
+      "filePath": "deployments/deployment.$id.tsx"
+    },
     "/flows/flow/$id": {
       "filePath": "flows/flow.$id.tsx"
+    },
+    "/runs/flow-run/$id": {
+      "filePath": "runs/flow-run.$id.tsx"
     }
   }
 }
