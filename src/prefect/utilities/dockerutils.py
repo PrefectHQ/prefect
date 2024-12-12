@@ -3,22 +3,12 @@ import os
 import shutil
 import sys
 import warnings
+from collections.abc import Generator, Iterable, Iterator
 from contextlib import contextmanager
 from pathlib import Path, PurePosixPath
 from tempfile import TemporaryDirectory
 from types import TracebackType
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Generator,
-    Iterable,
-    List,
-    Optional,
-    TextIO,
-    Tuple,
-    Type,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, Optional, TextIO, Union, cast
 from urllib.parse import urlsplit
 
 import pendulum
@@ -28,6 +18,12 @@ from typing_extensions import Self
 import prefect
 from prefect.utilities.importtools import lazy_import
 from prefect.utilities.slugify import slugify
+
+if TYPE_CHECKING:
+    import docker
+    import docker.errors
+    from docker import DockerClient
+    from docker.models.images import Image
 
 CONTAINER_LABELS = {
     "io.prefect.version": prefect.__version__,
@@ -102,10 +98,7 @@ def silence_docker_warnings() -> Generator[None, None, None]:
 # want to have those popping up in various modules and test suites.  Instead,
 # consolidate the imports we need here, and expose them via this module.
 with silence_docker_warnings():
-    if TYPE_CHECKING:
-        import docker
-        from docker import DockerClient
-    else:
+    if not TYPE_CHECKING:
         docker = lazy_import("docker")
 
 
@@ -123,7 +116,8 @@ def docker_client() -> Generator["DockerClient", None, None]:
             "This error is often thrown because Docker is not running. Please ensure Docker is running."
         ) from exc
     finally:
-        client is not None and client.close()
+        if client is not None:
+            client.close()  # type: ignore  # typing stub is not complete
 
 
 class BuildError(Exception):
@@ -207,14 +201,15 @@ class ImageBuilder:
     base_directory: Path
     context: Optional[Path]
     platform: Optional[str]
-    dockerfile_lines: List[str]
+    dockerfile_lines: list[str]
+    temporary_directory: Optional[TemporaryDirectory[str]]
 
     def __init__(
         self,
         base_image: str,
-        base_directory: Path = None,
+        base_directory: Optional[Path] = None,
         platform: Optional[str] = None,
-        context: Path = None,
+        context: Optional[Path] = None,
     ):
         """Create an ImageBuilder
 
@@ -250,7 +245,7 @@ class ImageBuilder:
         return self
 
     def __exit__(
-        self, exc: Type[BaseException], value: BaseException, traceback: TracebackType
+        self, exc: type[BaseException], value: BaseException, traceback: TracebackType
     ) -> None:
         if not self.temporary_directory:
             return
@@ -267,7 +262,9 @@ class ImageBuilder:
         """Add lines to this image's Dockerfile"""
         self.dockerfile_lines.extend(lines)
 
-    def copy(self, source: Union[str, Path], destination: Union[str, PurePosixPath]):
+    def copy(
+        self, source: Union[str, Path], destination: Union[str, PurePosixPath]
+    ) -> None:
         """Copy a file to this image"""
         if not self.context:
             raise Exception("No context available")
@@ -291,7 +288,7 @@ class ImageBuilder:
 
         self.add_line(f"COPY {source} {destination}")
 
-    def write_text(self, text: str, destination: Union[str, PurePosixPath]):
+    def write_text(self, text: str, destination: Union[str, PurePosixPath]) -> None:
         if not self.context:
             raise Exception("No context available")
 
@@ -315,6 +312,7 @@ class ImageBuilder:
         Returns:
             The image ID
         """
+        assert self.context is not None
         dockerfile_path: Path = self.context / "Dockerfile"
 
         with dockerfile_path.open("w") as dockerfile:
@@ -436,9 +434,12 @@ def push_image(
     repository = f"{registry}/{name}"
 
     with docker_client() as client:
-        image: "docker.Image" = client.images.get(image_id)
-        image.tag(repository, tag=tag)
-        events = client.api.push(repository, tag=tag, stream=True, decode=True)
+        image: "Image" = client.images.get(image_id)
+        image.tag(repository, tag=tag)  # type: ignore  # typing stub is not complete
+        events = cast(
+            Iterator[dict[str, Any]],
+            client.api.push(repository, tag=tag, stream=True, decode=True),  # type: ignore  # typing stub is not complete
+        )
         try:
             for event in events:
                 if "status" in event:
@@ -452,12 +453,12 @@ def push_image(
                 elif "error" in event:
                     raise PushError(event["error"])
         finally:
-            client.api.remove_image(f"{repository}:{tag}", noprune=True)
+            client.api.remove_image(f"{repository}:{tag}", noprune=True)  # type: ignore  # typing stub is not complete
 
     return f"{repository}:{tag}"
 
 
-def to_run_command(command: List[str]) -> str:
+def to_run_command(command: list[str]) -> str:
     """
     Convert a process-style list of command arguments to a single Dockerfile RUN
     instruction.
@@ -481,7 +482,7 @@ def to_run_command(command: List[str]) -> str:
     return run_command
 
 
-def parse_image_tag(name: str) -> Tuple[str, Optional[str]]:
+def parse_image_tag(name: str) -> tuple[str, Optional[str]]:
     """
     Parse Docker Image String
 
@@ -519,7 +520,7 @@ def parse_image_tag(name: str) -> Tuple[str, Optional[str]]:
     return image_name, tag
 
 
-def split_repository_path(repository_path: str) -> Tuple[Optional[str], str]:
+def split_repository_path(repository_path: str) -> tuple[Optional[str], str]:
     """
     Splits a Docker repository path into its namespace and repository components.
 
@@ -550,7 +551,7 @@ def split_repository_path(repository_path: str) -> Tuple[Optional[str], str]:
     return namespace, repository
 
 
-def format_outlier_version_name(version: str):
+def format_outlier_version_name(version: str) -> str:
     """
     Formats outlier docker version names to pass `packaging.version.parse` validation
     - Current cases are simple, but creates stub for more complicated formatting if eventually needed.
@@ -580,7 +581,7 @@ def generate_default_dockerfile(context: Optional[Path] = None):
     """
     if not context:
         context = Path.cwd()
-    lines = []
+    lines: list[str] = []
     base_image = get_prefect_image_name()
     lines.append(f"FROM {base_image}")
     dir_name = context.name

@@ -8,7 +8,6 @@ from uuid import UUID
 
 import pendulum
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Literal, Self
 
 import prefect.server.schemas as schemas
@@ -19,7 +18,7 @@ from prefect.server.schemas.core import (
     WorkQueueStatusDetail,
 )
 from prefect.server.utilities.schemas.bases import ORMBaseModel, PrefectBaseModel
-from prefect.types import KeyValueLabelsField
+from prefect.types import DateTime, KeyValueLabelsField
 from prefect.utilities.collections import AutoEnum
 from prefect.utilities.names import generate_slug
 

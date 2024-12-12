@@ -35,10 +35,13 @@ from pydantic import (
     model_validator,
 )
 from pydantic_core import PydanticUndefinedType
-from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import ParamSpec, Self
 
 import prefect
+from prefect._experimental.lineage import (
+    emit_result_read_event,
+    emit_result_write_event,
+)
 from prefect._internal.compatibility import deprecated
 from prefect._internal.compatibility.deprecated import deprecated_field
 from prefect.blocks.core import Block
@@ -57,6 +60,7 @@ from prefect.locking.protocol import LockManager
 from prefect.logging import get_logger
 from prefect.serializers import PickleSerializer, Serializer
 from prefect.settings.context import get_current_settings
+from prefect.types import DateTime
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.pydantic import get_dispatch_key, lookup_type, register_base_type
@@ -129,7 +133,7 @@ async def resolve_result_storage(
     elif isinstance(result_storage, Path):
         storage_block = LocalFileSystem(basepath=str(result_storage))
     elif isinstance(result_storage, str):
-        storage_block = await Block.load(result_storage, client=client)
+        storage_block = await Block.aload(result_storage, client=client)
         storage_block_id = storage_block._block_document_id
         assert storage_block_id is not None, "Loaded storage blocks must have ids"
     elif isinstance(result_storage, UUID):
@@ -168,7 +172,7 @@ async def get_or_create_default_task_scheduling_storage() -> ResultStorage:
     default_block = settings.tasks.scheduling.default_storage_block
 
     if default_block is not None:
-        return await Block.load(default_block)
+        return await Block.aload(default_block)
 
     # otherwise, use the local file system
     basepath = settings.results.local_storage_path
@@ -232,6 +236,10 @@ def _format_user_supplied_storage_key(key: str) -> str:
 T = TypeVar("T")
 
 
+def default_cache() -> LRUCache[str, "ResultRecord[Any]"]:
+    return LRUCache(maxsize=1000)
+
+
 def result_storage_discriminator(x: Any) -> str:
     if isinstance(x, dict):
         if "block_type_slug" in x:
@@ -284,7 +292,7 @@ class ResultStore(BaseModel):
     cache_result_in_memory: bool = Field(default=True)
     serializer: Serializer = Field(default_factory=get_default_result_serializer)
     storage_key_fn: Callable[[], str] = Field(default=DEFAULT_STORAGE_KEY_FN)
-    cache: LRUCache = Field(default_factory=lambda: LRUCache(maxsize=1000))
+    cache: LRUCache[str, "ResultRecord[Any]"] = Field(default_factory=default_cache)
 
     # Deprecated fields
     persist_result: Optional[bool] = Field(default=None)
@@ -446,8 +454,15 @@ class ResultStore(BaseModel):
         """
         return await self._exists(key=key, _sync=False)
 
+    def _resolved_key_path(self, key: str) -> str:
+        if self.result_storage_block_id is None and hasattr(
+            self.result_storage, "_resolve_path"
+        ):
+            return str(self.result_storage._resolve_path(key))
+        return key
+
     @sync_compatible
-    async def _read(self, key: str, holder: str) -> "ResultRecord":
+    async def _read(self, key: str, holder: str) -> "ResultRecord[Any]":
         """
         Read a result record from storage.
 
@@ -465,8 +480,12 @@ class ResultStore(BaseModel):
         if self.lock_manager is not None and not self.is_lock_holder(key, holder):
             await self.await_for_lock(key)
 
-        if key in self.cache:
-            return self.cache[key]
+        resolved_key_path = self._resolved_key_path(key)
+
+        if resolved_key_path in self.cache:
+            cached_result = self.cache[resolved_key_path]
+            await emit_result_read_event(self, resolved_key_path, cached=True)
+            return cached_result
 
         if self.result_storage is None:
             self.result_storage = await get_default_result_storage()
@@ -478,31 +497,28 @@ class ResultStore(BaseModel):
                 metadata.storage_key is not None
             ), "Did not find storage key in metadata"
             result_content = await self.result_storage.read_path(metadata.storage_key)
-            result_record = ResultRecord.deserialize_from_result_and_metadata(
+            result_record: ResultRecord[
+                Any
+            ] = ResultRecord.deserialize_from_result_and_metadata(
                 result=result_content, metadata=metadata_content
             )
+            await emit_result_read_event(self, resolved_key_path)
         else:
             content = await self.result_storage.read_path(key)
-            result_record = ResultRecord.deserialize(
+            result_record: ResultRecord[Any] = ResultRecord.deserialize(
                 content, backup_serializer=self.serializer
             )
+            await emit_result_read_event(self, resolved_key_path)
 
         if self.cache_result_in_memory:
-            if self.result_storage_block_id is None and hasattr(
-                self.result_storage, "_resolve_path"
-            ):
-                cache_key = str(self.result_storage._resolve_path(key))
-            else:
-                cache_key = key
-
-            self.cache[cache_key] = result_record
+            self.cache[resolved_key_path] = result_record
         return result_record
 
     def read(
         self,
         key: str,
         holder: Optional[str] = None,
-    ) -> "ResultRecord":
+    ) -> "ResultRecord[Any]":
         """
         Read a result record from storage.
 
@@ -520,7 +536,7 @@ class ResultStore(BaseModel):
         self,
         key: str,
         holder: Optional[str] = None,
-    ) -> "ResultRecord":
+    ) -> "ResultRecord[Any]":
         """
         Read a result record from storage.
 
@@ -663,12 +679,13 @@ class ResultStore(BaseModel):
                 base_key,
                 content=result_record.serialize_metadata(),
             )
+            await emit_result_write_event(self, result_record.metadata.storage_key)
         # Otherwise, write the result metadata and result together
         else:
             await self.result_storage.write_path(
                 result_record.metadata.storage_key, content=result_record.serialize()
             )
-
+            await emit_result_write_event(self, result_record.metadata.storage_key)
         if self.cache_result_in_memory:
             self.cache[key] = result_record
 

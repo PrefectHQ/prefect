@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     # together.
     DateTime = pendulum.DateTime
 else:
-    from pydantic_extra_types.pendulum_dt import DateTime
+    from prefect.types import DateTime
 
 MAX_ITERATIONS = 1000
 # approx. 1 years worth of RDATEs + buffer

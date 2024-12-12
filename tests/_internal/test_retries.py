@@ -74,9 +74,9 @@ class TestRetryAsyncFn:
         with pytest.raises(ValueError, match="Test error"), caplog.at_level("WARNING"):
             await fail_func()
 
-        assert (
-            "Attempt 1 of function 'fail_func' failed with ValueError. Retrying in"
-            in caplog.text
+        assert all(
+            substr in caplog.text
+            for substr in ["Attempt 1 of function", "Test error", "Retrying in"]
         )
         assert "'fail_func' failed after 2 attempts" in caplog.text
         assert mock_sleep.call_count == 1

@@ -13,7 +13,7 @@ To complete this tutorial, you'll need:
 - Git
 - Docker
 - Python 3.9 or newer
-- A forever free [Prefect Cloud](https://app.prefect.cloud/) account
+- A paid [Prefect Cloud](https://app.prefect.cloud/) account (free accounts do not support multiple workspaces)
 
 You'll also need to clone the Prefect demo repository and install the prefect library:
 
@@ -37,9 +37,9 @@ prefect --version
 
 We recommend one workspace per development environment.
 In this tutorial, we'll create a production workspace and a staging workspace.
-To create a workspace on Prefect Cloud, you'll need a forever free account.
+To create multiple workspaces on Prefect Cloud, you'll need a paid account.
 
-1. Head to https://app.prefect.cloud/ and sign in or create an account.
+1. Head to https://app.prefect.cloud/ and sign in to your paid account.
 1. If you haven't created a workspace yet, you'll be prompted to choose a name for your workspace. 
 Name your first workspace `production`.
 
@@ -101,13 +101,13 @@ Run the following script from the demo repository to create flow runs in each wo
 
 ```bash
 # Run flows in the production workspace
-prefect cloud workspace --set "<account>/production"
+prefect cloud workspace set --workspace "<account>/production"
 python simulate_failures.py
 ```
 
 ```bash
 # Run flows in the staging workspace 
-prefect cloud workspace --set "<account>/staging"
+prefect cloud workspace set --workspace "<account>/staging"
 python simulate_failures.py --fail-at-run 3
 ```
 
