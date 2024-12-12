@@ -1,8 +1,8 @@
+import { TaskRunConcurrencyLimitDeleteDialog } from "@/components/concurrency/_shared/task-run-concurrency-limit-delete-dialog";
+import { TaskRunConcurrencyLimitResetDialog } from "@/components/concurrency/_shared/task-run-concurrency-limit-reset-dialog";
 import { TaskRunConcurrencyLimit } from "@/hooks/task-run-concurrency-limits";
 
 import { CreateLimitDialog } from "./create-dialog";
-import { DeleteLimitDialog } from "./delete-dialog";
-import { ResetLimitDialog } from "./reset-dialog";
 
 export type DialogState =
 	| { dialog: null | "create"; data: undefined }
@@ -31,7 +31,7 @@ export const DialogView = ({
 			);
 		case "reset":
 			return (
-				<ResetLimitDialog
+				<TaskRunConcurrencyLimitResetDialog
 					data={data}
 					onOpenChange={onOpenChange}
 					onReset={onCloseDialog}
@@ -39,7 +39,7 @@ export const DialogView = ({
 			);
 		case "delete":
 			return (
-				<DeleteLimitDialog
+				<TaskRunConcurrencyLimitDeleteDialog
 					data={data}
 					onOpenChange={onOpenChange}
 					onDelete={onCloseDialog}

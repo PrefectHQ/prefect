@@ -7,6 +7,7 @@ import { z } from "zod";
 
 /**
  * Schema for validating URL search parameters for the Concurrency Limits page.
+ * @property {string} search used to filter data table
  * @property {'global' | 'task-run'} tab used designate which tab view to display
  */
 const searchParams = z.object({
