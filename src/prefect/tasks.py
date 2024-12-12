@@ -474,6 +474,10 @@ class Task(Generic[P, R]):
 
         if callable(retry_delay_seconds):
             self.retry_delay_seconds = retry_delay_seconds(retries)
+        elif not isinstance(retry_delay_seconds, (list, int, float, type(None))):
+            raise TypeError(
+                f"Invalid `retry_delay_seconds` provided; must be an int, float, list or callable. Received type {type(retry_delay_seconds)}"
+            )
         else:
             self.retry_delay_seconds = retry_delay_seconds
 
