@@ -1,11 +1,13 @@
 import abc
 import asyncio
+import os
 from types import TracebackType
 from typing import (
     TYPE_CHECKING,
     Any,
     ClassVar,
     Dict,
+    Generator,
     List,
     MutableMapping,
     Optional,
@@ -13,20 +15,22 @@ from typing import (
     Type,
     cast,
 )
+from urllib.parse import urlparse
 from uuid import UUID
 
 import orjson
 import pendulum
 from cachetools import TTLCache
 from prometheus_client import Counter
+from python_socks.async_.asyncio import Proxy
 from typing_extensions import Self
 from websockets import Subprotocol
-from websockets.client import WebSocketClientProtocol
 from websockets.exceptions import (
     ConnectionClosed,
     ConnectionClosedError,
     ConnectionClosedOK,
 )
+from websockets.legacy.client import Connect, WebSocketClientProtocol
 
 from prefect.events import Event
 from prefect.logging import get_logger
@@ -37,7 +41,6 @@ from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
 )
-from prefect.utilities.proxy import websocket_connect
 
 if TYPE_CHECKING:
     from prefect.events.filters import EventFilter
@@ -79,6 +82,53 @@ def events_in_socket_from_api_url(url: str):
 
 def events_out_socket_from_api_url(url: str):
     return http_to_ws(url) + "/events/out"
+
+
+class WebsocketProxyConnect(Connect):
+    def __init__(self: Self, uri: str, **kwargs: Any):
+        # super() is intentionally deferred to the __proxy_connect__ method
+        # to allow for the socket to be established first
+
+        self.uri = uri
+        self.__kwargs = kwargs
+
+        u = urlparse(uri)
+        host = u.hostname
+
+        if u.scheme == "ws":
+            port = u.port or 80
+            proxy_url = os.environ.get("HTTP_PROXY")
+        elif u.scheme == "wss":
+            port = u.port or 443
+            proxy_url = os.environ.get("HTTPS_PROXY")
+            kwargs["server_hostname"] = host
+        else:
+            raise ValueError(
+                "Unsupported scheme %s. Expected 'ws' or 'wss'. " % u.scheme
+            )
+
+        self.__proxy = Proxy.from_url(proxy_url) if proxy_url else None
+        self.__host = host
+        self.__port = port
+
+    async def _proxy_connect(self: Self) -> WebSocketClientProtocol:
+        if self.__proxy:
+            sock = await self.__proxy.connect(
+                dest_host=self.__host,
+                dest_port=self.__port,
+            )
+            self.__kwargs["sock"] = sock
+
+        super().__init__(self.uri, **self.__kwargs)
+        proto = await self.__await_impl__()
+        return proto
+
+    def __await__(self: Self) -> Generator[Any, None, WebSocketClientProtocol]:
+        return self._proxy_connect().__await__()
+
+
+def websocket_connect(uri: str, **kwargs: Any) -> WebsocketProxyConnect:
+    return WebsocketProxyConnect(uri, **kwargs)
 
 
 def get_events_client(

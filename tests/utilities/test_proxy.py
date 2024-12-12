@@ -1,6 +1,6 @@
 from unittest.mock import Mock
 
-from prefect.utilities.proxy import WebsocketProxyConnect
+from prefect.events.clients import WebsocketProxyConnect
 
 
 def test_init_ws_without_proxy():
@@ -23,7 +23,7 @@ def test_init_wss_without_proxy():
 def test_init_ws_with_proxy(monkeypatch):
     monkeypatch.setenv("HTTP_PROXY", "http://proxy:3128")
     mock_proxy = Mock()
-    monkeypatch.setattr("prefect.utilities.proxy.Proxy", mock_proxy)
+    monkeypatch.setattr("prefect.events.clients.Proxy", mock_proxy)
 
     client = WebsocketProxyConnect("ws://example.com")
 
@@ -34,7 +34,7 @@ def test_init_ws_with_proxy(monkeypatch):
 def test_init_wss_with_proxy(monkeypatch):
     monkeypatch.setenv("HTTPS_PROXY", "https://proxy:3128")
     mock_proxy = Mock()
-    monkeypatch.setattr("prefect.utilities.proxy.Proxy", mock_proxy)
+    monkeypatch.setattr("prefect.events.clients.Proxy", mock_proxy)
 
     client = WebsocketProxyConnect("wss://example.com")
 

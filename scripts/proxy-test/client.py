@@ -1,7 +1,7 @@
 import asyncio
 import os
 
-from prefect.utilities.proxy import websocket_connect
+from prefect.events.clients import websocket_connect
 
 PROXY_URL = "http://localhost:3128"
 WS_SERVER_URL = "ws://server:8000/ws"
