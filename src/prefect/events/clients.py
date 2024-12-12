@@ -112,12 +112,12 @@ class WebsocketProxyConnect(Connect):
         self._port = port
 
     async def _proxy_connect(self: Self) -> WebSocketClientProtocol:
-        if self.__proxy:
+        if self._proxy:
             sock = await self._proxy.connect(
                 dest_host=self._host,
                 dest_port=self._port,
             )
-            self.__kwargs["sock"] = sock
+            self._kwargs["sock"] = sock
 
         super().__init__(self.uri, **self._kwargs)
         proto = await self.__await_impl__()
