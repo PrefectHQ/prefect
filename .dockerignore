@@ -30,12 +30,13 @@ env/
 venv/
 
 # Documentation artifacts
-docs/api-ref/schema.json
+docs/
 site/
 
 # UI artifacts
 src/prefect/server/ui/*
 ui/node_modules
+ui-v2/
 
 # Databases
 *.db
@@ -49,3 +50,9 @@ dask-worker-space/
 # Editors
 .idea/
 .vscode/
+
+# Other
+tests/
+compat-tests/
+benches/
+build/
