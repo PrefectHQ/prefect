@@ -53,14 +53,14 @@ class RunnerStorage(Protocol):
         """
         ...
 
-    def to_pull_step(self) -> dict:
+    def to_pull_step(self) -> dict[str, Any]:
         """
         Returns a dictionary representation of the storage object that can be
         used as a deployment pull step.
         """
         ...
 
-    def __eq__(self, __value) -> bool:
+    def __eq__(self, __value: Any) -> bool:
         """
         Equality check for runner storage objects.
         """
@@ -69,7 +69,7 @@ class RunnerStorage(Protocol):
 
 class GitCredentials(TypedDict, total=False):
     username: str
-    access_token: Union[str, Secret]
+    access_token: Union[str, Secret[str]]
 
 
 class GitRepository:
