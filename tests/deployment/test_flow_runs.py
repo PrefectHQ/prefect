@@ -9,14 +9,17 @@ import respx
 from httpx import Response
 
 from prefect import flow
+from prefect.client.schemas.responses import DeploymentResponse
 from prefect.context import FlowRunContext
 from prefect.deployments import run_deployment
+from prefect.flow_engine import run_flow_async
 from prefect.server.schemas.core import TaskRunResult
 from prefect.settings import (
     PREFECT_API_URL,
 )
 from prefect.tasks import task
 from prefect.utilities.slugify import slugify
+from tests.telemetry.instrumentation_tester import InstrumentationTester
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
@@ -433,3 +436,60 @@ class TestRunDeployment:
                 )
             ]
         }
+
+    async def test_propagates_otel_trace_to_deployment_flow_run(
+        self,
+        test_deployment: DeploymentResponse,
+        instrumentation: InstrumentationTester,
+        prefect_client: "PrefectClient",
+    ):
+        """Test that OTEL trace context gets propagated from parent flow to deployment flow run"""
+        deployment = test_deployment
+        mock_traceparent = "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
+
+        @flow(name="child-flow")
+        async def child_flow() -> None:
+            pass
+
+        flow_id = await prefect_client.create_flow(child_flow)
+
+        deployment_id = await prefect_client.create_deployment(
+            name="foo-deployment", flow_id=flow_id, parameter_openapi_schema={}
+        )
+        deployment = await prefect_client.read_deployment(deployment_id)
+
+        @flow(name="parent-flow")
+        async def parent_flow():
+            # Set OTEL context in the parent flow's labels
+            flow_run = FlowRunContext.get().flow_run
+
+            flow_run.labels["__OTEL_TRACEPARENT"] = mock_traceparent
+
+            return await run_deployment(
+                f"foo/{deployment.name}",
+                timeout=0,
+                poll_interval=0,
+            )
+
+        parent_state = await parent_flow(return_state=True)
+        child_flow_run = await parent_state.result()
+
+        await run_flow_async(child_flow, child_flow_run)
+        # Get all spans
+        spans = instrumentation.get_finished_spans()
+
+        # Find parent flow span
+        parent_span = next(
+            span
+            for span in spans
+            if span.attributes.get("prefect.flow.name") == "parent-flow"
+        )
+        child_span = next(
+            span
+            for span in spans
+            if span.attributes.get("prefect.flow.name") == "child-flow"
+        )
+        assert child_span
+        assert parent_span
+
+        assert mock_traceparent == child_flow_run.labels["__OTEL_TRACEPARENT"]
