@@ -13,7 +13,7 @@ bytes to an object respectively.
 
 import abc
 import base64
-from typing import Any, Dict, Generic, Optional, Type
+from typing import Any, Generic, Optional, Type, Union
 
 from pydantic import (
     BaseModel,
@@ -23,7 +23,7 @@ from pydantic import (
     ValidationError,
     field_validator,
 )
-from typing_extensions import Literal, Self, TypeVar
+from typing_extensions import Self, TypeVar
 
 from prefect._internal.schemas.validators import (
     cast_type_names_to_serializers,
@@ -54,7 +54,7 @@ def prefect_json_object_encoder(obj: Any) -> Any:
         }
 
 
-def prefect_json_object_decoder(result: dict):
+def prefect_json_object_decoder(result: dict[str, Any]):
     """
     `JSONDecoder.object_hook` for decoding objects from JSON when previously encoded
     with `prefect_json_object_encoder`
@@ -80,12 +80,16 @@ class Serializer(BaseModel, Generic[D], abc.ABC):
         data.setdefault("type", type_string)
         super().__init__(**data)
 
-    def __new__(cls: Type[Self], **kwargs) -> Self:
+    def __new__(cls: Type[Self], **kwargs: Any) -> Self:
         if "type" in kwargs:
             try:
                 subcls = lookup_type(cls, dispatch_key=kwargs["type"])
             except KeyError as exc:
-                raise ValidationError(errors=[exc], model=cls)
+                raise ValidationError.from_exception_data(
+                    title=cls.__name__,
+                    line_errors=[{"type": str(exc), "input": kwargs["type"]}],
+                    input_type="python",
+                )
 
             return super().__new__(subcls)
         else:
@@ -104,7 +108,7 @@ class Serializer(BaseModel, Generic[D], abc.ABC):
     model_config = ConfigDict(extra="forbid")
 
     @classmethod
-    def __dispatch_key__(cls) -> str:
+    def __dispatch_key__(cls) -> Optional[str]:
         type_str = cls.model_fields["type"].default
         return type_str if isinstance(type_str, str) else None
 
@@ -119,18 +123,14 @@ class PickleSerializer(Serializer):
     - Wraps pickles in base64 for safe transmission.
     """
 
-    type: Literal["pickle"] = "pickle"
+    type: str = Field(default="pickle", frozen=True)
 
     picklelib: str = "cloudpickle"
     picklelib_version: Optional[str] = None
 
     @field_validator("picklelib")
-    def check_picklelib(cls, value):
+    def check_picklelib(cls, value: str) -> str:
         return validate_picklelib(value)
-
-    # @model_validator(mode="before")
-    # def check_picklelib_version(cls, values):
-    #     return validate_picklelib_version(values)
 
     def dumps(self, obj: Any) -> bytes:
         pickler = from_qualified_name(self.picklelib)
@@ -151,7 +151,7 @@ class JSONSerializer(Serializer):
     Wraps the `json` library to serialize to UTF-8 bytes instead of string types.
     """
 
-    type: Literal["json"] = "json"
+    type: str = Field(default="json", frozen=True)
 
     jsonlib: str = "json"
     object_encoder: Optional[str] = Field(
@@ -171,23 +171,27 @@ class JSONSerializer(Serializer):
             "by our default `object_encoder`."
         ),
     )
-    dumps_kwargs: Dict[str, Any] = Field(default_factory=dict)
-    loads_kwargs: Dict[str, Any] = Field(default_factory=dict)
+    dumps_kwargs: dict[str, Any] = Field(default_factory=dict)
+    loads_kwargs: dict[str, Any] = Field(default_factory=dict)
 
     @field_validator("dumps_kwargs")
-    def dumps_kwargs_cannot_contain_default(cls, value):
+    def dumps_kwargs_cannot_contain_default(
+        cls, value: dict[str, Any]
+    ) -> dict[str, Any]:
         return validate_dump_kwargs(value)
 
     @field_validator("loads_kwargs")
-    def loads_kwargs_cannot_contain_object_hook(cls, value):
+    def loads_kwargs_cannot_contain_object_hook(
+        cls, value: dict[str, Any]
+    ) -> dict[str, Any]:
         return validate_load_kwargs(value)
 
-    def dumps(self, data: Any) -> bytes:
+    def dumps(self, obj: Any) -> bytes:
         json = from_qualified_name(self.jsonlib)
         kwargs = self.dumps_kwargs.copy()
         if self.object_encoder:
             kwargs["default"] = from_qualified_name(self.object_encoder)
-        result = json.dumps(data, **kwargs)
+        result = json.dumps(obj, **kwargs)
         if isinstance(result, str):
             # The standard library returns str but others may return bytes directly
             result = result.encode()
@@ -213,17 +217,17 @@ class CompressedSerializer(Serializer):
         level: If not null, the level of compression to pass to `compress`.
     """
 
-    type: Literal["compressed"] = "compressed"
+    type: str = Field(default="compressed", frozen=True)
 
     serializer: Serializer
     compressionlib: str = "lzma"
 
     @field_validator("serializer", mode="before")
-    def validate_serializer(cls, value):
+    def validate_serializer(cls, value: Union[str, Serializer]) -> Serializer:
         return cast_type_names_to_serializers(value)
 
     @field_validator("compressionlib")
-    def check_compressionlib(cls, value):
+    def check_compressionlib(cls, value: str) -> str:
         return validate_compressionlib(value)
 
     def dumps(self, obj: Any) -> bytes:
@@ -242,7 +246,7 @@ class CompressedPickleSerializer(CompressedSerializer):
     A compressed serializer preconfigured to use the pickle serializer.
     """
 
-    type: Literal["compressed/pickle"] = "compressed/pickle"
+    type: str = Field(default="compressed/pickle", frozen=True)
 
     serializer: Serializer = Field(default_factory=PickleSerializer)
 
@@ -252,6 +256,6 @@ class CompressedJSONSerializer(CompressedSerializer):
     A compressed serializer preconfigured to use the json serializer.
     """
 
-    type: Literal["compressed/json"] = "compressed/json"
+    type: str = Field(default="compressed/json", frozen=True)
 
     serializer: Serializer = Field(default_factory=JSONSerializer)
