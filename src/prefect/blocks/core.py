@@ -629,11 +629,8 @@ class Block(BaseModel, ABC):
         """Generates a default code example for the current class"""
         qualified_name = to_qualified_name(cls)
         module_str = ".".join(qualified_name.split(".")[:-1])
-        class_name = (
-            cls.__pydantic_generic_metadata__.get("origin")
-            if hasattr(cls, "__pydantic_generic_metadata__")
-            else cls.__name__
-        )
+        origin = cls.__pydantic_generic_metadata__.get("origin") or cls
+        class_name = origin.__name__
         block_variable_name = f'{cls.get_block_type_slug().replace("-", "_")}_block'
 
         return dedent(
