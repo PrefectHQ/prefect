@@ -86,7 +86,7 @@ def events_out_socket_from_api_url(url: str):
 
 class WebsocketProxyConnect(Connect):
     def __init__(self: Self, uri: str, **kwargs: Any):
-        # super() is intentionally deferred to the __proxy_connect__ method
+        # super() is intentionally deferred to the _proxy_connect method
         # to allow for the socket to be established first
 
         self.uri = uri
