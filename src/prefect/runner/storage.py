@@ -286,7 +286,8 @@ class GitRepository:
             ) from exc_chain
 
         # Once repository is cloned and the repo is in sparse-checkout mode then grow the working directory
-        if await self.is_sparsely_checked_out():
+        if self._directories:
+            self._logger.debug("Will add %s", self._directories)
             await run_process(
                 ["git", "sparse-checkout", "set"] + self._directories,
                 cwd=self.destination,
