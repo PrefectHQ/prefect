@@ -123,26 +123,6 @@ class TestGitRepository:
             ]
         )
 
-    async def test_init_sparse(self, mock_run_process: AsyncMock):
-        repo = GitRepository(
-            url="https://github.com/org/repo.git",
-            directories=["directory_1", "directory_2"],
-        )
-
-        await repo.pull_code()
-
-        # check if any of the call matches, as directories will run a sparse-checkout and add directories
-        mock_run_process.assert_any_await(
-            [
-                "git",
-                "clone",
-                "https://github.com/org/repo.git",
-                "--depth=1",
-                "--sparse",
-                str(Path.cwd() / "repo"),
-            ]
-        )
-
     def test_init_with_username_no_token(self):
         with pytest.raises(
             ValueError,
@@ -265,9 +245,9 @@ class TestGitRepository:
                 "git",
                 "clone",
                 "https://github.com/org/repo.git",
+                "--recurse-submodules",
                 "--depth",
                 "1",
-                "--recurse-submodules",
                 str(Path.cwd() / "repo"),
             ]
         )
@@ -305,19 +285,6 @@ class TestGitRepository:
             console_output = capsys.readouterr()
             assert "super-secret-42".upper() not in console_output.out
             assert "super-secret-42".upper() not in console_output.err
-
-    async def test_git_clone_sparse(self, mock_run_process: AsyncMock):
-        repo = GitRepository(
-            url="https://github.com/org/repo.git",
-            directories=["directory_1", "directory_2"],
-        )
-
-        await repo.pull_code()
-
-        mock_run_process.assert_awaited_with(
-            ["git", "sparse-checkout", "add", "directory_1", "directory_2"],
-            cwd=str(Path.cwd() / "repo"),
-        )
 
     class TestCredentialFormatting:
         async def test_credential_formatting_maintains_secrets(

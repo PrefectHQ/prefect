@@ -87,8 +87,6 @@ class GitRepository:
         pull_interval: The interval in seconds at which to pull contents from
             remote storage to local storage. If None, remote storage will perform
             a one-time sync.
-        directories: Specify directories you wish to checkout, uses sparse checkout
-        cone_mode: Use cone mode for sparse checkout, only applies if directories are set
 
     Examples:
         Pull the contents of a private git repository to the local filesystem:
@@ -113,8 +111,6 @@ class GitRepository:
         branch: Optional[str] = None,
         include_submodules: bool = False,
         pull_interval: Optional[int] = 60,
-        directories: Optional[list] = None,
-        cone_mode: bool = True,
     ):
         if credentials is None:
             credentials = {}
@@ -138,12 +134,6 @@ class GitRepository:
         self._logger = get_logger(f"runner.storage.git-repository.{self._name}")
         self._storage_base_path = Path.cwd()
         self._pull_interval = pull_interval
-
-        # if the directories are populated then set sparse-checkout mode to true
-        self._sparse_checkout_mode = True if directories else False
-
-        self._sparse_checkout_directories = directories
-        self._sparse_checkout_cone_mode = cone_mode
 
     @property
     def destination(self) -> Path:
@@ -188,23 +178,6 @@ class GitRepository:
 
         return repository_url
 
-    async def sparse_checkout(self):
-        """
-        Uses sparse-checkout on repository
-        """
-        # use the sparse checkout set command to define the directories that need to be cloned
-        cmd = ["git", "sparse-checkout"]
-
-        if not self._sparse_checkout_cone_mode:
-            cmd += ["--no-cone"]
-
-        cmd += ["set", *self._sparse_checkout_directories]
-
-        await run_process(
-            cmd,
-            cwd=str(self.destination),
-        )
-
     async def pull_code(self):
         """
         Pulls the contents of the configured repository to the local filesystem.
@@ -232,10 +205,6 @@ class GitRepository:
                     f"The existing repository at {str(self.destination)} "
                     f"does not match the configured repository {self._url}"
                 )
-
-            # If we have specified directories use sparse-checkout before pulling latest changes
-            if self._sparse_checkout_mode:
-                await self.sparse_checkout()
 
             self._logger.debug("Pulling latest changes from origin/%s", self._branch)
             # Update the existing repository
@@ -273,16 +242,11 @@ class GitRepository:
         ]
         if self._branch:
             cmd += ["--branch", self._branch]
-
-        # The idea of partial cloning is to reduce repository size, this can be achieved through blobless, shallow or treeless cloning.
-        # Shallow cloning is still the best way to reduce the repository size the most, combining this with sparse checkout means that cloning can be completed faster
-        # https://github.blog/open-source/git/get-up-to-speed-with-partial-clone-and-shallow-clone/
+        if self._include_submodules:
+            cmd += ["--recurse-submodules"]
 
         # Limit git history and set path to clone to
         cmd += ["--depth", "1", str(self.destination)]
-
-        if self._include_submodules:
-            cmd += ["--recurse-submodules"]
 
         try:
             await run_process(cmd)
@@ -293,10 +257,6 @@ class GitRepository:
                 f"Failed to clone repository {self._url!r} with exit code"
                 f" {exc.returncode}."
             ) from exc_chain
-
-        # For sparse-checkout it is recommended to use --filter=blob:none to reduce disk-space
-        if self._sparse_checkout_mode:
-            await self.sparse_checkout()
 
     def __eq__(self, __value) -> bool:
         if isinstance(__value, GitRepository):
