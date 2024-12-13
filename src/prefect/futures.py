@@ -6,7 +6,7 @@ import threading
 import uuid
 from collections.abc import Generator, Iterator
 from functools import partial
-from typing import Any, Callable, Generic, List, Optional, Set, Union, cast
+from typing import Any, Callable, Generic, Optional, Union, cast
 
 from typing_extensions import TypeVar
 
@@ -25,6 +25,8 @@ F = TypeVar("F")
 R = TypeVar("R")
 
 logger = get_logger(__name__)
+
+unresolved_futures = False
 
 
 class PrefectFuture(abc.ABC, Generic[R]):
@@ -177,6 +179,8 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[R, concurrent.futures.Future]
             local_logger = get_run_logger()
         except Exception:
             local_logger = logger
+        global unresolved_futures
+        unresolved_futures = True
         local_logger.warning(
             "A future was garbage collected before it resolved."
             " Please call `.wait()` or `.result()` on futures to ensure they resolve."
@@ -193,7 +197,7 @@ class PrefectDistributedFuture(PrefectFuture[R]):
     any task run scheduled in Prefect's API.
     """
 
-    done_callbacks: List[Callable[[PrefectFuture[R]], None]] = []
+    done_callbacks: list[Callable[[PrefectFuture[R]], None]] = []
     waiter = None
 
     def wait(self, timeout: Optional[float] = None) -> None:
@@ -301,7 +305,7 @@ class PrefectFutureList(list, Iterator, Generic[F]):
         self: "PrefectFutureList[R]",
         timeout: Optional[float] = None,
         raise_on_failure: bool = True,
-    ) -> List[R]:
+    ) -> list[R]:
         """
         Get the results of all task runs associated with the futures in the list.
 
@@ -331,9 +335,9 @@ class PrefectFutureList(list, Iterator, Generic[F]):
 
 
 def as_completed(
-    futures: List[PrefectFuture[R]], timeout: Optional[float] = None
+    futures: list[PrefectFuture[R]], timeout: Optional[float] = None
 ) -> Generator[PrefectFuture[R], None]:
-    unique_futures: Set[PrefectFuture[R]] = set(futures)
+    unique_futures: set[PrefectFuture[R]] = set(futures)
     total_futures = len(unique_futures)
     try:
         with timeout_context(timeout):
@@ -373,7 +377,9 @@ def as_completed(
 DoneAndNotDoneFutures = collections.namedtuple("DoneAndNotDoneFutures", "done not_done")
 
 
-def wait(futures: List[PrefectFuture[R]], timeout=None) -> DoneAndNotDoneFutures:
+def wait(
+    futures: list[PrefectFuture[R]], timeout: Optional[float] = None
+) -> DoneAndNotDoneFutures:
     """
     Wait for the futures in the given sequence to complete.
 
@@ -431,9 +437,13 @@ def resolve_futures_to_states(
 
     Unsupported object types will be returned without modification.
     """
-    futures: Set[PrefectFuture[R]] = set()
+    futures: set[PrefectFuture[R]] = set()
 
-    def _collect_futures(futures, expr, context):
+    def _collect_futures(
+        futures: set[PrefectFuture[R]],
+        expr: Union[PrefectFuture[R], Any],
+        context: dict[str, Any],
+    ) -> Union[PrefectFuture[R], Any]:
         # Expressions inside quotes should not be traversed
         if isinstance(context.get("annotation"), quote):
             raise StopVisiting()
@@ -455,14 +465,16 @@ def resolve_futures_to_states(
         return expr
 
     # Get final states for each future
-    states = []
+    states: list[State] = []
     for future in futures:
         future.wait()
         states.append(future.state)
 
     states_by_future = dict(zip(futures, states))
 
-    def replace_futures_with_states(expr, context):
+    def replace_futures_with_states(
+        expr: Union[PrefectFuture[R], Any], context: dict[str, Any]
+    ):
         # Expressions inside quotes should not be modified
         if isinstance(context.get("annotation"), quote):
             raise StopVisiting()
