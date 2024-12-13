@@ -15,16 +15,12 @@ from typing import (
     Awaitable,
     Callable,
     Coroutine,
-    Dict,
     Generic,
     Iterable,
     List,
     NoReturn,
     Optional,
     Protocol,
-    Set,
-    Tuple,
-    Type,
     TypeVar,
     Union,
     cast,
@@ -87,13 +83,9 @@ NUM_CHARS_DYNAMIC_KEY = 8
 
 logger = get_logger("tasks")
 
-StateHookCallable: TypeAlias = Callable[
-    ["Task[..., Any]", TaskRun, State], Union[Awaitable[None], None]
-]
-
 
 def task_input_hash(
-    context: "TaskRunContext", arguments: Dict[str, Any]
+    context: "TaskRunContext", arguments: dict[str, Any]
 ) -> Optional[str]:
     """
     A task cache key implementation which hashes all inputs to the task using a JSON or
@@ -235,6 +227,14 @@ class TaskRunNameCallbackWithParameters(Protocol):
         ...
 
 
+StateHookCallable: TypeAlias = Callable[
+    ["Task[..., Any]", TaskRun, State], Union[Awaitable[None], None]
+]
+TaskRunNameValueOrCallable: TypeAlias = Union[
+    Callable[[], str], TaskRunNameCallbackWithParameters, str
+]
+
+
 class Task(Generic[P, R]):
     """
     A Prefect task definition.
@@ -317,14 +317,12 @@ class Task(Generic[P, R]):
         description: Optional[str] = None,
         tags: Optional[Iterable[str]] = None,
         version: Optional[str] = None,
-        cache_policy: Union[CachePolicy, Type[NotSet]] = NotSet,
+        cache_policy: Union[CachePolicy, type[NotSet]] = NotSet,
         cache_key_fn: Optional[
-            Callable[["TaskRunContext", Dict[str, Any]], Optional[str]]
+            Callable[["TaskRunContext", dict[str, Any]], Optional[str]]
         ] = None,
         cache_expiration: Optional[datetime.timedelta] = None,
-        task_run_name: Optional[
-            Union[Callable[[], str], TaskRunNameCallbackWithParameters, str]
-        ] = None,
+        task_run_name: Optional[TaskRunNameValueOrCallable] = None,
         retries: Optional[int] = None,
         retry_delay_seconds: Optional[
             Union[
@@ -538,7 +536,7 @@ class Task(Generic[P, R]):
         # of the task's function. This will allow it to be automatically added to the task's parameters
         else:
             bound_task = copy(self)
-            bound_task.fn.__prefect_self__ = instance
+            bound_task.fn.__prefect_self__ = instance  # type: ignore[attr-defined]
             return bound_task
 
     def with_options(
@@ -547,33 +545,31 @@ class Task(Generic[P, R]):
         name: Optional[str] = None,
         description: Optional[str] = None,
         tags: Optional[Iterable[str]] = None,
-        cache_policy: Union[CachePolicy, Type[NotSet]] = NotSet,
+        cache_policy: Union[CachePolicy, type[NotSet]] = NotSet,
         cache_key_fn: Optional[
-            Callable[["TaskRunContext", Dict[str, Any]], Optional[str]]
+            Callable[["TaskRunContext", dict[str, Any]], Optional[str]]
         ] = None,
         task_run_name: Optional[
-            Union[
-                Callable[[], str], TaskRunNameCallbackWithParameters, str, Type[NotSet]
-            ]
+            Union[TaskRunNameValueOrCallable, type[NotSet]]
         ] = NotSet,
         cache_expiration: Optional[datetime.timedelta] = None,
-        retries: Union[int, Type[NotSet]] = NotSet,
+        retries: Union[int, type[NotSet]] = NotSet,
         retry_delay_seconds: Union[
             float,
             int,
             List[float],
             Callable[[int], List[float]],
-            Type[NotSet],
+            type[NotSet],
         ] = NotSet,
-        retry_jitter_factor: Union[float, Type[NotSet]] = NotSet,
-        persist_result: Union[bool, Type[NotSet]] = NotSet,
-        result_storage: Union[ResultStorage, Type[NotSet]] = NotSet,
-        result_serializer: Union[ResultSerializer, Type[NotSet]] = NotSet,
-        result_storage_key: Union[str, Type[NotSet]] = NotSet,
+        retry_jitter_factor: Union[float, type[NotSet]] = NotSet,
+        persist_result: Union[bool, type[NotSet]] = NotSet,
+        result_storage: Union[ResultStorage, type[NotSet]] = NotSet,
+        result_serializer: Union[ResultSerializer, type[NotSet]] = NotSet,
+        result_storage_key: Union[str, type[NotSet]] = NotSet,
         cache_result_in_memory: Optional[bool] = None,
         timeout_seconds: Union[int, float, None] = None,
-        log_prints: Union[bool, Type[NotSet]] = NotSet,
-        refresh_cache: Union[bool, Type[NotSet]] = NotSet,
+        log_prints: Union[bool, type[NotSet]] = NotSet,
+        refresh_cache: Union[bool, type[NotSet]] = NotSet,
         on_completion: Optional[list[StateHookCallable]] = None,
         on_failure: Optional[list[StateHookCallable]] = None,
         retry_condition_fn: Optional[
@@ -739,11 +735,11 @@ class Task(Generic[P, R]):
         self,
         client: Optional["PrefectClient"] = None,
         id: Optional[UUID] = None,
-        parameters: Optional[Dict[str, Any]] = None,
+        parameters: Optional[dict[str, Any]] = None,
         flow_run_context: Optional[FlowRunContext] = None,
         parent_task_run_context: Optional[TaskRunContext] = None,
         wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
-        extra_task_inputs: Optional[Dict[str, Set[TaskRunInput]]] = None,
+        extra_task_inputs: Optional[dict[str, set[TaskRunInput]]] = None,
         deferred: bool = False,
     ) -> TaskRun:
         from prefect.utilities._engine import dynamic_key_for_task_run
@@ -787,7 +783,7 @@ class Task(Generic[P, R]):
                     result_storage=await get_or_create_default_task_scheduling_storage()
                 ).update_for_task(self)
                 context = serialize_context()
-                data: Dict[str, Any] = {"context": context}
+                data: dict[str, Any] = {"context": context}
                 if parameters:
                     data["parameters"] = parameters
                 if wait_for:
@@ -840,11 +836,11 @@ class Task(Generic[P, R]):
         self,
         client: Optional["PrefectClient"] = None,
         id: Optional[UUID] = None,
-        parameters: Optional[Dict[str, Any]] = None,
+        parameters: Optional[dict[str, Any]] = None,
         flow_run_context: Optional[FlowRunContext] = None,
         parent_task_run_context: Optional[TaskRunContext] = None,
         wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
-        extra_task_inputs: Optional[Dict[str, Set[TaskRunInput]]] = None,
+        extra_task_inputs: Optional[dict[str, set[TaskRunInput]]] = None,
         deferred: bool = False,
     ) -> TaskRun:
         from prefect.utilities._engine import dynamic_key_for_task_run
@@ -888,7 +884,7 @@ class Task(Generic[P, R]):
                     result_storage=await get_or_create_default_task_scheduling_storage()
                 ).update_for_task(task)
                 context = serialize_context()
-                data: Dict[str, Any] = {"context": context}
+                data: dict[str, Any] = {"context": context}
                 if parameters:
                     data["parameters"] = parameters
                 if wait_for:
@@ -1414,10 +1410,10 @@ class Task(Generic[P, R]):
 
     def apply_async(
         self,
-        args: Optional[Tuple[Any, ...]] = None,
-        kwargs: Optional[Dict[str, Any]] = None,
+        args: Optional[tuple[Any, ...]] = None,
+        kwargs: Optional[dict[str, Any]] = None,
         wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
-        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+        dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
     ) -> PrefectDistributedFuture[R]:
         """
         Create a pending task run for a task worker to execute.
@@ -1592,14 +1588,12 @@ def task(
     description: Optional[str] = None,
     tags: Optional[Iterable[str]] = None,
     version: Optional[str] = None,
-    cache_policy: Union[CachePolicy, Type[NotSet]] = NotSet,
+    cache_policy: Union[CachePolicy, type[NotSet]] = NotSet,
     cache_key_fn: Optional[
-        Callable[["TaskRunContext", Dict[str, Any]], Optional[str]]
+        Callable[["TaskRunContext", dict[str, Any]], Optional[str]]
     ] = None,
     cache_expiration: Optional[datetime.timedelta] = None,
-    task_run_name: Optional[
-        Union[Callable[[], str], TaskRunNameCallbackWithParameters, str]
-    ] = None,
+    task_run_name: Optional[TaskRunNameValueOrCallable] = None,
     retries: int = 0,
     retry_delay_seconds: Union[
         float,
@@ -1633,14 +1627,12 @@ def task(
     description: Optional[str] = None,
     tags: Optional[Iterable[str]] = None,
     version: Optional[str] = None,
-    cache_policy: Union[CachePolicy, Type[NotSet]] = NotSet,
+    cache_policy: Union[CachePolicy, type[NotSet]] = NotSet,
     cache_key_fn: Union[
-        Callable[["TaskRunContext", Dict[str, Any]], Optional[str]], None
+        Callable[["TaskRunContext", dict[str, Any]], Optional[str]], None
     ] = None,
     cache_expiration: Optional[datetime.timedelta] = None,
-    task_run_name: Optional[
-        Union[Callable[[], str], TaskRunNameCallbackWithParameters, str]
-    ] = None,
+    task_run_name: Optional[TaskRunNameValueOrCallable] = None,
     retries: Optional[int] = None,
     retry_delay_seconds: Union[
         float, int, List[float], Callable[[int], List[float]], None
@@ -1654,10 +1646,8 @@ def task(
     timeout_seconds: Union[int, float, None] = None,
     log_prints: Optional[bool] = None,
     refresh_cache: Optional[bool] = None,
-    on_completion: Optional[
-        List[Callable[["Task[P, R]", TaskRun, State], None]]
-    ] = None,
-    on_failure: Optional[List[Callable[["Task[P, R]", TaskRun, State], None]]] = None,
+    on_completion: Optional[list[StateHookCallable]] = None,
+    on_failure: Optional[list[StateHookCallable]] = None,
     retry_condition_fn: Optional[Callable[["Task[P, R]", TaskRun, State], bool]] = None,
     viz_return_value: Any = None,
 ):
@@ -1774,34 +1764,31 @@ def task(
         if isinstance(__fn, (classmethod, staticmethod)):
             method_decorator = type(__fn).__name__
             raise TypeError(f"@{method_decorator} should be applied on top of @task")
-        return cast(
-            Task[P, R],
-            Task(
-                fn=__fn,
-                name=name,
-                description=description,
-                tags=tags,
-                version=version,
-                cache_policy=cache_policy,
-                cache_key_fn=cache_key_fn,
-                cache_expiration=cache_expiration,
-                task_run_name=task_run_name,
-                retries=retries,
-                retry_delay_seconds=retry_delay_seconds,
-                retry_jitter_factor=retry_jitter_factor,
-                persist_result=persist_result,
-                result_storage=result_storage,
-                result_storage_key=result_storage_key,
-                result_serializer=result_serializer,
-                cache_result_in_memory=cache_result_in_memory,
-                timeout_seconds=timeout_seconds,
-                log_prints=log_prints,
-                refresh_cache=refresh_cache,
-                on_completion=on_completion,
-                on_failure=on_failure,
-                retry_condition_fn=retry_condition_fn,
-                viz_return_value=viz_return_value,
-            ),
+        return Task(
+            fn=__fn,
+            name=name,
+            description=description,
+            tags=tags,
+            version=version,
+            cache_policy=cache_policy,
+            cache_key_fn=cache_key_fn,
+            cache_expiration=cache_expiration,
+            task_run_name=task_run_name,
+            retries=retries,
+            retry_delay_seconds=retry_delay_seconds,
+            retry_jitter_factor=retry_jitter_factor,
+            persist_result=persist_result,
+            result_storage=result_storage,
+            result_storage_key=result_storage_key,
+            result_serializer=result_serializer,
+            cache_result_in_memory=cache_result_in_memory,
+            timeout_seconds=timeout_seconds,
+            log_prints=log_prints,
+            refresh_cache=refresh_cache,
+            on_completion=on_completion,
+            on_failure=on_failure,
+            retry_condition_fn=retry_condition_fn,
+            viz_return_value=viz_return_value,
         )
     else:
         return cast(
