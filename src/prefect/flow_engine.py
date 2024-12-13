@@ -336,6 +336,8 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         return _result
 
     def handle_success(self, result: R) -> R:
+        from prefect.futures import unresolved_futures
+
         result_store = getattr(FlowRunContext.get(), "result_store", None)
         if result_store is None:
             raise ValueError("Result store is not set")
@@ -347,6 +349,9 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                 write_result=should_persist_result(),
             )
         )
+        if unresolved_futures:
+            terminal_state.name = "CompletedWithUnresolvedFutures"
+
         self.set_state(terminal_state)
         self._return_value = resolved_result
 

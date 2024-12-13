@@ -44,11 +44,13 @@ class StateHighlighter(RegexHighlighter):
     """Apply style to states."""
 
     base_style = "state."
-    highlights = [
-        rf"(?P<{state.lower()}_state>{state.title()})" for state in StateType
-    ] + [
-        r"(?P<cached_state>Cached)(?=\(type=COMPLETED\))"  # Highlight only "Cached"
-    ]
+    highlights = (
+        [rf"(?P<{state.lower()}_state>{state.title()})" for state in StateType]
+        + [
+            r"(?P<cached_state>Cached)(?=\(type=COMPLETED\))"  # Highlight only "Cached"
+        ]
+        + [r"(?P<completed_state>CompletedWithUnresolvedFutures)(?=\(type=COMPLETED\))"]
+    )
 
 
 class PrefectConsoleHighlighter(RegexHighlighter):
