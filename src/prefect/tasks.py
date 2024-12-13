@@ -17,7 +17,6 @@ from typing import (
     Coroutine,
     Generic,
     Iterable,
-    List,
     NoReturn,
     Optional,
     Protocol,
@@ -110,7 +109,7 @@ def task_input_hash(
     )
 
 
-def exponential_backoff(backoff_factor: float) -> Callable[[int], List[float]]:
+def exponential_backoff(backoff_factor: float) -> Callable[[int], list[float]]:
     """
     A task retry backoff utility that configures exponential backoff for task retries.
     The exponential backoff design matches the urllib3 implementation.
@@ -123,7 +122,7 @@ def exponential_backoff(backoff_factor: float) -> Callable[[int], List[float]]:
         a callable that can be passed to the task constructor
     """
 
-    def retry_backoff_callable(retries: int) -> List[float]:
+    def retry_backoff_callable(retries: int) -> list[float]:
         # no more than 50 retry delays can be configured on a task
         retries = min(retries, 50)
 
@@ -328,8 +327,8 @@ class Task(Generic[P, R]):
             Union[
                 float,
                 int,
-                List[float],
-                Callable[[int], List[float]],
+                list[float],
+                Callable[[int], list[float]],
             ]
         ] = None,
         retry_jitter_factor: Optional[float] = None,
@@ -557,8 +556,8 @@ class Task(Generic[P, R]):
         retry_delay_seconds: Union[
             float,
             int,
-            List[float],
-            Callable[[int], List[float]],
+            list[float],
+            Callable[[int], list[float]],
             type[NotSet],
         ] = NotSet,
         retry_jitter_factor: Union[float, type[NotSet]] = NotSet,
@@ -1188,7 +1187,7 @@ class Task(Generic[P, R]):
         wait_for: Optional[Iterable[Union[PrefectFuture[R], R]]] = ...,
         deferred: bool = ...,
         **kwargs: Any,
-    ) -> List[State[R]]:
+    ) -> list[State[R]]:
         ...
 
     @overload
@@ -1209,7 +1208,7 @@ class Task(Generic[P, R]):
         wait_for: Optional[Iterable[Union[PrefectFuture[R], R]]] = ...,
         deferred: bool = ...,
         **kwargs: Any,
-    ) -> List[State[R]]:
+    ) -> list[State[R]]:
         ...
 
     @overload
@@ -1230,7 +1229,7 @@ class Task(Generic[P, R]):
         wait_for: Optional[Iterable[Union[PrefectFuture[R], R]]] = ...,
         deferred: bool = ...,
         **kwargs: Any,
-    ) -> List[State[R]]:
+    ) -> list[State[R]]:
         ...
 
     @overload
@@ -1251,7 +1250,7 @@ class Task(Generic[P, R]):
         wait_for: Optional[Iterable[Union[PrefectFuture[R], R]]] = None,
         deferred: bool = False,
         **kwargs: Any,
-    ) -> Union[List[State[R]], PrefectFutureList[R]]:
+    ) -> Union[list[State[R]], PrefectFutureList[R]]:
         """
         Submit a mapped run of the task to a worker.
 
@@ -1581,6 +1580,14 @@ def task(__fn: Callable[P, R]) -> Task[P, R]:
     ...
 
 
+# see https://github.com/PrefectHQ/prefect/issues/16380
+@overload
+def task(
+    __fn: Literal[None] = None,
+) -> Callable[[Callable[P, R]], Task[P, R]]:
+    ...
+
+
 @overload
 def task(
     *,
@@ -1598,8 +1605,8 @@ def task(
     retry_delay_seconds: Union[
         float,
         int,
-        List[float],
-        Callable[[int], List[float]],
+        list[float],
+        Callable[[int], list[float]],
     ] = 0,
     retry_jitter_factor: Optional[float] = None,
     persist_result: Optional[bool] = None,
@@ -1610,10 +1617,8 @@ def task(
     timeout_seconds: Union[int, float, None] = None,
     log_prints: Optional[bool] = None,
     refresh_cache: Optional[bool] = None,
-    on_completion: Optional[
-        List[Callable[["Task[P, R]", TaskRun, State], None]]
-    ] = None,
-    on_failure: Optional[List[Callable[["Task[P, R]", TaskRun, State], None]]] = None,
+    on_completion: Optional[list[StateHookCallable]] = None,
+    on_failure: Optional[list[StateHookCallable]] = None,
     retry_condition_fn: Optional[Callable[["Task[P, R]", TaskRun, State], bool]] = None,
     viz_return_value: Any = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]:
@@ -1635,7 +1640,7 @@ def task(
     task_run_name: Optional[TaskRunNameValueOrCallable] = None,
     retries: Optional[int] = None,
     retry_delay_seconds: Union[
-        float, int, List[float], Callable[[int], List[float]], None
+        float, int, list[float], Callable[[int], list[float]], None
     ] = None,
     retry_jitter_factor: Optional[float] = None,
     persist_result: Optional[bool] = None,
