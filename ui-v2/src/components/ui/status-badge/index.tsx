@@ -18,7 +18,7 @@ const STATUS_ICONS = {
 } as const satisfies Record<Status, React.ReactNode>;
 
 const statusBadgeVariants = cva(
-	"gap-1 px-2 text-black/80 font-mono font-light border border-black/10",
+	"gap-2 px-2 text-black/80 font-mono font-light border border-black/10 shadow-none",
 	{
 		variants: {
 			status: {
