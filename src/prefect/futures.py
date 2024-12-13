@@ -5,9 +5,9 @@ import threading
 import uuid
 from collections.abc import Generator, Iterator
 from functools import partial
-from typing import Any, Callable, Generic, NamedTuple, Optional, Union, cast
+from typing import Any, Callable, Generic, Optional, Union, cast
 
-from typing_extensions import Self, TypeVar
+from typing_extensions import NamedTuple, Self, TypeVar
 
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import TaskRun
