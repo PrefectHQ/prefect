@@ -5,12 +5,11 @@ import threading
 import uuid
 from collections.abc import Generator, Iterator
 from functools import partial
-from typing import Any, Callable, Generic, Optional, Union, cast
+from typing import Any, Callable, Generic, Optional, Union
 
 from typing_extensions import NamedTuple, Self, TypeVar
 
 from prefect.client.orchestration import get_client
-from prefect.client.schemas.objects import TaskRun
 from prefect.exceptions import ObjectNotFound
 from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.states import Pending, State
@@ -49,7 +48,7 @@ class PrefectFuture(abc.ABC, Generic[R]):
             return self._final_state
         client = get_client(sync_client=True)
         try:
-            task_run = cast(TaskRun, client.read_task_run(task_run_id=self.task_run_id))
+            task_run = client.read_task_run(task_run_id=self.task_run_id)
         except ObjectNotFound:
             # We'll be optimistic and assume this task will eventually start
             # TODO: Consider using task run events to wait for the task to start
@@ -104,10 +103,14 @@ class PrefectFuture(abc.ABC, Generic[R]):
 class PrefectWrappedFuture(PrefectFuture[R], abc.ABC, Generic[R, F]):
     """
     A Prefect future that wraps another future object.
+
+    Type Parameters:
+        R: The return type of the future
+        F: The type of the wrapped future
     """
 
     def __init__(self, task_run_id: uuid.UUID, wrapped_future: F):
-        self._wrapped_future = wrapped_future
+        self._wrapped_future: F = wrapped_future
         super().__init__(task_run_id)
 
     @property
@@ -115,7 +118,8 @@ class PrefectWrappedFuture(PrefectFuture[R], abc.ABC, Generic[R, F]):
         """The underlying future object wrapped by this Prefect future"""
         return self._wrapped_future
 
-    def add_done_callback(self, fn: Callable[[PrefectFuture[R]], None]):
+    def add_done_callback(self, fn: Callable[[PrefectFuture[R]], None]) -> None:
+        """Add a callback to be executed when the future completes."""
         if not self._final_state:
 
             def call_with_self(future: F):
@@ -269,7 +273,7 @@ class PrefectDistributedFuture(PrefectFuture[R]):
                 return
             TaskRunWaiter.add_done_callback(self._task_run_id, partial(fn, self))
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         if not isinstance(other, PrefectDistributedFuture):
             return False
         return self.task_run_id == other.task_run_id
@@ -337,7 +341,7 @@ def as_completed(
     pending = unique_futures
     try:
         with timeout_context(timeout):
-            done = {f for f in unique_futures if f._final_state}
+            done = {f for f in unique_futures if f._final_state}  # type: ignore[privateUsage]
             pending = unique_futures - done
             yield from done
 
