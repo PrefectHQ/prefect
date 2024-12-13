@@ -137,7 +137,7 @@ class TestGitRepository:
                 "git",
                 "clone",
                 "https://github.com/org/repo.git",
-                "--filter=blob:none",
+                "--depth=1",
                 "--sparse",
                 str(Path.cwd() / "repo"),
             ]
@@ -265,9 +265,9 @@ class TestGitRepository:
                 "git",
                 "clone",
                 "https://github.com/org/repo.git",
-                "--recurse-submodules",
                 "--depth",
                 "1",
+                "--recurse-submodules",
                 str(Path.cwd() / "repo"),
             ]
         )
@@ -316,7 +316,7 @@ class TestGitRepository:
 
         mock_run_process.assert_awaited_with(
             ["git", "sparse-checkout", "add", "directory_1", "directory_2"],
-            cwd=Path.cwd() / "repo",
+            cwd=str(Path.cwd() / "repo"),
         )
 
     class TestCredentialFormatting:
