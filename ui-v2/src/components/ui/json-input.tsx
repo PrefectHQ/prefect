@@ -1,8 +1,12 @@
 import React, { useRef, useEffect } from "react";
 
-import { json } from "@codemirror/lang-json";
 import { cn } from "@/lib/utils";
-import { useCodeMirror, EditorView } from "@uiw/react-codemirror";
+import { json } from "@codemirror/lang-json";
+import {
+	type BasicSetupOptions,
+	EditorView,
+	useCodeMirror,
+} from "@uiw/react-codemirror";
 
 const extensions = [json(), EditorView.lineWrapping];
 
@@ -20,6 +24,16 @@ export const JsonInput = React.forwardRef<HTMLDivElement, JsonInputProps>(
 		forwardedRef,
 	) => {
 		const editor = useRef<HTMLDivElement | null>(null);
+		// Setting `basicSetup` messes up the tab order. We only change the basic setup
+		// if the input is disabled, so we leave it undefined to maintain the tab order.
+		let basicSetup: BasicSetupOptions | undefined;
+		if (disabled) {
+			basicSetup = {
+				highlightActiveLine: false,
+				foldGutter: false,
+				highlightActiveLineGutter: false,
+			};
+		}
 		const { setContainer } = useCodeMirror({
 			container: editor.current,
 			extensions,
@@ -28,11 +42,7 @@ export const JsonInput = React.forwardRef<HTMLDivElement, JsonInputProps>(
 			onBlur,
 			indentWithTab: false,
 			editable: !disabled,
-			basicSetup: {
-				highlightActiveLine: !disabled,
-				foldGutter: !disabled,
-				highlightActiveLineGutter: !disabled,
-			},
+			basicSetup,
 		});
 
 		useEffect(() => {

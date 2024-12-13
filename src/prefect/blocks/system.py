@@ -9,10 +9,10 @@ from pydantic import (
     field_validator,
 )
 from pydantic import Secret as PydanticSecret
-from pydantic_extra_types.pendulum_dt import DateTime as PydanticDateTime
 
 from prefect._internal.compatibility.deprecated import deprecated_class
 from prefect.blocks.core import Block
+from prefect.types import DateTime as PydanticDateTime
 
 _SecretValueType = Union[
     Annotated[StrictStr, Field(title="string")],
@@ -130,6 +130,7 @@ class Secret(Block, Generic[T]):
 
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/c6f20e556dd16effda9df16551feecfb5822092b-48x48.png"
     _documentation_url = "https://docs.prefect.io/latest/develop/blocks"
+    _description = "A block that represents a secret value. The value stored in this block will be obfuscated when this block is viewed or edited in the UI."
 
     value: Union[SecretStr, PydanticSecret[T]] = Field(
         default=...,

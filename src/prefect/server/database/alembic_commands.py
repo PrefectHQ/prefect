@@ -6,7 +6,7 @@ from typing import Optional
 
 from sqlalchemy.exc import SAWarning
 
-import prefect.server
+import prefect.server.database
 
 ALEMBIC_LOCK = Lock()
 

@@ -7,7 +7,6 @@ from uuid import UUID
 import pendulum
 import sqlalchemy as sa
 from pydantic import Field, PrivateAttr
-from pydantic_extra_types.pendulum_dt import DateTime
 from sqlalchemy.sql import Select
 
 from prefect._internal.schemas.bases import PrefectBaseModel
@@ -17,6 +16,7 @@ from prefect.server.schemas.filters import (
     PrefectOperatorFilterBaseModel,
 )
 from prefect.server.utilities.database import json_extract
+from prefect.types import DateTime
 from prefect.utilities.collections import AutoEnum
 
 from .schemas.events import Event, Resource, ResourceSpecification

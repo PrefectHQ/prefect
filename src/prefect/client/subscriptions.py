@@ -1,5 +1,7 @@
 import asyncio
-from typing import Any, Dict, Generic, Iterable, Optional, Type, TypeVar
+from collections.abc import Iterable
+from logging import Logger
+from typing import Any, Generic, Optional, TypeVar
 
 import orjson
 import websockets
@@ -11,7 +13,7 @@ from prefect._internal.schemas.bases import IDBaseModel
 from prefect.logging import get_logger
 from prefect.settings import PREFECT_API_KEY
 
-logger = get_logger(__name__)
+logger: Logger = get_logger(__name__)
 
 S = TypeVar("S", bound=IDBaseModel)
 
@@ -19,7 +21,7 @@ S = TypeVar("S", bound=IDBaseModel)
 class Subscription(Generic[S]):
     def __init__(
         self,
-        model: Type[S],
+        model: type[S],
         path: str,
         keys: Iterable[str],
         client_id: Optional[str] = None,
@@ -27,27 +29,33 @@ class Subscription(Generic[S]):
     ):
         self.model = model
         self.client_id = client_id
-        base_url = base_url.replace("http", "ws", 1)
-        self.subscription_url = f"{base_url}{path}"
+        base_url = base_url.replace("http", "ws", 1) if base_url else None
+        self.subscription_url: str = f"{base_url}{path}"
 
-        self.keys = list(keys)
+        self.keys: list[str] = list(keys)
 
         self._connect = websockets.connect(
             self.subscription_url,
-            subprotocols=["prefect"],
+            subprotocols=[websockets.Subprotocol("prefect")],
         )
         self._websocket = None
 
     def __aiter__(self) -> Self:
         return self
 
+    @property
+    def websocket(self) -> websockets.WebSocketClientProtocol:
+        if not self._websocket:
+            raise RuntimeError("Subscription is not connected")
+        return self._websocket
+
     async def __anext__(self) -> S:
         while True:
             try:
                 await self._ensure_connected()
-                message = await self._websocket.recv()
+                message = await self.websocket.recv()
 
-                await self._websocket.send(orjson.dumps({"type": "ack"}).decode())
+                await self.websocket.send(orjson.dumps({"type": "ack"}).decode())
 
                 return self.model.model_validate_json(message)
             except (
@@ -72,10 +80,10 @@ class Subscription(Generic[S]):
                 ).decode()
             )
 
-            auth: Dict[str, Any] = orjson.loads(await websocket.recv())
+            auth: dict[str, Any] = orjson.loads(await websocket.recv())
             assert auth["type"] == "auth_success", auth.get("message")
 
-            message = {"type": "subscribe", "keys": self.keys}
+            message: dict[str, Any] = {"type": "subscribe", "keys": self.keys}
             if self.client_id:
                 message.update({"client_id": self.client_id})
 
@@ -84,13 +92,19 @@ class Subscription(Generic[S]):
             AssertionError,
             websockets.exceptions.ConnectionClosedError,
         ) as e:
-            if isinstance(e, AssertionError) or e.rcvd.code == WS_1008_POLICY_VIOLATION:
+            if isinstance(e, AssertionError) or (
+                e.rcvd and e.rcvd.code == WS_1008_POLICY_VIOLATION
+            ):
                 if isinstance(e, AssertionError):
                     reason = e.args[0]
-                elif isinstance(e, websockets.exceptions.ConnectionClosedError):
+                elif e.rcvd and e.rcvd.reason:
                     reason = e.rcvd.reason
+                else:
+                    reason = "unknown"
+            else:
+                reason = None
 
-            if isinstance(e, AssertionError) or e.rcvd.code == WS_1008_POLICY_VIOLATION:
+            if reason:
                 raise Exception(
                     "Unable to authenticate to the subscription. Please "
                     "ensure the provided `PREFECT_API_KEY` you are using is "

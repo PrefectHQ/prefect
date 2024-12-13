@@ -2,10 +2,12 @@
 Utilities for working with Flow.visualize()
 """
 
+from collections.abc import Coroutine
 from functools import partial
-from typing import Any, List, Optional
+from typing import Any, Literal, Optional, Union, overload
 
-import graphviz
+import graphviz  # type: ignore  # no typing stubs available
+from typing_extensions import Self
 
 from prefect._internal.concurrency.api import from_async
 
@@ -19,7 +21,7 @@ class VisualizationUnsupportedError(Exception):
 
 
 class TaskVizTrackerState:
-    current = None
+    current: Optional["TaskVizTracker"] = None
 
 
 class GraphvizImportError(Exception):
@@ -30,16 +32,36 @@ class GraphvizExecutableNotFoundError(Exception):
     pass
 
 
-def get_task_viz_tracker():
+def get_task_viz_tracker() -> Optional["TaskVizTracker"]:
     return TaskVizTrackerState.current
+
+
+@overload
+def track_viz_task(
+    is_async: Literal[True],
+    task_name: str,
+    parameters: dict[str, Any],
+    viz_return_value: Optional[Any] = None,
+) -> Coroutine[Any, Any, Any]:
+    ...
+
+
+@overload
+def track_viz_task(
+    is_async: Literal[False],
+    task_name: str,
+    parameters: dict[str, Any],
+    viz_return_value: Optional[Any] = None,
+) -> Any:
+    ...
 
 
 def track_viz_task(
     is_async: bool,
     task_name: str,
-    parameters: dict,
+    parameters: dict[str, Any],
     viz_return_value: Optional[Any] = None,
-):
+) -> Union[Coroutine[Any, Any, Any], Any]:
     """Return a result if sync otherwise return a coroutine that returns the result"""
     if is_async:
         return from_async.wait_for_call_in_loop_thread(
@@ -50,14 +72,14 @@ def track_viz_task(
 
 
 def _track_viz_task(
-    task_name,
-    parameters,
-    viz_return_value=None,
+    task_name: str,
+    parameters: dict[str, Any],
+    viz_return_value: Optional[Any] = None,
 ) -> Any:
     task_run_tracker = get_task_viz_tracker()
     if task_run_tracker:
-        upstream_tasks = []
-        for k, v in parameters.items():
+        upstream_tasks: list[VizTask] = []
+        for _, v in parameters.items():
             if isinstance(v, VizTask):
                 upstream_tasks.append(v)
             # if it's an object that we've already seen,
@@ -85,19 +107,19 @@ class VizTask:
     def __init__(
         self,
         name: str,
-        upstream_tasks: Optional[List["VizTask"]] = None,
+        upstream_tasks: Optional[list["VizTask"]] = None,
     ):
         self.name = name
-        self.upstream_tasks = upstream_tasks if upstream_tasks else []
+        self.upstream_tasks: list[VizTask] = upstream_tasks if upstream_tasks else []
 
 
 class TaskVizTracker:
     def __init__(self):
-        self.tasks = []
-        self.dynamic_task_counter = {}
-        self.object_id_to_task = {}
+        self.tasks: list[VizTask] = []
+        self.dynamic_task_counter: dict[str, int] = {}
+        self.object_id_to_task: dict[int, VizTask] = {}
 
-    def add_task(self, task: VizTask):
+    def add_task(self, task: VizTask) -> None:
         if task.name not in self.dynamic_task_counter:
             self.dynamic_task_counter[task.name] = 0
         else:
@@ -106,11 +128,11 @@ class TaskVizTracker:
         task.name = f"{task.name}-{self.dynamic_task_counter[task.name]}"
         self.tasks.append(task)
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         TaskVizTrackerState.current = self
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         TaskVizTrackerState.current = None
 
     def link_viz_return_value_to_viz_task(
@@ -129,7 +151,7 @@ class TaskVizTracker:
         self.object_id_to_task[id(viz_return_value)] = viz_task
 
 
-def build_task_dependencies(task_run_tracker: TaskVizTracker):
+def build_task_dependencies(task_run_tracker: TaskVizTracker) -> graphviz.Digraph:
     """
     Constructs a Graphviz directed graph object that represents the dependencies
     between tasks in the given TaskVizTracker.
@@ -151,9 +173,9 @@ def build_task_dependencies(task_run_tracker: TaskVizTracker):
     try:
         g = graphviz.Digraph()
         for task in task_run_tracker.tasks:
-            g.node(task.name)
+            g.node(task.name)  # type: ignore[reportUnknownMemberType]
             for upstream in task.upstream_tasks:
-                g.edge(upstream.name, task.name)
+                g.edge(upstream.name, task.name)  # type: ignore[reportUnknownMemberType]
         return g
     except ImportError as exc:
         raise GraphvizImportError from exc
@@ -166,7 +188,7 @@ def build_task_dependencies(task_run_tracker: TaskVizTracker):
         )
 
 
-def visualize_task_dependencies(graph: graphviz.Digraph, flow_run_name: str):
+def visualize_task_dependencies(graph: graphviz.Digraph, flow_run_name: str) -> None:
     """
     Renders and displays a Graphviz directed graph representing task dependencies.
 
@@ -184,7 +206,7 @@ def visualize_task_dependencies(graph: graphviz.Digraph, flow_run_name: str):
       specifying a `viz_return_value`.
     """
     try:
-        graph.render(filename=flow_run_name, view=True, format="png", cleanup=True)
+        graph.render(filename=flow_run_name, view=True, format="png", cleanup=True)  # type: ignore[reportUnknownMemberType]
     except graphviz.backend.ExecutableNotFound as exc:
         msg = (
             "It appears you do not have Graphviz installed, or it is not on your "

@@ -3,9 +3,9 @@ from datetime import timezone
 from uuid import UUID, uuid4
 
 import pytest
-from pydantic_extra_types.pendulum_dt import DateTime
 
 from prefect.events import Event, RelatedResource, Resource
+from prefect.types import DateTime
 
 
 def test_client_events_generate_an_id_by_default():
