@@ -1,7 +1,7 @@
 import { faker } from "@faker-js/faker";
 import type { components } from "../../src/api/prefect";
 
-export function createRandomCronSchedule(): components["schemas"]["CronSchedule"] {
+export function generateRandomCronSchedule(): components["schemas"]["CronSchedule"] {
 	return {
 		cron: faker.system.cron(),
 		timezone: faker.location.timeZone(),
@@ -9,7 +9,7 @@ export function createRandomCronSchedule(): components["schemas"]["CronSchedule"
 	};
 }
 
-export function createRandomIntervalSchedule(): components["schemas"]["IntervalSchedule"] {
+export function generateRandomIntervalSchedule(): components["schemas"]["IntervalSchedule"] {
 	return {
 		interval: faker.number.int({ min: 1, max: 100_000 }),
 		anchor_date: faker.date.recent().toISOString(),
@@ -90,12 +90,12 @@ function formatDate(date: Date) {
 }
 
 const scheduleGenerators = [
-	createRandomCronSchedule,
-	createRandomIntervalSchedule,
+	generateRandomCronSchedule,
+	generateRandomIntervalSchedule,
 	generateRandomRRuleSchedule,
 ];
 
-export function createRandomSchedule(): components["schemas"]["DeploymentSchedule"] {
+export function generateRandomSchedule(): components["schemas"]["DeploymentSchedule"] {
 	const selectedScheduleGenerator =
 		faker.helpers.arrayElement(scheduleGenerators);
 	return {

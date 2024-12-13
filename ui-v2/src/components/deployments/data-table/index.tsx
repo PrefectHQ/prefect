@@ -1,6 +1,6 @@
 import { DataTable } from "@/components/ui/data-table";
 import { Icon } from "@/components/ui/icons";
-import { ScheduleBadge } from "@/components/ui/schedule-badge";
+import { ScheduleBadgeGroup } from "@/components/ui/schedule-badge";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
 import type { DeploymentWithFlow } from "@/hooks/deployments";
@@ -40,15 +40,21 @@ const createColumns = ({
 		header: "Deployment",
 		cell: ({ row }) => (
 			<div className="flex flex-col">
-				<span className="text-sm font-medium truncate">
+				<span
+					className="text-sm font-medium truncate"
+					title={row.original.name}
+				>
 					{row.original.name}
 				</span>
-				<span className="text-xs text-muted-foreground flex items-center gap-1 truncate">
-					<Icon id="Workflow" size={12} /> {row.original.flow.name}
+				<span className="text-xs text-muted-foreground flex items-center gap-1">
+					<Icon id="Workflow" size={12} />
+					<span className="truncate" title={row.original.flow.name}>
+						{row.original.flow.name}
+					</span>
 				</span>
 			</div>
 		),
-		maxSize: 150,
+		size: 100,
 	}),
 	columnHelper.accessor("status", {
 		id: "status",
@@ -56,14 +62,23 @@ const createColumns = ({
 		cell: ({ row }) => {
 			const status = row.original.status;
 			if (!status) return null;
-			return <StatusBadge status={status} />;
+			return (
+				<div className="min-w-28">
+					<StatusBadge status={status} />
+				</div>
+			);
 		},
-		maxSize: 50,
+		size: 50,
 	}),
 	columnHelper.display({
 		id: "activity",
 		header: "Activity",
-		cell: () => "TODO",
+		cell: () => (
+			<div className="flex flex-row gap-2 items-center min-w-28">
+				<span className="text-sm text-muted-foreground">TODO</span>
+			</div>
+		),
+		size: 300,
 	}),
 	columnHelper.display({
 		id: "tags",
@@ -74,15 +89,11 @@ const createColumns = ({
 		id: "schedules",
 		header: "Schedules",
 		cell: ({ row }) => {
-			if (!row.original.schedules) return null;
-			return (
-				<div className="flex flex-row gap-2">
-					{row.original.schedules.map((schedule) => (
-						<ScheduleBadge key={schedule.id} schedule={schedule} />
-					))}
-				</div>
-			);
+			const schedules = row.original.schedules;
+			if (!schedules || schedules.length === 0) return null;
+			return <ScheduleBadgeGroup schedules={schedules} />;
 		},
+		size: 150,
 	}),
 	columnHelper.display({
 		id: "actions",

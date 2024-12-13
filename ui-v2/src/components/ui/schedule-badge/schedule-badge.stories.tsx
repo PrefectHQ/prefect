@@ -1,8 +1,8 @@
 import { faker } from "@faker-js/faker";
 import type { Meta, StoryObj } from "@storybook/react";
 import {
-	createRandomCronSchedule,
-	createRandomIntervalSchedule,
+	generateRandomCronSchedule,
+	generateRandomIntervalSchedule,
 	generateRandomRRuleSchedule,
 } from "@tests/utils/mock-factories";
 import { ScheduleBadge } from ".";
@@ -26,7 +26,7 @@ export const CronSchedule: Story = {
 			deployment_id: faker.string.uuid(),
 			active: faker.datatype.boolean(),
 			max_scheduled_runs: faker.number.int({ min: 1, max: 100 }),
-			schedule: createRandomCronSchedule(),
+			schedule: generateRandomCronSchedule(),
 		},
 	},
 };
@@ -40,7 +40,7 @@ export const IntervalSchedule: Story = {
 			deployment_id: faker.string.uuid(),
 			active: faker.datatype.boolean(),
 			max_scheduled_runs: faker.number.int({ min: 1, max: 100 }),
-			schedule: createRandomIntervalSchedule(),
+			schedule: generateRandomIntervalSchedule(),
 		},
 	},
 };

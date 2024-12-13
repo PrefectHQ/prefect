@@ -2,7 +2,7 @@ import type { DeploymentWithFlow } from "@/hooks/deployments";
 import { faker } from "@faker-js/faker";
 import type { Meta, StoryObj } from "@storybook/react";
 import { fn } from "@storybook/test";
-import { createRandomSchedule } from "@tests/utils/mock-factories";
+import { generateRandomSchedule } from "@tests/utils/mock-factories";
 import { DeploymentsDataTable } from ".";
 
 export default {
@@ -25,7 +25,7 @@ function createRandomDeployment(): DeploymentWithFlow {
 		),
 		schedules: Array.from(
 			{ length: faker.number.int({ min: 0, max: 3 }) },
-			() => createRandomSchedule(),
+			() => generateRandomSchedule(),
 		),
 		flow: {
 			id: faker.string.uuid(),
