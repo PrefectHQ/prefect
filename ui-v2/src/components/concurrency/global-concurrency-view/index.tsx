@@ -7,7 +7,7 @@ import { useState } from "react";
 import { GlobalConcurrencyDataTable } from "./data-table";
 import { type DialogState, DialogView } from "./dialog";
 import { GlobalConcurrencyLimitEmptyState } from "./empty-state";
-import { GlobalConcurrencyLimitsHeader } from "./global-concurrency-limits-header";
+import { GlobalConcurrencyLimitsHeader } from "./header";
 
 export const GlobalConcurrencyView = () => {
 	const [openDialog, setOpenDialog] = useState<DialogState>({
@@ -37,24 +37,22 @@ export const GlobalConcurrencyView = () => {
 	};
 
 	return (
-		<>
+		<div className="flex flex-col gap-4">
+			<GlobalConcurrencyLimitsHeader onAdd={handleAddRow} />
 			{data.length === 0 ? (
 				<GlobalConcurrencyLimitEmptyState onAdd={handleAddRow} />
 			) : (
-				<div className="flex flex-col gap-4">
-					<GlobalConcurrencyLimitsHeader onAdd={handleAddRow} />
-					<GlobalConcurrencyDataTable
-						data={data}
-						onEditRow={handleEditRow}
-						onDeleteRow={handleDeleteRow}
-					/>
-				</div>
+				<GlobalConcurrencyDataTable
+					data={data}
+					onEditRow={handleEditRow}
+					onDeleteRow={handleDeleteRow}
+				/>
 			)}
 			<DialogView
 				openDialog={openDialog}
 				onCloseDialog={handleCloseDialog}
 				onOpenChange={handleOpenChange}
 			/>
-		</>
+		</div>
 	);
 };

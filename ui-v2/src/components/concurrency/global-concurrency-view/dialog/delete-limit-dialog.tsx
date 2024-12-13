@@ -27,7 +27,7 @@ export const DeleteLimitDialog = ({ limit, onOpenChange, onDelete }: Props) => {
 
 	const handleOnClick = (id: string | undefined) => {
 		if (!id) {
-			throw new Error("'id' field expected in GlobalConcurrencyLimit");
+			throw new Error("'id' field expected in TaskRunConcurrencyLimit");
 		}
 		deleteGlobalConcurrencyLimit(id, {
 			onSuccess: () => {

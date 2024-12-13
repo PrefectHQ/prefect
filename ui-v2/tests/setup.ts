@@ -1,9 +1,9 @@
 /// <reference lib="dom" />
-import { expect, afterEach, vi, beforeAll, afterAll } from "vitest";
-import { cleanup } from "@testing-library/react";
 import * as matchers from "@testing-library/jest-dom/matchers";
+import { cleanup } from "@testing-library/react";
+import { afterAll, afterEach, beforeAll, expect, vi } from "vitest";
 import "@testing-library/jest-dom";
-import { server } from "./mocks/node";
+import { server } from "./utils";
 
 beforeAll(() => {
 	server.listen({
