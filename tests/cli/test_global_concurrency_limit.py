@@ -153,27 +153,27 @@ def delete_global_concurrency_limit_by_name() -> Generator[mock.AsyncMock, None,
         yield m
 
 
-def test_deleting_gcl(
+def test_deleting_gcl_succeeds(
     delete_global_concurrency_limit_by_name: mock.AsyncMock,
-    various_global_concurrency_limits: List[GlobalConcurrencyLimit],
+    global_concurrency_limit: ConcurrencyLimitV2,
 ):
     invoke_and_assert(
         [
             "global-concurrency-limit",
             "delete",
-            various_global_concurrency_limits[0].name,
+            global_concurrency_limit.name,
         ],
         prompts_and_responses=[
             (
-                f"Are you sure you want to delete global concurrency limit with name '{various_global_concurrency_limits[0].name}'?",
+                f"Are you sure you want to delete global concurrency limit with name '{global_concurrency_limit.name}'?",
                 "y",
             )
         ],
-        expected_output_contains=f"Deleted global concurrency limit with name '{various_global_concurrency_limits[0].name}'.",
+        expected_output_contains=f"Deleted global concurrency limit with name '{global_concurrency_limit.name}'.",
         expected_code=0,
     )
     delete_global_concurrency_limit_by_name.assert_called_once_with(
-        name=various_global_concurrency_limits[0].name
+        name=global_concurrency_limit.name
     )
 
 
