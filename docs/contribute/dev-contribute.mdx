@@ -30,7 +30,8 @@ cd prefect
 you can install [an editable version](https://setuptools.pypa.io/en/latest/userguide/development_mode.html) of Prefect for quick iteration.
 We recommend using a virtual environment such as `venv`:
 
-```bash
+<CodeGroup>
+```bash using pip and venv
 python -m venv .venv
 source .venv/bin/activate
 
@@ -38,19 +39,25 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
+```bash using uv
+uv venv --python 3.12
+source .venv/bin/activate
+
+# Installs the package with development dependencies
+uv pip install -e ".[dev]" -U --force-reinstall
+```
+</CodeGroup>
+
 To ensure your changes comply with our linting policies, you can optionally set up pre-commit hooks to run with every commit:
 
 ```
 pre-commit install
 ```
 
-If you don't want to install the pre-commit hooks, you can manually install the linting utilities and run them yourself:
+To manually run the pre-commit hooks against all files, you can run:
 
-```bash
-pip install $(./scripts/precommit-versions.py)
-
-ruff check
-ruff format
+```
+pre-commit run --all-files
 ```
 
 ## Write tests
@@ -71,7 +78,7 @@ pytest tests
 pytest tests/test_flows.py
 
 # run all tests that match a pattern
-pytest -k 'tasks'
+pytest tests/test_tasks.py -k cache_policy
 ```
 
 ## Working with a development UI
