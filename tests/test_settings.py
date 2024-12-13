@@ -68,6 +68,10 @@ from prefect.utilities.filesystem import tmpchdir
 
 SUPPORTED_SETTINGS = {
     "PREFECT_API_BLOCKS_REGISTER_ON_START": {"test_value": True, "legacy": True},
+    "PREFECT_API_DATABASE_APPLICATION_NAME": {
+        "test_value": "prefect-test",
+        "legacy": True,
+    },
     "PREFECT_API_DATABASE_CONNECTION_TIMEOUT": {"test_value": 10.0, "legacy": True},
     "PREFECT_API_DATABASE_CONNECTION_URL": {"test_value": "sqlite:///", "legacy": True},
     "PREFECT_API_DATABASE_DRIVER": {"test_value": "sqlite+aiosqlite", "legacy": True},
@@ -79,6 +83,11 @@ SUPPORTED_SETTINGS = {
     "PREFECT_API_DATABASE_PORT": {"test_value": 5432, "legacy": True},
     "PREFECT_API_DATABASE_TIMEOUT": {"test_value": 10.0, "legacy": True},
     "PREFECT_API_DATABASE_USER": {"test_value": "user", "legacy": True},
+    "PREFECT_API_DATABASE_PREPARED_STATEMENT_CACHE_SIZE": {
+        "test_value": 0,
+        "legacy": True,
+    },
+    "PREFECT_API_DATABASE_STATEMENT_CACHE_SIZE": {"test_value": 0, "legacy": True},
     "PREFECT_API_DEFAULT_LIMIT": {"test_value": 100, "legacy": True},
     "PREFECT_API_ENABLE_HTTP2": {"test_value": True},
     "PREFECT_API_ENABLE_METRICS": {"test_value": True, "legacy": True},
@@ -293,6 +302,10 @@ SUPPORTED_SETTINGS = {
         "test_value": timedelta(seconds=10),
         "legacy": True,
     },
+    "PREFECT_SERVER_DATABASE_APPLICATION_NAME": {
+        "test_value": "prefect-test",
+        "legacy": True,
+    },
     "PREFECT_SERVER_DATABASE_CONNECTION_TIMEOUT": {"test_value": 10.0},
     "PREFECT_SERVER_DATABASE_CONNECTION_URL": {"test_value": "sqlite:///"},
     "PREFECT_SERVER_DATABASE_DRIVER": {"test_value": "sqlite+aiosqlite"},
@@ -302,8 +315,13 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SERVER_DATABASE_NAME": {"test_value": "prefect"},
     "PREFECT_SERVER_DATABASE_PASSWORD": {"test_value": "password"},
     "PREFECT_SERVER_DATABASE_PORT": {"test_value": 5432},
+    "PREFECT_SERVER_DATABASE_PREPARED_STATEMENT_CACHE_SIZE": {
+        "test_value": 0,
+        "legacy": True,
+    },
     "PREFECT_SERVER_DATABASE_SQLALCHEMY_MAX_OVERFLOW": {"test_value": 10},
     "PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_SIZE": {"test_value": 10},
+    "PREFECT_SERVER_DATABASE_STATEMENT_CACHE_SIZE": {"test_value": 0, "legacy": True},
     "PREFECT_SERVER_DATABASE_TIMEOUT": {"test_value": 10.0},
     "PREFECT_SERVER_DATABASE_USER": {"test_value": "user"},
     "PREFECT_SERVER_DEPLOYMENTS_CONCURRENCY_SLOT_WAIT_SECONDS": {"test_value": 10.0},

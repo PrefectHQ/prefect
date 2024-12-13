@@ -21,8 +21,11 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engin
 from typing_extensions import Literal
 
 from prefect.settings import (
+    PREFECT_API_DATABASE_APPLICATION_NAME,
     PREFECT_API_DATABASE_CONNECTION_TIMEOUT,
     PREFECT_API_DATABASE_ECHO,
+    PREFECT_API_DATABASE_PREPARED_STATEMENT_CACHE_SIZE,
+    PREFECT_API_DATABASE_STATEMENT_CACHE_SIZE,
     PREFECT_API_DATABASE_TIMEOUT,
     PREFECT_SQLALCHEMY_MAX_OVERFLOW,
     PREFECT_SQLALCHEMY_POOL_SIZE,
@@ -118,6 +121,9 @@ class BaseDatabaseConfiguration(ABC):
         connection_timeout: Optional[float] = None,
         sqlalchemy_pool_size: Optional[int] = None,
         sqlalchemy_max_overflow: Optional[int] = None,
+        statement_cache_size: Optional[int] = None,
+        prepared_statement_cache_size: Optional[int] = None,
+        application_name: Optional[str] = None,
     ):
         self.connection_url = connection_url
         self.echo = echo or PREFECT_API_DATABASE_ECHO.value()
@@ -130,6 +136,16 @@ class BaseDatabaseConfiguration(ABC):
         )
         self.sqlalchemy_max_overflow = (
             sqlalchemy_max_overflow or PREFECT_SQLALCHEMY_MAX_OVERFLOW.value()
+        )
+        self.statement_cache_size = (
+            statement_cache_size or PREFECT_API_DATABASE_STATEMENT_CACHE_SIZE.value()
+        )
+        self.prepared_statement_cache_size = (
+            prepared_statement_cache_size
+            or PREFECT_API_DATABASE_PREPARED_STATEMENT_CACHE_SIZE.value()
+        )
+        self.application_name = (
+            application_name or PREFECT_API_DATABASE_APPLICATION_NAME.value()
         )
 
     def _unique_key(self) -> Tuple[Hashable, ...]:
@@ -202,6 +218,20 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
 
             if self.connection_timeout is not None:
                 connect_args["timeout"] = self.connection_timeout
+
+            if self.statement_cache_size is not None:
+                connect_args["statement_cache_size"] = self.statement_cache_size
+
+            if self.prepared_statement_cache_size is not None:
+                connect_args[
+                    "prepared_statement_cache_size"
+                ] = self.prepared_statement_cache_size
+
+            if self.application_name is not None:
+                connect_args.setdefault("server_settings", {})
+                connect_args["server_settings"][
+                    "application_name"
+                ] = self.application_name
 
             if connect_args:
                 kwargs["connect_args"] = connect_args

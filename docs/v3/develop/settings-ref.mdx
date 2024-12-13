@@ -1158,6 +1158,42 @@ Controls maximum overflow of the connection pool when using a PostgreSQL databas
 **Supported environment variables**:
 `PREFECT_SERVER_DATABASE_SQLALCHEMY_MAX_OVERFLOW`, `PREFECT_SQLALCHEMY_MAX_OVERFLOW`
 
+### `statement_cache_size`
+Controls statement cache size for PostgreSQL connections. Setting this to 0 is required when using PgBouncer in transaction mode. Defaults to None.
+
+**Type**: `integer | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `server.database.statement_cache_size`
+
+**Supported environment variables**:
+`PREFECT_SERVER_DATABASE_STATEMENT_CACHE_SIZE`, `PREFECT_API_DATABASE_STATEMENT_CACHE_SIZE`
+
+### `prepared_statement_cache_size`
+Controls the size of the statement cache for PostgreSQL connections. When set to 0, statement caching is disabled. Defaults to None to use SQLAlchemy's default behavior.
+
+**Type**: `integer | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `server.database.prepared_statement_cache_size`
+
+**Supported environment variables**:
+`PREFECT_SERVER_DATABASE_PREPARED_STATEMENT_CACHE_SIZE`, `PREFECT_API_DATABASE_PREPARED_STATEMENT_CACHE_SIZE`
+
+### `application_name`
+Sets a custom name for this database connection in PostgreSQL. This value appears in database monitoring views and logs, helping identify specific connection sources. Defaults to None to use SQLAlchemy's default.
+
+**Type**: `string | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `server.database.application_name`
+
+**Supported environment variables**:
+`PREFECT_SERVER_DATABASE_APPLICATION_NAME`, `PREFECT_API_DATABASE_APPLICATION_NAME`
+
 ---
 ## ServerDeploymentsSettings
 ### `concurrency_slot_wait_seconds`

@@ -1007,6 +1007,57 @@
                         "PREFECT_SQLALCHEMY_MAX_OVERFLOW"
                     ],
                     "title": "Sqlalchemy Max Overflow"
+                },
+                "statement_cache_size": {
+                    "anyOf": [
+                        {
+                            "type": "integer"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "Controls statement cache size for PostgreSQL connections. Setting this to 0 is required when using PgBouncer in transaction mode. Defaults to None.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_DATABASE_STATEMENT_CACHE_SIZE",
+                        "PREFECT_API_DATABASE_STATEMENT_CACHE_SIZE"
+                    ],
+                    "title": "Statement Cache Size"
+                },
+                "prepared_statement_cache_size": {
+                    "anyOf": [
+                        {
+                            "type": "integer"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "Controls the size of the statement cache for PostgreSQL connections. When set to 0, statement caching is disabled. Defaults to None to use SQLAlchemy's default behavior.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_DATABASE_PREPARED_STATEMENT_CACHE_SIZE",
+                        "PREFECT_API_DATABASE_PREPARED_STATEMENT_CACHE_SIZE"
+                    ],
+                    "title": "Prepared Statement Cache Size"
+                },
+                "application_name": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "Sets a custom name for this database connection in PostgreSQL. This value appears in database monitoring views and logs, helping identify specific connection sources. Defaults to None to use SQLAlchemy's default.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_DATABASE_APPLICATION_NAME",
+                        "PREFECT_API_DATABASE_APPLICATION_NAME"
+                    ],
+                    "title": "Application Name"
                 }
             },
             "title": "ServerDatabaseSettings",
