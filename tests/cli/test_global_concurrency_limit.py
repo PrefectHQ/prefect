@@ -179,14 +179,9 @@ def test_deleting_gcl(
 
 def test_deleting_gcl_not_found():
     invoke_and_assert(
-        ["global-concurrency-limit", "delete", "not-found"],
-        prompts_and_responses=[
-            (
-                "Are you sure you want to delete global concurrency limit with name 'not-found'?",
-                "y",
-            )
-        ],
+        "global-concurrency-limit delete not-found",
         expected_output_contains="Global concurrency limit 'not-found' not found.",
+        expected_output_does_not_contain="Are you sure you want to delete global concurrency limit with name 'non-found'?",
         expected_code=1,
     )
 
