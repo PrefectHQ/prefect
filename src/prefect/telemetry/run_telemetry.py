@@ -53,12 +53,11 @@ class RunTelemetry:
         self,
         run: FlowOrTaskRun,
         client: PrefectClient,
-        name: Optional[str] = None,
         parameters: Optional[dict[str, Any]] = None,
         parent_labels: Optional[dict[str, Any]] = None,
     ):
         should_set_traceparent = self._should_set_traceparent(run)
-        traceparent, span = self._start_span(run, name, parameters, parent_labels)
+        traceparent, span = self._start_span(run, parameters, parent_labels)
 
         if should_set_traceparent and traceparent:
             await client.update_flow_run_labels(
@@ -71,12 +70,11 @@ class RunTelemetry:
         self,
         run: FlowOrTaskRun,
         client: SyncPrefectClient,
-        name: Optional[str] = None,
         parameters: Optional[dict[str, Any]] = None,
         parent_labels: Optional[dict[str, Any]] = None,
     ):
         should_set_traceparent = self._should_set_traceparent(run)
-        traceparent, span = self._start_span(run, name, parameters, parent_labels)
+        traceparent, span = self._start_span(run, parameters, parent_labels)
 
         if should_set_traceparent and traceparent:
             client.update_flow_run_labels(run.id, {LABELS_TRACEPARENT_KEY: traceparent})
@@ -86,7 +84,6 @@ class RunTelemetry:
     def _start_span(
         self,
         run: FlowOrTaskRun,
-        name: Optional[str] = None,
         parameters: Optional[dict[str, Any]] = None,
         parent_labels: Optional[dict[str, Any]] = None,
     ) -> tuple[Optional[str], Span]:
@@ -108,10 +105,10 @@ class RunTelemetry:
         run_type = self._run_type(run)
 
         self.span = self._tracer.start_span(
-            name=name or run.name,
+            name=run.name,
             context=context,
             attributes={
-                f"prefect.{run_type}.name": name or run.name,
+                "prefect.run.name": run.name,
                 "prefect.run.type": run_type,
                 "prefect.run.id": str(run.id),
                 "prefect.tags": run.tags,
@@ -196,6 +193,14 @@ class RunTelemetry:
                     "prefect.state.id": str(new_state.id),
                 },
             )
+
+    def update_run_name(self, name: str) -> None:
+        """
+        Update the name of the run.
+        """
+        if self.span:
+            self.span.update_name(name=name)
+            self.span.set_attribute("prefect.run.name", name)
 
     def propagate_traceparent(self) -> Optional[KeyValueLabels]:
         """

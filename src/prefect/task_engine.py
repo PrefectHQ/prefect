@@ -210,6 +210,7 @@ class BaseTaskRunEngine(Generic[P, R]):
             )
             self.task_run.name = task_run_name
             self._task_name_set = True
+            self._telemetry.update_run_name(name=task_run_name)
 
     def _wait_for_dependencies(self):
         if not self.wait_for:
@@ -704,7 +705,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
                         self._telemetry.start_span(
                             run=self.task_run,
-                            name=self.task.name,
                             client=self.client,
                             parameters=self.parameters,
                             parent_labels=parent_labels,
@@ -1246,7 +1246,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
                         await self._telemetry.async_start_span(
                             run=self.task_run,
-                            name=self.task.name,
                             client=self.client,
                             parameters=self.parameters,
                             parent_labels=parent_labels,

@@ -249,19 +249,19 @@ class TestFlowRunInstrumentation:
     ):
         """Test that when no parent traceparent exists, the flow run stores its own span's traceparent"""
 
-        @flow(name="child-flow")
+        @flow(flow_run_name="child-flow")
         async def async_child_flow() -> str:
             return "hello from child"
 
-        @flow(name="child-flow")
+        @flow(flow_run_name="child-flow")
         def sync_child_flow() -> str:
             return "hello from child"
 
-        @flow(name="parent-flow")
+        @flow(flow_run_name="parent-flow")
         async def async_parent_flow() -> str:
             return await async_child_flow()
 
-        @flow(name="parent-flow")
+        @flow(flow_run_name="parent-flow")
         def sync_parent_flow() -> str:
             return sync_child_flow()
 
@@ -271,17 +271,11 @@ class TestFlowRunInstrumentation:
             sync_parent_flow()
 
         spans = instrumentation.get_finished_spans()
+        for span in spans:
+            print(span.attributes)
 
-        next(
-            span
-            for span in spans
-            if span.attributes.get("prefect.flow.name") == "parent-flow"
-        )
-        child_span = next(
-            span
-            for span in spans
-            if span.attributes.get("prefect.flow.name") == "child-flow"
-        )
+        next(span for span in spans if span.name == "parent-flow")
+        child_span = next(span for span in spans if span.name == "child-flow")
 
         # Get the child flow run
         child_flow_run_id = child_span.attributes.get("prefect.run.id")
@@ -300,19 +294,19 @@ class TestFlowRunInstrumentation:
     ):
         """Test that OTEL traceparent gets propagated from parent flow to child flow"""
 
-        @flow(name="child-flow")
+        @flow(flow_run_name="child-flow")
         async def async_child_flow() -> str:
             return "hello from child"
 
-        @flow(name="child-flow")
+        @flow(flow_run_name="child-flow")
         def sync_child_flow() -> str:
             return "hello from child"
 
-        @flow(name="parent-flow")
+        @flow(flow_run_name="parent-flow")
         async def async_parent_flow():
             await async_child_flow()
 
-        @flow(name="parent-flow")
+        @flow(flow_run_name="parent-flow")
         def sync_parent_flow():
             sync_child_flow()
 
@@ -321,31 +315,21 @@ class TestFlowRunInstrumentation:
 
         spans = instrumentation.get_finished_spans()
 
-        parent_span = next(
-            span
-            for span in spans
-            if span.attributes.get("prefect.flow.name") == "parent-flow"
-        )
-        child_span = next(
-            span
-            for span in spans
-            if span.attributes.get("prefect.flow.name") == "child-flow"
-        )
+        parent_span = next(span for span in spans if span.name == "parent-flow")
+        child_span = next(span for span in spans if span.name == "child-flow")
 
-        assert parent_span is not None
-        assert child_span is not None
-        assert child_span.context.trace_id == parent_span.context.trace_id
+        assert parent_span.context.trace_id == child_span.context.trace_id
 
     async def test_flow_run_instrumentation(
         self,
         engine_type: Literal["async", "sync"],
         instrumentation: InstrumentationTester,
     ):
-        @flow(name="instrumented-flow")
+        @flow(flow_run_name="instrumented-flow")
         async def async_flow() -> str:
             return 42
 
-        @flow(name="instrumented-flow")
+        @flow(flow_run_name="instrumented-flow")
         def sync_flow() -> str:
             return 42
 
@@ -358,11 +342,11 @@ class TestFlowRunInstrumentation:
         span = spans[0]
         assert span is not None
         instrumentation.assert_span_instrumented_for(span, prefect)
-
+        print(span.attributes)
         instrumentation.assert_has_attributes(
             span,
             {
-                "prefect.flow.name": "instrumented-flow",
+                "prefect.run.name": "instrumented-flow",
                 "prefect.run.type": "flow",
             },
         )
@@ -375,15 +359,15 @@ class TestFlowRunInstrumentation:
     ):
         """Test that parent flow labels get propagated to child flow spans"""
 
-        @flow(name="child-flow")
+        @flow(flow_run_name="child-flow")
         async def async_child_flow() -> str:
             return "hello from child"
 
-        @flow(name="child-flow")
+        @flow(flow_run_name="child-flow")
         def sync_child_flow() -> str:
             return "hello from child"
 
-        @flow(name="parent-flow")
+        @flow(flow_run_name="parent-flow")
         async def async_parent_flow() -> str:
             # Set custom labels in parent flow
             flow_run = FlowRunContext.get().flow_run
@@ -392,7 +376,7 @@ class TestFlowRunInstrumentation:
             )
             return await async_child_flow()
 
-        @flow(name="parent-flow")
+        @flow(flow_run_name="parent-flow")
         def sync_parent_flow() -> str:
             # Set custom labels in parent flow
             flow_run = FlowRunContext.get().flow_run
@@ -407,11 +391,7 @@ class TestFlowRunInstrumentation:
             state = sync_parent_flow(return_state=True)
 
         spans = instrumentation.get_finished_spans()
-        child_spans = [
-            span
-            for span in spans
-            if span.attributes.get("prefect.flow.name") == "child-flow"
-        ]
+        child_spans = [span for span in spans if span.name == "child-flow"]
         assert len(child_spans) == 1
 
         # Get the parent flow run
@@ -425,7 +405,7 @@ class TestFlowRunInstrumentation:
             {
                 **parent_flow_run.labels,
                 "prefect.run.type": "flow",
-                "prefect.flow.name": "child-flow",
+                "prefect.run.name": "child-flow",
             },
         )
 
@@ -482,11 +462,11 @@ class TestTaskRunInstrumentation:
         engine_type: Literal["async", "sync"],
         instrumentation: InstrumentationTester,
     ):
-        @task
+        @task(task_run_name="task-run-name")
         async def async_task(x: int, y: int):
             return x + y
 
-        @task
+        @task(task_run_name="task-run-name")
         def sync_task(x: int, y: int):
             return x + y
 
@@ -502,16 +482,18 @@ class TestTaskRunInstrumentation:
 
         spans = instrumentation.get_finished_spans()
         assert len(spans) == 1
+
         instrumentation.assert_has_attributes(
             spans[0],
             {
                 "prefect.run.id": str(task_run_id),
                 "prefect.run.type": "task",
+                "prefect.run.name": "task-run-name",
                 "prefect.run.parameter.x": "int",
                 "prefect.run.parameter.y": "int",
             },
         )
-        assert spans[0].name == task_fn.__name__
+        assert spans[0].name == "task-run-name"
 
     async def test_span_events(
         self,
