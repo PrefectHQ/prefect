@@ -10,13 +10,11 @@ from uuid import UUID
 import anyio
 import pydantic
 import pytest
-from opentelemetry import trace
 
-import prefect
 from prefect import Flow, __development_base_path__, flow, task
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.filters import FlowFilter, FlowRunFilter
-from prefect.client.schemas.objects import FlowRun, StateType
+from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.sorting import FlowRunSort
 from prefect.concurrency.asyncio import concurrency as aconcurrency
 from prefect.concurrency.sync import concurrency
@@ -32,6 +30,7 @@ from prefect.exceptions import (
     Pause,
 )
 from prefect.flow_engine import (
+    AsyncFlowRunEngine,
     FlowRunEngine,
     load_flow_and_flow_run,
     run_flow,
@@ -45,11 +44,8 @@ from prefect.logging import get_run_logger
 from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.server.schemas.core import FlowRun as ServerFlowRun
 from prefect.testing.utilities import AsyncMock
-from prefect.types import KeyValueLabels
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.filesystem import tmpchdir
-
-from .telemetry.instrumentation_tester import InstrumentationTester
 
 
 @flow
@@ -58,24 +54,24 @@ async def foo():
 
 
 class TestFlowRunEngine:
-    async def test_basic_init(self):
+    def test_basic_init(self):
         engine = FlowRunEngine(flow=foo)
         assert isinstance(engine.flow, Flow)
         assert engine.flow.name == "foo"
         assert engine.parameters == {}
 
-    async def test_empty_init(self):
+    def test_empty_init(self):
         with pytest.raises(
             TypeError, match="missing 1 required positional argument: 'flow'"
         ):
             FlowRunEngine()
 
-    async def test_client_attr_raises_informative_error(self):
+    def test_client_attr_raises_informative_error(self):
         engine = FlowRunEngine(flow=foo)
         with pytest.raises(RuntimeError, match="not started"):
             engine.client
 
-    async def test_client_attr_returns_client_after_starting(self):
+    def test_client_attr_returns_client_after_starting(self):
         engine = FlowRunEngine(flow=foo)
         with engine.initialize_run():
             client = engine.client
@@ -84,21 +80,33 @@ class TestFlowRunEngine:
         with pytest.raises(RuntimeError, match="not started"):
             engine.client
 
-    async def test_load_flow_from_entrypoint(self, monkeypatch, tmp_path, flow_run):
-        flow_code = """
-        from prefect import flow
 
-        @flow
-        def dog():
-            return "woof!"
-        """
-        fpath = tmp_path / "f.py"
-        fpath.write_text(dedent(flow_code))
+class TestAsyncFlowRunEngine:
+    def test_basic_init(self):
+        engine = AsyncFlowRunEngine(flow=foo)
+        assert isinstance(engine.flow, Flow)
+        assert engine.flow.name == "foo"
+        assert engine.parameters == {}
 
-        monkeypatch.setenv("PREFECT__FLOW_ENTRYPOINT", f"{fpath}:dog")
-        loaded_flow_run, flow = load_flow_and_flow_run(flow_run.id)
-        assert loaded_flow_run.id == flow_run.id
-        assert flow.fn() == "woof!"
+    def test_empty_init(self):
+        with pytest.raises(
+            TypeError, match="missing 1 required positional argument: 'flow'"
+        ):
+            AsyncFlowRunEngine()
+
+    def test_client_attr_raises_informative_error(self):
+        engine = AsyncFlowRunEngine(flow=foo)
+        with pytest.raises(RuntimeError, match="not started"):
+            engine.client
+
+    async def test_client_attr_returns_client_after_starting(self):
+        engine = AsyncFlowRunEngine(flow=foo)
+        async with engine.initialize_run():
+            client = engine.client
+            assert isinstance(client, PrefectClient)
+
+        with pytest.raises(RuntimeError, match="not started"):
+            engine.client
 
 
 class TestStartFlowRunEngine:
@@ -118,6 +126,25 @@ class TestStartFlowRunEngine:
 
             # avoid error on teardown
             engine.begin_run()
+
+
+class TestStartAsyncFlowRunEngine:
+    async def test_start_updates_empirical_policy_on_provided_flow_run(
+        self, prefect_client: PrefectClient
+    ):
+        @flow(retries=3, retry_delay_seconds=10)
+        def flow_with_retries():
+            pass
+
+        flow_run = await prefect_client.create_flow_run(flow_with_retries)
+
+        engine = AsyncFlowRunEngine(flow=flow_with_retries, flow_run=flow_run)
+        async with engine.start():
+            assert engine.flow_run.empirical_policy.retries == 3
+            assert engine.flow_run.empirical_policy.retry_delay == 10
+
+            # avoid error on teardown
+            await engine.begin_run()
 
 
 class TestFlowRunsAsync:
@@ -584,7 +611,7 @@ class TestFlowRetries:
         # after a flow run retry, the stale value will be pulled from the cache.
 
     async def test_flow_retry_with_no_error_in_flow_and_one_failed_child_flow(
-        self, sync_prefect_client: SyncPrefectClient
+        self, sync_prefect_client
     ):
         child_run_count = 0
         flow_run_count = 0
@@ -610,7 +637,6 @@ class TestFlowRetries:
         assert await state.result() == "hello"
         assert flow_run_count == 2
         assert child_run_count == 2, "Child flow should be reset and run again"
-
         # Ensure that the tracking task run for the subflow is reset and tracked
         task_runs = sync_prefect_client.read_task_runs(
             flow_run_filter=FlowRunFilter(
@@ -927,11 +953,11 @@ class TestFlowCrashDetection:
         )
 
         @flow
-        async def my_flow():
+        def my_flow():
             pass
 
         with pytest.raises(interrupt_type):
-            await my_flow()
+            my_flow()
 
         flow_runs = await prefect_client.read_flow_runs()
         assert len(flow_runs) == 1
@@ -1745,6 +1771,22 @@ class TestAsyncGenerators:
 
 
 class TestLoadFlowAndFlowRun:
+    def test_load_flow_from_entrypoint(self, monkeypatch, tmp_path, flow_run):
+        flow_code = """
+        from prefect import flow
+
+        @flow
+        def dog():
+            return "woof!"
+        """
+        fpath = tmp_path / "f.py"
+        fpath.write_text(dedent(flow_code))
+
+        monkeypatch.setenv("PREFECT__FLOW_ENTRYPOINT", f"{fpath}:dog")
+        loaded_flow_run, flow = load_flow_and_flow_run(flow_run.id)
+        assert loaded_flow_run.id == flow_run.id
+        assert flow.fn() == "woof!"
+
     async def test_load_flow_from_script_with_module_level_sync_compatible_call(
         self, prefect_client: PrefectClient, tmp_path
     ):
@@ -1807,253 +1849,3 @@ class TestConcurrencyRelease:
             concurrency_limit_v2.name
         )
         assert response.active_slots == 0
-
-
-class TestFlowRunInstrumentation:
-    def test_flow_run_instrumentation(self, instrumentation: InstrumentationTester):
-        @flow
-        def instrumented_flow():
-            from prefect.states import Completed
-
-            return Completed(message="The flow is with you")
-
-        instrumented_flow()
-
-        spans = instrumentation.get_finished_spans()
-        assert len(spans) == 1
-        span = spans[0]
-        assert span is not None
-        instrumentation.assert_span_instrumented_for(span, prefect)
-
-        instrumentation.assert_has_attributes(
-            span,
-            {
-                "prefect.run.type": "flow",
-                "prefect.tags": (),
-                "prefect.flow.name": "instrumented-flow",
-                "prefect.run.id": mock.ANY,
-            },
-        )
-        assert span.status.status_code == trace.StatusCode.OK
-
-        assert len(span.events) == 2
-        assert span.events[0].name == "Running"
-        instrumentation.assert_has_attributes(
-            span.events[0],
-            {
-                "prefect.state.message": "",
-                "prefect.state.type": StateType.RUNNING,
-                "prefect.state.name": "Running",
-                "prefect.state.id": mock.ANY,
-            },
-        )
-
-        assert span.events[1].name == "Completed"
-        instrumentation.assert_has_attributes(
-            span.events[1],
-            {
-                "prefect.state.message": "The flow is with you",
-                "prefect.state.type": StateType.COMPLETED,
-                "prefect.state.name": "Completed",
-                "prefect.state.id": mock.ANY,
-            },
-        )
-
-    def test_flow_run_instrumentation_captures_tags(
-        self,
-        instrumentation: InstrumentationTester,
-    ):
-        from prefect import tags
-
-        @flow
-        def instrumented_flow():
-            pass
-
-        with tags("foo", "bar"):
-            instrumented_flow()
-
-        spans = instrumentation.get_finished_spans()
-        assert len(spans) == 1
-        span = spans[0]
-        assert span is not None
-        instrumentation.assert_span_instrumented_for(span, prefect)
-
-        instrumentation.assert_has_attributes(
-            span,
-            {
-                "prefect.run.type": "flow",
-                "prefect.flow.name": "instrumented-flow",
-                "prefect.run.id": mock.ANY,
-            },
-        )
-        # listy span attributes are serialized to tuples -- order seems nondeterministic so ignore rather than flake
-        assert set(span.attributes.get("prefect.tags")) == {"foo", "bar"}  # type: ignore
-        assert span.status.status_code == trace.StatusCode.OK
-
-    def test_flow_run_instrumentation_captures_labels(
-        self, instrumentation: InstrumentationTester, monkeypatch
-    ):
-        # simulate server responding with labels on flow run
-        class FlowRunWithLabels(FlowRun):
-            labels: KeyValueLabels = pydantic.Field(
-                default_factory=lambda: {
-                    "prefect.deployment.id": "some-id",
-                    "my-label": "my-value",
-                }
-            )
-
-        monkeypatch.setattr(
-            "prefect.client.orchestration.FlowRun",
-            FlowRunWithLabels,
-        )
-
-        @flow
-        def instrumented_flow():
-            pass
-
-        instrumented_flow()
-
-        spans = instrumentation.get_finished_spans()
-        assert len(spans) == 1
-        span = spans[0]
-        assert span is not None
-
-        instrumentation.assert_has_attributes(
-            span,
-            {
-                "prefect.run.type": "flow",
-                "prefect.flow.name": "instrumented-flow",
-                "prefect.run.id": mock.ANY,
-                "prefect.deployment.id": "some-id",
-                "my-label": "my-value",
-            },
-        )
-
-    def test_flow_run_instrumentation_on_exception(
-        self, instrumentation: InstrumentationTester
-    ):
-        @flow
-        def a_broken_flow():
-            raise Exception("This flow broke!")
-
-        with pytest.raises(Exception):
-            a_broken_flow()
-
-        spans = instrumentation.get_finished_spans()
-        assert len(spans) == 1
-        span = spans[0]
-        assert span is not None
-        instrumentation.assert_span_instrumented_for(span, prefect)
-
-        instrumentation.assert_has_attributes(
-            span,
-            {
-                "prefect.run.type": "flow",
-                "prefect.tags": (),
-                "prefect.flow.name": "a-broken-flow",
-                "prefect.run.id": mock.ANY,
-            },
-        )
-
-        assert span.status.status_code == trace.StatusCode.ERROR
-        assert (
-            span.status.description
-            == "Flow run encountered an exception: Exception: This flow broke!"
-        )
-
-        assert len(span.events) == 3
-        assert span.events[0].name == "Running"
-        instrumentation.assert_has_attributes(
-            span.events[0],
-            {
-                "prefect.state.message": "",
-                "prefect.state.type": StateType.RUNNING,
-                "prefect.state.name": "Running",
-                "prefect.state.id": mock.ANY,
-            },
-        )
-
-        assert span.events[1].name == "Failed"
-        instrumentation.assert_has_attributes(
-            span.events[1],
-            {
-                "prefect.state.message": "Flow run encountered an exception: Exception: This flow broke!",
-                "prefect.state.type": StateType.FAILED,
-                "prefect.state.name": "Failed",
-                "prefect.state.id": mock.ANY,
-            },
-        )
-
-        assert span.events[2].name == "exception"
-        instrumentation.assert_has_attributes(
-            span.events[2],
-            {
-                "exception.type": "Exception",
-                "exception.message": "This flow broke!",
-                "exception.stacktrace": mock.ANY,
-                "exception.escaped": "False",
-            },
-        )
-
-    def test_flow_run_instrumentation_on_timeout(
-        self, instrumentation: InstrumentationTester
-    ):
-        @flow(timeout_seconds=0.1)
-        def a_slow_flow():
-            time.sleep(1)
-
-        with pytest.raises(TimeoutError):
-            a_slow_flow()
-
-        spans = instrumentation.get_finished_spans()
-        assert len(spans) == 1
-        span = spans[0]
-        assert span is not None
-        instrumentation.assert_span_instrumented_for(span, prefect)
-
-        instrumentation.assert_has_attributes(
-            span,
-            {
-                "prefect.run.type": "flow",
-                "prefect.tags": (),
-                "prefect.flow.name": "a-slow-flow",
-                "prefect.run.id": mock.ANY,
-            },
-        )
-
-        assert span.status.status_code == trace.StatusCode.ERROR
-        assert span.status.description == "Flow run exceeded timeout of 0.1 second(s)"
-
-        assert len(span.events) == 3
-        assert span.events[0].name == "Running"
-        instrumentation.assert_has_attributes(
-            span.events[0],
-            {
-                "prefect.state.message": "",
-                "prefect.state.type": StateType.RUNNING,
-                "prefect.state.name": "Running",
-                "prefect.state.id": mock.ANY,
-            },
-        )
-
-        assert span.events[1].name == "TimedOut"
-        instrumentation.assert_has_attributes(
-            span.events[1],
-            {
-                "prefect.state.message": "Flow run exceeded timeout of 0.1 second(s)",
-                "prefect.state.type": StateType.FAILED,
-                "prefect.state.name": "TimedOut",
-                "prefect.state.id": mock.ANY,
-            },
-        )
-
-        assert span.events[2].name == "exception"
-        instrumentation.assert_has_attributes(
-            span.events[2],
-            {
-                "exception.type": "prefect.flow_engine.FlowRunTimeoutError",
-                "exception.message": "Scope timed out after 0.1 second(s).",
-                "exception.stacktrace": mock.ANY,
-                "exception.escaped": "False",
-            },
-        )

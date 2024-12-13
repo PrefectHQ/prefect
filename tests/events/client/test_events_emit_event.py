@@ -3,7 +3,6 @@ from unittest import mock
 from uuid import UUID
 
 import pendulum
-from pydantic_extra_types.pendulum_dt import DateTime
 
 from prefect.events import emit_event
 from prefect.events.clients import AssertingEventsClient
@@ -12,6 +11,7 @@ from prefect.settings import (
     PREFECT_API_URL,
     temporary_settings,
 )
+from prefect.types import DateTime
 
 
 def test_emits_simple_event(asserting_events_worker: EventsWorker, reset_worker_events):

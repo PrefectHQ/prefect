@@ -13,13 +13,14 @@ import warnings
 from copy import copy
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional, Tuple, Union
+from uuid import UUID
 
 import jsonschema
 import pendulum
 import yaml
-from pydantic_extra_types.pendulum_dt import DateTime
 
 from prefect.exceptions import InvalidRepositoryURLError
+from prefect.types import DateTime
 from prefect.utilities.collections import isiterable
 from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.filesystem import relative_path_to_current_platform
@@ -32,6 +33,7 @@ LOWERCASE_LETTERS_NUMBERS_AND_UNDERSCORES_REGEX = "^[a-z0-9_]*$"
 
 if TYPE_CHECKING:
     from prefect.blocks.core import Block
+    from prefect.serializers import Serializer
     from prefect.utilities.callables import ParameterSchema
 
 
@@ -577,7 +579,7 @@ def validate_picklelib_and_modules(values: dict) -> dict:
     return values
 
 
-def validate_dump_kwargs(value: dict) -> dict:
+def validate_dump_kwargs(value: dict[str, Any]) -> dict[str, Any]:
     # `default` is set by `object_encoder`. A user provided callable would make this
     # class unserializable anyway.
     if "default" in value:
@@ -585,7 +587,7 @@ def validate_dump_kwargs(value: dict) -> dict:
     return value
 
 
-def validate_load_kwargs(value: dict) -> dict:
+def validate_load_kwargs(value: dict[str, Any]) -> dict[str, Any]:
     # `object_hook` is set by `object_decoder`. A user provided callable would make
     # this class unserializable anyway.
     if "object_hook" in value:
@@ -595,7 +597,7 @@ def validate_load_kwargs(value: dict) -> dict:
     return value
 
 
-def cast_type_names_to_serializers(value):
+def cast_type_names_to_serializers(value: Union[str, "Serializer"]) -> "Serializer":
     from prefect.serializers import Serializer
 
     if isinstance(value, str):
@@ -653,7 +655,7 @@ def validate_message_template_variables(v: Optional[str]) -> Optional[str]:
     return v
 
 
-def validate_default_queue_id_not_none(v: Optional[str]) -> Optional[str]:
+def validate_default_queue_id_not_none(v: Optional[UUID]) -> UUID:
     if v is None:
         raise ValueError(
             "`default_queue_id` is a required field. If you are "

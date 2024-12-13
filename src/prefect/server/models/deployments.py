@@ -4,7 +4,7 @@ Intended for internal use by the Prefect REST API.
 """
 
 import datetime
-from typing import Dict, Iterable, List, Optional, Sequence, TypeVar
+from typing import Dict, Iterable, List, Optional, Sequence, TypeVar, cast
 from uuid import UUID, uuid4
 
 import pendulum
@@ -81,6 +81,8 @@ async def create_deployment(
     # known limitation of `on_conflict_do_update`, will not use `Column.onupdate`
     # https://docs.sqlalchemy.org/en/14/dialects/sqlite.html#the-set-clause
     deployment.updated = pendulum.now("UTC")  # type: ignore[assignment]
+
+    deployment.labels = await with_system_labels_for_deployment(session, deployment)
 
     schedules = deployment.schedules
     insert_values = deployment.model_dump_for_orm(
@@ -741,17 +743,11 @@ async def _insert_scheduled_flow_runs(
 
     # query for the rows that were newly inserted (by checking for any flow runs with
     # no corresponding flow run states)
-    inserted_rows = (
-        sa.select(orm_models.FlowRun.id)
-        .join(
-            orm_models.FlowRunState,
-            orm_models.FlowRun.id == orm_models.FlowRunState.flow_run_id,
-            isouter=True,
-        )
-        .where(
-            orm_models.FlowRun.id.in_([r["id"] for r in runs]),
-            orm_models.FlowRunState.id.is_(None),
-        )
+    inserted_rows = sa.select(db.FlowRun.id).where(
+        db.FlowRun.id.in_([r["id"] for r in runs]),
+        ~select(db.FlowRunState.id)
+        .where(db.FlowRunState.flow_run_id == db.FlowRun.id)
+        .exists(),
     )
     inserted_flow_run_ids = (await session.execute(inserted_rows)).scalars().all()
 
@@ -1082,3 +1078,24 @@ async def mark_deployments_not_ready(
                         occurred=pendulum.now("UTC"),
                     )
                 )
+
+
+async def with_system_labels_for_deployment(
+    session: AsyncSession,
+    deployment: schemas.core.Deployment,
+) -> schemas.core.KeyValueLabels:
+    """Augment user supplied labels with system default labels for a deployment."""
+    default_labels = cast(
+        schemas.core.KeyValueLabels,
+        {
+            "prefect.flow.id": str(deployment.flow_id),
+        },
+    )
+
+    user_supplied_labels = deployment.labels or {}
+
+    parent_labels = (
+        await models.flows.read_flow_labels(session, deployment.flow_id)
+    ) or {}
+
+    return parent_labels | default_labels | user_supplied_labels

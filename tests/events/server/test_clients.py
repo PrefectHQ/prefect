@@ -5,7 +5,6 @@ from uuid import uuid4
 
 import pendulum
 import pytest
-from pendulum.datetime import DateTime
 
 from prefect.server.events.clients import (
     AssertingEventsClient,
@@ -14,6 +13,7 @@ from prefect.server.events.clients import (
 )
 from prefect.server.events.schemas.events import Event, ReceivedEvent, RelatedResource
 from prefect.server.utilities.messaging import CapturingPublisher
+from prefect.types import DateTime
 
 
 @pytest.fixture

@@ -4,7 +4,6 @@ from uuid import uuid4
 
 import pendulum
 import pytest
-from pendulum.datetime import DateTime
 from pydantic import ValidationError
 
 from prefect.server.events.schemas.events import (
@@ -13,6 +12,7 @@ from prefect.server.events.schemas.events import (
     RelatedResource,
     Resource,
 )
+from prefect.types import DateTime
 
 
 def test_client_events_do_not_have_defaults_for_the_fields_it_seems_they_should():
@@ -295,3 +295,8 @@ def test_finding_resources_in_role(example_event: Event):
     ]
     assert [r.id for r in example_event.resources_in_role["role-2"]] == ["related-3"]
     assert example_event.resources_in_role["role-3"] == []
+
+
+def test_event_name_length(example_event: Event):
+    with pytest.raises(ValidationError, match="Event name must be at most"):
+        Event(event="x" * 1025, **example_event.model_dump(exclude={"event"}))

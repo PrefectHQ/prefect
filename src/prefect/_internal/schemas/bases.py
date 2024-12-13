@@ -4,7 +4,7 @@ Utilities for creating and working with Prefect REST API schemas.
 
 import datetime
 import os
-from typing import Any, ClassVar, Optional, Set, TypeVar
+from typing import Any, ClassVar, Generator, Optional, Set, TypeVar, cast
 from uuid import UUID, uuid4
 
 import pendulum
@@ -13,8 +13,9 @@ from pydantic import (
     ConfigDict,
     Field,
 )
-from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Self
+
+from prefect.types import DateTime
 
 T = TypeVar("T")
 
@@ -33,7 +34,7 @@ class PrefectBaseModel(BaseModel):
 
     _reset_fields: ClassVar[Set[str]] = set()
 
-    model_config = ConfigDict(
+    model_config: ClassVar[ConfigDict] = ConfigDict(
         ser_json_timedelta="float",
         defer_build=True,
         extra=(
@@ -58,7 +59,7 @@ class PrefectBaseModel(BaseModel):
         else:
             return copy_dict == other
 
-    def __rich_repr__(self):
+    def __rich_repr__(self) -> Generator[tuple[str, Any, Any], None, None]:
         # Display all of the fields in the model if they differ from the default value
         for name, field in self.model_fields.items():
             value = getattr(self, name)
@@ -71,9 +72,11 @@ class PrefectBaseModel(BaseModel):
                 and name == "timestamp"
                 and value
             ):
-                value = pendulum.instance(value).isoformat()
+                value = cast(pendulum.DateTime, pendulum.instance(value)).isoformat()
             elif isinstance(field.annotation, datetime.datetime) and value:
-                value = pendulum.instance(value).diff_for_humans()
+                value = cast(
+                    pendulum.DateTime, pendulum.instance(value)
+                ).diff_for_humans()
 
             yield name, value, field.get_default()
 
@@ -84,12 +87,9 @@ class PrefectBaseModel(BaseModel):
         Returns:
             PrefectBaseModel: A new instance of the model with the reset fields.
         """
-        data = self.model_dump()
         return self.model_copy(
             update={
-                field: self.model_fields[field].get_default(
-                    call_default_factory=True, validated_data=data
-                )
+                field: self.model_fields[field].get_default(call_default_factory=True)
                 for field in self._reset_fields
             }
         )
@@ -116,11 +116,11 @@ class ObjectBaseModel(IDBaseModel):
     """
 
     _reset_fields: ClassVar[Set[str]] = {"id", "created", "updated"}
-    model_config = ConfigDict(from_attributes=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(from_attributes=True)
 
     created: Optional[DateTime] = Field(default=None, repr=False)
     updated: Optional[DateTime] = Field(default=None, repr=False)
 
 
 class ActionBaseModel(PrefectBaseModel):
-    model_config: ConfigDict = ConfigDict(extra="forbid")
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")

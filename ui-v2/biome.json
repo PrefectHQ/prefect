@@ -7,14 +7,15 @@
 	},
 	"files": {
 		"ignoreUnknown": false,
-		"ignore": []
+		"ignore": ["src/api/prefect.ts", "src/routeTree.gen.ts"]
 	},
 	"formatter": {
 		"enabled": true,
 		"indentStyle": "tab"
 	},
 	"organizeImports": {
-		"enabled": true
+		"enabled": true,
+		"ignore": ["src/api/prefect.ts", "src/routeTree.gen.ts"]
 	},
 	"linter": {
 		"enabled": false,

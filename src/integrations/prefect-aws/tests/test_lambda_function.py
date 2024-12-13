@@ -10,6 +10,9 @@ from botocore.response import StreamingBody
 from moto import mock_iam, mock_lambda
 from prefect_aws.credentials import AwsCredentials
 from prefect_aws.lambda_function import LambdaFunction
+from pydantic_core import from_json, to_json
+
+from prefect import flow
 
 
 @pytest.fixture
@@ -135,12 +138,12 @@ def make_patched_invocation(client, handler):
     def invoke(*args, **kwargs):
         """Calls the true invoke and replaces the Payload with its result."""
         result = true_invoke(*args, **kwargs)
-        blob = json.dumps(
+        blob = to_json(
             handler(
                 event=kwargs.get("Payload"),
                 context=kwargs.get("ClientContext"),
             )
-        ).encode()
+        )
         result["Payload"] = StreamingBody(io.BytesIO(blob), len(blob))
         return result
 
@@ -148,21 +151,43 @@ def make_patched_invocation(client, handler):
 
 
 @pytest.fixture
-def mock_invoke(
-    lambda_function: LambdaFunction, handler, monkeypatch: pytest.MonkeyPatch
+def mock_invoke_base(
+    lambda_function: LambdaFunction,
+    monkeypatch: pytest.MonkeyPatch,
 ):
-    """Fixture to patch the invocation response's 'Payload' field.
-
-    When `result["Payload"].read` is called, moto attempts to run the function
-    in a Docker container and return the result. This is total overkill, so
-    we actually call the handler with the given arguments.
-    """
+    """Fixture for base version of lambda function"""
     client = lambda_function._get_lambda_client()
 
     monkeypatch.setattr(
         client,
         "invoke",
-        make_patched_invocation(client, handler),
+        make_patched_invocation(client, handler_a),
+    )
+
+    def _get_lambda_client():
+        return client
+
+    monkeypatch.setattr(
+        lambda_function,
+        "_get_lambda_client",
+        _get_lambda_client,
+    )
+
+    yield
+
+
+@pytest.fixture
+def mock_invoke_updated(
+    lambda_function: LambdaFunction,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Fixture for updated version of lambda function"""
+    client = lambda_function._get_lambda_client()
+
+    monkeypatch.setattr(
+        client,
+        "invoke",
+        make_patched_invocation(client, handler_b),
     )
 
     def _get_lambda_client():
@@ -187,67 +212,169 @@ class TestLambdaFunction:
         assert function.qualifier is None
 
     @pytest.mark.parametrize(
-        "payload,expected,handler",
+        "payload,expected",
         [
-            ({"foo": "baz"}, {"foo": "bar"}, handler_a),
-            (None, {"foo": "bar"}, handler_a),
+            ({"foo": "baz"}, {"foo": "bar"}),
+            (None, {"foo": "bar"}),
         ],
     )
     def test_invoke_lambda_payloads(
         self,
         payload: Optional[dict],
         expected: dict,
-        handler,
         mock_lambda_function,
         lambda_function: LambdaFunction,
-        mock_invoke,
+        mock_invoke_base,
     ):
         result = lambda_function.invoke(payload)
         assert result["StatusCode"] == 200
-        response_payload = json.loads(result["Payload"].read())
+        response_payload = from_json(result["Payload"].read())
         assert response_payload == expected
 
-    @pytest.mark.parametrize("handler", [handler_a])
+    async def test_invoke_lambda_async_dispatch(
+        self,
+        mock_lambda_function,
+        lambda_function: LambdaFunction,
+        mock_invoke_base,
+    ):
+        @flow
+        async def test_flow():
+            result = await lambda_function.invoke()
+            return result
+
+        result = await test_flow()
+        assert result["StatusCode"] == 200
+        response_payload = from_json(result["Payload"].read())
+        assert response_payload == {"foo": "bar"}
+
+    async def test_invoke_lambda_force_sync(
+        self,
+        mock_lambda_function,
+        lambda_function: LambdaFunction,
+        mock_invoke_base,
+    ):
+        result = lambda_function.invoke(_sync=True)
+        assert result["StatusCode"] == 200
+        response_payload = from_json(result["Payload"].read())
+        assert response_payload == {"foo": "bar"}
+
     def test_invoke_lambda_tail(
-        self, lambda_function: LambdaFunction, mock_lambda_function, mock_invoke
+        self, lambda_function: LambdaFunction, mock_lambda_function, mock_invoke_base
     ):
         result = lambda_function.invoke(tail=True)
         assert result["StatusCode"] == 200
-        response_payload = json.loads(result["Payload"].read())
+        response_payload = from_json(result["Payload"].read())
         assert response_payload == {"foo": "bar"}
         assert "LogResult" in result
 
-    @pytest.mark.parametrize("handler", [handler_a])
     def test_invoke_lambda_client_context(
-        self, lambda_function: LambdaFunction, mock_lambda_function, mock_invoke
+        self, lambda_function: LambdaFunction, mock_lambda_function, mock_invoke_base
     ):
-        # Just making sure boto doesn't throw an error
         result = lambda_function.invoke(client_context={"bar": "foo"})
         assert result["StatusCode"] == 200
-        response_payload = json.loads(result["Payload"].read())
+        response_payload = from_json(result["Payload"].read())
         assert response_payload == {"foo": "bar"}
 
-    @pytest.mark.parametrize(
-        "func_fixture,expected,handler",
-        [
-            ("mock_lambda_function", {"foo": "bar"}, handler_a),
-            ("add_lambda_version", {"data": [1, 2, 3]}, handler_b),
-        ],
-    )
-    def test_invoke_lambda_qualifier(
+    def test_invoke_lambda_qualifier_base_version(
         self,
-        func_fixture,
-        expected,
+        mock_lambda_function,
         lambda_function: LambdaFunction,
-        mock_invoke,
-        request,
+        mock_invoke_base,
     ):
-        func_fixture = request.getfixturevalue(func_fixture)
-        try:
-            lambda_function.qualifier = func_fixture["Version"]
-            result = lambda_function.invoke()
-            assert result["StatusCode"] == 200
-            response_payload = json.loads(result["Payload"].read())
-            assert response_payload == expected
-        finally:
-            lambda_function.qualifier = None
+        """Test invoking the base version of the lambda function"""
+        lambda_function.qualifier = mock_lambda_function["Version"]
+        result = lambda_function.invoke()
+        assert result["StatusCode"] == 200
+        response_payload = from_json(result["Payload"].read())
+        assert response_payload == {"foo": "bar"}
+
+    def test_invoke_lambda_qualifier_updated_version(
+        self,
+        add_lambda_version,
+        lambda_function: LambdaFunction,
+        mock_invoke_updated,
+    ):
+        """Test invoking the updated version of the lambda function"""
+        lambda_function.qualifier = add_lambda_version["Version"]
+        result = lambda_function.invoke()
+        assert result["StatusCode"] == 200
+        response_payload = from_json(result["Payload"].read())
+        assert response_payload == {"data": [1, 2, 3]}
+
+
+class TestLambdaFunctionAsync:
+    async def test_ainvoke_lambda_explicit(
+        self,
+        mock_lambda_function,
+        lambda_function: LambdaFunction,
+        mock_invoke_base,
+    ):
+        @flow
+        async def test_flow():
+            result = await lambda_function.ainvoke()
+            return result
+
+        result = await test_flow()
+        assert result["StatusCode"] == 200
+        response_payload = from_json(result["Payload"].read())
+        assert response_payload == {"foo": "bar"}
+
+    async def test_ainvoke_lambda_payloads(
+        self,
+        mock_lambda_function,
+        lambda_function: LambdaFunction,
+        mock_invoke_base,
+    ):
+        result = await lambda_function.ainvoke(payload={"foo": "baz"})
+        assert result["StatusCode"] == 200
+        response_payload = from_json(result["Payload"].read())
+        assert response_payload == {"foo": "bar"}
+
+    async def test_ainvoke_lambda_tail(
+        self,
+        mock_lambda_function,
+        lambda_function: LambdaFunction,
+        mock_invoke_base,
+    ):
+        result = await lambda_function.ainvoke(tail=True)
+        assert result["StatusCode"] == 200
+        response_payload = from_json(result["Payload"].read())
+        assert response_payload == {"foo": "bar"}
+        assert "LogResult" in result
+
+    async def test_ainvoke_lambda_client_context(
+        self,
+        mock_lambda_function,
+        lambda_function: LambdaFunction,
+        mock_invoke_base,
+    ):
+        result = await lambda_function.ainvoke(client_context={"bar": "foo"})
+        assert result["StatusCode"] == 200
+        response_payload = from_json(result["Payload"].read())
+        assert response_payload == {"foo": "bar"}
+
+    async def test_ainvoke_lambda_qualifier_base_version(
+        self,
+        mock_lambda_function,
+        lambda_function: LambdaFunction,
+        mock_invoke_base,
+    ):
+        """Test invoking the base version of the lambda function asynchronously"""
+        lambda_function.qualifier = mock_lambda_function["Version"]
+        result = await lambda_function.ainvoke()
+        assert result["StatusCode"] == 200
+        response_payload = from_json(result["Payload"].read())
+        assert response_payload == {"foo": "bar"}
+
+    async def test_ainvoke_lambda_qualifier_updated_version(
+        self,
+        add_lambda_version,
+        lambda_function: LambdaFunction,
+        mock_invoke_updated,
+    ):
+        """Test invoking the updated version of the lambda function asynchronously"""
+        lambda_function.qualifier = add_lambda_version["Version"]
+        result = await lambda_function.ainvoke()
+        assert result["StatusCode"] == 200
+        response_payload = from_json(result["Payload"].read())
+        assert response_payload == {"data": [1, 2, 3]}

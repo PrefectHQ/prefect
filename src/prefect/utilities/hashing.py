@@ -1,21 +1,17 @@
 import hashlib
-import sys
 from functools import partial
 from pathlib import Path
-from typing import Optional, Union
+from typing import Any, Callable, Optional, Union
 
-import cloudpickle
+import cloudpickle  # type: ignore  # no stubs available
 
 from prefect.exceptions import HashError
 from prefect.serializers import JSONSerializer
 
-if sys.version_info[:2] >= (3, 9):
-    _md5 = partial(hashlib.md5, usedforsecurity=False)
-else:
-    _md5 = hashlib.md5
+_md5 = partial(hashlib.md5, usedforsecurity=False)
 
 
-def stable_hash(*args: Union[str, bytes], hash_algo=_md5) -> str:
+def stable_hash(*args: Union[str, bytes], hash_algo: Callable[..., Any] = _md5) -> str:
     """Given some arguments, produces a stable 64-bit hash of their contents.
 
     Supports bytes and strings. Strings will be UTF-8 encoded.
@@ -35,7 +31,7 @@ def stable_hash(*args: Union[str, bytes], hash_algo=_md5) -> str:
     return h.hexdigest()
 
 
-def file_hash(path: str, hash_algo=_md5) -> str:
+def file_hash(path: str, hash_algo: Callable[..., Any] = _md5) -> str:
     """Given a path to a file, produces a stable hash of the file contents.
 
     Args:
@@ -50,7 +46,10 @@ def file_hash(path: str, hash_algo=_md5) -> str:
 
 
 def hash_objects(
-    *args, hash_algo=_md5, raise_on_failure: bool = False, **kwargs
+    *args: Any,
+    hash_algo: Callable[..., Any] = _md5,
+    raise_on_failure: bool = False,
+    **kwargs: Any,
 ) -> Optional[str]:
     """
     Attempt to hash objects by dumping to JSON or serializing with cloudpickle.
@@ -77,7 +76,7 @@ def hash_objects(
         json_error = str(e)
 
     try:
-        return stable_hash(cloudpickle.dumps((args, kwargs)), hash_algo=hash_algo)
+        return stable_hash(cloudpickle.dumps((args, kwargs)), hash_algo=hash_algo)  # type: ignore[reportUnknownMemberType]
     except Exception as e:
         pickle_error = str(e)
 

@@ -11,14 +11,16 @@ from prefect.utilities.pydantic import parse_obj_as
 
 class TestCreateFlow:
     async def test_create_flow(self, session, client):
-        flow_data = {"name": "my-flow"}
+        flow_data = {"name": "my-flow", "labels": {"env": "dev"}}
         response = await client.post("/flows/", json=flow_data)
         assert response.status_code == status.HTTP_201_CREATED
         assert response.json()["name"] == "my-flow"
         flow_id = response.json()["id"]
 
         flow = await models.flows.read_flow(session=session, flow_id=flow_id)
+        assert flow
         assert str(flow.id) == flow_id
+        assert flow.labels == {"env": "dev"}
 
     async def test_create_flow_populates_and_returned_created(self, client):
         now = pendulum.now(tz="UTC")

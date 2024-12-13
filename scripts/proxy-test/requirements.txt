@@ -1,0 +1,6 @@
+fastapi==0.111.1
+uvicorn==0.28.1
+uv==0.5.7
+websockets==13.1
+python-socks==2.5.3
+httpx==0.28.1

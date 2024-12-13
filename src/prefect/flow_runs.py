@@ -1,6 +1,6 @@
 from typing import (
     TYPE_CHECKING,
-    Dict,
+    Any,
     Optional,
     Type,
     TypeVar,
@@ -307,7 +307,7 @@ async def suspend_flow_run(
     flow_run_id: Optional[UUID] = None,
     timeout: Optional[int] = 3600,
     key: Optional[str] = None,
-    client: PrefectClient = None,
+    client: Optional[PrefectClient] = None,
 ) -> None:
     ...
 
@@ -318,7 +318,7 @@ async def suspend_flow_run(
     flow_run_id: Optional[UUID] = None,
     timeout: Optional[int] = 3600,
     key: Optional[str] = None,
-    client: PrefectClient = None,
+    client: Optional[PrefectClient] = None,
 ) -> T:
     ...
 
@@ -330,7 +330,7 @@ async def suspend_flow_run(
     flow_run_id: Optional[UUID] = None,
     timeout: Optional[int] = 3600,
     key: Optional[str] = None,
-    client: PrefectClient = None,
+    client: Optional[PrefectClient] = None,
 ) -> Optional[T]:
     """
     Suspends a flow run by stopping code execution until resumed.
@@ -430,7 +430,9 @@ async def suspend_flow_run(
 
 
 @sync_compatible
-async def resume_flow_run(flow_run_id, run_input: Optional[Dict] = None):
+async def resume_flow_run(
+    flow_run_id: UUID, run_input: Optional[dict[str, Any]] = None
+) -> None:
     """
     Resumes a paused flow.
 

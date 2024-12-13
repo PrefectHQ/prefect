@@ -23,7 +23,7 @@ from prefect.exceptions import (
     MissingContextError,
     SerializationError,
 )
-from prefect.logging.loggers import get_logger, get_run_logger
+from prefect.logging.loggers import LoggingAdapter, get_logger, get_run_logger
 from prefect.records import RecordStore
 from prefect.records.base import TransactionRecord
 from prefect.results import (
@@ -32,9 +32,9 @@ from prefect.results import (
     ResultStore,
     get_result_store,
 )
+from prefect.utilities._engine import get_hook_name
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.collections import AutoEnum
-from prefect.utilities.engine import _get_hook_name
 
 
 class IsolationLevel(AutoEnum):
@@ -72,13 +72,13 @@ class Transaction(ContextModel):
         default_factory=list
     )
     overwrite: bool = False
-    logger: Union[logging.Logger, logging.LoggerAdapter] = Field(
+    logger: Union[logging.Logger, LoggingAdapter] = Field(
         default_factory=partial(get_logger, "transactions")
     )
     write_on_commit: bool = True
     _stored_values: Dict[str, Any] = PrivateAttr(default_factory=dict)
     _staged_value: Any = None
-    __var__: ContextVar = ContextVar("transaction")
+    __var__: ContextVar[Self] = ContextVar("transaction")
 
     def set(self, name: str, value: Any) -> None:
         """
@@ -209,7 +209,7 @@ class Transaction(ContextModel):
         self._token = self.__var__.set(self)
         return self
 
-    def __exit__(self, *exc_info):
+    def __exit__(self, *exc_info: Any):
         exc_type, exc_val, _ = exc_info
         if not self._token:
             raise RuntimeError(
@@ -254,7 +254,7 @@ class Transaction(ContextModel):
         ):
             self.state = TransactionState.COMMITTED
 
-    def read(self) -> Union["BaseResult", ResultRecord, None]:
+    def read(self) -> Union["BaseResult[Any]", ResultRecord[Any], None]:
         if self.store and self.key:
             record = self.store.read(key=self.key)
             if isinstance(record, ResultRecord):
@@ -354,8 +354,8 @@ class Transaction(ContextModel):
             self.rollback()
             return False
 
-    def run_hook(self, hook, hook_type: str) -> None:
-        hook_name = _get_hook_name(hook)
+    def run_hook(self, hook: Callable[..., Any], hook_type: str) -> None:
+        hook_name = get_hook_name(hook)
         # Undocumented way to disable logging for a hook. Subject to change.
         should_log = getattr(hook, "log_on_run", True)
 
@@ -379,8 +379,8 @@ class Transaction(ContextModel):
     def stage(
         self,
         value: Any,
-        on_rollback_hooks: Optional[List] = None,
-        on_commit_hooks: Optional[List] = None,
+        on_rollback_hooks: Optional[list[Callable[..., Any]]] = None,
+        on_commit_hooks: Optional[list[Callable[..., Any]]] = None,
     ) -> None:
         """
         Stage a value to be committed later.
@@ -441,7 +441,7 @@ def transaction(
     isolation_level: Optional[IsolationLevel] = None,
     overwrite: bool = False,
     write_on_commit: bool = True,
-    logger: Union[logging.Logger, logging.LoggerAdapter, None] = None,
+    logger: Optional[Union[logging.Logger, LoggingAdapter]] = None,
 ) -> Generator[Transaction, None, None]:
     """
     A context manager for opening and managing a transaction.
@@ -465,9 +465,9 @@ def transaction(
         store = get_result_store()
 
     try:
-        logger = logger or get_run_logger()
+        _logger: Union[logging.Logger, LoggingAdapter] = logger or get_run_logger()
     except MissingContextError:
-        logger = get_logger("transactions")
+        _logger = get_logger("transactions")
 
     with Transaction(
         key=key,
@@ -476,6 +476,6 @@ def transaction(
         isolation_level=isolation_level,
         overwrite=overwrite,
         write_on_commit=write_on_commit,
-        logger=logger,
+        logger=_logger,
     ) as txn:
         yield txn

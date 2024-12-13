@@ -42,11 +42,8 @@ async def _submit_flow_to_runner(
     Returns:
         A `FlowRun` object representing the flow run that was submitted.
     """
-    from prefect.utilities.engine import (
-        _dynamic_key_for_task_run,
-        collect_task_run_inputs,
-        resolve_inputs,
-    )
+    from prefect.utilities._engine import dynamic_key_for_task_run
+    from prefect.utilities.engine import collect_task_run_inputs, resolve_inputs
 
     async with get_client() as client:
         if not retry_failed_submissions:
@@ -67,7 +64,7 @@ async def _submit_flow_to_runner(
                 parent_flow_run_context.flow_run.id if parent_flow_run_context else None
             ),
             dynamic_key=(
-                _dynamic_key_for_task_run(parent_flow_run_context, dummy_task)
+                dynamic_key_for_task_run(parent_flow_run_context, dummy_task)
                 if parent_flow_run_context
                 else str(uuid.uuid4())
             ),

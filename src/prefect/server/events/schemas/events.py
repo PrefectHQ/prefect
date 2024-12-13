@@ -15,6 +15,7 @@ from uuid import UUID
 
 import pendulum
 from pydantic import (
+    AfterValidator,
     AnyHttpUrl,
     ConfigDict,
     Field,
@@ -22,8 +23,7 @@ from pydantic import (
     field_validator,
     model_validator,
 )
-from pydantic_extra_types.pendulum_dt import DateTime
-from typing_extensions import Self
+from typing_extensions import Annotated, Self
 
 from prefect.logging import get_logger
 from prefect.server.events.schemas.labelling import Labelled
@@ -32,6 +32,7 @@ from prefect.settings import (
     PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE,
     PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES,
 )
+from prefect.types import DateTime
 
 logger = get_logger(__name__)
 
@@ -96,13 +97,23 @@ class RelatedResource(Resource):
         return self["prefect.resource.role"]
 
 
+def _validate_event_name_length(value: str) -> str:
+    from prefect.settings import PREFECT_SERVER_EVENTS_MAXIMUM_EVENT_NAME_LENGTH
+
+    if len(value) > PREFECT_SERVER_EVENTS_MAXIMUM_EVENT_NAME_LENGTH.value():
+        raise ValueError(
+            f"Event name must be at most {PREFECT_SERVER_EVENTS_MAXIMUM_EVENT_NAME_LENGTH.value()} characters"
+        )
+    return value
+
+
 class Event(PrefectBaseModel):
     """The client-side view of an event that has happened to a Resource"""
 
     occurred: DateTime = Field(
         description="When the event happened from the sender's perspective",
     )
-    event: str = Field(
+    event: Annotated[str, AfterValidator(_validate_event_name_length)] = Field(
         description="The name of the event that happened",
     )
     resource: Resource = Field(

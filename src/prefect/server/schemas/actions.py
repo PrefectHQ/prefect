@@ -9,7 +9,6 @@ from uuid import UUID, uuid4
 
 import pendulum
 from pydantic import ConfigDict, Field, field_validator, model_validator
-from pydantic_extra_types.pendulum_dt import DateTime
 
 import prefect.server.schemas as schemas
 from prefect._internal.schemas.validators import (
@@ -31,6 +30,7 @@ from prefect.server.utilities.schemas.bases import PrefectBaseModel
 from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
 from prefect.types import (
     MAX_VARIABLE_NAME_LENGTH,
+    DateTime,
     Name,
     NonEmptyishName,
     NonNegativeFloat,
@@ -79,6 +79,11 @@ class FlowCreate(ActionBaseModel):
         default_factory=list,
         description="A list of flow tags",
         examples=[["tag-1", "tag-2"]],
+    )
+    labels: Union[schemas.core.KeyValueLabels, None] = Field(
+        default_factory=dict,
+        description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
+        examples=[{"key": "value1", "key2": 42}],
     )
 
 
@@ -175,6 +180,11 @@ class DeploymentCreate(ActionBaseModel):
         default_factory=list,
         description="A list of deployment tags.",
         examples=[["tag-1", "tag-2"]],
+    )
+    labels: Union[schemas.core.KeyValueLabels, None] = Field(
+        default_factory=dict,
+        description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
+        examples=[{"key": "value1", "key2": 42}],
     )
     pull_steps: Optional[List[dict]] = Field(None)
 
@@ -427,6 +437,11 @@ class TaskRunCreate(ActionBaseModel):
         description="A list of tags for the task run.",
         examples=[["tag-1", "tag-2"]],
     )
+    labels: Union[schemas.core.KeyValueLabels, None] = Field(
+        default_factory=dict,
+        description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
+        examples=[{"key": "value1", "key2": 42}],
+    )
     task_inputs: Dict[
         str,
         List[
@@ -501,6 +516,11 @@ class FlowRunCreate(ActionBaseModel):
         default_factory=list,
         description="A list of tags for the flow run.",
         examples=[["tag-1", "tag-2"]],
+    )
+    labels: Union[schemas.core.KeyValueLabels, None] = Field(
+        default_factory=dict,
+        description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
+        examples=[{"key": "value1", "key2": 42}],
     )
     idempotency_key: Optional[str] = Field(
         None,

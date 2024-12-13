@@ -1,4 +1,11 @@
 import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import {
 	Table,
 	TableBody,
 	TableCell,
@@ -6,23 +13,16 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
 import { type Table as TanstackTable, flexRender } from "@tanstack/react-table";
 
 import {
 	Pagination,
 	PaginationContent,
+	PaginationFirstButton,
 	PaginationItem,
+	PaginationLastButton,
 	PaginationNextButton,
 	PaginationPreviousButton,
-	PaginationFirstButton,
-	PaginationLastButton,
 } from "@/components/ui/pagination";
 import { cn } from "@/lib/utils";
 
@@ -59,7 +59,12 @@ export function DataTable<TData>({
 									data-state={row.getIsSelected() && "selected"}
 								>
 									{row.getVisibleCells().map((cell) => (
-										<TableCell key={cell.id}>
+										<TableCell
+											key={cell.id}
+											style={{
+												maxWidth: `${cell.column.columnDef.maxSize}px`,
+											}}
+										>
 											{flexRender(
 												cell.column.columnDef.cell,
 												cell.getContext(),

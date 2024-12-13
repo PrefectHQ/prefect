@@ -25,9 +25,7 @@ from typing import (
     Union,
 )
 
-import pendulum
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
-from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Self
 
 import prefect.logging
@@ -44,12 +42,17 @@ from prefect.results import (
     get_default_persist_setting_for_tasks,
 )
 from prefect.settings import Profile, Settings
-from prefect.settings.legacy import _get_settings_fields
+from prefect.settings.legacy import (
+    _get_settings_fields,  # type: ignore[reportPrivateUsage]
+)
 from prefect.states import State
 from prefect.task_runners import TaskRunner
+from prefect.types import DateTime
 from prefect.utilities.services import start_client_metrics_server
 
 T = TypeVar("T")
+P = TypeVar("P")
+R = TypeVar("R")
 
 if TYPE_CHECKING:
     from prefect.flows import Flow
@@ -121,8 +124,8 @@ class ContextModel(BaseModel):
     """
 
     # The context variable for storing data must be defined by the child class
-    __var__: ContextVar
-    _token: Optional[Token] = PrivateAttr(None)
+    __var__: ContextVar[Self]
+    _token: Optional[Token[Self]] = PrivateAttr(None)
     model_config = ConfigDict(
         arbitrary_types_allowed=True,
         extra="forbid",
@@ -150,7 +153,7 @@ class ContextModel(BaseModel):
         return cls.__var__.get(None)
 
     def model_copy(
-        self: Self, *, update: Optional[Dict[str, Any]] = None, deep: bool = False
+        self: Self, *, update: Optional[Mapping[str, Any]] = None, deep: bool = False
     ):
         """
         Duplicate the context model, optionally choosing which fields to include, exclude, or change.
@@ -199,14 +202,14 @@ class SyncClientContext(ContextModel):
         assert c1 is ctx.client
     """
 
-    __var__ = ContextVar("sync-client-context")
+    __var__: ContextVar[Self] = ContextVar("sync-client-context")
     client: SyncPrefectClient
     _httpx_settings: Optional[dict[str, Any]] = PrivateAttr(None)
     _context_stack: int = PrivateAttr(0)
 
     def __init__(self, httpx_settings: Optional[dict[str, Any]] = None):
         super().__init__(
-            client=get_client(sync_client=True, httpx_settings=httpx_settings),
+            client=get_client(sync_client=True, httpx_settings=httpx_settings),  # type: ignore[reportCallIssue]
         )
         self._httpx_settings = httpx_settings
         self._context_stack = 0
@@ -220,11 +223,11 @@ class SyncClientContext(ContextModel):
         else:
             return self
 
-    def __exit__(self, *exc_info):
+    def __exit__(self, *exc_info: Any):
         self._context_stack -= 1
         if self._context_stack == 0:
-            self.client.__exit__(*exc_info)
-            return super().__exit__(*exc_info)
+            self.client.__exit__(*exc_info)  # type: ignore[reportUnknownMemberType]
+            return super().__exit__(*exc_info)  # type: ignore[reportUnknownMemberType]
 
     @classmethod
     @contextmanager
@@ -264,12 +267,12 @@ class AsyncClientContext(ContextModel):
 
     def __init__(self, httpx_settings: Optional[dict[str, Any]] = None):
         super().__init__(
-            client=get_client(sync_client=False, httpx_settings=httpx_settings),
+            client=get_client(sync_client=False, httpx_settings=httpx_settings),  # type: ignore[reportCallIssue]
         )
         self._httpx_settings = httpx_settings
         self._context_stack = 0
 
-    async def __aenter__(self):
+    async def __aenter__(self: Self) -> Self:
         self._context_stack += 1
         if self._context_stack == 1:
             await self.client.__aenter__()
@@ -278,11 +281,11 @@ class AsyncClientContext(ContextModel):
         else:
             return self
 
-    async def __aexit__(self, *exc_info):
+    async def __aexit__(self: Self, *exc_info: Any) -> None:
         self._context_stack -= 1
         if self._context_stack == 0:
-            await self.client.__aexit__(*exc_info)
-            return super().__exit__(*exc_info)
+            await self.client.__aexit__(*exc_info)  # type: ignore[reportUnknownMemberType]
+            return super().__exit__(*exc_info)  # type: ignore[reportUnknownMemberType]
 
     @classmethod
     @asynccontextmanager
@@ -305,19 +308,20 @@ class RunContext(ContextModel):
         client: The Prefect client instance being used for API communication
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
 
         start_client_metrics_server()
 
-    start_time: DateTime = Field(default_factory=lambda: pendulum.now("UTC"))
+    start_time: DateTime = Field(default_factory=lambda: DateTime.now("UTC"))
     input_keyset: Optional[Dict[str, Dict[str, str]]] = None
     client: Union[PrefectClient, SyncPrefectClient]
 
-    def serialize(self):
+    def serialize(self: Self, include_secrets: bool = True) -> Dict[str, Any]:
         return self.model_dump(
             include={"start_time", "input_keyset"},
             exclude_unset=True,
+            context={"include_secrets": include_secrets},
         )
 
 
@@ -336,9 +340,9 @@ class EngineContext(RunContext):
         flow_run_states: A list of states for flow runs created within this flow run
     """
 
-    flow: Optional["Flow"] = None
+    flow: Optional["Flow[Any, Any]"] = None
     flow_run: Optional[FlowRun] = None
-    task_runner: TaskRunner
+    task_runner: TaskRunner[Any]
     log_prints: bool = False
     parameters: Optional[Dict[str, Any]] = None
 
@@ -351,21 +355,21 @@ class EngineContext(RunContext):
     persist_result: bool = Field(default_factory=get_default_persist_setting)
 
     # Counter for task calls allowing unique
-    task_run_dynamic_keys: Dict[str, int] = Field(default_factory=dict)
+    task_run_dynamic_keys: Dict[str, Union[str, int]] = Field(default_factory=dict)
 
     # Counter for flow pauses
     observed_flow_pauses: Dict[str, int] = Field(default_factory=dict)
 
     # Tracking for result from task runs in this flow run for dependency tracking
     # Holds the ID of the object returned by the task run and task run state
-    task_run_results: Mapping[int, State] = Field(default_factory=dict)
+    task_run_results: dict[int, State] = Field(default_factory=dict)
 
     # Events worker to emit events
     events: Optional[EventsWorker] = None
 
-    __var__: ContextVar = ContextVar("flow_run")
+    __var__: ContextVar[Self] = ContextVar("flow_run")
 
-    def serialize(self):
+    def serialize(self: Self, include_secrets: bool = True) -> Dict[str, Any]:
         return self.model_dump(
             include={
                 "flow_run",
@@ -378,6 +382,8 @@ class EngineContext(RunContext):
                 "persist_result",
             },
             exclude_unset=True,
+            serialize_as_any=True,
+            context={"include_secrets": include_secrets},
         )
 
 
@@ -394,7 +400,7 @@ class TaskRunContext(RunContext):
         task_run: The API metadata for this task run
     """
 
-    task: "Task"
+    task: "Task[Any, Any]"
     task_run: TaskRun
     log_prints: bool = False
     parameters: Dict[str, Any]
@@ -405,7 +411,7 @@ class TaskRunContext(RunContext):
 
     __var__ = ContextVar("task_run")
 
-    def serialize(self):
+    def serialize(self: Self, include_secrets: bool = True) -> Dict[str, Any]:
         return self.model_dump(
             include={
                 "task_run",
@@ -418,6 +424,8 @@ class TaskRunContext(RunContext):
                 "persist_result",
             },
             exclude_unset=True,
+            serialize_as_any=True,
+            context={"include_secrets": include_secrets},
         )
 
 
@@ -436,7 +444,7 @@ class TagsContext(ContextModel):
         # Return an empty `TagsContext` instead of `None` if no context exists
         return cls.__var__.get(TagsContext())
 
-    __var__: ContextVar = ContextVar("tags")
+    __var__: ContextVar[Self] = ContextVar("tags")
 
 
 class SettingsContext(ContextModel):
@@ -453,9 +461,9 @@ class SettingsContext(ContextModel):
     profile: Profile
     settings: Settings
 
-    __var__: ContextVar = ContextVar("settings")
+    __var__: ContextVar[Self] = ContextVar("settings")
 
-    def __hash__(self) -> int:
+    def __hash__(self: Self) -> int:
         return hash(self.settings)
 
     @classmethod
@@ -562,7 +570,7 @@ def tags(*new_tags: str) -> Generator[Set[str], None, None]:
 
 @contextmanager
 def use_profile(
-    profile: Union[Profile, str],
+    profile: Union[Profile, str, Any],
     override_environment_variables: bool = False,
     include_current_context: bool = True,
 ):
@@ -662,7 +670,7 @@ def root_settings_context():
     # an override in the `SettingsContext.get` method.
 
 
-GLOBAL_SETTINGS_CONTEXT: SettingsContext = root_settings_context()
+GLOBAL_SETTINGS_CONTEXT: SettingsContext = root_settings_context()  # type: ignore[reportConstantRedefinition]
 
 
 # 2024-07-02: This surfaces an actionable error message for removed objects

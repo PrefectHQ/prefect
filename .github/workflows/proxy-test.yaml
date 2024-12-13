@@ -1,0 +1,74 @@
+# This is a simple test to ensure we can make a websocket connection through a proxy server. It sets up a
+# simple server and a squid proxy server. The proxy server is inaccessible from the host machine, only the proxy
+# so we can confirm the proxy is actually working.
+
+name: Proxy Test
+on:
+  pull_request:
+    paths:
+      - .github/workflows/proxy-test.yaml
+      - scripts/proxy-test/*
+      - "src/prefect/events/clients.py"
+      - requirements.txt
+      - requirements-client.txt
+      - requirements-dev.txt
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/proxy-test.yaml
+      - scripts/proxy-test/*
+      - "src/prefect/events/clients.py"
+      - requirements.txt
+      - requirements-client.txt
+      - requirements-dev.txt
+
+jobs:
+  proxy-test:
+    name: Proxy Test
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        id: setup_python
+        with:
+          python-version: "3.10"
+
+      - name: Create Docker networks
+        run: |
+          docker network create internal_net --internal
+          docker network create external_net
+
+      - name: Start API server container
+        working-directory: scripts/proxy-test
+        run: |
+          docker build -t api-server .
+          docker run -d --network internal_net --name server api-server
+
+      - name: Start Squid Proxy container
+        run: |
+          docker run -d \
+            --network internal_net \
+            --network external_net \
+            -p 3128:3128 \
+            -v $(pwd)/scripts/proxy-test/squid.conf:/etc/squid/squid.conf \
+            --name proxy \
+            ubuntu/squid
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install -U uv
+          uv pip install --upgrade --system .
+
+      - name: Run Proxy Tests
+        env:
+          HTTP_PROXY: http://localhost:3128
+          HTTPS_PROXY: http://localhost:3128
+        run: python scripts/proxy-test/client.py

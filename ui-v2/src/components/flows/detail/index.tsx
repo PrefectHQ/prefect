@@ -1,7 +1,7 @@
-import { components } from "@/api/prefect";
 import { DataTable } from "@/components/ui/data-table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate } from "@tanstack/react-router";
+import { JSX } from "react";
 import { columns as deploymentColumns } from "./deployment-columns";
 import {
 	getFlowMetadata,
@@ -9,6 +9,7 @@ import {
 } from "./metadata-columns";
 import { columns as flowRunColumns } from "./runs-columns";
 
+import { components } from "@/api/prefect";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -16,13 +17,13 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Icon } from "@/components/ui/icons";
 import { Input } from "@/components/ui/input";
 import {
 	getCoreRowModel,
 	getPaginationRowModel,
 	useReactTable,
 } from "@tanstack/react-table";
-import { ChevronDownIcon, SearchIcon } from "lucide-react";
 
 const SearchComponent = () => {
 	const navigate = useNavigate();
@@ -42,7 +43,8 @@ const SearchComponent = () => {
 					})
 				}
 			/>
-			<SearchIcon
+			<Icon
+				id="Search"
 				className="absolute left-3 top-2.5 text-muted-foreground"
 				size={18}
 			/>
@@ -57,7 +59,7 @@ const SortComponent = () => {
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
 				<Button variant="outline">
-					Sort <ChevronDownIcon className="ml-2 h-4 w-4" />
+					Sort <Icon id="ChevronDown" className="ml-2 h-4 w-4" />
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent>
@@ -98,7 +100,7 @@ export default function FlowDetail({
 	activity: components["schemas"]["FlowRun"][];
 	deployments: components["schemas"]["DeploymentResponse"][];
 	tab: "runs" | "deployments" | "details";
-}): React.ReactElement {
+}): JSX.Element {
 	const navigate = useNavigate();
 	console.log(activity);
 

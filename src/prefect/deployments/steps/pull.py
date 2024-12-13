@@ -6,10 +6,11 @@ import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
+from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect._internal.retries import retry_async_fn
 from prefect.logging.loggers import get_logger
 from prefect.runner.storage import BlockStorageAdapter, GitRepository, RemoteStorage
-from prefect.utilities.asyncutils import sync_compatible
+from prefect.utilities.asyncutils import run_coro_as_sync
 
 deployment_logger = get_logger("deployment")
 
@@ -17,7 +18,7 @@ if TYPE_CHECKING:
     from prefect.blocks.core import Block
 
 
-def set_working_directory(directory: str) -> dict:
+def set_working_directory(directory: str) -> dict[str, str]:
     """
     Sets the working directory; works with both absolute and relative paths.
 
@@ -37,9 +38,58 @@ def set_working_directory(directory: str) -> dict:
     base_delay=1,
     max_delay=10,
     retry_on_exceptions=(RuntimeError,),
+    operation_name="git_clone",
 )
-@sync_compatible
-async def git_clone(
+async def _pull_git_repository_with_retries(repo: GitRepository):
+    await repo.pull_code()
+
+
+async def agit_clone(
+    repository: str,
+    branch: Optional[str] = None,
+    include_submodules: bool = False,
+    access_token: Optional[str] = None,
+    credentials: Optional["Block"] = None,
+) -> dict[str, str]:
+    """
+    Asynchronously clones a git repository into the current working directory.
+
+    Args:
+        repository: the URL of the repository to clone
+        branch: the branch to clone; if not provided, the default branch will be used
+        include_submodules (bool): whether to include git submodules when cloning the repository
+        access_token: an access token to use for cloning the repository; if not provided
+            the repository will be cloned using the default git credentials
+        credentials: a GitHubCredentials, GitLabCredentials, or BitBucketCredentials block can be used to specify the
+            credentials to use for cloning the repository.
+
+    Returns:
+        dict: a dictionary containing a `directory` key of the new directory that was created
+
+    Raises:
+        subprocess.CalledProcessError: if the git clone command fails for any reason
+    """
+    if access_token and credentials:
+        raise ValueError(
+            "Please provide either an access token or credentials but not both."
+        )
+
+    _credentials = {"access_token": access_token} if access_token else credentials
+
+    storage = GitRepository(
+        url=repository,
+        credentials=_credentials,
+        branch=branch,
+        include_submodules=include_submodules,
+    )
+
+    await _pull_git_repository_with_retries(storage)
+
+    return dict(directory=str(storage.destination.relative_to(Path.cwd())))
+
+
+@async_dispatch(agit_clone)
+def git_clone(
     repository: str,
     branch: Optional[str] = None,
     include_submodules: bool = False,
@@ -47,7 +97,7 @@ async def git_clone(
     credentials: Optional["Block"] = None,
     directories: Optional[str] = None,
     cone_mode: bool = True,
-) -> dict:
+) -> dict[str, str]:
     """
     Clones a git repository into the current working directory.
 
@@ -124,22 +174,20 @@ async def git_clone(
             "Please provide either an access token or credentials but not both."
         )
 
-    credentials = {"access_token": access_token} if access_token else credentials
+    _credentials = {"access_token": access_token} if access_token else credentials
 
     storage = GitRepository(
         url=repository,
-        credentials=credentials,
+        credentials=_credentials,
         branch=branch,
         include_submodules=include_submodules,
         directories=directories,
         cone_mode=cone_mode,
     )
 
-    await storage.pull_code()
+    run_coro_as_sync(_pull_git_repository_with_retries(storage))
 
-    directory = str(storage.destination.relative_to(Path.cwd()))
-    deployment_logger.info(f"Cloned repository {repository!r} into {directory!r}")
-    return {"directory": directory}
+    return dict(directory=str(storage.destination.relative_to(Path.cwd())))
 
 
 async def pull_from_remote_storage(url: str, **settings: Any):
@@ -196,7 +244,7 @@ async def pull_with_block(block_document_name: str, block_type_slug: str):
 
     full_slug = f"{block_type_slug}/{block_document_name}"
     try:
-        block = await Block.load(full_slug)
+        block = await Block.aload(full_slug)
     except Exception:
         deployment_logger.exception("Unable to load block '%s'", full_slug)
         raise

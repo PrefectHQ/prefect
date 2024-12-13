@@ -51,12 +51,14 @@ Examples:
 """
 
 import json
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 
 from pydantic import Field
+from pydantic_core import to_json
 
+from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect.blocks.core import Block
-from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect_aws.credentials import AwsCredentials
 
 
@@ -112,8 +114,7 @@ class LambdaFunction(Block):
         lambda_client = boto_session.client("lambda")
         return lambda_client
 
-    @sync_compatible
-    async def invoke(
+    async def ainvoke(
         self,
         payload: Optional[dict] = None,
         invocation_type: Literal[
@@ -123,8 +124,7 @@ class LambdaFunction(Block):
         client_context: Optional[dict] = None,
     ) -> dict:
         """
-        [Invoke](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/lambda/client/invoke.html)
-        the Lambda function with the given payload.
+        Asynchronously invoke the Lambda function with the given payload.
 
         Args:
             payload: The payload to send to the Lambda function.
@@ -140,32 +140,30 @@ class LambdaFunction(Block):
             The response from the Lambda function.
 
         Examples:
-
             ```python
+            from prefect import flow
             from prefect_aws.lambda_function import LambdaFunction
             from prefect_aws.credentials import AwsCredentials
 
-            credentials = AwsCredentials()
-            lambda_function = LambdaFunction(
-                function_name="test_lambda_function",
-                aws_credentials=credentials,
-            )
-            response = lambda_function.invoke(
-                payload={"foo": "bar"},
-                invocation_type="RequestResponse",
-            )
-            response["Payload"].read()
+            @flow
+            async def example_flow():
+                credentials = AwsCredentials()
+                lambda_function = LambdaFunction(
+                    function_name="test_lambda_function",
+                    aws_credentials=credentials,
+                )
+                response = await lambda_function.ainvoke(
+                    payload={"foo": "bar"},
+                    invocation_type="RequestResponse",
+                )
+                return response["Payload"].read()
             ```
-            ```txt
-            b'{"foo": "bar"}'
-            ```
-
         """
         # Add invocation arguments
-        kwargs = dict(FunctionName=self.function_name)
+        kwargs: dict[str, Any] = dict(FunctionName=self.function_name)
 
         if payload:
-            kwargs["Payload"] = json.dumps(payload).encode()
+            kwargs["Payload"] = to_json(payload)
 
         # Let boto handle invalid invocation types
         kwargs["InvocationType"] = invocation_type
@@ -183,3 +181,69 @@ class LambdaFunction(Block):
         # Get client and invoke
         lambda_client = await run_sync_in_worker_thread(self._get_lambda_client)
         return await run_sync_in_worker_thread(lambda_client.invoke, **kwargs)
+
+    @async_dispatch(ainvoke)
+    def invoke(
+        self,
+        payload: Optional[dict] = None,
+        invocation_type: Literal[
+            "RequestResponse", "Event", "DryRun"
+        ] = "RequestResponse",
+        tail: bool = False,
+        client_context: Optional[dict] = None,
+    ) -> dict:
+        """
+        Invoke the Lambda function with the given payload.
+
+        Args:
+            payload: The payload to send to the Lambda function.
+            invocation_type: The invocation type of the Lambda function. This
+                can be one of "RequestResponse", "Event", or "DryRun". Uses
+                "RequestResponse" by default.
+            tail: If True, the response will include the base64-encoded last 4
+                KB of log data produced by the Lambda function.
+            client_context: The client context to send to the Lambda function.
+                Limited to 3583 bytes.
+
+        Returns:
+            The response from the Lambda function.
+
+        Examples:
+            ```python
+            from prefect_aws.lambda_function import LambdaFunction
+            from prefect_aws.credentials import AwsCredentials
+
+            credentials = AwsCredentials()
+            lambda_function = LambdaFunction(
+                function_name="test_lambda_function",
+                aws_credentials=credentials,
+            )
+            response = lambda_function.invoke(
+                payload={"foo": "bar"},
+                invocation_type="RequestResponse",
+            )
+            response["Payload"].read()
+            ```
+        """
+        # Add invocation arguments
+        kwargs: dict[str, Any] = dict(FunctionName=self.function_name)
+
+        if payload:
+            kwargs["Payload"] = to_json(payload)
+
+        # Let boto handle invalid invocation types
+        kwargs["InvocationType"] = invocation_type
+
+        if self.qualifier is not None:
+            kwargs["Qualifier"] = self.qualifier
+
+        if tail:
+            kwargs["LogType"] = "Tail"
+
+        if client_context is not None:
+            # For some reason this is string, but payload is bytes
+            kwargs["ClientContext"] = json.dumps(client_context)
+
+        # Get client and invoke
+        lambda_client = self._get_lambda_client()
+        return lambda_client.invoke(**kwargs)
