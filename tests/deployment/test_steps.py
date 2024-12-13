@@ -435,7 +435,6 @@ class TestGitCloneStep:
             branch=None,
             include_submodules=False,
             directories=None,
-            cone_mode=True,
         )
         git_repository_mock.return_value.pull_code.assert_awaited_once()
 
@@ -455,7 +454,6 @@ class TestGitCloneStep:
             branch=None,
             include_submodules=True,
             directories=None,
-            cone_mode=True,
         )
         git_repository_mock.return_value.pull_code.assert_awaited_once()
 
@@ -475,7 +473,6 @@ class TestGitCloneStep:
             branch=None,
             include_submodules=False,
             directories=None,
-            cone_mode=True,
         )
         git_repository_mock.return_value.pull_code.assert_awaited_once()
 
@@ -503,7 +500,6 @@ class TestGitCloneStep:
             branch=None,
             include_submodules=False,
             directories=None,
-            cone_mode=True,
         )
         git_repository_mock.return_value.pull_code.assert_awaited_once()
 
@@ -540,7 +536,6 @@ class TestGitCloneStep:
             branch=None,
             include_submodules=False,
             directories=None,
-            cone_mode=True,
         )
 
         assert mock_git_repo.call_args_list == [expected_call]
@@ -555,6 +550,7 @@ class TestGitCloneStep:
             credentials=None,
             branch=None,
             include_submodules=False,
+            directories=None,
         )
         git_repository_mock.return_value.pull_code.assert_awaited_once()
 
@@ -567,6 +563,7 @@ class TestGitCloneStep:
             branch="dev",
             include_submodules=True,
             access_token="my-access-token",
+            directories=None,
         )
 
         assert output["directory"] == "repo"
@@ -575,6 +572,7 @@ class TestGitCloneStep:
             credentials={"access_token": "my-access-token"},
             branch="dev",
             include_submodules=True,
+            directories=None,
         )
         git_repository_mock.return_value.pull_code.assert_awaited_once()
 
@@ -597,6 +595,7 @@ class TestGitCloneStep:
             credentials=creds,
             branch=None,
             include_submodules=False,
+            directories=None,
         )
         git_repository_mock.return_value.pull_code.assert_awaited_once()
 
@@ -679,49 +678,9 @@ class TestGitCloneStep:
             credentials=None,
             branch=None,
             include_submodules=False,
+            directories=None,
         )
         assert mock_git_repo.call_args_list == [expected_call]
-
-    async def test_git_clone_sparse_checkout(self, git_repository_mock):
-        output = await run_step(
-            {
-                "prefect.deployments.steps.git_clone": {
-                    "repository": "https://github.com/org/repo.git",
-                    "directories": ["directory_1", "directory_2"],
-                }
-            }
-        )
-        assert output["directory"] == "repo"
-        git_repository_mock.assert_called_once_with(
-            url="https://github.com/org/repo.git",
-            credentials=None,
-            branch=None,
-            include_submodules=False,
-            directories=["directory_1", "directory_2"],
-            cone_mode=True,
-        )
-        git_repository_mock.return_value.pull_code.assert_awaited_once()
-
-    async def test_git_clone_sparse_checkout_no_cone(self, git_repository_mock):
-        output = await run_step(
-            {
-                "prefect.deployments.steps.git_clone": {
-                    "repository": "https://github.com/org/repo.git",
-                    "directories": ["directory_1", "directory_2"],
-                    "cone_mode": False,
-                }
-            }
-        )
-        assert output["directory"] == "repo"
-        git_repository_mock.assert_called_once_with(
-            url="https://github.com/org/repo.git",
-            credentials=None,
-            branch=None,
-            include_submodules=False,
-            directories=["directory_1", "directory_2"],
-            cone_mode=False,
-        )
-        git_repository_mock.return_value.pull_code.assert_awaited_once()
 
 
 class TestPullFromRemoteStorage:

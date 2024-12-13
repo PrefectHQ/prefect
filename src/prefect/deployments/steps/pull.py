@@ -50,6 +50,7 @@ async def agit_clone(
     include_submodules: bool = False,
     access_token: Optional[str] = None,
     credentials: Optional["Block"] = None,
+    directories: Optional[str] = None,
 ) -> dict[str, str]:
     """
     Asynchronously clones a git repository into the current working directory.
@@ -81,6 +82,7 @@ async def agit_clone(
         credentials=_credentials,
         branch=branch,
         include_submodules=include_submodules,
+        directories=directories,
     )
 
     await _pull_git_repository_with_retries(storage)
@@ -95,6 +97,7 @@ def git_clone(
     include_submodules: bool = False,
     access_token: Optional[str] = None,
     credentials: Optional["Block"] = None,
+    directories: Optional[str] = None,
 ) -> dict[str, str]:
     """
     Clones a git repository into the current working directory.
@@ -164,6 +167,14 @@ def git_clone(
             - prefect.deployments.steps.git_clone:
                 repository: git@github.com:org/repo.git
         ```
+
+        Clone a repository using sparse-checkout (allows specific folders of the repository to be checked out)
+        ```yaml
+        pull:
+            - prefect.deployments.steps.git_clone:
+                repository: https://github.com/org/repo.git
+                directories: ["dir_1", "dir_2", "prefect"]
+        ```
     """
     if access_token and credentials:
         raise ValueError(
@@ -177,6 +188,7 @@ def git_clone(
         credentials=_credentials,
         branch=branch,
         include_submodules=include_submodules,
+        directories=directories,
     )
 
     run_coro_as_sync(_pull_git_repository_with_retries(storage))

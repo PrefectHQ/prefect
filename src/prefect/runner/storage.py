@@ -87,6 +87,7 @@ class GitRepository:
         pull_interval: The interval in seconds at which to pull contents from
             remote storage to local storage. If None, remote storage will perform
             a one-time sync.
+        directories: The directories to pull from the Git repository (uses git sparse-checkout)
 
     Examples:
         Pull the contents of a private git repository to the local filesystem:
@@ -111,6 +112,7 @@ class GitRepository:
         branch: Optional[str] = None,
         include_submodules: bool = False,
         pull_interval: Optional[int] = 60,
+        directories: Optional[str] = None,
     ):
         if credentials is None:
             credentials = {}
@@ -134,6 +136,7 @@ class GitRepository:
         self._logger = get_logger(f"runner.storage.git-repository.{self._name}")
         self._storage_base_path = Path.cwd()
         self._pull_interval = pull_interval
+        self._directories = directories
 
     @property
     def destination(self) -> Path:
@@ -178,6 +181,19 @@ class GitRepository:
 
         return repository_url
 
+    async def is_sparsely_checked_out(self) -> bool:
+        """
+        Check if existing repo is sparsely checked out
+        """
+
+        try:
+            result = await run_process(
+                ["git", "config", "--get", "core.sparseCheckout"], cwd=self.destination
+            )
+            return result.strip().lower() == "true"
+        except Exception:
+            return False
+
     async def pull_code(self):
         """
         Pulls the contents of the configured repository to the local filesystem.
@@ -204,6 +220,13 @@ class GitRepository:
                 raise ValueError(
                     f"The existing repository at {str(self.destination)} "
                     f"does not match the configured repository {self._url}"
+                )
+
+            # Sparsely checkout the repository if directories are specified and the repo is not in sparse-checkout mode already
+            if self._directories and not await self.is_sparsely_checked_out():
+                await run_process(
+                    ["git", "sparse-checkout", "set"] + self._directories,
+                    cwd=self.destination,
                 )
 
             self._logger.debug("Pulling latest changes from origin/%s", self._branch)
@@ -245,6 +268,10 @@ class GitRepository:
         if self._include_submodules:
             cmd += ["--recurse-submodules"]
 
+        # This will only checkout the top-level directory
+        if self._directories:
+            cmd += ["--sparse"]
+
         # Limit git history and set path to clone to
         cmd += ["--depth", "1", str(self.destination)]
 
@@ -257,6 +284,13 @@ class GitRepository:
                 f"Failed to clone repository {self._url!r} with exit code"
                 f" {exc.returncode}."
             ) from exc_chain
+
+        # Once repository is cloned and the repo is in sparse-checkout mode then grow the working directory
+        if await self.is_sparsely_checked_out():
+            await run_process(
+                ["git", "sparse-checkout", "set"] + self._directories,
+                cwd=self.destination,
+            )
 
     def __eq__(self, __value) -> bool:
         if isinstance(__value, GitRepository):
