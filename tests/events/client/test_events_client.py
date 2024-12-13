@@ -359,7 +359,7 @@ async def test_events_client_warn_if_connect_fails(
     def mock_connect(*args, **kwargs):
         return MockConnect()
 
-    monkeypatch.setattr("prefect.events.clients.connect", mock_connect)
+    monkeypatch.setattr("prefect.events.clients.websocket_connect", mock_connect)
 
     with caplog.at_level(logging.WARNING):
         with pytest.raises(Exception, match="Connection failed"):
