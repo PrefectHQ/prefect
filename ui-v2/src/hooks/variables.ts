@@ -29,12 +29,16 @@ type VariableKeys = {
  */
 const variableKeys: VariableKeys = {
 	all: ["variables"],
-	filtered: (options) => [...variableKeys.all, "filtered", options],
+	filtered: (options) => [
+		...variableKeys.all,
+		"filtered",
+		JSON.stringify(options),
+	],
 	filteredCount: (options) => {
 		const key = [...variableKeys.all, "filtered-count"];
 		if (options?.variables?.name?.like_) key.push(options.variables.name.like_);
 		if (options?.variables?.tags?.all_?.length)
-			key.push(options.variables.tags);
+			key.push(JSON.stringify(options.variables.tags));
 		return key;
 	},
 };
@@ -70,9 +74,7 @@ export const buildVariablesQuery = (options: UseVariablesOptions) =>
  *  - staleTime: How long the data should be considered fresh (1 second)
  *  - placeholderData: Uses previous data while loading new data
  */
-export const buildCountQuery = (
-	options?: UseVariablesOptions & { enabled?: boolean },
-) =>
+export const buildCountQuery = (options?: UseVariablesOptions) =>
 	queryOptions({
 		queryKey: variableKeys.filteredCount(options),
 		queryFn: async () => {
