@@ -222,12 +222,15 @@ prefect work-pool inspect 'test-pool'
 Outputs information similar to the following:
 
 ```bash
-Workpool(
+WorkPool(
     id='a51adf8c-58bb-4949-abe6-1b87af46eabd',
-    created='2 minutes ago',
-    updated='2 minutes ago',
+    created=DateTime(2024, 1, 1, 1, 1, 1, 1),
+    updated=DateTime(2024, 1, 1, 1, 1, 1, 1),
     name='test-pool',
-    filter=None,
+    type='process',
+    base_job_template={...},
+    status=WorkPoolStatus.READY,
+    default_queue_id=<Queue ID>,
 )
 ```
 
