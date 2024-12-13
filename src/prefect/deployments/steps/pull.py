@@ -50,7 +50,7 @@ async def agit_clone(
     include_submodules: bool = False,
     access_token: Optional[str] = None,
     credentials: Optional["Block"] = None,
-    directories: Optional[str] = None,
+    directories: Optional[list[str]] = None,
 ) -> dict[str, str]:
     """
     Asynchronously clones a git repository into the current working directory.
@@ -97,7 +97,7 @@ def git_clone(
     include_submodules: bool = False,
     access_token: Optional[str] = None,
     credentials: Optional["Block"] = None,
-    directories: Optional[str] = None,
+    directories: Optional[list[str]] = None,
 ) -> dict[str, str]:
     """
     Clones a git repository into the current working directory.
@@ -110,6 +110,7 @@ def git_clone(
             the repository will be cloned using the default git credentials
         credentials: a GitHubCredentials, GitLabCredentials, or BitBucketCredentials block can be used to specify the
             credentials to use for cloning the repository.
+        directories: Specify directories you want to be included (uses git sparse-checkout)
 
     Returns:
         dict: a dictionary containing a `directory` key of the new directory that was created
