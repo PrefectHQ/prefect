@@ -7,23 +7,46 @@ allow the Prefect REST API to seamlessly switch between the two.
 
 import datetime
 import json
+import operator
 import re
 import uuid
-from typing import List, Optional, Union
+from functools import partial
+from typing import (
+    Any,
+    Callable,
+    Optional,
+    TypeVar,
+    Union,
+    overload,
+)
 
 import pendulum
 import pydantic
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql, sqlite
+from sqlalchemy.dialects.postgresql.operators import (
+    # these are all incompletely annotated
+    ASTEXT,  # type: ignore
+    CONTAINS,  # type: ignore
+    HAS_ALL,  # type: ignore
+    HAS_ANY,  # type: ignore
+)
 from sqlalchemy.ext.compiler import compiles
-from sqlalchemy.sql.functions import FunctionElement
-from sqlalchemy.sql.sqltypes import BOOLEAN
+from sqlalchemy.orm import Session
+from sqlalchemy.sql import functions, schema
+from sqlalchemy.sql.compiler import SQLCompiler
+from sqlalchemy.sql.operators import OperatorType
+from sqlalchemy.sql.visitors import replacement_traverse
 from sqlalchemy.types import CHAR, TypeDecorator, TypeEngine
+from typing_extensions import TypeAlias
 
-camel_to_snake = re.compile(r"(?<!^)(?=[A-Z])")
+T = TypeVar("T")
+_SQLExpressionOrLiteral: TypeAlias = Union[sa.SQLColumnExpression[T], T]
+
+CAMEL_TO_SNAKE: re.Pattern[str] = re.compile(r"(?<!^)(?=[A-Z])")
 
 
-class GenerateUUID(FunctionElement):
+class GenerateUUID(functions.FunctionElement[uuid.UUID]):
     """
     Platform-independent UUID default generator.
     Note the actual functionality for this class is specified in the
@@ -34,8 +57,9 @@ class GenerateUUID(FunctionElement):
 
 
 @compiles(GenerateUUID, "postgresql")
-@compiles(GenerateUUID)
-def _generate_uuid_postgresql(element, compiler, **kwargs):
+def generate_uuid_postgresql(
+    element: GenerateUUID, compiler: SQLCompiler, **kwargs: Any
+) -> str:
     """
     Generates a random UUID in Postgres; requires the pgcrypto extension.
     """
@@ -44,7 +68,9 @@ def _generate_uuid_postgresql(element, compiler, **kwargs):
 
 
 @compiles(GenerateUUID, "sqlite")
-def _generate_uuid_sqlite(element, compiler, **kwargs):
+def generate_uuid_sqlite(
+    element: GenerateUUID, compiler: SQLCompiler, **kwargs: Any
+) -> str:
     """
     Generates a random UUID in other databases (SQLite) by concatenating
     bytes in a way that approximates a UUID hex representation. This is
@@ -68,7 +94,7 @@ def _generate_uuid_sqlite(element, compiler, **kwargs):
     """
 
 
-class Timestamp(TypeDecorator):
+class Timestamp(TypeDecorator[pendulum.DateTime]):
     """TypeDecorator that ensures that timestamps have a timezone.
 
     For SQLite, all timestamps are converted to UTC (since they are stored
@@ -78,35 +104,23 @@ class Timestamp(TypeDecorator):
     impl = sa.TIMESTAMP(timezone=True)
     cache_ok = True
 
-    def load_dialect_impl(self, dialect):
+    def load_dialect_impl(self, dialect: sa.Dialect) -> TypeEngine[Any]:
         if dialect.name == "postgresql":
             return dialect.type_descriptor(postgresql.TIMESTAMP(timezone=True))
         elif dialect.name == "sqlite":
-            return dialect.type_descriptor(
-                sqlite.DATETIME(
-                    # SQLite is very particular about datetimes, and performs all comparisons
-                    # as alphanumeric comparisons without regard for actual timestamp
-                    # semantics or timezones. Therefore, it's important to have uniform
-                    # and sortable datetime representations. The default is an ISO8601-compatible
-                    # string with NO time zone and a space (" ") delimiter between the date
-                    # and the time. The below settings can be used to add a "T" delimiter but
-                    # will require all other sqlite datetimes to be set similarly, including
-                    # the custom default value for datetime columns and any handwritten SQL
-                    # formed with `strftime()`.
-                    #
-                    # store with "T" separator for time
-                    # storage_format=(
-                    #     "%(year)04d-%(month)02d-%(day)02d"
-                    #     "T%(hour)02d:%(minute)02d:%(second)02d.%(microsecond)06d"
-                    # ),
-                    # handle ISO 8601 with "T" or " " as the time separator
-                    # regexp=r"(\d+)-(\d+)-(\d+)[T ](\d+):(\d+):(\d+).(\d+)",
-                )
-            )
+            # see the sqlite.DATETIME docstring on the particulars of the storage
+            # format. Note that the sqlite implementations for timestamp and interval
+            # arithmetic below would require updating if a different format was to
+            # be configured here.
+            return dialect.type_descriptor(sqlite.DATETIME())
         else:
             return dialect.type_descriptor(sa.TIMESTAMP(timezone=True))
 
-    def process_bind_param(self, value, dialect):
+    def process_bind_param(
+        self,
+        value: Optional[pendulum.DateTime],
+        dialect: sa.Dialect,
+    ) -> Optional[pendulum.DateTime]:
         if value is None:
             return None
         else:
@@ -117,13 +131,17 @@ class Timestamp(TypeDecorator):
             else:
                 return value
 
-    def process_result_value(self, value, dialect):
+    def process_result_value(
+        self,
+        value: Optional[Union[datetime.datetime, pendulum.DateTime]],
+        dialect: sa.Dialect,
+    ) -> Optional[pendulum.DateTime]:
         # retrieve timestamps in their native timezone (or UTC)
         if value is not None:
-            return pendulum.instance(value).in_timezone("utc")
+            return pendulum.instance(value).in_timezone("UTC")
 
 
-class UUID(TypeDecorator):
+class UUID(TypeDecorator[uuid.UUID]):
     """
     Platform-independent UUID type.
 
@@ -135,13 +153,15 @@ class UUID(TypeDecorator):
     impl = TypeEngine
     cache_ok = True
 
-    def load_dialect_impl(self, dialect):
+    def load_dialect_impl(self, dialect: sa.Dialect) -> TypeEngine[Any]:
         if dialect.name == "postgresql":
             return dialect.type_descriptor(postgresql.UUID())
         else:
             return dialect.type_descriptor(CHAR(36))
 
-    def process_bind_param(self, value, dialect):
+    def process_bind_param(
+        self, value: Optional[Union[str, uuid.UUID]], dialect: sa.Dialect
+    ) -> Optional[str]:
         if value is None:
             return None
         elif dialect.name == "postgresql":
@@ -151,7 +171,9 @@ class UUID(TypeDecorator):
         else:
             return str(uuid.UUID(value))
 
-    def process_result_value(self, value, dialect):
+    def process_result_value(
+        self, value: Optional[Union[str, uuid.UUID]], dialect: sa.Dialect
+    ) -> Optional[uuid.UUID]:
         if value is None:
             return value
         else:
@@ -160,7 +182,7 @@ class UUID(TypeDecorator):
             return value
 
 
-class JSON(TypeDecorator):
+class JSON(TypeDecorator[Any]):
     """
     JSON type that returns SQLAlchemy's dialect-specific JSON types, where
     possible. Uses generic JSON otherwise.
@@ -172,7 +194,7 @@ class JSON(TypeDecorator):
     impl = postgresql.JSONB
     cache_ok = True
 
-    def load_dialect_impl(self, dialect):
+    def load_dialect_impl(self, dialect: sa.Dialect) -> TypeEngine[Any]:
         if dialect.name == "postgresql":
             return dialect.type_descriptor(postgresql.JSONB(none_as_null=True))
         elif dialect.name == "sqlite":
@@ -180,7 +202,9 @@ class JSON(TypeDecorator):
         else:
             return dialect.type_descriptor(sa.JSON(none_as_null=True))
 
-    def process_bind_param(self, value, dialect):
+    def process_bind_param(
+        self, value: Optional[Any], dialect: sa.Dialect
+    ) -> Optional[Any]:
         """Prepares the given value to be used as a JSON field in a parameter binding"""
         if not value:
             return value
@@ -199,7 +223,7 @@ class JSON(TypeDecorator):
         return json.loads(json.dumps(value), parse_constant=lambda c: None)
 
 
-class Pydantic(TypeDecorator):
+class Pydantic(TypeDecorator[T]):
     """
     A pydantic type that converts inserted parameters to
     json and converts read values to the pydantic type.
@@ -208,13 +232,38 @@ class Pydantic(TypeDecorator):
     impl = JSON
     cache_ok = True
 
-    def __init__(self, pydantic_type, sa_column_type=None):
+    @overload
+    def __init__(
+        self,
+        pydantic_type: type[T],
+        sa_column_type: Optional[Union[type[TypeEngine[Any]], TypeEngine[Any]]] = None,
+    ) -> None:
+        ...
+
+    # This overload is needed to allow for typing special forms (e.g.
+    # Union[...], etc.) as these can't be married with `type[...]`. Also see
+    # https://github.com/pydantic/pydantic/pull/8923
+    @overload
+    def __init__(
+        self: "Pydantic[Any]",
+        pydantic_type: Any,
+        sa_column_type: Optional[Union[type[TypeEngine[Any]], TypeEngine[Any]]] = None,
+    ) -> None:
+        ...
+
+    def __init__(
+        self,
+        pydantic_type: type[T],
+        sa_column_type: Optional[Union[type[TypeEngine[Any]], TypeEngine[Any]]] = None,
+    ) -> None:
         super().__init__()
         self._pydantic_type = pydantic_type
         if sa_column_type is not None:
             self.impl = sa_column_type
 
-    def process_bind_param(self, value, dialect) -> Optional[str]:
+    def process_bind_param(
+        self, value: Optional[T], dialect: sa.Dialect
+    ) -> Optional[str]:
         if value is None:
             return None
 
@@ -229,421 +278,400 @@ class Pydantic(TypeDecorator):
         # it into a python-native form.
         return adapter.dump_python(value, mode="json")
 
-    def process_result_value(self, value, dialect):
+    def process_result_value(
+        self, value: Optional[Any], dialect: sa.Dialect
+    ) -> Optional[T]:
         if value is not None:
             # load the json object into a fully hydrated typed object
             return pydantic.TypeAdapter(self._pydantic_type).validate_python(value)
 
 
-class now(FunctionElement):
-    """
-    Platform-independent "now" generator.
-    """
+# Platform-independent datetime and timedelta arithmetic functions
+
+
+class date_add(functions.GenericFunction[pendulum.DateTime]):
+    """Platform-independent way to add a timestamp and an interval"""
 
     type = Timestamp()
-    name = "now"
-    # see https://docs.sqlalchemy.org/en/14/core/compiler.html#enabling-caching-support-for-custom-constructs
     inherit_cache = True
 
-
-@compiles(now, "sqlite")
-def _current_timestamp_sqlite(element, compiler, **kwargs):
-    """
-    Generates the current timestamp for SQLite
-
-    We need to add three zeros to the string representation because SQLAlchemy
-    uses a regex expression which is expecting 6 decimal places (microseconds),
-    but SQLite by default only stores 3 (milliseconds). This causes SQLAlchemy
-    to interpret 01:23:45.678 as if it were 01:23:45.000678. By forcing SQLite
-    to store an extra three 0's, we work around his issue.
-
-    Note this only affects timestamps that we ask SQLite to issue in SQL (like
-    the default value for a timestamp column); not datetimes provided by
-    SQLAlchemy itself.
-    """
-    return "strftime('%Y-%m-%d %H:%M:%f000', 'now')"
+    def __init__(
+        self,
+        dt: _SQLExpressionOrLiteral[datetime.datetime],
+        interval: _SQLExpressionOrLiteral[datetime.timedelta],
+        **kwargs: Any,
+    ):
+        super().__init__(
+            sa.type_coerce(dt, Timestamp()),
+            sa.type_coerce(interval, sa.Interval()),
+            **kwargs,
+        )
 
 
-@compiles(now)
-def _current_timestamp(element, compiler, **kwargs):
-    """
-    Generates the current timestamp in standard SQL
-    """
-    return "CURRENT_TIMESTAMP"
+class interval_add(functions.GenericFunction[datetime.timedelta]):
+    """Platform-independent way to add two intervals."""
+
+    type = sa.Interval()
+    inherit_cache = True
+
+    def __init__(
+        self,
+        i1: _SQLExpressionOrLiteral[datetime.timedelta],
+        i2: _SQLExpressionOrLiteral[datetime.timedelta],
+        **kwargs: Any,
+    ):
+        super().__init__(
+            sa.type_coerce(i1, sa.Interval()),
+            sa.type_coerce(i2, sa.Interval()),
+            **kwargs,
+        )
 
 
-class date_add(FunctionElement):
-    """
-    Platform-independent way to add a date and an interval.
-    """
+class date_diff(functions.GenericFunction[datetime.timedelta]):
+    """Platform-independent difference of two timestamps. Computes d1 - d2."""
 
-    type = Timestamp()
-    name = "date_add"
-    # see https://docs.sqlalchemy.org/en/14/core/compiler.html#enabling-caching-support-for-custom-constructs
-    inherit_cache = False
+    type = sa.Interval()
+    inherit_cache = True
 
-    def __init__(self, dt, interval):
-        self.dt = dt
-        self.interval = interval
-        super().__init__()
+    def __init__(
+        self,
+        d1: _SQLExpressionOrLiteral[datetime.datetime],
+        d2: _SQLExpressionOrLiteral[datetime.datetime],
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(
+            sa.type_coerce(d1, Timestamp()), sa.type_coerce(d2, Timestamp()), **kwargs
+        )
+
+
+class date_diff_seconds(functions.GenericFunction[float]):
+    """Platform-independent calculation of the number of seconds between two timestamps or from 'now'"""
+
+    type = sa.REAL
+    inherit_cache = True
+
+    def __init__(
+        self,
+        dt1: _SQLExpressionOrLiteral[datetime.datetime],
+        dt2: Optional[_SQLExpressionOrLiteral[datetime.datetime]] = None,
+        **kwargs: Any,
+    ) -> None:
+        args = (sa.type_coerce(dt1, Timestamp()),)
+        if dt2 is not None:
+            args = (*args, sa.type_coerce(dt2, Timestamp()))
+        super().__init__(*args, **kwargs)
+
+
+# timestamp and interval arithmetic implementations for PostgreSQL
 
 
 @compiles(date_add, "postgresql")
-@compiles(date_add)
-def _date_add_postgresql(element, compiler, **kwargs):
-    return compiler.process(
-        sa.cast(element.dt, Timestamp()) + sa.cast(element.interval, sa.Interval())
-    )
+@compiles(interval_add, "postgresql")
+@compiles(date_diff, "postgresql")
+def datetime_or_interval_add_postgresql(
+    element: Union[date_add, interval_add, date_diff],
+    compiler: SQLCompiler,
+    **kwargs: Any,
+) -> str:
+    operation = operator.sub if isinstance(element, date_diff) else operator.add
+    return compiler.process(operation(*element.clauses), **kwargs)
+
+
+@compiles(date_diff_seconds, "postgresql")
+def date_diff_seconds_postgresql(
+    element: date_diff_seconds, compiler: SQLCompiler, **kwargs: Any
+) -> str:
+    # either 1 or 2 timestamps; if 1, subtract from 'now'
+    dts: list[sa.ColumnElement[datetime.datetime]] = list(element.clauses)
+    if len(dts) == 1:
+        dts = [sa.func.now(), *dts]
+    as_utc = (sa.func.timezone("UTC", dt) for dt in dts)
+    return compiler.process(sa.func.extract("epoch", operator.sub(*as_utc)), **kwargs)
+
+
+# SQLite implementations for the Timestamp and Interval arithmetic functions.
+#
+# The following concepts are at play here:
+#
+# - By default, SQLAlchemy stores Timestamp values formatted as ISO8601 strings
+#   (with a space between the date and the time parts), with microsecond precision.
+# - SQLAlchemy stores Interval values as a Timestamp, offset from the UNIX epoch.
+# - SQLite processes timestamp values with _at most_ millisecond precision, and
+#   only if you use the `juliandate()` function or the 'subsec' modifier for
+#   the `unixepoch()` function (the latter requires SQLite 3.42.0, released
+#   2023-05-16)
+#
+# In order for arthmetic to work well, you need to convert timestamps to
+# fractional [Julian day numbers][JDN], and intervals to a real number
+# by subtracting the UNIX epoch from their Julian day number representation.
+#
+# Once the result has been computed, the result needs to be converted back
+# to an ISO8601 formatted string including any milliseconds. For an
+# interval result, that means adding the UNIX epoch offset to it first.
+#
+# [JDN]: https://en.wikipedia.org/wiki/Julian_day
+
+# SQLite strftime() format to output ISO8601 date and time with milliseconds
+# This format must be parseable by the `datetime.fromisodatetime()` function,
+# or if the SQLite implementation for Timestamp below is configured with a
+# regex, then that it must target that regex.
+#
+# SQLite only provides millisecond precision, but past versions of SQLAlchemy
+# defaulted to parsing with a regex that would treat fractional as a value in
+# microseconds. To ensure maximum compatibility the current format should
+# continue to format the fractional seconds as microseconds, so 6 digits.
+SQLITE_DATETIME_FORMAT = sa.literal("%Y-%m-%d %H:%M:%f000", literal_execute=True)
+"""The SQLite timestamp output format as a SQL literal string constant"""
+
+
+SQLITE_EPOCH_JULIANDAYNUMBER = sa.literal(2440587.5, literal_execute=True)
+"""The UNIX epoch, 1970-01-01T00:00:00.000000Z, expressed as a fractional Julain day number"""
+SECONDS_PER_DAY = sa.literal(24 * 60 * 60.0, literal_execute=True)
+"""The number of seconds in a day as a SQL literal, to convert fractional Julian days to seconds"""
+
+_sqlite_now_constant = sa.literal("now", literal_execute=True)
+"""The 'now' string constant, passed to SQLite datetime functions"""
+_sqlite_strftime = partial(sa.func.strftime, SQLITE_DATETIME_FORMAT)
+"""Format SQLite timestamp to a SQLAlchemy-compatible string"""
+
+
+def _sqlite_strfinterval(
+    offset: sa.ColumnElement[float],
+) -> sa.ColumnElement[datetime.datetime]:
+    """Format interval offset to a SQLAlchemy-compatible string"""
+    return _sqlite_strftime(SQLITE_EPOCH_JULIANDAYNUMBER + offset)
+
+
+def _sqlite_interval_offset(
+    interval: _SQLExpressionOrLiteral[datetime.timedelta],
+) -> sa.ColumnElement[float]:
+    """Convert interval value to a fraction Julian day number REAL offset from UNIX epoch"""
+    return sa.func.julianday(interval) - SQLITE_EPOCH_JULIANDAYNUMBER
+
+
+@compiles(functions.now, "sqlite")
+def current_timestamp_sqlite(
+    element: functions.now, compiler: SQLCompiler, **kwargs: Any
+) -> str:
+    """Generates the current timestamp for SQLite"""
+    return compiler.process(_sqlite_strftime(_sqlite_now_constant), **kwargs)
 
 
 @compiles(date_add, "sqlite")
-def _date_add_sqlite(element, compiler, **kwargs):
-    """
-    In sqlite, we represent intervals as datetimes after the epoch, following
-    SQLAlchemy convention for the Interval() type.
-    """
-
-    dt = element.dt
-    if isinstance(dt, datetime.datetime):
-        dt = str(dt)
-
-    interval = element.interval
-    if isinstance(interval, datetime.timedelta):
-        interval = str(pendulum.datetime(1970, 1, 1) + interval)
-
-    return compiler.process(
-        # convert to date
-        sa.func.strftime(
-            "%Y-%m-%d %H:%M:%f000",
-            sa.func.julianday(dt)
-            + (
-                # convert interval to fractional days after the epoch
-                sa.func.julianday(interval) - 2440587.5
-            ),
-        )
-    )
-
-
-class interval_add(FunctionElement):
-    """
-    Platform-independent way to add two intervals.
-    """
-
-    type = sa.Interval()
-    name = "interval_add"
-    # see https://docs.sqlalchemy.org/en/14/core/compiler.html#enabling-caching-support-for-custom-constructs
-    inherit_cache = False
-
-    def __init__(self, i1, i2):
-        self.i1 = i1
-        self.i2 = i2
-        super().__init__()
-
-
-@compiles(interval_add, "postgresql")
-@compiles(interval_add)
-def _interval_add_postgresql(element, compiler, **kwargs):
-    return compiler.process(
-        sa.cast(element.i1, sa.Interval()) + sa.cast(element.i2, sa.Interval())
-    )
+def date_add_sqlite(element: date_add, compiler: SQLCompiler, **kwargs: Any) -> str:
+    dt, interval = element.clauses
+    jdn, offset = sa.func.julianday(dt), _sqlite_interval_offset(interval)
+    # dt + interval, as fractional Julian day number values
+    return compiler.process(_sqlite_strftime(jdn + offset), **kwargs)
 
 
 @compiles(interval_add, "sqlite")
-def _interval_add_sqlite(element, compiler, **kwargs):
-    """
-    In sqlite, we represent intervals as datetimes after the epoch, following
-    SQLAlchemy convention for the Interval() type.
-
-    Therefore the sum of two intervals is
-
-    (i1 - epoch) + (i2 - epoch) = i1 + i2 - epoch
-    """
-
-    i1 = element.i1
-    if isinstance(i1, datetime.timedelta):
-        i1 = str(pendulum.datetime(1970, 1, 1) + i1)
-
-    i2 = element.i2
-    if isinstance(i2, datetime.timedelta):
-        i2 = str(pendulum.datetime(1970, 1, 1) + i2)
-
-    return compiler.process(
-        # convert to date
-        sa.func.strftime(
-            "%Y-%m-%d %H:%M:%f000",
-            sa.func.julianday(i1) + sa.func.julianday(i2) - 2440587.5,
-        )
-    )
-
-
-class date_diff(FunctionElement):
-    """
-    Platform-independent difference of dates. Computes d1 - d2.
-    """
-
-    type = sa.Interval()
-    name = "date_diff"
-    # see https://docs.sqlalchemy.org/en/14/core/compiler.html#enabling-caching-support-for-custom-constructs
-    inherit_cache = False
-
-    def __init__(self, d1, d2):
-        self.d1 = d1
-        self.d2 = d2
-        super().__init__()
-
-
-@compiles(date_diff, "postgresql")
-@compiles(date_diff)
-def _date_diff_postgresql(element, compiler, **kwargs):
-    return compiler.process(
-        sa.cast(element.d1, Timestamp()) - sa.cast(element.d2, Timestamp())
-    )
+def interval_add_sqlite(
+    element: interval_add, compiler: SQLCompiler, **kwargs: Any
+) -> str:
+    offsets = map(_sqlite_interval_offset, element.clauses)
+    # interval + interval, as fractional Julian day number values
+    return compiler.process(_sqlite_strfinterval(operator.add(*offsets)), **kwargs)
 
 
 @compiles(date_diff, "sqlite")
-def _date_diff_sqlite(element, compiler, **kwargs):
-    """
-    In sqlite, we represent intervals as datetimes after the epoch, following
-    SQLAlchemy convention for the Interval() type.
-    """
-    d1 = element.d1
-    if isinstance(d1, datetime.datetime):
-        d1 = str(d1)
+def date_diff_sqlite(element: date_diff, compiler: SQLCompiler, **kwargs: Any) -> str:
+    jdns = map(sa.func.julianday, element.clauses)
+    # timestamp - timestamp, as fractional Julian day number values
+    return compiler.process(_sqlite_strfinterval(operator.sub(*jdns)), **kwargs)
 
-    d2 = element.d2
-    if isinstance(d2, datetime.datetime):
-        d2 = str(d2)
 
-    return compiler.process(
-        # convert to date
-        sa.func.strftime(
-            "%Y-%m-%d %H:%M:%f000",
-            # the epoch in julian days
-            2440587.5
-            # plus the date difference in julian days
-            + sa.func.julianday(d1)
-            - sa.func.julianday(d2),
-        )
+@compiles(date_diff_seconds, "sqlite")
+def date_diff_seconds_sqlite(
+    element: date_diff_seconds, compiler: SQLCompiler, **kwargs: Any
+) -> str:
+    # either 1 or 2 timestamps; if 1, subtract from 'now'
+    dts: list[sa.ColumnElement[Any]] = list(element.clauses)
+    if len(dts) == 1:
+        dts = [_sqlite_now_constant, *dts]
+    as_jdn = (sa.func.julianday(dt) for dt in dts)
+    # timestamp - timestamp, as a fractional Julian day number, times the number of seconds in a day
+    return compiler.process(operator.sub(*as_jdn) * SECONDS_PER_DAY, **kwargs)
+
+
+# PostgreSQL JSON(B) Comparator operators ported to SQLite
+
+
+def _is_literal(elem: Any) -> bool:
+    """Element is not a SQLAlchemy SQL construct"""
+    # Copied from sqlalchemy.sql.coercions._is_literal
+    return not (
+        isinstance(elem, (sa.Visitable, schema.SchemaEventTarget))
+        or hasattr(elem, "__clause_element__")
     )
 
 
-class json_contains(FunctionElement):
+def _postgresql_array_to_json_array(
+    elem: sa.ColumnElement[Any],
+) -> sa.ColumnElement[Any]:
+    """Replace any postgresql array() literals with a json_array() function call
+
+    Because an _empty_ array leads to a PostgreSQL error, array() is often
+    coupled with a cast(); this function replaces arrays with or without
+    such a cast.
+
+    This allows us to map the postgres JSONB.has_any / JSONB.has_all operand to
+    SQLite.
+
+    Returns the updated expression.
+
     """
-    Platform independent json_contains operator, tests if the
-    `left` expression contains the `right` expression.
 
-    On postgres this is equivalent to the @> containment operator.
-    https://www.postgresql.org/docs/current/functions-json.html
+    def _replacer(element: Any, **kwargs: Any) -> Optional[Any]:
+        # either array(...), or cast(array(...), ...)
+        if isinstance(element, sa.Cast):
+            element = element.clause
+        if isinstance(element, postgresql.array):
+            return sa.func.json_array(*element.clauses)
+        return None
+
+    opts: dict[str, Any] = {}
+    return replacement_traverse(elem, opts, _replacer)
+
+
+def _json_each(elem: sa.ColumnElement[Any]) -> sa.TableValuedAlias:
+    """SQLite json_each() table-valued construct
+
+    Configures a SQLAlchemy table-valued object with the minimum
+    column definitions and correct configuration.
+
     """
-
-    type = BOOLEAN
-    name = "json_contains"
-    # see https://docs.sqlalchemy.org/en/14/core/compiler.html#enabling-caching-support-for-custom-constructs
-    inherit_cache = False
-
-    def __init__(self, left, right):
-        self.left = left
-        self.right = right
-        super().__init__()
+    return sa.func.json_each(elem).table_valued("key", "value", joins_implicitly=True)
 
 
-@compiles(json_contains, "postgresql")
-@compiles(json_contains)
-def _json_contains_postgresql(element, compiler, **kwargs):
-    return compiler.process(
-        sa.type_coerce(element.left, postgresql.JSONB).contains(
-            sa.type_coerce(element.right, postgresql.JSONB)
-        ),
-        **kwargs,
-    )
+# sqlite JSON operator implementations.
 
 
-def _json_contains_sqlite_fn(left, right, compiler, **kwargs):
-    # if the value is literal, convert to a JSON string
-    if isinstance(left, (list, dict, tuple, str)):
-        left = json.dumps(left)
+def _sqlite_json_astext(
+    element: sa.BinaryExpression[Any],
+) -> sa.BinaryExpression[Any]:
+    """Map postgres JSON.astext / JSONB.astext (`->>`) to sqlite json_extract()
 
-    # if the value is literal, convert to a JSON string
-    if isinstance(right, (list, dict, tuple, str)):
-        right = json.dumps(right)
+    Without the `as_string()` call, SQLAlchemy outputs json_quote(json_extract(...))
 
-    json_each_left = sa.func.json_each(left).alias("left")
-    json_each_right = sa.func.json_each(right).alias("right")
+    """
+    return element.left[element.right].as_string()
 
-    # compute equality by counting the number of distinct matches between
-    # the left items and the right items (e.g. the number of rows resulting from a join)
-    # and seeing if it exceeds the number of distinct keys in the right operand
+
+def _sqlite_json_contains(
+    element: sa.BinaryExpression[bool],
+) -> sa.ColumnElement[bool]:
+    """Map JSONB.contains() and JSONB.has_all() to a SQLite expression"""
+    # left can be a JSON value as a (Python) literal, or a SQL expression for a JSON value
+    # right can be a SQLA postgresql.array() literal or a SQL expression for a
+    # JSON array (for .has_all()) or it can be a JSON value as a (Python)
+    # literal or a SQL expression for a JSON object (for .contains())
+    left, right = element.left, element.right
+
+    # if either top-level operand is literal, convert to a JSON bindparam
+    if _is_literal(left):
+        left = sa.bindparam("haystack", left, expanding=True, type_=JSON)
+    if _is_literal(right):
+        right = sa.bindparam("needles", right, expanding=True, type_=JSON)
+    else:
+        # convert the array() literal used in JSONB.has_all() to a JSON array.
+        right = _postgresql_array_to_json_array(right)
+
+    jleft, jright = _json_each(left), _json_each(right)
+
+    # compute equality by counting the number of distinct matches between the
+    # left items and the right items (e.g. the number of rows resulting from a
+    # join) and seeing if it exceeds the number of distinct keys in the right
+    # operand.
     #
     # note that using distinct emulates postgres behavior to disregard duplicates
     distinct_matches = (
-        sa.select(sa.func.count(sa.distinct(sa.literal_column("left.value"))))
-        .select_from(json_each_left)
-        .join(
-            json_each_right,
-            sa.literal_column("left.value") == sa.literal_column("right.value"),
-        )
+        sa.select(sa.func.count(sa.distinct(jleft.c.value)))
+        .join(jright, onclause=jleft.c.value == jright.c.value)
         .scalar_subquery()
     )
+    distinct_keys = sa.select(
+        sa.func.count(sa.distinct(jright.c.value))
+    ).scalar_subquery()
 
-    distinct_keys = (
-        sa.select(sa.func.count(sa.distinct(sa.literal_column("right.value"))))
-        .select_from(json_each_right)
-        .scalar_subquery()
+    return distinct_matches >= distinct_keys
+
+
+def _sqlite_json_has_any(element: sa.BinaryExpression[bool]) -> sa.ColumnElement[bool]:
+    """Map JSONB.has_any() to a SQLite expression"""
+    # left can be a JSON value as a (Python) literal, or a SQL expression for a JSON value
+    # right can be a SQLA postgresql.array() literal or a SQL expression for a JSON array
+    left, right = element.left, element.right
+
+    # convert the array() literal used in JSONB.has_all() to a JSON array.
+    right = _postgresql_array_to_json_array(right)
+
+    jleft, jright = _json_each(left), _json_each(right)
+
+    # deal with "json array ?| [value, ...]"" vs "json object ?| [key, ...]" tests
+    # if left is a JSON object, match keys, else match values; the latter works
+    # for arrays and all JSON scalar types
+    json_object = sa.literal("object", literal_execute=True)
+    left_elem = sa.case(
+        (sa.func.json_type(element.left) == json_object, jleft.c.key),
+        else_=jleft.c.value,
     )
 
-    return compiler.process(distinct_matches >= distinct_keys)
+    return sa.exists().where(left_elem == jright.c.value)
 
 
-@compiles(json_contains, "sqlite")
-def _json_contains_sqlite(element, compiler, **kwargs):
-    return _json_contains_sqlite_fn(element.left, element.right, compiler, **kwargs)
+# Map of SQLA postgresql JSON/JSONB operators and a function to rewrite
+# a BinaryExpression with such an operator to their SQLite equivalent.
+_sqlite_json_operator_map: dict[
+    OperatorType, Callable[[sa.BinaryExpression[Any]], sa.ColumnElement[Any]]
+] = {
+    ASTEXT: _sqlite_json_astext,
+    CONTAINS: _sqlite_json_contains,
+    HAS_ALL: _sqlite_json_contains,  # "has all" is equivalent to "contains"
+    HAS_ANY: _sqlite_json_has_any,
+}
 
 
-class json_extract(FunctionElement):
-    """
-    Platform independent json_extract operator, extracts a value from a JSON
-    field via key.
-
-    On postgres this is equivalent to the ->> operator.
-    https://www.postgresql.org/docs/current/functions-json.html
-    """
-
-    type = sa.Text()
-    name = "json_extract"
-    # see https://docs.sqlalchemy.org/en/14/core/compiler.html#enabling-caching-support-for-custom-constructs
-    inherit_cache = False
-
-    def __init__(self, column: sa.Column, path: str, wrap_quotes: bool = False):
-        self.column = column
-        self.path = path
-        self.wrap_quotes = wrap_quotes
-        super().__init__()
+@compiles(sa.BinaryExpression, "sqlite")
+def sqlite_json_operators(
+    element: sa.BinaryExpression[Any],
+    compiler: SQLCompiler,
+    override_operator: Optional[OperatorType] = None,
+    **kwargs: Any,
+) -> str:
+    """Intercept the PostgreSQL-only JSON / JSONB operators and translate them to SQLite"""
+    operator = override_operator or element.operator
+    if (handler := _sqlite_json_operator_map.get(operator)) is not None:
+        return compiler.process(handler(element), **kwargs)
+    # ignore reason: SQLA compilation hooks are not as well covered with type annotations
+    return compiler.visit_binary(element, override_operator=operator, **kwargs)  # pyright: ignore[reportUnknownMemberType,reportUnknownVariableType]
 
 
-@compiles(json_extract, "postgresql")
-@compiles(json_extract)
-def _json_extract_postgresql(element, compiler, **kwargs):
-    return "%s ->> '%s'" % (compiler.process(element.column, **kwargs), element.path)
+class greatest(functions.ReturnTypeFromArgs[T]):
+    name = "greatest"
+    inherit_cache = True
 
 
-@compiles(json_extract, "sqlite")
-def _json_extract_sqlite(element, compiler, **kwargs):
-    path = element.path.replace("'", "''")  # escape single quotes for JSON path
-    if element.wrap_quotes:
-        path = f'"{path}"'
-    return "JSON_EXTRACT(%s, '$.%s')" % (
-        compiler.process(element.column, **kwargs),
-        path,
-    )
+@compiles(greatest, "sqlite")
+def sqlite_greatest_as_max(
+    element: greatest[Any], compiler: SQLCompiler, **kwargs: Any
+) -> str:
+    # TODO: SQLite MAX() is very close to PostgreSQL GREATEST(), *except* when
+    # it comes to nulls: SQLite MAX() returns NULL if _any_ clause is NULL,
+    # whereas PostgreSQL GREATEST() only returns NULL if _all_ clauses are NULL.
+    #
+    # A work-around is to use MAX() as an aggregate function instead, in a
+    # subquery. This, however, would probably require a VALUES-like construct
+    # that SQLA doesn't currently support for SQLite. You can [provide
+    # compilation hooks for
+    # this](https://github.com/sqlalchemy/sqlalchemy/issues/7228#issuecomment-1746837960)
+    # but this would only be worth it if sa.func.greatest() starts being used on
+    # values that include NULLs. Up until the time of this comment this hasn't
+    # been an issue.
+    return compiler.process(sa.func.max(*element.clauses), **kwargs)
 
 
-class json_has_any_key(FunctionElement):
-    """
-    Platform independent json_has_any_key operator.
-
-    On postgres this is equivalent to the ?| existence operator.
-    https://www.postgresql.org/docs/current/functions-json.html
-    """
-
-    type = BOOLEAN
-    name = "json_has_any_key"
-    # see https://docs.sqlalchemy.org/en/14/core/compiler.html#enabling-caching-support-for-custom-constructs
-    inherit_cache = False
-
-    def __init__(self, json_expr, values: List):
-        self.json_expr = json_expr
-        if not all(isinstance(v, str) for v in values):
-            raise ValueError("json_has_any_key values must be strings")
-        self.values = values
-        super().__init__()
-
-
-@compiles(json_has_any_key, "postgresql")
-@compiles(json_has_any_key)
-def _json_has_any_key_postgresql(element, compiler, **kwargs):
-    values_array = postgresql.array(element.values)
-    # if the array is empty, postgres requires a type annotation
-    if not element.values:
-        values_array = sa.cast(values_array, postgresql.ARRAY(sa.String))
-
-    return compiler.process(
-        sa.type_coerce(element.json_expr, postgresql.JSONB).has_any(values_array),
-        **kwargs,
-    )
-
-
-@compiles(json_has_any_key, "sqlite")
-def _json_has_any_key_sqlite(element, compiler, **kwargs):
-    # attempt to match any of the provided values at least once
-    json_each = sa.func.json_each(element.json_expr).alias("json_each")
-    return compiler.process(
-        sa.select(1)
-        .select_from(json_each)
-        .where(
-            sa.literal_column("json_each.value").in_(
-                # manually set the bindparam key because the default will
-                # include the `.` from the literal column name and sqlite params
-                # must be alphanumeric. `unique=True` automatically suffixes the bindparam
-                # if there are overlaps.
-                sa.bindparam(key="json_each_values", value=element.values, unique=True)
-            )
-        )
-        .exists(),
-        **kwargs,
-    )
-
-
-class json_has_all_keys(FunctionElement):
-    """Platform independent json_has_all_keys operator.
-
-    On postgres this is equivalent to the ?& existence operator.
-    https://www.postgresql.org/docs/current/functions-json.html
-    """
-
-    type = BOOLEAN
-    name = "json_has_all_keys"
-    # see https://docs.sqlalchemy.org/en/14/core/compiler.html#enabling-caching-support-for-custom-constructs
-    inherit_cache = False
-
-    def __init__(self, json_expr, values: List):
-        self.json_expr = json_expr
-        if isinstance(values, list) and not all(isinstance(v, str) for v in values):
-            raise ValueError(
-                "json_has_all_key values must be strings if provided as a literal list"
-            )
-        self.values = values
-        super().__init__()
-
-
-@compiles(json_has_all_keys, "postgresql")
-@compiles(json_has_all_keys)
-def _json_has_all_keys_postgresql(element, compiler, **kwargs):
-    values_array = postgresql.array(element.values)
-
-    # if the array is empty, postgres requires a type annotation
-    if not element.values:
-        values_array = sa.cast(values_array, postgresql.ARRAY(sa.String))
-
-    return compiler.process(
-        sa.type_coerce(element.json_expr, postgresql.JSONB).has_all(values_array),
-        **kwargs,
-    )
-
-
-@compiles(json_has_all_keys, "sqlite")
-def _json_has_all_keys_sqlite(element, compiler, **kwargs):
-    # "has all keys" is equivalent to "json contains"
-    return _json_contains_sqlite_fn(
-        left=element.json_expr,
-        right=element.values,
-        compiler=compiler,
-        **kwargs,
-    )
-
-
-def get_dialect(
-    obj: Union[str, sa.orm.Session, sa.engine.Engine],
-) -> sa.engine.Dialect:
+def get_dialect(obj: Union[str, Session, sa.Engine]) -> type[sa.Dialect]:
     """
     Get the dialect of a session, engine, or connection url.
 
@@ -662,9 +690,11 @@ def get_dialect(
             print("Using Postgres!")
         ```
     """
-    if isinstance(obj, sa.orm.Session):
-        url = obj.bind.url
-    elif isinstance(obj, sa.engine.Engine):
+    if isinstance(obj, Session):
+        assert obj.bind is not None
+        obj = obj.bind.engine if isinstance(obj.bind, sa.Connection) else obj.bind
+
+    if isinstance(obj, sa.engine.Engine):
         url = obj.url
     else:
         url = sa.engine.url.make_url(obj)

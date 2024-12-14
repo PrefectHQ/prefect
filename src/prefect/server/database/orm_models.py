@@ -1,22 +1,21 @@
 import datetime
 import uuid
 from abc import ABC, abstractmethod
+from collections.abc import Hashable, Iterable
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
     ClassVar,
     Dict,
-    Hashable,
-    Iterable,
     Optional,
     Union,
-    cast,
 )
 
 import pendulum
 import sqlalchemy as sa
 from sqlalchemy import FetchedValue
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import (
@@ -46,18 +45,19 @@ from prefect.server.schemas.statuses import (
     WorkQueueStatus,
 )
 from prefect.server.utilities.database import (
+    CAMEL_TO_SNAKE,
     JSON,
     UUID,
     GenerateUUID,
     Pydantic,
     Timestamp,
-    camel_to_snake,
-    date_diff,
-    interval_add,
-    now,
 )
 from prefect.server.utilities.encryption import decrypt_fernet, encrypt_fernet
 from prefect.utilities.names import generate_slug
+
+# for 'plain JSON' columns, use the postgresql variant (which comes with an
+# extra operator) and fall back to the generic JSON variant for SQLite
+sa_JSON = postgresql.JSON().with_variant(sa.JSON(), "sqlite")
 
 
 class Base(DeclarativeBase):
@@ -117,7 +117,7 @@ class Base(DeclarativeBase):
         into a snake-case table name. Override by providing
         an explicit `__tablename__` class property.
         """
-        return camel_to_snake.sub("_", cls.__name__).lower()
+        return CAMEL_TO_SNAKE.sub("_", cls.__name__).lower()
 
     id: Mapped[uuid.UUID] = mapped_column(
         primary_key=True,
@@ -126,7 +126,7 @@ class Base(DeclarativeBase):
     )
 
     created: Mapped[pendulum.DateTime] = mapped_column(
-        server_default=now(), default=lambda: pendulum.now("UTC")
+        server_default=sa.func.now(), default=lambda: pendulum.now("UTC")
     )
 
     # onupdate is only called when statements are actually issued
@@ -134,9 +134,9 @@ class Base(DeclarativeBase):
     # will not be updated
     updated: Mapped[pendulum.DateTime] = mapped_column(
         index=True,
-        server_default=now(),
+        server_default=sa.func.now(),
         default=lambda: pendulum.now("UTC"),
-        onupdate=now(),
+        onupdate=sa.func.now(),
         server_onupdate=FetchedValue(),
     )
 
@@ -175,7 +175,7 @@ class FlowRunState(Base):
         sa.Enum(schemas.states.StateType, name="state_type"), index=True
     )
     timestamp: Mapped[pendulum.DateTime] = mapped_column(
-        server_default=now(), default=lambda: pendulum.now("UTC")
+        server_default=sa.func.now(), default=lambda: pendulum.now("UTC")
     )
     name: Mapped[str] = mapped_column(index=True)
     message: Mapped[Optional[str]]
@@ -240,7 +240,7 @@ class TaskRunState(Base):
         sa.Enum(schemas.states.StateType, name="state_type"), index=True
     )
     timestamp: Mapped[pendulum.DateTime] = mapped_column(
-        server_default=now(), default=lambda: pendulum.now("UTC")
+        server_default=sa.func.now(), default=lambda: pendulum.now("UTC")
     )
     name: Mapped[str] = mapped_column(index=True)
     message: Mapped[Optional[str]]
@@ -303,11 +303,11 @@ class Artifact(Base):
     flow_run_id: Mapped[Optional[uuid.UUID]] = mapped_column(index=True)
 
     type: Mapped[Optional[str]]
-    data: Mapped[Optional[Any]] = mapped_column(sa.JSON)
+    data: Mapped[Optional[Any]] = mapped_column(sa_JSON)
     description: Mapped[Optional[str]]
 
     # Suffixed with underscore as attribute name 'metadata' is reserved for the MetaData instance when using a declarative base class.
-    metadata_: Mapped[Optional[dict[str, str]]] = mapped_column(sa.JSON)
+    metadata_: Mapped[Optional[dict[str, str]]] = mapped_column(sa_JSON)
 
     @declared_attr.directive
     @classmethod
@@ -342,9 +342,9 @@ class ArtifactCollection(Base):
     flow_run_id: Mapped[Optional[uuid.UUID]]
 
     type: Mapped[Optional[str]]
-    data: Mapped[Optional[Any]] = mapped_column(sa.JSON)
+    data: Mapped[Optional[Any]] = mapped_column(sa_JSON)
     description: Mapped[Optional[str]]
-    metadata_: Mapped[Optional[dict[str, str]]] = mapped_column(sa.JSON)
+    metadata_: Mapped[Optional[dict[str, str]]] = mapped_column(sa_JSON)
 
     __table_args__: Any = (
         sa.UniqueConstraint("key"),
@@ -419,9 +419,9 @@ class Run(Base):
                 sa.case(
                     (
                         cls.state_type == schemas.states.StateType.RUNNING,
-                        interval_add(
+                        sa.func.interval_add(
                             cls.total_run_time,
-                            date_diff(now(), cls.state_timestamp),
+                            sa.func.date_diff(sa.func.now(), cls.state_timestamp),
                         ),
                     ),
                     else_=cls.total_run_time,
@@ -464,15 +464,15 @@ class Run(Base):
         return sa.case(
             (
                 cls.start_time > cls.expected_start_time,
-                date_diff(cls.start_time, cls.expected_start_time),
+                sa.func.date_diff(cls.start_time, cls.expected_start_time),
             ),
             (
                 sa.and_(
                     cls.start_time.is_(None),
                     cls.state_type.not_in(schemas.states.TERMINAL_STATES),
-                    cls.expected_start_time < now(),
+                    cls.expected_start_time < sa.func.now(),
                 ),
-                date_diff(now(), cls.expected_start_time),
+                sa.func.date_diff(sa.func.now(), cls.expected_start_time),
             ),
             else_=datetime.timedelta(0),
         )
@@ -1165,7 +1165,7 @@ class Worker(Base):
 
     name: Mapped[str]
     last_heartbeat_time: Mapped[pendulum.DateTime] = mapped_column(
-        server_default=now(), default=lambda: pendulum.now("UTC")
+        server_default=sa.func.now(), default=lambda: pendulum.now("UTC")
     )
     heartbeat_interval_seconds: Mapped[Optional[int]]
 
@@ -1195,7 +1195,7 @@ class Agent(Base):
     )
 
     last_activity_time: Mapped[pendulum.DateTime] = mapped_column(
-        server_default=now(), default=lambda: pendulum.now("UTC")
+        server_default=sa.func.now(), default=lambda: pendulum.now("UTC")
     )
 
     __table_args__: Any = (sa.UniqueConstraint("name"),)
@@ -1277,11 +1277,11 @@ class Automation(Base):
     @classmethod
     def sort_expression(cls, value: AutomationSort) -> sa.ColumnExpressionArgument[Any]:
         """Return an expression used to sort Automations"""
-        sort_mapping = {
+        sort_mapping: dict[AutomationSort, sa.ColumnExpressionArgument[Any]] = {
             AutomationSort.CREATED_DESC: cls.created.desc(),
             AutomationSort.UPDATED_DESC: cls.updated.desc(),
-            AutomationSort.NAME_ASC: cast(sa.Column, cls.name).asc(),
-            AutomationSort.NAME_DESC: cast(sa.Column, cls.name).desc(),
+            AutomationSort.NAME_ASC: cls.name.asc(),
+            AutomationSort.NAME_DESC: cls.name.desc(),
         }
         return sort_mapping[value]
 
@@ -1439,7 +1439,7 @@ class EventResource(Base):
     occurred: Mapped[pendulum.DateTime]
     resource_id: Mapped[str] = mapped_column(sa.Text())
     resource_role: Mapped[str] = mapped_column(sa.Text())
-    resource: Mapped[dict[str, Any]] = mapped_column(sa.JSON())
+    resource: Mapped[dict[str, Any]] = mapped_column(sa_JSON)
     event_id: Mapped[uuid.UUID]
 
 
