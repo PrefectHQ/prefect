@@ -375,6 +375,11 @@ def as_completed(
 
 
 class DoneAndNotDoneFutures(NamedTuple, Generic[R]):
+    """A named 2-tuple of sets.
+
+    multiple inheritance supported in 3.11+, use typing_extensions.NamedTuple
+    """
+
     done: set[PrefectFuture[R]]
     not_done: set[PrefectFuture[R]]
 
