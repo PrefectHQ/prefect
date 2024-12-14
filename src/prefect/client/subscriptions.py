@@ -10,6 +10,7 @@ from starlette.status import WS_1008_POLICY_VIOLATION
 from typing_extensions import Self
 
 from prefect._internal.schemas.bases import IDBaseModel
+from prefect.events.clients import websocket_connect
 from prefect.logging import get_logger
 from prefect.settings import PREFECT_API_KEY
 
@@ -34,7 +35,7 @@ class Subscription(Generic[S]):
 
         self.keys: list[str] = list(keys)
 
-        self._connect = websockets.connect(
+        self._connect = websocket_connect(
             self.subscription_url,
             subprotocols=[websockets.Subprotocol("prefect")],
         )
