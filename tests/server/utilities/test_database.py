@@ -2,34 +2,25 @@ import datetime
 import enum
 import math
 import sqlite3
-from typing import List
+from typing import Any, Optional, Union
 from unittest import mock
 
 import pendulum
 import pydantic
 import pytest
 import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import ARRAY, array
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import declarative_base
+from sqlalchemy.ext.asyncio.engine import AsyncEngine
+from sqlalchemy.orm import Mapped, declarative_base, mapped_column
 
 from prefect.server.database.configurations import AioSqliteConfiguration
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.database.orm_models import AioSqliteORMConfiguration
 from prefect.server.database.query_components import AioSqliteQueryComponents
-from prefect.server.utilities.database import (
-    JSON,
-    Pydantic,
-    Timestamp,
-    date_add,
-    date_diff,
-    interval_add,
-    json_contains,
-    json_extract,
-    json_has_all_keys,
-    json_has_any_key,
-)
+from prefect.server.utilities.database import JSON, Pydantic, Timestamp
 
-DBBase = declarative_base()
+DBBase = declarative_base(type_annotation_map={pendulum.DateTime: Timestamp})
 
 
 class PydanticModel(pydantic.BaseModel):
@@ -45,31 +36,35 @@ class Color(enum.Enum):
 class SQLPydanticModel(DBBase):
     __tablename__ = "_test_pydantic_model"
 
-    id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
-    data = sa.Column(Pydantic(PydanticModel))
-    data_list = sa.Column(Pydantic(List[PydanticModel]))
-    color = sa.Column(Pydantic(Color, sa_column_type=sa.Text()))
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    data: Mapped[Optional[PydanticModel]] = mapped_column(Pydantic(PydanticModel))
+    data_list: Mapped[Optional[list[PydanticModel]]] = mapped_column(
+        Pydantic(list[PydanticModel])
+    )
+    color: Mapped[Optional[Color]] = mapped_column(
+        Pydantic(Color, sa_column_type=sa.Text())
+    )
 
 
 class SQLTimestampModel(DBBase):
     __tablename__ = "_test_timestamp_model"
 
-    id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
-    ts_1 = sa.Column(Timestamp)
-    ts_2 = sa.Column(Timestamp)
-    i_1 = sa.Column(sa.Interval)
-    i_2 = sa.Column(sa.Interval)
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    ts_1: Mapped[Optional[pendulum.DateTime]]
+    ts_2: Mapped[Optional[pendulum.DateTime]]
+    i_1: Mapped[Optional[datetime.timedelta]]
+    i_2: Mapped[Optional[datetime.timedelta]]
 
 
 class SQLJSONModel(DBBase):
     __tablename__ = "_test_json_model"
 
-    id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
-    data = sa.Column(JSON)
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    data: Mapped[Any] = mapped_column(JSON)
 
 
 @pytest.fixture(scope="module", autouse=True)
-async def create_database_models(database_engine):
+async def create_database_models(database_engine: AsyncEngine):
     """
     Add the models defined in this file to the database
     """
@@ -84,21 +79,18 @@ async def create_database_models(database_engine):
 
 
 @pytest.fixture(scope="function", autouse=True)
-async def clear_database_models(db):
+async def clear_database_models(db: PrefectDBInterface):
     """
     Clears the models defined in this file
     """
     yield
     async with db.session_context(begin_transaction=True) as session:
-        # work pool has a circular dependency on pool queue; delete it first
-        await session.execute(db.WorkPool.__table__.delete())
-
         for table in reversed(DBBase.metadata.sorted_tables):
             await session.execute(table.delete())
 
 
 class TestPydantic:
-    async def test_write_to_Pydantic(self, session):
+    async def test_write_to_Pydantic(self, session: AsyncSession):
         p_model = PydanticModel(x=100)
         s_model = SQLPydanticModel(data=p_model)
         session.add(s_model)
@@ -107,13 +99,13 @@ class TestPydantic:
         # clear cache
         session.expire_all()
 
-        query = await session.execute(sa.select(SQLPydanticModel))
-        results = query.scalars().all()
+        query = await session.scalars(sa.select(SQLPydanticModel))
+        results = query.all()
         assert len(results) == 1
         assert isinstance(results[0].data, PydanticModel)
         assert results[0].data.y < pendulum.now("UTC")
 
-    async def test_write_dict_to_Pydantic(self, session):
+    async def test_write_dict_to_Pydantic(self, session: AsyncSession):
         p_model = PydanticModel(x=100)
         s_model = SQLPydanticModel(data=p_model.model_dump())
         session.add(s_model)
@@ -122,12 +114,12 @@ class TestPydantic:
         # clear cache
         session.expire_all()
 
-        query = await session.execute(sa.select(SQLPydanticModel))
-        results = query.scalars().all()
+        query = await session.scalars(sa.select(SQLPydanticModel))
+        results = query.all()
         assert len(results) == 1
         assert isinstance(results[0].data, PydanticModel)
 
-    async def test_nullable_Pydantic(self, session):
+    async def test_nullable_Pydantic(self, session: AsyncSession):
         s_model = SQLPydanticModel(data=None)
         session.add(s_model)
         await session.flush()
@@ -135,12 +127,12 @@ class TestPydantic:
         # clear cache
         session.expire_all()
 
-        query = await session.execute(sa.select(SQLPydanticModel))
-        results = query.scalars().all()
+        query = await session.scalars(sa.select(SQLPydanticModel))
+        results = query.all()
         assert len(results) == 1
         assert results[0].data is None
 
-    async def test_generic_model(self, session):
+    async def test_generic_model(self, session: AsyncSession):
         p_model = PydanticModel(x=100)
         s_model = SQLPydanticModel(data_list=[p_model])
         session.add(s_model)
@@ -149,31 +141,32 @@ class TestPydantic:
         # clear cache
         session.expire_all()
 
-        query = await session.execute(sa.select(SQLPydanticModel))
-        results = query.scalars().all()
+        query = await session.scalars(sa.select(SQLPydanticModel))
+        results = query.all()
         assert len(results) == 1
+        assert results[0].data_list is not None
         assert isinstance(results[0].data_list[0], PydanticModel)
         assert results[0].data_list == [p_model]
 
-    async def test_generic_model_validates(self, session):
+    async def test_generic_model_validates(self, session: AsyncSession):
         p_model = PydanticModel(x=100)
         s_model = SQLPydanticModel(data_list=p_model)
         session.add(s_model)
         with pytest.raises(sa.exc.StatementError, match="(validation error)"):
             await session.flush()
 
-    async def test_write_to_enum_field(self, session):
+    async def test_write_to_enum_field(self, session: AsyncSession):
         s_model = SQLPydanticModel(color="RED")
         session.add(s_model)
         await session.flush()
 
-    async def test_write_to_enum_field_is_validated(self, session):
+    async def test_write_to_enum_field_is_validated(self, session: AsyncSession):
         s_model = SQLPydanticModel(color="GREEN")
         session.add(s_model)
         with pytest.raises(sa.exc.StatementError, match="(validation error)"):
             await session.flush()
 
-    async def test_enum_field_is_a_string_in_database(self, session):
+    async def test_enum_field_is_a_string_in_database(self, session: AsyncSession):
         s_model = SQLPydanticModel(color="RED")
         session.add(s_model)
         await session.flush()
@@ -195,13 +188,13 @@ class TestPydantic:
 
 
 class TestTimestamp:
-    async def test_error_if_naive_timestamp_passed(self, session):
+    async def test_error_if_naive_timestamp_passed(self, session: AsyncSession):
         model = SQLTimestampModel(ts_1=datetime.datetime(2000, 1, 1))
         session.add(model)
         with pytest.raises(sa.exc.StatementError, match="(must have a timezone)"):
             await session.flush()
 
-    async def test_timestamp_converted_to_utc(self, session):
+    async def test_timestamp_converted_to_utc(self, session: AsyncSession):
         model = SQLTimestampModel(
             ts_1=datetime.datetime(2000, 1, 1, tzinfo=pendulum.timezone("EST"))
         )
@@ -211,15 +204,16 @@ class TestTimestamp:
         # clear cache
         session.expire_all()
 
-        query = await session.execute(sa.select(SQLTimestampModel))
-        results = query.scalars().all()
+        query = await session.scalars(sa.select(SQLTimestampModel))
+        results = query.all()
         assert results[0].ts_1 == model.ts_1
+        assert results[0].ts_1 is not None
         assert results[0].ts_1.tzinfo == pendulum.timezone("UTC")
 
 
 class TestJSON:
     @pytest.fixture(autouse=True)
-    async def data(self, session):
+    async def data(self, session: AsyncSession):
         session.add_all(
             [
                 SQLJSONModel(id=1, data=["a"]),
@@ -232,9 +226,11 @@ class TestJSON:
         )
         await session.commit()
 
-    async def get_ids(self, session, query):
-        result = await session.execute(query)
-        return [r.id for r in result.scalars().all()]
+    async def get_ids(
+        self, session: AsyncSession, query: sa.Select[tuple[SQLJSONModel]]
+    ) -> list[int]:
+        result = await session.scalars(query)
+        return [r.id for r in result]
 
     @pytest.mark.parametrize(
         "keys,ids",
@@ -255,10 +251,12 @@ class TestJSON:
             (["a", "a", "a"], [1, 3, 4]),
         ],
     )
-    async def test_json_contains_right_side_literal(self, session, keys, ids):
+    async def test_json_contains_right_side_literal(
+        self, session: AsyncSession, keys: list[Any], ids: list[int]
+    ):
         query = (
             sa.select(SQLJSONModel)
-            .where(json_contains(SQLJSONModel.data, keys))
+            .where(SQLJSONModel.data.contains(keys))
             .order_by(SQLJSONModel.id)
         )
         assert await self.get_ids(session, query) == ids
@@ -276,10 +274,12 @@ class TestJSON:
             (["a", "a", "a"], [1]),
         ],
     )
-    async def test_json_contains_left_side_literal(self, session, keys, ids):
+    async def test_json_contains_left_side_literal(
+        self, session: AsyncSession, keys: list[Any], ids: list[int]
+    ):
         query = (
             sa.select(SQLJSONModel)
-            .where(json_contains(keys, SQLJSONModel.data))
+            .where(sa.bindparam("keys", keys, type_=JSON).contains(SQLJSONModel.data))
             .order_by(SQLJSONModel.id)
         )
         assert await self.get_ids(session, query) == ids
@@ -293,10 +293,14 @@ class TestJSON:
             (["a"], ["a", "b"], False),
         ],
     )
-    async def test_json_contains_both_sides_literal(self, session, left, right, match):
-        query = sa.select(sa.literal("match")).where(json_contains(left, right))
-        result = await session.execute(query)
-        assert (result.scalar() == "match") == match
+    async def test_json_contains_both_sides_literal(
+        self, session: AsyncSession, left: list[str], right: list[str], match: bool
+    ):
+        query = sa.select(sa.literal("match")).where(
+            sa.bindparam("left", left, type_=JSON).contains(right)
+        )
+        result = await session.scalar(query)
+        assert (result == "match") is match
 
     @pytest.mark.parametrize(
         "id_for_keys,ids_for_results",
@@ -306,17 +310,16 @@ class TestJSON:
         ],
     )
     async def test_json_contains_both_sides_columns(
-        self, session, id_for_keys, ids_for_results
+        self, session: AsyncSession, id_for_keys: list[Any], ids_for_results: list[Any]
     ):
         query = (
             sa.select(SQLJSONModel)
             .where(
-                json_contains(
-                    SQLJSONModel.data,
+                SQLJSONModel.data.contains(
                     # select the data corresponding to the `id_for_keys` id
                     sa.select(SQLJSONModel.data)
                     .where(SQLJSONModel.id == id_for_keys)
-                    .scalar_subquery(),
+                    .scalar_subquery()
                 )
             )
             .order_by(SQLJSONModel.id)
@@ -335,15 +338,17 @@ class TestJSON:
             ([], []),
         ],
     )
-    async def test_json_has_any_key(self, session, keys, ids):
+    async def test_json_has_any_key(
+        self, session: AsyncSession, keys: list[str], ids: list[int]
+    ):
         query = (
             sa.select(SQLJSONModel)
-            .where(json_has_any_key(SQLJSONModel.data, keys))
+            .where(SQLJSONModel.data.has_any(sa.cast(array(keys), ARRAY(sa.String))))
             .order_by(SQLJSONModel.id)
         )
         assert await self.get_ids(session, query) == ids
 
-    async def test_multiple_json_has_any(self, session):
+    async def test_multiple_json_has_any(self, session: AsyncSession):
         """
         SQLAlchemy's default bindparam has a `.` in it, which SQLite rejects. We
         create a custom bindparam name with `unique=True` to avoid confusion;
@@ -355,11 +360,11 @@ class TestJSON:
             .where(
                 sa.or_(
                     sa.and_(
-                        json_has_any_key(SQLJSONModel.data, ["a"]),
-                        json_has_any_key(SQLJSONModel.data, ["b"]),
+                        SQLJSONModel.data.has_any(array(["a"])),
+                        SQLJSONModel.data.has_any(array(["b"])),
                     ),
-                    json_has_any_key(SQLJSONModel.data, ["c"]),
-                    json_has_any_key(SQLJSONModel.data, ["d"]),
+                    SQLJSONModel.data.has_any(array(["c"])),
+                    SQLJSONModel.data.has_any(array(["d"])),
                 ),
             )
             .order_by(SQLJSONModel.id)
@@ -376,80 +381,56 @@ class TestJSON:
             ([], [1, 2, 3, 4, 5, 6]),
         ],
     )
-    async def test_json_has_all_keys(self, session, keys, ids):
+    async def test_json_has_all_keys(
+        self, session: AsyncSession, keys: list[str], ids: list[int]
+    ):
         query = (
             sa.select(SQLJSONModel)
-            .where(json_has_all_keys(SQLJSONModel.data, keys))
+            .where(SQLJSONModel.data.has_all(sa.cast(array(keys), ARRAY(sa.String()))))
             .order_by(SQLJSONModel.id)
         )
         assert await self.get_ids(session, query) == ids
-
-    async def test_json_has_all_keys_requires_scalar_inputs(self):
-        with pytest.raises(ValueError, match="(values must be strings)"):
-            json_has_all_keys(SQLJSONModel.data, ["a", 3])
-
-    async def test_json_has_any_key_requires_scalar_inputs(self):
-        with pytest.raises(ValueError, match="(values must be strings)"):
-            json_has_any_key(SQLJSONModel.data, ["a", 3])
 
     async def test_json_functions_use_postgres_operators_with_postgres(self):
         dialect = sa.dialects.postgresql.dialect()
 
         extract_statement = SQLJSONModel.data["x"].compile(dialect=dialect)
-        alt_extract_statement = json_extract(SQLJSONModel.data, "x").compile(
-            dialect=dialect
-        )
-        contains_stmt = json_contains(SQLJSONModel.data, ["x"]).compile(dialect=dialect)
-        any_stmt = json_has_any_key(SQLJSONModel.data, ["x"]).compile(dialect=dialect)
-        all_stmt = json_has_all_keys(SQLJSONModel.data, ["x"]).compile(dialect=dialect)
+        alt_extract_statement = SQLJSONModel.data["x"].astext.compile(dialect=dialect)
+        contains_stmt = SQLJSONModel.data.contains(["x"]).compile(dialect=dialect)
+        any_stmt = SQLJSONModel.data.has_any(array(["x"])).compile(dialect=dialect)
+        all_stmt = SQLJSONModel.data.has_all(array(["x"])).compile(dialect=dialect)
 
-        assert "->" in str(extract_statement)
-        assert "JSON_EXTRACT" not in str(extract_statement)
-        assert "->" in str(alt_extract_statement)
-        assert "JSON_EXTRACT" not in str(alt_extract_statement)
-        assert "@>" in str(contains_stmt)
-        assert "json_each" not in str(contains_stmt)
-        assert "?|" in str(any_stmt)
-        assert "json_each" not in str(any_stmt)
-        assert "?&" in str(all_stmt)
-        assert "json_each" not in str(all_stmt)
+        assert ".data -> " in str(extract_statement)
+        assert ".data ->> " in str(alt_extract_statement)
+        assert ".data @> " in str(contains_stmt)
+        assert ".data ?| " in str(any_stmt)
+        assert ".data ?& " in str(all_stmt)
 
     async def test_json_functions_dont_use_postgres_operators_with_sqlite(self):
         dialect = sa.dialects.sqlite.dialect()
 
         extract_statement = SQLJSONModel.data["x"].compile(dialect=dialect)
-        alt_extract_statement = json_extract(SQLJSONModel.data, "x").compile(
-            dialect=dialect
-        )
-        contains_stmt = json_contains(SQLJSONModel.data, ["x"]).compile(dialect=dialect)
-        any_stmt = json_has_any_key(SQLJSONModel.data, ["x"]).compile(dialect=dialect)
-        all_stmt = json_has_all_keys(SQLJSONModel.data, ["x"]).compile(dialect=dialect)
+        alt_extract_statement = SQLJSONModel.data["x"].astext.compile(dialect=dialect)
+        contains_stmt = SQLJSONModel.data.contains(["x"]).compile(dialect=dialect)
+        any_stmt = SQLJSONModel.data.has_any(array(["x"])).compile(dialect=dialect)
+        all_stmt = SQLJSONModel.data.has_all(array(["x"])).compile(dialect=dialect)
 
-        assert "->" not in str(extract_statement)
-        assert "JSON_EXTRACT" in str(extract_statement)
-        assert "->" not in str(alt_extract_statement)
-        assert "JSON_EXTRACT" in str(alt_extract_statement)
-        assert "@>" not in str(contains_stmt)
-        assert "json_each" in str(contains_stmt)
-        assert "?|" not in str(any_stmt)
-        assert "json_each" in str(any_stmt)
-        assert "?&" not in str(all_stmt)
-        assert "json_each" in str(all_stmt)
+        assert ".data ->" not in str(extract_statement)
+        assert ".data ->>" not in str(alt_extract_statement)
+        assert ".data @>" not in str(contains_stmt)
+        assert ".data ?|" not in str(any_stmt)
+        assert ".data ?&" not in str(all_stmt)
 
-    async def test_sqlite_json_extract_wrap_quotes(self):
+    async def test_sqlite_json_extract_as_json_extract(self):
         dialect = sa.dialects.sqlite.dialect()
-        extract_statement = json_extract(
-            SQLJSONModel.data, "x.y.z", wrap_quotes=True
-        ).compile(dialect=dialect)
-        assert '$."x.y.z"' in str(extract_statement)
+        extract_statement = SQLJSONModel.data["x.y.z"].astext.compile(dialect=dialect)
+        assert "->>" not in str(extract_statement)
+        assert "JSON_EXTRACT" in str(extract_statement)
 
-    async def test_postgres_json_extract_no_wrap_quotes(self):
+    async def test_postgres_json_extract_as_native_operator(self):
         dialect = sa.dialects.postgresql.dialect()
-        extract_statement = json_extract(
-            SQLJSONModel.data, "x.y.z", wrap_quotes=True
-        ).compile(dialect=dialect)
-        assert "x.y.z" in str(extract_statement)
-        assert '"x.y.z"' not in str(extract_statement)
+        extract_statement = SQLJSONModel.data["x.y.z"].astext.compile(dialect=dialect)
+        assert "->>" in str(extract_statement)
 
     @pytest.mark.parametrize("extrema", [-math.inf, math.nan, +math.inf])
     async def test_json_floating_point_extrema(
@@ -460,18 +441,42 @@ class TestJSON:
         await session.flush()
         session.expire(example)
 
-        result = await session.execute(
+        result = await session.scalar(
             sa.select(SQLJSONModel).where(SQLJSONModel.id == 100)
         )
-        from_db: SQLJSONModel = result.scalars().first()
-        assert from_db.data == [-1.0, None, 1.0]
+        assert result is not None
+        assert result.data == [-1.0, None, 1.0]
+
+
+class TestCustomFunctions:
+    def test_sqlite_now_compilation(self) -> None:
+        dialect = sa.dialects.sqlite.dialect()
+        expression = sa.func.now()
+        compiled = expression.compile(
+            dialect=dialect, compile_kwargs={"render_postcompile": True}
+        )
+        assert str(compiled) == "strftime('%Y-%m-%d %H:%M:%f000', 'now')"
+
+    @pytest.mark.parametrize(
+        "dialect,expected_function",
+        (
+            (sa.dialects.sqlite.dialect(), "max"),
+            (sa.dialects.postgresql.dialect(), "greatest"),
+        ),
+    )
+    def test_greatest_compilation(
+        self, dialect: sa.Dialect, expected_function: str
+    ) -> None:
+        expression = sa.func.greatest(17, 42, 11)
+        compiled = str(expression.compile(dialect=dialect))
+        assert compiled.partition("(")[0] == expected_function
 
 
 class TestDateFunctions:
     """Test combinations of Python literals and DB columns"""
 
     @pytest.fixture(autouse=True)
-    async def create_data(self, session):
+    async def create_data(self, session: AsyncSession):
         model = SQLTimestampModel(
             ts_1=pendulum.datetime(2021, 1, 1),
             ts_2=pendulum.datetime(2021, 1, 4, 0, 5),
@@ -490,11 +495,16 @@ class TestDateFunctions:
             (SQLTimestampModel.ts_1, SQLTimestampModel.i_1),
         ],
     )
-    async def test_date_add(self, session, ts_1, i_1):
-        result = await session.execute(
-            sa.select(date_add(ts_1, i_1)).select_from(SQLTimestampModel)
+    async def test_date_add(
+        self,
+        session: AsyncSession,
+        ts_1: Union[pendulum.DateTime, sa.Column[pendulum.DateTime]],
+        i_1: Union[datetime.timedelta, sa.Column[datetime.timedelta]],
+    ):
+        result = await session.scalar(
+            sa.select(sa.func.date_add(ts_1, i_1)).select_from(SQLTimestampModel)
         )
-        assert result.scalar() == pendulum.datetime(2021, 1, 4, 0, 5)
+        assert result == pendulum.datetime(2021, 1, 4, 0, 5)
 
     @pytest.mark.parametrize(
         "ts_1, ts_2",
@@ -505,11 +515,16 @@ class TestDateFunctions:
             (SQLTimestampModel.ts_1, SQLTimestampModel.ts_2),
         ],
     )
-    async def test_date_diff(self, session, ts_1, ts_2):
-        result = await session.execute(
-            sa.select(date_diff(ts_2, ts_1)).select_from(SQLTimestampModel)
+    async def test_date_diff(
+        self,
+        session: AsyncSession,
+        ts_1: Union[pendulum.DateTime, sa.Column[pendulum.DateTime]],
+        ts_2: Union[pendulum.DateTime, sa.Column[pendulum.DateTime]],
+    ):
+        result = await session.scalar(
+            sa.select(sa.func.date_diff(ts_2, ts_1)).select_from(SQLTimestampModel)
         )
-        assert result.scalar() == datetime.timedelta(days=3, minutes=5)
+        assert result == datetime.timedelta(days=3, minutes=5)
 
     @pytest.mark.parametrize(
         "i_1, i_2",
@@ -523,11 +538,66 @@ class TestDateFunctions:
             (SQLTimestampModel.i_1, SQLTimestampModel.i_2),
         ],
     )
-    async def test_interval_add(self, session, i_1, i_2):
-        result = await session.execute(
-            sa.select(interval_add(i_1, i_2)).select_from(SQLTimestampModel)
+    async def test_interval_add(
+        self,
+        session: AsyncSession,
+        i_1: Union[datetime.timedelta, sa.Column[datetime.timedelta]],
+        i_2: Union[datetime.timedelta, sa.Column[datetime.timedelta]],
+    ):
+        result = await session.scalar(
+            sa.select(sa.func.interval_add(i_1, i_2)).select_from(SQLTimestampModel)
         )
-        assert result.scalar() == datetime.timedelta(days=3, minutes=48)
+        assert result == datetime.timedelta(days=3, minutes=48)
+
+    @pytest.mark.parametrize(
+        "ts_1, ts_2",
+        [
+            (pendulum.datetime(2021, 1, 1), pendulum.datetime(2021, 1, 4, 0, 5)),
+            (pendulum.datetime(2021, 1, 1), SQLTimestampModel.ts_2),
+            (SQLTimestampModel.ts_1, pendulum.datetime(2021, 1, 4, 0, 5)),
+            (SQLTimestampModel.ts_1, SQLTimestampModel.ts_2),
+        ],
+    )
+    async def test_date_diff_seconds(
+        self,
+        session: AsyncSession,
+        ts_1: Union[pendulum.DateTime, sa.Column[pendulum.DateTime]],
+        ts_2: Union[pendulum.DateTime, sa.Column[pendulum.DateTime]],
+    ):
+        result = await session.scalar(
+            sa.select(sa.func.date_diff_seconds(ts_2, ts_1)).select_from(
+                SQLTimestampModel
+            )
+        )
+        assert pytest.approx(result) == 259500.0
+
+    async def test_date_diff_seconds_from_now_literal(self, session: AsyncSession):
+        value = datetime.datetime.now(tz=datetime.timezone.utc) - datetime.timedelta(
+            seconds=17
+        )
+        result: Optional[float] = await session.scalar(
+            sa.select(sa.func.date_diff_seconds(value))
+        )
+        assert result is not None
+        # database rounnd-trips can be sloooow
+        assert 17 <= result <= 17.1
+
+    async def test_date_diff_seconds_from_now_column(self, session: AsyncSession):
+        value = datetime.datetime.now(tz=datetime.timezone.utc) - datetime.timedelta(
+            seconds=17
+        )
+        model = SQLTimestampModel(ts_1=value)
+        session.add(model)
+        await session.commit()
+
+        result: Optional[float] = await session.scalar(
+            sa.select(sa.func.date_diff_seconds(SQLTimestampModel.ts_1)).where(
+                SQLTimestampModel.id == model.id
+            )
+        )
+        assert result is not None
+        # database rounnd-trips can be sloooow
+        assert 17 <= result <= 17.1
 
 
 async def test_error_thrown_if_sqlite_version_is_below_minimum():

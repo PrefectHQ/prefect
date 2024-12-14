@@ -1,5 +1,4 @@
-import sys
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import List, Optional, cast
 
 import pendulum
@@ -35,37 +34,6 @@ class TaskRunCount(PrefectBaseModel):
             "completed": int(self.completed),
             "failed": int(self.failed),
         }
-
-
-def _postgres_bucket_expression(
-    db: PrefectDBInterface, delta: pendulum.Duration, start_datetime: datetime
-):
-    # asyncpg under Python 3.7 doesn't support timezone-aware datetimes for the EXTRACT
-    # function, so we will send it as a naive datetime in UTC
-    if sys.version_info < (3, 8):
-        start_datetime = start_datetime.astimezone(timezone.utc).replace(tzinfo=None)
-
-    return sa.func.floor(
-        (
-            sa.func.extract("epoch", db.TaskRun.start_time)
-            - sa.func.extract("epoch", start_datetime)
-        )
-        / delta.total_seconds()
-    ).label("bucket")
-
-
-def _sqlite_bucket_expression(
-    db: PrefectDBInterface, delta: pendulum.Duration, start_datetime: datetime
-):
-    return sa.func.floor(
-        (
-            (
-                sa.func.strftime("%s", db.TaskRun.start_time)
-                - sa.func.strftime("%s", start_datetime)
-            )
-            / delta.total_seconds()
-        )
-    ).label("bucket")
 
 
 @router.post("/dashboard/counts")
@@ -121,11 +89,10 @@ async def read_dashboard_task_run_counts(
             start_time.microsecond,
             start_time.timezone,
         )
-        bucket_expression = (
-            _sqlite_bucket_expression(db, delta, start_datetime)
-            if db.dialect.name == "sqlite"
-            else _postgres_bucket_expression(db, delta, start_datetime)
-        )
+        bucket_expression = sa.func.floor(
+            sa.func.date_diff_seconds(db.TaskRun.start_time, start_datetime)
+            / delta.total_seconds()
+        ).label("bucket")
 
         raw_counts = (
             (

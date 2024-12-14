@@ -8,7 +8,6 @@ from sqlalchemy.sql.selectable import Select
 
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
-from prefect.server.utilities.database import json_extract
 from prefect.types import DateTime
 from prefect.utilities.collections import AutoEnum
 
@@ -290,16 +289,8 @@ class Countable(AutoEnum):
             return db.Event.event
         elif self == self.resource:
             return sa.func.coalesce(
-                json_extract(
-                    db.Event.resource,
-                    "prefect.resource.name",
-                    wrap_quotes=db.dialect.name == "sqlite",
-                ),
-                json_extract(
-                    db.Event.resource,
-                    "prefect.name",
-                    wrap_quotes=db.dialect.name == "sqlite",
-                ),
+                db.Event.resource["prefect.resource.name"].astext,
+                db.Event.resource["prefect.name"].astext,
                 db.Event.resource_id,
             )
         else:
