@@ -1,34 +1,55 @@
-import datetime
+from collections.abc import Hashable
 from contextlib import asynccontextmanager
+from typing import TYPE_CHECKING, Any
 
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
+from typing_extensions import TypeAlias
 
 from prefect.server.database import orm_models
 from prefect.server.database.alembic_commands import alembic_downgrade, alembic_upgrade
 from prefect.server.database.configurations import BaseDatabaseConfiguration
-from prefect.server.database.query_components import BaseQueryComponents
 from prefect.server.utilities.database import get_dialect
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
+
+if TYPE_CHECKING:
+    from prefect.server.database.query_components import BaseQueryComponents
+
+_UniqueKey: TypeAlias = tuple[Hashable, ...]
 
 
 class DBSingleton(type):
     """Ensures that only one database interface is created per unique key"""
 
-    _instances = dict()
+    _instances: dict[
+        tuple[str, _UniqueKey, _UniqueKey, _UniqueKey], "DBSingleton"
+    ] = dict()
 
-    def __call__(cls, *args, **kwargs):
-        unique_key = (
+    def __call__(
+        cls,
+        *args: Any,
+        database_config: BaseDatabaseConfiguration,
+        query_components: "BaseQueryComponents",
+        orm: orm_models.BaseORMConfiguration,
+        **kwargs: Any,
+    ) -> "DBSingleton":
+        instance_key = (
             cls.__name__,
-            kwargs["database_config"]._unique_key(),
-            kwargs["query_components"]._unique_key(),
-            kwargs["orm"]._unique_key(),
+            database_config.unique_key(),
+            query_components.unique_key(),
+            orm.unique_key(),
         )
-        if unique_key not in cls._instances:
-            cls._instances[unique_key] = super(DBSingleton, cls).__call__(
-                *args, **kwargs
+        try:
+            instance = cls._instances[instance_key]
+        except KeyError:
+            instance = cls._instances[instance_key] = super().__call__(
+                *args,
+                database_config=database_config,
+                query_components=query_components,
+                orm=orm,
+                **kwargs,
             )
-        return cls._instances[unique_key]
+        return instance
 
 
 class PrefectDBInterface(metaclass=DBSingleton):
@@ -44,30 +65,30 @@ class PrefectDBInterface(metaclass=DBSingleton):
     def __init__(
         self,
         database_config: BaseDatabaseConfiguration,
-        query_components: BaseQueryComponents,
+        query_components: "BaseQueryComponents",
         orm: orm_models.BaseORMConfiguration,
     ):
         self.database_config = database_config
         self.queries = query_components
         self.orm = orm
 
-    async def create_db(self):
+    async def create_db(self) -> None:
         """Create the database"""
         await self.run_migrations_upgrade()
 
-    async def drop_db(self):
+    async def drop_db(self) -> None:
         """Drop the database"""
         await self.run_migrations_downgrade(revision="base")
 
-    async def run_migrations_upgrade(self):
+    async def run_migrations_upgrade(self) -> None:
         """Run all upgrade migrations"""
         await run_sync_in_worker_thread(alembic_upgrade)
 
-    async def run_migrations_downgrade(self, revision: str = "-1"):
+    async def run_migrations_downgrade(self, revision: str = "-1") -> None:
         """Run all downgrade migrations"""
         await run_sync_in_worker_thread(alembic_downgrade, revision=revision)
 
-    async def is_db_connectable(self):
+    async def is_db_connectable(self) -> bool:
         """
         Returns boolean indicating if the database is connectable.
         This method is used to determine if the server is ready to accept requests.
@@ -87,7 +108,7 @@ class PrefectDBInterface(metaclass=DBSingleton):
 
         return engine
 
-    async def session(self):
+    async def session(self) -> AsyncSession:
         """
         Provides a SQLAlchemy session.
         """
@@ -117,292 +138,192 @@ class PrefectDBInterface(metaclass=DBSingleton):
                 yield session
 
     @property
-    def dialect(self) -> sa.engine.Dialect:
+    def dialect(self) -> type[sa.engine.Dialect]:
         return get_dialect(self.database_config.connection_url)
 
     @property
-    def Base(self):
+    def Base(self) -> type[orm_models.Base]:
         """Base class for orm models"""
         return orm_models.Base
 
     @property
-    def Flow(self):
+    def Flow(self) -> type[orm_models.Flow]:
         """A flow orm model"""
         return orm_models.Flow
 
     @property
-    def FlowRun(self):
+    def FlowRun(self) -> type[orm_models.FlowRun]:
         """A flow run orm model"""
         return orm_models.FlowRun
 
     @property
-    def FlowRunState(self):
+    def FlowRunState(self) -> type[orm_models.FlowRunState]:
         """A flow run state orm model"""
         return orm_models.FlowRunState
 
     @property
-    def TaskRun(self):
+    def TaskRun(self) -> type[orm_models.TaskRun]:
         """A task run orm model"""
         return orm_models.TaskRun
 
     @property
-    def TaskRunState(self):
+    def TaskRunState(self) -> type[orm_models.TaskRunState]:
         """A task run state orm model"""
         return orm_models.TaskRunState
 
     @property
-    def Artifact(self):
+    def Artifact(self) -> type[orm_models.Artifact]:
         """An artifact orm model"""
         return orm_models.Artifact
 
     @property
-    def ArtifactCollection(self):
+    def ArtifactCollection(self) -> type[orm_models.ArtifactCollection]:
         """An artifact collection orm model"""
         return orm_models.ArtifactCollection
 
     @property
-    def TaskRunStateCache(self):
+    def TaskRunStateCache(self) -> type[orm_models.TaskRunStateCache]:
         """A task run state cache orm model"""
         return orm_models.TaskRunStateCache
 
     @property
-    def Deployment(self):
+    def Deployment(self) -> type[orm_models.Deployment]:
         """A deployment orm model"""
         return orm_models.Deployment
 
     @property
-    def DeploymentSchedule(self):
+    def DeploymentSchedule(self) -> type[orm_models.DeploymentSchedule]:
         """A deployment schedule orm model"""
         return orm_models.DeploymentSchedule
 
     @property
-    def SavedSearch(self):
+    def SavedSearch(self) -> type[orm_models.SavedSearch]:
         """A saved search orm model"""
         return orm_models.SavedSearch
 
     @property
-    def WorkPool(self):
+    def WorkPool(self) -> type[orm_models.WorkPool]:
         """A work pool orm model"""
         return orm_models.WorkPool
 
     @property
-    def Worker(self):
+    def Worker(self) -> type[orm_models.Worker]:
         """A worker process orm model"""
         return orm_models.Worker
 
     @property
-    def Log(self):
+    def Log(self) -> type[orm_models.Log]:
         """A log orm model"""
         return orm_models.Log
 
     @property
-    def ConcurrencyLimit(self):
+    def ConcurrencyLimit(self) -> type[orm_models.ConcurrencyLimit]:
         """A concurrency model"""
         return orm_models.ConcurrencyLimit
 
     @property
-    def ConcurrencyLimitV2(self):
+    def ConcurrencyLimitV2(self) -> type[orm_models.ConcurrencyLimitV2]:
         """A v2 concurrency model"""
         return orm_models.ConcurrencyLimitV2
 
     @property
-    def CsrfToken(self):
+    def CsrfToken(self) -> type[orm_models.CsrfToken]:
         """A csrf token model"""
         return orm_models.CsrfToken
 
     @property
-    def WorkQueue(self):
+    def WorkQueue(self) -> type[orm_models.WorkQueue]:
         """A work queue model"""
         return orm_models.WorkQueue
 
     @property
-    def Agent(self):
+    def Agent(self) -> type[orm_models.Agent]:
         """An agent model"""
         return orm_models.Agent
 
     @property
-    def BlockType(self):
+    def BlockType(self) -> type[orm_models.BlockType]:
         """A block type model"""
         return orm_models.BlockType
 
     @property
-    def BlockSchema(self):
+    def BlockSchema(self) -> type[orm_models.BlockSchema]:
         """A block schema model"""
         return orm_models.BlockSchema
 
     @property
-    def BlockSchemaReference(self):
+    def BlockSchemaReference(self) -> type[orm_models.BlockSchemaReference]:
         """A block schema reference model"""
         return orm_models.BlockSchemaReference
 
     @property
-    def BlockDocument(self):
+    def BlockDocument(self) -> type[orm_models.BlockDocument]:
         """A block document model"""
         return orm_models.BlockDocument
 
     @property
-    def BlockDocumentReference(self):
+    def BlockDocumentReference(self) -> type[orm_models.BlockDocumentReference]:
         """A block document reference model"""
         return orm_models.BlockDocumentReference
 
     @property
-    def FlowRunNotificationPolicy(self):
+    def FlowRunNotificationPolicy(self) -> type[orm_models.FlowRunNotificationPolicy]:
         """A flow run notification policy model"""
         return orm_models.FlowRunNotificationPolicy
 
     @property
-    def FlowRunNotificationQueue(self):
+    def FlowRunNotificationQueue(self) -> type[orm_models.FlowRunNotificationQueue]:
         """A flow run notification queue model"""
         return orm_models.FlowRunNotificationQueue
 
     @property
-    def Configuration(self):
+    def Configuration(self) -> type[orm_models.Configuration]:
         """An configuration model"""
         return orm_models.Configuration
 
     @property
-    def Variable(self):
+    def Variable(self) -> type[orm_models.Variable]:
         """A variable model"""
         return orm_models.Variable
 
     @property
-    def FlowRunInput(self):
+    def FlowRunInput(self) -> type[orm_models.FlowRunInput]:
         """A flow run input model"""
         return orm_models.FlowRunInput
 
     @property
-    def Automation(self):
+    def Automation(self) -> type[orm_models.Automation]:
         """An automation model"""
         return orm_models.Automation
 
     @property
-    def AutomationBucket(self):
+    def AutomationBucket(self) -> type[orm_models.AutomationBucket]:
         """An automation bucket model"""
         return orm_models.AutomationBucket
 
     @property
-    def AutomationRelatedResource(self):
+    def AutomationRelatedResource(self) -> type[orm_models.AutomationRelatedResource]:
         """An automation related resource model"""
         return orm_models.AutomationRelatedResource
 
     @property
-    def CompositeTriggerChildFiring(self):
+    def CompositeTriggerChildFiring(
+        self,
+    ) -> type[orm_models.CompositeTriggerChildFiring]:
         """A model capturing a composite trigger's child firing"""
         return orm_models.CompositeTriggerChildFiring
 
     @property
-    def AutomationEventFollower(self):
+    def AutomationEventFollower(self) -> type[orm_models.AutomationEventFollower]:
         """A model capturing one event following another event"""
         return orm_models.AutomationEventFollower
 
     @property
-    def Event(self):
+    def Event(self) -> type[orm_models.Event]:
         """An event model"""
         return orm_models.Event
 
     @property
-    def EventResource(self):
+    def EventResource(self) -> type[orm_models.EventResource]:
         """An event resource model"""
         return orm_models.EventResource
-
-    @property
-    def deployment_unique_upsert_columns(self):
-        """Unique columns for upserting a Deployment"""
-        return self.orm.deployment_unique_upsert_columns
-
-    @property
-    def concurrency_limit_unique_upsert_columns(self):
-        """Unique columns for upserting a ConcurrencyLimit"""
-        return self.orm.concurrency_limit_unique_upsert_columns
-
-    @property
-    def flow_run_unique_upsert_columns(self):
-        """Unique columns for upserting a FlowRun"""
-        return self.orm.flow_run_unique_upsert_columns
-
-    @property
-    def artifact_collection_unique_upsert_columns(self):
-        """Unique columns for upserting an ArtifactCollection"""
-        return self.orm.artifact_collection_unique_upsert_columns
-
-    @property
-    def block_type_unique_upsert_columns(self):
-        """Unique columns for upserting a BlockType"""
-        return self.orm.block_type_unique_upsert_columns
-
-    @property
-    def block_schema_unique_upsert_columns(self):
-        """Unique columns for upserting a BlockSchema"""
-        return self.orm.block_schema_unique_upsert_columns
-
-    @property
-    def flow_unique_upsert_columns(self):
-        """Unique columns for upserting a Flow"""
-        return self.orm.flow_unique_upsert_columns
-
-    @property
-    def saved_search_unique_upsert_columns(self):
-        """Unique columns for upserting a SavedSearch"""
-        return self.orm.saved_search_unique_upsert_columns
-
-    @property
-    def task_run_unique_upsert_columns(self):
-        """Unique columns for upserting a TaskRun"""
-        return self.orm.task_run_unique_upsert_columns
-
-    @property
-    def block_document_unique_upsert_columns(self):
-        """Unique columns for upserting a BlockDocument"""
-        return self.orm.block_document_unique_upsert_columns
-
-    def insert(self, model):
-        """INSERTs a model into the database"""
-        return self.queries.insert(model)
-
-    def make_timestamp_intervals(
-        self,
-        start_time: datetime.datetime,
-        end_time: datetime.datetime,
-        interval: datetime.timedelta,
-    ):
-        return self.queries.make_timestamp_intervals(start_time, end_time, interval)
-
-    def set_state_id_on_inserted_flow_runs_statement(
-        self, inserted_flow_run_ids, insert_flow_run_states
-    ):
-        """Given a list of flow run ids and associated states, set the state_id
-        to the appropriate state for all flow runs"""
-        return self.queries.set_state_id_on_inserted_flow_runs_statement(
-            orm_models.FlowRun,
-            orm_models.FlowRunState,
-            inserted_flow_run_ids,
-            insert_flow_run_states,
-        )
-
-    @property
-    def uses_json_strings(self):
-        return self.queries.uses_json_strings
-
-    def cast_to_json(self, json_obj):
-        return self.queries.cast_to_json(json_obj)
-
-    def build_json_object(self, *args):
-        return self.queries.build_json_object(*args)
-
-    def json_arr_agg(self, json_array):
-        return self.queries.json_arr_agg(json_array)
-
-    async def get_flow_run_notifications_from_queue(
-        self, session: sa.orm.Session, limit: int
-    ):
-        return await self.queries.get_flow_run_notifications_from_queue(
-            session=session, limit=limit
-        )
-
-    async def read_configuration_value(self, session: AsyncSession, key: str):
-        """Read a configuration value"""
-        return await self.queries.read_configuration_value(session=session, key=key)
-
-    def clear_configuration_value_cache_for_key(self, key: str):
-        """Removes a configuration key from the cache."""
-        return self.queries.clear_configuration_value_cache_for_key(key=key)
