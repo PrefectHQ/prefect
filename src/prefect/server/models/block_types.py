@@ -11,9 +11,8 @@ import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import schemas
-from prefect.server.database.dependencies import db_injector
-from prefect.server.database.interface import PrefectDBInterface
-from prefect.server.database.orm_models import BlockSchema, BlockType
+from prefect.server.database import PrefectDBInterface, db_injector
+from prefect.server.database.orm_models import BlockType
 
 if TYPE_CHECKING:
     from prefect.client.schemas import BlockType as ClientBlockType
@@ -56,19 +55,19 @@ async def create_block_type(
         insert_values["code_example"] = html.escape(
             insert_values["code_example"], quote=False
         )
-    insert_stmt = db.insert(BlockType).values(**insert_values)
+    insert_stmt = db.queries.insert(db.BlockType).values(**insert_values)
     if override:
         insert_stmt = insert_stmt.on_conflict_do_update(
-            index_elements=db.block_type_unique_upsert_columns,
+            index_elements=db.orm.block_type_unique_upsert_columns,
             set_=insert_values,
         )
     await session.execute(insert_stmt)
 
     query = (
-        sa.select(BlockType)
+        sa.select(db.BlockType)
         .where(
             sa.and_(
-                BlockType.name == insert_values["name"],
+                db.BlockType.name == insert_values["name"],
             )
         )
         .execution_options(populate_existing=True)
@@ -78,7 +77,9 @@ async def create_block_type(
     return result.scalar()
 
 
+@db_injector
 async def read_block_type(
+    db: PrefectDBInterface,
     session: AsyncSession,
     block_type_id: UUID,
 ) -> Union[BlockType, None]:
@@ -92,11 +93,12 @@ async def read_block_type(
     Returns:
         BlockType: an ORM block type model
     """
-    return await session.get(BlockType, block_type_id)
+    return await session.get(db.BlockType, block_type_id)
 
 
+@db_injector
 async def read_block_type_by_slug(
-    session: AsyncSession, block_type_slug: str
+    db: PrefectDBInterface, session: AsyncSession, block_type_slug: str
 ) -> Union[BlockType, None]:
     """
     Reads a block type by slug.
@@ -110,12 +112,14 @@ async def read_block_type_by_slug(
 
     """
     result = await session.execute(
-        sa.select(BlockType).where(BlockType.slug == block_type_slug)
+        sa.select(db.BlockType).where(db.BlockType.slug == block_type_slug)
     )
     return result.scalar()
 
 
+@db_injector
 async def read_block_types(
+    db: PrefectDBInterface,
     session: AsyncSession,
     block_type_filter: Optional[schemas.filters.BlockTypeFilter] = None,
     block_schema_filter: Optional[schemas.filters.BlockSchemaFilter] = None,
@@ -130,14 +134,14 @@ async def read_block_types(
     Returns:
         List[BlockType]: List of
     """
-    query = sa.select(BlockType).order_by(BlockType.name)
+    query = sa.select(db.BlockType).order_by(db.BlockType.name)
 
     if block_type_filter is not None:
         query = query.where(block_type_filter.as_sql_filter())
 
     if block_schema_filter is not None:
-        exists_clause = sa.select(BlockSchema).where(
-            BlockSchema.block_type_id == BlockType.id,
+        exists_clause = sa.select(db.BlockSchema).where(
+            db.BlockSchema.block_type_id == db.BlockType.id,
             block_schema_filter.as_sql_filter(),
         )
         query = query.where(exists_clause.exists())
@@ -152,7 +156,9 @@ async def read_block_types(
     return result.scalars().unique().all()
 
 
+@db_injector
 async def update_block_type(
+    db: PrefectDBInterface,
     session: AsyncSession,
     block_type_id: Union[str, UUID],
     block_type: Union[
@@ -186,15 +192,18 @@ async def update_block_type(
         )
 
     update_statement = (
-        sa.update(BlockType)
-        .where(BlockType.id == block_type_id)
+        sa.update(db.BlockType)
+        .where(db.BlockType.id == block_type_id)
         .values(**block_type.model_dump_for_orm(exclude_unset=True, exclude={"id"}))
     )
     result = await session.execute(update_statement)
     return result.rowcount > 0
 
 
-async def delete_block_type(session: AsyncSession, block_type_id: str) -> bool:
+@db_injector
+async def delete_block_type(
+    db: PrefectDBInterface, session: AsyncSession, block_type_id: str
+) -> bool:
     """
     Delete a block type by id.
 
@@ -207,6 +216,6 @@ async def delete_block_type(session: AsyncSession, block_type_id: str) -> bool:
     """
 
     result = await session.execute(
-        sa.delete(BlockType).where(BlockType.id == block_type_id)
+        sa.delete(db.BlockType).where(db.BlockType.id == block_type_id)
     )
     return result.rowcount > 0

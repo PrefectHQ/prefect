@@ -3,8 +3,7 @@ from typing import Any, Dict
 from fastapi import Body, Depends, HTTPException, status
 
 from prefect.logging import get_logger
-from prefect.server.database.dependencies import provide_database_interface
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.utilities.server import APIRouter
 from prefect.utilities.schema_tools.hydration import HydrationContext, hydrate
 from prefect.utilities.schema_tools.validation import (

@@ -9,8 +9,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models, schemas
-from prefect.server.database.dependencies import db_injector
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, db_injector
 from prefect.server.events.clients import AssertingEventsClient
 from prefect.server.schemas.statuses import DeploymentStatus
 from prefect.server.services.foreman import Foreman

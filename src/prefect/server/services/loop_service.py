@@ -10,8 +10,7 @@ import anyio
 import pendulum
 
 from prefect.logging import get_logger
-from prefect.server.database.dependencies import inject_db
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, inject_db
 from prefect.settings import PREFECT_API_LOG_RETRYABLE_ERRORS
 from prefect.utilities.processutils import _register_signal
 

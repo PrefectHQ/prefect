@@ -6,8 +6,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
 from prefect.logging.loggers import get_logger
-from prefect.server.database.dependencies import db_injector, provide_database_interface
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import (
+    PrefectDBInterface,
+    db_injector,
+    provide_database_interface,
+)
 from prefect.server.events.counting import Countable, TimeUnit
 from prefect.server.events.filters import EventFilter, EventOrder
 from prefect.server.events.schemas.events import EventCount, ReceivedEvent
@@ -232,7 +235,7 @@ async def _write_sqlite_events(
             event for event in batch if event.id not in existing_event_ids
         ]
         event_rows = [event.as_database_row() for event in events_to_insert]
-        await session.execute(db.insert(db.Event).values(event_rows))
+        await session.execute(db.queries.insert(db.Event).values(event_rows))
 
         resource_rows: List[Dict[str, Any]] = []
         for event in events_to_insert:
@@ -241,7 +244,7 @@ async def _write_sqlite_events(
         if not resource_rows:
             continue
 
-        await session.execute(db.insert(db.EventResource).values(resource_rows))
+        await session.execute(db.queries.insert(db.EventResource).values(resource_rows))
 
 
 @db_injector
@@ -258,7 +261,7 @@ async def _write_postgres_events(
     for batch in _in_safe_batches(events):
         event_rows = [event.as_database_row() for event in batch]
         result = await session.scalars(
-            db.insert(db.Event)
+            db.queries.insert(db.Event)
             .on_conflict_do_nothing()
             .returning(db.Event.id)
             .values(event_rows)
@@ -277,7 +280,7 @@ async def _write_postgres_events(
         if not resource_rows:
             continue
 
-        await session.execute(db.insert(db.EventResource).values(resource_rows))
+        await session.execute(db.queries.insert(db.EventResource).values(resource_rows))
 
 
 def get_max_query_parameters() -> int:

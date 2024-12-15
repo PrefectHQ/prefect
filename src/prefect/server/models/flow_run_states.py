@@ -10,10 +10,13 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.database import orm_models
+from prefect.server.database.dependencies import db_injector
+from prefect.server.database.interface import PrefectDBInterface
 
 
+@db_injector
 async def read_flow_run_state(
-    session: AsyncSession, flow_run_state_id: UUID
+    db: PrefectDBInterface, session: AsyncSession, flow_run_state_id: UUID
 ) -> Union[orm_models.FlowRunState, None]:
     """
     Reads a flow run state by id.
@@ -26,11 +29,12 @@ async def read_flow_run_state(
         orm_models.FlowRunState: the flow state
     """
 
-    return await session.get(orm_models.FlowRunState, flow_run_state_id)
+    return await session.get(db.FlowRunState, flow_run_state_id)
 
 
+@db_injector
 async def read_flow_run_states(
-    session: AsyncSession, flow_run_id: UUID
+    db: PrefectDBInterface, session: AsyncSession, flow_run_id: UUID
 ) -> Sequence[orm_models.FlowRunState]:
     """
     Reads flow runs states for a flow run.
@@ -44,15 +48,17 @@ async def read_flow_run_states(
     """
 
     query = (
-        select(orm_models.FlowRunState)
+        select(db.FlowRunState)
         .filter_by(flow_run_id=flow_run_id)
-        .order_by(orm_models.FlowRunState.timestamp)
+        .order_by(db.FlowRunState.timestamp)
     )
     result = await session.execute(query)
     return result.scalars().unique().all()
 
 
+@db_injector
 async def delete_flow_run_state(
+    db: PrefectDBInterface,
     session: AsyncSession,
     flow_run_state_id: UUID,
 ) -> bool:
@@ -68,8 +74,6 @@ async def delete_flow_run_state(
     """
 
     result = await session.execute(
-        delete(orm_models.FlowRunState).where(
-            orm_models.FlowRunState.id == flow_run_state_id
-        )
+        delete(db.FlowRunState).where(db.FlowRunState.id == flow_run_state_id)
     )
     return result.rowcount > 0

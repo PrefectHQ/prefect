@@ -528,7 +528,7 @@ def create_app(
     async def run_migrations():
         """Ensure the database is created and up to date with the current migrations"""
         if prefect.settings.PREFECT_API_DATABASE_MIGRATE_ON_START:
-            from prefect.server.database.dependencies import provide_database_interface
+            from prefect.server.database import provide_database_interface
 
             db = provide_database_interface()
             await db.create_db()
@@ -539,7 +539,7 @@ def create_app(
         if not prefect.settings.PREFECT_API_BLOCKS_REGISTER_ON_START:
             return
 
-        from prefect.server.database.dependencies import provide_database_interface
+        from prefect.server.database import provide_database_interface
         from prefect.server.models.block_registration import run_block_auto_registration
 
         db = provide_database_interface()
