@@ -7,7 +7,6 @@ from typing import Optional
 
 import pendulum
 import sqlalchemy as sa
-from typing_extensions import Self
 
 from prefect.server import models
 from prefect.server.database.dependencies import db_injector
@@ -70,7 +69,7 @@ class Foreman(LoopService):
         )
 
     @db_injector
-    async def run_once(db: PrefectDBInterface, self: Self) -> None:
+    async def run_once(self, db: PrefectDBInterface) -> None:
         """
         Iterate over workers current marked as online. Mark workers as offline
         if they have an old last_heartbeat_time. Marks work pools as not ready
@@ -85,8 +84,7 @@ class Foreman(LoopService):
 
     @db_injector
     async def _mark_online_workers_without_a_recent_heartbeat_as_offline(
-        db: PrefectDBInterface,
-        self: Self,
+        self, db: PrefectDBInterface
     ) -> None:
         """
         Updates the status of workers that have an old last heartbeat time
@@ -147,7 +145,7 @@ class Foreman(LoopService):
             self.logger.info(f"Marked {result.rowcount} workers as offline.")
 
     @db_injector
-    async def _mark_work_pools_as_not_ready(db: PrefectDBInterface, self: Self):
+    async def _mark_work_pools_as_not_ready(self, db: PrefectDBInterface):
         """
         Marks a work pool as not ready.
 
@@ -185,10 +183,7 @@ class Foreman(LoopService):
                 self.logger.info(f"Marked work pool {work_pool.id} as NOT_READY.")
 
     @db_injector
-    async def _mark_deployments_as_not_ready(
-        db: PrefectDBInterface,
-        self: Self,
-    ):
+    async def _mark_deployments_as_not_ready(self, db: PrefectDBInterface) -> None:
         """
         Marks a deployment as NOT_READY and emits a deployment status event.
         Emits an event and updates any bookkeeping fields on the deployment.
@@ -231,10 +226,7 @@ class Foreman(LoopService):
         )
 
     @db_injector
-    async def _mark_work_queues_as_not_ready(
-        db: PrefectDBInterface,
-        self: Self,
-    ):
+    async def _mark_work_queues_as_not_ready(self, db: PrefectDBInterface):
         """
         Marks work queues as NOT_READY based on their last_polled field.
 

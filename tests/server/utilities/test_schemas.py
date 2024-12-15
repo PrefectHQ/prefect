@@ -1,7 +1,7 @@
 import importlib
 import os
 from contextlib import contextmanager
-from typing import Generator, Type
+from typing import Any, Generator, Optional, Union
 from uuid import uuid4
 
 import pendulum
@@ -12,13 +12,14 @@ from prefect.server.utilities.schemas import (
     IDBaseModel,
     ORMBaseModel,
     PrefectBaseModel,
+    PrefectDescriptorBase,
 )
 
 
 @contextmanager
 def reload_prefect_base_model(
-    test_mode_value,
-) -> Generator[Type[PrefectBaseModel], None, None]:
+    test_mode_value: Optional[str],
+) -> Generator[type[PrefectBaseModel], None, None]:
     import prefect.server.utilities.schemas.bases
 
     original_base_model = prefect.server.utilities.schemas.bases.PrefectBaseModel
@@ -57,7 +58,9 @@ class TestExtraForbidden:
             Model(x=1, y=2)
 
     @pytest.mark.parametrize("falsey_value", ["0", "False", "", None])
-    def test_extra_attributes_are_allowed_outside_test_mode(self, falsey_value):
+    def test_extra_attributes_are_allowed_outside_test_mode(
+        self, falsey_value: Optional[str]
+    ):
         with reload_prefect_base_model(falsey_value) as PrefectBaseModel:
 
             class Model(PrefectBaseModel):
@@ -66,7 +69,9 @@ class TestExtraForbidden:
         Model(x=1, y=2)
 
     @pytest.mark.parametrize("truthy_value", ["1", "True", "true"])
-    def test_extra_attributes_are_not_allowed_with_truthy_test_mode(self, truthy_value):
+    def test_extra_attributes_are_not_allowed_with_truthy_test_mode(
+        self, truthy_value: Optional[str]
+    ):
         with reload_prefect_base_model(truthy_value) as PrefectBaseModel:
 
             class Model(PrefectBaseModel):
@@ -80,7 +85,7 @@ class TestExtraForbidden:
 
 class TestNestedDict:
     @pytest.fixture()
-    def nested(self):
+    def nested(self) -> pydantic.BaseModel:
         class Child(pydantic.BaseModel):
             z: int
 
@@ -90,11 +95,11 @@ class TestNestedDict:
 
         return Parent(x=1, y=Child(z=2))
 
-    def test_full_dict(self, nested):
+    def test_full_dict(self, nested: PrefectBaseModel):
         assert nested.model_dump() == {"x": 1, "y": {"z": 2}}
         assert isinstance(nested.model_dump()["y"], dict)
 
-    def test_simple_dict(self, nested):
+    def test_simple_dict(self, nested: PrefectBaseModel):
         assert dict(nested) == {"x": 1, "y": nested.y}
         assert isinstance(dict(nested)["y"], pydantic.BaseModel)
 
@@ -177,3 +182,39 @@ class TestEqualityExcludedFields:
         # if the PBM is the RH operand, the equality check fails
         # because the Pydantic logic of using every field is applied
         assert Y(val=1) != X(val=1)
+
+
+class ConcreteDescriptor(PrefectDescriptorBase):
+    def __get__(self, *args: Any) -> Any:
+        return super().__get__(*args)
+
+
+class PlainOwner:
+    descr = ConcreteDescriptor()
+
+
+class ModelOwner(PrefectBaseModel):
+    descr = ConcreteDescriptor()
+    _private_descr = ConcreteDescriptor()
+
+
+class TestPrefectDescriptorBase:
+    @pytest.mark.parametrize("type_", (PlainOwner, ModelOwner))
+    def test_class_access(self, type_: Union[PlainOwner, ModelOwner]):
+        assert type_.descr is type_.__dict__["descr"]
+
+    def test_base_implementation(self):
+        instance = PlainOwner()
+        with pytest.raises(AttributeError):
+            instance.descr
+
+    def test_pydantic_ignored_types(self):
+        assert "descr" not in ModelOwner.model_fields
+        assert "descr" in dir(ModelOwner)
+        assert not ModelOwner.__private_attributes__
+
+    @pytest.mark.parametrize("attr_name", ("descr", "_private_descr"))
+    def test_pydantic_model_access(self, attr_name: str):
+        instance = ModelOwner()
+        with pytest.raises(AttributeError):
+            getattr(instance, attr_name)
