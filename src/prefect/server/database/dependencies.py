@@ -2,12 +2,30 @@
 Injected database interface dependencies
 """
 
-import asyncio
+import sys
+from collections.abc import Generator
 from contextlib import ExitStack, contextmanager
 from functools import wraps
-from typing import Callable, Type, TypeVar
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Generic,
+    Optional,
+    Union,
+    cast,
+    overload,
+)
 
-from typing_extensions import Concatenate, ParamSpec
+from typing_extensions import (
+    Concatenate,
+    Never,
+    ParamSpec,
+    Self,
+    TypeAlias,
+    TypedDict,
+    TypeVar,
+)
 
 from prefect.server.database.configurations import (
     AioSqliteConfiguration,
@@ -26,17 +44,32 @@ from prefect.server.database.query_components import (
     BaseQueryComponents,
 )
 from prefect.server.utilities.database import get_dialect
+from prefect.server.utilities.schemas import PrefectDescriptorBase
 from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
 
-MODELS_DEPENDENCIES = {
+P = ParamSpec("P")
+R = TypeVar("R", infer_variance=True)
+T = TypeVar("T", infer_variance=True)
+
+_Function = Callable[P, R]
+_Method = Callable[Concatenate[T, P], R]
+_DBFunction: TypeAlias = Callable[Concatenate[PrefectDBInterface, P], R]
+_DBMethod: TypeAlias = Callable[Concatenate[T, PrefectDBInterface, P], R]
+
+
+class _ModelDependencies(TypedDict):
+    database_config: Optional[BaseDatabaseConfiguration]
+    query_components: Optional[BaseQueryComponents]
+    orm: Optional[BaseORMConfiguration]
+    interface_class: Optional[type[PrefectDBInterface]]
+
+
+MODELS_DEPENDENCIES: _ModelDependencies = {
     "database_config": None,
     "query_components": None,
     "orm": None,
     "interface_class": None,
 }
-
-P = ParamSpec("P")
-R = TypeVar("R")
 
 
 def provide_database_interface() -> PrefectDBInterface:
@@ -103,41 +136,46 @@ def provide_database_interface() -> PrefectDBInterface:
     )
 
 
-def inject_db(fn: Callable) -> Callable:
+def inject_db(fn: Callable[P, R]) -> Callable[P, R]:
     """
     Decorator that provides a database interface to a function.
 
     The decorated function _must_ take a `db` kwarg and if a db is passed
     when called it will be used instead of creating a new one.
 
-    If the function is a coroutine function, the wrapper will await the
-    function's result. Otherwise, the wrapper will call the function
-    normally.
     """
 
-    def inject(kwargs):
+    # NOTE: this wrapper will not pass a iscoroutinefunction()
+    # check unless the caller first uses inspect.unwrap()
+    # or we start using inspect.markcoroutinefunction() (Python 3.12)
+    # In the past this has only been an issue when @inject_db
+    # was being used in tests.
+    #
+    # If this becomes an issue again in future, use the @db_injector decorator
+    # instead.
+
+    @wraps(fn)
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
         if "db" not in kwargs or kwargs["db"] is None:
             kwargs["db"] = provide_database_interface()
-
-    @wraps(fn)
-    async def async_wrapper(*args, **kwargs):
-        inject(kwargs)
-        return await fn(*args, **kwargs)
-
-    @wraps(fn)
-    def sync_wrapper(*args, **kwargs):
-        inject(kwargs)
         return fn(*args, **kwargs)
 
-    if asyncio.iscoroutinefunction(fn):
-        return async_wrapper
+    return wrapper
 
-    return sync_wrapper
+
+@overload
+def db_injector(func: _DBMethod[T, P, R]) -> _Method[T, P, R]:
+    ...
+
+
+@overload
+def db_injector(func: _DBFunction[P, R]) -> _Function[P, R]:
+    ...
 
 
 def db_injector(
-    func: Callable[Concatenate[PrefectDBInterface, P], R],
-) -> Callable[P, R]:
+    func: Union[_DBMethod[T, P, R], _DBFunction[P, R]],
+) -> Union[_Method[T, P, R], _Function[P, R]]:
     """
     Decorator to inject a PrefectDBInterface instance as the first positional
     argument to the decorated function.
@@ -147,34 +185,186 @@ def db_injector(
     argument. This change enhances type hinting by making the dependency on
     PrefectDBInterface explicit in the function signature.
 
+    When decorating a coroutine function, the result will continue to pass the
+    iscoroutinefunction() test.
+
     Args:
-        func: The function to decorate, which can be either synchronous or
-        asynchronous.
+        func: The function or method to decorate.
 
     Returns:
-        A wrapped function with the PrefectDBInterface instance injected as the
-        first argument, preserving the original function's other parameters and
-        return type.
+        A wrapped descriptor object which injects the PrefectDBInterface instance
+        as the first argument to the function or method. This handles method
+        binding transparently.
+
+    """
+    return DBInjector(func)
+
+
+class _FuncWrapper(Generic[P, R]):
+    """Mixin class to delegate all attribute access to a wrapped function
+
+    This helps compatibility and echos what the Python method wrapper object
+    does, and makes subclasses transarent to many introspection techniques.
+
     """
 
-    @wraps(func)
-    def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+    __slots__ = "_func"
+
+    def __init__(self, func: Callable[P, R]) -> None:
+        object.__setattr__(self, "_func", func)
+
+    @property
+    def __wrapped__(self) -> Callable[P, R]:
+        """Access the underlying wrapped function"""
+        return self._func
+
+    if not TYPE_CHECKING:
+        # Attribute hooks are guarded against typecheckers which then tend to
+        # mark the class as 'anything goes' otherwise.
+
+        def __getattr__(self, name: str) -> Any:
+            return getattr(self._func, name)
+
+        def __setattr__(self, name: str, value: Any) -> None:
+            setattr(self._func, name, value)
+
+        def __delattr__(self, name: str) -> None:
+            delattr(self._func, name)
+
+        if sys.version_info < (3, 10):
+            # Python 3.9 inspect.iscoroutinefunction tests are not flexible
+            # enough to accept this decorator, unfortunately enough. But
+            # asyncio.iscoroutinefunction does check for a marker object that,
+            # when found as func._is_coroutine lets you pass the test anyway.
+
+            @property
+            def _is_coroutine(self):
+                """Python 3.9 asyncio.iscoroutinefunction work-around"""
+                from asyncio import coroutines, iscoroutinefunction
+
+                if iscoroutinefunction(self._func):
+                    return getattr(coroutines, "_is_coroutine", None)
+
+
+# Descriptor object responsible for injecting the PrefectDBInterface instance.
+# It has no docstring to encourage Python to find the wrapped callable docstring
+# instead.
+class DBInjector(
+    PrefectDescriptorBase,
+    _FuncWrapper[P, R],
+    Generic[T, P, R],
+):
+    __slots__ = ("__name__",)
+
+    __name__: str
+
+    if TYPE_CHECKING:
+
+        @overload
+        def __new__(cls, func: _DBMethod[T, P, R]) -> "DBInjector[T, P, R]":
+            ...
+
+        @overload
+        def __new__(cls, func: _DBFunction[P, R]) -> "DBInjector[None, P, R]":
+            ...
+
+        def __new__(
+            cls, func: Union[_DBMethod[T, P, R], _DBFunction[P, R]]
+        ) -> Union["DBInjector[T, P, R]", "DBInjector[None, P, R]"]:
+            ...
+
+    def __init__(self, func: Union[_DBMethod[T, P, R], _DBFunction[P, R]]) -> None:
+        super().__init__(cast(Callable[P, R], func))
+
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R:
         db = provide_database_interface()
+        func = cast(_DBFunction[P, R], self._func)
         return func(db, *args, **kwargs)
 
-    @wraps(func)
-    async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
-        db = provide_database_interface()
-        return await func(db, *args, **kwargs)  # type: ignore
+    def __set_name__(self, owner: type[T], name: str) -> None:
+        object.__setattr__(self, "__name__", name)
 
-    if asyncio.iscoroutinefunction(func):
-        return async_wrapper  # type: ignore
-    else:
-        return sync_wrapper
+    @overload
+    def __get__(self, instance: None, owner: type[T]) -> Self:
+        ...
+
+    @overload
+    def __get__(
+        self, instance: T, owner: Optional[type[T]] = None
+    ) -> "_DBInjectorMethod[T, P, R]":
+        ...
+
+    @overload
+    def __get__(self, instance: None, owner: None) -> Never:
+        ...
+
+    def __get__(
+        self, instance: Optional[T], owner: Optional[type[T]] = None
+    ) -> Union[Self, "_DBInjectorMethod[T, P, R]"]:
+        if instance is None:
+            if owner is None:
+                raise TypeError("__get__(None, None) is invalid")
+            return self
+        return _DBInjectorMethod(instance, self._func.__get__(instance))
+
+    def __repr__(self) -> str:
+        return f"<DBInjector({self._func.__qualname__} at {id(self):#x}>"
+
+    # The __doc__ property can't be defined in a mix-in.
+
+    @property
+    def __doc__(self) -> Optional[str]:
+        return getattr(self._func, "__doc__", None)
+
+    @__doc__.setter
+    def __doc__(self, doc: Optional[str]) -> None:
+        self._func.__doc__ = doc
+
+    @__doc__.deleter
+    def __doc__(self) -> None:  # type: ignore  # pyright doesn't like the override but it is fine
+        self._func.__doc__ = None
+
+
+# Proxy object to handle db interface injecting for bound methods.
+class _DBInjectorMethod(_FuncWrapper[P, R], Generic[T, P, R]):
+    __slots__ = ("_owner",)
+    _owner: T
+
+    def __init__(self, owner: T, func: _DBFunction[P, R]) -> None:
+        super().__init__(cast(Callable[P, R], func))
+        object.__setattr__(self, "_owner", owner)
+
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R:
+        db = provide_database_interface()
+        func = cast(_DBFunction[P, R], self._func)
+        return func(db, *args, **kwargs)
+
+    @property
+    def __self__(self) -> T:
+        return self._owner
+
+    def __repr__(self) -> str:
+        return f"<bound _DBInjectorMethod({self._func.__qualname__} at {id(self):#x}>"
+
+    # The __doc__ property can't be defined in a mix-in.
+
+    @property
+    def __doc__(self) -> Optional[str]:
+        return getattr(self._func, "__doc__", None)
+
+    @__doc__.setter
+    def __doc__(self, doc: Optional[str]) -> None:
+        self._func.__doc__ = doc
+
+    @__doc__.deleter
+    def __doc__(self) -> None:  # type: ignore  # pyright doesn't like the override but it is fine
+        self._func.__doc__ = None
 
 
 @contextmanager
-def temporary_database_config(tmp_database_config: BaseDatabaseConfiguration):
+def temporary_database_config(
+    tmp_database_config: Optional[BaseDatabaseConfiguration],
+) -> Generator[None, object, None]:
     """
     Temporarily override the Prefect REST API database configuration.
     When the context is closed, the existing database configuration will
@@ -193,7 +383,9 @@ def temporary_database_config(tmp_database_config: BaseDatabaseConfiguration):
 
 
 @contextmanager
-def temporary_query_components(tmp_queries: BaseQueryComponents):
+def temporary_query_components(
+    tmp_queries: Optional[BaseQueryComponents],
+) -> Generator[None, object, None]:
     """
     Temporarily override the Prefect REST API database query components.
     When the context is closed, the existing query components will
@@ -212,7 +404,9 @@ def temporary_query_components(tmp_queries: BaseQueryComponents):
 
 
 @contextmanager
-def temporary_orm_config(tmp_orm_config: BaseORMConfiguration):
+def temporary_orm_config(
+    tmp_orm_config: Optional[BaseORMConfiguration],
+) -> Generator[None, object, None]:
     """
     Temporarily override the Prefect REST API ORM configuration.
     When the context is closed, the existing orm configuration will
@@ -231,7 +425,9 @@ def temporary_orm_config(tmp_orm_config: BaseORMConfiguration):
 
 
 @contextmanager
-def temporary_interface_class(tmp_interface_class: Type[PrefectDBInterface]):
+def temporary_interface_class(
+    tmp_interface_class: Optional[type[PrefectDBInterface]],
+) -> Generator[None, object, None]:
     """
     Temporarily override the Prefect REST API interface class When the context is closed,
     the existing interface will be restored.
@@ -250,11 +446,11 @@ def temporary_interface_class(tmp_interface_class: Type[PrefectDBInterface]):
 
 @contextmanager
 def temporary_database_interface(
-    tmp_database_config: BaseDatabaseConfiguration = None,
-    tmp_queries: BaseQueryComponents = None,
-    tmp_orm_config: BaseORMConfiguration = None,
-    tmp_interface_class: Type[PrefectDBInterface] = None,
-):
+    tmp_database_config: Optional[BaseDatabaseConfiguration] = None,
+    tmp_queries: Optional[BaseQueryComponents] = None,
+    tmp_orm_config: Optional[BaseORMConfiguration] = None,
+    tmp_interface_class: Optional[type[PrefectDBInterface]] = None,
+) -> Generator[None, object, None]:
     """
     Temporarily override the Prefect REST API database interface.
 
@@ -284,21 +480,21 @@ def temporary_database_interface(
         yield
 
 
-def set_database_config(database_config: BaseDatabaseConfiguration):
+def set_database_config(database_config: Optional[BaseDatabaseConfiguration]) -> None:
     """Set Prefect REST API database configuration."""
     MODELS_DEPENDENCIES["database_config"] = database_config
 
 
-def set_query_components(query_components: BaseQueryComponents):
+def set_query_components(query_components: Optional[BaseQueryComponents]) -> None:
     """Set Prefect REST API query components."""
     MODELS_DEPENDENCIES["query_components"] = query_components
 
 
-def set_orm_config(orm_config: BaseORMConfiguration):
+def set_orm_config(orm_config: Optional[BaseORMConfiguration]) -> None:
     """Set Prefect REST API orm configuration."""
     MODELS_DEPENDENCIES["orm"] = orm_config
 
 
-def set_interface_class(interface_class: Type[PrefectDBInterface]):
+def set_interface_class(interface_class: Optional[type[PrefectDBInterface]]) -> None:
     """Set Prefect REST API interface class."""
     MODELS_DEPENDENCIES["interface_class"] = interface_class

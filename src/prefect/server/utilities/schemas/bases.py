@@ -1,49 +1,59 @@
 import datetime
 import os
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    ClassVar,
-    Dict,
-    Optional,
-    Set,
-    Type,
-    TypeVar,
-)
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, Any, ClassVar, Optional, TypeVar
 from uuid import UUID, uuid4
 
 import pendulum
-from pydantic import (
-    BaseModel,
-    ConfigDict,
-    Field,
-)
+from pydantic import BaseModel, ConfigDict, Field
 from typing_extensions import Self
 
 from prefect.types import DateTime
 
 if TYPE_CHECKING:
     from pydantic.main import IncEx
+    from rich.repr import RichReprResult
 
 T = TypeVar("T")
 B = TypeVar("B", bound=BaseModel)
 
 
-def get_class_fields_only(model: Type[BaseModel]) -> set:
+def get_class_fields_only(model: type[BaseModel]) -> set[str]:
     """
     Gets all the field names defined on the model class but not any parent classes.
     Any fields that are on the parent but redefined on the subclass are included.
     """
-    subclass_class_fields = set(model.__annotations__.keys())
-    parent_class_fields = set()
+    # the annotations keys fit all of these criteria without further processing
+    return set(model.__annotations__)
 
-    for base in model.__class__.__bases__:
-        if issubclass(base, BaseModel):
-            parent_class_fields.update(base.__annotations__.keys())
 
-    return (subclass_class_fields - parent_class_fields) | (
-        subclass_class_fields & parent_class_fields
-    )
+class PrefectDescriptorBase(ABC):
+    """A base class for descriptor objects used with PrefectBaseModel
+
+    Pydantic needs to be told about any kind of non-standard descriptor
+    objects used on a model, in order for these not to be treated as a field
+    type instead.
+
+    This base class is registered as an ignored type with PrefectBaseModel
+    and any classes that inherit from it will also be ignored. This allows
+    such descriptors to be used as properties, methods or other bound
+    descriptor use cases.
+
+    """
+
+    @abstractmethod
+    def __get__(
+        self, __instance: Optional[Any], __owner: Optional[type[Any]] = None
+    ) -> Any:
+        """Base descriptor access.
+
+        The default implementation returns itself when the instance is None,
+        and raises an attribute error when the instance is not not None.
+
+        """
+        if __instance is not None:
+            raise AttributeError
+        return self
 
 
 class PrefectBaseModel(BaseModel):
@@ -58,7 +68,7 @@ class PrefectBaseModel(BaseModel):
     subtle unintentional testing errors.
     """
 
-    _reset_fields: ClassVar[Set[str]] = set()
+    _reset_fields: ClassVar[set[str]] = set()
 
     model_config = ConfigDict(
         ser_json_timedelta="float",
@@ -68,6 +78,7 @@ class PrefectBaseModel(BaseModel):
             and os.getenv("PREFECT_TESTING_TEST_MODE", "0").lower() not in ["true", "1"]
             else "forbid"
         ),
+        ignored_types=(PrefectDescriptorBase,),
     )
 
     def __eq__(self, other: Any) -> bool:
@@ -84,22 +95,20 @@ class PrefectBaseModel(BaseModel):
         else:
             return copy_dict == other
 
-    def __rich_repr__(self):
+    def __rich_repr__(self) -> "RichReprResult":
         # Display all of the fields in the model if they differ from the default value
         for name, field in self.model_fields.items():
             value = getattr(self, name)
 
             # Simplify the display of some common fields
-            if field.annotation == UUID and value:
+            if isinstance(value, UUID):
                 value = str(value)
-            elif (
-                isinstance(field.annotation, datetime.datetime)
-                and name == "timestamp"
-                and value
-            ):
-                value = pendulum.instance(value).isoformat()
-            elif isinstance(field.annotation, datetime.datetime) and value:
-                value = pendulum.instance(value).diff_for_humans()
+            elif isinstance(value, datetime.datetime):
+                value = (
+                    pendulum.instance(value).isoformat()
+                    if name == "timestamp"
+                    else pendulum.instance(value).diff_for_humans()
+                )
 
             yield name, value, field.get_default()
 
@@ -126,7 +135,7 @@ class PrefectBaseModel(BaseModel):
         exclude_unset: bool = False,
         exclude_defaults: bool = False,
         exclude_none: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Prefect extension to `BaseModel.model_dump`.  Generate a Python dictionary
         representation of the model suitable for passing to SQLAlchemy model
@@ -179,7 +188,7 @@ class IDBaseModel(PrefectBaseModel):
     The ID is reset on copy() and not included in equality comparisons.
     """
 
-    _reset_fields: ClassVar[Set[str]] = {"id"}
+    _reset_fields: ClassVar[set[str]] = {"id"}
     id: UUID = Field(default_factory=uuid4)
 
 
@@ -192,7 +201,7 @@ class ORMBaseModel(IDBaseModel):
     equality comparisons.
     """
 
-    _reset_fields: ClassVar[Set[str]] = {"id", "created", "updated"}
+    _reset_fields: ClassVar[set[str]] = {"id", "created", "updated"}
 
     model_config = ConfigDict(from_attributes=True)
 

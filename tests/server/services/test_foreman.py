@@ -608,8 +608,8 @@ class TestForemanWorkQueueService:
 
     @db_injector
     async def create_work_queue(
-        db: PrefectDBInterface,
         self,
+        db: PrefectDBInterface,
         session: AsyncSession,
         wp: "ORMWorkPool",
         **wq_fields,
@@ -632,8 +632,8 @@ class TestForemanWorkQueueService:
 
     @db_injector
     async def create_unpolled_work_queues(
-        db: PrefectDBInterface,
         self,
+        db: PrefectDBInterface,
         session: AsyncSession,
         foreman: Foreman,
         *,
@@ -683,7 +683,7 @@ class TestForemanWorkQueueService:
 
     @db_injector
     async def poll_work_queue_by_name(
-        db: PrefectDBInterface, self, session: AsyncSession, name: str
+        self, db: PrefectDBInterface, session: AsyncSession, name: str
     ):
         stmt = (
             sa.update(db.WorkQueue)
