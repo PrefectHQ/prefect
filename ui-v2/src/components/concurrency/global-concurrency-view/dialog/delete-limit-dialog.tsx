@@ -25,7 +25,7 @@ export const DeleteLimitDialog = ({ limit, onOpenChange, onDelete }: Props) => {
 	const { deleteGlobalConcurrencyLimit, isPending } =
 		useDeleteGlobalConcurrencyLimit();
 
-	const handleOnClick = (id: string | undefined) => {
+	const handleOnClick = (id: string) => {
 		deleteGlobalConcurrencyLimit(id, {
 			onSuccess: () => {
 				toast({ description: "Concurrency limit deleted" });
