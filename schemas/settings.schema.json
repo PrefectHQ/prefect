@@ -697,13 +697,21 @@
                     "type": "integer"
                 },
                 "heartbeat_frequency": {
-                    "default": 30,
+                    "anyOf": [
+                        {
+                            "minimum": 30,
+                            "type": "integer"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
                     "description": "Number of seconds a runner should wait between heartbeats for flow runs.",
                     "supported_environment_variables": [
                         "PREFECT_RUNNER_HEARTBEAT_FREQUENCY"
                     ],
-                    "title": "Heartbeat Frequency",
-                    "type": "integer"
+                    "title": "Heartbeat Frequency"
                 },
                 "server": {
                     "$ref": "#/$defs/RunnerServerSettings",

@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic import Field
 
 from prefect.settings.base import PrefectBaseSettings, _build_settings_config
@@ -54,9 +56,10 @@ class RunnerSettings(PrefectBaseSettings):
         description="Number of seconds a runner should wait between queries for scheduled work.",
     )
 
-    heartbeat_frequency: int = Field(
-        default=30,
+    heartbeat_frequency: Optional[int] = Field(
+        default=None,
         description="Number of seconds a runner should wait between heartbeats for flow runs.",
+        ge=30,
     )
 
     server: RunnerServerSettings = Field(

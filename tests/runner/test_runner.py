@@ -185,6 +185,12 @@ class TestInit:
     async def test_runner_respects_heartbeat_setting(self):
         runner = Runner()
         assert runner.heartbeat_seconds == PREFECT_RUNNER_HEARTBEAT_FREQUENCY.value()
+        assert runner.heartbeat_seconds is None
+
+        with pytest.raises(
+            ValueError, match="Heartbeat must be 30 seconds or greater."
+        ):
+            Runner(heartbeat_seconds=29)
 
         runner = Runner(heartbeat_seconds=50)
         assert runner.heartbeat_seconds == 50
@@ -513,12 +519,50 @@ class TestRunner:
         assert "All deployments have been paused" in caplog.text
 
     @pytest.mark.usefixtures("use_hosted_api_server")
-    async def test_runner_executes_flow_runs(
+    async def test_runner_does_not_emit_heartbeats_if_not_set(
         self,
         prefect_client: PrefectClient,
         asserting_events_worker: EventsWorker,
     ):
         runner = Runner()
+
+        deployment = await dummy_flow_1.to_deployment(__file__)
+
+        await runner.add_deployment(deployment)
+
+        await runner.start(run_once=True)
+
+        deployment = await prefect_client.read_deployment_by_name(
+            name="dummy-flow-1/test_runner"
+        )
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment.id
+        )
+
+        await runner.start(run_once=True)
+        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+
+        assert flow_run.state
+        assert flow_run.state.is_completed()
+
+        await asserting_events_worker.drain()
+
+        heartbeat_events = list(
+            filter(
+                lambda e: e.event == "prefect.flow-run.heartbeat",
+                asserting_events_worker._client.events,
+            )
+        )
+        assert len(heartbeat_events) == 0
+
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_runner_executes_flow_runs(
+        self,
+        prefect_client: PrefectClient,
+        asserting_events_worker: EventsWorker,
+    ):
+        runner = Runner(heartbeat_seconds=30)
 
         deployment = await dummy_flow_1.to_deployment(__file__)
 
@@ -747,10 +791,37 @@ class TestRunner:
         assert "This flow crashed!" in caplog.text
 
     @pytest.mark.usefixtures("use_hosted_api_server")
-    async def test_runner_can_execute_a_single_flow_run(
+    async def test_runner_does_not_emit_heartbeats_for_single_flow_run_if_not_set(
         self, prefect_client: PrefectClient, asserting_events_worker: EventsWorker
     ):
         runner = Runner()
+
+        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+        await runner.execute_flow_run(flow_run.id)
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+        assert flow_run.state
+        assert flow_run.state.is_completed()
+
+        await asserting_events_worker.drain()
+
+        heartbeat_events = list(
+            filter(
+                lambda e: e.event == "prefect.flow-run.heartbeat",
+                asserting_events_worker._client.events,
+            )
+        )
+        assert len(heartbeat_events) == 0
+
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_runner_can_execute_a_single_flow_run(
+        self, prefect_client: PrefectClient, asserting_events_worker: EventsWorker
+    ):
+        runner = Runner(heartbeat_seconds=30)
 
         deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
 

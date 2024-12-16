@@ -155,6 +155,9 @@ class Runner:
             query_seconds: The number of seconds to wait between querying for
                 scheduled flow runs; defaults to `PREFECT_RUNNER_POLL_FREQUENCY`
             prefetch_seconds: The number of seconds to prefetch flow runs for.
+            heartbeat_seconds: The number of seconds to wait between emitting
+                flow run heartbeats. The runner will not emit heartbeats if the value is None.
+                Defaults to `PREFECT_RUNNER_HEARTBEAT_FREQUENCY`.
             limit: The maximum number of flow runs this runner should be running at
             pause_on_shutdown: A boolean for whether or not to automatically pause
                 deployment schedules on shutdown; defaults to `True`
@@ -204,6 +207,8 @@ class Runner:
         self.heartbeat_seconds = (
             heartbeat_seconds or settings.runner.heartbeat_frequency
         )
+        if self.heartbeat_seconds is not None and self.heartbeat_seconds < 30:
+            raise ValueError("Heartbeat must be 30 seconds or greater.")
 
         self._limiter: Optional[anyio.CapacityLimiter] = None
         self._client = get_client()
@@ -456,15 +461,16 @@ class Runner:
                         jitter_range=0.3,
                     )
                 )
-                loops_task_group.start_soon(
-                    partial(
-                        critical_service_loop,
-                        workload=runner._emit_flow_run_heartbeats,
-                        interval=self.heartbeat_seconds,
-                        run_once=run_once,
-                        jitter_range=0.3,
+                if self.heartbeat_seconds is not None:
+                    loops_task_group.start_soon(
+                        partial(
+                            critical_service_loop,
+                            workload=runner._emit_flow_run_heartbeats,
+                            interval=self.heartbeat_seconds,
+                            run_once=run_once,
+                            jitter_range=0.3,
+                        )
                     )
-                )
 
     def execute_in_background(
         self, func: Callable[..., Any], *args: Any, **kwargs: Any
@@ -562,14 +568,15 @@ class Runner:
                             jitter_range=0.3,
                         )
                     )
-                    tg.start_soon(
-                        partial(
-                            critical_service_loop,
-                            workload=self._emit_flow_run_heartbeats,
-                            interval=self.heartbeat_seconds,
-                            jitter_range=0.3,
+                    if self.heartbeat_seconds is not None:
+                        tg.start_soon(
+                            partial(
+                                critical_service_loop,
+                                workload=self._emit_flow_run_heartbeats,
+                                interval=self.heartbeat_seconds,
+                                jitter_range=0.3,
+                            )
                         )
-                    )
 
     def _get_flow_run_logger(self, flow_run: "FlowRun") -> PrefectLogAdapter:
         return flow_run_logger(flow_run=flow_run).getChild(
@@ -1151,7 +1158,9 @@ class Runner:
                 self._flow_run_process_map[flow_run.id] = dict(
                     pid=readiness_result, flow_run=flow_run
                 )
-            await self._emit_flow_run_heartbeat(flow_run)
+            # Heartbeats are opt-in and only emitted if a heartbeat frequency is set
+            if self.heartbeat_seconds is not None:
+                await self._emit_flow_run_heartbeat(flow_run)
 
             run_logger.info(f"Completed submission of flow run '{flow_run.id}'")
         else:
