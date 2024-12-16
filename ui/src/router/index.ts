@@ -66,13 +66,14 @@ const routeRecords: AppRouteRecord[] = [
   {
     name: 'login',
     path: '/login',
-    component: (): RouteComponent => import('@/pages/404.vue'),
+    component: (): RouteComponent => import('@/pages/Unauthenticated.vue'),
     meta: { public: true },
     props: (route) => ({ redirect: route.query.redirect }),
   },
   {
     path: '/:pathMatch(.*)*',
     name: '404',
+    meta: { public: true },
     component: (): RouteComponent => import('@/pages/404.vue'),
   },
 ]
