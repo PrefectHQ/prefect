@@ -34,7 +34,7 @@ from prefect.client.schemas.schedules import (
     RRuleSchedule,
 )
 from prefect.context import FlowRunContext, get_run_context
-from prefect.deployments.runner import RunnerDeployment, RunnerStorage
+from prefect.deployments.runner import RunnerDeployment
 from prefect.docker.docker_image import DockerImage
 from prefect.events import DeploymentEventTrigger, Posture
 from prefect.exceptions import (
@@ -55,6 +55,7 @@ from prefect.flows import (
 )
 from prefect.logging import get_run_logger
 from prefect.results import ResultRecord
+from prefect.runner.storage import RunnerStorage
 from prefect.runtime import flow_run as flow_run_ctx
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.filters import FlowFilter, FlowRunFilter

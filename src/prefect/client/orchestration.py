@@ -20,7 +20,6 @@ from typing_extensions import ParamSpec, Self, TypeVar
 import prefect
 import prefect.exceptions
 import prefect.settings
-import prefect.states
 from prefect.client._adapters import (
     ArtifactCollectionListAdapter,
     ArtifactListAdapter,
@@ -112,6 +111,7 @@ from prefect.client.schemas.objects import (
     FlowRunPolicy,
     Log,
     Parameter,
+    State,
     TaskRunPolicy,
     TaskRunResult,
     Variable,
@@ -626,7 +626,7 @@ class PrefectClient:
         *,
         parameters: Optional[dict[str, Any]] = None,
         context: Optional[dict[str, Any]] = None,
-        state: Optional[prefect.states.State[Any]] = None,
+        state: Optional[State[Any]] = None,
         name: Optional[str] = None,
         tags: Optional[Iterable[str]] = None,
         idempotency_key: Optional[str] = None,
@@ -698,7 +698,7 @@ class PrefectClient:
         context: Optional[dict[str, Any]] = None,
         tags: Optional[Iterable[str]] = None,
         parent_task_run_id: Optional[UUID] = None,
-        state: Optional["prefect.states.State[R]"] = None,
+        state: Optional[State[R]] = None,
     ) -> FlowRun:
         """
         Create a flow run for a flow.
@@ -2188,7 +2188,7 @@ class PrefectClient:
     async def set_flow_run_state(
         self,
         flow_run_id: Union[UUID, str],
-        state: "prefect.states.State[T]",
+        state: State[T],
         force: bool = False,
     ) -> OrchestrationResult[T]:
         """
@@ -2228,9 +2228,7 @@ class PrefectClient:
         )
         return result
 
-    async def read_flow_run_states(
-        self, flow_run_id: UUID
-    ) -> list[prefect.states.State]:
+    async def read_flow_run_states(self, flow_run_id: UUID) -> list[State]:
         """
         Query for the states of a flow run
 
@@ -2269,7 +2267,7 @@ class PrefectClient:
         id: Optional[UUID] = None,
         name: Optional[str] = None,
         extra_tags: Optional[Iterable[str]] = None,
-        state: Optional[prefect.states.State[R]] = None,
+        state: Optional[State[R]] = None,
         task_inputs: Optional[
             dict[
                 str,
@@ -2422,7 +2420,7 @@ class PrefectClient:
     async def set_task_run_state(
         self,
         task_run_id: UUID,
-        state: prefect.states.State[T],
+        state: State[T],
         force: bool = False,
     ) -> OrchestrationResult[T]:
         """
@@ -2448,9 +2446,7 @@ class PrefectClient:
         )
         return result
 
-    async def read_task_run_states(
-        self, task_run_id: UUID
-    ) -> list[prefect.states.State]:
+    async def read_task_run_states(self, task_run_id: UUID) -> list[State]:
         """
         Query for the states of a task run
 
@@ -3860,7 +3856,7 @@ class SyncPrefectClient:
         context: Optional[dict[str, Any]] = None,
         tags: Optional[Iterable[str]] = None,
         parent_task_run_id: Optional[UUID] = None,
-        state: Optional["prefect.states.State[R]"] = None,
+        state: Optional[State[R]] = None,
     ) -> FlowRun:
         """
         Create a flow run for a flow.
@@ -4052,7 +4048,7 @@ class SyncPrefectClient:
     def set_flow_run_state(
         self,
         flow_run_id: UUID,
-        state: "prefect.states.State[T]",
+        state: State[T],
         force: bool = False,
     ) -> OrchestrationResult[T]:
         """
@@ -4111,7 +4107,7 @@ class SyncPrefectClient:
         id: Optional[UUID] = None,
         name: Optional[str] = None,
         extra_tags: Optional[Iterable[str]] = None,
-        state: Optional[prefect.states.State[R]] = None,
+        state: Optional[State[R]] = None,
         task_inputs: Optional[
             dict[
                 str,
@@ -4247,7 +4243,7 @@ class SyncPrefectClient:
     def set_task_run_state(
         self,
         task_run_id: UUID,
-        state: prefect.states.State[Any],
+        state: State[Any],
         force: bool = False,
     ) -> OrchestrationResult[Any]:
         """
@@ -4273,7 +4269,7 @@ class SyncPrefectClient:
         )
         return result
 
-    def read_task_run_states(self, task_run_id: UUID) -> list[prefect.states.State]:
+    def read_task_run_states(self, task_run_id: UUID) -> list[State]:
         """
         Query for the states of a task run
 
