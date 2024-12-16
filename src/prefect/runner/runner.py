@@ -123,7 +123,7 @@ from prefect.utilities.services import (
 from prefect.utilities.slugify import slugify
 
 if TYPE_CHECKING:
-    from prefect.client.schemas.objects import Deployment
+    from prefect.client.schemas.responses import DeploymentResponse
     from prefect.client.types.flexible_schedule_list import FlexibleScheduleList
     from prefect.deployments.runner import RunnerDeployment
 
@@ -227,7 +227,9 @@ class Runner:
         self._loop: Optional[asyncio.AbstractEventLoop] = None
 
         # Caching
-        self._deployment_cache: LRUCache[UUID, "Deployment"] = LRUCache(maxsize=100)
+        self._deployment_cache: LRUCache[UUID, "DeploymentResponse"] = LRUCache(
+            maxsize=100
+        )
         self._flow_cache: LRUCache[UUID, "APIFlow"] = LRUCache(maxsize=100)
 
     @sync_compatible
@@ -898,14 +900,14 @@ class Runner:
 
     async def _get_flow_and_deployment(
         self, flow_run: "FlowRun"
-    ) -> tuple[Optional["APIFlow"], Optional["Deployment"]]:
-        deployment: Optional["Deployment"] = (
+    ) -> tuple[Optional["APIFlow"], Optional["DeploymentResponse"]]:
+        deployment: Optional["DeploymentResponse"] = (
             self._deployment_cache.get(flow_run.deployment_id)
             if flow_run.deployment_id
             else None
         )
         flow: Optional["APIFlow"] = self._flow_cache.get(flow_run.flow_id)
-        if not deployment:
+        if not deployment and flow_run.deployment_id is not None:
             try:
                 deployment = await self._client.read_deployment(flow_run.deployment_id)
                 self._deployment_cache[flow_run.deployment_id] = deployment
@@ -981,7 +983,7 @@ class Runner:
         self,
         flow_run: "FlowRun",
         flow: "Optional[APIFlow]",
-        deployment: "Optional[Deployment]",
+        deployment: "Optional[DeploymentResponse]",
     ):
         related: list[RelatedResource] = []
         tags: list[str] = []
