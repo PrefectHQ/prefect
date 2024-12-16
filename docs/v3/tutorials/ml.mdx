@@ -18,11 +18,42 @@ Show the scraping code, but give people file(s) they can upload to S3 (original 
 
 ## Train a model when the training data changes
 
-TBD.
-Use automations and blocks to trigger a flow after receiving a webhook event from S3.
-Flow trains a simple model (e.g. linear regression?) and saves the fitted model to storage (Prefect artifact? S3?)
+Prefect configuration:
+
+* Create two Prefect blocks:
+  * An `AWS Credentials` block named `aws-credentials`
+  * An `S3 Bucket` block named `s3-bucket`
+* Create a Prefect webhook named `s3-webhook`
+  * Create a new service account named `s3` to enforce webhook authentication (save the API key somewhere safe)
+  * Create a static template preset with the default settings (event named `webhook.called`)
+* Create a Prefect automation named `s3-automation`
+  * Trigger settings
+    * Trigger on any `webhook.called` event that comes from the `s3-webhook` webhook resource that you created.
+  * Trigger whenever you see that event 1 time within 0 day (this way your model will only trained whenever you see the event)
+  * Action settings:
+    * Action type: `Run a deployment`
+    * Deployment to run: `update-model > webhook-test`
+    * path: `test.txt`
+
+AWS configuration:
+
+* Create a new S3 bucket named `prefect-tutorial`
+  * Under **Properties** > **Amazon EventBridge**, turn on the option to send notifications to EventBridge for all events in this bucket.
+* Create a new EventBridge rule that sends an event to the Prefect webhook whenever an object is created in the `prefect-tutorial` bucket.
+  * You'll need to use the URL and credentials from the webhook that you created earlier.
+    * Create a new Connection and configure its authorization to use **API Key** and set the **API key name** to `Authorization` and the **Value** to `Bearer <your-api-key>`.
+
+Code configuration:
+
+* Clone the Prefect demo repository
+* Run `python train_model.py` to deploy the flow to Prefect Cloud
 
 ## Test the model
+
+* Run `prefect deployment run 'update-model/webhook-test'` to run the flow manually (fetching test.txt from S3)
+* Upload a new file to S3 to run the flow automatically using the webhook you set up
+
+The flow trains the model and saves it to storage (Prefect artifact for the metrics, S3 for the fitted model file)
 
 TBD.
 Interactive flow which asks for X, then runs and returns the prediction.
