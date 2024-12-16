@@ -69,7 +69,7 @@ if TYPE_CHECKING:
 
     DateTime = pendulum.DateTime
 else:
-    from pydantic_extra_types.pendulum_dt import DateTime
+    from prefect.types import DateTime
 
 
 R = TypeVar("R", default=Any)
@@ -207,7 +207,7 @@ class State(ObjectBaseModel, Generic[R]):
 
     type: StateType
     name: Optional[str] = Field(default=None)
-    timestamp: DateTime = Field(default_factory=lambda: pendulum.now("UTC"))
+    timestamp: DateTime = Field(default_factory=lambda: DateTime.now("UTC"))
     message: Optional[str] = Field(default=None, examples=["Run started"])
     state_details: StateDetails = Field(default_factory=StateDetails)
     data: Annotated[
@@ -429,9 +429,9 @@ class State(ObjectBaseModel, Generic[R]):
         return self.model_copy(
             update={
                 "id": uuid4(),
-                "created": pendulum.now("utc"),
-                "updated": pendulum.now("utc"),
-                "timestamp": pendulum.now("utc"),
+                "created": DateTime.now("utc"),
+                "updated": DateTime.now("utc"),
+                "timestamp": DateTime.now("utc"),
             },
             **kwargs,
         )
@@ -578,7 +578,7 @@ class FlowRun(ObjectBaseModel):
         description="A list of tags on the flow run",
         examples=[["tag-1", "tag-2"]],
     )
-    labels: KeyValueLabelsField
+    labels: KeyValueLabelsField = Field(default_factory=dict)
     parent_task_run_id: Optional[UUID] = Field(
         default=None,
         description=(

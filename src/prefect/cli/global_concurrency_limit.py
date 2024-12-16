@@ -150,14 +150,16 @@ async def delete_global_concurrency_limit(
     Arguments:
         name (str): The name of the global concurrency limit to delete.
     """
-    if is_interactive() and not typer.confirm(
-        f"Are you sure you want to delete global concurrency limit with name {name!r}?",
-        default=False,
-    ):
-        exit_with_error("Deletion aborted.")
-
     async with get_client() as client:
         try:
+            gcl_limit = await client.read_global_concurrency_limit_by_name(name=name)
+
+            if is_interactive() and not typer.confirm(
+                f"Are you sure you want to delete global concurrency limit with name {gcl_limit.name!r}?",
+                default=False,
+            ):
+                exit_with_error("Deletion aborted.")
+
             await client.delete_global_concurrency_limit_by_name(name=name)
         except ObjectNotFound:
             exit_with_error(f"Global concurrency limit {name!r} not found.")

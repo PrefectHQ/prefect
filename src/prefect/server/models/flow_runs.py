@@ -29,6 +29,7 @@ from sqlalchemy.sql import Select
 
 import prefect.server.models as models
 import prefect.server.schemas as schemas
+from prefect.logging.loggers import get_logger
 from prefect.server.database import orm_models
 from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
@@ -46,6 +47,13 @@ from prefect.settings import (
     PREFECT_API_MAX_FLOW_RUN_GRAPH_ARTIFACTS,
     PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES,
 )
+from prefect.types import KeyValueLabels
+
+logger = get_logger("flow_runs")
+
+
+logger = get_logger("flow_runs")
+
 
 T = TypeVar("T", bound=tuple)
 
@@ -633,3 +641,41 @@ async def with_system_labels_for_flow_run(
         )
 
     return parent_labels | default_labels | user_supplied_labels
+
+
+async def update_flow_run_labels(
+    session: AsyncSession,
+    flow_run_id: UUID,
+    labels: KeyValueLabels,
+) -> bool:
+    """
+    Update flow run labels by patching existing labels with new values.
+    Args:
+        session: A database session
+        flow_run_id: the flow run id to update
+        labels: the new labels to patch into existing labels
+    Returns:
+        bool: whether the update was successful
+    """
+    # First read the existing flow run to get current labels
+    flow_run: Optional[orm_models.FlowRun] = await read_flow_run(session, flow_run_id)
+    if not flow_run:
+        raise ObjectNotFoundError(f"Flow run with id {flow_run_id} not found")
+
+    # Merge existing labels with new labels
+    current_labels = flow_run.labels or {}
+    updated_labels = {**current_labels, **labels}
+
+    try:
+        # Update the flow run with merged labels
+        result = await session.execute(
+            sa.update(orm_models.FlowRun)
+            .where(orm_models.FlowRun.id == flow_run_id)
+            .values(labels=updated_labels)
+        )
+        success = result.rowcount > 0
+        if success:
+            await session.commit()  # Explicitly commit
+        return success
+    except Exception:
+        raise

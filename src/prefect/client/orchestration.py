@@ -127,6 +127,7 @@ from prefect.settings import (
     PREFECT_TESTING_UNIT_TEST_MODE,
     get_current_settings,
 )
+from prefect.types import KeyValueLabelsField
 
 if TYPE_CHECKING:
     from prefect.flows import Flow as FlowObject
@@ -499,6 +500,24 @@ class PrefectClient:
         """
         response = await self._client.get(f"/flows/{flow_id}")
         return Flow.model_validate(response.json())
+
+    async def delete_flow(self, flow_id: UUID) -> None:
+        """
+        Delete a flow by UUID.
+
+        Args:
+            flow_id: ID of the flow to be deleted
+        Raises:
+            prefect.exceptions.ObjectNotFound: If request returns 404
+            httpx.RequestError: If requests fail
+        """
+        try:
+            await self._client.delete(f"/flows/{flow_id}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
 
     async def read_flows(
         self,
@@ -3461,6 +3480,18 @@ class PrefectClient:
                 f"Major versions must match."
             )
 
+    async def update_flow_run_labels(
+        self, flow_run_id: UUID, labels: KeyValueLabelsField
+    ) -> None:
+        """
+        Updates the labels of a flow run.
+        """
+
+        response = await self._client.patch(
+            f"/flow_runs/{flow_run_id}/labels", json=labels
+        )
+        response.raise_for_status()
+
     async def __aenter__(self) -> Self:
         """
         Start the client.
@@ -4372,3 +4403,103 @@ class SyncPrefectClient:
                 "task_run_id": str(task_run_id),
             },
         )
+
+    def update_flow_run_labels(
+        self, flow_run_id: UUID, labels: KeyValueLabelsField
+    ) -> None:
+        """
+        Updates the labels of a flow run.
+        """
+        response = self._client.patch(
+            f"/flow_runs/{flow_run_id}/labels",
+            json=labels,
+        )
+        response.raise_for_status()
+
+    def read_block_document_by_name(
+        self,
+        name: str,
+        block_type_slug: str,
+        include_secrets: bool = True,
+    ) -> BlockDocument:
+        """
+        Read the block document with the specified name that corresponds to a
+        specific block type name.
+
+        Args:
+            name: The block document name.
+            block_type_slug: The block type slug.
+            include_secrets (bool): whether to include secret values
+                on the Block, corresponding to Pydantic's `SecretStr` and
+                `SecretBytes` fields. These fields are automatically obfuscated
+                by Pydantic, but users can additionally choose not to receive
+                their values from the API. Note that any business logic on the
+                Block may not work if this is `False`.
+
+        Raises:
+            httpx.RequestError: if the block document was not found for any reason
+
+        Returns:
+            A block document or None.
+        """
+        try:
+            response = self._client.get(
+                f"/block_types/slug/{block_type_slug}/block_documents/name/{name}",
+                params=dict(include_secrets=include_secrets),
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+        return BlockDocument.model_validate(response.json())
+
+    def create_variable(self, variable: VariableCreate) -> Variable:
+        """
+        Creates an variable with the provided configuration.
+
+        Args:
+            variable: Desired configuration for the new variable.
+        Returns:
+            Information about the newly created variable.
+        """
+        response = self._client.post(
+            "/variables/",
+            json=variable.model_dump(mode="json", exclude_unset=True),
+        )
+        return Variable(**response.json())
+
+    def update_variable(self, variable: VariableUpdate) -> None:
+        """
+        Updates a variable with the provided configuration.
+
+        Args:
+            variable: Desired configuration for the updated variable.
+        Returns:
+            Information about the updated variable.
+        """
+        self._client.patch(
+            f"/variables/name/{variable.name}",
+            json=variable.model_dump(mode="json", exclude_unset=True),
+        )
+
+    def read_variable_by_name(self, name: str) -> Optional[Variable]:
+        """Reads a variable by name. Returns None if no variable is found."""
+        try:
+            response = self._client.get(f"/variables/name/{name}")
+            return Variable(**response.json())
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                return None
+            else:
+                raise
+
+    def delete_variable_by_name(self, name: str) -> None:
+        """Deletes a variable by name."""
+        try:
+            self._client.delete(f"/variables/name/{name}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise

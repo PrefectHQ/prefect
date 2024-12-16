@@ -503,7 +503,7 @@ async def prompt_push_custom_docker_image(
             docker_registry_creds_name = f"deployment-{slugify(deployment_config['name'])}-{slugify(deployment_config['work_pool']['name'])}-registry-creds"
             create_new_block = False
             try:
-                await credentials_block.load(docker_registry_creds_name)
+                await credentials_block.aload(docker_registry_creds_name)
                 if not confirm(
                     (
                         "Would you like to use the existing Docker registry credentials"

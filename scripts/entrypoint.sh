@@ -8,8 +8,8 @@ if [ -f ~/.bashrc ]; then
 fi
 
 if [ ! -z "$EXTRA_PIP_PACKAGES" ]; then
-  echo "+pip install $EXTRA_PIP_PACKAGES"
-  pip install $EXTRA_PIP_PACKAGES
+  echo "+uv pip install $EXTRA_PIP_PACKAGES"
+  uv pip install --system $EXTRA_PIP_PACKAGES
 fi
 
 if [ -z "$*" ]; then

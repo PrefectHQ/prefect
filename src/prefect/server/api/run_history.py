@@ -8,7 +8,6 @@ from typing import List, Optional
 
 import pydantic
 import sqlalchemy as sa
-from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Literal
 
 import prefect.server.models as models
@@ -16,6 +15,7 @@ import prefect.server.schemas as schemas
 from prefect.logging import get_logger
 from prefect.server.database.dependencies import db_injector
 from prefect.server.database.interface import PrefectDBInterface
+from prefect.types import DateTime
 
 logger = get_logger("server.api")
 
@@ -102,12 +102,14 @@ async def run_history(
                     # estimated run times only includes positive run times (to avoid any unexpected corner cases)
                     "sum_estimated_run_time",
                     sa.func.sum(
-                        db.greatest(0, sa.extract("epoch", runs.c.estimated_run_time))
+                        sa.func.greatest(
+                            0, sa.extract("epoch", runs.c.estimated_run_time)
+                        )
                     ),
                     # estimated lateness is the sum of any positive start time deltas
                     "sum_estimated_lateness",
                     sa.func.sum(
-                        db.greatest(
+                        sa.func.greatest(
                             0, sa.extract("epoch", runs.c.estimated_start_time_delta)
                         )
                     ),

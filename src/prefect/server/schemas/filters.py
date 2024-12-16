@@ -4,26 +4,34 @@ Schemas that define Prefect REST API filtering operations.
 Each filter schema includes logic for transforming itself into a SQL `where` clause.
 """
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID
 
 from pydantic import ConfigDict, Field
-from pydantic_extra_types.pendulum_dt import DateTime
 
 import prefect.server.schemas as schemas
 from prefect.server.database import orm_models
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
+from prefect.types import DateTime
 from prefect.utilities.collections import AutoEnum
 from prefect.utilities.importtools import lazy_import
 
 if TYPE_CHECKING:
+    import sqlalchemy as sa
+    from sqlalchemy.dialects import postgresql
     from sqlalchemy.sql.elements import BooleanClauseList
-
-sa = lazy_import("sqlalchemy")
+else:
+    sa = lazy_import("sqlalchemy")
+    postgresql = lazy_import("sqlalchemy.dialects.postgresql")
 
 # TODO: Consider moving the `as_sql_filter` functions out of here since they are a
 #       database model level function and do not properly separate concerns when
 #       present in the schemas module
+
+
+def _as_array(elems: Sequence[str]) -> sa.ColumnElement[Sequence[str]]:
+    return sa.cast(postgresql.array(elems), type_=postgresql.ARRAY(sa.String()))
 
 
 class Operator(AutoEnum):
@@ -150,12 +158,10 @@ class FlowFilterTags(PrefectOperatorFilterBaseModel):
         default=None, description="If true, only include flows without tags"
     )
 
-    def _get_filter_list(self) -> List:
-        from prefect.server.utilities.database import json_has_all_keys
-
-        filters = []
+    def _get_filter_list(self) -> list[sa.ColumnElement[bool]]:
+        filters: list[sa.ColumnElement[bool]] = []
         if self.all_ is not None:
-            filters.append(json_has_all_keys(orm_models.Flow.tags, self.all_))
+            filters.append(orm_models.Flow.tags.has_all(_as_array(self.all_)))
         if self.is_null_ is not None:
             filters.append(
                 orm_models.Flow.tags == []
@@ -265,17 +271,15 @@ class FlowRunFilterTags(PrefectOperatorFilterBaseModel):
         default=None, description="If true, only include flow runs without tags"
     )
 
-    def _get_filter_list(self) -> List:
-        from prefect.server.utilities.database import (
-            json_has_all_keys,
-            json_has_any_key,
-        )
+    def _get_filter_list(self) -> list[sa.ColumnElement[bool]]:
+        def as_array(elems: Sequence[str]) -> sa.ColumnElement[Sequence[str]]:
+            return sa.cast(postgresql.array(elems), type_=postgresql.ARRAY(sa.String()))
 
-        filters = []
+        filters: list[sa.ColumnElement[bool]] = []
         if self.all_ is not None:
-            filters.append(json_has_all_keys(orm_models.FlowRun.tags, self.all_))
+            filters.append(orm_models.FlowRun.tags.has_all(as_array(self.all_)))
         if self.any_ is not None:
-            filters.append(json_has_any_key(orm_models.FlowRun.tags, self.any_))
+            filters.append(orm_models.FlowRun.tags.has_any(as_array(self.any_)))
         if self.is_null_ is not None:
             filters.append(
                 orm_models.FlowRun.tags == []
@@ -764,12 +768,10 @@ class TaskRunFilterTags(PrefectOperatorFilterBaseModel):
         default=None, description="If true, only include task runs without tags"
     )
 
-    def _get_filter_list(self) -> List:
-        from prefect.server.utilities.database import json_has_all_keys
-
-        filters = []
+    def _get_filter_list(self) -> list[sa.ColumnElement[bool]]:
+        filters: list[sa.ColumnElement[bool]] = []
         if self.all_ is not None:
-            filters.append(json_has_all_keys(orm_models.TaskRun.tags, self.all_))
+            filters.append(orm_models.TaskRun.tags.has_all(_as_array(self.all_)))
         if self.is_null_ is not None:
             filters.append(
                 orm_models.TaskRun.tags == []
@@ -1082,12 +1084,10 @@ class DeploymentFilterTags(PrefectOperatorFilterBaseModel):
         default=None, description="If true, only include deployments without tags"
     )
 
-    def _get_filter_list(self) -> List:
-        from prefect.server.utilities.database import json_has_all_keys
-
-        filters = []
+    def _get_filter_list(self) -> list[sa.ColumnElement[bool]]:
+        filters: list[sa.ColumnElement[bool]] = []
         if self.all_ is not None:
-            filters.append(json_has_all_keys(orm_models.Deployment.tags, self.all_))
+            filters.append(orm_models.Deployment.tags.has_all(_as_array(self.all_)))
         if self.is_null_ is not None:
             filters.append(
                 orm_models.Deployment.tags == []
@@ -1419,13 +1419,11 @@ class BlockSchemaFilterCapabilities(PrefectFilterBaseModel):
         ),
     )
 
-    def _get_filter_list(self) -> List:
-        from prefect.server.utilities.database import json_has_all_keys
-
-        filters = []
+    def _get_filter_list(self) -> list[sa.ColumnElement[bool]]:
+        filters: list[sa.ColumnElement[bool]] = []
         if self.all_ is not None:
             filters.append(
-                json_has_all_keys(orm_models.BlockSchema.capabilities, self.all_)
+                orm_models.BlockSchema.capabilities.has_all(_as_array(self.all_))
             )
         return filters
 
@@ -2168,12 +2166,10 @@ class VariableFilterTags(PrefectOperatorFilterBaseModel):
         default=None, description="If true, only include Variables without tags"
     )
 
-    def _get_filter_list(self) -> List:
-        from prefect.server.utilities.database import json_has_all_keys
-
-        filters = []
+    def _get_filter_list(self) -> list[sa.ColumnElement[bool]]:
+        filters: list[sa.ColumnElement[bool]] = []
         if self.all_ is not None:
-            filters.append(json_has_all_keys(orm_models.Variable.tags, self.all_))
+            filters.append(orm_models.Variable.tags.has_all(_as_array(self.all_)))
         if self.is_null_ is not None:
             filters.append(
                 orm_models.Variable.tags == []

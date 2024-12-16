@@ -11,7 +11,6 @@ from prefect.server.database.configurations import (
     AsyncPostgresConfiguration,
     BaseDatabaseConfiguration,
 )
-from prefect.server.database.dependencies import inject_db
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.database.orm_models import (
     AioSqliteORMConfiguration,
@@ -151,28 +150,6 @@ async def test_injecting_existing_orm_configs(ORMConfig):
         assert type(db.orm) == ORMConfig
 
 
-async def test_inject_db(db):
-    """
-    Regression test for async-mangling behavior of inject_db() decorator.
-
-    Previously, when wrapping a coroutine function, the decorator returned
-    that function's coroutine object, instead of the coroutine function.
-
-    This worked fine in most cases because both a coroutine function and a
-    coroutine object can be awaited, but it broke our Pytest setup because
-    we were auto-marking coroutine functions as async, and any async test
-    wrapped by inject_db() was no longer a coroutine function, but instead
-    a coroutine object, so we skipped marking it.
-    """
-
-    class Returner:
-        @inject_db
-        async def return_1(self, db):
-            return 1
-
-    assert asyncio.iscoroutinefunction(Returner().return_1)
-
-
 async def test_inject_interface_class():
     class TestInterface(PrefectDBInterface):
         @property
@@ -182,3 +159,72 @@ async def test_inject_interface_class():
     with dependencies.temporary_interface_class(TestInterface):
         db = dependencies.provide_database_interface()
         assert isinstance(db, TestInterface)
+
+
+class TestDBInject:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
+        self.db: PrefectDBInterface = dependencies.provide_database_interface()
+
+    def test_decorated_function(self):
+        @dependencies.db_injector
+        def function_with_injected_db(
+            db: PrefectDBInterface, foo: int
+        ) -> PrefectDBInterface:
+            """The documentation is sublime"""
+            return db
+
+        assert function_with_injected_db(42) is self.db
+
+        unwrapped = function_with_injected_db.__wrapped__
+        assert function_with_injected_db.__doc__ == unwrapped.__doc__
+        function_with_injected_db.__doc__ = "Something else"
+        assert function_with_injected_db.__doc__ == "Something else"
+        assert unwrapped.__doc__ == function_with_injected_db.__doc__
+        del function_with_injected_db.__doc__
+        assert function_with_injected_db.__doc__ is None
+        assert unwrapped.__doc__ is function_with_injected_db.__doc__
+
+    class SomeClass:
+        @dependencies.db_injector
+        def method_with_injected_db(
+            self, db: PrefectDBInterface, foo: int
+        ) -> PrefectDBInterface:
+            """The documentation is sublime"""
+            return db
+
+    def test_decorated_method(self):
+        instance = self.SomeClass()
+        assert instance.method_with_injected_db(42) is self.db
+
+    def test_unbound_decorated_method(self):
+        instance = self.SomeClass()
+        # manually binding the unbound descriptor to an instance
+        bound = self.SomeClass.method_with_injected_db.__get__(instance)
+        assert bound(42) is self.db
+
+    def test_bound_method_attributes(self):
+        instance = self.SomeClass()
+        bound = instance.method_with_injected_db
+        assert bound.__self__ is instance
+        assert bound.__func__ is self.SomeClass.method_with_injected_db.__wrapped__
+
+        unwrapped = bound.__wrapped__
+        assert bound.__doc__ == unwrapped.__doc__
+
+        before = bound.__doc__
+        with pytest.raises(AttributeError, match="is not writable$"):
+            bound.__doc__ = "Something else"
+        with pytest.raises(AttributeError, match="is not writable$"):
+            del bound.__doc__
+        assert unwrapped.__doc__ == before
+
+    def test_decorated_coroutine_function(self):
+        @dependencies.db_injector
+        async def coroutine_with_injected_db(
+            db: PrefectDBInterface, foo: int
+        ) -> PrefectDBInterface:
+            return db
+
+        assert asyncio.iscoroutinefunction(coroutine_with_injected_db)
+        assert asyncio.run(coroutine_with_injected_db(42)) is self.db

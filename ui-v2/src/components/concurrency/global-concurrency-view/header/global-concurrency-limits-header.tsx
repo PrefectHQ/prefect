@@ -1,5 +1,4 @@
 import { Button } from "@/components/ui/button";
-import { Flex } from "@/components/ui/flex";
 import { Icon } from "@/components/ui/icons";
 import { Typography } from "@/components/ui/typography";
 
@@ -9,11 +8,15 @@ type Props = {
 
 export const GlobalConcurrencyLimitsHeader = ({ onAdd }: Props) => {
 	return (
-		<Flex flexDirection="row" gap={2} alignItems="center">
+		<div className="flex gap-2 items-center">
 			<Typography variant="h4">Global Concurrency Limits</Typography>
-			<Button onClick={onAdd} size="icon">
-				<Icon id="Plus" />
+			<Button
+				onClick={onAdd}
+				size="icon"
+				aria-label="add global concurrency limit"
+			>
+				<Icon id="Plus" className="h-4 w-4" />
 			</Button>
-		</Flex>
+		</div>
 	);
 };

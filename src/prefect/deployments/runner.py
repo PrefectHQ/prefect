@@ -33,7 +33,7 @@ import importlib
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Iterable, List, Optional, Union
 from uuid import UUID
 
 from pydantic import (
@@ -160,7 +160,7 @@ class RunnerDeployment(BaseModel):
     paused: Optional[bool] = Field(
         default=None, description="Whether or not the deployment is paused."
     )
-    parameters: Dict[str, Any] = Field(default_factory=dict)
+    parameters: dict[str, Any] = Field(default_factory=dict)
     entrypoint: Optional[str] = Field(
         default=None,
         description=(
@@ -198,7 +198,7 @@ class RunnerDeployment(BaseModel):
             " the deployment is registered with a built runner."
         ),
     )
-    job_variables: Dict[str, Any] = Field(
+    job_variables: dict[str, Any] = Field(
         default_factory=dict,
         description=(
             "Job variables used to override the default values of a work pool"
@@ -280,7 +280,7 @@ class RunnerDeployment(BaseModel):
         async with get_client() as client:
             flow_id = await client.create_flow_from_name(self.flow_name)
 
-            create_payload = dict(
+            create_payload: dict[str, Any] = dict(
                 flow_id=flow_id,
                 name=self.name,
                 work_queue_name=self.work_queue_name,
@@ -428,7 +428,7 @@ class RunnerDeployment(BaseModel):
         else:
             return [create_deployment_schedule_create(schedule)]
 
-    def _set_defaults_from_flow(self, flow: "Flow"):
+    def _set_defaults_from_flow(self, flow: "Flow[..., Any]"):
         self._parameter_openapi_schema = parameter_schema(flow)
 
         if not self.version:
@@ -439,7 +439,7 @@ class RunnerDeployment(BaseModel):
     @classmethod
     def from_flow(
         cls,
-        flow: "Flow",
+        flow: "Flow[..., Any]",
         name: str,
         interval: Optional[
             Union[Iterable[Union[int, float, timedelta]], int, float, timedelta]
@@ -449,7 +449,7 @@ class RunnerDeployment(BaseModel):
         paused: Optional[bool] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
         concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
-        parameters: Optional[dict] = None,
+        parameters: Optional[dict[str, Any]] = None,
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
@@ -457,7 +457,7 @@ class RunnerDeployment(BaseModel):
         enforce_parameter_schema: bool = True,
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
-        job_variables: Optional[Dict[str, Any]] = None,
+        job_variables: Optional[dict[str, Any]] = None,
         entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
     ) -> "RunnerDeployment":
         """
@@ -588,7 +588,7 @@ class RunnerDeployment(BaseModel):
         paused: Optional[bool] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
         concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
-        parameters: Optional[dict] = None,
+        parameters: Optional[dict[str, Any]] = None,
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
@@ -596,7 +596,7 @@ class RunnerDeployment(BaseModel):
         enforce_parameter_schema: bool = True,
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
-        job_variables: Optional[Dict[str, Any]] = None,
+        job_variables: Optional[dict[str, Any]] = None,
     ) -> "RunnerDeployment":
         """
         Configure a deployment for a given flow located at a given entrypoint.
@@ -689,7 +689,7 @@ class RunnerDeployment(BaseModel):
         paused: Optional[bool] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
         concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
-        parameters: Optional[dict] = None,
+        parameters: Optional[dict[str, Any]] = None,
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
@@ -697,7 +697,7 @@ class RunnerDeployment(BaseModel):
         enforce_parameter_schema: bool = True,
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
-        job_variables: Optional[Dict[str, Any]] = None,
+        job_variables: Optional[dict[str, Any]] = None,
     ):
         """
         Create a RunnerDeployment from a flow located at a given entrypoint and stored in a
@@ -945,8 +945,8 @@ async def deploy(
 
         console.print(f"Successfully pushed image {image.reference!r}", style="green")
 
-    deployment_exceptions = []
-    deployment_ids = []
+    deployment_exceptions: list[dict[str, Any]] = []
+    deployment_ids: list[UUID] = []
     image_ref = image.reference if image else None
     for deployment in track(
         deployments,

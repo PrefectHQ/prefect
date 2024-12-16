@@ -15,15 +15,11 @@ from typing import (
     Awaitable,
     Callable,
     Coroutine,
-    Dict,
     Generic,
     Iterable,
-    List,
     NoReturn,
     Optional,
-    Set,
-    Tuple,
-    Type,
+    Protocol,
     TypeVar,
     Union,
     cast,
@@ -31,7 +27,7 @@ from typing import (
 )
 from uuid import UUID, uuid4
 
-from typing_extensions import Literal, ParamSpec
+from typing_extensions import Literal, ParamSpec, Self, TypeAlias, TypeIs
 
 import prefect.states
 from prefect.cache_policies import DEFAULT, NONE, CachePolicy
@@ -63,10 +59,7 @@ from prefect.settings import (
 )
 from prefect.states import Pending, Scheduled, State
 from prefect.utilities.annotations import NotSet
-from prefect.utilities.asyncutils import (
-    run_coro_as_sync,
-    sync_compatible,
-)
+from prefect.utilities.asyncutils import run_coro_as_sync, sync_compatible
 from prefect.utilities.callables import (
     expand_mapping_parameters,
     get_call_parameters,
@@ -91,7 +84,7 @@ logger = get_logger("tasks")
 
 
 def task_input_hash(
-    context: "TaskRunContext", arguments: Dict[str, Any]
+    context: "TaskRunContext", arguments: dict[str, Any]
 ) -> Optional[str]:
     """
     A task cache key implementation which hashes all inputs to the task using a JSON or
@@ -116,7 +109,7 @@ def task_input_hash(
     )
 
 
-def exponential_backoff(backoff_factor: float) -> Callable[[int], List[float]]:
+def exponential_backoff(backoff_factor: float) -> Callable[[int], list[float]]:
     """
     A task retry backoff utility that configures exponential backoff for task retries.
     The exponential backoff design matches the urllib3 implementation.
@@ -129,7 +122,7 @@ def exponential_backoff(backoff_factor: float) -> Callable[[int], List[float]]:
         a callable that can be passed to the task constructor
     """
 
-    def retry_backoff_callable(retries: int) -> List[float]:
+    def retry_backoff_callable(retries: int) -> list[float]:
         # no more than 50 retry delays can be configured on a task
         retries = min(retries, 50)
 
@@ -141,8 +134,8 @@ def exponential_backoff(backoff_factor: float) -> Callable[[int], List[float]]:
 def _infer_parent_task_runs(
     flow_run_context: Optional[FlowRunContext],
     task_run_context: Optional[TaskRunContext],
-    parameters: Dict[str, Any],
-):
+    parameters: dict[str, Any],
+) -> list[TaskRunResult]:
     """
     Attempt to infer the parent task runs for this task run based on the
     provided flow run and task run contexts, as well as any parameters. It is
@@ -151,7 +144,7 @@ def _infer_parent_task_runs(
     a parent. This is expected to happen when task inputs are yielded from
     generator tasks.
     """
-    parents = []
+    parents: list[TaskRunResult] = []
 
     # check if this task has a parent task run based on running in another
     # task run's existing context. A task run is only considered a parent if
@@ -221,6 +214,24 @@ def _generate_task_key(fn: Callable[..., Any]) -> str:
     )
 
     return f"{qualname}-{code_hash}"
+
+
+class TaskRunNameCallbackWithParameters(Protocol):
+    @classmethod
+    def is_callback_with_parameters(cls, callable: Callable[..., str]) -> TypeIs[Self]:
+        sig = inspect.signature(callable)
+        return "parameters" in sig.parameters
+
+    def __call__(self, parameters: dict[str, Any]) -> str:
+        ...
+
+
+StateHookCallable: TypeAlias = Callable[
+    ["Task[..., Any]", TaskRun, State], Union[Awaitable[None], None]
+]
+TaskRunNameValueOrCallable: TypeAlias = Union[
+    Callable[[], str], TaskRunNameCallbackWithParameters, str
+]
 
 
 class Task(Generic[P, R]):
@@ -305,21 +316,19 @@ class Task(Generic[P, R]):
         description: Optional[str] = None,
         tags: Optional[Iterable[str]] = None,
         version: Optional[str] = None,
-        cache_policy: Union[CachePolicy, Type[NotSet]] = NotSet,
+        cache_policy: Union[CachePolicy, type[NotSet]] = NotSet,
         cache_key_fn: Optional[
-            Callable[["TaskRunContext", Dict[str, Any]], Optional[str]]
+            Callable[["TaskRunContext", dict[str, Any]], Optional[str]]
         ] = None,
         cache_expiration: Optional[datetime.timedelta] = None,
-        task_run_name: Optional[
-            Union[Callable[[], str], Callable[[Dict[str, Any]], str], str]
-        ] = None,
+        task_run_name: Optional[TaskRunNameValueOrCallable] = None,
         retries: Optional[int] = None,
         retry_delay_seconds: Optional[
             Union[
                 float,
                 int,
-                List[float],
-                Callable[[int], List[float]],
+                list[float],
+                Callable[[int], list[float]],
             ]
         ] = None,
         retry_jitter_factor: Optional[float] = None,
@@ -331,11 +340,13 @@ class Task(Generic[P, R]):
         timeout_seconds: Union[int, float, None] = None,
         log_prints: Optional[bool] = False,
         refresh_cache: Optional[bool] = None,
-        on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
-        on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
-        on_rollback: Optional[List[Callable[["Transaction"], None]]] = None,
-        on_commit: Optional[List[Callable[["Transaction"], None]]] = None,
-        retry_condition_fn: Optional[Callable[["Task", TaskRun, State], bool]] = None,
+        on_completion: Optional[list[StateHookCallable]] = None,
+        on_failure: Optional[list[StateHookCallable]] = None,
+        on_rollback: Optional[list[Callable[["Transaction"], None]]] = None,
+        on_commit: Optional[list[Callable[["Transaction"], None]]] = None,
+        retry_condition_fn: Optional[
+            Callable[["Task[..., Any]", TaskRun, State], bool]
+        ] = None,
         viz_return_value: Optional[Any] = None,
     ):
         # Validate if hook passed is list and contains callables
@@ -460,6 +471,10 @@ class Task(Generic[P, R]):
 
         if callable(retry_delay_seconds):
             self.retry_delay_seconds = retry_delay_seconds(retries)
+        elif not isinstance(retry_delay_seconds, (list, int, float, type(None))):
+            raise TypeError(
+                f"Invalid `retry_delay_seconds` provided; must be an int, float, list or callable. Received type {type(retry_delay_seconds)}"
+            )
         else:
             self.retry_delay_seconds = retry_delay_seconds
 
@@ -505,7 +520,7 @@ class Task(Generic[P, R]):
     def ismethod(self) -> bool:
         return hasattr(self.fn, "__prefect_self__")
 
-    def __get__(self, instance, owner):
+    def __get__(self, instance: Any, owner: Any):
         """
         Implement the descriptor protocol so that the task can be used as an instance method.
         When an instance method is loaded, this method is called with the "self" instance as
@@ -520,7 +535,7 @@ class Task(Generic[P, R]):
         # of the task's function. This will allow it to be automatically added to the task's parameters
         else:
             bound_task = copy(self)
-            bound_task.fn.__prefect_self__ = instance
+            bound_task.fn.__prefect_self__ = instance  # type: ignore[attr-defined]
             return bound_task
 
     def with_options(
@@ -529,38 +544,36 @@ class Task(Generic[P, R]):
         name: Optional[str] = None,
         description: Optional[str] = None,
         tags: Optional[Iterable[str]] = None,
-        cache_policy: Union[CachePolicy, Type[NotSet]] = NotSet,
+        cache_policy: Union[CachePolicy, type[NotSet]] = NotSet,
         cache_key_fn: Optional[
-            Callable[["TaskRunContext", Dict[str, Any]], Optional[str]]
+            Callable[["TaskRunContext", dict[str, Any]], Optional[str]]
         ] = None,
         task_run_name: Optional[
-            Union[Callable[[], str], Callable[[Dict[str, Any]], str], str, Type[NotSet]]
+            Union[TaskRunNameValueOrCallable, type[NotSet]]
         ] = NotSet,
         cache_expiration: Optional[datetime.timedelta] = None,
-        retries: Union[int, Type[NotSet]] = NotSet,
+        retries: Union[int, type[NotSet]] = NotSet,
         retry_delay_seconds: Union[
             float,
             int,
-            List[float],
-            Callable[[int], List[float]],
-            Type[NotSet],
+            list[float],
+            Callable[[int], list[float]],
+            type[NotSet],
         ] = NotSet,
-        retry_jitter_factor: Union[float, Type[NotSet]] = NotSet,
-        persist_result: Union[bool, Type[NotSet]] = NotSet,
-        result_storage: Union[ResultStorage, Type[NotSet]] = NotSet,
-        result_serializer: Union[ResultSerializer, Type[NotSet]] = NotSet,
-        result_storage_key: Union[str, Type[NotSet]] = NotSet,
+        retry_jitter_factor: Union[float, type[NotSet]] = NotSet,
+        persist_result: Union[bool, type[NotSet]] = NotSet,
+        result_storage: Union[ResultStorage, type[NotSet]] = NotSet,
+        result_serializer: Union[ResultSerializer, type[NotSet]] = NotSet,
+        result_storage_key: Union[str, type[NotSet]] = NotSet,
         cache_result_in_memory: Optional[bool] = None,
         timeout_seconds: Union[int, float, None] = None,
-        log_prints: Union[bool, Type[NotSet]] = NotSet,
-        refresh_cache: Union[bool, Type[NotSet]] = NotSet,
-        on_completion: Optional[
-            List[Callable[["Task", TaskRun, State], Union[Awaitable[None], None]]]
+        log_prints: Union[bool, type[NotSet]] = NotSet,
+        refresh_cache: Union[bool, type[NotSet]] = NotSet,
+        on_completion: Optional[list[StateHookCallable]] = None,
+        on_failure: Optional[list[StateHookCallable]] = None,
+        retry_condition_fn: Optional[
+            Callable[["Task[..., Any]", TaskRun, State], bool]
         ] = None,
-        on_failure: Optional[
-            List[Callable[["Task", TaskRun, State], Union[Awaitable[None], None]]]
-        ] = None,
-        retry_condition_fn: Optional[Callable[["Task", TaskRun, State], bool]] = None,
         viz_return_value: Optional[Any] = None,
     ):
         """
@@ -697,15 +710,11 @@ class Task(Generic[P, R]):
             viz_return_value=viz_return_value or self.viz_return_value,
         )
 
-    def on_completion(
-        self, fn: Callable[["Task", TaskRun, State], None]
-    ) -> Callable[["Task", TaskRun, State], None]:
+    def on_completion(self, fn: StateHookCallable) -> StateHookCallable:
         self.on_completion_hooks.append(fn)
         return fn
 
-    def on_failure(
-        self, fn: Callable[["Task", TaskRun, State], None]
-    ) -> Callable[["Task", TaskRun, State], None]:
+    def on_failure(self, fn: StateHookCallable) -> StateHookCallable:
         self.on_failure_hooks.append(fn)
         return fn
 
@@ -725,17 +734,15 @@ class Task(Generic[P, R]):
         self,
         client: Optional["PrefectClient"] = None,
         id: Optional[UUID] = None,
-        parameters: Optional[Dict[str, Any]] = None,
+        parameters: Optional[dict[str, Any]] = None,
         flow_run_context: Optional[FlowRunContext] = None,
         parent_task_run_context: Optional[TaskRunContext] = None,
-        wait_for: Optional[Iterable[PrefectFuture]] = None,
-        extra_task_inputs: Optional[Dict[str, Set[TaskRunInput]]] = None,
+        wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
+        extra_task_inputs: Optional[dict[str, set[TaskRunInput]]] = None,
         deferred: bool = False,
     ) -> TaskRun:
-        from prefect.utilities.engine import (
-            _dynamic_key_for_task_run,
-            collect_task_run_inputs_sync,
-        )
+        from prefect.utilities._engine import dynamic_key_for_task_run
+        from prefect.utilities.engine import collect_task_run_inputs_sync
 
         if flow_run_context is None:
             flow_run_context = FlowRunContext.get()
@@ -751,7 +758,7 @@ class Task(Generic[P, R]):
                 dynamic_key = f"{self.task_key}-{str(uuid4().hex)}"
                 task_run_name = self.name
             else:
-                dynamic_key = _dynamic_key_for_task_run(
+                dynamic_key = dynamic_key_for_task_run(
                     context=flow_run_context, task=self
                 )
                 task_run_name = f"{self.name}-{dynamic_key}"
@@ -775,7 +782,7 @@ class Task(Generic[P, R]):
                     result_storage=await get_or_create_default_task_scheduling_storage()
                 ).update_for_task(self)
                 context = serialize_context()
-                data: Dict[str, Any] = {"context": context}
+                data: dict[str, Any] = {"context": context}
                 if parameters:
                     data["parameters"] = parameters
                 if wait_for:
@@ -828,17 +835,15 @@ class Task(Generic[P, R]):
         self,
         client: Optional["PrefectClient"] = None,
         id: Optional[UUID] = None,
-        parameters: Optional[Dict[str, Any]] = None,
+        parameters: Optional[dict[str, Any]] = None,
         flow_run_context: Optional[FlowRunContext] = None,
         parent_task_run_context: Optional[TaskRunContext] = None,
-        wait_for: Optional[Iterable[PrefectFuture]] = None,
-        extra_task_inputs: Optional[Dict[str, Set[TaskRunInput]]] = None,
+        wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
+        extra_task_inputs: Optional[dict[str, set[TaskRunInput]]] = None,
         deferred: bool = False,
     ) -> TaskRun:
-        from prefect.utilities.engine import (
-            _dynamic_key_for_task_run,
-            collect_task_run_inputs_sync,
-        )
+        from prefect.utilities._engine import dynamic_key_for_task_run
+        from prefect.utilities.engine import collect_task_run_inputs_sync
 
         if flow_run_context is None:
             flow_run_context = FlowRunContext.get()
@@ -854,7 +859,7 @@ class Task(Generic[P, R]):
                 dynamic_key = f"{self.task_key}-{str(uuid4().hex)}"
                 task_run_name = self.name
             else:
-                dynamic_key = _dynamic_key_for_task_run(
+                dynamic_key = dynamic_key_for_task_run(
                     context=flow_run_context, task=self, stable=False
                 )
                 task_run_name = f"{self.name}-{dynamic_key[:3]}"
@@ -878,7 +883,7 @@ class Task(Generic[P, R]):
                     result_storage=await get_or_create_default_task_scheduling_storage()
                 ).update_for_task(task)
                 context = serialize_context()
-                data: Dict[str, Any] = {"context": context}
+                data: dict[str, Any] = {"context": context}
                 if parameters:
                     data["parameters"] = parameters
                 if wait_for:
@@ -974,7 +979,7 @@ class Task(Generic[P, R]):
         self,
         *args: P.args,
         return_state: bool = False,
-        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
         **kwargs: P.kwargs,
     ):
         """
@@ -1054,7 +1059,7 @@ class Task(Generic[P, R]):
         self,
         *args: Any,
         return_state: bool = False,
-        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
         **kwargs: Any,
     ):
         """
@@ -1182,7 +1187,7 @@ class Task(Generic[P, R]):
         wait_for: Optional[Iterable[Union[PrefectFuture[R], R]]] = ...,
         deferred: bool = ...,
         **kwargs: Any,
-    ) -> List[State[R]]:
+    ) -> list[State[R]]:
         ...
 
     @overload
@@ -1203,7 +1208,7 @@ class Task(Generic[P, R]):
         wait_for: Optional[Iterable[Union[PrefectFuture[R], R]]] = ...,
         deferred: bool = ...,
         **kwargs: Any,
-    ) -> List[State[R]]:
+    ) -> list[State[R]]:
         ...
 
     @overload
@@ -1224,7 +1229,7 @@ class Task(Generic[P, R]):
         wait_for: Optional[Iterable[Union[PrefectFuture[R], R]]] = ...,
         deferred: bool = ...,
         **kwargs: Any,
-    ) -> List[State[R]]:
+    ) -> list[State[R]]:
         ...
 
     @overload
@@ -1245,7 +1250,7 @@ class Task(Generic[P, R]):
         wait_for: Optional[Iterable[Union[PrefectFuture[R], R]]] = None,
         deferred: bool = False,
         **kwargs: Any,
-    ) -> Union[List[State[R]], PrefectFutureList[R]]:
+    ) -> Union[list[State[R]], PrefectFutureList[R]]:
         """
         Submit a mapped run of the task to a worker.
 
@@ -1404,10 +1409,10 @@ class Task(Generic[P, R]):
 
     def apply_async(
         self,
-        args: Optional[Tuple[Any, ...]] = None,
-        kwargs: Optional[Dict[str, Any]] = None,
+        args: Optional[tuple[Any, ...]] = None,
+        kwargs: Optional[dict[str, Any]] = None,
         wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
-        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+        dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
     ) -> PrefectDistributedFuture[R]:
         """
         Create a pending task run for a task worker to execute.
@@ -1507,7 +1512,7 @@ class Task(Generic[P, R]):
 
         return PrefectDistributedFuture(task_run_id=task_run.id)
 
-    def delay(self, *args: P.args, **kwargs: P.kwargs) -> PrefectDistributedFuture:
+    def delay(self, *args: P.args, **kwargs: P.kwargs) -> PrefectDistributedFuture[R]:
         """
         An alias for `apply_async` with simpler calling semantics.
 
@@ -1575,6 +1580,14 @@ def task(__fn: Callable[P, R]) -> Task[P, R]:
     ...
 
 
+# see https://github.com/PrefectHQ/prefect/issues/16380
+@overload
+def task(
+    __fn: Literal[None] = None,
+) -> Callable[[Callable[P, R]], Task[P, R]]:
+    ...
+
+
 @overload
 def task(
     *,
@@ -1582,20 +1595,18 @@ def task(
     description: Optional[str] = None,
     tags: Optional[Iterable[str]] = None,
     version: Optional[str] = None,
-    cache_policy: Union[CachePolicy, Type[NotSet]] = NotSet,
+    cache_policy: Union[CachePolicy, type[NotSet]] = NotSet,
     cache_key_fn: Optional[
-        Callable[["TaskRunContext", Dict[str, Any]], Optional[str]]
+        Callable[["TaskRunContext", dict[str, Any]], Optional[str]]
     ] = None,
     cache_expiration: Optional[datetime.timedelta] = None,
-    task_run_name: Optional[
-        Union[Callable[[], str], Callable[[Dict[str, Any]], str], str]
-    ] = None,
+    task_run_name: Optional[TaskRunNameValueOrCallable] = None,
     retries: int = 0,
     retry_delay_seconds: Union[
         float,
         int,
-        List[float],
-        Callable[[int], List[float]],
+        list[float],
+        Callable[[int], list[float]],
     ] = 0,
     retry_jitter_factor: Optional[float] = None,
     persist_result: Optional[bool] = None,
@@ -1606,10 +1617,8 @@ def task(
     timeout_seconds: Union[int, float, None] = None,
     log_prints: Optional[bool] = None,
     refresh_cache: Optional[bool] = None,
-    on_completion: Optional[
-        List[Callable[["Task[P, R]", TaskRun, State], None]]
-    ] = None,
-    on_failure: Optional[List[Callable[["Task[P, R]", TaskRun, State], None]]] = None,
+    on_completion: Optional[list[StateHookCallable]] = None,
+    on_failure: Optional[list[StateHookCallable]] = None,
     retry_condition_fn: Optional[Callable[["Task[P, R]", TaskRun, State], bool]] = None,
     viz_return_value: Any = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]:
@@ -1623,17 +1632,15 @@ def task(
     description: Optional[str] = None,
     tags: Optional[Iterable[str]] = None,
     version: Optional[str] = None,
-    cache_policy: Union[CachePolicy, Type[NotSet]] = NotSet,
+    cache_policy: Union[CachePolicy, type[NotSet]] = NotSet,
     cache_key_fn: Union[
-        Callable[["TaskRunContext", Dict[str, Any]], Optional[str]], None
+        Callable[["TaskRunContext", dict[str, Any]], Optional[str]], None
     ] = None,
     cache_expiration: Optional[datetime.timedelta] = None,
-    task_run_name: Optional[
-        Union[Callable[[], str], Callable[[Dict[str, Any]], str], str]
-    ] = None,
+    task_run_name: Optional[TaskRunNameValueOrCallable] = None,
     retries: Optional[int] = None,
     retry_delay_seconds: Union[
-        float, int, List[float], Callable[[int], List[float]], None
+        float, int, list[float], Callable[[int], list[float]], None
     ] = None,
     retry_jitter_factor: Optional[float] = None,
     persist_result: Optional[bool] = None,
@@ -1644,10 +1651,8 @@ def task(
     timeout_seconds: Union[int, float, None] = None,
     log_prints: Optional[bool] = None,
     refresh_cache: Optional[bool] = None,
-    on_completion: Optional[
-        List[Callable[["Task[P, R]", TaskRun, State], None]]
-    ] = None,
-    on_failure: Optional[List[Callable[["Task[P, R]", TaskRun, State], None]]] = None,
+    on_completion: Optional[list[StateHookCallable]] = None,
+    on_failure: Optional[list[StateHookCallable]] = None,
     retry_condition_fn: Optional[Callable[["Task[P, R]", TaskRun, State], bool]] = None,
     viz_return_value: Any = None,
 ):
@@ -1764,34 +1769,31 @@ def task(
         if isinstance(__fn, (classmethod, staticmethod)):
             method_decorator = type(__fn).__name__
             raise TypeError(f"@{method_decorator} should be applied on top of @task")
-        return cast(
-            Task[P, R],
-            Task(
-                fn=__fn,
-                name=name,
-                description=description,
-                tags=tags,
-                version=version,
-                cache_policy=cache_policy,
-                cache_key_fn=cache_key_fn,
-                cache_expiration=cache_expiration,
-                task_run_name=task_run_name,
-                retries=retries,
-                retry_delay_seconds=retry_delay_seconds,
-                retry_jitter_factor=retry_jitter_factor,
-                persist_result=persist_result,
-                result_storage=result_storage,
-                result_storage_key=result_storage_key,
-                result_serializer=result_serializer,
-                cache_result_in_memory=cache_result_in_memory,
-                timeout_seconds=timeout_seconds,
-                log_prints=log_prints,
-                refresh_cache=refresh_cache,
-                on_completion=on_completion,
-                on_failure=on_failure,
-                retry_condition_fn=retry_condition_fn,
-                viz_return_value=viz_return_value,
-            ),
+        return Task(
+            fn=__fn,
+            name=name,
+            description=description,
+            tags=tags,
+            version=version,
+            cache_policy=cache_policy,
+            cache_key_fn=cache_key_fn,
+            cache_expiration=cache_expiration,
+            task_run_name=task_run_name,
+            retries=retries,
+            retry_delay_seconds=retry_delay_seconds,
+            retry_jitter_factor=retry_jitter_factor,
+            persist_result=persist_result,
+            result_storage=result_storage,
+            result_storage_key=result_storage_key,
+            result_serializer=result_serializer,
+            cache_result_in_memory=cache_result_in_memory,
+            timeout_seconds=timeout_seconds,
+            log_prints=log_prints,
+            refresh_cache=refresh_cache,
+            on_completion=on_completion,
+            on_failure=on_failure,
+            retry_condition_fn=retry_condition_fn,
+            viz_return_value=viz_return_value,
         )
     else:
         return cast(

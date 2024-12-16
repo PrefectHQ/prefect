@@ -573,14 +573,16 @@ class TestTaskRunsAsync:
 
     async def test_task_run_states(
         self,
-        prefect_client,
+        prefect_client: PrefectClient,
         events_pipeline,
     ):
         @task
         async def foo():
-            return TaskRunContext.get().task_run.id
+            assert (ctx := TaskRunContext.get()) is not None
+            return ctx.task_run.id
 
         task_run_id = await run_task_async(foo)
+        assert isinstance(task_run_id, UUID)
         await events_pipeline.process_events()
         states = await prefect_client.read_task_run_states(task_run_id)
 
@@ -1507,6 +1509,58 @@ class TestTaskTimeTracking:
         running = [state for state in states if state.type == StateType.RUNNING][0]
         failed = [state for state in states if state.type == StateType.FAILED][0]
 
+        assert run.end_time
+        assert run.end_time == failed.timestamp
+        assert run.total_run_time == failed.timestamp - running.timestamp
+
+    async def test_sync_task_sets_end_time_on_failed_timedout(
+        self, prefect_client, events_pipeline
+    ):
+        ID = None
+
+        @task
+        def foo():
+            nonlocal ID
+            ID = TaskRunContext.get().task_run.id
+            raise TimeoutError
+
+        with pytest.raises(TimeoutError):
+            run_task_sync(foo)
+
+        await events_pipeline.process_events()
+
+        run = await prefect_client.read_task_run(ID)
+
+        states = await prefect_client.read_task_run_states(ID)
+        running = [state for state in states if state.type == StateType.RUNNING][0]
+        failed = [state for state in states if state.type == StateType.FAILED][0]
+
+        assert failed.name == "TimedOut"
+        assert run.end_time
+        assert run.end_time == failed.timestamp
+        assert run.total_run_time == failed.timestamp - running.timestamp
+
+    async def test_async_task_sets_end_time_on_failed_timedout(
+        self, prefect_client, events_pipeline
+    ):
+        ID = None
+
+        @task
+        async def foo():
+            nonlocal ID
+            ID = TaskRunContext.get().task_run.id
+            raise TimeoutError
+
+        with pytest.raises(TimeoutError):
+            await run_task_async(foo)
+
+        await events_pipeline.process_events()
+        run = await prefect_client.read_task_run(ID)
+        states = await prefect_client.read_task_run_states(ID)
+        running = [state for state in states if state.type == StateType.RUNNING][0]
+        failed = [state for state in states if state.type == StateType.FAILED][0]
+
+        assert failed.name == "TimedOut"
         assert run.end_time
         assert run.end_time == failed.timestamp
         assert run.total_run_time == failed.timestamp - running.timestamp

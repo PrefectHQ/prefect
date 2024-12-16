@@ -12,18 +12,20 @@ import dataclasses
 import inspect
 import threading
 import weakref
+from collections.abc import Awaitable, Generator
 from concurrent.futures._base import (
     CANCELLED,
     CANCELLED_AND_NOTIFIED,
     FINISHED,
     RUNNING,
 )
-from typing import Any, Awaitable, Callable, Dict, Generic, Optional, Tuple, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Generic, Optional, Union
 
-from typing_extensions import ParamSpec
+from typing_extensions import ParamSpec, Self, TypeAlias, TypeVar, TypeVarTuple
 
 from prefect._internal.concurrency import logger
 from prefect._internal.concurrency.cancellation import (
+    AsyncCancelScope,
     CancelledError,
     cancel_async_at,
     cancel_sync_at,
@@ -31,8 +33,12 @@ from prefect._internal.concurrency.cancellation import (
 )
 from prefect._internal.concurrency.event_loop import get_running_loop
 
-T = TypeVar("T")
+T = TypeVar("T", infer_variance=True)
+Ts = TypeVarTuple("Ts")
 P = ParamSpec("P")
+
+_SyncOrAsyncCallable: TypeAlias = Callable[P, Union[T, Awaitable[T]]]
+
 
 # Tracks the current call being executed. Note that storing the `Call`
 # object for an async call directly in the contextvar appears to create a
@@ -41,16 +47,16 @@ P = ParamSpec("P")
 # we already have strong references to the `Call` objects in other places
 # and b) this is used for performance optimizations where we have fallback
 # behavior if this weakref is garbage collected. A fix for issue #10952.
-current_call: contextvars.ContextVar["weakref.ref[Call]"] = (  # novm
+current_call: contextvars.ContextVar["weakref.ref[Call[Any]]"] = (  # novm
     contextvars.ContextVar("current_call")
 )
 
 # Create a strong reference to tasks to prevent destruction during execution errors
-_ASYNC_TASK_REFS = set()
+_ASYNC_TASK_REFS: set[asyncio.Task[None]] = set()
 
 
 @contextlib.contextmanager
-def set_current_call(call: "Call"):
+def set_current_call(call: "Call[Any]") -> Generator[None, Any, None]:
     token = current_call.set(weakref.ref(call))
     try:
         yield
@@ -58,7 +64,7 @@ def set_current_call(call: "Call"):
         current_call.reset(token)
 
 
-class Future(concurrent.futures.Future):
+class Future(concurrent.futures.Future[T]):
     """
     Extension of `concurrent.futures.Future` with support for cancellation of running
     futures.
@@ -70,7 +76,7 @@ class Future(concurrent.futures.Future):
         super().__init__()
         self._cancel_scope = None
         self._deadline = None
-        self._cancel_callbacks = []
+        self._cancel_callbacks: list[Callable[[], None]] = []
         self._name = name
         self._timed_out = False
 
@@ -79,7 +85,7 @@ class Future(concurrent.futures.Future):
         return super().set_running_or_notify_cancel()
 
     @contextlib.contextmanager
-    def enforce_async_deadline(self):
+    def enforce_async_deadline(self) -> Generator[AsyncCancelScope]:
         with cancel_async_at(self._deadline, name=self._name) as self._cancel_scope:
             for callback in self._cancel_callbacks:
                 self._cancel_scope.add_cancel_callback(callback)
@@ -92,7 +98,7 @@ class Future(concurrent.futures.Future):
                 self._cancel_scope.add_cancel_callback(callback)
             yield self._cancel_scope
 
-    def add_cancel_callback(self, callback: Callable[[], None]):
+    def add_cancel_callback(self, callback: Callable[[], Any]) -> None:
         """
         Add a callback to be enforced on cancellation.
 
@@ -113,7 +119,7 @@ class Future(concurrent.futures.Future):
         with self._condition:
             return self._timed_out
 
-    def cancel(self):
+    def cancel(self) -> bool:
         """Cancel the future if possible.
 
         Returns True if the future was cancelled, False otherwise. A future cannot be
@@ -147,7 +153,12 @@ class Future(concurrent.futures.Future):
         self._invoke_callbacks()
         return True
 
-    def result(self, timeout=None):
+    if TYPE_CHECKING:
+
+        def __get_result(self) -> T:
+            ...
+
+    def result(self, timeout: Optional[float] = None) -> T:
         """Return the result of the call that the future represents.
 
         Args:
@@ -186,7 +197,9 @@ class Future(concurrent.futures.Future):
             # Break a reference cycle with the exception in self._exception
             self = None
 
-    def _invoke_callbacks(self):
+    _done_callbacks: list[Callable[[Self], object]]
+
+    def _invoke_callbacks(self) -> None:
         """
         Invoke our done callbacks and clean up cancel scopes and cancel
         callbacks. Fixes a memory leak that hung on to Call objects,
@@ -206,7 +219,7 @@ class Future(concurrent.futures.Future):
 
         self._cancel_callbacks = []
         if self._cancel_scope:
-            self._cancel_scope._callbacks = []
+            setattr(self._cancel_scope, "_callbacks", [])
             self._cancel_scope = None
 
 
@@ -216,16 +229,21 @@ class Call(Generic[T]):
     A deferred function call.
     """
 
-    future: Future
-    fn: Callable[..., T]
-    args: Tuple
-    kwargs: Dict[str, Any]
+    future: Future[T]
+    fn: "_SyncOrAsyncCallable[..., T]"
+    args: tuple[Any, ...]
+    kwargs: dict[str, Any]
     context: contextvars.Context
-    timeout: float
+    timeout: Optional[float]
     runner: Optional["Portal"] = None
 
     @classmethod
-    def new(cls, __fn: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> "Call[T]":
+    def new(
+        cls,
+        __fn: _SyncOrAsyncCallable[P, T],
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> Self:
         return cls(
             future=Future(name=getattr(__fn, "__name__", str(__fn))),
             fn=__fn,
@@ -255,7 +273,7 @@ class Call(Generic[T]):
 
         self.runner = portal
 
-    def run(self) -> Optional[Awaitable[T]]:
+    def run(self) -> Optional[Awaitable[None]]:
         """
         Execute the call and place the result on the future.
 
@@ -337,7 +355,7 @@ class Call(Generic[T]):
     def cancel(self) -> bool:
         return self.future.cancel()
 
-    def _run_sync(self):
+    def _run_sync(self) -> Optional[Awaitable[T]]:
         cancel_scope = None
         try:
             with set_current_call(self):
@@ -348,8 +366,8 @@ class Call(Generic[T]):
                         # Forget this call's arguments in order to free up any memory
                         # that may be referenced by them; after a call has happened,
                         # there's no need to keep a reference to them
-                        self.args = None
-                        self.kwargs = None
+                        with contextlib.suppress(AttributeError):
+                            del self.args, self.kwargs
 
             # Return the coroutine for async execution
             if inspect.isawaitable(result):
@@ -357,8 +375,10 @@ class Call(Generic[T]):
 
         except CancelledError:
             # Report cancellation
+            if TYPE_CHECKING:
+                assert cancel_scope is not None
             if cancel_scope.timedout():
-                self.future._timed_out = True
+                setattr(self.future, "_timed_out", True)
                 self.future.cancel()
             elif cancel_scope.cancelled():
                 self.future.cancel()
@@ -374,8 +394,8 @@ class Call(Generic[T]):
             self.future.set_result(result)  # noqa: F821
             logger.debug("Finished call %r", self)  # noqa: F821
 
-    async def _run_async(self, coro):
-        cancel_scope = None
+    async def _run_async(self, coro: Awaitable[T]) -> None:
+        cancel_scope = result = None
         try:
             with set_current_call(self):
                 with self.future.enforce_async_deadline() as cancel_scope:
@@ -385,12 +405,14 @@ class Call(Generic[T]):
                         # Forget this call's arguments in order to free up any memory
                         # that may be referenced by them; after a call has happened,
                         # there's no need to keep a reference to them
-                        self.args = None
-                        self.kwargs = None
+                        with contextlib.suppress(AttributeError):
+                            del self.args, self.kwargs
         except CancelledError:
             # Report cancellation
+            if TYPE_CHECKING:
+                assert cancel_scope is not None
             if cancel_scope.timedout():
-                self.future._timed_out = True
+                setattr(self.future, "_timed_out", True)
                 self.future.cancel()
             elif cancel_scope.cancelled():
                 self.future.cancel()
@@ -403,10 +425,11 @@ class Call(Generic[T]):
             # Prevent reference cycle in `exc`
             del self
         else:
+            # F821 ignored because Ruff gets confused about the del self above.
             self.future.set_result(result)  # noqa: F821
             logger.debug("Finished async call %r", self)  # noqa: F821
 
-    def __call__(self) -> T:
+    def __call__(self) -> Union[T, Awaitable[T]]:
         """
         Execute the call and return its result.
 
@@ -417,7 +440,7 @@ class Call(Generic[T]):
         # Return an awaitable if in an async context
         if coro is not None:
 
-            async def run_and_return_result():
+            async def run_and_return_result() -> T:
                 await coro
                 return self.result()
 
@@ -428,8 +451,9 @@ class Call(Generic[T]):
     def __repr__(self) -> str:
         name = getattr(self.fn, "__name__", str(self.fn))
 
-        args, kwargs = self.args, self.kwargs
-        if args is None or kwargs is None:
+        try:
+            args, kwargs = self.args, self.kwargs
+        except AttributeError:
             call_args = "<dropped>"
         else:
             call_args = ", ".join(
@@ -450,7 +474,7 @@ class Portal(abc.ABC):
     """
 
     @abc.abstractmethod
-    def submit(self, call: "Call") -> "Call":
+    def submit(self, call: "Call[T]") -> "Call[T]":
         """
         Submit a call to execute elsewhere.
 

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Iterable, Optional, Union
+from typing import TYPE_CHECKING, Any, Iterable, Optional, Union
 from uuid import UUID
 
 import anyio
@@ -35,7 +35,7 @@ logger = get_logger(__name__)
 async def run_deployment(
     name: Union[str, UUID],
     client: Optional["PrefectClient"] = None,
-    parameters: Optional[dict] = None,
+    parameters: Optional[dict[str, Any]] = None,
     scheduled_time: Optional[datetime] = None,
     flow_run_name: Optional[str] = None,
     timeout: Optional[float] = None,
@@ -44,7 +44,7 @@ async def run_deployment(
     idempotency_key: Optional[str] = None,
     work_queue_name: Optional[str] = None,
     as_subflow: Optional[bool] = True,
-    job_variables: Optional[dict] = None,
+    job_variables: Optional[dict[str, Any]] = None,
 ) -> "FlowRun":
     """
     Create a flow run for a deployment and return it after completion or a timeout.
@@ -113,10 +113,8 @@ async def run_deployment(
     task_run_ctx = TaskRunContext.get()
     if as_subflow and (flow_run_ctx or task_run_ctx):
         # TODO: this logic can likely be simplified by using `Task.create_run`
-        from prefect.utilities.engine import (
-            _dynamic_key_for_task_run,
-            collect_task_run_inputs,
-        )
+        from prefect.utilities._engine import dynamic_key_for_task_run
+        from prefect.utilities.engine import collect_task_run_inputs
 
         # This was called from a flow. Link the flow run as a subflow.
         task_inputs = {
@@ -143,7 +141,7 @@ async def run_deployment(
             else task_run_ctx.task_run.flow_run_id
         )
         dynamic_key = (
-            _dynamic_key_for_task_run(flow_run_ctx, dummy_task)
+            dynamic_key_for_task_run(flow_run_ctx, dummy_task)
             if flow_run_ctx
             else task_run_ctx.task_run.dynamic_key
         )
