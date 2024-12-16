@@ -327,7 +327,7 @@ class ResultStore(BaseModel):
         return self.model_copy(update=update)
 
     @sync_compatible
-    async def update_for_task(self: Self, task: "Task") -> Self:
+    async def update_for_task(self: Self, task: "Task[P, R]") -> Self:
         """
         Create a new result store for a task.
 
@@ -915,7 +915,11 @@ class ResultStore(BaseModel):
         )
 
     @sync_compatible
-    async def read_parameters(self, identifier: UUID) -> Dict[str, Any]:
+    async def read_parameters(self, identifier: UUID) -> dict[str, Any]:
+        if self.result_storage is None:
+            raise ValueError(
+                "Result store is not configured - must have a result storage block to read parameters"
+            )
         record = ResultRecord.deserialize(
             await self.result_storage.read_path(f"parameters/{identifier}")
         )

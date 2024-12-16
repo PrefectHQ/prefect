@@ -656,23 +656,13 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                     flow_version=self.flow.version,
                     empirical_policy=self.flow_run.empirical_policy,
                 )
-            parent_flow_run = FlowRunContext.get()
-            parent_labels = {}
-            if parent_flow_run and parent_flow_run.flow_run:
-                parent_labels = parent_flow_run.flow_run.labels
 
             self._telemetry.start_span(
                 name=self.flow.name,
                 run=self.flow_run,
+                client=self.client,
                 parameters=self.parameters,
-                parent_labels=parent_labels,
             )
-            carrier = self._telemetry.propagate_traceparent()
-            if carrier:
-                self.client.update_flow_run_labels(
-                    flow_run_id=self.flow_run.id,
-                    labels={LABELS_TRACEPARENT_KEY: carrier[TRACEPARENT_KEY]},
-                )
 
             try:
                 yield self
@@ -1228,23 +1218,13 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     flow_version=self.flow.version,
                     empirical_policy=self.flow_run.empirical_policy,
                 )
-            parent_flow_run = FlowRunContext.get()
-            parent_labels = {}
-            if parent_flow_run and parent_flow_run.flow_run:
-                parent_labels = parent_flow_run.flow_run.labels
 
-            self._telemetry.start_span(
+            await self._telemetry.async_start_span(
                 name=self.flow.name,
                 run=self.flow_run,
+                client=self.client,
                 parameters=self.parameters,
-                parent_labels=parent_labels,
             )
-            carrier = self._telemetry.propagate_traceparent()
-            if carrier:
-                await self.client.update_flow_run_labels(
-                    flow_run_id=self.flow_run.id,
-                    labels={LABELS_TRACEPARENT_KEY: carrier[TRACEPARENT_KEY]},
-                )
 
             try:
                 yield self

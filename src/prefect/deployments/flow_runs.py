@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Iterable, Optional, Union
+from typing import TYPE_CHECKING, Any, Iterable, Optional, Union
 from uuid import UUID
 
 import anyio
@@ -40,7 +40,7 @@ logger = get_logger(__name__)
 async def run_deployment(
     name: Union[str, UUID],
     client: Optional["PrefectClient"] = None,
-    parameters: Optional[dict] = None,
+    parameters: Optional[dict[str, Any]] = None,
     scheduled_time: Optional[datetime] = None,
     flow_run_name: Optional[str] = None,
     timeout: Optional[float] = None,
@@ -49,7 +49,7 @@ async def run_deployment(
     idempotency_key: Optional[str] = None,
     work_queue_name: Optional[str] = None,
     as_subflow: Optional[bool] = True,
-    job_variables: Optional[dict] = None,
+    job_variables: Optional[dict[str, Any]] = None,
 ) -> "FlowRun":
     """
     Create a flow run for a deployment and return it after completion or a timeout.

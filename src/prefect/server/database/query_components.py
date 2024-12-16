@@ -27,7 +27,7 @@ from prefect.server.database import orm_models
 from prefect.server.exceptions import FlowRunGraphTooLarge, ObjectNotFoundError
 from prefect.server.schemas.graph import Edge, Graph, GraphArtifact, GraphState, Node
 from prefect.server.utilities.database import UUID as UUIDTypeDecorator
-from prefect.server.utilities.database import Timestamp, json_has_any_key
+from prefect.server.utilities.database import Timestamp
 
 if TYPE_CHECKING:
     from prefect.server.database.interface import PrefectDBInterface
@@ -60,14 +60,6 @@ class BaseQueryComponents(ABC):
     @abstractmethod
     def insert(self, obj) -> Union[postgresql.Insert, sqlite.Insert]:
         """dialect-specific insert statement"""
-
-    @abstractmethod
-    def greatest(self, *values):
-        """dialect-specific SqlAlchemy binding"""
-
-    @abstractmethod
-    def least(self, *values):
-        """dialect-specific SqlAlchemy binding"""
 
     # --- dialect-specific JSON handling
 
@@ -121,6 +113,13 @@ class BaseQueryComponents(ABC):
         db: "PrefectDBInterface",
     ):
         """Database-specific implementation of queueing notifications for a flow run"""
+
+        def as_array(elems: Sequence[str]) -> sa.ColumnElement[Sequence[str]]:
+            return sa.cast(postgresql.array(elems), type_=postgresql.ARRAY(sa.String()))
+
+        if TYPE_CHECKING:
+            assert flow_run.state_name is not None
+
         # insert a <policy, state> pair into the notification queue
         stmt = db.insert(orm_models.FlowRunNotificationQueue).from_select(
             [
@@ -140,16 +139,15 @@ class BaseQueryComponents(ABC):
                     # the policy state names aren't set or match the current state name
                     sa.or_(
                         orm_models.FlowRunNotificationPolicy.state_names == [],
-                        json_has_any_key(
-                            orm_models.FlowRunNotificationPolicy.state_names,
-                            [flow_run.state_name],
+                        orm_models.FlowRunNotificationPolicy.state_names.has_any(
+                            as_array([flow_run.state_name])
                         ),
                     ),
                     # the policy tags aren't set, or the tags match the flow run tags
                     sa.or_(
                         orm_models.FlowRunNotificationPolicy.tags == [],
-                        json_has_any_key(
-                            orm_models.FlowRunNotificationPolicy.tags, flow_run.tags
+                        orm_models.FlowRunNotificationPolicy.tags.has_any(
+                            as_array(flow_run.tags)
                         ),
                     ),
                 )
@@ -179,7 +177,7 @@ class BaseQueryComponents(ABC):
         concurrency_queues = (
             sa.select(
                 orm_models.WorkQueue.id,
-                self.greatest(
+                sa.func.greatest(
                     0,
                     orm_models.WorkQueue.concurrency_limit
                     - sa.func.count(orm_models.FlowRun.id),
@@ -628,12 +626,6 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
     def insert(self, obj) -> postgresql.Insert:
         return postgresql.insert(obj)
 
-    def greatest(self, *values):
-        return sa.func.greatest(*values)
-
-    def least(self, *values):
-        return sa.func.least(*values)
-
     # --- Postgres-specific JSON handling
 
     @property
@@ -983,12 +975,6 @@ class AioSqliteQueryComponents(BaseQueryComponents):
 
     def insert(self, obj) -> sqlite.Insert:
         return sqlite.insert(obj)
-
-    def greatest(self, *values):
-        return sa.func.max(*values)
-
-    def least(self, *values):
-        return sa.func.min(*values)
 
     # --- Sqlite-specific JSON handling
 
