@@ -66,7 +66,7 @@ const routeRecords: AppRouteRecord[] = [
   {
     name: 'login',
     path: '/login',
-    component: (): RouteComponent => import('@/pages/Login.vue'),
+    component: (): RouteComponent => import('@/pages/Unauthenticated.vue'),
     meta: { public: true },
   },
   {
