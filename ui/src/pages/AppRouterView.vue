@@ -46,10 +46,15 @@
   provide(prefectApiKey, api)
   provide(workspaceApiKey, api)
   provide(workspaceRoutesKey, routes)
-
-  api.health.isHealthy().then(healthy => {
-    if (!healthy) {
-      showToast(`Can't connect to Server API at ${config.baseUrl}. Check that it's accessible from your machine.`, 'error', { timeout: false })
+  api.admin.authCheck().then(authenticated => {
+    if (!authenticated) {
+      showToast('Authentication failed.', 'error', { timeout: false })
+    } else {
+      api.health.isHealthy().then(healthy => {
+        if (!healthy) {
+          showToast(`Can't connect to Server API at ${config.baseUrl}. Check that it's accessible from your machine.`, 'error', { timeout: false })
+        }
+      })
     }
   })
 
