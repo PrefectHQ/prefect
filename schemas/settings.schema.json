@@ -19,6 +19,24 @@
                     ],
                     "title": "Url"
                 },
+                "auth_string": {
+                    "anyOf": [
+                        {
+                            "format": "password",
+                            "type": "string",
+                            "writeOnly": true
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "The auth string used for basic authentication with a self-hosted Prefect API. Should be kept secret.",
+                    "supported_environment_variables": [
+                        "PREFECT_API_AUTH_STRING"
+                    ],
+                    "title": "Auth String"
+                },
                 "key": {
                     "anyOf": [
                         {
@@ -707,6 +725,23 @@
         "ServerAPISettings": {
             "description": "Settings for controlling API server behavior",
             "properties": {
+                "auth_string": {
+                    "anyOf": [
+                        {
+                            "format": "password",
+                            "type": "string",
+                            "writeOnly": true
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_API_AUTH_STRING"
+                    ],
+                    "title": "Auth String"
+                },
                 "host": {
                     "default": "127.0.0.1",
                     "description": "The API's host address (defaults to `127.0.0.1`).",

@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import datetime
 import ssl
 import warnings
@@ -114,6 +115,7 @@ from prefect.events import filters
 from prefect.events.schemas.automations import Automation, AutomationCore
 from prefect.logging import get_logger
 from prefect.settings import (
+    PREFECT_API_AUTH_STRING,
     PREFECT_API_DATABASE_CONNECTION_URL,
     PREFECT_API_ENABLE_HTTP2,
     PREFECT_API_KEY,
@@ -228,6 +230,7 @@ def get_client(
     if sync_client:
         return SyncPrefectClient(
             api,
+            auth_string=PREFECT_API_AUTH_STRING.value(),
             api_key=PREFECT_API_KEY.value(),
             httpx_settings=httpx_settings,
             server_type=server_type,
@@ -235,6 +238,7 @@ def get_client(
     else:
         return PrefectClient(
             api,
+            auth_string=PREFECT_API_AUTH_STRING.value(),
             api_key=PREFECT_API_KEY.value(),
             httpx_settings=httpx_settings,
             server_type=server_type,
@@ -271,6 +275,7 @@ class PrefectClient:
         self,
         api: Union[str, ASGIApp],
         *,
+        auth_string: Optional[str] = None,
         api_key: Optional[str] = None,
         api_version: Optional[str] = None,
         httpx_settings: Optional[dict[str, Any]] = None,
@@ -298,6 +303,10 @@ class PrefectClient:
         httpx_settings["headers"].setdefault("X-PREFECT-API-VERSION", api_version)
         if api_key:
             httpx_settings["headers"].setdefault("Authorization", f"Bearer {api_key}")
+
+        if auth_string:
+            token = base64.b64encode(auth_string.encode("utf-8")).decode("utf-8")
+            httpx_settings["headers"].setdefault("Authorization", f"Basic {token}")
 
         # Context management
         self._context_stack: int = 0
@@ -3590,6 +3599,7 @@ class SyncPrefectClient:
         self,
         api: Union[str, ASGIApp],
         *,
+        auth_string: Optional[str] = None,
         api_key: Optional[str] = None,
         api_version: Optional[str] = None,
         httpx_settings: Optional[dict[str, Any]] = None,
@@ -3617,6 +3627,10 @@ class SyncPrefectClient:
         httpx_settings["headers"].setdefault("X-PREFECT-API-VERSION", api_version)
         if api_key:
             httpx_settings["headers"].setdefault("Authorization", f"Bearer {api_key}")
+
+        if auth_string:
+            token = base64.b64encode(auth_string.encode("utf-8")).decode("utf-8")
+            httpx_settings["headers"].setdefault("Authorization", f"Basic {token}")
 
         # Context management
         self._context_stack: int = 0
