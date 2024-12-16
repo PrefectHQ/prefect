@@ -699,15 +699,10 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                             f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
                         )
 
-                        parent_labels = {}
-                        if parent_flow_run_context and parent_flow_run_context.flow_run:
-                            parent_labels = parent_flow_run_context.flow_run.labels
-
                         self._telemetry.start_span(
                             run=self.task_run,
                             client=self.client,
                             parameters=self.parameters,
-                            parent_labels=parent_labels,
                         )
 
                         yield self
@@ -1240,15 +1235,10 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                             f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
                         )
 
-                        parent_labels = {}
-                        if parent_flow_run_context and parent_flow_run_context.flow_run:
-                            parent_labels = parent_flow_run_context.flow_run.labels
-
                         await self._telemetry.async_start_span(
                             run=self.task_run,
                             client=self.client,
                             parameters=self.parameters,
-                            parent_labels=parent_labels,
                         )
 
                         yield self

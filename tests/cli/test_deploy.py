@@ -308,7 +308,7 @@ class TestProjectDeploy:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                f"deploy ./wrapped-flow-project/flow.py:test_flow -n test-name -p {work_pool.name}"
+                f"deploy ./wrapped_flow_project/flow.py:test_flow -n test-name -p {work_pool.name}"
             ),
             expected_code=0,
             expected_output_does_not_contain=[
@@ -322,7 +322,7 @@ class TestProjectDeploy:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                f"deploy ./wrapped-flow-project/flow.py:test_flow -n test-name -p {work_pool.name}"
+                f"deploy ./wrapped_flow_project/flow.py:test_flow -n test-name -p {work_pool.name}"
             ),
             expected_code=0,
             expected_output_does_not_contain=["test-flow"],
@@ -344,7 +344,7 @@ class TestProjectDeploy:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                f"deploy ./wrapped-flow-project/missing_imports.py:bloop_flow -n test-name -p {work_pool.name}"
+                f"deploy ./wrapped_flow_project/missing_imports.py:bloop_flow -n test-name -p {work_pool.name}"
             ),
             expected_code=0,
             expected_output_does_not_contain=["test-flow"],
