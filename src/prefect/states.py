@@ -11,6 +11,7 @@ from typing import Any, Dict, Iterable, Optional, Type
 import anyio
 import httpx
 import pendulum
+from opentelemetry import trace
 from typing_extensions import TypeGuard
 
 from prefect._internal.compatibility import deprecated
@@ -614,7 +615,13 @@ def Completed(cls: Type[State[R]] = State, **kwargs: Any) -> State[R]:
     Returns:
         State: a Completed state
     """
-    return cls(type=StateType.COMPLETED, **kwargs)
+    state_details = StateDetails.model_validate(kwargs.pop("state_details", {}))
+
+    context = trace.get_current_span().get_span_context()
+    state_details.trace_id = context.trace_id
+    state_details.span_id = context.span_id
+
+    return cls(type=StateType.COMPLETED, state_details=state_details, **kwargs)
 
 
 def Running(cls: Type[State[R]] = State, **kwargs: Any) -> State[R]:

@@ -22044,6 +22044,28 @@
                             }
                         ],
                         "title": "Task Parameters Id"
+                    },
+                    "trace_id": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Trace Id"
+                    },
+                    "span_id": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Span Id"
                     }
                 },
                 "type": "object",
