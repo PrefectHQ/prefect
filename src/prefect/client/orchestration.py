@@ -112,7 +112,6 @@ from prefect.client.schemas.objects import (
     FlowRunPolicy,
     Log,
     Parameter,
-    State,
     TaskRunPolicy,
     TaskRunResult,
     Variable,
@@ -141,7 +140,6 @@ from prefect.client.schemas.sorting import (
 from prefect.events import filters
 from prefect.events.schemas.automations import Automation, AutomationCore
 from prefect.logging import get_logger
-from prefect.results import BaseResult, ResultRecordMetadata
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,
     PREFECT_API_ENABLE_HTTP2,
@@ -173,12 +171,6 @@ from prefect.client.base import (
 P = ParamSpec("P")
 R = TypeVar("R", infer_variance=True)
 T = TypeVar("T")
-
-
-BaseResult.model_rebuild()
-ResultRecordMetadata.model_rebuild()
-
-State.model_rebuild()
 
 
 @overload

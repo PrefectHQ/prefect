@@ -52,27 +52,11 @@ from prefect._internal.schemas.validators import (
     reconcile_paused_deployment,
     reconcile_schedules_runner,
 )
-from prefect.client.orchestration import get_client
-from prefect.client.schemas.actions import DeploymentScheduleCreate
-from prefect.client.schemas.filters import WorkerFilter, WorkerFilterStatus
-from prefect.client.schemas.objects import (
-    ConcurrencyLimitConfig,
-    ConcurrencyOptions,
-)
-from prefect.client.schemas.schedules import (
-    SCHEDULE_TYPES,
-    construct_schedule,
-)
-from prefect.deployments.schedules import (
-    create_deployment_schedule_create,
-)
 from prefect.docker.docker_image import DockerImage
-from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.exceptions import (
     ObjectNotFound,
     PrefectHTTPStatusError,
 )
-from prefect.runner.storage import RunnerStorage
 from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
     PREFECT_UI_URL,
@@ -87,8 +71,17 @@ from prefect.utilities.dockerutils import (
 )
 
 if TYPE_CHECKING:
+    from prefect.client.schemas.actions import DeploymentScheduleCreate
+    from prefect.client.schemas.objects import (
+        ConcurrencyLimitConfig,
+        ConcurrencyOptions,
+    )
+    from prefect.client.schemas.schedules import SCHEDULE_TYPES
     from prefect.client.types.flexible_schedule_list import FlexibleScheduleList
+    from prefect.events import DeploymentTriggerTypes, TriggerTypes
     from prefect.flows import Flow
+    from prefect.runner.storage import RunnerStorage
+
 
 __all__ = ["RunnerDeployment"]
 
@@ -145,7 +138,7 @@ class RunnerDeployment(BaseModel):
         default_factory=list,
         description="One of more tags to apply to this deployment.",
     )
-    schedules: Optional[List[DeploymentScheduleCreate]] = Field(
+    schedules: Optional[List["DeploymentScheduleCreate"]] = Field(
         default=None,
         description="The schedules that should cause this deployment to run.",
     )
@@ -153,7 +146,7 @@ class RunnerDeployment(BaseModel):
         default=None,
         description="The maximum number of concurrent runs of this deployment.",
     )
-    concurrency_options: Optional[ConcurrencyOptions] = Field(
+    concurrency_options: Optional["ConcurrencyOptions"] = Field(
         default=None,
         description="The concurrency limit config for the deployment.",
     )
@@ -167,7 +160,7 @@ class RunnerDeployment(BaseModel):
             "The path to the entrypoint for the workflow, relative to the `path`."
         ),
     )
-    triggers: List[Union[DeploymentTriggerTypes, TriggerTypes]] = Field(
+    triggers: List[Union["DeploymentTriggerTypes", "TriggerTypes"]] = Field(
         default_factory=list,
         description="The triggers that should cause this deployment to run.",
     )
@@ -178,7 +171,7 @@ class RunnerDeployment(BaseModel):
             " this deployment."
         ),
     )
-    storage: Optional[RunnerStorage] = Field(
+    storage: Optional["RunnerStorage"] = Field(
         default=None,
         description=(
             "The storage object used to retrieve flow code for this deployment."
@@ -223,7 +216,7 @@ class RunnerDeployment(BaseModel):
     @model_validator(mode="after")
     def validate_automation_names(self):
         """Ensure that each trigger has a name for its automation if none is provided."""
-        trigger: Union[DeploymentTriggerTypes, TriggerTypes]
+        trigger: Union["DeploymentTriggerTypes", "TriggerTypes"]
         for i, trigger in enumerate(self.triggers, start=1):
             if trigger.name is None:
                 trigger.name = f"{self.name}__automation_{i}"
@@ -276,6 +269,8 @@ class RunnerDeployment(BaseModel):
                 "Job variables can only be provided when registering a deployment"
                 " with a work pool."
             )
+
+        from prefect.client.orchestration import get_client
 
         async with get_client() as client:
             flow_id = await client.create_flow_from_name(self.flow_name)
@@ -354,9 +349,9 @@ class RunnerDeployment(BaseModel):
         cron: Optional[Union[Iterable[str], str]] = None,
         rrule: Optional[Union[Iterable[str], str]] = None,
         timezone: Optional[str] = None,
-        schedule: Optional[SCHEDULE_TYPES] = None,
+        schedule: Optional["SCHEDULE_TYPES"] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
-    ) -> Union[List[DeploymentScheduleCreate], "FlexibleScheduleList"]:
+    ) -> Union[List["DeploymentScheduleCreate"], "FlexibleScheduleList"]:
         """
         Construct a schedule or schedules from the provided arguments.
 
@@ -386,6 +381,8 @@ class RunnerDeployment(BaseModel):
               this list is returned as-is, bypassing other schedule construction
               logic.
         """
+        from prefect.client.schemas.schedules import construct_schedule
+        from prefect.deployments.schedules import create_deployment_schedule_create
 
         num_schedules = sum(
             1
@@ -448,9 +445,11 @@ class RunnerDeployment(BaseModel):
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
-        concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
+        concurrency_limit: Optional[Union[int, "ConcurrencyLimitConfig", None]] = None,
         parameters: Optional[dict[str, Any]] = None,
-        triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
+        triggers: Optional[
+            List[Union["DeploymentTriggerTypes", "TriggerTypes"]]
+        ] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
@@ -498,6 +497,8 @@ class RunnerDeployment(BaseModel):
         )
 
         job_variables = job_variables or {}
+
+        from prefect.client.schemas.objects import ConcurrencyLimitConfig
 
         if isinstance(concurrency_limit, ConcurrencyLimitConfig):
             concurrency_options = {
@@ -587,9 +588,11 @@ class RunnerDeployment(BaseModel):
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
-        concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
+        concurrency_limit: Optional[Union[int, "ConcurrencyLimitConfig", None]] = None,
         parameters: Optional[dict[str, Any]] = None,
-        triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
+        triggers: Optional[
+            List[Union["DeploymentTriggerTypes", "TriggerTypes"]]
+        ] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
@@ -641,6 +644,8 @@ class RunnerDeployment(BaseModel):
             schedules=schedules,
         )
 
+        from prefect.client.schemas.objects import ConcurrencyLimitConfig
+
         if isinstance(concurrency_limit, ConcurrencyLimitConfig):
             concurrency_options = {
                 "collision_strategy": concurrency_limit.collision_strategy
@@ -677,7 +682,7 @@ class RunnerDeployment(BaseModel):
     @sync_compatible
     async def from_storage(
         cls,
-        storage: RunnerStorage,
+        storage: "RunnerStorage",
         entrypoint: str,
         name: str,
         flow_name: Optional[str] = None,
@@ -688,9 +693,11 @@ class RunnerDeployment(BaseModel):
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
-        concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
+        concurrency_limit: Optional[Union[int, "ConcurrencyLimitConfig", None]] = None,
         parameters: Optional[dict[str, Any]] = None,
-        triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
+        triggers: Optional[
+            List[Union["DeploymentTriggerTypes", "TriggerTypes"]]
+        ] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
         version: Optional[str] = None,
@@ -738,6 +745,8 @@ class RunnerDeployment(BaseModel):
             rrule=rrule,
             schedules=schedules,
         )
+
+        from prefect.client.schemas.objects import ConcurrencyLimitConfig
 
         if isinstance(concurrency_limit, ConcurrencyLimitConfig):
             concurrency_options = {
@@ -870,6 +879,9 @@ async def deploy(
         image = DockerImage(name=image_name, tag=image_tag)
 
     try:
+        from prefect.client.orchestration import get_client
+        from prefect.client.schemas.filters import WorkerFilter, WorkerFilterStatus
+
         async with get_client() as client:
             work_pool = await client.read_work_pool(work_pool_name)
             active_workers = await client.read_workers_for_work_pool(

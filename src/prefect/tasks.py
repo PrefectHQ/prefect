@@ -39,12 +39,6 @@ from prefect.client.schemas.objects import (
     TaskRunPolicy,
     TaskRunResult,
 )
-from prefect.context import (
-    FlowRunContext,
-    TagsContext,
-    TaskRunContext,
-    serialize_context,
-)
 from prefect.futures import PrefectDistributedFuture, PrefectFuture, PrefectFutureList
 from prefect.logging.loggers import get_logger
 from prefect.results import (
@@ -71,7 +65,7 @@ from prefect.utilities.urls import url_for
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
-    from prefect.context import TaskRunContext
+    from prefect.context import FlowRunContext, TaskRunContext
     from prefect.transactions import Transaction
 
 T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
@@ -132,8 +126,8 @@ def exponential_backoff(backoff_factor: float) -> Callable[[int], list[float]]:
 
 
 def _infer_parent_task_runs(
-    flow_run_context: Optional[FlowRunContext],
-    task_run_context: Optional[TaskRunContext],
+    flow_run_context: Optional["FlowRunContext"],
+    task_run_context: Optional["TaskRunContext"],
     parameters: dict[str, Any],
 ) -> list[TaskRunResult]:
     """
@@ -735,12 +729,18 @@ class Task(Generic[P, R]):
         client: Optional["PrefectClient"] = None,
         id: Optional[UUID] = None,
         parameters: Optional[dict[str, Any]] = None,
-        flow_run_context: Optional[FlowRunContext] = None,
-        parent_task_run_context: Optional[TaskRunContext] = None,
+        flow_run_context: Optional["FlowRunContext"] = None,
+        parent_task_run_context: Optional["TaskRunContext"] = None,
         wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
         extra_task_inputs: Optional[dict[str, set[TaskRunInput]]] = None,
         deferred: bool = False,
     ) -> TaskRun:
+        from prefect.context import (
+            FlowRunContext,
+            TagsContext,
+            TaskRunContext,
+            serialize_context,
+        )
         from prefect.utilities._engine import dynamic_key_for_task_run
         from prefect.utilities.engine import collect_task_run_inputs_sync
 
@@ -836,12 +836,18 @@ class Task(Generic[P, R]):
         client: Optional["PrefectClient"] = None,
         id: Optional[UUID] = None,
         parameters: Optional[dict[str, Any]] = None,
-        flow_run_context: Optional[FlowRunContext] = None,
-        parent_task_run_context: Optional[TaskRunContext] = None,
+        flow_run_context: Optional["FlowRunContext"] = None,
+        parent_task_run_context: Optional["TaskRunContext"] = None,
         wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
         extra_task_inputs: Optional[dict[str, set[TaskRunInput]]] = None,
         deferred: bool = False,
     ) -> TaskRun:
+        from prefect.context import (
+            FlowRunContext,
+            TagsContext,
+            TaskRunContext,
+            serialize_context,
+        )
         from prefect.utilities._engine import dynamic_key_for_task_run
         from prefect.utilities.engine import collect_task_run_inputs_sync
 
@@ -1148,7 +1154,7 @@ class Task(Generic[P, R]):
             >>>     y = task_2.submit(wait_for=[x])
 
         """
-
+        from prefect.context import FlowRunContext
         from prefect.utilities.visualization import (
             VisualizationUnsupportedError,
             get_task_viz_tracker,
@@ -1364,7 +1370,7 @@ class Task(Generic[P, R]):
             >>> my_flow()
             [[11, 21], [12, 22], [13, 23]]
         """
-
+        from prefect.context import FlowRunContext
         from prefect.task_runners import TaskRunner
         from prefect.utilities.visualization import (
             VisualizationUnsupportedError,

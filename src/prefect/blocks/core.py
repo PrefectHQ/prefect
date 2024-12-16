@@ -42,13 +42,6 @@ from typing_extensions import Literal, ParamSpec, Self, get_args
 
 import prefect.exceptions
 from prefect._internal.compatibility.async_dispatch import async_dispatch
-from prefect.client.schemas import (
-    DEFAULT_BLOCK_SCHEMA_VERSION,
-    BlockDocument,
-    BlockSchema,
-    BlockType,
-    BlockTypeUpdate,
-)
 from prefect.client.utilities import inject_client
 from prefect.events import emit_event
 from prefect.logging.loggers import disable_logger
@@ -66,6 +59,11 @@ if TYPE_CHECKING:
     from pydantic.main import IncEx
 
     from prefect.client.orchestration import PrefectClient, SyncPrefectClient
+    from prefect.client.schemas import (
+        BlockDocument,
+        BlockSchema,
+        BlockType,
+    )
 
 R = TypeVar("R")
 P = ParamSpec("P")
@@ -73,7 +71,7 @@ P = ParamSpec("P")
 ResourceTuple = Tuple[Dict[str, Any], List[Dict[str, Any]]]
 
 
-def block_schema_to_key(schema: BlockSchema) -> str:
+def block_schema_to_key(schema: "BlockSchema") -> str:
     """
     Defines the unique key used to lookup the Block class for a given schema.
     """
@@ -168,13 +166,15 @@ def _collect_secret_fields(
 
 
 def _should_update_block_type(
-    local_block_type: BlockType, server_block_type: BlockType
+    local_block_type: "BlockType", server_block_type: "BlockType"
 ) -> bool:
     """
     Compares the fields of `local_block_type` and `server_block_type`.
     Only compare the possible updatable fields as defined by `BlockTypeUpdate.updatable_fields`
     Returns True if they are different, otherwise False.
     """
+    from prefect.client.schemas.actions import BlockTypeUpdate
+
     fields = BlockTypeUpdate.updatable_fields()
 
     local_block_fields = local_block_type.model_dump(include=fields, exclude_unset=True)
@@ -335,7 +335,7 @@ class Block(BaseModel, ABC):
     def __dispatch_key__(cls):
         if cls.__name__ == "Block":
             return None  # The base class is abstract
-        return block_schema_to_key(cls._to_block_schema())
+        return cls.get_block_type_slug()
 
     @model_serializer(mode="wrap")
     def ser_model(self, handler: Callable, info: SerializationInfo) -> Any:
@@ -398,6 +398,8 @@ class Block(BaseModel, ABC):
             except (AttributeError, InvalidVersion):
                 # Module does not have a __version__ attribute or is not a parsable format
                 pass
+        from prefect.client.schemas import DEFAULT_BLOCK_SCHEMA_VERSION
+
         return DEFAULT_BLOCK_SCHEMA_VERSION
 
     @classmethod
@@ -455,7 +457,7 @@ class Block(BaseModel, ABC):
         block_type_id: Optional[UUID] = None,
         is_anonymous: Optional[bool] = None,
         include_secrets: bool = False,
-    ) -> BlockDocument:
+    ) -> "BlockDocument":
         """
         Creates the corresponding block document based on the data stored in a block.
         The corresponding block document name, block type ID, and block schema ID must
@@ -513,6 +515,8 @@ class Block(BaseModel, ABC):
                     "$ref": {"block_document_id": field_value._block_document_id}
                 }
 
+        from prefect.client.schemas import BlockDocument
+
         return BlockDocument(
             id=self._block_document_id or uuid4(),
             name=(name or self._block_document_name) if not is_anonymous else None,
@@ -527,7 +531,7 @@ class Block(BaseModel, ABC):
         )
 
     @classmethod
-    def _to_block_schema(cls, block_type_id: Optional[UUID] = None) -> BlockSchema:
+    def _to_block_schema(cls, block_type_id: Optional[UUID] = None) -> "BlockSchema":
         """
         Creates the corresponding block schema of the block.
         The corresponding block_type_id must either be passed into
@@ -540,6 +544,8 @@ class Block(BaseModel, ABC):
             BlockSchema: The corresponding block schema.
         """
         fields = cls.model_json_schema()
+        from prefect.client.schemas import BlockSchema
+
         return BlockSchema(
             id=cls._block_schema_id if cls._block_schema_id is not None else uuid4(),
             checksum=cls._calculate_schema_checksum(),
@@ -643,13 +649,15 @@ class Block(BaseModel, ABC):
         )
 
     @classmethod
-    def _to_block_type(cls) -> BlockType:
+    def _to_block_type(cls) -> "BlockType":
         """
         Creates the corresponding block type of the block.
 
         Returns:
             BlockType: The corresponding block type.
         """
+        from prefect.client.schemas import BlockType
+
         return BlockType(
             id=cls._block_type_id or uuid4(),
             slug=cls.get_block_type_slug(),
@@ -661,7 +669,7 @@ class Block(BaseModel, ABC):
         )
 
     @classmethod
-    def _from_block_document(cls, block_document: BlockDocument) -> Self:
+    def _from_block_document(cls, block_document: "BlockDocument") -> Self:
         """
         Instantiates a block from a given block document. The corresponding block class
         will be looked up in the block registry based on the corresponding block schema
@@ -732,7 +740,9 @@ class Block(BaseModel, ABC):
         )
 
     @classmethod
-    def get_block_class_from_schema(cls: Type[Self], schema: BlockSchema) -> Type[Self]:
+    def get_block_class_from_schema(
+        cls: Type[Self], schema: "BlockSchema"
+    ) -> Type[Self]:
         """
         Retrieve the block class implementation given a schema.
         """
@@ -783,7 +793,7 @@ class Block(BaseModel, ABC):
         cls,
         name: str,
         client: "PrefectClient",
-    ) -> tuple[BlockDocument, str]:
+    ) -> tuple["BlockDocument", str]:
         if cls.__name__ == "Block":
             block_type_slug, block_document_name = name.split("/", 1)
         else:
@@ -807,7 +817,7 @@ class Block(BaseModel, ABC):
         cls,
         name: str,
         client: "SyncPrefectClient",
-    ) -> tuple[BlockDocument, str]:
+    ) -> tuple["BlockDocument", str]:
         if cls.__name__ == "Block":
             block_type_slug, block_document_name = name.split("/", 1)
         else:
@@ -1109,7 +1119,7 @@ class Block(BaseModel, ABC):
 
     @classmethod
     def _load_from_block_document(
-        cls, block_document: BlockDocument, validate: bool = True
+        cls, block_document: "BlockDocument", validate: bool = True
     ) -> "Self":
         """
         Loads a block from a given block document.

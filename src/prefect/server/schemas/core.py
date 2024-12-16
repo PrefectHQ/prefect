@@ -1154,10 +1154,6 @@ class Worker(ORMBaseModel):
     )
 
 
-Flow.model_rebuild()
-FlowRun.model_rebuild()
-
-
 class Artifact(ORMBaseModel):
     key: Optional[str] = Field(
         default=None, description="An optional unique reference key for this artifact."

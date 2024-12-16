@@ -12,7 +12,6 @@ import warnings
 from contextlib import ExitStack, asynccontextmanager, contextmanager
 from contextvars import ContextVar, Token
 from typing import (
-    TYPE_CHECKING,
     Any,
     AsyncGenerator,
     Dict,
@@ -36,6 +35,7 @@ from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_c
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.events.worker import EventsWorker
 from prefect.exceptions import MissingContextError
+from prefect.flows import Flow
 from prefect.results import (
     ResultStore,
     get_default_persist_setting,
@@ -47,16 +47,13 @@ from prefect.settings.legacy import (
 )
 from prefect.states import State
 from prefect.task_runners import TaskRunner
+from prefect.tasks import Task
 from prefect.types import DateTime
 from prefect.utilities.services import start_client_metrics_server
 
 T = TypeVar("T")
 P = TypeVar("P")
 R = TypeVar("R")
-
-if TYPE_CHECKING:
-    from prefect.flows import Flow
-    from prefect.tasks import Task
 
 # Define the global settings context variable
 # This will be populated downstream but must be null here to facilitate loading the
@@ -340,7 +337,7 @@ class EngineContext(RunContext):
         flow_run_states: A list of states for flow runs created within this flow run
     """
 
-    flow: Optional["Flow[Any, Any]"] = None
+    flow: Optional[Flow[Any, Any]] = None
     flow_run: Optional[FlowRun] = None
     task_runner: TaskRunner[Any]
     log_prints: bool = False
@@ -400,7 +397,7 @@ class TaskRunContext(RunContext):
         task_run: The API metadata for this task run
     """
 
-    task: "Task[Any, Any]"
+    task: Task[Any, Any]
     task_run: TaskRun
     log_prints: bool = False
     parameters: Dict[str, Any]

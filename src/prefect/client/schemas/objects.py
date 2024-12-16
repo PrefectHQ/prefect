@@ -50,6 +50,7 @@ from prefect._internal.schemas.validators import (
     validate_parent_and_ref_diff,
 )
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
+from prefect.results import BaseResult, ResultRecordMetadata
 from prefect.settings import PREFECT_CLOUD_API_URL, PREFECT_CLOUD_UI_URL
 from prefect.types import (
     MAX_VARIABLE_NAME_LENGTH,
@@ -65,7 +66,6 @@ from prefect.utilities.pydantic import handle_secret_render
 
 if TYPE_CHECKING:
     from prefect.client.schemas.actions import StateCreate
-    from prefect.results import BaseResult, ResultRecordMetadata
 
     DateTime = pendulum.DateTime
 else:
@@ -212,8 +212,8 @@ class State(ObjectBaseModel, Generic[R]):
     state_details: StateDetails = Field(default_factory=StateDetails)
     data: Annotated[
         Union[
-            Annotated["BaseResult[R]", Tag("BaseResult")],
-            Annotated["ResultRecordMetadata", Tag("ResultRecordMetadata")],
+            Annotated[BaseResult[R], Tag("BaseResult")],
+            Annotated[ResultRecordMetadata, Tag("ResultRecordMetadata")],
             Annotated[Any, Tag("Any")],
         ],
         Discriminator(data_discriminator),
@@ -1030,7 +1030,9 @@ class BlockDocument(ObjectBaseModel):
         default=None, description="The associated block schema"
     )
     block_type_id: UUID = Field(default=..., description="A block type ID")
-    block_type_name: Optional[str] = Field(None, description="A block type name")
+    block_type_name: Optional[str] = Field(
+        default=None, description="A block type name"
+    )
     block_type: Optional[BlockType] = Field(
         default=None, description="The associated block type"
     )
@@ -1535,10 +1537,6 @@ class Worker(ObjectBaseModel):
         WorkerStatus.OFFLINE,
         description="Current status of the worker.",
     )
-
-
-Flow.model_rebuild()
-# FlowRun.model_rebuild()
 
 
 class Artifact(ObjectBaseModel):

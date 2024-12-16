@@ -5,12 +5,10 @@ from uuid import UUID
 import anyio
 import pendulum
 
-import prefect
 from prefect.client.schemas import FlowRun
 from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.logging import get_logger
-from prefect.results import BaseResult, ResultRecordMetadata
 from prefect.states import Pending, Scheduled
 from prefect.tasks import Task
 from prefect.utilities.asyncutils import sync_compatible
@@ -19,13 +17,6 @@ from prefect.utilities.slugify import slugify
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
     from prefect.client.schemas.objects import FlowRun
-
-prefect.client.schemas.StateCreate.model_rebuild(
-    _types_namespace={
-        "BaseResult": BaseResult,
-        "ResultRecordMetadata": ResultRecordMetadata,
-    }
-)
 
 logger = get_logger(__name__)
 

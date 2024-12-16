@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union
+from typing import Any, Optional, TypeVar, Union
 from uuid import UUID, uuid4
 
 import jsonschema
@@ -23,6 +23,7 @@ from prefect.client.schemas.objects import (
     StateType,
 )
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
+from prefect.results import BaseResult, ResultRecordMetadata
 from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
 from prefect.types import (
     MAX_VARIABLE_NAME_LENGTH,
@@ -38,9 +39,6 @@ from prefect.types import (
 from prefect.utilities.collections import listrepr
 from prefect.utilities.pydantic import get_class_fields_only
 
-if TYPE_CHECKING:
-    from prefect.results import BaseResult, ResultRecordMetadata
-
 R = TypeVar("R")
 
 
@@ -51,7 +49,7 @@ class StateCreate(ActionBaseModel):
     name: Optional[str] = Field(default=None)
     message: Optional[str] = Field(default=None, examples=["Run started"])
     state_details: StateDetails = Field(default_factory=StateDetails)
-    data: Union["BaseResult[Any]", "ResultRecordMetadata", Any] = Field(
+    data: Union[BaseResult[Any], ResultRecordMetadata, Any] = Field(
         default=None,
     )
 

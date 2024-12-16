@@ -6,11 +6,11 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, 
 
 from typing_extensions import Self
 
-from prefect.context import TaskRunContext
 from prefect.exceptions import HashError
 from prefect.utilities.hashing import hash_objects
 
 if TYPE_CHECKING:
+    from prefect.context import TaskRunContext
     from prefect.filesystems import WritableFileSystem
     from prefect.locking.protocol import LockManager
     from prefect.transactions import IsolationLevel
@@ -72,7 +72,7 @@ class CachePolicy:
 
     def compute_key(
         self,
-        task_ctx: TaskRunContext,
+        task_ctx: "TaskRunContext",
         inputs: Dict[str, Any],
         flow_parameters: Dict[str, Any],
         **kwargs: Any,
@@ -137,7 +137,7 @@ class CacheKeyFnPolicy(CachePolicy):
 
     def compute_key(
         self,
-        task_ctx: TaskRunContext,
+        task_ctx: "TaskRunContext",
         inputs: Dict[str, Any],
         flow_parameters: Dict[str, Any],
         **kwargs: Any,
@@ -159,7 +159,7 @@ class CompoundCachePolicy(CachePolicy):
 
     def compute_key(
         self,
-        task_ctx: TaskRunContext,
+        task_ctx: "TaskRunContext",
         inputs: Dict[str, Any],
         flow_parameters: Dict[str, Any],
         **kwargs: Any,
@@ -188,7 +188,7 @@ class _None(CachePolicy):
 
     def compute_key(
         self,
-        task_ctx: TaskRunContext,
+        task_ctx: "TaskRunContext",
         inputs: Dict[str, Any],
         flow_parameters: Dict[str, Any],
         **kwargs: Any,
@@ -208,7 +208,7 @@ class TaskSource(CachePolicy):
 
     def compute_key(
         self,
-        task_ctx: TaskRunContext,
+        task_ctx: "TaskRunContext",
         inputs: Optional[Dict[str, Any]],
         flow_parameters: Optional[Dict[str, Any]],
         **kwargs: Any,
@@ -235,7 +235,7 @@ class FlowParameters(CachePolicy):
 
     def compute_key(
         self,
-        task_ctx: TaskRunContext,
+        task_ctx: "TaskRunContext",
         inputs: Dict[str, Any],
         flow_parameters: Dict[str, Any],
         **kwargs: Any,
@@ -254,7 +254,7 @@ class RunId(CachePolicy):
 
     def compute_key(
         self,
-        task_ctx: TaskRunContext,
+        task_ctx: "TaskRunContext",
         inputs: Dict[str, Any],
         flow_parameters: Dict[str, Any],
         **kwargs: Any,
@@ -277,7 +277,7 @@ class Inputs(CachePolicy):
 
     def compute_key(
         self,
-        task_ctx: TaskRunContext,
+        task_ctx: "TaskRunContext",
         inputs: Dict[str, Any],
         flow_parameters: Dict[str, Any],
         **kwargs: Any,

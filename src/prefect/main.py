@@ -33,12 +33,6 @@ _types: dict[str, Any] = dict(
     BaseResult=BaseResult,
     ResultRecordMetadata=ResultRecordMetadata,
 )
-prefect.context.FlowRunContext.model_rebuild(_types_namespace=_types)
-prefect.context.TaskRunContext.model_rebuild(_types_namespace=_types)
-prefect.client.schemas.State.model_rebuild(_types_namespace=_types)
-prefect.client.schemas.StateCreate.model_rebuild(_types_namespace=_types)
-prefect.client.schemas.OrchestrationResult.model_rebuild(_types_namespace=_types)
-Transaction.model_rebuild()
 
 # Configure logging
 import prefect.logging.configuration
