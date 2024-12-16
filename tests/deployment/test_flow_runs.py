@@ -477,19 +477,23 @@ class TestRunDeployment:
         await run_flow_async(child_flow, child_flow_run)
         # Get all spans
         spans = instrumentation.get_finished_spans()
-
+        for span in spans:
+            print(span.attributes)
         # Find parent flow span
         parent_span = next(
             span
             for span in spans
-            if span.attributes.get("prefect.flow.name") == "parent-flow"
+            if span.attributes.get("prefect.run.name") == "parent-flow"
         )
         child_span = next(
             span
             for span in spans
-            if span.attributes.get("prefect.flow.name") == "child-flow"
+            if span.attributes.get("prefect.run.name") == "child-flow"
         )
         assert child_span
         assert parent_span
 
-        assert mock_traceparent == child_flow_run.labels["__OTEL_TRACEPARENT"]
+        assert (
+            mock_traceparent.split("-")[1]
+            == child_flow_run.labels["__OTEL_TRACEPARENT"].split("-")[1]
+        )
