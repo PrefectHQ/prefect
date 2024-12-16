@@ -1,10 +1,10 @@
 ---
-title: Send alerts to Slack on failure
+title: Send alerts on failure
 description: Learn how to use automations to notify your team when a flow fails.
 ---
 
 In the [Debug a data pipeline](/v3/tutorials/debug) tutorial, you learned how to troubleshoot flow runs that fail.
-In this tutorial, you'll learn how to set up a Slack alert which proactively notifies your team about failures.
+In this tutorial, you'll learn how to set up an email alert which proactively notifies your team about failures.
 Alerts let people who don't typically log into Prefect Cloud engage with the troubleshooting process.
 
 <Info>
@@ -33,23 +33,23 @@ An automation triggers whenever a specified condition is met.
 Once an automation triggers, it can perform one or more actions.
 
 1. Choose the **Send a notification** action type
-1. In order to send a notification to Slack, you need to create a block.
-Blocks store configuration and provide an interface for external systems like Slack.
+1. In order to send an email notification, you need to create a block.
+Blocks store configuration and provide an interface for external systems.
     1. Under **Block**, click **Add**.
-    1. Find the **Slack Webhook** block, and then click **Create**.
-    1. Specify `slack-alerts` as the block name, and provide the [Slack webhook URL](https://api.slack.com/messaging/webhooks)
-  1. Choose the **failure** notify type, and then click **Create**.
+    1. Find the **Email** block, and then click **Create**.
+    1. Specify `email-alerts` as the block name, and provide a JSON list of email addresses to send notifications to (e.g. `["you@example.com"]`).
+    1. Click **Create** to save the block.
 1. Click **Next** to go to the next step.
 
 ### Save the automation
 
 Give the automation a name and description so that you can identify its purpose later.
 
-1. Name: `slack-alert`
-2. Description: `Send a Slack message when the 'data-pipeline' flow fails`
+1. Name: `email-alert`
+2. Description: `Send an email when the 'data-pipeline' flow fails`
 3. Click **Save**.
 
-You've now created an automation that sends a Slack message whenever the `data-pipeline` flow in the `staging` workspace has a failed run.
+You've now created an automation that sends an email whenever the `data-pipeline` flow in the `staging` workspace has a failed run.
 
 ## Test the alert
 
@@ -57,13 +57,13 @@ To test the alert, you need to trigger a flow run failure in the `staging` works
 
 ```bash
 prefect cloud workspace set --workspace "<account handle>/staging"
-python simulate_failures.py --fail-at-run 1
+python simulate_failures.py --fail-at-run 1 --runs 1
 ```
 
-After the script finishes, you should see ten Slack messages, one for each flow run failure.
-Each message should look similar to the following:
+After the script finishes, you should receive an email with details about the failed flow run.
+The email should look similar to the following:
 
-> Prefect flow run notification<br/>
+> Subject: Prefect flow run notification<br/><br/>
 > Flow run data-pipeline/courageous-buffalo observed in state Failed at 2024-12-11 18:59:17.212585+00:00.<br/>
 > Flow ID: 89053371-0d7e-4ef6-9a5f-63ea69689f66<br/>
 > Flow run ID: 33c2dac9-7d2a-48dd-a8cf-3894c6cd6063<br/>
@@ -74,7 +74,7 @@ You can open the URL to view the flow run in Prefect Cloud.
 
 ## Next steps
 
-In this tutorial, you successfully used Prefect Cloud automations to set up a Slack alert.
+In this tutorial, you successfully used Prefect Cloud automations to set up an email alert.
 
 To learn more about automations:
 
