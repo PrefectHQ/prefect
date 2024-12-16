@@ -49,7 +49,10 @@
   api.admin.authCheck().then(authenticated => {
     if (!authenticated) {
       showToast('Authentication failed.', 'error', { timeout: false })
-      router.push(appRoutes.login())
+      router.push({
+        name: 'login',
+        query: { redirect: router.currentRoute.value.fullPath }
+      })
     } else {
       api.health.isHealthy().then(healthy => {
         if (!healthy) {
