@@ -29,11 +29,11 @@ from uuid import UUID, uuid4
 
 from typing_extensions import Literal, ParamSpec, Self, TypeAlias, TypeIs
 
-import prefect.states
 from prefect.cache_policies import DEFAULT, NONE, CachePolicy
 from prefect.client.orchestration import get_client
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import (
+    State,
     StateDetails,
     TaskRunInput,
     TaskRunPolicy,
@@ -51,7 +51,7 @@ from prefect.settings import (
     PREFECT_TASK_DEFAULT_RETRIES,
     PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
 )
-from prefect.states import Pending, Scheduled, State
+from prefect.states import Pending, Scheduled
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_coro_as_sync, sync_compatible
 from prefect.utilities.callables import (
@@ -923,7 +923,7 @@ class Task(Generic[P, R]):
                 else None
             )
             task_run_id = id or uuid4()
-            state = prefect.states.Pending(
+            state = Pending(
                 state_details=StateDetails(
                     task_run_id=task_run_id,
                     flow_run_id=flow_run_id,

@@ -48,7 +48,7 @@ from prefect._internal.concurrency.api import create_call, from_async
 from prefect.blocks.core import Block
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.filters import WorkerFilter
-from prefect.client.schemas.objects import ConcurrencyLimitConfig, FlowRun
+from prefect.client.schemas.objects import ConcurrencyLimitConfig, FlowRun, State
 from prefect.client.schemas.objects import Flow as FlowSchema
 from prefect.client.utilities import client_injector
 from prefect.docker.docker_image import DockerImage
@@ -74,7 +74,6 @@ from prefect.settings import (
     PREFECT_TESTING_UNIT_TEST_MODE,
     PREFECT_UI_URL,
 )
-from prefect.states import State
 from prefect.task_runners import TaskRunner, ThreadPoolTaskRunner
 from prefect.types import BANNED_CHARACTERS, WITHOUT_BANNED_CHARACTERS
 from prefect.types.entrypoint import EntrypointType
