@@ -281,7 +281,7 @@ class Block(BaseModel, ABC):
         json_schema_extra=schema_extra,
     )
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
         self.block_initialization()
 
@@ -629,7 +629,8 @@ class Block(BaseModel, ABC):
         """Generates a default code example for the current class"""
         qualified_name = to_qualified_name(cls)
         module_str = ".".join(qualified_name.split(".")[:-1])
-        class_name = cls.__name__
+        origin = cls.__pydantic_generic_metadata__.get("origin") or cls
+        class_name = origin.__name__
         block_variable_name = f'{cls.get_block_type_slug().replace("-", "_")}_block'
 
         return dedent(
