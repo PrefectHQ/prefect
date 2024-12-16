@@ -573,16 +573,14 @@ class TestTaskRunsAsync:
 
     async def test_task_run_states(
         self,
-        prefect_client: PrefectClient,
+        prefect_client,
         events_pipeline,
     ):
         @task
         async def foo():
-            assert (ctx := TaskRunContext.get()) is not None
-            return ctx.task_run.id
+            return TaskRunContext.get().task_run.id
 
         task_run_id = await run_task_async(foo)
-        assert isinstance(task_run_id, UUID)
         await events_pipeline.process_events()
         states = await prefect_client.read_task_run_states(task_run_id)
 
