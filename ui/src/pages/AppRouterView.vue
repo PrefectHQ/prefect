@@ -32,7 +32,7 @@
   import { useApiConfig } from '@/compositions/useApiConfig'
   import { useCreateCan } from '@/compositions/useCreateCan'
   import { useMobileMenuOpen } from '@/compositions/useMobileMenuOpen'
-  import { routes as appRoutes } from '@/router'
+  import router, { routes as appRoutes } from '@/router'
   import { createPrefectApi, prefectApiKey } from '@/utilities/api'
   import { canKey } from '@/utilities/permissions'
 
@@ -49,6 +49,7 @@
   api.admin.authCheck().then(authenticated => {
     if (!authenticated) {
       showToast('Authentication failed.', 'error', { timeout: false })
+      router.push(appRoutes.login())
     } else {
       api.health.isHealthy().then(healthy => {
         if (!healthy) {
