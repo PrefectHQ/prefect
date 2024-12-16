@@ -47,17 +47,28 @@ const workspaceRoutes = createWorkspaceRouteRecords({
 
 const routeRecords: AppRouteRecord[] = [
   {
-    name: 'root',
     path: '/',
-    redirect: routes.dashboard(),
-    children: workspaceRoutes,
+    component: (): RouteComponent => import('@/pages/AppRouterView.vue'),
+    children: [
+      {
+        name: 'root',
+        path: '',
+        redirect: routes.dashboard(),
+        children: workspaceRoutes,
+      },
+      {
+        name: 'settings',
+        path: 'settings',
+        component: (): RouteComponent => import('@/pages/Settings.vue'),
+      },
+    ],
   },
   {
-    name: 'settings',
-    path: '/settings',
-    component: (): RouteComponent => import('@/pages/Settings.vue'),
+    name: 'login',
+    path: '/login',
+    component: (): RouteComponent => import('@/pages/Login.vue'),
+    meta: { public: true },
   },
-
   {
     path: '/:pathMatch(.*)*',
     name: '404',
