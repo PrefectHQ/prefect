@@ -12,12 +12,28 @@ from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 from opentelemetry.sdk.trace import TracerProvider
 
+from prefect.settings import (
+    PREFECT_API_KEY,
+    PREFECT_API_URL,
+    temporary_settings,
+)
 from prefect.telemetry.bootstrap import setup_telemetry
 from prefect.telemetry.instrumentation import (
     extract_account_and_workspace_id,
 )
 from prefect.telemetry.logging import get_log_handler
 from prefect.telemetry.processors import InFlightSpanProcessor
+
+
+@pytest.fixture(autouse=True)
+def enable_telemetry(telemetry_account_id: UUID, telemetry_workspace_id: UUID):
+    with temporary_settings(
+        {
+            PREFECT_API_URL: f"https://api.prefect.cloud/api/accounts/{telemetry_account_id}/workspaces/{telemetry_workspace_id}",
+            PREFECT_API_KEY: "my-token",
+        }
+    ):
+        yield
 
 
 def test_extract_account_and_workspace_id_valid_url(
@@ -49,25 +65,21 @@ def test_extract_account_and_workspace_id_invalid_urls(url):
         extract_account_and_workspace_id(url)
 
 
-def test_telemetry_disabled(disable_telemetry):
-    trace_provider, meter_provider, logger_provider = setup_telemetry()
+def test_non_cloud_server():
+    with temporary_settings(
+        {
+            PREFECT_API_URL: "https://prefect.example.com/api/",
+            PREFECT_API_KEY: "my-token",
+        }
+    ):
+        trace_provider, meter_provider, logger_provider = setup_telemetry()
 
-    assert trace_provider is None
-    assert meter_provider is None
-    assert logger_provider is None
-
-
-def test_non_cloud_server(hosted_server_with_telemetry_enabled):
-    trace_provider, meter_provider, logger_provider = setup_telemetry()
-
-    assert trace_provider is None
-    assert meter_provider is None
-    assert logger_provider is None
+        assert trace_provider is None
+        assert meter_provider is None
+        assert logger_provider is None
 
 
-def test_trace_provider(
-    enable_telemetry: None, telemetry_account_id: UUID, telemetry_workspace_id: UUID
-):
+def test_trace_provider(telemetry_account_id: UUID, telemetry_workspace_id: UUID):
     trace_provider, _, _ = setup_telemetry()
 
     assert isinstance(trace_provider, TracerProvider)
@@ -99,9 +111,7 @@ def test_trace_provider(
     assert trace.get_tracer_provider() == trace_provider
 
 
-def test_meter_provider(
-    enable_telemetry: None, telemetry_account_id: UUID, telemetry_workspace_id: UUID
-):
+def test_meter_provider(telemetry_account_id: UUID, telemetry_workspace_id: UUID):
     _, meter_provider, _ = setup_telemetry()
     assert isinstance(meter_provider, MeterProvider)
 
@@ -134,9 +144,7 @@ def test_meter_provider(
     assert metrics.get_meter_provider() == meter_provider
 
 
-def test_logger_provider(
-    enable_telemetry: None, telemetry_account_id: UUID, telemetry_workspace_id: UUID
-):
+def test_logger_provider(telemetry_account_id: UUID, telemetry_workspace_id: UUID):
     _, _, logger_provider = setup_telemetry()
 
     assert isinstance(logger_provider, LoggerProvider)

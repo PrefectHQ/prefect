@@ -337,15 +337,6 @@
                     "title": "Warn",
                     "type": "boolean"
                 },
-                "telemetry_enabled": {
-                    "default": false,
-                    "description": "Enables sending telemetry to Prefect Cloud.",
-                    "supported_environment_variables": [
-                        "PREFECT_EXPERIMENTS_TELEMETRY_ENABLED"
-                    ],
-                    "title": "Telemetry Enabled",
-                    "type": "boolean"
-                },
                 "lineage_events_enabled": {
                     "default": false,
                     "description": "If `True`, enables emitting lineage events. Set to `False` to disable lineage event emission.",
