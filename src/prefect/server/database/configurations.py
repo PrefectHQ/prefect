@@ -121,9 +121,6 @@ class BaseDatabaseConfiguration(ABC):
         connection_timeout: Optional[float] = None,
         sqlalchemy_pool_size: Optional[int] = None,
         sqlalchemy_max_overflow: Optional[int] = None,
-        statement_cache_size: Optional[int] = None,
-        prepared_statement_cache_size: Optional[int] = None,
-        application_name: Optional[str] = None,
     ):
         self.connection_url = connection_url
         self.echo = echo or PREFECT_API_DATABASE_ECHO.value()
@@ -136,16 +133,6 @@ class BaseDatabaseConfiguration(ABC):
         )
         self.sqlalchemy_max_overflow = (
             sqlalchemy_max_overflow or PREFECT_SQLALCHEMY_MAX_OVERFLOW.value()
-        )
-        self.statement_cache_size = (
-            statement_cache_size or PREFECT_API_DATABASE_STATEMENT_CACHE_SIZE.value()
-        )
-        self.prepared_statement_cache_size = (
-            prepared_statement_cache_size
-            or PREFECT_API_DATABASE_PREPARED_STATEMENT_CACHE_SIZE.value()
-        )
-        self.application_name = (
-            application_name or PREFECT_API_DATABASE_APPLICATION_NAME.value()
         )
 
     def _unique_key(self) -> Tuple[Hashable, ...]:
@@ -185,6 +172,37 @@ class BaseDatabaseConfiguration(ABC):
 
 
 class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
+    def __init__(
+        self,
+        connection_url: str,
+        echo: Optional[bool] = None,
+        timeout: Optional[float] = None,
+        connection_timeout: Optional[float] = None,
+        sqlalchemy_pool_size: Optional[int] = None,
+        sqlalchemy_max_overflow: Optional[int] = None,
+        statement_cache_size: Optional[int] = None,
+        prepared_statement_cache_size: Optional[int] = None,
+        application_name: Optional[str] = None,
+    ):
+        super().__init__(
+            connection_url=connection_url,
+            echo=echo,
+            timeout=timeout,
+            connection_timeout=connection_timeout,
+            sqlalchemy_pool_size=sqlalchemy_pool_size,
+            sqlalchemy_max_overflow=sqlalchemy_max_overflow,
+        )
+        self.statement_cache_size = (
+            statement_cache_size or PREFECT_API_DATABASE_STATEMENT_CACHE_SIZE.value()
+        )
+        self.prepared_statement_cache_size = (
+            prepared_statement_cache_size
+            or PREFECT_API_DATABASE_PREPARED_STATEMENT_CACHE_SIZE.value()
+        )
+        self.application_name = (
+            application_name or PREFECT_API_DATABASE_APPLICATION_NAME.value()
+        )
+
     async def engine(self) -> AsyncEngine:
         """Retrieves an async SQLAlchemy engine.
 
