@@ -48,7 +48,9 @@
   provide(workspaceRoutesKey, routes)
   api.admin.authCheck().then(authenticated => {
     if (!authenticated) {
-      showToast('Authentication failed.', 'error', { timeout: false })
+      if (router.currentRoute.value.name !== 'login') {
+        showToast('Authentication failed.', 'error', { timeout: false })
+      }
       router.push({
         name: 'login',
         query: { redirect: router.currentRoute.value.fullPath }
