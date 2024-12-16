@@ -841,6 +841,18 @@ Number of seconds a runner should wait between queries for scheduled work.
 **Supported environment variables**:
 `PREFECT_RUNNER_POLL_FREQUENCY`
 
+### `heartbeat_frequency`
+Number of seconds a runner should wait between heartbeats for flow runs.
+
+**Type**: `integer`
+
+**Default**: `30`
+
+**TOML dotted key path**: `runner.heartbeat_frequency`
+
+**Supported environment variables**:
+`PREFECT_RUNNER_HEARTBEAT_FREQUENCY`
+
 ### `server`
 
 **Type**: [RunnerServerSettings](#runnerserversettings)

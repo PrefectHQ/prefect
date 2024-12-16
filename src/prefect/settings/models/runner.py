@@ -54,6 +54,11 @@ class RunnerSettings(PrefectBaseSettings):
         description="Number of seconds a runner should wait between queries for scheduled work.",
     )
 
+    heartbeat_frequency: int = Field(
+        default=30,
+        description="Number of seconds a runner should wait between heartbeats for flow runs.",
+    )
+
     server: RunnerServerSettings = Field(
         default_factory=RunnerServerSettings,
         description="Settings for controlling runner server behavior",

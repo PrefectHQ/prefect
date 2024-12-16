@@ -696,6 +696,15 @@
                     "title": "Poll Frequency",
                     "type": "integer"
                 },
+                "heartbeat_frequency": {
+                    "default": 30,
+                    "description": "Number of seconds a runner should wait between heartbeats for flow runs.",
+                    "supported_environment_variables": [
+                        "PREFECT_RUNNER_HEARTBEAT_FREQUENCY"
+                    ],
+                    "title": "Heartbeat Frequency",
+                    "type": "integer"
+                },
                 "server": {
                     "$ref": "#/$defs/RunnerServerSettings",
                     "supported_environment_variables": []

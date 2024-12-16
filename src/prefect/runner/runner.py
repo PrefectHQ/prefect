@@ -47,11 +47,12 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    Coroutine,
     Dict,
     Iterable,
     List,
     Optional,
-    Set,
+    TypedDict,
     Union,
 )
 from uuid import UUID, uuid4
@@ -59,6 +60,7 @@ from uuid import UUID, uuid4
 import anyio
 import anyio.abc
 import pendulum
+from cachetools import LRUCache
 
 from prefect._internal.concurrency.api import (
     create_call,
@@ -94,8 +96,6 @@ from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logg
 from prefect.runner.storage import RunnerStorage
 from prefect.settings import (
     PREFECT_API_URL,
-    PREFECT_RUNNER_POLL_FREQUENCY,
-    PREFECT_RUNNER_PROCESS_LIMIT,
     PREFECT_RUNNER_SERVER_ENABLE,
     get_current_settings,
 )
@@ -130,12 +130,18 @@ if TYPE_CHECKING:
 __all__ = ["Runner"]
 
 
+class ProcessMapEntry(TypedDict):
+    flow_run: FlowRun
+    pid: int
+
+
 class Runner:
     def __init__(
         self,
         name: Optional[str] = None,
         query_seconds: Optional[float] = None,
         prefetch_seconds: float = 10,
+        heartbeat_seconds: Optional[float] = None,
         limit: Optional[int] = None,
         pause_on_shutdown: bool = True,
         webserver: bool = False,
@@ -180,6 +186,8 @@ class Runner:
                     asyncio.run(runner.start())
                 ```
         """
+        settings = get_current_settings()
+
         if name and ("/" in name or "%" in name):
             raise ValueError("Runner name cannot contain '/' or '%'")
         self.name = Path(name).stem if name is not None else f"runner-{uuid4()}"
@@ -188,19 +196,22 @@ class Runner:
         self.started = False
         self.stopping = False
         self.pause_on_shutdown = pause_on_shutdown
-        self.limit = limit or PREFECT_RUNNER_PROCESS_LIMIT.value()
+        self.limit = limit or settings.runner.process_limit
         self.webserver = webserver
 
-        self.query_seconds = query_seconds or PREFECT_RUNNER_POLL_FREQUENCY.value()
+        self.query_seconds = query_seconds or settings.runner.poll_frequency
         self._prefetch_seconds = prefetch_seconds
+        self.heartbeat_seconds = (
+            heartbeat_seconds or settings.runner.heartbeat_frequency
+        )
 
         self._limiter: Optional[anyio.CapacityLimiter] = None
         self._client = get_client()
-        self._submitting_flow_run_ids = set()
-        self._cancelling_flow_run_ids = set()
-        self._scheduled_task_scopes = set()
-        self._deployment_ids: Set[UUID] = set()
-        self._flow_run_process_map: dict[UUID, dict[str, Any]] = dict()
+        self._submitting_flow_run_ids: set[UUID] = set()
+        self._cancelling_flow_run_ids: set[UUID] = set()
+        self._scheduled_task_scopes: set[UUID] = set()
+        self._deployment_ids: set[UUID] = set()
+        self._flow_run_process_map: dict[UUID, ProcessMapEntry] = dict()
 
         self._tmp_dir: Path = (
             Path(tempfile.gettempdir()) / "runner_storage" / str(uuid4())
@@ -209,6 +220,10 @@ class Runner:
         self._deployment_storage_map: Dict[UUID, RunnerStorage] = {}
 
         self._loop: Optional[asyncio.AbstractEventLoop] = None
+
+        # Caching
+        self._deployment_cache: LRUCache[UUID, "Deployment"] = LRUCache(maxsize=100)
+        self._flow_cache: LRUCache[UUID, "APIFlow"] = LRUCache(maxsize=100)
 
     @sync_compatible
     async def add_deployment(
@@ -234,7 +249,7 @@ class Runner:
     @sync_compatible
     async def add_flow(
         self,
-        flow: Flow,
+        flow: Flow[Any, Any],
         name: Optional[str] = None,
         interval: Optional[
             Union[
@@ -249,7 +264,7 @@ class Runner:
         paused: Optional[bool] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
         concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
-        parameters: Optional[dict] = None,
+        parameters: Optional[dict[str, Any]] = None,
         triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
@@ -336,7 +351,7 @@ class Runner:
         else:
             return next(s for s in self._storage_objs if s == storage)
 
-    def handle_sigterm(self, signum, frame):
+    def handle_sigterm(self, **kwargs: Any) -> None:
         """
         Gracefully shuts down the runner when a SIGTERM is received.
         """
@@ -441,6 +456,15 @@ class Runner:
                         jitter_range=0.3,
                     )
                 )
+                loops_task_group.start_soon(
+                    partial(
+                        critical_service_loop,
+                        workload=runner._emit_flow_run_heartbeats,
+                        interval=self.heartbeat_seconds,
+                        run_once=run_once,
+                        jitter_range=0.3,
+                    )
+                )
 
     def execute_in_background(
         self, func: Callable[..., Any], *args: Any, **kwargs: Any
@@ -535,6 +559,14 @@ class Runner:
                             critical_service_loop,
                             workload=workload,
                             interval=self.query_seconds,
+                            jitter_range=0.3,
+                        )
+                    )
+                    tg.start_soon(
+                        partial(
+                            critical_service_loop,
+                            workload=self._emit_flow_run_heartbeats,
+                            interval=self.heartbeat_seconds,
                             jitter_range=0.3,
                         )
                     )
@@ -850,18 +882,84 @@ class Runner:
                     "message": state_msg or "Flow run was cancelled successfully."
                 },
             )
-            try:
-                deployment = await self._client.read_deployment(flow_run.deployment_id)
-            except ObjectNotFound:
-                deployment = None
-            try:
-                flow = await self._client.read_flow(flow_run.flow_id)
-            except ObjectNotFound:
-                flow = None
+
+            flow, deployment = await self._get_flow_and_deployment(flow_run)
             self._emit_flow_run_cancelled_event(
                 flow_run=flow_run, flow=flow, deployment=deployment
             )
             run_logger.info(f"Cancelled flow run '{flow_run.name}'!")
+
+    async def _get_flow_and_deployment(
+        self, flow_run: "FlowRun"
+    ) -> tuple[Optional["APIFlow"], Optional["Deployment"]]:
+        deployment: Optional["Deployment"] = (
+            self._deployment_cache.get(flow_run.deployment_id)
+            if flow_run.deployment_id
+            else None
+        )
+        flow: Optional["APIFlow"] = self._flow_cache.get(flow_run.flow_id)
+        if not deployment:
+            try:
+                deployment = await self._client.read_deployment(flow_run.deployment_id)
+                self._deployment_cache[flow_run.deployment_id] = deployment
+            except ObjectNotFound:
+                deployment = None
+        if not flow:
+            try:
+                flow = await self._client.read_flow(flow_run.flow_id)
+                self._flow_cache[flow_run.flow_id] = flow
+            except ObjectNotFound:
+                flow = None
+        return flow, deployment
+
+    async def _emit_flow_run_heartbeats(self):
+        coros: list[Coroutine[Any, Any, Any]] = []
+        for entry in self._flow_run_process_map.values():
+            coros.append(self._emit_flow_run_heartbeat(entry["flow_run"]))
+        await asyncio.gather(*coros)
+
+    async def _emit_flow_run_heartbeat(self, flow_run: "FlowRun"):
+        from prefect import __version__
+
+        related: list[RelatedResource] = []
+        tags: list[str] = []
+
+        flow, deployment = await self._get_flow_and_deployment(flow_run)
+        if deployment:
+            related.append(
+                RelatedResource(
+                    {
+                        "prefect.resource.id": f"prefect.deployment.{deployment.id}",
+                        "prefect.resource.role": "deployment",
+                        "prefect.resource.name": deployment.name,
+                    }
+                )
+            )
+            tags.extend(deployment.tags)
+        if flow:
+            related.append(
+                RelatedResource(
+                    {
+                        "prefect.resource.id": f"prefect.flow.{flow.id}",
+                        "prefect.resource.role": "flow",
+                        "prefect.resource.name": flow.name,
+                    }
+                )
+            )
+        tags.extend(flow_run.tags)
+
+        related = [RelatedResource.model_validate(r) for r in related]
+        related += tags_as_related_resources(set(tags))
+
+        emit_event(
+            event="prefect.flow-run.heartbeat",
+            resource={
+                "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
+                "prefect.resource.name": flow_run.name,
+                "prefect.version": __version__,
+            },
+            related=related,
+        )
 
     def _event_resource(self):
         from prefect import __version__
@@ -920,6 +1018,7 @@ class Runner:
             resource=self._event_resource(),
             related=related,
         )
+        self._logger.debug(f"Emitted flow run heartbeat event for {flow_run.id}")
 
     async def _get_scheduled_flow_runs(
         self,
@@ -1052,6 +1151,7 @@ class Runner:
                 self._flow_run_process_map[flow_run.id] = dict(
                     pid=readiness_result, flow_run=flow_run
                 )
+            await self._emit_flow_run_heartbeat(flow_run)
 
             run_logger.info(f"Completed submission of flow run '{flow_run.id}'")
         else:
