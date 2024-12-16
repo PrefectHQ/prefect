@@ -107,7 +107,7 @@ COPY --from=ghcr.io/astral-sh/uv:0.5.8 /uv /uvx /bin/
 RUN --mount=type=bind,source=requirements-client.txt,target=/tmp/requirements-client.txt \
     --mount=type=bind,source=requirements.txt,target=/tmp/requirements.txt \
     --mount=type=cache,target=/root/.cache/uv \
-    uv pip install --system -r /tmp/requirements.txt -r /tmp/requirements-client.txt
+    uv pip install --system -r /tmp/requirements.txt -r /tmp/requirements-client.txt -r /tmp/requirements-otel.txt
 
 # Install prefect from the sdist
 COPY --from=python-builder /opt/prefect/dist ./dist
