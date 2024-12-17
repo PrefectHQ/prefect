@@ -53,6 +53,7 @@ __all__ = [  # noqa: F822
     "temporary_settings",
     "DEFAULT_PROFILES_PATH",
     # add public settings here for auto-completion
+    "PREFECT_API_AUTH_STRING",  # type: ignore
     "PREFECT_API_KEY",  # type: ignore
     "PREFECT_API_URL",  # type: ignore
     "PREFECT_UI_URL",  # type: ignore
