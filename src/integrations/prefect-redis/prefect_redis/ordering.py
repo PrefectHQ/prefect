@@ -6,7 +6,7 @@ occurred causally.
 
 import asyncio
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, AsyncGenerator
 from uuid import UUID, uuid4
 
@@ -170,7 +170,7 @@ class CausalOrdering(_CausalOrdering):
 
         # If this is an old event, we won't have accurate bookkeeping for its leader
         # so we're just going to send it
-        age = datetime.now("UTC") - event.received
+        age = datetime.now(timezone.utc) - event.received
         if age >= PRECEDING_EVENT_LOOKBACK:
             return
 
