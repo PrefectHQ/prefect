@@ -52,6 +52,9 @@ from prefect.types import KeyValueLabels
 logger = get_logger("flow_runs")
 
 
+logger = get_logger("flow_runs")
+
+
 T = TypeVar("T", bound=tuple)
 
 

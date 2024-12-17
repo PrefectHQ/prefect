@@ -7,7 +7,6 @@ from uuid import UUID
 import pendulum
 import sqlalchemy as sa
 from pydantic import Field, PrivateAttr
-from pydantic_extra_types.pendulum_dt import DateTime
 from sqlalchemy.sql import Select
 
 from prefect._internal.schemas.bases import PrefectBaseModel
@@ -16,7 +15,7 @@ from prefect.server.schemas.filters import (
     PrefectFilterBaseModel,
     PrefectOperatorFilterBaseModel,
 )
-from prefect.server.utilities.database import json_extract
+from prefect.types import DateTime
 from prefect.utilities.collections import AutoEnum
 
 from .schemas.events import Event, Resource, ResourceSpecification
@@ -309,9 +308,7 @@ class EventResourceFilter(EventDataFilter):
                 for _, (label, values) in enumerate(labels.items()):
                     label_ops = LabelOperations(values)
 
-                    label_column = json_extract(
-                        orm_models.EventResource.resource, label
-                    )
+                    label_column = orm_models.EventResource.resource[label].astext
 
                     # With negative labels, the resource _must_ have the label
                     if label_ops.negative.simple or label_ops.negative.prefixes:
@@ -404,9 +401,7 @@ class EventRelatedFilter(EventDataFilter):
                 for _, (label, values) in enumerate(labels.items()):
                     label_ops = LabelOperations(values)
 
-                    label_column = json_extract(
-                        orm_models.EventResource.resource, label
-                    )
+                    label_column = orm_models.EventResource.resource[label].astext
 
                     if label_ops.negative.simple or label_ops.negative.prefixes:
                         label_filters.append(label_column.is_not(None))
@@ -518,9 +513,7 @@ class EventAnyResourceFilter(EventDataFilter):
                 for _, (label, values) in enumerate(labels.items()):
                     label_ops = LabelOperations(values)
 
-                    label_column = json_extract(
-                        orm_models.EventResource.resource, label
-                    )
+                    label_column = orm_models.EventResource.resource[label].astext
 
                     if label_ops.negative.simple or label_ops.negative.prefixes:
                         label_filters.append(label_column.is_not(None))

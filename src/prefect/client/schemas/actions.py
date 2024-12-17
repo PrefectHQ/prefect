@@ -4,7 +4,6 @@ from uuid import UUID, uuid4
 
 import jsonschema
 from pydantic import Field, field_validator, model_validator
-from pydantic_extra_types.pendulum_dt import DateTime
 
 import prefect.client.schemas.objects as objects
 from prefect._internal.schemas.bases import ActionBaseModel
@@ -27,6 +26,7 @@ from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
 from prefect.types import (
     MAX_VARIABLE_NAME_LENGTH,
+    DateTime,
     KeyValueLabelsField,
     Name,
     NonEmptyishName,
@@ -393,10 +393,10 @@ class DeploymentFlowRunCreate(ActionBaseModel):
         default_factory=objects.FlowRunPolicy
     )
     tags: list[str] = Field(default_factory=list)
-    idempotency_key: Optional[str] = Field(None)
-    parent_task_run_id: Optional[UUID] = Field(None)
-    work_queue_name: Optional[str] = Field(None)
-    job_variables: Optional[dict] = Field(None)
+    idempotency_key: Optional[str] = Field(default=None)
+    parent_task_run_id: Optional[UUID] = Field(default=None)
+    work_queue_name: Optional[str] = Field(default=None)
+    job_variables: Optional[dict[str, Any]] = Field(default=None)
     labels: KeyValueLabelsField = Field(default_factory=dict)
 
 
