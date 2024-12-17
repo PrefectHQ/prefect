@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Sequence
 from uuid import uuid4
 
@@ -15,7 +15,7 @@ from prefect.types import DateTime
 
 @pytest.fixture
 def start_of_test() -> DateTime:
-    return datetime.now("UTC")
+    return datetime.now(timezone.utc)
 
 
 @pytest.fixture
