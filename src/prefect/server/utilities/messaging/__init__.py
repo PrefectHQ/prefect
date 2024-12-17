@@ -187,19 +187,16 @@ async def ephemeral_subscription(topic: str) -> AsyncGenerator[dict[str, Any], N
         yield consumer_create_kwargs
 
 
-def create_consumer(topic: str, **kwargs) -> Consumer:
-    """
-    Creates a new consumer with the applications default settings.
-    Args:
-        topic: the topic to consume from
-    Returns:
-        a new Consumer instance
-    """
+def create_consumer(topic: str, **kwargs: Any) -> Consumer:
     module = importlib.import_module(PREFECT_MESSAGING_BROKER.value())
     assert isinstance(module, BrokerModule)
 
     if PREFECT_MESSAGING_BROKER.value() == "prefect_redis.messaging":
-        redis_kwargs = {"name": topic, "stream": topic, "group": topic}
+        redis_kwargs: dict[str, Any] = {
+            "name": kwargs.pop("name", topic),
+            "stream": kwargs.pop("stream", topic),
+            "group": kwargs.pop("group", topic),
+        }
         if "should_process_pending_messages" in kwargs:
             redis_kwargs["should_process_pending_messages"] = kwargs.pop(
                 "should_process_pending_messages"

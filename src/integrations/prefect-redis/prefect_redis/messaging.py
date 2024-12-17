@@ -85,7 +85,7 @@ class RedisStreamsMessage:
         attributes: dict[str, Any],
         acker: Callable[[], Awaitable[None]] | None = None,
     ) -> None:
-        self.data = data
+        self.data = data.decode() if isinstance(data, bytes) else data
         self.attributes = attributes
         self.acker = acker
 
@@ -141,9 +141,14 @@ class Publisher(_Publisher):
         return self
 
     async def __aexit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
-        if self._periodic_task:
-            self._periodic_task.cancel()
-        await asyncio.shield(self._publish_current_batch())
+        try:
+            if self._periodic_task:
+                self._periodic_task.cancel()
+            await self._publish_current_batch()
+        except Exception:
+            if self.deduplicate_by:
+                await self.cache.forget_duplicates(self.deduplicate_by, self._batch)
+            raise
 
     async def publish_data(self, data: bytes, attributes: dict[str, Any]):
         if not hasattr(self, "_batch"):
@@ -363,13 +368,17 @@ async def ephemeral_subscription(
     group_name = group or f"ephemeral-{socket.gethostname()}-{uuid.uuid4().hex}"
     redis_client: Redis = get_async_redis_client()
     try:
+        # Create stream and group
         await redis_client.xgroup_create(source, group_name, id="0", mkstream=True)
         yield {"topic": topic, "name": topic, "stream": topic, "group": group_name}
     except Exception:
         logger.exception("Error in ephemeral subscription")
         raise
     finally:
-        await redis_client.xgroup_destroy(source, group_name)
+        try:
+            await redis_client.xgroup_destroy(source, group_name)
+        except Exception:
+            logger.warning(f"Failed to destroy consumer group {group_name}")
 
 
 @asynccontextmanager

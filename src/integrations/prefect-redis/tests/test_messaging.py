@@ -33,6 +33,8 @@ from prefect.settings import (
     temporary_settings,
 )
 
+ENV_PREFIX = "PREFECT_REDIS_MESSAGING_"
+
 
 @pytest.fixture(scope="session", autouse=True)
 def isolate_redis_for_xdist(worker_id):
@@ -44,16 +46,16 @@ def isolate_redis_for_xdist(worker_id):
         db_num = 2 + int(worker_id.replace("gw", ""))
 
     # Use os.environ directly instead of monkeypatch since this is session-scoped
-    original_db = os.environ.get("PREFECT_REDIS_DB")
-    os.environ["PREFECT_REDIS_DB"] = str(db_num)
+    original_db = os.environ.get(f"{ENV_PREFIX}DB")
+    os.environ[f"{ENV_PREFIX}DB"] = str(db_num)
 
     yield
 
     # Restore original value if it existed
     if original_db is not None:
-        os.environ["PREFECT_REDIS_DB"] = original_db
+        os.environ[f"{ENV_PREFIX}DB"] = original_db
     else:
-        os.environ.pop("PREFECT_REDIS_DB", None)
+        os.environ.pop(f"{ENV_PREFIX}DB", None)
 
 
 @pytest.fixture
@@ -507,54 +509,52 @@ async def test_repeatedly_failed_message_is_moved_to_dead_letter_queue(
 
     consumer_task = asyncio.create_task(consumer.run(handler))
 
-    async with Redis(host="localhost", port=6379, db=0) as redis:
-        try:
-            async with deduplicating_publisher as p:
-                await p.publish_data(
-                    b"hello, world", {"howdy": "partner", "my-message-id": "A"}
-                )
+    redis = get_async_redis_client()
+    try:
+        async with deduplicating_publisher as p:
+            await p.publish_data(
+                b"hello, world", {"howdy": "partner", "my-message-id": "A"}
+            )
 
-            # Wait for message to appear in DLQ
-            while True:
-                dlq_size = await redis.scard(consumer.subscription.dlq_key)
-                if dlq_size > 0:
-                    break
-                await asyncio.sleep(0.1)
+        # Wait for message to appear in DLQ
+        while True:
+            dlq_size = await redis.scard(consumer.subscription.dlq_key)
+            if dlq_size > 0:
+                break
+            await asyncio.sleep(0.1)
 
-        finally:
-            # Ensure consumer task is always cleaned up
-            if not consumer_task.done():
-                consumer_task.cancel()
-                try:
-                    await consumer_task
-                except (asyncio.CancelledError, Exception):
-                    pass
+    finally:
+        # Ensure consumer task is always cleaned up
+        if not consumer_task.done():
+            consumer_task.cancel()
+            try:
+                await consumer_task
+            except (asyncio.CancelledError, Exception):
+                pass
 
-        # Message should have been moved to DLQ after multiple retries
-        assert len(captured_messages) == 4  # Original attempt + 3 retries
-        for message in captured_messages:
-            assert message.data == "hello, world"
-            assert message.attributes == {"howdy": "partner", "my-message-id": "A"}
+    # Message should have been moved to DLQ after multiple retries
+    assert len(captured_messages) == 4  # Original attempt + 3 retries
+    for message in captured_messages:
+        assert message.data == "hello, world"
+        assert message.attributes == {"howdy": "partner", "my-message-id": "A"}
 
-        # Verify message is in Redis DLQ
-        dlq_messages = await redis.smembers(consumer.subscription.dlq_key)
-        assert len(dlq_messages) == 1
+    # Verify message is in Redis DLQ
+    dlq_messages = await redis.smembers(consumer.subscription.dlq_key)
+    assert len(dlq_messages) == 1
 
-        dlq_message_id = dlq_messages.pop()
-        dlq_data = await redis.hget(dlq_message_id, "data")
-        dlq_message_data = json.loads(dlq_data)
+    dlq_message_id = dlq_messages.pop()
+    dlq_data = await redis.hget(dlq_message_id, "data")
+    dlq_message_data = json.loads(dlq_data)
 
-        dlq_message = RedisStreamsMessage(
-            data=dlq_message_data["data"],
-            attributes=dlq_message_data["attributes"],
-            acker=None,
-        )
+    dlq_message = RedisStreamsMessage(
+        data=dlq_message_data["data"],
+        attributes=dlq_message_data["attributes"],
+        acker=None,
+    )
 
-        assert dlq_message.data == "hello, world"
-        assert dlq_message.attributes == {"howdy": "partner", "my-message-id": "A"}
-        assert (
-            dlq_message_data["retry_count"] > 3
-        )  # Check retry_count from the raw data
+    assert dlq_message.data == "hello, world"
+    assert dlq_message.attributes == {"howdy": "partner", "my-message-id": "A"}
+    assert dlq_message_data["retry_count"] > 3  # Check retry_count from the raw data
 
-        remaining_message = await drain_one(consumer)
-        assert not remaining_message
+    remaining_message = await drain_one(consumer)
+    assert not remaining_message
