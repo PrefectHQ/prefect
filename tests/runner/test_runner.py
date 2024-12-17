@@ -47,6 +47,7 @@ from prefect.runner.server import perform_health_check, start_webserver
 from prefect.settings import (
     PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE,
     PREFECT_DEFAULT_WORK_POOL_NAME,
+    PREFECT_RUNNER_HEARTBEAT_FREQUENCY,
     PREFECT_RUNNER_POLL_FREQUENCY,
     PREFECT_RUNNER_PROCESS_LIMIT,
     PREFECT_RUNNER_SERVER_ENABLE,
@@ -180,6 +181,23 @@ class TestInit:
         with temporary_settings({PREFECT_RUNNER_POLL_FREQUENCY: 100}):
             runner = Runner()
             assert runner.query_seconds == 100
+
+    async def test_runner_respects_heartbeat_setting(self):
+        runner = Runner()
+        assert runner.heartbeat_seconds == PREFECT_RUNNER_HEARTBEAT_FREQUENCY.value()
+        assert runner.heartbeat_seconds is None
+
+        with pytest.raises(
+            ValueError, match="Heartbeat must be 30 seconds or greater."
+        ):
+            Runner(heartbeat_seconds=29)
+
+        runner = Runner(heartbeat_seconds=50)
+        assert runner.heartbeat_seconds == 50
+
+        with temporary_settings({PREFECT_RUNNER_HEARTBEAT_FREQUENCY: 100}):
+            runner = Runner()
+            assert runner.heartbeat_seconds == 100
 
 
 class TestServe:
@@ -501,7 +519,11 @@ class TestRunner:
         assert "All deployments have been paused" in caplog.text
 
     @pytest.mark.usefixtures("use_hosted_api_server")
-    async def test_runner_executes_flow_runs(self, prefect_client: PrefectClient):
+    async def test_runner_does_not_emit_heartbeats_if_not_set(
+        self,
+        prefect_client: PrefectClient,
+        asserting_events_worker: EventsWorker,
+    ):
         runner = Runner()
 
         deployment = await dummy_flow_1.to_deployment(__file__)
@@ -523,6 +545,70 @@ class TestRunner:
 
         assert flow_run.state
         assert flow_run.state.is_completed()
+
+        await asserting_events_worker.drain()
+
+        heartbeat_events = list(
+            filter(
+                lambda e: e.event == "prefect.flow-run.heartbeat",
+                asserting_events_worker._client.events,
+            )
+        )
+        assert len(heartbeat_events) == 0
+
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_runner_executes_flow_runs(
+        self,
+        prefect_client: PrefectClient,
+        asserting_events_worker: EventsWorker,
+    ):
+        runner = Runner(heartbeat_seconds=30)
+
+        deployment = await dummy_flow_1.to_deployment(__file__)
+
+        await runner.add_deployment(deployment)
+
+        await runner.start(run_once=True)
+
+        deployment = await prefect_client.read_deployment_by_name(
+            name="dummy-flow-1/test_runner"
+        )
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment.id
+        )
+
+        await runner.start(run_once=True)
+        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+
+        assert flow_run.state
+        assert flow_run.state.is_completed()
+
+        await asserting_events_worker.drain()
+
+        heartbeat_events = list(
+            filter(
+                lambda e: e.event == "prefect.flow-run.heartbeat",
+                asserting_events_worker._client.events,
+            )
+        )
+        assert len(heartbeat_events) == 1
+        assert heartbeat_events[0].resource.id == f"prefect.flow-run.{flow_run.id}"
+
+        related = [dict(r.items()) for r in heartbeat_events[0].related]
+
+        assert related == [
+            {
+                "prefect.resource.id": f"prefect.deployment.{deployment.id}",
+                "prefect.resource.role": "deployment",
+                "prefect.resource.name": "test_runner",
+            },
+            {
+                "prefect.resource.id": f"prefect.flow.{flow_run.flow_id}",
+                "prefect.resource.role": "flow",
+                "prefect.resource.name": dummy_flow_1.name,
+            },
+        ]
 
     @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_runner_runs_on_cancellation_hooks_for_remotely_stored_flows(
@@ -705,8 +791,8 @@ class TestRunner:
         assert "This flow crashed!" in caplog.text
 
     @pytest.mark.usefixtures("use_hosted_api_server")
-    async def test_runner_can_execute_a_single_flow_run(
-        self, prefect_client: PrefectClient
+    async def test_runner_does_not_emit_heartbeats_for_single_flow_run_if_not_set(
+        self, prefect_client: PrefectClient, asserting_events_worker: EventsWorker
     ):
         runner = Runner()
 
@@ -720,6 +806,59 @@ class TestRunner:
         flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
         assert flow_run.state
         assert flow_run.state.is_completed()
+
+        await asserting_events_worker.drain()
+
+        heartbeat_events = list(
+            filter(
+                lambda e: e.event == "prefect.flow-run.heartbeat",
+                asserting_events_worker._client.events,
+            )
+        )
+        assert len(heartbeat_events) == 0
+
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_runner_can_execute_a_single_flow_run(
+        self, prefect_client: PrefectClient, asserting_events_worker: EventsWorker
+    ):
+        runner = Runner(heartbeat_seconds=30)
+
+        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+        await runner.execute_flow_run(flow_run.id)
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+        assert flow_run.state
+        assert flow_run.state.is_completed()
+
+        await asserting_events_worker.drain()
+
+        heartbeat_events = list(
+            filter(
+                lambda e: e.event == "prefect.flow-run.heartbeat",
+                asserting_events_worker._client.events,
+            )
+        )
+        assert len(heartbeat_events) == 1
+        assert heartbeat_events[0].resource.id == f"prefect.flow-run.{flow_run.id}"
+
+        related = [dict(r.items()) for r in heartbeat_events[0].related]
+
+        assert related == [
+            {
+                "prefect.resource.id": f"prefect.deployment.{deployment_id}",
+                "prefect.resource.role": "deployment",
+                "prefect.resource.name": "test_runner",
+            },
+            {
+                "prefect.resource.id": f"prefect.flow.{flow_run.flow_id}",
+                "prefect.resource.role": "flow",
+                "prefect.resource.name": dummy_flow_1.name,
+            },
+        ]
 
     @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_runner_respects_set_limit(
@@ -965,8 +1104,6 @@ async def test_runner_emits_cancelled_event(
     await asserting_events_worker.drain()
 
     assert isinstance(asserting_events_worker._client, AssertingEventsClient)
-
-    assert len(asserting_events_worker._client.events) == 1
 
     cancelled_events = list(
         filter(
