@@ -106,7 +106,9 @@ class CausalOrdering(_CausalOrdering):
         """Returns events that were waiting on a leader event that never arrived"""
         async with self.redis.pipeline() as p:
             temporary_set = str(uuid4())
-            earlier = (datetime.now("UTC") - PRECEDING_EVENT_LOOKBACK).timestamp()
+            earlier = (
+                datetime.now(timezone.utc) - PRECEDING_EVENT_LOOKBACK
+            ).timestamp()
 
             # Move all of the events that are older than the lookback period into a
             # temporary set...
