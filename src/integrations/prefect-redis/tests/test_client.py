@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock, patch
 
 from prefect_redis.client import (
-    RedisSettings,
+    RedisMessagingSettings,
     async_redis_from_settings,
     close_all_cached_connections,
     get_async_redis_client,
@@ -11,7 +11,7 @@ from redis.asyncio import Redis
 
 def test_redis_settings_defaults():
     """Test that RedisSettings has expected defaults"""
-    settings = RedisSettings()
+    settings = RedisMessagingSettings()
     assert settings.host == "localhost"
     assert settings.port == 6379
     assert settings.db == 0
@@ -50,7 +50,7 @@ async def test_get_async_redis_client_custom_params():
 
 async def test_async_redis_from_settings():
     """Test creating Redis client from settings object"""
-    settings = RedisSettings(
+    settings = RedisMessagingSettings(
         host="settings.host",
         port=6381,
         username="settings_user",

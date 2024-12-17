@@ -12,8 +12,14 @@ from prefect.settings.base import (
 )
 
 
-class RedisSettings(PrefectBaseSettings):
-    model_config = _build_settings_config(("redis",), frozen=True)
+class RedisMessagingSettings(PrefectBaseSettings):
+    model_config = _build_settings_config(
+        (
+            "redis",
+            "messaging",
+        ),
+        frozen=True,
+    )
 
     host: str = Field(default="localhost")
     port: int = Field(default=6379)
@@ -98,7 +104,7 @@ def get_async_redis_client(
     Returns:
         Redis: a Redis client
     """
-    settings = RedisSettings()
+    settings = RedisMessagingSettings()
 
     return Redis(
         host=host or settings.host,
@@ -114,7 +120,9 @@ def get_async_redis_client(
 
 
 @cached
-def async_redis_from_settings(settings: RedisSettings, **options: Any) -> Redis:
+def async_redis_from_settings(
+    settings: RedisMessagingSettings, **options: Any
+) -> Redis:
     options = {
         "retry_on_timeout": True,
         "decode_responses": True,
