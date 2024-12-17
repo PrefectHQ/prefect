@@ -1,6 +1,6 @@
 <template>
   <div class="app-router-view">
-    <template v-if="!media.lg">
+    <template v-if="!media.lg && !$route.meta.public">
       <PGlobalSidebar class="app-router-view__mobile-menu">
         <template #upper-links>
           <router-link :to="appRoutes.root()">
@@ -12,8 +12,8 @@
         </template>
       </PGlobalSidebar>
     </template>
-    <ContextSidebar v-if="showMenu" class="app-router-view__sidebar" @click="close" />
-    <router-view class="app-router-view__view">
+    <ContextSidebar v-if="showMenu && !$route.meta.public" class="app-router-view__sidebar" @click="close" />
+    <router-view :class="['app-router-view__view', { 'app-router-view__view--public': $route.meta.public }]">
       <template #default="{ Component }">
         <transition name="app-router-view-fade" mode="out-in">
           <component :is="Component" />
@@ -32,7 +32,7 @@
   import { useApiConfig } from '@/compositions/useApiConfig'
   import { useCreateCan } from '@/compositions/useCreateCan'
   import { useMobileMenuOpen } from '@/compositions/useMobileMenuOpen'
-  import { routes as appRoutes } from '@/router'
+  import router, { routes as appRoutes } from '@/router'
   import { createPrefectApi, prefectApiKey } from '@/utilities/api'
   import { canKey } from '@/utilities/permissions'
 
@@ -46,10 +46,21 @@
   provide(prefectApiKey, api)
   provide(workspaceApiKey, api)
   provide(workspaceRoutesKey, routes)
-
-  api.health.isHealthy().then(healthy => {
-    if (!healthy) {
-      showToast(`Can't connect to Server API at ${config.baseUrl}. Check that it's accessible from your machine.`, 'error', { timeout: false })
+  api.admin.authCheck().then(authenticated => {
+    if (!authenticated) {
+      if (router.currentRoute.value.name !== 'login') {
+        showToast('Authentication failed.', 'error', { timeout: false })
+      }
+      router.push({
+        name: 'login',
+        query: { redirect: router.currentRoute.value.fullPath }
+      })
+    } else {
+      api.health.isHealthy().then(healthy => {
+        if (!healthy) {
+          showToast(`Can't connect to Server API at ${config.baseUrl}. Check that it's accessible from your machine.`, 'error', { timeout: false })
+        }
+      })
     }
   })
 
@@ -106,6 +117,13 @@
   /* The 1px flex-basis is important because it allows us to use height: 100% without additional flexing */
   flex: 1 0 1px;
   height: 100%;
+}
+
+.app-router-view__view--public { @apply
+  flex
+  items-center
+  justify-center;
+  grid-column: 1 / -1;
 }
 
 @screen lg {

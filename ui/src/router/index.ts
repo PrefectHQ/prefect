@@ -43,24 +43,40 @@ const workspaceRoutes = createWorkspaceRouteRecords({
   workPoolQueue: () => import('@/pages/WorkPoolQueue.vue'),
   workPoolQueueCreate: () => import('@/pages/WorkPoolQueueCreate.vue'),
   workPoolQueueEdit: () => import('@/pages/WorkPoolQueueEdit.vue'),
+  
 })
 
 const routeRecords: AppRouteRecord[] = [
   {
-    name: 'root',
     path: '/',
-    redirect: routes.dashboard(),
-    children: workspaceRoutes,
+    component: (): RouteComponent => import('@/pages/AppRouterView.vue'),
+    children: [
+      {
+        name: 'root',
+        path: '',
+        redirect: routes.dashboard(),
+        children: [
+          ...workspaceRoutes,
+          {
+            name: 'login',
+            path: '/login',
+            component: (): RouteComponent => import('@/pages/Unauthenticated.vue'),
+            meta: { public: true },
+            props: (route) => ({ redirect: route.query.redirect }),
+          },
+        ]
+      },
+      {
+        name: 'settings',
+        path: 'settings',
+        component: (): RouteComponent => import('@/pages/Settings.vue'),
+      },
+    ],
   },
-  {
-    name: 'settings',
-    path: '/settings',
-    component: (): RouteComponent => import('@/pages/Settings.vue'),
-  },
-
   {
     path: '/:pathMatch(.*)*',
     name: '404',
+    meta: { public: true },
     component: (): RouteComponent => import('@/pages/404.vue'),
   },
 ]
