@@ -127,6 +127,11 @@ export function setupCsrfInterceptor(csrfTokenApi: CreateActions<CsrfTokenApi>, 
       await csrfTokenApi.addCsrfHeaders(config)
     }
 
+    const password = localStorage.getItem('prefect-password')
+    if (password) {
+      config.headers['Authorization'] = `Basic ${password}`
+    }
+
     return config
   })
 
