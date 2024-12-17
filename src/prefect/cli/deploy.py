@@ -719,9 +719,7 @@ async def _run_single_deploy(
         version=deploy_config.get("version"),
         schedules=deploy_config.get("schedules"),
         paused=deploy_config.get("paused"),
-        enforce_parameter_schema=deploy_config.get(
-            "enforce_parameter_schema", options.get("enforce_parameter_schema", True)
-        ),
+        enforce_parameter_schema=deploy_config.get("enforce_parameter_schema", True),
         parameter_openapi_schema=deploy_config.get(
             "parameter_openapi_schema"
         ).model_dump_for_openapi(),
@@ -1524,7 +1522,7 @@ def _apply_cli_options_to_deploy_config(deploy_config, cli_options):
                 "flow_name",
                 "enforce_parameter_schema",
             ]
-            and cli_value
+            and cli_value is not None
         ):
             deploy_config[cli_option] = cli_value
 
