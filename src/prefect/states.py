@@ -618,8 +618,9 @@ def Completed(cls: Type[State[R]] = State, **kwargs: Any) -> State[R]:
     state_details = StateDetails.model_validate(kwargs.pop("state_details", {}))
 
     context = trace.get_current_span().get_span_context()
-    state_details.trace_id = context.trace_id
-    state_details.span_id = context.span_id
+    if context.is_valid:
+        state_details.trace_id = context.trace_id
+        state_details.span_id = context.span_id
 
     return cls(type=StateType.COMPLETED, state_details=state_details, **kwargs)
 
