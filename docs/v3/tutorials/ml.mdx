@@ -1,6 +1,6 @@
 ---
 title: Train a machine learning model
-description: Use an automation to train a machine learning model when data changes
+description: Use an automation to trigger an ML training flow whenever data changes
 ---
 
 In the [Extract data from websites](/v3/tutorials/scraping) tutorial, you learned how to handle data dependencies and ingest large amounts of data.
@@ -8,8 +8,70 @@ Now, you'll learn how to train a machine learning model using that data.
 
 ## Create a GPU work pool
 
-TBD
-Maybe just an EC2 instance on AWS?
+Run the following command to automatically provision an ECS push work pool and supporting ECS infrastructure on AWS:
+
+```bash
+prefect work-pool create --type ecs:push --provision-infra my-ecs-pool
+```
+
+Now create a `task_definition.json` file with the following task definition which the work pool will use to provision `g4dn.xlarge` instances on EC2.
+TODO: Do we need to specify a Amazon ECS GPU-optimized AMI separately anywhere?
+TODO: Create a new Docker image that has the necessary dependencies (python, pip, prefect[aws]) and use that image instead of the base nvidia/cuda one.
+
+```json task_definition.json
+{
+  "family": "gpu-task",
+  "requiresCompatibilities": [
+    "EC2"
+  ],
+  "networkMode": "awsvpc",
+  "cpu": "4096",
+  "memory": "16384",
+  "containerDefinitions": [
+    {
+      "name": "gpu-container",
+      "image": "nvidia/cuda:latest",
+      "cpu": 4096,
+      "memory": 16384,
+      "essential": true,
+      "resourceRequirements": [
+        {
+          "type": "GPU",
+          "value": "1"
+        }
+      ],
+      "linuxParameters": {
+        "devices": [
+          {
+            "hostPath": "/dev/nvidia0",
+            "containerPath": "/dev/nvidia0",
+            "permissions": [
+              "read",
+              "write"
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "placementConstraints": [
+    {
+      "type": "memberOf",
+      "expression": "attribute:instance-type == g4dn.xlarge"
+    }
+  ]
+}
+```
+
+Command to register the task definition in `us-east-1` using the AWS CLI:
+
+```bash
+aws ecs register-task-definition --cli-input-json file://task_definition.json --region us-east-1
+```
+
+Finally, edit the `my-ecs-pool` work pool definition in Prefect Cloud and set the **Base Job Template** / **Task Definition Arn** setting to the ARN of the task definition you just registered.
+
+You'll also need 
 
 ## Store training data in S3
 
@@ -50,14 +112,11 @@ Code configuration:
 
 ## Test the model
 
-* Run `prefect deployment run 'update-model/webhook-test'` to run the flow manually (fetching test.txt from S3)
+* Run `prefect deployment run 'update-model/webhook-test'` to run the flow manually (fetching `test.txt` from S3)
 * Upload a new file to S3 to run the flow automatically using the webhook you set up
+* Once the flow is complete, go to artifacts to see the model's performance metrics
 
-The flow trains the model and saves it to storage (Prefect artifact for the metrics, S3 for the fitted model file)
-
-TBD.
-Interactive flow which asks for X, then runs and returns the prediction.
-Store model performance metrics (AUC?) as artifacts in Prefect and view in the UI.
+The model is now trained and uploaded to S3 for your inference needs.
 
 ## Next steps
 
