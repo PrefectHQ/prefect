@@ -911,12 +911,13 @@ If the infrastructure a flow is running on suddenly fails (e.g. the machine cras
 Prefect's orchestration engine will be unable to report state changes and the flow run will get stuck in the running state.
 
 Fortunately, flow runs triggered via deployment can emit heartbeats as they are running, and a Prefect automation can update 
-a flow run's state to crashed if the server stops receiving heartbeats for a flow run.
+a flow run's state to crashed if the server stops receiving heartbeats for that flow run.
 
 <Note>
 **Enable flow run heartbeat events**
 
-You will need to ensure you're running Prefect version 3.1.8 or greater and set `PREFECT_RUNNER_HEARTBEAT_FREQUENCY` to emit flow run heartbeat events.
+You will need to ensure you're running Prefect version 3.1.8 or greater and set `PREFECT_RUNNER_HEARTBEAT_FREQUENCY`
+to an integer greater than 30 to emit flow run heartbeat events.
 </Note>
 
 To create an automation that marks zombie flow runs as crashed, run this script:
