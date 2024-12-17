@@ -7,7 +7,7 @@ occurred causally.
 import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
-from typing import Any, AsyncGenerator
+from typing import Any, AsyncGenerator, Union
 from uuid import UUID, uuid4
 
 import anyio
@@ -73,7 +73,7 @@ class CausalOrdering(_CausalOrdering):
     async def forget_event_is_processing(self, event: ReceivedEvent) -> None:
         await self.redis.delete(self._key(f"processing:{event.id}"))
 
-    async def event_has_been_seen(self, event: UUID | Event) -> bool:
+    async def event_has_been_seen(self, event: Union[UUID, Event]) -> bool:
         id = event.id if isinstance(event, Event) else event
         return await self.redis.exists(self._key(f"seen:{id}")) == 1
 
