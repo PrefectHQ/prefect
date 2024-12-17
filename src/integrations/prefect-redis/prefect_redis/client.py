@@ -1,6 +1,6 @@
 import asyncio
 import functools
-from typing import Any, Callable
+from typing import Any, Callable, Union
 
 from pydantic import Field
 from redis.asyncio import Redis
@@ -13,13 +13,21 @@ from prefect.settings.base import (
 
 
 class RedisSettings(PrefectBaseSettings):
-    model_config = _build_settings_config(("redis",))
+    model_config = _build_settings_config(("redis",), frozen=True)
 
     host: str = Field(default="localhost")
     port: int = Field(default=6379)
     db: int = Field(default=0)
     username: str = Field(default="default")
     password: str = Field(default="")
+    health_check_interval: int = Field(
+        default=20,
+        description="Health check interval for pinging the server; defaults to 20 seconds.",
+    )
+    ssl: bool = Field(
+        default=False,
+        description="Whether to use SSL for the Redis connection",
+    )
 
 
 CacheKey: TypeAlias = tuple[
@@ -67,14 +75,14 @@ def close_all_cached_connections() -> None:
 
 @cached
 def get_async_redis_client(
-    host: str | None = None,
-    port: int | None = None,
-    db: int | None = None,
-    password: str | None = None,
-    username: str | None = None,
-    health_check_interval: int | None = None,
+    host: Union[str, None] = None,
+    port: Union[int, None] = None,
+    db: Union[int, None] = None,
+    password: Union[str, None] = None,
+    username: Union[str, None] = None,
+    health_check_interval: Union[int, None] = None,
     decode_responses: bool = True,
-    ssl: bool | None = None,
+    ssl: Union[bool, None] = None,
 ) -> Redis:
     """Retrieves an async Redis client.
 
@@ -84,7 +92,6 @@ def get_async_redis_client(
         db: The Redis database to interact with.
         password: The password for the redis host
         username: Username for the redis instance
-        health_check_interval: The health check interval to ping the server on.
         decode_responses: Whether to decode binary responses from Redis to
             unicode strings.
 
@@ -99,6 +106,9 @@ def get_async_redis_client(
         db=db or settings.db,
         password=password or settings.password,
         username=username or settings.username,
+        health_check_interval=health_check_interval or settings.health_check_interval,
+        ssl=ssl or settings.ssl,
+        decode_responses=decode_responses,
         retry_on_timeout=True,
     )
 
@@ -116,5 +126,7 @@ def async_redis_from_settings(settings: RedisSettings, **options: Any) -> Redis:
         db=settings.db,
         password=settings.password,
         username=settings.username,
+        health_check_interval=settings.health_check_interval,
+        ssl=settings.ssl,
         **options,
     )
