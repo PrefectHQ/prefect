@@ -35,7 +35,10 @@ def isolated_redis_db_number(worker_id, monkeypatch) -> Generator[int, None, Non
 
 @pytest.fixture(autouse=True)
 async def redis(isolated_redis_db_number: None) -> AsyncGenerator[Redis, None]:
-    yield get_async_redis_client()
+    client: Redis = get_async_redis_client()
+    assert client.get_connection_kwargs()["db"] == isolated_redis_db_number
+    yield client
+    await client.aclose()
 
 
 @pytest.fixture(autouse=True)
@@ -43,12 +46,12 @@ async def flush_redis_database(redis: Redis):
     """
     Flush the redis database before and after each test.
     """
-    await redis.flushall()
+    await redis.flushdb()
     yield
-    await redis.flushall()
+    await redis.flushdb()
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(autouse=True, scope="session")
 def close_global_redises_after_tests() -> Generator[None, None, None]:
     yield
     close_all_cached_connections()
