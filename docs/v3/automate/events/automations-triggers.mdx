@@ -924,11 +924,12 @@ To create an automation that marks zombie flow runs as crashed, run this script:
 from prefect.automations import Automation
 from prefect.client.schemas.objects import StateType
 from prefect.events.actions import ChangeFlowRunState
-from prefect.events.schemas.automations import EventTrigger
+from prefect.events.schemas.automations import EventTrigger, Posture
 
 my_automation = Automation(
-    name="Mark Zombie flows as crashed",
+    name="Crash zombie flows",
     trigger=EventTrigger(
+        after={"prefect.flow-run.heartbeat"},
         expect={
             "prefect.flow-run.heartbeat",
             "prefect.flow-run.Completed",
@@ -938,6 +939,9 @@ my_automation = Automation(
         },
         match={"prefect.resource.id": ["prefect.flow-run.*"]},
         for_each={"prefect.resource.id"},
+        posture=Posture.Proactive,
+        threshold=1,
+        within=90,
     ),
     actions=[
         ChangeFlowRunState(
