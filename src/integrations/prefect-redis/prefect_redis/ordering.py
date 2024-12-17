@@ -12,7 +12,6 @@ from uuid import UUID, uuid4
 
 import anyio
 import pendulum
-from redis.asyncio import Redis
 
 from prefect.logging import get_logger
 from prefect.server.events.ordering import (
@@ -27,6 +26,7 @@ from prefect.server.events.ordering import (
     CausalOrdering as _CausalOrdering,
 )
 from prefect.server.events.schemas.events import Event, ReceivedEvent
+from prefect_redis.client import get_async_redis_client
 
 logger = get_logger(__name__)
 
@@ -46,14 +46,7 @@ class EventBeingProcessed(Exception):
 
 class CausalOrdering(_CausalOrdering):
     def __init__(self, scope: str):
-        self.redis = Redis(
-            host="localhost",
-            port=6379,
-            db=0,
-            username="default",
-            password="",
-            decode_responses=True,
-        )
+        self.redis = get_async_redis_client()
         super().__init__(scope=scope)
 
     def _key(self, key: str) -> str:
