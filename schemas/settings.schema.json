@@ -1318,7 +1318,7 @@
             "description": "Settings for controlling the event persister service",
             "properties": {
                 "enabled": {
-                    "default": true,
+                    "default": false,
                     "description": "Whether or not to start the event persister service in the server application.",
                     "supported_environment_variables": [
                         "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_ENABLED",
