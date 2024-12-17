@@ -1,8 +1,7 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Sequence
 from uuid import uuid4
 
-import pendulum
 import pytest
 from prefect_redis.ordering import (
     MAX_DEPTH_OF_PRECEDING_EVENT,
@@ -11,11 +10,12 @@ from prefect_redis.ordering import (
 )
 
 from prefect.server.events.schemas.events import ReceivedEvent, Resource
+from prefect.types import DateTime
 
 
 @pytest.fixture
-def start_of_test() -> pendulum.DateTime:
-    return pendulum.now("UTC")
+def start_of_test() -> DateTime:
+    return datetime.now("UTC")
 
 
 @pytest.fixture
@@ -25,7 +25,7 @@ def resource() -> Resource:
 
 @pytest.fixture
 def event_one(
-    start_of_test: pendulum.DateTime,
+    start_of_test: DateTime,
     resource: Resource,
 ) -> ReceivedEvent:
     return ReceivedEvent(

@@ -6,12 +6,11 @@ occurred causally.
 
 import asyncio
 from contextlib import asynccontextmanager
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any, AsyncGenerator
 from uuid import UUID, uuid4
 
 import anyio
-import pendulum
 
 from prefect.logging import get_logger
 from prefect.server.events.ordering import (
@@ -107,7 +106,7 @@ class CausalOrdering(_CausalOrdering):
         """Returns events that were waiting on a leader event that never arrived"""
         async with self.redis.pipeline() as p:
             temporary_set = str(uuid4())
-            earlier = (pendulum.now("UTC") - PRECEDING_EVENT_LOOKBACK).timestamp()
+            earlier = (datetime.now("UTC") - PRECEDING_EVENT_LOOKBACK).timestamp()
 
             # Move all of the events that are older than the lookback period into a
             # temporary set...
@@ -171,7 +170,7 @@ class CausalOrdering(_CausalOrdering):
 
         # If this is an old event, we won't have accurate bookkeeping for its leader
         # so we're just going to send it
-        age = pendulum.now("UTC") - event.received
+        age = datetime.now("UTC") - event.received
         if age >= PRECEDING_EVENT_LOOKBACK:
             return
 
