@@ -1,6 +1,7 @@
 from datetime import timedelta
+from typing import Optional
 
-from pydantic import AliasChoices, AliasPath, Field
+from pydantic import AliasChoices, AliasPath, Field, SecretStr
 
 from prefect.settings.base import PrefectBaseSettings, _build_settings_config
 
@@ -11,6 +12,11 @@ class ServerAPISettings(PrefectBaseSettings):
     """
 
     model_config = _build_settings_config(("server", "api"))
+
+    auth_string: Optional[SecretStr] = Field(
+        default=None,
+        description="A string to use for basic authentication with the API; typically in the form 'user:password' but can be any string.",
+    )
 
     host: str = Field(
         default="127.0.0.1",
