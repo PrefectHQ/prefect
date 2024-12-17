@@ -194,6 +194,7 @@ SUPPORTED_SETTINGS = {
     "PREFECT_CLI_PROMPT": {"test_value": True},
     "PREFECT_CLI_WRAP_LINES": {"test_value": True},
     "PREFECT_CLOUD_API_URL": {"test_value": "https://cloud.prefect.io"},
+    "PREFECT_CLOUD_DISABLE_ORCHESTRATION_TELEMETRY": {"test_value": False},
     "PREFECT_CLOUD_UI_URL": {"test_value": "https://cloud.prefect.io"},
     "PREFECT_DEBUG_MODE": {"test_value": True},
     "PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE": {"test_value": "prefect", "legacy": True},

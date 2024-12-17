@@ -24,6 +24,9 @@ def setup_telemetry() -> (
     if server_type != ServerType.CLOUD:
         return None, None, None
 
+    if settings.cloud.disable_orchestration_telemetry:
+        return None, None, None
+
     if not settings.api.key:
         logger.warning(
             "A Prefect Cloud API key is required to enable telemetry. Please set "
