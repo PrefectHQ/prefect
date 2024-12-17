@@ -24,7 +24,7 @@ def setup_telemetry() -> (
     if server_type != ServerType.CLOUD:
         return None, None, None
 
-    if settings.cloud.disable_orchestration_telemetry:
+    if not settings.cloud.enable_orchestration_telemetry:
         return None, None, None
 
     if not settings.api.key:

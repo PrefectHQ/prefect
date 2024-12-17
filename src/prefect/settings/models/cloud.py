@@ -39,9 +39,9 @@ class CloudSettings(PrefectBaseSettings):
         description="API URL for Prefect Cloud. Used for authentication with Prefect Cloud.",
     )
 
-    disable_orchestration_telemetry: bool = Field(
-        default=False,
-        description="Whether or not to disable orchestration telemetry.",
+    enable_orchestration_telemetry: bool = Field(
+        default=True,
+        description="Whether or not to enable orchestration telemetry.",
     )
 
     ui_url: Optional[str] = Field(

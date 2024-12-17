@@ -259,13 +259,13 @@
                     "title": "Api Url",
                     "type": "string"
                 },
-                "disable_orchestration_telemetry": {
-                    "default": false,
-                    "description": "Whether or not to disable orchestration telemetry.",
+                "enable_orchestration_telemetry": {
+                    "default": true,
+                    "description": "Whether or not to enable orchestration telemetry.",
                     "supported_environment_variables": [
-                        "PREFECT_CLOUD_DISABLE_ORCHESTRATION_TELEMETRY"
+                        "PREFECT_CLOUD_ENABLE_ORCHESTRATION_TELEMETRY"
                     ],
-                    "title": "Disable Orchestration Telemetry",
+                    "title": "Enable Orchestration Telemetry",
                     "type": "boolean"
                 },
                 "ui_url": {
