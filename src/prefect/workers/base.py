@@ -1002,9 +1002,8 @@ class BaseWorker(abc.ABC):
                 )
                 # Mark the task as started to prevent agent crash
                 task_status.started(exc)
-                await self._propose_crashed_state(
-                    flow_run, "Flow run could not be submitted to infrastructure"
-                )
+                message = f"Flow run could not be submitted to infrastructure:\n{exc!r}"
+                await self._propose_crashed_state(flow_run, message)
             else:
                 run_logger.exception(
                     f"An error occurred while monitoring flow run '{flow_run.id}'. "
