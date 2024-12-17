@@ -3478,6 +3478,8 @@ class PrefectClient:
         try:
             api_version = await self.api_version()
         except Exception as e:
+            if "Unauthorized" in str(e):
+                raise e
             raise RuntimeError(f"Failed to reach API at {self.api_url}") from e
 
         api_version = version.parse(api_version)
@@ -3814,6 +3816,8 @@ class SyncPrefectClient:
         try:
             api_version = self.api_version()
         except Exception as e:
+            if "Unauthorized" in str(e):
+                raise e
             raise RuntimeError(f"Failed to reach API at {self.api_url}") from e
 
         api_version = version.parse(api_version)

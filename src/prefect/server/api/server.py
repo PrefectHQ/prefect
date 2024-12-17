@@ -330,10 +330,8 @@ def create_api_app(
                 decoded = base64.b64decode(creds).decode("utf-8")
             except Exception:
                 return JSONResponse(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    content={
-                        "exception_message": "Incorrectly formatted Authorization header."
-                    },
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    content={"exception_message": "Unauthorized"},
                 )
             if decoded != auth_string:
                 return JSONResponse(

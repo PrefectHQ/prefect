@@ -737,6 +737,7 @@
                         }
                     ],
                     "default": null,
+                    "description": "A string to use for basic authentication with the API; typically in the form 'user:password' but can be any string.",
                     "supported_environment_variables": [
                         "PREFECT_SERVER_API_AUTH_STRING"
                     ],
