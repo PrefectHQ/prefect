@@ -9,7 +9,6 @@ from typing import (
     AsyncGenerator,
     Dict,
     List,
-    MutableMapping,
     Optional,
     TypeVar,
     Union,
@@ -192,10 +191,11 @@ M = TypeVar("M", bound=Message)
 
 
 class Cache(_Cache):
-    _recently_seen_messages: MutableMapping[str, bool] = TTLCache(
-        maxsize=1000,
-        ttl=timedelta(minutes=5).total_seconds(),
-    )
+    def __init__(self, topic: Optional[str] = None):
+        self._recently_seen_messages = TTLCache(
+            maxsize=1000,
+            ttl=timedelta(minutes=5).total_seconds(),
+        )
 
     async def clear_recently_seen_messages(self) -> None:
         self._recently_seen_messages.clear()

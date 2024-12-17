@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 from contextlib import asynccontextmanager
 from typing import (
     AsyncGenerator,
@@ -35,18 +36,24 @@ from prefect.settings import (
 
 @pytest.fixture(scope="session", autouse=True)
 def isolate_redis_for_xdist(worker_id):
+    """Assign a unique Redis DB number for each xdist worker to prevent test interference."""
     # Assign a unique DB per xdist worker
     if not worker_id or "gw" not in worker_id:
         db_num = 1
     else:
         db_num = 2 + int(worker_id.replace("gw", ""))
 
-    # Update settings so that get_async_redis_client()
-    # creates clients connected to this db_num
-    with temporary_settings(
-        updates={"PREFECT_REDIS_DB": str(db_num)},
-    ):
-        yield
+    # Use os.environ directly instead of monkeypatch since this is session-scoped
+    original_db = os.environ.get("PREFECT_REDIS_DB")
+    os.environ["PREFECT_REDIS_DB"] = str(db_num)
+
+    yield
+
+    # Restore original value if it existed
+    if original_db is not None:
+        os.environ["PREFECT_REDIS_DB"] = original_db
+    else:
+        os.environ.pop("PREFECT_REDIS_DB", None)
 
 
 @pytest.fixture
@@ -137,7 +144,9 @@ def configured_cache(cache_name: str) -> Generator[str, None, None]:
 
 @pytest.fixture
 async def cache(configured_cache: str) -> AsyncGenerator[Cache, None]:
-    cache = create_cache()
+    """Create a cache instance for testing."""
+    # Create cache with a test topic
+    cache = create_cache("test-topic")  # We need to pass a topic for Redis cache
     await cache.clear_recently_seen_messages()
     yield cache
     await cache.clear_recently_seen_messages()
@@ -145,7 +154,7 @@ async def cache(configured_cache: str) -> AsyncGenerator[Cache, None]:
 
 @pytest.fixture
 async def publisher(broker: str, cache: Cache) -> Publisher:
-    return create_publisher("my-topic", cache=Cache)
+    return create_publisher("my-topic", cache=cache)
 
 
 @pytest.fixture
@@ -185,7 +194,7 @@ async def test_publishing_and_consuming_a_single_message(
 
     assert len(captured_messages) == 1
     (message,) = captured_messages
-    assert message.data == b"hello, world"
+    assert message.data == "hello, world"
     assert message.attributes == {"howdy": "partner"}
 
     remaining_message = await drain_one(consumer)
@@ -211,7 +220,7 @@ async def test_stopping_consumer_without_acking(
 
     assert len(captured_messages) == 1
     (message,) = captured_messages
-    assert message.data == b"hello, world"
+    assert message.data == "hello, world"
     assert message.attributes == {"howdy": "partner"}
 
     remaining_message = await drain_one(consumer)
@@ -278,7 +287,7 @@ async def test_publisher_will_avoid_sending_duplicate_messages_in_same_batch(
 
     assert len(captured_messages) == 1
     (message,) = captured_messages
-    assert message.data == b"hello, world"
+    assert message.data == "hello, world"
     assert message.attributes == {"my-message-id": "A", "howdy": "partner"}
 
     remaining_message = await drain_one(consumer)
@@ -311,7 +320,7 @@ async def test_publisher_will_avoid_sending_duplicate_messages_in_different_batc
 
     assert len(captured_messages) == 1
     (message,) = captured_messages
-    assert message.data == b"hello, world"
+    assert message.data == "hello, world"
     assert message.attributes == {"my-message-id": "A", "howdy": "partner"}
 
     remaining_message = await drain_one(consumer)
@@ -376,7 +385,7 @@ async def test_publisher_will_forget_duplicate_messages_on_error(
 
     assert len(captured_messages) == 1
     (message,) = captured_messages
-    assert message.data == b"hello, world"
+    assert message.data == "hello, world"
     assert message.attributes == {"my-message-id": "A", "howdy": "partner"}
 
     remaining_message = await drain_one(consumer)
@@ -407,10 +416,10 @@ async def test_publisher_does_not_interfere_with_duplicate_messages_without_id(
 
     assert message1 is not message2
 
-    assert message1.data == b"hello, world"
+    assert message1.data == "hello, world"
     assert message1.attributes == {"howdy": "partner"}
 
-    assert message2.data == b"hello, world"
+    assert message2.data == "hello, world"
     assert message2.attributes == {"howdy": "partner"}
 
     remaining_message = await drain_one(consumer)
@@ -474,7 +483,7 @@ async def test_ephemeral_subscription(broker: str, publisher: Publisher):
 
         assert len(captured_messages) == 1
         (message,) = captured_messages
-        assert message.data == b"hello, world"
+        assert message.data == "hello, world"
         assert message.attributes == {"howdy": "partner"}
 
         remaining_message = await drain_one(consumer)
@@ -524,7 +533,7 @@ async def test_repeatedly_failed_message_is_moved_to_dead_letter_queue(
         # Message should have been moved to DLQ after multiple retries
         assert len(captured_messages) == 4  # Original attempt + 3 retries
         for message in captured_messages:
-            assert message.data == b"hello, world"
+            assert message.data == "hello, world"
             assert message.attributes == {"howdy": "partner", "my-message-id": "A"}
 
         # Verify message is in Redis DLQ

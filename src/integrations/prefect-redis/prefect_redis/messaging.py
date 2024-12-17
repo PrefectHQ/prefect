@@ -5,15 +5,7 @@ import uuid
 from contextlib import asynccontextmanager
 from datetime import timedelta
 from functools import partial
-from typing import (
-    Any,
-    AsyncGenerator,
-    Awaitable,
-    Callable,
-    Dict,
-    Optional,
-    TypeVar,
-)
+from typing import Any, AsyncGenerator, Awaitable, Callable, Optional, TypeVar, cast
 
 import orjson
 from redis.asyncio import Redis
@@ -34,11 +26,9 @@ M = TypeVar("M", bound=Message)
 MESSAGE_DEDUPLICATION_LOOKBACK = timedelta(minutes=5)
 
 
-class RedisCache(_Cache):
-    def __init__(self, topic: str):
-        super().__init__()
-        self.topic = topic
-
+class Cache(_Cache):
+    def __init__(self, topic: Optional[str] = None):
+        self.topic = topic or "default"
         self._client: Redis = get_async_redis_client()
 
     async def clear_recently_seen_messages(self) -> None:
@@ -92,7 +82,7 @@ class RedisStreamsMessage:
     def __init__(
         self,
         data: bytes | str,
-        attributes: Dict[str, Any],
+        attributes: dict[str, Any],
         acker: Callable[[], Awaitable[None]] | None = None,
     ) -> None:
         self.data = data
@@ -155,7 +145,7 @@ class Publisher(_Publisher):
             self._periodic_task.cancel()
         await asyncio.shield(self._publish_current_batch())
 
-    async def publish_data(self, data: bytes, attributes: Dict[str, Any]):
+    async def publish_data(self, data: bytes, attributes: dict[str, Any]):
         if not hasattr(self, "_batch"):
             raise RuntimeError("Use this publisher as an async context manager")
 
@@ -204,7 +194,7 @@ class Consumer(_Consumer):
         block: timedelta = timedelta(seconds=1),
         min_idle_time: timedelta = timedelta(seconds=0),
         should_process_pending_messages: bool = True,
-        starting_message_id: str = "0",
+        starting_message_id: str = "$",
         automatically_acknowledge: bool = True,
         max_retries: int = 3,
     ):
@@ -218,7 +208,7 @@ class Consumer(_Consumer):
         self.automatically_acknowledge = automatically_acknowledge
 
         self.subscription = Subscription(max_retries=max_retries)
-        self._retry_counts: Dict[str, int] = {}
+        self._retry_counts: dict[str, int] = {}
 
     async def process_pending_messages(
         self,
@@ -248,39 +238,44 @@ class Consumer(_Consumer):
 
             start_id = next_start_id
 
-    async def run(
-        self,
-        handler: MessageHandler,
-        message_batch_size: int = 1,
-    ) -> None:
+    async def run(self, handler: MessageHandler) -> None:
         redis_client: Redis = get_async_redis_client()
 
+        # Create consumer group before any operations
         try:
             await redis_client.xgroup_create(
                 self.stream, self.group, id=self.starting_message_id, mkstream=True
             )
         except ResponseError as e:
-            if "already exists" in str(e):
-                logger.debug("Consumer group already exists: %s", e)
-            else:
+            if "already exists" not in str(e):
+                logger.error(f"Failed to create consumer group: {e}")
                 raise
+            logger.debug("Consumer group already exists: %s", e)
 
+        # Process messages
         while True:
             if self.should_process_pending_messages:
                 try:
                     await self.process_pending_messages(
-                        handler, redis_client, message_batch_size
+                        handler,
+                        redis_client,
+                        1,  # Use batch size of 1 for now
                     )
                 except StopConsumer:
                     return
 
-            stream_entries = await redis_client.xreadgroup(
-                groupname=self.group,
-                consumername=self.name,
-                streams={self.stream: ">"},
-                count=message_batch_size,
-                block=int(self.block.total_seconds() * 1000),
-            )
+            # Read new messages
+            try:
+                stream_entries = await redis_client.xreadgroup(
+                    groupname=self.group,
+                    consumername=self.name,
+                    streams={self.stream: ">"},
+                    count=1,  # Use batch size of 1 for now
+                    block=int(self.block.total_seconds() * 1000),
+                )
+            except ResponseError as e:
+                logger.error(f"Failed to read from stream: {e}")
+                raise
 
             if not stream_entries:
                 continue
@@ -302,9 +297,9 @@ class Consumer(_Consumer):
         acker: Callable[..., Awaitable[int]],
     ):
         redis_stream_message = RedisStreamsMessage(
-            data=message[b"data"],
-            attributes=orjson.loads(message[b"attributes"]),
-            acker=partial(acker, message_id),
+            data=message["data"],
+            attributes=orjson.loads(message["attributes"]),
+            acker=cast(Callable[[], Awaitable[None]], partial(acker, message_id)),
         )
         msg_id_str = (
             message_id.decode() if isinstance(message_id, bytes) else message_id
@@ -366,19 +361,15 @@ async def ephemeral_subscription(
 ) -> AsyncGenerator[dict[str, Any], None]:
     source = source or topic
     group_name = group or f"ephemeral-{socket.gethostname()}-{uuid.uuid4().hex}"
-    logger.info("Created ephemeral consumer group %s for stream %s", group_name, source)
     redis_client: Redis = get_async_redis_client()
     try:
-        await redis_client.xgroup_create(source, group_name, mkstream=True)
-        yield {"topic": topic}
+        await redis_client.xgroup_create(source, group_name, id="0", mkstream=True)
+        yield {"topic": topic, "name": topic, "stream": topic, "group": group_name}
     except Exception:
         logger.exception("Error in ephemeral subscription")
         raise
     finally:
         await redis_client.xgroup_destroy(source, group_name)
-        logger.info(
-            "Deleted ephemeral consumer group %s for stream %s", group_name, source
-        )
 
 
 @asynccontextmanager
