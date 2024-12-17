@@ -66,7 +66,7 @@ class CausalOrdering(_CausalOrdering):
         )
         return bool(success)
 
-    async def event_has_started_processing(self, event: UUID | Event) -> bool:
+    async def event_has_started_processing(self, event: Union[UUID, Event]) -> bool:
         id = event.id if isinstance(event, Event) else event
         return await self.redis.exists(self._key(f"processing:{id}")) == 1
 
