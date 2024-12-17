@@ -11,4 +11,13 @@ export class AdminApi extends Api {
   public async getVersion(): Promise<string> {
     return await this.get<string>('/version').then(({ data }) => data)
   }
+
+  public async authCheck(): Promise<boolean> {
+    try {
+      await this.getVersion()
+      return true
+    } catch {
+      return false
+    }
+  }
 }

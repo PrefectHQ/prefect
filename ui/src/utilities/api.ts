@@ -6,12 +6,19 @@ import { AdminApi } from '@/services/adminApi'
 import { AutomationsApi } from '@/services/automationsApi'
 import { CsrfTokenApi, setupCsrfInterceptor } from '@/services/csrfTokenApi'
 
+
+
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export function createPrefectApi(config: PrefectConfig) {
   const csrfTokenApi = createActions(new CsrfTokenApi(config))
 
   function axiosInstanceSetupHook(axiosInstance: AxiosInstance): void {
     setupCsrfInterceptor(csrfTokenApi, axiosInstance)
+    
+    const password = localStorage.getItem('prefect-password')
+    if (password) {
+      axiosInstance.defaults.headers.common['Authorization'] = `Basic ${password}`
+    }
   }
 
   const workspaceApi = createApi(config, axiosInstanceSetupHook)
