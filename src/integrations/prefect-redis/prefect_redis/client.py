@@ -1,0 +1,120 @@
+import asyncio
+import functools
+from typing import Any, Callable
+
+from pydantic import Field
+from redis.asyncio import Redis
+from typing_extensions import TypeAlias
+
+from prefect.settings.base import (
+    PrefectBaseSettings,
+    _build_settings_config,  # type: ignore[reportPrivateUsage]
+)
+
+
+class RedisSettings(PrefectBaseSettings):
+    model_config = _build_settings_config(("redis",))
+
+    host: str = Field(default="localhost")
+    port: int = Field(default=6379)
+    db: int = Field(default=0)
+    username: str = Field(default="default")
+    password: str = Field(default="")
+
+
+CacheKey: TypeAlias = tuple[
+    Callable[..., Any],
+    tuple[Any, ...],
+    tuple[tuple[str, Any], ...],
+    asyncio.AbstractEventLoop | None,
+]
+
+_client_cache: dict[CacheKey, Redis] = {}
+
+
+def _running_loop() -> asyncio.AbstractEventLoop | None:
+    try:
+        return asyncio.get_running_loop()
+    except RuntimeError as e:
+        if "no running event loop" in str(e):
+            return None
+        raise
+
+
+def cached(fn: Callable[..., Any]) -> Callable[..., Any]:
+    @functools.wraps(fn)
+    def cached_fn(*args: Any, **kwargs: Any) -> Redis:
+        key = (fn, args, tuple(kwargs.items()), _running_loop())
+        if key not in _client_cache:
+            _client_cache[key] = fn(*args, **kwargs)
+        return _client_cache[key]
+
+    return cached_fn
+
+
+def close_all_cached_connections() -> None:
+    """Close all cached Redis connections."""
+    loop: asyncio.AbstractEventLoop | None
+
+    for (_, _, _, loop), client in _client_cache.items():
+        if loop and loop.is_closed():
+            continue
+
+        loop = loop or asyncio.get_event_loop()
+        loop.run_until_complete(client.connection_pool.disconnect())  # type: ignore
+        loop.run_until_complete(client.close(close_connection_pool=True))
+
+
+@cached
+def get_async_redis_client(
+    host: str | None = None,
+    port: int | None = None,
+    db: int | None = None,
+    password: str | None = None,
+    username: str | None = None,
+    health_check_interval: int | None = None,
+    decode_responses: bool = True,
+    ssl: bool | None = None,
+) -> Redis:
+    """Retrieves an async Redis client.
+
+    Args:
+        host: The host location.
+        port: The port to connect to the host with.
+        db: The Redis database to interact with.
+        password: The password for the redis host
+        username: Username for the redis instance
+        health_check_interval: The health check interval to ping the server on.
+        decode_responses: Whether to decode binary responses from Redis to
+            unicode strings.
+
+    Returns:
+        Redis: a Redis client
+    """
+    settings = RedisSettings()
+
+    return Redis(
+        host=host or settings.host,
+        port=port or settings.port,
+        db=db or settings.db,
+        password=password or settings.password,
+        username=username or settings.username,
+        retry_on_timeout=True,
+    )
+
+
+@cached
+def async_redis_from_settings(settings: RedisSettings, **options: Any) -> Redis:
+    options = {
+        "retry_on_timeout": True,
+        "decode_responses": True,
+        **options,
+    }
+    return Redis(
+        host=settings.host,
+        port=settings.port,
+        db=settings.db,
+        password=settings.password,
+        username=settings.username,
+        **options,
+    )
