@@ -921,10 +921,13 @@ You will need to ensure you're running Prefect version 3.1.8 or greater and set 
 
 To create an automation that marks zombie flow runs as crashed, run this script:
 ```python
+from datetime import timedelta
+
 from prefect.automations import Automation
 from prefect.client.schemas.objects import StateType
 from prefect.events.actions import ChangeFlowRunState
 from prefect.events.schemas.automations import EventTrigger, Posture
+from prefect.events.schemas.events import ResourceSpecification
 
 my_automation = Automation(
     name="Crash zombie flows",
@@ -937,11 +940,11 @@ my_automation = Automation(
             "prefect.flow-run.Cancelled",
             "prefect.flow-run.Crashed",
         },
-        match={"prefect.resource.id": ["prefect.flow-run.*"]},
+        match=ResourceSpecification({"prefect.resource.id": ["prefect.flow-run.*"]}),
         for_each={"prefect.resource.id"},
         posture=Posture.Proactive,
         threshold=1,
-        within=90,
+        within=timedelta(seconds=90),
     ),
     actions=[
         ChangeFlowRunState(
