@@ -289,6 +289,24 @@ class TestProjectDeploy:
         assert deployment.job_variables == {"env": "prod"}
         assert deployment.enforce_parameter_schema
 
+    async def test_deploy_with_no_enforce_parameter_schema(
+        self, project_dir, work_pool, prefect_client
+    ):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=f"deploy ./flows/hello.py:my_flow --no-enforce-parameter-schema -n test-name -p {work_pool.name}",
+            expected_code=0,
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.name == "test-name"
+        assert deployment.work_pool_name == work_pool.name
+        assert deployment.tags == []
+        assert deployment.job_variables == {}
+        assert not deployment.enforce_parameter_schema
+
     async def test_deploy_with_active_workers(
         self, project_dir, work_pool, prefect_client, monkeypatch
     ):
