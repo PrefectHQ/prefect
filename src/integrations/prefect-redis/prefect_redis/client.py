@@ -34,13 +34,13 @@ CacheKey: TypeAlias = tuple[
     Callable[..., Any],
     tuple[Any, ...],
     tuple[tuple[str, Any], ...],
-    asyncio.AbstractEventLoop | None,
+    Union[asyncio.AbstractEventLoop, None],
 ]
 
 _client_cache: dict[CacheKey, Redis] = {}
 
 
-def _running_loop() -> asyncio.AbstractEventLoop | None:
+def _running_loop() -> Union[asyncio.AbstractEventLoop, None]:
     try:
         return asyncio.get_running_loop()
     except RuntimeError as e:
@@ -62,7 +62,7 @@ def cached(fn: Callable[..., Any]) -> Callable[..., Any]:
 
 def close_all_cached_connections() -> None:
     """Close all cached Redis connections."""
-    loop: asyncio.AbstractEventLoop | None
+    loop: Union[asyncio.AbstractEventLoop, None]
 
     for (_, _, _, loop), client in _client_cache.items():
         if loop and loop.is_closed():
