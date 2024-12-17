@@ -192,7 +192,7 @@ def _add_environment_variables(
 
 
 def _build_settings_config(
-    path: Tuple[str, ...] = tuple(),
+    path: Tuple[str, ...] = tuple(), frozen: bool = False
 ) -> PrefectSettingsConfigDict:
     env_prefix = f"PREFECT_{'_'.join(path).upper()}_" if path else "PREFECT_"
     return PrefectSettingsConfigDict(
@@ -202,7 +202,8 @@ def _build_settings_config(
         toml_file="prefect.toml",
         prefect_toml_table_header=path,
         pyproject_toml_table_header=("tool", "prefect", *path),
-        json_schema_extra=_add_environment_variables,
+        json_schema_extra=_add_environment_variables,  # type: ignore
+        frozen=frozen,
     )
 
 
