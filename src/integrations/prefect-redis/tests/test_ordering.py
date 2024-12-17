@@ -1,5 +1,5 @@
 from datetime import timedelta
-from typing import Generator, Sequence
+from typing import Sequence
 from uuid import uuid4
 
 import pendulum
@@ -9,21 +9,8 @@ from prefect_redis.ordering import (
     CausalOrdering,
     EventArrivedEarly,
 )
-from redis import Redis
 
 from prefect.server.events.schemas.events import ReceivedEvent, Resource
-
-
-@pytest.fixture(autouse=True)
-def flush_redis_database(worker_id: str) -> Generator[None, None, None]:
-    """Use isolated redis databases for the test suite, taking into account which
-    pytest-xdist worker (if any) we're running in."""
-
-    # TODO - make this not suck
-    redis = Redis(host="localhost", port=6379, db=0, username="default", password="")
-    redis.flushdb()
-    yield
-    redis.flushdb()
 
 
 @pytest.fixture

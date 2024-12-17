@@ -76,7 +76,8 @@ def close_all_cached_connections() -> None:
 
         loop = loop or asyncio.get_event_loop()
         loop.run_until_complete(client.connection_pool.disconnect())  # type: ignore
-        loop.run_until_complete(client.close(close_connection_pool=True))
+        loop.run_until_complete(client.aclose(close_connection_pool=True))
+        del client
 
 
 @cached
