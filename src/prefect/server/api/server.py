@@ -4,6 +4,7 @@ Defines the Prefect REST API FastAPI app.
 
 import asyncio
 import atexit
+import base64
 import contextlib
 import mimetypes
 import os
@@ -314,6 +315,30 @@ def create_api_app(
 
     for router in API_ROUTERS:
         api_app.include_router(router, dependencies=dependencies)
+
+    auth_string = prefect.settings.PREFECT_SERVER_API_AUTH_STRING.value()
+
+    if auth_string is not None:
+
+        @api_app.middleware("http")
+        async def token_validation(request: Request, call_next):
+            header_token = request.headers.get("Authorization")
+
+            try:
+                scheme, creds = header_token.split()
+                assert scheme == "Basic"
+                decoded = base64.b64decode(creds).decode("utf-8")
+            except Exception:
+                return JSONResponse(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    content={"exception_message": "Unauthorized"},
+                )
+            if decoded != auth_string:
+                return JSONResponse(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    content={"exception_message": "Unauthorized"},
+                )
+            return await call_next(request)
 
     return api_app
 
