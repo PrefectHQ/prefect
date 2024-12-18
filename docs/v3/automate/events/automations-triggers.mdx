@@ -907,7 +907,7 @@ In the above example:
 
 ### Detect and respond to zombie flows
 
-If the infrastructure a flow is running on suddenly fails (e.g. the machine crashes or a container is evicted), 
+If the infrastructure a flow is running on suddenly fails (for example, the machine crashes or a container is evicted), 
 Prefect's orchestration engine will be unable to report state changes and the flow run will get stuck in the running state.
 
 Fortunately, flow runs triggered via deployment can emit heartbeats as they are running, and a Prefect automation can update 
@@ -929,6 +929,7 @@ from prefect.client.schemas.objects import StateType
 from prefect.events.actions import ChangeFlowRunState
 from prefect.events.schemas.automations import EventTrigger, Posture
 from prefect.events.schemas.events import ResourceSpecification
+
 
 my_automation = Automation(
     name="Crash zombie flows",
@@ -955,7 +956,8 @@ my_automation = Automation(
     ],
 )
 
-my_automation.create()
+if __name__ == "__main__":
+    my_automation.create()
 ```
 
 The trigger definition says after each heartbeat event for a flow run we expect to see another heartbeat event or a
