@@ -1,42 +1,30 @@
-import asyncio
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator, List, Optional, Union, cast
+from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 import anyio
-import httpx
 import pendulum
 
-from ...client.schemas.responses import MinimalConcurrencyLimitResponse
-
-try:
-    from pendulum import Interval
-except ImportError:
-    # pendulum < 3
-    from pendulum.period import Period as Interval  # type: ignore
-
-from prefect.client.orchestration import get_client
-from prefect.utilities.asyncutils import sync_compatible
-
-from .context import ConcurrencyContext
-from .events import (
-    _emit_concurrency_acquisition_events,
-    _emit_concurrency_release_events,
+from prefect.concurrency.v1._asyncio import (
+    acquire_concurrency_slots,
+    release_concurrency_slots,
 )
-from .services import ConcurrencySlotAcquisitionService
+from prefect.concurrency.v1._events import (
+    emit_concurrency_acquisition_events,
+    emit_concurrency_release_events,
+)
+from prefect.concurrency.v1.context import ConcurrencyContext
 
-
-class ConcurrencySlotAcquisitionError(Exception):
-    """Raised when an unhandlable occurs while acquiring concurrency slots."""
-
-
-class AcquireConcurrencySlotTimeoutError(TimeoutError):
-    """Raised when acquiring a concurrency slot times out."""
+from ._asyncio import (
+    AcquireConcurrencySlotTimeoutError as AcquireConcurrencySlotTimeoutError,
+)
+from ._asyncio import ConcurrencySlotAcquisitionError as ConcurrencySlotAcquisitionError
 
 
 @asynccontextmanager
 async def concurrency(
-    names: Union[str, List[str]],
+    names: Union[str, list[str]],
     task_run_id: UUID,
     timeout_seconds: Optional[float] = None,
 ) -> AsyncGenerator[None, None]:
@@ -69,24 +57,30 @@ async def concurrency(
         yield
         return
 
-    names_normalized: List[str] = names if isinstance(names, list) else [names]
+    names_normalized: list[str] = names if isinstance(names, list) else [names]
 
-    limits = await _acquire_concurrency_slots(
+    acquire_slots = acquire_concurrency_slots(
         names_normalized,
         task_run_id=task_run_id,
         timeout_seconds=timeout_seconds,
     )
+    if TYPE_CHECKING:
+        assert not isinstance(acquire_slots, list)
+    limits = await acquire_slots
     acquisition_time = pendulum.now("UTC")
-    emitted_events = _emit_concurrency_acquisition_events(limits, task_run_id)
+    emitted_events = emit_concurrency_acquisition_events(limits, task_run_id)
 
     try:
         yield
     finally:
-        occupancy_period = cast(Interval, (pendulum.now("UTC") - acquisition_time))
+        occupancy_period = pendulum.now("UTC") - acquisition_time
         try:
-            await _release_concurrency_slots(
+            release_slots = release_concurrency_slots(
                 names_normalized, task_run_id, occupancy_period.total_seconds()
             )
+            if TYPE_CHECKING:
+                assert not isinstance(release_slots, list)
+            await release_slots
         except anyio.get_cancelled_exc_class():
             # The task was cancelled before it could release the slots. Add the
             # slots to the cleanup list so they can be released when the
@@ -96,51 +90,4 @@ async def concurrency(
                     (names_normalized, occupancy_period.total_seconds(), task_run_id)
                 )
 
-        _emit_concurrency_release_events(limits, emitted_events, task_run_id)
-
-
-@sync_compatible
-async def _acquire_concurrency_slots(
-    names: List[str],
-    task_run_id: UUID,
-    timeout_seconds: Optional[float] = None,
-) -> List[MinimalConcurrencyLimitResponse]:
-    service = ConcurrencySlotAcquisitionService.instance(frozenset(names))
-    future = service.send((task_run_id, timeout_seconds))
-    response_or_exception = await asyncio.wrap_future(future)
-
-    if isinstance(response_or_exception, Exception):
-        if isinstance(response_or_exception, TimeoutError):
-            raise AcquireConcurrencySlotTimeoutError(
-                f"Attempt to acquire concurrency limits timed out after {timeout_seconds} second(s)"
-            ) from response_or_exception
-
-        raise ConcurrencySlotAcquisitionError(
-            f"Unable to acquire concurrency limits {names!r}"
-        ) from response_or_exception
-
-    return _response_to_concurrency_limit_response(response_or_exception)
-
-
-@sync_compatible
-async def _release_concurrency_slots(
-    names: List[str],
-    task_run_id: UUID,
-    occupancy_seconds: float,
-) -> List[MinimalConcurrencyLimitResponse]:
-    async with get_client() as client:
-        response = await client.decrement_v1_concurrency_slots(
-            names=names,
-            task_run_id=task_run_id,
-            occupancy_seconds=occupancy_seconds,
-        )
-        return _response_to_concurrency_limit_response(response)
-
-
-def _response_to_concurrency_limit_response(
-    response: httpx.Response,
-) -> List[MinimalConcurrencyLimitResponse]:
-    data = response.json() or []
-    return [
-        MinimalConcurrencyLimitResponse.model_validate(limit) for limit in data if data
-    ]
+        emit_concurrency_release_events(limits, emitted_events, task_run_id)
