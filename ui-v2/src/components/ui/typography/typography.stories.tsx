@@ -12,12 +12,6 @@ const meta: Meta<typeof Typography> = {
 			},
 		},
 	},
-};
-export default meta;
-
-type Story = StoryObj<typeof Typography>;
-
-export const Usage: Story = {
 	render: () => {
 		return (
 			<div>
@@ -32,3 +26,6 @@ export const Usage: Story = {
 		);
 	},
 };
+export default meta;
+
+export const story: StoryObj = { name: "Typography" };
