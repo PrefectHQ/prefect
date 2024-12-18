@@ -640,7 +640,14 @@ def Failed(cls: Type[State[R]] = State, **kwargs: Any) -> State[R]:
     Returns:
         State: a Failed state
     """
-    return cls(type=StateType.FAILED, **kwargs)
+    state_details = StateDetails.model_validate(kwargs.pop("state_details", {}))
+
+    context = trace.get_current_span().get_span_context()
+    if context.is_valid:
+        state_details.trace_id = context.trace_id
+        state_details.span_id = context.span_id
+
+    return cls(type=StateType.FAILED, state_details=state_details, **kwargs)
 
 
 def Crashed(cls: Type[State[R]] = State, **kwargs: Any) -> State[R]:
