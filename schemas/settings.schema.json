@@ -19,6 +19,24 @@
                     ],
                     "title": "Url"
                 },
+                "auth_string": {
+                    "anyOf": [
+                        {
+                            "format": "password",
+                            "type": "string",
+                            "writeOnly": true
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "The auth string used for basic authentication with a self-hosted Prefect API. Should be kept secret.",
+                    "supported_environment_variables": [
+                        "PREFECT_API_AUTH_STRING"
+                    ],
+                    "title": "Auth String"
+                },
                 "key": {
                     "anyOf": [
                         {
@@ -696,6 +714,23 @@
                     "title": "Poll Frequency",
                     "type": "integer"
                 },
+                "heartbeat_frequency": {
+                    "anyOf": [
+                        {
+                            "minimum": 30,
+                            "type": "integer"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "Number of seconds a runner should wait between heartbeats for flow runs.",
+                    "supported_environment_variables": [
+                        "PREFECT_RUNNER_HEARTBEAT_FREQUENCY"
+                    ],
+                    "title": "Heartbeat Frequency"
+                },
                 "server": {
                     "$ref": "#/$defs/RunnerServerSettings",
                     "supported_environment_variables": []
@@ -707,6 +742,24 @@
         "ServerAPISettings": {
             "description": "Settings for controlling API server behavior",
             "properties": {
+                "auth_string": {
+                    "anyOf": [
+                        {
+                            "format": "password",
+                            "type": "string",
+                            "writeOnly": true
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "A string to use for basic authentication with the API; typically in the form 'user:password' but can be any string.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_API_AUTH_STRING"
+                    ],
+                    "title": "Auth String"
+                },
                 "host": {
                     "default": "127.0.0.1",
                     "description": "The API's host address (defaults to `127.0.0.1`).",
