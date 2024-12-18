@@ -66,12 +66,15 @@ python simulate_failures.py --fail-at-run 1 --runs 1
 After the script finishes, you should receive an email with details about the failed flow run.
 The email should look similar to the following:
 
-> Subject: Prefect flow run notification<br/><br/>
-> Flow run data-pipeline/courageous-buffalo observed in state Failed at 2024-12-11 18:59:17.212585+00:00.<br/>
-> Flow ID: 89053371-0d7e-4ef6-9a5f-63ea69689f66<br/>
-> Flow run ID: 33c2dac9-7d2a-48dd-a8cf-3894c6cd6063<br/>
-> Flow run URL: https:&#8203;//app.prefect.cloud/account/9b649228-0419-40e1-9e0d-44954b5c0ab6/workspace/a2127afa-ad10-4862-bdb0-5d065df64c8a/flow-runs/flow-run/33c2dac9-7d2a-48dd-a8cf-3894c6cd6063<br/>
-> State message: Flow run encountered an exception: Exception: Run failed
+```
+Subject: Prefect flow run notification
+
+Flow run data-pipeline/courageous-buffalo observed in state Failed at 2024-12-11 18:59:17.212585+00:00.
+Flow ID: 89053371-0d7e-4ef6-9a5f-63ea69689f66
+Flow run ID: 33c2dac9-7d2a-48dd-a8cf-3894c6cd6063
+Flow run URL: https://app.prefect.cloud/account/9b649228-0419-40e1-9e0d-44954b5c0ab6/workspace/a2127afa-ad10-4862-bdb0-5d065df64c8a/flow-runs/flow-run/33c2dac9-7d2a-48dd-a8cf-3894c6cd6063
+State message: Flow run encountered an exception: Exception: Run failed
+```
 
 You can open the URL to view the flow run in Prefect Cloud.
 
