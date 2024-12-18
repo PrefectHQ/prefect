@@ -131,14 +131,21 @@ class CacheModule(Protocol):
     Cache: Type[Cache]
 
 
-def create_cache() -> Cache:
+def create_cache(topic: Optional[str] = None) -> Cache:
     """
     Creates a new cache with the applications default settings.
+
+    Args:
+        topic: Optional topic name for the cache. Some implementations may require this.
+
     Returns:
         a new Cache instance
     """
     module = importlib.import_module(PREFECT_MESSAGING_CACHE.value())
     assert isinstance(module, CacheModule)
+
+    if topic is not None:
+        return module.Cache(topic)
     return module.Cache()
 
 
