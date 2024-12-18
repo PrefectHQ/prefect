@@ -9,12 +9,14 @@ from prefect_redis.client import (
 from redis.asyncio import Redis
 
 
-def test_redis_settings_defaults():
+def test_redis_settings_defaults(isolated_redis_db_number: int):
     """Test that RedisSettings has expected defaults"""
     settings = RedisMessagingSettings()
     assert settings.host == "localhost"
     assert settings.port == 6379
-    assert settings.db == 0
+    # Note: we override the db number in the conftest
+    # to isolate redis db for xdist workers
+    assert settings.db == isolated_redis_db_number
     assert settings.username == "default"
     assert settings.password == ""
     assert settings.health_check_interval == 20
