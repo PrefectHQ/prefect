@@ -11,7 +11,7 @@ from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
 from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
-from opentelemetry.sdk._logs.export import SimpleLogRecordProcessor
+from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 from opentelemetry.sdk.resources import Resource
@@ -116,7 +116,7 @@ def _setup_logger_provider(
         endpoint=_url_join(telemetry_url, "v1/logs"),
         headers=headers,
     )
-    logger_provider.add_log_record_processor(SimpleLogRecordProcessor(otlp_exporter))
+    logger_provider.add_log_record_processor(BatchLogRecordProcessor(otlp_exporter))
     set_logger_provider(logger_provider)
     log_handler = LoggingHandler(level=logging.NOTSET, logger_provider=logger_provider)
 
