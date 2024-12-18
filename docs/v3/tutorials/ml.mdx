@@ -16,7 +16,7 @@ prefect work-pool create --type ecs:push --provision-infra my-ecs-pool
 
 Now create a `task_definition.json` file with the following task definition which the work pool will use to provision `g4dn.xlarge` instances on EC2.
 TODO: Do we need to specify a Amazon ECS GPU-optimized AMI separately anywhere?
-TODO: Create a new Docker image that has the necessary dependencies (python, pip, prefect[aws]) and use that image instead of the base nvidia/cuda one.
+TODO: Create a new Docker image that has the necessary dependencies (python, pip, prefect[aws]) and use that image instead of the base nvidia/cuda one (or the Amazon ECS GPU-optimized kernel 5.10 AMI if needed).
 
 ```json task_definition.json
 {
@@ -24,7 +24,6 @@ TODO: Create a new Docker image that has the necessary dependencies (python, pip
   "requiresCompatibilities": [
     "EC2"
   ],
-  "networkMode": "awsvpc",
   "cpu": "4096",
   "memory": "16384",
   "containerDefinitions": [
@@ -69,7 +68,10 @@ Command to register the task definition in `us-east-1` using the AWS CLI:
 aws ecs register-task-definition --cli-input-json file://task_definition.json --region us-east-1
 ```
 
-Finally, edit the `my-ecs-pool` work pool definition in Prefect Cloud and set the **Base Job Template** / **Task Definition Arn** setting to the ARN of the task definition you just registered.
+Finally, edit the `my-ecs-pool` work pool definition in Prefect Cloud and:
+
+1. Set the **Base Job Template** / **Task Definition Arn** setting to the ARN of the task definition you just registered.
+1. Set the **Base Job Template** / **Launch Type** setting to `EC2`
 
 You'll also need 
 
