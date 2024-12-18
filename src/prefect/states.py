@@ -589,6 +589,17 @@ class StateGroup:
         return f"StateGroup<{self.counts_message()}>"
 
 
+def _traced(cls: Type[State[R]], **kwargs: Any) -> State[R]:
+    state_details = StateDetails.model_validate(kwargs.pop("state_details", {}))
+
+    context = trace.get_current_span().get_span_context()
+    if context.is_valid:
+        state_details.trace_id = context.trace_id
+        state_details.span_id = context.span_id
+
+    return cls(**kwargs, state_details=state_details)
+
+
 def Scheduled(
     cls: Type[State[R]] = State,
     scheduled_time: Optional[datetime.datetime] = None,
@@ -606,7 +617,7 @@ def Scheduled(
         raise ValueError("An extra scheduled_time was provided in state_details")
     state_details.scheduled_time = scheduled_time
 
-    return cls(type=StateType.SCHEDULED, state_details=state_details, **kwargs)
+    return _traced(cls, type=StateType.SCHEDULED, state_details=state_details, **kwargs)
 
 
 def Completed(cls: Type[State[R]] = State, **kwargs: Any) -> State[R]:
@@ -615,14 +626,8 @@ def Completed(cls: Type[State[R]] = State, **kwargs: Any) -> State[R]:
     Returns:
         State: a Completed state
     """
-    state_details = StateDetails.model_validate(kwargs.pop("state_details", {}))
 
-    context = trace.get_current_span().get_span_context()
-    if context.is_valid:
-        state_details.trace_id = context.trace_id
-        state_details.span_id = context.span_id
-
-    return cls(type=StateType.COMPLETED, state_details=state_details, **kwargs)
+    return _traced(cls, type=StateType.COMPLETED, **kwargs)
 
 
 def Running(cls: Type[State[R]] = State, **kwargs: Any) -> State[R]:
@@ -631,7 +636,7 @@ def Running(cls: Type[State[R]] = State, **kwargs: Any) -> State[R]:
     Returns:
         State: a Running state
     """
-    return cls(type=StateType.RUNNING, **kwargs)
+    return _traced(cls, type=StateType.RUNNING, **kwargs)
 
 
 def Failed(cls: Type[State[R]] = State, **kwargs: Any) -> State[R]:
@@ -640,14 +645,7 @@ def Failed(cls: Type[State[R]] = State, **kwargs: Any) -> State[R]:
     Returns:
         State: a Failed state
     """
-    state_details = StateDetails.model_validate(kwargs.pop("state_details", {}))
-
-    context = trace.get_current_span().get_span_context()
-    if context.is_valid:
-        state_details.trace_id = context.trace_id
-        state_details.span_id = context.span_id
-
-    return cls(type=StateType.FAILED, state_details=state_details, **kwargs)
+    return _traced(cls, type=StateType.FAILED, **kwargs)
 
 
 def Crashed(cls: Type[State[R]] = State, **kwargs: Any) -> State[R]:
@@ -656,7 +654,7 @@ def Crashed(cls: Type[State[R]] = State, **kwargs: Any) -> State[R]:
     Returns:
         State: a Crashed state
     """
-    return cls(type=StateType.CRASHED, **kwargs)
+    return _traced(cls, type=StateType.CRASHED, **kwargs)
 
 
 def Cancelling(cls: Type[State[R]] = State, **kwargs: Any) -> State[R]:
@@ -665,7 +663,7 @@ def Cancelling(cls: Type[State[R]] = State, **kwargs: Any) -> State[R]:
     Returns:
         State: a Cancelling state
     """
-    return cls(type=StateType.CANCELLING, **kwargs)
+    return _traced(cls, type=StateType.CANCELLING, **kwargs)
 
 
 def Cancelled(cls: Type[State[R]] = State, **kwargs: Any) -> State[R]:
@@ -674,7 +672,7 @@ def Cancelled(cls: Type[State[R]] = State, **kwargs: Any) -> State[R]:
     Returns:
         State: a Cancelled state
     """
-    return cls(type=StateType.CANCELLED, **kwargs)
+    return _traced(cls, type=StateType.CANCELLED, **kwargs)
 
 
 def Pending(cls: Type[State[R]] = State, **kwargs: Any) -> State[R]:
@@ -683,7 +681,7 @@ def Pending(cls: Type[State[R]] = State, **kwargs: Any) -> State[R]:
     Returns:
         State: a Pending state
     """
-    return cls(type=StateType.PENDING, **kwargs)
+    return _traced(cls, type=StateType.PENDING, **kwargs)
 
 
 def Paused(
@@ -719,7 +717,7 @@ def Paused(
     state_details.pause_reschedule = reschedule
     state_details.pause_key = pause_key
 
-    return cls(type=StateType.PAUSED, state_details=state_details, **kwargs)
+    return _traced(cls, type=StateType.PAUSED, state_details=state_details, **kwargs)
 
 
 def Suspended(
@@ -781,7 +779,7 @@ def Retrying(cls: Type[State[R]] = State, **kwargs: Any) -> State[R]:
     Returns:
         State: a Retrying state
     """
-    return cls(type=StateType.RUNNING, name="Retrying", **kwargs)
+    return _traced(cls, type=StateType.RUNNING, name="Retrying", **kwargs)
 
 
 def Late(
