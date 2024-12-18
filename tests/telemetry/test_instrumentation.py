@@ -4,7 +4,6 @@ from uuid import UUID
 import pytest
 from opentelemetry import metrics, trace
 from opentelemetry._logs._internal import get_logger_provider
-from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
 from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
 from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
 from opentelemetry.sdk._logs.export import SimpleLogRecordProcessor
@@ -18,6 +17,16 @@ from prefect.telemetry.instrumentation import (
 )
 from prefect.telemetry.logging import get_log_handler
 from prefect.telemetry.processors import InFlightSpanProcessor
+from prefect.telemetry.services import QueueingLogExporter, QueueingSpanExporter
+
+
+@pytest.fixture
+def shutdown_telemetry():
+    yield
+
+    provider = trace.get_tracer_provider()
+    if isinstance(provider, TracerProvider):
+        provider.shutdown()
 
 
 def test_extract_account_and_workspace_id_valid_url(
@@ -88,12 +97,10 @@ def test_trace_provider(
     span_processor = trace_provider._active_span_processor._span_processors[0]
 
     assert isinstance(span_processor, InFlightSpanProcessor)
-    assert (
-        span_processor.span_exporter._endpoint  # type: ignore
-        == (
-            f"https://api.prefect.cloud/api/accounts/{telemetry_account_id}/"
-            f"workspaces/{telemetry_workspace_id}/telemetry/v1/traces"
-        )
+    assert isinstance(span_processor.span_exporter, QueueingSpanExporter)
+    assert span_processor.span_exporter._otlp_exporter._endpoint == (
+        f"https://api.prefect.cloud/api/accounts/{telemetry_account_id}/"
+        f"workspaces/{telemetry_workspace_id}/telemetry/v1/traces"
     )
 
     assert trace.get_tracer_provider() == trace_provider
@@ -147,14 +154,11 @@ def test_logger_provider(
     exporter = processor._exporter  # type: ignore
 
     assert isinstance(processor, SimpleLogRecordProcessor)
-    assert isinstance(exporter, OTLPLogExporter)
+    assert isinstance(exporter, QueueingLogExporter)
 
-    assert (
-        exporter._endpoint  # type: ignore
-        == (
-            f"https://api.prefect.cloud/api/accounts/{telemetry_account_id}/"
-            f"workspaces/{telemetry_workspace_id}/telemetry/v1/logs"
-        )
+    assert exporter._otlp_exporter._endpoint == (
+        f"https://api.prefect.cloud/api/accounts/{telemetry_account_id}/"
+        f"workspaces/{telemetry_workspace_id}/telemetry/v1/logs"
     )
 
     assert get_logger_provider() == logger_provider

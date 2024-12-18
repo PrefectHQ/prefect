@@ -7,9 +7,7 @@ from uuid import UUID
 
 from opentelemetry import metrics, trace
 from opentelemetry._logs import set_logger_provider
-from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
 from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
 from opentelemetry.sdk._logs.export import SimpleLogRecordProcessor
 from opentelemetry.sdk.metrics import MeterProvider
@@ -19,6 +17,7 @@ from opentelemetry.sdk.trace import TracerProvider
 
 from .logging import set_log_handler
 from .processors import InFlightSpanProcessor
+from .services import QueueingLogExporter, QueueingSpanExporter
 
 if TYPE_CHECKING:
     from opentelemetry.sdk._logs import LoggerProvider
@@ -83,11 +82,10 @@ def _setup_trace_provider(
     resource: Resource, headers: dict[str, str], telemetry_url: str
 ) -> TracerProvider:
     trace_provider = TracerProvider(resource=resource)
-    otlp_span_exporter = OTLPSpanExporter(
-        endpoint=_url_join(telemetry_url, "v1/traces"),
-        headers=headers,
+    queueing_span_exporter = QueueingSpanExporter.instance(
+        _url_join(telemetry_url, "v1/traces"), tuple(headers.items())
     )
-    trace_provider.add_span_processor(InFlightSpanProcessor(otlp_span_exporter))
+    trace_provider.add_span_processor(InFlightSpanProcessor(queueing_span_exporter))
     trace.set_tracer_provider(trace_provider)
 
     return trace_provider
@@ -112,11 +110,12 @@ def _setup_logger_provider(
     resource: Resource, headers: dict[str, str], telemetry_url: str
 ) -> LoggerProvider:
     logger_provider = LoggerProvider(resource=resource)
-    otlp_exporter = OTLPLogExporter(
-        endpoint=_url_join(telemetry_url, "v1/logs"),
-        headers=headers,
+    queueing_log_exporter = QueueingLogExporter.instance(
+        _url_join(telemetry_url, "v1/logs"), tuple(headers.items())
     )
-    logger_provider.add_log_record_processor(SimpleLogRecordProcessor(otlp_exporter))
+    logger_provider.add_log_record_processor(
+        SimpleLogRecordProcessor(queueing_log_exporter)
+    )
     set_logger_provider(logger_provider)
     log_handler = LoggingHandler(level=logging.NOTSET, logger_provider=logger_provider)
 
