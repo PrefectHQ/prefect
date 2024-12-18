@@ -225,7 +225,9 @@ class QueueService(abc.ABC, Generic[T]):
             return future.result()
 
     @classmethod
-    def drain_all(cls, timeout: Optional[float] = None) -> Union[Awaitable, None]:
+    def drain_all(
+        cls, timeout: Optional[float] = None, at_exit=True
+    ) -> Union[Awaitable, None]:
         """
         Stop all instances of the service and wait for all remaining work to be
         completed.
@@ -237,7 +239,7 @@ class QueueService(abc.ABC, Generic[T]):
             instances = tuple(cls._instances.values())
 
             for instance in instances:
-                futures.append(instance._drain())
+                futures.append(instance._drain(at_exit=at_exit))
 
         if get_running_loop() is not None:
             return (
@@ -376,10 +378,10 @@ class BatchedQueueService(QueueService[T]):
 @contextlib.contextmanager
 def drain_on_exit(service: QueueService):
     yield
-    service.drain_all()
+    service.drain_all(at_exit=True)
 
 
 @contextlib.asynccontextmanager
 async def drain_on_exit_async(service: QueueService):
     yield
-    await service.drain_all()
+    await service.drain_all(at_exit=True)
