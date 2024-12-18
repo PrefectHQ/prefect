@@ -13,18 +13,18 @@ from prefect._internal.concurrency.services import BatchedQueueService
 
 class BaseQueueingExporter(BatchedQueueService):
     _max_batch_size = 512
-    _min_interval = 5.0
+    _min_interval = 2.0
     _otlp_exporter: Union[SpanExporter, LogExporter]
 
-    def export(self, batch: list) -> None:
+    def export(self, batch: list[Union[ReadableSpan, LogData]]) -> None:
         for item in batch:
             self.send(item)
 
     @abstractmethod
-    def _export_batch(self, items: list) -> None:
+    def _export_batch(self, items: list[Union[ReadableSpan, LogData]]) -> None:
         pass
 
-    async def _handle_batch(self, items: list) -> None:
+    async def _handle_batch(self, items: list[Union[ReadableSpan, LogData]]) -> None:
         try:
             self._export_batch(items)
         except Exception as e:
