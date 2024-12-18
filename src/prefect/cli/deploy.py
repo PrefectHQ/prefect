@@ -332,7 +332,6 @@ async def deploy(
     ),
     enforce_parameter_schema: bool = typer.Option(
         True,
-        "--enforce-parameter-schema",
         help=(
             "Whether to enforce the parameter schema on this deployment. If set to"
             " True, any parameters passed to this deployment must match the signature"
@@ -358,7 +357,6 @@ async def deploy(
 
     Should be run from a project root directory.
     """
-
     if variables is not None:
         app.console.print(
             generate_deprecation_message(
@@ -460,9 +458,9 @@ async def deploy(
 
 @inject_client
 async def _run_single_deploy(
-    deploy_config: Dict,
-    actions: Dict,
-    options: Optional[Dict] = None,
+    deploy_config: dict[str, Any],
+    actions: dict[str, Any],
+    options: Optional[dict[str, Any]] = None,
     client: Optional["PrefectClient"] = None,
     prefect_file: Path = Path("prefect.yaml"),
 ):
@@ -1524,7 +1522,7 @@ def _apply_cli_options_to_deploy_config(deploy_config, cli_options):
                 "flow_name",
                 "enforce_parameter_schema",
             ]
-            and cli_value
+            and cli_value is not None
         ):
             deploy_config[cli_option] = cli_value
 
