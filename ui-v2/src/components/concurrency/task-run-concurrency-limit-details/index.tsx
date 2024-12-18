@@ -1,7 +1,7 @@
 import { useGetTaskRunConcurrencyLimit } from "@/hooks/task-run-concurrency-limits";
 import { useState } from "react";
 
-import { ActiveTaskRunsView } from "./active-task-runs-view";
+import { ActiveTaskRuns } from "./active-task-runs";
 import { DialogView, type Dialogs } from "./dialogs";
 import { Header } from "./header";
 import { SideDetails } from "./side-details";
@@ -35,7 +35,7 @@ export const TaskRunConcurrencyLimitDetailsPage = ({ id }: Props) => {
 					onReset={handleOpenResetDialog}
 				/>
 				<div className="grid gap-4" style={{ gridTemplateColumns: "3fr 1fr" }}>
-					<TabNavigation activetaskRunsView={<ActiveTaskRunsView />} />
+					<TabNavigation activetaskRunsView={<ActiveTaskRuns data={data} />} />
 					<SideDetails data={data} />
 				</div>
 			</div>

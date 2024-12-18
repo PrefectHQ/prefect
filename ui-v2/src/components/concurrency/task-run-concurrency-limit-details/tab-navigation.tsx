@@ -45,7 +45,10 @@ export const TabNavigation = ({ activetaskRunsView }: Props) => {
 					{TAB_OPTIONS["active-task-runs"].displayValue}
 				</TabsTrigger>
 			</TabsList>
-			<TabsContent value={TAB_OPTIONS["active-task-runs"].tabSearchValue}>
+			<TabsContent
+				className="mt-5"
+				value={TAB_OPTIONS["active-task-runs"].tabSearchValue}
+			>
 				{activetaskRunsView}
 			</TabsContent>
 		</Tabs>

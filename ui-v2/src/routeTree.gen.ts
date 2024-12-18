@@ -23,11 +23,8 @@ import { Route as IndexImport } from './routes/index'
 import { Route as RunsIndexImport } from './routes/runs/index'
 import { Route as FlowsIndexImport } from './routes/flows/index'
 import { Route as DeploymentsIndexImport } from './routes/deployments/index'
-<<<<<<< HEAD
-import { Route as RunsTaskRunIdImport } from './routes/runs/task-run.$id'
-=======
 import { Route as ConcurrencyLimitsIndexImport } from './routes/concurrency-limits/index'
->>>>>>> 389f030d8d ([UI v2] feat: Scaffolds concurrency-limit route)
+import { Route as RunsTaskRunIdImport } from './routes/runs/task-run.$id'
 import { Route as RunsFlowRunIdImport } from './routes/runs/flow-run.$id'
 import { Route as FlowsFlowIdImport } from './routes/flows/flow.$id'
 import { Route as DeploymentsDeploymentIdImport } from './routes/deployments/deployment.$id'
@@ -107,15 +104,15 @@ const DeploymentsIndexRoute = DeploymentsIndexImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
-<<<<<<< HEAD
-const RunsTaskRunIdRoute = RunsTaskRunIdImport.update({
-  id: '/runs/task-run/$id',
-  path: '/runs/task-run/$id',
-=======
 const ConcurrencyLimitsIndexRoute = ConcurrencyLimitsIndexImport.update({
   id: '/concurrency-limits/',
   path: '/concurrency-limits/',
->>>>>>> 389f030d8d ([UI v2] feat: Scaffolds concurrency-limit route)
+  getParentRoute: () => rootRoute,
+} as any)
+
+const RunsTaskRunIdRoute = RunsTaskRunIdImport.update({
+  id: '/runs/task-run/$id',
+  path: '/runs/task-run/$id',
   getParentRoute: () => rootRoute,
 } as any)
 
