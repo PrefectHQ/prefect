@@ -5,7 +5,16 @@ import uuid
 from contextlib import asynccontextmanager
 from datetime import timedelta
 from functools import partial
-from typing import Any, AsyncGenerator, Awaitable, Callable, Optional, TypeVar, cast
+from typing import (
+    Any,
+    AsyncGenerator,
+    Awaitable,
+    Callable,
+    Optional,
+    TypeVar,
+    Union,
+    cast,
+)
 
 import orjson
 from redis.asyncio import Redis
@@ -81,9 +90,9 @@ class RedisStreamsMessage:
 
     def __init__(
         self,
-        data: bytes | str,
+        data: Union[bytes, str],
         attributes: dict[str, Any],
-        acker: Callable[[], Awaitable[None]] | None = None,
+        acker: Union[Callable[[], Awaitable[None]], None] = None,
     ) -> None:
         self.data = data.decode() if isinstance(data, bytes) else data
         self.attributes = attributes
@@ -113,16 +122,16 @@ class Publisher(_Publisher):
         self,
         topic: str,
         cache: _Cache,
-        deduplicate_by: str | None = None,
+        deduplicate_by: Optional[str] = None,
         batch_size: int = 5,
-        publish_every: timedelta | None = None,
+        publish_every: Optional[timedelta] = None,
     ):
         self.stream = topic  # Use topic as stream name
         self.cache = cache
         self.deduplicate_by = deduplicate_by
         self.batch_size = batch_size
         self.publish_every = publish_every
-        self._periodic_task: asyncio.Task[None] | None = None
+        self._periodic_task: Optional[asyncio.Task[None]] = None
 
     async def __aenter__(self) -> Self:
         self._client = get_async_redis_client()
@@ -194,8 +203,8 @@ class Consumer(_Consumer):
     def __init__(
         self,
         topic: str,
-        name: str | None = None,
-        group: str | None = None,
+        name: Optional[str] = None,
+        group: Optional[str] = None,
         block: timedelta = timedelta(seconds=1),
         min_idle_time: timedelta = timedelta(seconds=0),
         should_process_pending_messages: bool = True,
