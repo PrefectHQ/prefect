@@ -405,7 +405,9 @@ class ResultStore(BaseModel):
             # TODO: Add an `exists` method to commonly used storage blocks
             # so the entire payload doesn't need to be read
             try:
-                metadata_content = await self.metadata_storage.read_path(key)
+                metadata_content = await self.metadata_storage.read_path(
+                    key, _sync=False
+                )
                 if metadata_content is None:
                     return False
                 metadata = ResultRecordMetadata.load_bytes(metadata_content)
@@ -414,7 +416,7 @@ class ResultStore(BaseModel):
                 return False
         else:
             try:
-                content = await self.result_storage.read_path(key)
+                content = await self.result_storage.read_path(key, _sync=False)
                 if content is None:
                     return False
                 record = ResultRecord.deserialize(content)
@@ -491,12 +493,14 @@ class ResultStore(BaseModel):
             self.result_storage = await get_default_result_storage()
 
         if self.metadata_storage is not None:
-            metadata_content = await self.metadata_storage.read_path(key)
+            metadata_content = await self.metadata_storage.read_path(key, _sync=False)
             metadata = ResultRecordMetadata.load_bytes(metadata_content)
             assert (
                 metadata.storage_key is not None
             ), "Did not find storage key in metadata"
-            result_content = await self.result_storage.read_path(metadata.storage_key)
+            result_content = await self.result_storage.read_path(
+                metadata.storage_key, _sync=False
+            )
             result_record: ResultRecord[
                 Any
             ] = ResultRecord.deserialize_from_result_and_metadata(
@@ -504,7 +508,7 @@ class ResultStore(BaseModel):
             )
             await emit_result_read_event(self, resolved_key_path)
         else:
-            content = await self.result_storage.read_path(key)
+            content = await self.result_storage.read_path(key, _sync=False)
             result_record: ResultRecord[Any] = ResultRecord.deserialize(
                 content, backup_serializer=self.serializer
             )
@@ -674,16 +678,20 @@ class ResultStore(BaseModel):
             await self.result_storage.write_path(
                 result_record.metadata.storage_key,
                 content=result_record.serialize_result(),
+                _sync=False,
             )
             await self.metadata_storage.write_path(
                 base_key,
                 content=result_record.serialize_metadata(),
+                _sync=False,
             )
             await emit_result_write_event(self, result_record.metadata.storage_key)
         # Otherwise, write the result metadata and result together
         else:
             await self.result_storage.write_path(
-                result_record.metadata.storage_key, content=result_record.serialize()
+                result_record.metadata.storage_key,
+                content=result_record.serialize(),
+                _sync=False,
             )
             await emit_result_write_event(self, result_record.metadata.storage_key)
         if self.cache_result_in_memory:
@@ -911,7 +919,7 @@ class ResultStore(BaseModel):
             ),
         )
         await self.result_storage.write_path(
-            f"parameters/{identifier}", content=record.serialize()
+            f"parameters/{identifier}", content=record.serialize(), _sync=False
         )
 
     @sync_compatible
@@ -921,7 +929,7 @@ class ResultStore(BaseModel):
                 "Result store is not configured - must have a result storage block to read parameters"
             )
         record = ResultRecord.deserialize(
-            await self.result_storage.read_path(f"parameters/{identifier}")
+            await self.result_storage.read_path(f"parameters/{identifier}", _sync=False)
         )
         return record.result
 
