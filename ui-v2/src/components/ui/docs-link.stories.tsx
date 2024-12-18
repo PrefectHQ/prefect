@@ -5,6 +5,9 @@ import { DocsLink } from "./docs-link";
 const meta: Meta<typeof DocsLink> = {
 	title: "UI/DocsLink",
 	component: DocsLink,
+	args: {
+		id: "global-concurrency-guide",
+	},
 	parameters: {
 		docs: {
 			description: {
@@ -16,9 +19,4 @@ const meta: Meta<typeof DocsLink> = {
 };
 export default meta;
 
-type Story = StoryObj<typeof DocsLink>;
-export const Usage: Story = {
-	args: {
-		id: "global-concurrency-guide",
-	},
-};
+export const story: StoryObj = { name: "DocsLink" };
