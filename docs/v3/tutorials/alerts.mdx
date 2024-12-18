@@ -56,7 +56,10 @@ You've now created an automation that sends an email whenever the `data-pipeline
 To test the alert, you need to trigger a flow run failure in the `staging` workspace.
 
 ```bash
+# Switch to the staging workspace (if not already in it)
 prefect cloud workspace set --workspace "<account handle>/staging"
+
+# Run the script to simulate a failed flow run
 python simulate_failures.py --fail-at-run 1 --runs 1
 ```
 
