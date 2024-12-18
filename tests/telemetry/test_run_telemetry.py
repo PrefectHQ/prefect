@@ -120,11 +120,11 @@ async def test_flow_run_creates_and_stores_traceparent(
     instrumentation: InstrumentationTester,
     sync_prefect_client: SyncPrefectClient,
 ):
-    @flow(name="the-flow")
+    @flow(flow_run_name="the-flow")
     async def async_flow():
         pass
 
-    @flow(name="the-flow")
+    @flow(flow_run_name="the-flow")
     def sync_flow():
         pass
 
@@ -149,11 +149,11 @@ async def test_flow_run_instrumentation(
     engine_type: Literal["async", "sync"],
     instrumentation: InstrumentationTester,
 ):
-    @flow(name="instrumented-flow")
+    @flow(flow_run_name="instrumented-flow")
     async def async_flow() -> str:
         return "hello"
 
-    @flow(name="instrumented-flow")
+    @flow(flow_run_name="instrumented-flow")
     def sync_flow() -> str:
         return "hello"
 
@@ -367,27 +367,27 @@ async def test_nested_flow_task_task(
     instrumentation: InstrumentationTester,
     sync_prefect_client: SyncPrefectClient,
 ):
-    @flow(name="parent-flow")
+    @flow(flow_run_name="parent-flow")
     async def my_async_flow():
         await async_child_task()
 
-    @flow(name="parent-flow")
+    @flow(flow_run_name="parent-flow")
     def my_sync_flow():
         sync_child_task()
 
-    @task(name="child-task")
+    @task(task_run_name="child-task")
     def sync_child_task():
         sync_grandchild_task()
 
-    @task(name="child-task")
+    @task(task_run_name="child-task")
     async def async_child_task():
         await async_grandchild_task()
 
-    @task(name="grandchild-task")
+    @task(task_run_name="grandchild-task")
     def sync_grandchild_task():
         pass
 
-    @task(name="grandchild-task")
+    @task(task_run_name="grandchild-task")
     async def async_grandchild_task():
         pass
 
@@ -429,27 +429,27 @@ async def test_nested_flow_task_flow(
     instrumentation: InstrumentationTester,
     sync_prefect_client: SyncPrefectClient,
 ):
-    @flow(name="parent-flow")
+    @flow(flow_run_name="parent-flow")
     async def my_async_flow():
         await async_child_task()
 
-    @flow(name="parent-flow")
+    @flow(flow_run_name="parent-flow")
     def my_sync_flow():
         sync_child_task()
 
-    @task(name="child-task")
+    @task(task_run_name="child-task")
     def sync_child_task():
         sync_grandchild_flow()
 
-    @task(name="child-task")
+    @task(task_run_name="child-task")
     async def async_child_task():
         await async_grandchild_flow()
 
-    @flow(name="grandchild-flow")
+    @flow(flow_run_name="grandchild-flow")
     def sync_grandchild_flow():
         pass
 
-    @flow(name="grandchild-flow")
+    @flow(flow_run_name="grandchild-flow")
     async def async_grandchild_flow():
         pass
 
@@ -490,27 +490,27 @@ async def test_nested_task_flow_task(
     engine_type: Literal["async", "sync"],
     instrumentation: InstrumentationTester,
 ):
-    @task(name="parent-task")
+    @task(task_run_name="parent-task")
     async def async_parent_task():
         await async_child_flow()
 
-    @task(name="parent-task")
+    @task(task_run_name="parent-task")
     def sync_parent_task():
         sync_child_flow()
 
-    @flow(name="child-flow")
+    @flow(flow_run_name="child-flow")
     def sync_child_flow():
         sync_grandchild_task()
 
-    @flow(name="child-flow")
+    @flow(flow_run_name="child-flow")
     async def async_child_flow():
         await async_grandchild_task()
 
-    @task(name="grandchild-task")
+    @task(task_run_name="grandchild-task")
     def sync_grandchild_task():
         pass
 
-    @task(name="grandchild-task")
+    @task(task_run_name="grandchild-task")
     async def async_grandchild_task():
         pass
 
@@ -552,27 +552,27 @@ async def test_nested_task_flow_flow(
     engine_type: Literal["async", "sync"],
     instrumentation: InstrumentationTester,
 ):
-    @task(name="parent-task")
+    @task(task_run_name="parent-task")
     async def async_parent_task():
         await async_child_flow()
 
-    @task(name="parent-task")
+    @task(task_run_name="parent-task")
     def sync_parent_task():
         sync_child_flow()
 
-    @flow(name="child-flow")
+    @flow(flow_run_name="child-flow")
     def sync_child_flow():
         sync_grandchild_flow()
 
-    @flow(name="child-flow")
+    @flow(flow_run_name="child-flow")
     async def async_child_flow():
         await async_grandchild_flow()
 
-    @flow(name="grandchild-flow")
+    @flow(flow_run_name="grandchild-flow")
     def sync_grandchild_flow():
         pass
 
-    @flow(name="grandchild-flow")
+    @flow(flow_run_name="grandchild-flow")
     async def async_grandchild_flow():
         pass
 
@@ -610,27 +610,27 @@ async def test_nested_flow_flow_task(
     instrumentation: InstrumentationTester,
     sync_prefect_client: SyncPrefectClient,
 ):
-    @flow(name="parent-flow")
+    @flow(flow_run_name="parent-flow")
     async def async_parent_flow():
         await async_child_flow()
 
-    @flow(name="parent-flow")
+    @flow(flow_run_name="parent-flow")
     def sync_parent_flow():
         sync_child_flow()
 
-    @flow(name="child-flow")
+    @flow(flow_run_name="child-flow")
     async def async_child_flow():
         await async_grandchild_task()
 
-    @flow(name="child-flow")
+    @flow(flow_run_name="child-flow")
     def sync_child_flow():
         sync_grandchild_task()
 
-    @task(name="grandchild-task")
+    @task(task_run_name="grandchild-task")
     async def async_grandchild_task():
         pass
 
-    @task(name="grandchild-task")
+    @task(task_run_name="grandchild-task")
     def sync_grandchild_task():
         pass
 
@@ -672,27 +672,27 @@ async def test_nested_flow_flow_flow(
     instrumentation: InstrumentationTester,
     sync_prefect_client: SyncPrefectClient,
 ):
-    @flow(name="parent-flow")
+    @flow(flow_run_name="parent-flow")
     async def async_parent_flow():
         await async_child_flow()
 
-    @flow(name="parent-flow")
+    @flow(flow_run_name="parent-flow")
     def sync_parent_flow():
         sync_child_flow()
 
-    @flow(name="child-flow")
+    @flow(flow_run_name="child-flow")
     async def async_child_flow():
         await async_grandchild_flow()
 
-    @flow(name="child-flow")
+    @flow(flow_run_name="child-flow")
     def sync_child_flow():
         sync_grandchild_flow()
 
-    @flow(name="grandchild-flow")
+    @flow(flow_run_name="grandchild-flow")
     async def async_grandchild_flow():
         pass
 
-    @flow(name="grandchild-flow")
+    @flow(flow_run_name="grandchild-flow")
     def sync_grandchild_flow():
         pass
 
@@ -733,27 +733,27 @@ async def test_nested_task_task_task(
     engine_type: Literal["async", "sync"],
     instrumentation: InstrumentationTester,
 ):
-    @task(name="parent-task")
+    @task(task_run_name="parent-task")
     async def async_parent_task():
         await async_child_task()
 
-    @task(name="parent-task")
+    @task(task_run_name="parent-task")
     def sync_parent_task():
         sync_child_task()
 
-    @task(name="child-task")
+    @task(task_run_name="child-task")
     async def async_child_task():
         await async_grandchild_task()
 
-    @task(name="child-task")
+    @task(task_run_name="child-task")
     def sync_child_task():
         sync_grandchild_task()
 
-    @task(name="grandchild-task")
+    @task(task_run_name="grandchild-task")
     async def async_grandchild_task():
         pass
 
-    @task(name="grandchild-task")
+    @task(task_run_name="grandchild-task")
     def sync_grandchild_task():
         pass
 
@@ -794,27 +794,27 @@ async def test_nested_task_task_flow(
     engine_type: Literal["async", "sync"],
     instrumentation: InstrumentationTester,
 ):
-    @task(name="parent-task")
+    @task(task_run_name="parent-task")
     async def async_parent_task():
         await async_child_task()
 
-    @task(name="parent-task")
+    @task(task_run_name="parent-task")
     def sync_parent_task():
         sync_child_task()
 
-    @task(name="child-task")
+    @task(task_run_name="child-task")
     async def async_child_task():
         await async_grandchild_flow()
 
-    @task(name="child-task")
+    @task(task_run_name="child-task")
     def sync_child_task():
         sync_grandchild_flow()
 
-    @flow(name="grandchild-flow")
+    @flow(flow_run_name="grandchild-flow")
     async def async_grandchild_flow():
         pass
 
-    @flow(name="grandchild-flow")
+    @flow(flow_run_name="grandchild-flow")
     def sync_grandchild_flow():
         pass
 
