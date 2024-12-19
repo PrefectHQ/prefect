@@ -89,8 +89,6 @@ class Flow(ORMBaseModel):
 class FlowRunPolicy(PrefectBaseModel):
     """Defines of how a flow run should retry."""
 
-    # TODO: Determine how to separate between infrastructure and within-process level
-    #       retries
     max_retries: int = Field(
         default=0,
         description=(
@@ -116,6 +114,9 @@ class FlowRunPolicy(PrefectBaseModel):
     )
     resuming: Optional[bool] = Field(
         default=False, description="Indicates if this run is resuming from a pause."
+    )
+    retry_type: Optional[Literal["in_process", "reschedule"]] = Field(
+        default=None, description="The type of retry this run is undergoing."
     )
 
     @root_validator
