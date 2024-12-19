@@ -524,17 +524,14 @@ class NullFileSystem(BaseModel):
     A file system that does not store any data.
     """
 
-    async def read_path(self, path: str, _sync: bool = False) -> None:
+    async def read_path(self, path: str) -> None:
         pass
 
-    async def write_path(self, path: str, content: bytes, _sync: bool = False) -> None:
+    async def write_path(self, path: str, content: bytes) -> None:
         pass
 
     async def get_directory(
-        self,
-        from_path: Optional[str] = None,
-        local_path: Optional[str] = None,
-        _sync: bool = False,
+        self, from_path: Optional[str] = None, local_path: Optional[str] = None
     ) -> None:
         pass
 
@@ -543,7 +540,6 @@ class NullFileSystem(BaseModel):
         local_path: Optional[str] = None,
         to_path: Optional[str] = None,
         ignore_file: Optional[str] = None,
-        _sync: bool = False,
     ) -> None:
         pass
 
