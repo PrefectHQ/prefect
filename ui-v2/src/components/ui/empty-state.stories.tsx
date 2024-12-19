@@ -24,13 +24,11 @@ const meta: Meta<typeof EmptyState> = {
 			},
 		},
 	},
+	render: () => <EmptyStateExample />,
 };
 export default meta;
 
-type Story = StoryObj<typeof EmptyState>;
-export const Usage: Story = {
-	render: () => <EmptyStateExample />,
-};
+export const story: StoryObj = { name: "EmptyState" };
 
 function EmptyStateExample(): JSX.Element {
 	return (
