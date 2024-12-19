@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import ssl
 import warnings
 from contextlib import AsyncExitStack
 from typing import (
@@ -275,12 +276,18 @@ class PrefectClient:
         httpx_settings.setdefault("headers", {})
 
         if PREFECT_API_TLS_INSECURE_SKIP_VERIFY:
-            httpx_settings.setdefault("verify", False)
+            # Create an unverified context for insecure connections
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            httpx_settings.setdefault("verify", ctx)
         else:
             cert_file = PREFECT_API_SSL_CERT_FILE.value()
             if not cert_file:
                 cert_file = certifi.where()
-            httpx_settings.setdefault("verify", cert_file)
+            # Create a verified context with the certificate file
+            ctx = ssl.create_default_context(cafile=cert_file)
+            httpx_settings.setdefault("verify", ctx)
 
         if api_version is None:
             api_version = SERVER_API_VERSION
@@ -491,6 +498,23 @@ class PrefectClient:
         """
         response = await self._client.get(f"/flows/{flow_id}")
         return Flow.parse_obj(response.json())
+
+    async def delete_flow(self, flow_id: UUID) -> None:
+        """
+        Delete a flow by UUID.
+        Args:
+            flow_id: ID of the flow to be deleted
+        Raises:
+            prefect.exceptions.ObjectNotFound: If request returns 404
+            httpx.RequestError: If requests fails
+        """
+        try:
+            await self._client.delete(f"/flows/{flow_id}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
 
     async def read_flows(
         self,
@@ -3438,11 +3462,19 @@ class SyncPrefectClient:
 
         if PREFECT_API_TLS_INSECURE_SKIP_VERIFY:
             httpx_settings.setdefault("verify", False)
+            # Create an unverified context for insecure connections
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            httpx_settings.setdefault("verify", ctx)
         else:
             cert_file = PREFECT_API_SSL_CERT_FILE.value()
             if not cert_file:
                 cert_file = certifi.where()
             httpx_settings.setdefault("verify", cert_file)
+            # Create a verified context with the certificate file
+            ctx = ssl.create_default_context(cafile=cert_file)
+            httpx_settings.setdefault("verify", ctx)
 
         if api_version is None:
             api_version = SERVER_API_VERSION

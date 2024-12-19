@@ -1730,7 +1730,7 @@ async def cluster_config_block():
     cluster_config_block = KubernetesClusterConfig(
         config={"key": "value"}, context_name="my_context"
     )
-    await cluster_config_block.save("test-for-publish", overwrite=True)
+    # await cluster_config_block.save("test-for-publish", overwrite=True)
     return cluster_config_block
 
 

@@ -27,7 +27,7 @@ mock_work_pool_types_response = {
 @pytest.fixture
 async def mock_work_pool_types():
     with respx.mock(
-        assert_all_mocked=False, base_url=PREFECT_API_URL.value()
+        assert_all_mocked=False, base_url=PREFECT_API_URL.value(), using="httpx"
     ) as respx_mock:
         respx_mock.route(
             M(
