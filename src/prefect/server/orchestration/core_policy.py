@@ -417,6 +417,7 @@ class RetryFailedFlows(BaseOrchestrationRule):
             updated_policy = context.run.empirical_policy.dict()
             updated_policy["resuming"] = False
             updated_policy["pause_keys"] = set()
+            updated_policy["retry_type"] = "in_process"
             context.run.empirical_policy = core.FlowRunPolicy(**updated_policy)
 
         # Generate a new state for the flow
@@ -866,6 +867,10 @@ class HandleFlowTerminalStateTransitions(BaseOrchestrationRule):
                 updated_policy = context.run.empirical_policy.dict()
                 updated_policy["resuming"] = False
                 updated_policy["pause_keys"] = set()
+                if proposed_state.is_scheduled():
+                    updated_policy["retry_type"] = "reschedule"
+                else:
+                    updated_policy["retry_type"] = None
                 context.run.empirical_policy = core.FlowRunPolicy(**updated_policy)
 
     async def cleanup(
