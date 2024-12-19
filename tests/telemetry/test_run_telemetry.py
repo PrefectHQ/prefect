@@ -273,6 +273,66 @@ async def test_span_events(
     assert events[1].name == "Completed"
 
 
+async def test_span_links(
+    engine_type: Literal["async", "sync"],
+    instrumentation: InstrumentationTester,
+):
+    @task
+    def produces42() -> int:
+        return 42
+
+    if engine_type == "async":
+
+        @task
+        async def async_task(x: int, y: int):
+            return x + y
+
+        @flow
+        async def async_flow():
+            await async_task(x=produces42.submit(), y=2)
+
+        await async_flow()
+    else:
+
+        @task
+        def sync_task(x: int, y: int):
+            return x + y
+
+        @flow
+        def sync_flow():
+            sync_task(x=produces42.submit(), y=2)
+
+        sync_flow()
+
+    spans = instrumentation.get_finished_spans()
+
+    assert len(spans) == 3  # flow, producer, task
+
+    flow_span = next(span for span in spans if span.name.endswith("-flow"))
+    task_span = next(span for span in spans if span.name.endswith("_task"))
+    producer_span = next(span for span in spans if span.name == "produces42")
+
+    assert not flow_span.links
+    assert not producer_span.links
+
+    instrumentation.assert_has_attributes(
+        task_span,
+        {
+            "prefect.run.parameter.x": "PrefectConcurrentFuture",
+            "prefect.run.parameter.y": "int",
+        },
+    )
+
+    assert len(task_span.links) == 1
+    link = task_span.links[0]
+    assert link.context.trace_id == producer_span.context.trace_id
+    assert link.context.span_id == producer_span.context.span_id
+    assert link.attributes == {
+        "prefect.input.name": "x",
+        "prefect.input.type": "int",
+    }
+
+
 async def test_span_status_on_success(
     engine_type: Literal["async", "sync"],
     instrumentation: InstrumentationTester,
