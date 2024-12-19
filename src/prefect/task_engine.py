@@ -182,7 +182,7 @@ class BaseTaskRunEngine(Generic[P, R]):
                     return_data=True,
                     max_depth=-1,
                     remove_annotations=True,
-                    context={},
+                    context={"parameter_name": parameter},
                 )
             except UpstreamTaskError:
                 raise
