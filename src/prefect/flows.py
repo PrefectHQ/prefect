@@ -1703,7 +1703,7 @@ def load_flow_from_entrypoint(
         The flow object from the script
 
     Raises:
-        FlowScriptError: If an exception is encountered while running the script
+        ScriptError: If an exception is encountered while running the script
         MissingFlowError: If the flow function specified in the entrypoint does not exist
     """
 
