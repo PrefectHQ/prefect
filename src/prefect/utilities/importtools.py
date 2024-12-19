@@ -138,14 +138,13 @@ def load_script_as_module(path: str) -> ModuleType:
     """
     Execute a script at the given path.
 
-    Sets the module name to `__prefect_loader__`.
+    Sets the module name to a unique identifier to ensure thread safety.
 
     If an exception occurs during execution of the script, a
     `prefect.exceptions.ScriptError` is created to wrap the exception and raised.
 
     During the duration of this function call, `sys` is modified to support loading.
-    These changes are reverted after completion, but this function is not thread safe
-    and use of it in threaded contexts may result in undesirable behavior.
+    Changes are reverted after completion.
 
     See https://docs.python.org/3/library/importlib.html#importing-a-source-file-directly
     """
@@ -157,8 +156,11 @@ def load_script_as_module(path: str) -> ModuleType:
     parent_path = str(Path(path).resolve().parent)
     working_directory = os.getcwd()
 
+    # Generate unique module name for thread safety
+    module_name = f"__prefect_loader_{id(path)}__"
+
     spec = importlib.util.spec_from_file_location(
-        "__prefect_loader__",
+        module_name,
         path,
         # Support explicit relative imports i.e. `from .foo import bar`
         submodule_search_locations=[parent_path, working_directory],
@@ -168,7 +170,7 @@ def load_script_as_module(path: str) -> ModuleType:
         assert spec.loader is not None
 
     module = importlib.util.module_from_spec(spec)
-    sys.modules["__prefect_loader__"] = module
+    sys.modules[module_name] = module
 
     # Support implicit relative imports i.e. `from foo import bar`
     sys.path.insert(0, working_directory)
@@ -178,7 +180,7 @@ def load_script_as_module(path: str) -> ModuleType:
     except Exception as exc:
         raise ScriptError(user_exc=exc, path=path) from exc
     finally:
-        sys.modules.pop("__prefect_loader__")
+        sys.modules.pop(module_name)
         sys.path.remove(parent_path)
         sys.path.remove(working_directory)
 
