@@ -4,6 +4,7 @@ import importlib.util
 import os
 import runpy
 import sys
+import threading
 import warnings
 from collections.abc import Iterable, Sequence
 from importlib.abc import Loader, MetaPathFinder
@@ -22,6 +23,8 @@ from prefect.logging.loggers import get_logger
 from prefect.utilities.filesystem import filename, is_local_path, tmpchdir
 
 logger: Logger = get_logger(__name__)
+
+_SYS_PATH_LOCK = threading.Lock()
 
 
 def to_qualified_name(obj: Any) -> str:
@@ -135,21 +138,11 @@ def objects_from_script(
 
 
 def load_script_as_module(path: str) -> ModuleType:
-    """
-    Execute a script at the given path.
+    """Execute a script at the given path.
 
     Sets the module name to a unique identifier to ensure thread safety.
-
-    If an exception occurs during execution of the script, a
-    `prefect.exceptions.ScriptError` is created to wrap the exception and raised.
-
-    During the duration of this function call, `sys` is modified to support loading.
-    Changes are reverted after completion.
-
-    See https://docs.python.org/3/library/importlib.html#importing-a-source-file-directly
+    Uses a lock to safely modify sys.path for relative imports.
     """
-    # We will add the parent directory to search locations to support relative imports
-    # during execution of the script
     if not path.endswith(".py"):
         raise ValueError(f"The provided path does not point to a python file: {path!r}")
 
@@ -162,7 +155,6 @@ def load_script_as_module(path: str) -> ModuleType:
     spec = importlib.util.spec_from_file_location(
         module_name,
         path,
-        # Support explicit relative imports i.e. `from .foo import bar`
         submodule_search_locations=[parent_path, working_directory],
     )
     if TYPE_CHECKING:
@@ -172,17 +164,19 @@ def load_script_as_module(path: str) -> ModuleType:
     module = importlib.util.module_from_spec(spec)
     sys.modules[module_name] = module
 
-    # Support implicit relative imports i.e. `from foo import bar`
-    sys.path.insert(0, working_directory)
-    sys.path.insert(0, parent_path)
     try:
-        spec.loader.exec_module(module)
+        with _SYS_PATH_LOCK:
+            sys.path.insert(0, working_directory)
+            sys.path.insert(0, parent_path)
+            try:
+                spec.loader.exec_module(module)
+            finally:
+                sys.path.remove(parent_path)
+                sys.path.remove(working_directory)
     except Exception as exc:
         raise ScriptError(user_exc=exc, path=path) from exc
     finally:
         sys.modules.pop(module_name)
-        sys.path.remove(parent_path)
-        sys.path.remove(working_directory)
 
     return module
 
