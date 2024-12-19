@@ -11,8 +11,7 @@ import pendulum
 import sqlalchemy as sa
 
 import prefect.server.models as models
-from prefect.server.database.dependencies import inject_db
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, inject_db
 from prefect.server.schemas.states import StateType
 from prefect.server.services.loop_service import LoopService, run_multiple_services
 from prefect.settings import (
@@ -265,6 +264,7 @@ class Scheduler(LoopService):
 
         """
         return await models.deployments._generate_scheduled_flow_runs(
+            db,
             session=session,
             deployment_id=deployment_id,
             start_time=start_time,
