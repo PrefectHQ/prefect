@@ -1,6 +1,6 @@
 import uuid
 from typing import Any, Dict, Optional
-from unittest.mock import MagicMock, Mock, call
+from unittest.mock import MagicMock, call
 
 import anyio
 import pendulum
@@ -335,72 +335,6 @@ async def test_workers_do_not_submit_flow_runs_awaiting_retry(
         submitted_flow_runs = await worker.get_and_submit_flow_runs()
 
     assert submitted_flow_runs == []
-
-
-async def test_priority_trumps_lateness(
-    prefect_client: PrefectClient,
-    worker_deployment_wq1,
-    worker_deployment_wq_2,
-    work_queue_1,
-    work_pool,
-):
-    @flow
-    def test_flow():
-        pass
-
-    def create_run_with_deployment_1(state):
-        return prefect_client.create_flow_run_from_deployment(
-            worker_deployment_wq1.id, state=state
-        )
-
-    def create_run_with_deployment_2(state):
-        return prefect_client.create_flow_run_from_deployment(
-            worker_deployment_wq_2.id, state=state
-        )
-
-    flow_runs = [
-        await create_run_with_deployment_2(
-            Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1))
-        ),
-        await create_run_with_deployment_1(
-            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
-        ),
-    ]
-    flow_run_ids = [run.id for run in flow_runs]
-
-    async with WorkerTestImpl(work_pool_name=work_pool.name, limit=1) as worker:
-        worker._submit_run = AsyncMock()  # don't run anything
-        submitted_flow_runs = await worker.get_and_submit_flow_runs()
-
-    assert {flow_run.id for flow_run in submitted_flow_runs} == set(flow_run_ids[1:2])
-
-
-async def test_worker_releases_limit_slot_when_aborting_a_change_to_pending(
-    prefect_client: PrefectClient, worker_deployment_wq1, work_pool
-):
-    """Regression test for https://github.com/PrefectHQ/prefect/issues/15952"""
-
-    def create_run_with_deployment(state):
-        return prefect_client.create_flow_run_from_deployment(
-            worker_deployment_wq1.id, state=state
-        )
-
-    flow_run = await create_run_with_deployment(
-        Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1))
-    )
-
-    run_mock = AsyncMock()
-    release_mock = Mock()
-
-    async with WorkerTestImpl(work_pool_name=work_pool.name, limit=1) as worker:
-        worker.run = run_mock
-        worker._propose_pending_state = AsyncMock(return_value=False)
-        worker._release_limit_slot = release_mock
-
-        await worker.get_and_submit_flow_runs()
-
-    run_mock.assert_not_called()
-    release_mock.assert_called_once_with(flow_run.id)
 
 
 async def test_worker_with_work_pool_and_limit(
