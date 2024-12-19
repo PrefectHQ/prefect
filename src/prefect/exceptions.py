@@ -4,19 +4,20 @@ Prefect-specific exceptions.
 
 import inspect
 import traceback
+from collections.abc import Iterable
 from types import ModuleType, TracebackType
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from httpx._exceptions import HTTPStatusError
 from pydantic import ValidationError
-from rich.traceback import Traceback
 from typing_extensions import Self
 
-import prefect
+if TYPE_CHECKING:
+    from prefect.states import State
 
 
 def _trim_traceback(
-    tb: TracebackType, remove_modules: Iterable[ModuleType]
+    tb: Optional[TracebackType], remove_modules: Iterable[ModuleType]
 ) -> Optional[TracebackType]:
     """
     Utility to remove frames from specific modules from a traceback.
@@ -32,8 +33,9 @@ def _trim_traceback(
         A traceback, or `None` if all traceback frames originate from an excluded module
 
     """
-    strip_paths = [module.__file__ for module in remove_modules]
-
+    strip_paths = [
+        module.__file__ for module in remove_modules if module.__file__ is not None
+    ]
     while tb and any(
         module_path in str(tb.tb_frame.f_globals.get("__file__", ""))
         for module_path in strip_paths
@@ -91,7 +93,9 @@ class PausedRun(PrefectException):
     Raised when the result from a paused run is retrieved.
     """
 
-    def __init__(self, *args, state=None, **kwargs):
+    def __init__(
+        self, *args: Any, state: Optional["State[Any]"] = None, **kwargs: Any
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.state = state
 
@@ -133,6 +137,8 @@ class ScriptError(PrefectException):
         user_exc: Exception,
         path: str,
     ) -> None:
+        import prefect.utilities.importtools
+
         message = f"Script at {str(path)!r} encountered an exception: {user_exc!r}"
         super().__init__(message)
         self.user_exc = user_exc
@@ -142,30 +148,6 @@ class ScriptError(PrefectException):
             self.user_exc.__traceback__,
             remove_modules=[prefect.utilities.importtools],
         )
-
-
-class FlowScriptError(PrefectException):
-    """
-    Raised when a script errors during evaluation while attempting to load a flow.
-    """
-
-    def __init__(
-        self,
-        user_exc: Exception,
-        script_path: str,
-    ) -> None:
-        message = f"Flow script at {script_path!r} encountered an exception"
-        super().__init__(message)
-
-        self.user_exc = user_exc
-
-    def rich_user_traceback(self, **kwargs):
-        trace = Traceback.extract(
-            type(self.user_exc),
-            self.user_exc,
-            self.user_exc.__traceback__.tb_next.tb_next.tb_next.tb_next,
-        )
-        return Traceback(trace, **kwargs)
 
 
 class ParameterTypeError(PrefectException):
@@ -196,7 +178,11 @@ class ParameterBindError(TypeError, PrefectException):
 
     @classmethod
     def from_bind_failure(
-        cls, fn: Callable, exc: TypeError, call_args: List, call_kwargs: Dict
+        cls,
+        fn: Callable[..., Any],
+        exc: TypeError,
+        call_args: tuple[Any, ...],
+        call_kwargs: dict[str, Any],
     ) -> Self:
         fn_signature = str(inspect.signature(fn)).strip("()")
 
@@ -214,7 +200,9 @@ class SignatureMismatchError(PrefectException, TypeError):
         super().__init__(msg)
 
     @classmethod
-    def from_bad_params(cls, expected_params: List[str], provided_params: List[str]):
+    def from_bad_params(
+        cls, expected_params: list[str], provided_params: list[str]
+    ) -> Self:
         msg = (
             f"Function expects parameters {expected_params} but was provided with"
             f" parameters {provided_params}"
@@ -231,14 +219,14 @@ class ObjectNotFound(PrefectException):
         self,
         http_exc: Exception,
         help_message: Optional[str] = None,
-        *args,
-        **kwargs,
-    ):
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
         self.http_exc = http_exc
         self.help_message = help_message
         super().__init__(help_message, *args, **kwargs)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.help_message or super().__str__()
 
 
@@ -247,7 +235,7 @@ class ObjectAlreadyExists(PrefectException):
     Raised when the client receives a 409 (conflict) from the API.
     """
 
-    def __init__(self, http_exc: Exception, *args, **kwargs):
+    def __init__(self, http_exc: Exception, *args: Any, **kwargs: Any) -> None:
         self.http_exc = http_exc
         super().__init__(*args, **kwargs)
 
@@ -304,7 +292,9 @@ class Pause(PrefectSignal):
     Raised when a flow run is PAUSED and needs to exit for resubmission.
     """
 
-    def __init__(self, *args, state=None, **kwargs):
+    def __init__(
+        self, *args: Any, state: Optional["State[Any]"] = None, **kwargs: Any
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.state = state
 
@@ -332,7 +322,7 @@ class PrefectHTTPStatusError(HTTPStatusError):
     """
 
     @classmethod
-    def from_httpx_error(cls: Type[Self], httpx_error: HTTPStatusError) -> Self:
+    def from_httpx_error(cls: type[Self], httpx_error: HTTPStatusError) -> Self:
         """
         Generate a `PrefectHTTPStatusError` from an `httpx.HTTPStatusError`.
         """
@@ -441,7 +431,7 @@ class ProfileSettingsValidationError(PrefectException):
     Raised when a profile settings are invalid.
     """
 
-    def __init__(self, errors: List[Tuple[Any, ValidationError]]) -> None:
+    def __init__(self, errors: list[tuple[Any, ValidationError]]) -> None:
         self.errors = errors
 
 
