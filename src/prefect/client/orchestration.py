@@ -1759,6 +1759,9 @@ class PrefectClient:
         if deployment_create.enforce_parameter_schema is None:
             exclude.add("enforce_parameter_schema")
 
+        if deployment_create.service_level_agreements is None:
+            exclude.add("service_level_agreements")
+
         json = deployment_create.model_dump(mode="json", exclude=exclude)
         response = await self._client.post(
             "/deployments/",
