@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import Field
 
-from prefect.client.schemas.actions import ActionBaseModel
+from prefect._internal.schemas.bases import ActionBaseModel
 
 
 class Sla(ActionBaseModel):

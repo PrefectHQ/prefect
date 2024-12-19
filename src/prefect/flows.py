@@ -44,6 +44,7 @@ from pydantic.v1.errors import ConfigError  # TODO
 from rich.console import Console
 from typing_extensions import Literal, ParamSpec, TypeAlias
 
+from prefect._experimental.sla import Sla
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect.blocks.core import Block
 from prefect.client.schemas.actions import DeploymentScheduleCreate
@@ -650,6 +651,7 @@ class Flow(Generic[P, R]):
         work_queue_name: Optional[str] = None,
         job_variables: Optional[dict[str, Any]] = None,
         entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
+        sla: Optional[Union[Sla, list[Sla]]] = None,  # experimental
     ) -> "RunnerDeployment":
         """
         Creates a runner deployment object for this flow.
@@ -727,6 +729,7 @@ class Flow(Generic[P, R]):
                 work_pool_name=work_pool_name,
                 work_queue_name=work_queue_name,
                 job_variables=job_variables,
+                sla=sla,
             )  # type: ignore # TODO: remove sync_compatible
         else:
             return RunnerDeployment.from_flow(
@@ -748,6 +751,7 @@ class Flow(Generic[P, R]):
                 work_queue_name=work_queue_name,
                 job_variables=job_variables,
                 entrypoint_type=entrypoint_type,
+                sla=sla,
             )
 
     def on_completion(self, fn: StateHookCallable) -> StateHookCallable:
@@ -1060,6 +1064,8 @@ class Flow(Generic[P, R]):
         entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
         print_next_steps: bool = True,
         ignore_warnings: bool = False,
+        # Experimental: SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
+        sla: Optional[Union[Sla, list[Sla]]] = None,
     ) -> UUID:
         """
         Deploys a flow to run on dynamic infrastructure via a work pool.
@@ -1111,7 +1117,6 @@ class Flow(Generic[P, R]):
             print_next_steps_message: Whether or not to print a message with next steps
                 after deploying the deployments.
             ignore_warnings: Whether or not to ignore warnings about the work pool type.
-
         Returns:
             The ID of the created/updated deployment.
 
@@ -1189,6 +1194,7 @@ class Flow(Generic[P, R]):
             work_queue_name=work_queue_name,
             job_variables=job_variables,
             entrypoint_type=entrypoint_type,
+            sla=sla,
         )
 
         from prefect.deployments.runner import deploy

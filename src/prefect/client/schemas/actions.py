@@ -6,6 +6,7 @@ import jsonschema
 from pydantic import Field, field_validator, model_validator
 
 import prefect.client.schemas.objects as objects
+from prefect._experimental.sla import Sla
 from prefect._internal.schemas.bases import ActionBaseModel
 from prefect._internal.schemas.validators import (
     convert_to_strings,
@@ -182,6 +183,10 @@ class DeploymentCreate(ActionBaseModel):
     job_variables: dict[str, Any] = Field(
         default_factory=dict,
         description="Overrides to apply to flow run infrastructure at runtime.",
+    )
+    service_level_agreements: Optional[list[Sla]] = Field(
+        default=None,
+        description="Experimental: SLA configuration for the deployment. May be removed or modified at any time.",
     )
 
     def check_valid_configuration(self, base_job_template: dict[str, Any]) -> None:

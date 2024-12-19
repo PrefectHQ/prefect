@@ -23,6 +23,7 @@ import prefect
 import prefect.exceptions
 import prefect.settings
 import prefect.states
+from prefect._experimental.sla import Sla
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun, sorting
 from prefect.client.schemas.actions import (
@@ -1683,6 +1684,7 @@ class PrefectClient:
         pull_steps: Optional[list[dict[str, Any]]] = None,
         enforce_parameter_schema: Optional[bool] = None,
         job_variables: Optional[dict[str, Any]] = None,
+        sla: Optional[Union[Sla, list[Sla]]] = None,  # experimental
     ) -> UUID:
         """
         Create a deployment.
@@ -1710,6 +1712,11 @@ class PrefectClient:
 
         if parameter_openapi_schema is None:
             parameter_openapi_schema = {}
+
+        if sla:
+            if not isinstance(sla, list):
+                sla = [sla]
+
         deployment_create = DeploymentCreate(
             flow_id=flow_id,
             name=name,
@@ -1730,6 +1737,7 @@ class PrefectClient:
             concurrency_options=concurrency_options,
             pull_steps=pull_steps,
             enforce_parameter_schema=enforce_parameter_schema,
+            service_level_agreements=sla,
         )
 
         if work_pool_name is not None:
