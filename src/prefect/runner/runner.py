@@ -1209,9 +1209,8 @@ class Runner:
                 )
                 # Mark the task as started to prevent agent crash
                 task_status.started(exc)
-                await self._propose_crashed_state(
-                    flow_run, "Flow run process could not be started"
-                )
+                message = f"Flow run process could not be started:\n{exc!r}"
+                await self._propose_crashed_state(flow_run, message)
             else:
                 run_logger.exception(
                     f"An error occurred while monitoring flow run '{flow_run.id}'. "
