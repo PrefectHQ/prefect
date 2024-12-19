@@ -186,7 +186,7 @@ class DeploymentCreate(ActionBaseModel):
     )
     service_level_agreements: Optional[list[Sla]] = Field(
         default=None,
-        description="Experimental: SLA configuration for the deployment. May be removed or modified at any time.",
+        description="Experimental: SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.",
     )
 
     def check_valid_configuration(self, base_job_template: dict[str, Any]) -> None:
