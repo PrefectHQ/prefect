@@ -364,7 +364,7 @@ class Flow(Generic[P, R]):
         self._entrypoint: Optional[str] = None
 
         module = fn.__module__
-        if module == "__main__" or module.startswith("__prefect_loader"):
+        if module and (module == "__main__" or module.startswith("__prefect_loader_")):
             module_name = inspect.getfile(fn)
             module = module_name if module_name != "__main__" else module
 
