@@ -1080,6 +1080,12 @@ class DeploymentFilterTags(PrefectOperatorFilterBaseModel):
             " superset of the list"
         ),
     )
+    any_: Optional[List[str]] = Field(
+        default=None,
+        examples=[["tag-1", "tag-2"]],
+        description="A list of tags to include",
+    )
+
     is_null_: Optional[bool] = Field(
         default=None, description="If true, only include deployments without tags"
     )
@@ -1088,6 +1094,8 @@ class DeploymentFilterTags(PrefectOperatorFilterBaseModel):
         filters: list[sa.ColumnElement[bool]] = []
         if self.all_ is not None:
             filters.append(orm_models.Deployment.tags.has_all(_as_array(self.all_)))
+        if self.any_ is not None:
+            filters.append(orm_models.Deployment.tags.has_any(_as_array(self.any_)))
         if self.is_null_ is not None:
             filters.append(
                 orm_models.Deployment.tags == []
