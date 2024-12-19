@@ -1985,13 +1985,15 @@ class TestBaseWorkerHeartbeat:
     ):
         async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
             await worker.start(run_once=True)
-            with mock.patch(
-                "prefect.workers.base.load_prefect_collections"
-            ) as mock_load_prefect_collections, mock.patch(
-                "prefect.client.orchestration.PrefectHttpxAsyncClient.post"
-            ) as mock_send_worker_heartbeat_post, mock.patch(
-                "prefect.workers.base.distributions"
-            ) as mock_distributions:
+            with (
+                mock.patch(
+                    "prefect.workers.base.load_prefect_collections"
+                ) as mock_load_prefect_collections,
+                mock.patch(
+                    "prefect.client.orchestration.PrefectHttpxAsyncClient.post"
+                ) as mock_send_worker_heartbeat_post,
+                mock.patch("prefect.workers.base.distributions") as mock_distributions,
+            ):
                 mock_load_prefect_collections.return_value = {
                     "prefect_aws": "1.0.0",
                 }
@@ -2043,13 +2045,15 @@ class TestBaseWorkerHeartbeat:
 
         async with CustomWorker(work_pool_name=work_pool.name) as worker:
             await worker.start(run_once=True)
-            with mock.patch(
-                "prefect.workers.base.load_prefect_collections"
-            ) as mock_load_prefect_collections, mock.patch(
-                "prefect.client.orchestration.PrefectHttpxAsyncClient.post"
-            ) as mock_send_worker_heartbeat_post, mock.patch(
-                "prefect.workers.base.distributions"
-            ) as mock_distributions:
+            with (
+                mock.patch(
+                    "prefect.workers.base.load_prefect_collections"
+                ) as mock_load_prefect_collections,
+                mock.patch(
+                    "prefect.client.orchestration.PrefectHttpxAsyncClient.post"
+                ) as mock_send_worker_heartbeat_post,
+                mock.patch("prefect.workers.base.distributions") as mock_distributions,
+            ):
                 mock_load_prefect_collections.return_value = {
                     "prefect_aws": "1.0.0",
                 }
@@ -2083,12 +2087,9 @@ class TestBaseWorkerHeartbeat:
             assert worker._worker_metadata_sent
 
 
-@pytest.mark.skip(reason="Passing worker labels to flow run is temporarily disabled")
 async def test_worker_gives_labels_to_flow_runs_when_using_cloud_api(
     prefect_client: PrefectClient, worker_deployment_wq1, work_pool
 ):
-    CloudClientMock = AsyncMock()
-
     def create_run_with_deployment(state):
         return prefect_client.create_flow_run_from_deployment(
             worker_deployment_wq1.id, state=state
@@ -2101,47 +2102,20 @@ async def test_worker_gives_labels_to_flow_runs_when_using_cloud_api(
     async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
         assert worker._client is not None
         worker._client.server_type = ServerType.CLOUD
-        worker._cloud_client = CloudClientMock
 
         worker._work_pool = work_pool
         worker.run = AsyncMock()
 
         await worker.get_and_submit_flow_runs()
 
-    CloudClientMock.update_flow_run_labels.assert_awaited_once_with(
-        flow_run.id,
-        {
-            "prefect.worker.name": worker.name,
-            "prefect.worker.type": worker.type,
-            "prefect.work-pool.name": work_pool.name,
-            "prefect.work-pool.id": str(work_pool.id),
-        },
-    )
+    flow_run = await prefect_client.read_flow_run(flow_run.id)
 
+    expected_labels = {
+        "prefect.worker.name": worker.name,
+        "prefect.worker.type": worker.type,
+        "prefect.work-pool.name": work_pool.name,
+        "prefect.work-pool.id": str(work_pool.id),
+    }
 
-@pytest.mark.skip(reason="Passing worker labels to flow run is temporarily disabled")
-async def test_worker_does_not_give_labels_to_flow_runs_when_not_using_cloud_api(
-    prefect_client: PrefectClient, worker_deployment_wq1, work_pool
-):
-    update_labels_mock = AsyncMock()
-
-    def create_run_with_deployment(state):
-        return prefect_client.create_flow_run_from_deployment(
-            worker_deployment_wq1.id, state=state
-        )
-
-    await create_run_with_deployment(
-        Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1))
-    )
-
-    async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
-        assert worker._client is not None
-        worker._client.server_type = ServerType.SERVER  # Not cloud
-        worker._client.update_flow_run_labels = update_labels_mock
-
-        worker._work_pool = work_pool
-        worker.run = AsyncMock()
-
-        await worker.get_and_submit_flow_runs()
-
-    update_labels_mock.assert_not_awaited()
+    for key, value in expected_labels.items():
+        assert flow_run.labels[key] == value
