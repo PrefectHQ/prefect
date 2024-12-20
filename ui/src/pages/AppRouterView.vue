@@ -35,6 +35,7 @@
   import router, { routes as appRoutes } from '@/router'
   import { createPrefectApi, prefectApiKey } from '@/utilities/api'
   import { canKey } from '@/utilities/permissions'
+  import { UiSettings } from '@/services/uiSettings'
 
   const { can } = useCreateCan()
   const { config } = await useApiConfig()
@@ -46,15 +47,17 @@
   provide(prefectApiKey, api)
   provide(workspaceApiKey, api)
   provide(workspaceRoutesKey, routes)
-  api.admin.authCheck().then(authenticated => {
-    if (!authenticated) {
+
+
+  api.admin.authCheck().then(status_code => {
+    if (status_code == 401) {
       if (router.currentRoute.value.name !== 'login') {
         showToast('Authentication failed.', 'error', { timeout: false })
+        router.push({
+          name: 'login', 
+          query: { redirect: router.currentRoute.value.fullPath }
+        })
       }
-      router.push({
-        name: 'login',
-        query: { redirect: router.currentRoute.value.fullPath }
-      })
     } else {
       api.health.isHealthy().then(healthy => {
         if (!healthy) {
