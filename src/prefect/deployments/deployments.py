@@ -1,3 +1,5 @@
-from .._internal.compatibility.migration import getattr_migration
+from typing import Any, Callable
 
-__getattr__ = getattr_migration(__name__)
+from prefect._internal.compatibility.migration import getattr_migration
+
+__getattr__: Callable[[str], Any] = getattr_migration(__name__)

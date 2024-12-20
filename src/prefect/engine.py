@@ -1,5 +1,6 @@
 import os
 import sys
+from typing import Any, Callable
 from uuid import UUID
 
 from prefect._internal.compatibility.migration import getattr_migration
@@ -72,4 +73,4 @@ if __name__ == "__main__":
         # Let the exit code be determined by the base exception type
         raise
 
-__getattr__ = getattr_migration(__name__)
+__getattr__: Callable[[str], Any] = getattr_migration(__name__)
