@@ -3,8 +3,7 @@ from starlette.exceptions import HTTPException
 
 from prefect.logging import get_logger
 from prefect.server import models, schemas
-from prefect.server.database.dependencies import provide_database_interface
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.utilities.server import PrefectRouter
 from prefect.settings import PREFECT_SERVER_CSRF_PROTECTION_ENABLED
 

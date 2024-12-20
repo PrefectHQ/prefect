@@ -7,7 +7,7 @@ from starlette.responses import JSONResponse, Response
 
 from prefect import settings
 from prefect.server import models
-from prefect.server.database.dependencies import provide_database_interface
+from prefect.server.database import provide_database_interface
 
 NextMiddlewareFunction = Callable[[Request], Awaitable[Response]]
 

@@ -1,5 +1,4 @@
 from collections import defaultdict
-from datetime import datetime
 from operator import attrgetter
 from typing import Iterable, List, Union
 from unittest import mock
@@ -13,7 +12,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models, schemas
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface
 from prefect.server.exceptions import FlowRunGraphTooLarge, ObjectNotFoundError
 from prefect.server.models.flow_runs import read_flow_run_graph
 from prefect.server.schemas.graph import Edge, Graph, GraphArtifact, GraphState, Node
@@ -1438,9 +1437,7 @@ async def test_missing_flow_run_returns_404(
     assert response.status_code == 404, response.text
 
     model_method_mock.assert_awaited_once_with(
-        session=mock.ANY,
-        flow_run_id=flow_run_id,
-        since=datetime.min,
+        session=mock.ANY, flow_run_id=flow_run_id, since=pendulum.DateTime.min
     )
 
 
@@ -1455,9 +1452,7 @@ async def test_api_full(
     assert response.status_code == 200, response.text
 
     model_method_mock.assert_awaited_once_with(
-        session=mock.ANY,
-        flow_run_id=flow_run_id,
-        since=datetime.min,
+        session=mock.ANY, flow_run_id=flow_run_id, since=pendulum.DateTime.min
     )
     assert response.json() == graph.model_dump(mode="json")
 

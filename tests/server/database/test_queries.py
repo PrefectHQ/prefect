@@ -3,7 +3,7 @@ import pytest
 import sqlalchemy as sa
 
 from prefect.server import models, schemas
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface
 
 
 class TestGetRunsInQueueQuery:

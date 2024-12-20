@@ -9,8 +9,7 @@ from fastapi import Depends, HTTPException, Path, status
 
 import prefect.server.models as models
 import prefect.server.schemas as schemas
-from prefect.server.database.dependencies import provide_database_interface
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.utilities.server import PrefectRouter
 
 router = PrefectRouter(prefix="/flow_run_states", tags=["Flow Run States"])

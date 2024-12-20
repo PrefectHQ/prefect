@@ -14,12 +14,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from prefect.blocks.notifications import NotificationBlock
 from prefect.filesystems import LocalFileSystem
 from prefect.server import models, schemas
-from prefect.server.database import orm_models
-from prefect.server.database.configurations import ENGINES, TRACKER
-from prefect.server.database.dependencies import (
+from prefect.server.database import (
     PrefectDBInterface,
+    orm_models,
     provide_database_interface,
 )
+from prefect.server.database.configurations import ENGINES, TRACKER
 from prefect.server.models.block_registration import run_block_auto_registration
 from prefect.server.models.concurrency_limits_v2 import create_concurrency_limit
 from prefect.server.orchestration.rules import (

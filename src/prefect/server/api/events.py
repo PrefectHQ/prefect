@@ -11,8 +11,7 @@ from starlette.status import WS_1002_PROTOCOL_ERROR
 
 from prefect.logging import get_logger
 from prefect.server.api.dependencies import is_ephemeral_request
-from prefect.server.database.dependencies import provide_database_interface
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.events import messaging, stream
 from prefect.server.events.counting import (
     Countable,

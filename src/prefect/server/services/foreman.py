@@ -9,13 +9,16 @@ import pendulum
 import sqlalchemy as sa
 
 from prefect.server import models
-from prefect.server.database.dependencies import db_injector
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, db_injector
 from prefect.server.models.deployments import mark_deployments_not_ready
 from prefect.server.models.work_queues import mark_work_queues_not_ready
 from prefect.server.models.workers import emit_work_pool_status_event
 from prefect.server.schemas.internal import InternalWorkPoolUpdate
-from prefect.server.schemas.statuses import DeploymentStatus, WorkPoolStatus
+from prefect.server.schemas.statuses import (
+    DeploymentStatus,
+    WorkerStatus,
+    WorkPoolStatus,
+)
 from prefect.server.services.loop_service import LoopService
 from prefect.settings import (
     PREFECT_API_SERVICES_FOREMAN_DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS,
@@ -98,40 +101,21 @@ class Foreman(LoopService):
             session (AsyncSession): The session to use for the database operation.
         """
         async with db.session_context(begin_transaction=True) as session:
-            if db.dialect.name == "postgresql":
-                worker_update_stmt = sa.text(
-                    """
-                    UPDATE worker
-                    SET status = 'OFFLINE'
-                    WHERE (
-                        last_heartbeat_time <
-                        CURRENT_TIMESTAMP - (
-                            interval '1 second' * :multiplier *
-                            COALESCE(heartbeat_interval_seconds, :default_interval)
+            worker_update_stmt = (
+                sa.update(db.Worker)
+                .values(status=WorkerStatus.OFFLINE)
+                .where(
+                    sa.func.date_diff_seconds(db.Worker.last_heartbeat_time)
+                    > (
+                        sa.func.coalesce(
+                            db.Worker.heartbeat_interval_seconds,
+                            sa.bindparam("default_interval", sa.Integer),
                         )
-                    )
-                    AND status = 'ONLINE';
-                    """
+                        * sa.bindparam("multiplier", sa.Integer)
+                    ),
+                    db.Worker.status == WorkerStatus.ONLINE,
                 )
-            elif db.dialect.name == "sqlite":
-                worker_update_stmt = sa.text(
-                    """
-                    UPDATE worker
-                    SET status = 'OFFLINE'
-                    WHERE (
-                        julianday(last_heartbeat_time) <
-                        julianday('now') - ((
-                            :multiplier *
-                            COALESCE(heartbeat_interval_seconds, :default_interval)
-                        ) / 86400.0)
-                    )
-                    AND status = 'ONLINE';
-                    """
-                )
-            else:
-                raise NotImplementedError(
-                    f"No implementation for database dialect {db.dialect.name}"
-                )
+            )
 
             result = await session.execute(
                 worker_update_stmt,

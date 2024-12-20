@@ -6,8 +6,7 @@ from fastapi import Body, Depends, Response, status
 
 import prefect
 import prefect.settings
-from prefect.server.database.dependencies import provide_database_interface
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.utilities.server import PrefectRouter
 
 router = PrefectRouter(prefix="/admin", tags=["Admin"])

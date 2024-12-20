@@ -3,14 +3,7 @@ import uuid
 from abc import ABC, abstractmethod
 from collections.abc import Hashable, Iterable
 from pathlib import Path
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    ClassVar,
-    Dict,
-    Optional,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, ClassVar, Optional, Union
 
 import pendulum
 import sqlalchemy as sa
@@ -55,9 +48,12 @@ from prefect.server.utilities.database import (
 from prefect.server.utilities.encryption import decrypt_fernet, encrypt_fernet
 from prefect.utilities.names import generate_slug
 
+if TYPE_CHECKING:
+    DateTime = pendulum.DateTime
+
 # for 'plain JSON' columns, use the postgresql variant (which comes with an
 # extra operator) and fall back to the generic JSON variant for SQLite
-sa_JSON = postgresql.JSON().with_variant(sa.JSON(), "sqlite")
+sa_JSON: postgresql.JSON = postgresql.JSON().with_variant(sa.JSON(), "sqlite")
 
 
 class Base(DeclarativeBase):
@@ -824,7 +820,7 @@ class Deployment(Base):
     paused: Mapped[bool] = mapped_column(server_default="0", default=False, index=True)
 
     schedules: Mapped[list["DeploymentSchedule"]] = relationship(
-        lazy="selectin", order_by=sa.desc(sa.text("updated"))
+        lazy="selectin", order_by=lambda: DeploymentSchedule.updated.desc()
     )
 
     # deprecated in favor of `concurrency_limit_id` FK
@@ -1075,7 +1071,7 @@ class BlockDocumentReference(Base):
 
 class Configuration(Base):
     key: Mapped[str] = mapped_column(index=True)
-    value: Mapped[Dict[str, Any]] = mapped_column(JSON)
+    value: Mapped[dict[str, Any]] = mapped_column(JSON)
 
     __table_args__: Any = (sa.UniqueConstraint("key"),)
 
@@ -1119,7 +1115,7 @@ class WorkQueue(Base):
         lazy="selectin", foreign_keys=[work_pool_id]
     )
 
-    __table_args__ = (
+    __table_args__: ClassVar[Any] = (
         sa.UniqueConstraint("work_pool_id", "name"),
         sa.Index("ix_work_queue__work_pool_id_priority", "work_pool_id", "priority"),
         sa.Index("trgm_ix_work_queue_name", "name", postgresql_using="gin").ddl_if(
@@ -1496,7 +1492,7 @@ class BaseORMConfiguration(ABC):
     Use with caution.
     """
 
-    def _unique_key(self) -> tuple[Hashable, ...]:
+    def unique_key(self) -> tuple[Hashable, ...]:
         """
         Returns a key used to determine whether to instantiate a new DB interface.
         """

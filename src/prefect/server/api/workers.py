@@ -21,8 +21,7 @@ import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect.server.api.validation import validate_job_variable_defaults_for_work_pool
-from prefect.server.database.dependencies import provide_database_interface
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.models.deployments import mark_deployments_ready
 from prefect.server.models.work_queues import (
     emit_work_queue_status_event,

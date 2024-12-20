@@ -6,8 +6,7 @@ import pendulum
 import sqlalchemy as sa
 from sqlalchemy.sql.selectable import Select
 
-from prefect.server.database.dependencies import provide_database_interface
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.types import DateTime
 from prefect.utilities.collections import AutoEnum
 

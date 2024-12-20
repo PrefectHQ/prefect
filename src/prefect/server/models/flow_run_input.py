@@ -5,21 +5,25 @@ import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.schemas as schemas
-from prefect.server.database import orm_models
+from prefect.server.database import PrefectDBInterface, db_injector
 
 
+@db_injector
 async def create_flow_run_input(
+    db: PrefectDBInterface,
     session: AsyncSession,
     flow_run_input: schemas.core.FlowRunInput,
 ) -> schemas.core.FlowRunInput:
-    model = orm_models.FlowRunInput(**flow_run_input.model_dump())
+    model = db.FlowRunInput(**flow_run_input.model_dump())
     session.add(model)
     await session.flush()
 
     return schemas.core.FlowRunInput.model_validate(model, from_attributes=True)
 
 
+@db_injector
 async def filter_flow_run_input(
+    db: PrefectDBInterface,
     session: AsyncSession,
     flow_run_id: uuid.UUID,
     prefix: str,
@@ -27,15 +31,15 @@ async def filter_flow_run_input(
     exclude_keys: List[str],
 ) -> List[schemas.core.FlowRunInput]:
     query = (
-        sa.select(orm_models.FlowRunInput)
+        sa.select(db.FlowRunInput)
         .where(
             sa.and_(
-                orm_models.FlowRunInput.flow_run_id == flow_run_id,
-                orm_models.FlowRunInput.key.like(prefix + "%"),
-                orm_models.FlowRunInput.key.not_in(exclude_keys),
+                db.FlowRunInput.flow_run_id == flow_run_id,
+                db.FlowRunInput.key.like(prefix + "%"),
+                db.FlowRunInput.key.not_in(exclude_keys),
             )
         )
-        .order_by(orm_models.FlowRunInput.created)
+        .order_by(db.FlowRunInput.created)
         .limit(limit)
     )
 
@@ -46,15 +50,17 @@ async def filter_flow_run_input(
     ]
 
 
+@db_injector
 async def read_flow_run_input(
+    db: PrefectDBInterface,
     session: AsyncSession,
     flow_run_id: uuid.UUID,
     key: str,
 ) -> Optional[schemas.core.FlowRunInput]:
-    query = sa.select(orm_models.FlowRunInput).where(
+    query = sa.select(db.FlowRunInput).where(
         sa.and_(
-            orm_models.FlowRunInput.flow_run_id == flow_run_id,
-            orm_models.FlowRunInput.key == key,
+            db.FlowRunInput.flow_run_id == flow_run_id,
+            db.FlowRunInput.key == key,
         )
     )
 
@@ -66,16 +72,18 @@ async def read_flow_run_input(
     return None
 
 
+@db_injector
 async def delete_flow_run_input(
+    db: PrefectDBInterface,
     session: AsyncSession,
     flow_run_id: uuid.UUID,
     key: str,
 ) -> bool:
     result = await session.execute(
-        sa.delete(orm_models.FlowRunInput).where(
+        sa.delete(db.FlowRunInput).where(
             sa.and_(
-                orm_models.FlowRunInput.flow_run_id == flow_run_id,
-                orm_models.FlowRunInput.key == key,
+                db.FlowRunInput.flow_run_id == flow_run_id,
+                db.FlowRunInput.key == key,
             )
         )
     )

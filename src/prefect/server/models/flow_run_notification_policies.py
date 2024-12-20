@@ -12,9 +12,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.schemas as schemas
-from prefect.server.database import orm_models
-from prefect.server.database.dependencies import db_injector
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, db_injector, orm_models
 
 DEFAULT_MESSAGE_TEMPLATE = textwrap.dedent(
     """
@@ -28,7 +26,9 @@ DEFAULT_MESSAGE_TEMPLATE = textwrap.dedent(
 )
 
 
+@db_injector
 async def create_flow_run_notification_policy(
+    db: PrefectDBInterface,
     session: AsyncSession,
     flow_run_notification_policy: schemas.core.FlowRunNotificationPolicy,
 ) -> orm_models.FlowRunNotificationPolicy:
@@ -43,16 +43,16 @@ async def create_flow_run_notification_policy(
         orm_models.FlowRunNotificationPolicy: the newly-created FlowRunNotificationPolicy
 
     """
-    model = orm_models.FlowRunNotificationPolicy(
-        **flow_run_notification_policy.model_dump()
-    )
+    model = db.FlowRunNotificationPolicy(**flow_run_notification_policy.model_dump())
     session.add(model)
     await session.flush()
 
     return model
 
 
+@db_injector
 async def read_flow_run_notification_policy(
+    db: PrefectDBInterface,
     session: AsyncSession,
     flow_run_notification_policy_id: UUID,
 ) -> Union[orm_models.FlowRunNotificationPolicy, None]:
@@ -68,11 +68,13 @@ async def read_flow_run_notification_policy(
     """
 
     return await session.get(
-        orm_models.FlowRunNotificationPolicy, flow_run_notification_policy_id
+        db.FlowRunNotificationPolicy, flow_run_notification_policy_id
     )
 
 
+@db_injector
 async def read_flow_run_notification_policies(
+    db: PrefectDBInterface,
     session: AsyncSession,
     flow_run_notification_policy_filter: Optional[
         schemas.filters.FlowRunNotificationPolicyFilter
@@ -92,8 +94,8 @@ async def read_flow_run_notification_policies(
         List[db.FlowRunNotificationPolicy]: Notification policies
     """
 
-    query = select(orm_models.FlowRunNotificationPolicy).order_by(
-        orm_models.FlowRunNotificationPolicy.id
+    query = select(db.FlowRunNotificationPolicy).order_by(
+        db.FlowRunNotificationPolicy.id
     )
 
     if flow_run_notification_policy_filter:
@@ -108,7 +110,9 @@ async def read_flow_run_notification_policies(
     return result.scalars().unique().all()
 
 
+@db_injector
 async def update_flow_run_notification_policy(
+    db: PrefectDBInterface,
     session: AsyncSession,
     flow_run_notification_policy_id: UUID,
     flow_run_notification_policy: schemas.actions.FlowRunNotificationPolicyUpdate,
@@ -129,17 +133,17 @@ async def update_flow_run_notification_policy(
     update_data = flow_run_notification_policy.model_dump_for_orm(exclude_unset=True)
 
     update_stmt = (
-        sa.update(orm_models.FlowRunNotificationPolicy)
-        .where(
-            orm_models.FlowRunNotificationPolicy.id == flow_run_notification_policy_id
-        )
+        sa.update(db.FlowRunNotificationPolicy)
+        .where(db.FlowRunNotificationPolicy.id == flow_run_notification_policy_id)
         .values(**update_data)
     )
     result = await session.execute(update_stmt)
     return result.rowcount > 0
 
 
+@db_injector
 async def delete_flow_run_notification_policy(
+    db: PrefectDBInterface,
     session: AsyncSession,
     flow_run_notification_policy_id: UUID,
 ) -> bool:
@@ -155,8 +159,8 @@ async def delete_flow_run_notification_policy(
     """
 
     result = await session.execute(
-        delete(orm_models.FlowRunNotificationPolicy).where(
-            orm_models.FlowRunNotificationPolicy.id == flow_run_notification_policy_id
+        delete(db.FlowRunNotificationPolicy).where(
+            db.FlowRunNotificationPolicy.id == flow_run_notification_policy_id
         )
     )
     return result.rowcount > 0
@@ -168,6 +172,4 @@ async def queue_flow_run_notifications(
     session: AsyncSession,
     flow_run: Union[schemas.core.FlowRun, orm_models.FlowRun],
 ) -> None:
-    await db.queries.queue_flow_run_notifications(
-        session=session, flow_run=flow_run, db=db
-    )
+    await db.queries.queue_flow_run_notifications(session=session, flow_run=flow_run)

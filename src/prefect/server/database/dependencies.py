@@ -32,20 +32,18 @@ from prefect.server.database.configurations import (
     AsyncPostgresConfiguration,
     BaseDatabaseConfiguration,
 )
-from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.database.orm_models import (
     AioSqliteORMConfiguration,
     AsyncPostgresORMConfiguration,
     BaseORMConfiguration,
 )
-from prefect.server.database.query_components import (
-    AioSqliteQueryComponents,
-    AsyncPostgresQueryComponents,
-    BaseQueryComponents,
-)
 from prefect.server.utilities.database import get_dialect
 from prefect.server.utilities.schemas import PrefectDescriptorBase
 from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
+
+if TYPE_CHECKING:
+    from prefect.server.database.interface import PrefectDBInterface
+    from prefect.server.database.query_components import BaseQueryComponents
 
 P = ParamSpec("P")
 R = TypeVar("R", infer_variance=True)
@@ -53,15 +51,15 @@ T = TypeVar("T", infer_variance=True)
 
 _Function = Callable[P, R]
 _Method = Callable[Concatenate[T, P], R]
-_DBFunction: TypeAlias = Callable[Concatenate[PrefectDBInterface, P], R]
-_DBMethod: TypeAlias = Callable[Concatenate[T, PrefectDBInterface, P], R]
+_DBFunction: TypeAlias = Callable[Concatenate["PrefectDBInterface", P], R]
+_DBMethod: TypeAlias = Callable[Concatenate[T, "PrefectDBInterface", P], R]
 
 
 class _ModelDependencies(TypedDict):
     database_config: Optional[BaseDatabaseConfiguration]
-    query_components: Optional[BaseQueryComponents]
+    query_components: Optional["BaseQueryComponents"]
     orm: Optional[BaseORMConfiguration]
-    interface_class: Optional[type[PrefectDBInterface]]
+    interface_class: Optional[type["PrefectDBInterface"]]
 
 
 MODELS_DEPENDENCIES: _ModelDependencies = {
@@ -72,13 +70,19 @@ MODELS_DEPENDENCIES: _ModelDependencies = {
 }
 
 
-def provide_database_interface() -> PrefectDBInterface:
+def provide_database_interface() -> "PrefectDBInterface":
     """
     Get the current Prefect REST API database interface.
 
     If components of the interface are not set, defaults will be inferred
     based on the dialect of the connection URL.
     """
+    from prefect.server.database.interface import PrefectDBInterface
+    from prefect.server.database.query_components import (
+        AioSqliteQueryComponents,
+        AsyncPostgresQueryComponents,
+    )
+
     connection_url = PREFECT_API_DATABASE_CONNECTION_URL.value()
 
     database_config = MODELS_DEPENDENCIES.get("database_config")
@@ -384,7 +388,7 @@ def temporary_database_config(
 
 @contextmanager
 def temporary_query_components(
-    tmp_queries: Optional[BaseQueryComponents],
+    tmp_queries: Optional["BaseQueryComponents"],
 ) -> Generator[None, object, None]:
     """
     Temporarily override the Prefect REST API database query components.
@@ -426,7 +430,7 @@ def temporary_orm_config(
 
 @contextmanager
 def temporary_interface_class(
-    tmp_interface_class: Optional[type[PrefectDBInterface]],
+    tmp_interface_class: Optional[type["PrefectDBInterface"]],
 ) -> Generator[None, object, None]:
     """
     Temporarily override the Prefect REST API interface class When the context is closed,
@@ -447,9 +451,9 @@ def temporary_interface_class(
 @contextmanager
 def temporary_database_interface(
     tmp_database_config: Optional[BaseDatabaseConfiguration] = None,
-    tmp_queries: Optional[BaseQueryComponents] = None,
+    tmp_queries: Optional["BaseQueryComponents"] = None,
     tmp_orm_config: Optional[BaseORMConfiguration] = None,
-    tmp_interface_class: Optional[type[PrefectDBInterface]] = None,
+    tmp_interface_class: Optional[type["PrefectDBInterface"]] = None,
 ) -> Generator[None, object, None]:
     """
     Temporarily override the Prefect REST API database interface.
@@ -485,7 +489,7 @@ def set_database_config(database_config: Optional[BaseDatabaseConfiguration]) ->
     MODELS_DEPENDENCIES["database_config"] = database_config
 
 
-def set_query_components(query_components: Optional[BaseQueryComponents]) -> None:
+def set_query_components(query_components: Optional["BaseQueryComponents"]) -> None:
     """Set Prefect REST API query components."""
     MODELS_DEPENDENCIES["query_components"] = query_components
 
@@ -495,6 +499,6 @@ def set_orm_config(orm_config: Optional[BaseORMConfiguration]) -> None:
     MODELS_DEPENDENCIES["orm"] = orm_config
 
 
-def set_interface_class(interface_class: Optional[type[PrefectDBInterface]]) -> None:
+def set_interface_class(interface_class: Optional[type["PrefectDBInterface"]]) -> None:
     """Set Prefect REST API interface class."""
     MODELS_DEPENDENCIES["interface_class"] = interface_class

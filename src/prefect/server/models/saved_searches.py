@@ -11,9 +11,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.schemas as schemas
-from prefect.server.database import orm_models
-from prefect.server.database.dependencies import db_injector
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, db_injector, orm_models
 
 
 @db_injector
@@ -36,10 +34,10 @@ async def create_saved_search(
     """
 
     insert_stmt = (
-        db.insert(orm_models.SavedSearch)
+        db.queries.insert(db.SavedSearch)
         .values(**saved_search.model_dump_for_orm(exclude_unset=True))
         .on_conflict_do_update(
-            index_elements=db.saved_search_unique_upsert_columns,
+            index_elements=db.orm.saved_search_unique_upsert_columns,
             set_=saved_search.model_dump_for_orm(include={"filters"}),
         )
     )
@@ -47,9 +45,9 @@ async def create_saved_search(
     await session.execute(insert_stmt)
 
     query = (
-        sa.select(orm_models.SavedSearch)
+        sa.select(db.SavedSearch)
         .where(
-            orm_models.SavedSearch.name == saved_search.name,
+            db.SavedSearch.name == saved_search.name,
         )
         .execution_options(populate_existing=True)
     )
@@ -59,8 +57,9 @@ async def create_saved_search(
     return model
 
 
+@db_injector
 async def read_saved_search(
-    session: AsyncSession, saved_search_id: UUID
+    db: PrefectDBInterface, session: AsyncSession, saved_search_id: UUID
 ) -> Union[orm_models.SavedSearch, None]:
     """
     Reads a SavedSearch by id.
@@ -73,11 +72,12 @@ async def read_saved_search(
         orm_models.SavedSearch: the SavedSearch
     """
 
-    return await session.get(orm_models.SavedSearch, saved_search_id)
+    return await session.get(db.SavedSearch, saved_search_id)
 
 
+@db_injector
 async def read_saved_search_by_name(
-    session: AsyncSession, name: str
+    db: PrefectDBInterface, session: AsyncSession, name: str
 ) -> Union[orm_models.SavedSearch, None]:
     """
     Reads a SavedSearch by name.
@@ -90,14 +90,14 @@ async def read_saved_search_by_name(
         orm_models.SavedSearch: the SavedSearch
     """
     result = await session.execute(
-        select(orm_models.SavedSearch)
-        .where(orm_models.SavedSearch.name == name)
-        .limit(1)
+        select(db.SavedSearch).where(db.SavedSearch.name == name).limit(1)
     )
     return result.scalar()
 
 
+@db_injector
 async def read_saved_searches(
+    db: PrefectDBInterface,
     session: AsyncSession,
     offset: Optional[int] = None,
     limit: Optional[int] = None,
@@ -114,7 +114,7 @@ async def read_saved_searches(
         List[orm_models.SavedSearch]: SavedSearches
     """
 
-    query = select(orm_models.SavedSearch).order_by(orm_models.SavedSearch.name)
+    query = select(db.SavedSearch).order_by(db.SavedSearch.name)
 
     if offset is not None:
         query = query.offset(offset)
@@ -125,7 +125,10 @@ async def read_saved_searches(
     return result.scalars().unique().all()
 
 
-async def delete_saved_search(session: AsyncSession, saved_search_id: UUID) -> bool:
+@db_injector
+async def delete_saved_search(
+    db: PrefectDBInterface, session: AsyncSession, saved_search_id: UUID
+) -> bool:
     """
     Delete a SavedSearch by id.
 
@@ -138,8 +141,6 @@ async def delete_saved_search(session: AsyncSession, saved_search_id: UUID) -> b
     """
 
     result = await session.execute(
-        delete(orm_models.SavedSearch).where(
-            orm_models.SavedSearch.id == saved_search_id
-        )
+        delete(db.SavedSearch).where(db.SavedSearch.id == saved_search_id)
     )
     return result.rowcount > 0
