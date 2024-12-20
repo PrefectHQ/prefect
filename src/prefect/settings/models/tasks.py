@@ -11,7 +11,7 @@ class TasksRunnerSettings(PrefectBaseSettings):
     thread_pool_max_workers: Optional[int] = Field(
         default=None,
         gt=0,
-        description="The maximum number of workers for ThreadPoolTaskRunner.",
+        description="The maximum number of workers for ThreadPoolTaskRunner. Added in version 3.0.11.",
         validation_alias=AliasChoices(
             AliasPath("thread_pool_max_workers"),
             "prefect_tasks_runner_thread_pool_max_workers",
