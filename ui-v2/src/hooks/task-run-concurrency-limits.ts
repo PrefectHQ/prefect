@@ -14,13 +14,16 @@ export type TaskRunConcurrencyLimitsFilter =
 /**
  * ```
  *  🏗️ Task run concurrency limits queries construction 👷
- *  all   =>   ['task-run-concurrency-limits'] // key to match ['task-run-concurrency-limits', ...
- *  list  =>   ['task-run-concurrency-limits', 'list'] // key to match ['task-run-concurrency-limits', 'list', ...
- *             ['task-run-concurrency-limits', 'list', { ...filter1 }]
- *             ['task-run-concurrency-limits', 'list', { ...filter2 }]
- *  details => ['task-run-concurrency-limits', 'details'] // key to match ['task-run-concurrency-limits', 'details', ...
- *             ['task-run-concurrency-limits', 'details', id1]
- *             ['task-run-concurrency-limits', 'details', id2]
+ *  all   =>      ['task-run-concurrency-limits'] // key to match ['task-run-concurrency-limits', ...
+ *  list  =>      ['task-run-concurrency-limits', 'list'] // key to match ['task-run-concurrency-limits', 'list', ...
+ *                ['task-run-concurrency-limits', 'list', { ...filter1 }]
+ *                ['task-run-concurrency-limits', 'list', { ...filter2 }]
+ *  details =>    ['task-run-concurrency-limits', 'details'] // key to match ['task-run-concurrency-limits', 'details', ...
+ *                ['task-run-concurrency-limits', 'details', id1]
+ *                ['task-run-concurrency-limits', 'details', id2]
+ *  activeRuns => ['task-run-concurrency-limits', 'details', 'active-runs'] // key to match ['task-run-concurrency-limits', 'details', 'active-runs', ...
+ *                ['task-run-concurrency-limits', 'details', 'active-runs', id1]
+ *                ['task-run-concurrency-limits', 'details', 'active-runs', id2]
  * ```
  * */
 export const queryKeyFactory = {
@@ -30,6 +33,8 @@ export const queryKeyFactory = {
 		[...queryKeyFactory.lists(), filter] as const,
 	details: () => [...queryKeyFactory.all(), "details"] as const,
 	detail: (id: string) => [...queryKeyFactory.details(), id] as const,
+	activeRuns: () => [...queryKeyFactory.details(), "active-runs"] as const,
+	activeRun: (id: string) => [...queryKeyFactory.activeRuns(), id] as const,
 };
 
 // ----- 🔑 Queries 🗄️
@@ -204,3 +209,109 @@ export const useResetTaskRunConcurrencyLimitTag = () => {
 		...rest,
 	};
 };
+
+/**
+ *
+ * @param id
+ * @returns query options for a task-run concurrency limit with active run details that includes details on task run, flow run, and flow
+ */
+export const buildConcurrenyLimitDetailsActiveRunsQuery = (id: string) =>
+	queryOptions({
+		queryKey: queryKeyFactory.activeRun(id),
+		queryFn: async () => {
+			// GET task-run-concurrency-limit by id
+			const taskRunConcurrencyLimit = await getQueryService().GET(
+				"/concurrency_limits/{id}",
+				{ params: { path: { id } } },
+			);
+			if (!taskRunConcurrencyLimit.data?.active_slots) {
+				throw new Error("'active_slots' expected");
+			}
+			// Early exit because there are no active task runs
+			if (taskRunConcurrencyLimit.data.active_slots.length === 0) {
+				return {
+					taskRunConcurrencyLimit: taskRunConcurrencyLimit.data,
+					activeTaskRuns: [],
+				};
+			}
+
+			// Get Task Runs info
+			const taskRuns = await getQueryService().POST("/task_runs/filter", {
+				body: {
+					task_runs: {
+						id: { any_: taskRunConcurrencyLimit.data.active_slots },
+						operator: "or_",
+					},
+					sort: "NAME_DESC",
+					offset: 0,
+				},
+			});
+			if (!taskRuns.data) {
+				throw new Error("'data' expected");
+			}
+
+			const flowRunsIds = taskRuns.data
+				.filter((taskRun) => Boolean(taskRun.flow_run_id))
+				.map((taskRun) => taskRun.flow_run_id) as Array<string>;
+
+			// Get Flow Runs info
+			const flowRuns = await getQueryService().POST("/flow_runs/filter", {
+				body: {
+					flow_runs: {
+						id: { any_: flowRunsIds },
+						operator: "or_",
+					},
+					sort: "NAME_DESC",
+					offset: 0,
+				},
+			});
+			if (!flowRuns.data) {
+				throw new Error("'data' expected");
+			}
+			const hasSameFlowID = flowRuns.data.every(
+				(flowRun) => flowRun.flow_id === flowRuns.data[0].flow_id,
+			);
+			if (!hasSameFlowID) {
+				throw new Error("Flow runs has mismatching 'flow_id'");
+			}
+			const flowID = flowRuns.data[0].flow_id;
+
+			// Get Flow info
+			const flow = await getQueryService().GET("/flows/{id}", {
+				params: { path: { id: flowID } },
+			});
+
+			if (!flow.data) {
+				throw new Error("'data' expected");
+			}
+
+			// Normalize data per active slot :
+			/**
+			 *
+			 *                   -> active_slot (task_run_id 1) -> flow_run (flow_run_id 1)
+			 *  concurrencyLimit -> active_slot (task_run_id 2) -> flow_run (flow_run_id 2) -> flow (flow_id)
+			 *                   -> active_slot (task_run_id 3) -> flow_run (flow_run_id 3)
+			 *
+			 */
+			const activeTaskRuns = taskRuns.data.map((taskRun) => {
+				const flowRun = flowRuns.data.find(
+					(flowRun) => flowRun.id === taskRun.flow_run_id,
+				);
+
+				if (!flowRun) {
+					throw new Error('"Expected to find flowRun');
+				}
+
+				return {
+					taskRun,
+					flowRun,
+					flow: flow.data,
+				};
+			});
+
+			return {
+				taskRunConcurrencyLimit: taskRunConcurrencyLimit.data,
+				activeTaskRuns,
+			};
+		},
+	});
