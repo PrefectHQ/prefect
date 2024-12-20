@@ -505,7 +505,7 @@ class DeploymentFilterTags(PrefectBaseModel, OperatorMixin):
             " superset of the list"
         ),
     )
-    any_: Optional[List[str]] = Field(
+    any_: Optional[list[str]] = Field(
         default=None,
         examples=[["tag-1", "tag-2"]],
         description="A list of tags to include",
