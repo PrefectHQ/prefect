@@ -158,6 +158,43 @@ class ServerDatabaseSettings(PrefectBaseSettings):
             "prefect_sqlalchemy_max_overflow",
         ),
     )
+    statement_cache_size: Optional[int] = Field(
+        default=None,
+        description="Controls statement cache size for PostgreSQL connections. Setting this to 0 is required when using PgBouncer in transaction mode. Defaults to None.",
+        validation_alias=AliasChoices(
+            AliasPath("statement_cache_size"),
+            "prefect_server_database_statement_cache_size",
+            "prefect_api_database_statement_cache_size",
+        ),
+    )
+
+    prepared_statement_cache_size: Optional[int] = Field(
+        default=None,
+        description=(
+            "Controls the size of the statement cache for PostgreSQL connections. "
+            "When set to 0, statement caching is disabled. Defaults to None to use "
+            "SQLAlchemy's default behavior."
+        ),
+        validation_alias=AliasChoices(
+            AliasPath("prepared_statement_cache_size"),
+            "prefect_server_database_prepared_statement_cache_size",
+            "prefect_api_database_prepared_statement_cache_size",
+        ),
+    )
+
+    application_name: Optional[str] = Field(
+        default=None,
+        description=(
+            "Sets a custom name for this database connection in PostgreSQL. "
+            "This value appears in database monitoring views and logs, helping identify "
+            "specific connection sources. Defaults to None to use SQLAlchemy's default."
+        ),
+        validation_alias=AliasChoices(
+            AliasPath("application_name"),
+            "prefect_server_database_application_name",
+            "prefect_api_database_application_name",
+        ),
+    )
 
     @model_validator(mode="after")
     def emit_warnings(self) -> Self:  # noqa: F821
