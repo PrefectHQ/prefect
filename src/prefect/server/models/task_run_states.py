@@ -9,11 +9,12 @@ from uuid import UUID
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from prefect.server.database import orm_models
+from prefect.server.database import PrefectDBInterface, db_injector, orm_models
 
 
+@db_injector
 async def read_task_run_state(
-    session: AsyncSession, task_run_state_id: UUID
+    db: PrefectDBInterface, session: AsyncSession, task_run_state_id: UUID
 ) -> Union[orm_models.TaskRunState, None]:
     """
     Reads a task run state by id.
@@ -26,11 +27,12 @@ async def read_task_run_state(
         orm_models.TaskRunState: the task state
     """
 
-    return await session.get(orm_models.TaskRunState, task_run_state_id)
+    return await session.get(db.TaskRunState, task_run_state_id)
 
 
+@db_injector
 async def read_task_run_states(
-    session: AsyncSession, task_run_id: UUID
+    db: PrefectDBInterface, session: AsyncSession, task_run_id: UUID
 ) -> Sequence[orm_models.TaskRunState]:
     """
     Reads task runs states for a task run.
@@ -44,15 +46,17 @@ async def read_task_run_states(
     """
 
     query = (
-        select(orm_models.TaskRunState)
+        select(db.TaskRunState)
         .filter_by(task_run_id=task_run_id)
-        .order_by(orm_models.TaskRunState.timestamp)
+        .order_by(db.TaskRunState.timestamp)
     )
     result = await session.execute(query)
     return result.scalars().unique().all()
 
 
-async def delete_task_run_state(session: AsyncSession, task_run_state_id: UUID) -> bool:
+async def delete_task_run_state(
+    db: PrefectDBInterface, session: AsyncSession, task_run_state_id: UUID
+) -> bool:
     """
     Delete a task run state by id.
 
@@ -65,8 +69,6 @@ async def delete_task_run_state(session: AsyncSession, task_run_state_id: UUID) 
     """
 
     result = await session.execute(
-        delete(orm_models.TaskRunState).where(
-            orm_models.TaskRunState.id == task_run_state_id
-        )
+        delete(db.TaskRunState).where(db.TaskRunState.id == task_run_state_id)
     )
     return result.rowcount > 0

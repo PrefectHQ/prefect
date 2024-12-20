@@ -14,11 +14,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.ext.asyncio.engine import AsyncEngine
 from sqlalchemy.orm import Mapped, declarative_base, mapped_column
 
+from prefect.server.database import PrefectDBInterface
 from prefect.server.database.configurations import AioSqliteConfiguration
-from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.database.orm_models import AioSqliteORMConfiguration
 from prefect.server.database.query_components import AioSqliteQueryComponents
-from prefect.server.utilities.database import JSON, Pydantic, Timestamp
+from prefect.server.utilities.database import (
+    JSON,
+    Pydantic,
+    Timestamp,
+    bindparams_from_clause,
+)
 
 DBBase = declarative_base(type_annotation_map={pendulum.DateTime: Timestamp})
 
@@ -615,3 +620,9 @@ async def test_error_thrown_if_sqlite_version_is_below_minimum():
                     orm=AioSqliteORMConfiguration(),
                 )
                 await db.engine()
+
+
+def test_bind_params_from_clause() -> None:
+    bp = sa.bindparam("foo", 42, sa.Integer)
+    statement = 17 < bp
+    assert bindparams_from_clause(statement) == {"foo": bp}

@@ -7,8 +7,7 @@ from fastapi import Body, Depends, HTTPException, Path, Query, status
 from prefect.blocks.core import _should_update_block_type
 from prefect.server import models, schemas
 from prefect.server.api import dependencies
-from prefect.server.database.dependencies import provide_database_interface
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.utilities.server import PrefectRouter
 
 router = PrefectRouter(prefix="/block_types", tags=["Block types"])

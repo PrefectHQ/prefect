@@ -12,7 +12,7 @@ import pendulum
 import sqlalchemy as sa
 
 from prefect.logging import get_logger
-from prefect.server.database.dependencies import provide_database_interface
+from prefect.server.database import provide_database_interface
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.events.storage.database import write_events
 from prefect.server.utilities.messaging import Message, MessageHandler, create_consumer

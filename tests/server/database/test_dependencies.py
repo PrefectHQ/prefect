@@ -1,17 +1,16 @@
 import asyncio
-import datetime
 from uuid import UUID
 
+import pendulum
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from prefect.server.database import dependencies
+from prefect.server.database import PrefectDBInterface, dependencies
 from prefect.server.database.configurations import (
     AioSqliteConfiguration,
     AsyncPostgresConfiguration,
     BaseDatabaseConfiguration,
 )
-from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.database.orm_models import (
     AioSqliteORMConfiguration,
     AsyncPostgresORMConfiguration,
@@ -127,11 +126,14 @@ async def test_injecting_really_dumb_query_components():
         def _get_scheduled_flow_runs_from_work_pool_template_path(self):
             ...
 
+        def _build_flow_run_graph_v2_query(self):
+            ...
+
         async def flow_run_graph_v2(
             self,
             session: AsyncSession,
             flow_run_id: UUID,
-            since: datetime,
+            since: pendulum.DateTime,
             max_nodes: int,
         ) -> Graph:
             raise NotImplementedError()

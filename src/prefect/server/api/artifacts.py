@@ -10,8 +10,7 @@ from fastapi import Body, Depends, HTTPException, Path, Response, status
 
 import prefect.server.api.dependencies as dependencies
 from prefect.server import models
-from prefect.server.database.dependencies import provide_database_interface
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.schemas import actions, core, filters, sorting
 from prefect.server.utilities.server import PrefectRouter
 

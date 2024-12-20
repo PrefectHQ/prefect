@@ -8,8 +8,11 @@ import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.logging import get_logger
-from prefect.server.database.dependencies import db_injector, provide_database_interface
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import (
+    PrefectDBInterface,
+    db_injector,
+    provide_database_interface,
+)
 from prefect.server.events.ordering import CausalOrdering, EventArrivedEarly
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.schemas.core import TaskRun
@@ -33,7 +36,7 @@ async def _insert_task_run(
     task_run_attributes: Dict[str, Any],
 ):
     await session.execute(
-        db.insert(db.TaskRun)
+        db.queries.insert(db.TaskRun)
         .values(
             created=pendulum.now("UTC"),
             **task_run_attributes,
@@ -56,7 +59,7 @@ async def _insert_task_run_state(
     db: PrefectDBInterface, session: AsyncSession, task_run: TaskRun
 ):
     await session.execute(
-        db.insert(db.TaskRunState)
+        db.queries.insert(db.TaskRunState)
         .values(
             created=pendulum.now("UTC"),
             task_run_id=task_run.id,

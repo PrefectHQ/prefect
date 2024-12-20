@@ -26,8 +26,7 @@ from pydantic import ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.logging import get_logger
-from prefect.server.database.dependencies import inject_db
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, inject_db
 from prefect.server.exceptions import OrchestrationError
 from prefect.server.models import artifacts, flow_runs
 from prefect.server.schemas import core, states

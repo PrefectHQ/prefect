@@ -272,7 +272,7 @@ class TestReadTaskRunStates:
 
 
 class TestDeleteTaskRunState:
-    async def test_delete_task_run_state(self, task_run, session):
+    async def test_delete_task_run_state(self, db, task_run, session):
         # create a task run to read
 
         task_run_state = (
@@ -284,7 +284,7 @@ class TestDeleteTaskRunState:
         ).state
 
         assert await models.task_run_states.delete_task_run_state(
-            session=session, task_run_state_id=task_run_state.id
+            db, session=session, task_run_state_id=task_run_state.id
         )
 
         # make sure the task run state is deleted
@@ -293,8 +293,10 @@ class TestDeleteTaskRunState:
         )
         assert result is None
 
-    async def test_delete_task_run_state_returns_false_if_does_not_exist(self, session):
+    async def test_delete_task_run_state_returns_false_if_does_not_exist(
+        self, db, session
+    ):
         result = await models.task_run_states.delete_task_run_state(
-            session=session, task_run_state_id=uuid4()
+            db, session=session, task_run_state_id=uuid4()
         )
         assert not result

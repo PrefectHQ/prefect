@@ -7,7 +7,7 @@ import pendulum
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface
 from prefect.server.events import actions, triggers
 from prefect.server.events.models import automations
 from prefect.server.events.schemas.automations import (

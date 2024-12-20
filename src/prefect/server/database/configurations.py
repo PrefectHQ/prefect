@@ -2,16 +2,25 @@ import sqlite3
 import traceback
 from abc import ABC, abstractmethod
 from asyncio import AbstractEventLoop, get_running_loop
-from contextlib import asynccontextmanager
+from collections.abc import AsyncGenerator, Hashable
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from contextvars import ContextVar
 from functools import partial
-from typing import Dict, Hashable, Optional, Tuple
+from typing import Any, Optional
 
 import sqlalchemy as sa
-from sqlalchemy import AdaptedConnection
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
+from sqlalchemy import AdaptedConnection, event
+from sqlalchemy.dialects.sqlite import aiosqlite
+from sqlalchemy.engine.interfaces import DBAPIConnection
+from sqlalchemy.ext.asyncio import (
+    AsyncConnection,
+    AsyncEngine,
+    AsyncSession,
+    AsyncSessionTransaction,
+    create_async_engine,
+)
 from sqlalchemy.pool import ConnectionPoolEntry
-from typing_extensions import Literal
+from typing_extensions import TypeAlias
 
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_TIMEOUT,
@@ -27,16 +36,17 @@ SQLITE_BEGIN_MODE: ContextVar[Optional[str]] = ContextVar(  # novm
     "SQLITE_BEGIN_MODE", default=None
 )
 
-ENGINES: Dict[Tuple[AbstractEventLoop, str, bool, float], AsyncEngine] = {}
+_EngineCacheKey: TypeAlias = tuple[AbstractEventLoop, str, bool, Optional[float]]
+ENGINES: dict[_EngineCacheKey, AsyncEngine] = {}
 
 
 class ConnectionTracker:
     """A test utility which tracks the connections given out by a connection pool, to
     make it easy to see which connections are currently checked out and open."""
 
-    all_connections: Dict[AdaptedConnection, str]
-    open_connections: Dict[AdaptedConnection, str]
-    left_field_closes: Dict[AdaptedConnection, str]
+    all_connections: dict[AdaptedConnection, list[str]]
+    open_connections: dict[AdaptedConnection, list[str]]
+    left_field_closes: dict[AdaptedConnection, list[str]]
     connects: int
     closes: int
     active: bool
@@ -49,16 +59,16 @@ class ConnectionTracker:
         self.connects = 0
         self.closes = 0
 
-    def track_pool(self, pool: sa.pool.Pool):
-        sa.event.listen(pool, "connect", self.on_connect)
-        sa.event.listen(pool, "close", self.on_close)
-        sa.event.listen(pool, "close_detached", self.on_close_detached)
+    def track_pool(self, pool: sa.pool.Pool) -> None:
+        event.listen(pool, "connect", self.on_connect)
+        event.listen(pool, "close", self.on_close)
+        event.listen(pool, "close_detached", self.on_close_detached)
 
     def on_connect(
         self,
         adapted_connection: AdaptedConnection,
         connection_record: ConnectionPoolEntry,
-    ):
+    ) -> None:
         self.all_connections[adapted_connection] = traceback.format_stack()
         self.open_connections[adapted_connection] = traceback.format_stack()
         self.connects += 1
@@ -67,7 +77,7 @@ class ConnectionTracker:
         self,
         adapted_connection: AdaptedConnection,
         connection_record: ConnectionPoolEntry,
-    ):
+    ) -> None:
         try:
             del self.open_connections[adapted_connection]
         except KeyError:
@@ -77,14 +87,14 @@ class ConnectionTracker:
     def on_close_detached(
         self,
         adapted_connection: AdaptedConnection,
-    ):
+    ) -> None:
         try:
             del self.open_connections[adapted_connection]
         except KeyError:
             self.left_field_closes[adapted_connection] = traceback.format_stack()
         self.closes += 1
 
-    def clear(self):
+    def clear(self) -> None:
         self.all_connections.clear()
         self.open_connections.clear()
         self.left_field_closes.clear()
@@ -111,21 +121,21 @@ class BaseDatabaseConfiguration(ABC):
         connection_timeout: Optional[float] = None,
         sqlalchemy_pool_size: Optional[int] = None,
         sqlalchemy_max_overflow: Optional[int] = None,
-    ):
+    ) -> None:
         self.connection_url = connection_url
-        self.echo = echo or PREFECT_API_DATABASE_ECHO.value()
-        self.timeout = timeout or PREFECT_API_DATABASE_TIMEOUT.value()
-        self.connection_timeout = (
+        self.echo: bool = echo or PREFECT_API_DATABASE_ECHO.value()
+        self.timeout: Optional[float] = timeout or PREFECT_API_DATABASE_TIMEOUT.value()
+        self.connection_timeout: Optional[float] = (
             connection_timeout or PREFECT_API_DATABASE_CONNECTION_TIMEOUT.value()
         )
-        self.sqlalchemy_pool_size = (
+        self.sqlalchemy_pool_size: Optional[int] = (
             sqlalchemy_pool_size or PREFECT_SQLALCHEMY_POOL_SIZE.value()
         )
-        self.sqlalchemy_max_overflow = (
+        self.sqlalchemy_max_overflow: Optional[int] = (
             sqlalchemy_max_overflow or PREFECT_SQLALCHEMY_MAX_OVERFLOW.value()
         )
 
-    def _unique_key(self) -> Tuple[Hashable, ...]:
+    def unique_key(self) -> tuple[Hashable, ...]:
         """
         Returns a key used to determine whether to instantiate a new DB interface.
         """
@@ -142,11 +152,15 @@ class BaseDatabaseConfiguration(ABC):
         """
 
     @abstractmethod
-    async def create_db(self, connection, base_metadata):
+    async def create_db(
+        self, connection: AsyncConnection, base_metadata: sa.MetaData
+    ) -> None:
         """Create the database"""
 
     @abstractmethod
-    async def drop_db(self, connection, base_metadata):
+    async def drop_db(
+        self, connection: AsyncConnection, base_metadata: sa.MetaData
+    ) -> None:
         """Drop the database"""
 
     @abstractmethod
@@ -154,9 +168,9 @@ class BaseDatabaseConfiguration(ABC):
         """Returns true if database is run in memory"""
 
     @abstractmethod
-    async def begin_transaction(
+    def begin_transaction(
         self, session: AsyncSession, with_for_update: bool = False
-    ):
+    ) -> AbstractAsyncContextManager[AsyncSessionTransaction]:
         """Enter a transaction for a session"""
         pass
 
@@ -187,8 +201,8 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
         )
         if cache_key not in ENGINES:
             # apply database timeout
-            kwargs = dict()
-            connect_args = dict()
+            kwargs: dict[str, Any] = dict()
+            connect_args: dict[str, Any] = dict()
 
             if self.timeout is not None:
                 connect_args["command_timeout"] = self.timeout
@@ -226,7 +240,7 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
             await self.schedule_engine_disposal(cache_key)
         return ENGINES[cache_key]
 
-    async def schedule_engine_disposal(self, cache_key):
+    async def schedule_engine_disposal(self, cache_key: _EngineCacheKey) -> None:
         """
         Dispose of an engine once the event loop is closing.
 
@@ -243,7 +257,7 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
         encountered should be encouraged to use a standalone server.
         """
 
-        async def dispose_engine(cache_key):
+        async def dispose_engine(cache_key: _EngineCacheKey) -> None:
             engine = ENGINES.pop(cache_key, None)
             if engine:
                 await engine.dispose()
@@ -262,23 +276,27 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
     @asynccontextmanager
     async def begin_transaction(
         self, session: AsyncSession, with_for_update: bool = False
-    ):
+    ) -> AsyncGenerator[AsyncSessionTransaction, None]:
         # `with_for_update` is for SQLite only. For Postgres, lock the row on read
         # for update instead.
         async with session.begin() as transaction:
             yield transaction
 
-    async def create_db(self, connection, base_metadata):
+    async def create_db(
+        self, connection: AsyncConnection, base_metadata: sa.MetaData
+    ) -> None:
         """Create the database"""
 
         await connection.run_sync(base_metadata.create_all)
 
-    async def drop_db(self, connection, base_metadata):
+    async def drop_db(
+        self, connection: AsyncConnection, base_metadata: sa.MetaData
+    ) -> None:
         """Drop the database"""
 
         await connection.run_sync(base_metadata.drop_all)
 
-    def is_inmemory(self) -> Literal[False]:
+    def is_inmemory(self) -> bool:
         """Returns true if database is run in memory"""
 
         return False
@@ -309,16 +327,11 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
                 f"{sqlite3.sqlite_version}"
             )
 
-        kwargs = {}
+        kwargs: dict[str, Any] = {}
 
         loop = get_running_loop()
 
-        cache_key = (
-            loop,
-            self.connection_url,
-            self.echo,
-            self.timeout,
-        )
+        cache_key = (loop, self.connection_url, self.echo, self.timeout)
         if cache_key not in ENGINES:
             # apply database timeout
             if self.timeout is not None:
@@ -351,7 +364,7 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
             await self.schedule_engine_disposal(cache_key)
         return ENGINES[cache_key]
 
-    async def schedule_engine_disposal(self, cache_key):
+    async def schedule_engine_disposal(self, cache_key: _EngineCacheKey) -> None:
         """
         Dispose of an engine once the event loop is closing.
 
@@ -368,19 +381,20 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
         encountered should be encouraged to use a standalone server.
         """
 
-        async def dispose_engine(cache_key):
+        async def dispose_engine(cache_key: _EngineCacheKey) -> None:
             engine = ENGINES.pop(cache_key, None)
             if engine:
                 await engine.dispose()
 
         await add_event_loop_shutdown_callback(partial(dispose_engine, cache_key))
 
-    def setup_sqlite(self, conn, record):
+    def setup_sqlite(self, conn: DBAPIConnection, record: ConnectionPoolEntry) -> None:
         """Issue PRAGMA statements to SQLITE on connect. PRAGMAs only last for the
         duration of the connection. See https://www.sqlite.org/pragma.html for more info.
         """
         # workaround sqlite transaction behavior
-        self.begin_sqlite_conn(conn, record)
+        if isinstance(conn, aiosqlite.AsyncAdapt_aiosqlite_connection):
+            self.begin_sqlite_conn(conn)
 
         cursor = conn.cursor()
 
@@ -425,14 +439,16 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
 
         cursor.close()
 
-    def begin_sqlite_conn(self, conn, record):
+    def begin_sqlite_conn(
+        self, conn: aiosqlite.AsyncAdapt_aiosqlite_connection
+    ) -> None:
         # disable pysqlite's emitting of the BEGIN statement entirely.
         # also stops it from emitting COMMIT before any DDL.
         # requires `begin_sqlite_stmt`
         # see https://docs.sqlalchemy.org/en/20/dialects/sqlite.html#serializable-isolation-savepoints-transactional-ddl
         conn.isolation_level = None
 
-    def begin_sqlite_stmt(self, conn):
+    def begin_sqlite_stmt(self, conn: sa.Connection) -> None:
         # emit our own BEGIN
         # requires `begin_sqlite_conn`
         # see https://docs.sqlalchemy.org/en/20/dialects/sqlite.html#serializable-isolation-savepoints-transactional-ddl
@@ -447,7 +463,7 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
     @asynccontextmanager
     async def begin_transaction(
         self, session: AsyncSession, with_for_update: bool = False
-    ):
+    ) -> AsyncGenerator[AsyncSessionTransaction, None]:
         token = SQLITE_BEGIN_MODE.set("IMMEDIATE" if with_for_update else "DEFERRED")
 
         try:
@@ -465,17 +481,21 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
         """
         return AsyncSession(engine, expire_on_commit=False)
 
-    async def create_db(self, connection, base_metadata):
+    async def create_db(
+        self, connection: AsyncConnection, base_metadata: sa.MetaData
+    ) -> None:
         """Create the database"""
 
         await connection.run_sync(base_metadata.create_all)
 
-    async def drop_db(self, connection, base_metadata):
+    async def drop_db(
+        self, connection: AsyncConnection, base_metadata: sa.MetaData
+    ) -> None:
         """Drop the database"""
 
         await connection.run_sync(base_metadata.drop_all)
 
-    def is_inmemory(self):
+    def is_inmemory(self) -> bool:
         """Returns true if database is run in memory"""
 
         return ":memory:" in self.connection_url or "mode=memory" in self.connection_url

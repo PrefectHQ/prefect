@@ -19,8 +19,7 @@ from prefect.server.api.validation import (
     validate_job_variables_for_deployment_flow_run,
 )
 from prefect.server.api.workers import WorkerLookups
-from prefect.server.database.dependencies import provide_database_interface
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.exceptions import MissingVariableError, ObjectNotFoundError
 from prefect.server.models.deployments import mark_deployments_ready
 from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME

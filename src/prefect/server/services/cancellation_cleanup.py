@@ -11,9 +11,7 @@ import sqlalchemy as sa
 from sqlalchemy.sql.expression import or_
 
 import prefect.server.models as models
-from prefect.server.database import orm_models
-from prefect.server.database.dependencies import inject_db
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, inject_db, orm_models
 from prefect.server.schemas import filters, states
 from prefect.server.services.loop_service import LoopService
 from prefect.settings import PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS
@@ -51,15 +49,14 @@ class CancellationCleanup(LoopService):
 
         self.logger.info("Finished cleaning up cancelled flow runs.")
 
-    async def clean_up_cancelled_flow_run_task_runs(self, db):
+    async def clean_up_cancelled_flow_run_task_runs(self, db: PrefectDBInterface):
         while True:
             cancelled_flow_query = (
-                sa.select(orm_models.FlowRun)
+                sa.select(db.FlowRun)
                 .where(
-                    orm_models.FlowRun.state_type == states.StateType.CANCELLED,
-                    orm_models.FlowRun.end_time.is_not(None),
-                    orm_models.FlowRun.end_time
-                    >= (pendulum.now("UTC").subtract(days=1)),
+                    db.FlowRun.state_type == states.StateType.CANCELLED,
+                    db.FlowRun.end_time.is_not(None),
+                    db.FlowRun.end_time >= (pendulum.now("UTC").subtract(days=1)),
                 )
                 .limit(self.batch_size)
             )
@@ -75,23 +72,23 @@ class CancellationCleanup(LoopService):
             if len(flow_runs) < self.batch_size:
                 break
 
-    async def clean_up_cancelled_subflow_runs(self, db):
+    async def clean_up_cancelled_subflow_runs(self, db: PrefectDBInterface):
         high_water_mark = UUID(int=0)
         while True:
             subflow_query = (
-                sa.select(orm_models.FlowRun)
+                sa.select(db.FlowRun)
                 .where(
                     or_(
-                        orm_models.FlowRun.state_type == states.StateType.PENDING,
-                        orm_models.FlowRun.state_type == states.StateType.SCHEDULED,
-                        orm_models.FlowRun.state_type == states.StateType.RUNNING,
-                        orm_models.FlowRun.state_type == states.StateType.PAUSED,
-                        orm_models.FlowRun.state_type == states.StateType.CANCELLING,
+                        db.FlowRun.state_type == states.StateType.PENDING,
+                        db.FlowRun.state_type == states.StateType.SCHEDULED,
+                        db.FlowRun.state_type == states.StateType.RUNNING,
+                        db.FlowRun.state_type == states.StateType.PAUSED,
+                        db.FlowRun.state_type == states.StateType.CANCELLING,
                     ),
-                    orm_models.FlowRun.id > high_water_mark,
-                    orm_models.FlowRun.parent_task_run_id.is_not(None),
+                    db.FlowRun.id > high_water_mark,
+                    db.FlowRun.parent_task_run_id.is_not(None),
                 )
-                .order_by(orm_models.FlowRun.id)
+                .order_by(db.FlowRun.id)
                 .limit(self.batch_size)
             )
 
