@@ -360,10 +360,13 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
         mimetypes.add_type("application/javascript", ".js")
 
     @ui_app.get(f"{stripped_base_url}/ui-settings")
-    def ui_settings():
+    def ui_settings() -> dict[str, Any]:
         return {
             "api_url": prefect.settings.PREFECT_UI_API_URL.value(),
             "csrf_enabled": prefect.settings.PREFECT_SERVER_CSRF_PROTECTION_ENABLED.value(),
+            "auth": "BASIC"
+            if prefect.settings.PREFECT_SERVER_API_AUTH_STRING.value()
+            else None,
             "flags": [],
         }
 

@@ -7,6 +7,7 @@ import { FeatureFlag } from '@/utilities/permissions'
 export type Settings = {
   apiUrl: string,
   csrfEnabled: boolean,
+  auth: string,
   flags: FeatureFlag[],
 }
 
