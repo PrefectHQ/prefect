@@ -11,7 +11,7 @@ from uuid import UUID
 from pydantic import ConfigDict, Field
 
 import prefect.server.schemas as schemas
-from prefect.server.database import PrefectDBInterface, db_injector
+from prefect.server.database import PrefectDBInterface, db_injector, orm_models
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
 from prefect.types import DateTime
 from prefect.utilities.collections import AutoEnum
