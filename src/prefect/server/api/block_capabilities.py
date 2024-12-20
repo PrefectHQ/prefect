@@ -7,10 +7,7 @@ from typing import List
 from fastapi import Depends
 
 from prefect.server import models
-from prefect.server.database.dependencies import (
-    PrefectDBInterface,
-    provide_database_interface,
-)
+from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.utilities.server import PrefectRouter
 
 router = PrefectRouter(prefix="/block_capabilities", tags=["Block capabilities"])

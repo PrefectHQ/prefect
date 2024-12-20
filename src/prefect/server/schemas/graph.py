@@ -1,23 +1,29 @@
-from datetime import datetime
-from typing import Any, List, Literal, Optional, Tuple
+from typing import TYPE_CHECKING, Any, List, Literal, Optional, Tuple
 from uuid import UUID
+
+import pendulum
 
 from prefect.server.schemas.states import StateType
 from prefect.server.utilities.schemas import PrefectBaseModel
 
+if TYPE_CHECKING:
+    DateTime = pendulum.DateTime
+else:
+    from prefect.types import DateTime
+
 
 class GraphState(PrefectBaseModel):
     id: UUID
-    timestamp: datetime
+    timestamp: DateTime
     type: StateType
     name: str
 
 
 class GraphArtifact(PrefectBaseModel):
     id: UUID
-    created: datetime
+    created: DateTime
     key: Optional[str]
-    type: str
+    type: Optional[str]
     is_latest: bool
     data: Optional[Any]  # we only return data for progress artifacts for now
 
@@ -31,8 +37,8 @@ class Node(PrefectBaseModel):
     id: UUID
     label: str
     state_type: StateType
-    start_time: datetime
-    end_time: Optional[datetime]
+    start_time: DateTime
+    end_time: Optional[DateTime]
     parents: List[Edge]
     children: List[Edge]
     encapsulating: List[Edge]
@@ -40,8 +46,8 @@ class Node(PrefectBaseModel):
 
 
 class Graph(PrefectBaseModel):
-    start_time: datetime
-    end_time: Optional[datetime]
+    start_time: Optional[DateTime]
+    end_time: Optional[DateTime]
     root_node_ids: List[UUID]
     nodes: List[Tuple[UUID, Node]]
     artifacts: List[GraphArtifact]

@@ -7,11 +7,10 @@ from fastapi import Depends, HTTPException, status
 from pydantic import Field, model_serializer
 
 import prefect.server.schemas as schemas
-from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect.logging import get_logger
 from prefect.server import models
-from prefect.server.database.dependencies import provide_database_interface
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, provide_database_interface
+from prefect.server.utilities.schemas.bases import PrefectBaseModel
 from prefect.server.utilities.server import PrefectRouter
 from prefect.types import DateTime
 
@@ -97,6 +96,7 @@ async def read_dashboard_task_run_counts(
         raw_counts = (
             (
                 await models.task_runs._apply_task_run_filters(
+                    db,
                     sa.select(
                         bucket_expression,
                         sa.func.min(db.TaskRun.end_time).label("oldest"),

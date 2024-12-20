@@ -6,7 +6,7 @@ import pytest
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface
 from prefect.server.events import actions
 from prefect.server.events.clients import AssertingEventsClient
 from prefect.server.events.schemas.automations import (

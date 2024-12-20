@@ -1,13 +1,12 @@
 from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING, AsyncGenerator, Optional, Sequence, Union
+from typing import AsyncGenerator, Optional, Sequence, Union
 from uuid import UUID
 
 import pendulum
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from prefect.server.database.dependencies import db_injector
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, db_injector
 from prefect.server.events import filters
 from prefect.server.events.schemas.automations import (
     Automation,
@@ -17,9 +16,6 @@ from prefect.server.events.schemas.automations import (
 )
 from prefect.settings import PREFECT_API_SERVICES_TRIGGERS_ENABLED
 from prefect.utilities.asyncutils import run_coro_as_sync
-
-if TYPE_CHECKING:
-    from prefect.server.database import orm_models
 
 
 @asynccontextmanager
@@ -64,7 +60,7 @@ async def count_automations_for_workspace(
     db: PrefectDBInterface,
     session: AsyncSession,
 ) -> int:
-    query = sa.select(sa.func.count(sa.text("*"))).select_from(db.Automation)
+    query = sa.select(sa.func.count(None)).select_from(db.Automation)
 
     result = await session.execute(query)
 
@@ -77,10 +73,9 @@ async def read_automation(
     session: AsyncSession,
     automation_id: UUID,
 ) -> Optional[Automation]:
-    result = await session.execute(
+    automation = await session.scalar(
         sa.select(db.Automation).where(db.Automation.id == automation_id)
     )
-    automation: Optional[orm_models.Automation] = result.scalars().first()
     if not automation:
         return None
     return Automation.model_validate(automation, from_attributes=True)
@@ -90,12 +85,11 @@ async def read_automation(
 async def read_automation_by_id(
     db: PrefectDBInterface, session: AsyncSession, automation_id: UUID
 ) -> Optional[Automation]:
-    result = await session.execute(
+    automation = await session.scalar(
         sa.select(db.Automation).where(
             db.Automation.id == automation_id,
         )
     )
-    automation: Optional[orm_models.Automation] = result.scalars().first()
     if not automation:
         return None
     return Automation.model_validate(automation, from_attributes=True)
@@ -287,7 +281,7 @@ async def relate_automation_to_resource(
     owned_by_resource: bool,
 ) -> None:
     await session.execute(
-        db.insert(db.AutomationRelatedResource)
+        db.queries.insert(db.AutomationRelatedResource)
         .values(
             automation_id=automation_id,
             resource_id=resource_id,

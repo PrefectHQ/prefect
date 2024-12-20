@@ -340,7 +340,7 @@ async def stop():
 @database_app.command()
 async def reset(yes: bool = typer.Option(False, "--yes", "-y")):
     """Drop and recreate all Prefect database tables"""
-    from prefect.server.database.dependencies import provide_database_interface
+    from prefect.server.database import provide_database_interface
 
     db = provide_database_interface()
     engine = await db.engine()
@@ -378,8 +378,8 @@ async def upgrade(
     ),
 ):
     """Upgrade the Prefect database"""
+    from prefect.server.database import provide_database_interface
     from prefect.server.database.alembic_commands import alembic_upgrade
-    from prefect.server.database.dependencies import provide_database_interface
 
     db = provide_database_interface()
     engine = await db.engine()
@@ -418,8 +418,8 @@ async def downgrade(
     ),
 ):
     """Downgrade the Prefect database"""
+    from prefect.server.database import provide_database_interface
     from prefect.server.database.alembic_commands import alembic_downgrade
-    from prefect.server.database.dependencies import provide_database_interface
 
     db = provide_database_interface()
 

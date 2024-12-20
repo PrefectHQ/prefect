@@ -9,8 +9,7 @@ from fastapi import Body, Depends, HTTPException, Path, Query, status
 
 from prefect.server import models, schemas
 from prefect.server.api import dependencies
-from prefect.server.database.dependencies import provide_database_interface
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.utilities.server import PrefectRouter
 
 router = PrefectRouter(prefix="/block_documents", tags=["Block documents"])

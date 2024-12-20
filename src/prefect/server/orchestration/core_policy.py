@@ -15,8 +15,7 @@ from sqlalchemy import select
 
 from prefect.logging import get_logger
 from prefect.server import models
-from prefect.server.database.dependencies import inject_db
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, inject_db
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models import concurrency_limits, concurrency_limits_v2, deployments
 from prefect.server.orchestration.policies import BaseOrchestrationPolicy

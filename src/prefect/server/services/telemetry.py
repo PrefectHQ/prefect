@@ -12,8 +12,7 @@ import httpx
 import pendulum
 
 import prefect
-from prefect.server.database.dependencies import inject_db
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, inject_db
 from prefect.server.models import configuration
 from prefect.server.schemas.core import Configuration
 from prefect.server.services.loop_service import LoopService

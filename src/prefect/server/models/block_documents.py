@@ -13,9 +13,7 @@ from sqlalchemy.sql import Select
 
 import prefect.server.models as models
 from prefect.server import schemas
-from prefect.server.database import orm_models
-from prefect.server.database.dependencies import db_injector
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, db_injector, orm_models
 from prefect.server.schemas.actions import BlockDocumentReferenceCreate
 from prefect.server.schemas.core import BlockDocument
 from prefect.server.schemas.filters import BlockSchemaFilter
@@ -26,7 +24,9 @@ from prefect.utilities.names import obfuscate
 T = TypeVar("T", bound=tuple)
 
 
+@db_injector
 async def create_block_document(
+    db: PrefectDBInterface,
     session: AsyncSession,
     block_document: schemas.actions.BlockDocumentCreate,
 ) -> BlockDocument:
@@ -43,7 +43,7 @@ async def create_block_document(
     else:
         name = block_document.name
 
-    orm_block = orm_models.BlockDocument(
+    orm_block = db.BlockDocument(
         name=name,
         block_schema_id=block_document.block_schema_id,
         block_type_id=block_document.block_type_id,
@@ -85,13 +85,14 @@ async def create_block_document(
     return new_block_document
 
 
+@db_injector
 async def block_document_with_unique_values_exists(
-    session: AsyncSession, block_type_id: UUID, name: str
+    db: PrefectDBInterface, session: AsyncSession, block_type_id: UUID, name: str
 ) -> bool:
     result = await session.execute(
-        sa.select(sa.exists(orm_models.BlockDocument)).where(
-            orm_models.BlockDocument.block_type_id == block_type_id,
-            orm_models.BlockDocument.name == name,
+        sa.select(sa.exists(db.BlockDocument)).where(
+            db.BlockDocument.block_type_id == block_type_id,
+            db.BlockDocument.name == name,
         )
     )
     return bool(result.scalar_one_or_none())
@@ -152,6 +153,7 @@ async def read_block_document_by_id(
 
 
 async def _construct_full_block_document(
+    db: PrefectDBInterface,
     session: AsyncSession,
     block_documents_with_references: Sequence[
         Tuple[orm_models.ORMBlockDocument, Optional[str], Optional[UUID]]
@@ -186,6 +188,7 @@ async def _construct_full_block_document(
                 session, orm_block_document, include_secrets=include_secrets
             )
             full_child_block_document = await _construct_full_block_document(
+                db,
                 session,
                 block_documents_with_references,
                 parent_block_document=copy(block_document),
@@ -264,6 +267,7 @@ async def read_block_document_by_name(
 
 
 def _apply_block_document_filters(
+    db: PrefectDBInterface,
     query: Select[T],
     block_document_filter: Optional[schemas.filters.BlockDocumentFilter] = None,
     block_schema_filter: Optional[schemas.filters.BlockSchemaFilter] = None,
@@ -279,15 +283,15 @@ def _apply_block_document_filters(
     query = query.where(block_document_filter.as_sql_filter())
 
     if block_type_filter is not None:
-        block_type_exists_clause = sa.select(orm_models.BlockType).where(
-            orm_models.BlockType.id == orm_models.BlockDocument.block_type_id,
+        block_type_exists_clause = sa.select(db.BlockType).where(
+            db.BlockType.id == db.BlockDocument.block_type_id,
             block_type_filter.as_sql_filter(),
         )
         query = query.where(block_type_exists_clause.exists())
 
     if block_schema_filter is not None:
-        block_schema_exists_clause = sa.select(orm_models.BlockSchema).where(
-            orm_models.BlockSchema.id == orm_models.BlockDocument.block_schema_id,
+        block_schema_exists_clause = sa.select(db.BlockSchema).where(
+            db.BlockSchema.id == db.BlockDocument.block_schema_id,
             block_schema_filter.as_sql_filter(),
         )
         query = query.where(block_schema_exists_clause.exists())
@@ -295,7 +299,9 @@ def _apply_block_document_filters(
     return query
 
 
+@db_injector
 async def read_block_documents(
+    db: PrefectDBInterface,
     session: AsyncSession,
     block_document_filter: Optional[schemas.filters.BlockDocumentFilter] = None,
     block_type_filter: Optional[schemas.filters.BlockTypeFilter] = None,
@@ -309,15 +315,16 @@ async def read_block_documents(
     Read block documents with an optional limit and offset
     """
     # --- Build an initial query that filters for the requested block documents
-    filtered_block_documents_query = sa.select(orm_models.BlockDocument.id)
+    filtered_block_documents_query = sa.select(db.BlockDocument.id)
     filtered_block_documents_query = _apply_block_document_filters(
+        db,
         query=filtered_block_documents_query,
         block_document_filter=block_document_filter,
         block_type_filter=block_type_filter,
         block_schema_filter=block_schema_filter,
     )
     filtered_block_documents_query = filtered_block_documents_query.order_by(
-        sort.as_sql_sort()
+        *sort.as_sql_sort()
     )
 
     if offset is not None:
@@ -348,15 +355,14 @@ async def read_block_documents(
     # recursive part of query
     referenced_documents = (
         sa.select(
-            orm_models.BlockDocumentReference.reference_block_document_id,
-            orm_models.BlockDocumentReference.name,
-            orm_models.BlockDocumentReference.parent_block_document_id,
+            db.BlockDocumentReference.reference_block_document_id,
+            db.BlockDocumentReference.name,
+            db.BlockDocumentReference.parent_block_document_id,
         )
         .select_from(parent_documents)
         .join(
-            orm_models.BlockDocumentReference,
-            orm_models.BlockDocumentReference.parent_block_document_id
-            == parent_documents.c.id,
+            db.BlockDocumentReference,
+            db.BlockDocumentReference.parent_block_document_id == parent_documents.c.id,
         )
     )
     # union the recursive CTE
@@ -367,16 +373,13 @@ async def read_block_documents(
     # and order by name
     final_query = (
         sa.select(
-            orm_models.BlockDocument,
+            db.BlockDocument,
             all_block_documents_query.c.reference_name,
             all_block_documents_query.c.reference_parent_block_document_id,
         )
         .select_from(all_block_documents_query)
-        .join(
-            orm_models.BlockDocument,
-            orm_models.BlockDocument.id == all_block_documents_query.c.id,
-        )
-        .order_by(sort.as_sql_sort())
+        .join(db.BlockDocument, db.BlockDocument.id == all_block_documents_query.c.id)
+        .order_by(*sort.as_sql_sort())
     )
 
     result = await session.execute(
@@ -404,6 +407,7 @@ async def read_block_documents(
                 session, root_orm_block_document, include_secrets=include_secrets
             )
             constructed = await _construct_full_block_document(
+                db,
                 session,
                 block_documents_with_references,  # type: ignore
                 root_block_document,
@@ -433,7 +437,9 @@ async def read_block_documents(
     return fully_constructed_block_documents
 
 
+@db_injector
 async def count_block_documents(
+    db: PrefectDBInterface,
     session: AsyncSession,
     block_document_filter: Optional[schemas.filters.BlockDocumentFilter] = None,
     block_type_filter: Optional[schemas.filters.BlockTypeFilter] = None,
@@ -442,9 +448,10 @@ async def count_block_documents(
     """
     Count block documents that match the filters.
     """
-    query = sa.select(sa.func.count()).select_from(orm_models.BlockDocument)
+    query = sa.select(sa.func.count()).select_from(db.BlockDocument)
 
     query = _apply_block_document_filters(
+        db,
         query=query,
         block_document_filter=block_document_filter,
         block_schema_filter=block_schema_filter,
@@ -455,26 +462,26 @@ async def count_block_documents(
     return result.scalar()  # type: ignore
 
 
+@db_injector
 async def delete_block_document(
+    db: PrefectDBInterface,
     session: AsyncSession,
     block_document_id: UUID,
 ) -> bool:
-    query = sa.delete(orm_models.BlockDocument).where(
-        orm_models.BlockDocument.id == block_document_id
-    )
+    query = sa.delete(db.BlockDocument).where(db.BlockDocument.id == block_document_id)
     result = await session.execute(query)
     return result.rowcount > 0
 
 
+@db_injector
 async def update_block_document(
+    db: PrefectDBInterface,
     session: AsyncSession,
     block_document_id: UUID,
     block_document: schemas.actions.BlockDocumentUpdate,
 ) -> bool:
     merge_existing_data = block_document.merge_existing_data
-    current_block_document = await session.get(
-        orm_models.BlockDocument, block_document_id
-    )
+    current_block_document = await session.get(db.BlockDocument, block_document_id)
     if not current_block_document:
         return False
 
@@ -525,7 +532,7 @@ async def update_block_document(
         current_block_document_references = (
             (
                 await session.execute(
-                    sa.select(orm_models.BlockDocumentReference).filter_by(
+                    sa.select(db.BlockDocumentReference).filter_by(
                         parent_block_document_id=block_document_id
                     )
                 )
@@ -554,7 +561,7 @@ async def update_block_document(
             and proposed_block_schema_id != current_block_document.block_schema_id
         ):
             proposed_block_schema = await session.get(
-                orm_models.BlockSchema, proposed_block_schema_id
+                db.BlockSchema, proposed_block_schema_id
             )
             assert (
                 proposed_block_schema
@@ -570,8 +577,8 @@ async def update_block_document(
                     " type."
                 )
             await session.execute(
-                sa.update(orm_models.BlockDocument)
-                .where(orm_models.BlockDocument.id == block_document_id)
+                sa.update(db.BlockDocument)
+                .where(db.BlockDocument.id == block_document_id)
                 .values(block_schema_id=proposed_block_schema_id)
             )
 
@@ -628,7 +635,7 @@ async def create_block_document_reference(
     session: AsyncSession,
     block_document_reference: schemas.actions.BlockDocumentReferenceCreate,
 ) -> Union[orm_models.BlockDocumentReference, None]:
-    insert_stmt = db.insert(orm_models.BlockDocumentReference).values(
+    insert_stmt = db.queries.insert(db.BlockDocumentReference).values(
         **block_document_reference.model_dump_for_orm(
             exclude_unset=True, exclude={"created", "updated"}
         )
@@ -636,20 +643,22 @@ async def create_block_document_reference(
     await session.execute(insert_stmt)
 
     result = await session.execute(
-        sa.select(orm_models.BlockDocumentReference).where(
-            orm_models.BlockDocumentReference.id == block_document_reference.id
+        sa.select(db.BlockDocumentReference).where(
+            db.BlockDocumentReference.id == block_document_reference.id
         )
     )
 
     return result.scalar()
 
 
+@db_injector
 async def delete_block_document_reference(
+    db: PrefectDBInterface,
     session: AsyncSession,
     block_document_reference_id: UUID,
 ) -> bool:
-    query = sa.delete(orm_models.BlockDocumentReference).where(
-        orm_models.BlockDocumentReference.id == block_document_reference_id
+    query = sa.delete(db.BlockDocumentReference).where(
+        db.BlockDocumentReference.id == block_document_reference_id
     )
     result = await session.execute(query)
     return result.rowcount > 0
