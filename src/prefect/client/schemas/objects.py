@@ -240,6 +240,15 @@ class State(ObjectBaseModel, Generic[R]):
     ) -> Union[R, Exception]:
         ...
 
+    @overload
+    def result(
+        self: "State[R]",
+        raise_on_failure: bool = ...,
+        fetch: bool = ...,
+        retry_result_failure: bool = ...,
+    ) -> Union[R, Exception]:
+        ...
+
     @deprecated.deprecated_parameter(
         "fetch",
         when=lambda fetch: fetch is not True,

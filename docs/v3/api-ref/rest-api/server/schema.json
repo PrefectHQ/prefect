@@ -939,7 +939,7 @@
                             "type": "string",
                             "format": "date-time",
                             "description": "Only include runs that start or end after this time.",
-                            "default": "0001-01-01T00:00:00",
+                            "default": "0001-01-01T00:00:00+00:00",
                             "title": "Since"
                         },
                         "description": "Only include runs that start or end after this time."
@@ -20065,8 +20065,15 @@
             "Graph": {
                 "properties": {
                     "start_time": {
-                        "type": "string",
-                        "format": "date-time",
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
                         "title": "Start Time"
                     },
                     "end_time": {
@@ -20157,7 +20164,14 @@
                         "title": "Key"
                     },
                     "type": {
-                        "type": "string",
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
                         "title": "Type"
                     },
                     "is_latest": {

@@ -7217,11 +7217,8 @@ export interface components {
         };
         /** Graph */
         Graph: {
-            /**
-             * Start Time
-             * Format: date-time
-             */
-            start_time: string;
+            /** Start Time */
+            start_time: string | null;
             /** End Time */
             end_time: string | null;
             /** Root Node Ids */
@@ -7251,7 +7248,7 @@ export interface components {
             /** Key */
             key: string | null;
             /** Type */
-            type: string;
+            type: string | null;
             /** Is Latest */
             is_latest: boolean;
             /** Data */
