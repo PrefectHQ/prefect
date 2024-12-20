@@ -1,4 +1,6 @@
+import { TaskRunConcurrencyLimitActionsMenu } from "@/components/concurrency/_shared/task-run-concurrency-limit-actions-menu";
 import { DataTable } from "@/components/ui/data-table";
+import { SearchInput } from "@/components/ui/input";
 import { type TaskRunConcurrencyLimit } from "@/hooks/task-run-concurrency-limits";
 import { getRouteApi } from "@tanstack/react-router";
 import {
@@ -7,14 +9,12 @@ import {
 	getPaginationRowModel,
 	useReactTable,
 } from "@tanstack/react-table";
-
-import { SearchInput } from "@/components/ui/input";
 import { useDeferredValue, useMemo } from "react";
-import { ActionsCell } from "./actions-cell";
+
 import { ActiveTaskRunCells } from "./active-task-runs-cell";
+import { TagCell } from "./tag-cell";
 
-const routeApi = getRouteApi("/concurrency-limits");
-
+const routeApi = getRouteApi("/concurrency-limits/");
 const columnHelper = createColumnHelper<TaskRunConcurrencyLimit>();
 
 const createColumns = ({
@@ -25,7 +25,8 @@ const createColumns = ({
 	onResetRow: (row: TaskRunConcurrencyLimit) => void;
 }) => [
 	columnHelper.accessor("tag", {
-		header: "Tag", // TODO: Make this a link when starting the tak run concurrency page
+		header: "Tag",
+		cell: TagCell,
 	}),
 	columnHelper.accessor("concurrency_limit", {
 		header: "Slots",
@@ -36,13 +37,16 @@ const createColumns = ({
 	}),
 	columnHelper.display({
 		id: "actions",
-		cell: (props) => (
-			<ActionsCell
-				{...props}
-				onDeleteRow={onDeleteRow}
-				onResetRow={onResetRow}
-			/>
-		),
+		cell: (props) => {
+			const row = props.row.original;
+			return (
+				<TaskRunConcurrencyLimitActionsMenu
+					id={row.id}
+					onDelete={() => onDeleteRow(row)}
+					onReset={() => onResetRow(row)}
+				/>
+			);
+		},
 	}),
 ];
 
