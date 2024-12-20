@@ -1,3 +1,4 @@
+import asyncio
 import importlib.util
 import runpy
 import sys
@@ -15,6 +16,7 @@ from prefect.utilities.importtools import (
     from_qualified_name,
     import_object,
     lazy_import,
+    load_script_as_module,
     safe_load_namespace,
     to_qualified_name,
 )
@@ -342,3 +344,48 @@ def test_safe_load_namespace_implicit_relative_imports():
     namespace = safe_load_namespace(source_code, filepath=str(path))
     assert "get_foo" in namespace
     assert "get_bar" in namespace
+
+
+def test_concurrent_script_loading(tmpdir: Path):
+    """Test that loading multiple scripts concurrently is thread-safe.
+
+    This is a regression test for https://github.com/PrefectHQ/prefect/issues/16452
+    where concurrent flow loading would fail with KeyError: '__prefect_loader__'
+    """
+    script_contents = """
+def hello():
+    return "Hello from {}"
+"""
+
+    scripts: list[str] = []
+
+    for i in range(5):
+        path = tmpdir / f"script_{i}.py"
+        path.write_text(script_contents.format(i), encoding="utf-8")
+        scripts.append(str(path))
+
+    loaded_modules: list[ModuleType] = []
+    errors: list[Exception] = []
+
+    async def load_script(path: str) -> str:
+        try:
+            module = load_script_as_module(path)
+            loaded_modules.append(module)
+            return module.hello()
+        except Exception as e:
+            errors.append(e)
+            raise
+
+    async def run_concurrent_loads():
+        futures = [load_script(script) for script in scripts]
+        return await asyncio.gather(*futures)
+
+    results = asyncio.run(run_concurrent_loads())
+
+    assert not errors, f"Errors occurred during concurrent loading: {errors}"
+    assert len(results) == 5
+    assert sorted(results) == [f"Hello from {i}" for i in range(5)]
+
+    module_names = [m.__name__ for m in loaded_modules]
+    assert len(module_names) == len(set(module_names)), "Duplicate module names found"
+    assert all(name.startswith("__prefect_loader_") for name in module_names)
