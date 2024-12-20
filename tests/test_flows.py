@@ -496,7 +496,7 @@ class TestFlowWithOptions:
             inspect.signature(Flow.with_options).parameters.keys()
         )
         # `with_options` does not accept a new function
-        flow_params.remove("__fn")
+        flow_params.remove("_FlowDecorator__fn")
         # `self` isn't in flow decorator
         with_options_params.remove("self")
 
