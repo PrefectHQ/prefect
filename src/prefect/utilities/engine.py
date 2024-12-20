@@ -18,6 +18,7 @@ from typing import (
 from uuid import UUID
 
 import anyio
+from opentelemetry import propagate, trace
 from typing_extensions import TypeIs
 
 import prefect
@@ -767,6 +768,19 @@ def resolve_to_final_result(expr: Any, context: dict[str, Any]) -> Any:
     result = state.result(raise_on_failure=False, fetch=True)
     if asyncio.iscoroutine(result):
         result = run_coro_as_sync(result)
+
+    if state.state_details.traceparent:
+        parameter_context = propagate.extract(
+            {"traceparent": state.state_details.traceparent}
+        )
+        trace.get_current_span().add_link(
+            context=trace.get_current_span(parameter_context).get_span_context(),
+            attributes={
+                "prefect.input.name": context["parameter_name"],
+                "prefect.input.type": type(result).__name__,
+            },
+        )
+
     return result
 
 
@@ -796,7 +810,7 @@ def resolve_inputs_sync(
                 return_data=return_data,
                 max_depth=max_depth,
                 remove_annotations=True,
-                context={},
+                context={"parameter_name": parameter},
             )
         except UpstreamTaskError:
             raise

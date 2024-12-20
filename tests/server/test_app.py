@@ -3,6 +3,7 @@ from fastapi.testclient import TestClient
 
 from prefect.server.api.server import create_app
 from prefect.settings import (
+    PREFECT_SERVER_API_AUTH_STRING,
     PREFECT_SERVER_CSRF_PROTECTION_ENABLED,
     PREFECT_UI_API_URL,
     temporary_settings,
@@ -28,6 +29,7 @@ def test_app_exposes_ui_settings():
     assert response.json() == {
         "api_url": PREFECT_UI_API_URL.value(),
         "csrf_enabled": PREFECT_SERVER_CSRF_PROTECTION_ENABLED.value(),
+        "auth": "BASIC" if PREFECT_SERVER_API_AUTH_STRING.value() else None,
         "flags": [],
     }
 

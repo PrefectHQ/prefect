@@ -286,6 +286,22 @@ class Pydantic(TypeDecorator[T]):
             return pydantic.TypeAdapter(self._pydantic_type).validate_python(value)
 
 
+def bindparams_from_clause(
+    query: sa.ClauseElement,
+) -> dict[str, sa.BindParameter[Any]]:
+    """Retrieve all non-anonymous bind parameters defined in a SQL clause"""
+    # we could use `traverse(query, {}, {"bindparam": some_list.append})` too,
+    # but this private method builds on the SQLA query caching infrastructure
+    # and so is more efficient.
+    return {
+        bp.key: bp
+        for bp in query._get_embedded_bindparams()  # pyright: ignore[reportPrivateUsage]
+        # Anonymous keys are always a printf-style template that starts with '%([seed]'
+        # the seed is the id() of the bind parameter itself.
+        if not bp.key.startswith(f"%({id(bp)}")
+    }
+
+
 # Platform-independent datetime and timedelta arithmetic functions
 
 
@@ -648,7 +664,6 @@ def sqlite_json_operators(
 
 
 class greatest(functions.ReturnTypeFromArgs[T]):
-    name = "greatest"
     inherit_cache = True
 
 
