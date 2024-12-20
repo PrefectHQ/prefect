@@ -24,7 +24,15 @@ from prefect.utilities.filesystem import filename, is_local_path, tmpchdir
 
 logger: Logger = get_logger(__name__)
 
-_SYS_PATH_LOCK = threading.Lock()
+_sys_path_lock: Optional[threading.Lock] = None
+
+
+def _get_sys_path_lock() -> threading.Lock:
+    """Get the global sys.path lock, initializing it if necessary."""
+    global _sys_path_lock
+    if _sys_path_lock is None:
+        _sys_path_lock = threading.Lock()
+    return _sys_path_lock
 
 
 def to_qualified_name(obj: Any) -> str:
@@ -142,6 +150,9 @@ def load_script_as_module(path: str) -> ModuleType:
 
     Sets the module name to a unique identifier to ensure thread safety.
     Uses a lock to safely modify sys.path for relative imports.
+
+    If an exception occurs during execution of the script, a
+    `prefect.exceptions.ScriptError` is created to wrap the exception and raised.
     """
     if not path.endswith(".py"):
         raise ValueError(f"The provided path does not point to a python file: {path!r}")
@@ -165,7 +176,7 @@ def load_script_as_module(path: str) -> ModuleType:
     sys.modules[module_name] = module
 
     try:
-        with _SYS_PATH_LOCK:
+        with _get_sys_path_lock():
             sys.path.insert(0, working_directory)
             sys.path.insert(0, parent_path)
             try:
