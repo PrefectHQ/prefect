@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Callable, Optional
 
 from pydantic import BaseModel, Field
 
@@ -256,4 +256,4 @@ class Variable(BaseModel):
                 return False
 
 
-__getattr__ = getattr_migration(__name__)
+__getattr__: Callable[[str], Any] = getattr_migration(__name__)

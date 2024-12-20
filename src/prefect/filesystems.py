@@ -2,7 +2,7 @@ import abc
 import urllib.parse
 from pathlib import Path
 from shutil import copytree
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 
 import anyio
 import fsspec
@@ -544,4 +544,4 @@ class NullFileSystem(BaseModel):
         pass
 
 
-__getattr__ = getattr_migration(__name__)
+__getattr__: Callable[[str], Any] = getattr_migration(__name__)
