@@ -11,7 +11,7 @@ from typing import Any, Dict, Iterable, Optional, Type
 import anyio
 import httpx
 import pendulum
-from opentelemetry import trace
+from opentelemetry import propagate
 from typing_extensions import TypeGuard
 
 from prefect._internal.compatibility import deprecated
@@ -592,10 +592,9 @@ class StateGroup:
 def _traced(cls: Type[State[R]], **kwargs: Any) -> State[R]:
     state_details = StateDetails.model_validate(kwargs.pop("state_details", {}))
 
-    context = trace.get_current_span().get_span_context()
-    if context.is_valid:
-        state_details.trace_id = context.trace_id
-        state_details.span_id = context.span_id
+    carrier = {}
+    propagate.inject(carrier)
+    state_details.traceparent = carrier.get("traceparent")
 
     return cls(**kwargs, state_details=state_details)
 

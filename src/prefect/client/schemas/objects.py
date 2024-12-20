@@ -191,8 +191,7 @@ class StateDetails(PrefectBaseModel):
     transition_id: Optional[UUID] = None
     task_parameters_id: Optional[UUID] = None
     # Captures the trace_id and span_id of the span where this state was created
-    trace_id: Optional[int] = None
-    span_id: Optional[int] = None
+    traceparent: Optional[str] = None
 
 
 def data_discriminator(x: Any) -> str:
