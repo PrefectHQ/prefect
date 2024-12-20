@@ -8287,10 +8287,8 @@ export interface components {
             transition_id?: string | null;
             /** Task Parameters Id */
             task_parameters_id?: string | null;
-            /** Trace Id */
-            trace_id?: number | null;
-            /** Span Id */
-            span_id?: number | null;
+            /** Traceparent */
+            traceparent?: string | null;
         };
         /**
          * StateRejectDetails

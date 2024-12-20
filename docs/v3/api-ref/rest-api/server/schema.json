@@ -22080,27 +22080,16 @@
                         ],
                         "title": "Task Parameters Id"
                     },
-                    "trace_id": {
+                    "traceparent": {
                         "anyOf": [
                             {
-                                "type": "integer"
+                                "type": "string"
                             },
                             {
                                 "type": "null"
                             }
                         ],
-                        "title": "Trace Id"
-                    },
-                    "span_id": {
-                        "anyOf": [
-                            {
-                                "type": "integer"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Span Id"
+                        "title": "Traceparent"
                     }
                 },
                 "type": "object",
