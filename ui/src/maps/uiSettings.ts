@@ -7,6 +7,7 @@ export const mapSettingsResponseToSettings: MapFunction<SettingsResponse, Settin
   return {
     apiUrl: source.api_url,
     csrfEnabled: source.csrf_enabled,
+    auth: source.auth,
     flags: this.map('FlagResponse', source.flags, 'FeatureFlag').filter(isNotNullish),
   }
 }

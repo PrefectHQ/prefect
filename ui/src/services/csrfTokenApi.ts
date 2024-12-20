@@ -56,7 +56,14 @@ export class CsrfTokenApi extends Api {
 
     const refresh = async (): Promise<void> => {
       try {
-        const response = await this.get<CsrfTokenResponse>(`/csrf-token?client=${this.clientId}`)
+
+        const password = localStorage.getItem('prefect-password')
+        const response = await this.get<CsrfTokenResponse>(`/csrf-token?client=${this.clientId}`, 
+        {
+          headers: password ? {
+            'Authorization': `Basic ${password}`
+          } : undefined
+        })
         this.csrfToken = mapper.map('CsrfTokenResponse', response.data, 'CsrfToken')
 
         this.ongoingRefresh = null
