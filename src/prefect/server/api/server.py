@@ -4,6 +4,7 @@ Defines the Prefect REST API FastAPI app.
 
 import asyncio
 import atexit
+import base64
 import contextlib
 import mimetypes
 import os
@@ -315,6 +316,30 @@ def create_api_app(
     for router in API_ROUTERS:
         api_app.include_router(router, dependencies=dependencies)
 
+    auth_string = prefect.settings.PREFECT_SERVER_API_AUTH_STRING.value()
+
+    if auth_string is not None:
+
+        @api_app.middleware("http")
+        async def token_validation(request: Request, call_next):
+            header_token = request.headers.get("Authorization")
+
+            try:
+                scheme, creds = header_token.split()
+                assert scheme == "Basic"
+                decoded = base64.b64decode(creds).decode("utf-8")
+            except Exception:
+                return JSONResponse(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    content={"exception_message": "Unauthorized"},
+                )
+            if decoded != auth_string:
+                return JSONResponse(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    content={"exception_message": "Unauthorized"},
+                )
+            return await call_next(request)
+
     return api_app
 
 
@@ -503,7 +528,7 @@ def create_app(
     async def run_migrations():
         """Ensure the database is created and up to date with the current migrations"""
         if prefect.settings.PREFECT_API_DATABASE_MIGRATE_ON_START:
-            from prefect.server.database.dependencies import provide_database_interface
+            from prefect.server.database import provide_database_interface
 
             db = provide_database_interface()
             await db.create_db()
@@ -514,7 +539,7 @@ def create_app(
         if not prefect.settings.PREFECT_API_BLOCKS_REGISTER_ON_START:
             return
 
-        from prefect.server.database.dependencies import provide_database_interface
+        from prefect.server.database import provide_database_interface
         from prefect.server.models.block_registration import run_block_auto_registration
 
         db = provide_database_interface()

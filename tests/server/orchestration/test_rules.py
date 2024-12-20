@@ -9,7 +9,7 @@ import pytest
 import sqlalchemy.exc
 
 from prefect.server import models, schemas
-from prefect.server.database.dependencies import provide_database_interface
+from prefect.server.database import provide_database_interface
 from prefect.server.exceptions import OrchestrationError
 from prefect.server.orchestration.rules import (
     ALL_ORCHESTRATION_STATES,

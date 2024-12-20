@@ -77,7 +77,7 @@ Once you've authenticated to Prefect Cloud, open two terminal windows and run tw
 
 ```bash Terminal 1
 # Switch to the production workspace
-prefect cloud workspace set --workspace "<account>/production"
+prefect cloud workspace set --workspace "<account handle>/production"
 
 # Start a worker for the production work pool
 prefect worker start --pool default-work-pool
@@ -85,7 +85,7 @@ prefect worker start --pool default-work-pool
 
 ```bash Terminal 2
 # Switch to the staging workspace
-prefect cloud workspace set --workspace "<account>/staging"
+prefect cloud workspace set --workspace "<account handle>/staging"
 
 # Start a worker for the staging work pool
 prefect worker start --pool default-work-pool
@@ -101,13 +101,13 @@ Run the following script from the demo repository to create flow runs in each wo
 
 ```bash
 # Run flows in the production workspace
-prefect cloud workspace set --workspace "<account>/production"
+prefect cloud workspace set --workspace "<account handle>/production"
 python simulate_failures.py
 ```
 
 ```bash
 # Run flows in the staging workspace 
-prefect cloud workspace set --workspace "<account>/staging"
+prefect cloud workspace set --workspace "<account handle>/staging"
 python simulate_failures.py --fail-at-run 3
 ```
 
