@@ -19,7 +19,7 @@ from prefect.runner.storage import (
     RunnerStorage,
     create_storage_from_source,
 )
-from prefect.testing.utilities import AsyncMock, MagicMock
+from prefect.testing.utilities import AsyncMock, MagicMock, call
 from prefect.utilities.filesystem import tmpchdir
 
 
@@ -188,6 +188,77 @@ class TestGitRepository:
                 str(Path.cwd() / "repo"),
             ]
         )
+
+    async def test_clone_repo_sparse(self, mock_run_process: AsyncMock, monkeypatch):
+        """
+        Check if cloned repo can achieve sparse checkout with an access token
+        """
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
+
+        repo = GitRepository(
+            url="https://github.com/org/repo.git",
+            credentials={"username": "oauth2", "access_token": "token"},
+            directories=["dir_1", "dir_2"],
+        )
+        await repo.pull_code()
+
+        expected_calls = [
+            call(
+                [
+                    "git",
+                    "clone",
+                    "https://oauth2:token@github.com/org/repo.git",
+                    "--sparse",
+                    "--depth",
+                    "1",
+                    str(Path.cwd() / "repo"),
+                ]
+            ),
+            call(
+                ["git", "sparse-checkout", "set", "dir_1", "dir_2"],
+                cwd=Path.cwd() / "repo",
+            ),
+        ]
+
+        mock_run_process.assert_has_awaits(expected_calls)
+        assert (
+            mock_run_process.await_args_list == expected_calls
+        ), f"Unexpected calls: {mock_run_process.await_args_list}"
+
+    async def test_clone_existing_repo_sparse(
+        self, mock_run_process: AsyncMock, monkeypatch
+    ):
+        # pretend the repo already exists
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: ".git" in str(x))
+
+        repo = GitRepository(
+            url="https://github.com/org/repo.git",
+            credentials={"username": "oauth2", "access_token": "token"},
+            directories=["dir_1", "dir_2"],
+        )
+
+        await repo.pull_code()
+
+        expected_calls = [
+            call(
+                ["git", "config", "--get", "remote.origin.url"],
+                cwd=str(Path.cwd() / "repo"),
+            ),
+            call(
+                ["git", "config", "--get", "core.sparseCheckout"],
+                cwd=Path.cwd() / "repo",
+            ),
+            call(
+                ["git", "sparse-checkout", "set", "dir_1", "dir_2"],
+                cwd=Path.cwd() / "repo",
+            ),
+            call(["git", "pull", "origin", "--depth", "1"], cwd=Path.cwd() / "repo"),
+        ]
+
+        mock_run_process.assert_has_awaits(expected_calls)
+        assert (
+            mock_run_process.await_args_list == expected_calls
+        ), f"Unexpected calls: {mock_run_process.await_args_list}"
 
     async def test_pull_code_with_username_and_password(
         self,
