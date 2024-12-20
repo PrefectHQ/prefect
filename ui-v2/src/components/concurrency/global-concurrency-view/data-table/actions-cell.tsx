@@ -24,7 +24,7 @@ export const ActionsCell = ({ onEditRow, onDeleteRow, ...props }: Props) => {
 			throw new Error("'id' field expected in GlobalConcurrencyLimit");
 		}
 		void navigator.clipboard.writeText(id);
-		toast({ title: "Name copied" });
+		toast({ title: "ID copied" });
 	};
 
 	const row = props.row.original;
