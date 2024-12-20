@@ -3,9 +3,9 @@ from fastapi.testclient import TestClient
 
 from prefect.server.api.server import create_app
 from prefect.settings import (
+    PREFECT_SERVER_API_AUTH_STRING,
     PREFECT_SERVER_CSRF_PROTECTION_ENABLED,
     PREFECT_UI_API_URL,
-    PREFECT_SERVER_API_AUTH_STRING,
     temporary_settings,
 )
 
