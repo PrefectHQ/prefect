@@ -70,14 +70,14 @@ def store(storage_block: WritableFileSystem) -> ResultStore:
 
 
 @pytest.fixture
-async def a_real_result(store) -> ResultRecord:
+async def a_real_result(store: ResultStore) -> ResultRecord[str]:
     return store.create_result_record(
         "test-graceful-retry",
     )
 
 
 @pytest.fixture
-def completed_state(a_real_result: ResultRecord) -> State[str]:
+def completed_state(a_real_result: ResultRecord[str]) -> State[str]:
     return State(type=StateType.COMPLETED, data=a_real_result.metadata)
 
 
@@ -107,7 +107,7 @@ async def test_graceful_retries_reraise_last_error_while_retrieving_missing_resu
     now = time.monotonic()
     with pytest.raises(FileNotFoundError):
         with mock.patch(
-            "prefect.filesystems.LocalFileSystem.read_path",
+            "prefect.filesystems.LocalFileSystem.read_path.aio",
             new=mock.AsyncMock(
                 side_effect=[
                     OSError,
@@ -129,7 +129,7 @@ async def test_graceful_retries_reraise_last_error_while_retrieving_missing_resu
 
 async def test_graceful_retries_eventually_succeed_while(
     shorter_result_retries: None,
-    a_real_result: ResultRecord,
+    a_real_result: ResultRecord[str],
     completed_state: State[str],
     store: ResultStore,
 ):
@@ -147,7 +147,7 @@ async def test_graceful_retries_eventually_succeed_while(
     # even if it misses a couple times, it will eventually return the data
     now = time.monotonic()
     with mock.patch(
-        "prefect.filesystems.LocalFileSystem.read_path",
+        "prefect.filesystems.LocalFileSystem.read_path.aio",
         new=mock.AsyncMock(
             side_effect=[
                 FileNotFoundError,
