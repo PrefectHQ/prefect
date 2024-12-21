@@ -37,7 +37,6 @@ from typing import (
 from uuid import UUID
 
 import pydantic
-
 from pydantic.v1 import BaseModel as V1BaseModel
 from pydantic.v1.decorator import ValidatedFunction as V1ValidatedFunction
 from pydantic.v1.errors import ConfigError  # TODO
