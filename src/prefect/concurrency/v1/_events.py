@@ -1,18 +1,18 @@
-from typing import Dict, List, Literal, Optional, Union
+from typing import Literal, Optional, Union
 from uuid import UUID
 
 from prefect.client.schemas.responses import MinimalConcurrencyLimitResponse
 from prefect.events import Event, RelatedResource, emit_event
 
 
-def _emit_concurrency_event(
+def emit_concurrency_event(
     phase: Union[Literal["acquired"], Literal["released"]],
     primary_limit: MinimalConcurrencyLimitResponse,
-    related_limits: List[MinimalConcurrencyLimitResponse],
+    related_limits: list[MinimalConcurrencyLimitResponse],
     task_run_id: UUID,
     follows: Union[Event, None] = None,
 ) -> Union[Event, None]:
-    resource: Dict[str, str] = {
+    resource: dict[str, str] = {
         "prefect.resource.id": f"prefect.concurrency-limit.v1.{primary_limit.id}",
         "prefect.resource.name": primary_limit.name,
         "limit": str(primary_limit.limit),
@@ -38,24 +38,22 @@ def _emit_concurrency_event(
     )
 
 
-def _emit_concurrency_acquisition_events(
-    limits: List[MinimalConcurrencyLimitResponse],
+def emit_concurrency_acquisition_events(
+    limits: list[MinimalConcurrencyLimitResponse],
     task_run_id: UUID,
-) -> Dict[UUID, Optional[Event]]:
-    events = {}
+) -> dict[UUID, Optional[Event]]:
+    events: dict[UUID, Optional[Event]] = {}
     for limit in limits:
-        event = _emit_concurrency_event("acquired", limit, limits, task_run_id)
+        event = emit_concurrency_event("acquired", limit, limits, task_run_id)
         events[limit.id] = event
 
     return events
 
 
-def _emit_concurrency_release_events(
-    limits: List[MinimalConcurrencyLimitResponse],
-    events: Dict[UUID, Optional[Event]],
+def emit_concurrency_release_events(
+    limits: list[MinimalConcurrencyLimitResponse],
+    events: dict[UUID, Optional[Event]],
     task_run_id: UUID,
 ) -> None:
     for limit in limits:
-        _emit_concurrency_event(
-            "released", limit, limits, task_run_id, events[limit.id]
-        )
+        emit_concurrency_event("released", limit, limits, task_run_id, events[limit.id])

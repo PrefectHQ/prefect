@@ -1,31 +1,15 @@
+import asyncio
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import (
-    Generator,
-    List,
-    Optional,
-    TypeVar,
-    Union,
-    cast,
-)
+from typing import Optional, TypeVar, Union
 from uuid import UUID
 
 import pendulum
 
-from ...client.schemas.responses import MinimalConcurrencyLimitResponse
-
-try:
-    from pendulum import Interval
-except ImportError:
-    # pendulum < 3
-    from pendulum.period import Period as Interval  # type: ignore
-
-from .asyncio import (
-    _acquire_concurrency_slots,
-    _release_concurrency_slots,
-)
-from .events import (
-    _emit_concurrency_acquisition_events,
-    _emit_concurrency_release_events,
+from ._asyncio import acquire_concurrency_slots, release_concurrency_slots
+from ._events import (
+    emit_concurrency_acquisition_events,
+    emit_concurrency_release_events,
 )
 
 T = TypeVar("T")
@@ -33,7 +17,7 @@ T = TypeVar("T")
 
 @contextmanager
 def concurrency(
-    names: Union[str, List[str]],
+    names: Union[str, list[str]],
     task_run_id: UUID,
     timeout_seconds: Optional[float] = None,
 ) -> Generator[None, None, None]:
@@ -69,23 +53,20 @@ def concurrency(
 
     names = names if isinstance(names, list) else [names]
 
-    limits: List[MinimalConcurrencyLimitResponse] = _acquire_concurrency_slots(
-        names,
-        timeout_seconds=timeout_seconds,
-        task_run_id=task_run_id,
-        _sync=True,
+    force = {"_sync": True}
+    result = acquire_concurrency_slots(
+        names, timeout_seconds=timeout_seconds, task_run_id=task_run_id, **force
     )
+    assert not asyncio.iscoroutine(result)
+    limits = result
     acquisition_time = pendulum.now("UTC")
-    emitted_events = _emit_concurrency_acquisition_events(limits, task_run_id)
+    emitted_events = emit_concurrency_acquisition_events(limits, task_run_id)
 
     try:
         yield
     finally:
-        occupancy_period = cast(Interval, pendulum.now("UTC") - acquisition_time)
-        _release_concurrency_slots(
-            names,
-            task_run_id,
-            occupancy_period.total_seconds(),
-            _sync=True,
+        occupancy_period = pendulum.now("UTC") - acquisition_time
+        release_concurrency_slots(
+            names, task_run_id, occupancy_period.total_seconds(), **force
         )
-        _emit_concurrency_release_events(limits, emitted_events, task_run_id)
+        emit_concurrency_release_events(limits, emitted_events, task_run_id)
