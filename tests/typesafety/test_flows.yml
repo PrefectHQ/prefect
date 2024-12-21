@@ -3,7 +3,7 @@
   main: |
     from prefect import flow
     reveal_type(flow.from_source)
-  regex: yes
+  regex: true
   # this has to be a regex, because mypy randomly (!) switches between ... and [*Any, **Any] syntax here
   out: "main:2: note: Revealed type is \"\
         def \\(\

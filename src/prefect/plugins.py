@@ -9,15 +9,15 @@ Currently supported entrypoints:
 """
 
 from types import ModuleType
-from typing import Any, Dict, Union
+from typing import Any, Union
 
 import prefect.settings
 from prefect.utilities.compat import EntryPoints, entry_points
 
-COLLECTIONS: Union[None, Dict[str, Union[ModuleType, Exception]]] = None
+_collections: Union[None, dict[str, Union[ModuleType, Exception]]] = None
 
 
-def safe_load_entrypoints(entrypoints: EntryPoints) -> Dict[str, Union[Exception, Any]]:
+def safe_load_entrypoints(entrypoints: EntryPoints) -> dict[str, Union[Exception, Any]]:
     """
     Load entry points for a group capturing any exceptions that occur.
     """
@@ -26,7 +26,7 @@ def safe_load_entrypoints(entrypoints: EntryPoints) -> Dict[str, Union[Exception
     #       also want to validate the type for the group for entrypoints that have
     #       a specific type we expect.
 
-    results = {}
+    results: dict[str, Union[Exception, Any]] = {}
 
     for entrypoint in entrypoints:
         result = None
@@ -40,18 +40,20 @@ def safe_load_entrypoints(entrypoints: EntryPoints) -> Dict[str, Union[Exception
     return results
 
 
-def load_prefect_collections() -> Dict[str, Union[ModuleType, Exception]]:
+def load_prefect_collections() -> dict[str, Union[ModuleType, Exception]]:
     """
     Load all Prefect collections that define an entrypoint in the group
     `prefect.collections`.
     """
-    global COLLECTIONS
+    global _collections
 
-    if COLLECTIONS is not None:
-        return COLLECTIONS
+    if _collections is not None:
+        return _collections
 
     collection_entrypoints: EntryPoints = entry_points(group="prefect.collections")
-    collections = safe_load_entrypoints(collection_entrypoints)
+    collections: dict[str, Union[Exception, Any]] = safe_load_entrypoints(
+        collection_entrypoints
+    )
 
     # TODO: Consider the utility of this once we've established this pattern.
     #       We cannot use a logger here because logging is not yet initialized.
@@ -68,5 +70,5 @@ def load_prefect_collections() -> Dict[str, Union[ModuleType, Exception]]:
             if prefect.settings.PREFECT_DEBUG_MODE:
                 print(f"Loaded collection {name!r}.")
 
-    COLLECTIONS = collections
+    _collections = collections
     return collections
