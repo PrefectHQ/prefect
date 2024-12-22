@@ -314,9 +314,7 @@ async def start(
 
     # This should only be reached if the server crashed, or was forcibly terminated,
     # hence we exit with an error
-    exit_with_error(
-        "Server stopped!", code=process.returncode
-    )
+    exit_with_error("Server stopped!", code=process.returncode)
 
 
 @server_app.command()
