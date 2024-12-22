@@ -311,8 +311,6 @@ async def start(
 
     except anyio.EndOfStream:
         logging.error("Subprocess stream ended unexpectedly")
-    except Exception as e:
-        logging.error(f"An error occurred: {str(e)}")
 
     # This should only be reached if the server crashed, or was forcibly terminated,
     # hence we exit with an error
