@@ -1,6 +1,6 @@
 import time
 from threading import Event, Lock, Thread
-from typing import TYPE_CHECKING, Dict, Optional
+from typing import TYPE_CHECKING, Optional
 
 from opentelemetry.context import Context
 from opentelemetry.sdk.trace import Span, SpanProcessor
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 class InFlightSpanProcessor(SpanProcessor):
     def __init__(self, span_exporter: "SpanExporter"):
         self.span_exporter = span_exporter
-        self._in_flight: Dict[int, Span] = {}
+        self._in_flight: dict[int, Span] = {}
         self._lock = Lock()
         self._stop_event = Event()
         self._export_thread = Thread(target=self._export_periodically, daemon=True)
@@ -30,10 +30,10 @@ class InFlightSpanProcessor(SpanProcessor):
                     self.span_exporter.export(to_export)
 
     def _readable_span(self, span: "Span") -> "ReadableSpan":
-        readable = span._readable_span()
-        readable._end_time = time.time_ns()
-        readable._attributes = {
-            **(readable._attributes or {}),
+        readable = span._readable_span()  # pyright: ignore[reportPrivateUsage]
+        readable._end_time = time.time_ns()  # pyright: ignore[reportPrivateUsage]
+        readable._attributes = {  # pyright: ignore[reportPrivateUsage]
+            **(readable._attributes or {}),  # pyright: ignore[reportPrivateUsage]
             "prefect.in-flight": True,
         }
         return readable

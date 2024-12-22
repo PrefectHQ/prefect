@@ -57,7 +57,7 @@ class LockManager(Protocol):
         """
         ...
 
-    def release_lock(self, key: str, holder: str):
+    def release_lock(self, key: str, holder: str) -> None:
         """
         Releases the lock on the corresponding transaction record.
 
