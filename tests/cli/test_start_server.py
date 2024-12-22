@@ -16,6 +16,7 @@ from prefect.context import get_settings_context
 from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_HOME,
+    PREFECT_API_DATABASE_CONNECTION_URL,
     PREFECT_PROFILES_PATH,
     Profile,
     ProfilesCollection,
@@ -420,11 +421,9 @@ class TestServerExitCodes:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         invalid_connection_url = "FOOBAR!"
-        monkeypatch.setenv(
-            "PREFECT_API_DATABASE_CONNECTION_URL", invalid_connection_url
-        )
-        invoke_and_assert(
-            command=["server", "start"],
-            expected_code=1,
-            expected_output_contains=invalid_connection_url,
-        )
+        with temporary_settings({PREFECT_API_DATABASE_CONNECTION_URL: invalid_connection_url}):
+            invoke_and_assert(
+                command=["server", "start"],
+                expected_code=1,
+                expected_output_contains=invalid_connection_url,
+            )
