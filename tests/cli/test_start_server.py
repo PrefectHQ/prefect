@@ -413,3 +413,15 @@ class TestPrestartCheck:
 
         profiles = load_profiles()
         assert profiles.active_name == "local"
+
+class TestServerExitCodes:
+    def test_misconfigured_server_exits_nonzero(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        invalid_connection_url = "FOOBAR!"
+        monkeypatch.setenv("PREFECT_API_DATABASE_CONNECTION_URL", invalid_connection_url)
+        invoke_and_assert(
+            command=[
+                "server", "start"
+            ],
+            expected_code=1,
+            expected_output_contains=invalid_connection_url
+        )
