@@ -1,6 +1,8 @@
 import asyncio
 import threading
-from typing import Dict, Optional, TypedDict
+from typing import Any, Optional, TypedDict
+
+from typing_extensions import Self
 
 from .protocol import LockManager
 
@@ -30,14 +32,14 @@ class MemoryLockManager(LockManager):
 
     _instance = None
 
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, *args: Any, **kwargs: Any) -> Self:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance
 
     def __init__(self):
         self._locks_dict_lock = threading.Lock()
-        self._locks: Dict[str, _LockInfo] = {}
+        self._locks: dict[str, _LockInfo] = {}
 
     def _expire_lock(self, key: str):
         """

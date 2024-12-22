@@ -1,32 +1,38 @@
-from abc import abstractmethod
-from typing import Union
+from collections.abc import Sequence
+from typing import Any, Protocol, TypeVar
 
 from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk._logs import LogData
 from opentelemetry.sdk._logs.export import LogExporter
 from opentelemetry.sdk.trace import ReadableSpan
-from opentelemetry.sdk.trace.export import SpanExporter
+from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 
 from prefect._internal.concurrency.services import BatchedQueueService
 
+BatchItem = TypeVar("BatchItem", ReadableSpan, LogData)
+T_contra = TypeVar("T_contra", contravariant=True)
 
-class BaseQueueingExporter(BatchedQueueService):
+
+class OTLPExporter(Protocol[T_contra]):
+    def export(self, __items: Sequence[T_contra]) -> Any:
+        ...
+
+    def shutdown(self) -> Any:
+        ...
+
+
+class BaseQueueingExporter(BatchedQueueService[BatchItem]):
     _max_batch_size = 512
     _min_interval = 2.0
-    _otlp_exporter: Union[SpanExporter, LogExporter]
 
-    def export(self, batch: list[Union[ReadableSpan, LogData]]) -> None:
-        for item in batch:
-            self.send(item)
+    def __init__(self, otlp_exporter: OTLPExporter[BatchItem]) -> None:
+        super().__init__()
+        self._otlp_exporter = otlp_exporter
 
-    @abstractmethod
-    def _export_batch(self, items: list[Union[ReadableSpan, LogData]]) -> None:
-        pass
-
-    async def _handle_batch(self, items: list[Union[ReadableSpan, LogData]]) -> None:
+    async def _handle_batch(self, items: list[BatchItem]) -> None:
         try:
-            self._export_batch(items)
+            self._otlp_exporter.export(items)
         except Exception as e:
             self._logger.exception(f"Failed to export batch: {e}")
             raise
@@ -39,29 +45,24 @@ class BaseQueueingExporter(BatchedQueueService):
         self._otlp_exporter.shutdown()
 
 
-class QueueingSpanExporter(BaseQueueingExporter, SpanExporter):
+class QueueingSpanExporter(BaseQueueingExporter[ReadableSpan], SpanExporter):
     _otlp_exporter: OTLPSpanExporter
 
     def __init__(self, endpoint: str, headers: tuple[tuple[str, str]]):
-        super().__init__()
-        self._otlp_exporter = OTLPSpanExporter(
-            endpoint=endpoint,
-            headers=dict(headers),
-        )
+        super().__init__(OTLPSpanExporter(endpoint=endpoint, headers=dict(headers)))
 
-    def _export_batch(self, items: list[ReadableSpan]) -> None:
-        self._otlp_exporter.export(items)
+    def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
+        for item in spans:
+            self.send(item)
+        return SpanExportResult.SUCCESS
 
 
-class QueueingLogExporter(BaseQueueingExporter, LogExporter):
+class QueueingLogExporter(BaseQueueingExporter[LogData], LogExporter):
     _otlp_exporter: OTLPLogExporter
 
-    def __init__(self, endpoint: str, headers: tuple[tuple[str, str]]):
-        super().__init__()
-        self._otlp_exporter = OTLPLogExporter(
-            endpoint=endpoint,
-            headers=dict(headers),
-        )
+    def __init__(self, endpoint: str, headers: tuple[tuple[str, str]]) -> None:
+        super().__init__(OTLPLogExporter(endpoint=endpoint, headers=dict(headers)))
 
-    def _export_batch(self, items: list[LogData]) -> None:
-        self._otlp_exporter.export(items)
+    def export(self, batch: Sequence[LogData]) -> None:
+        for item in batch:
+            self.send(item)

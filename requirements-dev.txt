@@ -15,7 +15,7 @@ pytest-benchmark
 pytest-cov
 pytest-env
 pytest-flakefinder
-pytest-mypy-plugins >= 3.1.0
+pytest-mypy-plugins >= 3.2.0
 pytest-timeout
 pytest-xdist >= 3.6.1
 pyyaml

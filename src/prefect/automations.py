@@ -1,4 +1,4 @@
-from typing import Optional, Type
+from typing import TYPE_CHECKING, Optional, overload
 from uuid import UUID
 
 from pydantic import Field
@@ -112,17 +112,28 @@ class Automation(AutomationCore):
         auto.name = "new name"
         auto.update()
         """
+        assert self.id is not None
         async with get_client() as client:
             automation = AutomationCore(
                 **self.model_dump(exclude={"id", "owner_resource"})
             )
             await client.update_automation(automation_id=self.id, automation=automation)
 
+    @overload
+    @classmethod
+    async def read(cls, id: UUID, name: Optional[str] = ...) -> Self:
+        ...
+
+    @overload
+    @classmethod
+    async def read(cls, id: None = None, name: str = ...) -> Optional[Self]:
+        ...
+
     @classmethod
     @sync_compatible
     async def read(
-        cls: Type[Self], id: Optional[UUID] = None, name: Optional[str] = None
-    ) -> Self:
+        cls, id: Optional[UUID] = None, name: Optional[str] = None
+    ) -> Optional[Self]:
         """
         Read an automation by ID or name.
         automation = Automation.read(name="woodchonk")
@@ -145,13 +156,13 @@ class Automation(AutomationCore):
                     raise
                 if automation is None:
                     raise ValueError(f"Automation with ID {id!r} not found")
-                return Automation(**automation.model_dump())
+                return cls(**automation.model_dump())
             else:
+                if TYPE_CHECKING:
+                    assert name is not None
                 automation = await client.read_automations_by_name(name=name)
                 if len(automation) > 0:
-                    return (
-                        Automation(**automation[0].model_dump()) if automation else None
-                    )
+                    return cls(**automation[0].model_dump()) if automation else None
                 else:
                     raise ValueError(f"Automation with name {name!r} not found")
 
@@ -161,6 +172,9 @@ class Automation(AutomationCore):
         auto = Automation.read(id = 123)
         auto.delete()
         """
+        if self.id is None:
+            raise ValueError("Can't delete an automation without an id")
+
         async with get_client() as client:
             try:
                 await client.delete_automation(self.id)
@@ -177,6 +191,9 @@ class Automation(AutomationCore):
         auto = Automation.read(id = 123)
         auto.disable()
         """
+        if self.id is None:
+            raise ValueError("Can't disable an automation without an id")
+
         async with get_client() as client:
             try:
                 await client.pause_automation(self.id)
@@ -193,6 +210,9 @@ class Automation(AutomationCore):
         auto = Automation.read(id = 123)
         auto.enable()
         """
+        if self.id is None:
+            raise ValueError("Can't enable an automation without an id")
+
         async with get_client() as client:
             try:
                 await client.resume_automation(self.id)

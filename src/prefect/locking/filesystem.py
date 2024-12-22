@@ -1,6 +1,7 @@
 import time
+from logging import Logger
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Optional
 
 import anyio
 import pendulum
@@ -11,7 +12,7 @@ from prefect.logging.loggers import get_logger
 
 from .protocol import LockManager
 
-logger = get_logger(__name__)
+logger: Logger = get_logger(__name__)
 
 
 class _LockInfo(TypedDict):
@@ -37,11 +38,11 @@ class FileSystemLockManager(LockManager):
         lock_files_directory: the directory where lock files are stored
     """
 
-    def __init__(self, lock_files_directory: Path):
-        self.lock_files_directory = lock_files_directory.expanduser().resolve()
-        self._locks: Dict[str, _LockInfo] = {}
+    def __init__(self, lock_files_directory: Path) -> None:
+        self.lock_files_directory: Path = lock_files_directory.expanduser().resolve()
+        self._locks: dict[str, _LockInfo] = {}
 
-    def _ensure_lock_files_directory_exists(self):
+    def _ensure_lock_files_directory_exists(self) -> None:
         self.lock_files_directory.mkdir(parents=True, exist_ok=True)
 
     def _lock_path_for_key(self, key: str) -> Path:
@@ -49,7 +50,7 @@ class FileSystemLockManager(LockManager):
             return lock_info["path"]
         return self.lock_files_directory.joinpath(key).with_suffix(".lock")
 
-    def _get_lock_info(self, key: str, use_cache=True) -> Optional[_LockInfo]:
+    def _get_lock_info(self, key: str, use_cache: bool = True) -> Optional[_LockInfo]:
         if use_cache:
             if (lock_info := self._locks.get(key)) is not None:
                 return lock_info
