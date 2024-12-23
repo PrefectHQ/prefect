@@ -18,9 +18,7 @@ requirements:
 ### start the local telemetry stack
 
 ```bash
-cd local-telemetry
-docker compose up -d
-cd ..
+./load_testing/local-telemetry/start
 ```
 
 ### run the server with tracing
