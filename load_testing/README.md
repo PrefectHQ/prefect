@@ -7,7 +7,7 @@ requirements:
 - opentelemetry libraries
 
 ```bash
-» uv pip install opentelemetry-api \
+uv pip install opentelemetry-api \
                 opentelemetry-sdk \
                 opentelemetry-exporter-otlp \
                 opentelemetry-instrumentation-sqlalchemy \
@@ -25,19 +25,19 @@ requirements:
 
 
 ```bash
+prefect config set PREFECT_API_URL=http://localhost:4200/api
 
-» prefect config set PREFECT_API_URL=http://localhost:4200/api
-
-» unset $(env | grep OTEL_ | cut -d= -f1)
+unset $(env | grep OTEL_ | cut -d= -f1)
 export OTEL_SERVICE_NAME=prefect-server
 export OTEL_TRACES_EXPORTER=otlp
 export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 export OTEL_EXPORTER_OTLP_PROTOCOL=grpc
 export OTEL_LOG_LEVEL=debug
+export PREFECT__ENABLE_OSS_TELEMETRY=true
 export PYTHONPATH=/Users/nate/github.com/prefecthq/prefect/src
 
 
-» opentelemetry-instrument \
+opentelemetry-instrument \
   uvicorn \
   --app-dir /Users/nate/github.com/prefecthq/prefect/src \
   --factory prefect.server.api.server:create_app \
