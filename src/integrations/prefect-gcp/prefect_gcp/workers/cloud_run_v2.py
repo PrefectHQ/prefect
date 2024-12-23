@@ -228,7 +228,7 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
         template["volumes"].append(
             {
                 "name": "cloudsql",
-                "cloudSqlInstance": {"instances": self.cloudsql_instances},
+                "cloud_sql_instance": {"instances": self.cloudsql_instances},
             }
         )
         if "volumeMounts" not in containers[0]:
