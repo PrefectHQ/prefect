@@ -1,4 +1,3 @@
-
 # investigating server performance
 
 requirements:
@@ -14,6 +13,15 @@ uv pip install opentelemetry-api \
                 opentelemetry-instrumentation-fastapi
 ```
 
+#### note
+
+allow the following scripts to run via `chmod +x` (or similar)
+
+```bash
+./load_testing/local-telemetry/start
+./load_testing/run-server.sh
+./load_testing/populate-server.sh
+```
 
 ### start the local telemetry stack
 
@@ -23,6 +31,24 @@ uv pip install opentelemetry-api \
 
 ### run the server with tracing
 
+You can run the server with either SQLite (default) or PostgreSQL using the `run-server.sh` script:
+
+```bash
+# Run with SQLite (default)
+./load_testing/run-server.sh
+
+# Run with PostgreSQL 15
+./load_testing/run-server.sh postgres:15
+```
+
+The script will:
+- For SQLite: Use the default SQLite configuration
+- For PostgreSQL: 
+  - Start a Docker container with the specified version
+  - Configure the database connection
+  - Handle container lifecycle (reuse if possible, recreate if version changes)
+
+If you need to run the server manually, here are the environment variables used:
 
 ```bash
 prefect config set PREFECT_API_URL=http://localhost:4200/api
@@ -35,30 +61,14 @@ export OTEL_EXPORTER_OTLP_PROTOCOL=grpc
 export OTEL_LOG_LEVEL=debug
 export PREFECT__ENABLE_OSS_TELEMETRY=true
 export PYTHONPATH=/Users/nate/github.com/prefecthq/prefect/src
-
-
-opentelemetry-instrument \
-  uvicorn \
-  --app-dir /Users/nate/github.com/prefecthq/prefect/src \
-  --factory prefect.server.api.server:create_app \
-  --host 127.0.0.1 \
-  --port 4200 \
-  --timeout-keep-alive 5
 ```
 
 ### populate the server
-
-if you haven't before, allow the script to run
-
-```bash
-chmod +x load_testing/populate-server.sh
-```
 
 create a work pool and some deployments
 ```bash
 ./load_testing/populate-server.sh
 ```
-
 
 ### start a worker
 
