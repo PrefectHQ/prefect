@@ -1,11 +1,3 @@
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
-
-instrumentor = FastAPIInstrumentor()
-instrumentor.instrument()
-SQLAlchemyInstrumentor().instrument()
-
-
 # Import user-facing API
 from typing import Any
 
@@ -57,9 +49,9 @@ prefect.logging.get_logger("profiles").debug(
 )
 
 # Configure telemetry
-# import prefect.telemetry.bootstrap
+import prefect.telemetry.bootstrap
 
-# prefect.telemetry.bootstrap.setup_telemetry()
+prefect.telemetry.bootstrap.setup_telemetry()
 
 
 from prefect._internal.compatibility.deprecated import (
