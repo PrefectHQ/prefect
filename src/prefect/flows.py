@@ -37,7 +37,6 @@ from typing import (
 from uuid import UUID
 
 import pydantic
-from fastapi.encoders import jsonable_encoder
 from pydantic.v1 import BaseModel as V1BaseModel
 from pydantic.v1.decorator import ValidatedFunction as V1ValidatedFunction
 from pydantic.v1.errors import ConfigError  # TODO
@@ -613,6 +612,8 @@ class Flow(Generic[P, R]):
                 serialized_parameters[key] = f"<{type(value).__name__}>"
                 continue
             try:
+                from fastapi.encoders import jsonable_encoder
+
                 serialized_parameters[key] = jsonable_encoder(value)
             except (TypeError, ValueError):
                 logger.debug(
