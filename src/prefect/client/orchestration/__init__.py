@@ -19,7 +19,12 @@ from packaging import version
 from starlette import status
 from typing_extensions import ParamSpec, Self, TypeVar
 
-from prefect.client.orchestration.artifacts import ArtifactClient, ArtifactAsyncClient
+from prefect.client.orchestration.artifacts import (
+    ArtifactClient,
+    ArtifactAsyncClient,
+    ArtifactCollectionClient,
+    ArtifactCollectionAsyncClient,
+)
 
 import prefect
 import prefect.exceptions
@@ -237,7 +242,7 @@ def get_client(
         )
 
 
-class PrefectClient(ArtifactAsyncClient):
+class PrefectClient(ArtifactAsyncClient, ArtifactCollectionAsyncClient):
     """
     An asynchronous client for interacting with the [Prefect REST API](/api-ref/rest-api/).
 
@@ -3427,7 +3432,7 @@ class PrefectClient(ArtifactAsyncClient):
         assert False, "This should never be called but must be defined for __enter__"
 
 
-class SyncPrefectClient(ArtifactClient):
+class SyncPrefectClient(ArtifactClient, ArtifactCollectionClient):
     """
     A synchronous client for interacting with the [Prefect REST API](/api-ref/rest-api/).
 

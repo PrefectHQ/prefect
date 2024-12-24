@@ -43,7 +43,8 @@ class ArtifactCollectionReadParams(BaseArtifactReadParams, total=False):
 
 @dataclass
 class ArtifactClient:
-    _client: Client
+    def __init__(self, client: Client):
+        self._client = client
 
     def create_artifact(self, artifact: "ArtifactCreate") -> "Artifact":
         response = request(
@@ -113,42 +114,10 @@ class ArtifactClient:
 
         return Artifact.model_validate_list(response.json())
 
-    def read_latest_artifacts(
-        self, **kwargs: Unpack["ArtifactCollectionReadParams"]
-    ) -> list["ArtifactCollection"]:
-        response = request(
-            self._client,
-            "POST",
-            "/artifacts/latest/filter",
-            json={
-                "artifact_filter": (
-                    artifact_filter.model_dump(mode="json", exclude_unset=True)
-                    if (artifact_filter := kwargs.get("artifact_filter"))
-                    else None
-                ),
-                "flow_run_filter": (
-                    flow_run_filter.model_dump(mode="json", exclude_unset=True)
-                    if (flow_run_filter := kwargs.get("flow_run_filter"))
-                    else None
-                ),
-                "task_run_filter": (
-                    task_run_filter.model_dump(mode="json", exclude_unset=True)
-                    if (task_run_filter := kwargs.get("task_run_filter"))
-                    else None
-                ),
-                "limit": kwargs.get("limit"),
-                "offset": kwargs.get("offset"),
-                "sort": kwargs.get("sort"),
-            },
-        )
-        from prefect.client.schemas.objects import ArtifactCollection
 
-        return ArtifactCollection.model_validate_list(response.json())
-
-
-@dataclass
 class ArtifactAsyncClient:
-    _client: AsyncClient
+    def __init__(self, client: AsyncClient):
+        self._client = client
 
     async def create_artifact(self, artifact: "ArtifactCreate") -> "Artifact":
         response = await arequest(
@@ -205,38 +174,6 @@ class ArtifactAsyncClient:
 
         return Artifact.model_validate_list(response.json())
 
-    async def read_latest_artifacts(
-        self, **kwargs: Unpack["ArtifactCollectionReadParams"]
-    ) -> list["ArtifactCollection"]:
-        response = await arequest(
-            self._client,
-            "POST",
-            "/artifacts/latest/filter",
-            json={
-                "artifact_filter": (
-                    artifact_filter.model_dump(mode="json", exclude_unset=True)
-                    if (artifact_filter := kwargs.get("artifact_filter"))
-                    else None
-                ),
-                "flow_run_filter": (
-                    flow_run_filter.model_dump(mode="json", exclude_unset=True)
-                    if (flow_run_filter := kwargs.get("flow_run_filter"))
-                    else None
-                ),
-                "task_run_filter": (
-                    task_run_filter.model_dump(mode="json", exclude_unset=True)
-                    if (task_run_filter := kwargs.get("task_run_filter"))
-                    else None
-                ),
-                "limit": kwargs.get("limit", None),
-                "offset": kwargs.get("offset", 0),
-                "sort": kwargs.get("sort", None),
-            },
-        )
-        from prefect.client.schemas.objects import ArtifactCollection
-
-        return ArtifactCollection.model_validate_list(response.json())
-
     async def delete_artifact(self, artifact_id: "UUID") -> None:
         try:
             await arequest(
@@ -250,3 +187,35 @@ class ArtifactAsyncClient:
                 raise ObjectNotFound(http_exc=e) from e
             else:
                 raise
+
+
+class ArtifactCollectionClient:
+    def __init__(self, client: Client):
+        self._client = client
+
+    def read_latest_artifacts(
+        self, **kwargs: Unpack["ArtifactCollectionReadParams"]
+    ) -> list["ArtifactCollection"]:
+        response = request(
+            self._client,
+            "POST",
+            "/artifacts/latest/filter",
+            json=kwargs,
+        )
+        return ArtifactCollection.model_validate_list(response.json())
+
+
+class ArtifactCollectionAsyncClient:
+    def __init__(self, client: AsyncClient):
+        self._client = client
+
+    async def read_latest_artifacts(
+        self, **kwargs: Unpack["ArtifactCollectionReadParams"]
+    ) -> list["ArtifactCollection"]:
+        response = await arequest(
+            self._client,
+            "POST",
+            "/artifacts/latest/filter",
+            json=kwargs,
+        )
+        return ArtifactCollection.model_validate_list(response.json())
