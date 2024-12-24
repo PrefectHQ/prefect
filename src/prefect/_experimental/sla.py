@@ -1,10 +1,11 @@
 import abc
 from typing import Optional, Union
+from uuid import UUID
 
-from pydantic import Field
+from pydantic import Field, PrivateAttr, computed_field
 from typing_extensions import TypeAlias
 
-from prefect._internal.schemas.bases import ActionBaseModel
+from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect.utilities.collections import AutoEnum
 
 
@@ -18,21 +19,35 @@ class SlaSeverity(AutoEnum):
     CRITICAL = "critical"
 
 
-class ServiceLevelAgreement(ActionBaseModel, abc.ABC):
+class ServiceLevelAgreement(PrefectBaseModel, abc.ABC):
     """An ORM representation of a Service Level Agreement."""
+
+    _deployment_id: Optional[UUID] = PrivateAttr(default=None)
 
     name: str = Field(
         default=...,
         description="The name of the SLA. Names must be unique on a per-deployment basis.",
     )
     severity: SlaSeverity = Field(
-        default=...,
+        default=SlaSeverity.MODERATE,
         description="The severity of the SLA.",
     )
     enabled: Optional[bool] = Field(
         default=True,
         description="Whether the SLA is enabled.",
     )
+
+    def set_deployment_id(self, deployment_id: UUID):
+        self._deployment_id = deployment_id
+
+    @computed_field
+    @property
+    def owner_resource(self) -> str:
+        if not self._deployment_id:
+            raise ValueError(
+                "Deployment ID is not set. Please set using `set_deployment_id`."
+            )
+        return f"prefect.deployment.{self._deployment_id}"
 
 
 class TimeToCompletionSla(ServiceLevelAgreement):

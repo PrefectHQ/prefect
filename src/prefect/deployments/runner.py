@@ -318,17 +318,6 @@ class RunnerDeployment(BaseModel):
                     [self.storage.to_pull_step()] if self.storage else []
                 )
 
-            # We plan to support SLA configuration on the Prefect Server in the future.
-            # For now, we only support it on Prefect Cloud.
-            if self.sla:
-                if client.server_type == ServerType.CLOUD:
-                    create_payload["sla"] = self.sla
-                else:
-                    logger = get_logger()
-                    logger.error(
-                        "SLA configuration is currently only supported on Prefect Cloud.",
-                    )
-
             try:
                 deployment_id = await client.create_deployment(**create_payload)
             except Exception as exc:
@@ -359,6 +348,22 @@ class RunnerDeployment(BaseModel):
             for trigger in self.triggers:
                 trigger.set_deployment_id(deployment_id)
                 await client.create_automation(trigger.as_automation())
+
+            # We plan to support SLA configuration on the Prefect Server in the future.
+            # For now, we only support it on Prefect Cloud.
+            if self.sla:
+                if not isinstance(self.sla, list):
+                    self.sla = [self.sla]
+
+                if client.server_type == ServerType.CLOUD:
+                    for sla in self.sla:
+                        sla.set_deployment_id(deployment_id)
+                        await client.create_service_level_agreement(sla)
+                else:
+                    logger = get_logger()
+                    logger.error(
+                        "SLA configuration is currently only supported on Prefect Cloud.",
+                    )
 
             return deployment_id
 

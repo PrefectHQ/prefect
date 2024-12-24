@@ -1684,7 +1684,6 @@ class PrefectClient:
         pull_steps: Optional[list[dict[str, Any]]] = None,
         enforce_parameter_schema: Optional[bool] = None,
         job_variables: Optional[dict[str, Any]] = None,
-        sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,  # experimental
     ) -> UUID:
         """
         Create a deployment.
@@ -1713,10 +1712,6 @@ class PrefectClient:
         if parameter_openapi_schema is None:
             parameter_openapi_schema = {}
 
-        if sla:
-            if not isinstance(sla, list):
-                sla = [sla]
-
         deployment_create = DeploymentCreate(
             flow_id=flow_id,
             name=name,
@@ -1737,7 +1732,6 @@ class PrefectClient:
             concurrency_options=concurrency_options,
             pull_steps=pull_steps,
             enforce_parameter_schema=enforce_parameter_schema,
-            service_level_agreements=sla,
         )
 
         if work_pool_name is not None:
@@ -1758,9 +1752,6 @@ class PrefectClient:
 
         if deployment_create.enforce_parameter_schema is None:
             exclude.add("enforce_parameter_schema")
-
-        if deployment_create.service_level_agreements is None:
-            exclude.add("service_level_agreements")
 
         json = deployment_create.model_dump(mode="json", exclude=exclude)
         response = await self._client.post(
@@ -3511,6 +3502,16 @@ class PrefectClient:
 
         response = await self._client.patch(
             f"/flow_runs/{flow_run_id}/labels", json=labels
+        )
+        response.raise_for_status()
+
+    async def create_service_level_agreement(self, sla: SlaTypes) -> None:
+        """
+        Creates a service level agreement.
+        """
+        response = await self._client.post(
+            "/service_level_agreements/",
+            json=sla.model_dump(mode="json", exclude_unset=True),
         )
         response.raise_for_status()
 
