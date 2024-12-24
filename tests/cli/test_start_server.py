@@ -14,6 +14,7 @@ from typer import Exit
 from prefect.cli.server import PID_FILE
 from prefect.context import get_settings_context
 from prefect.settings import (
+    PREFECT_API_DATABASE_CONNECTION_URL,
     PREFECT_API_URL,
     PREFECT_HOME,
     PREFECT_PROFILES_PATH,
@@ -413,3 +414,16 @@ class TestPrestartCheck:
 
         profiles = load_profiles()
         assert profiles.active_name == "local"
+
+
+class TestServerExitCodes:
+    def test_misconfigured_server_exits_nonzero(self) -> None:
+        invalid_connection_url = "FOOBAR!"
+        with temporary_settings(
+            {PREFECT_API_DATABASE_CONNECTION_URL: invalid_connection_url}
+        ):
+            invoke_and_assert(
+                command=["server", "start"],
+                expected_code=1,
+                expected_output_contains=invalid_connection_url,
+            )
