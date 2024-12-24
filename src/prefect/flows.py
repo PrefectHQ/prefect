@@ -44,7 +44,7 @@ from pydantic.v1.errors import ConfigError  # TODO
 from rich.console import Console
 from typing_extensions import Literal, ParamSpec, TypeAlias
 
-from prefect._experimental.sla import Sla
+from prefect._experimental.sla import SlaTypes
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect.blocks.core import Block
 from prefect.client.schemas.actions import DeploymentScheduleCreate
@@ -651,7 +651,7 @@ class Flow(Generic[P, R]):
         work_queue_name: Optional[str] = None,
         job_variables: Optional[dict[str, Any]] = None,
         entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
-        sla: Optional[Union[Sla, list[Sla]]] = None,  # experimental
+        sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,  # experimental
     ) -> "RunnerDeployment":
         """
         Creates a runner deployment object for this flow.
@@ -1065,7 +1065,7 @@ class Flow(Generic[P, R]):
         print_next_steps: bool = True,
         ignore_warnings: bool = False,
         # Experimental: SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
-        sla: Optional[Union[Sla, list[Sla]]] = None,
+        sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,
     ) -> UUID:
         """
         Deploys a flow to run on dynamic infrastructure via a work pool.

@@ -47,7 +47,7 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, track
 from rich.table import Table
 
-from prefect._experimental.sla import Sla
+from prefect._experimental.sla import SlaTypes
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.schemas.validators import (
     reconcile_paused_deployment,
@@ -208,7 +208,7 @@ class RunnerDeployment(BaseModel):
             " a built runner."
         ),
     )
-    sla: Optional[Union[Sla, list[Sla]]] = Field(
+    sla: Optional[Union[SlaTypes, list[SlaTypes]]] = Field(
         default=None,
         description="Experimental: SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.",
     )
@@ -476,7 +476,7 @@ class RunnerDeployment(BaseModel):
         work_queue_name: Optional[str] = None,
         job_variables: Optional[dict[str, Any]] = None,
         entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
-        sla: Optional[Union[Sla, list[Sla]]] = None,  # experimental
+        sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,  # experimental
     ) -> "RunnerDeployment":
         """
         Configure a deployment for a given flow.
@@ -616,7 +616,7 @@ class RunnerDeployment(BaseModel):
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
         job_variables: Optional[dict[str, Any]] = None,
-        sla: Optional[Union[Sla, list[Sla]]] = None,  # experimental
+        sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,  # experimental
     ) -> "RunnerDeployment":
         """
         Configure a deployment for a given flow located at a given entrypoint.
@@ -719,7 +719,7 @@ class RunnerDeployment(BaseModel):
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
         job_variables: Optional[dict[str, Any]] = None,
-        sla: Optional[Union[Sla, list[Sla]]] = None,  # experimental
+        sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,  # experimental
     ):
         """
         Create a RunnerDeployment from a flow located at a given entrypoint and stored in a

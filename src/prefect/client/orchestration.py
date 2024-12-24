@@ -23,7 +23,7 @@ import prefect
 import prefect.exceptions
 import prefect.settings
 import prefect.states
-from prefect._experimental.sla import Sla
+from prefect._experimental.sla import SlaTypes
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun, sorting
 from prefect.client.schemas.actions import (
@@ -1684,7 +1684,7 @@ class PrefectClient:
         pull_steps: Optional[list[dict[str, Any]]] = None,
         enforce_parameter_schema: Optional[bool] = None,
         job_variables: Optional[dict[str, Any]] = None,
-        sla: Optional[Union[Sla, list[Sla]]] = None,  # experimental
+        sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,  # experimental
     ) -> UUID:
         """
         Create a deployment.
