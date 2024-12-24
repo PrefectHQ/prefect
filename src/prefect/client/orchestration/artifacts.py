@@ -41,7 +41,6 @@ class ArtifactCollectionReadParams(BaseArtifactReadParams, total=False):
     sort: Annotated[Optional["ArtifactCollectionSort"], Field(default=None)]
 
 
-@dataclass
 class ArtifactClient:
     def __init__(self, client: Client):
         self._client = client
@@ -200,7 +199,26 @@ class ArtifactCollectionClient:
             self._client,
             "POST",
             "/artifacts/latest/filter",
-            json=kwargs,
+            json={
+                "artifact_filter": (
+                    artifact_filter.model_dump(mode="json", exclude_unset=True)
+                    if (artifact_filter := kwargs.get("artifact_filter"))
+                    else None
+                ),
+                "flow_run_filter": (
+                    flow_run_filter.model_dump(mode="json", exclude_unset=True)
+                    if (flow_run_filter := kwargs.get("flow_run_filter"))
+                    else None
+                ),
+                "task_run_filter": (
+                    task_run_filter.model_dump(mode="json", exclude_unset=True)
+                    if (task_run_filter := kwargs.get("task_run_filter"))
+                    else None
+                ),
+                "limit": kwargs.get("limit", None),
+                "offset": kwargs.get("offset", 0),
+                "sort": kwargs.get("sort", None),
+            },
         )
         return ArtifactCollection.model_validate_list(response.json())
 
@@ -216,6 +234,25 @@ class ArtifactCollectionAsyncClient:
             self._client,
             "POST",
             "/artifacts/latest/filter",
-            json=kwargs,
+            json={
+                "artifact_filter": (
+                    artifact_filter.model_dump(mode="json", exclude_unset=True)
+                    if (artifact_filter := kwargs.get("artifact_filter"))
+                    else None
+                ),
+                "flow_run_filter": (
+                    flow_run_filter.model_dump(mode="json", exclude_unset=True)
+                    if (flow_run_filter := kwargs.get("flow_run_filter"))
+                    else None
+                ),
+                "task_run_filter": (
+                    task_run_filter.model_dump(mode="json", exclude_unset=True)
+                    if (task_run_filter := kwargs.get("task_run_filter"))
+                    else None
+                ),
+                "limit": kwargs.get("limit", None),
+                "offset": kwargs.get("offset", 0),
+                "sort": kwargs.get("sort", None),
+            },
         )
         return ArtifactCollection.model_validate_list(response.json())
