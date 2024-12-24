@@ -65,9 +65,9 @@ class PrefectBaseModel(BaseModel):
         cls,
         obj: Any,
         *,
-        strict: bool | None = None,
-        from_attributes: bool | None = None,
-        context: Any | None = None,
+        strict: Optional[bool] = None,
+        from_attributes: Optional[bool] = None,
+        context: Optional[Any] = None,
     ) -> list[Self]:
         return validate_list(cls, obj)
 
