@@ -358,7 +358,7 @@ class RunnerDeployment(BaseModel):
                 if client.server_type == ServerType.CLOUD:
                     for sla in self.sla:
                         sla.set_deployment_id(deployment_id)
-                        await client.create_service_level_agreement(sla)
+                        await client.create_sla(sla)
                 else:
                     logger = get_logger()
                     logger.error(

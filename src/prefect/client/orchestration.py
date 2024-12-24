@@ -3505,15 +3505,30 @@ class PrefectClient:
         )
         response.raise_for_status()
 
-    async def create_service_level_agreement(self, sla: SlaTypes) -> None:
+    async def create_sla(self, sla: SlaTypes) -> UUID:
         """
         Creates a service level agreement.
+
+        Args:
+            sla: The SLA to create. Must have a deployment ID set.
+
+        Raises:
+            httpx.RequestError: if the SLA was not created for any reason
+
+        Returns:
+            the ID of the SLA in the backend
         """
         response = await self._client.post(
-            "/service_level_agreements/",
+            "/slas/",
             json=sla.model_dump(mode="json", exclude_unset=True),
         )
         response.raise_for_status()
+
+        sla_id = response.json().get("id")
+        if not sla_id:
+            raise httpx.RequestError(f"Malformed response: {response}")
+
+        return UUID(sla_id)
 
     async def __aenter__(self) -> Self:
         """
