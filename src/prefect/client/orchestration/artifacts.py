@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Annotated, Optional
 
 from httpx import AsyncClient, Client, HTTPStatusError

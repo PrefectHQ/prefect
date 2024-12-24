@@ -1,4 +1,3 @@
-from importlib import import_module
 from typing import Any, Callable, TypeVar
 
 from pydantic import BaseModel
