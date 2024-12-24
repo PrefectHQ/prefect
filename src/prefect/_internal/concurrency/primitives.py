@@ -27,7 +27,7 @@ class Event:
     """
 
     def __init__(self) -> None:
-        self._waiters = collections.deque()
+        self._waiters: collections.deque[asyncio.Future[bool]] = collections.deque()
         self._value = False
         self._lock = threading.Lock()
 
@@ -69,7 +69,7 @@ class Event:
             if self._value:
                 return True
 
-            fut = asyncio.get_running_loop().create_future()
+            fut: asyncio.Future[bool] = asyncio.get_running_loop().create_future()
             self._waiters.append(fut)
 
         try:
