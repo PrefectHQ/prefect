@@ -1,6 +1,6 @@
 # Import user-facing API
 from typing import Any
-
+import os
 from prefect.deployments import deploy
 from prefect.states import State
 from prefect.logging import get_run_logger
@@ -49,9 +49,10 @@ prefect.logging.get_logger("profiles").debug(
 )
 
 # Configure telemetry
-import prefect.telemetry.bootstrap
+if not os.environ.get("PREFECT__ENABLE_OSS_TELEMETRY"):
+    import prefect.telemetry.bootstrap
 
-prefect.telemetry.bootstrap.setup_telemetry()
+    prefect.telemetry.bootstrap.setup_telemetry()
 
 
 from prefect._internal.compatibility.deprecated import (
