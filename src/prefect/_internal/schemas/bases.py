@@ -16,6 +16,7 @@ from pydantic import (
 from typing_extensions import Self
 
 from prefect.types import DateTime
+from prefect.utilities.generics import validate_list
 
 T = TypeVar("T")
 
@@ -58,6 +59,17 @@ class PrefectBaseModel(BaseModel):
             return copy_dict == other.model_dump()
         else:
             return copy_dict == other
+
+    @classmethod
+    def model_validate_list(
+        cls,
+        obj: Any,
+        *,
+        strict: bool | None = None,
+        from_attributes: bool | None = None,
+        context: Any | None = None,
+    ) -> list[Self]:
+        return validate_list(cls, obj)
 
     def __rich_repr__(self) -> Generator[tuple[str, Any, Any], None, None]:
         # Display all of the fields in the model if they differ from the default value
