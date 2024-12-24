@@ -616,12 +616,15 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                 self.client.set_flow_run_name(
                     flow_run_id=self.flow_run.id, name=flow_run_name
                 )
+
                 self.logger.extra["flow_run_name"] = flow_run_name
                 self.logger.debug(
                     f"Renamed flow run {self.flow_run.name!r} to {flow_run_name!r}"
                 )
                 self.flow_run.name = flow_run_name
                 self._flow_run_name_set = True
+
+                self._telemetry.update_run_name(name=flow_run_name)
             yield
 
     @contextmanager
@@ -658,7 +661,6 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                 )
 
             self._telemetry.start_span(
-                name=self.flow.name,
                 run=self.flow_run,
                 client=self.client,
                 parameters=self.parameters,
@@ -1171,6 +1173,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             self.logger = flow_run_logger(flow_run=self.flow_run, flow=self.flow)
 
             # update the flow run name if necessary
+
             if not self._flow_run_name_set and self.flow.flow_run_name:
                 flow_run_name = resolve_custom_flow_run_name(
                     flow=self.flow, parameters=self.parameters
@@ -1184,6 +1187,8 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                 )
                 self.flow_run.name = flow_run_name
                 self._flow_run_name_set = True
+
+                self._telemetry.update_run_name(name=flow_run_name)
             yield
 
     @asynccontextmanager
@@ -1220,7 +1225,6 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                 )
 
             await self._telemetry.async_start_span(
-                name=self.flow.name,
                 run=self.flow_run,
                 client=self.client,
                 parameters=self.parameters,
