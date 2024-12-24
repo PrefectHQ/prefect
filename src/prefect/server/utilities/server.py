@@ -2,24 +2,26 @@
 Utilities for the Prefect REST API server.
 """
 
+from collections.abc import Coroutine, Sequence
 from contextlib import AsyncExitStack
-from typing import Any, Callable, Coroutine, Sequence, Set, get_type_hints
+from typing import TYPE_CHECKING, Any, Callable, get_type_hints
 
 from fastapi import APIRouter, Request, Response, status
-from fastapi.routing import APIRoute, BaseRoute
+from fastapi.routing import APIRoute
+from starlette.routing import BaseRoute
 from starlette.routing import Route as StarletteRoute
 
 
-def method_paths_from_routes(routes: Sequence[BaseRoute]) -> Set[str]:
+def method_paths_from_routes(routes: Sequence[BaseRoute]) -> set[str]:
     """
     Generate a set of strings describing the given routes in the format: <method> <path>
 
     For example, "GET /logs/"
     """
-    method_paths = set()
+    method_paths: set[str] = set()
     for route in routes:
         if isinstance(route, (APIRoute, StarletteRoute)):
-            for method in route.methods:
+            for method in route.methods or ():
                 method_paths.add(f"{method} {route.path}")
 
     return method_paths
@@ -42,10 +44,13 @@ class PrefectAPIRoute(APIRoute):
 
         async def handle_response_scoped_depends(request: Request) -> Response:
             # Create a new stack scoped to exit before the response is returned
+            response = None
             async with AsyncExitStack() as stack:
                 request.state.response_scoped_stack = stack
                 response = await default_handler(request)
 
+            if TYPE_CHECKING:
+                assert response is not None
             return response
 
         return handle_response_scoped_depends

@@ -43,7 +43,7 @@ Removed objects:
 """
 
 import sys
-from typing import Any, Callable, Dict
+from typing import Any, Callable
 
 from pydantic_core import PydanticCustomError
 
@@ -157,7 +157,7 @@ def getattr_migration(module_name: str) -> Callable[[str], Any]:
                 f"`{import_path}` has been removed. {error_message}"
             )
 
-        globals: Dict[str, Any] = sys.modules[module_name].__dict__
+        globals: dict[str, Any] = sys.modules[module_name].__dict__
         if name in globals:
             return globals[name]
 
