@@ -77,10 +77,14 @@ function createRandomEnrichedFlowRun(): React.ComponentProps<
 			paused: faker.datatype.boolean(),
 			status: faker.helpers.arrayElement(["READY", "NOT_READY"]),
 			enforce_parameter_schema: faker.datatype.boolean(),
+			created: faker.date.past().toISOString(),
+			updated: faker.date.past().toISOString(),
 		},
 		flow: {
 			id: faker.string.uuid(),
 			name: `${faker.finance.currencyName()} ${faker.commerce.product()}`,
+			created: faker.date.past().toISOString(),
+			updated: faker.date.past().toISOString(),
 		},
 	};
 }

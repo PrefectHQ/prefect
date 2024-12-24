@@ -113,6 +113,7 @@ repos:
               src/prefect/server/api/.*|
               src/prefect/server/schemas/.*|
               src/prefect/server/events/.*|
+              src/prefect/server/utilities/schemas/.*|
               ui-v2/package.json
           )$
         pass_filenames: false

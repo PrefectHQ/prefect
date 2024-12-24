@@ -106,7 +106,7 @@ export const columns: ColumnDef<Deployment>[] = [
 						<DropdownMenuItem>Custom run</DropdownMenuItem>
 						<DropdownMenuItem
 							onClick={() =>
-								void navigator.clipboard.writeText(row.original.id as string)
+								void navigator.clipboard.writeText(row.original.id)
 							}
 						>
 							Copy ID
