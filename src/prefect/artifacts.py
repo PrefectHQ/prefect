@@ -2,19 +2,20 @@
 Interface for creating and reading artifacts.
 """
 
-from __future__ import annotations
-
+import asyncio
 import json  # noqa: I001
 import math
 import warnings
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import UUID
+
+from typing_extensions import Self
 
 from prefect.client.schemas.actions import ArtifactCreate as ArtifactRequest
 from prefect.client.schemas.actions import ArtifactUpdate
 from prefect.client.schemas.filters import ArtifactFilter, ArtifactFilterKey
 from prefect.client.schemas.sorting import ArtifactSort
-from prefect.client.utilities import get_or_create_client, inject_client
+from prefect.client.utilities import get_or_create_client
 from prefect.logging.loggers import get_logger
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.context import get_task_and_flow_run_ids
@@ -22,8 +23,6 @@ from prefect.utilities.context import get_task_and_flow_run_ids
 logger = get_logger("artifacts")
 
 if TYPE_CHECKING:
-    from typing_extensions import Self
-
     from prefect.client.orchestration import PrefectClient
     from prefect.client.schemas.objects import Artifact as ArtifactResponse
 
@@ -43,7 +42,7 @@ class Artifact(ArtifactRequest):
 
     @sync_compatible
     async def create(
-        self: "Self",
+        self: Self,
         client: Optional["PrefectClient"] = None,
     ) -> "ArtifactResponse":
         """
@@ -95,16 +94,15 @@ class Artifact(ArtifactRequest):
             (ArtifactResponse, optional): The artifact (if found).
         """
         client, _ = get_or_create_client(client)
-        return next(
-            iter(
-                await client.read_artifacts(
-                    limit=1,
-                    sort=ArtifactSort.UPDATED_DESC,
-                    artifact_filter=ArtifactFilter(key=ArtifactFilterKey(any_=[key])),
-                )
+        filter_key_value = None if key is None else [key]
+        artifacts = await client.read_artifacts(
+            limit=1,
+            sort=ArtifactSort.UPDATED_DESC,
+            artifact_filter=ArtifactFilter(
+                key=ArtifactFilterKey(any_=filter_key_value)
             ),
-            None,
         )
+        return None if not artifacts else artifacts[0]
 
     @classmethod
     @sync_compatible
@@ -112,10 +110,10 @@ class Artifact(ArtifactRequest):
         cls,
         key: Optional[str] = None,
         description: Optional[str] = None,
-        data: Optional[Union[Dict[str, Any], Any]] = None,
+        data: Optional[Union[dict[str, Any], Any]] = None,
         client: Optional["PrefectClient"] = None,
         **kwargs: Any,
-    ) -> Tuple["ArtifactResponse", bool]:
+    ) -> tuple["ArtifactResponse", bool]:
         """
         A method to get or create an artifact.
 
@@ -128,18 +126,20 @@ class Artifact(ArtifactRequest):
         Returns:
             (ArtifactResponse): The artifact, either retrieved or created.
         """
-        artifact = await cls.get(key, client)
+        artifact_coro = cls.get(key, client)
+        if TYPE_CHECKING:
+            assert asyncio.iscoroutine(artifact_coro)
+        artifact = await artifact_coro
         if artifact:
             return artifact, False
-        else:
-            return (
-                await cls(key=key, description=description, data=data, **kwargs).create(
-                    client
-                ),
-                True,
-            )
 
-    async def format(self) -> Optional[Union[Dict[str, Any], Any]]:
+        new_artifact = cls(key=key, description=description, data=data, **kwargs)
+        create_coro = new_artifact.create(client)
+        if TYPE_CHECKING:
+            assert asyncio.iscoroutine(create_coro)
+        return await create_coro, True
+
+    async def format(self) -> Optional[Union[dict[str, Any], Any]]:
         return json.dumps(self.data)
 
 
@@ -165,13 +165,13 @@ class MarkdownArtifact(Artifact):
 
 
 class TableArtifact(Artifact):
-    table: Union[Dict[str, List[Any]], List[Dict[str, Any]], List[List[Any]]]
+    table: Union[dict[str, list[Any]], list[dict[str, Any]], list[list[Any]]]
     type: Optional[str] = "table"
 
     @classmethod
     def _sanitize(
-        cls, item: Union[Dict[str, Any], List[Any], float]
-    ) -> Union[Dict[str, Any], List[Any], int, float, None]:
+        cls, item: Union[dict[str, Any], list[Any], float]
+    ) -> Union[dict[str, Any], list[Any], int, float, None]:
         """
         Sanitize NaN values in a given item.
         The item can be a dict, list or float.
@@ -230,39 +230,6 @@ class ImageArtifact(Artifact):
         return self.image_url
 
 
-@inject_client
-async def _create_artifact(
-    type: str,
-    key: Optional[str] = None,
-    description: Optional[str] = None,
-    data: Optional[Union[Dict[str, Any], Any]] = None,
-    client: Optional["PrefectClient"] = None,
-) -> UUID:
-    """
-    Helper function to create an artifact.
-
-    Arguments:
-        type: A string identifying the type of artifact.
-        key: A user-provided string identifier.
-          The key must only contain lowercase letters, numbers, and dashes.
-        description: A user-specified description of the artifact.
-        data: A JSON payload that allows for a result to be retrieved.
-        client: The PrefectClient
-
-    Returns:
-        - The table artifact ID.
-    """
-
-    artifact = await Artifact(
-        type=type,
-        key=key,
-        description=description,
-        data=data,
-    ).create(client)
-
-    return artifact.id
-
-
 @sync_compatible
 async def create_link_artifact(
     link: str,
@@ -286,12 +253,16 @@ async def create_link_artifact(
     Returns:
         The table artifact ID.
     """
-    artifact = await LinkArtifact(
+    new_artifact = LinkArtifact(
         key=key,
         description=description,
         link=link,
         link_text=link_text,
-    ).create(client)
+    )
+    create_coro = new_artifact.create(client)
+    if TYPE_CHECKING:
+        assert asyncio.iscoroutine(create_coro)
+    artifact = await create_coro
 
     return artifact.id
 
@@ -315,18 +286,22 @@ async def create_markdown_artifact(
     Returns:
         The table artifact ID.
     """
-    artifact = await MarkdownArtifact(
+    new_artifact = MarkdownArtifact(
         key=key,
         description=description,
         markdown=markdown,
-    ).create()
+    )
+    create_coro = new_artifact.create()
+    if TYPE_CHECKING:
+        assert asyncio.iscoroutine(create_coro)
+    artifact = await create_coro
 
     return artifact.id
 
 
 @sync_compatible
 async def create_table_artifact(
-    table: Union[Dict[str, List[Any]], List[Dict[str, Any]], List[List[Any]]],
+    table: Union[dict[str, list[Any]], list[dict[str, Any]], list[list[Any]]],
     key: Optional[str] = None,
     description: Optional[str] = None,
 ) -> UUID:
@@ -344,11 +319,15 @@ async def create_table_artifact(
         The table artifact ID.
     """
 
-    artifact = await TableArtifact(
+    new_artifact = TableArtifact(
         key=key,
         description=description,
         table=table,
-    ).create()
+    )
+    create_coro = new_artifact.create()
+    if TYPE_CHECKING:
+        assert asyncio.iscoroutine(create_coro)
+    artifact = await create_coro
 
     return artifact.id
 
@@ -373,11 +352,15 @@ async def create_progress_artifact(
         The progress artifact ID.
     """
 
-    artifact = await ProgressArtifact(
+    new_artifact = ProgressArtifact(
         key=key,
         description=description,
         progress=progress,
-    ).create()
+    )
+    create_coro = new_artifact.create()
+    if TYPE_CHECKING:
+        assert asyncio.iscoroutine(create_coro)
+    artifact = await create_coro
 
     return artifact.id
 
@@ -387,7 +370,7 @@ async def update_progress_artifact(
     artifact_id: UUID,
     progress: float,
     description: Optional[str] = None,
-    client: Optional[PrefectClient] = None,
+    client: Optional["PrefectClient"] = None,
 ) -> UUID:
     """
     Update a progress artifact.
@@ -444,10 +427,14 @@ async def create_image_artifact(
         The image artifact ID.
     """
 
-    artifact = await ImageArtifact(
+    new_artifact = ImageArtifact(
         key=key,
         description=description,
         image_url=image_url,
-    ).create()
+    )
+    create_coro = new_artifact.create()
+    if TYPE_CHECKING:
+        assert asyncio.iscoroutine(create_coro)
+    artifact = await create_coro
 
     return artifact.id

@@ -163,7 +163,7 @@ class TestMattermostWebhook:
 
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once_with(
-                f"mmost://{mm_block.hostname}/{mm_block.token.get_secret_value()}/"
+                f"mmost://{mm_block.hostname}:8065/{mm_block.token.get_secret_value()}/"
                 "?image=yes&format=text&overflow=upstream"
             )
             apprise_instance_mock.async_notify.assert_awaited_once_with(
@@ -185,7 +185,7 @@ class TestMattermostWebhook:
 
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once_with(
-                f"mmost://{mm_block.hostname}/{mm_block.token.get_secret_value()}/"
+                f"mmost://{mm_block.hostname}:8065/{mm_block.token.get_secret_value()}/"
                 "?image=no&format=text&overflow=upstream"
             )
             apprise_instance_mock.async_notify.assert_called_once_with(
@@ -211,7 +211,7 @@ class TestMattermostWebhook:
 
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once_with(
-                f"mmost://{mm_block.hostname}/{mm_block.token.get_secret_value()}/"
+                f"mmost://{mm_block.hostname}:8065/{mm_block.token.get_secret_value()}/"
                 "?image=no&format=text&overflow=upstream"
                 "&channel=death-metal-anonymous%2Cgeneral"
             )

@@ -179,6 +179,18 @@ The URL of the Prefect API. If not set, the client will attempt to infer it.
 **Supported environment variables**:
 `PREFECT_API_URL`
 
+### `auth_string`
+The auth string used for basic authentication with a self-hosted Prefect API. Should be kept secret.
+
+**Type**: `string | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `api.auth_string`
+
+**Supported environment variables**:
+`PREFECT_API_AUTH_STRING`
+
 ### `key`
 The API key used for authentication with the Prefect API. Should be kept secret.
 
@@ -841,6 +853,18 @@ Number of seconds a runner should wait between queries for scheduled work.
 **Supported environment variables**:
 `PREFECT_RUNNER_POLL_FREQUENCY`
 
+### `heartbeat_frequency`
+Number of seconds a runner should wait between heartbeats for flow runs.
+
+**Type**: `integer | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `runner.heartbeat_frequency`
+
+**Supported environment variables**:
+`PREFECT_RUNNER_HEARTBEAT_FREQUENCY`
+
 ### `server`
 
 **Type**: [RunnerServerSettings](#runnerserversettings)
@@ -850,6 +874,18 @@ Number of seconds a runner should wait between queries for scheduled work.
 ---
 ## ServerAPISettings
 Settings for controlling API server behavior
+### `auth_string`
+A string to use for basic authentication with the API; typically in the form 'user:password' but can be any string.
+
+**Type**: `string | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `server.api.auth_string`
+
+**Supported environment variables**:
+`PREFECT_SERVER_API_AUTH_STRING`
+
 ### `host`
 The API's host address (defaults to `127.0.0.1`).
 

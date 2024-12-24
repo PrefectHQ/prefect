@@ -10,8 +10,7 @@ from prefect.server.api.dependencies import LimitBody
 from prefect.server.api.validation import (
     validate_job_variables_for_run_deployment_action,
 )
-from prefect.server.database.dependencies import provide_database_interface
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.events import actions
 from prefect.server.events.filters import AutomationFilter, AutomationFilterCreated
 from prefect.server.events.models import automations as automations_models

@@ -10,9 +10,9 @@ from prefect.utilities.compat import EntryPoints
 
 @pytest.fixture(autouse=True)
 def reset_collections():
-    prefect.plugins.COLLECTIONS = None
+    prefect.plugins._collections = None
     yield
-    prefect.plugins.COLLECTIONS = None
+    prefect.plugins._collections = None
 
 
 def test_safe_load_entrypoints_returns_modules_and_exceptions():

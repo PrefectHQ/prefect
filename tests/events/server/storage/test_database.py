@@ -6,7 +6,7 @@ import pytest
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface
 from prefect.server.events.filters import (
     EventFilter,
     EventIDFilter,
