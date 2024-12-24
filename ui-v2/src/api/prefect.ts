@@ -2926,11 +2926,11 @@ export interface components {
              * Id
              * Format: uuid
              */
-            id?: string;
+            id: string;
             /** Created */
-            created?: string | null;
+            created: string | null;
             /** Updated */
-            updated?: string | null;
+            updated: string | null;
             /**
              * Key
              * @description An optional unique reference key for this artifact.
@@ -3269,11 +3269,11 @@ export interface components {
              * Id
              * Format: uuid
              */
-            id?: string;
+            id: string;
             /** Created */
-            created?: string | null;
+            created: string | null;
             /** Updated */
-            updated?: string | null;
+            updated: string | null;
         };
         /** AutomationCreate */
         AutomationCreate: {
@@ -3418,11 +3418,11 @@ export interface components {
              * Id
              * Format: uuid
              */
-            id?: string;
+            id: string;
             /** Created */
-            created?: string | null;
+            created: string | null;
             /** Updated */
-            updated?: string | null;
+            updated: string | null;
             /**
              * Name
              * @description The block document's name. Not required for anonymous block documents.
@@ -3611,11 +3611,11 @@ export interface components {
              * Id
              * Format: uuid
              */
-            id?: string;
+            id: string;
             /** Created */
-            created?: string | null;
+            created: string | null;
             /** Updated */
-            updated?: string | null;
+            updated: string | null;
             /**
              * Checksum
              * @description The block schema's unique checksum
@@ -3745,11 +3745,11 @@ export interface components {
              * Id
              * Format: uuid
              */
-            id?: string;
+            id: string;
             /** Created */
-            created?: string | null;
+            created: string | null;
             /** Updated */
-            updated?: string | null;
+            updated: string | null;
             /**
              * Name
              * @description A block type's name
@@ -4855,11 +4855,11 @@ export interface components {
              * Id
              * Format: uuid
              */
-            id?: string;
+            id: string;
             /** Created */
-            created?: string | null;
+            created: string | null;
             /** Updated */
-            updated?: string | null;
+            updated: string | null;
             /**
              * Tag
              * @description A tag the concurrency limit is applied to.
@@ -4907,11 +4907,11 @@ export interface components {
              * Id
              * Format: uuid
              */
-            id?: string;
+            id: string;
             /** Created */
-            created?: string | null;
+            created: string | null;
             /** Updated */
-            updated?: string | null;
+            updated: string | null;
             /**
              * Active
              * @description Whether the concurrency limit is active.
@@ -5144,11 +5144,11 @@ export interface components {
              * Id
              * Format: uuid
              */
-            id?: string;
+            id: string;
             /** Created */
-            created?: string | null;
+            created: string | null;
             /** Updated */
-            updated?: string | null;
+            updated: string | null;
             /**
              * Token
              * @description The CSRF token
@@ -5471,11 +5471,11 @@ export interface components {
              * Id
              * Format: uuid
              */
-            id?: string;
+            id: string;
             /** Created */
-            created?: string | null;
+            created: string | null;
             /** Updated */
-            updated?: string | null;
+            updated: string | null;
             /**
              * Name
              * @description The name of the deployment.
@@ -5607,11 +5607,11 @@ export interface components {
              * Id
              * Format: uuid
              */
-            id?: string;
+            id: string;
             /** Created */
-            created?: string | null;
+            created: string | null;
             /** Updated */
-            updated?: string | null;
+            updated: string | null;
             /**
              * Deployment Id
              * @description The deployment id associated with this schedule.
@@ -6056,11 +6056,11 @@ export interface components {
              * Id
              * Format: uuid
              */
-            id?: string;
+            id: string;
             /** Created */
-            created?: string | null;
+            created: string | null;
             /** Updated */
-            updated?: string | null;
+            updated: string | null;
             /**
              * Name
              * @description The name of the flow
@@ -6207,11 +6207,11 @@ export interface components {
              * Id
              * Format: uuid
              */
-            id?: string;
+            id: string;
             /** Created */
-            created?: string | null;
+            created: string | null;
             /** Updated */
-            updated?: string | null;
+            updated: string | null;
             /**
              * Name
              * @description The name of the flow run. Defaults to a random slug if not specified.
@@ -6753,11 +6753,11 @@ export interface components {
              * Id
              * Format: uuid
              */
-            id?: string;
+            id: string;
             /** Created */
-            created?: string | null;
+            created: string | null;
             /** Updated */
-            updated?: string | null;
+            updated: string | null;
             /**
              * Flow Run Id
              * Format: uuid
@@ -6789,11 +6789,11 @@ export interface components {
              * Id
              * Format: uuid
              */
-            id?: string;
+            id: string;
             /** Created */
-            created?: string | null;
+            created: string | null;
             /** Updated */
-            updated?: string | null;
+            updated: string | null;
             /**
              * Is Active
              * @description Whether the policy is currently active
@@ -6960,11 +6960,11 @@ export interface components {
              * Id
              * Format: uuid
              */
-            id?: string;
+            id: string;
             /** Created */
-            created?: string | null;
+            created: string | null;
             /** Updated */
-            updated?: string | null;
+            updated: string | null;
             /**
              * Name
              * @description The name of the flow run. Defaults to a random slug if not specified.
@@ -7177,11 +7177,11 @@ export interface components {
              * Id
              * Format: uuid
              */
-            id?: string;
+            id: string;
             /** Created */
-            created?: string | null;
+            created: string | null;
             /** Updated */
-            updated?: string | null;
+            updated: string | null;
             /**
              * Active
              * @description Whether the global concurrency limit is active.
@@ -7369,11 +7369,11 @@ export interface components {
              * Id
              * Format: uuid
              */
-            id?: string;
+            id: string;
             /** Created */
-            created?: string | null;
+            created: string | null;
             /** Updated */
-            updated?: string | null;
+            updated: string | null;
             /**
              * Name
              * @description The logger name.
@@ -7950,11 +7950,11 @@ export interface components {
              * Id
              * Format: uuid
              */
-            id?: string;
+            id: string;
             /** Created */
-            created?: string | null;
+            created: string | null;
             /** Updated */
-            updated?: string | null;
+            updated: string | null;
             /**
              * Name
              * @description The name of the saved search.
@@ -8163,7 +8163,7 @@ export interface components {
              * Id
              * Format: uuid
              */
-            id?: string;
+            id: string;
             type: components["schemas"]["StateType"];
             /** Name */
             name?: string | null;
@@ -8353,11 +8353,11 @@ export interface components {
              * Id
              * Format: uuid
              */
-            id?: string;
+            id: string;
             /** Created */
-            created?: string | null;
+            created: string | null;
             /** Updated */
-            updated?: string | null;
+            updated: string | null;
             /** Name */
             name?: string;
             /**
@@ -8844,11 +8844,11 @@ export interface components {
              * Id
              * Format: uuid
              */
-            id?: string;
+            id: string;
             /** Created */
-            created?: string | null;
+            created: string | null;
             /** Updated */
-            updated?: string | null;
+            updated: string | null;
             /**
              * Name
              * @description The name of the variable
@@ -8987,11 +8987,11 @@ export interface components {
              * Id
              * Format: uuid
              */
-            id?: string;
+            id: string;
             /** Created */
-            created?: string | null;
+            created: string | null;
             /** Updated */
-            updated?: string | null;
+            updated: string | null;
             /**
              * Name
              * @description The name of the work pool.
@@ -9148,11 +9148,11 @@ export interface components {
              * Id
              * Format: uuid
              */
-            id?: string;
+            id: string;
             /** Created */
-            created?: string | null;
+            created: string | null;
             /** Updated */
-            updated?: string | null;
+            updated: string | null;
             /**
              * Name
              * @description The name of the work queue.
@@ -9299,11 +9299,11 @@ export interface components {
              * Id
              * Format: uuid
              */
-            id?: string;
+            id: string;
             /** Created */
-            created?: string | null;
+            created: string | null;
             /** Updated */
-            updated?: string | null;
+            updated: string | null;
             /**
              * Name
              * @description The name of the work queue.
@@ -9476,11 +9476,11 @@ export interface components {
              * Id
              * Format: uuid
              */
-            id?: string;
+            id: string;
             /** Created */
-            created?: string | null;
+            created: string | null;
             /** Updated */
-            updated?: string | null;
+            updated: string | null;
             /**
              * Name
              * @description The name of the worker.

@@ -1,11 +1,13 @@
 import datetime
 import os
 from abc import ABC, abstractmethod
+from functools import partial
 from typing import TYPE_CHECKING, Any, ClassVar, Optional, TypeVar
 from uuid import UUID, uuid4
 
 import pendulum
 from pydantic import BaseModel, ConfigDict, Field
+from pydantic.config import JsonDict
 from typing_extensions import Self
 
 from prefect.types import DateTime
@@ -181,12 +183,28 @@ class PrefectBaseModel(BaseModel):
         return deep
 
 
+def _ensure_fields_required(field_names: list[str], schema: JsonDict) -> None:
+    for field_name in field_names:
+        if "required" not in schema:
+            schema["required"] = []
+        if (
+            (required := schema.get("required"))
+            and isinstance(required, list)
+            and field_name not in required
+        ):
+            required.append(field_name)
+
+
 class IDBaseModel(PrefectBaseModel):
     """
     A PrefectBaseModel with an auto-generated UUID ID value.
 
     The ID is reset on copy() and not included in equality comparisons.
     """
+
+    model_config = ConfigDict(
+        json_schema_extra=partial(_ensure_fields_required, ["id"])
+    )
 
     _reset_fields: ClassVar[set[str]] = {"id"}
     id: UUID = Field(default_factory=uuid4)
@@ -203,7 +221,12 @@ class ORMBaseModel(IDBaseModel):
 
     _reset_fields: ClassVar[set[str]] = {"id", "created", "updated"}
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra=partial(
+            _ensure_fields_required, ["id", "created", "updated"]
+        ),
+    )
 
     created: Optional[DateTime] = Field(default=None, repr=False)
     updated: Optional[DateTime] = Field(default=None, repr=False)
