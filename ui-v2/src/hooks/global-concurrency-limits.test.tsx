@@ -196,6 +196,8 @@ describe("global concurrency limits hooks", () => {
 		const UPDATED_LIMIT = {
 			...UPDATED_LIMIT_BODY,
 			id: MOCK_UPDATE_LIMIT_ID,
+			created: "2021-01-01T00:00:00Z",
+			updated: "2021-01-01T00:00:00Z",
 		};
 
 		// ------------ Mock API requests after queries are invalidated

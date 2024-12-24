@@ -13,6 +13,31 @@ updates:
       interval: "weekly"
     labels: ["ui", "ui-dependency"]
 
+  - package-ecosystem: "npm"
+    directory: '/ui-v2/'
+    schedule:
+      interval: "weekly"
+    labels: ["ui-v2", "ui-v2-dependency"]
+    groups:
+      # This is the name of your group, it will be used in PR titles and branch names
+      radix:
+        patterns:
+          - "@radix-ui*"
+      eslint:
+        patterns:
+          - "@eslint*"
+          - "eslint*"
+      storybook:
+        patterns:
+          - "storybook"
+          - "@storybook*"
+      testling-library:
+        patterns:
+          - "@testing-library*"
+      tanstack:
+        patterns:
+          - "@tanstack*"
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
