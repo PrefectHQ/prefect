@@ -16,9 +16,7 @@ ListValidator = SchemaValidator(
 
 
 def validate_list(model: type[T], input: Any) -> list[T]:
-    return [
-        model.model_validate(**item) for item in ListValidator.validate_python(input)
-    ]
+    return [model.model_validate(item) for item in ListValidator.validate_python(input)]
 
 
 def ListAdapter(model: type[T]) -> Callable[[Any], list[T]]:
