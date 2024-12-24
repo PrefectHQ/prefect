@@ -47,12 +47,14 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, track
 from rich.table import Table
 
+from prefect._experimental.sla import SlaTypes
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.schemas.validators import (
     reconcile_paused_deployment,
     reconcile_schedules_runner,
 )
-from prefect.client.orchestration import get_client
+from prefect.client.base import ServerType
+from prefect.client.orchestration import get_client, get_logger
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.filters import WorkerFilter, WorkerFilterStatus
 from prefect.client.schemas.objects import (
@@ -206,6 +208,10 @@ class RunnerDeployment(BaseModel):
             " a built runner."
         ),
     )
+    sla: Optional[Union[SlaTypes, list[SlaTypes]]] = Field(
+        default=None,
+        description="Experimental: SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.",
+    )
     _entrypoint_type: EntrypointType = PrivateAttr(
         default=EntrypointType.FILE_PATH,
     )
@@ -343,6 +349,22 @@ class RunnerDeployment(BaseModel):
                 trigger.set_deployment_id(deployment_id)
                 await client.create_automation(trigger.as_automation())
 
+            # We plan to support SLA configuration on the Prefect Server in the future.
+            # For now, we only support it on Prefect Cloud.
+            if self.sla:
+                if not isinstance(self.sla, list):
+                    self.sla = [self.sla]
+
+                if client.server_type == ServerType.CLOUD:
+                    for sla in self.sla:
+                        sla.set_deployment_id(deployment_id)
+                        await client.create_sla(sla)
+                else:
+                    logger = get_logger()
+                    logger.error(
+                        "SLA configuration is currently only supported on Prefect Cloud.",
+                    )
+
             return deployment_id
 
     @staticmethod
@@ -459,6 +481,7 @@ class RunnerDeployment(BaseModel):
         work_queue_name: Optional[str] = None,
         job_variables: Optional[dict[str, Any]] = None,
         entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
+        sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,  # experimental
     ) -> "RunnerDeployment":
         """
         Configure a deployment for a given flow.
@@ -523,6 +546,7 @@ class RunnerDeployment(BaseModel):
             work_pool_name=work_pool_name,
             work_queue_name=work_queue_name,
             job_variables=job_variables,
+            sla=sla,
         )
 
         if not deployment.entrypoint:
@@ -597,6 +621,7 @@ class RunnerDeployment(BaseModel):
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
         job_variables: Optional[dict[str, Any]] = None,
+        sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,  # experimental
     ) -> "RunnerDeployment":
         """
         Configure a deployment for a given flow located at a given entrypoint.
@@ -666,6 +691,7 @@ class RunnerDeployment(BaseModel):
             work_pool_name=work_pool_name,
             work_queue_name=work_queue_name,
             job_variables=job_variables,
+            sla=sla,
         )
         deployment._path = str(Path.cwd())
 
@@ -698,6 +724,7 @@ class RunnerDeployment(BaseModel):
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
         job_variables: Optional[dict[str, Any]] = None,
+        sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,  # experimental
     ):
         """
         Create a RunnerDeployment from a flow located at a given entrypoint and stored in a
@@ -776,6 +803,7 @@ class RunnerDeployment(BaseModel):
             work_pool_name=work_pool_name,
             work_queue_name=work_queue_name,
             job_variables=job_variables,
+            sla=sla,
         )
         deployment._path = str(storage.destination).replace(
             tmpdir, "$STORAGE_BASE_PATH"

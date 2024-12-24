@@ -23,6 +23,7 @@ import prefect
 import prefect.exceptions
 import prefect.settings
 import prefect.states
+from prefect._experimental.sla import SlaTypes
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun, sorting
 from prefect.client.schemas.actions import (
@@ -1710,6 +1711,7 @@ class PrefectClient:
 
         if parameter_openapi_schema is None:
             parameter_openapi_schema = {}
+
         deployment_create = DeploymentCreate(
             flow_id=flow_id,
             name=name,
@@ -3502,6 +3504,31 @@ class PrefectClient:
             f"/flow_runs/{flow_run_id}/labels", json=labels
         )
         response.raise_for_status()
+
+    async def create_sla(self, sla: SlaTypes) -> UUID:
+        """
+        Creates a service level agreement.
+
+        Args:
+            sla: The SLA to create. Must have a deployment ID set.
+
+        Raises:
+            httpx.RequestError: if the SLA was not created for any reason
+
+        Returns:
+            the ID of the SLA in the backend
+        """
+        response = await self._client.post(
+            "/slas/",
+            json=sla.model_dump(mode="json", exclude_unset=True),
+        )
+        response.raise_for_status()
+
+        sla_id = response.json().get("id")
+        if not sla_id:
+            raise httpx.RequestError(f"Malformed response: {response}")
+
+        return UUID(sla_id)
 
     async def __aenter__(self) -> Self:
         """
