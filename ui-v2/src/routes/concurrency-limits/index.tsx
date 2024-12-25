@@ -1,4 +1,4 @@
-import { ConcurrencyPage } from "@/components/concurrency/concurrency-page";
+import { ConcurrencyLimitsPage } from "@/components/concurrency/concurrency-limits-page";
 import { buildListGlobalConcurrencyLimitsQuery } from "@/hooks/global-concurrency-limits";
 import { buildListTaskRunConcurrencyLimitsQuery } from "@/hooks/task-run-concurrency-limits";
 import { createFileRoute } from "@tanstack/react-router";
@@ -19,7 +19,7 @@ export type TabOptions = z.infer<typeof searchParams>["tab"];
 
 export const Route = createFileRoute("/concurrency-limits/")({
 	validateSearch: zodSearchValidator(searchParams),
-	component: ConcurrencyPage,
+	component: ConcurrencyLimitsPage,
 	wrapInSuspense: true,
 	loader: ({ context }) =>
 		Promise.all([
