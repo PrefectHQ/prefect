@@ -14,7 +14,6 @@ from typer import Exit
 from prefect.cli.server import PID_FILE
 from prefect.context import get_settings_context
 from prefect.settings import (
-    PREFECT_API_DATABASE_CONNECTION_URL,
     PREFECT_API_URL,
     PREFECT_HOME,
     PREFECT_PROFILES_PATH,
