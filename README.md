@@ -9,6 +9,8 @@
         <img src="https://img.shields.io/pypi/dm/prefect?color=0052FF&labelColor=090422" /></a>
     <a href="https://github.com/prefecthq/prefect/pulse" alt="Activity">
         <img src="https://img.shields.io/github/commit-activity/m/prefecthq/prefect?color=0052FF&labelColor=090422" /></a>
+    <a href="https://gurubase.io/g/prefect" alt="Gurubase">
+        <img src="https://img.shields.io/badge/Gurubase-Ask%20Prefect%20Guru-006BFF" /></a>
     <br>
     <a href="https://prefect.io/slack" alt="Slack">
         <img src="https://img.shields.io/badge/slack-join_community-red.svg?color=0052FF&labelColor=090422&logo=slack" /></a>
