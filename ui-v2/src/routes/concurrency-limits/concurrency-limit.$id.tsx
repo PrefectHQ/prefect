@@ -1,4 +1,4 @@
-import { TaskRunConcurrencyLimitPage } from "@/components/concurrency/task-run-concurrency-limit-page";
+import { TaskRunConcurrencyLimitPage } from "@/components/concurrency/task-run-concurrency-limits/task-run-concurrency-limit-page";
 import { buildDetailTaskRunConcurrencyLimitsQuery } from "@/hooks/task-run-concurrency-limits";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodSearchValidator } from "@tanstack/router-zod-adapter";

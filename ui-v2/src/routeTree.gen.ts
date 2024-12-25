@@ -24,6 +24,8 @@ import { Route as RunsIndexImport } from './routes/runs/index'
 import { Route as FlowsIndexImport } from './routes/flows/index'
 import { Route as DeploymentsIndexImport } from './routes/deployments/index'
 import { Route as ConcurrencyLimitsIndexImport } from './routes/concurrency-limits/index'
+import { Route as ConcurrencyLimitsConcurrencyLimitsTabsImport } from './routes/concurrency-limits/concurrency-limits-tabs'
+import { Route as ConcurrencyLimitsConcurrencyLimitsPageImport } from './routes/concurrency-limits/concurrency-limits-page'
 import { Route as RunsFlowRunIdImport } from './routes/runs/flow-run.$id'
 import { Route as FlowsFlowIdImport } from './routes/flows/flow.$id'
 import { Route as DeploymentsDeploymentIdImport } from './routes/deployments/deployment.$id'
@@ -108,6 +110,20 @@ const ConcurrencyLimitsIndexRoute = ConcurrencyLimitsIndexImport.update({
   path: '/concurrency-limits/',
   getParentRoute: () => rootRoute,
 } as any)
+
+const ConcurrencyLimitsConcurrencyLimitsTabsRoute =
+  ConcurrencyLimitsConcurrencyLimitsTabsImport.update({
+    id: '/concurrency-limits/concurrency-limits-tabs',
+    path: '/concurrency-limits/concurrency-limits-tabs',
+    getParentRoute: () => rootRoute,
+  } as any)
+
+const ConcurrencyLimitsConcurrencyLimitsPageRoute =
+  ConcurrencyLimitsConcurrencyLimitsPageImport.update({
+    id: '/concurrency-limits/concurrency-limits-page',
+    path: '/concurrency-limits/concurrency-limits-page',
+    getParentRoute: () => rootRoute,
+  } as any)
 
 const RunsFlowRunIdRoute = RunsFlowRunIdImport.update({
   id: '/runs/flow-run/$id',
@@ -201,6 +217,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkPoolsImport
       parentRoute: typeof rootRoute
     }
+    '/concurrency-limits/concurrency-limits-page': {
+      id: '/concurrency-limits/concurrency-limits-page'
+      path: '/concurrency-limits/concurrency-limits-page'
+      fullPath: '/concurrency-limits/concurrency-limits-page'
+      preLoaderRoute: typeof ConcurrencyLimitsConcurrencyLimitsPageImport
+      parentRoute: typeof rootRoute
+    }
+    '/concurrency-limits/concurrency-limits-tabs': {
+      id: '/concurrency-limits/concurrency-limits-tabs'
+      path: '/concurrency-limits/concurrency-limits-tabs'
+      fullPath: '/concurrency-limits/concurrency-limits-tabs'
+      preLoaderRoute: typeof ConcurrencyLimitsConcurrencyLimitsTabsImport
+      parentRoute: typeof rootRoute
+    }
     '/concurrency-limits/': {
       id: '/concurrency-limits/'
       path: '/concurrency-limits'
@@ -272,6 +302,8 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/variables': typeof VariablesRoute
   '/work-pools': typeof WorkPoolsRoute
+  '/concurrency-limits/concurrency-limits-page': typeof ConcurrencyLimitsConcurrencyLimitsPageRoute
+  '/concurrency-limits/concurrency-limits-tabs': typeof ConcurrencyLimitsConcurrencyLimitsTabsRoute
   '/concurrency-limits': typeof ConcurrencyLimitsIndexRoute
   '/deployments': typeof DeploymentsIndexRoute
   '/flows': typeof FlowsIndexRoute
@@ -292,6 +324,8 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/variables': typeof VariablesRoute
   '/work-pools': typeof WorkPoolsRoute
+  '/concurrency-limits/concurrency-limits-page': typeof ConcurrencyLimitsConcurrencyLimitsPageRoute
+  '/concurrency-limits/concurrency-limits-tabs': typeof ConcurrencyLimitsConcurrencyLimitsTabsRoute
   '/concurrency-limits': typeof ConcurrencyLimitsIndexRoute
   '/deployments': typeof DeploymentsIndexRoute
   '/flows': typeof FlowsIndexRoute
@@ -313,6 +347,8 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/variables': typeof VariablesRoute
   '/work-pools': typeof WorkPoolsRoute
+  '/concurrency-limits/concurrency-limits-page': typeof ConcurrencyLimitsConcurrencyLimitsPageRoute
+  '/concurrency-limits/concurrency-limits-tabs': typeof ConcurrencyLimitsConcurrencyLimitsTabsRoute
   '/concurrency-limits/': typeof ConcurrencyLimitsIndexRoute
   '/deployments/': typeof DeploymentsIndexRoute
   '/flows/': typeof FlowsIndexRoute
@@ -335,6 +371,8 @@ export interface FileRouteTypes {
     | '/settings'
     | '/variables'
     | '/work-pools'
+    | '/concurrency-limits/concurrency-limits-page'
+    | '/concurrency-limits/concurrency-limits-tabs'
     | '/concurrency-limits'
     | '/deployments'
     | '/flows'
@@ -354,6 +392,8 @@ export interface FileRouteTypes {
     | '/settings'
     | '/variables'
     | '/work-pools'
+    | '/concurrency-limits/concurrency-limits-page'
+    | '/concurrency-limits/concurrency-limits-tabs'
     | '/concurrency-limits'
     | '/deployments'
     | '/flows'
@@ -373,6 +413,8 @@ export interface FileRouteTypes {
     | '/settings'
     | '/variables'
     | '/work-pools'
+    | '/concurrency-limits/concurrency-limits-page'
+    | '/concurrency-limits/concurrency-limits-tabs'
     | '/concurrency-limits/'
     | '/deployments/'
     | '/flows/'
@@ -394,6 +436,8 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   VariablesRoute: typeof VariablesRoute
   WorkPoolsRoute: typeof WorkPoolsRoute
+  ConcurrencyLimitsConcurrencyLimitsPageRoute: typeof ConcurrencyLimitsConcurrencyLimitsPageRoute
+  ConcurrencyLimitsConcurrencyLimitsTabsRoute: typeof ConcurrencyLimitsConcurrencyLimitsTabsRoute
   ConcurrencyLimitsIndexRoute: typeof ConcurrencyLimitsIndexRoute
   DeploymentsIndexRoute: typeof DeploymentsIndexRoute
   FlowsIndexRoute: typeof FlowsIndexRoute
@@ -414,6 +458,10 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   VariablesRoute: VariablesRoute,
   WorkPoolsRoute: WorkPoolsRoute,
+  ConcurrencyLimitsConcurrencyLimitsPageRoute:
+    ConcurrencyLimitsConcurrencyLimitsPageRoute,
+  ConcurrencyLimitsConcurrencyLimitsTabsRoute:
+    ConcurrencyLimitsConcurrencyLimitsTabsRoute,
   ConcurrencyLimitsIndexRoute: ConcurrencyLimitsIndexRoute,
   DeploymentsIndexRoute: DeploymentsIndexRoute,
   FlowsIndexRoute: FlowsIndexRoute,
@@ -444,6 +492,8 @@ export const routeTree = rootRoute
         "/settings",
         "/variables",
         "/work-pools",
+        "/concurrency-limits/concurrency-limits-page",
+        "/concurrency-limits/concurrency-limits-tabs",
         "/concurrency-limits/",
         "/deployments/",
         "/flows/",
@@ -480,6 +530,12 @@ export const routeTree = rootRoute
     },
     "/work-pools": {
       "filePath": "work-pools.tsx"
+    },
+    "/concurrency-limits/concurrency-limits-page": {
+      "filePath": "concurrency-limits/concurrency-limits-page.tsx"
+    },
+    "/concurrency-limits/concurrency-limits-tabs": {
+      "filePath": "concurrency-limits/concurrency-limits-tabs.tsx"
     },
     "/concurrency-limits/": {
       "filePath": "concurrency-limits/index.tsx"
