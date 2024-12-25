@@ -245,7 +245,7 @@ async def _call_explicitly_async_block_method(
     see https://github.com/PrefectHQ/prefect/issues/15008
     """
     if hasattr(block, f"a{method}"):  # explicit async method
-        return await getattr(block.__class__.__name__, f"a{method}")(*args, **kwargs)
+        return await getattr(block, f"a{method}")(*args, **kwargs)
     elif hasattr(getattr(block, method, None), "aio"):  # sync_compatible
         return await getattr(block, method).aio(block, *args, **kwargs)
     else:  # should not happen in prefect, but users can override impls
