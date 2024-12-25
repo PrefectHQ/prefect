@@ -96,7 +96,7 @@
 		"storybook": "^8.4.2",
 		"tailwindcss": "^3.4.13",
 		"typescript": "^5.5.3",
-		"typescript-eslint": "^8.8.1",
+		"typescript-eslint": "^8.18.2",
 		"vite": "^5.4.1",
 		"vitest": "^2.1.4"
 	}
