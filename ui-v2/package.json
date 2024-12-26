@@ -51,7 +51,7 @@
 		"react-dom": "^18.3.1",
 		"react-hook-form": "^7.53.1",
 		"recharts": "^2.12.7",
-		"tailwind-merge": "^2.5.2",
+		"tailwind-merge": "^2.6.0",
 		"tailwindcss-animate": "^1.0.7",
 		"zod": "^3.23.8"
 	},
