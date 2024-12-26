@@ -1,6 +1,6 @@
 from datetime import timedelta
 from unittest import mock
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import httpx
 import pytest
@@ -49,13 +49,15 @@ class TestClientCreateSla:
                 base_url="https://api.prefect.cloud/api",
                 using="httpx",
             ) as router:
+                sla_id = str(uuid4())
+
                 router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
                 router.post(
                     f"/accounts/{account_id}/workspaces/{workspace_id}/slas/",
                 ).mock(
                     return_value=httpx.Response(
                         status_code=201,
-                        json={"id": str(uuid4())},
+                        json={"id": sla_id},
                     )
                 )
                 prefect_client = get_client()
@@ -67,7 +69,7 @@ class TestClientCreateSla:
                 )
                 sla.set_deployment_id(deployment_id)
                 response_id = await prefect_client.create_sla(sla)
-                assert response_id
+                assert response_id == UUID(sla_id)
 
 
 class TestDeployFunction:
