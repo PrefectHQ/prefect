@@ -219,6 +219,8 @@ class ArtifactCollectionClient:
                 "sort": kwargs.get("sort", None),
             },
         )
+        from prefect.client.schemas.objects import ArtifactCollection
+
         return ArtifactCollection.model_validate_list(response.json())
 
 
@@ -254,4 +256,6 @@ class ArtifactCollectionAsyncClient:
                 "sort": kwargs.get("sort", None),
             },
         )
+        from prefect.client.schemas.objects import ArtifactCollection
+
         return ArtifactCollection.model_validate_list(response.json())
