@@ -54,7 +54,7 @@ from prefect._internal.schemas.validators import (
     reconcile_schedules_runner,
 )
 from prefect.client.base import ServerType
-from prefect.client.orchestration import get_client, get_logger
+from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.filters import WorkerFilter, WorkerFilterStatus
 from prefect.client.schemas.objects import (
@@ -352,20 +352,22 @@ class RunnerDeployment(BaseModel):
             # We plan to support SLA configuration on the Prefect Server in the future.
             # For now, we only support it on Prefect Cloud.
             if self.sla:
-                if not isinstance(self.sla, list):
-                    self.sla = [self.sla]
-
-                if client.server_type == ServerType.CLOUD:
-                    for sla in self.sla:
-                        sla.set_deployment_id(deployment_id)
-                        await client.create_sla(sla)
-                else:
-                    logger = get_logger()
-                    logger.error(
-                        "SLA configuration is currently only supported on Prefect Cloud.",
-                    )
+                await self._create_slas(deployment_id, client)
 
             return deployment_id
+
+    async def _create_slas(self, deployment_id: UUID, client: PrefectClient):
+        if not isinstance(self.sla, list):
+            self.sla = [self.sla]
+
+        if client.server_type == ServerType.CLOUD:
+            for sla in self.sla:
+                sla.set_deployment_id(deployment_id)
+                await client.create_sla(sla)
+        else:
+            raise ValueError(
+                "SLA configuration is currently only supported on Prefect Cloud."
+            )
 
     @staticmethod
     def _construct_deployment_schedules(
