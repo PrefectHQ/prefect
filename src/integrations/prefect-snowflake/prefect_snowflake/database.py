@@ -548,9 +548,7 @@ class SnowflakeConnector(DatabaseBlock):
         )
         new, cursor = self._get_cursor(inputs, cursor_type)
         if new:
-            self.execute(
-                operation, parameters, cursor_type=cursor_type, **execute_kwargs
-            )
+            cursor.execute(operation, params=parameters, **execute_kwargs)
         self.logger.debug("Preparing to fetch all rows.")
         return cursor.fetchall()
 
