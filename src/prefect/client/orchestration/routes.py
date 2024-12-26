@@ -18,6 +18,7 @@ ServerRoutes = Literal[
     "/block_documents/{block_document_id}",
     "/block_schemas/",
     "/block_schemas/checksum/{checksum}",
+    "/block_schemas/checksum/{checksum}?version={version}",
     "/block_schemas/filter",
     "/block_types/",
     "/block_types/filter",
