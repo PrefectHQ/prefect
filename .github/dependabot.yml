@@ -17,7 +17,7 @@ updates:
     directory: '/ui-v2/'
     schedule:
       interval: "weekly"
-    labels: ["ui-v2", "ui-v2-dependency"]
+    labels: ["ui-replatform", "ui-v2-dependency"]
     groups:
       # This is the name of your group, it will be used in PR titles and branch names
       radix:
@@ -34,9 +34,14 @@ updates:
       testling-library:
         patterns:
           - "@testing-library*"
-      tanstack:
+      tanstack-react-query:
         patterns:
-          - "@tanstack*"
+          - "@tanstack/react-query*"
+          - "@tanstack/eslint-plugin-query"
+      tanstack-react-router:
+        patterns:
+          - "@tanstack/router*"
+          - "@tanstack/eslint-plugin-router"
 
   - package-ecosystem: "github-actions"
     directory: "/"
