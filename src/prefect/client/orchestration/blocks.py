@@ -75,6 +75,8 @@ class BlockTypeClient(BaseClient):
     ) -> None:
         """Update a block type."""
         try:
+            from prefect.client.schemas.actions import BlockTypeUpdate
+
             request(
                 self._client,
                 "PATCH",
@@ -194,6 +196,8 @@ class BlockTypeAsyncClient(BaseAsyncClient):
     ) -> None:
         """Update a block type."""
         try:
+            from prefect.client.schemas.actions import BlockTypeUpdate
+
             await arequest(
                 self._client,
                 "PATCH",
