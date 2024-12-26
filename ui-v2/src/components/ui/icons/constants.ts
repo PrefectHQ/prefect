@@ -1,6 +1,7 @@
 import {
 	AlignVerticalJustifyStart,
 	Ban,
+	Calendar,
 	Check,
 	ChevronDown,
 	ChevronLeft,
@@ -28,6 +29,7 @@ import {
 export const ICONS = {
 	AlignVerticalJustifyStart,
 	Ban,
+	Calendar,
 	Check,
 	ChevronDown,
 	ChevronLeft,

@@ -3,14 +3,14 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from "./hover-card";
 import { TagBadge } from "./tag-badge";
 
 type TagBadgeGroupProps = {
-	tags: string[];
+	tags: string[] | undefined;
 	variant?: BadgeProps["variant"];
 	maxTagsDisplayed?: number;
 	onTagsChange?: (tags: string[]) => void;
 };
 
 export const TagBadgeGroup = ({
-	tags,
+	tags = [],
 	variant,
 	maxTagsDisplayed = 2,
 	onTagsChange,
