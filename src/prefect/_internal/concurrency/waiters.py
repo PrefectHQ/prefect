@@ -10,7 +10,7 @@ import inspect
 import queue
 import threading
 from collections import deque
-from collections.abc import Awaitable
+from collections.abc import AsyncGenerator, Awaitable, Generator
 from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar
 from weakref import WeakKeyDictionary
 
@@ -24,7 +24,7 @@ from prefect._internal.concurrency.primitives import Event
 T = TypeVar("T")
 
 
-# Waiters are stored in a stack for each thread
+# Waiters are stored in a queue for each thread
 _WAITERS_BY_THREAD: "WeakKeyDictionary[threading.Thread, deque[Waiter[Any]]]" = (
     WeakKeyDictionary()
 )
@@ -49,8 +49,9 @@ class Waiter(Portal, abc.ABC, Generic[T]):
     """
 
     def __init__(self, call: Call[T]) -> None:
-        if not isinstance(call, Call):  # Guard against common mistake
-            raise TypeError(f"Expected call of type `Call`; got {call!r}.")
+        if not TYPE_CHECKING:
+            if not isinstance(call, Call):  # Guard against common mistake
+                raise TypeError(f"Expected call of type `Call`; got {call!r}.")
 
         self._call = call
         self._owner_thread = threading.current_thread()
@@ -107,7 +108,7 @@ class SyncWaiter(Waiter[T]):
         call.set_runner(self)
         return call
 
-    def _handle_waiting_callbacks(self):
+    def _handle_waiting_callbacks(self) -> None:
         logger.debug("Waiter %r watching for callbacks", self)
         while True:
             callback = self._queue.get()
@@ -121,7 +122,7 @@ class SyncWaiter(Waiter[T]):
             del callback
 
     @contextlib.contextmanager
-    def _handle_done_callbacks(self):
+    def _handle_done_callbacks(self) -> Generator[None, Any, None]:
         try:
             yield
         finally:
@@ -195,9 +196,12 @@ class AsyncWaiter(Waiter[T]):
             call_soon_in_loop(self._loop, self._queue.put_nowait, call)
         self._early_submissions = []
 
-    async def _handle_waiting_callbacks(self):
+    async def _handle_waiting_callbacks(self) -> None:
         logger.debug("Waiter %r watching for callbacks", self)
         tasks: list[Awaitable[None]] = []
+
+        if TYPE_CHECKING:
+            assert self._queue is not None
 
         try:
             while True:
@@ -221,7 +225,7 @@ class AsyncWaiter(Waiter[T]):
             self._done_waiting = True
 
     @contextlib.asynccontextmanager
-    async def _handle_done_callbacks(self):
+    async def _handle_done_callbacks(self) -> AsyncGenerator[None, Any]:
         try:
             yield
         finally:
@@ -244,7 +248,7 @@ class AsyncWaiter(Waiter[T]):
         else:
             self._done_callbacks.append(callback)
 
-    def _signal_stop_waiting(self):
+    def _signal_stop_waiting(self) -> None:
         # Only send a `None` to the queue if the waiter is still blocked reading from
         # the queue. Otherwise, it's possible that the event loop is stopped.
         if not self._done_waiting:
