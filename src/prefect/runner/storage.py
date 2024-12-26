@@ -127,6 +127,7 @@ class GitRepository:
         self._url = url
         self._branch = branch
         self._credentials = credentials
+        self._formatted_credentials = self._format_credentials()
         self._include_submodules = include_submodules
         repo_name = urlparse(url).path.split("/")[-1].replace(".git", "")
         default_name = f"{repo_name}-{branch}" if branch else repo_name
@@ -146,13 +147,7 @@ class GitRepository:
     def pull_interval(self) -> Optional[int]:
         return self._pull_interval
 
-    @property
-    def _repository_url_with_credentials(self) -> str:
-        if not self._credentials:
-            return self._url
-
-        url_components = urlparse(self._url)
-
+    def _format_credentials(self) -> str:
         credentials = (
             self._credentials.model_dump()
             if isinstance(self._credentials, Block)
@@ -165,18 +160,49 @@ class GitRepository:
             elif isinstance(v, SecretStr):
                 credentials[k] = v.get_secret_value()
 
-        formatted_credentials = _format_token_from_credentials(
-            urlparse(self._url).netloc, credentials
-        )
-        if url_components.scheme == "https" and formatted_credentials is not None:
+        return _format_token_from_credentials(urlparse(self._url).netloc, credentials)
+
+    @property
+    def _repository_url_with_credentials(self) -> str:
+        if not self._credentials:
+            return self._url
+
+        url_components = urlparse(self._url)
+
+        if url_components.scheme == "https" and self._formatted_credentials is not None:
             updated_components = url_components._replace(
-                netloc=f"{formatted_credentials}@{url_components.netloc}"
+                netloc=f"{self._formatted_credentials}@{url_components.netloc}"
             )
             repository_url = urlunparse(updated_components)
         else:
             repository_url = self._url
 
         return repository_url
+
+    def _git_config(self) -> list[str]:
+        """
+        Build a git configuration to use when running git commands.
+        """
+        config = {}
+
+        # If submodules are included they can potentially be private.
+        # If credentials are provided, add a replacement that will let
+        # the submodule use the same credentials we're using for the main repo.
+        if self._include_submodules:
+            url_components = urlparse(self._url)._replace(path="")
+            if (
+                url_components.scheme == "https"
+                and self._formatted_credentials is not None
+            ):
+                with_auth = urlunparse(
+                    url_components._replace(
+                        netloc=f"{self._formatted_credentials}@{url_components.netloc}"
+                    )
+                )
+                without_auth = urlunparse(url_components)
+                config[f"url.{with_auth}.insteadOf"] = without_auth
+
+        return ["-c", " ".join(f"{k}={v}" for k, v in config.items())] if config else []
 
     async def pull_code(self):
         """
@@ -208,7 +234,11 @@ class GitRepository:
 
             self._logger.debug("Pulling latest changes from origin/%s", self._branch)
             # Update the existing repository
-            cmd = ["git", "pull", "origin"]
+            cmd = ["git"]
+            # Add the git configuration, must be given after `git` and before the command
+            cmd += self._git_config()
+            # Add the pull command and parameters
+            cmd += ["pull", "origin"]
             if self._branch:
                 cmd += [self._branch]
             if self._include_submodules:
@@ -234,12 +264,12 @@ class GitRepository:
         self._logger.debug("Cloning repository %s", self._url)
 
         repository_url = self._repository_url_with_credentials
+        cmd = ["git"]
+        # Add the git configuration, must be given after `git` and before the command
+        cmd += self._git_config()
+        # Add the clone command and its parameters
+        cmd += ["clone", repository_url]
 
-        cmd = [
-            "git",
-            "clone",
-            repository_url,
-        ]
         if self._branch:
             cmd += ["--branch", self._branch]
         if self._include_submodules:
