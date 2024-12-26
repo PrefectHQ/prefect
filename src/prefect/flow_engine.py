@@ -613,11 +613,12 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                 self.flow_run.name = flow_run_name
                 self._flow_run_name_set = True
 
-            _logger, run_type = (
-                (get_run_logger(FlowRunContext.get()), "subflow")
-                if self.flow_run.parent_task_run_id
-                else (self.logger, "flow")
-            )
+            if self.flow_run.parent_task_run_id:
+                _logger = get_run_logger(FlowRunContext.get())
+                run_type = "subflow"
+            else:
+                _logger = self.logger
+                run_type = "flow"
 
             _logger.info(
                 f"Beginning {run_type} run {self.flow_run.name!r} for flow {self.flow.name!r}"
