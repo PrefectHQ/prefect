@@ -1,7 +1,7 @@
 import pytest
 
 from prefect._internal.schemas.validators import (
-    validate_schema,
+    validate_parameter_openapi_schema,
     validate_values_conform_to_schema,
 )
 
@@ -15,13 +15,13 @@ def test_validate_schema_with_valid_schema():
         "required": ["name"],
     }
     # Should not raise any exception
-    validate_schema(schema)
+    validate_parameter_openapi_schema(schema, {"enforce_parameter_schema": True})
 
 
 def test_validate_schema_with_invalid_schema():
     schema = {"type": "object", "properties": {"name": {"type": "nonexistenttype"}}}
     with pytest.raises(ValueError) as excinfo:
-        validate_schema(schema)
+        validate_parameter_openapi_schema(schema, {"enforce_parameter_schema": True})
     assert "The provided schema is not a valid json schema." in str(excinfo.value)
     assert (
         "Schema error: 'nonexistenttype' is not valid under any of the given schemas"
@@ -31,7 +31,7 @@ def test_validate_schema_with_invalid_schema():
 
 def test_validate_schema_with_none_schema():
     # Should not raise any exception
-    validate_schema(None)
+    validate_parameter_openapi_schema(None, {"enforce_parameter_schema": True})
 
 
 # Tests for validate_values_conform_to_schema function

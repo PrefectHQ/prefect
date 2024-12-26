@@ -13,10 +13,11 @@ e.g. Jan 2023.
 import functools
 import sys
 import warnings
-from typing import Any, Callable, List, Optional, Type, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
 import pendulum
 from pydantic import BaseModel
+from typing_extensions import ParamSpec, TypeAlias, TypeVar
 
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.importtools import (
@@ -25,8 +26,10 @@ from prefect.utilities.importtools import (
     to_qualified_name,
 )
 
-T = TypeVar("T", bound=Callable)
+P = ParamSpec("P")
+R = TypeVar("R", infer_variance=True)
 M = TypeVar("M", bound=BaseModel)
+T = TypeVar("T")
 
 
 DEPRECATED_WARNING = (
@@ -38,7 +41,7 @@ DEPRECATED_MOVED_WARNING = (
     "path after {end_date}. {help}"
 )
 DEPRECATED_DATEFMT = "MMM YYYY"  # e.g. Feb 2023
-DEPRECATED_MODULE_ALIASES: List[AliasedModuleDefinition] = []
+DEPRECATED_MODULE_ALIASES: list[AliasedModuleDefinition] = []
 
 
 class PrefectDeprecationWarning(DeprecationWarning):
@@ -61,6 +64,8 @@ def generate_deprecation_message(
         )
 
     if not end_date:
+        if TYPE_CHECKING:
+            assert start_date is not None
         parsed_start_date = pendulum.from_format(start_date, DEPRECATED_DATEFMT)
         parsed_end_date = parsed_start_date.add(months=6)
         end_date = parsed_end_date.format(DEPRECATED_DATEFMT)
@@ -83,8 +88,8 @@ def deprecated_callable(
     end_date: Optional[str] = None,
     stacklevel: int = 2,
     help: str = "",
-) -> Callable[[T], T]:
-    def decorator(fn: T):
+) -> Callable[[Callable[P, R]], Callable[P, R]]:
+    def decorator(fn: Callable[P, R]) -> Callable[P, R]:
         message = generate_deprecation_message(
             name=to_qualified_name(fn),
             start_date=start_date,
@@ -93,7 +98,7 @@ def deprecated_callable(
         )
 
         @functools.wraps(fn)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
             warnings.warn(message, PrefectDeprecationWarning, stacklevel=stacklevel)
             return fn(*args, **kwargs)
 
@@ -108,8 +113,8 @@ def deprecated_class(
     end_date: Optional[str] = None,
     stacklevel: int = 2,
     help: str = "",
-) -> Callable[[T], T]:
-    def decorator(cls: T):
+) -> Callable[[type[T]], type[T]]:
+    def decorator(cls: type[T]) -> type[T]:
         message = generate_deprecation_message(
             name=to_qualified_name(cls),
             start_date=start_date,
@@ -120,7 +125,7 @@ def deprecated_class(
         original_init = cls.__init__
 
         @functools.wraps(original_init)
-        def new_init(self, *args, **kwargs):
+        def new_init(self: T, *args: Any, **kwargs: Any) -> None:
             warnings.warn(message, PrefectDeprecationWarning, stacklevel=stacklevel)
             original_init(self, *args, **kwargs)
 
@@ -139,7 +144,7 @@ def deprecated_parameter(
     help: str = "",
     when: Optional[Callable[[Any], bool]] = None,
     when_message: str = "",
-) -> Callable[[T], T]:
+) -> Callable[[Callable[P, R]], Callable[P, R]]:
     """
     Mark a parameter in a callable as deprecated.
 
@@ -155,7 +160,7 @@ def deprecated_parameter(
 
     when = when or (lambda _: True)
 
-    def decorator(fn: T):
+    def decorator(fn: Callable[P, R]) -> Callable[P, R]:
         message = generate_deprecation_message(
             name=f"The parameter {name!r} for {fn.__name__!r}",
             start_date=start_date,
@@ -165,7 +170,7 @@ def deprecated_parameter(
         )
 
         @functools.wraps(fn)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
             try:
                 parameters = get_call_parameters(fn, args, kwargs, apply_defaults=False)
             except Exception:
@@ -182,6 +187,10 @@ def deprecated_parameter(
     return decorator
 
 
+JsonValue: TypeAlias = Union[int, float, str, bool, None, list["JsonValue"], "JsonDict"]
+JsonDict: TypeAlias = dict[str, JsonValue]
+
+
 def deprecated_field(
     name: str,
     *,
@@ -191,7 +200,7 @@ def deprecated_field(
     help: str = "",
     when: Optional[Callable[[Any], bool]] = None,
     stacklevel: int = 2,
-):
+) -> Callable[[type[M]], type[M]]:
     """
     Mark a field in a Pydantic model as deprecated.
 
@@ -212,7 +221,7 @@ def deprecated_field(
 
     # Replaces the model's __init__ method with one that performs an additional warning
     # check
-    def decorator(model_cls: Type[M]) -> Type[M]:
+    def decorator(model_cls: type[M]) -> type[M]:
         message = generate_deprecation_message(
             name=f"The field {name!r} in {model_cls.__name__!r}",
             start_date=start_date,
@@ -224,7 +233,7 @@ def deprecated_field(
         cls_init = model_cls.__init__
 
         @functools.wraps(model_cls.__init__)
-        def __init__(__pydantic_self__, **data: Any) -> None:
+        def __init__(__pydantic_self__: M, **data: Any) -> None:
             if name in data.keys() and when(data[name]):
                 warnings.warn(message, PrefectDeprecationWarning, stacklevel=stacklevel)
 
@@ -232,8 +241,23 @@ def deprecated_field(
 
             field = __pydantic_self__.model_fields.get(name)
             if field is not None:
-                field.json_schema_extra = field.json_schema_extra or {}
-                field.json_schema_extra["deprecated"] = True
+                json_schema_extra = field.json_schema_extra or {}
+
+                if not isinstance(json_schema_extra, dict):
+                    # json_schema_extra is a hook function; wrap it to add the deprecated flag.
+                    extra_func = json_schema_extra
+
+                    @functools.wraps(extra_func)
+                    def wrapped(__json_schema: JsonDict) -> None:
+                        extra_func(__json_schema)
+                        __json_schema["deprecated"] = True
+
+                    json_schema_extra = wrapped
+
+                else:
+                    json_schema_extra["deprecated"] = True
+
+                field.json_schema_extra = json_schema_extra
 
         # Patch the model's init method
         model_cls.__init__ = __init__

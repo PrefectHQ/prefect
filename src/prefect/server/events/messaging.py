@@ -1,4 +1,4 @@
-from typing import Iterable
+from collections.abc import Iterable
 
 from prefect.logging import get_logger
 from prefect.server.events.schemas.events import ReceivedEvent

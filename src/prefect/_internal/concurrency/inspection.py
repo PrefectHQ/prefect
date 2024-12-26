@@ -7,7 +7,6 @@ import linecache
 import sys
 import threading
 from types import FrameType
-from typing import List, Optional
 
 """
 The following functions are derived from dask/distributed which is licensed under the
@@ -72,26 +71,25 @@ def repr_frame(frame: FrameType) -> str:
     return text + "\n\t" + line
 
 
-def call_stack(frame: FrameType) -> List[str]:
+def call_stack(frame: FrameType) -> list[str]:
     """Create a call text stack from a frame"""
-    L = []
-    cur_frame: Optional[FrameType] = frame
+    frames: list[str] = []
+    cur_frame = frame
     while cur_frame:
-        L.append(repr_frame(cur_frame))
+        frames.append(repr_frame(cur_frame))
         cur_frame = cur_frame.f_back
-    return L[::-1]
+    return frames[::-1]
 
 
-def stack_for_threads(*threads: threading.Thread) -> List[str]:
-    frames = sys._current_frames()
+def stack_for_threads(*threads: threading.Thread) -> list[str]:
+    frames = sys._current_frames()  # pyright: ignore[reportPrivateUsage]
     try:
-        lines = []
+        lines: list[str] = []
         for thread in threads:
-            lines.append(
-                f"------ Call stack of {thread.name} ({hex(thread.ident)}) -----"
-            )
-            thread_frames = frames.get(thread.ident)
-            if thread_frames:
+            ident = thread.ident
+            hex_ident = hex(ident) if ident is not None else "<unknown>"
+            lines.append(f"------ Call stack of {thread.name} ({hex_ident}) -----")
+            if ident is not None and (thread_frames := frames.get(ident)):
                 lines.append("".join(call_stack(thread_frames)))
             else:
                 lines.append("No stack frames found")
