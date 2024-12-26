@@ -4,6 +4,7 @@ from httpx import AsyncClient, Client, HTTPStatusError
 from pydantic import Field
 from typing_extensions import TypedDict, Unpack
 
+from prefect.client.orchestration.base import BaseAsyncClient, BaseClient
 from prefect.client.orchestration.routes import arequest, request
 from prefect.exceptions import ObjectNotFound
 
@@ -40,10 +41,7 @@ class ArtifactCollectionReadParams(BaseArtifactReadParams, total=False):
     sort: Annotated[Optional["ArtifactCollectionSort"], Field(default=None)]
 
 
-class ArtifactClient:
-    def __init__(self, client: Client):
-        self._client = client
-
+class ArtifactClient(BaseClient):
     def create_artifact(self, artifact: "ArtifactCreate") -> "Artifact":
         response = request(
             self._client,
@@ -113,10 +111,7 @@ class ArtifactClient:
         return Artifact.model_validate_list(response.json())
 
 
-class ArtifactAsyncClient:
-    def __init__(self, client: AsyncClient):
-        self._client = client
-
+class ArtifactAsyncClient(BaseAsyncClient):
     async def create_artifact(self, artifact: "ArtifactCreate") -> "Artifact":
         response = await arequest(
             self._client,
@@ -187,7 +182,7 @@ class ArtifactAsyncClient:
                 raise
 
 
-class ArtifactCollectionClient:
+class ArtifactCollectionClient(BaseClient):
     def __init__(self, client: Client):
         self._client = client
 
@@ -222,7 +217,7 @@ class ArtifactCollectionClient:
         return ArtifactCollection.model_validate_list(response.json())
 
 
-class ArtifactCollectionAsyncClient:
+class ArtifactCollectionAsyncClient(BaseAsyncClient):
     def __init__(self, client: AsyncClient):
         self._client = client
 
