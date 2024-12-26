@@ -1,9 +1,10 @@
 import { TaskRunConcurrencyLimitHeader } from "@/components/concurrency/task-run-concurrency-limits/task-run-concurrency-limit-header";
-import { useGetTaskRunConcurrencyLimit } from "@/hooks/task-run-concurrency-limits";
+import { buildConcurrenyLimitDetailsActiveRunsQuery } from "@/hooks/task-run-concurrency-limits";
 import { useState } from "react";
 
 import { TaskRunConcurrencyLimitActiveTaskRuns } from "@/components/concurrency/task-run-concurrency-limits/task-run-concurrency-limit-active-task-runs";
 import { TaskRunConcurrencyLimitDetails } from "@/components/concurrency/task-run-concurrency-limits/task-run-concurrency-limit-details";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import {
 	type Dialogs,
 	TaskRunConcurrencyLimitDialog,
@@ -16,7 +17,9 @@ type Props = {
 
 export const TaskRunConcurrencyLimitPage = ({ id }: Props) => {
 	const [openDialog, setOpenDialog] = useState<Dialogs>(null);
-	const { data } = useGetTaskRunConcurrencyLimit(id);
+	const { data } = useSuspenseQuery(
+		buildConcurrenyLimitDetailsActiveRunsQuery(id),
+	);
 
 	const handleOpenDeleteDialog = () => setOpenDialog("delete");
 	const handleOpenResetDialog = () => setOpenDialog("reset");
@@ -29,23 +32,27 @@ export const TaskRunConcurrencyLimitPage = ({ id }: Props) => {
 		}
 	};
 
+	const { activeTaskRuns, taskRunConcurrencyLimit } = data;
+
 	return (
 		<>
 			<div className="flex flex-col gap-4">
 				<TaskRunConcurrencyLimitHeader
-					data={data}
+					data={taskRunConcurrencyLimit}
 					onDelete={handleOpenDeleteDialog}
 					onReset={handleOpenResetDialog}
 				/>
 				<div className="grid gap-4" style={{ gridTemplateColumns: "3fr 1fr" }}>
 					<TaskRunConcurrencyLimitTabNavigation
-						activetaskRunsView={<TaskRunConcurrencyLimitActiveTaskRuns />}
+						activeTaskRuns={
+							<TaskRunConcurrencyLimitActiveTaskRuns data={activeTaskRuns} />
+						}
 					/>
-					<TaskRunConcurrencyLimitDetails data={data} />
+					<TaskRunConcurrencyLimitDetails data={taskRunConcurrencyLimit} />
 				</div>
 			</div>
 			<TaskRunConcurrencyLimitDialog
-				data={data}
+				data={taskRunConcurrencyLimit}
 				openDialog={openDialog}
 				onOpenChange={handleOpenChange}
 				onCloseDialog={handleCloseDialog}
