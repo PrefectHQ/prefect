@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Annotated, Optional
 
-from httpx import AsyncClient, Client, HTTPStatusError
+from httpx import HTTPStatusError
 from pydantic import Field
 from typing_extensions import TypedDict, Unpack
 
@@ -9,6 +9,8 @@ from prefect.exceptions import ObjectNotFound
 
 if TYPE_CHECKING:
     from uuid import UUID
+
+    from httpx import AsyncClient, Client
 
     from prefect.client.schemas.actions import ArtifactCreate, ArtifactUpdate
     from prefect.client.schemas.filters import (
