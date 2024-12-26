@@ -26,7 +26,11 @@ from prefect.settings import (
     PREFECT_TEST_MODE,
 )
 
+from .artifact import artifact_app
+
 app = PrefectTyper(add_completion=True, no_args_is_help=True)
+
+app.add_typer(artifact_app)
 
 
 def version_callback(value: bool):
