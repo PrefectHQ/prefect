@@ -89,7 +89,7 @@
 		"eslint-plugin-storybook": "^0.11.1",
 		"eslint-plugin-testing-library": "^7.1.1",
 		"eslint-plugin-unused-imports": "^4.1.4",
-		"globals": "^15.10.0",
+		"globals": "^15.14.0",
 		"jsdom": "^25.0.1",
 		"msw": "^2.6.0",
 		"postcss": "^8.4.47",
