@@ -4,7 +4,7 @@ from unittest import mock
 from httpx import Response
 
 from prefect.client.schemas.responses import MinimalConcurrencyLimitResponse
-from prefect.concurrency.v1.asyncio import _release_concurrency_slots
+from prefect.concurrency.v1._asyncio import release_concurrency_slots
 
 
 async def test_calls_release_client_method():
@@ -23,7 +23,7 @@ async def test_calls_release_client_method():
         )
         client_decrement_v1_concurrency_slots.return_value = response
 
-        await _release_concurrency_slots(
+        await release_concurrency_slots(
             names=["test-1", "test-2"], task_run_id=task_run_id, occupancy_seconds=1.0
         )
         client_decrement_v1_concurrency_slots.assert_called_once_with(
@@ -49,7 +49,7 @@ async def test_returns_minimal_concurrency_limit():
         )
         client_decrement_v1_concurrency_slots.return_value = response
 
-        result = await _release_concurrency_slots(
+        result = await release_concurrency_slots(
             ["test-1", "test-2"],
             task_run_id,
             1.0,
