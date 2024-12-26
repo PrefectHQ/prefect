@@ -25,6 +25,14 @@ from prefect.client.orchestration.artifacts import (
     ArtifactCollectionClient,
     ArtifactCollectionAsyncClient,
 )
+from prefect.client.orchestration.blocks import (
+    BlockDocumentClient,
+    BlockDocumentAsyncClient,
+    BlockSchemaClient,
+    BlockSchemaAsyncClient,
+    BlockTypeClient,
+    BlockTypeAsyncClient,
+)
 
 import prefect
 import prefect.exceptions
@@ -33,11 +41,6 @@ import prefect.states
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun, sorting
 from prefect.client.schemas.actions import (
-    BlockDocumentCreate,
-    BlockDocumentUpdate,
-    BlockSchemaCreate,
-    BlockTypeCreate,
-    BlockTypeUpdate,
     ConcurrencyLimitCreate,
     DeploymentCreate,
     DeploymentFlowRunCreate,
@@ -74,9 +77,6 @@ from prefect.client.schemas.filters import (
     WorkQueueFilterName,
 )
 from prefect.client.schemas.objects import (
-    BlockDocument,
-    BlockSchema,
-    BlockType,
     ConcurrencyLimit,
     ConcurrencyOptions,
     Constant,
@@ -152,15 +152,13 @@ def get_client(
     *,
     httpx_settings: Optional[dict[str, Any]] = ...,
     sync_client: Literal[False] = False,
-) -> "PrefectClient":
-    ...
+) -> "PrefectClient": ...
 
 
 @overload
 def get_client(
     *, httpx_settings: Optional[dict[str, Any]] = ..., sync_client: Literal[True] = ...
-) -> "SyncPrefectClient":
-    ...
+) -> "SyncPrefectClient": ...
 
 
 def get_client(
@@ -244,7 +242,13 @@ def get_client(
         )
 
 
-class PrefectClient(ArtifactAsyncClient, ArtifactCollectionAsyncClient):
+class PrefectClient(
+    ArtifactAsyncClient,
+    ArtifactCollectionAsyncClient,
+    BlockDocumentAsyncClient,
+    BlockSchemaAsyncClient,
+    BlockTypeAsyncClient,
+):
     """
     An asynchronous client for interacting with the [Prefect REST API](/api-ref/rest-api/).
 
@@ -1282,383 +1286,6 @@ class PrefectClient(ArtifactAsyncClient, ArtifactCollectionAsyncClient):
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
-
-    async def create_block_type(self, block_type: BlockTypeCreate) -> BlockType:
-        """
-        Create a block type in the Prefect API.
-        """
-        try:
-            response = await self._client.post(
-                "/block_types/",
-                json=block_type.model_dump(
-                    mode="json", exclude_unset=True, exclude={"id"}
-                ),
-            )
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_409_CONFLICT:
-                raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
-            else:
-                raise
-        return BlockType.model_validate(response.json())
-
-    async def create_block_schema(self, block_schema: BlockSchemaCreate) -> BlockSchema:
-        """
-        Create a block schema in the Prefect API.
-        """
-        try:
-            response = await self._client.post(
-                "/block_schemas/",
-                json=block_schema.model_dump(
-                    mode="json",
-                    exclude_unset=True,
-                    exclude={"id", "block_type", "checksum"},
-                ),
-            )
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_409_CONFLICT:
-                raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
-            else:
-                raise
-        return BlockSchema.model_validate(response.json())
-
-    async def create_block_document(
-        self,
-        block_document: Union[BlockDocument, BlockDocumentCreate],
-        include_secrets: bool = True,
-    ) -> BlockDocument:
-        """
-        Create a block document in the Prefect API. This data is used to configure a
-        corresponding Block.
-
-        Args:
-            include_secrets (bool): whether to include secret values
-                on the stored Block, corresponding to Pydantic's `SecretStr` and
-                `SecretBytes` fields. Note Blocks may not work as expected if
-                this is set to `False`.
-        """
-        block_document_data = block_document.model_dump(
-            mode="json",
-            exclude_unset=True,
-            exclude={"id", "block_schema", "block_type"},
-            context={"include_secrets": include_secrets},
-            serialize_as_any=True,
-        )
-        try:
-            response = await self._client.post(
-                "/block_documents/",
-                json=block_document_data,
-            )
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_409_CONFLICT:
-                raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
-            else:
-                raise
-        return BlockDocument.model_validate(response.json())
-
-    async def update_block_document(
-        self,
-        block_document_id: UUID,
-        block_document: BlockDocumentUpdate,
-    ) -> None:
-        """
-        Update a block document in the Prefect API.
-        """
-        try:
-            await self._client.patch(
-                f"/block_documents/{block_document_id}",
-                json=block_document.model_dump(
-                    mode="json",
-                    exclude_unset=True,
-                    include={"data", "merge_existing_data", "block_schema_id"},
-                ),
-            )
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_404_NOT_FOUND:
-                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
-            else:
-                raise
-
-    async def delete_block_document(self, block_document_id: UUID) -> None:
-        """
-        Delete a block document.
-        """
-        try:
-            await self._client.delete(f"/block_documents/{block_document_id}")
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
-                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
-            else:
-                raise
-
-    async def read_block_type_by_slug(self, slug: str) -> BlockType:
-        """
-        Read a block type by its slug.
-        """
-        try:
-            response = await self._client.get(f"/block_types/slug/{slug}")
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_404_NOT_FOUND:
-                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
-            else:
-                raise
-        return BlockType.model_validate(response.json())
-
-    async def read_block_schema_by_checksum(
-        self, checksum: str, version: Optional[str] = None
-    ) -> BlockSchema:
-        """
-        Look up a block schema checksum
-        """
-        try:
-            url = f"/block_schemas/checksum/{checksum}"
-            if version is not None:
-                url = f"{url}?version={version}"
-            response = await self._client.get(url)
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_404_NOT_FOUND:
-                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
-            else:
-                raise
-        return BlockSchema.model_validate(response.json())
-
-    async def update_block_type(
-        self, block_type_id: UUID, block_type: BlockTypeUpdate
-    ) -> None:
-        """
-        Update a block document in the Prefect API.
-        """
-        try:
-            await self._client.patch(
-                f"/block_types/{block_type_id}",
-                json=block_type.model_dump(
-                    mode="json",
-                    exclude_unset=True,
-                    include=BlockTypeUpdate.updatable_fields(),
-                ),
-            )
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_404_NOT_FOUND:
-                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
-            else:
-                raise
-
-    async def delete_block_type(self, block_type_id: UUID) -> None:
-        """
-        Delete a block type.
-        """
-        try:
-            await self._client.delete(f"/block_types/{block_type_id}")
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
-                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
-            elif (
-                e.response.status_code == status.HTTP_403_FORBIDDEN
-                and e.response.json()["detail"]
-                == "protected block types cannot be deleted."
-            ):
-                raise prefect.exceptions.ProtectedBlockError(
-                    "Protected block types cannot be deleted."
-                ) from e
-            else:
-                raise
-
-    async def read_block_types(self) -> list[BlockType]:
-        """
-        Read all block types
-        Raises:
-            httpx.RequestError: if the block types were not found
-
-        Returns:
-            List of BlockTypes.
-        """
-        response = await self._client.post("/block_types/filter", json={})
-        return pydantic.TypeAdapter(list[BlockType]).validate_python(response.json())
-
-    async def read_block_schemas(self) -> list[BlockSchema]:
-        """
-        Read all block schemas
-        Raises:
-            httpx.RequestError: if a valid block schema was not found
-
-        Returns:
-            A BlockSchema.
-        """
-        response = await self._client.post("/block_schemas/filter", json={})
-        return pydantic.TypeAdapter(list[BlockSchema]).validate_python(response.json())
-
-    async def get_most_recent_block_schema_for_block_type(
-        self,
-        block_type_id: UUID,
-    ) -> Optional[BlockSchema]:
-        """
-        Fetches the most recent block schema for a specified block type ID.
-
-        Args:
-            block_type_id: The ID of the block type.
-
-        Raises:
-            httpx.RequestError: If the request fails for any reason.
-
-        Returns:
-            The most recent block schema or None.
-        """
-        try:
-            response = await self._client.post(
-                "/block_schemas/filter",
-                json={
-                    "block_schemas": {"block_type_id": {"any_": [str(block_type_id)]}},
-                    "limit": 1,
-                },
-            )
-        except httpx.HTTPStatusError:
-            raise
-        return (
-            BlockSchema.model_validate(response.json()[0]) if response.json() else None
-        )
-
-    async def read_block_document(
-        self,
-        block_document_id: UUID,
-        include_secrets: bool = True,
-    ) -> BlockDocument:
-        """
-        Read the block document with the specified ID.
-
-        Args:
-            block_document_id: the block document id
-            include_secrets (bool): whether to include secret values
-                on the Block, corresponding to Pydantic's `SecretStr` and
-                `SecretBytes` fields. These fields are automatically obfuscated
-                by Pydantic, but users can additionally choose not to receive
-                their values from the API. Note that any business logic on the
-                Block may not work if this is `False`.
-
-        Raises:
-            httpx.RequestError: if the block document was not found for any reason
-
-        Returns:
-            A block document or None.
-        """
-        assert (
-            block_document_id is not None
-        ), "Unexpected ID on block document. Was it persisted?"
-        try:
-            response = await self._client.get(
-                f"/block_documents/{block_document_id}",
-                params=dict(include_secrets=include_secrets),
-            )
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_404_NOT_FOUND:
-                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
-            else:
-                raise
-        return BlockDocument.model_validate(response.json())
-
-    async def read_block_document_by_name(
-        self,
-        name: str,
-        block_type_slug: str,
-        include_secrets: bool = True,
-    ) -> BlockDocument:
-        """
-        Read the block document with the specified name that corresponds to a
-        specific block type name.
-
-        Args:
-            name: The block document name.
-            block_type_slug: The block type slug.
-            include_secrets (bool): whether to include secret values
-                on the Block, corresponding to Pydantic's `SecretStr` and
-                `SecretBytes` fields. These fields are automatically obfuscated
-                by Pydantic, but users can additionally choose not to receive
-                their values from the API. Note that any business logic on the
-                Block may not work if this is `False`.
-
-        Raises:
-            httpx.RequestError: if the block document was not found for any reason
-
-        Returns:
-            A block document or None.
-        """
-        try:
-            response = await self._client.get(
-                f"/block_types/slug/{block_type_slug}/block_documents/name/{name}",
-                params=dict(include_secrets=include_secrets),
-            )
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_404_NOT_FOUND:
-                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
-            else:
-                raise
-        return BlockDocument.model_validate(response.json())
-
-    async def read_block_documents(
-        self,
-        block_schema_type: Optional[str] = None,
-        offset: Optional[int] = None,
-        limit: Optional[int] = None,
-        include_secrets: bool = True,
-    ) -> list[BlockDocument]:
-        """
-        Read block documents
-
-        Args:
-            block_schema_type: an optional block schema type
-            offset: an offset
-            limit: the number of blocks to return
-            include_secrets (bool): whether to include secret values
-                on the Block, corresponding to Pydantic's `SecretStr` and
-                `SecretBytes` fields. These fields are automatically obfuscated
-                by Pydantic, but users can additionally choose not to receive
-                their values from the API. Note that any business logic on the
-                Block may not work if this is `False`.
-
-        Returns:
-            A list of block documents
-        """
-        response = await self._client.post(
-            "/block_documents/filter",
-            json=dict(
-                block_schema_type=block_schema_type,
-                offset=offset,
-                limit=limit,
-                include_secrets=include_secrets,
-            ),
-        )
-        return pydantic.TypeAdapter(list[BlockDocument]).validate_python(
-            response.json()
-        )
-
-    async def read_block_documents_by_type(
-        self,
-        block_type_slug: str,
-        offset: Optional[int] = None,
-        limit: Optional[int] = None,
-        include_secrets: bool = True,
-    ) -> list[BlockDocument]:
-        """Retrieve block documents by block type slug.
-
-        Args:
-            block_type_slug: The block type slug.
-            offset: an offset
-            limit: the number of blocks to return
-            include_secrets: whether to include secret values
-
-        Returns:
-            A list of block documents
-        """
-        response = await self._client.get(
-            f"/block_types/slug/{block_type_slug}/block_documents",
-            params=dict(
-                offset=offset,
-                limit=limit,
-                include_secrets=include_secrets,
-            ),
-        )
-
-        return pydantic.TypeAdapter(list[BlockDocument]).validate_python(
-            response.json()
-        )
 
     async def create_deployment(
         self,
@@ -3434,7 +3061,13 @@ class PrefectClient(ArtifactAsyncClient, ArtifactCollectionAsyncClient):
         assert False, "This should never be called but must be defined for __enter__"
 
 
-class SyncPrefectClient(ArtifactClient, ArtifactCollectionClient):
+class SyncPrefectClient(
+    ArtifactClient,
+    ArtifactCollectionClient,
+    BlockDocumentClient,
+    BlockSchemaClient,
+    BlockTypeClient,
+):
     """
     A synchronous client for interacting with the [Prefect REST API](/api-ref/rest-api/).
 
@@ -4276,44 +3909,6 @@ class SyncPrefectClient(ArtifactClient, ArtifactCollectionClient):
             json=labels,
         )
         response.raise_for_status()
-
-    def read_block_document_by_name(
-        self,
-        name: str,
-        block_type_slug: str,
-        include_secrets: bool = True,
-    ) -> BlockDocument:
-        """
-        Read the block document with the specified name that corresponds to a
-        specific block type name.
-
-        Args:
-            name: The block document name.
-            block_type_slug: The block type slug.
-            include_secrets (bool): whether to include secret values
-                on the Block, corresponding to Pydantic's `SecretStr` and
-                `SecretBytes` fields. These fields are automatically obfuscated
-                by Pydantic, but users can additionally choose not to receive
-                their values from the API. Note that any business logic on the
-                Block may not work if this is `False`.
-
-        Raises:
-            httpx.RequestError: if the block document was not found for any reason
-
-        Returns:
-            A block document or None.
-        """
-        try:
-            response = self._client.get(
-                f"/block_types/slug/{block_type_slug}/block_documents/name/{name}",
-                params=dict(include_secrets=include_secrets),
-            )
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_404_NOT_FOUND:
-                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
-            else:
-                raise
-        return BlockDocument.model_validate(response.json())
 
     def create_variable(self, variable: VariableCreate) -> Variable:
         """
