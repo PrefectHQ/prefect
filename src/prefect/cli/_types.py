@@ -5,7 +5,7 @@ Custom Prefect CLI types
 import asyncio
 import functools
 import sys
-from typing import Callable, List, Optional
+from typing import Any, Callable, List, Optional
 
 import typer
 from rich.console import Console
@@ -94,10 +94,10 @@ class PrefectTyper(typer.Typer):
     def add_typer(
         self,
         typer_instance: "PrefectTyper",
-        *args,
+        *args: Any,
         no_args_is_help: bool = True,
         aliases: Optional[List[str]] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """
         This will cause help to be default command for all sub apps unless specifically stated otherwise, opposite of before.
