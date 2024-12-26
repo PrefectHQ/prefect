@@ -2,7 +2,16 @@ import shutil
 import subprocess
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Dict, Optional, Protocol, TypedDict, Union, runtime_checkable
+from typing import (
+    Any,
+    Dict,
+    List,
+    Optional,
+    Protocol,
+    TypedDict,
+    Union,
+    runtime_checkable,
+)
 from urllib.parse import urlparse, urlsplit, urlunparse
 from uuid import uuid4
 
@@ -127,7 +136,6 @@ class GitRepository:
         self._url = url
         self._branch = branch
         self._credentials = credentials
-        self._formatted_credentials = self._format_credentials()
         self._include_submodules = include_submodules
         repo_name = urlparse(url).path.split("/")[-1].replace(".git", "")
         default_name = f"{repo_name}-{branch}" if branch else repo_name
@@ -147,7 +155,8 @@ class GitRepository:
     def pull_interval(self) -> Optional[int]:
         return self._pull_interval
 
-    def _format_credentials(self) -> str:
+    @property
+    def _formatted_credentials(self) -> str:
         credentials = (
             self._credentials.model_dump()
             if isinstance(self._credentials, Block)
@@ -179,7 +188,7 @@ class GitRepository:
 
         return repository_url
 
-    def _git_config(self) -> list[str]:
+    def _git_config(self) -> List[str]:
         """
         Build a git configuration to use when running git commands.
         """
