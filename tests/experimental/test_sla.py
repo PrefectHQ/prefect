@@ -90,6 +90,26 @@ class TestClientCreateSla:
 
 
 class TestRunnerDeploymentApply:
+    async def test_runner_deployment_calls_internal_method_on_apply_with_sla(
+        self, monkeypatch
+    ):
+        sla = TimeToCompletionSla(
+            name="test-sla",
+            duration=timedelta(minutes=10).total_seconds(),
+        )
+        deployment = RunnerDeployment.from_flow(
+            flow=tired_flow,
+            name=__file__,
+            sla=sla,
+        )
+        monkeypatch.setattr(
+            deployment, "_create_slas", mock.AsyncMock(name="mock_create_slas")
+        )
+
+        await deployment.apply()
+
+        assert deployment._create_slas.called
+
     @pytest.fixture
     def client(self, monkeypatch, prefect_client):
         monkeypatch.setattr(prefect_client, "server_type", ServerType.CLOUD)
