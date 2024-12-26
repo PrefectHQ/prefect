@@ -14,11 +14,12 @@ License: MIT
 """
 
 try:
-    import pytz  # noqa: F401
+    import pytz as pytz
 except ImportError:
-    HAS_PYTZ = False
+    _has_pytz = False
 else:
-    HAS_PYTZ = True
+    _has_pytz = True
+HAS_PYTZ = _has_pytz
 
 
 all_timezones_set = {

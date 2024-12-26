@@ -1,11 +1,13 @@
 import asyncio
 import inspect
+from collections.abc import Coroutine
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, TypeVar, Union, cast
 
 from typing_extensions import ParamSpec
 
 if TYPE_CHECKING:
+    from prefect.flows import Flow
     from prefect.tasks import Task
 
 R = TypeVar("R")
@@ -41,7 +43,9 @@ def is_in_async_context() -> bool:
 
 
 def _is_acceptable_callable(
-    obj: Union[Callable[P, R], "Task[P, R]", classmethod],
+    obj: Union[
+        Callable[P, R], "Flow[P, R]", "Task[P, R]", "classmethod[type[Any], P, R]"
+    ],
 ) -> bool:
     if inspect.iscoroutinefunction(obj):
         return True
@@ -58,7 +62,10 @@ def _is_acceptable_callable(
 
 
 def async_dispatch(
-    async_impl: Callable[P, Coroutine[Any, Any, R]],
+    async_impl: Union[
+        Callable[P, Coroutine[Any, Any, R]],
+        "classmethod[type[Any], P, Coroutine[Any, Any, R]]",
+    ],
 ) -> Callable[[Callable[P, R]], Callable[P, Union[R, Coroutine[Any, Any, R]]]]:
     """
     Decorator that dispatches to either sync or async implementation based on context.
@@ -66,27 +73,26 @@ def async_dispatch(
     Args:
         async_impl: The async implementation to dispatch to when in async context
     """
+    if not _is_acceptable_callable(async_impl):
+        raise TypeError("async_impl must be an async function")
+    if isinstance(async_impl, classmethod):
+        async_impl = cast(Callable[P, Coroutine[Any, Any, R]], async_impl.__func__)
 
     def decorator(
         sync_fn: Callable[P, R],
     ) -> Callable[P, Union[R, Coroutine[Any, Any, R]]]:
-        if not _is_acceptable_callable(async_impl):
-            raise TypeError("async_impl must be an async function")
-
         @wraps(sync_fn)
         def wrapper(
             *args: P.args,
-            _sync: Optional[bool] = None,  # type: ignore
             **kwargs: P.kwargs,
         ) -> Union[R, Coroutine[Any, Any, R]]:
-            should_run_sync = _sync if _sync is not None else not is_in_async_context()
+            _sync = kwargs.pop("_sync", None)
+            should_run_sync = (
+                bool(_sync) if _sync is not None else not is_in_async_context()
+            )
+            fn = sync_fn if should_run_sync else async_impl
+            return fn(*args, **kwargs)
 
-            if should_run_sync:
-                return sync_fn(*args, **kwargs)
-            if isinstance(async_impl, classmethod):
-                return async_impl.__func__(*args, **kwargs)
-            return async_impl(*args, **kwargs)
-
-        return wrapper  # type: ignore
+        return wrapper
 
     return decorator

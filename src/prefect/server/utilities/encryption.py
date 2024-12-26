@@ -4,13 +4,16 @@ Encryption utilities
 
 import json
 import os
+from collections.abc import Mapping
+from typing import Any
 
 from cryptography.fernet import Fernet
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import schemas
 
 
-async def get_fernet_encryption(session):
+async def _get_fernet_encryption(session: AsyncSession) -> Fernet:
     from prefect.server.models import configuration
 
     environment_key = os.getenv(
@@ -34,13 +37,13 @@ async def get_fernet_encryption(session):
     return Fernet(encryption_key)
 
 
-async def encrypt_fernet(session, data: dict):
-    fernet = await get_fernet_encryption(session)
+async def encrypt_fernet(session: AsyncSession, data: Mapping[str, Any]) -> str:
+    fernet = await _get_fernet_encryption(session)
     byte_blob = json.dumps(data).encode()
     return fernet.encrypt(byte_blob).decode()
 
 
-async def decrypt_fernet(session, data: dict):
-    fernet = await get_fernet_encryption(session)
+async def decrypt_fernet(session: AsyncSession, data: str) -> dict[str, Any]:
+    fernet = await _get_fernet_encryption(session)
     byte_blob = data.encode()
     return json.loads(fernet.decrypt(byte_blob).decode())

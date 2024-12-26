@@ -1,6 +1,7 @@
 import asyncio
+from collections.abc import Coroutine
 from functools import wraps
-from typing import Callable, Optional, Tuple, Type, TypeVar
+from typing import Any, Callable, Optional, TypeVar
 
 from typing_extensions import ParamSpec
 
@@ -25,9 +26,11 @@ def retry_async_fn(
     ] = exponential_backoff_with_jitter,
     base_delay: float = 1,
     max_delay: float = 10,
-    retry_on_exceptions: Tuple[Type[Exception], ...] = (Exception,),
+    retry_on_exceptions: tuple[type[Exception], ...] = (Exception,),
     operation_name: Optional[str] = None,
-) -> Callable[[Callable[P, R]], Callable[P, R]]:
+) -> Callable[
+    [Callable[P, Coroutine[Any, Any, R]]], Callable[P, Coroutine[Any, Any, Optional[R]]]
+]:
     """A decorator for retrying an async function.
 
     Args:
@@ -43,9 +46,11 @@ def retry_async_fn(
             the function name. If None, uses the function name.
     """
 
-    def decorator(func: Callable[P, R]) -> Callable[P, R]:
+    def decorator(
+        func: Callable[P, Coroutine[Any, Any, R]],
+    ) -> Callable[P, Coroutine[Any, Any, Optional[R]]]:
         @wraps(func)
-        async def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+        async def wrapper(*args: P.args, **kwargs: P.kwargs) -> Optional[R]:
             name = operation_name or func.__name__
             for attempt in range(max_attempts):
                 try:
