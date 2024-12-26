@@ -31,64 +31,64 @@ import { Route as DeploymentsDeploymentIdImport } from './routes/deployments/dep
 // Create/Update Routes
 
 const WorkPoolsRoute = WorkPoolsImport.update({
-  id: '/work-pools',
-  path: '/work-pools',
-  getParentRoute: () => rootRoute,
-} as any)
+	id: "/work-pools",
+	path: "/work-pools",
+	getParentRoute: () => rootRoute,
+} as any);
 
 const VariablesRoute = VariablesImport.update({
-  id: '/variables',
-  path: '/variables',
-  getParentRoute: () => rootRoute,
-} as any)
+	id: "/variables",
+	path: "/variables",
+	getParentRoute: () => rootRoute,
+} as any);
 
 const SettingsRoute = SettingsImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => rootRoute,
-} as any)
+	id: "/settings",
+	path: "/settings",
+	getParentRoute: () => rootRoute,
+} as any);
 
 const NotificationsRoute = NotificationsImport.update({
-  id: '/notifications',
-  path: '/notifications',
-  getParentRoute: () => rootRoute,
-} as any)
+	id: "/notifications",
+	path: "/notifications",
+	getParentRoute: () => rootRoute,
+} as any);
 
 const EventsRoute = EventsImport.update({
-  id: '/events',
-  path: '/events',
-  getParentRoute: () => rootRoute,
-} as any)
+	id: "/events",
+	path: "/events",
+	getParentRoute: () => rootRoute,
+} as any);
 
 const DashboardRoute = DashboardImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => rootRoute,
-} as any)
+	id: "/dashboard",
+	path: "/dashboard",
+	getParentRoute: () => rootRoute,
+} as any);
 
 const ConcurrencyLimitsRoute = ConcurrencyLimitsImport.update({
-  id: '/concurrency-limits',
-  path: '/concurrency-limits',
-  getParentRoute: () => rootRoute,
-} as any)
+	id: "/concurrency-limits",
+	path: "/concurrency-limits",
+	getParentRoute: () => rootRoute,
+} as any);
 
 const BlocksRoute = BlocksImport.update({
-  id: '/blocks',
-  path: '/blocks',
-  getParentRoute: () => rootRoute,
-} as any)
+	id: "/blocks",
+	path: "/blocks",
+	getParentRoute: () => rootRoute,
+} as any);
 
 const AutomationsRoute = AutomationsImport.update({
-  id: '/automations',
-  path: '/automations',
-  getParentRoute: () => rootRoute,
-} as any)
+	id: "/automations",
+	path: "/automations",
+	getParentRoute: () => rootRoute,
+} as any);
 
 const IndexRoute = IndexImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRoute,
-} as any)
+	id: "/",
+	path: "/",
+	getParentRoute: () => rootRoute,
+} as any);
 
 const RunsIndexRoute = RunsIndexImport.update({
   id: '/runs/',
@@ -97,10 +97,10 @@ const RunsIndexRoute = RunsIndexImport.update({
 } as any)
 
 const FlowsIndexRoute = FlowsIndexImport.update({
-  id: '/flows/',
-  path: '/flows/',
-  getParentRoute: () => rootRoute,
-} as any)
+	id: "/flows/",
+	path: "/flows/",
+	getParentRoute: () => rootRoute,
+} as any);
 
 const DeploymentsIndexRoute = DeploymentsIndexImport.update({
   id: '/deployments/',
@@ -115,10 +115,10 @@ const RunsFlowRunIdRoute = RunsFlowRunIdImport.update({
 } as any)
 
 const FlowsFlowIdRoute = FlowsFlowIdImport.update({
-  id: '/flows/flow/$id',
-  path: '/flows/flow/$id',
-  getParentRoute: () => rootRoute,
-} as any)
+	id: "/flows/flow/$id",
+	path: "/flows/flow/$id",
+	getParentRoute: () => rootRoute,
+} as any);
 
 const DeploymentsDeploymentIdRoute = DeploymentsDeploymentIdImport.update({
   id: '/deployments/deployment/$id',
@@ -402,8 +402,8 @@ const rootRouteChildren: RootRouteChildren = {
 }
 
 export const routeTree = rootRoute
-  ._addFileChildren(rootRouteChildren)
-  ._addFileTypes<FileRouteTypes>()
+	._addFileChildren(rootRouteChildren)
+	._addFileTypes<FileRouteTypes>();
 
 /* ROUTE_MANIFEST_START
 {
