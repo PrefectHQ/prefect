@@ -10,6 +10,8 @@ describe("ScheduleBadge", () => {
 		const user = userEvent.setup();
 		const schedule = {
 			id: "test-id",
+			created: new Date().toISOString(),
+			updated: new Date().toISOString(),
 			active: true,
 			schedule: {
 				cron: "0 0 * * *",
@@ -34,6 +36,8 @@ describe("ScheduleBadge", () => {
 		const user = userEvent.setup();
 		const schedule = {
 			id: "test-id",
+			created: new Date().toISOString(),
+			updated: new Date().toISOString(),
 			active: false,
 			schedule: {
 				cron: "0 0 * * *",
@@ -57,6 +61,8 @@ describe("ScheduleBadge", () => {
 		const user = userEvent.setup();
 		const schedule = {
 			id: "test-id",
+			created: new Date().toISOString(),
+			updated: new Date().toISOString(),
 			active: true,
 			schedule: {
 				interval: 3661,
@@ -82,6 +88,8 @@ describe("ScheduleBadge", () => {
 		const user = userEvent.setup();
 		const schedule = {
 			id: "test-id",
+			created: new Date().toISOString(),
+			updated: new Date().toISOString(),
 			active: false,
 			schedule: {
 				interval: 3661,
@@ -105,6 +113,8 @@ describe("ScheduleBadge", () => {
 		const user = userEvent.setup();
 		const schedule = {
 			id: "test-id",
+			created: new Date().toISOString(),
+			updated: new Date().toISOString(),
 			active: true,
 			schedule: {
 				rrule: "RRULE:FREQ=DAILY;BYDAY=MO,TU,WE,TH,FR",
@@ -127,6 +137,8 @@ describe("ScheduleBadge", () => {
 		const user = userEvent.setup();
 		const schedule = {
 			id: "test-id",
+			created: new Date().toISOString(),
+			updated: new Date().toISOString(),
 			active: false,
 			schedule: {
 				rrule: "RRULE:FREQ=DAILY;BYDAY=MO,TU,WE,TH,FR",
@@ -151,11 +163,15 @@ describe("ScheduleBadgeGroup", () => {
 		const schedules = [
 			{
 				id: "test-id-1",
+				created: new Date().toISOString(),
+				updated: new Date().toISOString(),
 				active: true,
 				schedule: { cron: "0 0 * * *", timezone: "UTC", day_or: false },
 			},
 			{
 				id: "test-id-2",
+				created: new Date().toISOString(),
+				updated: new Date().toISOString(),
 				active: false,
 				schedule: { cron: "0 0 * * *", timezone: "UTC", day_or: false },
 			},
@@ -174,6 +190,8 @@ describe("ScheduleBadgeGroup", () => {
 		const user = userEvent.setup();
 		const schedules = Array.from({ length: 10 }, () => ({
 			id: faker.string.uuid(),
+			created: new Date().toISOString(),
+			updated: new Date().toISOString(),
 			active: true,
 			schedule: {
 				interval: 3661,

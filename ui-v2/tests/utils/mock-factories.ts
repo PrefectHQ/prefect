@@ -100,6 +100,8 @@ export function generateRandomSchedule(): components["schemas"]["DeploymentSched
 		faker.helpers.arrayElement(scheduleGenerators);
 	return {
 		id: faker.string.uuid(),
+		created: faker.date.recent().toISOString(),
+		updated: faker.date.recent().toISOString(),
 		schedule: selectedScheduleGenerator(),
 		active: faker.datatype.boolean(),
 	};
