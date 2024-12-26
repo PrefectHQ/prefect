@@ -1,4 +1,3 @@
-import json
 from datetime import timedelta
 from time import sleep
 from unittest import mock
@@ -14,6 +13,7 @@ from prefect._experimental.sla import (
     SlaSeverity,
     TimeToCompletionSla,
 )
+from prefect.client.base import ServerType
 from prefect.client.orchestration import get_client
 from prefect.deployments.runner import RunnerDeployment
 from prefect.settings import (
@@ -90,10 +90,18 @@ class TestClientCreateSla:
 
 
 class TestRunnerDeploymentApply:
-    async def test_create_deployment_with_sla_config_against_cloud(self):
-        account_id = uuid4()
-        workspace_id = uuid4()
+    @pytest.fixture
+    def client(self, monkeypatch, prefect_client):
+        monkeypatch.setattr(prefect_client, "server_type", ServerType.CLOUD)
 
+        monkeypatch.setattr(
+            prefect_client, "create_sla", mock.AsyncMock(name="mock_create_sla")
+        )
+        return prefect_client
+
+    async def test_create_deployment_with_sla_config_against_cloud(
+        self, deployment, client
+    ):
         sla = TimeToCompletionSla(
             name="test-sla",
             duration=timedelta(minutes=10).total_seconds(),
@@ -103,40 +111,11 @@ class TestRunnerDeploymentApply:
             name=__file__,
             sla=sla,
         )
+        await deployment._create_slas(uuid4(), client)
+        assert client.create_sla.await_args_list[0].args[0].name == sla.name
+        assert client.create_sla.await_args_list[0].args[0].duration == sla.duration
 
-        base_url = f"https://api.prefect.cloud/api/accounts/{account_id}/workspaces/{workspace_id}"
-        with temporary_settings(updates={PREFECT_API_URL: base_url}):
-            with respx.mock(
-                assert_all_mocked=True,
-                assert_all_called=False,
-                base_url=base_url,
-                using="httpx",
-            ) as router:
-                router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
-                router.post("/slas/").mock(
-                    return_value=httpx.Response(
-                        status_code=201,
-                        json={"id": str(uuid4())},
-                    )
-                )
-
-                client = get_client()
-                await deployment._create_slas(uuid4(), client)
-
-                last_request = router.calls.last.request
-                last_response = router.calls.last.response
-                assert (
-                    last_request.url.path
-                    == f"/api/accounts/{account_id}/workspaces/{workspace_id}/slas/"
-                )
-                assert json.loads(last_request.content)["name"] == sla.name
-                assert json.loads(last_request.content)["duration"] == sla.duration
-                assert last_response.status_code == 201
-
-    async def test_create_deployment_with_multiple_slas_against_cloud(self):
-        account_id = uuid4()
-        workspace_id = uuid4()
-
+    async def test_create_deployment_with_multiple_slas_against_cloud(self, client):
         sla1 = TimeToCompletionSla(
             name="a little long",
             severity=SlaSeverity.MODERATE,
@@ -152,49 +131,11 @@ class TestRunnerDeploymentApply:
             name=__file__,
             sla=[sla1, sla2],
         )
-
-        base_url = f"https://api.prefect.cloud/api/accounts/{account_id}/workspaces/{workspace_id}"
-        with temporary_settings(updates={PREFECT_API_URL: base_url}):
-            with respx.mock(
-                assert_all_mocked=True,
-                assert_all_called=False,
-                base_url=base_url,
-                using="httpx",
-            ) as router:
-                router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
-                router.post("/slas/").mock(
-                    return_value=httpx.Response(
-                        status_code=201,
-                        json={"id": str(uuid4())},
-                    )
-                )
-
-                client = get_client()
-                await deployment._create_slas(uuid4(), client)
-
-                assert len(router.calls) == 2
-
-                first_request = router.calls[0].request
-                first_response = router.calls[0].response
-                assert (
-                    first_request.url.path
-                    == f"/api/accounts/{account_id}/workspaces/{workspace_id}/slas/"
-                )
-                assert json.loads(first_request.content)["name"] == sla1.name
-                assert json.loads(first_request.content)["duration"] == sla1.duration
-                assert json.loads(first_request.content)["severity"] == sla1.severity
-                assert first_response.status_code == 201
-
-                last_request = router.calls.last.request
-                last_response = router.calls.last.response
-                assert (
-                    last_request.url.path
-                    == f"/api/accounts/{account_id}/workspaces/{workspace_id}/slas/"
-                )
-                assert json.loads(last_request.content)["name"] == sla2.name
-                assert json.loads(last_request.content)["duration"] == sla2.duration
-                assert json.loads(last_request.content)["severity"] == sla2.severity
-                assert last_response.status_code == 201
+        await deployment._create_slas(uuid4(), client)
+        calls = client.create_sla.await_args_list
+        assert len(calls) == 2
+        assert calls[0].args[0].name == sla1.name
+        assert calls[1].args[0].name == sla2.name
 
     async def test_create_deployment_against_oss_server_produces_error_log(
         self, prefect_client
