@@ -2829,6 +2829,25 @@ class TestFlowRunName:
         assert mocked_flow_method.call_count == 2
         assert generate_flow_run_name.call_count == 2
 
+    async def test_both_engines_logs_custom_flow_run_name(
+        self, caplog: pytest.LogCaptureFixture
+    ):
+        @flow(flow_run_name="very-bespoke-name")
+        def test():
+            pass
+
+        test()
+
+        assert "Beginning flow run 'very-bespoke-name'" in caplog.text
+
+        @flow(flow_run_name="very-bespoke-async-name")
+        async def test_async():
+            pass
+
+        await test_async()
+
+        assert "Beginning flow run 'very-bespoke-async-name'" in caplog.text
+
 
 def create_hook(mock_obj):
     def my_hook(flow, flow_run, state):
