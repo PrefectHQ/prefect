@@ -1,3 +1,4 @@
+from functools import partial
 from typing import Any, Callable, TypeVar
 
 from pydantic import BaseModel
@@ -19,4 +20,4 @@ def validate_list(model: type[T], input: Any) -> list[T]:
 
 
 def ListAdapter(model: type[T]) -> Callable[[Any], list[T]]:
-    return lambda input: validate_list(model, input)
+    return partial(validate_list, model=model)
