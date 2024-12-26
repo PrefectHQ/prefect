@@ -12,6 +12,8 @@ export default {
 function createRandomDeployment(): DeploymentWithFlow {
 	return {
 		id: faker.string.uuid(),
+		created: faker.date.recent().toISOString(),
+		updated: faker.date.recent().toISOString(),
 		name: faker.airline.airplane().name,
 		flow_id: faker.string.uuid(),
 		paused: faker.datatype.boolean(),
@@ -22,6 +24,8 @@ function createRandomDeployment(): DeploymentWithFlow {
 		),
 		flow: {
 			id: faker.string.uuid(),
+			created: faker.date.recent().toISOString(),
+			updated: faker.date.recent().toISOString(),
 			name: faker.company.catchPhrase().toLowerCase().replace(/\s+/g, "-"),
 		},
 	};

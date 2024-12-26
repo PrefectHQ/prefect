@@ -7,6 +7,8 @@ import { DeploymentsDataTable } from ".";
 describe("DeploymentsDataTable", () => {
 	const mockDeployment: DeploymentWithFlow = {
 		id: "test-id",
+		created: new Date().toISOString(),
+		updated: new Date().toISOString(),
 		name: "Test Deployment",
 		flow_id: "flow-id",
 		paused: false,
@@ -15,6 +17,8 @@ describe("DeploymentsDataTable", () => {
 		tags: ["tag1", "tag2"],
 		flow: {
 			id: "flow-id",
+			created: new Date().toISOString(),
+			updated: new Date().toISOString(),
 			name: "test-flow",
 		},
 	};
@@ -60,9 +64,13 @@ describe("DeploymentsDataTable", () => {
 			{
 				...mockDeployment,
 				id: "test-id-2",
+				created: new Date().toISOString(),
+				updated: new Date().toISOString(),
 				name: "Second Deployment",
 				flow: {
 					id: "flow-id-2",
+					created: new Date().toISOString(),
+					updated: new Date().toISOString(),
 					name: "second-flow",
 				},
 			},
