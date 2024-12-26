@@ -6,9 +6,9 @@ from httpx import HTTPStatusError, Request, Response
 from starlette import status
 
 from prefect import flow, task
-from prefect.concurrency.v1.asyncio import (
-    _acquire_concurrency_slots,
-    _release_concurrency_slots,
+from prefect.concurrency.v1._asyncio import (
+    acquire_concurrency_slots,
+    release_concurrency_slots,
 )
 from prefect.concurrency.v1.sync import concurrency
 from prefect.events.clients import AssertingEventsClient
@@ -28,12 +28,12 @@ def test_concurrency_orchestrates_api(concurrency_limit: ConcurrencyLimit):
     assert not executed
 
     with mock.patch(
-        "prefect.concurrency.v1.sync._acquire_concurrency_slots",
-        wraps=_acquire_concurrency_slots,
+        "prefect.concurrency.v1.sync.acquire_concurrency_slots",
+        wraps=acquire_concurrency_slots,
     ) as acquire_spy:
         with mock.patch(
-            "prefect.concurrency.v1.sync._release_concurrency_slots",
-            wraps=_release_concurrency_slots,
+            "prefect.concurrency.v1.sync.release_concurrency_slots",
+            wraps=release_concurrency_slots,
         ) as release_spy:
             resource_heavy()
 
@@ -201,11 +201,11 @@ def test_concurrency_without_limit_names_sync(names):
     assert not executed
 
     with mock.patch(
-        "prefect.concurrency.v1.sync._acquire_concurrency_slots",
+        "prefect.concurrency.v1.sync.acquire_concurrency_slots",
         wraps=lambda *args, **kwargs: None,
     ) as acquire_spy:
         with mock.patch(
-            "prefect.concurrency.v1.sync._release_concurrency_slots",
+            "prefect.concurrency.v1.sync.release_concurrency_slots",
             wraps=lambda *args, **kwargs: None,
         ) as release_spy:
             resource_heavy()

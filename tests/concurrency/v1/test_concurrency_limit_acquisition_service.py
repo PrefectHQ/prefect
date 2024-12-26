@@ -68,7 +68,7 @@ async def test_retries_failed_call_respects_retry_after_header(mocked_client):
     limit_names = sorted(["api", "database"])
     service = ConcurrencySlotAcquisitionService.instance(frozenset(limit_names))
 
-    with mock.patch("prefect.concurrency.v1.asyncio.asyncio.sleep") as sleep:
+    with mock.patch("asyncio.sleep") as sleep:
         future = service.send((task_run_id, None))
         service.drain()
         returned_response = await asyncio.wrap_future(future)
@@ -112,7 +112,7 @@ async def test_basic_exception_returns_exception(mocked_client):
 
     future = service.send((task_run_id, None))
     await service.drain()
-    exception = await asyncio.wrap_future(future)
+    with pytest.raises(Exception) as info:
+        await asyncio.wrap_future(future)
 
-    assert isinstance(exception, Exception)
-    assert exception == exc
+    assert info.value == exc

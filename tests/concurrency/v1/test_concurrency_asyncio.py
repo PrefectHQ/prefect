@@ -6,12 +6,11 @@ from httpx import HTTPStatusError, Request, Response
 from starlette import status
 
 from prefect import flow, task
-from prefect.concurrency.v1.asyncio import (
-    ConcurrencySlotAcquisitionError,
-    _acquire_concurrency_slots,
-    _release_concurrency_slots,
-    concurrency,
+from prefect.concurrency.v1._asyncio import (
+    acquire_concurrency_slots,
+    release_concurrency_slots,
 )
+from prefect.concurrency.v1.asyncio import ConcurrencySlotAcquisitionError, concurrency
 from prefect.events.clients import AssertingEventsClient
 from prefect.events.worker import EventsWorker
 from prefect.server.schemas.core import ConcurrencyLimit
@@ -29,12 +28,12 @@ async def test_concurrency_orchestrates_api(v1_concurrency_limit: ConcurrencyLim
     assert not executed
 
     with mock.patch(
-        "prefect.concurrency.v1.asyncio._acquire_concurrency_slots",
-        wraps=_acquire_concurrency_slots,
+        "prefect.concurrency.v1.asyncio.acquire_concurrency_slots",
+        wraps=acquire_concurrency_slots,
     ) as acquire_spy:
         with mock.patch(
-            "prefect.concurrency.v1.asyncio._release_concurrency_slots",
-            wraps=_release_concurrency_slots,
+            "prefect.concurrency.v1.asyncio.release_concurrency_slots",
+            wraps=release_concurrency_slots,
         ) as release_spy:
             await resource_heavy()
 
@@ -262,11 +261,11 @@ async def test_concurrency_without_limit_names(names):
     assert not executed
 
     with mock.patch(
-        "prefect.concurrency.v1.asyncio._acquire_concurrency_slots",
+        "prefect.concurrency.v1._asyncio.acquire_concurrency_slots",
         wraps=lambda *args, **kwargs: None,
     ) as acquire_spy:
         with mock.patch(
-            "prefect.concurrency.v1.asyncio._release_concurrency_slots",
+            "prefect.concurrency.v1._asyncio.release_concurrency_slots",
             wraps=lambda *args, **kwargs: None,
         ) as release_spy:
             await resource_heavy()
