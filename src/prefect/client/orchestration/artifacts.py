@@ -86,19 +86,19 @@ class ArtifactClient:
         response = request(
             self._client,
             "POST",
-            "/artifacts/",
+            "/artifacts/filter",
             json={
-                "artifact_filter": (
+                "artifacts": (
                     artifact_filter.model_dump(mode="json", exclude_unset=True)
                     if (artifact_filter := kwargs.get("artifact_filter"))
                     else None
                 ),
-                "flow_run_filter": (
+                "flow_runs": (
                     flow_run_filter.model_dump(mode="json", exclude_unset=True)
                     if (flow_run_filter := kwargs.get("flow_run_filter"))
                     else None
                 ),
-                "task_run_filter": (
+                "task_runs": (
                     task_run_filter.model_dump(mode="json", exclude_unset=True)
                     if (task_run_filter := kwargs.get("task_run_filter"))
                     else None
@@ -146,19 +146,19 @@ class ArtifactAsyncClient:
         response = await arequest(
             self._client,
             "POST",
-            "/artifacts/",
-            params={
-                "artifact_filter": (
+            "/artifacts/filter",
+            json={
+                "artifacts": (
                     artifact_filter.model_dump(mode="json", exclude_unset=True)
                     if (artifact_filter := kwargs.get("artifact_filter"))
                     else None
                 ),
-                "flow_run_filter": (
+                "flow_runs": (
                     flow_run_filter.model_dump(mode="json", exclude_unset=True)
                     if (flow_run_filter := kwargs.get("flow_run_filter"))
                     else None
                 ),
-                "task_run_filter": (
+                "task_runs": (
                     task_run_filter.model_dump(mode="json", exclude_unset=True)
                     if (task_run_filter := kwargs.get("task_run_filter"))
                     else None
@@ -199,17 +199,17 @@ class ArtifactCollectionClient:
             "POST",
             "/artifacts/latest/filter",
             json={
-                "artifact_filter": (
+                "artifacts": (
                     artifact_filter.model_dump(mode="json", exclude_unset=True)
                     if (artifact_filter := kwargs.get("artifact_filter"))
                     else None
                 ),
-                "flow_run_filter": (
+                "flow_runs": (
                     flow_run_filter.model_dump(mode="json", exclude_unset=True)
                     if (flow_run_filter := kwargs.get("flow_run_filter"))
                     else None
                 ),
-                "task_run_filter": (
+                "task_runs": (
                     task_run_filter.model_dump(mode="json", exclude_unset=True)
                     if (task_run_filter := kwargs.get("task_run_filter"))
                     else None
@@ -236,17 +236,17 @@ class ArtifactCollectionAsyncClient:
             "POST",
             "/artifacts/latest/filter",
             json={
-                "artifact_filter": (
+                "artifacts": (
                     artifact_filter.model_dump(mode="json", exclude_unset=True)
                     if (artifact_filter := kwargs.get("artifact_filter"))
                     else None
                 ),
-                "flow_run_filter": (
+                "flow_runs": (
                     flow_run_filter.model_dump(mode="json", exclude_unset=True)
                     if (flow_run_filter := kwargs.get("flow_run_filter"))
                     else None
                 ),
-                "task_run_filter": (
+                "task_runs": (
                     task_run_filter.model_dump(mode="json", exclude_unset=True)
                     if (task_run_filter := kwargs.get("task_run_filter"))
                     else None
