@@ -2,7 +2,7 @@ import { ConcurrencyLimitsPage } from "@/components/concurrency/concurrency-limi
 import { buildListGlobalConcurrencyLimitsQuery } from "@/hooks/global-concurrency-limits";
 import { buildListTaskRunConcurrencyLimitsQuery } from "@/hooks/task-run-concurrency-limits";
 import { createFileRoute } from "@tanstack/react-router";
-import { zodSearchValidator } from "@tanstack/router-zod-adapter";
+import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
 
 /**
@@ -18,7 +18,7 @@ const searchParams = z.object({
 export type TabOptions = z.infer<typeof searchParams>["tab"];
 
 export const Route = createFileRoute("/concurrency-limits/")({
-	validateSearch: zodSearchValidator(searchParams),
+	validateSearch: zodValidator(searchParams),
 	component: ConcurrencyLimitsPage,
 	wrapInSuspense: true,
 	loader: ({ context }) =>
