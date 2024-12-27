@@ -301,30 +301,6 @@ describe("buildConcurrenyLimitDetailsActiveRunsQuery()", () => {
 
 	/**
 	 * Data Management:
-	 * - Asserts fetch API to get details on the task run concurrency limit
-	 * - Other APIs will not be fired because there are no active task runs
-	 */
-	it("will fetch only necessary data when there is no active task runs", async () => {
-		const MOCK_DATA = { ...seedData(), active_slots: [] };
-		const MOCK_ID = MOCK_DATA.id;
-		mockFetchDetailsAPI(MOCK_DATA);
-
-		const { result } = renderHook(
-			() =>
-				useSuspenseQuery(buildConcurrenyLimitDetailsActiveRunsQuery(MOCK_ID)),
-			{ wrapper: createWrapper() },
-		);
-
-		// ------------ Assert
-		await waitFor(() => expect(result.current.isSuccess).toBe(true));
-		expect(result.current.data).toMatchObject({
-			taskRunConcurrencyLimit: MOCK_DATA,
-			activeTaskRuns: [],
-		});
-	});
-
-	/**
-	 * Data Management:
 	 * - Asserts waterfall of APIs will fire to get details on the task run concurrency limit
 	 * - Other APIs will fire to get details on each task run, flow run associated with the task run, and overall flow details
 	 */
@@ -344,15 +320,16 @@ describe("buildConcurrenyLimitDetailsActiveRunsQuery()", () => {
 
 		// ------------ Assert
 		await waitFor(() => expect(result.current.isSuccess).toBe(true));
-		expect(result.current.data).toMatchObject({
-			taskRunConcurrencyLimit: MOCK_DATA,
-			activeTaskRuns: [
-				{
-					flow: MOCK_FLOW,
-					flowRun: MOCK_FLOW_RUNS[0],
-					taskRun: MOCK_TASK_RUNS[0],
-				},
-			],
-		});
+		expect(result.current.data.taskRunConcurrencyLimit).toMatchObject(
+			MOCK_DATA,
+		);
+		const activeTaskRunsResult = await result.current.data.activeTaskRuns;
+		expect(activeTaskRunsResult).toEqual([
+			{
+				flow: MOCK_FLOW,
+				flowRun: MOCK_FLOW_RUNS[0],
+				taskRun: MOCK_TASK_RUNS[0],
+			},
+		]);
 	});
 });

@@ -4,7 +4,10 @@ import { useState } from "react";
 
 import { TaskRunConcurrencyLimitActiveTaskRuns } from "@/components/concurrency/task-run-concurrency-limits/task-run-concurrency-limit-active-task-runs";
 import { TaskRunConcurrencyLimitDetails } from "@/components/concurrency/task-run-concurrency-limits/task-run-concurrency-limit-details";
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useSuspenseQuery } from "@tanstack/react-query";
+import { Await } from "@tanstack/react-router";
 import {
 	type Dialogs,
 	TaskRunConcurrencyLimitDialog,
@@ -33,7 +36,7 @@ export const TaskRunConcurrencyLimitPage = ({ id }: Props) => {
 	};
 
 	const { activeTaskRuns, taskRunConcurrencyLimit } = data;
-
+	const numActiveTaskRuns = taskRunConcurrencyLimit.active_slots?.length;
 	return (
 		<>
 			<div className="flex flex-col gap-4">
@@ -43,11 +46,16 @@ export const TaskRunConcurrencyLimitPage = ({ id }: Props) => {
 					onReset={handleOpenResetDialog}
 				/>
 				<div className="grid gap-4" style={{ gridTemplateColumns: "3fr 1fr" }}>
-					<TaskRunConcurrencyLimitTabNavigation
-						activeTaskRuns={
-							<TaskRunConcurrencyLimitActiveTaskRuns data={activeTaskRuns} />
-						}
-					/>
+					<TaskRunConcurrencyLimitTabNavigation>
+						<Await
+							promise={activeTaskRuns}
+							fallback={<SkeletonLoading length={numActiveTaskRuns} />}
+						>
+							{(promiseData) => (
+								<TaskRunConcurrencyLimitActiveTaskRuns data={promiseData} />
+							)}
+						</Await>
+					</TaskRunConcurrencyLimitTabNavigation>
 					<TaskRunConcurrencyLimitDetails data={taskRunConcurrencyLimit} />
 				</div>
 			</div>
@@ -60,3 +68,15 @@ export const TaskRunConcurrencyLimitPage = ({ id }: Props) => {
 		</>
 	);
 };
+
+type SkeletonLoadingProps = { length?: number };
+const SkeletonLoading = ({ length = 0 }: SkeletonLoadingProps) => (
+	<div className="flex flex-col gap-4">
+		{Array.from({ length }, (_, index) => (
+			<Card key={index} className="p-4 space-y-4">
+				<Skeleton className="h-4 w-[350px]" />
+				<Skeleton className="h-4 w-[400px]" />
+			</Card>
+		))}
+	</div>
+);

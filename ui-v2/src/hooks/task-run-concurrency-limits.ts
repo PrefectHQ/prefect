@@ -55,15 +55,21 @@ export const buildListTaskRunConcurrencyLimitsQuery = (
 		refetchInterval: 30_000,
 	});
 
+const fetchTaskRunConcurrencyLimit = async (id: string) => {
+	// GET task-run-concurrency-limit by id
+	const res = await getQueryService().GET("/concurrency_limits/{id}", {
+		params: { path: { id } },
+	});
+	if (!res.data) {
+		throw new Error("'data' expected");
+	}
+	return res.data;
+};
+
 export const buildDetailTaskRunConcurrencyLimitsQuery = (id: string) =>
 	queryOptions({
 		queryKey: queryKeyFactory.detail(id),
-		queryFn: async () => {
-			const res = await getQueryService().GET("/concurrency_limits/{id}", {
-				params: { path: { id } },
-			});
-			return res.data as TaskRunConcurrencyLimit; // Expecting data to be truthy;
-		},
+		queryFn: () => fetchTaskRunConcurrencyLimit(id),
 	});
 
 /**
@@ -212,17 +218,6 @@ export const useResetTaskRunConcurrencyLimitTag = () => {
 	};
 };
 
-const fetchTaskRunConcurrencyLimit = async (id: string) => {
-	// GET task-run-concurrency-limit by id
-	const res = await getQueryService().GET("/concurrency_limits/{id}", {
-		params: { path: { id } },
-	});
-	if (!res.data) {
-		throw new Error("'data' expected");
-	}
-	return res.data;
-};
-
 const fetchActiveTaskRunDetails = async (activeSlots: Array<string>) => {
 	const taskRuns = await getQueryService().POST("/task_runs/filter", {
 		body: {
@@ -248,6 +243,18 @@ const fetchActiveTaskRunDetails = async (activeSlots: Array<string>) => {
 		}
 	});
 
+	const activeTaskRunsWithoutFlows = taskRunsOnly.map((taskRun) => ({
+		taskRun,
+		flowRun: null,
+		flow: null,
+	}));
+
+	// Early exit if there's no task with parent flows
+	if (taskRunsWithFlows.length === 0) {
+		return activeTaskRunsWithoutFlows;
+	}
+
+	// Now get parent flow information for tasks with parent flows
 	const flowRunsIds = taskRunsWithFlows.map(
 		(taskRun) => taskRun.flow_run_id as string,
 	);
@@ -307,12 +314,6 @@ const fetchActiveTaskRunDetails = async (activeSlots: Array<string>) => {
 		};
 	});
 
-	const activeTaskRunsWithoutFlows = taskRunsOnly.map((taskRun) => ({
-		taskRun,
-		flowRun: null,
-		flow: null,
-	}));
-
 	return [...activeTaskRunsWithFlows, ...activeTaskRunsWithoutFlows];
 };
 
@@ -329,20 +330,14 @@ export const buildConcurrenyLimitDetailsActiveRunsQuery = (id: string) =>
 			if (!taskRunConcurrencyLimit.active_slots) {
 				throw new Error("'active_slots' expected");
 			}
-			// Early exit because there are no active task runs
-			if (taskRunConcurrencyLimit.active_slots.length === 0) {
-				return {
-					taskRunConcurrencyLimit: taskRunConcurrencyLimit,
-					activeTaskRuns: [],
-				};
-			}
-			const activeTaskRuns = await fetchActiveTaskRunDetails(
+
+			const activeTaskRuns = fetchActiveTaskRunDetails(
 				taskRunConcurrencyLimit.active_slots,
 			);
 
 			return {
 				taskRunConcurrencyLimit,
-				activeTaskRuns,
+				activeTaskRuns, // defer to return promise
 			};
 		},
 	});
