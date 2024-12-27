@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import (
     Any,
     Dict,
-    List,
     Optional,
     Protocol,
     TypedDict,
@@ -191,7 +190,7 @@ class GitRepository:
 
         return repository_url
 
-    def _git_config(self) -> List[str]:
+    def _git_config(self) -> list[str]:
         """
         Build a git configuration to use when running git commands.
         """
