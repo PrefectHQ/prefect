@@ -1,4 +1,10 @@
 import { components } from "@/api/prefect";
+import {
+	createFakeFlow,
+	createFakeFlowRun,
+	createFakeTaskRun,
+	createFakeTaskRunConcurrencyLimit,
+} from "@/mocks";
 import { QueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { createWrapper, server } from "@tests/utils";
@@ -16,16 +22,11 @@ import {
 } from "./task-run-concurrency-limits";
 
 describe("task run concurrency limits hooks", () => {
-	const seedData = () => [
-		{
-			id: "0",
-			created: "2021-01-01T00:00:00Z",
-			updated: "2021-01-01T00:00:00Z",
-			tag: "my tag 0",
-			concurrency_limit: 1,
-			active_slots: ["task_0"],
-		},
-	];
+	const MOCK_TASK_RUN_CONCURRENCY_LIMIT = createFakeTaskRunConcurrencyLimit({
+		id: "0",
+		tag: "my tag 0",
+	});
+	const seedData = () => [MOCK_TASK_RUN_CONCURRENCY_LIMIT];
 
 	const mockFetchDetailsAPI = (data: TaskRunConcurrencyLimit) => {
 		server.use(
@@ -145,11 +146,9 @@ describe("task run concurrency limits hooks", () => {
 	it("useCreateTaskRunConcurrencyLimit() invalidates cache and fetches updated value", async () => {
 		const queryClient = new QueryClient();
 		const MOCK_NEW_DATA_ID = "1";
-		const MOCK_NEW_DATA = {
-			tag: "my tag 1",
-			concurrency_limit: 2,
-			active_slots: [],
-		};
+		const MOCK_NEW_DATA = createFakeTaskRunConcurrencyLimit({
+			id: MOCK_NEW_DATA_ID,
+		});
 
 		// ------------ Mock API requests after queries are invalidated
 		const NEW_LIMIT_DATA = {
@@ -250,159 +249,20 @@ describe("task run concurrency limits hooks", () => {
 });
 
 describe("buildConcurrenyLimitDetailsActiveRunsQuery()", () => {
-	const seedData = () => ({
+	const MOCK_DATA = createFakeTaskRunConcurrencyLimit({
 		id: "0",
-		created: "2021-01-01T00:00:00Z",
-		updated: "2021-01-01T00:00:00Z",
 		tag: "my tag 0",
 		concurrency_limit: 1,
 		active_slots: ["task_0"],
 	});
-
-	const MOCK_TASK_RUNS: Array<components["schemas"]["TaskRun"]> = [
-		{
-			id: "task_0",
-			created: "2024-12-18T19:07:44.837299Z",
-			updated: "2024-12-18T19:07:45.019000Z",
-			name: "hello-task-a0c",
-			flow_run_id: "3f1093f1-c349-47f1-becf-111999ac9351",
-			task_key: "say_hello-6b199e75",
-			dynamic_key: "a0c05e3b-4129-4e6d-bcf9-8b6d289aa4c0",
-			cache_key: null,
-			cache_expiration: null,
-			task_version: null,
-			empirical_policy: {
-				max_retries: 0,
-				retry_delay_seconds: 0,
-				retries: 0,
-				retry_delay: 0,
-				retry_jitter_factor: null,
-			},
-			tags: ["tag1", "test1", "onboarding", "test", "test2"],
-			labels: {},
-			state_id: "050b3aa3-c085-44da-bada-a6a239ca617b",
-			task_inputs: {
-				name: [],
-			},
-			state_type: "RUNNING",
-			state_name: "Running",
-			run_count: 1,
-			flow_run_run_count: 1,
-			expected_start_time: "2024-12-18T19:07:44.786401Z",
-			next_scheduled_start_time: null,
-			start_time: "2024-12-18T19:07:44.791572Z",
-			end_time: null,
-			total_run_time: 0,
-			estimated_run_time: 0.901001,
-			estimated_start_time_delta: 0.005171,
-			state: {
-				id: "050b3aa3-c085-44da-bada-a6a239ca617b",
-				type: "RUNNING",
-				name: "Running",
-				timestamp: "2024-12-18T19:07:44.791572Z",
-				message: "",
-				data: null,
-				state_details: {
-					flow_run_id: "3f1093f1-c349-47f1-becf-111999ac9351",
-					task_run_id: "652d0799-8e73-4b2d-8428-e60b070d0a97",
-					child_flow_run_id: null,
-					scheduled_time: null,
-					cache_key: null,
-					cache_expiration: null,
-					deferred: false,
-					untrackable_result: false,
-					pause_timeout: null,
-					pause_reschedule: false,
-					pause_key: null,
-					run_input_keyset: null,
-					refresh_cache: null,
-					retriable: null,
-					transition_id: null,
-					task_parameters_id: null,
-				},
-			},
-		},
+	const seedData = () => MOCK_DATA;
+	const MOCK_TASK_RUNS = [
+		createFakeTaskRun({ id: "task_0", flow_run_id: "flow_run_0" }),
 	];
-
-	const MOCK_FLOW_RUNS: Array<components["schemas"]["FlowRun"]> = [
-		{
-			id: "3f1093f1-c349-47f1-becf-111999ac9351",
-			created: "2024-12-18T19:07:44.726912Z",
-			updated: "2024-12-18T19:07:49.473000Z",
-			name: "authentic-cockatoo",
-			flow_id: "5d8df4c9-d846-45b6-a5bc-55f0cb264bd2",
-			state_id: "2298e945-6e3f-4def-ba97-1276937d3ef3",
-			deployment_id: null,
-			deployment_version: null,
-			work_queue_id: null,
-			work_queue_name: null,
-			flow_version: "e22328439175aef5dfcba6aa44a4c392",
-			parameters: {},
-			idempotency_key: null,
-			context: {},
-			empirical_policy: {
-				max_retries: 0,
-				retry_delay_seconds: 0.0,
-				retries: 0,
-				retry_delay: 0,
-				pause_keys: [],
-				resuming: false,
-				retry_type: null,
-			},
-			tags: [],
-			labels: { "prefect.flow.id": "5d8df4c9-d846-45b6-a5bc-55f0cb264bd2" },
-			parent_task_run_id: null,
-			state_type: "COMPLETED",
-			state_name: "Completed",
-			run_count: 1,
-			expected_start_time: "2024-12-18T19:07:44.726851Z",
-			next_scheduled_start_time: null,
-			start_time: "2024-12-18T19:07:44.750254Z",
-			end_time: "2024-12-18T19:07:49.458237Z",
-			total_run_time: 4.707983,
-			estimated_run_time: 4.707983,
-			estimated_start_time_delta: 0.023403,
-			auto_scheduled: false,
-			infrastructure_document_id: null,
-			infrastructure_pid: null,
-			created_by: null,
-			state: {
-				id: "2298e945-6e3f-4def-ba97-1276937d3ef3",
-				type: "COMPLETED",
-				name: "Completed",
-				timestamp: "2024-12-18T19:07:49.458237Z",
-				message: null,
-				data: null,
-				state_details: {
-					flow_run_id: "3f1093f1-c349-47f1-becf-111999ac9351",
-					task_run_id: null,
-					child_flow_run_id: null,
-					scheduled_time: null,
-					cache_key: null,
-					cache_expiration: null,
-					deferred: null,
-					untrackable_result: true,
-					pause_timeout: null,
-					pause_reschedule: false,
-					pause_key: null,
-					run_input_keyset: null,
-					refresh_cache: null,
-					retriable: null,
-					transition_id: "c0ae12f9-d2a0-459a-8a2d-947fe7cebf46",
-					task_parameters_id: null,
-				},
-			},
-			job_variables: {},
-		},
+	const MOCK_FLOW_RUNS = [
+		createFakeFlowRun({ id: "flow_run_0", flow_id: "flow_0" }),
 	];
-	const MOCK_FLOW: components["schemas"]["Flow"] = {
-		id: "5d8df4c9-d846-45b6-a5bc-55f0cb264bd2",
-		created: "2024-12-10T21:50:18.315610Z",
-		updated: "2024-12-10T21:50:18.315612Z",
-		name: "hello-universe",
-		tags: [],
-		labels: {},
-	};
+	const MOCK_FLOW = createFakeFlow({ id: "flow_0" });
 
 	const mockFetchDetailsAPI = (data: TaskRunConcurrencyLimit) => {
 		server.use(
