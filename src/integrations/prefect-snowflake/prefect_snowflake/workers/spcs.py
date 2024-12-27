@@ -3,7 +3,7 @@
 import os
 import sys
 import time
-from datetime import UTC, datetime
+import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, Optional
 from uuid import UUID
@@ -345,7 +345,7 @@ class SPCSWorker(BaseWorker):
             The result of the flow run.
 
         """
-        run_start_time = datetime.now(UTC)
+        run_start_time = datetime.now(datetime.timezone.utc)
 
         # If SNOWFLAKE_HOST is defined, we're probably running in Snowflake.
         # That means we can run as the service account.
@@ -604,7 +604,7 @@ class SPCSWorker(BaseWorker):
 
             try:
                 # Parse the timestamp and make it timezone-aware.
-                line_time = dateutil.parser.parse(line_timestamp).replace(tzinfo=UTC)
+                line_time = dateutil.parser.parse(line_timestamp).replace(tzinfo=datetime.timezone.utc)
 
                 if line_time > last_written_time:
                     print(log_line, file=sys.stderr)
