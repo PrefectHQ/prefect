@@ -1,9 +1,9 @@
 """Classes and helper functions for creating a worker that can run job services in Snowpark Container Services."""
 
+import datetime
 import os
 import sys
 import time
-import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, Optional
 from uuid import UUID
@@ -604,7 +604,9 @@ class SPCSWorker(BaseWorker):
 
             try:
                 # Parse the timestamp and make it timezone-aware.
-                line_time = dateutil.parser.parse(line_timestamp).replace(tzinfo=datetime.timezone.utc)
+                line_time = dateutil.parser.parse(line_timestamp).replace(
+                    tzinfo=datetime.timezone.utc
+                )
 
                 if line_time > last_written_time:
                     print(log_line, file=sys.stderr)
