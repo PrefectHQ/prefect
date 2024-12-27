@@ -1,6 +1,4 @@
-from typing import Any, Literal, Optional
-
-from httpx import AsyncClient, Client, Response
+from typing import Literal
 
 ServerRoutes = Literal[
     "/admin/version",
@@ -91,31 +89,3 @@ ServerRoutes = Literal[
     "/work_queues/{id}/get_runs",
     "/work_queues/{id}/status",
 ]
-
-SERVER_ROUTE_METHODS: dict[
-    ServerRoutes, list[Literal["GET", "POST", "PUT", "DELETE"]]
-] = {}
-
-
-def request(
-    client: Client,
-    method: Literal["GET", "POST", "PUT", "DELETE", "PATCH"],
-    path: ServerRoutes,
-    path_params: Optional[dict[str, Any]] = None,
-    **kwargs: Any,
-) -> Response:
-    if path_params:
-        path = path.format(**path_params)  # type: ignore
-    return client.request(method, path, **kwargs)
-
-
-async def arequest(
-    client: AsyncClient,
-    method: Literal["GET", "POST", "PUT", "DELETE", "PATCH"],
-    path: ServerRoutes,
-    path_params: Optional[dict[str, Any]] = None,
-    **kwargs: Any,
-) -> Response:
-    if path_params:
-        path = path.format(**path_params)  # type: ignore
-    return await client.request(method, path, **kwargs)

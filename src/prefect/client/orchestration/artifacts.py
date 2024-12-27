@@ -4,13 +4,11 @@ from httpx import HTTPStatusError
 from pydantic import Field
 from typing_extensions import TypedDict, Unpack
 
-from prefect.client.orchestration.routes import arequest, request
+from prefect.client.orchestration.base import BaseAsyncClient, BaseClient
 from prefect.exceptions import ObjectNotFound
 
 if TYPE_CHECKING:
     from uuid import UUID
-
-    from httpx import AsyncClient, Client
 
     from prefect.client.schemas.actions import ArtifactCreate, ArtifactUpdate
     from prefect.client.schemas.filters import (
@@ -42,13 +40,9 @@ class ArtifactCollectionReadParams(BaseArtifactReadParams, total=False):
     sort: Annotated[Optional["ArtifactCollectionSort"], Field(default=None)]
 
 
-class ArtifactClient:
-    def __init__(self, client: Client):
-        self._client = client
-
+class ArtifactClient(BaseClient):
     def create_artifact(self, artifact: "ArtifactCreate") -> "Artifact":
-        response = request(
-            self._client,
+        response = self.request(
             "POST",
             "/artifacts/",
             json=artifact.model_dump(mode="json", exclude_unset=True),
@@ -58,8 +52,7 @@ class ArtifactClient:
         return Artifact.model_validate(response.json())
 
     def update_artifact(self, artifact_id: "UUID", artifact: "ArtifactUpdate") -> None:
-        request(
-            self._client,
+        self.request(
             "PATCH",
             "/artifacts/{artifact_id}",
             json=artifact.model_dump(mode="json", exclude_unset=True),
@@ -69,8 +62,7 @@ class ArtifactClient:
 
     def delete_artifact(self, artifact_id: "UUID") -> None:
         try:
-            request(
-                self._client,
+            self.request(
                 "DELETE",
                 "/artifacts/{artifact_id}",
                 path_params={"artifact_id": artifact_id},
@@ -85,8 +77,7 @@ class ArtifactClient:
     def read_artifacts(
         self, **kwargs: Unpack["ArtifactReadParams"]
     ) -> list["Artifact"]:
-        response = request(
-            self._client,
+        response = self.request(
             "POST",
             "/artifacts/filter",
             json={
@@ -115,13 +106,9 @@ class ArtifactClient:
         return Artifact.model_validate_list(response.json())
 
 
-class ArtifactAsyncClient:
-    def __init__(self, client: AsyncClient):
-        self._client = client
-
+class ArtifactAsyncClient(BaseAsyncClient):
     async def create_artifact(self, artifact: "ArtifactCreate") -> "Artifact":
-        response = await arequest(
-            self._client,
+        response = await self.request(
             "POST",
             "/artifacts/",
             json=artifact.model_dump(mode="json", exclude_unset=True),
@@ -133,8 +120,7 @@ class ArtifactAsyncClient:
     async def update_artifact(
         self, artifact_id: "UUID", artifact: "ArtifactUpdate"
     ) -> None:
-        await arequest(
-            self._client,
+        await self.request(
             "PATCH",
             "/artifacts/{artifact_id}",
             path_params={"artifact_id": artifact_id},
@@ -145,8 +131,7 @@ class ArtifactAsyncClient:
     async def read_artifacts(
         self, **kwargs: Unpack["ArtifactReadParams"]
     ) -> list["Artifact"]:
-        response = await arequest(
-            self._client,
+        response = await self.request(
             "POST",
             "/artifacts/filter",
             json={
@@ -176,8 +161,7 @@ class ArtifactAsyncClient:
 
     async def delete_artifact(self, artifact_id: "UUID") -> None:
         try:
-            await arequest(
-                self._client,
+            await self.request(
                 "DELETE",
                 "/artifacts/{artifact_id}",
                 path_params={"artifact_id": artifact_id},
@@ -189,15 +173,11 @@ class ArtifactAsyncClient:
                 raise
 
 
-class ArtifactCollectionClient:
-    def __init__(self, client: Client):
-        self._client = client
-
+class ArtifactCollectionClient(BaseClient):
     def read_latest_artifacts(
         self, **kwargs: Unpack["ArtifactCollectionReadParams"]
     ) -> list["ArtifactCollection"]:
-        response = request(
-            self._client,
+        response = self.request(
             "POST",
             "/artifacts/latest/filter",
             json={
@@ -226,15 +206,11 @@ class ArtifactCollectionClient:
         return ArtifactCollection.model_validate_list(response.json())
 
 
-class ArtifactCollectionAsyncClient:
-    def __init__(self, client: AsyncClient):
-        self._client = client
-
+class ArtifactCollectionAsyncClient(BaseAsyncClient):
     async def read_latest_artifacts(
         self, **kwargs: Unpack["ArtifactCollectionReadParams"]
     ) -> list["ArtifactCollection"]:
-        response = await arequest(
-            self._client,
+        response = await self.request(
             "POST",
             "/artifacts/latest/filter",
             json={
