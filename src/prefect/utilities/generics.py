@@ -1,4 +1,4 @@
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar
 
 from pydantic import BaseModel
 from pydantic_core import SchemaValidator, core_schema
@@ -16,7 +16,3 @@ ListValidator = SchemaValidator(
 
 def validate_list(model: type[T], input: Any) -> list[T]:
     return [model.model_validate(item) for item in ListValidator.validate_python(input)]
-
-
-def ListAdapter(model: type[T]) -> Callable[[Any], list[T]]:
-    return lambda input: validate_list(model, input)
