@@ -117,6 +117,28 @@ class TestFlowServe:
         assert len(deployment.schedules) == 1
         assert deployment.schedules[0].schedule.rrule == "FREQ=MINUTELY;COUNT=5"
 
+    async def test_flow_serve_cli_accepts_limit(
+        self, prefect_client: PrefectClient, mock_runner_start
+    ):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "flow",
+                "serve",
+                "flows/hello_world.py:hello",
+                "--name",
+                "test",
+                "--limit",
+                "5",
+                "--global-limit",
+                "13",
+            ],
+            expected_code=0,
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(name="hello/test")
+        assert deployment.global_concurrency_limit.limit == 13
+
     async def test_flow_serve_cli_accepts_metadata_fields(
         self, prefect_client: PrefectClient, mock_runner_start
     ):
