@@ -4,8 +4,8 @@ import { RunCard } from "@/components/ui/run-card";
 type Props = {
 	data: Array<{
 		taskRun: components["schemas"]["TaskRun"];
-		flowRun?: components["schemas"]["FlowRun"];
-		flow?: components["schemas"]["Flow"];
+		flowRun?: components["schemas"]["FlowRun"] | null;
+		flow?: components["schemas"]["Flow"] | null;
 	}>;
 };
 
