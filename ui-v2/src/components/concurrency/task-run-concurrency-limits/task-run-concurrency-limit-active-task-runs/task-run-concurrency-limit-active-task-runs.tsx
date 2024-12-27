@@ -1,5 +1,5 @@
 import type { components } from "@/api/prefect";
-import { Typography } from "@/components/ui/typography";
+import { RunCard } from "@/components/ui/run-card";
 
 type Props = {
 	data: Array<{
@@ -11,9 +11,12 @@ type Props = {
 
 export const TaskRunConcurrencyLimitActiveTaskRuns = ({ data }: Props) => {
 	return (
-		<div>
-			<Typography>TODO: Active Task Runs</Typography>
-			{JSON.stringify(data)}
-		</div>
+		<ul className="flex flex-col gap-2">
+			{data.map((d) => (
+				<li key={d.taskRun.id}>
+					<RunCard flow={d.flow} flowRun={d.flowRun} taskRun={d.taskRun} />
+				</li>
+			))}
+		</ul>
 	);
 };
