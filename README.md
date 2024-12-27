@@ -59,7 +59,7 @@ if __name__=="__main__":
     github_stars(["PrefectHQ/Prefect"])
 ```
 
-Fire up a Prefect server and open the UI at http://localhost:4200 to see what happened.
+Fire up a Prefect server and open the UI at http://localhost:4200 to see what happened:
 
 ```bash
 prefect server start
