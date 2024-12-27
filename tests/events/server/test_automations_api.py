@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from prefect.server import models as server_models
 from prefect.server import schemas as server_schemas
 from prefect.server.api.validation import ValidationError
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface
 from prefect.server.events import actions, filters
 from prefect.server.events.models.automations import (
     create_automation,

@@ -19,6 +19,10 @@ class APISettings(PrefectBaseSettings):
         default=None,
         description="The URL of the Prefect API. If not set, the client will attempt to infer it.",
     )
+    auth_string: Optional[SecretStr] = Field(
+        default=None,
+        description="The auth string used for basic authentication with a self-hosted Prefect API. Should be kept secret.",
+    )
     key: Optional[SecretStr] = Field(
         default=None,
         description="The API key used for authentication with the Prefect API. Should be kept secret.",

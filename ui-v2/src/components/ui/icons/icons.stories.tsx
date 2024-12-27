@@ -11,15 +11,12 @@ const meta: Meta<typeof Icon> = {
 	args: {
 		id: "Ban",
 	},
+	render: () => <IconCatalog />,
 };
 
 export default meta;
 
-type Story = StoryObj<typeof Icon>;
-
-export const Icons: Story = {
-	render: () => <IconCatalog />,
-};
+export const story: StoryObj = { name: "Icon" };
 
 function IconCatalog(): JSX.Element {
 	return (
@@ -45,7 +42,3 @@ function IconCatalog(): JSX.Element {
 		</div>
 	);
 }
-
-export const Usage: Story = {
-	args: { id: "Ban" },
-};

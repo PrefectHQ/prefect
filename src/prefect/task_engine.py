@@ -182,7 +182,7 @@ class BaseTaskRunEngine(Generic[P, R]):
                     return_data=True,
                     max_depth=-1,
                     remove_annotations=True,
-                    context={},
+                    context={"parameter_name": parameter},
                 )
             except UpstreamTaskError:
                 raise
@@ -698,16 +698,11 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                             f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
                         )
 
-                        parent_labels = {}
-                        if parent_flow_run_context and parent_flow_run_context.flow_run:
-                            parent_labels = parent_flow_run_context.flow_run.labels
-
                         self._telemetry.start_span(
                             run=self.task_run,
                             name=self.task.name,
                             client=self.client,
                             parameters=self.parameters,
-                            parent_labels=parent_labels,
                         )
 
                         yield self
@@ -761,9 +756,11 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
     ) -> Generator[None, None, None]:
         with self.initialize_run(task_run_id=task_run_id, dependencies=dependencies):
-            with trace.use_span(
-                self._telemetry.span
-            ) if self._telemetry.span else nullcontext():
+            with (
+                trace.use_span(self._telemetry.span)
+                if self._telemetry.span
+                else nullcontext()
+            ):
                 self.begin_run()
                 try:
                     yield
@@ -1240,16 +1237,11 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                             f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
                         )
 
-                        parent_labels = {}
-                        if parent_flow_run_context and parent_flow_run_context.flow_run:
-                            parent_labels = parent_flow_run_context.flow_run.labels
-
                         await self._telemetry.async_start_span(
                             run=self.task_run,
                             name=self.task.name,
                             client=self.client,
                             parameters=self.parameters,
-                            parent_labels=parent_labels,
                         )
 
                         yield self
@@ -1305,9 +1297,11 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         async with self.initialize_run(
             task_run_id=task_run_id, dependencies=dependencies
         ):
-            with trace.use_span(
-                self._telemetry.span
-            ) if self._telemetry.span else nullcontext():
+            with (
+                trace.use_span(self._telemetry.span)
+                if self._telemetry.span
+                else nullcontext()
+            ):
                 await self.begin_run()
                 try:
                     yield

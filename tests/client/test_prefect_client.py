@@ -17,7 +17,7 @@ import pydantic
 import pytest
 import respx
 from fastapi import Depends, FastAPI, status
-from fastapi.security import HTTPBearer
+from fastapi.security import HTTPBasic, HTTPBearer
 
 import prefect.client.schemas as client_schemas
 import prefect.context
@@ -76,6 +76,7 @@ from prefect.events import AutomationCore, EventTrigger, Posture
 from prefect.server.api.server import create_app
 from prefect.server.database.orm_models import WorkPool
 from prefect.settings import (
+    PREFECT_API_AUTH_STRING,
     PREFECT_API_DATABASE_MIGRATE_ON_START,
     PREFECT_API_KEY,
     PREFECT_API_SSL_CERT_FILE,
@@ -1732,6 +1733,39 @@ class TestClientAPIKey:
             client = get_client()
 
         assert client._client.headers["Authorization"] == "Bearer test"
+
+
+class TestClientAuthString:
+    @pytest.fixture
+    async def test_app(self):
+        app = FastAPI()
+        basic = HTTPBasic()
+
+        # Returns given credentials if an Authorization
+        # header is passed, otherwise raises 403
+        @app.get("/api/check_for_auth_header")
+        async def check_for_auth_header(credentials=Depends(basic)):
+            return {"username": credentials.username, "password": credentials.password}
+
+        return app
+
+    async def test_client_passes_auth_string_as_auth_header(self, test_app):
+        auth_string = "admin:admin"
+        async with PrefectClient(test_app, auth_string=auth_string) as client:
+            res = await client._client.get("/check_for_auth_header")
+        assert res.status_code == status.HTTP_200_OK
+        assert res.json() == {"username": "admin", "password": "admin"}
+
+    async def test_client_no_auth_header_without_auth_string(self, test_app):
+        async with PrefectClient(test_app) as client:
+            with pytest.raises(httpx.HTTPStatusError, match="401"):
+                await client._client.get("/check_for_auth_header")
+
+    async def test_get_client_includes_auth_string_from_context(self):
+        with temporary_settings(updates={PREFECT_API_AUTH_STRING: "admin:test"}):
+            client = get_client()
+
+        assert client._client.headers["Authorization"].startswith("Basic")
 
 
 class TestClientWorkQueues:

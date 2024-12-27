@@ -1268,7 +1268,7 @@ class TestWorkPoolStatus:
         """Work pools with only offline workers should have a status of NOT_READY."""
         now = pendulum.now("UTC")
 
-        insert_stmt = db.insert(db.Worker).values(
+        insert_stmt = db.queries.insert(db.Worker).values(
             name="old-worker",
             work_pool_id=work_pool.id,
             last_heartbeat_time=now.subtract(minutes=5),
@@ -1458,7 +1458,7 @@ class TestWorkerProcess:
     ):
         now = pendulum.now("UTC")
 
-        insert_stmt = db.insert(db.Worker).values(
+        insert_stmt = db.queries.insert(db.Worker).values(
             name="old-worker",
             work_pool_id=work_pool.id,
             last_heartbeat_time=now.subtract(minutes=5),
@@ -1485,7 +1485,7 @@ class TestWorkerProcess:
         """
         now = pendulum.now("UTC")
 
-        insert_stmt = db.insert(db.Worker).values(
+        insert_stmt = db.queries.insert(db.Worker).values(
             name="old-worker",
             work_pool_id=work_pool.id,
             last_heartbeat_time=now.subtract(seconds=10),
@@ -1512,7 +1512,7 @@ class TestReadWorkers:
             worker_name="online-worker",
         )
 
-        insert_stmt = db.insert(db.Worker).values(
+        insert_stmt = db.queries.insert(db.Worker).values(
             name="offline-worker",
             work_pool_id=work_pool.id,
             status="OFFLINE",
@@ -1544,7 +1544,7 @@ class TestDeleteWorker:
         work_pool_id = work_pool.id
         deleted_worker_name = "worker1"
         for i in range(2):
-            insert_stmt = (db.insert(db.Worker)).values(
+            insert_stmt = (db.queries.insert(db.Worker)).values(
                 name=f"worker{i}",
                 work_pool_id=work_pool_id,
                 last_heartbeat_time=pendulum.now(),
@@ -1568,7 +1568,7 @@ class TestDeleteWorker:
             session=session,
             work_pool=schemas.actions.WorkPoolCreate(name="A"),
         )
-        insert_stmt = (db.insert(db.Worker)).values(
+        insert_stmt = (db.queries.insert(db.Worker)).values(
             name=worker_name,
             work_pool_id=wp.id,
             last_heartbeat_time=pendulum.now(),

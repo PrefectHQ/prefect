@@ -8,8 +8,7 @@ from uuid import UUID
 import sqlalchemy as sa
 
 from prefect.server import models, schemas
-from prefect.server.database.dependencies import inject_db
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, inject_db
 from prefect.server.services.loop_service import LoopService
 from prefect.utilities import urls
 
@@ -36,9 +35,8 @@ class FlowRunNotifications(LoopService):
                 # notifications that we pulled here.  If we drain in batches larger
                 # than 1, we risk double-sending earlier notifications when a
                 # transient error occurs.
-                notifications = await db.get_flow_run_notifications_from_queue(
-                    session=session,
-                    limit=1,
+                notifications = await db.queries.get_flow_run_notifications_from_queue(
+                    session=session, limit=1
                 )
                 self.logger.debug(f"Got {len(notifications)} notifications from queue.")
 
