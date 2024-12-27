@@ -43,6 +43,8 @@ updates:
         patterns:
           - "@tanstack/router*"
           - "@tanstack/eslint-plugin-router"
+          - "@tanstack/zod-adapter"
+          - "@tanstack/react-router"
 
   - package-ecosystem: "github-actions"
     directory: "/"

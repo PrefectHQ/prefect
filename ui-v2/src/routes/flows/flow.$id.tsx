@@ -1,9 +1,9 @@
-import { components } from "@/api/prefect";
+import type { components } from "@/api/prefect";
 import FlowDetail from "@/components/flows/detail";
 import { FlowQuery } from "@/components/flows/queries";
 import { useSuspenseQueries } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router"; // Import createFileRoute function from @tanstack/react-router
-import { zodSearchValidator } from "@tanstack/router-zod-adapter";
+import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
 
 // Route for /flows/flow/$id
@@ -97,7 +97,7 @@ const FlowDetailRoute = () => {
 
 export const Route = createFileRoute("/flows/flow/$id")({
 	component: FlowDetailRoute,
-	validateSearch: zodSearchValidator(searchParams),
+	validateSearch: zodValidator(searchParams),
 	loaderDeps: ({ search }) => search,
 	loader: async ({ params: { id }, context, deps }) => {
 		const flow = new FlowQuery(id);

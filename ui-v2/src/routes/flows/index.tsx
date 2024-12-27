@@ -1,12 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { components } from "@/api/prefect"; // Typescript types generated from the Prefect API
+import type { components } from "@/api/prefect"; // Typescript types generated from the Prefect API
 import { getQueryService } from "@/api/service"; // Service object that makes requests to the Prefect API
 
 import FlowsTable from "@/components/flows/data-table";
 
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { zodSearchValidator } from "@tanstack/router-zod-adapter";
+import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
 
 // Route for /flows/
@@ -59,7 +59,7 @@ const FlowsRoute = () => {
 };
 
 export const Route = createFileRoute("/flows/")({
-	validateSearch: zodSearchValidator(searchParams),
+	validateSearch: zodValidator(searchParams),
 	component: FlowsRoute,
 	loaderDeps: ({ search }) => search,
 	loader: async ({ deps: search, context }) =>

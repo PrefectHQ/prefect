@@ -1,5 +1,10 @@
-import { router } from "@/router";
-import { RouterContextProvider } from "@tanstack/react-router";
+import { QueryClient } from "@tanstack/react-query";
+import {
+	RouterProvider,
+	createMemoryHistory,
+	createRootRoute,
+	createRouter,
+} from "@tanstack/react-router";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import {
 	afterEach,
@@ -62,12 +67,24 @@ describe("FlowRunActivityBarChart", () => {
 	});
 
 	it("shows tooltip on bar hover", () => {
-		render(
-			<RouterContextProvider router={router}>
-				{/* @ts-expect-error - Type error from test data not matching schema */}
+		const rootRoute = createRootRoute({
+			component: () => (
+				// @ts-expect-error - Type error from test data not matching schema
 				<FlowRunActivityBarChart {...defaultProps} numberOfBars={1} />
-			</RouterContextProvider>,
-		);
+			),
+		});
+		const router = createRouter({
+			routeTree: rootRoute,
+			history: createMemoryHistory({
+				initialEntries: ["/"],
+			}),
+			context: {
+				queryClient: new QueryClient(),
+			},
+		});
+
+		// @ts-expect-error - Type error from using a test router
+		render(<RouterProvider router={router} />);
 
 		const bar = screen.getByTestId("bar-rect-test-flow-run-1");
 		fireEvent.mouseOver(bar);
@@ -84,20 +101,16 @@ describe("FlowRunActivityBarChart", () => {
 
 	it("renders correct number of bars", () => {
 		const { rerender } = render(
-			<RouterContextProvider router={router}>
-				{/* @ts-expect-error - Type error from test data not matching schema */}
-				<FlowRunActivityBarChart {...defaultProps} />
-			</RouterContextProvider>,
+			/* @ts-expect-error - Type error from test data not matching schema */
+			<FlowRunActivityBarChart {...defaultProps} />,
 		);
 
 		let bars = screen.getAllByRole("graphics-symbol");
 		expect(bars).toHaveLength(defaultProps.numberOfBars);
 
 		rerender(
-			<RouterContextProvider router={router}>
-				{/* @ts-expect-error - Type error from test data not matching schema */}
-				<FlowRunActivityBarChart {...defaultProps} numberOfBars={10} />
-			</RouterContextProvider>,
+			/* @ts-expect-error - Type error from test data not matching schema */
+			<FlowRunActivityBarChart {...defaultProps} numberOfBars={10} />,
 		);
 
 		bars = screen.getAllByRole("graphics-symbol");
@@ -122,13 +135,11 @@ describe("FlowRunActivityBarChart", () => {
 				state_type: stateType,
 			};
 			render(
-				<RouterContextProvider router={router}>
-					<FlowRunActivityBarChart
-						{...defaultProps}
-						// @ts-expect-error - Type error from test data not matching schema
-						enrichedFlowRuns={[enrichedFlowRun]}
-					/>
-				</RouterContextProvider>,
+				<FlowRunActivityBarChart
+					{...defaultProps}
+					// @ts-expect-error - Type error from test data not matching schema
+					enrichedFlowRuns={[enrichedFlowRun]}
+				/>,
 			);
 			const bars = screen.getAllByRole("graphics-symbol");
 			expect(
@@ -140,10 +151,8 @@ describe("FlowRunActivityBarChart", () => {
 	it("applies custom bar width when provided", () => {
 		const customBarWidth = 12;
 		render(
-			<RouterContextProvider router={router}>
-				{/* @ts-expect-error - Type error from test data not matching schema */}
-				<FlowRunActivityBarChart {...defaultProps} barWidth={customBarWidth} />
-			</RouterContextProvider>,
+			/* @ts-expect-error - Type error from test data not matching schema */
+			<FlowRunActivityBarChart {...defaultProps} barWidth={customBarWidth} />,
 		);
 
 		const bar = screen.getByTestId("bar-rect-test-flow-run-1");
