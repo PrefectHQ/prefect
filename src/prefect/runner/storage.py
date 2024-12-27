@@ -156,7 +156,10 @@ class GitRepository:
         return self._pull_interval
 
     @property
-    def _formatted_credentials(self) -> str:
+    def _formatted_credentials(self) -> Optional[str]:
+        if not self._credentials:
+            return None
+
         credentials = (
             self._credentials.model_dump()
             if isinstance(self._credentials, Block)
@@ -194,15 +197,12 @@ class GitRepository:
         """
         config = {}
 
-        # If submodules are included they can potentially be private.
-        # If credentials are provided, add a replacement that will let
-        # the submodule use the same credentials we're using for the main repo.
-        if self._include_submodules:
+        # Submodules can be private. The url in .gitmodules
+        # will not include the credentials, we need to
+        # propagate them down here.
+        if self._include_submodules and self._formatted_credentials is not None:
             url_components = urlparse(self._url)._replace(path="")
-            if (
-                url_components.scheme == "https"
-                and self._formatted_credentials is not None
-            ):
+            if url_components.scheme == "https":
                 with_auth = urlunparse(
                     url_components._replace(
                         netloc=f"{self._formatted_credentials}@{url_components.netloc}"
