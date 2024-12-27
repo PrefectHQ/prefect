@@ -51,7 +51,9 @@ cloud_app = PrefectTyper(
 workspace_app = PrefectTyper(
     name="workspace", help="View and set Prefect Cloud Workspaces"
 )
-cloud_app.add_typer(workspace_app, aliases=["workspaces"])
+cloud_app.add_typer(workspace_app)
+cloud_app.add_typer(workspace_app, name="workspaces", hidden=True)
+
 app.add_typer(cloud_app)
 
 

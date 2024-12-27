@@ -18,7 +18,8 @@ from prefect.logging.loggers import get_logger
 ip_allowlist_app = PrefectTyper(
     name="ip-allowlist", help="Manage Prefect Cloud IP Allowlists"
 )
-cloud_app.add_typer(ip_allowlist_app, aliases=["ip-allowlists"])
+cloud_app.add_typer(ip_allowlist_app)
+cloud_app.add_typer(ip_allowlist_app, name="ip-allowlists", hidden=True)
 
 logger = get_logger(__name__)
 

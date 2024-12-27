@@ -9,7 +9,8 @@ from prefect.task_worker import serve as task_serve
 from prefect.utilities.importtools import import_object
 
 task_app = PrefectTyper(name="task", help="Work with task scheduling.")
-app.add_typer(task_app, aliases=["task"])
+app.add_typer(task_app)
+app.add_typer(task_app, name="tasks", hidden=True)
 
 
 @task_app.command()

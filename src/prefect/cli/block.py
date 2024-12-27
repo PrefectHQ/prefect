@@ -30,8 +30,11 @@ from prefect.utilities.importtools import load_script_as_module
 
 blocks_app = PrefectTyper(name="block", help="Manage blocks.")
 blocktypes_app = PrefectTyper(name="type", help="Inspect and delete block types.")
-app.add_typer(blocks_app, aliases=["blocks"])
-blocks_app.add_typer(blocktypes_app, aliases=["types"])
+
+app.add_typer(blocks_app)
+app.add_typer(blocks_app, name="blocks", hidden=True)
+app.add_typer(blocktypes_app)
+app.add_typer(blocktypes_app, name="types", hidden=True)
 
 
 def display_block(block_document):

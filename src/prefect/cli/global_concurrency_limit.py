@@ -27,7 +27,8 @@ global_concurrency_limit_app = PrefectTyper(
     help="Manage global concurrency limits.",
 )
 
-app.add_typer(global_concurrency_limit_app, aliases=["gcl"])
+app.add_typer(global_concurrency_limit_app)
+app.add_typer(global_concurrency_limit_app, name="gcl", hidden=True)
 
 
 class OutputFormat(Enum):

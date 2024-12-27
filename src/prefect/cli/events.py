@@ -16,7 +16,8 @@ from prefect.events.clients import (
 )
 
 events_app = PrefectTyper(name="events", help="Stream events.")
-app.add_typer(events_app, aliases=["event"])
+app.add_typer(events_app)
+app.add_typer(events_app, name="event", hidden=True)
 
 
 class StreamFormat(str, Enum):
