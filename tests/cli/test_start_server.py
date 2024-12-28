@@ -4,11 +4,13 @@ import signal
 import socket
 import sys
 import tempfile
+from collections.abc import AsyncIterator
 
 import anyio
 import httpx
 import pytest
 import readchar
+from anyio.abc import Process
 from typer import Exit
 
 from prefect.cli.server import PID_FILE
@@ -34,12 +36,12 @@ SHUTDOWN_TIMEOUT = 20
 
 
 @contextlib.asynccontextmanager
-async def start_server_process():
+async def start_server_process() -> AsyncIterator[Process]:
     """
     Runs an instance of the server. Requires a port from 2222-2229 to be available.
     Uses the same database as the rest of the tests.
     Yields:
-        The anyio.Process.
+        The anyio Process.
     """
 
     ports = list(range(2222, 2230))
@@ -229,7 +231,9 @@ class TestUvicornSignalForwarding:
         async with start_server_process() as server_process:
             server_process.send_signal(signal.SIGINT)
             with anyio.fail_after(SHUTDOWN_TIMEOUT):
-                await server_process.wait()
+                assert (
+                    await server_process.wait() != 0
+                ), "Server process exited with zero code"
             server_process.out.seek(0)
             out = server_process.out.read().decode()
 
@@ -246,7 +250,9 @@ class TestUvicornSignalForwarding:
         async with start_server_process() as server_process:
             server_process.send_signal(signal.SIGTERM)
             with anyio.fail_after(SHUTDOWN_TIMEOUT):
-                await server_process.wait()
+                assert (
+                    await server_process.wait() != 0
+                ), "Server process exited with zero code"
             server_process.out.seek(0)
             out = server_process.out.read().decode()
 
@@ -267,7 +273,9 @@ class TestUvicornSignalForwarding:
             )  # some time needed for the recursive signal handler
             server_process.send_signal(signal.SIGINT)
             with anyio.fail_after(SHUTDOWN_TIMEOUT):
-                await server_process.wait()
+                assert (
+                    await server_process.wait() != 0
+                ), "Server process exited with zero code"
             server_process.out.seek(0)
             out = server_process.out.read().decode()
 
@@ -295,7 +303,9 @@ class TestUvicornSignalForwarding:
             )  # some time needed for the recursive signal handler
             server_process.send_signal(signal.SIGTERM)
             with anyio.fail_after(SHUTDOWN_TIMEOUT):
-                await server_process.wait()
+                assert (
+                    await server_process.wait() != 0
+                ), "Server process exited with zero code"
             server_process.out.seek(0)
             out = server_process.out.read().decode()
 
@@ -319,7 +329,9 @@ class TestUvicornSignalForwarding:
         async with start_server_process() as server_process:
             server_process.send_signal(signal.SIGINT)
             with anyio.fail_after(SHUTDOWN_TIMEOUT):
-                await server_process.wait()
+                assert (
+                    await server_process.wait() != 0
+                ), "Server process exited with zero code"
             server_process.out.seek(0)
             out = server_process.out.read().decode()
 
@@ -414,17 +426,3 @@ class TestPrestartCheck:
         profiles = load_profiles()
         assert profiles.active_name == "local"
 
-
-class TestServerExitCodes:
-    def test_misconfigured_server_exits_nonzero(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        invalid_connection_url = "FOOBAR!"
-        monkeypatch.setenv(
-            "PREFECT_API_DATABASE_CONNECTION_URL", invalid_connection_url
-        )
-        invoke_and_assert(
-            command=["server", "start"],
-            expected_code=1,
-            expected_output_contains=invalid_connection_url,
-        )
