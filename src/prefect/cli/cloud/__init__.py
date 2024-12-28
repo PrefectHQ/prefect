@@ -53,17 +53,17 @@ from pydantic import BaseModel
 T = TypeVar("T")
 
 # Set up the `prefect cloud` and `prefect cloud workspaces` CLI applications
-cloud_app = PrefectTyper(
+cloud_app: PrefectTyper = PrefectTyper(
     name="cloud", help="Authenticate and interact with Prefect Cloud"
 )
-workspace_app = PrefectTyper(
+workspace_app: PrefectTyper = PrefectTyper(
     name="workspace", help="View and set Prefect Cloud Workspaces"
 )
 cloud_app.add_typer(workspace_app, aliases=["workspaces"])
 app.add_typer(cloud_app)
 
 
-def set_login_api_ready_event():
+def set_login_api_ready_event() -> None:
     login_api.extra["ready-event"].set()
 
 
@@ -76,7 +76,7 @@ async def lifespan(app: FastAPI):
         pass
 
 
-login_api = FastAPI(lifespan=lifespan)
+login_api: FastAPI = FastAPI(lifespan=lifespan)
 """
 This small API server is used for data transmission for browser-based log in.
 """
@@ -107,20 +107,20 @@ class ServerExit(Exception):
 
 
 @login_api.post("/success")
-def receive_login(payload: LoginSuccess):
+def receive_login(payload: LoginSuccess) -> None:
     login_api.extra["result"] = LoginResult(type="success", content=payload)
     login_api.extra["result-event"].set()
 
 
 @login_api.post("/failure")
-def receive_failure(payload: LoginFailed):
+def receive_failure(payload: LoginFailed) -> None:
     login_api.extra["result"] = LoginResult(type="failure", content=payload)
     login_api.extra["result-event"].set()
 
 
 async def serve_login_api(
     cancel_scope: anyio.CancelScope, task_status: anyio.abc.TaskStatus[uvicorn.Server]
-):
+) -> None:
     config = uvicorn.Config(login_api, port=0, log_level="critical")
     server = uvicorn.Server(config)
 
@@ -144,7 +144,7 @@ async def serve_login_api(
         cancel_scope.cancel()
 
 
-def confirm_logged_in():
+def confirm_logged_in() -> None:
     if not PREFECT_API_KEY:
         profile = prefect.context.get_settings_context().profile
         exit_with_error(
@@ -306,7 +306,7 @@ async def login_with_browser() -> str:
         exit_with_error(f"Failed to log in. {result.content.reason}")
 
 
-async def check_key_is_valid_for_login(key: str):
+async def check_key_is_valid_for_login(key: str) -> bool:
     """
     Attempt to use a key to see if it is valid
     """

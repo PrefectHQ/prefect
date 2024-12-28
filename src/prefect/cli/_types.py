@@ -17,7 +17,7 @@ from prefect.settings import PREFECT_CLI_COLORS, Setting
 from prefect.utilities.asyncutils import is_async_fn
 
 
-def SettingsOption(setting: Setting, *args, **kwargs) -> typer.Option:
+def SettingsOption(setting: Setting, *args: Any, **kwargs: Any) -> Any:
     """Custom `typer.Option` factory to load the default value from settings"""
 
     return typer.Option(
@@ -33,7 +33,7 @@ def SettingsOption(setting: Setting, *args, **kwargs) -> typer.Option:
     )
 
 
-def SettingsArgument(setting: Setting, *args, **kwargs) -> typer.Argument:
+def SettingsArgument(setting: Setting, *args: Any, **kwargs: Any) -> Any:
     """Custom `typer.Argument` factory to load the default value from settings"""
 
     # See comments in `SettingsOption`
@@ -68,12 +68,12 @@ class PrefectTyper(typer.Typer):
 
     def __init__(
         self,
-        *args,
+        *args: Any,
         deprecated: bool = False,
         deprecated_start_date: Optional[str] = None,
         deprecated_help: str = "",
         deprecated_name: str = "",
-        **kwargs,
+        **kwargs: Any,
     ):
         super().__init__(*args, **kwargs)
 
@@ -81,7 +81,7 @@ class PrefectTyper(typer.Typer):
         if self.deprecated:
             if not deprecated_name:
                 raise ValueError("Provide the name of the deprecated command group.")
-            self.deprecated_message = generate_deprecation_message(
+            self.deprecated_message: str = generate_deprecation_message(
                 name=f"The {deprecated_name!r} command group",
                 start_date=deprecated_start_date,
                 help=deprecated_help,
@@ -129,7 +129,7 @@ class PrefectTyper(typer.Typer):
         deprecated_help: str = "",
         deprecated_name: str = "",
         **kwargs: Any,
-    ):
+    ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
         """
         Create a new command. If aliases are provided, the same command function
         will be registered with multiple names.
@@ -197,7 +197,7 @@ class PrefectTyper(typer.Typer):
 
         return wrapper
 
-    def setup_console(self, soft_wrap: bool, prompt: bool):
+    def setup_console(self, soft_wrap: bool, prompt: bool) -> None:
         self.console = Console(
             highlight=False,
             color_system="auto" if PREFECT_CLI_COLORS else None,
