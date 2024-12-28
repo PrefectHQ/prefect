@@ -425,4 +425,3 @@ class TestPrestartCheck:
 
         profiles = load_profiles()
         assert profiles.active_name == "local"
-
