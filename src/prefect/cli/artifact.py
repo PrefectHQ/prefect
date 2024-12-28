@@ -1,6 +1,7 @@
-from typing import Optional
+from __future__ import annotations
 
-import pendulum
+from uuid import UUID
+
 import typer
 from rich.pretty import Pretty
 from rich.table import Table
@@ -13,7 +14,9 @@ from prefect.client.schemas.filters import ArtifactFilter, ArtifactFilterKey
 from prefect.client.schemas.sorting import ArtifactCollectionSort, ArtifactSort
 from prefect.exceptions import ObjectNotFound
 
-artifact_app = PrefectTyper(name="artifact", help="Inspect and delete artifacts.")
+artifact_app: PrefectTyper = PrefectTyper(
+    name="artifact", help="Inspect and delete artifacts."
+)
 app.add_typer(artifact_app)
 
 
@@ -53,11 +56,12 @@ async def list_artifacts(
             )
 
             for artifact in sorted(artifacts, key=lambda x: f"{x.key}"):
+                updated = artifact.updated.diff_for_humans() if artifact.updated else ""
                 table.add_row(
                     str(artifact.id),
                     artifact.key,
                     artifact.type,
-                    pendulum.instance(artifact.updated).diff_for_humans(),
+                    updated,
                 )
 
         else:
@@ -67,11 +71,12 @@ async def list_artifacts(
             )
 
             for artifact in sorted(artifacts, key=lambda x: f"{x.key}"):
+                updated = artifact.updated.diff_for_humans() if artifact.updated else ""
                 table.add_row(
                     str(artifact.latest_id),
                     artifact.key,
                     artifact.type,
-                    pendulum.instance(artifact.updated).diff_for_humans(),
+                    updated,
                 )
 
         app.console.print(table)
@@ -138,10 +143,8 @@ async def inspect(
 
 @artifact_app.command("delete")
 async def delete(
-    key: Optional[str] = typer.Argument(
-        None, help="The key of the artifact to delete."
-    ),
-    artifact_id: Optional[str] = typer.Option(
+    key: str | None = typer.Argument(None, help="The key of the artifact to delete."),
+    artifact_id: UUID | None = typer.Option(
         None, "--id", help="The ID of the artifact to delete."
     ),
 ):
