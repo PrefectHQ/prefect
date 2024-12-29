@@ -33,18 +33,6 @@ def SettingsOption(setting: Setting, *args, **kwargs) -> typer.Option:
     )
 
 
-def SettingsArgument(setting: Setting, *args, **kwargs) -> typer.Argument:
-    """Custom `typer.Argument` factory to load the default value from settings"""
-
-    # See comments in `SettingsOption`
-    return typer.Argument(
-        setting.value,
-        *args,
-        show_default=f"from {setting.name}",
-        **kwargs,
-    )
-
-
 def with_deprecated_message(warning: str):
     def decorator(fn):
         @functools.wraps(fn)
