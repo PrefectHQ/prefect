@@ -110,7 +110,7 @@ class WebsocketProxyConnect(Connect):
         host = u.hostname
 
         if not host:
-            raise ValueError("Invalid URI %s" % uri)
+            raise ValueError(f"Invalid URI {uri}, no hostname found")
 
         if u.scheme == "ws":
             port = u.port or 80
