@@ -19,6 +19,7 @@ from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli._utilities import with_cli_exception_handling
 from prefect.client.base import determine_server_type
 from prefect.client.constants import SERVER_API_VERSION
+from prefect.client.orchestration import get_client
 from prefect.client.orchestration import ServerType
 from prefect.logging.configuration import setup_logging
 from prefect.settings import (
@@ -26,7 +27,10 @@ from prefect.settings import (
     PREFECT_TEST_MODE,
 )
 
-app = PrefectTyper(add_completion=True, no_args_is_help=True)
+app = PrefectTyper(
+    add_completion=True,
+    no_args_is_help=True,
+)
 
 
 def version_callback(value: bool):
@@ -76,9 +80,10 @@ def main(
         except KeyError:
             print(f"Unknown profile {profile!r}.")
             exit(1)
-
+    ctx.meta["get_client"] = get_client
     # Configure the output console after loading the profile
     app.setup_console(soft_wrap=PREFECT_CLI_WRAP_LINES.value(), prompt=prompt)
+    ctx.meta["console"] = app.console
 
     if not PREFECT_TEST_MODE:
         # When testing, this entrypoint can be called multiple times per process which
