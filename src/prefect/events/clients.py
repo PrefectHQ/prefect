@@ -84,6 +84,20 @@ def events_out_socket_from_api_url(url: str):
     return http_to_ws(url) + "/events/out"
 
 
+def _host_matches_no_proxy(host: str) -> bool:
+    """Checks whether a given host matches NO_PROXY configuration.
+    NO_PROXY entries with a leading dot are treated as domain suffixes, while all others are treated as exact matches.
+    """
+    if no_proxy := os.environ.get("NO_PROXY"):
+        for no_proxy_host in no_proxy.split(","):
+            if no_proxy_host.startswith("."):
+                if host.endswith(no_proxy_host):
+                    return True
+            elif no_proxy_host == host:
+                return True
+    return False
+
+
 class WebsocketProxyConnect(Connect):
     def __init__(self: Self, uri: str, **kwargs: Any):
         # super() is intentionally deferred to the _proxy_connect method
@@ -107,7 +121,7 @@ class WebsocketProxyConnect(Connect):
                 "Unsupported scheme %s. Expected 'ws' or 'wss'. " % u.scheme
             )
 
-        self._proxy = Proxy.from_url(proxy_url) if proxy_url else None
+        self._proxy = Proxy.from_url(proxy_url) if proxy_url and not _host_matches_no_proxy(host) else None
         self._host = host
         self._port = port
 
