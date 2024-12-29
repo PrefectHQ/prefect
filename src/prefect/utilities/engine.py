@@ -18,7 +18,7 @@ from typing import (
 from uuid import UUID
 
 import anyio
-from opentelemetry import trace
+from opentelemetry import propagate, trace
 from typing_extensions import TypeIs
 
 import prefect
@@ -769,13 +769,12 @@ def resolve_to_final_result(expr: Any, context: dict[str, Any]) -> Any:
     if asyncio.iscoroutine(result):
         result = run_coro_as_sync(result)
 
-    if state.state_details.trace_id and state.state_details.span_id:
+    if state.state_details.traceparent:
+        parameter_context = propagate.extract(
+            {"traceparent": state.state_details.traceparent}
+        )
         trace.get_current_span().add_link(
-            context=trace.SpanContext(
-                trace_id=state.state_details.trace_id,
-                span_id=state.state_details.span_id,
-                is_remote=True,
-            ),
+            context=trace.get_current_span(parameter_context).get_span_context(),
             attributes={
                 "prefect.input.name": context["parameter_name"],
                 "prefect.input.type": type(result).__name__,

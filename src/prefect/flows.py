@@ -37,7 +37,6 @@ from typing import (
 from uuid import UUID
 
 import pydantic
-from fastapi.encoders import jsonable_encoder
 from pydantic.v1 import BaseModel as V1BaseModel
 from pydantic.v1.decorator import ValidatedFunction as V1ValidatedFunction
 from pydantic.v1.errors import ConfigError  # TODO
@@ -364,7 +363,7 @@ class Flow(Generic[P, R]):
         self._entrypoint: Optional[str] = None
 
         module = fn.__module__
-        if module in ("__main__", "__prefect_loader__"):
+        if module and (module == "__main__" or module.startswith("__prefect_loader_")):
             module_name = inspect.getfile(fn)
             module = module_name if module_name != "__main__" else module
 
@@ -613,6 +612,8 @@ class Flow(Generic[P, R]):
                 serialized_parameters[key] = f"<{type(value).__name__}>"
                 continue
             try:
+                from fastapi.encoders import jsonable_encoder
+
                 serialized_parameters[key] = jsonable_encoder(value)
             except (TypeError, ValueError):
                 logger.debug(
