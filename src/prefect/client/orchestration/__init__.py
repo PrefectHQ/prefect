@@ -19,7 +19,7 @@ from packaging import version
 from starlette import status
 from typing_extensions import ParamSpec, Self, TypeVar
 
-from prefect.client.orchestration._artifacts import (
+from prefect.client.orchestration._artifacts.client import (
     ArtifactClient,
     ArtifactAsyncClient,
     ArtifactCollectionClient,
