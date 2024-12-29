@@ -1,7 +1,7 @@
 import type { components } from "@/api/prefect";
 import {
 	Breadcrumb,
-	BreadcrumbItem,
+	BreadcrumbLink,
 	BreadcrumbList,
 	BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
@@ -10,7 +10,6 @@ import { Icon } from "@/components/ui/icons";
 import { StateBadge } from "@/components/ui/state-badge";
 import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
 import { Typography } from "@/components/ui/typography";
-import { Link } from "@tanstack/react-router";
 import { cva } from "class-variance-authority";
 import { format, parseISO } from "date-fns";
 import humanizeDuration from "humanize-duration";
@@ -81,27 +80,25 @@ const ConcurrencyLimitTaskRunBreadcrumb = ({
 		<Breadcrumb>
 			<BreadcrumbList>
 				{flow && (
-					<BreadcrumbItem className="text-lg font-semibold">
-						<Link to="/flows/flow/$id" params={{ id: flow.id }}>
-							{flow.name}
-						</Link>
-					</BreadcrumbItem>
+					<BreadcrumbLink
+						className="text-lg font-semibold"
+						to="/flows/flow/$id"
+						params={{ id: flow.id }}
+					>
+						{flow.name}
+					</BreadcrumbLink>
 				)}
 				{flow && flowRun && <BreadcrumbSeparator />}
 				{flowRun && (
-					<BreadcrumbItem>
-						<Link to="/runs/flow-run/$id" params={{ id: flowRun.id }}>
-							{flowRun.name}
-						</Link>
-					</BreadcrumbItem>
+					<BreadcrumbLink to="/runs/flow-run/$id" params={{ id: flowRun.id }}>
+						{flowRun.name}
+					</BreadcrumbLink>
 				)}
 				{flowRun && taskRun && <BreadcrumbSeparator />}
 				{taskRun && (
-					<BreadcrumbItem>
-						<Link to="/runs/task-run/$id" params={{ id: taskRun.id }}>
-							{taskRun.name}
-						</Link>
-					</BreadcrumbItem>
+					<BreadcrumbLink to="/runs/task-run/$id" params={{ id: taskRun.id }}>
+						{taskRun.name}
+					</BreadcrumbLink>
 				)}
 			</BreadcrumbList>
 		</Breadcrumb>
