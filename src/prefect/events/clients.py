@@ -109,6 +109,9 @@ class WebsocketProxyConnect(Connect):
         u = urlparse(uri)
         host = u.hostname
 
+        if not host:
+            raise ValueError("Invalid URI %s" % uri)
+
         if u.scheme == "ws":
             port = u.port or 80
             proxy_url = os.environ.get("HTTP_PROXY")
@@ -121,7 +124,11 @@ class WebsocketProxyConnect(Connect):
                 "Unsupported scheme %s. Expected 'ws' or 'wss'. " % u.scheme
             )
 
-        self._proxy = Proxy.from_url(proxy_url) if proxy_url and not _host_matches_no_proxy(host) else None
+        self._proxy = (
+            Proxy.from_url(proxy_url)
+            if proxy_url and not _host_matches_no_proxy(host)
+            else None
+        )
         self._host = host
         self._port = port
 

@@ -1,4 +1,4 @@
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
@@ -44,7 +44,9 @@ def test_init_wss_with_proxy(monkeypatch):
     assert client._proxy is not None
 
 
-@pytest.mark.parametrize("no_proxy", ["example.com", ".com", "example.com,example2.com"])
+@pytest.mark.parametrize(
+    "no_proxy", ["example.com", ".com", "example.com,example2.com"]
+)
 def test_init_ws_with_no_proxy(monkeypatch, no_proxy: str):
     # Validate http proxy is set
     monkeypatch.setenv("HTTP_PROXY", "http://proxy:3128")
@@ -57,7 +59,9 @@ def test_init_ws_with_no_proxy(monkeypatch, no_proxy: str):
     assert client._proxy is None
 
 
-@pytest.mark.parametrize("no_proxy", ["example.com", ".com", "example.com,example2.com"])
+@pytest.mark.parametrize(
+    "no_proxy", ["example.com", ".com", "example.com,example2.com"]
+)
 def test_init_wss_with_no_proxy(monkeypatch, no_proxy: str):
     # Validate https proxy is set
     monkeypatch.setenv("HTTPS_PROXY", "http://proxy:3128")
