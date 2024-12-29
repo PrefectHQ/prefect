@@ -19,7 +19,7 @@ from packaging import version
 from starlette import status
 from typing_extensions import ParamSpec, Self, TypeVar
 
-from prefect.client.orchestration.artifacts import (
+from prefect.client.orchestration._artifacts import (
     ArtifactClient,
     ArtifactAsyncClient,
     ArtifactCollectionClient,
@@ -152,15 +152,13 @@ def get_client(
     *,
     httpx_settings: Optional[dict[str, Any]] = ...,
     sync_client: Literal[False] = False,
-) -> "PrefectClient":
-    ...
+) -> "PrefectClient": ...
 
 
 @overload
 def get_client(
     *, httpx_settings: Optional[dict[str, Any]] = ..., sync_client: Literal[True] = ...
-) -> "SyncPrefectClient":
-    ...
+) -> "SyncPrefectClient": ...
 
 
 def get_client(

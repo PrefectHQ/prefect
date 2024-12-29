@@ -54,9 +54,9 @@ class ArtifactClient(BaseClient):
     def update_artifact(self, artifact_id: "UUID", artifact: "ArtifactUpdate") -> None:
         self.request(
             "PATCH",
-            "/artifacts/{artifact_id}",
+            "/artifacts/{id}",
             json=artifact.model_dump(mode="json", exclude_unset=True),
-            path_params={"artifact_id": artifact_id},
+            path_params={"id": artifact_id},
         )
         return None
 
@@ -64,8 +64,8 @@ class ArtifactClient(BaseClient):
         try:
             self.request(
                 "DELETE",
-                "/artifacts/{artifact_id}",
-                path_params={"artifact_id": artifact_id},
+                "/artifacts/{id}",
+                path_params={"id": artifact_id},
             )
         except HTTPStatusError as e:
             if e.response.status_code == 404:
@@ -122,8 +122,8 @@ class ArtifactAsyncClient(BaseAsyncClient):
     ) -> None:
         await self.request(
             "PATCH",
-            "/artifacts/{artifact_id}",
-            path_params={"artifact_id": artifact_id},
+            "/artifacts/{id}",
+            path_params={"id": artifact_id},
             json=artifact.model_dump(mode="json", exclude_unset=True),
         )
         return None
@@ -163,8 +163,8 @@ class ArtifactAsyncClient(BaseAsyncClient):
         try:
             await self.request(
                 "DELETE",
-                "/artifacts/{artifact_id}",
-                path_params={"artifact_id": artifact_id},
+                "/artifacts/{id}",
+                path_params={"id": artifact_id},
             )
         except HTTPStatusError as e:
             if e.response.status_code == 404:
