@@ -63,32 +63,6 @@ class PrefectTyper(typer.Typer):
             color_system="auto" if PREFECT_CLI_COLORS else None,
         )
 
-    def add_typer(
-        self,
-        typer_instance: "PrefectTyper",
-        *args,
-        no_args_is_help: bool = True,
-        aliases: Optional[List[str]] = None,
-        **kwargs,
-    ) -> None:
-        """
-        This will cause help to be default command for all sub apps unless specifically stated otherwise, opposite of before.
-        """
-        if aliases:
-            for alias in aliases:
-                super().add_typer(
-                    typer_instance,
-                    *args,
-                    name=alias,
-                    no_args_is_help=no_args_is_help,
-                    hidden=True,
-                    **kwargs,
-                )
-
-        return super().add_typer(
-            typer_instance, *args, no_args_is_help=no_args_is_help, **kwargs
-        )
-
     def command(
         self,
         name: Optional[str] = None,
