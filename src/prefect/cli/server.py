@@ -15,7 +15,7 @@ import typer
 
 import prefect
 from prefect.cli._prompts import prompt
-from prefect.cli._types import PrefectTyper, SettingsOption
+from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.cloud import prompt_select_from_list
 from prefect.cli.root import app, is_interactive
@@ -201,16 +201,39 @@ def prestart_check(base_url: str):
 
 @server_app.command()
 async def start(
-    host: str = SettingsOption(PREFECT_SERVER_API_HOST),
-    port: int = SettingsOption(PREFECT_SERVER_API_PORT),
-    keep_alive_timeout: int = SettingsOption(PREFECT_SERVER_API_KEEPALIVE_TIMEOUT),
-    log_level: str = SettingsOption(PREFECT_SERVER_LOGGING_LEVEL),
-    scheduler: bool = SettingsOption(PREFECT_API_SERVICES_SCHEDULER_ENABLED),
-    analytics: bool = SettingsOption(
-        PREFECT_SERVER_ANALYTICS_ENABLED, "--analytics-on/--analytics-off"
+    host: str = typer.Option(
+        PREFECT_SERVER_API_HOST.value(),
+        show_default=f"from {PREFECT_SERVER_API_HOST.name}",
     ),
-    late_runs: bool = SettingsOption(PREFECT_API_SERVICES_LATE_RUNS_ENABLED),
-    ui: bool = SettingsOption(PREFECT_UI_ENABLED),
+    port: int = typer.Option(
+        PREFECT_SERVER_API_PORT.value(),
+        show_default=f"from {PREFECT_SERVER_API_PORT.name}",
+    ),
+    keep_alive_timeout: int = typer.Option(
+        PREFECT_SERVER_API_KEEPALIVE_TIMEOUT.value(),
+        show_default=f"from {PREFECT_SERVER_API_KEEPALIVE_TIMEOUT.name}",
+    ),
+    log_level: str = typer.Option(
+        PREFECT_SERVER_LOGGING_LEVEL.value(),
+        show_default=f"from {PREFECT_SERVER_LOGGING_LEVEL.name}",
+    ),
+    scheduler: bool = typer.Option(
+        PREFECT_API_SERVICES_SCHEDULER_ENABLED.value(),
+        show_default=f"from {PREFECT_API_SERVICES_SCHEDULER_ENABLED.name}",
+    ),
+    analytics: bool = typer.Option(
+        PREFECT_SERVER_ANALYTICS_ENABLED.value(),
+        "--analytics-on/--analytics-off",
+        show_default=f"from {PREFECT_SERVER_ANALYTICS_ENABLED.name}",
+    ),
+    late_runs: bool = typer.Option(
+        PREFECT_API_SERVICES_LATE_RUNS_ENABLED.value(),
+        show_default=f"from {PREFECT_API_SERVICES_LATE_RUNS_ENABLED.name}",
+    ),
+    ui: bool = typer.Option(
+        PREFECT_UI_ENABLED.value(),
+        show_default=f"from {PREFECT_UI_ENABLED.name}",
+    ),
     background: bool = typer.Option(
         False, "--background", "-b", help="Run the server in the background"
     ),

@@ -17,22 +17,6 @@ from prefect.settings import PREFECT_CLI_COLORS, Setting
 from prefect.utilities.asyncutils import is_async_fn
 
 
-def SettingsOption(setting: Setting, *args, **kwargs) -> typer.Option:
-    """Custom `typer.Option` factory to load the default value from settings"""
-
-    return typer.Option(
-        # The default is dynamically retrieved
-        setting.value,
-        *args,
-        # Typer shows "(dynamic)" by default. We'd like to actually show the value
-        # that would be used if the parameter is not specified and a reference if the
-        # source is from the environment or profile, but typer does not support this
-        # yet. See https://github.com/tiangolo/typer/issues/354
-        show_default=f"from {setting.name}",
-        **kwargs,
-    )
-
-
 def with_deprecated_message(warning: str):
     def decorator(fn):
         @functools.wraps(fn)

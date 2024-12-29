@@ -35,7 +35,6 @@ from prefect.cli._prompts import (
     prompt_select_remote_flow_storage,
     prompt_select_work_pool,
 )
-from prefect.cli._types import SettingsOption
 from prefect.cli._utilities import (
     exit_with_error,
 )
@@ -249,10 +248,11 @@ async def deploy(
         "--collision-strategy",
         help="Configure the behavior for runs once the concurrency limit is reached. Falls back to `ENQUEUE` if unset.",
     ),
-    work_pool_name: str = SettingsOption(
-        PREFECT_DEFAULT_WORK_POOL_NAME,
+    work_pool_name: str = typer.Option(
+        PREFECT_DEFAULT_WORK_POOL_NAME.value(),
         "-p",
         "--pool",
+        show_default=f"from {PREFECT_DEFAULT_WORK_POOL_NAME.name}",
         help="The work pool that will handle this deployment's runs.",
     ),
     work_queue_name: str = typer.Option(

@@ -18,7 +18,7 @@ import anyio
 import typer
 
 import prefect
-from prefect.cli._types import PrefectTyper, SettingsOption
+from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.settings import (
@@ -135,8 +135,14 @@ async def ui():
 
 @dev_app.command()
 async def api(
-    host: str = SettingsOption(PREFECT_SERVER_API_HOST),
-    port: int = SettingsOption(PREFECT_SERVER_API_PORT),
+    host: str = typer.Option(
+        PREFECT_SERVER_API_HOST.value(),
+        show_default=f"from {PREFECT_SERVER_API_HOST.name}",
+    ),
+    port: int = typer.Option(
+        PREFECT_SERVER_API_PORT.value(),
+        show_default=f"from {PREFECT_SERVER_API_PORT.name}",
+    ),
     log_level: str = "DEBUG",
     services: bool = True,
 ):

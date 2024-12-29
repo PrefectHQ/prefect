@@ -8,7 +8,7 @@ import typer
 
 from prefect._internal.integrations import KNOWN_EXTRAS_FOR_PACKAGES
 from prefect.cli._prompts import confirm
-from prefect.cli._types import PrefectTyper, SettingsOption
+from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app, is_interactive
 from prefect.client.collections import get_collections_metadata_client
@@ -75,8 +75,9 @@ async def start(
             " inferred from the work pool."
         ),
     ),
-    prefetch_seconds: int = SettingsOption(
-        PREFECT_WORKER_PREFETCH_SECONDS,
+    prefetch_seconds: int = typer.Option(
+        PREFECT_WORKER_PREFETCH_SECONDS.value(),
+        show_default=f"from {PREFECT_WORKER_PREFETCH_SECONDS.name}",
         help="Number of seconds to look into the future for scheduled flow runs.",
     ),
     run_once: bool = typer.Option(
