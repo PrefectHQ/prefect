@@ -176,7 +176,6 @@ async def inspect(
         app.console.print(Pretty(automation))
 
 
-@automations_app.command(aliases=["enable"])
 @requires_automations
 async def resume(
     name: Optional[str] = typer.Argument(None, help="An automation's name"),
@@ -231,7 +230,10 @@ async def resume(
             exit_with_success(f"Resumed automation with id {str(automation.id)!r}.")
 
 
-@automations_app.command(aliases=["disable"])
+automations_app.command("resume")(resume)
+automations_app.command("enable", hidden=True)(resume)
+
+
 @requires_automations
 async def pause(
     name: Optional[str] = typer.Argument(None, help="An automation's name"),
@@ -284,6 +286,10 @@ async def pause(
                 exit_with_error(f"Automation with id {id!r} not found.")
             await client.pause_automation(automation.id)
             exit_with_success(f"Paused automation with id {str(automation.id)!r}.")
+
+
+automations_app.command("pause")(pause)
+automations_app.command("disable", hidden=True)(pause)
 
 
 @automations_app.command()

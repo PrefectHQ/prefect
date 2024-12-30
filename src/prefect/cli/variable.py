@@ -149,7 +149,6 @@ async def _set(
         exit_with_success(f"Set variable {name!r}.")
 
 
-@variable_app.command("unset", aliases=["delete"])
 async def unset(
     name: str,
 ):
@@ -173,3 +172,7 @@ async def unset(
             exit_with_error(f"Variable {name!r} not found.")
 
         exit_with_success(f"Unset variable {name!r}.")
+
+
+variable_app.command("unset")(unset)
+variable_app.command("delete", hidden=True)(unset)

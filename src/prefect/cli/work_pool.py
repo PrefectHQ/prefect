@@ -429,7 +429,6 @@ async def update(
         exit_with_success(f"Updated work pool {name!r}")
 
 
-@work_pool_app.command(aliases=["provision-infra"])
 async def provision_infrastructure(
     name: str = typer.Argument(
         ..., help="The name of the work pool to provision infrastructure for."
@@ -487,6 +486,10 @@ async def provision_infrastructure(
             exit_with_error(
                 f"Failed to provision infrastructure for '{name}' work pool: {exc}"
             )
+
+
+work_pool_app.command("provision-infrastructure")(provision_infrastructure)
+work_pool_app.command("provision-infra")(provision_infrastructure)
 
 
 @work_pool_app.command()

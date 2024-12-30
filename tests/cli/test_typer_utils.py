@@ -50,9 +50,11 @@ class TestPrefectTyper:
 
     def test_command_with_alias(self):
         # Add a command with an alias
-        @self.pluralized_subcommand.command(aliases=["test-cmd-alias"])
         def test_cmd():
             print("Test Command Executed")
+
+        self.pluralized_subcommand.command("test-cmd")(test_cmd)
+        self.pluralized_subcommand.command("test-cmd-alias")(test_cmd)
 
         # Test invoking with the original command name
         invoke_and_assert(
