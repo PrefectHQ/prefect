@@ -1,6 +1,5 @@
 # Import user-facing API
 from typing import Any
-import os
 from prefect.deployments import deploy
 from prefect.states import State
 from prefect.logging import get_run_logger

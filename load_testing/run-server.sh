@@ -77,10 +77,10 @@ OTEL_TRACES_EXPORTER=otlp \
 OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317 \
 OTEL_EXPORTER_OTLP_PROTOCOL=grpc \
 OTEL_LOG_LEVEL=debug \
-PYTHONPATH=/Users/nate/github.com/prefecthq/prefect/src \
+PYTHONPATH=src \
   opentelemetry-instrument \
   uvicorn \
-  --app-dir /Users/nate/github.com/prefecthq/prefect/src \
+  --app-dir src \
   --factory prefect.server.api.server:create_app \
   --host 127.0.0.1 \
   --port 4200 \
