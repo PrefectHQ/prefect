@@ -18,17 +18,19 @@ import { Route as NotificationsImport } from './routes/notifications'
 import { Route as EventsImport } from './routes/events'
 import { Route as DashboardImport } from './routes/dashboard'
 import { Route as BlocksImport } from './routes/blocks'
-import { Route as AutomationsImport } from './routes/automations'
 import { Route as IndexImport } from './routes/index'
 import { Route as RunsIndexImport } from './routes/runs/index'
 import { Route as FlowsIndexImport } from './routes/flows/index'
 import { Route as DeploymentsIndexImport } from './routes/deployments/index'
 import { Route as ConcurrencyLimitsIndexImport } from './routes/concurrency-limits/index'
+import { Route as AutomationsIndexImport } from './routes/automations/index'
+import { Route as AutomationsCreateImport } from './routes/automations/create'
 import { Route as RunsTaskRunIdImport } from './routes/runs/task-run.$id'
 import { Route as RunsFlowRunIdImport } from './routes/runs/flow-run.$id'
 import { Route as FlowsFlowIdImport } from './routes/flows/flow.$id'
 import { Route as DeploymentsDeploymentIdImport } from './routes/deployments/deployment.$id'
 import { Route as ConcurrencyLimitsConcurrencyLimitIdImport } from './routes/concurrency-limits/concurrency-limit.$id'
+import { Route as AutomationsAutomationIdImport } from './routes/automations/automation.$id'
 
 // Create/Update Routes
 
@@ -74,12 +76,6 @@ const BlocksRoute = BlocksImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
-const AutomationsRoute = AutomationsImport.update({
-  id: '/automations',
-  path: '/automations',
-  getParentRoute: () => rootRoute,
-} as any)
-
 const IndexRoute = IndexImport.update({
   id: '/',
   path: '/',
@@ -107,6 +103,18 @@ const DeploymentsIndexRoute = DeploymentsIndexImport.update({
 const ConcurrencyLimitsIndexRoute = ConcurrencyLimitsIndexImport.update({
   id: '/concurrency-limits/',
   path: '/concurrency-limits/',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const AutomationsIndexRoute = AutomationsIndexImport.update({
+  id: '/automations/',
+  path: '/automations/',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const AutomationsCreateRoute = AutomationsCreateImport.update({
+  id: '/automations/create',
+  path: '/automations/create',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -141,6 +149,12 @@ const ConcurrencyLimitsConcurrencyLimitIdRoute =
     getParentRoute: () => rootRoute,
   } as any)
 
+const AutomationsAutomationIdRoute = AutomationsAutomationIdImport.update({
+  id: '/automations/automation/$id',
+  path: '/automations/automation/$id',
+  getParentRoute: () => rootRoute,
+} as any)
+
 // Populate the FileRoutesByPath interface
 
 declare module '@tanstack/react-router' {
@@ -150,13 +164,6 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexImport
-      parentRoute: typeof rootRoute
-    }
-    '/automations': {
-      id: '/automations'
-      path: '/automations'
-      fullPath: '/automations'
-      preLoaderRoute: typeof AutomationsImport
       parentRoute: typeof rootRoute
     }
     '/blocks': {
@@ -208,6 +215,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkPoolsImport
       parentRoute: typeof rootRoute
     }
+    '/automations/create': {
+      id: '/automations/create'
+      path: '/automations/create'
+      fullPath: '/automations/create'
+      preLoaderRoute: typeof AutomationsCreateImport
+      parentRoute: typeof rootRoute
+    }
+    '/automations/': {
+      id: '/automations/'
+      path: '/automations'
+      fullPath: '/automations'
+      preLoaderRoute: typeof AutomationsIndexImport
+      parentRoute: typeof rootRoute
+    }
     '/concurrency-limits/': {
       id: '/concurrency-limits/'
       path: '/concurrency-limits'
@@ -234,6 +255,13 @@ declare module '@tanstack/react-router' {
       path: '/runs'
       fullPath: '/runs'
       preLoaderRoute: typeof RunsIndexImport
+      parentRoute: typeof rootRoute
+    }
+    '/automations/automation/$id': {
+      id: '/automations/automation/$id'
+      path: '/automations/automation/$id'
+      fullPath: '/automations/automation/$id'
+      preLoaderRoute: typeof AutomationsAutomationIdImport
       parentRoute: typeof rootRoute
     }
     '/concurrency-limits/concurrency-limit/$id': {
@@ -278,7 +306,6 @@ declare module '@tanstack/react-router' {
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/automations': typeof AutomationsRoute
   '/blocks': typeof BlocksRoute
   '/dashboard': typeof DashboardRoute
   '/events': typeof EventsRoute
@@ -286,10 +313,13 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/variables': typeof VariablesRoute
   '/work-pools': typeof WorkPoolsRoute
+  '/automations/create': typeof AutomationsCreateRoute
+  '/automations': typeof AutomationsIndexRoute
   '/concurrency-limits': typeof ConcurrencyLimitsIndexRoute
   '/deployments': typeof DeploymentsIndexRoute
   '/flows': typeof FlowsIndexRoute
   '/runs': typeof RunsIndexRoute
+  '/automations/automation/$id': typeof AutomationsAutomationIdRoute
   '/concurrency-limits/concurrency-limit/$id': typeof ConcurrencyLimitsConcurrencyLimitIdRoute
   '/deployments/deployment/$id': typeof DeploymentsDeploymentIdRoute
   '/flows/flow/$id': typeof FlowsFlowIdRoute
@@ -299,7 +329,6 @@ export interface FileRoutesByFullPath {
 
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/automations': typeof AutomationsRoute
   '/blocks': typeof BlocksRoute
   '/dashboard': typeof DashboardRoute
   '/events': typeof EventsRoute
@@ -307,10 +336,13 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/variables': typeof VariablesRoute
   '/work-pools': typeof WorkPoolsRoute
+  '/automations/create': typeof AutomationsCreateRoute
+  '/automations': typeof AutomationsIndexRoute
   '/concurrency-limits': typeof ConcurrencyLimitsIndexRoute
   '/deployments': typeof DeploymentsIndexRoute
   '/flows': typeof FlowsIndexRoute
   '/runs': typeof RunsIndexRoute
+  '/automations/automation/$id': typeof AutomationsAutomationIdRoute
   '/concurrency-limits/concurrency-limit/$id': typeof ConcurrencyLimitsConcurrencyLimitIdRoute
   '/deployments/deployment/$id': typeof DeploymentsDeploymentIdRoute
   '/flows/flow/$id': typeof FlowsFlowIdRoute
@@ -321,7 +353,6 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRoute
   '/': typeof IndexRoute
-  '/automations': typeof AutomationsRoute
   '/blocks': typeof BlocksRoute
   '/dashboard': typeof DashboardRoute
   '/events': typeof EventsRoute
@@ -329,10 +360,13 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/variables': typeof VariablesRoute
   '/work-pools': typeof WorkPoolsRoute
+  '/automations/create': typeof AutomationsCreateRoute
+  '/automations/': typeof AutomationsIndexRoute
   '/concurrency-limits/': typeof ConcurrencyLimitsIndexRoute
   '/deployments/': typeof DeploymentsIndexRoute
   '/flows/': typeof FlowsIndexRoute
   '/runs/': typeof RunsIndexRoute
+  '/automations/automation/$id': typeof AutomationsAutomationIdRoute
   '/concurrency-limits/concurrency-limit/$id': typeof ConcurrencyLimitsConcurrencyLimitIdRoute
   '/deployments/deployment/$id': typeof DeploymentsDeploymentIdRoute
   '/flows/flow/$id': typeof FlowsFlowIdRoute
@@ -344,7 +378,6 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/automations'
     | '/blocks'
     | '/dashboard'
     | '/events'
@@ -352,10 +385,13 @@ export interface FileRouteTypes {
     | '/settings'
     | '/variables'
     | '/work-pools'
+    | '/automations/create'
+    | '/automations'
     | '/concurrency-limits'
     | '/deployments'
     | '/flows'
     | '/runs'
+    | '/automations/automation/$id'
     | '/concurrency-limits/concurrency-limit/$id'
     | '/deployments/deployment/$id'
     | '/flows/flow/$id'
@@ -364,7 +400,6 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/automations'
     | '/blocks'
     | '/dashboard'
     | '/events'
@@ -372,10 +407,13 @@ export interface FileRouteTypes {
     | '/settings'
     | '/variables'
     | '/work-pools'
+    | '/automations/create'
+    | '/automations'
     | '/concurrency-limits'
     | '/deployments'
     | '/flows'
     | '/runs'
+    | '/automations/automation/$id'
     | '/concurrency-limits/concurrency-limit/$id'
     | '/deployments/deployment/$id'
     | '/flows/flow/$id'
@@ -384,7 +422,6 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
-    | '/automations'
     | '/blocks'
     | '/dashboard'
     | '/events'
@@ -392,10 +429,13 @@ export interface FileRouteTypes {
     | '/settings'
     | '/variables'
     | '/work-pools'
+    | '/automations/create'
+    | '/automations/'
     | '/concurrency-limits/'
     | '/deployments/'
     | '/flows/'
     | '/runs/'
+    | '/automations/automation/$id'
     | '/concurrency-limits/concurrency-limit/$id'
     | '/deployments/deployment/$id'
     | '/flows/flow/$id'
@@ -406,7 +446,6 @@ export interface FileRouteTypes {
 
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AutomationsRoute: typeof AutomationsRoute
   BlocksRoute: typeof BlocksRoute
   DashboardRoute: typeof DashboardRoute
   EventsRoute: typeof EventsRoute
@@ -414,10 +453,13 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   VariablesRoute: typeof VariablesRoute
   WorkPoolsRoute: typeof WorkPoolsRoute
+  AutomationsCreateRoute: typeof AutomationsCreateRoute
+  AutomationsIndexRoute: typeof AutomationsIndexRoute
   ConcurrencyLimitsIndexRoute: typeof ConcurrencyLimitsIndexRoute
   DeploymentsIndexRoute: typeof DeploymentsIndexRoute
   FlowsIndexRoute: typeof FlowsIndexRoute
   RunsIndexRoute: typeof RunsIndexRoute
+  AutomationsAutomationIdRoute: typeof AutomationsAutomationIdRoute
   ConcurrencyLimitsConcurrencyLimitIdRoute: typeof ConcurrencyLimitsConcurrencyLimitIdRoute
   DeploymentsDeploymentIdRoute: typeof DeploymentsDeploymentIdRoute
   FlowsFlowIdRoute: typeof FlowsFlowIdRoute
@@ -427,7 +469,6 @@ export interface RootRouteChildren {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AutomationsRoute: AutomationsRoute,
   BlocksRoute: BlocksRoute,
   DashboardRoute: DashboardRoute,
   EventsRoute: EventsRoute,
@@ -435,10 +476,13 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   VariablesRoute: VariablesRoute,
   WorkPoolsRoute: WorkPoolsRoute,
+  AutomationsCreateRoute: AutomationsCreateRoute,
+  AutomationsIndexRoute: AutomationsIndexRoute,
   ConcurrencyLimitsIndexRoute: ConcurrencyLimitsIndexRoute,
   DeploymentsIndexRoute: DeploymentsIndexRoute,
   FlowsIndexRoute: FlowsIndexRoute,
   RunsIndexRoute: RunsIndexRoute,
+  AutomationsAutomationIdRoute: AutomationsAutomationIdRoute,
   ConcurrencyLimitsConcurrencyLimitIdRoute:
     ConcurrencyLimitsConcurrencyLimitIdRoute,
   DeploymentsDeploymentIdRoute: DeploymentsDeploymentIdRoute,
@@ -458,7 +502,6 @@ export const routeTree = rootRoute
       "filePath": "__root.tsx",
       "children": [
         "/",
-        "/automations",
         "/blocks",
         "/dashboard",
         "/events",
@@ -466,10 +509,13 @@ export const routeTree = rootRoute
         "/settings",
         "/variables",
         "/work-pools",
+        "/automations/create",
+        "/automations/",
         "/concurrency-limits/",
         "/deployments/",
         "/flows/",
         "/runs/",
+        "/automations/automation/$id",
         "/concurrency-limits/concurrency-limit/$id",
         "/deployments/deployment/$id",
         "/flows/flow/$id",
@@ -479,9 +525,6 @@ export const routeTree = rootRoute
     },
     "/": {
       "filePath": "index.tsx"
-    },
-    "/automations": {
-      "filePath": "automations.tsx"
     },
     "/blocks": {
       "filePath": "blocks.tsx"
@@ -504,6 +547,12 @@ export const routeTree = rootRoute
     "/work-pools": {
       "filePath": "work-pools.tsx"
     },
+    "/automations/create": {
+      "filePath": "automations/create.ts"
+    },
+    "/automations/": {
+      "filePath": "automations/index.ts"
+    },
     "/concurrency-limits/": {
       "filePath": "concurrency-limits/index.tsx"
     },
@@ -515,6 +564,9 @@ export const routeTree = rootRoute
     },
     "/runs/": {
       "filePath": "runs/index.tsx"
+    },
+    "/automations/automation/$id": {
+      "filePath": "automations/automation.$id.ts"
     },
     "/concurrency-limits/concurrency-limit/$id": {
       "filePath": "concurrency-limits/concurrency-limit.$id.tsx"
