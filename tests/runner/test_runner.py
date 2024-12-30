@@ -1762,6 +1762,10 @@ class TestRunnerDeployment:
                 ],
             )
 
+    async def test_deployment_name_with_leading_dots(self):
+        deployment = RunnerDeployment.from_flow(dummy_flow_1, name="..test-deployment")
+        assert deployment.name == "..test-deployment"
+
 
 class TestServer:
     async def test_healthcheck_fails_as_expected(self):
