@@ -190,6 +190,8 @@ class StateDetails(PrefectBaseModel):
     retriable: Optional[bool] = None
     transition_id: Optional[UUID] = None
     task_parameters_id: Optional[UUID] = None
+    # Captures the trace_id and span_id of the span where this state was created
+    traceparent: Optional[str] = None
 
 
 def data_discriminator(x: Any) -> str:
@@ -232,6 +234,15 @@ class State(ObjectBaseModel, Generic[R]):
     def result(
         self: "State[R]",
         raise_on_failure: Literal[False] = False,
+        fetch: bool = ...,
+        retry_result_failure: bool = ...,
+    ) -> Union[R, Exception]:
+        ...
+
+    @overload
+    def result(
+        self: "State[R]",
+        raise_on_failure: bool = ...,
         fetch: bool = ...,
         retry_result_failure: bool = ...,
     ) -> Union[R, Exception]:

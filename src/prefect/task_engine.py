@@ -182,7 +182,7 @@ class BaseTaskRunEngine(Generic[P, R]):
                     return_data=True,
                     max_depth=-1,
                     remove_annotations=True,
-                    context={},
+                    context={"parameter_name": parameter},
                 )
             except UpstreamTaskError:
                 raise
@@ -756,9 +756,11 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
     ) -> Generator[None, None, None]:
         with self.initialize_run(task_run_id=task_run_id, dependencies=dependencies):
-            with trace.use_span(
-                self._telemetry.span
-            ) if self._telemetry.span else nullcontext():
+            with (
+                trace.use_span(self._telemetry.span)
+                if self._telemetry.span
+                else nullcontext()
+            ):
                 self.begin_run()
                 try:
                     yield
@@ -1294,9 +1296,11 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         async with self.initialize_run(
             task_run_id=task_run_id, dependencies=dependencies
         ):
-            with trace.use_span(
-                self._telemetry.span
-            ) if self._telemetry.span else nullcontext():
+            with (
+                trace.use_span(self._telemetry.span)
+                if self._telemetry.span
+                else nullcontext()
+            ):
                 await self.begin_run()
                 try:
                     yield

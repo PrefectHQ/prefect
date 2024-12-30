@@ -221,7 +221,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                     return_data=True,
                     max_depth=-1,
                     remove_annotations=True,
-                    context={},
+                    context={"parameter_name": parameter},
                 )
             except UpstreamTaskError:
                 raise
@@ -490,24 +490,13 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
             ):
                 return subflow_run
 
-        flow_run = client.create_flow_run(
+        return client.create_flow_run(
             flow=self.flow,
             parameters=self.flow.serialize_parameters(parameters),
             state=Pending(),
             parent_task_run_id=getattr(parent_task_run, "id", None),
             tags=TagsContext.get().current_tags,
         )
-        if flow_run_ctx:
-            parent_logger = get_run_logger(flow_run_ctx)
-            parent_logger.info(
-                f"Created subflow run {flow_run.name!r} for flow {self.flow.name!r}"
-            )
-        else:
-            self.logger.info(
-                f"Created flow run {flow_run.name!r} for flow {self.flow.name!r}"
-            )
-
-        return flow_run
 
     def call_hooks(self, state: Optional[State] = None):
         if state is None:
@@ -606,6 +595,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
             stack.enter_context(ConcurrencyContext())
 
             # set the logger to the flow run logger
+
             self.logger = flow_run_logger(flow_run=self.flow_run, flow=self.flow)
 
             # update the flow run name if necessary
@@ -625,6 +615,23 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                 self._flow_run_name_set = True
 
                 self._telemetry.update_run_name(name=flow_run_name)
+
+            if self.flow_run.parent_task_run_id:
+                _logger = get_run_logger(FlowRunContext.get())
+                run_type = "subflow"
+            else:
+                _logger = self.logger
+                run_type = "flow"
+
+            _logger.info(
+                f"Beginning {run_type} run {self.flow_run.name!r} for flow {self.flow.name!r}"
+            )
+
+            if flow_run_url := url_for(self.flow_run):
+                self.logger.info(
+                    f"View at {flow_run_url}", extra={"send_to_api": False}
+                )
+
             yield
 
     @contextmanager
@@ -638,12 +645,6 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
 
             if not self.flow_run:
                 self.flow_run = self.create_flow_run(self.client)
-                flow_run_url = url_for(self.flow_run)
-
-                if flow_run_url:
-                    self.logger.info(
-                        f"View at {flow_run_url}", extra={"send_to_api": False}
-                    )
             else:
                 # Update the empirical policy to match the flow if it is not set
                 if self.flow_run.empirical_policy.retry_delay is None:
@@ -707,9 +708,11 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
     @contextmanager
     def start(self) -> Generator[None, None, None]:
         with self.initialize_run():
-            with trace.use_span(
-                self._telemetry.span
-            ) if self._telemetry.span else nullcontext():
+            with (
+                trace.use_span(self._telemetry.span)
+                if self._telemetry.span
+                else nullcontext()
+            ):
                 self.begin_run()
 
                 if self.state.is_running():
@@ -786,7 +789,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     return_data=True,
                     max_depth=-1,
                     remove_annotations=True,
-                    context={},
+                    context={"parameter_name": parameter},
                 )
             except UpstreamTaskError:
                 raise
@@ -1054,24 +1057,13 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             ):
                 return subflow_run
 
-        flow_run = await client.create_flow_run(
+        return await client.create_flow_run(
             flow=self.flow,
             parameters=self.flow.serialize_parameters(parameters),
             state=Pending(),
             parent_task_run_id=getattr(parent_task_run, "id", None),
             tags=TagsContext.get().current_tags,
         )
-        if flow_run_ctx:
-            parent_logger = get_run_logger(flow_run_ctx)
-            parent_logger.info(
-                f"Created subflow run {flow_run.name!r} for flow {self.flow.name!r}"
-            )
-        else:
-            self.logger.info(
-                f"Created flow run {flow_run.name!r} for flow {self.flow.name!r}"
-            )
-
-        return flow_run
 
     async def call_hooks(self, state: Optional[State] = None):
         if state is None:
@@ -1189,6 +1181,22 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                 self._flow_run_name_set = True
 
                 self._telemetry.update_run_name(name=flow_run_name)
+            if self.flow_run.parent_task_run_id:
+                _logger = get_run_logger(FlowRunContext.get())
+                run_type = "subflow"
+            else:
+                _logger = self.logger
+                run_type = "flow"
+
+            _logger.info(
+                f"Beginning {run_type} run {self.flow_run.name!r} for flow {self.flow.name!r}"
+            )
+
+            if flow_run_url := url_for(self.flow_run):
+                self.logger.info(
+                    f"View at {flow_run_url}", extra={"send_to_api": False}
+                )
+
             yield
 
     @asynccontextmanager
@@ -1271,9 +1279,11 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
     @asynccontextmanager
     async def start(self) -> AsyncGenerator[None, None]:
         async with self.initialize_run():
-            with trace.use_span(
-                self._telemetry.span
-            ) if self._telemetry.span else nullcontext():
+            with (
+                trace.use_span(self._telemetry.span)
+                if self._telemetry.span
+                else nullcontext()
+            ):
                 await self.begin_run()
 
                 if self.state.is_running():

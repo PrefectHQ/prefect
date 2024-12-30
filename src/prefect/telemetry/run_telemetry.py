@@ -149,7 +149,7 @@ class RunTelemetry:
         return propagate.extract(carrier)
 
     def _traceparent_from_span(self, span: Span) -> Optional[str]:
-        carrier = {}
+        carrier: dict[str, Any] = {}
         propagate.inject(carrier, context=trace.set_span_in_context(span))
         return carrier.get(TRACEPARENT_KEY)
 
