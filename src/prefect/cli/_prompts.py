@@ -139,17 +139,14 @@ async def find_flow_functions_in_file(path: anyio.Path) -> list[dict[str, str]]:
                         }
                     )
                 if is_func_name_match or is_module_attribute_func_match:
-                    name_kwarg_node: ast.keyword | None = None
-                    if isinstance(decorator, ast.Call):
-                        name_kwarg_node = next(
-                            (kw for kw in decorator.keywords if kw.arg == "name"), None
-                        )
-                    if name_kwarg_node is not None and isinstance(
-                        name_kwarg_node.value, ast.Constant
-                    ):
-                        flow_name = name_kwarg_node.value.value
-                    else:
-                        flow_name = node.name
+                    name_kwarg_node = next(
+                        (kw for kw in decorator.keywords if kw.arg == "name"), None
+                    )
+                    flow_name = (
+                        name_kwarg_node.value.value
+                        if isinstance(name_kwarg_node, ast.Constant)
+                        else node.name
+                    )
                     decorated_functions.append(
                         {
                             "flow_name": flow_name,

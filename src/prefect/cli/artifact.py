@@ -169,16 +169,16 @@ async def delete(
                 if is_interactive() and not typer.confirm(
                     (
                         "Are you sure you want to delete artifact with id"
-                        f" {artifact_id!r}?"
+                        f" {str(artifact_id)!r}?"
                     ),
                     default=False,
                 ):
                     exit_with_error("Deletion aborted.")
 
                 await client.delete_artifact(artifact_id)
-                exit_with_success(f"Deleted artifact with id {artifact_id!r}.")
+                exit_with_success(f"Deleted artifact with id {str(artifact_id)!r}.")
             except ObjectNotFound:
-                exit_with_error(f"Artifact with id {artifact_id!r} not found!")
+                exit_with_error(f"Artifact with id {str(artifact_id)!r} not found!")
 
         elif key is not None:
             artifacts = await client.read_artifacts(
