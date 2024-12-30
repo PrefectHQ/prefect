@@ -13,6 +13,7 @@ from typing import (
     TYPE_CHECKING,
     Iterable,
     TypeVar,
+    Union,
     overload,
 )
 
@@ -100,7 +101,7 @@ class LoginFailed(BaseModel):
 
 class LoginResult(BaseModel):
     type: Literal["success", "failure"]
-    content: LoginSuccess | LoginFailed
+    content: Union[LoginSuccess, LoginFailed]
 
 
 class ServerExit(Exception):
