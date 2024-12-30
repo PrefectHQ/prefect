@@ -15,7 +15,6 @@ from typing import (
     Coroutine,
     Generator,
     Generic,
-    Iterable,
     Literal,
     Optional,
     Sequence,
@@ -28,9 +27,8 @@ from uuid import UUID
 import anyio
 import pendulum
 from opentelemetry import trace
-from typing_extensions import ParamSpec, TypeAlias
+from typing_extensions import ParamSpec
 
-from prefect import Task
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import State, TaskRunInput
@@ -53,7 +51,6 @@ from prefect.exceptions import (
     TerminationSignal,
     UpstreamTaskError,
 )
-from prefect.futures import PrefectFuture
 from prefect.logging.loggers import get_logger, patch_print, task_run_logger
 from prefect.results import (
     BaseResult,
@@ -78,6 +75,7 @@ from prefect.states import (
     exception_to_failed_state,
     return_value_to_state,
 )
+from prefect.tasks import OneOrManyFutureOrResult, Task
 from prefect.telemetry.run_telemetry import RunTelemetry
 from prefect.transactions import IsolationLevel, Transaction, transaction
 from prefect.utilities._engine import get_hook_name
@@ -103,9 +101,6 @@ class TaskRunTimeoutError(TimeoutError):
     """Raised when a task run exceeds its timeout."""
 
 
-_FutureOrResult: TypeAlias = Union[PrefectFuture[Any], Any]
-
-
 @dataclass
 class BaseTaskRunEngine(Generic[P, R]):
     task: Union[Task[P, R], Task[P, Coroutine[Any, Any, R]]]
@@ -113,7 +108,7 @@ class BaseTaskRunEngine(Generic[P, R]):
     parameters: Optional[dict[str, Any]] = None
     task_run: Optional[TaskRun] = None
     retries: int = 0
-    wait_for: Optional[Union[_FutureOrResult, Iterable[_FutureOrResult]]] = None
+    wait_for: Optional[OneOrManyFutureOrResult[Any]] = None
     context: Optional[dict[str, Any]] = None
     # holds the return value from the user code
     _return_value: Union[R, Type[NotSet]] = NotSet
@@ -1383,7 +1378,7 @@ def run_task_sync(
     task_run_id: Optional[UUID] = None,
     task_run: Optional[TaskRun] = None,
     parameters: Optional[dict[str, Any]] = None,
-    wait_for: Optional[Union[_FutureOrResult, Iterable[_FutureOrResult]]] = None,
+    wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
     return_type: Literal["state", "result"] = "result",
     dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
     context: Optional[dict[str, Any]] = None,
@@ -1410,7 +1405,7 @@ async def run_task_async(
     task_run_id: Optional[UUID] = None,
     task_run: Optional[TaskRun] = None,
     parameters: Optional[dict[str, Any]] = None,
-    wait_for: Optional[Union[_FutureOrResult, Iterable[_FutureOrResult]]] = None,
+    wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
     return_type: Literal["state", "result"] = "result",
     dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
     context: Optional[dict[str, Any]] = None,
@@ -1437,7 +1432,7 @@ def run_generator_task_sync(
     task_run_id: Optional[UUID] = None,
     task_run: Optional[TaskRun] = None,
     parameters: Optional[dict[str, Any]] = None,
-    wait_for: Optional[Union[_FutureOrResult, Iterable[_FutureOrResult]]] = None,
+    wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
     return_type: Literal["state", "result"] = "result",
     dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
     context: Optional[dict[str, Any]] = None,
@@ -1492,7 +1487,7 @@ async def run_generator_task_async(
     task_run_id: Optional[UUID] = None,
     task_run: Optional[TaskRun] = None,
     parameters: Optional[dict[str, Any]] = None,
-    wait_for: Optional[Union[_FutureOrResult, Iterable[_FutureOrResult]]] = None,
+    wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
     return_type: Literal["state", "result"] = "result",
     dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
     context: Optional[dict[str, Any]] = None,
@@ -1548,7 +1543,7 @@ def run_task(
     task_run_id: Optional[UUID] = None,
     task_run: Optional[TaskRun] = None,
     parameters: Optional[dict[str, Any]] = None,
-    wait_for: Optional[Union[_FutureOrResult, Iterable[_FutureOrResult]]] = None,
+    wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
     return_type: Literal["state", "result"] = "result",
     dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
     context: Optional[dict[str, Any]] = None,
