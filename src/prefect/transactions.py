@@ -27,7 +27,6 @@ from prefect.logging.loggers import LoggingAdapter, get_logger, get_run_logger
 from prefect.records import RecordStore
 from prefect.records.base import TransactionRecord
 from prefect.results import (
-    BaseResult,
     ResultRecord,
     ResultStore,
     get_result_store,
@@ -254,7 +253,7 @@ class Transaction(ContextModel):
         ):
             self.state = TransactionState.COMMITTED
 
-    def read(self) -> Union["BaseResult[Any]", ResultRecord[Any], None]:
+    def read(self) -> Optional[ResultRecord[Any]]:
         if self.store and self.key:
             record = self.store.read(key=self.key)
             if isinstance(record, ResultRecord):
@@ -315,11 +314,7 @@ class Transaction(ContextModel):
 
             if self.store and self.key and self.write_on_commit:
                 if isinstance(self.store, ResultStore):
-                    if isinstance(self._staged_value, BaseResult):
-                        self.store.write(
-                            key=self.key, obj=self._staged_value.get(_sync=True)
-                        )
-                    elif isinstance(self._staged_value, ResultRecord):
+                    if isinstance(self._staged_value, ResultRecord):
                         self.store.persist_result_record(
                             result_record=self._staged_value
                         )

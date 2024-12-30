@@ -58,7 +58,6 @@ from prefect.exceptions import (
 from prefect.futures import PrefectFuture
 from prefect.logging.loggers import get_logger, patch_print, task_run_logger
 from prefect.results import (
-    BaseResult,
     ResultRecord,
     _format_user_supplied_storage_key,
     get_result_store,
@@ -448,13 +447,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             self.task_run.run_count += 1
 
         if new_state.is_final():
-            if isinstance(state.data, BaseResult) and state.data.has_cached_object():
-                # Avoid fetching the result unless it is cached, otherwise we defeat
-                # the purpose of disabling `cache_result_in_memory`
-                result = state.result(raise_on_failure=False, fetch=True)
-                if asyncio.iscoroutine(result):
-                    result = run_coro_as_sync(result)
-            elif isinstance(state.data, ResultRecord):
+            if isinstance(state.data, ResultRecord):
                 result = state.data.result
             else:
                 result = state.data
@@ -473,13 +466,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
     def result(self, raise_on_failure: bool = True) -> "Union[R, State, None]":
         if self._return_value is not NotSet:
-            # if the return value is a BaseResult, we need to fetch it
-            if isinstance(self._return_value, BaseResult):
-                _result = self._return_value.get()
-                if asyncio.iscoroutine(_result):
-                    _result = run_coro_as_sync(_result)
-                return _result
-            elif isinstance(self._return_value, ResultRecord):
+            if isinstance(self._return_value, ResultRecord):
                 return self._return_value.result
             # otherwise, return the value as is
             return self._return_value
@@ -991,14 +978,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             self.task_run.run_count += 1
 
         if new_state.is_final():
-            if (
-                isinstance(new_state.data, BaseResult)
-                and new_state.data.has_cached_object()
-            ):
-                # Avoid fetching the result unless it is cached, otherwise we defeat
-                # the purpose of disabling `cache_result_in_memory`
-                result = await new_state.result(raise_on_failure=False, fetch=True)
-            elif isinstance(new_state.data, ResultRecord):
+            if isinstance(new_state.data, ResultRecord):
                 result = new_state.data.result
             else:
                 result = new_state.data
@@ -1018,10 +998,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
     async def result(self, raise_on_failure: bool = True) -> "Union[R, State, None]":
         if self._return_value is not NotSet:
-            # if the return value is a BaseResult, we need to fetch it
-            if isinstance(self._return_value, BaseResult):
-                return await self._return_value.get()
-            elif isinstance(self._return_value, ResultRecord):
+            if isinstance(self._return_value, ResultRecord):
                 return self._return_value.result
             # otherwise, return the value as is
             return self._return_value
