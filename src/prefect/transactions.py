@@ -24,8 +24,6 @@ from prefect.exceptions import (
     SerializationError,
 )
 from prefect.logging.loggers import LoggingAdapter, get_logger, get_run_logger
-from prefect.records import RecordStore
-from prefect.records.base import TransactionRecord
 from prefect.results import (
     ResultRecord,
     ResultStore,
@@ -60,7 +58,7 @@ class Transaction(ContextModel):
     A base model for transaction state.
     """
 
-    store: Union[RecordStore, ResultStore, None] = None
+    store: Optional[ResultStore] = None
     key: Optional[str] = None
     children: List["Transaction"] = Field(default_factory=list)
     commit_mode: Optional[CommitMode] = None
@@ -258,10 +256,6 @@ class Transaction(ContextModel):
             record = self.store.read(key=self.key)
             if isinstance(record, ResultRecord):
                 return record
-            # for backwards compatibility, if we encounter a transaction record, return the result
-            # This happens when the transaction is using a `ResultStore`
-            if isinstance(record, TransactionRecord):
-                return record.result
         return None
 
     def reset(self) -> None:
@@ -431,7 +425,7 @@ def get_transaction() -> Optional[Transaction]:
 @contextmanager
 def transaction(
     key: Optional[str] = None,
-    store: Union[RecordStore, ResultStore, None] = None,
+    store: Optional[ResultStore] = None,
     commit_mode: Optional[CommitMode] = None,
     isolation_level: Optional[IsolationLevel] = None,
     overwrite: bool = False,
