@@ -277,28 +277,28 @@ async def test_span_links(
     engine_type: Literal["async", "sync"],
     instrumentation: InstrumentationTester,
 ):
-    @task
+    @task(task_run_name="produces42")
     def produces42() -> int:
         return 42
 
     if engine_type == "async":
 
-        @task
+        @task(task_run_name="async_task")
         async def async_task(x: int, y: int):
             return x + y
 
-        @flow
+        @flow(flow_run_name="async-flow")
         async def async_flow():
             await async_task(x=produces42.submit(), y=2)
 
         await async_flow()
     else:
 
-        @task
+        @task(task_run_name="sync_task")
         def sync_task(x: int, y: int):
             return x + y
 
-        @flow
+        @flow(flow_run_name="sync-flow")
         def sync_flow():
             sync_task(x=produces42.submit(), y=2)
 
