@@ -29,10 +29,7 @@ export const TaskRunConcurrencyLimitsDeleteDialog = ({
 	const { deleteTaskRunConcurrencyLimit, isPending } =
 		useDeleteTaskRunConcurrencyLimit();
 
-	const handleOnClick = (id: string | undefined) => {
-		if (!id) {
-			throw new Error("'id' field expected in GlobalConcurrencyLimit");
-		}
+	const handleOnClick = (id: string) => {
 		deleteTaskRunConcurrencyLimit(id, {
 			onSuccess: () => {
 				toast({ description: "Concurrency limit deleted" });

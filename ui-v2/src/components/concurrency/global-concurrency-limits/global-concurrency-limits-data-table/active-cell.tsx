@@ -13,11 +13,7 @@ export const ActiveCell = (
 	const { toast } = useToast();
 	const { updateGlobalConcurrencyLimit } = useUpdateGlobalConcurrencyLimit();
 
-	const handleCheckedChange = (checked: boolean, id: string | undefined) => {
-		if (!id) {
-			throw new Error("Expecting 'id' of global concurrency limit");
-		}
-
+	const handleCheckedChange = (checked: boolean, id: string) => {
 		updateGlobalConcurrencyLimit(
 			{
 				id_or_name: id,
