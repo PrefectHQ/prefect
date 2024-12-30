@@ -224,10 +224,9 @@ class RunnerDeployment(BaseModel):
     @field_validator("name", mode="before")
     @classmethod
     def validate_name(cls, value: str) -> str:
-        if value.startswith("."):  # see 16551
-            return value
-
-        return Path(value).stem
+        if value.endswith(".py"):
+            return Path(value).stem
+        return value
 
     @model_validator(mode="after")
     def validate_automation_names(self):

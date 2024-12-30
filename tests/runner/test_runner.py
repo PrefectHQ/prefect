@@ -1766,6 +1766,11 @@ class TestRunnerDeployment:
         deployment = RunnerDeployment.from_flow(dummy_flow_1, name="..test-deployment")
         assert deployment.name == "..test-deployment"
 
+        deployment2 = RunnerDeployment.from_flow(
+            dummy_flow_1, name="flow-from-my.python.module"
+        )
+        assert deployment2.name == "flow-from-my.python.module"
+
 
 class TestServer:
     async def test_healthcheck_fails_as_expected(self):
