@@ -82,7 +82,10 @@ NUM_CHARS_DYNAMIC_KEY = 8
 
 logger = get_logger("tasks")
 
-_FutureOrResult: TypeAlias = Union[PrefectFuture[T], T]
+FutureOrResult: TypeAlias = Union[PrefectFuture[T], T]
+OneOrManyFutureOrResult: TypeAlias = Union[
+    FutureOrResult[T], Iterable[FutureOrResult[T]]
+]
 
 
 def task_input_hash(
@@ -739,7 +742,7 @@ class Task(Generic[P, R]):
         parameters: Optional[dict[str, Any]] = None,
         flow_run_context: Optional[FlowRunContext] = None,
         parent_task_run_context: Optional[TaskRunContext] = None,
-        wait_for: Optional[Union[_FutureOrResult, Iterable[_FutureOrResult]]] = None,
+        wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         extra_task_inputs: Optional[dict[str, set[TaskRunInput]]] = None,
         deferred: bool = False,
     ) -> TaskRun:
@@ -840,7 +843,7 @@ class Task(Generic[P, R]):
         parameters: Optional[dict[str, Any]] = None,
         flow_run_context: Optional[FlowRunContext] = None,
         parent_task_run_context: Optional[TaskRunContext] = None,
-        wait_for: Optional[Union[_FutureOrResult, Iterable[_FutureOrResult]]] = None,
+        wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         extra_task_inputs: Optional[dict[str, set[TaskRunInput]]] = None,
         deferred: bool = False,
     ) -> TaskRun:
@@ -954,6 +957,8 @@ class Task(Generic[P, R]):
     def __call__(
         self: "Task[P, NoReturn]",
         *args: P.args,
+        return_state: Literal[False],
+        wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         **kwargs: P.kwargs,
     ) -> None:
         # `NoReturn` matches if a type can't be inferred for the function which stops a
@@ -965,6 +970,7 @@ class Task(Generic[P, R]):
         self: "Task[P, R]",
         *args: P.args,
         return_state: Literal[True],
+        wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         **kwargs: P.kwargs,
     ) -> State[R]:
         ...
@@ -973,7 +979,8 @@ class Task(Generic[P, R]):
     def __call__(
         self: "Task[P, R]",
         *args: P.args,
-        wait_for: Optional[Union[_FutureOrResult, Iterable[_FutureOrResult]]] = None,
+        return_state: Literal[False],
+        wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         **kwargs: P.kwargs,
     ) -> R:
         ...
@@ -983,18 +990,18 @@ class Task(Generic[P, R]):
         self: "Task[P, R]",
         *args: P.args,
         return_state: Literal[False] = False,
-        wait_for: Optional[Union[_FutureOrResult, Iterable[_FutureOrResult]]] = None,
+        wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         **kwargs: P.kwargs,
     ) -> R:
         ...
 
     def __call__(
-        self,
+        self: "Union[Task[P, R], Task[P, NoReturn]]",
         *args: P.args,
         return_state: bool = False,
-        wait_for: Optional[Iterable[Any]] = None,
+        wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         **kwargs: P.kwargs,
-    ) -> Union[R, State[R]]:
+    ) -> Union[R, State[R], None]:
         """
         Run the task and return the result. If `return_state` is True returns
         the result is wrapped in a Prefect State which provides error handling.
@@ -1027,9 +1034,6 @@ class Task(Generic[P, R]):
     @overload
     def submit(
         self: "Task[P, R]",
-        wait_for: Optional[
-            Union[_FutureOrResult[T], Iterable[_FutureOrResult[T]]]
-        ] = None,
         *args: P.args,
         **kwargs: P.kwargs,
     ) -> PrefectFuture[R]:
@@ -1039,9 +1043,8 @@ class Task(Generic[P, R]):
     def submit(
         self: "Task[P, Coroutine[Any, Any, R]]",
         *args: P.args,
-        wait_for: Optional[
-            Union[_FutureOrResult[T], Iterable[_FutureOrResult[T]]]
-        ] = None,
+        return_state: Literal[False],
+        wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         **kwargs: P.kwargs,
     ) -> PrefectFuture[R]:
         ...
@@ -1050,9 +1053,8 @@ class Task(Generic[P, R]):
     def submit(
         self: "Task[P, R]",
         *args: P.args,
-        wait_for: Optional[
-            Union[_FutureOrResult[T], Iterable[_FutureOrResult[T]]]
-        ] = None,
+        return_state: Literal[False],
+        wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         **kwargs: P.kwargs,
     ) -> PrefectFuture[R]:
         ...
@@ -1062,9 +1064,7 @@ class Task(Generic[P, R]):
         self: "Task[P, Coroutine[Any, Any, R]]",
         *args: P.args,
         return_state: Literal[True],
-        wait_for: Optional[
-            Union[_FutureOrResult[T], Iterable[_FutureOrResult[T]]]
-        ] = None,
+        wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         **kwargs: P.kwargs,
     ) -> State[R]:
         ...
@@ -1074,20 +1074,16 @@ class Task(Generic[P, R]):
         self: "Task[P, R]",
         *args: P.args,
         return_state: Literal[True],
-        wait_for: Optional[
-            Union[_FutureOrResult[T], Iterable[_FutureOrResult[T]]]
-        ] = None,
+        wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         **kwargs: P.kwargs,
     ) -> State[R]:
         ...
 
     def submit(
-        self,
+        self: "Union[Task[P, R], Task[P, Coroutine[Any, Any, R]]]",
         *args: Any,
         return_state: bool = False,
-        wait_for: Optional[
-            Union[_FutureOrResult[T], Iterable[_FutureOrResult[T]]]
-        ] = None,
+        wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         **kwargs: Any,
     ):
         """
