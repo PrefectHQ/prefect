@@ -74,13 +74,18 @@ if TYPE_CHECKING:
     from prefect.context import TaskRunContext
     from prefect.transactions import Transaction
 
-T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
+T = TypeVar("T")
 R = TypeVar("R")  # The return type of the user's function
 P = ParamSpec("P")  # The parameters of the task
 
 NUM_CHARS_DYNAMIC_KEY = 8
 
 logger = get_logger("tasks")
+
+FutureOrResult: TypeAlias = Union[PrefectFuture[T], T]
+OneOrManyFutureOrResult: TypeAlias = Union[
+    FutureOrResult[T], Iterable[FutureOrResult[T]]
+]
 
 
 def task_input_hash(
@@ -737,7 +742,7 @@ class Task(Generic[P, R]):
         parameters: Optional[dict[str, Any]] = None,
         flow_run_context: Optional[FlowRunContext] = None,
         parent_task_run_context: Optional[TaskRunContext] = None,
-        wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
+        wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         extra_task_inputs: Optional[dict[str, set[TaskRunInput]]] = None,
         deferred: bool = False,
     ) -> TaskRun:
@@ -838,7 +843,7 @@ class Task(Generic[P, R]):
         parameters: Optional[dict[str, Any]] = None,
         flow_run_context: Optional[FlowRunContext] = None,
         parent_task_run_context: Optional[TaskRunContext] = None,
-        wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
+        wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         extra_task_inputs: Optional[dict[str, set[TaskRunInput]]] = None,
         deferred: bool = False,
     ) -> TaskRun:
@@ -952,6 +957,8 @@ class Task(Generic[P, R]):
     def __call__(
         self: "Task[P, NoReturn]",
         *args: P.args,
+        return_state: Literal[False],
+        wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         **kwargs: P.kwargs,
     ) -> None:
         # `NoReturn` matches if a type can't be inferred for the function which stops a
@@ -960,28 +967,41 @@ class Task(Generic[P, R]):
 
     @overload
     def __call__(
-        self: "Task[P, T]",
+        self: "Task[P, R]",
         *args: P.args,
+        return_state: Literal[True],
+        wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         **kwargs: P.kwargs,
-    ) -> T:
+    ) -> State[R]:
         ...
 
     @overload
     def __call__(
-        self: "Task[P, T]",
+        self: "Task[P, R]",
         *args: P.args,
-        return_state: Literal[True],
+        return_state: Literal[False],
+        wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         **kwargs: P.kwargs,
-    ) -> State[T]:
+    ) -> R:
+        ...
+
+    @overload
+    def __call__(
+        self: "Task[P, R]",
+        *args: P.args,
+        return_state: Literal[False] = False,
+        wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
+        **kwargs: P.kwargs,
+    ) -> R:
         ...
 
     def __call__(
-        self,
+        self: "Union[Task[P, R], Task[P, NoReturn]]",
         *args: P.args,
         return_state: bool = False,
-        wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
+        wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         **kwargs: P.kwargs,
-    ):
+    ) -> Union[R, State[R], None]:
         """
         Run the task and return the result. If `return_state` is True returns
         the result is wrapped in a Prefect State which provides error handling.
@@ -1013,53 +1033,57 @@ class Task(Generic[P, R]):
 
     @overload
     def submit(
-        self: "Task[P, NoReturn]",
+        self: "Task[P, R]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> PrefectFuture[NoReturn]:
-        # `NoReturn` matches if a type can't be inferred for the function which stops a
-        # sync function from matching the `Coroutine` overload
+    ) -> PrefectFuture[R]:
         ...
 
     @overload
     def submit(
-        self: "Task[P, Coroutine[Any, Any, T]]",
+        self: "Task[P, Coroutine[Any, Any, R]]",
         *args: P.args,
+        return_state: Literal[False],
+        wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         **kwargs: P.kwargs,
-    ) -> PrefectFuture[T]:
+    ) -> PrefectFuture[R]:
         ...
 
     @overload
     def submit(
-        self: "Task[P, T]",
+        self: "Task[P, R]",
         *args: P.args,
+        return_state: Literal[False],
+        wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         **kwargs: P.kwargs,
-    ) -> PrefectFuture[T]:
+    ) -> PrefectFuture[R]:
         ...
 
     @overload
     def submit(
-        self: "Task[P, Coroutine[Any, Any, T]]",
+        self: "Task[P, Coroutine[Any, Any, R]]",
         *args: P.args,
         return_state: Literal[True],
+        wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         **kwargs: P.kwargs,
-    ) -> State[T]:
+    ) -> State[R]:
         ...
 
     @overload
     def submit(
-        self: "Task[P, T]",
+        self: "Task[P, R]",
         *args: P.args,
         return_state: Literal[True],
+        wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         **kwargs: P.kwargs,
-    ) -> State[T]:
+    ) -> State[R]:
         ...
 
     def submit(
-        self,
+        self: "Union[Task[P, R], Task[P, Coroutine[Any, Any, R]]]",
         *args: Any,
         return_state: bool = False,
-        wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
+        wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         **kwargs: Any,
     ):
         """
@@ -1685,10 +1709,10 @@ def task(
             callable that, given the total number of retries, generates a list of retry
             delays. If a number of seconds, that delay will be applied to all retries.
             If a list, each retry will wait for the corresponding delay before retrying.
-            When passing a callable or a list, the number of configured retry delays
-            cannot exceed 50.
-        retry_jitter_factor: An optional factor that defines the factor to which a retry
-            can be jittered in order to avoid a "thundering herd".
+            When passing a callable or a list, the number of
+            configured retry delays cannot exceed 50.
+        retry_jitter_factor: An optional factor that defines the factor to which a
+            retry can be jittered in order to avoid a "thundering herd".
         persist_result: A toggle indicating whether the result of this task
             should be persisted to result storage. Defaults to `None`, which
             indicates that the global default should be used (which is `True` by
