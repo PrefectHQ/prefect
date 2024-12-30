@@ -268,6 +268,50 @@ class TestGitRepository:
             cwd=Path.cwd() / "repo",
         )
 
+    async def test_include_submodules_with_credentials(
+        self, mock_run_process: AsyncMock, monkeypatch
+    ):
+        access_token = Secret(value="token")
+        await access_token.save("test-token")
+
+        repo = GitRepository(
+            url="https://github.com/org/repo.git",
+            include_submodules=True,
+            credentials={"access_token": access_token},
+        )
+        await repo.pull_code()
+        mock_run_process.assert_awaited_with(
+            [
+                "git",
+                "-c",
+                "url.https://token@github.com.insteadOf=https://github.com",
+                "clone",
+                "https://token@github.com/org/repo.git",
+                "--recurse-submodules",
+                "--depth",
+                "1",
+                str(Path.cwd() / "repo"),
+            ]
+        )
+
+        # pretend the repo already exists
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: ".git" in str(x))
+
+        await repo.pull_code()
+        mock_run_process.assert_awaited_with(
+            [
+                "git",
+                "-c",
+                "url.https://token@github.com.insteadOf=https://github.com",
+                "pull",
+                "origin",
+                "--recurse-submodules",
+                "--depth",
+                "1",
+            ],
+            cwd=Path.cwd() / "repo",
+        )
+
     async def test_git_clone_errors_obscure_access_token(
         self, monkeypatch, capsys, tmp_path: Path
     ):
