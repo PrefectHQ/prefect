@@ -1762,7 +1762,8 @@ class TestRunnerDeployment:
                 ],
             )
 
-    async def test_deployment_name_with_leading_dots(self):
+    async def test_deployment_name_with_dots(self):
+        # regression test for https://github.com/PrefectHQ/prefect/issues/16551
         deployment = RunnerDeployment.from_flow(dummy_flow_1, name="..test-deployment")
         assert deployment.name == "..test-deployment"
 
