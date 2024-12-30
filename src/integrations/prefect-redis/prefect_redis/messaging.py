@@ -36,8 +36,8 @@ MESSAGE_DEDUPLICATION_LOOKBACK = timedelta(minutes=5)
 
 
 class Cache(_Cache):
-    def __init__(self, topic: Optional[str] = None):
-        self.topic = topic or "default"
+    def __init__(self, topic: str = "messaging-cache"):
+        self.topic = topic
         self._client: Redis = get_async_redis_client()
 
     async def clear_recently_seen_messages(self) -> None:

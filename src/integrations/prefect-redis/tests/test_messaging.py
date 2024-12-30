@@ -57,7 +57,7 @@ def configured_cache(cache_name: str) -> Generator[str, None, None]:
 @pytest.fixture
 async def cache(configured_cache: str) -> AsyncGenerator[Cache, None]:
     """Create a cache instance for testing."""
-    cache = create_cache("my-topic")
+    cache = create_cache()
     await cache.clear_recently_seen_messages()
     yield cache
     await cache.clear_recently_seen_messages()
@@ -66,19 +66,19 @@ async def cache(configured_cache: str) -> AsyncGenerator[Cache, None]:
 @pytest.fixture
 async def publisher(broker: str, cache: Cache) -> Publisher:
     """Create a publisher instance for testing."""
-    return create_publisher("my-topic", cache=cache)
+    return create_publisher("messaging-cache", cache=cache)
 
 
 @pytest.fixture
 async def consumer(broker: str) -> Consumer:
     """Create a consumer instance for testing."""
-    return create_consumer("my-topic")
+    return create_consumer("messaging-cache")
 
 
 @pytest.fixture
 def deduplicating_publisher(broker: str, cache: Cache) -> Publisher:
     """Create a publisher that deduplicates messages."""
-    return create_publisher("my-topic", cache, deduplicate_by="my-message-id")
+    return create_publisher("messaging-cache", cache, deduplicate_by="my-message-id")
 
 
 async def drain_one(consumer: Consumer) -> Optional[Message]:
@@ -276,7 +276,7 @@ async def test_ephemeral_subscription(broker: str, publisher: Publisher):
         captured_messages.append(message)
         raise StopConsumer(ack=True)
 
-    async with ephemeral_subscription("my-topic") as consumer_kwargs:
+    async with ephemeral_subscription("messaging-cache") as consumer_kwargs:
         consumer = create_consumer(**consumer_kwargs)
         consumer_task = asyncio.create_task(consumer.run(handler))
 
@@ -299,14 +299,14 @@ async def test_verify_ephemeral_cleanup(broker: str):
     """Verify that ephemeral subscriptions clean up after themselves."""
     redis = get_async_redis_client()
 
-    async with ephemeral_subscription("my-topic") as consumer_kwargs:
+    async with ephemeral_subscription("messaging-cache") as consumer_kwargs:
         group_name = consumer_kwargs["group"]
         # Verify group exists
-        groups = await redis.xinfo_groups("my-topic")
+        groups = await redis.xinfo_groups("messaging-cache")
         assert any(g["name"] == group_name for g in groups)
 
     # Verify group is cleaned up
-    groups = await redis.xinfo_groups("my-topic")
+    groups = await redis.xinfo_groups("messaging-cache")
     assert not any(g["name"] == group_name for g in groups)
 
 
@@ -327,7 +327,7 @@ async def test_publisher_respects_batch_size(
 
     try:
         async with Publisher(
-            "my-topic", cache=create_cache("my-topic"), batch_size=batch_size
+            "messaging-cache", cache=create_cache(), batch_size=batch_size
         ) as p:
             for data, attributes in messages:
                 await p.publish_data(data, attributes)
