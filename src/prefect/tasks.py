@@ -991,7 +991,7 @@ class Task(Generic[P, R]):
         self,
         *args: P.args,
         return_state: bool = False,
-        wait_for: Optional[Iterable[Any]] = None,
+        wait_for: Optional[Iterable[Union[PrefectFuture[R], R]]] = None,
         **kwargs: P.kwargs,
     ):
         """
