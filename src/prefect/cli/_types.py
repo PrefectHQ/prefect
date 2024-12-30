@@ -5,7 +5,7 @@ Custom Prefect CLI types
 import asyncio
 import functools
 import sys
-from typing import Callable, List, Optional
+from typing import Any, Callable, List, Optional
 
 import typer
 from rich.console import Console
@@ -17,7 +17,7 @@ from prefect.settings import PREFECT_CLI_COLORS, Setting
 from prefect.utilities.asyncutils import is_async_fn
 
 
-def SettingsOption(setting: Setting, *args, **kwargs) -> typer.Option:
+def SettingsOption(setting: Setting, *args: Any, **kwargs: Any) -> Any:
     """Custom `typer.Option` factory to load the default value from settings"""
 
     return typer.Option(
@@ -33,7 +33,7 @@ def SettingsOption(setting: Setting, *args, **kwargs) -> typer.Option:
     )
 
 
-def SettingsArgument(setting: Setting, *args, **kwargs) -> typer.Argument:
+def SettingsArgument(setting: Setting, *args: Any, **kwargs: Any) -> Any:
     """Custom `typer.Argument` factory to load the default value from settings"""
 
     # See comments in `SettingsOption`
@@ -45,10 +45,12 @@ def SettingsArgument(setting: Setting, *args, **kwargs) -> typer.Argument:
     )
 
 
-def with_deprecated_message(warning: str):
-    def decorator(fn):
+def with_deprecated_message(
+    warning: str,
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+    def decorator(fn: Callable[..., Any]) -> Callable[..., Any]:
         @functools.wraps(fn)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             print("WARNING:", warning, file=sys.stderr, flush=True)
             return fn(*args, **kwargs)
 
@@ -66,12 +68,12 @@ class PrefectTyper(typer.Typer):
 
     def __init__(
         self,
-        *args,
+        *args: Any,
         deprecated: bool = False,
         deprecated_start_date: Optional[str] = None,
         deprecated_help: str = "",
         deprecated_name: str = "",
-        **kwargs,
+        **kwargs: Any,
     ):
         super().__init__(*args, **kwargs)
 
@@ -79,7 +81,7 @@ class PrefectTyper(typer.Typer):
         if self.deprecated:
             if not deprecated_name:
                 raise ValueError("Provide the name of the deprecated command group.")
-            self.deprecated_message = generate_deprecation_message(
+            self.deprecated_message: str = generate_deprecation_message(
                 name=f"The {deprecated_name!r} command group",
                 start_date=deprecated_start_date,
                 help=deprecated_help,
@@ -94,10 +96,10 @@ class PrefectTyper(typer.Typer):
     def add_typer(
         self,
         typer_instance: "PrefectTyper",
-        *args,
+        *args: Any,
         no_args_is_help: bool = True,
-        aliases: Optional[List[str]] = None,
-        **kwargs,
+        aliases: Optional[list[str]] = None,
+        **kwargs: Any,
     ) -> None:
         """
         This will cause help to be default command for all sub apps unless specifically stated otherwise, opposite of before.
@@ -120,14 +122,14 @@ class PrefectTyper(typer.Typer):
     def command(
         self,
         name: Optional[str] = None,
-        *args,
+        *args: Any,
         aliases: Optional[List[str]] = None,
         deprecated: bool = False,
         deprecated_start_date: Optional[str] = None,
         deprecated_help: str = "",
         deprecated_name: str = "",
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
         """
         Create a new command. If aliases are provided, the same command function
         will be registered with multiple names.
@@ -136,7 +138,7 @@ class PrefectTyper(typer.Typer):
         `deprecated_name` and `deprecated_start_date` must be provided.
         """
 
-        def wrapper(original_fn: Callable):
+        def wrapper(original_fn: Callable[..., Any]) -> Callable[..., Any]:
             # click doesn't support async functions, so we wrap them in
             # asyncio.run(). This has the advantage of keeping the function in
             # the main thread, which means signal handling works for e.g. the
@@ -149,10 +151,10 @@ class PrefectTyper(typer.Typer):
                 async_fn = original_fn
 
                 @functools.wraps(original_fn)
-                def sync_fn(*args, **kwargs):
+                def sync_fn(*args: Any, **kwargs: Any) -> Any:
                     return asyncio.run(async_fn(*args, **kwargs))
 
-                sync_fn.aio = async_fn
+                setattr(sync_fn, "aio", async_fn)
                 wrapped_fn = sync_fn
             else:
                 wrapped_fn = original_fn
@@ -195,7 +197,7 @@ class PrefectTyper(typer.Typer):
 
         return wrapper
 
-    def setup_console(self, soft_wrap: bool, prompt: bool):
+    def setup_console(self, soft_wrap: bool, prompt: bool) -> None:
         self.console = Console(
             highlight=False,
             color_system="auto" if PREFECT_CLI_COLORS else None,

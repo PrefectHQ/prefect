@@ -77,7 +77,7 @@ def get_thread_limiter() -> anyio.CapacityLimiter:
 
 def is_async_fn(
     func: _SyncOrAsyncCallable[P, R],
-) -> TypeGuard[Callable[P, Awaitable[R]]]:
+) -> TypeGuard[Callable[P, Coroutine[Any, Any, Any]]]:
     """
     Returns `True` if a function returns a coroutine.
 
