@@ -19,20 +19,20 @@ class Setting:
     def __init__(
         self, name: str, default: Any, type_: Any, accessor: Optional[str] = None
     ):
-        self._name: str = name
-        self._default: Any = default
-        self._type: Any = type_
+        self._name = name
+        self._default = default
+        self._type = type_
         if accessor is None:
             self.accessor: str = _env_var_to_accessor(name)
         else:
             self.accessor: str = accessor
 
     @property
-    def name(self) -> str:
+    def name(self):
         return self._name
 
     @property
-    def is_secret(self) -> bool:
+    def is_secret(self):
         if self._type in _SECRET_TYPES:
             return True
         for secret_type in _SECRET_TYPES:
@@ -40,7 +40,7 @@ class Setting:
                 return True
         return False
 
-    def default(self) -> Any:
+    def default(self):
         return self._default
 
     def value(self: Self) -> Any:
