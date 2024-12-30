@@ -960,30 +960,39 @@ class Task(Generic[P, R]):
 
     @overload
     def __call__(
-        self: "Task[P, T]",
+        self: "Task[P, R]",
         *args: P.args,
-        wait_for: Optional[Iterable[Union[PrefectFuture[T], T]]] = None,
+        return_state: Literal[True],
         **kwargs: P.kwargs,
-    ) -> T:
+    ) -> State[R]:
         ...
 
     @overload
     def __call__(
-        self: "Task[P, T]",
+        self: "Task[P, R]",
         *args: P.args,
-        return_state: Literal[True],
-        wait_for: Optional[Iterable[Union[PrefectFuture[T], T]]] = None,
+        wait_for: Optional[Iterable[Union[PrefectFuture[Any], Any]]] = None,
         **kwargs: P.kwargs,
-    ) -> State[T]:
+    ) -> R:
+        ...
+
+    @overload
+    def __call__(
+        self: "Task[P, R]",
+        *args: P.args,
+        return_state: Literal[False] = False,
+        wait_for: Optional[Iterable[Union[PrefectFuture[Any], Any]]] = None,
+        **kwargs: P.kwargs,
+    ) -> R:
         ...
 
     def __call__(
         self,
         *args: P.args,
         return_state: bool = False,
-        wait_for: Optional[Iterable[Union[PrefectFuture[T], T]]] = None,
+        wait_for: Optional[Iterable[Any]] = None,
         **kwargs: P.kwargs,
-    ):
+    ) -> Union[R, State[R]]:
         """
         Run the task and return the result. If `return_state` is True returns
         the result is wrapped in a Prefect State which provides error handling.
@@ -1687,10 +1696,10 @@ def task(
             callable that, given the total number of retries, generates a list of retry
             delays. If a number of seconds, that delay will be applied to all retries.
             If a list, each retry will wait for the corresponding delay before retrying.
-            When passing a callable or a list, the number of configured retry delays
-            cannot exceed 50.
-        retry_jitter_factor: An optional factor that defines the factor to which a retry
-            can be jittered in order to avoid a "thundering herd".
+            When passing a callable or a list, the number of
+            configured retry delays cannot exceed 50.
+        retry_jitter_factor: An optional factor that defines the factor to which a
+            retry can be jittered in order to avoid a "thundering herd".
         persist_result: A toggle indicating whether the result of this task
             should be persisted to result storage. Defaults to `None`, which
             indicates that the global default should be used (which is `True` by

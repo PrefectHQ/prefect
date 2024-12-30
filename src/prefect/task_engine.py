@@ -13,7 +13,6 @@ from typing import (
     AsyncGenerator,
     Callable,
     Coroutine,
-    Dict,
     Generator,
     Generic,
     Iterable,
@@ -109,11 +108,11 @@ class TaskRunTimeoutError(TimeoutError):
 class BaseTaskRunEngine(Generic[P, R]):
     task: Union[Task[P, R], Task[P, Coroutine[Any, Any, R]]]
     logger: logging.Logger = field(default_factory=lambda: get_logger("engine"))
-    parameters: Optional[Dict[str, Any]] = None
+    parameters: Optional[dict[str, Any]] = None
     task_run: Optional[TaskRun] = None
     retries: int = 0
-    wait_for: Optional[Iterable[PrefectFuture]] = None
-    context: Optional[Dict[str, Any]] = None
+    wait_for: Optional[Iterable[PrefectFuture[Any]]] = None
+    context: Optional[dict[str, Any]] = None
     # holds the return value from the user code
     _return_value: Union[R, Type[NotSet]] = NotSet
     # holds the exception raised by the user code, if any
@@ -660,7 +659,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     def initialize_run(
         self,
         task_run_id: Optional[UUID] = None,
-        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+        dependencies: Optional[dict[str, Set[TaskRunInput]]] = None,
     ) -> Generator["SyncTaskRunEngine", Any, Any]:
         """
         Enters a client context and creates a task run if needed.
@@ -753,7 +752,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     def start(
         self,
         task_run_id: Optional[UUID] = None,
-        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+        dependencies: Optional[dict[str, Set[TaskRunInput]]] = None,
     ) -> Generator[None, None, None]:
         with self.initialize_run(task_run_id=task_run_id, dependencies=dependencies):
             with (
@@ -1201,7 +1200,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     async def initialize_run(
         self,
         task_run_id: Optional[UUID] = None,
-        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+        dependencies: Optional[dict[str, Set[TaskRunInput]]] = None,
     ) -> AsyncGenerator["AsyncTaskRunEngine", Any]:
         """
         Enters a client context and creates a task run if needed.
@@ -1292,7 +1291,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     async def start(
         self,
         task_run_id: Optional[UUID] = None,
-        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+        dependencies: Optional[dict[str, Set[TaskRunInput]]] = None,
     ) -> AsyncGenerator[None, None]:
         async with self.initialize_run(
             task_run_id=task_run_id, dependencies=dependencies
@@ -1381,11 +1380,11 @@ def run_task_sync(
     task: Task[P, R],
     task_run_id: Optional[UUID] = None,
     task_run: Optional[TaskRun] = None,
-    parameters: Optional[Dict[str, Any]] = None,
+    parameters: Optional[dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
     return_type: Literal["state", "result"] = "result",
-    dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
-    context: Optional[Dict[str, Any]] = None,
+    dependencies: Optional[dict[str, Set[TaskRunInput]]] = None,
+    context: Optional[dict[str, Any]] = None,
 ) -> Union[R, State, None]:
     engine = SyncTaskRunEngine[P, R](
         task=task,
@@ -1408,11 +1407,11 @@ async def run_task_async(
     task: Task[P, R],
     task_run_id: Optional[UUID] = None,
     task_run: Optional[TaskRun] = None,
-    parameters: Optional[Dict[str, Any]] = None,
+    parameters: Optional[dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
     return_type: Literal["state", "result"] = "result",
-    dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
-    context: Optional[Dict[str, Any]] = None,
+    dependencies: Optional[dict[str, Set[TaskRunInput]]] = None,
+    context: Optional[dict[str, Any]] = None,
 ) -> Union[R, State, None]:
     engine = AsyncTaskRunEngine[P, R](
         task=task,
@@ -1435,11 +1434,11 @@ def run_generator_task_sync(
     task: Task[P, R],
     task_run_id: Optional[UUID] = None,
     task_run: Optional[TaskRun] = None,
-    parameters: Optional[Dict[str, Any]] = None,
+    parameters: Optional[dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
     return_type: Literal["state", "result"] = "result",
-    dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
-    context: Optional[Dict[str, Any]] = None,
+    dependencies: Optional[dict[str, Set[TaskRunInput]]] = None,
+    context: Optional[dict[str, Any]] = None,
 ) -> Generator[R, None, None]:
     if return_type != "result":
         raise ValueError("The return_type for a generator task must be 'result'")
@@ -1490,11 +1489,11 @@ async def run_generator_task_async(
     task: Task[P, R],
     task_run_id: Optional[UUID] = None,
     task_run: Optional[TaskRun] = None,
-    parameters: Optional[Dict[str, Any]] = None,
+    parameters: Optional[dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
     return_type: Literal["state", "result"] = "result",
-    dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
-    context: Optional[Dict[str, Any]] = None,
+    dependencies: Optional[dict[str, Set[TaskRunInput]]] = None,
+    context: Optional[dict[str, Any]] = None,
 ) -> AsyncGenerator[R, None]:
     if return_type != "result":
         raise ValueError("The return_type for a generator task must be 'result'")
@@ -1546,11 +1545,11 @@ def run_task(
     task: Task[P, Union[R, Coroutine[Any, Any, R]]],
     task_run_id: Optional[UUID] = None,
     task_run: Optional[TaskRun] = None,
-    parameters: Optional[Dict[str, Any]] = None,
+    parameters: Optional[dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
     return_type: Literal["state", "result"] = "result",
-    dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
-    context: Optional[Dict[str, Any]] = None,
+    dependencies: Optional[dict[str, Set[TaskRunInput]]] = None,
+    context: Optional[dict[str, Any]] = None,
 ) -> Union[R, State, None, Coroutine[Any, Any, Union[R, State, None]]]:
     """
     Runs the provided task.
