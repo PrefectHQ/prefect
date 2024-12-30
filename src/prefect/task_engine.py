@@ -103,8 +103,7 @@ class TaskRunTimeoutError(TimeoutError):
     """Raised when a task run exceeds its timeout."""
 
 
-_ResultOrFuture: TypeAlias = Union[PrefectFuture[Any], Any]
-_OneOrManyResultOrFuture: TypeAlias = Union[_ResultOrFuture, Iterable[_ResultOrFuture]]
+_FutureOrResult: TypeAlias = Union[PrefectFuture[Any], Any]
 
 
 @dataclass
@@ -114,7 +113,7 @@ class BaseTaskRunEngine(Generic[P, R]):
     parameters: Optional[dict[str, Any]] = None
     task_run: Optional[TaskRun] = None
     retries: int = 0
-    wait_for: Optional[_OneOrManyResultOrFuture] = None
+    wait_for: Optional[Union[_FutureOrResult, Iterable[_FutureOrResult]]] = None
     context: Optional[dict[str, Any]] = None
     # holds the return value from the user code
     _return_value: Union[R, Type[NotSet]] = NotSet
@@ -1384,7 +1383,7 @@ def run_task_sync(
     task_run_id: Optional[UUID] = None,
     task_run: Optional[TaskRun] = None,
     parameters: Optional[dict[str, Any]] = None,
-    wait_for: Optional[_OneOrManyResultOrFuture] = None,
+    wait_for: Optional[Union[_FutureOrResult, Iterable[_FutureOrResult]]] = None,
     return_type: Literal["state", "result"] = "result",
     dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
     context: Optional[dict[str, Any]] = None,
@@ -1411,7 +1410,7 @@ async def run_task_async(
     task_run_id: Optional[UUID] = None,
     task_run: Optional[TaskRun] = None,
     parameters: Optional[dict[str, Any]] = None,
-    wait_for: Optional[_OneOrManyResultOrFuture] = None,
+    wait_for: Optional[Union[_FutureOrResult, Iterable[_FutureOrResult]]] = None,
     return_type: Literal["state", "result"] = "result",
     dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
     context: Optional[dict[str, Any]] = None,
@@ -1438,7 +1437,7 @@ def run_generator_task_sync(
     task_run_id: Optional[UUID] = None,
     task_run: Optional[TaskRun] = None,
     parameters: Optional[dict[str, Any]] = None,
-    wait_for: Optional[_OneOrManyResultOrFuture] = None,
+    wait_for: Optional[Union[_FutureOrResult, Iterable[_FutureOrResult]]] = None,
     return_type: Literal["state", "result"] = "result",
     dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
     context: Optional[dict[str, Any]] = None,
@@ -1493,7 +1492,7 @@ async def run_generator_task_async(
     task_run_id: Optional[UUID] = None,
     task_run: Optional[TaskRun] = None,
     parameters: Optional[dict[str, Any]] = None,
-    wait_for: Optional[_OneOrManyResultOrFuture] = None,
+    wait_for: Optional[Union[_FutureOrResult, Iterable[_FutureOrResult]]] = None,
     return_type: Literal["state", "result"] = "result",
     dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
     context: Optional[dict[str, Any]] = None,
@@ -1549,7 +1548,7 @@ def run_task(
     task_run_id: Optional[UUID] = None,
     task_run: Optional[TaskRun] = None,
     parameters: Optional[dict[str, Any]] = None,
-    wait_for: Optional[_OneOrManyResultOrFuture] = None,
+    wait_for: Optional[Union[_FutureOrResult, Iterable[_FutureOrResult]]] = None,
     return_type: Literal["state", "result"] = "result",
     dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
     context: Optional[dict[str, Any]] = None,

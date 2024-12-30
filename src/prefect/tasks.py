@@ -82,8 +82,7 @@ NUM_CHARS_DYNAMIC_KEY = 8
 
 logger = get_logger("tasks")
 
-_ResultOrFuture: TypeAlias = Union[PrefectFuture[Any], Any]
-_OneOrManyResultOrFuture: TypeAlias = Union[_ResultOrFuture, Iterable[_ResultOrFuture]]
+_FutureOrResult: TypeAlias = Union[PrefectFuture[Any], Any]
 
 
 def task_input_hash(
@@ -740,7 +739,7 @@ class Task(Generic[P, R]):
         parameters: Optional[dict[str, Any]] = None,
         flow_run_context: Optional[FlowRunContext] = None,
         parent_task_run_context: Optional[TaskRunContext] = None,
-        wait_for: Optional[_OneOrManyResultOrFuture] = None,
+        wait_for: Optional[Union[_FutureOrResult, Iterable[_FutureOrResult]]] = None,
         extra_task_inputs: Optional[dict[str, set[TaskRunInput]]] = None,
         deferred: bool = False,
     ) -> TaskRun:
@@ -841,7 +840,7 @@ class Task(Generic[P, R]):
         parameters: Optional[dict[str, Any]] = None,
         flow_run_context: Optional[FlowRunContext] = None,
         parent_task_run_context: Optional[TaskRunContext] = None,
-        wait_for: Optional[_OneOrManyResultOrFuture] = None,
+        wait_for: Optional[Union[_FutureOrResult, Iterable[_FutureOrResult]]] = None,
         extra_task_inputs: Optional[dict[str, set[TaskRunInput]]] = None,
         deferred: bool = False,
     ) -> TaskRun:
@@ -974,7 +973,7 @@ class Task(Generic[P, R]):
     def __call__(
         self: "Task[P, R]",
         *args: P.args,
-        wait_for: Optional[_OneOrManyResultOrFuture] = None,
+        wait_for: Optional[Union[_FutureOrResult, Iterable[_FutureOrResult]]] = None,
         **kwargs: P.kwargs,
     ) -> R:
         ...
@@ -984,7 +983,7 @@ class Task(Generic[P, R]):
         self: "Task[P, R]",
         *args: P.args,
         return_state: Literal[False] = False,
-        wait_for: Optional[_OneOrManyResultOrFuture] = None,
+        wait_for: Optional[Union[_FutureOrResult, Iterable[_FutureOrResult]]] = None,
         **kwargs: P.kwargs,
     ) -> R:
         ...
