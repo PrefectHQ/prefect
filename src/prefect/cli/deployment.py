@@ -10,7 +10,7 @@ import textwrap
 import warnings
 from asyncio import iscoroutine
 from datetime import datetime, timedelta, timezone
-from typing import TYPE_CHECKING, Any, TypedDict
+from typing import TYPE_CHECKING, Any, Optional, TypedDict
 from uuid import UUID
 
 import pendulum
@@ -282,21 +282,21 @@ async def inspect(name: str):
 @schedule_app.command("create")
 async def create_schedule(
     name: str,
-    interval: float | None = typer.Option(
+    interval: Optional[float] = typer.Option(
         None,
         "--interval",
         help="An interval to schedule on, specified in seconds",
         min=0.0001,
     ),
-    interval_anchor: str | None = typer.Option(
+    interval_anchor: Optional[str] = typer.Option(
         None,
         "--anchor-date",
         help="The anchor date for an interval schedule",
     ),
-    rrule_string: str | None = typer.Option(
+    rrule_string: Optional[str] = typer.Option(
         None, "--rrule", help="Deployment schedule rrule string"
     ),
-    cron_string: str | None = typer.Option(
+    cron_string: Optional[str] = typer.Option(
         None, "--cron", help="Deployment schedule cron string"
     ),
     cron_day_or: bool = typer.Option(
@@ -304,7 +304,7 @@ async def create_schedule(
         "--day_or",
         help="Control how croniter handles `day` and `day_of_week` entries",
     ),
-    timezone: str | None = typer.Option(
+    timezone: Optional[str] = typer.Option(
         None,
         "--timezone",
         help="Deployment schedule timezone string e.g. 'America/New_York'",
@@ -314,12 +314,12 @@ async def create_schedule(
         "--active",
         help="Whether the schedule is active. Defaults to True.",
     ),
-    replace: bool | None = typer.Option(
+    replace: Optional[bool] = typer.Option(
         False,
         "--replace",
         help="Replace the deployment's current schedule(s) with this new schedule.",
     ),
-    assume_yes: bool | None = typer.Option(
+    assume_yes: Optional[bool] = typer.Option(
         False,
         "--accept-yes",
         "-y",
@@ -442,7 +442,7 @@ async def create_schedule(
 async def delete_schedule(
     deployment_name: str,
     schedule_id: UUID,
-    assume_yes: bool | None = typer.Option(
+    assume_yes: bool = typer.Option(
         False,
         "--accept-yes",
         "-y",
@@ -584,7 +584,7 @@ async def list_schedules(deployment_name: str):
 @schedule_app.command("clear")
 async def clear_schedules(
     deployment_name: str,
-    assume_yes: bool | None = typer.Option(
+    assume_yes: bool = typer.Option(
         False,
         "--accept-yes",
         "-y",
@@ -619,7 +619,7 @@ async def clear_schedules(
 
 
 @deployment_app.command()
-async def ls(flow_name: list[str] | None = None, by_created: bool = False):
+async def ls(flow_name: Optional[list[str]] = None, by_created: bool = False):
     """
     View all deployments or deployments for specific flows.
     """
@@ -669,10 +669,10 @@ async def ls(flow_name: list[str] | None = None, by_created: bool = False):
 
 @deployment_app.command()
 async def run(
-    name: str | None = typer.Argument(
+    name: Optional[str] = typer.Argument(
         None, help="A deployed flow's name: <FLOW_NAME>/<DEPLOYMENT_NAME>"
     ),
-    deployment_id: str | None = typer.Option(
+    deployment_id: Optional[str] = typer.Option(
         None,
         "--id",
         help=("A deployment id to search for if no name is given"),
@@ -697,7 +697,7 @@ async def run(
             " parameter values."
         ),
     ),
-    multiparams: str | None = typer.Option(
+    multiparams: Optional[str] = typer.Option(
         None,
         "--params",
         help=(
@@ -705,7 +705,7 @@ async def run(
             "parameters passed with `--param` will take precedence over these values."
         ),
     ),
-    start_in: str | None = typer.Option(
+    start_in: Optional[str] = typer.Option(
         None,
         "--start-in",
         help=(
@@ -713,7 +713,7 @@ async def run(
             " the flow run. E.g. 'in 5 minutes', 'in 1 hour', 'in 2 days'."
         ),
     ),
-    start_at: str | None = typer.Option(
+    start_at: Optional[str] = typer.Option(
         None,
         "--start-at",
         help=(
@@ -731,12 +731,12 @@ async def run(
         "--watch",
         help=("Whether to poll the flow run until a terminal state is reached."),
     ),
-    watch_interval: int | None = typer.Option(
+    watch_interval: Optional[int] = typer.Option(
         None,
         "--watch-interval",
         help=("How often to poll the flow run for state changes (in seconds)."),
     ),
-    watch_timeout: int | None = typer.Option(
+    watch_timeout: Optional[int] = typer.Option(
         None,
         "--watch-timeout",
         help=("Timeout for --watch."),
@@ -915,10 +915,10 @@ async def run(
 
 @deployment_app.command()
 async def delete(
-    name: str | None = typer.Argument(
+    name: Optional[str] = typer.Argument(
         None, help="A deployed flow's name: <FLOW_NAME>/<DEPLOYMENT_NAME>"
     ),
-    deployment_id: UUID | None = typer.Option(
+    deployment_id: Optional[UUID] = typer.Option(
         None, "--id", help="A deployment id to search for if no name is given"
     ),
 ):

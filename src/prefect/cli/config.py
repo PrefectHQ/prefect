@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Union, cast
 
 import toml
 import typer
@@ -40,7 +40,7 @@ def set_(settings: list[str]):
     """
     Change the value for a setting by setting the value in the current profile.
     """
-    parsed_settings: dict[str | Setting, Any] = {}
+    parsed_settings: dict[Union[str, Setting], Any] = {}
     for item in settings:
         try:
             setting, value = item.split("=", maxsplit=1)

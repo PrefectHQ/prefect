@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Optional
 from uuid import UUID
 
 import typer
@@ -143,8 +144,10 @@ async def inspect(
 
 @artifact_app.command("delete")
 async def delete(
-    key: str | None = typer.Argument(None, help="The key of the artifact to delete."),
-    artifact_id: UUID | None = typer.Option(
+    key: Optional[str] = typer.Argument(
+        None, help="The key of the artifact to delete."
+    ),
+    artifact_id: Optional[UUID] = typer.Option(
         None, "--id", help="The ID of the artifact to delete."
     ),
 ):

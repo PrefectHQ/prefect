@@ -12,6 +12,7 @@ from contextlib import asynccontextmanager
 from typing import (
     TYPE_CHECKING,
     Iterable,
+    Optional,
     TypeVar,
     Union,
     overload,
@@ -375,10 +376,10 @@ async def _prompt_for_account_and_workspace(
 
 @cloud_app.command()
 async def login(
-    key: str | None = typer.Option(
+    key: Optional[str] = typer.Option(
         None, "--key", "-k", help="API Key to authenticate with Prefect"
     ),
-    workspace_handle: str | None = typer.Option(
+    workspace_handle: Optional[str] = typer.Option(
         None,
         "--workspace",
         "-w",

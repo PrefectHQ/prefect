@@ -8,7 +8,7 @@ import inspect
 from importlib import import_module
 from pathlib import Path
 from types import ModuleType
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Optional
 from uuid import UUID
 
 import typer
@@ -157,13 +157,13 @@ def _build_registered_blocks_table(registered_blocks: list[type[Block]]) -> Tabl
 
 @blocks_app.command()
 async def register(
-    module_name: str | None = typer.Option(
+    module_name: Optional[str] = typer.Option(
         None,
         "--module",
         "-m",
         help="Python module containing block types to be registered",
     ),
-    file_path: Path | None = typer.Option(
+    file_path: Optional[Path] = typer.Option(
         None,
         "--file",
         "-f",
@@ -193,7 +193,7 @@ async def register(
             " registered, but not both."
         )
 
-    imported_module: ModuleType | None = None
+    imported_module: Optional[ModuleType] = None
     if module_name:
         try:
             imported_module = import_module(name=module_name)
@@ -281,10 +281,10 @@ async def block_ls():
 
 @blocks_app.command("delete")
 async def block_delete(
-    slug: str | None = typer.Argument(
+    slug: Optional[str] = typer.Argument(
         None, help="A block slug. Formatted as '<BLOCK_TYPE_SLUG>/<BLOCK_NAME>'"
     ),
-    block_id: UUID | None = typer.Option(None, "--id", help="A block id."),
+    block_id: Optional[UUID] = typer.Option(None, "--id", help="A block id."),
 ):
     """
     Delete a configured block.
@@ -359,10 +359,10 @@ async def block_create(
 
 @blocks_app.command("inspect")
 async def block_inspect(
-    slug: str | None = typer.Argument(
+    slug: Optional[str] = typer.Argument(
         None, help="A Block slug: <BLOCK_TYPE_SLUG>/<BLOCK_NAME>"
     ),
-    block_id: UUID | None = typer.Option(
+    block_id: Optional[UUID] = typer.Option(
         None, "--id", help="A Block id to search for if no slug is given"
     ),
 ):
