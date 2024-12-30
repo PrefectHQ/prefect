@@ -33,6 +33,23 @@ MAX_ITERATIONS = 1000
 MAX_RRULE_LENGTH = 6500
 
 
+def is_valid_timezone(v: str) -> bool:
+    """
+    Validate that the provided timezone is a valid IANA timezone.
+
+    Unfortunately this list is slightly different from the list of valid
+    timezones in pendulum that we use for cron and interval timezone validation.
+    """
+    from prefect._internal.pytz import HAS_PYTZ
+
+    if HAS_PYTZ:
+        import pytz
+    else:
+        from prefect._internal import pytz
+
+    return v in pytz.all_timezones_set
+
+
 class IntervalSchedule(PrefectBaseModel):
     """
     A schedule formed by adding `interval` increments to an `anchor_date`. If no
@@ -305,18 +322,13 @@ class RRuleSchedule(PrefectBaseModel):
         Unfortunately this list is slightly different from the list of valid
         timezones in pendulum that we use for cron and interval timezone validation.
         """
-        from prefect._internal.pytz import HAS_PYTZ
-
-        if HAS_PYTZ:
-            import pytz
-        else:
-            from prefect._internal import pytz
-
-        if v and v not in pytz.all_timezones_set:
-            raise ValueError(f'Invalid timezone: "{v}"')
-        elif v is None:
+        if v is None:
             return "UTC"
-        return v
+
+        if is_valid_timezone(v):
+            return v
+
+        raise ValueError(f'Invalid timezone: "{v}"')
 
 
 class NoSchedule(PrefectBaseModel):

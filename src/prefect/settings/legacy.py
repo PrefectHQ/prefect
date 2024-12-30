@@ -23,9 +23,9 @@ class Setting:
         self._default = default
         self._type = type_
         if accessor is None:
-            self.accessor = _env_var_to_accessor(name)
+            self.accessor: str = _env_var_to_accessor(name)
         else:
-            self.accessor = accessor
+            self.accessor: str = accessor
 
     @property
     def name(self):
@@ -58,7 +58,7 @@ class Setting:
 
         return self.value_from(get_current_settings())
 
-    def value_from(self: Self, settings: "Settings") -> Any:
+    def value_from(self: Self, settings: Settings) -> Any:
         path = self.accessor.split(".")
         current_value = settings
         for key in path:
@@ -97,7 +97,7 @@ def _get_valid_setting_names(cls: type[BaseSettings]) -> Set[str]:
     """
     A set of valid setting names, e.g. "PREFECT_API_URL" or "PREFECT_API_KEY".
     """
-    settings_fields = set()
+    settings_fields: set[str] = set()
     for field_name, field in cls.model_fields.items():
         if inspect.isclass(field.annotation) and issubclass(
             field.annotation, PrefectBaseSettings

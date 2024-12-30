@@ -52,8 +52,6 @@ from prefect.client.utilities import inject_client
 from prefect.deployments import initialize_project
 from prefect.deployments.base import (
     _format_deployment_for_saving_to_prefect_file,
-    _get_git_branch,
-    _get_git_remote_origin_url,
     _save_deployment_to_prefect_file,
 )
 from prefect.deployments.steps.core import run_steps
@@ -64,6 +62,7 @@ from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
     PREFECT_UI_URL,
 )
+from prefect.utilities._git import get_git_branch, get_git_remote_origin_url
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.callables import (
     parameter_schema,
@@ -991,7 +990,7 @@ async def _generate_git_clone_pull_step(
     deploy_config: Dict,
     remote_url: str,
 ):
-    branch = _get_git_branch() or "main"
+    branch = get_git_branch() or "main"
 
     if not remote_url:
         remote_url = prompt(
@@ -1125,7 +1124,7 @@ async def _generate_actions_for_remote_flow_storage(
         actions["pull"] = await _generate_git_clone_pull_step(
             console=console,
             deploy_config=deploy_config,
-            remote_url=_get_git_remote_origin_url(),
+            remote_url=get_git_remote_origin_url(),
         )
 
     elif selected_storage_provider in storage_provider_to_collection.keys():

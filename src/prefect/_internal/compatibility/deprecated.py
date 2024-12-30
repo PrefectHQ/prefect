@@ -56,7 +56,7 @@ def generate_deprecation_message(
     end_date: Optional[str] = None,
     help: str = "",
     when: str = "",
-):
+) -> str:
     if not start_date and not end_date:
         raise ValueError(
             "A start date is required if an end date is not provided. Suggested start"

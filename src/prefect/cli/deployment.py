@@ -2,17 +2,22 @@
 Command line interface for working with deployments.
 """
 
+from __future__ import annotations
+
 import json
 import sys
 import textwrap
 import warnings
-from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from asyncio import iscoroutine
+from datetime import datetime, timedelta, timezone
+from typing import TYPE_CHECKING, Any, Optional, TypedDict
 from uuid import UUID
 
 import pendulum
+import pendulum.tz
 import typer
 import yaml
+from rich.console import Console
 from rich.pretty import Pretty
 from rich.table import Table
 
@@ -21,8 +26,9 @@ from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app, is_interactive
 from prefect.client.orchestration import get_client
-from prefect.client.schemas.actions import DeploymentScheduleCreate
-from prefect.client.schemas.filters import FlowFilter
+from prefect.client.schemas.filters import FlowFilter, FlowFilterId, FlowFilterName
+from prefect.client.schemas.objects import DeploymentSchedule
+from prefect.client.schemas.responses import DeploymentResponse
 from prefect.client.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
@@ -43,21 +49,27 @@ if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
 
 
-def str_presenter(dumper, data):
+def str_presenter(
+    dumper: yaml.Dumper | yaml.representer.SafeRepresenter, data: str
+) -> yaml.ScalarNode:
     """
     configures yaml for dumping multiline strings
     Ref: https://stackoverflow.com/questions/8640959/how-can-i-control-what-scalar-form-pyyaml-uses-for-my-data
     """
     if len(data.splitlines()) > 1:  # check for multiline string
-        return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")
-    return dumper.represent_scalar("tag:yaml.org,2002:str", data)
+        return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")  # type: ignore[reportUnknownMemberType] incomplete type stubs
+    return dumper.represent_scalar("tag:yaml.org,2002:str", data)  # type: ignore[reportUnknownMemberType] incomplete type stubs
 
 
 yaml.add_representer(str, str_presenter)
 yaml.representer.SafeRepresenter.add_representer(str, str_presenter)
 
-deployment_app = PrefectTyper(name="deployment", help="Manage deployments.")
-schedule_app = PrefectTyper(name="schedule", help="Manage deployment schedules.")
+deployment_app: PrefectTyper = PrefectTyper(
+    name="deployment", help="Manage deployments."
+)
+schedule_app: PrefectTyper = PrefectTyper(
+    name="schedule", help="Manage deployment schedules."
+)
 
 deployment_app.add_typer(schedule_app, aliases=["schedule"])
 app.add_typer(deployment_app, aliases=["deployments"])
@@ -70,7 +82,9 @@ def assert_deployment_name_format(name: str) -> None:
         )
 
 
-async def get_deployment(client: "PrefectClient", name, deployment_id):
+async def get_deployment(
+    client: "PrefectClient", name: str | None, deployment_id: str | None
+) -> DeploymentResponse:
     if name is None and deployment_id is not None:
         try:
             deployment = await client.read_deployment(deployment_id)
@@ -90,8 +104,10 @@ async def get_deployment(client: "PrefectClient", name, deployment_id):
 
 
 async def create_work_queue_and_set_concurrency_limit(
-    work_queue_name, work_pool_name, work_queue_concurrency
-):
+    work_queue_name: str,
+    work_pool_name: str | None,
+    work_queue_concurrency: int | None,
+) -> None:
     async with get_client() as client:
         if work_queue_concurrency is not None and work_queue_name:
             try:
@@ -158,8 +174,10 @@ async def create_work_queue_and_set_concurrency_limit(
 
 @inject_client
 async def check_work_pool_exists(
-    work_pool_name: Optional[str], client: "PrefectClient" = None
+    work_pool_name: str | None, client: "PrefectClient | None" = None
 ):
+    if TYPE_CHECKING:
+        assert client is not None
     if work_pool_name is not None:
         try:
             await client.read_work_pool(work_pool_name=work_pool_name)
@@ -179,11 +197,11 @@ async def check_work_pool_exists(
 
 
 class RichTextIO:
-    def __init__(self, console, prefix: Optional[str] = None) -> None:
+    def __init__(self, console: Console, prefix: str | None = None) -> None:
         self.console = console
         self.prefix = prefix
 
-    def write(self, content: str):
+    def write(self, content: str) -> None:
         if self.prefix:
             content = self.prefix + content
         self.console.print(content)
@@ -243,9 +261,11 @@ async def inspect(name: str):
         deployment_json = deployment.model_dump(mode="json")
 
         if deployment.infrastructure_document_id:
-            deployment_json["infrastructure"] = Block._from_block_document(
-                await client.read_block_document(deployment.infrastructure_document_id)
-            ).model_dump(
+            coro = Block.load_from_ref(deployment.infrastructure_document_id)
+            if TYPE_CHECKING:
+                assert iscoroutine(coro)
+            infrastructure = await coro
+            deployment_json["infrastructure"] = infrastructure.model_dump(
                 exclude={"_block_document_id", "_block_document_name", "_is_anonymous"}
             )
 
@@ -279,8 +299,8 @@ async def create_schedule(
     cron_string: Optional[str] = typer.Option(
         None, "--cron", help="Deployment schedule cron string"
     ),
-    cron_day_or: Optional[str] = typer.Option(
-        None,
+    cron_day_or: bool = typer.Option(
+        True,
         "--day_or",
         help="Control how croniter handles `day` and `day_of_week` entries",
     ),
@@ -289,7 +309,7 @@ async def create_schedule(
         "--timezone",
         help="Deployment schedule timezone string e.g. 'America/New_York'",
     ),
-    active: Optional[bool] = typer.Option(
+    active: bool = typer.Option(
         True,
         "--active",
         help="Whether the schedule is active. Defaults to True.",
@@ -327,24 +347,43 @@ async def create_schedule(
                 pendulum.parse(interval_anchor)
             except ValueError:
                 return exit_with_error("The anchor date must be a valid date string.")
-        interval_schedule = {
-            "interval": interval,
-            "anchor_date": interval_anchor,
-            "timezone": timezone,
-        }
-        schedule = IntervalSchedule(
-            **{k: v for k, v in interval_schedule.items() if v is not None}
+
+        IntervalScheduleOptions = TypedDict(
+            "IntervalScheduleOptions",
+            {
+                "interval": timedelta,
+                "anchor_date": str,
+                "timezone": str,
+            },
+            total=False,
         )
+        interval_schedule: IntervalScheduleOptions = {
+            "interval": timedelta(seconds=interval),
+        }
+        if interval_anchor:
+            interval_schedule["anchor_date"] = interval_anchor
+        if timezone:
+            interval_schedule["timezone"] = timezone
+        schedule = IntervalSchedule(**interval_schedule)
 
     if cron_string is not None:
-        cron_schedule = {
+        CronScheduleOptions = TypedDict(
+            "CronScheduleOptions",
+            {
+                "cron": str,
+                "day_or": bool,
+                "timezone": str,
+            },
+            total=False,
+        )
+        cron_schedule: CronScheduleOptions = {
             "cron": cron_string,
             "day_or": cron_day_or,
-            "timezone": timezone,
         }
-        schedule = CronSchedule(
-            **{k: v for k, v in cron_schedule.items() if v is not None}
-        )
+        if timezone:
+            cron_schedule["timezone"] = timezone
+
+        schedule = CronSchedule(**cron_schedule)
 
     if rrule_string is not None:
         # a timezone in the `rrule_string` gets ignored by the RRuleSchedule constructor
@@ -403,7 +442,7 @@ async def create_schedule(
 async def delete_schedule(
     deployment_name: str,
     schedule_id: UUID,
-    assume_yes: Optional[bool] = typer.Option(
+    assume_yes: bool = typer.Option(
         False,
         "--accept-yes",
         "-y",
@@ -511,11 +550,11 @@ async def list_schedules(deployment_name: str):
         except ObjectNotFound:
             return exit_with_error(f"Deployment {deployment_name!r} not found!")
 
-    def sort_by_created_key(schedule: DeploymentScheduleCreate):  # type: ignore
+    def sort_by_created_key(schedule: DeploymentSchedule):  # type: ignore
         assert schedule.created is not None, "All schedules should have a created time."
         return pendulum.now("utc") - schedule.created
 
-    def schedule_details(schedule: DeploymentScheduleCreate) -> str:
+    def schedule_details(schedule: DeploymentSchedule) -> str:
         if isinstance(schedule.schedule, IntervalSchedule):
             return f"interval: {schedule.schedule.interval}s"
         elif isinstance(schedule.schedule, CronSchedule):
@@ -545,7 +584,7 @@ async def list_schedules(deployment_name: str):
 @schedule_app.command("clear")
 async def clear_schedules(
     deployment_name: str,
-    assume_yes: Optional[bool] = typer.Option(
+    assume_yes: bool = typer.Option(
         False,
         "--accept-yes",
         "-y",
@@ -580,25 +619,30 @@ async def clear_schedules(
 
 
 @deployment_app.command()
-async def ls(flow_name: Optional[List[str]] = None, by_created: bool = False):
+async def ls(flow_name: Optional[list[str]] = None, by_created: bool = False):
     """
     View all deployments or deployments for specific flows.
     """
     async with get_client() as client:
         deployments = await client.read_deployments(
-            flow_filter=FlowFilter(name={"any_": flow_name}) if flow_name else None
+            flow_filter=FlowFilter(name=FlowFilterName(any_=flow_name))
+            if flow_name
+            else None
         )
         flows = {
             flow.id: flow
             for flow in await client.read_flows(
-                flow_filter=FlowFilter(id={"any_": [d.flow_id for d in deployments]})
+                flow_filter=FlowFilter(
+                    id=FlowFilterId(any_=[d.flow_id for d in deployments])
+                )
             )
         }
 
-    def sort_by_name_keys(d):
+    def sort_by_name_keys(d: DeploymentResponse):
         return flows[d.flow_id].name, d.name
 
-    def sort_by_created_key(d):
+    def sort_by_created_key(d: DeploymentResponse):
+        assert d.created is not None, "All deployments should have a created time."
         return pendulum.now("utc") - d.created
 
     table = Table(
@@ -633,7 +677,7 @@ async def run(
         "--id",
         help=("A deployment id to search for if no name is given"),
     ),
-    job_variables: List[str] = typer.Option(
+    job_variables: list[str] = typer.Option(
         None,
         "-jv",
         "--job-variable",
@@ -643,7 +687,7 @@ async def run(
             " job variable values."
         ),
     ),
-    params: List[str] = typer.Option(
+    params: list[str] = typer.Option(
         None,
         "-p",
         "--param",
@@ -677,7 +721,7 @@ async def run(
             " 'at 5:30pm', 'at 2022-08-01 17:30', 'at 2022-08-01 17:30:00'."
         ),
     ),
-    tags: List[str] = typer.Option(
+    tags: list[str] = typer.Option(
         None,
         "--tag",
         help=("Tag(s) to be applied to flow run."),
@@ -709,7 +753,7 @@ async def run(
 
     now = pendulum.now("UTC")
 
-    multi_params = {}
+    multi_params: dict[str, Any] = {}
     if multiparams:
         if multiparams == "-":
             multiparams = sys.stdin.read()
@@ -724,16 +768,18 @@ async def run(
             exit_with_error(
                 "`--watch-interval` can only be used with `--watch`.",
             )
-    cli_params = _load_json_key_values(params or [], "parameter")
+    cli_params: dict[str, Any] = _load_json_key_values(params or [], "parameter")
     conflicting_keys = set(cli_params.keys()).intersection(multi_params.keys())
     if conflicting_keys:
         app.console.print(
             "The following parameters were specified by `--param` and `--params`, the "
             f"`--param` value will be used: {conflicting_keys}"
         )
-    parameters = {**multi_params, **cli_params}
+    parameters: dict[str, Any] = {**multi_params, **cli_params}
 
-    job_vars = _load_json_key_values(job_variables or [], "job variable")
+    job_vars: dict[str, Any] = _load_json_key_values(
+        job_variables or [], "job variable"
+    )
     if start_in and start_at:
         exit_with_error(
             "Only one of `--start-in` or `--start-at` can be set, not both."
@@ -745,8 +791,11 @@ async def run(
     else:
         if start_in:
             start_time_raw = "in " + start_in
-        else:
+        elif start_at:
             start_time_raw = "at " + start_at
+        else:
+            exit_with_error("No start time specified")
+
         with warnings.catch_warnings():
             # PyTZ throws a warning based on dateparser usage of the library
             # See https://github.com/scrapinghub/dateparser/issues/1089
@@ -780,6 +829,8 @@ async def run(
         deployment = await get_deployment(client, name, deployment_id)
         flow = await client.read_flow(deployment.flow_id)
 
+        if TYPE_CHECKING:
+            assert deployment.parameter_openapi_schema is not None
         deployment_parameters = deployment.parameter_openapi_schema["properties"].keys()
         unknown_keys = set(parameters.keys()).difference(deployment_parameters)
         if unknown_keys:
@@ -821,12 +872,11 @@ async def run(
 
     run_url = urls.url_for(flow_run) or "<no dashboard available>"
     datetime_local_tz = scheduled_start_time.in_tz(pendulum.tz.local_timezone())
-    scheduled_display = (
-        datetime_local_tz.to_datetime_string()
-        + " "
-        + datetime_local_tz.tzname()
-        + human_dt_diff
-    )
+    scheduled_display = datetime_local_tz.to_datetime_string()
+    tz_name = datetime_local_tz.tzname()
+    if tz_name:
+        scheduled_display += " " + tz_name
+    scheduled_display += human_dt_diff
 
     app.console.print(f"Created flow run {flow_run.name!r}.")
     app.console.print(
@@ -851,6 +901,8 @@ async def run(
             log_states=True,
         )
         finished_flow_run_state = finished_flow_run.state
+        if finished_flow_run_state is None:
+            exit_with_error("Flow run finished in an unknown state.")
         if finished_flow_run_state.is_completed():
             exit_with_success(
                 f"Flow run finished successfully in {finished_flow_run_state.name!r}."
@@ -866,7 +918,7 @@ async def delete(
     name: Optional[str] = typer.Argument(
         None, help="A deployed flow's name: <FLOW_NAME>/<DEPLOYMENT_NAME>"
     ),
-    deployment_id: Optional[str] = typer.Option(
+    deployment_id: Optional[UUID] = typer.Option(
         None, "--id", help="A deployment id to search for if no name is given"
     ),
 ):
@@ -910,8 +962,8 @@ async def delete(
 
 
 def _load_json_key_values(
-    cli_input: List[str], display_name: str
-) -> Dict[str, Union[dict, str, int]]:
+    cli_input: list[str], display_name: str
+) -> dict[str, dict[str, Any] | str | int]:
     """
     Parse a list of strings formatted as "key=value" where the value is loaded as JSON.
 
@@ -932,7 +984,7 @@ def _load_json_key_values(
     Returns:
         A mapping of keys -> parsed values
     """
-    parsed = {}
+    parsed: dict[str, dict[str, Any] | str | int] = {}
 
     def cast_value(value: str) -> Any:
         """Cast the value from a string to a valid JSON type; add quotes for the user
