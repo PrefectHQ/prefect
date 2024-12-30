@@ -977,21 +977,11 @@ class Task(Generic[P, R]):
     ) -> State[T]:
         ...
 
-    @overload
-    def __call__(
-        self: "Task[P, T]",
-        *args: P.args,
-        return_state: Literal[False],
-        wait_for: Optional[Iterable[Union[PrefectFuture[T], T]]] = None,
-        **kwargs: P.kwargs,
-    ) -> T:
-        ...
-
     def __call__(
         self,
         *args: P.args,
         return_state: bool = False,
-        wait_for: Optional[Iterable[Union[PrefectFuture[R], R]]] = None,
+        wait_for: Optional[Iterable[Union[PrefectFuture[T], T]]] = None,
         **kwargs: P.kwargs,
     ):
         """
