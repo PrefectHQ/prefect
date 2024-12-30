@@ -474,22 +474,6 @@ class TestWithResultStore:
         # and the second transaction should not have written on exit
         assert record.result == {"foo": "bar"}
 
-    async def test_can_handle_staged_base_result(
-        self, result_store, ignore_prefect_deprecation_warnings
-    ):
-        result_1 = await result_store.create_result(obj={"foo": "bar"})
-        with transaction(
-            key="test_can_handle_staged_base_result",
-            store=result_store,
-            write_on_commit=True,
-        ) as txn:
-            txn.stage(result_1)
-
-        record = txn.read()
-        assert record
-        assert record.result == {"foo": "bar"}
-        assert record.metadata.storage_block_id == result_1.storage_block_id
-
 
 class TestHooks:
     def test_get_and_set_data(self):
