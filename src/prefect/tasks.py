@@ -74,7 +74,7 @@ if TYPE_CHECKING:
     from prefect.context import TaskRunContext
     from prefect.transactions import Transaction
 
-T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
+T = TypeVar("T")
 R = TypeVar("R")  # The return type of the user's function
 P = ParamSpec("P")  # The parameters of the task
 
@@ -82,7 +82,7 @@ NUM_CHARS_DYNAMIC_KEY = 8
 
 logger = get_logger("tasks")
 
-_FutureOrResult: TypeAlias = Union[PrefectFuture[Any], Any]
+_FutureOrResult: TypeAlias = Union[PrefectFuture[T], T]
 
 
 def task_input_hash(
@@ -1026,53 +1026,68 @@ class Task(Generic[P, R]):
 
     @overload
     def submit(
-        self: "Task[P, NoReturn]",
+        self: "Task[P, R]",
+        wait_for: Optional[
+            Union[_FutureOrResult[T], Iterable[_FutureOrResult[T]]]
+        ] = None,
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> PrefectFuture[NoReturn]:
-        # `NoReturn` matches if a type can't be inferred for the function which stops a
-        # sync function from matching the `Coroutine` overload
+    ) -> PrefectFuture[R]:
         ...
 
     @overload
     def submit(
-        self: "Task[P, Coroutine[Any, Any, T]]",
+        self: "Task[P, Coroutine[Any, Any, R]]",
         *args: P.args,
+        wait_for: Optional[
+            Union[_FutureOrResult[T], Iterable[_FutureOrResult[T]]]
+        ] = None,
         **kwargs: P.kwargs,
-    ) -> PrefectFuture[T]:
+    ) -> PrefectFuture[R]:
         ...
 
     @overload
     def submit(
-        self: "Task[P, T]",
+        self: "Task[P, R]",
         *args: P.args,
+        wait_for: Optional[
+            Union[_FutureOrResult[T], Iterable[_FutureOrResult[T]]]
+        ] = None,
         **kwargs: P.kwargs,
-    ) -> PrefectFuture[T]:
+    ) -> PrefectFuture[R]:
         ...
 
     @overload
     def submit(
-        self: "Task[P, Coroutine[Any, Any, T]]",
+        self: "Task[P, Coroutine[Any, Any, R]]",
         *args: P.args,
         return_state: Literal[True],
+        wait_for: Optional[
+            Union[_FutureOrResult[T], Iterable[_FutureOrResult[T]]]
+        ] = None,
         **kwargs: P.kwargs,
-    ) -> State[T]:
+    ) -> State[R]:
         ...
 
     @overload
     def submit(
-        self: "Task[P, T]",
+        self: "Task[P, R]",
         *args: P.args,
         return_state: Literal[True],
+        wait_for: Optional[
+            Union[_FutureOrResult[T], Iterable[_FutureOrResult[T]]]
+        ] = None,
         **kwargs: P.kwargs,
-    ) -> State[T]:
+    ) -> State[R]:
         ...
 
     def submit(
         self,
         *args: Any,
         return_state: bool = False,
-        wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
+        wait_for: Optional[
+            Union[_FutureOrResult[T], Iterable[_FutureOrResult[T]]]
+        ] = None,
         **kwargs: Any,
     ):
         """
