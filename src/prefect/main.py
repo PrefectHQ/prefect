@@ -49,10 +49,9 @@ prefect.logging.get_logger("profiles").debug(
 )
 
 # Configure telemetry
-if not os.environ.get("PREFECT__ENABLE_OSS_TELEMETRY"):
-    import prefect.telemetry.bootstrap
+import prefect.telemetry.bootstrap
 
-    prefect.telemetry.bootstrap.setup_telemetry()
+prefect.telemetry.bootstrap.setup_telemetry()
 
 
 from prefect._internal.compatibility.deprecated import (

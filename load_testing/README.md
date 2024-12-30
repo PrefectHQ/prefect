@@ -59,7 +59,6 @@ export OTEL_TRACES_EXPORTER=otlp
 export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 export OTEL_EXPORTER_OTLP_PROTOCOL=grpc
 export OTEL_LOG_LEVEL=debug
-export PREFECT__ENABLE_OSS_TELEMETRY=true
 export PYTHONPATH=/Users/nate/github.com/prefecthq/prefect/src
 ```
 

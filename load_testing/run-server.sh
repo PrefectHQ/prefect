@@ -77,7 +77,6 @@ OTEL_TRACES_EXPORTER=otlp \
 OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317 \
 OTEL_EXPORTER_OTLP_PROTOCOL=grpc \
 OTEL_LOG_LEVEL=debug \
-PREFECT__ENABLE_OSS_TELEMETRY=true \
 PYTHONPATH=/Users/nate/github.com/prefecthq/prefect/src \
   opentelemetry-instrument \
   uvicorn \
