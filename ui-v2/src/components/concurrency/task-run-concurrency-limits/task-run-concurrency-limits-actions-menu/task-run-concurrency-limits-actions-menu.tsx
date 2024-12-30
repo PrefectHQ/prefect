@@ -10,7 +10,7 @@ import { Icon } from "@/components/ui/icons";
 import { useToast } from "@/hooks/use-toast";
 
 type Props = {
-	id: string | undefined;
+	id: string;
 	onDelete: () => void;
 	onReset: () => void;
 };
@@ -22,10 +22,7 @@ export const TaskRunConcurrencyLimitsActionsMenu = ({
 }: Props) => {
 	const { toast } = useToast();
 
-	const handleCopyId = (id: string | undefined) => {
-		if (!id) {
-			throw new Error("'id' field expected in GlobalConcurrencyLimit");
-		}
+	const handleCopyId = (id: string) => {
 		void navigator.clipboard.writeText(id);
 		toast({ title: "ID copied" });
 	};

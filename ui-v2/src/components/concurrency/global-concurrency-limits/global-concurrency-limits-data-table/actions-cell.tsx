@@ -19,10 +19,7 @@ type Props = CellContext<GlobalConcurrencyLimit, unknown> & {
 export const ActionsCell = ({ onEditRow, onDeleteRow, ...props }: Props) => {
 	const { toast } = useToast();
 
-	const handleCopyId = (id: string | undefined) => {
-		if (!id) {
-			throw new Error("'id' field expected in GlobalConcurrencyLimit");
-		}
+	const handleCopyId = (id: string) => {
 		void navigator.clipboard.writeText(id);
 		toast({ title: "ID copied" });
 	};
