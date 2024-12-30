@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 import pytest
 
+from prefect import flow
 from prefect._experimental.lineage import (
     emit_lineage_event,
     emit_result_read_event,
@@ -132,11 +133,11 @@ class TestEmitLineageEvent:
             downstream_resources=[
                 {
                     "prefect.resource.id": "downstream1",
-                    "prefect.resource.lineage-group": "global",
+                    "prefect.resource.role": "some-purpose",
                 },
                 {
                     "prefect.resource.id": "downstream2",
-                    "prefect.resource.lineage-group": "global",
+                    "prefect.resource.role": "some-purpose",
                 },
             ],
         )
@@ -149,15 +150,18 @@ class TestEmitLineageEvent:
         assert first_call.kwargs["resource"] == {
             "prefect.resource.id": "downstream1",
             "prefect.resource.lineage-group": "global",
+            "prefect.resource.role": "some-purpose",
         }
         assert first_call.kwargs["related"] == [
             {
                 "prefect.resource.id": "upstream1",
                 "prefect.resource.role": "some-purpose",
+                "prefect.resource.lineage-group": "global",
             },
             {
                 "prefect.resource.id": "upstream2",
                 "prefect.resource.role": "some-purpose",
+                "prefect.resource.lineage-group": "global",
             },
         ]
 
@@ -167,15 +171,18 @@ class TestEmitLineageEvent:
         assert second_call.kwargs["resource"] == {
             "prefect.resource.id": "downstream2",
             "prefect.resource.lineage-group": "global",
+            "prefect.resource.role": "some-purpose",
         }
         assert second_call.kwargs["related"] == [
             {
                 "prefect.resource.id": "upstream1",
                 "prefect.resource.role": "some-purpose",
+                "prefect.resource.lineage-group": "global",
             },
             {
                 "prefect.resource.id": "upstream2",
                 "prefect.resource.role": "some-purpose",
+                "prefect.resource.lineage-group": "global",
             },
         ]
 
@@ -197,7 +204,6 @@ class TestEmitLineageEvent:
             downstream_resources=[
                 {
                     "prefect.resource.id": "downstream",
-                    "prefect.resource.lineage-group": "global",
                     "prefect.resource.role": "result",
                 }
             ],
@@ -235,6 +241,7 @@ class TestEmitResultEvents:
                 root={
                     "prefect.resource.id": resource_uri,
                     "prefect.resource.role": "result",
+                    "prefect.resource.lineage-group": "global",
                 }
             )
         ]
@@ -242,7 +249,11 @@ class TestEmitResultEvents:
     async def test_emit_result_write_event(
         self, result_store, enable_lineage_events, mock_emit_event
     ):
-        await emit_result_write_event(result_store, "test-key")
+        @flow
+        async def foo():
+            await emit_result_write_event(result_store, "test-key")
+
+        await foo()
 
         mock_emit_event.assert_called_once()
         call_args = mock_emit_event.call_args.kwargs
@@ -252,7 +263,15 @@ class TestEmitResultEvents:
             "prefect.resource.lineage-group": "global",
             "prefect.resource.role": "result",
         }
-        assert call_args["related"] == []
+        assert len(call_args["related"]) == 2
+
+        related = call_args["related"][0]
+        assert related["prefect.resource.role"] == "flow-run"
+        assert related["prefect.resource.lineage-group"] == "global"
+
+        related = call_args["related"][1]
+        assert related["prefect.resource.role"] == "flow"
+        assert related["prefect.resource.lineage-group"] == "global"
 
     async def test_emit_result_read_event_with_none_uri(
         self, enable_lineage_events, mock_emit_event
@@ -305,6 +324,7 @@ class TestEmitResultEvents:
                     root={
                         "prefect.resource.id": resource_uri,
                         "prefect.resource.role": "result",
+                        "prefect.resource.lineage-group": "global",
                     }
                 )
             ]
@@ -334,6 +354,10 @@ class TestEmitResultEvents:
                 "prefect.resource.role": "result",
             },
             related=[
-                {"prefect.resource.id": "upstream", "prefect.resource.role": "my-role"},
+                {
+                    "prefect.resource.id": "upstream",
+                    "prefect.resource.role": "my-role",
+                    "prefect.resource.lineage-group": "global",
+                }
             ],
         )

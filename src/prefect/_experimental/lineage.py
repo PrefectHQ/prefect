@@ -86,18 +86,18 @@ async def emit_lineage_event(
     else:
         upstream_resources.extend(related_resources)
 
+    # We want to consider all resources upstream and downstream of the event as
+    # lineage-related, including flows, flow runs, etc., so we add the label to
+    # all resources involved in the event.
+    for res in upstream_resources + downstream_resources:
+        if "prefect.resource.lineage-group" not in res:
+            res["prefect.resource.lineage-group"] = "global"
+
     # Emit an event for each downstream resource. This is necessary because
     # our event schema allows one primary resource and many related resources,
     # and for the purposes of lineage, related resources can only represent
     # upstream resources.
     for resource in downstream_resources:
-        # Downstream lineage resources need to have the
-        # prefect.resource.lineage-group label. All upstram resources from a
-        # downstream resource with this label will be considered lineage-related
-        # resources.
-        if "prefect.resource.lineage-group" not in resource:
-            resource["prefect.resource.lineage-group"] = "global"
-
         emit_kwargs: Dict[str, Any] = {
             "event": event_name,
             "resource": resource,
@@ -170,7 +170,6 @@ async def emit_result_write_event(
             {
                 "prefect.resource.id": result_resource_uri,
                 "prefect.resource.role": "result",
-                "prefect.resource.lineage-group": "global",
             }
         ]
         await emit_lineage_event(
