@@ -5,7 +5,8 @@ Custom Prefect CLI types
 import asyncio
 import functools
 import sys
-from typing import Callable, List, Optional
+from typing import Any, Callable, Concatenate, List, Optional, TypeVar
+from typing_extensions import ParamSpec
 
 import typer
 from rich.console import Console
@@ -16,33 +17,22 @@ from prefect.cli._utilities import with_cli_exception_handling
 from prefect.settings import PREFECT_CLI_COLORS, Setting
 from prefect.utilities.asyncutils import is_async_fn
 
-
-def SettingsOption(setting: Setting, *args, **kwargs) -> typer.Option:
-    """Custom `typer.Option` factory to load the default value from settings"""
-
-    return typer.Option(
-        # The default is dynamically retrieved
-        setting.value,
-        *args,
-        # Typer shows "(dynamic)" by default. We'd like to actually show the value
-        # that would be used if the parameter is not specified and a reference if the
-        # source is from the environment or profile, but typer does not support this
-        # yet. See https://github.com/tiangolo/typer/issues/354
-        show_default=f"from {setting.name}",
-        **kwargs,
-    )
+P = ParamSpec("P")
+T = TypeVar("T")
 
 
-def SettingsArgument(setting: Setting, *args, **kwargs) -> typer.Argument:
-    """Custom `typer.Argument` factory to load the default value from settings"""
+def with_settings(
+    func: Callable[Concatenate[Any, P], T],
+) -> Callable[Concatenate[Setting, P], T]:
+    @functools.wraps(func)
+    def wrapper(setting: Setting, *args: P.args, **kwargs: P.kwargs) -> T:
+        kwargs.update({"show_default": f"from {setting.name}"})
+        return func(setting.value, *args, **kwargs)
 
-    # See comments in `SettingsOption`
-    return typer.Argument(
-        setting.value,
-        *args,
-        show_default=f"from {setting.name}",
-        **kwargs,
-    )
+    return wrapper
+
+
+SettingsOption = with_settings(typer.Option)
 
 
 def with_deprecated_message(warning: str):
