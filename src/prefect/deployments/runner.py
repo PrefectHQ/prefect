@@ -41,6 +41,7 @@ from pydantic import (
     ConfigDict,
     Field,
     PrivateAttr,
+    field_validator,
     model_validator,
 )
 from rich.console import Console
@@ -219,6 +220,14 @@ class RunnerDeployment(BaseModel):
     @property
     def entrypoint_type(self) -> EntrypointType:
         return self._entrypoint_type
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def validate_name(cls, value: str) -> str:
+        if value.startswith("."):  # see 16551
+            return value
+
+        return Path(value).stem
 
     @model_validator(mode="after")
     def validate_automation_names(self):
@@ -508,7 +517,7 @@ class RunnerDeployment(BaseModel):
             concurrency_options = None
 
         deployment = cls(
-            name=Path(name).stem,
+            name=name,
             flow_name=flow.name,
             schedules=constructed_schedules,
             concurrency_limit=concurrency_limit,
