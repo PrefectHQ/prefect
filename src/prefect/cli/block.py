@@ -2,11 +2,13 @@
 Command line interface for working with blocks.
 """
 
+from __future__ import annotations
+
 import inspect
 from importlib import import_module
 from pathlib import Path
 from types import ModuleType
-from typing import TYPE_CHECKING, Any, List, Optional, Type
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import typer
@@ -146,7 +148,7 @@ async def _register_blocks_in_module(module: ModuleType) -> list[type[Block]]:
     return registered_blocks
 
 
-def _build_registered_blocks_table(registered_blocks: List[Type[Block]]):
+def _build_registered_blocks_table(registered_blocks: list[type[Block]]) -> Table:
     table = Table("Registered Blocks")
     for block in registered_blocks:
         table.add_row(block.get_block_type_name())
@@ -155,13 +157,13 @@ def _build_registered_blocks_table(registered_blocks: List[Type[Block]]):
 
 @blocks_app.command()
 async def register(
-    module_name: Optional[str] = typer.Option(
+    module_name: str | None = typer.Option(
         None,
         "--module",
         "-m",
         help="Python module containing block types to be registered",
     ),
-    file_path: Optional[Path] = typer.Option(
+    file_path: Path | None = typer.Option(
         None,
         "--file",
         "-f",
@@ -279,10 +281,10 @@ async def block_ls():
 
 @blocks_app.command("delete")
 async def block_delete(
-    slug: Optional[str] = typer.Argument(
+    slug: str | None = typer.Argument(
         None, help="A block slug. Formatted as '<BLOCK_TYPE_SLUG>/<BLOCK_NAME>'"
     ),
-    block_id: Optional[UUID] = typer.Option(None, "--id", help="A block id."),
+    block_id: UUID | None = typer.Option(None, "--id", help="A block id."),
 ):
     """
     Delete a configured block.
@@ -357,10 +359,10 @@ async def block_create(
 
 @blocks_app.command("inspect")
 async def block_inspect(
-    slug: Optional[str] = typer.Argument(
+    slug: str | None = typer.Argument(
         None, help="A Block slug: <BLOCK_TYPE_SLUG>/<BLOCK_NAME>"
     ),
-    block_id: Optional[UUID] = typer.Option(
+    block_id: UUID | None = typer.Option(
         None, "--id", help="A Block id to search for if no slug is given"
     ),
 ):

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, cast
 
 import toml
 import typer
@@ -36,7 +36,7 @@ app.add_typer(config_app)
 
 
 @config_app.command("set")
-def set_(settings: List[str]):
+def set_(settings: list[str]):
     """
     Change the value for a setting by setting the value in the current profile.
     """
@@ -99,7 +99,7 @@ def validate():
 
 
 @config_app.command()
-def unset(setting_names: List[str], confirm: bool = typer.Option(False, "--yes", "-y")):
+def unset(setting_names: list[str], confirm: bool = typer.Option(False, "--yes", "-y")):
     """
     Restore the default value for a setting.
 
@@ -171,15 +171,15 @@ the defaults.
 
 @config_app.command()
 def view(
-    show_defaults: Optional[bool] = typer.Option(
+    show_defaults: bool = typer.Option(
         False, "--show-defaults/--hide-defaults", help=(show_defaults_help)
     ),
-    show_sources: Optional[bool] = typer.Option(
+    show_sources: bool = typer.Option(
         True,
         "--show-sources/--hide-sources",
         help=(show_sources_help),
     ),
-    show_secrets: Optional[bool] = typer.Option(
+    show_secrets: bool = typer.Option(
         False,
         "--show-secrets/--hide-secrets",
         help="Toggle display of secrets setting values.",
@@ -219,10 +219,10 @@ def view(
         settings_output.append(f"{setting.name}='{display_value}'{source_blurb}")
         processed_settings.add(setting.name)
 
-    def _collect_defaults(default_values: Dict[str, Any], current_path: List[str]):
+    def _collect_defaults(default_values: dict[str, Any], current_path: list[str]):
         for key, value in default_values.items():
             if isinstance(value, dict):
-                _collect_defaults(cast(Dict[str, Any], value), current_path + [key])
+                _collect_defaults(cast(dict[str, Any], value), current_path + [key])
             else:
                 setting = _get_settings_fields(prefect.settings.Settings)[
                     ".".join(current_path + [key])
@@ -232,14 +232,14 @@ def view(
                 _process_setting(setting, value, "defaults")
 
     def _process_toml_settings(
-        settings: Dict[str, Any],
-        base_path: List[str],
+        settings: dict[str, Any],
+        base_path: list[str],
         source: Literal["prefect.toml", "pyproject.toml"],
     ):
         for key, value in settings.items():
             if isinstance(value, dict):
                 _process_toml_settings(
-                    cast(Dict[str, Any], value), base_path + [key], source
+                    cast(dict[str, Any], value), base_path + [key], source
                 )
             else:
                 setting = _get_settings_fields(prefect.settings.Settings).get(
