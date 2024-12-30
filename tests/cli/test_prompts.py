@@ -45,24 +45,24 @@ class TestDiscoverFlows:
                 ),
             },
             {
-                "flow_name": "my_flow",
+                "flow_name": "An important name",
                 "function_name": "my_flow",
                 "filepath": str(project_dir / "flows" / "hello.py"),
             },
             {
-                "flow_name": "my_flow2",
+                "flow_name": "Second important name",
                 "function_name": "my_flow2",
                 "filepath": str(project_dir / "flows" / "hello.py"),
             },
             {
-                "flow_name": "prod_flow",
+                "flow_name": "test",
                 "function_name": "prod_flow",
                 "filepath": str(
                     project_dir / "import-project" / "my_module" / "flow.py"
                 ),
             },
             {
-                "flow_name": "test_flow",
+                "flow_name": "test",
                 "function_name": "test_flow",
                 "filepath": str(
                     project_dir / "import-project" / "my_module" / "flow.py"
@@ -75,8 +75,11 @@ class TestDiscoverFlows:
             },
         ]
 
-        assert sorted(flows, key=lambda x: (x["flow_name"], x["filepath"])) == sorted(
-            expected_flows, key=lambda x: (x["flow_name"], x["filepath"])
+        assert sorted(
+            expected_flows,
+            key=lambda x: (x["flow_name"], x["function_name"], x["filepath"]),
+        ) == sorted(
+            flows, key=lambda x: (x["flow_name"], x["function_name"], x["filepath"])
         )
 
     async def test_find_all_flows_works_on_large_directory_structures(self):
