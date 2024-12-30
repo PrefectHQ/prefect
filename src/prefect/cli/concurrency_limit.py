@@ -27,7 +27,10 @@ concurrency_limit_app = PrefectTyper(
     name="concurrency-limit",
     help="Manage task-level concurrency limits.",
 )
-app.add_typer(concurrency_limit_app, aliases=["concurrency-limits"])
+app.add_typer(concurrency_limit_app, no_args_is_help=True)
+app.add_typer(
+    concurrency_limit_app, name="concurrency-limits", hidden=True, no_args_is_help=True
+)
 
 
 @concurrency_limit_app.command()

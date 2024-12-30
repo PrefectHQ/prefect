@@ -29,7 +29,7 @@ from prefect.utilities.processutils import (
 from prefect.workers.base import BaseWorker
 
 worker_app = PrefectTyper(name="worker", help="Start and interact with workers.")
-app.add_typer(worker_app)
+app.add_typer(worker_app, no_args_is_help=True)
 
 
 class InstallPolicy(str, Enum):

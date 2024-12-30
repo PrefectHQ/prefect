@@ -25,7 +25,8 @@ automations_app = PrefectTyper(
     name="automation",
     help="Manage automations.",
 )
-app.add_typer(automations_app, aliases=["automations"])
+app.add_typer(automations_app, no_args_is_help=True)
+app.add_typer(automations_app, name="automations", hidden=True, no_args_is_help=True)
 
 
 def requires_automations(func):

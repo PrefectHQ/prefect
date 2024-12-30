@@ -51,8 +51,9 @@ cloud_app = PrefectTyper(
 workspace_app = PrefectTyper(
     name="workspace", help="View and set Prefect Cloud Workspaces"
 )
-cloud_app.add_typer(workspace_app, aliases=["workspaces"])
-app.add_typer(cloud_app)
+cloud_app.add_typer(workspace_app, no_args_is_help=True)
+cloud_app.add_typer(workspace_app, name="workspaces", hidden=True, no_args_is_help=True)
+app.add_typer(cloud_app, no_args_is_help=True)
 
 
 def set_login_api_ready_event():

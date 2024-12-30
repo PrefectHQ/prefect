@@ -48,8 +48,8 @@ server_app = PrefectTyper(
     help="Start a Prefect server instance and interact with the database",
 )
 database_app = PrefectTyper(name="database", help="Interact with the database.")
-server_app.add_typer(database_app)
-app.add_typer(server_app)
+server_app.add_typer(database_app, no_args_is_help=True)
+app.add_typer(server_app, no_args_is_help=True)
 
 logger = get_logger(__name__)
 

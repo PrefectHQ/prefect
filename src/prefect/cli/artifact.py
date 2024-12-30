@@ -14,7 +14,7 @@ from prefect.client.schemas.sorting import ArtifactCollectionSort, ArtifactSort
 from prefect.exceptions import ObjectNotFound
 
 artifact_app = PrefectTyper(name="artifact", help="Inspect and delete artifacts.")
-app.add_typer(artifact_app)
+app.add_typer(artifact_app, no_args_is_help=True)
 
 
 @artifact_app.command("ls")

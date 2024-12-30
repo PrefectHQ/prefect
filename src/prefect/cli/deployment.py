@@ -59,8 +59,12 @@ yaml.representer.SafeRepresenter.add_representer(str, str_presenter)
 deployment_app = PrefectTyper(name="deployment", help="Manage deployments.")
 schedule_app = PrefectTyper(name="schedule", help="Manage deployment schedules.")
 
-deployment_app.add_typer(schedule_app, aliases=["schedule"])
-app.add_typer(deployment_app, aliases=["deployments"])
+deployment_app.add_typer(schedule_app, no_args_is_help=True)
+deployment_app.add_typer(
+    schedule_app, name="schedule", hidden=True, no_args_is_help=True
+)
+app.add_typer(deployment_app, no_args_is_help=True)
+app.add_typer(deployment_app, name="deployments", hidden=True, no_args_is_help=True)
 
 
 def assert_deployment_name_format(name: str) -> None:

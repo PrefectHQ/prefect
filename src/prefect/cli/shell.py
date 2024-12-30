@@ -28,7 +28,7 @@ from prefect.types.entrypoint import EntrypointType
 shell_app = PrefectTyper(
     name="shell", help="Serve and watch shell commands as Prefect flows."
 )
-app.add_typer(shell_app)
+app.add_typer(shell_app, no_args_is_help=True)
 
 
 def output_stream(pipe, logger_function):

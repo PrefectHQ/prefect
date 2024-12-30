@@ -20,7 +20,8 @@ from prefect.runner import Runner
 from prefect.utilities import urls
 
 flow_app = PrefectTyper(name="flow", help="View and serve flows.")
-app.add_typer(flow_app, aliases=["flows"])
+app.add_typer(flow_app, no_args_is_help=True)
+app.add_typer(flow_app, name="flows", hidden=True, no_args_is_help=True)
 
 
 @flow_app.command()

@@ -23,7 +23,8 @@ from prefect.client.schemas.sorting import LogSort, TaskRunSort
 from prefect.exceptions import ObjectNotFound
 
 task_run_app = PrefectTyper(name="task-run", help="View and inspect task runs.")
-app.add_typer(task_run_app, aliases=["task-runs"])
+app.add_typer(task_run_app, no_args_is_help=True)
+app.add_typer(task_run_app, name="task-runs", hidden=True, no_args_is_help=True)
 
 LOGS_DEFAULT_PAGE_SIZE = 200
 LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS = 20

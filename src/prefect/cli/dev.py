@@ -38,7 +38,7 @@ to function properly.
 dev_app = PrefectTyper(
     name="dev", short_help="Internal Prefect development.", help=DEV_HELP
 )
-app.add_typer(dev_app)
+app.add_typer(dev_app, no_args_is_help=True)
 
 
 def exit_with_error_if_not_editable_install():

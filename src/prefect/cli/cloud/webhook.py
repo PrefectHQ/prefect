@@ -17,7 +17,8 @@ from prefect.exceptions import ObjectNotFound
 from prefect.settings import PREFECT_API_URL
 
 webhook_app = PrefectTyper(name="webhook", help="Manage Prefect Cloud Webhooks")
-cloud_app.add_typer(webhook_app, aliases=["webhooks"])
+cloud_app.add_typer(webhook_app, no_args_is_help=True)
+cloud_app.add_typer(webhook_app, name="webhooks", hidden=True, no_args_is_help=True)
 
 
 def _render_webhooks_into_table(webhooks: List[Dict[str, str]]) -> Table:

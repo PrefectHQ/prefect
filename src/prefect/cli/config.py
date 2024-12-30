@@ -26,7 +26,7 @@ help_message = """
 """
 VALID_SETTING_NAMES = _get_valid_setting_names(prefect.settings.Settings)
 config_app = PrefectTyper(name="config", help=help_message)
-app.add_typer(config_app)
+app.add_typer(config_app, no_args_is_help=True)
 
 
 @config_app.command("set")

@@ -33,7 +33,8 @@ from prefect.workers.utilities import (
 )
 
 work_pool_app = PrefectTyper(name="work-pool", help="Manage work pools.")
-app.add_typer(work_pool_app, aliases=["work-pool"])
+app.add_typer(work_pool_app, no_args_is_help=True)
+app.add_typer(work_pool_app, name="work-pools", hidden=True, no_args_is_help=True)
 
 
 def set_work_pool_as_default(name: str):
