@@ -514,10 +514,10 @@ class ResultStore(BaseModel):
                 (metadata.storage_key,),
                 {},
             )
-            result_record: ResultRecord[Any] = (
-                ResultRecord.deserialize_from_result_and_metadata(
-                    result=result_content, metadata=metadata_content
-                )
+            result_record: ResultRecord[
+                Any
+            ] = ResultRecord.deserialize_from_result_and_metadata(
+                result=result_content, metadata=metadata_content
             )
             await emit_result_read_event(self, resolved_key_path)
         else:
