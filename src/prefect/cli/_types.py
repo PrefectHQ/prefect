@@ -43,7 +43,7 @@ def with_settings(
 SettingsOption = with_settings(typer.Option)
 
 
-class _WrappedCallable(Protocol[P, T]):
+class WrappedCallable(Protocol[P, T]):
     __wrapped__: Callable[P, T]
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> T: ...
