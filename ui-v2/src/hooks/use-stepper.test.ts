@@ -50,38 +50,6 @@ describe("useStepper()", () => {
 		expect(result.current.currentStep).toEqual(0);
 	});
 
-	it("getIsCurrentStep() returns true if its the correct step", () => {
-		// Setup
-		const { result } = renderHook(() => useStepper(TOTAL_NUM_STEPS));
-
-		// Asserts
-		expect(result.current.getIsCurrentStep(0)).toBe(true);
-	});
-	it("getIsCurrentStep() returns false if its the correct step", () => {
-		// Setup
-		const { result } = renderHook(() => useStepper(TOTAL_NUM_STEPS));
-
-		// Asserts
-		expect(result.current.getIsCurrentStep(1)).toBe(false);
-	});
-
-	it("getIsStepCompleted() returns true if the step has been passed", () => {
-		// Setup
-		const { result } = renderHook(() => useStepper(TOTAL_NUM_STEPS, 1));
-
-		// Asserts
-		expect(result.current.getIsStepCompleted(0)).toBe(true);
-	});
-
-	it("getIsStepCompleted() returns false if the step has not been passed", () => {
-		// Setup
-		const { result } = renderHook(() => useStepper(TOTAL_NUM_STEPS, 1));
-
-		// Asserts
-		expect(result.current.getIsStepCompleted(1)).toBe(false);
-		expect(result.current.getIsStepCompleted(2)).toBe(false);
-	});
-
 	it("isFinalStep returns true if its the final step", () => {
 		// Setup
 		const { result } = renderHook(() => useStepper(TOTAL_NUM_STEPS, 2));
@@ -127,5 +95,37 @@ describe("useStepper()", () => {
 
 		// Asserts
 		expect(result.current.currentStep).toEqual(1);
+	});
+
+	it("completedStepsSet returns set of steps that has been completed", () => {
+		// Setup
+		const { result } = renderHook(() => useStepper(TOTAL_NUM_STEPS));
+
+		// Update State
+		// Finish step 0
+		act(() => result.current.incrementStep());
+		// Finish Step 1
+		act(() => result.current.incrementStep());
+
+		// Asserts
+		expect(result.current.completedStepsSet.has(0)).toBe(true);
+		expect(result.current.completedStepsSet.has(1)).toBe(true);
+		expect(result.current.completedStepsSet.has(2)).toBe(false);
+	});
+
+	it("visitedStepsSet returns set of steps that has been visited", () => {
+		// Setup
+		const { result } = renderHook(() => useStepper(TOTAL_NUM_STEPS));
+
+		// Update State
+		// Visit step 1
+		act(() => result.current.incrementStep());
+		// Visit step 2
+		act(() => result.current.incrementStep());
+
+		// Asserts
+		expect(result.current.visitedStepsSet.has(0)).toBe(true);
+		expect(result.current.visitedStepsSet.has(1)).toBe(true);
+		expect(result.current.visitedStepsSet.has(2)).toBe(true);
 	});
 });
