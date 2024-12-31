@@ -12,13 +12,14 @@ import textwrap
 import time
 from functools import partial
 from string import Template
-from typing import Any, Awaitable, Optional, cast
+from typing import Any, Awaitable, Callable, Optional, cast
+from typing import Protocol
 
 import anyio
 import typer
 
 import prefect
-from prefect.cli._types import PrefectTyper, SettingsOption, WrappedCallable
+from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.settings import (
@@ -201,6 +202,10 @@ async def api(
             stop_event.set()
 
 
+class WrappedCallable(Protocol):
+    __wrapped__: Callable[..., Awaitable[None]]
+
+
 @dev_app.acommand()
 async def start(
     exclude_api: bool = typer.Option(False, "--no-api"),
@@ -212,13 +217,11 @@ async def start(
     Each service has an individual command if you wish to start them separately.
     Each service can be excluded here as well.
     """
-    registry = cast(
-        dict[str, WrappedCallable[[Any], Awaitable[None]]],
-        {
-            getattr(x.callback, "__name__", None): x.callback
-            for x in dev_app.registered_commands
-        },
-    )
+    registry: dict[str, WrappedCallable] = {
+        getattr(x.callback, "__name__", None): x.callback
+        for x in dev_app.registered_commands
+    }  # type:ignore
+
     async with anyio.create_task_group() as tg:
         if not exclude_api:
             tg.start_soon(
