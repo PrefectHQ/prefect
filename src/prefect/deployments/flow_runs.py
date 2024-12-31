@@ -10,7 +10,7 @@ from prefect.client.schemas import FlowRun
 from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.logging import get_logger
-from prefect.results import BaseResult, ResultRecordMetadata
+from prefect.results import ResultRecordMetadata
 from prefect.states import Pending, Scheduled
 from prefect.tasks import Task
 from prefect.telemetry.run_telemetry import (
@@ -25,7 +25,6 @@ if TYPE_CHECKING:
 
 prefect.client.schemas.StateCreate.model_rebuild(
     _types_namespace={
-        "BaseResult": BaseResult,
         "ResultRecordMetadata": ResultRecordMetadata,
     }
 )
