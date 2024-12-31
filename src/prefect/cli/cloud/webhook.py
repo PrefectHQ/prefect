@@ -40,7 +40,7 @@ def _render_webhooks_into_table(webhooks: List[Dict[str, str]]) -> Table:
     return display_table
 
 
-@webhook_app.command()
+@webhook_app.acommand()
 async def ls():
     """
     Fetch and list all webhooks in your workspace
@@ -54,7 +54,7 @@ async def ls():
         app.console.print(display_table)
 
 
-@webhook_app.command()
+@webhook_app.acommand()
 async def get(webhook_id: UUID):
     """
     Retrieve a webhook by ID.
@@ -68,7 +68,7 @@ async def get(webhook_id: UUID):
         app.console.print(display_table)
 
 
-@webhook_app.command()
+@webhook_app.acommand()
 async def create(
     webhook_name: str,
     description: str = typer.Option(
@@ -106,7 +106,7 @@ async def create(
         app.console.print(f'Successfully created webhook {response["name"]}')
 
 
-@webhook_app.command()
+@webhook_app.acommand()
 async def rotate(webhook_id: UUID):
     """
     Rotate url for an existing Cloud webhook, in case it has been compromised
@@ -126,7 +126,7 @@ async def rotate(webhook_id: UUID):
         app.console.print(f'Successfully rotated webhook URL to {response["slug"]}')
 
 
-@webhook_app.command()
+@webhook_app.acommand()
 async def toggle(
     webhook_id: UUID,
 ):
@@ -148,7 +148,7 @@ async def toggle(
         app.console.print(f"Webhook is now {status_lookup[new_status]}")
 
 
-@webhook_app.command()
+@webhook_app.acommand()
 async def update(
     webhook_id: UUID,
     webhook_name: str = typer.Option(None, "--name", "-n", help="Webhook name"),
@@ -177,7 +177,7 @@ async def update(
         app.console.print(f"Successfully updated webhook {webhook_id}")
 
 
-@webhook_app.command()
+@webhook_app.acommand()
 async def delete(webhook_id: UUID):
     """
     Delete an existing Cloud webhook

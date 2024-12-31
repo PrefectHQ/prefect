@@ -13,7 +13,7 @@ app.add_typer(task_app, no_args_is_help=True)
 app.add_typer(task_app, name="tasks", hidden=True, no_args_is_help=True)
 
 
-@task_app.command()
+@task_app.acommand()
 async def serve(
     entrypoints: List[str] = typer.Argument(
         ...,

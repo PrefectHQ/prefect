@@ -39,7 +39,7 @@ class InstallPolicy(str, Enum):
     PROMPT = "prompt"
 
 
-@worker_app.command()
+@worker_app.acommand()
 async def start(
     worker_name: str = typer.Option(
         None,

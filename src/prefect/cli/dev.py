@@ -12,13 +12,13 @@ import textwrap
 import time
 from functools import partial
 from string import Template
-from typing import Optional
+from typing import Any, Optional, Callable, Awaitable, cast
 
 import anyio
 import typer
 
 import prefect
-from prefect.cli._types import PrefectTyper, SettingsOption
+from prefect.cli._types import PrefectTyper, SettingsOption, _WrappedCallable
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.settings import (
@@ -119,7 +119,7 @@ def build_ui(
     app.console.print("Complete!")
 
 
-@dev_app.command()
+@dev_app.acommand()
 async def ui():
     """
     Starts a hot-reloading development UI.
@@ -133,7 +133,7 @@ async def ui():
         await run_process(command=["npm", "run", "serve"], stream_output=True)
 
 
-@dev_app.command()
+@dev_app.acommand()
 async def api(
     host: str = SettingsOption(PREFECT_SERVER_API_HOST),
     port: int = SettingsOption(PREFECT_SERVER_API_PORT),
@@ -201,7 +201,7 @@ async def api(
             stop_event.set()
 
 
-@dev_app.command()
+@dev_app.acommand()
 async def start(
     exclude_api: bool = typer.Option(False, "--no-api"),
     exclude_ui: bool = typer.Option(False, "--no-ui"),
@@ -212,6 +212,13 @@ async def start(
     Each service has an individual command if you wish to start them separately.
     Each service can be excluded here as well.
     """
+    registry = cast(
+        dict[str, _WrappedCallable[..., Awaitable[None]]],
+        {
+            getattr(x.callback, "__name__", None): x.callback
+            for x in dev_app.registered_commands
+        },
+    )
     async with anyio.create_task_group() as tg:
         if not exclude_api:
             tg.start_soon(
@@ -219,13 +226,13 @@ async def start(
                     # CLI commands are wrapped in sync_compatible, but this
                     # task group is async, so we need use the wrapped function
                     # directly
-                    api.aio,
+                    registry["api"].__wrapped__,
                     host=PREFECT_SERVER_API_HOST.value(),
                     port=PREFECT_SERVER_API_PORT.value(),
                 )
             )
         if not exclude_ui:
-            tg.start_soon(ui.aio)
+            tg.start_soon(registry["ui"].__wrapped__)
 
 
 @dev_app.command()

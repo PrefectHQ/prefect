@@ -142,7 +142,7 @@ def _build_registered_blocks_table(registered_blocks: List[Type[Block]]):
     return table
 
 
-@blocks_app.command()
+@blocks_app.acommand()
 async def register(
     module_name: Optional[str] = typer.Option(
         None,
@@ -234,7 +234,7 @@ async def register(
     app.console.print(msg, soft_wrap=True)
 
 
-@blocks_app.command("ls")
+@blocks_app.acommand("ls")
 async def block_ls():
     """
     View all configured blocks.
@@ -261,7 +261,7 @@ async def block_ls():
     app.console.print(table)
 
 
-@blocks_app.command("delete")
+@blocks_app.acommand("delete")
 async def block_delete(
     slug: Optional[str] = typer.Argument(
         None, help="A block slug. Formatted as '<BLOCK_TYPE_SLUG>/<BLOCK_NAME>'"
@@ -306,7 +306,7 @@ async def block_delete(
             exit_with_error("Must provide a block slug or id")
 
 
-@blocks_app.command("create")
+@blocks_app.acommand("create")
 async def block_create(
     block_type_slug: str = typer.Argument(
         ...,
@@ -339,7 +339,7 @@ async def block_create(
         )
 
 
-@blocks_app.command("inspect")
+@blocks_app.acommand("inspect")
 async def block_inspect(
     slug: Optional[str] = typer.Argument(
         None, help="A Block slug: <BLOCK_TYPE_SLUG>/<BLOCK_NAME>"
@@ -376,7 +376,7 @@ async def block_inspect(
         app.console.print(display_block(block_document))
 
 
-@blocktypes_app.command("ls")
+@blocktypes_app.acommand("ls")
 async def list_types():
     """
     List all block types.
@@ -409,7 +409,7 @@ async def list_types():
     app.console.print(table)
 
 
-@blocktypes_app.command("inspect")
+@blocktypes_app.acommand("inspect")
 async def blocktype_inspect(
     slug: str = typer.Argument(..., help="A block type slug"),
 ):
@@ -440,7 +440,7 @@ async def blocktype_inspect(
             )
 
 
-@blocktypes_app.command("delete")
+@blocktypes_app.acommand("delete")
 async def blocktype_delete(
     slug: str = typer.Argument(..., help="A Block type slug"),
 ):

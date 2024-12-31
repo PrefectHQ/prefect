@@ -64,7 +64,7 @@ def has_provisioner_for_type(work_pool_type: str) -> bool:
     return work_pool_type in _provisioners
 
 
-@work_pool_app.command()
+@work_pool_app.acommand()
 async def create(
     name: str = typer.Argument(..., help="The name of the work pool."),
     base_job_template: typer.FileText = typer.Option(
@@ -250,7 +250,7 @@ async def create(
             )
 
 
-@work_pool_app.command()
+@work_pool_app.acommand()
 async def ls(
     verbose: bool = typer.Option(
         False,
@@ -300,7 +300,7 @@ async def ls(
     app.console.print(table)
 
 
-@work_pool_app.command()
+@work_pool_app.acommand()
 async def inspect(
     name: str = typer.Argument(..., help="The name of the work pool to inspect."),
 ):
@@ -320,7 +320,7 @@ async def inspect(
             exit_with_error(f"Work pool {name!r} not found!")
 
 
-@work_pool_app.command()
+@work_pool_app.acommand()
 async def pause(
     name: str = typer.Argument(..., help="The name of the work pool to pause."),
 ):
@@ -346,7 +346,7 @@ async def pause(
         exit_with_success(f"Paused work pool {name!r}")
 
 
-@work_pool_app.command()
+@work_pool_app.acommand()
 async def resume(
     name: str = typer.Argument(..., help="The name of the work pool to resume."),
 ):
@@ -372,7 +372,7 @@ async def resume(
         exit_with_success(f"Resumed work pool {name!r}")
 
 
-@work_pool_app.command()
+@work_pool_app.acommand()
 async def update(
     name: str = typer.Argument(..., help="The name of the work pool to update."),
     base_job_template: typer.FileText = typer.Option(
@@ -488,11 +488,11 @@ async def provision_infrastructure(
             )
 
 
-work_pool_app.command("provision-infrastructure")(provision_infrastructure)
-work_pool_app.command("provision-infra")(provision_infrastructure)
+work_pool_app.acommand("provision-infrastructure")(provision_infrastructure)
+work_pool_app.acommand("provision-infra")(provision_infrastructure)
 
 
-@work_pool_app.command()
+@work_pool_app.acommand()
 async def delete(
     name: str = typer.Argument(..., help="The name of the work pool to delete."),
 ):
@@ -521,7 +521,7 @@ async def delete(
         exit_with_success(f"Deleted work pool {name!r}")
 
 
-@work_pool_app.command()
+@work_pool_app.acommand()
 async def set_concurrency_limit(
     name: str = typer.Argument(..., help="The name of the work pool to update."),
     concurrency_limit: int = typer.Argument(
@@ -552,7 +552,7 @@ async def set_concurrency_limit(
         )
 
 
-@work_pool_app.command()
+@work_pool_app.acommand()
 async def clear_concurrency_limit(
     name: str = typer.Argument(..., help="The name of the work pool to update."),
 ):
@@ -578,7 +578,7 @@ async def clear_concurrency_limit(
         exit_with_success(f"Cleared concurrency limit for work pool {name!r}")
 
 
-@work_pool_app.command()
+@work_pool_app.acommand()
 async def get_default_base_job_template(
     type: str = typer.Option(
         None,
@@ -614,7 +614,7 @@ async def get_default_base_job_template(
             json.dump(base_job_template, fp=f, indent=2)
 
 
-@work_pool_app.command()
+@work_pool_app.acommand()
 async def preview(
     name: str = typer.Argument(None, help="The name or ID of the work pool to preview"),
     hours: int = typer.Option(

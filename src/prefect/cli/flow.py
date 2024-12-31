@@ -24,7 +24,7 @@ app.add_typer(flow_app, no_args_is_help=True)
 app.add_typer(flow_app, name="flows", hidden=True, no_args_is_help=True)
 
 
-@flow_app.command()
+@flow_app.acommand()
 async def ls(
     limit: int = 15,
 ):
@@ -52,7 +52,7 @@ async def ls(
     app.console.print(table)
 
 
-@flow_app.command()
+@flow_app.acommand()
 async def serve(
     entrypoint: str = typer.Argument(
         ...,

@@ -132,7 +132,7 @@ def run_shell_process(
             raise FailedRun(f"Command failed with exit code {proc.returncode}")
 
 
-@shell_app.command("watch")
+@shell_app.acommand("watch")
 async def watch(
     command: str,
     log_output: bool = typer.Option(
@@ -167,7 +167,7 @@ async def watch(
         )
 
 
-@shell_app.command("serve")
+@shell_app.acommand("serve")
 async def serve(
     command: str,
     flow_name: str = typer.Option(..., help="Name of the flow"),

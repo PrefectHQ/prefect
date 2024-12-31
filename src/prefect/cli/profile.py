@@ -108,7 +108,7 @@ def create(
     )
 
 
-@profile_app.command()
+@profile_app.acommand()
 async def use(name: str):
     """
     Set the given profile to active.

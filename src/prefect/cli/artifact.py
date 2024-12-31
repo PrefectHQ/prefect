@@ -17,7 +17,7 @@ artifact_app = PrefectTyper(name="artifact", help="Inspect and delete artifacts.
 app.add_typer(artifact_app, no_args_is_help=True)
 
 
-@artifact_app.command("ls")
+@artifact_app.acommand("ls")
 async def list_artifacts(
     limit: int = typer.Option(
         100,
@@ -77,7 +77,7 @@ async def list_artifacts(
         app.console.print(table)
 
 
-@artifact_app.command("inspect")
+@artifact_app.acommand("inspect")
 async def inspect(
     key: str,
     limit: int = typer.Option(
@@ -136,7 +136,7 @@ async def inspect(
         app.console.print(Pretty(artifacts))
 
 
-@artifact_app.command("delete")
+@artifact_app.acommand("delete")
 async def delete(
     key: Optional[str] = typer.Argument(
         None, help="The key of the artifact to delete."

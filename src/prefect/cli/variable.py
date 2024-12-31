@@ -18,7 +18,7 @@ variable_app = PrefectTyper(name="variable", help="Manage variables.")
 app.add_typer(variable_app, no_args_is_help=True)
 
 
-@variable_app.command("ls")
+@variable_app.acommand("ls")
 async def list_variables(
     limit: int = typer.Option(
         100,
@@ -57,7 +57,7 @@ async def list_variables(
         app.console.print(table)
 
 
-@variable_app.command("inspect")
+@variable_app.acommand("inspect")
 async def inspect(
     name: str,
 ):
@@ -78,7 +78,7 @@ async def inspect(
         app.console.print(Pretty(variable))
 
 
-@variable_app.command("get")
+@variable_app.acommand("get")
 async def get(
     name: str,
 ):
@@ -109,7 +109,7 @@ def parse_value(
     return parsed_value
 
 
-@variable_app.command("set")
+@variable_app.acommand("set")
 async def _set(
     name: str,
     value: str,

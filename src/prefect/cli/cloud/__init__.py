@@ -338,7 +338,7 @@ async def _prompt_for_account_and_workspace(
         return result, False
 
 
-@cloud_app.command()
+@cloud_app.acommand()
 async def login(
     key: Optional[str] = typer.Option(
         None, "--key", "-k", help="API Key to authenticate with Prefect"
@@ -534,7 +534,7 @@ async def login(
     )
 
 
-@cloud_app.command()
+@cloud_app.acommand()
 async def logout():
     """
     Logout the current workspace.
@@ -591,7 +591,7 @@ async def open():
     exit_with_success(f"Opened {current_workspace.handle!r} in browser.")
 
 
-@workspace_app.command()
+@workspace_app.acommand()
 async def ls():
     """List available workspaces."""
 
@@ -621,7 +621,7 @@ async def ls():
     app.console.print(table)
 
 
-@workspace_app.command()
+@workspace_app.acommand()
 async def set(
     workspace_handle: str = typer.Option(
         None,

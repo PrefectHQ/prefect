@@ -33,7 +33,7 @@ app.add_typer(
 )
 
 
-@concurrency_limit_app.command()
+@concurrency_limit_app.acommand()
 async def create(tag: str, concurrency_limit: int):
     """
     Create a concurrency limit against a tag.
@@ -65,7 +65,7 @@ async def create(tag: str, concurrency_limit: int):
     )
 
 
-@concurrency_limit_app.command()
+@concurrency_limit_app.acommand()
 async def inspect(tag: str):
     """
     View details about a concurrency limit. `active_slots` shows a list of TaskRun IDs
@@ -104,7 +104,7 @@ async def inspect(tag: str):
     app.console.print(Panel(group, expand=False))
 
 
-@concurrency_limit_app.command()
+@concurrency_limit_app.acommand()
 async def ls(limit: int = 15, offset: int = 0):
     """
     View all concurrency limits.
@@ -134,7 +134,7 @@ async def ls(limit: int = 15, offset: int = 0):
     app.console.print(table)
 
 
-@concurrency_limit_app.command()
+@concurrency_limit_app.acommand()
 async def reset(tag: str):
     """
     Resets the concurrency limit slots set on the specified tag.
@@ -149,7 +149,7 @@ async def reset(tag: str):
     exit_with_success(f"Reset concurrency limit set on the tag: {tag}")
 
 
-@concurrency_limit_app.command()
+@concurrency_limit_app.acommand()
 async def delete(tag: str):
     """
     Delete the concurrency limit set on the specified tag.

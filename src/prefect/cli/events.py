@@ -25,7 +25,7 @@ class StreamFormat(str, Enum):
     text = "text"
 
 
-@events_app.command()
+@events_app.acommand()
 async def stream(
     format: StreamFormat = typer.Option(
         StreamFormat.json, "--format", help="Output format (json or text)"

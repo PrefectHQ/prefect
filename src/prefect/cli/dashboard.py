@@ -15,7 +15,7 @@ dashboard_app = PrefectTyper(
 app.add_typer(dashboard_app, no_args_is_help=True)
 
 
-@dashboard_app.command()
+@dashboard_app.acommand()
 async def open():
     """
     Open the Prefect UI in the browser.

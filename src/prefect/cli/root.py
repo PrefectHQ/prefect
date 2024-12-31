@@ -95,7 +95,7 @@ def main(
         asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
 
-@app.command()
+@app.acommand()
 async def version(
     omit_integrations: bool = typer.Option(
         False, "--omit-integrations", help="Omit integration information"

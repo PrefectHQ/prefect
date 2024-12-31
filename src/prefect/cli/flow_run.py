@@ -38,7 +38,7 @@ LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS = 20
 logger = get_logger(__name__)
 
 
-@flow_run_app.command()
+@flow_run_app.acommand()
 async def inspect(id: UUID):
     """
     View details about a flow run.
@@ -55,7 +55,7 @@ async def inspect(id: UUID):
     app.console.print(Pretty(flow_run))
 
 
-@flow_run_app.command()
+@flow_run_app.acommand()
 async def ls(
     flow_name: List[str] = typer.Option(None, help="Name of the flow"),
     limit: int = typer.Option(15, help="Maximum number of flow runs to list"),
@@ -177,7 +177,7 @@ async def ls(
     app.console.print(table)
 
 
-@flow_run_app.command()
+@flow_run_app.acommand()
 async def delete(id: UUID):
     """
     Delete a flow run by ID.
@@ -196,7 +196,7 @@ async def delete(id: UUID):
     exit_with_success(f"Successfully deleted flow run '{id}'.")
 
 
-@flow_run_app.command()
+@flow_run_app.acommand()
 async def cancel(id: UUID):
     """Cancel a flow run by ID."""
     async with get_client() as client:
@@ -217,7 +217,7 @@ async def cancel(id: UUID):
     exit_with_success(f"Flow run '{id}' was successfully scheduled for cancellation.")
 
 
-@flow_run_app.command()
+@flow_run_app.acommand()
 async def logs(
     id: UUID,
     head: bool = typer.Option(
@@ -339,7 +339,7 @@ async def logs(
                     more_logs = False
 
 
-@flow_run_app.command()
+@flow_run_app.acommand()
 async def execute(
     id: Optional[UUID] = typer.Argument(None, help="ID of the flow run to execute"),
 ):
