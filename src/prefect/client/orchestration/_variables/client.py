@@ -43,7 +43,7 @@ class VariableClient(BaseClient):
 
             return Variable(**response.json())
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+            if e.response.status_code == 404:
                 return None
             else:
                 raise
