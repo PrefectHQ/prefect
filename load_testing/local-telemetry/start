@@ -1,0 +1,5 @@
+#!/bin/bash
+if ! docker network inspect telemetry > /dev/null 2>&1; then
+    docker network create telemetry
+fi
+docker compose --project-directory $(dirname $0) up -d

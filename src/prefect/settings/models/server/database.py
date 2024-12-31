@@ -130,7 +130,7 @@ class ServerDatabaseSettings(PrefectBaseSettings):
     )
 
     connection_timeout: Optional[float] = Field(
-        default=5,
+        default=5.0,
         description="A connection timeout, in seconds, applied to database connections. Defaults to `5`.",
         validation_alias=AliasChoices(
             AliasPath("connection_timeout"),

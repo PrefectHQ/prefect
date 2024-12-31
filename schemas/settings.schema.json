@@ -1028,7 +1028,7 @@
                             "type": "null"
                         }
                     ],
-                    "default": 5,
+                    "default": 5.0,
                     "description": "A connection timeout, in seconds, applied to database connections. Defaults to `5`.",
                     "supported_environment_variables": [
                         "PREFECT_SERVER_DATABASE_CONNECTION_TIMEOUT",
