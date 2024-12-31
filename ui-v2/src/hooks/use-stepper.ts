@@ -1,5 +1,5 @@
 import { useState } from "react";
-
+import { useSet } from "./use-set";
 /**
  *
  * @param steps
@@ -30,9 +30,18 @@ import { useState } from "react";
  */
 export const useStepper = (numSteps: number, startingStep: number = 0) => {
 	const [currentStep, setCurrentStep] = useState(startingStep);
+	const [visitedStepsSet, { add: addVisitedStep, reset: resetVisitedSteps }] =
+		useSet(new Set<number>([0]));
+	const [
+		completedStepsSet,
+		{ add: addCompletedStep, reset: resetCompletedSteps },
+	] = useSet(new Set<number>());
 
 	const incrementStep = () => {
 		if (currentStep < numSteps - 1) {
+			// Marks step as visited
+			addCompletedStep(currentStep);
+			addVisitedStep(currentStep + 1);
 			setCurrentStep((curr) => curr + 1);
 		}
 	};
@@ -43,22 +52,28 @@ export const useStepper = (numSteps: number, startingStep: number = 0) => {
 		}
 	};
 
-	const reset = () => setCurrentStep(startingStep);
+	const changeStep = (stepNum: number) => {
+		setCurrentStep(stepNum);
+	};
 
-	const getIsStepCompleted = (stepNum: number) => stepNum < currentStep;
-	const getIsCurrentStep = (stepNum: number) => stepNum === currentStep;
+	const reset = () => {
+		resetCompletedSteps();
+		resetVisitedSteps();
+		setCurrentStep(startingStep);
+	};
+
 	const isFinalStep = currentStep === numSteps - 1;
 	const isStartingStep = currentStep === 0;
 
 	return {
+		changeStep,
+		completedStepsSet,
 		currentStep,
 		decrementStep,
-		getIsCurrentStep,
-		getIsStepCompleted,
 		incrementStep,
 		isFinalStep,
 		isStartingStep,
 		reset,
-		setCurrentStep,
+		visitedStepsSet,
 	};
 };
