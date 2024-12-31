@@ -46,8 +46,7 @@ SettingsOption = with_settings(typer.Option)
 class WrappedCallable(Protocol[P, T]):
     __wrapped__: Callable[P, T]
 
-    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> T:
-        ...
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> T: ...
 
 
 class PrefectTyper(typer.Typer):
@@ -106,7 +105,7 @@ class PrefectTyper(typer.Typer):
 
         return wrapper
 
-    def setup_console(self, soft_wrap: bool, prompt: bool):
+    def setup_console(self, soft_wrap: bool, prompt: bool) -> None:
         self.console = Console(
             highlight=False,
             color_system="auto" if PREFECT_CLI_COLORS else None,

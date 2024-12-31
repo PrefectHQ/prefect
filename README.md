@@ -38,7 +38,6 @@ Then create and run a Python file that uses Prefect `flow` and `task` decorators
 
 ```python
 from prefect import flow, task
-from typing import List
 import httpx
 
 
@@ -50,7 +49,7 @@ def get_stars(repo: str):
 
 
 @flow(name="GitHub Stars")
-def github_stars(repos: List[str]):
+def github_stars(repos: list[str]):
     for repo in repos:
         get_stars(repo)
 
@@ -60,7 +59,7 @@ if __name__=="__main__":
     github_stars(["PrefectHQ/Prefect"])
 ```
 
-Fire up the Prefect UI to see what happened:
+Fire up a Prefect server and open the UI at http://localhost:4200 to see what happened:
 
 ```bash
 prefect server start
@@ -77,8 +76,12 @@ if __name__ == "__main__":
     )
 ```
 
-You now have a server running locally that is looking for scheduled deployments!
+You now have a process running locally that is looking for scheduled deployments!
 Additionally you can run your workflow manually from the UI or CLI. You can even run deployments in response to [events](https://docs.prefect.io/latest/automate/?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none).
+
+> [!NOTE]
+> To explore different infrastructure options for your workflows, check out the [deployment documentation](https://docs.prefect.io/v3/deploy).
+
 
 ## Prefect Cloud
 

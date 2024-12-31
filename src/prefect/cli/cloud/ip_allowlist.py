@@ -1,4 +1,5 @@
 import asyncio
+from logging import Logger
 from typing import Annotated, Optional
 
 import typer
@@ -15,7 +16,7 @@ from prefect.client.schemas.objects import IPAllowlist, IPAllowlistEntry
 from prefect.exceptions import PrefectHTTPStatusError
 from prefect.logging.loggers import get_logger
 
-ip_allowlist_app = PrefectTyper(
+ip_allowlist_app: PrefectTyper = PrefectTyper(
     name="ip-allowlist", help="Manage Prefect Cloud IP Allowlists"
 )
 cloud_app.add_typer(ip_allowlist_app, no_args_is_help=True)
@@ -23,16 +24,16 @@ cloud_app.add_typer(
     ip_allowlist_app, name="ip-allowlists", hidden=True, no_args_is_help=True
 )
 
-logger = get_logger(__name__)
+logger: Logger = get_logger(__name__)
 
 
 @ip_allowlist_app.callback()
-def require_access_to_ip_allowlisting(ctx: typer.Context):
+def require_access_to_ip_allowlisting(ctx: typer.Context) -> None:
     """Enforce access to IP allowlisting for all subcommands."""
     asyncio.run(_require_access_to_ip_allowlisting(ctx))
 
 
-async def _require_access_to_ip_allowlisting(ctx: typer.Context):
+async def _require_access_to_ip_allowlisting(ctx: typer.Context) -> None:
     """Check if the account has access to IP allowlisting.
 
     Exits with an error if the account does not have access to IP allowlisting.
@@ -53,7 +54,7 @@ async def _require_access_to_ip_allowlisting(ctx: typer.Context):
 
 
 @ip_allowlist_app.acommand()
-async def enable(ctx: typer.Context):
+async def enable(ctx: typer.Context) -> None:
     """Enable the IP allowlist for your account. When enabled, if the allowlist is non-empty, then access to your Prefect Cloud account will be restricted to only those IP addresses on the allowlist."""
     enforcing_ip_allowlist = ctx.meta["enforce_ip_allowlist"]
     if enforcing_ip_allowlist:
