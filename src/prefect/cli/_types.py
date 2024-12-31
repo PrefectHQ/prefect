@@ -6,7 +6,6 @@ import functools
 from typing import (
     Any,
     Callable,
-    Concatenate,
     Coroutine,
     Optional,
     Protocol,
@@ -18,7 +17,7 @@ import typer
 from rich.console import Console
 from rich.theme import Theme
 from typer.core import TyperCommand
-from typing_extensions import ParamSpec
+from typing_extensions import Concatenate, ParamSpec
 
 from prefect.settings import PREFECT_CLI_COLORS, Setting
 from prefect.utilities.asyncutils import sync
@@ -46,7 +45,8 @@ SettingsOption = with_settings(typer.Option)
 class WrappedCallable(Protocol[P, T]):
     __wrapped__: Callable[P, T]
 
-    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> T: ...
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> T:
+        ...
 
 
 class PrefectTyper(typer.Typer):
