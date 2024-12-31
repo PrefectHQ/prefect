@@ -1,26 +1,16 @@
+import { Button } from "@/components/ui/button";
 import { useStepper } from "@/hooks/use-stepper";
-import type { Meta, StoryObj } from "@storybook/react";
-import { Button } from "./button";
-import { Stepper } from "./stepper";
 
-const meta: Meta<typeof Stepper> = {
-	title: "UI/Stepper",
-	component: Stepper,
-	render: () => <StepperStory />,
-};
-export default meta;
+import { Stepper } from "@/components/ui/stepper";
 
-export const story: StoryObj = { name: "Stepper" };
+const USAGE_STEPS = ["Trigger", "Actions", "Details"] as const;
 
-const STEPS = ["Trigger", "Actions", "Details"] as const;
-
-const StepperStory = () => {
-	const stepper = useStepper(STEPS.length);
-
+export const StepperStory = () => {
+	const stepper = useStepper(USAGE_STEPS.length);
 	return (
 		<div className="flex flex-col gap-4">
 			<Stepper
-				steps={STEPS}
+				steps={USAGE_STEPS}
 				currentStepNum={stepper.currentStep}
 				onClick={(step) => stepper.changeStep(step.stepNum)}
 				completedSteps={stepper.completedStepsSet}

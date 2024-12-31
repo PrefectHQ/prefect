@@ -1,8 +1,8 @@
 import { cn } from "@/lib/utils";
 
-import { Card } from "./card";
-import { Icon } from "./icons";
-import { Typography } from "./typography";
+import { Card } from "@/components/ui/card";
+import { Icon } from "@/components/ui/icons";
+import { Typography } from "@/components/ui/typography";
 
 type StepperProps = {
 	currentStepNum: number;
