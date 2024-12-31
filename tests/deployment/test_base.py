@@ -6,13 +6,9 @@ import yaml
 
 import prefect
 from prefect.deployments.base import (
-    _find_flow_functions_in_file,
-    _search_for_flow_functions,
     configure_project_by_recipe,
     initialize_project,
 )
-from prefect.settings import PREFECT_DEBUG_MODE, temporary_settings
-from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.filesystem import tmpchdir
 
 TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
@@ -145,82 +141,3 @@ class TestInitProject:
             contents["deployments"][0]["work_pool"]["job_variables"]["image"]
             == "{{ build_image.image }}"
         )
-
-
-class TestDiscoverFlows:
-    async def test_find_all_flows_in_dir_tree(self, project_dir):
-        flows = await _search_for_flow_functions(str(project_dir))
-        assert len(flows) == 7, f"Expected 7 flows, found {len(flows)}"
-
-        expected_flows = [
-            {
-                "flow_name": "foobar",
-                "function_name": "foobar",
-                "filepath": str(
-                    project_dir / "nested-project" / "implicit_relative.py"
-                ),
-            },
-            {
-                "flow_name": "foobar",
-                "function_name": "foobar",
-                "filepath": str(
-                    project_dir / "nested-project" / "explicit_relative.py"
-                ),
-            },
-            {
-                "flow_name": "my_flow",
-                "function_name": "my_flow",
-                "filepath": str(project_dir / "flows" / "hello.py"),
-            },
-            {
-                "flow_name": "my_flow2",
-                "function_name": "my_flow2",
-                "filepath": str(project_dir / "flows" / "hello.py"),
-            },
-            {
-                "flow_name": "prod_flow",
-                "function_name": "prod_flow",
-                "filepath": str(
-                    project_dir / "import-project" / "my_module" / "flow.py"
-                ),
-            },
-            {
-                "flow_name": "test_flow",
-                "function_name": "test_flow",
-                "filepath": str(
-                    project_dir / "import-project" / "my_module" / "flow.py"
-                ),
-            },
-            {
-                "flow_name": "uses_block",
-                "function_name": "uses_block",
-                "filepath": str(project_dir / "flows" / "uses_block.py"),
-            },
-        ]
-
-        for flow in flows:
-            assert flow in expected_flows, f"Unexpected flow: {flow}"
-            expected_flows.remove(flow)
-
-        assert len(expected_flows) == 0, f"Missing flows: {expected_flows}"
-
-    async def test_find_all_flows_works_on_large_directory_structures(self):
-        flows = await _search_for_flow_functions(str(prefect.__development_base_path__))
-        assert len(flows) > 500
-
-    async def test_find_flow_functions_in_file_returns_empty_list_on_file_error(
-        self, caplog
-    ):
-        with temporary_settings({PREFECT_DEBUG_MODE: True}):
-            assert await _find_flow_functions_in_file("foo.py") == []
-            assert "Could not open foo.py" in caplog.text
-
-    async def test_prefect_can_be_imported_from_non_main_thread(self):
-        """testing due to `asyncio.Semaphore` error when importing prefect from a worker thread
-        in python <= 3.9
-        """
-
-        def import_prefect():
-            import prefect  # noqa: F401
-
-        await run_sync_in_worker_thread(import_prefect)

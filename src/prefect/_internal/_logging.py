@@ -1,4 +1,14 @@
 import logging
+import sys
+
+from typing_extensions import Self
+
+if sys.version_info < (3, 11):
+
+    def getLevelNamesMapping() -> dict[str, int]:
+        return getattr(logging, "_nameToLevel").copy()
+else:
+    getLevelNamesMapping = logging.getLevelNamesMapping  # novermin
 
 
 class SafeLogger(logging.Logger):
@@ -11,11 +21,13 @@ class SafeLogger(logging.Logger):
         # deadlocks during complex concurrency handling
         from prefect.settings import PREFECT_LOGGING_INTERNAL_LEVEL
 
-        return level >= logging._nameToLevel[PREFECT_LOGGING_INTERNAL_LEVEL.value()]
+        internal_level = getLevelNamesMapping()[PREFECT_LOGGING_INTERNAL_LEVEL.value()]
 
-    def getChild(self, suffix: str):
+        return level >= internal_level
+
+    def getChild(self, suffix: str) -> Self:
         logger = super().getChild(suffix)
-        logger.__class__ = SafeLogger
+        logger.__class__ = self.__class__
         return logger
 
 
