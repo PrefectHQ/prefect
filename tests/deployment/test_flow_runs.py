@@ -445,7 +445,6 @@ class TestRunDeployment:
     ):
         """Test that OTEL trace context gets propagated from parent flow to deployment flow run"""
         deployment = test_deployment
-        mock_traceparent = "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
 
         @flow(name="child-flow")
         async def child_flow() -> None:
@@ -460,11 +459,6 @@ class TestRunDeployment:
 
         @flow(name="parent-flow")
         async def parent_flow():
-            # Set OTEL context in the parent flow's labels
-            flow_run = FlowRunContext.get().flow_run
-
-            flow_run.labels["__OTEL_TRACEPARENT"] = mock_traceparent
-
             return await run_deployment(
                 f"foo/{deployment.name}",
                 timeout=0,
@@ -477,8 +471,7 @@ class TestRunDeployment:
         await run_flow_async(child_flow, child_flow_run)
         # Get all spans
         spans = instrumentation.get_finished_spans()
-        for span in spans:
-            print(span.attributes)
+
         # Find parent flow span
         parent_span = next(
             span
@@ -493,7 +486,5 @@ class TestRunDeployment:
         assert child_span
         assert parent_span
 
-        assert (
-            mock_traceparent.split("-")[1]
-            == child_flow_run.labels["__OTEL_TRACEPARENT"].split("-")[1]
-        )
+        assert child_span.parent.span_id == parent_span.get_span_context().span_id
+        assert child_span.parent.trace_id == parent_span.get_span_context().trace_id

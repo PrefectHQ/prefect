@@ -15,9 +15,7 @@ from prefect.states import Pending, Scheduled
 from prefect.tasks import Task
 from prefect.telemetry.run_telemetry import (
     LABELS_TRACEPARENT_KEY,
-    TRACEPARENT_KEY,
 )
-from prefect.types import KeyValueLabels
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.slugify import slugify
 
@@ -166,11 +164,7 @@ async def run_deployment(
     else:
         traceparent = None
 
-    trace_labels = {}
-    if traceparent:
-        carrier: KeyValueLabels = {TRACEPARENT_KEY: traceparent}
-
-        trace_labels = {LABELS_TRACEPARENT_KEY: carrier[TRACEPARENT_KEY]}
+    trace_labels = {LABELS_TRACEPARENT_KEY: traceparent} if traceparent else {}
 
     flow_run = await client.create_flow_run_from_deployment(
         deployment.id,
