@@ -71,7 +71,11 @@ repos:
         name: Lint UI v2
         language: system
         entry: sh
-        args: ['-c', 'cd ui-v2 && npm i --no-upgrade --silent --no-progress && npm run lint']
+        args:
+          [
+            "-c",
+            "cd ui-v2 && npm i --no-upgrade --silent --no-progress && npm run lint",
+          ]
         files: |
           (?x)^(
               .pre-commit-config.yaml|
@@ -82,7 +86,11 @@ repos:
         name: Format UI v2
         language: system
         entry: sh
-        args: ['-c', 'cd ui-v2 && npm i --no-upgrade --silent --no-progress && npm run format']
+        args:
+          [
+            "-c",
+            "cd ui-v2 && npm i --no-upgrade --silent --no-progress && npm run format",
+          ]
         files: |
           (?x)^(
               .pre-commit-config.yaml|
@@ -93,7 +101,11 @@ repos:
         name: Sync UI v2 OpenAPI
         language: system
         entry: sh
-        args: ['-c', 'cd ui-v2 && npm i --no-upgrade --silent --no-progress && npm run service-sync']
+        args:
+          [
+            "-c",
+            "cd ui-v2 && npm i --no-upgrade --silent --no-progress && npm run service-sync",
+          ]
         files: |
           (?x)^(
               .pre-commit-config.yaml|
@@ -101,6 +113,7 @@ repos:
               src/prefect/server/api/.*|
               src/prefect/server/schemas/.*|
               src/prefect/server/events/.*|
+              src/prefect/server/utilities/schemas/.*|
               ui-v2/package.json
           )$
         pass_filenames: false

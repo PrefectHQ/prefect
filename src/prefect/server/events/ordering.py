@@ -19,12 +19,9 @@ from uuid import UUID
 import pendulum
 import sqlalchemy as sa
 from cachetools import TTLCache
-from typing_extensions import Self
 
 from prefect.logging import get_logger
-from prefect.server.database.dependencies import db_injector
-from prefect.server.database.interface import PrefectDBInterface
-from prefect.server.database.orm_models import AutomationEventFollower
+from prefect.server.database import PrefectDBInterface, db_injector
 from prefect.server.events.schemas.events import Event, ReceivedEvent
 
 logger = get_logger(__name__)
@@ -75,13 +72,15 @@ class CausalOrdering:
         self._seen_events[self.scope][event.id] = True
 
     @db_injector
-    async def record_follower(db: PrefectDBInterface, self: Self, event: ReceivedEvent):
+    async def record_follower(
+        self, db: PrefectDBInterface, event: ReceivedEvent
+    ) -> None:
         """Remember that this event is waiting on another event to arrive"""
         assert event.follows
 
         async with db.session_context(begin_transaction=True) as session:
             await session.execute(
-                sa.insert(AutomationEventFollower).values(
+                sa.insert(db.AutomationEventFollower).values(
                     scope=self.scope,
                     leader_event_id=event.follows,
                     follower_event_id=event.id,
@@ -92,42 +91,42 @@ class CausalOrdering:
 
     @db_injector
     async def forget_follower(
-        db: PrefectDBInterface, self: Self, follower: ReceivedEvent
-    ):
+        self, db: PrefectDBInterface, follower: ReceivedEvent
+    ) -> None:
         """Forget that this event is waiting on another event to arrive"""
         assert follower.follows
 
         async with db.session_context(begin_transaction=True) as session:
             await session.execute(
-                sa.delete(AutomationEventFollower).where(
-                    AutomationEventFollower.scope == self.scope,
-                    AutomationEventFollower.follower_event_id == follower.id,
+                sa.delete(db.AutomationEventFollower).where(
+                    db.AutomationEventFollower.scope == self.scope,
+                    db.AutomationEventFollower.follower_event_id == follower.id,
                 )
             )
 
     @db_injector
     async def get_followers(
-        db: PrefectDBInterface, self: Self, leader: ReceivedEvent
+        self, db: PrefectDBInterface, leader: ReceivedEvent
     ) -> List[ReceivedEvent]:
         """Returns events that were waiting on this leader event to arrive"""
         async with db.session_context() as session:
-            query = sa.select(AutomationEventFollower.follower).where(
-                AutomationEventFollower.scope == self.scope,
-                AutomationEventFollower.leader_event_id == leader.id,
+            query = sa.select(db.AutomationEventFollower.follower).where(
+                db.AutomationEventFollower.scope == self.scope,
+                db.AutomationEventFollower.leader_event_id == leader.id,
             )
             result = await session.execute(query)
             followers = result.scalars().all()
             return sorted(followers, key=lambda e: e.occurred)
 
     @db_injector
-    async def get_lost_followers(db: PrefectDBInterface, self) -> List[ReceivedEvent]:
+    async def get_lost_followers(self, db: PrefectDBInterface) -> List[ReceivedEvent]:
         """Returns events that were waiting on a leader event that never arrived"""
         earlier = pendulum.now("UTC") - PRECEDING_EVENT_LOOKBACK
 
         async with db.session_context(begin_transaction=True) as session:
-            query = sa.select(AutomationEventFollower.follower).where(
-                AutomationEventFollower.scope == self.scope,
-                AutomationEventFollower.received < earlier,
+            query = sa.select(db.AutomationEventFollower.follower).where(
+                db.AutomationEventFollower.scope == self.scope,
+                db.AutomationEventFollower.received < earlier,
             )
             result = await session.execute(query)
             followers = result.scalars().all()
@@ -135,9 +134,9 @@ class CausalOrdering:
             # forget these followers, since they are never going to see their leader event
 
             await session.execute(
-                sa.delete(AutomationEventFollower).where(
-                    AutomationEventFollower.scope == self.scope,
-                    AutomationEventFollower.received < earlier,
+                sa.delete(db.AutomationEventFollower).where(
+                    db.AutomationEventFollower.scope == self.scope,
+                    db.AutomationEventFollower.received < earlier,
                 )
             )
 

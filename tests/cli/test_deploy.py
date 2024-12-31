@@ -289,6 +289,24 @@ class TestProjectDeploy:
         assert deployment.job_variables == {"env": "prod"}
         assert deployment.enforce_parameter_schema
 
+    async def test_deploy_with_no_enforce_parameter_schema(
+        self, project_dir, work_pool, prefect_client
+    ):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=f"deploy ./flows/hello.py:my_flow --no-enforce-parameter-schema -n test-name -p {work_pool.name}",
+            expected_code=0,
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.name == "test-name"
+        assert deployment.work_pool_name == work_pool.name
+        assert deployment.tags == []
+        assert deployment.job_variables == {}
+        assert not deployment.enforce_parameter_schema
+
     async def test_deploy_with_active_workers(
         self, project_dir, work_pool, prefect_client, monkeypatch
     ):
@@ -308,7 +326,7 @@ class TestProjectDeploy:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                f"deploy ./wrapped-flow-project/flow.py:test_flow -n test-name -p {work_pool.name}"
+                f"deploy ./wrapped_flow_project/flow.py:test_flow -n test-name -p {work_pool.name}"
             ),
             expected_code=0,
             expected_output_does_not_contain=[
@@ -322,7 +340,7 @@ class TestProjectDeploy:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                f"deploy ./wrapped-flow-project/flow.py:test_flow -n test-name -p {work_pool.name}"
+                f"deploy ./wrapped_flow_project/flow.py:test_flow -n test-name -p {work_pool.name}"
             ),
             expected_code=0,
             expected_output_does_not_contain=["test-flow"],
@@ -344,7 +362,7 @@ class TestProjectDeploy:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                f"deploy ./wrapped-flow-project/missing_imports.py:bloop_flow -n test-name -p {work_pool.name}"
+                f"deploy ./wrapped_flow_project/missing_imports.py:bloop_flow -n test-name -p {work_pool.name}"
             ),
             expected_code=0,
             expected_output_does_not_contain=["test-flow"],
@@ -5139,14 +5157,15 @@ class TestDeployWithoutEntrypoint:
             expected_code=0,
             expected_output_contains=[
                 "Select a flow to deploy",
-                "test_flow",
+                "test",
                 "import-project/my_module/flow.py",
-                "prod_flow",
+                "test",
                 "import-project/my_module/flow.py",
                 "foobar",
                 "nested-project/implicit_relative.py",
                 "nested-project/explicit_relative.py",
-                "my_flow",
+                "An important name",
+                "Second important name",
                 "flows/hello.py",
                 "successfully created",
             ],

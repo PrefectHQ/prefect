@@ -1,25 +1,16 @@
 import asyncio
 import copy
+from collections.abc import AsyncGenerator, Iterable, Mapping, MutableMapping
 from contextlib import asynccontextmanager
 from dataclasses import asdict, dataclass
 from datetime import timedelta
 from pathlib import Path
-from typing import (
-    Any,
-    AsyncGenerator,
-    Dict,
-    List,
-    MutableMapping,
-    Optional,
-    TypeVar,
-    Union,
-)
+from typing import Any, Optional, TypeVar, Union
 from uuid import uuid4
 
 import anyio
 from cachetools import TTLCache
 from pydantic_core import to_json
-from typing_extensions import Self
 
 from prefect.logging import get_logger
 from prefect.server.utilities.messaging import Cache as _Cache
@@ -34,7 +25,7 @@ logger = get_logger(__name__)
 @dataclass
 class MemoryMessage:
     data: Union[bytes, str]
-    attributes: Dict[str, Any]
+    attributes: Mapping[str, Any]
     retry_count: int = 0
 
 
@@ -71,8 +62,8 @@ class Subscription:
             if dead_letter_queue_path
             else get_current_settings().home / "dlq"
         )
-        self._queue = asyncio.Queue()
-        self._retry = asyncio.Queue()
+        self._queue: asyncio.Queue[MemoryMessage] = asyncio.Queue()
+        self._retry: asyncio.Queue[MemoryMessage] = asyncio.Queue()
 
     async def deliver(self, message: MemoryMessage) -> None:
         """
@@ -108,7 +99,7 @@ class Subscription:
         """
         Get a message from the subscription's queue.
         """
-        if self._retry.qsize() > 0:
+        if not self._retry.empty():
             return await self._retry.get()
         return await self._queue.get()
 
@@ -132,17 +123,17 @@ class Subscription:
 
 
 class Topic:
-    _topics: Dict[str, "Topic"] = {}
+    _topics: dict[str, "Topic"] = {}
 
     name: str
-    _subscriptions: List[Subscription]
+    _subscriptions: list[Subscription]
 
     def __init__(self, name: str) -> None:
         self.name = name
         self._subscriptions = []
 
     @classmethod
-    def by_name(cls, name: str) -> Self:
+    def by_name(cls, name: str) -> "Topic":
         try:
             return cls._topics[name]
         except KeyError:
@@ -151,7 +142,7 @@ class Topic:
             return topic
 
     @classmethod
-    def clear_all(cls):
+    def clear_all(cls) -> None:
         for topic in cls._topics.values():
             topic.clear()
         cls._topics = {}
@@ -200,12 +191,14 @@ class Cache(_Cache):
     async def clear_recently_seen_messages(self) -> None:
         self._recently_seen_messages.clear()
 
-    async def without_duplicates(self, attribute: str, messages: List[M]) -> List[M]:
-        messages_with_attribute = []
-        messages_without_attribute = []
+    async def without_duplicates(
+        self, attribute: str, messages: Iterable[M]
+    ) -> list[M]:
+        messages_with_attribute: list[M] = []
+        messages_without_attribute: list[M] = []
 
         for m in messages:
-            if m.attributes is None or attribute not in m.attributes:
+            if not m.attributes or attribute not in m.attributes:
                 logger.warning(
                     "Message is missing deduplication attribute %r",
                     attribute,
@@ -222,9 +215,9 @@ class Cache(_Cache):
 
         return messages_with_attribute + messages_without_attribute
 
-    async def forget_duplicates(self, attribute: str, messages: List[M]) -> None:
+    async def forget_duplicates(self, attribute: str, messages: Iterable[M]) -> None:
         for m in messages:
-            if m.attributes is None or attribute not in m.attributes:
+            if not m.attributes or attribute not in m.attributes:
                 logger.warning(
                     "Message is missing deduplication attribute %r",
                     attribute,
@@ -240,13 +233,10 @@ class Publisher(_Publisher):
         self.deduplicate_by = deduplicate_by
         self._cache = cache
 
-    async def __aenter__(self) -> Self:
-        return self
-
-    async def __aexit__(self, exc_type, exc_value, traceback):
+    async def __aexit__(self, *args: Any) -> None:
         return None
 
-    async def publish_data(self, data: bytes, attributes: Dict[str, str]):
+    async def publish_data(self, data: bytes, attributes: Mapping[str, str]) -> None:
         to_publish = [MemoryMessage(data, attributes)]
         if self.deduplicate_by:
             to_publish = await self._cache.without_duplicates(
@@ -284,7 +274,7 @@ class Consumer(_Consumer):
 
 
 @asynccontextmanager
-async def ephemeral_subscription(topic: str) -> AsyncGenerator[Dict[str, Any], None]:
+async def ephemeral_subscription(topic: str) -> AsyncGenerator[Mapping[str, Any], None]:
     subscription = Topic.by_name(topic).subscribe()
     try:
         yield {"topic": topic, "subscription": subscription}

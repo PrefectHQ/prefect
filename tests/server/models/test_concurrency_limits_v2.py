@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models, schemas
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface
 from prefect.server.models.concurrency_limits_v2 import (
     MINIMUM_OCCUPANCY_SECONDS_PER_SLOT,
     bulk_decrement_active_slots,

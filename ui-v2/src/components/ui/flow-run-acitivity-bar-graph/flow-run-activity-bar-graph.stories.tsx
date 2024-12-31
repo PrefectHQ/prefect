@@ -5,8 +5,13 @@ import { FlowRunActivityBarChart } from ".";
 import { faker } from "@faker-js/faker";
 
 import type { components } from "@/api/prefect";
-import { router } from "@/router";
-import { RouterContextProvider } from "@tanstack/react-router";
+import { QueryClient } from "@tanstack/react-query";
+import {
+	RouterProvider,
+	createMemoryHistory,
+	createRootRoute,
+	createRouter,
+} from "@tanstack/react-router";
 
 type StateType = components["schemas"]["StateType"];
 
@@ -77,10 +82,14 @@ function createRandomEnrichedFlowRun(): React.ComponentProps<
 			paused: faker.datatype.boolean(),
 			status: faker.helpers.arrayElement(["READY", "NOT_READY"]),
 			enforce_parameter_schema: faker.datatype.boolean(),
+			created: faker.date.past().toISOString(),
+			updated: faker.date.past().toISOString(),
 		},
 		flow: {
 			id: faker.string.uuid(),
 			name: `${faker.finance.currencyName()} ${faker.commerce.product()}`,
+			created: faker.date.past().toISOString(),
+			updated: faker.date.past().toISOString(),
 		},
 	};
 }
@@ -102,11 +111,20 @@ export default {
 	) {
 		args.endDate = new Date(args.endDate);
 		args.startDate = new Date(args.startDate);
-		return (
-			<RouterContextProvider router={router}>
-				<FlowRunActivityBarChart {...args} className="h-96" />
-			</RouterContextProvider>
-		);
+		const rootRoute = createRootRoute({
+			component: () => <FlowRunActivityBarChart {...args} className="h-96" />,
+		});
+		const router = createRouter({
+			routeTree: rootRoute,
+			history: createMemoryHistory({
+				initialEntries: ["/"],
+			}),
+			context: {
+				queryClient: new QueryClient(),
+			},
+		});
+		// @ts-expect-error - Type error from using a test router
+		return <RouterProvider router={router} />;
 	},
 } satisfies Meta<typeof FlowRunActivityBarChart>;
 

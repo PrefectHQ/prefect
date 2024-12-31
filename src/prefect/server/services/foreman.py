@@ -7,16 +7,18 @@ from typing import Optional
 
 import pendulum
 import sqlalchemy as sa
-from typing_extensions import Self
 
 from prefect.server import models
-from prefect.server.database.dependencies import db_injector
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, db_injector
 from prefect.server.models.deployments import mark_deployments_not_ready
 from prefect.server.models.work_queues import mark_work_queues_not_ready
 from prefect.server.models.workers import emit_work_pool_status_event
 from prefect.server.schemas.internal import InternalWorkPoolUpdate
-from prefect.server.schemas.statuses import DeploymentStatus, WorkPoolStatus
+from prefect.server.schemas.statuses import (
+    DeploymentStatus,
+    WorkerStatus,
+    WorkPoolStatus,
+)
 from prefect.server.services.loop_service import LoopService
 from prefect.settings import (
     PREFECT_API_SERVICES_FOREMAN_DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS,
@@ -70,7 +72,7 @@ class Foreman(LoopService):
         )
 
     @db_injector
-    async def run_once(db: PrefectDBInterface, self: Self) -> None:
+    async def run_once(self, db: PrefectDBInterface) -> None:
         """
         Iterate over workers current marked as online. Mark workers as offline
         if they have an old last_heartbeat_time. Marks work pools as not ready
@@ -85,8 +87,7 @@ class Foreman(LoopService):
 
     @db_injector
     async def _mark_online_workers_without_a_recent_heartbeat_as_offline(
-        db: PrefectDBInterface,
-        self: Self,
+        self, db: PrefectDBInterface
     ) -> None:
         """
         Updates the status of workers that have an old last heartbeat time
@@ -100,40 +101,21 @@ class Foreman(LoopService):
             session (AsyncSession): The session to use for the database operation.
         """
         async with db.session_context(begin_transaction=True) as session:
-            if db.dialect.name == "postgresql":
-                worker_update_stmt = sa.text(
-                    """
-                    UPDATE worker
-                    SET status = 'OFFLINE'
-                    WHERE (
-                        last_heartbeat_time <
-                        CURRENT_TIMESTAMP - (
-                            interval '1 second' * :multiplier *
-                            COALESCE(heartbeat_interval_seconds, :default_interval)
+            worker_update_stmt = (
+                sa.update(db.Worker)
+                .values(status=WorkerStatus.OFFLINE)
+                .where(
+                    sa.func.date_diff_seconds(db.Worker.last_heartbeat_time)
+                    > (
+                        sa.func.coalesce(
+                            db.Worker.heartbeat_interval_seconds,
+                            sa.bindparam("default_interval", sa.Integer),
                         )
-                    )
-                    AND status = 'ONLINE';
-                    """
+                        * sa.bindparam("multiplier", sa.Integer)
+                    ),
+                    db.Worker.status == WorkerStatus.ONLINE,
                 )
-            elif db.dialect.name == "sqlite":
-                worker_update_stmt = sa.text(
-                    """
-                    UPDATE worker
-                    SET status = 'OFFLINE'
-                    WHERE (
-                        julianday(last_heartbeat_time) <
-                        julianday('now') - ((
-                            :multiplier *
-                            COALESCE(heartbeat_interval_seconds, :default_interval)
-                        ) / 86400.0)
-                    )
-                    AND status = 'ONLINE';
-                    """
-                )
-            else:
-                raise NotImplementedError(
-                    f"No implementation for database dialect {db.dialect.name}"
-                )
+            )
 
             result = await session.execute(
                 worker_update_stmt,
@@ -147,7 +129,7 @@ class Foreman(LoopService):
             self.logger.info(f"Marked {result.rowcount} workers as offline.")
 
     @db_injector
-    async def _mark_work_pools_as_not_ready(db: PrefectDBInterface, self: Self):
+    async def _mark_work_pools_as_not_ready(self, db: PrefectDBInterface):
         """
         Marks a work pool as not ready.
 
@@ -185,10 +167,7 @@ class Foreman(LoopService):
                 self.logger.info(f"Marked work pool {work_pool.id} as NOT_READY.")
 
     @db_injector
-    async def _mark_deployments_as_not_ready(
-        db: PrefectDBInterface,
-        self: Self,
-    ):
+    async def _mark_deployments_as_not_ready(self, db: PrefectDBInterface) -> None:
         """
         Marks a deployment as NOT_READY and emits a deployment status event.
         Emits an event and updates any bookkeeping fields on the deployment.
@@ -231,10 +210,7 @@ class Foreman(LoopService):
         )
 
     @db_injector
-    async def _mark_work_queues_as_not_ready(
-        db: PrefectDBInterface,
-        self: Self,
-    ):
+    async def _mark_work_queues_as_not_ready(self, db: PrefectDBInterface):
         """
         Marks work queues as NOT_READY based on their last_polled field.
 

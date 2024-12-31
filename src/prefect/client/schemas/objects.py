@@ -190,6 +190,8 @@ class StateDetails(PrefectBaseModel):
     retriable: Optional[bool] = None
     transition_id: Optional[UUID] = None
     task_parameters_id: Optional[UUID] = None
+    # Captures the trace_id and span_id of the span where this state was created
+    traceparent: Optional[str] = None
 
 
 def data_discriminator(x: Any) -> str:
@@ -207,7 +209,7 @@ class State(ObjectBaseModel, Generic[R]):
 
     type: StateType
     name: Optional[str] = Field(default=None)
-    timestamp: DateTime = Field(default_factory=lambda: pendulum.now("UTC"))
+    timestamp: DateTime = Field(default_factory=lambda: DateTime.now("UTC"))
     message: Optional[str] = Field(default=None, examples=["Run started"])
     state_details: StateDetails = Field(default_factory=StateDetails)
     data: Annotated[
@@ -232,6 +234,15 @@ class State(ObjectBaseModel, Generic[R]):
     def result(
         self: "State[R]",
         raise_on_failure: Literal[False] = False,
+        fetch: bool = ...,
+        retry_result_failure: bool = ...,
+    ) -> Union[R, Exception]:
+        ...
+
+    @overload
+    def result(
+        self: "State[R]",
+        raise_on_failure: bool = ...,
         fetch: bool = ...,
         retry_result_failure: bool = ...,
     ) -> Union[R, Exception]:
@@ -429,9 +440,9 @@ class State(ObjectBaseModel, Generic[R]):
         return self.model_copy(
             update={
                 "id": uuid4(),
-                "created": pendulum.now("utc"),
-                "updated": pendulum.now("utc"),
-                "timestamp": pendulum.now("utc"),
+                "created": DateTime.now("utc"),
+                "updated": DateTime.now("utc"),
+                "timestamp": DateTime.now("utc"),
             },
             **kwargs,
         )
