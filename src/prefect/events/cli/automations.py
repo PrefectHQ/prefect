@@ -42,7 +42,7 @@ def requires_automations(func):
     return wrapper
 
 
-@automations_app.command()
+@automations_app.acommand()
 @requires_automations
 async def ls():
     """List all automations."""
@@ -101,7 +101,7 @@ async def ls():
     app.console.print(table)
 
 
-@automations_app.command()
+@automations_app.acommand()
 @requires_automations
 async def inspect(
     name: Optional[str] = typer.Argument(None, help="An automation's name"),
@@ -230,8 +230,8 @@ async def resume(
             exit_with_success(f"Resumed automation with id {str(automation.id)!r}.")
 
 
-automations_app.command("resume")(resume)
-automations_app.command("enable", hidden=True)(resume)
+automations_app.acommand("resume")(resume)
+automations_app.acommand("enable", hidden=True)(resume)
 
 
 @requires_automations
@@ -288,11 +288,11 @@ async def pause(
             exit_with_success(f"Paused automation with id {str(automation.id)!r}.")
 
 
-automations_app.command("pause")(pause)
-automations_app.command("disable", hidden=True)(pause)
+automations_app.acommand("pause")(pause)
+automations_app.acommand("disable", hidden=True)(pause)
 
 
-@automations_app.command()
+@automations_app.acommand()
 @requires_automations
 async def delete(
     name: Optional[str] = typer.Argument(None, help="An automation's name"),
