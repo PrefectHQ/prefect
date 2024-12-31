@@ -13,6 +13,7 @@ from rich.repr import RichReprResult
 from typing_extensions import Self
 
 from prefect.types import DateTime
+from prefect.utilities.generics import validate_list
 
 T = TypeVar("T")
 
@@ -55,6 +56,17 @@ class PrefectBaseModel(BaseModel):
             return copy_dict == other.model_dump()
         else:
             return copy_dict == other
+
+    @classmethod
+    def model_validate_list(
+        cls,
+        obj: Any,
+        *,
+        strict: Optional[bool] = None,
+        from_attributes: Optional[bool] = None,
+        context: Optional[Any] = None,
+    ) -> list[Self]:
+        return validate_list(cls, obj)
 
     def __rich_repr__(self) -> RichReprResult:
         # Display all of the fields in the model if they differ from the default value
