@@ -909,3 +909,37 @@ async def test_nested_task_task_flow(
     # The grandchild span should have the `child_span` as its parent
     assert grandchild_span.parent is not None
     assert grandchild_span.parent.span_id == child_span.context.span_id
+
+
+async def test_span_name_with_string_template(
+    engine_type: Literal["async", "sync"],
+    instrumentation: InstrumentationTester,
+):
+    """Test that spans use the formatted name when string templates are used"""
+    test_value = "template-test"
+
+    @task(task_run_name=f"task-{test_value}")
+    async def async_task(value: str):
+        return value
+
+    @task(task_run_name=f"task-{test_value}")
+    def sync_task(value: str):
+        return value
+
+    task_fn = async_task if engine_type == "async" else sync_task
+    task_run_id = uuid4()
+
+    await run_task(
+        task_fn,
+        task_run_id=task_run_id,
+        parameters={"value": test_value},
+        engine_type=engine_type,
+    )
+
+    spans = instrumentation.get_finished_spans()
+    assert len(spans) == 1
+    span = spans[0]
+
+    expected_name = f"task-{test_value}"
+    assert span.name == expected_name
+    assert span.attributes["prefect.run.name"] == expected_name
