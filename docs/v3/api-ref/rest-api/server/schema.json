@@ -939,7 +939,7 @@
                             "type": "string",
                             "format": "date-time",
                             "description": "Only include runs that start or end after this time.",
-                            "default": "0001-01-01T00:00:00+00:00",
+                            "default": "0001-01-01T00:00:00",
                             "title": "Since"
                         },
                         "description": "Only include runs that start or end after this time."
@@ -1507,6 +1507,66 @@
                                 "schema": {}
                             }
                         }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/flow_runs/{id}/labels": {
+            "patch": {
+                "tags": [
+                    "Flow Runs"
+                ],
+                "summary": "Update Flow Run Labels",
+                "description": "Update the labels of a flow run.",
+                "operationId": "update_flow_run_labels_flow_runs__id__labels_patch",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "The flow run id",
+                            "title": "Id"
+                        },
+                        "description": "The flow run id"
+                    },
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "description": "The labels to update",
+                                "title": "Labels"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "204": {
+                        "description": "Successful Response"
                     },
                     "422": {
                         "description": "Validation Error",
@@ -9835,7 +9895,6 @@
                     }
                 },
                 "type": "object",
-                "required": [],
                 "title": "Artifact"
             },
             "ArtifactCollection": {
@@ -9962,10 +10021,7 @@
                 "type": "object",
                 "required": [
                     "key",
-                    "latest_id",
-                    "id",
-                    "created",
-                    "updated"
+                    "latest_id"
                 ],
                 "title": "ArtifactCollection"
             },
@@ -10831,10 +10887,7 @@
                 "required": [
                     "name",
                     "trigger",
-                    "actions",
-                    "id",
-                    "created",
-                    "updated"
+                    "actions"
                 ],
                 "title": "Automation"
             },
@@ -11495,10 +11548,7 @@
                 "type": "object",
                 "required": [
                     "block_schema_id",
-                    "block_type_id",
-                    "id",
-                    "created",
-                    "updated"
+                    "block_type_id"
                 ],
                 "title": "BlockDocument",
                 "description": "An ORM representation of a block document."
@@ -11840,10 +11890,7 @@
                 "type": "object",
                 "required": [
                     "checksum",
-                    "block_type_id",
-                    "id",
-                    "created",
-                    "updated"
+                    "block_type_id"
                 ],
                 "title": "BlockSchema",
                 "description": "An ORM representation of a block schema."
@@ -12147,10 +12194,7 @@
                 "type": "object",
                 "required": [
                     "name",
-                    "slug",
-                    "id",
-                    "created",
-                    "updated"
+                    "slug"
                 ],
                 "title": "BlockType",
                 "description": "An ORM representation of a block type"
@@ -14589,10 +14633,7 @@
                 "type": "object",
                 "required": [
                     "tag",
-                    "concurrency_limit",
-                    "id",
-                    "created",
-                    "updated"
+                    "concurrency_limit"
                 ],
                 "title": "ConcurrencyLimit",
                 "description": "An ORM representation of a concurrency limit."
@@ -14704,10 +14745,7 @@
                 "type": "object",
                 "required": [
                     "name",
-                    "limit",
-                    "id",
-                    "created",
-                    "updated"
+                    "limit"
                 ],
                 "title": "ConcurrencyLimitV2",
                 "description": "An ORM representation of a v2 concurrency limit."
@@ -15072,10 +15110,7 @@
                 "required": [
                     "token",
                     "client",
-                    "expiration",
-                    "id",
-                    "created",
-                    "updated"
+                    "expiration"
                 ],
                 "title": "CsrfToken"
             },
@@ -16234,10 +16269,7 @@
                 "type": "object",
                 "required": [
                     "name",
-                    "flow_id",
-                    "id",
-                    "created",
-                    "updated"
+                    "flow_id"
                 ],
                 "title": "DeploymentResponse"
             },
@@ -16322,10 +16354,7 @@
                 },
                 "type": "object",
                 "required": [
-                    "schedule",
-                    "id",
-                    "created",
-                    "updated"
+                    "schedule"
                 ],
                 "title": "DeploymentSchedule"
             },
@@ -17331,10 +17360,7 @@
                 },
                 "type": "object",
                 "required": [
-                    "name",
-                    "id",
-                    "created",
-                    "updated"
+                    "name"
                 ],
                 "title": "Flow",
                 "description": "An ORM representation of flow data."
@@ -18023,10 +18049,7 @@
                 },
                 "type": "object",
                 "required": [
-                    "flow_id",
-                    "id",
-                    "created",
-                    "updated"
+                    "flow_id"
                 ],
                 "title": "FlowRun",
                 "description": "An ORM representation of flow run data."
@@ -19061,10 +19084,7 @@
                 "required": [
                     "flow_run_id",
                     "key",
-                    "value",
-                    "id",
-                    "created",
-                    "updated"
+                    "value"
                 ],
                 "title": "FlowRunInput"
             },
@@ -19147,10 +19167,7 @@
                 "required": [
                     "state_names",
                     "tags",
-                    "block_document_id",
-                    "id",
-                    "created",
-                    "updated"
+                    "block_document_id"
                 ],
                 "title": "FlowRunNotificationPolicy",
                 "description": "An ORM representation of a flow run notification."
@@ -19852,10 +19869,7 @@
                 },
                 "type": "object",
                 "required": [
-                    "flow_id",
-                    "id",
-                    "created",
-                    "updated"
+                    "flow_id"
                 ],
                 "title": "FlowRunResponse"
             },
@@ -20037,10 +20051,7 @@
                 "required": [
                     "name",
                     "limit",
-                    "active_slots",
-                    "id",
-                    "created",
-                    "updated"
+                    "active_slots"
                 ],
                 "title": "GlobalConcurrencyLimitResponse",
                 "description": "A response object for global concurrency limits."
@@ -20048,15 +20059,8 @@
             "Graph": {
                 "properties": {
                     "start_time": {
-                        "anyOf": [
-                            {
-                                "type": "string",
-                                "format": "date-time"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
+                        "type": "string",
+                        "format": "date-time",
                         "title": "Start Time"
                     },
                     "end_time": {
@@ -20147,14 +20151,7 @@
                         "title": "Key"
                     },
                     "type": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
+                        "type": "string",
                         "title": "Type"
                     },
                     "is_latest": {
@@ -20415,10 +20412,7 @@
                     "name",
                     "level",
                     "message",
-                    "timestamp",
-                    "id",
-                    "created",
-                    "updated"
+                    "timestamp"
                 ],
                 "title": "Log",
                 "description": "An ORM representation of log data."
@@ -21468,10 +21462,7 @@
                 },
                 "type": "object",
                 "required": [
-                    "name",
-                    "id",
-                    "created",
-                    "updated"
+                    "name"
                 ],
                 "title": "SavedSearch",
                 "description": "An ORM representation of saved search data. Represents a set of filter criteria."
@@ -21838,8 +21829,7 @@
                 },
                 "type": "object",
                 "required": [
-                    "type",
-                    "id"
+                    "type"
                 ],
                 "title": "State",
                 "description": "Represents the state of a run."
@@ -22120,17 +22110,6 @@
                             }
                         ],
                         "title": "Task Parameters Id"
-                    },
-                    "traceparent": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Traceparent"
                     }
                 },
                 "type": "object",
@@ -22537,10 +22516,7 @@
                 "type": "object",
                 "required": [
                     "task_key",
-                    "dynamic_key",
-                    "id",
-                    "created",
-                    "updated"
+                    "dynamic_key"
                 ],
                 "title": "TaskRun",
                 "description": "An ORM representation of task run data."
@@ -23497,10 +23473,7 @@
                 "type": "object",
                 "required": [
                     "name",
-                    "value",
-                    "id",
-                    "created",
-                    "updated"
+                    "value"
                 ],
                 "title": "Variable"
             },
@@ -23917,10 +23890,7 @@
                 "type": "object",
                 "required": [
                     "name",
-                    "type",
-                    "id",
-                    "created",
-                    "updated"
+                    "type"
                 ],
                 "title": "WorkPool",
                 "description": "An ORM representation of a work pool"
@@ -24280,10 +24250,7 @@
                 },
                 "type": "object",
                 "required": [
-                    "name",
-                    "id",
-                    "created",
-                    "updated"
+                    "name"
                 ],
                 "title": "WorkQueue",
                 "description": "An ORM representation of a work queue"
@@ -24643,10 +24610,7 @@
                 },
                 "type": "object",
                 "required": [
-                    "name",
-                    "id",
-                    "created",
-                    "updated"
+                    "name"
                 ],
                 "title": "WorkQueueResponse"
             },
@@ -24982,10 +24946,7 @@
                 "type": "object",
                 "required": [
                     "name",
-                    "work_pool_id",
-                    "id",
-                    "created",
-                    "updated"
+                    "work_pool_id"
                 ],
                 "title": "WorkerResponse"
             },
