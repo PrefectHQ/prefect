@@ -12,7 +12,7 @@ import textwrap
 import time
 from functools import partial
 from string import Template
-from typing import Any, Awaitable, Callable, Optional, cast
+from typing import Awaitable, Optional, cast
 
 import anyio
 import typer
