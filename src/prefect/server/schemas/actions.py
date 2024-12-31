@@ -31,6 +31,7 @@ from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
 from prefect.types import (
     MAX_VARIABLE_NAME_LENGTH,
     DateTime,
+    KeyValueLabels,
     Name,
     NonEmptyishName,
     NonNegativeFloat,
@@ -517,7 +518,7 @@ class FlowRunCreate(ActionBaseModel):
         description="A list of tags for the flow run.",
         examples=[["tag-1", "tag-2"]],
     )
-    labels: Union[schemas.core.KeyValueLabels, None] = Field(
+    labels: Union[KeyValueLabels, None] = Field(
         default_factory=dict,
         description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
         examples=[{"key": "value1", "key2": 42}],
