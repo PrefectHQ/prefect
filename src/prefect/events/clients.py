@@ -16,6 +16,7 @@ from typing import (
     cast,
 )
 from urllib.parse import urlparse
+from urllib.request import proxy_bypass
 from uuid import UUID
 
 import orjson
@@ -95,6 +96,9 @@ class WebsocketProxyConnect(Connect):
         u = urlparse(uri)
         host = u.hostname
 
+        if not host:
+            raise ValueError(f"Invalid URI {uri}, no hostname found")
+
         if u.scheme == "ws":
             port = u.port or 80
             proxy_url = os.environ.get("HTTP_PROXY")
@@ -107,7 +111,9 @@ class WebsocketProxyConnect(Connect):
                 "Unsupported scheme %s. Expected 'ws' or 'wss'. " % u.scheme
             )
 
-        self._proxy = Proxy.from_url(proxy_url) if proxy_url else None
+        self._proxy = (
+            Proxy.from_url(proxy_url) if proxy_url and not proxy_bypass(host) else None
+        )
         self._host = host
         self._port = port
 
