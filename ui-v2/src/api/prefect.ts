@@ -7852,7 +7852,8 @@ export interface components {
         };
         /**
          * ResumeFlowRun
-         * @description Resumes a paused or suspended flow run associated with the trigger
+         * @description Resumes a paused or suspended flow run associated with the trigger.
+         *     Added in version 3.0.2.
          */
         ResumeFlowRun: {
             /**
