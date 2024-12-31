@@ -5434,6 +5434,13 @@ export interface components {
              * @description An optional idempotency key. If a flow run with the same idempotency key has already been created, the existing flow run will be returned.
              */
             idempotency_key?: string | null;
+            /**
+             * Labels
+             * @description A dictionary of key-value labels. Values can be strings, numbers, or booleans.
+             */
+            labels?: {
+                [key: string]: boolean | number | string;
+            } | null;
             /** Parent Task Run Id */
             parent_task_run_id?: string | null;
             /** Work Queue Name */
