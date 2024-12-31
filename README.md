@@ -80,7 +80,7 @@ You now have a process running locally that is looking for scheduled deployments
 Additionally you can run your workflow manually from the UI or CLI. You can even run deployments in response to [events](https://docs.prefect.io/latest/automate/?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none).
 
 > [!NOTE]
-> To explore different infrastructure options for your workflows, check out the documentation on [deployments](https://docs.prefect.io/v3/deploy/index).
+> To explore different infrastructure options for your workflows, check out the [deployment documentation](https://docs.prefect.io/v3/deploy).
 
 
 ## Prefect Cloud
