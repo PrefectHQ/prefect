@@ -1608,6 +1608,7 @@ def task(__fn: Callable[P, R]) -> Task[P, R]:
 @overload
 def task(
     __fn: Literal[None] = None,
+    cache_policy: Any = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]:
     ...
 
