@@ -20,6 +20,7 @@ from fastapi import (
     Response,
     status,
 )
+from fastapi.encoders import jsonable_encoder
 from fastapi.responses import ORJSONResponse, PlainTextResponse, StreamingResponse
 from sqlalchemy.exc import IntegrityError
 
@@ -29,8 +30,7 @@ import prefect.server.schemas as schemas
 from prefect.logging import get_logger
 from prefect.server.api.run_history import run_history
 from prefect.server.api.validation import validate_job_variables_for_deployment_flow_run
-from prefect.server.database.dependencies import provide_database_interface
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.exceptions import FlowRunGraphTooLarge
 from prefect.server.models.flow_runs import (
     DependencyResult,
@@ -215,6 +215,7 @@ async def average_flow_run_lateness(
             base_query = db.FlowRun.estimated_start_time_delta
 
         query = await models.flow_runs._apply_flow_run_filters(
+            db,
             sa.select(sa.func.avg(base_query)),
             flow_filter=flows,
             flow_run_filter=flow_runs,
@@ -321,8 +322,8 @@ async def read_flow_run_graph_v1(
 @router.get("/{id:uuid}/graph-v2")
 async def read_flow_run_graph_v2(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
-    since: datetime.datetime = Query(
-        datetime.datetime.min,
+    since: DateTime = Query(
+        default=jsonable_encoder(DateTime.min),
         description="Only include runs that start or end after this time.",
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),

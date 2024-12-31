@@ -19,9 +19,9 @@ from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.objects import StateType
 from prefect.concurrency.asyncio import concurrency as aconcurrency
 from prefect.concurrency.sync import concurrency
-from prefect.concurrency.v1.asyncio import (
-    _acquire_concurrency_slots,
-    _release_concurrency_slots,
+from prefect.concurrency.v1._asyncio import (
+    acquire_concurrency_slots,
+    release_concurrency_slots,
 )
 from prefect.context import (
     EngineContext,
@@ -34,10 +34,7 @@ from prefect.filesystems import LocalFileSystem
 from prefect.logging import get_run_logger
 from prefect.results import ResultRecord, ResultStore
 from prefect.server.schemas.core import ConcurrencyLimitV2
-from prefect.settings import (
-    PREFECT_TASK_DEFAULT_RETRIES,
-    temporary_settings,
-)
+from prefect.settings import PREFECT_TASK_DEFAULT_RETRIES, temporary_settings
 from prefect.states import Completed, Running, State
 from prefect.task_engine import (
     AsyncTaskRunEngine,
@@ -2512,12 +2509,12 @@ class TestTaskConcurrencyLimits:
             return 42
 
         with mock.patch(
-            "prefect.concurrency.v1.asyncio._acquire_concurrency_slots",
-            wraps=_acquire_concurrency_slots,
+            "prefect.concurrency.v1.asyncio.acquire_concurrency_slots",
+            wraps=acquire_concurrency_slots,
         ) as acquire_spy:
             with mock.patch(
-                "prefect.concurrency.v1.asyncio._release_concurrency_slots",
-                wraps=_release_concurrency_slots,
+                "prefect.concurrency.v1.asyncio.release_concurrency_slots",
+                wraps=release_concurrency_slots,
             ) as release_spy:
                 await bar()
 
@@ -2540,12 +2537,12 @@ class TestTaskConcurrencyLimits:
             return 42
 
         with mock.patch(
-            "prefect.concurrency.v1.sync._acquire_concurrency_slots",
-            wraps=_acquire_concurrency_slots,
+            "prefect.concurrency.v1.sync.acquire_concurrency_slots",
+            wraps=acquire_concurrency_slots,
         ) as acquire_spy:
             with mock.patch(
-                "prefect.concurrency.v1.sync._release_concurrency_slots",
-                wraps=_release_concurrency_slots,
+                "prefect.concurrency.v1.sync.release_concurrency_slots",
+                wraps=release_concurrency_slots,
             ) as release_spy:
                 bar()
 
@@ -2571,12 +2568,12 @@ class TestTaskConcurrencyLimits:
             return 42
 
         with mock.patch(
-            "prefect.concurrency.v1.sync._acquire_concurrency_slots",
-            wraps=_acquire_concurrency_slots,
+            "prefect.concurrency.v1.sync.acquire_concurrency_slots",
+            wraps=acquire_concurrency_slots,
         ) as acquire_spy:
             with mock.patch(
-                "prefect.concurrency.v1.sync._release_concurrency_slots",
-                wraps=_release_concurrency_slots,
+                "prefect.concurrency.v1.sync.release_concurrency_slots",
+                wraps=release_concurrency_slots,
             ) as release_spy:
                 with tags("limit-tag"):
                     bar()
@@ -2603,12 +2600,12 @@ class TestTaskConcurrencyLimits:
             return 42
 
         with mock.patch(
-            "prefect.concurrency.v1.asyncio._acquire_concurrency_slots",
-            wraps=_acquire_concurrency_slots,
+            "prefect.concurrency.v1.asyncio.acquire_concurrency_slots",
+            wraps=acquire_concurrency_slots,
         ) as acquire_spy:
             with mock.patch(
-                "prefect.concurrency.v1.asyncio._release_concurrency_slots",
-                wraps=_release_concurrency_slots,
+                "prefect.concurrency.v1.asyncio.release_concurrency_slots",
+                wraps=release_concurrency_slots,
             ) as release_spy:
                 with tags("limit-tag"):
                     await bar()
@@ -2628,12 +2625,12 @@ class TestTaskConcurrencyLimits:
             return 42
 
         with mock.patch(
-            "prefect.concurrency.v1.asyncio._acquire_concurrency_slots",
-            wraps=_acquire_concurrency_slots,
+            "prefect.concurrency.v1._asyncio.acquire_concurrency_slots",
+            wraps=acquire_concurrency_slots,
         ) as acquire_spy:
             with mock.patch(
-                "prefect.concurrency.v1.asyncio._release_concurrency_slots",
-                wraps=_release_concurrency_slots,
+                "prefect.concurrency.v1._asyncio.release_concurrency_slots",
+                wraps=release_concurrency_slots,
             ) as release_spy:
                 await bar()
 
@@ -2646,12 +2643,12 @@ class TestTaskConcurrencyLimits:
             return 42
 
         with mock.patch(
-            "prefect.concurrency.v1.sync._acquire_concurrency_slots",
-            wraps=_acquire_concurrency_slots,
+            "prefect.concurrency.v1.sync.acquire_concurrency_slots",
+            wraps=acquire_concurrency_slots,
         ) as acquire_spy:
             with mock.patch(
-                "prefect.concurrency.v1.sync._release_concurrency_slots",
-                wraps=_release_concurrency_slots,
+                "prefect.concurrency.v1.sync.release_concurrency_slots",
+                wraps=release_concurrency_slots,
             ) as release_spy:
                 bar()
 
@@ -2668,8 +2665,8 @@ class TestTaskConcurrencyLimits:
             return 42
 
         with mock.patch(
-            "prefect.concurrency.v1.asyncio._acquire_concurrency_slots",
-            wraps=_acquire_concurrency_slots,
+            "prefect.concurrency.v1.asyncio.acquire_concurrency_slots",
+            wraps=acquire_concurrency_slots,
         ) as acquire_spy:
             await bar()
 
