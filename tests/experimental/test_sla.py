@@ -10,7 +10,6 @@ import respx
 from prefect import flow
 from prefect._experimental.sla import (
     ServiceLevelAgreement,
-    SlaSeverity,
     TimeToCompletionSla,
 )
 from prefect.client.base import ServerType
@@ -138,12 +137,12 @@ class TestRunnerDeploymentApply:
     async def test_create_deployment_with_multiple_slas_against_cloud(self, client):
         sla1 = TimeToCompletionSla(
             name="a little long",
-            severity=SlaSeverity.MODERATE,
+            severity="moderate",
             duration=timedelta(minutes=10).total_seconds(),
         )
         sla2 = TimeToCompletionSla(
             name="whoa this is bad",
-            severity=SlaSeverity.HIGH,
+            severity="high",
             duration=timedelta(minutes=30).total_seconds(),
         )
         deployment = RunnerDeployment.from_flow(

@@ -1,22 +1,11 @@
 import abc
-from typing import Optional, Union
+from typing import Literal, Optional, Union
 from uuid import UUID
 
 from pydantic import Field, PrivateAttr, computed_field
 from typing_extensions import TypeAlias
 
 from prefect._internal.schemas.bases import PrefectBaseModel
-from prefect.utilities.collections import AutoEnum
-
-
-class SlaSeverity(AutoEnum):
-    """The severity of a SLA violation"""
-
-    MINOR = "minor"
-    LOW = "low"
-    MODERATE = "moderate"
-    HIGH = "high"
-    CRITICAL = "critical"
 
 
 class ServiceLevelAgreement(PrefectBaseModel, abc.ABC):
@@ -28,8 +17,8 @@ class ServiceLevelAgreement(PrefectBaseModel, abc.ABC):
         default=...,
         description="The name of the SLA. Names must be unique on a per-deployment basis.",
     )
-    severity: SlaSeverity = Field(
-        default=SlaSeverity.MODERATE,
+    severity: Literal["minor", "low", "moderate", "high", "critical"] = Field(
+        default="moderate",
         description="The severity of the SLA.",
     )
     enabled: Optional[bool] = Field(
