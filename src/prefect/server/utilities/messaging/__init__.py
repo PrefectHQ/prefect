@@ -129,11 +129,13 @@ class CacheModule(Protocol):
 def create_cache() -> Cache:
     """
     Creates a new cache with the applications default settings.
+
     Returns:
         a new Cache instance
     """
     module = importlib.import_module(PREFECT_MESSAGING_CACHE.value())
     assert isinstance(module, CacheModule)
+
     return module.Cache()
 
 
