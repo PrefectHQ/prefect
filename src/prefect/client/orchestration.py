@@ -3518,6 +3518,11 @@ class PrefectClient:
         Returns:
             the ID of the SLA in the backend
         """
+        if not sla.owner_resource:
+            raise ValueError(
+                "Deployment ID is not set. Please set using `set_deployment_id`."
+            )
+
         response = await self._client.post(
             "/slas/",
             json=sla.model_dump(mode="json", exclude_unset=True),

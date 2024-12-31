@@ -31,12 +31,10 @@ class ServiceLevelAgreement(PrefectBaseModel, abc.ABC):
 
     @computed_field
     @property
-    def owner_resource(self) -> str:
-        if not self._deployment_id:
-            raise ValueError(
-                "Deployment ID is not set. Please set using `set_deployment_id`."
-            )
-        return f"prefect.deployment.{self._deployment_id}"
+    def owner_resource(self) -> str | None:
+        if self._deployment_id:
+            return f"prefect.deployment.{self._deployment_id}"
+        return None
 
 
 class TimeToCompletionSla(ServiceLevelAgreement):
