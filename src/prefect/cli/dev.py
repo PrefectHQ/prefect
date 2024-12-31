@@ -12,7 +12,7 @@ import textwrap
 import time
 from functools import partial
 from string import Template
-from typing import Awaitable, Optional, cast
+from typing import Any, Awaitable, Optional, cast
 
 import anyio
 import typer
@@ -213,7 +213,7 @@ async def start(
     Each service can be excluded here as well.
     """
     registry = cast(
-        dict[str, WrappedCallable[..., Awaitable[None]]],
+        dict[str, WrappedCallable[[Any], Awaitable[None]]],
         {
             getattr(x.callback, "__name__", None): x.callback
             for x in dev_app.registered_commands
