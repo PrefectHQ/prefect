@@ -614,6 +614,7 @@ class PrefectClient(ArtifactAsyncClient, ArtifactCollectionAsyncClient):
         parent_task_run_id: Optional[UUID] = None,
         work_queue_name: Optional[str] = None,
         job_variables: Optional[dict[str, Any]] = None,
+        labels: Optional[KeyValueLabelsField] = None,
     ) -> FlowRun:
         """
         Create a flow run for a deployment.
@@ -659,6 +660,7 @@ class PrefectClient(ArtifactAsyncClient, ArtifactCollectionAsyncClient):
             idempotency_key=idempotency_key,
             parent_task_run_id=parent_task_run_id,
             job_variables=job_variables,
+            labels=labels,
         )
 
         # done separately to avoid including this field in payloads sent to older API versions
