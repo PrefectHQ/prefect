@@ -446,7 +446,7 @@ class TestRunDeployment:
         """Test that OTEL trace context gets propagated from parent flow to deployment flow run"""
         deployment = test_deployment
 
-        @flow(name="child-flow")
+        @flow(flow_run_name="child-flow")
         async def child_flow() -> None:
             pass
 
@@ -457,7 +457,7 @@ class TestRunDeployment:
         )
         deployment = await prefect_client.read_deployment(deployment_id)
 
-        @flow(name="parent-flow")
+        @flow(flow_run_name="parent-flow")
         async def parent_flow():
             return await run_deployment(
                 f"foo/{deployment.name}",
