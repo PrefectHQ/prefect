@@ -396,7 +396,7 @@ class DeploymentFlowRunCreate(ActionBaseModel):
     idempotency_key: Optional[str] = Field(default=None)
     parent_task_run_id: Optional[UUID] = Field(default=None)
     work_queue_name: Optional[str] = Field(default=None)
-    job_variables: Optional[dict] = Field(default=None)
+    job_variables: Optional[dict[str, Any]] = Field(default=None)
     labels: KeyValueLabelsField = Field(default_factory=dict)
 
 
