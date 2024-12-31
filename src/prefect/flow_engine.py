@@ -55,7 +55,6 @@ from prefect.logging.loggers import (
     patch_print,
 )
 from prefect.results import (
-    BaseResult,
     ResultStore,
     get_result_store,
     should_persist_result,
@@ -307,10 +306,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         if self._return_value is not NotSet and not isinstance(
             self._return_value, State
         ):
-            if isinstance(self._return_value, BaseResult):
-                _result = self._return_value.get()
-            else:
-                _result = self._return_value
+            _result = self._return_value
 
             if asyncio.iscoroutine(_result):
                 # getting the value for a BaseResult may return an awaitable
@@ -873,10 +869,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         if self._return_value is not NotSet and not isinstance(
             self._return_value, State
         ):
-            if isinstance(self._return_value, BaseResult):
-                _result = self._return_value.get()
-            else:
-                _result = self._return_value
+            _result = self._return_value
 
             if asyncio.iscoroutine(_result):
                 # getting the value for a BaseResult may return an awaitable

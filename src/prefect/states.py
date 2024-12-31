@@ -29,7 +29,6 @@ from prefect.exceptions import (
 )
 from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.results import (
-    BaseResult,
     R,
     ResultRecord,
     ResultRecordMetadata,
@@ -140,7 +139,7 @@ async def _get_state_result(
     ):
         raise await get_state_exception(state)
 
-    if isinstance(state.data, (BaseResult, ResultRecordMetadata)):
+    if isinstance(state.data, ResultRecordMetadata):
         result = await _get_state_result_data_with_retries(
             state, retry_result_failure=retry_result_failure
         )
@@ -326,7 +325,7 @@ async def return_value_to_state(
         state = retval
         # Unless the user has already constructed a result explicitly, use the store
         # to update the data to the correct type
-        if not isinstance(state.data, (BaseResult, ResultRecord, ResultRecordMetadata)):
+        if not isinstance(state.data, (ResultRecord, ResultRecordMetadata)):
             result_record = result_store.create_result_record(
                 state.data,
                 key=key,
@@ -402,7 +401,7 @@ async def return_value_to_state(
         data = retval
 
     # Otherwise, they just gave data and this is a completed retval
-    if isinstance(data, (BaseResult, ResultRecord)):
+    if isinstance(data, ResultRecord):
         return Completed(data=data)
     else:
         result_record = result_store.create_result_record(
@@ -457,9 +456,7 @@ async def get_state_exception(state: State) -> BaseException:
     else:
         raise ValueError(f"Expected failed or crashed state got {state!r}.")
 
-    if isinstance(state.data, BaseResult):
-        result = await _get_state_result_data_with_retries(state)
-    elif isinstance(state.data, ResultRecord):
+    if isinstance(state.data, ResultRecord):
         result = state.data.result
     elif isinstance(state.data, ResultRecordMetadata):
         record = await ResultRecord._from_metadata(state.data)

@@ -6,7 +6,6 @@ import pytest
 from prefect import flow
 from prefect.exceptions import CancelledRun, CrashedRun, FailedRun
 from prefect.results import (
-    PersistedResult,
     ResultRecord,
     ResultRecordMetadata,
     ResultStore,
@@ -160,16 +159,6 @@ class TestReturnValueToState:
         assert isinstance(result_state.data, ResultRecord)
         assert Path(result_state.data.metadata.storage_key).exists()
         assert await result_state.result() == 1
-
-    async def test_returns_persisted_results_unaltered(
-        self, ignore_prefect_deprecation_warnings
-    ):
-        # TODO: This test will be removed in a future release when PersistedResult is removed
-        store = ResultStore(persist_result=True)
-        result = await store.create_result(42)
-        result_state = await return_value_to_state(result, store)
-        assert result_state.data == result
-        assert await result_state.result() == 42
 
     async def test_returns_persisted_result_records_unaltered(self):
         store = ResultStore()
@@ -397,10 +386,4 @@ def test_state_returns_expected_result(ignore_prefect_deprecation_warnings):
             ),
         )
     )
-    assert state.result() == "test"
-
-    # legacy case
-    result = PersistedResult(serializer_type="pickle", storage_key="test")
-    result._cache = "test"
-    state = Completed(data=result)
     assert state.result() == "test"

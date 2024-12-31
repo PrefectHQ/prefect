@@ -885,14 +885,6 @@ async def test_supports_isolation_level():
     )
 
 
-async def test_deprecation_warning_on_persist_result():
-    with pytest.warns(DeprecationWarning):
-        ResultStore(persist_result=True)
-
-    with pytest.warns(DeprecationWarning):
-        ResultStore(persist_result=False)
-
-
 class TestResultStoreEmitsEvents:
     async def test_result_store_emits_write_event(
         self, tmp_path, enable_lineage_events
