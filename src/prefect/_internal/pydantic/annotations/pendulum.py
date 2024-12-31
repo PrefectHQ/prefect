@@ -3,39 +3,39 @@ This file contains compat code to handle pendulum.DateTime objects during jsonsc
 generation and validation.
 """
 
-import typing as t
+from typing import Annotated, Any, Union
 
 import pendulum
 from pydantic import GetCoreSchemaHandler, GetJsonSchemaHandler
 from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import core_schema
-from typing_extensions import Annotated
 
 
 class _PendulumDateTimeAnnotation:
-    _pendulum_type: t.Type[
-        t.Union[pendulum.DateTime, pendulum.Date, pendulum.Time]
+    _pendulum_type: type[
+        Union[pendulum.DateTime, pendulum.Date, pendulum.Time, pendulum.Duration]
     ] = pendulum.DateTime
 
     _pendulum_types_to_schemas = {
         pendulum.DateTime: core_schema.datetime_schema(),
         pendulum.Date: core_schema.date_schema(),
+        pendulum.Time: core_schema.time_schema(),
         pendulum.Duration: core_schema.timedelta_schema(),
     }
 
     @classmethod
     def __get_pydantic_core_schema__(
         cls,
-        _source_type: t.Any,
+        _source_type: Any,
         _handler: GetCoreSchemaHandler,
     ) -> core_schema.CoreSchema:
         def validate_from_str(
             value: str,
-        ) -> t.Union[pendulum.DateTime, pendulum.Date, pendulum.Time]:
+        ) -> Union[pendulum.DateTime, pendulum.Date, pendulum.Time, pendulum.Duration]:
             return pendulum.parse(value)
 
         def to_str(
-            value: t.Union[pendulum.DateTime, pendulum.Date, pendulum.Time],
+            value: Union[pendulum.DateTime, pendulum.Date, pendulum.Time],
         ) -> str:
             return value.isoformat()
 

@@ -1,6 +1,8 @@
 import {
 	AlignVerticalJustifyStart,
 	Ban,
+	Bot,
+	Calendar,
 	Check,
 	ChevronDown,
 	ChevronLeft,
@@ -28,6 +30,8 @@ import {
 export const ICONS = {
 	AlignVerticalJustifyStart,
 	Ban,
+	Bot,
+	Calendar,
 	Check,
 	ChevronDown,
 	ChevronLeft,
@@ -47,8 +51,8 @@ export const ICONS = {
 	Rocket,
 	Search,
 	ServerCrash,
-	Workflow,
 	Variable,
+	Workflow,
 	X,
 } as const;
 

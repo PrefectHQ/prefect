@@ -12,7 +12,7 @@ import type {
 	ColumnFiltersState,
 	PaginationState,
 } from "@tanstack/react-table";
-import { zodSearchValidator } from "@tanstack/router-zod-adapter";
+import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useMemo } from "react";
 import { z } from "zod";
 
@@ -71,7 +71,7 @@ export function VariablesPage() {
 }
 
 export const Route = createFileRoute("/variables")({
-	validateSearch: zodSearchValidator(searchParams),
+	validateSearch: zodValidator(searchParams),
 	component: VariablesPage,
 	loaderDeps: ({ search }) => buildFilterBody(search),
 	loader: useVariables.loader,

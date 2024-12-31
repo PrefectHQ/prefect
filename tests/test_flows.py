@@ -496,7 +496,7 @@ class TestFlowWithOptions:
             inspect.signature(Flow.with_options).parameters.keys()
         )
         # `with_options` does not accept a new function
-        flow_params.remove("__fn")
+        flow_params.remove("_FlowDecorator__fn")
         # `self` isn't in flow decorator
         with_options_params.remove("self")
 
@@ -2828,6 +2828,25 @@ class TestFlowRunName:
         assert state2.type == StateType.COMPLETED
         assert mocked_flow_method.call_count == 2
         assert generate_flow_run_name.call_count == 2
+
+    async def test_both_engines_logs_custom_flow_run_name(
+        self, caplog: pytest.LogCaptureFixture
+    ):
+        @flow(flow_run_name="very-bespoke-name")
+        def test():
+            pass
+
+        test()
+
+        assert "Beginning flow run 'very-bespoke-name'" in caplog.text
+
+        @flow(flow_run_name="very-bespoke-async-name")
+        async def test_async():
+            pass
+
+        await test_async()
+
+        assert "Beginning flow run 'very-bespoke-async-name'" in caplog.text
 
 
 def create_hook(mock_obj):
