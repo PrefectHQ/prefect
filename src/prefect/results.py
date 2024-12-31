@@ -11,6 +11,7 @@ from typing import (
     Annotated,
     Any,
     Callable,
+    ClassVar,
     Dict,
     Generic,
     Optional,
@@ -300,7 +301,7 @@ class ResultStore(BaseModel):
         storage_key_fn: The function to generate storage keys.
     """
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(arbitrary_types_allowed=True)
 
     result_storage: Optional[WritableFileSystem] = Field(default=None)
     metadata_storage: Annotated[
@@ -1228,7 +1229,7 @@ class ResultRecord(BaseModel, Generic[R]):
 )
 @register_base_type
 class BaseResult(BaseModel, abc.ABC, Generic[R]):
-    model_config = ConfigDict(extra="forbid")
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
     type: str
 
     def __init__(self, **data: Any) -> None:
