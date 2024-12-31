@@ -13,6 +13,9 @@ from prefect.logging import get_logger
 from prefect.results import BaseResult, ResultRecordMetadata
 from prefect.states import Pending, Scheduled
 from prefect.tasks import Task
+from prefect.telemetry.run_telemetry import (
+    LABELS_TRACEPARENT_KEY,
+)
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.slugify import slugify
 
@@ -156,6 +159,13 @@ async def run_deployment(
     else:
         parent_task_run_id = None
 
+    if flow_run_ctx and flow_run_ctx.flow_run:
+        traceparent = flow_run_ctx.flow_run.labels.get(LABELS_TRACEPARENT_KEY)
+    else:
+        traceparent = None
+
+    trace_labels = {LABELS_TRACEPARENT_KEY: traceparent} if traceparent else {}
+
     flow_run = await client.create_flow_run_from_deployment(
         deployment.id,
         parameters=parameters,
@@ -166,6 +176,7 @@ async def run_deployment(
         parent_task_run_id=parent_task_run_id,
         work_queue_name=work_queue_name,
         job_variables=job_variables,
+        labels=trace_labels,
     )
 
     flow_run_id = flow_run.id
