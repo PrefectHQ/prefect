@@ -307,9 +307,7 @@ class SnowflakeConnector(DatabaseBlock):
         )
         new, cursor = self._get_cursor(inputs, cursor_type=cursor_type)
         if new:
-            self.execute(
-                operation, parameters, cursor_type=cursor_type, **execute_kwargs
-            )
+            cursor.execute(operation, params=parameters, **execute_kwargs)
         self.logger.debug("Preparing to fetch a row.")
         return cursor.fetchone()
 
@@ -439,7 +437,7 @@ class SnowflakeConnector(DatabaseBlock):
         )
         new, cursor = self._get_cursor(inputs, cursor_type)
         if new:
-            self.execute(cursor, inputs)
+            cursor.execute(operation, params=parameters, **execute_kwargs)
         size = size or self.fetch_size
         self.logger.debug(f"Preparing to fetch {size} rows.")
         return cursor.fetchmany(size=size)
