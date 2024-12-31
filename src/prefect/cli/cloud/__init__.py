@@ -557,15 +557,15 @@ async def logout():
     exit_with_success("Logged out from Prefect Cloud.")
 
 
-@cloud_app.command(
+@cloud_app.acommand(
     deprecated=True,
-    deprecated_name="prefect cloud open",
-    deprecated_start_date="Oct 2024",
-    deprecated_help="Use `prefect dashboard open` to open the Prefect UI.",
+    hidden=True,
 )
 async def open():
     """
     Open the Prefect Cloud UI in the browser.
+    Will be removed after April 2025.
+    Use `prefect dashboard open` to open the Prefect UI.
     """
     confirm_logged_in()
 

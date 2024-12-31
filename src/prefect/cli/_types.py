@@ -2,21 +2,16 @@
 Custom Prefect CLI types
 """
 
-import asyncio
 import functools
-import sys
 from typing import (
     Any,
     Callable,
     Concatenate,
     Coroutine,
-    Generic,
-    List,
     Optional,
     Protocol,
     Type,
     TypeVar,
-    Union,
 )
 
 import typer
@@ -25,10 +20,8 @@ from rich.theme import Theme
 from typer.core import TyperCommand
 from typing_extensions import ParamSpec
 
-from prefect._internal.compatibility.deprecated import generate_deprecation_message
-from prefect.cli._utilities import with_cli_exception_handling
 from prefect.settings import PREFECT_CLI_COLORS, Setting
-from prefect.utilities.asyncutils import is_async_fn, sync
+from prefect.utilities.asyncutils import sync
 
 P = ParamSpec("P")
 
@@ -50,18 +43,6 @@ def with_settings(
 SettingsOption = with_settings(typer.Option)
 
 
-def with_deprecated_message(warning: str):
-    def decorator(fn):
-        @functools.wraps(fn)
-        def wrapper(*args, **kwargs):
-            print("WARNING:", warning, file=sys.stderr, flush=True)
-            return fn(*args, **kwargs)
-
-        return wrapper
-
-    return decorator
-
-
 class _WrappedCallable(Protocol[P, T]):
     __wrapped__: Callable[P, T]
 
@@ -74,33 +55,6 @@ class PrefectTyper(typer.Typer):
     """
 
     console: Console
-
-    def __init__(
-        self,
-        *args,
-        deprecated: bool = False,
-        deprecated_start_date: Optional[str] = None,
-        deprecated_help: str = "",
-        deprecated_name: str = "",
-        **kwargs,
-    ):
-        super().__init__(*args, **kwargs)
-
-        self.deprecated = deprecated
-        if self.deprecated:
-            if not deprecated_name:
-                raise ValueError("Provide the name of the deprecated command group.")
-            self.deprecated_message = generate_deprecation_message(
-                name=f"The {deprecated_name!r} command group",
-                start_date=deprecated_start_date,
-                help=deprecated_help,
-            )
-
-        self.console = Console(
-            highlight=False,
-            theme=Theme({"prompt.choices": "bold blue"}),
-            color_system="auto" if PREFECT_CLI_COLORS else None,
-        )
 
     def acommand(
         self,
@@ -118,7 +72,7 @@ class PrefectTyper(typer.Typer):
         deprecated: bool = False,
     ) -> Callable[
         [Callable[P, Coroutine[Any, Any, T]]],
-        _WrappedCallable[P, T],
+        Callable[P, T],
     ]:
         """
         Decorator for registering a command on this Typer app that MUST be async.
@@ -148,56 +102,6 @@ class PrefectTyper(typer.Typer):
                 deprecated=deprecated,
             )
             return command_decorator(sync_fn)
-
-        return wrapper
-
-    def command(
-        self,
-        name: Optional[str] = None,
-        *args,
-        aliases: Optional[List[str]] = None,
-        deprecated: bool = False,
-        deprecated_start_date: Optional[str] = None,
-        deprecated_help: str = "",
-        deprecated_name: str = "",
-        **kwargs,
-    ):
-        """
-        Create a new command. If aliases are provided, the same command function
-        will be registered with multiple names.
-
-        Provide `deprecated=True` to mark the command as deprecated. If `deprecated=True`,
-        `deprecated_name` and `deprecated_start_date` must be provided.
-        """
-
-        def wrapper(original_fn: Callable):
-            # click doesn't support async functions, so we wrap them in
-            # asyncio.run(). This has the advantage of keeping the function in
-            # the main thread, which means signal handling works for e.g. the
-            # server and workers. However, it means that async CLI commands can
-            # not directly call other async CLI commands (because asyncio.run()
-            # can not be called nested). In that (rare) circumstance, refactor
-            # the CLI command so its business logic can be invoked separately
-            # from its entrypoint.
-            if is_async_fn(original_fn):
-                async_fn = original_fn
-
-                @functools.wraps(original_fn)
-                def sync_fn(*args, **kwargs):
-                    return asyncio.run(async_fn(*args, **kwargs))
-
-                sync_fn.aio = async_fn
-                wrapped_fn = sync_fn
-            else:
-                wrapped_fn = original_fn
-
-            # register fn with its original name
-            command_decorator = super(PrefectTyper, self).command(
-                name=name, *args, **kwargs
-            )
-            original_command = command_decorator(wrapped_fn)
-
-            return original_command
 
         return wrapper
 
