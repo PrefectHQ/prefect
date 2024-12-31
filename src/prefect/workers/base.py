@@ -863,10 +863,10 @@ class BaseWorker(abc.ABC):
         for execution by the worker.
         """
         submittable_flow_runs = [entry.flow_run for entry in flow_run_response]
-        self._logger.info(f"Submitting {len(submittable_flow_runs)} flow runs")
+
         for flow_run in submittable_flow_runs:
             if flow_run.id in self._submitting_flow_run_ids:
-                self._logger.info(
+                self._logger.debug(
                     f"Skipping {flow_run.id} because it's already being submitted"
                 )
                 continue
@@ -948,7 +948,7 @@ class BaseWorker(abc.ABC):
             return
 
         ready_to_submit = await self._propose_pending_state(flow_run)
-        self._logger.info(f"Ready to submit {flow_run.id}: {ready_to_submit}")
+        self._logger.debug(f"Ready to submit {flow_run.id}: {ready_to_submit}")
         if ready_to_submit:
             readiness_result = await self._runs_task_group.start(
                 self._submit_run_and_capture_errors, flow_run
