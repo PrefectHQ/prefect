@@ -81,7 +81,7 @@ class FlowCreate(ActionBaseModel):
         description="A list of flow tags",
         examples=[["tag-1", "tag-2"]],
     )
-    labels: Union[schemas.core.KeyValueLabels, None] = Field(
+    labels: Union[KeyValueLabels, None] = Field(
         default_factory=dict,
         description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
         examples=[{"key": "value1", "key2": 42}],
@@ -182,7 +182,7 @@ class DeploymentCreate(ActionBaseModel):
         description="A list of deployment tags.",
         examples=[["tag-1", "tag-2"]],
     )
-    labels: Union[schemas.core.KeyValueLabels, None] = Field(
+    labels: Union[KeyValueLabels, None] = Field(
         default_factory=dict,
         description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
         examples=[{"key": "value1", "key2": 42}],
@@ -438,7 +438,7 @@ class TaskRunCreate(ActionBaseModel):
         description="A list of tags for the task run.",
         examples=[["tag-1", "tag-2"]],
     )
-    labels: Union[schemas.core.KeyValueLabels, None] = Field(
+    labels: Union[KeyValueLabels, None] = Field(
         default_factory=dict,
         description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
         examples=[{"key": "value1", "key2": 42}],
@@ -586,7 +586,7 @@ class DeploymentFlowRunCreate(ActionBaseModel):
             " has already been created, the existing flow run will be returned."
         ),
     )
-    labels: Union[schemas.core.KeyValueLabels, None] = Field(
+    labels: Union[KeyValueLabels, None] = Field(
         None,
         description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
         examples=[{"key": "value1", "key2": 42}],
