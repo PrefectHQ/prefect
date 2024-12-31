@@ -361,9 +361,15 @@ class RunnerDeployment(BaseModel):
             self.sla = [self.sla]
 
         if client.server_type == ServerType.CLOUD:
+            exceptions = []
             for sla in self.sla:
-                sla.set_deployment_id(deployment_id)
-                await client.create_sla(sla)
+                try:
+                    sla.set_deployment_id(deployment_id)
+                    await client.create_sla(sla)
+                except Exception as e:
+                    exceptions.append((f"SLA named '{sla.name}' failed to create", e))
+            if exceptions:
+                raise Exception(exceptions)
         else:
             raise ValueError(
                 "SLA configuration is currently only supported on Prefect Cloud."

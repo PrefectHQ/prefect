@@ -174,3 +174,35 @@ class TestRunnerDeploymentApply:
             match="SLA configuration is currently only supported on Prefect Cloud.",
         ):
             await deployment._create_slas(uuid4(), prefect_client)
+
+    async def test_failure_to_create_one_sla_does_not_prevent_other_slas_from_being_created(
+        self, client
+    ):
+        sla1 = TimeToCompletionSla(
+            name="a little long",
+            duration=timedelta(minutes=10).total_seconds(),
+        )
+
+        sla2 = TimeToCompletionSla(
+            name="whoa this is bad",
+            duration=timedelta(minutes=30).total_seconds(),
+        )
+
+        client.create_sla.side_effect = [None, ValueError("Failed to create SLA")]
+
+        deployment = RunnerDeployment.from_flow(
+            flow=tired_flow,
+            name=__file__,
+            sla=[sla1, sla2],
+        )
+
+        with pytest.raises(Exception) as exc_info:
+            await deployment._create_slas(uuid4(), client)
+
+        assert len(client.create_sla.await_args_list) == 2
+        assert client.create_sla.await_args_list[0].args[0].name == sla1.name
+        assert client.create_sla.await_args_list[1].args[0].name == sla2.name
+        assert (
+            str(exc_info.value)
+            == """[("SLA named 'whoa this is bad' failed to create", ValueError('Failed to create SLA'))]"""
+        )
