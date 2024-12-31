@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal, TypeAlias
+from typing import TYPE_CHECKING, Any, Literal
 
-from prefect.client.orchestration.routes import ServerRoutes
+from typing_extensions import TypeAlias
 
 if TYPE_CHECKING:
     from httpx import AsyncClient, Client, Response
+
+    from prefect.client.orchestration.routes import ServerRoutes
 
 HTTP_METHODS: TypeAlias = Literal["GET", "POST", "PUT", "DELETE", "PATCH"]
 
@@ -13,12 +15,11 @@ HTTP_METHODS: TypeAlias = Literal["GET", "POST", "PUT", "DELETE", "PATCH"]
 class BaseClient:
     def __init__(self, client: "Client"):
         self._client = client
-        super().__init__()
 
     def request(
         self,
         method: HTTP_METHODS,
-        path: ServerRoutes,
+        path: "ServerRoutes",
         params: dict[str, Any] | None = None,
         path_params: dict[str, Any] | None = None,
         **kwargs: Any,
@@ -31,12 +32,11 @@ class BaseClient:
 class BaseAsyncClient:
     def __init__(self, client: "AsyncClient"):
         self._client = client
-        super().__init__()
 
     async def request(
         self,
         method: HTTP_METHODS,
-        path: ServerRoutes,
+        path: "ServerRoutes",
         params: dict[str, Any] | None = None,
         path_params: dict[str, Any] | None = None,
         **kwargs: Any,
