@@ -174,5 +174,5 @@ async def unset(
         exit_with_success(f"Unset variable {name!r}.")
 
 
-variable_app.command("unset")(unset)
-variable_app.command("delete", hidden=True)(unset)
+variable_app.acommand("unset")(unset)
+variable_app.acommand("delete", hidden=True)(unset)
