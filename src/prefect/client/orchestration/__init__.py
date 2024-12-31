@@ -19,6 +19,13 @@ from packaging import version
 from starlette import status
 from typing_extensions import ParamSpec, Self, TypeVar
 
+from prefect.client.orchestration._artifacts.client import (
+    ArtifactClient,
+    ArtifactAsyncClient,
+    ArtifactCollectionClient,
+    ArtifactCollectionAsyncClient,
+)
+
 import prefect
 import prefect.exceptions
 import prefect.settings
@@ -26,8 +33,6 @@ import prefect.states
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun, sorting
 from prefect.client.schemas.actions import (
-    ArtifactCreate,
-    ArtifactUpdate,
     BlockDocumentCreate,
     BlockDocumentUpdate,
     BlockSchemaCreate,
@@ -57,8 +62,6 @@ from prefect.client.schemas.actions import (
     WorkQueueUpdate,
 )
 from prefect.client.schemas.filters import (
-    ArtifactCollectionFilter,
-    ArtifactFilter,
     DeploymentFilter,
     FlowFilter,
     FlowRunFilter,
@@ -71,8 +74,6 @@ from prefect.client.schemas.filters import (
     WorkQueueFilterName,
 )
 from prefect.client.schemas.objects import (
-    Artifact,
-    ArtifactCollection,
     BlockDocument,
     BlockSchema,
     BlockType,
@@ -103,8 +104,6 @@ from prefect.client.schemas.responses import (
 )
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.client.schemas.sorting import (
-    ArtifactCollectionSort,
-    ArtifactSort,
     DeploymentSort,
     FlowRunSort,
     FlowSort,
@@ -245,7 +244,7 @@ def get_client(
         )
 
 
-class PrefectClient:
+class PrefectClient(ArtifactAsyncClient, ArtifactCollectionAsyncClient):
     """
     An asynchronous client for interacting with the [Prefect REST API](/api-ref/rest-api/).
 
@@ -615,6 +614,7 @@ class PrefectClient:
         parent_task_run_id: Optional[UUID] = None,
         work_queue_name: Optional[str] = None,
         job_variables: Optional[dict[str, Any]] = None,
+        labels: Optional[KeyValueLabelsField] = None,
     ) -> FlowRun:
         """
         Create a flow run for a deployment.
@@ -660,6 +660,7 @@ class PrefectClient:
             idempotency_key=idempotency_key,
             parent_task_run_id=parent_task_run_id,
             job_variables=job_variables,
+            labels=labels,
         )
 
         # done separately to avoid including this field in payloads sent to older API versions
@@ -2952,142 +2953,6 @@ class PrefectClient:
             response.json()
         )
 
-    async def create_artifact(
-        self,
-        artifact: ArtifactCreate,
-    ) -> Artifact:
-        """
-        Creates an artifact with the provided configuration.
-
-        Args:
-            artifact: Desired configuration for the new artifact.
-        Returns:
-            Information about the newly created artifact.
-        """
-
-        response = await self._client.post(
-            "/artifacts/",
-            json=artifact.model_dump(mode="json", exclude_unset=True),
-        )
-
-        return Artifact.model_validate(response.json())
-
-    async def update_artifact(
-        self,
-        artifact_id: UUID,
-        artifact: ArtifactUpdate,
-    ) -> None:
-        """
-        Updates an artifact
-
-        Args:
-            artifact: Desired values for the updated artifact.
-        Returns:
-            Information about the updated artifact.
-        """
-
-        await self._client.patch(
-            f"/artifacts/{artifact_id}",
-            json=artifact.model_dump(mode="json", exclude_unset=True),
-        )
-
-    async def read_artifacts(
-        self,
-        *,
-        artifact_filter: Optional[ArtifactFilter] = None,
-        flow_run_filter: Optional[FlowRunFilter] = None,
-        task_run_filter: Optional[TaskRunFilter] = None,
-        sort: Optional[ArtifactSort] = None,
-        limit: Optional[int] = None,
-        offset: int = 0,
-    ) -> list[Artifact]:
-        """
-        Query the Prefect API for artifacts. Only artifacts matching all criteria will
-        be returned.
-        Args:
-            artifact_filter: filter criteria for artifacts
-            flow_run_filter: filter criteria for flow runs
-            task_run_filter: filter criteria for task runs
-            sort: sort criteria for the artifacts
-            limit: limit for the artifact query
-            offset: offset for the artifact query
-        Returns:
-            a list of Artifact model representations of the artifacts
-        """
-        body: dict[str, Any] = {
-            "artifacts": (
-                artifact_filter.model_dump(mode="json") if artifact_filter else None
-            ),
-            "flow_runs": (
-                flow_run_filter.model_dump(mode="json") if flow_run_filter else None
-            ),
-            "task_runs": (
-                task_run_filter.model_dump(mode="json") if task_run_filter else None
-            ),
-            "sort": sort,
-            "limit": limit,
-            "offset": offset,
-        }
-        response = await self._client.post("/artifacts/filter", json=body)
-        return pydantic.TypeAdapter(list[Artifact]).validate_python(response.json())
-
-    async def read_latest_artifacts(
-        self,
-        *,
-        artifact_filter: Optional[ArtifactCollectionFilter] = None,
-        flow_run_filter: Optional[FlowRunFilter] = None,
-        task_run_filter: Optional[TaskRunFilter] = None,
-        sort: Optional[ArtifactCollectionSort] = None,
-        limit: Optional[int] = None,
-        offset: int = 0,
-    ) -> list[ArtifactCollection]:
-        """
-        Query the Prefect API for artifacts. Only artifacts matching all criteria will
-        be returned.
-        Args:
-            artifact_filter: filter criteria for artifacts
-            flow_run_filter: filter criteria for flow runs
-            task_run_filter: filter criteria for task runs
-            sort: sort criteria for the artifacts
-            limit: limit for the artifact query
-            offset: offset for the artifact query
-        Returns:
-            a list of Artifact model representations of the artifacts
-        """
-        body: dict[str, Any] = {
-            "artifacts": (
-                artifact_filter.model_dump(mode="json") if artifact_filter else None
-            ),
-            "flow_runs": (
-                flow_run_filter.model_dump(mode="json") if flow_run_filter else None
-            ),
-            "task_runs": (
-                task_run_filter.model_dump(mode="json") if task_run_filter else None
-            ),
-            "sort": sort,
-            "limit": limit,
-            "offset": offset,
-        }
-        response = await self._client.post("/artifacts/latest/filter", json=body)
-        return pydantic.TypeAdapter(list[ArtifactCollection]).validate_python(
-            response.json()
-        )
-
-    async def delete_artifact(self, artifact_id: UUID) -> None:
-        """
-        Deletes an artifact with the provided id.
-
-        Args:
-            artifact_id: The id of the artifact to delete.
-        """
-        try:
-            await self._client.delete(f"/artifacts/{artifact_id}")
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
-                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
-            else:
-                raise
-
     async def create_variable(self, variable: VariableCreate) -> Variable:
         """
         Creates an variable with the provided configuration.
@@ -3571,7 +3436,7 @@ class PrefectClient:
         assert False, "This should never be called but must be defined for __enter__"
 
 
-class SyncPrefectClient:
+class SyncPrefectClient(ArtifactClient, ArtifactCollectionClient):
     """
     A synchronous client for interacting with the [Prefect REST API](/api-ref/rest-api/).
 
@@ -4353,26 +4218,6 @@ class SyncPrefectClient:
                 raise
 
         return DeploymentResponse.model_validate(response.json())
-
-    def create_artifact(
-        self,
-        artifact: ArtifactCreate,
-    ) -> Artifact:
-        """
-        Creates an artifact with the provided configuration.
-
-        Args:
-            artifact: Desired configuration for the new artifact.
-        Returns:
-            Information about the newly created artifact.
-        """
-
-        response = self._client.post(
-            "/artifacts/",
-            json=artifact.model_dump(mode="json", exclude_unset=True),
-        )
-
-        return Artifact.model_validate(response.json())
 
     def release_concurrency_slots(
         self, names: list[str], slots: int, occupancy_seconds: float
