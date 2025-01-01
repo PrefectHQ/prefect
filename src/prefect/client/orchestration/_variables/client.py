@@ -38,7 +38,9 @@ class VariableClient(BaseClient):
     def read_variable_by_name(self, name: str) -> "Variable | None":
         """Reads a variable by name. Returns None if no variable is found."""
         try:
-            response = self._client.get(f"/variables/name/{name}")
+            response = self.request(
+                "GET", "/variables/name/{name}", path_params={"name": name}
+            )
             from prefect.client.schemas.objects import Variable
 
             return Variable(**response.json())
@@ -50,7 +52,7 @@ class VariableClient(BaseClient):
 
     def read_variables(self, limit: int | None = None) -> list["Variable"]:
         """Reads all variables."""
-        response = self._client.post("/variables/filter", json={"limit": limit})
+        response = self.request("POST", "/variables/filter", json={"limit": limit})
         from prefect.client.schemas.objects import Variable
 
         return Variable.model_validate_list(response.json())
@@ -73,7 +75,11 @@ class VariableClient(BaseClient):
     def delete_variable_by_name(self, name: str) -> None:
         """Deletes a variable by name."""
         try:
-            self._client.delete(f"/variables/name/{name}")
+            self.request(
+                "DELETE",
+                "/variables/name/{name}",
+                path_params={"name": name},
+            )
             return None
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
@@ -96,7 +102,11 @@ class VariableAsyncClient(BaseAsyncClient):
     async def read_variable_by_name(self, name: str) -> "Variable | None":
         """Reads a variable by name. Returns None if no variable is found."""
         try:
-            response = await self._client.get(f"/variables/name/{name}")
+            response = await self.request(
+                "GET",
+                "/variables/name/{name}",
+                path_params={"name": name},
+            )
             from prefect.client.schemas.objects import Variable
 
             return Variable.model_validate(response.json())
@@ -108,7 +118,9 @@ class VariableAsyncClient(BaseAsyncClient):
 
     async def read_variables(self, limit: int | None = None) -> list["Variable"]:
         """Reads all variables."""
-        response = await self._client.post("/variables/filter", json={"limit": limit})
+        response = await self.request(
+            "POST", "/variables/filter", json={"limit": limit}
+        )
         from prefect.client.schemas.objects import Variable
 
         return Variable.model_validate_list(response.json())
@@ -122,8 +134,10 @@ class VariableAsyncClient(BaseAsyncClient):
         Returns:
             Information about the updated variable.
         """
-        await self._client.patch(
-            f"/variables/name/{variable.name}",
+        await self.request(
+            "PATCH",
+            "/variables/name/{name}",
+            path_params={"name": variable.name},
             json=variable.model_dump(mode="json", exclude_unset=True),
         )
         return None
@@ -131,7 +145,11 @@ class VariableAsyncClient(BaseAsyncClient):
     async def delete_variable_by_name(self, name: str) -> None:
         """Deletes a variable by name."""
         try:
-            await self._client.delete(f"/variables/name/{name}")
+            await self.request(
+                "DELETE",
+                "/variables/name/{name}",
+                path_params={"name": name},
+            )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 raise ObjectNotFound(http_exc=e) from e
