@@ -4,7 +4,7 @@ Reduced schemas for accepting API actions.
 
 import json
 from copy import deepcopy
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, ClassVar, Dict, List, Optional, Union
 from uuid import UUID, uuid4
 
 import pendulum
@@ -67,7 +67,7 @@ def validate_variable_name(value):
 
 
 class ActionBaseModel(PrefectBaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
 
 class FlowCreate(ActionBaseModel):
@@ -298,7 +298,7 @@ class DeploymentUpdate(ActionBaseModel):
             "Whether or not the deployment should enforce the parameter schema."
         ),
     )
-    model_config = ConfigDict(populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(populate_by_name=True)
 
     def check_valid_configuration(self, base_job_template: dict):
         """
