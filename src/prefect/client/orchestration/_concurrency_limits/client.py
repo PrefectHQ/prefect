@@ -13,7 +13,6 @@ if TYPE_CHECKING:
     from httpx import Response
 
     from prefect.client.schemas.actions import (
-        ConcurrencyLimitCreate,
         GlobalConcurrencyLimitCreate,
         GlobalConcurrencyLimitUpdate,
     )
@@ -411,6 +410,7 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
         Returns:
             the ID of the concurrency limit in the backend
         """
+        from prefect.client.schemas.actions import ConcurrencyLimitCreate
 
         concurrency_limit_create = ConcurrencyLimitCreate(
             tag=tag,
@@ -723,7 +723,10 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
 
         Note: This is not done atomically.
         """
-        from prefect.client.schemas.actions import GlobalConcurrencyLimitCreate
+        from prefect.client.schemas.actions import (
+            GlobalConcurrencyLimitCreate,
+            GlobalConcurrencyLimitUpdate,
+        )
 
         try:
             existing_limit = await self.read_global_concurrency_limit_by_name(name)
