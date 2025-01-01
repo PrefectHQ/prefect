@@ -153,13 +153,15 @@ def get_client(
     *,
     httpx_settings: Optional[dict[str, Any]] = ...,
     sync_client: Literal[False] = False,
-) -> "PrefectClient": ...
+) -> "PrefectClient":
+    ...
 
 
 @overload
 def get_client(
     *, httpx_settings: Optional[dict[str, Any]] = ..., sync_client: Literal[True] = ...
-) -> "SyncPrefectClient": ...
+) -> "SyncPrefectClient":
+    ...
 
 
 def get_client(
