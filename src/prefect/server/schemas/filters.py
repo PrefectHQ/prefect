@@ -5,7 +5,7 @@ Each filter schema includes logic for transforming itself into a SQL `where` cla
 """
 
 from collections.abc import Iterable, Sequence
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, ClassVar, Optional
 from uuid import UUID
 
 from pydantic import ConfigDict, Field
@@ -43,7 +43,7 @@ class Operator(AutoEnum):
 class PrefectFilterBaseModel(PrefectBaseModel):
     """Base model for Prefect filters"""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
     @db_injector
     def as_sql_filter(self, db: PrefectDBInterface) -> sa.ColumnElement[bool]:

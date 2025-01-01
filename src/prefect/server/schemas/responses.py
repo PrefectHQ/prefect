@@ -3,7 +3,7 @@ Schemas for special responses from the Prefect REST API.
 """
 
 import datetime
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any, ClassVar, Dict, List, Optional, Type, Union
 from uuid import UUID
 
 import pendulum
@@ -165,7 +165,7 @@ class OrchestrationResult(PrefectBaseModel):
 
 
 class WorkerFlowRunResponse(PrefectBaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(arbitrary_types_allowed=True)
 
     work_pool_id: UUID
     work_queue_id: UUID

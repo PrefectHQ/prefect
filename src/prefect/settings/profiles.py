@@ -1,7 +1,18 @@
 import inspect
 import warnings
 from pathlib import Path
-from typing import Annotated, Any, Dict, Iterable, List, Optional, Set, Tuple, Union
+from typing import (
+    Annotated,
+    Any,
+    ClassVar,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    Union,
+)
 
 import toml
 from pydantic import (
@@ -48,7 +59,9 @@ def _cast_settings(
 class Profile(BaseModel):
     """A user profile containing settings."""
 
-    model_config = ConfigDict(extra="ignore", arbitrary_types_allowed=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(
+        extra="ignore", arbitrary_types_allowed=True
+    )
 
     name: str
     settings: Annotated[Dict[Setting, Any], BeforeValidator(_cast_settings)] = Field(

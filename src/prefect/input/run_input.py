@@ -64,6 +64,7 @@ from inspect import isclass
 from typing import (
     TYPE_CHECKING,
     Any,
+    ClassVar,
     Dict,
     Generic,
     Literal,
@@ -144,7 +145,7 @@ class RunInputMetadata(pydantic.BaseModel):
 
 
 class RunInput(pydantic.BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
     _description: Optional[str] = pydantic.PrivateAttr(default=None)
     _metadata: RunInputMetadata = pydantic.PrivateAttr()

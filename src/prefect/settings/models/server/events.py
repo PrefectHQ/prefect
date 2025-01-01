@@ -1,6 +1,7 @@
 from datetime import timedelta
+from typing import ClassVar
 
-from pydantic import AliasChoices, AliasPath, Field
+from pydantic import AliasChoices, AliasPath, ConfigDict, Field
 
 from prefect.settings.base import PrefectBaseSettings, _build_settings_config
 
@@ -10,7 +11,7 @@ class ServerEventsSettings(PrefectBaseSettings):
     Settings for controlling behavior of the events subsystem
     """
 
-    model_config = _build_settings_config(("server", "events"))
+    model_config: ClassVar[ConfigDict] = _build_settings_config(("server", "events"))
 
     ###########################################################################
     # Events settings

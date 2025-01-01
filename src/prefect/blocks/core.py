@@ -276,7 +276,7 @@ class Block(BaseModel, ABC):
     initialization.
     """
 
-    model_config = ConfigDict(
+    model_config: ClassVar[ConfigDict] = ConfigDict(
         extra="allow",
         json_schema_extra=schema_extra,
     )

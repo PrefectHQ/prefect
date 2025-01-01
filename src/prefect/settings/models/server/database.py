@@ -1,8 +1,15 @@
 import warnings
-from typing import Optional
+from typing import ClassVar, Optional
 from urllib.parse import quote_plus
 
-from pydantic import AliasChoices, AliasPath, Field, SecretStr, model_validator
+from pydantic import (
+    AliasChoices,
+    AliasPath,
+    ConfigDict,
+    Field,
+    SecretStr,
+    model_validator,
+)
 from typing_extensions import Literal, Self
 
 from prefect.settings.base import PrefectBaseSettings, _build_settings_config
@@ -13,7 +20,7 @@ class ServerDatabaseSettings(PrefectBaseSettings):
     Settings for controlling server database behavior
     """
 
-    model_config = _build_settings_config(("server", "database"))
+    model_config: ClassVar[ConfigDict] = _build_settings_config(("server", "database"))
 
     connection_url: Optional[SecretStr] = Field(
         default=None,
