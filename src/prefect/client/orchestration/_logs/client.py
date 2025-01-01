@@ -30,7 +30,7 @@ class LogClient(BaseClient):
             log.model_dump(mode="json") if isinstance(log, LogCreate) else log
             for log in logs
         ]
-        self._client.post("/logs/", json=serialized_logs)
+        self.request("POST", "/logs/", json=serialized_logs)
 
     def read_logs(
         self,
@@ -48,7 +48,7 @@ class LogClient(BaseClient):
             "offset": offset,
             "sort": sort,
         }
-        response = self._client.post("/logs/filter", json=body)
+        response = self.request("POST", "/logs/filter", json=body)
         from prefect.client.schemas.objects import Log
 
         return Log.model_validate_list(response.json())
@@ -70,7 +70,7 @@ class LogAsyncClient(BaseAsyncClient):
             log.model_dump(mode="json") if isinstance(log, LogCreate) else log
             for log in logs
         ]
-        await self._client.post("/logs/", json=serialized_logs)
+        await self.request("POST", "/logs/", json=serialized_logs)
 
     async def read_logs(
         self,
@@ -89,7 +89,7 @@ class LogAsyncClient(BaseAsyncClient):
             "sort": sort,
         }
 
-        response = await self._client.post("/logs/filter", json=body)
+        response = await self.request("POST", "/logs/filter", json=body)
         from prefect.client.schemas.objects import Log
 
         return Log.model_validate_list(response.json())
