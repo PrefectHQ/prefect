@@ -1,7 +1,7 @@
 from datetime import timedelta
-from typing import Optional
+from typing import ClassVar, Optional
 
-from pydantic import AliasChoices, AliasPath, Field, SecretStr
+from pydantic import AliasChoices, AliasPath, ConfigDict, Field, SecretStr
 
 from prefect.settings.base import PrefectBaseSettings, _build_settings_config
 
@@ -11,7 +11,7 @@ class ServerAPISettings(PrefectBaseSettings):
     Settings for controlling API server behavior
     """
 
-    model_config = _build_settings_config(("server", "api"))
+    model_config: ClassVar[ConfigDict] = _build_settings_config(("server", "api"))
 
     auth_string: Optional[SecretStr] = Field(
         default=None,

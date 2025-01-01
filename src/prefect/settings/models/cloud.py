@@ -1,7 +1,7 @@
 import re
-from typing import Optional
+from typing import ClassVar, Optional
 
-from pydantic import Field, model_validator
+from pydantic import ConfigDict, Field, model_validator
 from typing_extensions import Self
 
 from prefect.settings.base import (
@@ -32,7 +32,7 @@ class CloudSettings(PrefectBaseSettings):
     Settings for interacting with Prefect Cloud
     """
 
-    model_config = _build_settings_config(("cloud",))
+    model_config: ClassVar[ConfigDict] = _build_settings_config(("cloud",))
 
     api_url: str = Field(
         default="https://api.prefect.cloud/api",

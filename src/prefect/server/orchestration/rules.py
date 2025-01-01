@@ -19,7 +19,7 @@ single line of user code.
 
 import contextlib
 from types import TracebackType
-from typing import Any, Dict, Iterable, List, Optional, Type, Union
+from typing import Any, ClassVar, Dict, Iterable, List, Optional, Type, Union
 
 import sqlalchemy as sa
 from pydantic import ConfigDict, Field
@@ -88,7 +88,7 @@ class OrchestrationContext(PrefectBaseModel):
         proposed_state: the proposed state a run is transitioning into
     """
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(arbitrary_types_allowed=True)
 
     session: Optional[Union[sa.orm.Session, AsyncSession]] = ...
     initial_state: Optional[states.State] = ...

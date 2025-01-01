@@ -1,11 +1,12 @@
 from functools import partial
 from pathlib import Path
-from typing import Annotated, Literal, Optional, Union
+from typing import Annotated, ClassVar, Literal, Optional, Union
 
 from pydantic import (
     AliasChoices,
     AliasPath,
     BeforeValidator,
+    ConfigDict,
     Field,
     model_validator,
 )
@@ -32,7 +33,7 @@ class LoggingToAPISettings(PrefectBaseSettings):
     Settings for controlling logging to the API
     """
 
-    model_config = _build_settings_config(("logging", "to_api"))
+    model_config: ClassVar[ConfigDict] = _build_settings_config(("logging", "to_api"))
 
     enabled: bool = Field(
         default=True,
@@ -85,7 +86,7 @@ class LoggingSettings(PrefectBaseSettings):
     Settings for controlling logging behavior
     """
 
-    model_config = _build_settings_config(("logging",))
+    model_config: ClassVar[ConfigDict] = _build_settings_config(("logging",))
 
     level: LogLevel = Field(
         default="INFO",

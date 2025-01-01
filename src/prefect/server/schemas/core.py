@@ -3,7 +3,7 @@ Full schemas of Prefect REST API objects.
 """
 
 import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type, Union
+from typing import TYPE_CHECKING, Any, ClassVar, Dict, List, Optional, Type, Union
 from uuid import UUID
 
 import pendulum
@@ -388,7 +388,7 @@ class TaskRunInput(PrefectBaseModel):
     could include, constants, parameters, or other task runs.
     """
 
-    model_config = ConfigDict(frozen=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(frozen=True)
 
     input_type: str
 
@@ -563,7 +563,7 @@ class DeploymentSchedule(ORMBaseModel):
 class Deployment(ORMBaseModel):
     """An ORM representation of deployment data."""
 
-    model_config = ConfigDict(populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(populate_by_name=True)
 
     name: NameOrEmpty = Field(default=..., description="The name of the deployment.")
     version: Optional[str] = Field(

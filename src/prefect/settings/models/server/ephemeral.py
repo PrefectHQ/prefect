@@ -1,4 +1,6 @@
-from pydantic import AliasChoices, AliasPath, Field
+from typing import ClassVar
+
+from pydantic import AliasChoices, AliasPath, ConfigDict, Field
 
 from prefect.settings.base import PrefectBaseSettings, _build_settings_config
 
@@ -8,7 +10,7 @@ class ServerEphemeralSettings(PrefectBaseSettings):
     Settings for controlling ephemeral server behavior
     """
 
-    model_config = _build_settings_config(("server", "ephemeral"))
+    model_config: ClassVar[ConfigDict] = _build_settings_config(("server", "ephemeral"))
 
     enabled: bool = Field(
         default=False,

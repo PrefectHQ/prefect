@@ -2,6 +2,7 @@ import copy
 from collections import defaultdict
 from typing import (
     Any,
+    ClassVar,
     Dict,
     Iterable,
     List,
@@ -191,7 +192,9 @@ class ReceivedEvent(Event):
     """The server-side view of an event that has happened to a Resource after it has
     been received by the server"""
 
-    model_config = ConfigDict(extra="ignore", from_attributes=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(
+        extra="ignore", from_attributes=True
+    )
 
     received: DateTime = Field(
         default_factory=lambda: pendulum.now("UTC"),
