@@ -25,7 +25,7 @@ from prefect.client.orchestration._artifacts.client import (
     ArtifactCollectionAsyncClient,
 )
 
-from prefect.client.orchestration._work_queues import (
+from prefect.client.orchestration._work_queues.client import (
     WorkQueueClient,
     WorkQueueAsyncClient,
 )
@@ -241,7 +241,9 @@ def get_client(
         )
 
 
-class PrefectClient(ArtifactAsyncClient, ArtifactCollectionAsyncClient):
+class PrefectClient(
+    ArtifactAsyncClient, ArtifactCollectionAsyncClient, WorkQueueAsyncClient
+):
     """
     An asynchronous client for interacting with the [Prefect REST API](/api-ref/rest-api/).
 
@@ -3121,7 +3123,7 @@ class PrefectClient(ArtifactAsyncClient, ArtifactCollectionAsyncClient):
         assert False, "This should never be called but must be defined for __enter__"
 
 
-class SyncPrefectClient(ArtifactClient, ArtifactCollectionClient):
+class SyncPrefectClient(ArtifactClient, ArtifactCollectionClient, WorkQueueClient):
     """
     A synchronous client for interacting with the [Prefect REST API](/api-ref/rest-api/).
 
