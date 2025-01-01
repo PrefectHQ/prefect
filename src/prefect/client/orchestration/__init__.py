@@ -53,8 +53,6 @@ from prefect.client.schemas.actions import (
     FlowRunNotificationPolicyCreate,
     FlowRunNotificationPolicyUpdate,
     FlowRunUpdate,
-    GlobalConcurrencyLimitCreate,
-    GlobalConcurrencyLimitUpdate,
     LogCreate,
     TaskRunCreate,
     TaskRunUpdate,
@@ -102,7 +100,6 @@ from prefect.client.schemas.objects import (
 from prefect.client.schemas.responses import (
     DeploymentResponse,
     FlowRunResponse,
-    GlobalConcurrencyLimitResponse,
     WorkerFlowRunResponse,
 )
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
@@ -2810,136 +2807,6 @@ class PrefectClient(
         response.raise_for_status()
         return response.json()
 
-    async def increment_concurrency_slots(
-        self,
-        names: list[str],
-        slots: int,
-        mode: str,
-        create_if_missing: Optional[bool] = None,
-    ) -> httpx.Response:
-        return await self._client.post(
-            "/v2/concurrency_limits/increment",
-            json={
-                "names": names,
-                "slots": slots,
-                "mode": mode,
-                "create_if_missing": create_if_missing if create_if_missing else False,
-            },
-        )
-
-    async def release_concurrency_slots(
-        self, names: list[str], slots: int, occupancy_seconds: float
-    ) -> httpx.Response:
-        """
-        Release concurrency slots for the specified limits.
-
-        Args:
-            names (List[str]): A list of limit names for which to release slots.
-            slots (int): The number of concurrency slots to release.
-            occupancy_seconds (float): The duration in seconds that the slots
-                were occupied.
-
-        Returns:
-            httpx.Response: The HTTP response from the server.
-        """
-
-        return await self._client.post(
-            "/v2/concurrency_limits/decrement",
-            json={
-                "names": names,
-                "slots": slots,
-                "occupancy_seconds": occupancy_seconds,
-            },
-        )
-
-    async def create_global_concurrency_limit(
-        self, concurrency_limit: GlobalConcurrencyLimitCreate
-    ) -> UUID:
-        response = await self._client.post(
-            "/v2/concurrency_limits/",
-            json=concurrency_limit.model_dump(mode="json", exclude_unset=True),
-        )
-        return UUID(response.json()["id"])
-
-    async def update_global_concurrency_limit(
-        self, name: str, concurrency_limit: GlobalConcurrencyLimitUpdate
-    ) -> httpx.Response:
-        try:
-            response = await self._client.patch(
-                f"/v2/concurrency_limits/{name}",
-                json=concurrency_limit.model_dump(mode="json", exclude_unset=True),
-            )
-            return response
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_404_NOT_FOUND:
-                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
-            else:
-                raise
-
-    async def delete_global_concurrency_limit_by_name(
-        self, name: str
-    ) -> httpx.Response:
-        try:
-            response = await self._client.delete(f"/v2/concurrency_limits/{name}")
-            return response
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_404_NOT_FOUND:
-                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
-            else:
-                raise
-
-    async def read_global_concurrency_limit_by_name(
-        self, name: str
-    ) -> GlobalConcurrencyLimitResponse:
-        try:
-            response = await self._client.get(f"/v2/concurrency_limits/{name}")
-            return GlobalConcurrencyLimitResponse.model_validate(response.json())
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_404_NOT_FOUND:
-                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
-            else:
-                raise
-
-    async def upsert_global_concurrency_limit_by_name(
-        self, name: str, limit: int
-    ) -> None:
-        """Creates a global concurrency limit with the given name and limit if one does not already exist.
-
-        If one does already exist matching the name then update it's limit if it is different.
-
-        Note: This is not done atomically.
-        """
-        try:
-            existing_limit = await self.read_global_concurrency_limit_by_name(name)
-        except prefect.exceptions.ObjectNotFound:
-            existing_limit = None
-
-        if not existing_limit:
-            await self.create_global_concurrency_limit(
-                GlobalConcurrencyLimitCreate(
-                    name=name,
-                    limit=limit,
-                )
-            )
-        elif existing_limit.limit != limit:
-            await self.update_global_concurrency_limit(
-                name, GlobalConcurrencyLimitUpdate(limit=limit)
-            )
-
-    async def read_global_concurrency_limits(
-        self, limit: int = 10, offset: int = 0
-    ) -> list[GlobalConcurrencyLimitResponse]:
-        response = await self._client.post(
-            "/v2/concurrency_limits/filter",
-            json={
-                "limit": limit,
-                "offset": offset,
-            },
-        )
-        return pydantic.TypeAdapter(
-            list[GlobalConcurrencyLimitResponse]
-        ).validate_python(response.json())
-
     async def create_flow_run_input(
         self, flow_run_id: UUID, key: str, value: str, sender: Optional[str] = None
     ) -> None:
@@ -4016,54 +3883,6 @@ class SyncPrefectClient(
                 raise
 
         return DeploymentResponse.model_validate(response.json())
-
-    def release_concurrency_slots(
-        self, names: list[str], slots: int, occupancy_seconds: float
-    ) -> httpx.Response:
-        """
-        Release concurrency slots for the specified limits.
-
-        Args:
-            names (List[str]): A list of limit names for which to release slots.
-            slots (int): The number of concurrency slots to release.
-            occupancy_seconds (float): The duration in seconds that the slots
-                were occupied.
-
-        Returns:
-            httpx.Response: The HTTP response from the server.
-        """
-        return self._client.post(
-            "/v2/concurrency_limits/decrement",
-            json={
-                "names": names,
-                "slots": slots,
-                "occupancy_seconds": occupancy_seconds,
-            },
-        )
-
-    def decrement_v1_concurrency_slots(
-        self, names: list[str], occupancy_seconds: float, task_run_id: UUID
-    ) -> httpx.Response:
-        """
-        Release the specified concurrency limits.
-
-        Args:
-            names (List[str]): A list of limit names to decrement.
-            occupancy_seconds (float): The duration in seconds that the slots
-                were held.
-            task_run_id (UUID): The task run ID that incremented the limits.
-
-        Returns:
-            httpx.Response: The HTTP response from the server.
-        """
-        return self._client.post(
-            "/concurrency_limits/decrement",
-            json={
-                "names": names,
-                "occupancy_seconds": occupancy_seconds,
-                "task_run_id": str(task_run_id),
-            },
-        )
 
     def update_flow_run_labels(
         self, flow_run_id: UUID, labels: KeyValueLabelsField

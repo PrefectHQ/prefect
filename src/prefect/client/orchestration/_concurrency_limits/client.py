@@ -12,8 +12,13 @@ if TYPE_CHECKING:
 
     from httpx import Response
 
-    from prefect.client.schemas.actions import ConcurrencyLimitCreate
+    from prefect.client.schemas.actions import (
+        ConcurrencyLimitCreate,
+        GlobalConcurrencyLimitCreate,
+        GlobalConcurrencyLimitUpdate,
+    )
     from prefect.client.schemas.objects import ConcurrencyLimit
+    from prefect.client.schemas.responses import GlobalConcurrencyLimitResponse
 
 
 class ConcurrencyLimitClient(BaseClient):
@@ -66,7 +71,7 @@ class ConcurrencyLimitClient(BaseClient):
             tag: a tag the concurrency limit is applied to
 
         Raises:
-            prefect.exceptions.ObjectNotFound: If request returns 404
+            ObjectNotFound: If request returns 404
             httpx.RequestError: if the concurrency limit was not created for any reason
 
         Returns:
@@ -134,7 +139,7 @@ class ConcurrencyLimitClient(BaseClient):
                 slots will never be released.
 
         Raises:
-            prefect.exceptions.ObjectNotFound: If request returns 404
+            ObjectNotFound: If request returns 404
             httpx.RequestError: If request fails
 
         """
@@ -165,7 +170,7 @@ class ConcurrencyLimitClient(BaseClient):
             tag: a tag the concurrency limit is applied to
 
         Raises:
-            prefect.exceptions.ObjectNotFound: If request returns 404
+            ObjectNotFound: If request returns 404
             httpx.RequestError: If request fails
 
         """
@@ -220,7 +225,7 @@ class ConcurrencyLimitClient(BaseClient):
                 were held.
 
         Returns:
-            httpx.Response: The HTTP response from the server.
+            "Response": The HTTP response from the server.
         """
         data: dict[str, Any] = {
             "names": names,
@@ -233,6 +238,153 @@ class ConcurrencyLimitClient(BaseClient):
             "/concurrency_limits/decrement",
             json=data,
         )
+
+    def increment_concurrency_slots(
+        self,
+        names: list[str],
+        slots: int,
+        mode: str,
+        create_if_missing: bool | None = None,
+    ) -> "Response":
+        return self.request(
+            "POST",
+            "/v2/concurrency_limits/increment",
+            json={
+                "names": names,
+                "slots": slots,
+                "mode": mode,
+                "create_if_missing": create_if_missing if create_if_missing else False,
+            },
+        )
+
+    def release_concurrency_slots(
+        self, names: list[str], slots: int, occupancy_seconds: float
+    ) -> "Response":
+        """
+        Release concurrency slots for the specified limits.
+
+        Args:
+            names (List[str]): A list of limit names for which to release slots.
+            slots (int): The number of concurrency slots to release.
+            occupancy_seconds (float): The duration in seconds that the slots
+                were occupied.
+
+        Returns:
+            "Response": The HTTP response from the server.
+        """
+
+        return self.request(
+            "POST",
+            "/v2/concurrency_limits/decrement",
+            json={
+                "names": names,
+                "slots": slots,
+                "occupancy_seconds": occupancy_seconds,
+            },
+        )
+
+    def create_global_concurrency_limit(
+        self, concurrency_limit: "GlobalConcurrencyLimitCreate"
+    ) -> "UUID":
+        response = self.request(
+            "POST",
+            "/v2/concurrency_limits/",
+            json=concurrency_limit.model_dump(mode="json", exclude_unset=True),
+        )
+        from uuid import UUID
+
+        return UUID(response.json()["id"])
+
+    def update_global_concurrency_limit(
+        self, name: str, concurrency_limit: "GlobalConcurrencyLimitUpdate"
+    ) -> "Response":
+        try:
+            response = self.request(
+                "PATCH",
+                "/v2/concurrency_limits/{id_or_name}",
+                path_params={"id_or_name": name},
+                json=concurrency_limit.model_dump(mode="json", exclude_unset=True),
+            )
+            return response
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
+    def delete_global_concurrency_limit_by_name(self, name: str) -> "Response":
+        try:
+            response = self.request(
+                "DELETE",
+                "/v2/concurrency_limits/{id_or_name}",
+                path_params={"id_or_name": name},
+            )
+            return response
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
+    def read_global_concurrency_limit_by_name(
+        self, name: str
+    ) -> "GlobalConcurrencyLimitResponse":
+        try:
+            response = self.request(
+                "GET",
+                "/v2/concurrency_limits/{id_or_name}",
+                path_params={"id_or_name": name},
+            )
+            from prefect.client.schemas.responses import GlobalConcurrencyLimitResponse
+
+            return GlobalConcurrencyLimitResponse.model_validate(response.json())
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
+    def upsert_global_concurrency_limit_by_name(self, name: str, limit: int) -> None:
+        """Creates a global concurrency limit with the given name and limit if one does not already exist.
+
+        If one does already exist matching the name then update it's limit if it is different.
+
+        Note: This is not done atomically.
+        """
+        from prefect.client.schemas.actions import GlobalConcurrencyLimitCreate
+
+        try:
+            existing_limit = self.read_global_concurrency_limit_by_name(name)
+        except ObjectNotFound:
+            existing_limit = None
+
+        if not existing_limit:
+            self.create_global_concurrency_limit(
+                GlobalConcurrencyLimitCreate(
+                    name=name,
+                    limit=limit,
+                )
+            )
+        elif existing_limit.limit != limit:
+            self.update_global_concurrency_limit(
+                name, GlobalConcurrencyLimitUpdate(limit=limit)
+            )
+
+    def read_global_concurrency_limits(
+        self, limit: int = 10, offset: int = 0
+    ) -> list["GlobalConcurrencyLimitResponse"]:
+        response = self.request(
+            "POST",
+            "/v2/concurrency_limits/filter",
+            json={
+                "limit": limit,
+                "offset": offset,
+            },
+        )
+
+        from prefect.client.schemas.responses import GlobalConcurrencyLimitResponse
+
+        return GlobalConcurrencyLimitResponse.model_validate_list(response.json())
 
 
 class ConcurrencyLimitAsyncClient(BaseAsyncClient):
@@ -285,7 +437,7 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
             tag: a tag the concurrency limit is applied to
 
         Raises:
-            prefect.exceptions.ObjectNotFound: If request returns 404
+            ObjectNotFound: If request returns 404
             httpx.RequestError: if the concurrency limit was not created for any reason
 
         Returns:
@@ -353,7 +505,7 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
                 slots will never be released.
 
         Raises:
-            prefect.exceptions.ObjectNotFound: If request returns 404
+            ObjectNotFound: If request returns 404
             httpx.RequestError: If request fails
 
         """
@@ -384,7 +536,7 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
             tag: a tag the concurrency limit is applied to
 
         Raises:
-            prefect.exceptions.ObjectNotFound: If request returns 404
+            ObjectNotFound: If request returns 404
             httpx.RequestError: If request fails
 
         """
@@ -439,7 +591,7 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
                 were held.
 
         Returns:
-            httpx.Response: The HTTP response from the server.
+            "Response": The HTTP response from the server.
         """
         data: dict[str, Any] = {
             "names": names,
@@ -452,3 +604,152 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
             "/concurrency_limits/decrement",
             json=data,
         )
+
+    async def increment_concurrency_slots(
+        self,
+        names: list[str],
+        slots: int,
+        mode: str,
+        create_if_missing: bool | None = None,
+    ) -> "Response":
+        return await self.request(
+            "POST",
+            "/v2/concurrency_limits/increment",
+            json={
+                "names": names,
+                "slots": slots,
+                "mode": mode,
+                "create_if_missing": create_if_missing if create_if_missing else False,
+            },
+        )
+
+    async def release_concurrency_slots(
+        self, names: list[str], slots: int, occupancy_seconds: float
+    ) -> "Response":
+        """
+        Release concurrency slots for the specified limits.
+
+        Args:
+            names (List[str]): A list of limit names for which to release slots.
+            slots (int): The number of concurrency slots to release.
+            occupancy_seconds (float): The duration in seconds that the slots
+                were occupied.
+
+        Returns:
+            "Response": The HTTP response from the server.
+        """
+
+        return await self.request(
+            "POST",
+            "/v2/concurrency_limits/decrement",
+            json={
+                "names": names,
+                "slots": slots,
+                "occupancy_seconds": occupancy_seconds,
+            },
+        )
+
+    async def create_global_concurrency_limit(
+        self, concurrency_limit: "GlobalConcurrencyLimitCreate"
+    ) -> "UUID":
+        response = await self.request(
+            "POST",
+            "/v2/concurrency_limits/",
+            json=concurrency_limit.model_dump(mode="json", exclude_unset=True),
+        )
+        from uuid import UUID
+
+        return UUID(response.json()["id"])
+
+    async def update_global_concurrency_limit(
+        self, name: str, concurrency_limit: "GlobalConcurrencyLimitUpdate"
+    ) -> "Response":
+        try:
+            response = await self.request(
+                "PATCH",
+                "/v2/concurrency_limits/{id_or_name}",
+                path_params={"id_or_name": name},
+                json=concurrency_limit.model_dump(mode="json", exclude_unset=True),
+            )
+            return response
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
+    async def delete_global_concurrency_limit_by_name(self, name: str) -> "Response":
+        try:
+            response = await self.request(
+                "DELETE",
+                "/v2/concurrency_limits/{id_or_name}",
+                path_params={"id_or_name": name},
+            )
+            return response
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
+    async def read_global_concurrency_limit_by_name(
+        self, name: str
+    ) -> "GlobalConcurrencyLimitResponse":
+        try:
+            response = await self.request(
+                "GET",
+                "/v2/concurrency_limits/{id_or_name}",
+                path_params={"id_or_name": name},
+            )
+            from prefect.client.schemas.responses import GlobalConcurrencyLimitResponse
+
+            return GlobalConcurrencyLimitResponse.model_validate(response.json())
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
+    async def upsert_global_concurrency_limit_by_name(
+        self, name: str, limit: int
+    ) -> None:
+        """Creates a global concurrency limit with the given name and limit if one does not already exist.
+
+        If one does already exist matching the name then update it's limit if it is different.
+
+        Note: This is not done atomically.
+        """
+        from prefect.client.schemas.actions import GlobalConcurrencyLimitCreate
+
+        try:
+            existing_limit = await self.read_global_concurrency_limit_by_name(name)
+        except ObjectNotFound:
+            existing_limit = None
+
+        if not existing_limit:
+            await self.create_global_concurrency_limit(
+                GlobalConcurrencyLimitCreate(
+                    name=name,
+                    limit=limit,
+                )
+            )
+        elif existing_limit.limit != limit:
+            await self.update_global_concurrency_limit(
+                name, GlobalConcurrencyLimitUpdate(limit=limit)
+            )
+
+    async def read_global_concurrency_limits(
+        self, limit: int = 10, offset: int = 0
+    ) -> list["GlobalConcurrencyLimitResponse"]:
+        response = await self.request(
+            "POST",
+            "/v2/concurrency_limits/filter",
+            json={
+                "limit": limit,
+                "offset": offset,
+            },
+        )
+
+        from prefect.client.schemas.responses import GlobalConcurrencyLimitResponse
+
+        return GlobalConcurrencyLimitResponse.model_validate_list(response.json())
