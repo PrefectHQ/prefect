@@ -29,6 +29,8 @@ from prefect.client.orchestration._artifacts.client import (
 from prefect.client.orchestration._concurrency_limits.client import (
     ConcurrencyLimitAsyncClient,
     ConcurrencyLimitClient,
+)
+
 from prefect.client.orchestration._logs.client import (
     LogClient,
     LogAsyncClient,
@@ -252,7 +254,7 @@ class PrefectClient(
     ArtifactCollectionAsyncClient,
     LogAsyncClient,
     VariableAsyncClient,
-    ConcurrencyLimitAsyncClient
+    ConcurrencyLimitAsyncClient,
 ):
     """
     An asynchronous client for interacting with the [Prefect REST API](/api-ref/rest-api/).
@@ -3023,7 +3025,7 @@ class SyncPrefectClient(
     ArtifactCollectionClient,
     LogClient,
     VariableClient,
-    ConcurrencyLimitClient
+    ConcurrencyLimitClient,
 ):
     """
     A synchronous client for interacting with the [Prefect REST API](/api-ref/rest-api/).
