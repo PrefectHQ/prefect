@@ -41,6 +41,7 @@ class ConcurrencyLimitClient(BaseClient):
         Returns:
             the ID of the concurrency limit in the backend
         """
+        from prefect.client.schemas.actions import ConcurrencyLimitCreate
 
         concurrency_limit_create = ConcurrencyLimitCreate(
             tag=tag,
@@ -351,7 +352,10 @@ class ConcurrencyLimitClient(BaseClient):
 
         Note: This is not done atomically.
         """
-        from prefect.client.schemas.actions import GlobalConcurrencyLimitCreate
+        from prefect.client.schemas.actions import (
+            GlobalConcurrencyLimitCreate,
+            GlobalConcurrencyLimitUpdate,
+        )
 
         try:
             existing_limit = self.read_global_concurrency_limit_by_name(name)
