@@ -1,4 +1,6 @@
-from pydantic import AliasChoices, AliasPath, Field
+from typing import ClassVar
+
+from pydantic import AliasChoices, AliasPath, ConfigDict, Field
 
 from prefect.settings.base import (
     PrefectBaseSettings,
@@ -12,7 +14,7 @@ class ClientMetricsSettings(PrefectBaseSettings):
     Settings for controlling metrics reporting from the client
     """
 
-    model_config = _build_settings_config(("client", "metrics"))
+    model_config: ClassVar[ConfigDict] = _build_settings_config(("client", "metrics"))
 
     enabled: bool = Field(
         default=False,
@@ -37,7 +39,7 @@ class ClientSettings(PrefectBaseSettings):
     Settings for controlling API client behavior
     """
 
-    model_config = _build_settings_config(("client",))
+    model_config: ClassVar[ConfigDict] = _build_settings_config(("client",))
 
     max_retries: int = Field(
         default=5,

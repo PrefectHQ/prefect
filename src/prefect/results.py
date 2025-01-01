@@ -10,6 +10,7 @@ from typing import (
     Annotated,
     Any,
     Callable,
+    ClassVar,
     Dict,
     Generic,
     Optional,
@@ -282,7 +283,7 @@ class ResultStore(BaseModel):
         storage_key_fn: The function to generate storage keys.
     """
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(arbitrary_types_allowed=True)
 
     result_storage: Optional[WritableFileSystem] = Field(default=None)
     metadata_storage: Annotated[

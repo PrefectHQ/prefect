@@ -33,7 +33,7 @@ import importlib
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Iterable, List, Optional, Union
+from typing import TYPE_CHECKING, Any, ClassVar, Iterable, List, Optional, Union
 from uuid import UUID
 
 from pydantic import (
@@ -130,7 +130,7 @@ class RunnerDeployment(BaseModel):
             available settings.
     """
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(arbitrary_types_allowed=True)
 
     name: str = Field(..., description="The name of the deployment.")
     flow_name: Optional[str] = Field(

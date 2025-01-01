@@ -30,6 +30,10 @@ from prefect.client.orchestration._logs.client import (
     LogClient,
     LogAsyncClient,
 )
+from prefect.client.orchestration._variables.client import (
+    VariableClient,
+    VariableAsyncClient,
+)
 
 import prefect
 import prefect.exceptions
@@ -58,8 +62,6 @@ from prefect.client.schemas.actions import (
     GlobalConcurrencyLimitUpdate,
     TaskRunCreate,
     TaskRunUpdate,
-    VariableCreate,
-    VariableUpdate,
     WorkPoolCreate,
     WorkPoolUpdate,
     WorkQueueCreate,
@@ -91,7 +93,6 @@ from prefect.client.schemas.objects import (
     Parameter,
     TaskRunPolicy,
     TaskRunResult,
-    Variable,
     Worker,
     WorkerMetadata,
     WorkPool,
@@ -153,15 +154,13 @@ def get_client(
     *,
     httpx_settings: Optional[dict[str, Any]] = ...,
     sync_client: Literal[False] = False,
-) -> "PrefectClient":
-    ...
+) -> "PrefectClient": ...
 
 
 @overload
 def get_client(
     *, httpx_settings: Optional[dict[str, Any]] = ..., sync_client: Literal[True] = ...
-) -> "SyncPrefectClient":
-    ...
+) -> "SyncPrefectClient": ...
 
 
 def get_client(
@@ -249,6 +248,7 @@ class PrefectClient(
     ArtifactAsyncClient,
     ArtifactCollectionAsyncClient,
     LogAsyncClient,
+    VariableAsyncClient,
 ):
     """
     An asynchronous client for interacting with the [Prefect REST API](/api-ref/rest-api/).
@@ -2923,61 +2923,6 @@ class PrefectClient(
             response.json()
         )
 
-    async def create_variable(self, variable: VariableCreate) -> Variable:
-        """
-        Creates an variable with the provided configuration.
-
-        Args:
-            variable: Desired configuration for the new variable.
-        Returns:
-            Information about the newly created variable.
-        """
-        response = await self._client.post(
-            "/variables/",
-            json=variable.model_dump(mode="json", exclude_unset=True),
-        )
-        return Variable(**response.json())
-
-    async def update_variable(self, variable: VariableUpdate) -> None:
-        """
-        Updates a variable with the provided configuration.
-
-        Args:
-            variable: Desired configuration for the updated variable.
-        Returns:
-            Information about the updated variable.
-        """
-        await self._client.patch(
-            f"/variables/name/{variable.name}",
-            json=variable.model_dump(mode="json", exclude_unset=True),
-        )
-
-    async def read_variable_by_name(self, name: str) -> Optional[Variable]:
-        """Reads a variable by name. Returns None if no variable is found."""
-        try:
-            response = await self._client.get(f"/variables/name/{name}")
-            return Variable(**response.json())
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_404_NOT_FOUND:
-                return None
-            else:
-                raise
-
-    async def delete_variable_by_name(self, name: str) -> None:
-        """Deletes a variable by name."""
-        try:
-            await self._client.delete(f"/variables/name/{name}")
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
-                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
-            else:
-                raise
-
-    async def read_variables(self, limit: Optional[int] = None) -> list[Variable]:
-        """Reads all variables."""
-        response = await self._client.post("/variables/filter", json={"limit": limit})
-        return pydantic.TypeAdapter(list[Variable]).validate_python(response.json())
-
     async def read_worker_metadata(self) -> dict[str, Any]:
         """Reads worker metadata stored in Prefect collection registry."""
         response = await self._client.get("collections/views/aggregate-worker-metadata")
@@ -3410,6 +3355,7 @@ class SyncPrefectClient(
     ArtifactClient,
     ArtifactCollectionClient,
     LogClient,
+    VariableClient,
 ):
     """
     A synchronous client for interacting with the [Prefect REST API](/api-ref/rest-api/).
@@ -4290,53 +4236,3 @@ class SyncPrefectClient(
             else:
                 raise
         return BlockDocument.model_validate(response.json())
-
-    def create_variable(self, variable: VariableCreate) -> Variable:
-        """
-        Creates an variable with the provided configuration.
-
-        Args:
-            variable: Desired configuration for the new variable.
-        Returns:
-            Information about the newly created variable.
-        """
-        response = self._client.post(
-            "/variables/",
-            json=variable.model_dump(mode="json", exclude_unset=True),
-        )
-        return Variable(**response.json())
-
-    def update_variable(self, variable: VariableUpdate) -> None:
-        """
-        Updates a variable with the provided configuration.
-
-        Args:
-            variable: Desired configuration for the updated variable.
-        Returns:
-            Information about the updated variable.
-        """
-        self._client.patch(
-            f"/variables/name/{variable.name}",
-            json=variable.model_dump(mode="json", exclude_unset=True),
-        )
-
-    def read_variable_by_name(self, name: str) -> Optional[Variable]:
-        """Reads a variable by name. Returns None if no variable is found."""
-        try:
-            response = self._client.get(f"/variables/name/{name}")
-            return Variable(**response.json())
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_404_NOT_FOUND:
-                return None
-            else:
-                raise
-
-    def delete_variable_by_name(self, name: str) -> None:
-        """Deletes a variable by name."""
-        try:
-            self._client.delete(f"/variables/name/{name}")
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
-                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
-            else:
-                raise
