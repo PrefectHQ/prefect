@@ -25,6 +25,11 @@ from prefect.client.orchestration._artifacts.client import (
     ArtifactCollectionClient,
     ArtifactCollectionAsyncClient,
 )
+
+from prefect.client.orchestration._logs.client import (
+    LogClient,
+    LogAsyncClient,
+)
 from prefect.client.orchestration._variables.client import (
     VariableClient,
     VariableAsyncClient,
@@ -55,7 +60,6 @@ from prefect.client.schemas.actions import (
     FlowRunUpdate,
     GlobalConcurrencyLimitCreate,
     GlobalConcurrencyLimitUpdate,
-    LogCreate,
     TaskRunCreate,
     TaskRunUpdate,
     WorkPoolCreate,
@@ -68,7 +72,6 @@ from prefect.client.schemas.filters import (
     FlowFilter,
     FlowRunFilter,
     FlowRunNotificationPolicyFilter,
-    LogFilter,
     TaskRunFilter,
     WorkerFilter,
     WorkPoolFilter,
@@ -87,7 +90,6 @@ from prefect.client.schemas.objects import (
     FlowRunInput,
     FlowRunNotificationPolicy,
     FlowRunPolicy,
-    Log,
     Parameter,
     TaskRunPolicy,
     TaskRunResult,
@@ -108,7 +110,6 @@ from prefect.client.schemas.sorting import (
     DeploymentSort,
     FlowRunSort,
     FlowSort,
-    LogSort,
     TaskRunSort,
 )
 from prefect.events import filters
@@ -248,6 +249,7 @@ def get_client(
 class PrefectClient(
     ArtifactAsyncClient,
     ArtifactCollectionAsyncClient,
+    LogAsyncClient,
     VariableAsyncClient,
 ):
     """
@@ -2469,21 +2471,6 @@ class PrefectClient(
             response.json()
         )
 
-    async def create_logs(
-        self, logs: Iterable[Union[LogCreate, dict[str, Any]]]
-    ) -> None:
-        """
-        Create logs for a flow or task run
-
-        Args:
-            logs: An iterable of `LogCreate` objects or already json-compatible dicts
-        """
-        serialized_logs = [
-            log.model_dump(mode="json") if isinstance(log, LogCreate) else log
-            for log in logs
-        ]
-        await self._client.post("/logs/", json=serialized_logs)
-
     async def create_flow_run_notification_policy(
         self,
         block_document_id: UUID,
@@ -2628,26 +2615,6 @@ class PrefectClient(
         return pydantic.TypeAdapter(list[FlowRunNotificationPolicy]).validate_python(
             response.json()
         )
-
-    async def read_logs(
-        self,
-        log_filter: Optional[LogFilter] = None,
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
-        sort: LogSort = LogSort.TIMESTAMP_ASC,
-    ) -> list[Log]:
-        """
-        Read flow and task run logs.
-        """
-        body: dict[str, Any] = {
-            "logs": log_filter.model_dump(mode="json") if log_filter else None,
-            "limit": limit,
-            "offset": offset,
-            "sort": sort,
-        }
-
-        response = await self._client.post("/logs/filter", json=body)
-        return pydantic.TypeAdapter(list[Log]).validate_python(response.json())
 
     async def send_worker_heartbeat(
         self,
@@ -3389,6 +3356,7 @@ class PrefectClient(
 class SyncPrefectClient(
     ArtifactClient,
     ArtifactCollectionClient,
+    LogClient,
     VariableClient,
 ):
     """
