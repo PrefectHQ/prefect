@@ -972,11 +972,9 @@ class BaseWorker(abc.ABC):
             else:
                 # If the run is not ready to submit, release the concurrency slot
                 self._release_limit_slot(flow_run.id)
-
-            self._submitting_flow_run_ids.remove(flow_run.id)
         else:
-            self._submitting_flow_run_ids.remove(flow_run.id)
             self._release_limit_slot(flow_run.id)
+        self._submitting_flow_run_ids.remove(flow_run.id)
 
     async def _submit_run_and_capture_errors(
         self, flow_run: "FlowRun", task_status: Optional[anyio.abc.TaskStatus] = None
