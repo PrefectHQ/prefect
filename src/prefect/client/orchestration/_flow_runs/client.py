@@ -1,23 +1,22 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union
-from uuid import UUID, uuid4
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import httpx
-import pydantic
-from starlette import status
 
 import prefect
 import prefect.exceptions
 import prefect.settings
 import prefect.states
-from prefect.client.orchestration.base import BaseAsyncClient, BaseClient
+from prefect.client.orchestration._flows.client import FlowAsyncClient, FlowClient
 
 T = TypeVar("T")
 R = TypeVar("R", infer_variance=True)
 
 if TYPE_CHECKING:
+    from uuid import UUID, uuid4
+
     from prefect.client.schemas import FlowRun, OrchestrationResult
     from prefect.client.schemas.actions import (
         FlowRunCreate,
@@ -43,17 +42,17 @@ if TYPE_CHECKING:
     from prefect.types import KeyValueLabelsField
 
 
-class FlowRunClient(BaseClient):
+class FlowRunClient(FlowClient):
     def create_flow_run(
         self,
         flow: "FlowObject[Any, R]",
-        name: Optional[str] = None,
-        parameters: Optional[dict[str, Any]] = None,
-        context: Optional[dict[str, Any]] = None,
-        tags: Optional[Iterable[str]] = None,
-        parent_task_run_id: Optional[UUID] = None,
-        state: Optional["State[R]"] = None,
-    ) -> FlowRun:
+        name: "str | None" = None,
+        parameters: "dict[str, Any] | None" = None,
+        context: "dict[str, Any] | None" = None,
+        tags: "Iterable[str] | None" = None,
+        parent_task_run_id: "UUID | None" = None,
+        state: "State[R] | None" = None,
+    ) -> "FlowRun":
         """
         Create a flow run for a flow.
 
@@ -99,7 +98,7 @@ class FlowRunClient(BaseClient):
         )
 
         flow_run_create_json = flow_run_create.model_dump(mode="json")
-        response = self._client.post("/flow_runs/", json=flow_run_create_json)
+        response = self.request("POST", "/flow_runs/", json=flow_run_create_json)
         flow_run = FlowRun.model_validate(response.json())
 
         # Restore the parameters to the local objects to retain expectations about
@@ -110,14 +109,14 @@ class FlowRunClient(BaseClient):
 
     def update_flow_run(
         self,
-        flow_run_id: UUID,
-        flow_version: Optional[str] = None,
-        parameters: Optional[dict[str, Any]] = None,
-        name: Optional[str] = None,
-        tags: Optional[Iterable[str]] = None,
-        empirical_policy: Optional[FlowRunPolicy] = None,
-        infrastructure_pid: Optional[str] = None,
-        job_variables: Optional[dict[str, Any]] = None,
+        flow_run_id: "UUID",
+        flow_version: "str | None" = None,
+        parameters: "dict[str, Any] | None" = None,
+        name: "str | None" = None,
+        tags: "Iterable[str] | None" = None,
+        empirical_policy: "FlowRunPolicy | None" = None,
+        infrastructure_pid: "str | None" = None,
+        job_variables: "dict[str, Any] | None" = None,
     ) -> httpx.Response:
         """
         Update a flow run's details.
@@ -148,9 +147,7 @@ class FlowRunClient(BaseClient):
         if tags is not None:
             params["tags"] = tags
         if empirical_policy is not None:
-            params["empirical_policy"] = empirical_policy.model_dump(
-                mode="json", exclude_unset=True
-            )
+            params["empirical_policy"] = empirical_policy
         if infrastructure_pid:
             params["infrastructure_pid"] = infrastructure_pid
         if job_variables is not None:
@@ -158,12 +155,35 @@ class FlowRunClient(BaseClient):
 
         flow_run_data = FlowRunUpdate(**params)
 
-        return self._client.patch(
-            f"/flow_runs/{flow_run_id}",
+        return self.request(
+            "PATCH",
+            "/flow_runs/{id}",
+            path_params={"id": flow_run_id},
             json=flow_run_data.model_dump(mode="json", exclude_unset=True),
         )
 
-    def read_flow_run(self, flow_run_id: UUID) -> FlowRun:
+    def delete_flow_run(
+        self,
+        flow_run_id: "UUID",
+    ) -> None:
+        """
+        Delete a flow run by UUID.
+
+        Args:
+            flow_run_id: The flow run UUID of interest.
+        Raises:
+            prefect.exceptions.ObjectNotFound: If request returns 404
+            httpx.RequestError: If requests fails
+        """
+        try:
+            self.request("DELETE", "/flow_runs/{id}", path_params={"id": flow_run_id})
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
+    def read_flow_run(self, flow_run_id: "UUID") -> "FlowRun":
         """
         Query the Prefect API for a flow run by id.
 
@@ -174,7 +194,9 @@ class FlowRunClient(BaseClient):
             a Flow Run model representation of the flow run
         """
         try:
-            response = self._client.get(f"/flow_runs/{flow_run_id}")
+            response = self.request(
+                "GET", "/flow_runs/{id}", path_params={"id": flow_run_id}
+            )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
@@ -182,19 +204,47 @@ class FlowRunClient(BaseClient):
                 raise
         return FlowRun.model_validate(response.json())
 
+    def resume_flow_run(
+        self, flow_run_id: "UUID", run_input: "dict[str, Any] | None" = None
+    ) -> "OrchestrationResult[Any]":
+        """
+        Resumes a paused flow run.
+
+        Args:
+            flow_run_id: the flow run ID of interest
+            run_input: the input to resume the flow run with
+
+        Returns:
+            an OrchestrationResult model representation of state orchestration output
+        """
+        try:
+            response = self.request(
+                "POST",
+                "/flow_runs/{id}/resume",
+                path_params={"id": flow_run_id},
+                json={"run_input": run_input},
+            )
+        except httpx.HTTPStatusError:
+            raise
+
+        result: OrchestrationResult[Any] = OrchestrationResult.model_validate(
+            response.json()
+        )
+        return result
+
     def read_flow_runs(
         self,
         *,
-        flow_filter: Optional[FlowFilter] = None,
-        flow_run_filter: Optional[FlowRunFilter] = None,
-        task_run_filter: Optional[TaskRunFilter] = None,
-        deployment_filter: Optional[DeploymentFilter] = None,
-        work_pool_filter: Optional[WorkPoolFilter] = None,
-        work_queue_filter: Optional[WorkQueueFilter] = None,
-        sort: Optional[FlowRunSort] = None,
-        limit: Optional[int] = None,
+        flow_filter: "FlowFilter | None" = None,
+        flow_run_filter: "FlowRunFilter | None" = None,
+        task_run_filter: "TaskRunFilter | None" = None,
+        deployment_filter: "DeploymentFilter | None" = None,
+        work_pool_filter: "WorkPoolFilter | None" = None,
+        work_queue_filter: "WorkQueueFilter | None" = None,
+        sort: "FlowRunSort | None" = None,
+        limit: "int | None" = None,
         offset: int = 0,
-    ) -> list[FlowRun]:
+    ) -> "list[FlowRun]":
         """
         Query the Prefect API for flow runs. Only flow runs matching all criteria will
         be returned.
@@ -238,15 +288,17 @@ class FlowRunClient(BaseClient):
             "offset": offset,
         }
 
-        response = self._client.post("/flow_runs/filter", json=body)
-        return pydantic.TypeAdapter(list[FlowRun]).validate_python(response.json())
+        response = self.request("POST", "/flow_runs/filter", json=body)
+        from prefect.client.schemas.objects import FlowRun
+
+        return FlowRun.model_validate_list(response.json())
 
     def set_flow_run_state(
         self,
-        flow_run_id: UUID,
-        state: "prefect.states.State[T]",
+        flow_run_id: "UUID | str",
+        state: "State[T]",
         force: bool = False,
-    ) -> OrchestrationResult[T]:
+    ) -> "OrchestrationResult[T]":
         """
         Set the state of a flow run.
 
@@ -259,19 +311,24 @@ class FlowRunClient(BaseClient):
         Returns:
             an OrchestrationResult model representation of state orchestration output
         """
+        flow_run_id = (
+            flow_run_id if isinstance(flow_run_id, UUID) else UUID(flow_run_id)
+        )
         state_create = state.to_state_create()
         state_create.state_details.flow_run_id = flow_run_id
         state_create.state_details.transition_id = uuid4()
         try:
-            response = self._client.post(
-                f"/flow_runs/{flow_run_id}/set_state",
+            response = self.request(
+                "POST",
+                "/flow_runs/{id}/set_state",
+                path_params={"id": flow_run_id},
                 json=dict(
                     state=state_create.model_dump(mode="json", serialize_as_any=True),
                     force=force,
                 ),
             )
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+            if e.response.status_code == 404:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
@@ -281,37 +338,133 @@ class FlowRunClient(BaseClient):
         )
         return result
 
-    def set_flow_run_name(self, flow_run_id: UUID, name: str) -> httpx.Response:
+    def read_flow_run_states(self, flow_run_id: "UUID") -> "list[prefect.states.State]":
+        """
+        Query for the states of a flow run
+
+        Args:
+            flow_run_id: the id of the flow run
+
+        Returns:
+            a list of State model representations
+                of the flow run states
+        """
+        response = self.request(
+            "GET", "/flow_run_states/", params=dict(flow_run_id=str(flow_run_id))
+        )
+        from prefect.states import State
+
+        return State.model_validate_list(response.json())
+
+    def set_flow_run_name(self, flow_run_id: "UUID", name: str) -> httpx.Response:
         flow_run_data = FlowRunUpdate(name=name)
-        return self._client.patch(
-            f"/flow_runs/{flow_run_id}",
+        return self.request(
+            "PATCH",
+            "/flow_runs/{id}",
+            path_params={"id": flow_run_id},
             json=flow_run_data.model_dump(mode="json", exclude_unset=True),
         )
 
+    def create_flow_run_input(
+        self, flow_run_id: "UUID", key: str, value: str, sender: "str | None" = None
+    ) -> None:
+        """
+        Creates a flow run input.
+
+        Args:
+            flow_run_id: The flow run id.
+            key: The input key.
+            value: The input value.
+            sender: The sender of the input.
+        """
+
+        # Initialize the input to ensure that the key is valid.
+        FlowRunInput(flow_run_id=flow_run_id, key=key, value=value)
+
+        response = self.request(
+            "POST",
+            "/flow_runs/{id}/input",
+            path_params={"id": flow_run_id},
+            json={"key": key, "value": value, "sender": sender},
+        )
+        response.raise_for_status()
+
+    def filter_flow_run_input(
+        self, flow_run_id: "UUID", key_prefix: str, limit: int, exclude_keys: "set[str]"
+    ) -> "list[FlowRunInput]":
+        response = self.request(
+            "POST",
+            "/flow_runs/{id}/input/filter",
+            path_params={"id": flow_run_id},
+            json={
+                "prefix": key_prefix,
+                "limit": limit,
+                "exclude_keys": list(exclude_keys),
+            },
+        )
+        response.raise_for_status()
+        from prefect.client.schemas.objects import FlowRunInput
+
+        return FlowRunInput.model_validate_list(response.json())
+
+    def read_flow_run_input(self, flow_run_id: "UUID", key: str) -> str:
+        """
+        Reads a flow run input.
+
+        Args:
+            flow_run_id: The flow run id.
+            key: The input key.
+        """
+        response = self.request(
+            "GET",
+            "/flow_runs/{id}/input/{key}",
+            path_params={"id": flow_run_id, "key": key},
+        )
+        response.raise_for_status()
+        return response.content.decode()
+
+    def delete_flow_run_input(self, flow_run_id: "UUID", key: str) -> None:
+        """
+        Deletes a flow run input.
+
+        Args:
+            flow_run_id: The flow run id.
+            key: The input key.
+        """
+        response = self.request(
+            "DELETE",
+            "/flow_runs/{id}/input/{key}",
+            path_params={"id": flow_run_id, "key": key},
+        )
+        response.raise_for_status()
+
     def update_flow_run_labels(
-        self, flow_run_id: UUID, labels: "KeyValueLabelsField"
+        self, flow_run_id: "UUID", labels: "KeyValueLabelsField"
     ) -> None:
         """
         Updates the labels of a flow run.
         """
-        response = self._client.patch(
-            f"/flow_runs/{flow_run_id}/labels",
+
+        response = self.request(
+            "PATCH",
+            "/flow_runs/{id}/labels",
+            path_params={"id": flow_run_id},
             json=labels,
         )
         response.raise_for_status()
 
 
-class FlowRunAsyncClient(BaseAsyncClient):
+class FlowRunAsyncClient(FlowAsyncClient):
     async def create_flow_run(
         self,
         flow: "FlowObject[Any, R]",
-        name: Optional[str] = None,
-        parameters: Optional[dict[str, Any]] = None,
-        context: Optional[dict[str, Any]] = None,
-        tags: Optional[Iterable[str]] = None,
-        parent_task_run_id: Optional[UUID] = None,
-        state: Optional["State[R]"] = None,
-    ) -> FlowRun:
+        name: "str | None" = None,
+        parameters: "dict[str, Any] | None" = None,
+        context: "dict[str, Any] | None" = None,
+        tags: "Iterable[str] | None" = None,
+        parent_task_run_id: "UUID | None" = None,
+        state: "State[R] | None" = None,
+    ) -> "FlowRun":
         """
         Create a flow run for a flow.
 
@@ -357,7 +510,7 @@ class FlowRunAsyncClient(BaseAsyncClient):
         )
 
         flow_run_create_json = flow_run_create.model_dump(mode="json")
-        response = await self._client.post("/flow_runs/", json=flow_run_create_json)
+        response = await self.request("POST", "/flow_runs/", json=flow_run_create_json)
         flow_run = FlowRun.model_validate(response.json())
 
         # Restore the parameters to the local objects to retain expectations about
@@ -368,14 +521,14 @@ class FlowRunAsyncClient(BaseAsyncClient):
 
     async def update_flow_run(
         self,
-        flow_run_id: UUID,
-        flow_version: Optional[str] = None,
-        parameters: Optional[dict[str, Any]] = None,
-        name: Optional[str] = None,
-        tags: Optional[Iterable[str]] = None,
-        empirical_policy: Optional[FlowRunPolicy] = None,
-        infrastructure_pid: Optional[str] = None,
-        job_variables: Optional[dict[str, Any]] = None,
+        flow_run_id: "UUID",
+        flow_version: "str | None" = None,
+        parameters: "dict[str, Any] | None" = None,
+        name: "str | None" = None,
+        tags: "Iterable[str] | None" = None,
+        empirical_policy: "FlowRunPolicy | None" = None,
+        infrastructure_pid: "str | None" = None,
+        job_variables: "dict[str, Any] | None" = None,
     ) -> httpx.Response:
         """
         Update a flow run's details.
@@ -414,14 +567,16 @@ class FlowRunAsyncClient(BaseAsyncClient):
 
         flow_run_data = FlowRunUpdate(**params)
 
-        return await self._client.patch(
-            f"/flow_runs/{flow_run_id}",
+        return await self.request(
+            "PATCH",
+            "/flow_runs/{id}",
+            path_params={"id": flow_run_id},
             json=flow_run_data.model_dump(mode="json", exclude_unset=True),
         )
 
     async def delete_flow_run(
         self,
-        flow_run_id: UUID,
+        flow_run_id: "UUID",
     ) -> None:
         """
         Delete a flow run by UUID.
@@ -433,14 +588,16 @@ class FlowRunAsyncClient(BaseAsyncClient):
             httpx.RequestError: If requests fails
         """
         try:
-            await self._client.delete(f"/flow_runs/{flow_run_id}")
+            await self.request(
+                "DELETE", "/flow_runs/{id}", path_params={"id": flow_run_id}
+            )
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+            if e.response.status_code == 404:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
 
-    async def read_flow_run(self, flow_run_id: UUID) -> FlowRun:
+    async def read_flow_run(self, flow_run_id: "UUID") -> "FlowRun":
         """
         Query the Prefect API for a flow run by id.
 
@@ -451,7 +608,9 @@ class FlowRunAsyncClient(BaseAsyncClient):
             a Flow Run model representation of the flow run
         """
         try:
-            response = await self._client.get(f"/flow_runs/{flow_run_id}")
+            response = await self.request(
+                "GET", "/flow_runs/{id}", path_params={"id": flow_run_id}
+            )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
@@ -460,8 +619,8 @@ class FlowRunAsyncClient(BaseAsyncClient):
         return FlowRun.model_validate(response.json())
 
     async def resume_flow_run(
-        self, flow_run_id: UUID, run_input: Optional[dict[str, Any]] = None
-    ) -> OrchestrationResult[Any]:
+        self, flow_run_id: "UUID", run_input: "dict[str, Any] | None" = None
+    ) -> "OrchestrationResult[Any]":
         """
         Resumes a paused flow run.
 
@@ -473,8 +632,11 @@ class FlowRunAsyncClient(BaseAsyncClient):
             an OrchestrationResult model representation of state orchestration output
         """
         try:
-            response = await self._client.post(
-                f"/flow_runs/{flow_run_id}/resume", json={"run_input": run_input}
+            response = await self.request(
+                "POST",
+                "/flow_runs/{id}/resume",
+                path_params={"id": flow_run_id},
+                json={"run_input": run_input},
             )
         except httpx.HTTPStatusError:
             raise
@@ -487,16 +649,16 @@ class FlowRunAsyncClient(BaseAsyncClient):
     async def read_flow_runs(
         self,
         *,
-        flow_filter: Optional[FlowFilter] = None,
-        flow_run_filter: Optional[FlowRunFilter] = None,
-        task_run_filter: Optional[TaskRunFilter] = None,
-        deployment_filter: Optional[DeploymentFilter] = None,
-        work_pool_filter: Optional[WorkPoolFilter] = None,
-        work_queue_filter: Optional[WorkQueueFilter] = None,
-        sort: Optional[FlowRunSort] = None,
-        limit: Optional[int] = None,
+        flow_filter: "FlowFilter | None" = None,
+        flow_run_filter: "FlowRunFilter | None" = None,
+        task_run_filter: "TaskRunFilter | None" = None,
+        deployment_filter: "DeploymentFilter | None" = None,
+        work_pool_filter: "WorkPoolFilter | None" = None,
+        work_queue_filter: "WorkQueueFilter | None" = None,
+        sort: "FlowRunSort | None" = None,
+        limit: "int | None" = None,
         offset: int = 0,
-    ) -> list[FlowRun]:
+    ) -> "list[FlowRun]":
         """
         Query the Prefect API for flow runs. Only flow runs matching all criteria will
         be returned.
@@ -540,15 +702,17 @@ class FlowRunAsyncClient(BaseAsyncClient):
             "offset": offset,
         }
 
-        response = await self._client.post("/flow_runs/filter", json=body)
-        return pydantic.TypeAdapter(list[FlowRun]).validate_python(response.json())
+        response = await self.request("POST", "/flow_runs/filter", json=body)
+        from prefect.client.schemas.objects import FlowRun
+
+        return FlowRun.model_validate_list(response.json())
 
     async def set_flow_run_state(
         self,
-        flow_run_id: Union[UUID, str],
-        state: "prefect.states.State[T]",
+        flow_run_id: "UUID | str",
+        state: "State[T]",
         force: bool = False,
-    ) -> OrchestrationResult[T]:
+    ) -> "OrchestrationResult[T]":
         """
         Set the state of a flow run.
 
@@ -568,15 +732,17 @@ class FlowRunAsyncClient(BaseAsyncClient):
         state_create.state_details.flow_run_id = flow_run_id
         state_create.state_details.transition_id = uuid4()
         try:
-            response = await self._client.post(
-                f"/flow_runs/{flow_run_id}/set_state",
+            response = await self.request(
+                "POST",
+                "/flow_runs/{id}/set_state",
+                path_params={"id": flow_run_id},
                 json=dict(
                     state=state_create.model_dump(mode="json", serialize_as_any=True),
                     force=force,
                 ),
             )
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+            if e.response.status_code == 404:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
@@ -587,8 +753,8 @@ class FlowRunAsyncClient(BaseAsyncClient):
         return result
 
     async def read_flow_run_states(
-        self, flow_run_id: UUID
-    ) -> list[prefect.states.State]:
+        self, flow_run_id: "UUID"
+    ) -> "list[prefect.states.State]":
         """
         Query for the states of a flow run
 
@@ -599,22 +765,24 @@ class FlowRunAsyncClient(BaseAsyncClient):
             a list of State model representations
                 of the flow run states
         """
-        response = await self._client.get(
-            "/flow_run_states/", params=dict(flow_run_id=str(flow_run_id))
+        response = await self.request(
+            "GET", "/flow_run_states/", params=dict(flow_run_id=str(flow_run_id))
         )
-        return pydantic.TypeAdapter(list[prefect.states.State]).validate_python(
-            response.json()
-        )
+        from prefect.states import State
 
-    async def set_flow_run_name(self, flow_run_id: UUID, name: str) -> httpx.Response:
+        return State.model_validate_list(response.json())
+
+    async def set_flow_run_name(self, flow_run_id: "UUID", name: str) -> httpx.Response:
         flow_run_data = FlowRunUpdate(name=name)
-        return await self._client.patch(
-            f"/flow_runs/{flow_run_id}",
+        return await self.request(
+            "PATCH",
+            "/flow_runs/{id}",
+            path_params={"id": flow_run_id},
             json=flow_run_data.model_dump(mode="json", exclude_unset=True),
         )
 
     async def create_flow_run_input(
-        self, flow_run_id: UUID, key: str, value: str, sender: Optional[str] = None
+        self, flow_run_id: "UUID", key: str, value: str, sender: "str | None" = None
     ) -> None:
         """
         Creates a flow run input.
@@ -629,17 +797,21 @@ class FlowRunAsyncClient(BaseAsyncClient):
         # Initialize the input to ensure that the key is valid.
         FlowRunInput(flow_run_id=flow_run_id, key=key, value=value)
 
-        response = await self._client.post(
-            f"/flow_runs/{flow_run_id}/input",
+        response = await self.request(
+            "POST",
+            "/flow_runs/{id}/input",
+            path_params={"id": flow_run_id},
             json={"key": key, "value": value, "sender": sender},
         )
         response.raise_for_status()
 
     async def filter_flow_run_input(
-        self, flow_run_id: UUID, key_prefix: str, limit: int, exclude_keys: set[str]
-    ) -> list[FlowRunInput]:
-        response = await self._client.post(
-            f"/flow_runs/{flow_run_id}/input/filter",
+        self, flow_run_id: "UUID", key_prefix: str, limit: int, exclude_keys: "set[str]"
+    ) -> "list[FlowRunInput]":
+        response = await self.request(
+            "POST",
+            "/flow_runs/{id}/input/filter",
+            path_params={"id": flow_run_id},
             json={
                 "prefix": key_prefix,
                 "limit": limit,
@@ -647,9 +819,11 @@ class FlowRunAsyncClient(BaseAsyncClient):
             },
         )
         response.raise_for_status()
-        return pydantic.TypeAdapter(list[FlowRunInput]).validate_python(response.json())
+        from prefect.client.schemas.objects import FlowRunInput
 
-    async def read_flow_run_input(self, flow_run_id: UUID, key: str) -> str:
+        return FlowRunInput.model_validate_list(response.json())
+
+    async def read_flow_run_input(self, flow_run_id: "UUID", key: str) -> str:
         """
         Reads a flow run input.
 
@@ -657,11 +831,15 @@ class FlowRunAsyncClient(BaseAsyncClient):
             flow_run_id: The flow run id.
             key: The input key.
         """
-        response = await self._client.get(f"/flow_runs/{flow_run_id}/input/{key}")
+        response = await self.request(
+            "GET",
+            "/flow_runs/{id}/input/{key}",
+            path_params={"id": flow_run_id, "key": key},
+        )
         response.raise_for_status()
         return response.content.decode()
 
-    async def delete_flow_run_input(self, flow_run_id: UUID, key: str) -> None:
+    async def delete_flow_run_input(self, flow_run_id: "UUID", key: str) -> None:
         """
         Deletes a flow run input.
 
@@ -669,17 +847,24 @@ class FlowRunAsyncClient(BaseAsyncClient):
             flow_run_id: The flow run id.
             key: The input key.
         """
-        response = await self._client.delete(f"/flow_runs/{flow_run_id}/input/{key}")
+        response = await self.request(
+            "DELETE",
+            "/flow_runs/{id}/input/{key}",
+            path_params={"id": flow_run_id, "key": key},
+        )
         response.raise_for_status()
 
     async def update_flow_run_labels(
-        self, flow_run_id: UUID, labels: "KeyValueLabelsField"
+        self, flow_run_id: "UUID", labels: "KeyValueLabelsField"
     ) -> None:
         """
         Updates the labels of a flow run.
         """
 
-        response = await self._client.patch(
-            f"/flow_runs/{flow_run_id}/labels", json=labels
+        response = await self.request(
+            "PATCH",
+            "/flow_runs/{id}/labels",
+            path_params={"id": flow_run_id},
+            json=labels,
         )
         response.raise_for_status()
