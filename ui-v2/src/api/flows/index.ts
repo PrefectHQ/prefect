@@ -43,7 +43,9 @@ export const queryKeyFactory = {
  * const { data } = await queryClient.fetchQuery(query);
  * ```
  */
-export const buildListFlowsQuery = (filter: FlowsFilter) => ({
+export const buildListFlowsQuery = (
+	filter: FlowsFilter = { offset: 0, sort: "CREATED_DESC" },
+) => ({
 	queryKey: queryKeyFactory.list(filter),
 	queryFn: async () => {
 		const result = await getQueryService().POST("/flows/filter", {
