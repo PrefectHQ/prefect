@@ -1,7 +1,5 @@
-import {
-	createFakeGlobalConcurrencyLimit,
-	reactQueryDecorator,
-} from "@/storybook/utils";
+import { createFakeGlobalConcurrencyLimit } from "@/mocks";
+import { reactQueryDecorator } from "@/storybook/utils";
 import type { Meta, StoryObj } from "@storybook/react";
 import { fn } from "@storybook/test";
 import { GlobalConcurrencyLimitsDeleteDialog } from "./global-concurrency-limits-delete-dialog";

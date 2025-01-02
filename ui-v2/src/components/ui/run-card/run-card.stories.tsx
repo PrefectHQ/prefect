@@ -1,12 +1,6 @@
+import { createFakeFlow, createFakeFlowRun, createFakeTaskRun } from "@/mocks";
+import { routerDecorator } from "@/storybook/utils";
 import type { Meta, StoryObj } from "@storybook/react";
-
-import {
-	createFakeFlow,
-	createFakeFlowRun,
-	createFakeTaskRun,
-	routerDecorator,
-} from "@/storybook/utils";
-
 import { RunCard } from "./run-card";
 
 const meta: Meta<typeof RunCard> = {
