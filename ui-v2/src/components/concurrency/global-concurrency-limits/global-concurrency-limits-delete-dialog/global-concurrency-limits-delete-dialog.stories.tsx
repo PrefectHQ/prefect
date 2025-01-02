@@ -3,6 +3,7 @@ import {
 	reactQueryDecorator,
 } from "@/storybook/utils";
 import type { Meta, StoryObj } from "@storybook/react";
+import { fn } from "@storybook/test";
 import { GlobalConcurrencyLimitsDeleteDialog } from "./global-concurrency-limits-delete-dialog";
 
 const meta = {
@@ -12,8 +13,8 @@ const meta = {
 	decorators: [reactQueryDecorator],
 	args: {
 		limit: createFakeGlobalConcurrencyLimit(),
-		onOpenChange: () => {},
-		onDelete: () => {},
+		onOpenChange: fn(),
+		onDelete: fn(),
 	},
 } satisfies Meta<typeof GlobalConcurrencyLimitsDeleteDialog>;
 
