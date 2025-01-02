@@ -1,12 +1,18 @@
 import json
+import shutil
+import sys
 from datetime import timedelta
+from pathlib import Path
 from time import sleep
 from unittest import mock
 from uuid import UUID, uuid4
 
 import httpx
 import pytest
+import readchar
 import respx
+import yaml
+from typer import Exit
 
 import prefect
 from prefect import flow
@@ -19,14 +25,71 @@ from prefect.cli.deploy import (
     _initialize_deployment_slas,
 )
 from prefect.client.base import ServerType
-from prefect.client.orchestration import get_client
+from prefect.client.orchestration import PrefectClient, get_client
+from prefect.client.schemas.actions import WorkPoolCreate
+from prefect.client.schemas.objects import WorkPool
+from prefect.deployments.base import initialize_project
 from prefect.deployments.runner import RunnerDeployment
 from prefect.settings import (
     PREFECT_API_URL,
     temporary_settings,
 )
+from prefect.testing.cli import invoke_and_assert
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
+from prefect.utilities.filesystem import tmpchdir
 
 TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
+
+
+@pytest.fixture
+def project_dir(tmp_path):
+    with tmpchdir(tmp_path):
+        shutil.copytree(TEST_PROJECTS_DIR, tmp_path, dirs_exist_ok=True)
+        prefect_home = tmp_path / ".prefect"
+        prefect_home.mkdir(exist_ok=True, mode=0o0700)
+        initialize_project()
+        yield tmp_path
+
+
+@pytest.fixture
+async def docker_work_pool(prefect_client: PrefectClient) -> WorkPool:
+    return await prefect_client.create_work_pool(
+        work_pool=WorkPoolCreate(
+            name="test-docker-work-pool",
+            type="docker",
+            base_job_template={
+                "job_configuration": {"image": "{{ image}}"},
+                "variables": {
+                    "type": "object",
+                    "properties": {
+                        "image": {
+                            "title": "Image",
+                            "type": "string",
+                        },
+                    },
+                },
+            },
+        )
+    )
+
+
+@pytest.fixture
+def interactive_console(monkeypatch):
+    monkeypatch.setattr("prefect.cli.deploy.is_interactive", lambda: True)
+
+    # `readchar` does not like the fake stdin provided by typer isolation so we provide
+    # a version that does not require a fd to be attached
+    def readchar():
+        sys.stdin.flush()
+        position = sys.stdin.tell()
+        if not sys.stdin.read():
+            print("TEST ERROR: CLI is attempting to read input but stdin is empty.")
+            raise Exit(-2)
+        else:
+            sys.stdin.seek(position)
+        return sys.stdin.read(1)
+
+    monkeypatch.setattr("readchar._posix_read.readchar", readchar)
 
 
 @flow()
@@ -219,61 +282,48 @@ class TestRunnerDeploymentApply:
 class TestDeploymentCLI:
     class TestSlaSyncing:
         async def test_initialize_slas(self):
-            sla_spec = json.dumps(
-                {
-                    "name": "test-sla",
-                    "duration": 1800,
-                    "severity": "high",
-                }
-            )
-
-            slas = _initialize_deployment_slas([sla_spec], None)
-            assert slas == [
-                TimeToCompletionSla(
-                    name="test-sla",
-                    duration=1800,
-                    severity="high",
-                )
-            ]
-
-        async def test_initialize_slas_prefers_flag_over_config(self):
-            sla_flag_spec = json.dumps(
-                {
-                    "name": "test-sla-from-flag",
-                    "duration": 1800,
-                    "severity": "high",
-                }
-            )
-
-            sla_config_spec = {
-                "name": "test-sla-from-config",
-                "duration": 3600,
-                "severity": "low",
-            }
-
-            slas = _initialize_deployment_slas([sla_flag_spec], [sla_config_spec])
-            assert slas == [
-                TimeToCompletionSla(
-                    name="test-sla-from-flag",
-                    duration=1800,
-                    severity="high",
-                )
-            ]
-
-        async def test_sla_initialize_falls_back_to_config(self):
             sla_spec = {
                 "name": "test-sla",
                 "duration": 1800,
                 "severity": "high",
             }
-            slas = _initialize_deployment_slas(None, [sla_spec])
+
+            deployment_id = uuid4()
+            slas = _initialize_deployment_slas(deployment_id, [sla_spec])
             assert slas == [
-                TimeToCompletionSla(name="test-sla", duration=1800, severity="high")
+                TimeToCompletionSla(
+                    name="test-sla",
+                    duration=1800,
+                    severity="high",
+                ).set_deployment_id(deployment_id)
             ]
 
-        async def test_sla_initialize_handles_file_path_flags(self):
-            # sla_spec = "tests/test-projects/sla_config.yaml"
-            pass
+        async def test_initialize_multiple_slas(self):
+            sla_spec_1 = {
+                "name": "test-sla-1",
+                "duration": 1800,
+                "severity": "high",
+            }
+            sla_spec_2 = {
+                "name": "test-sla-2",
+                "duration": 3600,
+                "severity": "critical",
+            }
+
+            deployment_id = uuid4()
+            slas = _initialize_deployment_slas(deployment_id, [sla_spec_1, sla_spec_2])
+            assert slas == [
+                TimeToCompletionSla(
+                    name="test-sla-1",
+                    duration=1800,
+                    severity="high",
+                ).set_deployment_id(deployment_id),
+                TimeToCompletionSla(
+                    name="test-sla-2",
+                    duration=3600,
+                    severity="critical",
+                ).set_deployment_id(deployment_id),
+            ]
 
         async def test_create_slas(self):
             client = mock.AsyncMock()
@@ -285,11 +335,441 @@ class TestDeploymentCLI:
                 "severity": "high",
             }
 
-            slas = _initialize_deployment_slas(None, [sla_spec])
             deployment_id = uuid4()
+            slas = _initialize_deployment_slas(deployment_id, [sla_spec])
 
-            await _create_slas(client, deployment_id, slas)
+            await _create_slas(client, slas)
 
             assert slas[0]._deployment_id == deployment_id
             assert slas[0].owner_resource == f"prefect.deployment.{deployment_id}"
             client.create_sla.assert_called_once_with(slas[0])
+
+        async def test_sla_creation_orchestrated(
+            self, project_dir, prefect_client, work_pool
+        ):
+            prefect_file = Path("prefect.yaml")
+            with prefect_file.open(mode="r") as f:
+                contents = yaml.safe_load(f)
+
+            contents["deployments"] = [
+                {
+                    "name": "test-name-1",
+                    "work_pool": {
+                        "name": work_pool.name,
+                    },
+                    "sla": [
+                        {
+                            "name": "test-sla",
+                            "duration": 1800,
+                            "severity": "high",
+                        }
+                    ],
+                }
+            ]
+
+            expected_slas = _initialize_deployment_slas(
+                uuid4(), contents["deployments"][0]["sla"]
+            )
+
+            with prefect_file.open(mode="w") as f:
+                yaml.safe_dump(contents, f)
+
+            with mock.patch(
+                "prefect.cli.deploy._create_slas",
+                mock.AsyncMock(),
+            ) as create_slas:
+                await run_sync_in_worker_thread(
+                    invoke_and_assert,
+                    command="deploy ./flows/hello.py:my_flow -n test-name-1",
+                    expected_code=0,
+                )
+
+                assert create_slas.call_count == 1
+
+                client, slas = create_slas.call_args[0]
+                assert isinstance(client, PrefectClient)
+
+                returned_deployment_id = slas[0]._deployment_id
+                for sla in expected_slas:
+                    sla.set_deployment_id(returned_deployment_id)
+
+                assert slas == expected_slas
+
+    class TestSlaPassedViaCLI:
+        @pytest.mark.usefixtures("project_dir")
+        async def test_json_string_sla(self, docker_work_pool):
+            client = mock.AsyncMock()
+            client.server_type = ServerType.CLOUD
+
+            sla_spec = {
+                "name": "test-sla",
+                "duration": 1800,
+                "severity": "high",
+            }
+
+            expected_slas = [
+                TimeToCompletionSla(
+                    name="test-sla",
+                    duration=1800,
+                    severity="high",
+                )
+            ]
+
+            with mock.patch(
+                "prefect.cli.deploy._create_slas",
+                mock.AsyncMock(),
+            ) as create_slas:
+                await run_sync_in_worker_thread(
+                    invoke_and_assert,
+                    command=(
+                        "deploy ./flows/hello.py:my_flow -n test-name-1 --sla"
+                        f" '{json.dumps(sla_spec)}' -p {docker_work_pool.name}"
+                    ),
+                    expected_code=0,
+                )
+
+                assert create_slas.call_count == 1
+
+                client, slas = create_slas.call_args[0]
+                assert isinstance(client, PrefectClient)
+
+                returned_deployment_id = slas[0]._deployment_id
+                for sla in expected_slas:
+                    sla.set_deployment_id(returned_deployment_id)
+
+                assert slas == expected_slas
+
+        @pytest.mark.usefixtures("project_dir")
+        async def test_json_file_sla(self, docker_work_pool):
+            client = mock.AsyncMock()
+            client.server_type = ServerType.CLOUD
+
+            sla_spec = {
+                "name": "test-sla",
+                "duration": 1800,
+                "severity": "high",
+            }
+
+            with open("sla.json", "w") as f:
+                json.dump({"sla": [sla_spec]}, f)
+
+            expected_slas = [
+                TimeToCompletionSla(
+                    name="test-sla",
+                    duration=1800,
+                    severity="high",
+                )
+            ]
+
+            with mock.patch(
+                "prefect.cli.deploy._create_slas",
+                mock.AsyncMock(),
+            ) as create_slas:
+                await run_sync_in_worker_thread(
+                    invoke_and_assert,
+                    command=(
+                        "deploy ./flows/hello.py:my_flow -n test-name-1"
+                        f" --sla sla.json -p {docker_work_pool.name}"
+                    ),
+                    expected_code=0,
+                )
+
+                assert create_slas.call_count == 1
+
+                client, slas = create_slas.call_args[0]
+                assert isinstance(client, PrefectClient)
+
+                returned_deployment_id = slas[0]._deployment_id
+                for sla in expected_slas:
+                    sla.set_deployment_id(returned_deployment_id)
+
+                assert slas == expected_slas
+
+        @pytest.mark.usefixtures("project_dir")
+        async def test_yaml_file_sla(self, docker_work_pool):
+            client = mock.AsyncMock()
+            client.server_type = ServerType.CLOUD
+            sla_spec = {
+                "name": "test-sla",
+                "duration": 1800,
+                "severity": "high",
+            }
+
+            with open("sla.yaml", "w") as f:
+                yaml.safe_dump({"sla": [sla_spec]}, f)
+
+            expected_slas = [
+                TimeToCompletionSla(
+                    name="test-sla",
+                    duration=1800,
+                    severity="high",
+                )
+            ]
+
+            with mock.patch(
+                "prefect.cli.deploy._create_slas",
+                mock.AsyncMock(),
+            ) as create_slas:
+                await run_sync_in_worker_thread(
+                    invoke_and_assert,
+                    command=(
+                        "deploy ./flows/hello.py:my_flow -n test-name-1"
+                        f" --sla sla.yaml -p {docker_work_pool.name}"
+                    ),
+                    expected_code=0,
+                )
+
+                assert create_slas.call_count == 1
+
+                client, slas = create_slas.call_args[0]
+                assert isinstance(client, PrefectClient)
+
+                returned_deployment_id = slas[0]._deployment_id
+                for sla in expected_slas:
+                    sla.set_deployment_id(returned_deployment_id)
+
+                assert slas == expected_slas
+
+        @pytest.mark.usefixtures("project_dir")
+        async def test_nested_yaml_file_sla(self, docker_work_pool, tmpdir):
+            client = mock.AsyncMock()
+            client.server_type = ServerType.CLOUD
+
+            sla_spec = {
+                "name": "test-sla",
+                "duration": 1800,
+                "severity": "high",
+            }
+
+            slas_file = tmpdir.mkdir("my_stuff") / "sla.yaml"
+            with open(slas_file, "w") as f:
+                yaml.safe_dump({"sla": [sla_spec]}, f)
+
+            expected_slas = [
+                TimeToCompletionSla(
+                    name="test-sla",
+                    duration=1800,
+                    severity="high",
+                )
+            ]
+
+            with mock.patch(
+                "prefect.cli.deploy._create_slas",
+                mock.AsyncMock(),
+            ) as create_slas:
+                await run_sync_in_worker_thread(
+                    invoke_and_assert,
+                    command=(
+                        "deploy ./flows/hello.py:my_flow -n test-name-1"
+                        f" --sla my_stuff/sla.yaml -p {docker_work_pool.name}"
+                    ),
+                    expected_code=0,
+                )
+
+                assert create_slas.call_count == 1
+
+                client, slas = create_slas.call_args[0]
+                assert isinstance(client, PrefectClient)
+
+                returned_deployment_id = slas[0]._deployment_id
+                for sla in expected_slas:
+                    sla.set_deployment_id(returned_deployment_id)
+
+                assert slas == expected_slas
+
+        @pytest.mark.usefixtures("project_dir")
+        async def test_multiple_sla_flags(self, docker_work_pool):
+            client = mock.AsyncMock()
+            client.server_type = ServerType.CLOUD
+
+            sla_spec_1 = {
+                "name": "test-sla-1",
+                "duration": 1800,
+                "severity": "high",
+            }
+
+            sla_spec_2 = {
+                "name": "test-sla-2",
+                "duration": 3600,
+                "severity": "critical",
+            }
+
+            with open("sla.yaml", "w") as f:
+                yaml.safe_dump({"sla": [sla_spec_2]}, f)
+
+            expected_slas = [
+                TimeToCompletionSla(
+                    name="test-sla-1",
+                    duration=1800,
+                    severity="high",
+                ),
+                TimeToCompletionSla(
+                    name="test-sla-2",
+                    duration=3600,
+                    severity="critical",
+                ),
+            ]
+
+            with mock.patch(
+                "prefect.cli.deploy._create_slas",
+                mock.AsyncMock(),
+            ) as create_slas:
+                await run_sync_in_worker_thread(
+                    invoke_and_assert,
+                    command=(
+                        "deploy ./flows/hello.py:my_flow -n test-name-1 --sla"
+                        f" '{json.dumps(sla_spec_1)}' --sla sla.yaml -p"
+                        f" {docker_work_pool.name}"
+                    ),
+                    expected_code=0,
+                )
+
+                assert create_slas.call_count == 1
+
+                client, slas = create_slas.call_args[0]
+                assert isinstance(client, PrefectClient)
+
+                returned_deployment_id = slas[0]._deployment_id
+                for sla in expected_slas:
+                    sla.set_deployment_id(returned_deployment_id)
+
+                assert slas == expected_slas
+
+        @pytest.mark.usefixtures("project_dir")
+        async def test_override_on_sla_conflict(self, docker_work_pool):
+            client = mock.AsyncMock()
+            client.server_type = ServerType.CLOUD
+
+            cli_sla_spec = {
+                "name": "cli-sla",
+                "duration": 1800,
+                "severity": "high",
+            }
+
+            file_sla_spec = {
+                "name": "file-sla",
+                "duration": 1800,
+                "severity": "high",
+            }
+
+            expected_slas = [
+                TimeToCompletionSla(
+                    name="cli-sla",
+                    duration=1800,
+                    severity="high",
+                )
+            ]
+
+            prefect_file = Path("prefect.yaml")
+            with prefect_file.open(mode="r") as f:
+                contents = yaml.safe_load(f)
+
+            contents["deployments"] = [
+                {
+                    "name": "test-name-1",
+                    "work_pool": {
+                        "name": docker_work_pool.name,
+                    },
+                    "slas": [
+                        file_sla_spec,
+                    ],
+                }
+            ]
+
+            with prefect_file.open(mode="w") as f:
+                yaml.safe_dump(contents, f)
+
+            with mock.patch(
+                "prefect.cli.deploy._create_slas",
+                mock.AsyncMock(),
+            ) as create_slas:
+                await run_sync_in_worker_thread(
+                    invoke_and_assert,
+                    command=(
+                        "deploy ./flows/hello.py:my_flow -n test-name-1"
+                        f" --sla '{json.dumps(cli_sla_spec)}'"
+                    ),
+                    expected_code=0,
+                )
+
+                client, slas = create_slas.call_args[0]
+                assert isinstance(client, PrefectClient)
+                assert len(slas) == 1
+                returned_deployment_id = slas[0]._deployment_id
+                for sla in expected_slas:
+                    sla.set_deployment_id(returned_deployment_id)
+                assert slas == expected_slas
+
+        @pytest.mark.usefixtures("project_dir")
+        async def test_invalid_sla_parsing(self, docker_work_pool):
+            client = mock.AsyncMock()
+            client.server_type = ServerType.CLOUD
+
+            invalid_json_str_sla = "{foo: bar, baz: bat}"
+            invalid_yaml_sla = "invalid.yaml"
+
+            with open(invalid_yaml_sla, "w") as f:
+                f.write("pretty please, let me know if the flow runs for too long")
+
+            for invalid_sla in [invalid_json_str_sla, invalid_yaml_sla]:
+                with mock.patch(
+                    "prefect.cli.deploy._create_slas",
+                    mock.AsyncMock(),
+                ):
+                    await run_sync_in_worker_thread(
+                        invoke_and_assert,
+                        command=(
+                            "deploy ./flows/hello.py:my_flow -n test-name-1"
+                            f" -p {docker_work_pool.name} --sla '{invalid_sla}'"
+                        ),
+                        expected_code=1,
+                        expected_output_contains=["Failed to parse SLA"],
+                    )
+
+        @pytest.mark.usefixtures("interactive_console", "project_dir")
+        async def test_slas_saved_to_prefect_yaml(
+            self,
+            docker_work_pool,
+        ):
+            client = mock.AsyncMock()
+            client.server_type = ServerType.CLOUD
+
+            cli_sla_spec = {
+                "name": "test-sla",
+                "duration": 1800,
+                "severity": "high",
+            }
+
+            with mock.patch(
+                "prefect.cli.deploy._create_slas",
+                mock.AsyncMock(),
+            ):
+                await run_sync_in_worker_thread(
+                    invoke_and_assert,
+                    command=(
+                        "deploy ./flows/hello.py:my_flow -n test-name-1 -p"
+                        f" {docker_work_pool.name} --sla"
+                        f" '{json.dumps(cli_sla_spec)}'"
+                    ),
+                    user_input=(
+                        # Decline schedule
+                        "n"
+                        + readchar.key.ENTER
+                        # Decline docker build
+                        + "n"
+                        + readchar.key.ENTER
+                        # Accept save configuration
+                        + "y"
+                        + readchar.key.ENTER
+                    ),
+                    expected_code=0,
+                )
+
+            # Read the updated prefect.yaml
+            prefect_file = Path("prefect.yaml")
+            with prefect_file.open(mode="r") as f:
+                contents = yaml.safe_load(f)
+
+            assert "deployments" in contents
+            assert "sla" in contents["deployments"][-1]
+            assert contents["deployments"][-1]["sla"] == [cli_sla_spec]

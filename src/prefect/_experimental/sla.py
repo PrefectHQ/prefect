@@ -28,6 +28,7 @@ class ServiceLevelAgreement(PrefectBaseModel, abc.ABC):
 
     def set_deployment_id(self, deployment_id: UUID):
         self._deployment_id = deployment_id
+        return self
 
     @computed_field
     @property

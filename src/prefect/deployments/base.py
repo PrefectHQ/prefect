@@ -275,6 +275,7 @@ def _save_deployment_to_prefect_file(
     push_steps: Optional[List[Dict]] = None,
     pull_steps: Optional[List[Dict]] = None,
     triggers: Optional[List[Dict]] = None,
+    sla: Optional[List[Dict]] = None,
     prefect_file: Path = Path("prefect.yaml"),
 ):
     """
@@ -318,6 +319,9 @@ def _save_deployment_to_prefect_file(
 
         if triggers and triggers != parsed_prefect_file_contents.get("triggers"):
             deployment["triggers"] = triggers
+
+        if sla and sla != parsed_prefect_file_contents.get("sla"):
+            deployment["sla"] = sla
 
         deployments = parsed_prefect_file_contents.get("deployments")
         if deployments is None:

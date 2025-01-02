@@ -657,10 +657,6 @@ async def _run_single_deploy(
     else:
         triggers = []
 
-    slas = _initialize_deployment_slas(options.get("sla"), deploy_config.get("sla"))
-    if not slas:
-        slas = []
-
     pull_steps = (
         pull_steps
         or actions.get("pull")
@@ -746,7 +742,14 @@ async def _run_single_deploy(
     )
 
     await _create_deployment_triggers(client, deployment_id, triggers)
-    await _create_slas(client, deployment_id, slas)
+
+    if sla_specs := _gather_deployment_sla_definitions(
+        options.get("sla"), deploy_config.get("sla")
+    ):
+        slas = _initialize_deployment_slas(deployment_id, sla_specs)
+        await _create_slas(client, slas)
+    else:
+        slas = []
 
     app.console.print(
         Panel(
@@ -805,7 +808,7 @@ async def _run_single_deploy(
                     push_steps=push_steps or None,
                     pull_steps=pull_steps or None,
                     triggers=trigger_specs or None,
-                    slas=slas or None,
+                    sla=sla_specs or None,
                     prefect_file=prefect_file,
                 )
                 app.console.print(
@@ -1754,23 +1757,12 @@ def _handle_deprecated_schedule_fields(deploy_config: Dict):
     return deploy_config
 
 
-def _initialize_deployment_slas(
+def _gather_deployment_sla_definitions(
     sla_flags: List[str] | None, existing_slas: List[Dict[str, Any]] | None
-) -> List[SlaTypes] | None:
+) -> List[Dict[str, Any]] | None:
     """Parses SLA flags from CLI and existing deployment config in `prefect.yaml`.
     Prefers CLI-provided SLAs over config in `prefect.yaml`.
-
-    Args:
-        sla_flags: SLAs passed via CLI, either as JSON strings or file paths.
-        existing_slas: SLAs from existing deployment configuration.
-
-    Returns:
-        List of SLA specifications.
-
-    Raises:
-        ValueError: If SLA flag is not a valid JSON string or file path.
     """
-
     if sla_flags:
         sla_specs = []
         for s in sla_flags:
@@ -1785,28 +1777,39 @@ def _initialize_deployment_slas(
                     sla_specs.append(json.loads(s))
             except Exception as e:
                 raise ValueError(f"Failed to parse SLA: {s}. Error: {str(e)}")
-        return [
-            pydantic.TypeAdapter(SlaTypes).validate_python(spec) for spec in sla_specs
-        ]
+        return sla_specs
 
-    if not existing_slas:
-        return None
+    return existing_slas
 
-    return [
-        pydantic.TypeAdapter(SlaTypes).validate_python(sla) for sla in existing_slas
-    ]
+
+def _initialize_deployment_slas(
+    deployment_id: UUID, sla_specs: List[Dict[str, Any]]
+) -> List[SlaTypes] | None:
+    """Initializes SLAs for a deployment.
+
+    Args:
+        deployment_id: Deployment ID.
+        sla_specs: SLA specification dictionaries.
+
+    Returns:
+        List of SLAs.
+    """
+    slas = [pydantic.TypeAdapter(SlaTypes).validate_python(spec) for spec in sla_specs]
+
+    for sla in slas:
+        sla.set_deployment_id(deployment_id)
+
+    return slas
 
 
 async def _create_slas(
     client: "PrefectClient",
-    deployment_id: UUID,
     slas: List[SlaTypes],
 ):
     if client.server_type == ServerType.CLOUD:
         exceptions = []
         for sla in slas:
             try:
-                sla.set_deployment_id(deployment_id)
                 await client.create_sla(sla)
             except Exception as e:
                 app.console.print(
