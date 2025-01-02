@@ -10,7 +10,6 @@ from prefect.exceptions import ObjectNotFound
 if TYPE_CHECKING:
     from uuid import UUID
 
-    from prefect.client.schemas.sorting import AutomationSort
     from prefect.events.schemas.automations import Automation, AutomationCore
 
 
@@ -99,6 +98,7 @@ class AutomationClient(BaseClient):
         Returns:
             a list of Automation model representations of the automations
         """
+        from prefect.client.schemas.sorting import AutomationSort
         from prefect.events.filters import (
             AutomationFilter,
             AutomationFilterName,
@@ -255,6 +255,7 @@ class AutomationAsyncClient(BaseAsyncClient):
         Returns:
             a list of Automation model representations of the automations
         """
+        from prefect.client.schemas.sorting import AutomationSort
         from prefect.events.filters import (
             AutomationFilter,
             AutomationFilterName,
