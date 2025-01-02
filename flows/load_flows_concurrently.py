@@ -1,11 +1,12 @@
 import asyncio
+from typing import Any
 
 from prefect import Flow
 from prefect.runner.storage import GitRepository
 
 
-async def load_flow(entrypoint: str) -> Flow[..., object]:
-    return await Flow.from_source(  # type: ignore
+async def load_flow(entrypoint: str) -> Flow[..., Any]:
+    return await Flow.from_source(  # type: ignore # sync_compatible causes issues
         source=GitRepository(
             url="https://github.com/PrefectHQ/examples.git",
         ),

@@ -33,7 +33,7 @@ import importlib
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Iterable, List, Optional, Union
+from typing import TYPE_CHECKING, Any, ClassVar, Iterable, List, Optional, Union
 from uuid import UUID
 
 from pydantic import (
@@ -41,6 +41,7 @@ from pydantic import (
     ConfigDict,
     Field,
     PrivateAttr,
+    field_validator,
     model_validator,
 )
 from rich.console import Console
@@ -129,7 +130,7 @@ class RunnerDeployment(BaseModel):
             available settings.
     """
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(arbitrary_types_allowed=True)
 
     name: str = Field(..., description="The name of the deployment.")
     flow_name: Optional[str] = Field(
@@ -219,6 +220,13 @@ class RunnerDeployment(BaseModel):
     @property
     def entrypoint_type(self) -> EntrypointType:
         return self._entrypoint_type
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def validate_name(cls, value: str) -> str:
+        if value.endswith(".py"):
+            return Path(value).stem
+        return value
 
     @model_validator(mode="after")
     def validate_automation_names(self):
@@ -508,7 +516,7 @@ class RunnerDeployment(BaseModel):
             concurrency_options = None
 
         deployment = cls(
-            name=Path(name).stem,
+            name=name,
             flow_name=flow.name,
             schedules=constructed_schedules,
             concurrency_limit=concurrency_limit,

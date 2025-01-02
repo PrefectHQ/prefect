@@ -2,7 +2,15 @@ import shutil
 import subprocess
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Dict, Optional, Protocol, TypedDict, Union, runtime_checkable
+from typing import (
+    Any,
+    Dict,
+    Optional,
+    Protocol,
+    TypedDict,
+    Union,
+    runtime_checkable,
+)
 from urllib.parse import urlparse, urlsplit, urlunparse
 from uuid import uuid4
 
@@ -150,11 +158,9 @@ class GitRepository:
         return self._pull_interval
 
     @property
-    def _repository_url_with_credentials(self) -> str:
+    def _formatted_credentials(self) -> Optional[str]:
         if not self._credentials:
-            return self._url
-
-        url_components = urlparse(self._url)
+            return None
 
         credentials = (
             self._credentials.model_dump()
@@ -168,18 +174,39 @@ class GitRepository:
             elif isinstance(v, SecretStr):
                 credentials[k] = v.get_secret_value()
 
-        formatted_credentials = _format_token_from_credentials(
-            urlparse(self._url).netloc, credentials
-        )
-        if url_components.scheme == "https" and formatted_credentials is not None:
-            updated_components = url_components._replace(
-                netloc=f"{formatted_credentials}@{url_components.netloc}"
-            )
-            repository_url = urlunparse(updated_components)
-        else:
-            repository_url = self._url
+        return _format_token_from_credentials(urlparse(self._url).netloc, credentials)
 
-        return repository_url
+    def _add_credentials_to_url(self, url: str) -> str:
+        """Add credentials to given url if possible."""
+        components = urlparse(url)
+        credentials = self._formatted_credentials
+
+        if components.scheme != "https" or not credentials:
+            return url
+
+        return urlunparse(
+            components._replace(netloc=f"{credentials}@{components.netloc}")
+        )
+
+    @property
+    def _repository_url_with_credentials(self) -> str:
+        return self._add_credentials_to_url(self._url)
+
+    @property
+    def _git_config(self) -> list[str]:
+        """Build a git configuration to use when running git commands."""
+        config = {}
+
+        # Submodules can be private. The url in .gitmodules
+        # will not include the credentials, we need to
+        # propagate them down here if they exist.
+        if self._include_submodules and self._formatted_credentials:
+            base_url = urlparse(self._url)._replace(path="")
+            without_auth = urlunparse(base_url)
+            with_auth = self._add_credentials_to_url(without_auth)
+            config[f"url.{with_auth}.insteadOf"] = without_auth
+
+        return ["-c", " ".join(f"{k}={v}" for k, v in config.items())] if config else []
 
     async def is_sparsely_checked_out(self) -> bool:
         """
@@ -231,7 +258,11 @@ class GitRepository:
 
             self._logger.debug("Pulling latest changes from origin/%s", self._branch)
             # Update the existing repository
-            cmd = ["git", "pull", "origin"]
+            cmd = ["git"]
+            # Add the git configuration, must be given after `git` and before the command
+            cmd += self._git_config
+            # Add the pull command and parameters
+            cmd += ["pull", "origin"]
             if self._branch:
                 cmd += [self._branch]
             if self._include_submodules:
@@ -257,12 +288,12 @@ class GitRepository:
         self._logger.debug("Cloning repository %s", self._url)
 
         repository_url = self._repository_url_with_credentials
+        cmd = ["git"]
+        # Add the git configuration, must be given after `git` and before the command
+        cmd += self._git_config
+        # Add the clone command and its parameters
+        cmd += ["clone", repository_url]
 
-        cmd = [
-            "git",
-            "clone",
-            repository_url,
-        ]
         if self._branch:
             cmd += ["--branch", self._branch]
         if self._include_submodules:

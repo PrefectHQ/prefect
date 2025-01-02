@@ -20,6 +20,7 @@ const queryClient = new QueryClient();
  */
 export const reactQueryDecorator = (Story: StoryFn) => (
 	<QueryClientProvider client={queryClient}>
+		{/** @ts-expect-error Error typing from React 19 types upgrade. Will need to wait for this up be updated */}
 		<Story />
 		<ReactQueryDevtools />
 	</QueryClientProvider>

@@ -3,7 +3,7 @@ Schedule schemas
 """
 
 import datetime
-from typing import Annotated, Any, Generator, List, Optional, Tuple, Union
+from typing import Annotated, Any, ClassVar, Generator, List, Optional, Tuple, Union
 
 import dateutil
 import dateutil.rrule
@@ -69,7 +69,7 @@ class IntervalSchedule(PrefectBaseModel):
         timezone (str, optional): a valid timezone string.
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
     interval: datetime.timedelta = Field(gt=datetime.timedelta(0))
     anchor_date: Annotated[DateTime, AfterValidator(default_anchor_date)] = Field(
@@ -207,7 +207,7 @@ class CronSchedule(PrefectBaseModel):
 
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
     cron: str = Field(default=..., examples=["0 0 * * *"])
     timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
@@ -361,7 +361,7 @@ class RRuleSchedule(PrefectBaseModel):
         timezone (str, optional): a valid timezone string
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
     rrule: str
     timezone: Optional[TimeZone] = Field(default="UTC", examples=["America/New_York"])
