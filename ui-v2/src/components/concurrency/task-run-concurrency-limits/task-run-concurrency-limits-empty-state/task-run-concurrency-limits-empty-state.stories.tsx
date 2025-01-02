@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
+import { fn } from "@storybook/test";
 import { TaskRunConcurrencyLimitsEmptyState } from "./task-run-concurrency-limits-empty-state";
 
 const meta = {
@@ -7,7 +8,7 @@ const meta = {
 		"Components/Concurrency/TaskRunConcurrencyLimits/TaskRunConcurrencyLimitsEmptyState",
 	component: TaskRunConcurrencyLimitsEmptyState,
 	args: {
-		onAdd: () => {},
+		onAdd: fn(),
 	},
 } satisfies Meta<typeof TaskRunConcurrencyLimitsEmptyState>;
 

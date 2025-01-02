@@ -19,6 +19,27 @@ from packaging import version
 from starlette import status
 from typing_extensions import ParamSpec, Self, TypeVar
 
+from prefect.client.orchestration._artifacts.client import (
+    ArtifactClient,
+    ArtifactAsyncClient,
+    ArtifactCollectionClient,
+    ArtifactCollectionAsyncClient,
+)
+
+from prefect.client.orchestration._concurrency_limits.client import (
+    ConcurrencyLimitAsyncClient,
+    ConcurrencyLimitClient,
+)
+
+from prefect.client.orchestration._logs.client import (
+    LogClient,
+    LogAsyncClient,
+)
+from prefect.client.orchestration._variables.client import (
+    VariableClient,
+    VariableAsyncClient,
+)
+
 import prefect
 import prefect.exceptions
 import prefect.settings
@@ -27,14 +48,11 @@ from prefect._experimental.sla import SlaTypes
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun, sorting
 from prefect.client.schemas.actions import (
-    ArtifactCreate,
-    ArtifactUpdate,
     BlockDocumentCreate,
     BlockDocumentUpdate,
     BlockSchemaCreate,
     BlockTypeCreate,
     BlockTypeUpdate,
-    ConcurrencyLimitCreate,
     DeploymentCreate,
     DeploymentFlowRunCreate,
     DeploymentScheduleCreate,
@@ -45,26 +63,21 @@ from prefect.client.schemas.actions import (
     FlowRunNotificationPolicyCreate,
     FlowRunNotificationPolicyUpdate,
     FlowRunUpdate,
+    LogCreate,
     GlobalConcurrencyLimitCreate,
     GlobalConcurrencyLimitUpdate,
-    LogCreate,
     TaskRunCreate,
     TaskRunUpdate,
-    VariableCreate,
-    VariableUpdate,
     WorkPoolCreate,
     WorkPoolUpdate,
     WorkQueueCreate,
     WorkQueueUpdate,
 )
 from prefect.client.schemas.filters import (
-    ArtifactCollectionFilter,
-    ArtifactFilter,
     DeploymentFilter,
     FlowFilter,
     FlowRunFilter,
     FlowRunNotificationPolicyFilter,
-    LogFilter,
     TaskRunFilter,
     WorkerFilter,
     WorkPoolFilter,
@@ -72,12 +85,9 @@ from prefect.client.schemas.filters import (
     WorkQueueFilterName,
 )
 from prefect.client.schemas.objects import (
-    Artifact,
-    ArtifactCollection,
     BlockDocument,
     BlockSchema,
     BlockType,
-    ConcurrencyLimit,
     ConcurrencyOptions,
     Constant,
     DeploymentSchedule,
@@ -85,11 +95,9 @@ from prefect.client.schemas.objects import (
     FlowRunInput,
     FlowRunNotificationPolicy,
     FlowRunPolicy,
-    Log,
     Parameter,
     TaskRunPolicy,
     TaskRunResult,
-    Variable,
     Worker,
     WorkerMetadata,
     WorkPool,
@@ -99,17 +107,13 @@ from prefect.client.schemas.objects import (
 from prefect.client.schemas.responses import (
     DeploymentResponse,
     FlowRunResponse,
-    GlobalConcurrencyLimitResponse,
     WorkerFlowRunResponse,
 )
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.client.schemas.sorting import (
-    ArtifactCollectionSort,
-    ArtifactSort,
     DeploymentSort,
     FlowRunSort,
     FlowSort,
-    LogSort,
     TaskRunSort,
 )
 from prefect.events import filters
@@ -246,7 +250,13 @@ def get_client(
         )
 
 
-class PrefectClient:
+class PrefectClient(
+    ArtifactAsyncClient,
+    ArtifactCollectionAsyncClient,
+    LogAsyncClient,
+    VariableAsyncClient,
+    ConcurrencyLimitAsyncClient,
+):
     """
     An asynchronous client for interacting with the [Prefect REST API](/api-ref/rest-api/).
 
@@ -616,6 +626,7 @@ class PrefectClient:
         parent_task_run_id: Optional[UUID] = None,
         work_queue_name: Optional[str] = None,
         job_variables: Optional[dict[str, Any]] = None,
+        labels: Optional[KeyValueLabelsField] = None,
     ) -> FlowRun:
         """
         Create a flow run for a deployment.
@@ -661,6 +672,7 @@ class PrefectClient:
             idempotency_key=idempotency_key,
             parent_task_run_id=parent_task_run_id,
             job_variables=job_variables,
+            labels=labels,
         )
 
         # done separately to avoid including this field in payloads sent to older API versions
@@ -810,213 +822,6 @@ class PrefectClient:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
-
-    async def create_concurrency_limit(
-        self,
-        tag: str,
-        concurrency_limit: int,
-    ) -> UUID:
-        """
-        Create a tag concurrency limit in the Prefect API. These limits govern concurrently
-        running tasks.
-
-        Args:
-            tag: a tag the concurrency limit is applied to
-            concurrency_limit: the maximum number of concurrent task runs for a given tag
-
-        Raises:
-            httpx.RequestError: if the concurrency limit was not created for any reason
-
-        Returns:
-            the ID of the concurrency limit in the backend
-        """
-
-        concurrency_limit_create = ConcurrencyLimitCreate(
-            tag=tag,
-            concurrency_limit=concurrency_limit,
-        )
-        response = await self._client.post(
-            "/concurrency_limits/",
-            json=concurrency_limit_create.model_dump(mode="json"),
-        )
-
-        concurrency_limit_id = response.json().get("id")
-
-        if not concurrency_limit_id:
-            raise httpx.RequestError(f"Malformed response: {response}")
-
-        return UUID(concurrency_limit_id)
-
-    async def read_concurrency_limit_by_tag(
-        self,
-        tag: str,
-    ) -> ConcurrencyLimit:
-        """
-        Read the concurrency limit set on a specific tag.
-
-        Args:
-            tag: a tag the concurrency limit is applied to
-
-        Raises:
-            prefect.exceptions.ObjectNotFound: If request returns 404
-            httpx.RequestError: if the concurrency limit was not created for any reason
-
-        Returns:
-            the concurrency limit set on a specific tag
-        """
-        try:
-            response = await self._client.get(
-                f"/concurrency_limits/tag/{tag}",
-            )
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_404_NOT_FOUND:
-                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
-            else:
-                raise
-
-        concurrency_limit_id = response.json().get("id")
-
-        if not concurrency_limit_id:
-            raise httpx.RequestError(f"Malformed response: {response}")
-
-        concurrency_limit = ConcurrencyLimit.model_validate(response.json())
-        return concurrency_limit
-
-    async def read_concurrency_limits(
-        self,
-        limit: int,
-        offset: int,
-    ) -> list[ConcurrencyLimit]:
-        """
-        Lists concurrency limits set on task run tags.
-
-        Args:
-            limit: the maximum number of concurrency limits returned
-            offset: the concurrency limit query offset
-
-        Returns:
-            a list of concurrency limits
-        """
-
-        body = {
-            "limit": limit,
-            "offset": offset,
-        }
-
-        response = await self._client.post("/concurrency_limits/filter", json=body)
-        return pydantic.TypeAdapter(list[ConcurrencyLimit]).validate_python(
-            response.json()
-        )
-
-    async def reset_concurrency_limit_by_tag(
-        self,
-        tag: str,
-        slot_override: Optional[list[Union[UUID, str]]] = None,
-    ) -> None:
-        """
-        Resets the concurrency limit slots set on a specific tag.
-
-        Args:
-            tag: a tag the concurrency limit is applied to
-            slot_override: a list of task run IDs that are currently using a
-                concurrency slot, please check that any task run IDs included in
-                `slot_override` are currently running, otherwise those concurrency
-                slots will never be released.
-
-        Raises:
-            prefect.exceptions.ObjectNotFound: If request returns 404
-            httpx.RequestError: If request fails
-
-        """
-        if slot_override is not None:
-            slot_override = [str(slot) for slot in slot_override]
-
-        try:
-            await self._client.post(
-                f"/concurrency_limits/tag/{tag}/reset",
-                json=dict(slot_override=slot_override),
-            )
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_404_NOT_FOUND:
-                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
-            else:
-                raise
-
-    async def delete_concurrency_limit_by_tag(
-        self,
-        tag: str,
-    ) -> None:
-        """
-        Delete the concurrency limit set on a specific tag.
-
-        Args:
-            tag: a tag the concurrency limit is applied to
-
-        Raises:
-            prefect.exceptions.ObjectNotFound: If request returns 404
-            httpx.RequestError: If request fails
-
-        """
-        try:
-            await self._client.delete(
-                f"/concurrency_limits/tag/{tag}",
-            )
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_404_NOT_FOUND:
-                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
-            else:
-                raise
-
-    async def increment_v1_concurrency_slots(
-        self,
-        names: list[str],
-        task_run_id: UUID,
-    ) -> httpx.Response:
-        """
-        Increment concurrency limit slots for the specified limits.
-
-        Args:
-            names (List[str]): A list of limit names for which to increment limits.
-            task_run_id (UUID): The task run ID incrementing the limits.
-        """
-        data: dict[str, Any] = {
-            "names": names,
-            "task_run_id": str(task_run_id),
-        }
-
-        return await self._client.post(
-            "/concurrency_limits/increment",
-            json=data,
-        )
-
-    async def decrement_v1_concurrency_slots(
-        self,
-        names: list[str],
-        task_run_id: UUID,
-        occupancy_seconds: float,
-    ) -> httpx.Response:
-        """
-        Decrement concurrency limit slots for the specified limits.
-
-        Args:
-            names (List[str]): A list of limit names to decrement.
-            task_run_id (UUID): The task run ID that incremented the limits.
-            occupancy_seconds (float): The duration in seconds that the limits
-                were held.
-
-        Returns:
-            httpx.Response: The HTTP response from the server.
-        """
-        data: dict[str, Any] = {
-            "names": names,
-            "task_run_id": str(task_run_id),
-            "occupancy_seconds": occupancy_seconds,
-        }
-
-        return await self._client.post(
-            "/concurrency_limits/decrement",
-            json=data,
-        )
 
     async def create_work_queue(
         self,
@@ -2465,21 +2270,6 @@ class PrefectClient:
             response.json()
         )
 
-    async def create_logs(
-        self, logs: Iterable[Union[LogCreate, dict[str, Any]]]
-    ) -> None:
-        """
-        Create logs for a flow or task run
-
-        Args:
-            logs: An iterable of `LogCreate` objects or already json-compatible dicts
-        """
-        serialized_logs = [
-            log.model_dump(mode="json") if isinstance(log, LogCreate) else log
-            for log in logs
-        ]
-        await self._client.post("/logs/", json=serialized_logs)
-
     async def create_flow_run_notification_policy(
         self,
         block_document_id: UUID,
@@ -2624,26 +2414,6 @@ class PrefectClient:
         return pydantic.TypeAdapter(list[FlowRunNotificationPolicy]).validate_python(
             response.json()
         )
-
-    async def read_logs(
-        self,
-        log_filter: Optional[LogFilter] = None,
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
-        sort: LogSort = LogSort.TIMESTAMP_ASC,
-    ) -> list[Log]:
-        """
-        Read flow and task run logs.
-        """
-        body: dict[str, Any] = {
-            "logs": log_filter.model_dump(mode="json") if log_filter else None,
-            "limit": limit,
-            "offset": offset,
-            "sort": sort,
-        }
-
-        response = await self._client.post("/logs/filter", json=body)
-        return pydantic.TypeAdapter(list[Log]).validate_python(response.json())
 
     async def send_worker_heartbeat(
         self,
@@ -2954,332 +2724,11 @@ class PrefectClient:
             response.json()
         )
 
-    async def create_artifact(
-        self,
-        artifact: ArtifactCreate,
-    ) -> Artifact:
-        """
-        Creates an artifact with the provided configuration.
-
-        Args:
-            artifact: Desired configuration for the new artifact.
-        Returns:
-            Information about the newly created artifact.
-        """
-
-        response = await self._client.post(
-            "/artifacts/",
-            json=artifact.model_dump(mode="json", exclude_unset=True),
-        )
-
-        return Artifact.model_validate(response.json())
-
-    async def update_artifact(
-        self,
-        artifact_id: UUID,
-        artifact: ArtifactUpdate,
-    ) -> None:
-        """
-        Updates an artifact
-
-        Args:
-            artifact: Desired values for the updated artifact.
-        Returns:
-            Information about the updated artifact.
-        """
-
-        await self._client.patch(
-            f"/artifacts/{artifact_id}",
-            json=artifact.model_dump(mode="json", exclude_unset=True),
-        )
-
-    async def read_artifacts(
-        self,
-        *,
-        artifact_filter: Optional[ArtifactFilter] = None,
-        flow_run_filter: Optional[FlowRunFilter] = None,
-        task_run_filter: Optional[TaskRunFilter] = None,
-        sort: Optional[ArtifactSort] = None,
-        limit: Optional[int] = None,
-        offset: int = 0,
-    ) -> list[Artifact]:
-        """
-        Query the Prefect API for artifacts. Only artifacts matching all criteria will
-        be returned.
-        Args:
-            artifact_filter: filter criteria for artifacts
-            flow_run_filter: filter criteria for flow runs
-            task_run_filter: filter criteria for task runs
-            sort: sort criteria for the artifacts
-            limit: limit for the artifact query
-            offset: offset for the artifact query
-        Returns:
-            a list of Artifact model representations of the artifacts
-        """
-        body: dict[str, Any] = {
-            "artifacts": (
-                artifact_filter.model_dump(mode="json") if artifact_filter else None
-            ),
-            "flow_runs": (
-                flow_run_filter.model_dump(mode="json") if flow_run_filter else None
-            ),
-            "task_runs": (
-                task_run_filter.model_dump(mode="json") if task_run_filter else None
-            ),
-            "sort": sort,
-            "limit": limit,
-            "offset": offset,
-        }
-        response = await self._client.post("/artifacts/filter", json=body)
-        return pydantic.TypeAdapter(list[Artifact]).validate_python(response.json())
-
-    async def read_latest_artifacts(
-        self,
-        *,
-        artifact_filter: Optional[ArtifactCollectionFilter] = None,
-        flow_run_filter: Optional[FlowRunFilter] = None,
-        task_run_filter: Optional[TaskRunFilter] = None,
-        sort: Optional[ArtifactCollectionSort] = None,
-        limit: Optional[int] = None,
-        offset: int = 0,
-    ) -> list[ArtifactCollection]:
-        """
-        Query the Prefect API for artifacts. Only artifacts matching all criteria will
-        be returned.
-        Args:
-            artifact_filter: filter criteria for artifacts
-            flow_run_filter: filter criteria for flow runs
-            task_run_filter: filter criteria for task runs
-            sort: sort criteria for the artifacts
-            limit: limit for the artifact query
-            offset: offset for the artifact query
-        Returns:
-            a list of Artifact model representations of the artifacts
-        """
-        body: dict[str, Any] = {
-            "artifacts": (
-                artifact_filter.model_dump(mode="json") if artifact_filter else None
-            ),
-            "flow_runs": (
-                flow_run_filter.model_dump(mode="json") if flow_run_filter else None
-            ),
-            "task_runs": (
-                task_run_filter.model_dump(mode="json") if task_run_filter else None
-            ),
-            "sort": sort,
-            "limit": limit,
-            "offset": offset,
-        }
-        response = await self._client.post("/artifacts/latest/filter", json=body)
-        return pydantic.TypeAdapter(list[ArtifactCollection]).validate_python(
-            response.json()
-        )
-
-    async def delete_artifact(self, artifact_id: UUID) -> None:
-        """
-        Deletes an artifact with the provided id.
-
-        Args:
-            artifact_id: The id of the artifact to delete.
-        """
-        try:
-            await self._client.delete(f"/artifacts/{artifact_id}")
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
-                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
-            else:
-                raise
-
-    async def create_variable(self, variable: VariableCreate) -> Variable:
-        """
-        Creates an variable with the provided configuration.
-
-        Args:
-            variable: Desired configuration for the new variable.
-        Returns:
-            Information about the newly created variable.
-        """
-        response = await self._client.post(
-            "/variables/",
-            json=variable.model_dump(mode="json", exclude_unset=True),
-        )
-        return Variable(**response.json())
-
-    async def update_variable(self, variable: VariableUpdate) -> None:
-        """
-        Updates a variable with the provided configuration.
-
-        Args:
-            variable: Desired configuration for the updated variable.
-        Returns:
-            Information about the updated variable.
-        """
-        await self._client.patch(
-            f"/variables/name/{variable.name}",
-            json=variable.model_dump(mode="json", exclude_unset=True),
-        )
-
-    async def read_variable_by_name(self, name: str) -> Optional[Variable]:
-        """Reads a variable by name. Returns None if no variable is found."""
-        try:
-            response = await self._client.get(f"/variables/name/{name}")
-            return Variable(**response.json())
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_404_NOT_FOUND:
-                return None
-            else:
-                raise
-
-    async def delete_variable_by_name(self, name: str) -> None:
-        """Deletes a variable by name."""
-        try:
-            await self._client.delete(f"/variables/name/{name}")
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
-                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
-            else:
-                raise
-
-    async def read_variables(self, limit: Optional[int] = None) -> list[Variable]:
-        """Reads all variables."""
-        response = await self._client.post("/variables/filter", json={"limit": limit})
-        return pydantic.TypeAdapter(list[Variable]).validate_python(response.json())
-
     async def read_worker_metadata(self) -> dict[str, Any]:
         """Reads worker metadata stored in Prefect collection registry."""
         response = await self._client.get("collections/views/aggregate-worker-metadata")
         response.raise_for_status()
         return response.json()
-
-    async def increment_concurrency_slots(
-        self,
-        names: list[str],
-        slots: int,
-        mode: str,
-        create_if_missing: Optional[bool] = None,
-    ) -> httpx.Response:
-        return await self._client.post(
-            "/v2/concurrency_limits/increment",
-            json={
-                "names": names,
-                "slots": slots,
-                "mode": mode,
-                "create_if_missing": create_if_missing if create_if_missing else False,
-            },
-        )
-
-    async def release_concurrency_slots(
-        self, names: list[str], slots: int, occupancy_seconds: float
-    ) -> httpx.Response:
-        """
-        Release concurrency slots for the specified limits.
-
-        Args:
-            names (List[str]): A list of limit names for which to release slots.
-            slots (int): The number of concurrency slots to release.
-            occupancy_seconds (float): The duration in seconds that the slots
-                were occupied.
-
-        Returns:
-            httpx.Response: The HTTP response from the server.
-        """
-
-        return await self._client.post(
-            "/v2/concurrency_limits/decrement",
-            json={
-                "names": names,
-                "slots": slots,
-                "occupancy_seconds": occupancy_seconds,
-            },
-        )
-
-    async def create_global_concurrency_limit(
-        self, concurrency_limit: GlobalConcurrencyLimitCreate
-    ) -> UUID:
-        response = await self._client.post(
-            "/v2/concurrency_limits/",
-            json=concurrency_limit.model_dump(mode="json", exclude_unset=True),
-        )
-        return UUID(response.json()["id"])
-
-    async def update_global_concurrency_limit(
-        self, name: str, concurrency_limit: GlobalConcurrencyLimitUpdate
-    ) -> httpx.Response:
-        try:
-            response = await self._client.patch(
-                f"/v2/concurrency_limits/{name}",
-                json=concurrency_limit.model_dump(mode="json", exclude_unset=True),
-            )
-            return response
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_404_NOT_FOUND:
-                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
-            else:
-                raise
-
-    async def delete_global_concurrency_limit_by_name(
-        self, name: str
-    ) -> httpx.Response:
-        try:
-            response = await self._client.delete(f"/v2/concurrency_limits/{name}")
-            return response
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_404_NOT_FOUND:
-                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
-            else:
-                raise
-
-    async def read_global_concurrency_limit_by_name(
-        self, name: str
-    ) -> GlobalConcurrencyLimitResponse:
-        try:
-            response = await self._client.get(f"/v2/concurrency_limits/{name}")
-            return GlobalConcurrencyLimitResponse.model_validate(response.json())
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_404_NOT_FOUND:
-                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
-            else:
-                raise
-
-    async def upsert_global_concurrency_limit_by_name(
-        self, name: str, limit: int
-    ) -> None:
-        """Creates a global concurrency limit with the given name and limit if one does not already exist.
-
-        If one does already exist matching the name then update it's limit if it is different.
-
-        Note: This is not done atomically.
-        """
-        try:
-            existing_limit = await self.read_global_concurrency_limit_by_name(name)
-        except prefect.exceptions.ObjectNotFound:
-            existing_limit = None
-
-        if not existing_limit:
-            await self.create_global_concurrency_limit(
-                GlobalConcurrencyLimitCreate(
-                    name=name,
-                    limit=limit,
-                )
-            )
-        elif existing_limit.limit != limit:
-            await self.update_global_concurrency_limit(
-                name, GlobalConcurrencyLimitUpdate(limit=limit)
-            )
-
-    async def read_global_concurrency_limits(
-        self, limit: int = 10, offset: int = 0
-    ) -> list[GlobalConcurrencyLimitResponse]:
-        response = await self._client.post(
-            "/v2/concurrency_limits/filter",
-            json={
-                "limit": limit,
-                "offset": offset,
-            },
-        )
-        return pydantic.TypeAdapter(
-            list[GlobalConcurrencyLimitResponse]
-        ).validate_python(response.json())
 
     async def create_flow_run_input(
         self, flow_run_id: UUID, key: str, value: str, sender: Optional[str] = None
@@ -3598,7 +3047,13 @@ class PrefectClient:
         assert False, "This should never be called but must be defined for __enter__"
 
 
-class SyncPrefectClient:
+class SyncPrefectClient(
+    ArtifactClient,
+    ArtifactCollectionClient,
+    LogClient,
+    VariableClient,
+    ConcurrencyLimitClient,
+):
     """
     A synchronous client for interacting with the [Prefect REST API](/api-ref/rest-api/).
 
@@ -4381,74 +3836,6 @@ class SyncPrefectClient:
 
         return DeploymentResponse.model_validate(response.json())
 
-    def create_artifact(
-        self,
-        artifact: ArtifactCreate,
-    ) -> Artifact:
-        """
-        Creates an artifact with the provided configuration.
-
-        Args:
-            artifact: Desired configuration for the new artifact.
-        Returns:
-            Information about the newly created artifact.
-        """
-
-        response = self._client.post(
-            "/artifacts/",
-            json=artifact.model_dump(mode="json", exclude_unset=True),
-        )
-
-        return Artifact.model_validate(response.json())
-
-    def release_concurrency_slots(
-        self, names: list[str], slots: int, occupancy_seconds: float
-    ) -> httpx.Response:
-        """
-        Release concurrency slots for the specified limits.
-
-        Args:
-            names (List[str]): A list of limit names for which to release slots.
-            slots (int): The number of concurrency slots to release.
-            occupancy_seconds (float): The duration in seconds that the slots
-                were occupied.
-
-        Returns:
-            httpx.Response: The HTTP response from the server.
-        """
-        return self._client.post(
-            "/v2/concurrency_limits/decrement",
-            json={
-                "names": names,
-                "slots": slots,
-                "occupancy_seconds": occupancy_seconds,
-            },
-        )
-
-    def decrement_v1_concurrency_slots(
-        self, names: list[str], occupancy_seconds: float, task_run_id: UUID
-    ) -> httpx.Response:
-        """
-        Release the specified concurrency limits.
-
-        Args:
-            names (List[str]): A list of limit names to decrement.
-            occupancy_seconds (float): The duration in seconds that the slots
-                were held.
-            task_run_id (UUID): The task run ID that incremented the limits.
-
-        Returns:
-            httpx.Response: The HTTP response from the server.
-        """
-        return self._client.post(
-            "/concurrency_limits/decrement",
-            json={
-                "names": names,
-                "occupancy_seconds": occupancy_seconds,
-                "task_run_id": str(task_run_id),
-            },
-        )
-
     def update_flow_run_labels(
         self, flow_run_id: UUID, labels: KeyValueLabelsField
     ) -> None:
@@ -4498,53 +3885,3 @@ class SyncPrefectClient:
             else:
                 raise
         return BlockDocument.model_validate(response.json())
-
-    def create_variable(self, variable: VariableCreate) -> Variable:
-        """
-        Creates an variable with the provided configuration.
-
-        Args:
-            variable: Desired configuration for the new variable.
-        Returns:
-            Information about the newly created variable.
-        """
-        response = self._client.post(
-            "/variables/",
-            json=variable.model_dump(mode="json", exclude_unset=True),
-        )
-        return Variable(**response.json())
-
-    def update_variable(self, variable: VariableUpdate) -> None:
-        """
-        Updates a variable with the provided configuration.
-
-        Args:
-            variable: Desired configuration for the updated variable.
-        Returns:
-            Information about the updated variable.
-        """
-        self._client.patch(
-            f"/variables/name/{variable.name}",
-            json=variable.model_dump(mode="json", exclude_unset=True),
-        )
-
-    def read_variable_by_name(self, name: str) -> Optional[Variable]:
-        """Reads a variable by name. Returns None if no variable is found."""
-        try:
-            response = self._client.get(f"/variables/name/{name}")
-            return Variable(**response.json())
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_404_NOT_FOUND:
-                return None
-            else:
-                raise
-
-    def delete_variable_by_name(self, name: str) -> None:
-        """Deletes a variable by name."""
-        try:
-            self._client.delete(f"/variables/name/{name}")
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
-                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
-            else:
-                raise

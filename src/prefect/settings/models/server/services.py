@@ -1,6 +1,7 @@
 from datetime import timedelta
+from typing import ClassVar
 
-from pydantic import AliasChoices, AliasPath, Field
+from pydantic import AliasChoices, AliasPath, ConfigDict, Field
 
 from prefect.settings.base import PrefectBaseSettings, _build_settings_config
 
@@ -10,7 +11,7 @@ class ServerServicesCancellationCleanupSettings(PrefectBaseSettings):
     Settings for controlling the cancellation cleanup service
     """
 
-    model_config = _build_settings_config(
+    model_config: ClassVar[ConfigDict] = _build_settings_config(
         ("server", "services", "cancellation_cleanup")
     )
 
@@ -40,7 +41,9 @@ class ServerServicesEventPersisterSettings(PrefectBaseSettings):
     Settings for controlling the event persister service
     """
 
-    model_config = _build_settings_config(("server", "services", "event_persister"))
+    model_config: ClassVar[ConfigDict] = _build_settings_config(
+        ("server", "services", "event_persister")
+    )
 
     enabled: bool = Field(
         default=True,
@@ -80,7 +83,7 @@ class ServerServicesFlowRunNotificationsSettings(PrefectBaseSettings):
     Settings for controlling the flow run notifications service
     """
 
-    model_config = _build_settings_config(
+    model_config: ClassVar[ConfigDict] = _build_settings_config(
         ("server", "services", "flow_run_notifications")
     )
 
@@ -100,7 +103,9 @@ class ServerServicesForemanSettings(PrefectBaseSettings):
     Settings for controlling the foreman service
     """
 
-    model_config = _build_settings_config(("server", "services", "foreman"))
+    model_config: ClassVar[ConfigDict] = _build_settings_config(
+        ("server", "services", "foreman")
+    )
 
     enabled: bool = Field(
         default=True,
@@ -179,7 +184,9 @@ class ServerServicesLateRunsSettings(PrefectBaseSettings):
     Settings for controlling the late runs service
     """
 
-    model_config = _build_settings_config(("server", "services", "late_runs"))
+    model_config: ClassVar[ConfigDict] = _build_settings_config(
+        ("server", "services", "late_runs")
+    )
 
     enabled: bool = Field(
         default=True,
@@ -221,7 +228,9 @@ class ServerServicesSchedulerSettings(PrefectBaseSettings):
     Settings for controlling the scheduler service
     """
 
-    model_config = _build_settings_config(("server", "services", "scheduler"))
+    model_config: ClassVar[ConfigDict] = _build_settings_config(
+        ("server", "services", "scheduler")
+    )
 
     enabled: bool = Field(
         default=True,
@@ -344,7 +353,9 @@ class ServerServicesPauseExpirationsSettings(PrefectBaseSettings):
     Settings for controlling the pause expiration service
     """
 
-    model_config = _build_settings_config(("server", "services", "pause_expirations"))
+    model_config: ClassVar[ConfigDict] = _build_settings_config(
+        ("server", "services", "pause_expirations")
+    )
 
     enabled: bool = Field(
         default=True,
@@ -378,7 +389,9 @@ class ServerServicesTaskRunRecorderSettings(PrefectBaseSettings):
     Settings for controlling the task run recorder service
     """
 
-    model_config = _build_settings_config(("server", "services", "task_run_recorder"))
+    model_config: ClassVar[ConfigDict] = _build_settings_config(
+        ("server", "services", "task_run_recorder")
+    )
 
     enabled: bool = Field(
         default=True,
@@ -396,7 +409,9 @@ class ServerServicesTriggersSettings(PrefectBaseSettings):
     Settings for controlling the triggers service
     """
 
-    model_config = _build_settings_config(("server", "services", "triggers"))
+    model_config: ClassVar[ConfigDict] = _build_settings_config(
+        ("server", "services", "triggers")
+    )
 
     enabled: bool = Field(
         default=True,
@@ -414,7 +429,7 @@ class ServerServicesSettings(PrefectBaseSettings):
     Settings for controlling server services
     """
 
-    model_config = _build_settings_config(("server", "services"))
+    model_config: ClassVar[ConfigDict] = _build_settings_config(("server", "services"))
 
     cancellation_cleanup: ServerServicesCancellationCleanupSettings = Field(
         default_factory=ServerServicesCancellationCleanupSettings,
