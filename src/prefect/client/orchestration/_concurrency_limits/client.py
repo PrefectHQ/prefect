@@ -264,8 +264,8 @@ class ConcurrencyLimitClient(BaseClient):
         Release concurrency slots for the specified limits.
 
         Args:
-            names (List[str]): A list of limit names for which to release slots.
-            slots (int): The number of concurrency slots to release.
+            names: A list of limit names for which to release slots.
+            slots: The number of concurrency slots to release.
             occupancy_seconds (float): The duration in seconds that the slots
                 were occupied.
 
