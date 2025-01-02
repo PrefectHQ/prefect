@@ -14,13 +14,16 @@ export type TaskRunConcurrencyLimitsFilter =
 /**
  * ```
  *  🏗️ Task run concurrency limits queries construction 👷
- *  all   =>   ['task-run-concurrency-limits'] // key to match ['task-run-concurrency-limits', ...
- *  list  =>   ['task-run-concurrency-limits', 'list'] // key to match ['task-run-concurrency-limits', 'list', ...
- *             ['task-run-concurrency-limits', 'list', { ...filter1 }]
- *             ['task-run-concurrency-limits', 'list', { ...filter2 }]
- *  details => ['task-run-concurrency-limits', 'details'] // key to match ['task-run-concurrency-limits', 'details', ...
- *             ['task-run-concurrency-limits', 'details', id1]
- *             ['task-run-concurrency-limits', 'details', id2]
+ *  all   =>          ['task-run-concurrency-limits'] // key to match ['task-run-concurrency-limits', ...
+ *  list  =>          ['task-run-concurrency-limits', 'list'] // key to match ['task-run-concurrency-limits', 'list', ...
+ *                    ['task-run-concurrency-limits', 'list', { ...filter1 }]
+ *                    ['task-run-concurrency-limits', 'list', { ...filter2 }]
+ *  details =>        ['task-run-concurrency-limits', 'details'] // key to match ['task-run-concurrency-limits', 'details', ...
+ *                    ['task-run-concurrency-limits', 'details', id1]
+ *                    ['task-run-concurrency-limits', 'details', id2]
+ *  activeTaskRuns => ['task-run-concurrency-limits', 'details', 'active-task-runs'] // key to match ['task-run-concurrency-limits', 'details', 'active-runs', ...
+ *                    ['task-run-concurrency-limits', 'details', 'active-task-runs', id1]
+ *                    ['task-run-concurrency-limits', 'details', 'active-task-runs', id2]
  * ```
  * */
 export const queryKeyFactory = {
@@ -30,6 +33,10 @@ export const queryKeyFactory = {
 		[...queryKeyFactory.lists(), filter] as const,
 	details: () => [...queryKeyFactory.all(), "details"] as const,
 	detail: (id: string) => [...queryKeyFactory.details(), id] as const,
+	activeTaskRuns: () =>
+		[...queryKeyFactory.details(), "active-task-runs"] as const,
+	activeTaskRun: (id: string) =>
+		[...queryKeyFactory.activeTaskRuns(), id] as const,
 };
 
 // ----- 🔑 Queries 🗄️
@@ -48,15 +55,21 @@ export const buildListTaskRunConcurrencyLimitsQuery = (
 		refetchInterval: 30_000,
 	});
 
+const fetchTaskRunConcurrencyLimit = async (id: string) => {
+	// GET task-run-concurrency-limit by id
+	const res = await getQueryService().GET("/concurrency_limits/{id}", {
+		params: { path: { id } },
+	});
+	if (!res.data) {
+		throw new Error("'data' expected");
+	}
+	return res.data;
+};
+
 export const buildDetailTaskRunConcurrencyLimitsQuery = (id: string) =>
 	queryOptions({
 		queryKey: queryKeyFactory.detail(id),
-		queryFn: async () => {
-			const res = await getQueryService().GET("/concurrency_limits/{id}", {
-				params: { path: { id } },
-			});
-			return res.data as TaskRunConcurrencyLimit; // Expecting data to be truthy;
-		},
+		queryFn: () => fetchTaskRunConcurrencyLimit(id),
 	});
 
 /**
@@ -204,3 +217,127 @@ export const useResetTaskRunConcurrencyLimitTag = () => {
 		...rest,
 	};
 };
+
+const fetchActiveTaskRunDetails = async (activeSlots: Array<string>) => {
+	const taskRuns = await getQueryService().POST("/task_runs/filter", {
+		body: {
+			task_runs: {
+				id: { any_: activeSlots },
+				operator: "or_",
+			},
+			sort: "NAME_DESC",
+			offset: 0,
+		},
+	});
+	if (!taskRuns.data) {
+		throw new Error("'data' expected");
+	}
+	const taskRunsWithFlows: Array<components["schemas"]["TaskRun"]> = [];
+	const taskRunsOnly: Array<components["schemas"]["TaskRun"]> = [];
+
+	taskRuns.data.forEach((taskRun) => {
+		if (taskRun.flow_run_id) {
+			taskRunsWithFlows.push(taskRun);
+		} else {
+			taskRunsOnly.push(taskRun);
+		}
+	});
+
+	const activeTaskRunsWithoutFlows = taskRunsOnly.map((taskRun) => ({
+		taskRun,
+		flowRun: null,
+		flow: null,
+	}));
+
+	// Early exit if there's no task with parent flows
+	if (taskRunsWithFlows.length === 0) {
+		return activeTaskRunsWithoutFlows;
+	}
+
+	// Now get parent flow information for tasks with parent flows
+	const flowRunsIds = taskRunsWithFlows.map(
+		(taskRun) => taskRun.flow_run_id as string,
+	);
+
+	// Get Flow Runs info
+	const flowRuns = await getQueryService().POST("/flow_runs/filter", {
+		body: {
+			flow_runs: {
+				id: { any_: flowRunsIds },
+				operator: "or_",
+			},
+			sort: "NAME_DESC",
+			offset: 0,
+		},
+	});
+	if (!flowRuns.data) {
+		throw new Error("'data' expected");
+	}
+	const hasSameFlowID = flowRuns.data.every(
+		(flowRun) => flowRun.flow_id === flowRuns.data[0].flow_id,
+	);
+	if (!hasSameFlowID) {
+		throw new Error("Flow runs has mismatching 'flow_id'");
+	}
+	const flowID = flowRuns.data[0].flow_id;
+
+	// Get Flow info
+	const flow = await getQueryService().GET("/flows/{id}", {
+		params: { path: { id: flowID } },
+	});
+
+	if (!flow.data) {
+		throw new Error("'data' expected");
+	}
+
+	// Normalize data per active slot :
+	/**
+	 *
+	 *                   -> active_slot (task_run_id 1) -> flow_run (flow_run_id 1)
+	 *  concurrencyLimit -> active_slot (task_run_id 2) -> flow_run (flow_run_id 2) -> flow (flow_id)
+	 *                   -> active_slot (task_run_id 3) -> flow_run (flow_run_id 3)
+	 *
+	 */
+	const activeTaskRunsWithFlows = taskRunsWithFlows.map((taskRunsWithFlow) => {
+		const flowRun = flowRuns.data.find(
+			(flowRun) => flowRun.id === taskRunsWithFlow.flow_run_id,
+		);
+
+		if (!flowRun) {
+			throw new Error('"Expected to find flowRun');
+		}
+
+		return {
+			taskRun: taskRunsWithFlow,
+			flowRun,
+			flow: flow.data,
+		};
+	});
+
+	return [...activeTaskRunsWithFlows, ...activeTaskRunsWithoutFlows];
+};
+
+/**
+ *
+ * @param id
+ * @returns query options for a task-run concurrency limit with active run details that includes details on task run, flow run, and flow
+ */
+export const buildConcurrenyLimitDetailsActiveRunsQuery = (id: string) =>
+	queryOptions({
+		queryKey: queryKeyFactory.activeTaskRun(id),
+		queryFn: async () => {
+			const taskRunConcurrencyLimit = await fetchTaskRunConcurrencyLimit(id);
+			if (!taskRunConcurrencyLimit.active_slots) {
+				throw new Error("'active_slots' expected");
+			}
+
+			const activeTaskRuns = fetchActiveTaskRunDetails(
+				taskRunConcurrencyLimit.active_slots,
+			);
+
+			return {
+				taskRunConcurrencyLimit,
+				activeTaskRuns, // defer to return promise
+			};
+		},
+	});
