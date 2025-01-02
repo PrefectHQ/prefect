@@ -9,7 +9,9 @@ type Props = {
 export const TaskRunConcurrencyLimitsHeader = ({ onAdd }: Props) => {
 	return (
 		<div className="flex gap-2 items-center">
-			<Typography variant="h4">Task Run Concurrency Limits</Typography>
+			<Typography className="font-semibold">
+				Task Run Concurrency Limits
+			</Typography>
 			<Button
 				onClick={onAdd}
 				size="icon"

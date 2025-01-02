@@ -9,7 +9,9 @@ type Props = {
 export const GlobalConcurrencyLimitsHeader = ({ onAdd }: Props) => {
 	return (
 		<div className="flex gap-2 items-center">
-			<Typography variant="h4">Global Concurrency Limits</Typography>
+			<Typography className="font-semibold">
+				Global Concurrency Limits
+			</Typography>
 			<Button
 				onClick={onAdd}
 				size="icon"
