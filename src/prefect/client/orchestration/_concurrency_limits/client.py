@@ -219,8 +219,8 @@ class ConcurrencyLimitClient(BaseClient):
         Decrement concurrency limit slots for the specified limits.
 
         Args:
-            names (List[str]): A list of limit names to decrement.
-            task_run_id (UUID): The task run ID that incremented the limits.
+            names: A list of limit names to decrement.
+            task_run_id: The task run ID that incremented the limits.
             occupancy_seconds (float): The duration in seconds that the limits
                 were held.
 
@@ -264,8 +264,8 @@ class ConcurrencyLimitClient(BaseClient):
         Release concurrency slots for the specified limits.
 
         Args:
-            names (List[str]): A list of limit names for which to release slots.
-            slots (int): The number of concurrency slots to release.
+            names: A list of limit names for which to release slots.
+            slots: The number of concurrency slots to release.
             occupancy_seconds (float): The duration in seconds that the slots
                 were occupied.
 
@@ -562,11 +562,16 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
         task_run_id: "UUID",
     ) -> "Response":
         """
-        Increment concurrency limit slots for the specified limits.
+                Increment concurrency limit slots for the specified limits.
 
-        Args:
-            names (List[str]): A list of limit names for which to increment limits.
-            task_run_id (UUID): The task run ID incrementing the limits.
+                Args:
+        <<<<<<< HEAD
+                    names (List[str]): A list of limit names for which to increment limits.
+                    task_run_id (UUID): The task run ID incrementing the limits.
+        =======
+                    names: A list of limit names for which to increment limits.
+                    task_run_id: The task run ID incrementing the limits.
+        >>>>>>> main
         """
         data: dict[str, Any] = {
             "names": names,
@@ -589,8 +594,8 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
         Decrement concurrency limit slots for the specified limits.
 
         Args:
-            names (List[str]): A list of limit names to decrement.
-            task_run_id (UUID): The task run ID that incremented the limits.
+            names: A list of limit names to decrement.
+            task_run_id: The task run ID that incremented the limits.
             occupancy_seconds (float): The duration in seconds that the limits
                 were held.
 
@@ -634,8 +639,8 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
         Release concurrency slots for the specified limits.
 
         Args:
-            names (List[str]): A list of limit names for which to release slots.
-            slots (int): The number of concurrency slots to release.
+            names: A list of limit names for which to release slots.
+            slots: The number of concurrency slots to release.
             occupancy_seconds (float): The duration in seconds that the slots
                 were occupied.
 
