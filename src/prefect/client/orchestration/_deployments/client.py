@@ -251,9 +251,13 @@ class DeploymentClient(BaseClient):
                     "deployment_name": deployment_name,
                 },
             )
-        except HTTPStatusError as e:
-            if e.response.status_code == 404:
+        except (HTTPStatusError, ValueError) as e:
+            if isinstance(e, HTTPStatusError) and e.response.status_code == 404:
                 raise ObjectNotFound(http_exc=e) from e
+            elif isinstance(e, ValueError):
+                raise ValueError(
+                    f"Invalid deployment name format: {name}. Expected format: <FLOW_NAME>/<DEPLOYMENT_NAME>"
+                ) from e
             else:
                 raise
 
@@ -790,9 +794,13 @@ class DeploymentAsyncClient(BaseAsyncClient):
                     "deployment_name": deployment_name,
                 },
             )
-        except HTTPStatusError as e:
-            if e.response.status_code == 404:
+        except (HTTPStatusError, ValueError) as e:
+            if isinstance(e, HTTPStatusError) and e.response.status_code == 404:
                 raise ObjectNotFound(http_exc=e) from e
+            elif isinstance(e, ValueError):
+                raise ValueError(
+                    f"Invalid deployment name format: {name}. Expected format: <FLOW_NAME>/<DEPLOYMENT_NAME>"
+                ) from e
             else:
                 raise
 

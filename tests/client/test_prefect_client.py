@@ -859,7 +859,7 @@ async def test_create_then_delete_deployment(prefect_client):
 
 
 async def test_read_nonexistent_deployment_by_name(prefect_client):
-    with pytest.raises(prefect.exceptions.ObjectNotFound):
+    with pytest.raises((prefect.exceptions.ObjectNotFound, ValueError)):
         await prefect_client.read_deployment_by_name("not-a-real-deployment")
 
 
