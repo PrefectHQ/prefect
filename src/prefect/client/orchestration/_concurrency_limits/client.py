@@ -219,8 +219,8 @@ class ConcurrencyLimitClient(BaseClient):
         Decrement concurrency limit slots for the specified limits.
 
         Args:
-            names (List[str]): A list of limit names to decrement.
-            task_run_id (UUID): The task run ID that incremented the limits.
+            names: A list of limit names to decrement.
+            task_run_id: The task run ID that incremented the limits.
             occupancy_seconds (float): The duration in seconds that the limits
                 were held.
 
