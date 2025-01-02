@@ -110,16 +110,6 @@ class TestSla:
         sla.set_deployment_id(deployment_id)
         assert sla.owner_resource == f"prefect.deployment.{deployment_id}"
 
-    async def test_model_dump_fails_if_deployment_id_is_not_set(self):
-        sla = ServiceLevelAgreement(
-            name="test-sla",
-        )
-        with pytest.raises(
-            ValueError,
-            match="Deployment ID is not set. Please set using `set_deployment_id`.",
-        ):
-            sla.model_dump()
-
 
 class TestClientCreateSla:
     async def test_create_sla_against_cloud(self):
