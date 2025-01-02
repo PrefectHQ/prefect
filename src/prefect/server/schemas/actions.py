@@ -4,7 +4,7 @@ Reduced schemas for accepting API actions.
 
 import json
 from copy import deepcopy
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, ClassVar, Dict, List, Optional, Union
 from uuid import UUID, uuid4
 
 import pendulum
@@ -31,6 +31,7 @@ from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
 from prefect.types import (
     MAX_VARIABLE_NAME_LENGTH,
     DateTime,
+    KeyValueLabels,
     Name,
     NonEmptyishName,
     NonNegativeFloat,
@@ -66,7 +67,7 @@ def validate_variable_name(value):
 
 
 class ActionBaseModel(PrefectBaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
 
 class FlowCreate(ActionBaseModel):
@@ -80,7 +81,7 @@ class FlowCreate(ActionBaseModel):
         description="A list of flow tags",
         examples=[["tag-1", "tag-2"]],
     )
-    labels: Union[schemas.core.KeyValueLabels, None] = Field(
+    labels: Union[KeyValueLabels, None] = Field(
         default_factory=dict,
         description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
         examples=[{"key": "value1", "key2": 42}],
@@ -181,7 +182,7 @@ class DeploymentCreate(ActionBaseModel):
         description="A list of deployment tags.",
         examples=[["tag-1", "tag-2"]],
     )
-    labels: Union[schemas.core.KeyValueLabels, None] = Field(
+    labels: Union[KeyValueLabels, None] = Field(
         default_factory=dict,
         description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
         examples=[{"key": "value1", "key2": 42}],
@@ -297,7 +298,7 @@ class DeploymentUpdate(ActionBaseModel):
             "Whether or not the deployment should enforce the parameter schema."
         ),
     )
-    model_config = ConfigDict(populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(populate_by_name=True)
 
     def check_valid_configuration(self, base_job_template: dict):
         """
@@ -437,7 +438,7 @@ class TaskRunCreate(ActionBaseModel):
         description="A list of tags for the task run.",
         examples=[["tag-1", "tag-2"]],
     )
-    labels: Union[schemas.core.KeyValueLabels, None] = Field(
+    labels: Union[KeyValueLabels, None] = Field(
         default_factory=dict,
         description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
         examples=[{"key": "value1", "key2": 42}],
@@ -517,7 +518,7 @@ class FlowRunCreate(ActionBaseModel):
         description="A list of tags for the flow run.",
         examples=[["tag-1", "tag-2"]],
     )
-    labels: Union[schemas.core.KeyValueLabels, None] = Field(
+    labels: Union[KeyValueLabels, None] = Field(
         default_factory=dict,
         description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
         examples=[{"key": "value1", "key2": 42}],
@@ -584,6 +585,11 @@ class DeploymentFlowRunCreate(ActionBaseModel):
             "An optional idempotency key. If a flow run with the same idempotency key"
             " has already been created, the existing flow run will be returned."
         ),
+    )
+    labels: Union[KeyValueLabels, None] = Field(
+        None,
+        description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
+        examples=[{"key": "value1", "key2": 42}],
     )
     parent_task_run_id: Optional[UUID] = Field(None)
     work_queue_name: Optional[str] = Field(None)

@@ -45,6 +45,8 @@ from prefect.client.schemas.actions import (
 from prefect.client.schemas.filters import (
     ArtifactFilter,
     ArtifactFilterKey,
+    DeploymentFilter,
+    DeploymentFilterTags,
     FlowFilter,
     FlowRunFilter,
     FlowRunFilterTags,
@@ -784,6 +786,59 @@ async def test_read_deployment_by_name(prefect_client):
     assert isinstance(lookup, DeploymentResponse)
     assert lookup.id == deployment_id
     assert lookup.name == "test-deployment"
+
+
+@pytest.mark.parametrize(
+    "deployment_tags,filter_tags,expected_match",
+    [
+        # Basic single tag matching
+        (["tag-1"], ["tag-1"], True),
+        (["tag-2"], ["tag-1"], False),
+        # Any matching - should match if ANY tag in filter matches
+        (["tag-1", "tag-2"], ["tag-1", "tag-3"], True),
+        (["tag-1"], ["tag-1", "tag-2"], True),
+        (["tag-2"], ["tag-1", "tag-2"], True),
+        # No matches
+        (["tag-1"], ["tag-2", "tag-3"], False),
+        (["tag-1"], ["get-real"], False),
+        # Empty cases
+        ([], ["tag-1"], False),
+        (["tag-1"], [], False),
+    ],
+    ids=[
+        "single_tag_match",
+        "single_tag_no_match",
+        "multiple_tags_partial_match",
+        "subset_match_1",
+        "subset_match_2",
+        "no_matching_tags",
+        "nonexistent_tag",
+        "empty_run_tags",
+        "empty_filter_tags",
+    ],
+)
+async def test_read_deployment_by_any_tag(
+    prefect_client, deployment_tags, filter_tags, expected_match
+):
+    @flow
+    def moo_deng():
+        pass
+
+    flow_id = await prefect_client.create_flow(moo_deng)
+
+    await prefect_client.create_deployment(
+        flow_id=flow_id,
+        name="moisturized-deployment",
+        tags=deployment_tags,
+    )
+    deployment_responses = await prefect_client.read_deployments(
+        deployment_filter=DeploymentFilter(tags=DeploymentFilterTags(any_=filter_tags))
+    )
+    if expected_match:
+        assert len(deployment_responses) == 1
+        assert deployment_responses[0].name == "moisturized-deployment"
+    else:
+        assert len(deployment_responses) == 0
 
 
 async def test_read_deployment_by_name_fails_with_helpful_suggestion(prefect_client):
