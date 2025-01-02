@@ -1813,10 +1813,10 @@ async def _create_slas(
                 await client.create_sla(sla)
             except Exception as e:
                 app.console.print(
-                    f"Failed to create SLA: {sla.get("name")}. Error: {str(e)}",
+                    f"""Failed to create SLA: {sla.get("name")}. Error: {str(e)}""",
                     style="red",
                 )
-                exceptions.append((f"Failed to create SLA: {sla.get('name')}", e))
+                exceptions.append((f"""Failed to create SLA: {sla.get('name')}""", e))
         if exceptions:
             raise ValueError("Failed to create one or more SLAs.", exceptions)
     else:
