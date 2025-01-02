@@ -19,6 +19,7 @@ from rich.table import Table
 from yaml.error import YAMLError
 
 import prefect
+from prefect._experimental.sla import SlaTypes
 from prefect._internal.compatibility.deprecated import (
     generate_deprecation_message,
 )
@@ -40,6 +41,7 @@ from prefect.cli._utilities import (
     exit_with_error,
 )
 from prefect.cli.root import app, is_interactive
+from prefect.client.base import ServerType
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.filters import WorkerFilter
 from prefect.client.schemas.objects import ConcurrencyLimitConfig
@@ -350,6 +352,12 @@ async def deploy(
         "--prefect-file",
         help="Specify a custom path to a prefect.yaml file",
     ),
+    sla: List[str] = typer.Option(
+        None,
+        "--sla",
+        help="Experimental: One or more SLA configurations for the deployment. May be"
+        " removed or modified at any time. Currently only supported on Prefect Cloud.",
+    ),
 ):
     """
     Create a deployment to deploy a flow from this project.
@@ -405,6 +413,7 @@ async def deploy(
         "triggers": trigger,
         "param": param,
         "params": params,
+        "sla": sla,
     }
     try:
         deploy_configs, actions = _load_deploy_configs_and_actions(
@@ -734,6 +743,14 @@ async def _run_single_deploy(
 
     await _create_deployment_triggers(client, deployment_id, triggers)
 
+    if sla_specs := _gather_deployment_sla_definitions(
+        options.get("sla"), deploy_config.get("sla")
+    ):
+        slas = _initialize_deployment_slas(deployment_id, sla_specs)
+        await _create_slas(client, slas)
+    else:
+        slas = []
+
     app.console.print(
         Panel(
             f"Deployment '{deploy_config['flow_name']}/{deploy_config['name']}'"
@@ -791,6 +808,7 @@ async def _run_single_deploy(
                     push_steps=push_steps or None,
                     pull_steps=pull_steps or None,
                     triggers=trigger_specs or None,
+                    sla=sla_specs or None,
                     prefect_file=prefect_file,
                 )
                 app.console.print(
@@ -1737,3 +1755,71 @@ def _handle_deprecated_schedule_fields(deploy_config: Dict):
         )
 
     return deploy_config
+
+
+def _gather_deployment_sla_definitions(
+    sla_flags: Union[List[str], None], existing_slas: Union[List[Dict[str, Any]], None]
+) -> Union[List[Dict[str, Any]], None]:
+    """Parses SLA flags from CLI and existing deployment config in `prefect.yaml`.
+    Prefers CLI-provided SLAs over config in `prefect.yaml`.
+    """
+    if sla_flags:
+        sla_specs = []
+        for s in sla_flags:
+            try:
+                if s.endswith(".yaml"):
+                    with open(s, "r") as f:
+                        sla_specs.extend(yaml.safe_load(f).get("sla", []))
+                elif s.endswith(".json"):
+                    with open(s, "r") as f:
+                        sla_specs.extend(json.load(f).get("sla", []))
+                else:
+                    sla_specs.append(json.loads(s))
+            except Exception as e:
+                raise ValueError(f"Failed to parse SLA: {s}. Error: {str(e)}")
+        return sla_specs
+
+    return existing_slas
+
+
+def _initialize_deployment_slas(
+    deployment_id: UUID, sla_specs: List[Dict[str, Any]]
+) -> Union[List[SlaTypes], None]:
+    """Initializes SLAs for a deployment.
+
+    Args:
+        deployment_id: Deployment ID.
+        sla_specs: SLA specification dictionaries.
+
+    Returns:
+        List of SLAs.
+    """
+    slas = [pydantic.TypeAdapter(SlaTypes).validate_python(spec) for spec in sla_specs]
+
+    for sla in slas:
+        sla.set_deployment_id(deployment_id)
+
+    return slas
+
+
+async def _create_slas(
+    client: "PrefectClient",
+    slas: List[SlaTypes],
+):
+    if client.server_type == ServerType.CLOUD:
+        exceptions = []
+        for sla in slas:
+            try:
+                await client.create_sla(sla)
+            except Exception as e:
+                app.console.print(
+                    f"""Failed to create SLA: {sla.get("name")}. Error: {str(e)}""",
+                    style="red",
+                )
+                exceptions.append((f"""Failed to create SLA: {sla.get('name')}""", e))
+        if exceptions:
+            raise ValueError("Failed to create one or more SLAs.", exceptions)
+    else:
+        raise ValueError(
+            "SLA configuration is currently only supported on Prefect Cloud."
+        )
