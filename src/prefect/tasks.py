@@ -1634,9 +1634,7 @@ def task(
     refresh_cache: Optional[bool] = None,
     on_completion: Optional[list[StateHookCallable]] = None,
     on_failure: Optional[list[StateHookCallable]] = None,
-    retry_condition_fn: Optional[
-        Callable[[Task[..., Any], TaskRun, State], bool]
-    ] = None,
+    retry_condition_fn: Optional[Callable[[Task[P, Any], TaskRun, State], bool]] = None,
     viz_return_value: Any = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]:
     ...
@@ -1673,9 +1671,7 @@ def task(
     refresh_cache: Optional[bool] = None,
     on_completion: Optional[list[StateHookCallable]] = None,
     on_failure: Optional[list[StateHookCallable]] = None,
-    retry_condition_fn: Optional[
-        Callable[[Task[..., Any], TaskRun, State], bool]
-    ] = None,
+    retry_condition_fn: Optional[Callable[[Task[P, Any], TaskRun, State], bool]] = None,
     viz_return_value: Any = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]:
     ...
@@ -1709,9 +1705,7 @@ def task(
     refresh_cache: Optional[bool] = None,
     on_completion: Optional[list[StateHookCallable]] = None,
     on_failure: Optional[list[StateHookCallable]] = None,
-    retry_condition_fn: Optional[
-        Callable[[Task[..., Any], TaskRun, State], bool]
-    ] = None,
+    retry_condition_fn: Optional[Callable[[Task[P, Any], TaskRun, State], bool]] = None,
     viz_return_value: Any = None,
 ):
     """
