@@ -1,6 +1,7 @@
 import {
 	createFakeGlobalConcurrencyLimit,
 	reactQueryDecorator,
+	toastDecorator,
 } from "@/storybook/utils";
 import type { Meta, StoryObj } from "@storybook/react";
 import { Table as GlobalConcurrencyLimitsDataTable } from "./global-concurrency-limits-data-table";
@@ -17,7 +18,7 @@ const meta = {
 	title:
 		"Components/Concurrency/GlobalConcurrencyLimits/GlobalConcurrencyLimitsDataTable",
 	component: GlobalConcurrencyLimitsDataTable,
-	decorators: [reactQueryDecorator],
+	decorators: [reactQueryDecorator, toastDecorator],
 	args: {
 		data: MOCK_DATA,
 		onDeleteRow: () => {},

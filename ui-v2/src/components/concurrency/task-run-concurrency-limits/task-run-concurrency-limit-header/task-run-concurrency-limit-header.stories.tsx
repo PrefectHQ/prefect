@@ -1,6 +1,7 @@
 import {
 	createFakeTaskRunConcurrencyLimit,
 	routerDecorator,
+	toastDecorator,
 } from "@/storybook/utils";
 import type { Meta, StoryObj } from "@storybook/react";
 
@@ -10,7 +11,7 @@ const meta = {
 	title:
 		"Components/Concurrency/TaskRunConcurrencyLimits/TaskRunConcurrencyLimitHeader",
 	component: TaskRunConcurrencyLimitHeader,
-	decorators: [routerDecorator],
+	decorators: [routerDecorator, toastDecorator],
 	args: {
 		data: createFakeTaskRunConcurrencyLimit(),
 		onDelete: () => {},
