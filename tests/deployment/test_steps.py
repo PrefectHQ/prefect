@@ -434,6 +434,7 @@ class TestGitCloneStep:
             credentials=None,
             branch=None,
             include_submodules=False,
+            directories=None,
         )
         git_repository_mock.return_value.pull_code.assert_awaited_once()
 
@@ -452,6 +453,7 @@ class TestGitCloneStep:
             credentials=None,
             branch=None,
             include_submodules=True,
+            directories=None,
         )
         git_repository_mock.return_value.pull_code.assert_awaited_once()
 
@@ -470,6 +472,7 @@ class TestGitCloneStep:
             credentials={"access_token": "my-access-token"},
             branch=None,
             include_submodules=False,
+            directories=None,
         )
         git_repository_mock.return_value.pull_code.assert_awaited_once()
 
@@ -496,6 +499,7 @@ class TestGitCloneStep:
             credentials={"username": "marvin42", "password": "hunter2"},
             branch=None,
             include_submodules=False,
+            directories=None,
         )
         git_repository_mock.return_value.pull_code.assert_awaited_once()
 
@@ -531,6 +535,7 @@ class TestGitCloneStep:
             credentials=None,
             branch=None,
             include_submodules=False,
+            directories=None,
         )
 
         assert mock_git_repo.call_args_list == [expected_call]
@@ -545,6 +550,7 @@ class TestGitCloneStep:
             credentials=None,
             branch=None,
             include_submodules=False,
+            directories=None,
         )
         git_repository_mock.return_value.pull_code.assert_awaited_once()
 
@@ -557,6 +563,7 @@ class TestGitCloneStep:
             branch="dev",
             include_submodules=True,
             access_token="my-access-token",
+            directories=None,
         )
 
         assert output["directory"] == "repo"
@@ -565,6 +572,7 @@ class TestGitCloneStep:
             credentials={"access_token": "my-access-token"},
             branch="dev",
             include_submodules=True,
+            directories=None,
         )
         git_repository_mock.return_value.pull_code.assert_awaited_once()
 
@@ -587,6 +595,7 @@ class TestGitCloneStep:
             credentials=creds,
             branch=None,
             include_submodules=False,
+            directories=None,
         )
         git_repository_mock.return_value.pull_code.assert_awaited_once()
 
@@ -669,6 +678,7 @@ class TestGitCloneStep:
             credentials=None,
             branch=None,
             include_submodules=False,
+            directories=None,
         )
         assert mock_git_repo.call_args_list == [expected_call]
 
