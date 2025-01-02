@@ -201,16 +201,11 @@ describe("automations queries and mutations", () => {
 		);
 
 		// ------------ Invoke mutation
-		const { id, actions, name, description, enabled, trigger } =
-			EDITED_AUTOMATION;
+		const { id, enabled } = EDITED_AUTOMATION;
 		act(() =>
 			useUpdateAutomationResult.current.updateAutomation({
 				id,
-				name,
-				description,
 				enabled,
-				trigger,
-				actions,
 			}),
 		);
 
