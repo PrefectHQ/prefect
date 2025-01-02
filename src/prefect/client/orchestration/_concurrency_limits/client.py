@@ -565,8 +565,8 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
         Increment concurrency limit slots for the specified limits.
 
         Args:
-            names (List[str]): A list of limit names for which to increment limits.
-            task_run_id (UUID): The task run ID incrementing the limits.
+            names: A list of limit names for which to increment limits.
+            task_run_id: The task run ID incrementing the limits.
         """
         data: dict[str, Any] = {
             "names": names,
