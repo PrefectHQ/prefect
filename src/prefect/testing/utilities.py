@@ -50,6 +50,8 @@ from unittest.mock import AsyncMock  # noqa
 # MagicMock supports async magic methods in Python 3.9+
 from unittest.mock import MagicMock  # noqa
 
+from unittest.mock import call  # noqa
+
 
 def kubernetes_environments_equal(
     actual: List[Dict[str, str]],
