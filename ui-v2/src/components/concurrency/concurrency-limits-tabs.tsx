@@ -39,8 +39,8 @@ export const ConcurrencyLimitsTabs = ({
 	const navigate = routeApi.useNavigate();
 
 	return (
-		<Tabs className="flex flex-col gap-4" defaultValue="Global" value={tab}>
-			<TabsList className="grid w-full grid-cols-2">
+		<Tabs defaultValue="Global" value={tab}>
+			<TabsList>
 				<TabsTrigger
 					value={TAB_OPTIONS.global.tabSearchValue}
 					onClick={() => {
