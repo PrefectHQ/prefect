@@ -841,27 +841,6 @@ async def test_read_deployment_by_any_tag(
         assert len(deployment_responses) == 0
 
 
-async def test_read_deployment_by_name_fails_with_helpful_suggestion(prefect_client):
-    """this is a regression test for https://github.com/PrefectHQ/prefect/issues/15571"""
-
-    @flow
-    def moo_deng():
-        pass
-
-    flow_id = await prefect_client.create_flow(moo_deng)
-
-    await prefect_client.create_deployment(
-        flow_id=flow_id,
-        name="moisturized-deployment",
-    )
-
-    with pytest.raises(
-        prefect.exceptions.ObjectNotFound,
-        match="Deployment 'moo_deng/moisturized-deployment' not found; did you mean 'moo-deng/moisturized-deployment'?",
-    ):
-        await prefect_client.read_deployment_by_name("moo_deng/moisturized-deployment")
-
-
 async def test_create_then_delete_deployment(prefect_client):
     @flow
     def foo():

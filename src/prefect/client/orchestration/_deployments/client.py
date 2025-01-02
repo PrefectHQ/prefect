@@ -241,8 +241,8 @@ class DeploymentClient(BaseClient):
         """
         from prefect.client.schemas.responses import DeploymentResponse
 
-        flow_name, deployment_name = name.split("/")
         try:
+            flow_name, deployment_name = name.split("/")
             response = self.request(
                 "GET",
                 "/deployments/name/{flow_name}/{deployment_name}",
@@ -780,8 +780,8 @@ class DeploymentAsyncClient(BaseAsyncClient):
         """
         from prefect.client.schemas.responses import DeploymentResponse
 
-        flow_name, deployment_name = name.split("/")
         try:
+            flow_name, deployment_name = name.split("/")
             response = await self.request(
                 "GET",
                 "/deployments/name/{flow_name}/{deployment_name}",
