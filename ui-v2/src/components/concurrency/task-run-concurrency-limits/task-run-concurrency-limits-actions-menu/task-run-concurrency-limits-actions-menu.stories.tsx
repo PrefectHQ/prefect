@@ -1,3 +1,4 @@
+import { toastDecorator } from "@/storybook/utils";
 import type { Meta, StoryObj } from "@storybook/react";
 
 import { TaskRunConcurrencyLimitsActionsMenu } from "./task-run-concurrency-limits-actions-menu";
@@ -6,6 +7,7 @@ const meta = {
 	title:
 		"Components/Concurrency/TaskRunConcurrencyLimits/TaskRunConcurrencyLimitsActionsMenu",
 	component: TaskRunConcurrencyLimitsActionsMenu,
+	decorators: [toastDecorator],
 	args: {
 		id: "0",
 		onDelete: () => {},

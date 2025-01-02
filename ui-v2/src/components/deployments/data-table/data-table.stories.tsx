@@ -1,4 +1,5 @@
 import type { DeploymentWithFlow } from "@/hooks/deployments";
+import { toastDecorator } from "@/storybook/utils";
 import { faker } from "@faker-js/faker";
 import type { Meta, StoryObj } from "@storybook/react";
 import { fn } from "@storybook/test";
@@ -8,6 +9,7 @@ import { DeploymentsDataTable } from ".";
 export default {
 	title: "Components/Deployments/DataTable",
 	component: DeploymentsDataTable,
+	decorators: [toastDecorator],
 } satisfies Meta<typeof DeploymentsDataTable>;
 
 function createRandomDeployment(): DeploymentWithFlow {
