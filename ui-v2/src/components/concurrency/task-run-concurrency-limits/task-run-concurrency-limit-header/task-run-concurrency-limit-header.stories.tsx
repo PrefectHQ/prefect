@@ -5,6 +5,7 @@ import {
 } from "@/storybook/utils";
 import type { Meta, StoryObj } from "@storybook/react";
 
+import { fn } from "@storybook/test";
 import { TaskRunConcurrencyLimitHeader } from "./task-run-concurrency-limit-header";
 
 const meta = {
@@ -14,8 +15,8 @@ const meta = {
 	decorators: [routerDecorator, toastDecorator],
 	args: {
 		data: createFakeTaskRunConcurrencyLimit(),
-		onDelete: () => {},
-		onReset: () => {},
+		onDelete: fn(),
+		onReset: fn(),
 	},
 } satisfies Meta<typeof TaskRunConcurrencyLimitHeader>;
 

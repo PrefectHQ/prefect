@@ -1,6 +1,7 @@
 import { toastDecorator } from "@/storybook/utils";
 import type { Meta, StoryObj } from "@storybook/react";
 
+import { fn } from "@storybook/test";
 import { TaskRunConcurrencyLimitsActionsMenu } from "./task-run-concurrency-limits-actions-menu";
 
 const meta = {
@@ -10,8 +11,8 @@ const meta = {
 	decorators: [toastDecorator],
 	args: {
 		id: "0",
-		onDelete: () => {},
-		onReset: () => {},
+		onDelete: fn(),
+		onReset: fn(),
 	},
 } satisfies Meta<typeof TaskRunConcurrencyLimitsActionsMenu>;
 
