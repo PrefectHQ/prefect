@@ -657,10 +657,8 @@ async def _run_single_deploy(
     else:
         triggers = []
 
-    sla_specs = _gather_sla_definitions(options.get("sla"), deploy_config.get("sla"))
-    if len(sla_specs) > 0:
-        slas = sla_specs
-    else:
+    slas = _initialize_deployment_slas(options.get("sla"), deploy_config.get("sla"))
+    if not slas:
         slas = []
 
     pull_steps = (
@@ -1756,10 +1754,11 @@ def _handle_deprecated_schedule_fields(deploy_config: Dict):
     return deploy_config
 
 
-def _gather_sla_definitions(
-    sla_flags: List[str], existing_slas: List[Dict[str, Any]]
-) -> List[Dict[str, Any]]:
+def _initialize_deployment_slas(
+    sla_flags: List[str] | None, existing_slas: List[Dict[str, Any]] | None
+) -> List[SlaTypes] | None:
     """Parses SLA flags from CLI and existing deployment config in `prefect.yaml`.
+    Prefers CLI-provided SLAs over config in `prefect.yaml`.
 
     Args:
         sla_flags: SLAs passed via CLI, either as JSON strings or file paths.
@@ -1786,23 +1785,29 @@ def _gather_sla_definitions(
                     sla_specs.append(json.loads(s))
             except Exception as e:
                 raise ValueError(f"Failed to parse SLA: {s}. Error: {str(e)}")
-        return sla_specs
+        return [
+            pydantic.TypeAdapter(SlaTypes).validate_python(spec) for spec in sla_specs
+        ]
 
-    return existing_slas
+    if not existing_slas:
+        return None
+
+    return [
+        pydantic.TypeAdapter(SlaTypes).validate_python(sla) for sla in existing_slas
+    ]
 
 
 async def _create_slas(
     client: "PrefectClient",
     deployment_id: UUID,
-    slas: List[dict],
+    slas: List[SlaTypes],
 ):
     if client.server_type == ServerType.CLOUD:
         exceptions = []
         for sla in slas:
             try:
-                initialized_sla = pydantic.TypeAdapter(SlaTypes).validate_python(sla)
-                initialized_sla.set_deployment_id(deployment_id)
-                await client.create_sla(initialized_sla)
+                sla.set_deployment_id(deployment_id)
+                await client.create_sla(sla)
             except Exception as e:
                 app.console.print(
                     f"Failed to create SLA: {sla.get("name")}. Error: {str(e)}",

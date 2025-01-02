@@ -1,3 +1,4 @@
+import json
 from datetime import timedelta
 from time import sleep
 from unittest import mock
@@ -7,10 +8,15 @@ import httpx
 import pytest
 import respx
 
+import prefect
 from prefect import flow
 from prefect._experimental.sla import (
     ServiceLevelAgreement,
     TimeToCompletionSla,
+)
+from prefect.cli.deploy import (
+    _create_slas,
+    _initialize_deployment_slas,
 )
 from prefect.client.base import ServerType
 from prefect.client.orchestration import get_client
@@ -19,6 +25,8 @@ from prefect.settings import (
     PREFECT_API_URL,
     temporary_settings,
 )
+
+TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
 
 
 @flow()
@@ -206,3 +214,82 @@ class TestRunnerDeploymentApply:
             str(exc_info.value)
             == """[("SLA named 'whoa this is bad' failed to create", ValueError('Failed to create SLA'))]"""
         )
+
+
+class TestDeploymentCLI:
+    class TestSlaSyncing:
+        async def test_initialize_slas(self):
+            sla_spec = json.dumps(
+                {
+                    "name": "test-sla",
+                    "duration": 1800,
+                    "severity": "high",
+                }
+            )
+
+            slas = _initialize_deployment_slas([sla_spec], None)
+            assert slas == [
+                TimeToCompletionSla(
+                    name="test-sla",
+                    duration=1800,
+                    severity="high",
+                )
+            ]
+
+        async def test_initialize_slas_prefers_flag_over_config(self):
+            sla_flag_spec = json.dumps(
+                {
+                    "name": "test-sla-from-flag",
+                    "duration": 1800,
+                    "severity": "high",
+                }
+            )
+
+            sla_config_spec = {
+                "name": "test-sla-from-config",
+                "duration": 3600,
+                "severity": "low",
+            }
+
+            slas = _initialize_deployment_slas([sla_flag_spec], [sla_config_spec])
+            assert slas == [
+                TimeToCompletionSla(
+                    name="test-sla-from-flag",
+                    duration=1800,
+                    severity="high",
+                )
+            ]
+
+        async def test_sla_initialize_falls_back_to_config(self):
+            sla_spec = {
+                "name": "test-sla",
+                "duration": 1800,
+                "severity": "high",
+            }
+            slas = _initialize_deployment_slas(None, [sla_spec])
+            assert slas == [
+                TimeToCompletionSla(name="test-sla", duration=1800, severity="high")
+            ]
+
+        async def test_sla_initialize_handles_file_path_flags(self):
+            # sla_spec = "tests/test-projects/sla_config.yaml"
+            pass
+
+        async def test_create_slas(self):
+            client = mock.AsyncMock()
+            client.server_type = ServerType.CLOUD
+
+            sla_spec = {
+                "name": "test-sla",
+                "duration": 1800,
+                "severity": "high",
+            }
+
+            slas = _initialize_deployment_slas(None, [sla_spec])
+            deployment_id = uuid4()
+
+            await _create_slas(client, deployment_id, slas)
+
+            assert slas[0]._deployment_id == deployment_id
+            assert slas[0].owner_resource == f"prefect.deployment.{deployment_id}"
+            client.create_sla.assert_called_once_with(slas[0])
