@@ -1608,11 +1608,39 @@ def task(__fn: Callable[P, R]) -> Task[P, R]:
 @overload
 def task(
     __fn: Literal[None] = None,
+    *,
+    name: Optional[str] = None,
+    description: Optional[str] = None,
+    tags: Optional[Iterable[str]] = None,
+    version: Optional[str] = None,
+    cache_policy: Union[CachePolicy, type[NotSet]] = NotSet,
+    cache_key_fn: Optional[
+        Callable[["TaskRunContext", dict[str, Any]], Optional[str]]
+    ] = None,
+    cache_expiration: Optional[datetime.timedelta] = None,
+    task_run_name: Optional[TaskRunNameValueOrCallable] = None,
+    retries: int = 0,
+    retry_delay_seconds: Union[
+        float, int, list[float], Callable[[int], list[float]], None
+    ] = None,
+    retry_jitter_factor: Optional[float] = None,
+    persist_result: Optional[bool] = None,
+    result_storage: Optional[ResultStorage] = None,
+    result_storage_key: Optional[str] = None,
+    result_serializer: Optional[ResultSerializer] = None,
+    cache_result_in_memory: bool = True,
+    timeout_seconds: Union[int, float, None] = None,
+    log_prints: Optional[bool] = None,
+    refresh_cache: Optional[bool] = None,
+    on_completion: Optional[list[StateHookCallable]] = None,
+    on_failure: Optional[list[StateHookCallable]] = None,
+    retry_condition_fn: Optional[Callable[[Task[P, Any], TaskRun, State], bool]] = None,
+    viz_return_value: Any = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]:
     ...
 
 
-@overload
+@overload  # TODO: do we need this overload?
 def task(
     *,
     name: Optional[str] = None,
@@ -1643,7 +1671,7 @@ def task(
     refresh_cache: Optional[bool] = None,
     on_completion: Optional[list[StateHookCallable]] = None,
     on_failure: Optional[list[StateHookCallable]] = None,
-    retry_condition_fn: Optional[Callable[["Task[P, R]", TaskRun, State], bool]] = None,
+    retry_condition_fn: Optional[Callable[[Task[P, Any], TaskRun, State], bool]] = None,
     viz_return_value: Any = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]:
     ...
@@ -1677,7 +1705,7 @@ def task(
     refresh_cache: Optional[bool] = None,
     on_completion: Optional[list[StateHookCallable]] = None,
     on_failure: Optional[list[StateHookCallable]] = None,
-    retry_condition_fn: Optional[Callable[["Task[P, R]", TaskRun, State], bool]] = None,
+    retry_condition_fn: Optional[Callable[[Task[P, Any], TaskRun, State], bool]] = None,
     viz_return_value: Any = None,
 ):
     """
