@@ -46,12 +46,14 @@ const createColumns = ({
 				>
 					{row.original.name}
 				</span>
-				<span className="text-xs text-muted-foreground flex items-center gap-1">
-					<Icon id="Workflow" size={12} />
-					<span className="truncate" title={row.original.flow.name}>
-						{row.original.flow.name}
+				{row.original.flow && (
+					<span className="text-xs text-muted-foreground flex items-center gap-1">
+						<Icon id="Workflow" size={12} />
+						<span className="truncate" title={row.original.flow.name}>
+							{row.original.flow.name}
+						</span>
 					</span>
-				</span>
+				)}
 			</div>
 		),
 		size: 100,
