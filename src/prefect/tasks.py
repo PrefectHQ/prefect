@@ -1634,12 +1634,15 @@ def task(
     refresh_cache: Optional[bool] = None,
     on_completion: Optional[list[StateHookCallable]] = None,
     on_failure: Optional[list[StateHookCallable]] = None,
+    retry_condition_fn: Optional[
+        Callable[[Task[..., Any], TaskRun, State], bool]
+    ] = None,
     viz_return_value: Any = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]:
     ...
 
 
-@overload
+@overload  # TODO: do we need this overload?
 def task(
     *,
     name: Optional[str] = None,
@@ -1670,7 +1673,9 @@ def task(
     refresh_cache: Optional[bool] = None,
     on_completion: Optional[list[StateHookCallable]] = None,
     on_failure: Optional[list[StateHookCallable]] = None,
-    retry_condition_fn: Optional[Callable[["Task[P, R]", TaskRun, State], bool]] = None,
+    retry_condition_fn: Optional[
+        Callable[[Task[..., Any], TaskRun, State], bool]
+    ] = None,
     viz_return_value: Any = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]:
     ...
@@ -1704,7 +1709,9 @@ def task(
     refresh_cache: Optional[bool] = None,
     on_completion: Optional[list[StateHookCallable]] = None,
     on_failure: Optional[list[StateHookCallable]] = None,
-    retry_condition_fn: Optional[Callable[["Task[P, R]", TaskRun, State], bool]] = None,
+    retry_condition_fn: Optional[
+        Callable[[Task[..., Any], TaskRun, State], bool]
+    ] = None,
     viz_return_value: Any = None,
 ):
     """
