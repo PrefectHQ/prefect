@@ -48,7 +48,7 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, track
 from rich.table import Table
 
-from prefect._experimental.sla import SlaTypes
+from prefect._experimental.sla.objects import SlaTypes
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.schemas.validators import (
     reconcile_paused_deployment,

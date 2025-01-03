@@ -11,12 +11,16 @@ import type { GlobalConcurrencyLimit } from "@/hooks/global-concurrency-limits";
 import { useToast } from "@/hooks/use-toast";
 import type { CellContext } from "@tanstack/react-table";
 
-type Props = CellContext<GlobalConcurrencyLimit, unknown> & {
+type ActionsCellProps = CellContext<GlobalConcurrencyLimit, unknown> & {
 	onEditRow: (row: GlobalConcurrencyLimit) => void;
 	onDeleteRow: (row: GlobalConcurrencyLimit) => void;
 };
 
-export const ActionsCell = ({ onEditRow, onDeleteRow, ...props }: Props) => {
+export const ActionsCell = ({
+	onEditRow,
+	onDeleteRow,
+	...props
+}: ActionsCellProps) => {
 	const { toast } = useToast();
 
 	const handleCopyId = (id: string) => {

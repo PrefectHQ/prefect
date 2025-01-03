@@ -21,7 +21,7 @@ from rich.table import Table
 from yaml.error import YAMLError
 
 import prefect
-from prefect._experimental.sla import SlaTypes
+from prefect._experimental.sla.objects import SlaTypes
 from prefect._internal.compatibility.deprecated import (
     generate_deprecation_message,
 )

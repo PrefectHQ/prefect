@@ -16,7 +16,7 @@ from typer import Exit
 
 import prefect
 from prefect import flow
-from prefect._experimental.sla import (
+from prefect._experimental.sla.objects import (
     ServiceLevelAgreement,
     TimeToCompletionSla,
 )

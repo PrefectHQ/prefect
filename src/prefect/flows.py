@@ -43,7 +43,7 @@ from pydantic.v1.errors import ConfigError  # TODO
 from rich.console import Console
 from typing_extensions import Literal, ParamSpec, TypeAlias
 
-from prefect._experimental.sla import SlaTypes
+from prefect._experimental.sla.objects import SlaTypes
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect.blocks.core import Block
 from prefect.client.schemas.actions import DeploymentScheduleCreate

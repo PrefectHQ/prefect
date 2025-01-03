@@ -18,8 +18,8 @@ const getValues = ({
 	flowRun,
 	taskRun,
 }: {
-	flowRun: undefined | components["schemas"]["FlowRun"];
-	taskRun: undefined | components["schemas"]["TaskRun"];
+	flowRun: null | undefined | components["schemas"]["FlowRun"];
+	taskRun: null | undefined | components["schemas"]["TaskRun"];
 }) => {
 	if (taskRun) {
 		const { state, start_time, tags, estimated_run_time } = taskRun;
@@ -33,14 +33,14 @@ const getValues = ({
 	throw new Error("Expecting taskRun or flowRun to be defined");
 };
 
-type Props = {
-	flow?: components["schemas"]["Flow"];
-	flowRun?: components["schemas"]["FlowRun"];
+type RunCardProps = {
+	flow?: components["schemas"]["Flow"] | null;
+	flowRun?: components["schemas"]["FlowRun"] | null;
 	/** If task run is included, uses fields from task run over flow run */
-	taskRun?: components["schemas"]["TaskRun"];
+	taskRun?: components["schemas"]["TaskRun"] | null;
 };
 
-export const RunCard = ({ flow, flowRun, taskRun }: Props) => {
+export const RunCard = ({ flow, flowRun, taskRun }: RunCardProps) => {
 	const { state, start_time, tags, estimated_run_time } = getValues({
 		flowRun,
 		taskRun,
@@ -71,7 +71,7 @@ const ConcurrencyLimitTaskRunBreadcrumb = ({
 	flow,
 	flowRun,
 	taskRun,
-}: Props) => {
+}: RunCardProps) => {
 	if (!flow && !flowRun && !taskRun) {
 		throw new Error("Expecting flow, flowRun, or taskRun");
 	}
