@@ -17,6 +17,7 @@ from pydantic import (
     field_validator,
     model_validator,
 )
+from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import Literal, Self
 
 from prefect._internal.schemas.validators import (
@@ -595,7 +596,7 @@ class Deployment(ORMBaseModel):
         default_factory=dict,
         description="Parameters for flow runs scheduled by the deployment.",
     )
-    pull_steps: Optional[List[dict]] = Field(
+    pull_steps: Optional[list[dict[str, Any]]] = Field(
         default=None,
         description="Pull steps for cloning and running this deployment.",
     )
@@ -773,7 +774,7 @@ class BlockDocument(ORMBaseModel):
             "The block document's name. Not required for anonymous block documents."
         ),
     )
-    data: Dict[str, Any] = Field(
+    data: dict[str, Any] = Field(
         default_factory=dict, description="The block document's data"
     )
     block_schema_id: UUID = Field(default=..., description="A block schema ID")
@@ -787,7 +788,7 @@ class BlockDocument(ORMBaseModel):
     block_type: Optional[BlockType] = Field(
         default=None, description="The associated block type"
     )
-    block_document_references: Dict[str, Dict[str, Any]] = Field(
+    block_document_references: dict[str, dict[str, Any]] = Field(
         default_factory=dict, description="Record of the block document's references"
     )
     is_anonymous: bool = Field(
@@ -799,13 +800,15 @@ class BlockDocument(ORMBaseModel):
     )
 
     @model_validator(mode="before")
-    def validate_name_is_present_if_not_anonymous(cls, values):
+    def validate_name_is_present_if_not_anonymous(
+        cls, values: dict[str, Any]
+    ) -> dict[str, Any]:
         return validate_name_present_on_nonanonymous_blocks(values)
 
     @classmethod
     async def from_orm_model(
         cls: type[Self],
-        session,
+        session: AsyncSession,
         orm_block_document: "orm_models.ORMBlockDocument",
         include_secrets: bool = False,
     ) -> Self:
