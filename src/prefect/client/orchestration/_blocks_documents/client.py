@@ -297,9 +297,9 @@ class BlocksDocumentAsyncClient(BaseAsyncClient):
 
     async def read_block_documents(
         self,
-        block_schema_type: "str | None" = None,
-        offset: "int | None" = None,
-        limit: "int | None" = None,
+        block_schema_type: str | None = None,
+        offset: int | None = None,
+        limit: int | None = None,
         include_secrets: bool = True,
     ) -> "list[BlockDocument]":
         """
