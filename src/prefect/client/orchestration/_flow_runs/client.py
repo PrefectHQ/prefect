@@ -499,18 +499,23 @@ class FlowRunAsyncClient(BaseAsyncClient):
         Returns:
             The flow run model
         """
+        from prefect.client.schemas.actions import FlowCreate, FlowRunCreate
+        from prefect.client.schemas.objects import Flow, FlowRun, FlowRunPolicy
+        from prefect.states import Pending
+
         parameters = parameters or {}
         context = context or {}
 
         if state is None:
-            from prefect.states import Pending
-
             state = Pending()
 
         # Retrieve the flow id
-        flow_id = await self.create_flow(flow)
-        from prefect.client.schemas.actions import FlowRunCreate
-        from prefect.client.schemas.objects import FlowRunPolicy
+
+        flow_data = FlowCreate(name=flow.name)
+        response = await self.request(
+            "POST", "/flows/", json=flow_data.model_dump(mode="json")
+        )
+        flow_id = Flow.model_validate(response.json()).id
 
         flow_run_create = FlowRunCreate(
             flow_id=flow_id,
@@ -529,7 +534,6 @@ class FlowRunAsyncClient(BaseAsyncClient):
 
         flow_run_create_json = flow_run_create.model_dump(mode="json")
         response = await self.request("POST", "/flow_runs/", json=flow_run_create_json)
-        from prefect.client.schemas.objects import FlowRun
 
         flow_run = FlowRun.model_validate(response.json())
 
