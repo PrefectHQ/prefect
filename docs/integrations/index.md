@@ -1,12 +1,6 @@
 
 <CardGroup cols={4}  className="text-center">
 
-    <Card title="Alert">
-        <a href="https://khuyentran1401.github.io/prefect-alert/"> <img src="/images/integrations/alert.png" alt="prefect-alert"/>
-        </a>
-        Maintained by <a href="https://github.com/khuyentran1401"> Khuyen Tran </a>
-    </Card>
-
     <Card title="AWS">
         <a href="/integrations/prefect-aws"> <img src="/images/integrations/aws.png" alt="prefect-aws"/>
         </a>
@@ -29,12 +23,6 @@
         <a href="https://docs.coiled.io/user_guide/labs/prefect.html?utm_source=prefect-docs&utm_medium=integrations"> <img src="/images/integrations/coiled.png" alt="coiled"/>
         </a>
         Maintained by <a href="https://www.coiled.io/"> Coiled </a>
-    </Card>
-
-    <Card title="CubeJS">
-        <a href="https://alessandrolollo.github.io/prefect-cubejs/"> <img src="/images/integrations/cubejs.png" alt="prefect-cubejs"/>
-        </a>
-        Maintained by <a href="https://github.com/AlessandroLollo"> Alessandro Lollo </a>
     </Card>
 
     <Card title="Dask">
@@ -61,12 +49,6 @@
         Maintained by <a href="https://prefect.io"> Prefect </a>
     </Card>
 
-    <Card title="Earthdata">
-        <a href="https://giorgiobasile.github.io/prefect-earthdata/"> <img src="/images/integrations/nasa.png" alt="prefect-earthdata"/>
-        </a>
-        Maintained by <a href="https://github.com/giorgiobasile"> Giorgio Basile </a>
-    </Card>
-
     <Card title="Email">
         <a href="/integrations/prefect-email"> <img src="/images/integrations/email.png" alt="prefect-email"/>
         </a>
@@ -77,12 +59,6 @@
         <a href="https://fivetran.github.io/prefect-fivetran/"> <img src="/images/integrations/fivetran.png" alt="prefect-fivetran"/>
         </a>
         Maintained by <a href="https://www.fivetran.com/"> Fivetran </a>
-    </Card>
-
-    <Card title="Fugue">
-        <a href="https://fugue-project.github.io/prefect-fugue/"> <img src="https://avatars.githubusercontent.com/u/65140352?s=200&v=4" alt="prefect-fugue"/>
-        </a>
-        Maintained by <a href="https://github.com/fugue-project/fugue"> The Fugue Development Team </a>
     </Card>
 
     <Card title="GCP">
@@ -103,40 +79,10 @@
         Maintained by <a href="https://prefect.io"> Prefect </a>
     </Card>
 
-    <Card title="Google Sheets">
-        <a href="https://stefanocascavilla.github.io/prefect-google-sheets/"> <img src="/images/integrations/gsheets.png" alt="prefect-google-sheets"/>
-        </a>
-        Maintained by <a href="https://github.com/stefanocascavilla"> Stefano Cascavilla </a>
-    </Card>
-
-    <Card title="HashiCorp Vault">
-        <a href="https://github.com/pbchekin/prefect-vault"> <img src="/images/integrations/vault.png" alt="prefect-vault"/>
-        </a>
-        Maintained by <a href="https://github.com/pbchekin"> Pavel Chekin </a>
-    </Card>
-
     <Card title="Kubernetes">
         <a href="/integrations/prefect-kubernetes"> <img src="/images/integrations/kubernetes.png" alt="prefect-kubernetes"/>
         </a>
         Maintained by <a href="https://prefect.io"> Prefect </a>
-    </Card>
-
-    <Card title="KV">
-        <a href="https://github.com/zanieb/prefect-kv"> <img src="/images/integrations/prefect-kv.svg" alt="prefect-kv"/>
-        </a>
-        Maintained by <a href="https://github.com/zanieb"> Zanie Blue </a>
-    </Card>
-
-    <Card title="MetricFlow">
-        <a href="https://alessandrolollo.github.io/prefect-metricflow/"> <img src="/images/integrations/metricflow.png" alt="prefect-metricflow"/>
-        </a>
-        Maintained by <a href="https://github.com/AlessandroLollo"> Alessandro Lollo </a>
-    </Card>
-
-    <Card title="Planetary Computer">
-        <a href="https://giorgiobasile.github.io/prefect-planetary-computer/"> <img src="/images/integrations/microsoft.png" alt="prefect-planetary-computer"/>
-        </a>
-        Maintained by <a href="https://github.com/giorgiobasile"> Giorgio Basile </a>
     </Card>
 
     <Card title="Ray">
@@ -151,12 +97,6 @@
         Maintained by <a href="https://prefect.io"> Prefect </a>
     </Card>
 
-    <Card title="Sifflet">
-        <a href="https://siffletapp.github.io/prefect-sifflet/"> <img src="/images/integrations/sifflet.png" alt="prefect-sifflet"/>
-        </a>
-        Maintained by <a href="https://www.siffletdata.com/"> Sifflet and Alessandro Lollo </a>
-    </Card>
-
     <Card title="Slack">
         <a href="/integrations/prefect-slack"> <img src="/images/integrations/slack.png" alt="prefect-slack"/>
         </a>
@@ -169,40 +109,10 @@
         Maintained by <a href="https://prefect.io"> Prefect </a>
     </Card>
 
-    <Card title="Soda Cloud">
-        <a href="https://alessandrolollo.github.io/prefect-soda-cloud/"> <img src="/images/integrations/soda.png" alt="prefect-soda-cloud"/>
-        </a>
-        Maintained by <a href="https://github.com/AlessandroLollo"> Alessandro Lollo </a>
-    </Card>
-
-    <Card title="Soda Core">
-        <a href="https://sodadata.github.io/prefect-soda-core/"> <img src="/images/integrations/soda.png" alt="prefect-soda-core"/>
-        </a>
-        Maintained by <a href="https://github.com/sodadata"> Soda and Alessandro Lollo </a>
-    </Card>
-
-    <Card title="Spark on Kubernetes">
-        <a href="https://tardunge.github.io/prefect-spark-on-k8s-operator/"> <img src="/images/integrations/spark-on-kubernetes.png" alt="prefect-spark-on-k8s-operator"/>
-        </a>
-        Maintained by <a href="https://github.com/tardunge"> Manoj Babu Katragadda </a>
-    </Card>
-
     <Card title="SQLAlchemy">
         <a href="/integrations/prefect-sqlalchemy"> <img src="/images/integrations/sqlalchemy.png" alt="prefect-sqlalchemy"/>
         </a>
         Maintained by <a href="https://prefect.io"> Prefect </a>
-    </Card>
-
-    <Card title="Stitch">
-        <a href="https://alessandrolollo.github.io/prefect-stitch/"> <img src="/images/integrations/stitch.png" alt="prefect-stitch"/>
-        </a>
-        Maintained by <a href="https://github.com/AlessandroLollo"> Alessandro Lollo </a>
-    </Card>
-
-    <Card title="Transform">
-        <a href="https://alessandrolollo.github.io/prefect-transform/"> <img src="/images/integrations/transform.png" alt="prefect-transform"/>
-        </a>
-        Maintained by <a href="https://github.com/AlessandroLollo"> Alessandro Lollo </a>
     </Card>
 
 </CardGroup>
