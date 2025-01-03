@@ -209,7 +209,7 @@ class RunnerDeployment(BaseModel):
             " a built runner."
         ),
     )
-    sla: Optional[Union[SlaTypes, list[SlaTypes]]] = Field(
+    _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = Field(
         default=None,
         description="Experimental: SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.",
     )
