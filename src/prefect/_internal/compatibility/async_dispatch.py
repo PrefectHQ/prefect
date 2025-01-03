@@ -63,10 +63,10 @@ def _is_acceptable_callable(
 
 def async_dispatch(
     async_impl: Union[
-        Callable[P, Coroutine[Any, Any, R]],
-        "classmethod[type[Any], P, Coroutine[Any, Any, R]]",
+        Callable[..., Coroutine[Any, Any, R]],
+        "classmethod[type[Any], ..., Coroutine[Any, Any, R]]",
     ],
-) -> Callable[[Callable[P, R]], Callable[P, Union[R, Coroutine[Any, Any, R]]]]:
+) -> Callable[[Callable[..., R]], Callable[..., Union[R, Coroutine[Any, Any, R]]]]:
     """
     Decorator that dispatches to either sync or async implementation based on context.
 
@@ -76,11 +76,11 @@ def async_dispatch(
     if not _is_acceptable_callable(async_impl):
         raise TypeError("async_impl must be an async function")
     if isinstance(async_impl, classmethod):
-        async_impl = cast(Callable[P, Coroutine[Any, Any, R]], async_impl.__func__)
+        async_impl = cast(Callable[..., Coroutine[Any, Any, R]], async_impl.__func__)
 
     def decorator(
-        sync_fn: Callable[P, R],
-    ) -> Callable[P, Union[R, Coroutine[Any, Any, R]]]:
+        sync_fn: Callable[..., R],
+    ) -> Callable[..., Union[R, Coroutine[Any, Any, R]]]:
         @wraps(sync_fn)
         def wrapper(
             *args: P.args,

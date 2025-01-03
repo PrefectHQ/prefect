@@ -1351,7 +1351,7 @@ class Block(BaseModel, ABC):
 
         await client.delete_block_document(block_document.id)
 
-    def __new__(cls: Type[Self], **kwargs) -> Self:
+    def __new__(cls: Type[Self], **kwargs: Any) -> Self:
         """
         Create an instance of the Block subclass type if a `block_type_slug` is
         present in the data payload.
@@ -1438,8 +1438,8 @@ class Block(BaseModel, ABC):
         self,
         *,
         mode: Union[Literal["json", "python"], str] = "python",
-        include: "IncEx" = None,
-        exclude: "IncEx" = None,
+        include: Optional["IncEx"] = None,
+        exclude: Optional["IncEx"] = None,
         context: Optional[Dict[str, Any]] = None,
         by_alias: bool = False,
         exclude_unset: bool = False,
