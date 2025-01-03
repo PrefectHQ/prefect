@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 import httpx
 from typing_extensions import TypeVar
 
-from prefect.client.orchestration._flows.client import FlowAsyncClient, FlowClient
+from prefect.client.orchestration.base import BaseAsyncClient, BaseClient
 from prefect.exceptions import ObjectNotFound
 
 T = TypeVar("T")
@@ -36,7 +36,7 @@ if TYPE_CHECKING:
     from prefect.types import KeyValueLabelsField
 
 
-class FlowRunClient(FlowClient):
+class FlowRunClient(BaseClient):
     def create_flow_run(
         self,
         flow: "FlowObject[Any, R]",
@@ -67,18 +67,23 @@ class FlowRunClient(FlowClient):
         Returns:
             The flow run model
         """
+        from prefect.client.schemas.actions import FlowCreate, FlowRunCreate
+        from prefect.client.schemas.objects import Flow, FlowRun, FlowRunPolicy
+        from prefect.states import Pending
+
         parameters = parameters or {}
         context = context or {}
 
         if state is None:
-            from prefect.states import Pending
-
             state = Pending()
 
         # Retrieve the flow id
-        flow_id = self.create_flow(flow)
-        from prefect.client.schemas.actions import FlowRunCreate
-        from prefect.client.schemas.objects import FlowRunPolicy
+
+        flow_data = FlowCreate(name=flow.name)
+        response = self.request(
+            "POST", "/flows/", json=flow_data.model_dump(mode="json")
+        )
+        flow_id = Flow.model_validate(response.json()).id
 
         flow_run_create = FlowRunCreate(
             flow_id=flow_id,
@@ -97,7 +102,6 @@ class FlowRunClient(FlowClient):
 
         flow_run_create_json = flow_run_create.model_dump(mode="json")
         response = self.request("POST", "/flow_runs/", json=flow_run_create_json)
-        from prefect.client.schemas.objects import FlowRun
 
         flow_run = FlowRun.model_validate(response.json())
 
@@ -464,7 +468,7 @@ class FlowRunClient(FlowClient):
         response.raise_for_status()
 
 
-class FlowRunAsyncClient(FlowAsyncClient):
+class FlowRunAsyncClient(BaseAsyncClient):
     async def create_flow_run(
         self,
         flow: "FlowObject[Any, R]",
