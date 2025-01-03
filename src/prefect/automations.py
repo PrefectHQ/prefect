@@ -203,8 +203,25 @@ class Automation(AutomationCore):
                     return False
                 raise
 
-    @sync_compatible
-    async def enable(self: Self) -> bool:
+    async def aenable(self: Self) -> bool:
+        """
+        Asynchronously enable an automation.
+        auto = await Automation.aread(id = 123)
+        await auto.aenable()
+        """
+        if self.id is None:
+            raise ValueError("Can't enable an automation without an id")
+
+        async with get_client() as client:
+            try:
+                await client.resume_automation(self.id)
+                return True
+            except PrefectHTTPStatusError as exc:
+                if exc.response.status_code == 404:
+                    return False
+                raise
+
+    def enable(self: Self) -> bool:
         """
         Enable an automation.
         auto = Automation.read(id = 123)
@@ -213,9 +230,9 @@ class Automation(AutomationCore):
         if self.id is None:
             raise ValueError("Can't enable an automation without an id")
 
-        async with get_client() as client:
+        with get_client(sync_client=True) as client:
             try:
-                await client.resume_automation(self.id)
+                client.resume_automation(self.id)
                 return True
             except PrefectHTTPStatusError as exc:
                 if exc.response.status_code == 404:
