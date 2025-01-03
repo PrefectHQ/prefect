@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import abc
 from typing import Literal, Optional, Union
 from uuid import UUID
@@ -32,7 +34,7 @@ class ServiceLevelAgreement(PrefectBaseModel, abc.ABC):
 
     @computed_field
     @property
-    def owner_resource(self) -> Union[str, None]:
+    def owner_resource(self) -> str | None:
         if self._deployment_id:
             return f"prefect.deployment.{self._deployment_id}"
         return None

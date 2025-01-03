@@ -1,5 +1,7 @@
 """Module containing implementation for deploying flows."""
 
+from __future__ import annotations
+
 import json
 import os
 import re
@@ -1758,8 +1760,8 @@ def _handle_deprecated_schedule_fields(deploy_config: Dict):
 
 
 def _gather_deployment_sla_definitions(
-    sla_flags: Union[List[str], None], existing_slas: Union[List[Dict[str, Any]], None]
-) -> Union[List[Dict[str, Any]], None]:
+    sla_flags: list[str] | None, existing_slas: list[dict[str, Any]] | None
+) -> list[dict[str, Any]] | None:
     """Parses SLA flags from CLI and existing deployment config in `prefect.yaml`.
     Prefers CLI-provided SLAs over config in `prefect.yaml`.
     """
@@ -1783,8 +1785,8 @@ def _gather_deployment_sla_definitions(
 
 
 def _initialize_deployment_slas(
-    deployment_id: UUID, sla_specs: List[Dict[str, Any]]
-) -> Union[List[SlaTypes], None]:
+    deployment_id: UUID, sla_specs: list[dict[str, Any]]
+) -> list[SlaTypes]:
     """Initializes SLAs for a deployment.
 
     Args:
