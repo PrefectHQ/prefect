@@ -7,11 +7,11 @@ import {
 	BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 
-type Props = {
+type NavHeaderProps = {
 	tag: string;
 };
 
-export const NavHeader = ({ tag }: Props) => {
+export const NavHeader = ({ tag }: NavHeaderProps) => {
 	return (
 		<div className="flex items-center gap-2">
 			<Breadcrumb>

@@ -24,7 +24,7 @@ const TAB_OPTIONS: Record<TabOptions, TabOptionValues> = {
 	},
 } as const;
 
-type Props = {
+type ConcurrencyLimitsTabsProps = {
 	globalView: React.ReactNode;
 	taskRunView: React.ReactNode;
 };
@@ -34,7 +34,7 @@ type Props = {
 export const ConcurrencyLimitsTabs = ({
 	globalView,
 	taskRunView,
-}: Props): JSX.Element => {
+}: ConcurrencyLimitsTabsProps): JSX.Element => {
 	const { tab } = routeApi.useSearch();
 	const navigate = routeApi.useNavigate();
 

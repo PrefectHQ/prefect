@@ -7,7 +7,7 @@ export type Dialogs = null | "delete" | "reset";
 
 const routeApi = getRouteApi("/concurrency-limits/");
 
-type Props = {
+type TaskRunConcurrencyLimitDialogProps = {
 	data: TaskRunConcurrencyLimit;
 	openDialog: Dialogs;
 	onOpenChange: (open: boolean) => void;
@@ -19,7 +19,7 @@ export const TaskRunConcurrencyLimitDialog = ({
 	openDialog,
 	onCloseDialog,
 	onOpenChange,
-}: Props) => {
+}: TaskRunConcurrencyLimitDialogProps) => {
 	const navigate = routeApi.useNavigate();
 
 	const handleDelete = () => {

@@ -14,11 +14,13 @@ import {
 } from "./task-run-concurrency-limit-dialog";
 import { TaskRunConcurrencyLimitTabNavigation } from "./task-run-concurrency-limit-tab-navigation";
 
-type Props = {
+type TaskRunConcurrencyLimitPageProps = {
 	id: string;
 };
 
-export const TaskRunConcurrencyLimitPage = ({ id }: Props) => {
+export const TaskRunConcurrencyLimitPage = ({
+	id,
+}: TaskRunConcurrencyLimitPageProps) => {
 	const [openDialog, setOpenDialog] = useState<Dialogs>(null);
 	const { data } = useSuspenseQuery(
 		buildConcurrenyLimitDetailsActiveRunsQuery(id),

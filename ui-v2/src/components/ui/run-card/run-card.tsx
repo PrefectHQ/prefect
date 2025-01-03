@@ -33,14 +33,14 @@ const getValues = ({
 	throw new Error("Expecting taskRun or flowRun to be defined");
 };
 
-type Props = {
+type RunCardProps = {
 	flow?: components["schemas"]["Flow"] | null;
 	flowRun?: components["schemas"]["FlowRun"] | null;
 	/** If task run is included, uses fields from task run over flow run */
 	taskRun?: components["schemas"]["TaskRun"] | null;
 };
 
-export const RunCard = ({ flow, flowRun, taskRun }: Props) => {
+export const RunCard = ({ flow, flowRun, taskRun }: RunCardProps) => {
 	const { state, start_time, tags, estimated_run_time } = getValues({
 		flowRun,
 		taskRun,
@@ -71,7 +71,7 @@ const ConcurrencyLimitTaskRunBreadcrumb = ({
 	flow,
 	flowRun,
 	taskRun,
-}: Props) => {
+}: RunCardProps) => {
 	if (!flow && !flowRun && !taskRun) {
 		throw new Error("Expecting flow, flowRun, or taskRun");
 	}

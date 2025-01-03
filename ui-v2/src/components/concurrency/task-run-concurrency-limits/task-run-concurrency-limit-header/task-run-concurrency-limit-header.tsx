@@ -3,7 +3,7 @@ import type { TaskRunConcurrencyLimit } from "@/hooks/task-run-concurrency-limit
 
 import { NavHeader } from "./nav-header";
 
-type Props = {
+type TaskRunConcurrencyLimitHeaderProps = {
 	data: TaskRunConcurrencyLimit;
 	onDelete: () => void;
 	onReset: () => void;
@@ -13,7 +13,7 @@ export const TaskRunConcurrencyLimitHeader = ({
 	data,
 	onDelete,
 	onReset,
-}: Props) => {
+}: TaskRunConcurrencyLimitHeaderProps) => {
 	return (
 		<div className="flex items-center justify-between">
 			<NavHeader tag={data.tag} />

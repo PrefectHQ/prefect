@@ -15,13 +15,13 @@ const VARIANTS_TO_ELEMENT_MAP = {
 
 type Variant = "h1" | "h2" | "h3" | "h4" | "bodyLarge" | "body" | "bodySmall";
 
-type Props = {
+type TypographyProps = {
 	className?: string;
 	variant?: Variant;
 	children: React.ReactNode;
 };
 
-export const Typography = forwardRef<HTMLDivElement, Props>(
+export const Typography = forwardRef<HTMLDivElement, TypographyProps>(
 	({ className, variant = "body", ...props }, ref) => {
 		return createElement(VARIANTS_TO_ELEMENT_MAP[variant], {
 			className: cn(typographyVariants({ variant }), className),

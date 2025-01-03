@@ -2,9 +2,9 @@ import type { TaskRunConcurrencyLimit } from "@/hooks/task-run-concurrency-limit
 import { Link } from "@tanstack/react-router";
 import type { CellContext } from "@tanstack/react-table";
 
-type Props = CellContext<TaskRunConcurrencyLimit, string>;
+type TagCellProps = CellContext<TaskRunConcurrencyLimit, string>;
 
-export const TagCell = (props: Props) => {
+export const TagCell = (props: TagCellProps) => {
 	const tag = props.getValue();
 	const id = props.row.original.id;
 	return (
