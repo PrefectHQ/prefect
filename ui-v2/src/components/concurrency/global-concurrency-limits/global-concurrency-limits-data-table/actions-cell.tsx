@@ -1,3 +1,4 @@
+import type { GlobalConcurrencyLimit } from "@/api/global-concurrency-limits";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -7,7 +8,6 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icons";
-import type { GlobalConcurrencyLimit } from "@/hooks/global-concurrency-limits";
 import { useToast } from "@/hooks/use-toast";
 import type { CellContext } from "@tanstack/react-table";
 

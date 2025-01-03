@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-import type { TaskRunConcurrencyLimit } from "@/hooks/task-run-concurrency-limits";
+import type { TaskRunConcurrencyLimit } from "@/api/task-run-concurrency-limits";
 import { format, parseISO } from "date-fns";
 import React from "react";
 

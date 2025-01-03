@@ -1,4 +1,4 @@
-import { buildListAutomationsQuery } from "@/hooks/automations";
+import { buildListAutomationsQuery } from "@/api/automations";
 import { createFileRoute } from "@tanstack/react-router";
 
 // nb: Currently there is no filtering or search params used on this page
