@@ -1,9 +1,8 @@
-from __future__ import annotations
-
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any
 
 import httpx
+from typing_extensions import TypeVar
 
 import prefect
 import prefect.exceptions
@@ -15,13 +14,9 @@ T = TypeVar("T")
 R = TypeVar("R", infer_variance=True)
 
 if TYPE_CHECKING:
-    from uuid import UUID, uuid4
+    from uuid import UUID
 
     from prefect.client.schemas import FlowRun, OrchestrationResult
-    from prefect.client.schemas.actions import (
-        FlowRunCreate,
-        FlowRunUpdate,
-    )
     from prefect.client.schemas.filters import (
         DeploymentFilter,
         FlowFilter,
@@ -81,6 +76,8 @@ class FlowRunClient(FlowClient):
 
         # Retrieve the flow id
         flow_id = self.create_flow(flow)
+        from prefect.client.schemas.actions import FlowRunCreate
+        from prefect.client.schemas.objects import FlowRunPolicy
 
         flow_run_create = FlowRunCreate(
             flow_id=flow_id,
@@ -99,6 +96,8 @@ class FlowRunClient(FlowClient):
 
         flow_run_create_json = flow_run_create.model_dump(mode="json")
         response = self.request("POST", "/flow_runs/", json=flow_run_create_json)
+        from prefect.client.schemas.objects import FlowRun
+
         flow_run = FlowRun.model_validate(response.json())
 
         # Restore the parameters to the local objects to retain expectations about
@@ -153,6 +152,8 @@ class FlowRunClient(FlowClient):
         if job_variables is not None:
             params["job_variables"] = job_variables
 
+        from prefect.client.schemas.actions import FlowRunUpdate
+
         flow_run_data = FlowRunUpdate(**params)
 
         return self.request(
@@ -202,6 +203,8 @@ class FlowRunClient(FlowClient):
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
+        from prefect.client.schemas.objects import FlowRun
+
         return FlowRun.model_validate(response.json())
 
     def resume_flow_run(
@@ -226,6 +229,7 @@ class FlowRunClient(FlowClient):
             )
         except httpx.HTTPStatusError:
             raise
+        from prefect.client.schemas import OrchestrationResult
 
         result: OrchestrationResult[Any] = OrchestrationResult.model_validate(
             response.json()
@@ -311,6 +315,8 @@ class FlowRunClient(FlowClient):
         Returns:
             an OrchestrationResult model representation of state orchestration output
         """
+        from uuid import UUID, uuid4
+
         flow_run_id = (
             flow_run_id if isinstance(flow_run_id, UUID) else UUID(flow_run_id)
         )
@@ -332,6 +338,8 @@ class FlowRunClient(FlowClient):
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
+
+        from prefect.client.schemas import OrchestrationResult
 
         result: OrchestrationResult[T] = OrchestrationResult.model_validate(
             response.json()
@@ -357,6 +365,8 @@ class FlowRunClient(FlowClient):
         return State.model_validate_list(response.json())
 
     def set_flow_run_name(self, flow_run_id: "UUID", name: str) -> httpx.Response:
+        from prefect.client.schemas.actions import FlowRunUpdate
+
         flow_run_data = FlowRunUpdate(name=name)
         return self.request(
             "PATCH",
@@ -493,6 +503,8 @@ class FlowRunAsyncClient(FlowAsyncClient):
 
         # Retrieve the flow id
         flow_id = await self.create_flow(flow)
+        from prefect.client.schemas.actions import FlowRunCreate
+        from prefect.client.schemas.objects import FlowRunPolicy
 
         flow_run_create = FlowRunCreate(
             flow_id=flow_id,
@@ -511,6 +523,8 @@ class FlowRunAsyncClient(FlowAsyncClient):
 
         flow_run_create_json = flow_run_create.model_dump(mode="json")
         response = await self.request("POST", "/flow_runs/", json=flow_run_create_json)
+        from prefect.client.schemas.objects import FlowRun
+
         flow_run = FlowRun.model_validate(response.json())
 
         # Restore the parameters to the local objects to retain expectations about
@@ -564,6 +578,7 @@ class FlowRunAsyncClient(FlowAsyncClient):
             params["infrastructure_pid"] = infrastructure_pid
         if job_variables is not None:
             params["job_variables"] = job_variables
+        from prefect.client.schemas.actions import FlowRunUpdate
 
         flow_run_data = FlowRunUpdate(**params)
 
@@ -616,6 +631,8 @@ class FlowRunAsyncClient(FlowAsyncClient):
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
+        from prefect.client.schemas.objects import FlowRun
+
         return FlowRun.model_validate(response.json())
 
     async def resume_flow_run(
@@ -640,6 +657,7 @@ class FlowRunAsyncClient(FlowAsyncClient):
             )
         except httpx.HTTPStatusError:
             raise
+        from prefect.client.schemas import OrchestrationResult
 
         result: OrchestrationResult[Any] = OrchestrationResult.model_validate(
             response.json()
@@ -725,6 +743,8 @@ class FlowRunAsyncClient(FlowAsyncClient):
         Returns:
             an OrchestrationResult model representation of state orchestration output
         """
+        from uuid import UUID, uuid4
+
         flow_run_id = (
             flow_run_id if isinstance(flow_run_id, UUID) else UUID(flow_run_id)
         )
@@ -746,6 +766,7 @@ class FlowRunAsyncClient(FlowAsyncClient):
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
+        from prefect.client.schemas import OrchestrationResult
 
         result: OrchestrationResult[T] = OrchestrationResult.model_validate(
             response.json()
@@ -773,6 +794,8 @@ class FlowRunAsyncClient(FlowAsyncClient):
         return State.model_validate_list(response.json())
 
     async def set_flow_run_name(self, flow_run_id: "UUID", name: str) -> httpx.Response:
+        from prefect.client.schemas.actions import FlowRunUpdate
+
         flow_run_data = FlowRunUpdate(name=name)
         return await self.request(
             "PATCH",
@@ -795,6 +818,8 @@ class FlowRunAsyncClient(FlowAsyncClient):
         """
 
         # Initialize the input to ensure that the key is valid.
+        from prefect.client.schemas.objects import FlowRunInput
+
         FlowRunInput(flow_run_id=flow_run_id, key=key, value=value)
 
         response = await self.request(
