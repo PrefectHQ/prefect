@@ -5,6 +5,8 @@ build system for managing flows and deployments.
 To get started, follow along with [the deloyments tutorial](/tutorials/deployments/).
 """
 
+from __future__ import annotations
+
 import os
 from copy import deepcopy
 from pathlib import Path
@@ -275,6 +277,7 @@ def _save_deployment_to_prefect_file(
     push_steps: Optional[List[Dict]] = None,
     pull_steps: Optional[List[Dict]] = None,
     triggers: Optional[List[Dict]] = None,
+    sla: Optional[list[dict]] = None,
     prefect_file: Path = Path("prefect.yaml"),
 ):
     """
@@ -318,6 +321,9 @@ def _save_deployment_to_prefect_file(
 
         if triggers and triggers != parsed_prefect_file_contents.get("triggers"):
             deployment["triggers"] = triggers
+
+        if sla and sla != parsed_prefect_file_contents.get("sla"):
+            deployment["sla"] = sla
 
         deployments = parsed_prefect_file_contents.get("deployments")
         if deployments is None:
