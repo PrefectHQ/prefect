@@ -48,7 +48,7 @@ class RedisStorageContainer(WritableFileSystem):
         ```
     """
 
-    _logo_url = "https://stprododpcmscdnendpoint.azureedge.net/assets/icons/redis.png"
+    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/dfb02cfce09ce3ca88fea097659a83554dd7a850-596x512.png"
 
     host: Optional[str] = Field(default=None, description="Redis hostname")
     port: int = Field(default=6379, description="Redis port")
