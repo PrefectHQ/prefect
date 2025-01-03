@@ -58,7 +58,9 @@ export const Route = createFileRoute("/deployments/")({
 
 		const deployments = deploymentsPaginateResult?.results ?? [];
 
-		const flowIds = deployments.map((deployment) => deployment.flow_id);
+		const flowIds = [
+			...new Set(deployments.map((deployment) => deployment.flow_id)),
+		];
 
 		// Get flows corresponding to the deployments
 		const flowsFilterResult = context.queryClient.ensureQueryData(
