@@ -35,7 +35,7 @@ export const TaskRunConcurrencyLimitPage = ({ id }: Props) => {
 		}
 	};
 
-	const { activeTaskRuns, taskRunConcurrencyLimit } = data;
+	const { activeTaskRunsPromise, taskRunConcurrencyLimit } = data;
 	const numActiveTaskRuns = taskRunConcurrencyLimit.active_slots?.length;
 	return (
 		<>
@@ -48,11 +48,11 @@ export const TaskRunConcurrencyLimitPage = ({ id }: Props) => {
 				<div className="grid gap-4" style={{ gridTemplateColumns: "3fr 1fr" }}>
 					<TaskRunConcurrencyLimitTabNavigation>
 						<Await
-							promise={activeTaskRuns}
+							promise={activeTaskRunsPromise}
 							fallback={<SkeletonLoading length={numActiveTaskRuns} />}
 						>
-							{(promiseData) => (
-								<TaskRunConcurrencyLimitActiveTaskRuns data={promiseData} />
+							{(activeTaskRuns) => (
+								<TaskRunConcurrencyLimitActiveTaskRuns data={activeTaskRuns} />
 							)}
 						</Await>
 					</TaskRunConcurrencyLimitTabNavigation>

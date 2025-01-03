@@ -331,13 +331,13 @@ export const buildConcurrenyLimitDetailsActiveRunsQuery = (id: string) =>
 				throw new Error("'active_slots' expected");
 			}
 
-			const activeTaskRuns = fetchActiveTaskRunDetails(
+			const activeTaskRunsPromise = fetchActiveTaskRunDetails(
 				taskRunConcurrencyLimit.active_slots,
 			);
 
 			return {
 				taskRunConcurrencyLimit,
-				activeTaskRuns, // defer to return promise
+				activeTaskRunsPromise, // defer to return promise
 			};
 		},
 	});

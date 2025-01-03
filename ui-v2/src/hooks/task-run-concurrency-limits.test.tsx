@@ -323,7 +323,8 @@ describe("buildConcurrenyLimitDetailsActiveRunsQuery()", () => {
 		expect(result.current.data.taskRunConcurrencyLimit).toMatchObject(
 			MOCK_DATA,
 		);
-		const activeTaskRunsResult = await result.current.data.activeTaskRuns;
+		const activeTaskRunsResult =
+			await result.current.data.activeTaskRunsPromise;
 		expect(activeTaskRunsResult).toEqual([
 			{
 				flow: MOCK_FLOW,
