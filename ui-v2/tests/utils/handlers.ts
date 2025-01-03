@@ -12,7 +12,7 @@ const automationsHandlers = [
 	http.patch("http://localhost:4200/api/automations/:id", () => {
 		return new HttpResponse(null, { status: 204 });
 	}),
-	http.delete("http://localhost:4200/api/api/:id", () => {
+	http.delete("http://localhost:4200/api/automations/:id", () => {
 		return HttpResponse.json({ status: 204 });
 	}),
 ];

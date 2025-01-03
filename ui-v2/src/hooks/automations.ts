@@ -1,6 +1,10 @@
 import type { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
-import { queryOptions } from "@tanstack/react-query";
+import {
+	queryOptions,
+	useMutation,
+	useQueryClient,
+} from "@tanstack/react-query";
 
 export type Automation = components["schemas"]["Automation"];
 export type AutomationsFilter =
@@ -58,3 +62,130 @@ export const buildGetAutomationQuery = (id: string) =>
 			return res.data;
 		},
 	});
+
+// ----- ✍🏼 Mutations 🗄️
+// ----------------------------
+
+/**
+ * Hook for deleting an automation
+ *
+ * @returns Mutation object for deleting an automation with loading/error states and trigger function
+ *
+ * @example
+ * ```ts
+ * const { deleteAutomation } = useDeleteAutomation();
+ *
+ * // Delete an automation by id
+ * deleteAutomation('id-to-delete', {
+ *   onSuccess: () => {
+ *     // Handle successful deletion
+ *   },
+ *   onError: (error) => {
+ *     console.error('Failed to delete automation:', error);
+ *   }
+ * });
+ * ```
+ */
+export const useDeleteAutomation = () => {
+	const queryClient = useQueryClient();
+	const { mutate: deleteAutomation, ...rest } = useMutation({
+		mutationFn: (id: string) =>
+			getQueryService().DELETE("/automations/{id}", {
+				params: { path: { id } },
+			}),
+		onSuccess: () => {
+			// After a successful deletion, invalidate the listing queries only to refetch
+			return queryClient.invalidateQueries({
+				queryKey: queryKeyFactory.lists(),
+			});
+		},
+	});
+	return {
+		deleteAutomation,
+		...rest,
+	};
+};
+
+/**
+ * Hook for creating a new automation
+ *
+ * @returns Mutation object for creating an automation with loading/error states and trigger function
+ *
+ * @example
+ * ```ts
+ * const { createAutomation, isLoading } = useCreateAutomation();
+ *
+ * createAutomation(newAutomation, {
+ *   onSuccess: () => {
+ *     // Handle successful creation
+ *     console.log('Automation created successfully');
+ *   },
+ *   onError: (error) => {
+ *     // Handle error
+ *     console.error('Failed to create automation:', error);
+ *   }
+ * });
+ * ```
+ */
+export const useCreateAutomation = () => {
+	const queryClient = useQueryClient();
+	const { mutate: createAutomation, ...rest } = useMutation({
+		mutationFn: (body: components["schemas"]["AutomationCreate"]) =>
+			getQueryService().POST("/automations/", { body }),
+		onSuccess: () => {
+			// After a successful creation, invalidate the listing queries only to refetch
+			return queryClient.invalidateQueries({
+				queryKey: queryKeyFactory.lists(),
+			});
+		},
+	});
+	return {
+		createAutomation,
+		...rest,
+	};
+};
+
+/**
+ * Hook for editing an automation based on ID
+ *
+ * @returns Mutation object for editing an automation with loading/error states and trigger function
+ *
+ * @example
+ * ```ts
+ * const { updateAutomation, isLoading } = useUpdateAutomation();
+ *
+ * // Create a new task run concurrency limit
+ * updateAutomation('my-id', {
+ *   onSuccess: () => {
+ *     console.log('Automation edited successfully');
+ *   },
+ *   onError: (error) => {
+ *     // Handle error
+ *     console.error('Failed to edit automation', error);
+ *   }
+ * });
+ * ```
+ */
+export const useUpdateAutomation = () => {
+	const queryClient = useQueryClient();
+	const { mutate: updateAutomation, ...rest } = useMutation({
+		mutationFn: ({
+			id,
+			...body
+		}: components["schemas"]["AutomationUpdate"] & { id: string }) =>
+			getQueryService().PATCH("/automations/{id}", {
+				body,
+				params: { path: { id } },
+			}),
+		onSuccess: () => {
+			// After a successful reset, invalidate all to get an updated list and details list
+			return queryClient.invalidateQueries({
+				queryKey: queryKeyFactory.all(),
+			});
+		},
+	});
+	return {
+		updateAutomation,
+		...rest,
+	};
+};
