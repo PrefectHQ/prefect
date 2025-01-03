@@ -9,7 +9,7 @@ import {
 import { Icon } from "@/components/ui/icons";
 import { useToast } from "@/hooks/use-toast";
 
-type Props = {
+type TaskRunConcurrencyLimitsActionsMenuProps = {
 	id: string;
 	onDelete: () => void;
 	onReset: () => void;
@@ -19,7 +19,7 @@ export const TaskRunConcurrencyLimitsActionsMenu = ({
 	id,
 	onDelete,
 	onReset,
-}: Props) => {
+}: TaskRunConcurrencyLimitsActionsMenuProps) => {
 	const { toast } = useToast();
 
 	const handleCopyId = (id: string) => {

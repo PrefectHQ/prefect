@@ -1,7 +1,7 @@
 import type { components } from "@/api/prefect";
 import { RunCard } from "@/components/ui/run-card";
 
-type Props = {
+type TaskRunConcurrencyLimitActiveTaskRunsProps = {
 	data: Array<{
 		taskRun: components["schemas"]["TaskRun"];
 		flowRun?: components["schemas"]["FlowRun"] | null;
@@ -9,7 +9,9 @@ type Props = {
 	}>;
 };
 
-export const TaskRunConcurrencyLimitActiveTaskRuns = ({ data }: Props) => {
+export const TaskRunConcurrencyLimitActiveTaskRuns = ({
+	data,
+}: TaskRunConcurrencyLimitActiveTaskRunsProps) => {
 	return (
 		<ul className="flex flex-col gap-2">
 			{data.map((d) => (

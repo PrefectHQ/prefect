@@ -37,7 +37,7 @@ const DEFAULT_VALUES = {
 	concurrency_limit: 0,
 } as const;
 
-type Props = {
+type TaskRunConcurrencyLimitsCreateDialogProps = {
 	onOpenChange: (open: boolean) => void;
 	onSubmit: () => void;
 };
@@ -45,7 +45,7 @@ type Props = {
 export const TaskRunConcurrencyLimitsCreateDialog = ({
 	onOpenChange,
 	onSubmit,
-}: Props) => {
+}: TaskRunConcurrencyLimitsCreateDialogProps) => {
 	const { toast } = useToast();
 
 	const { createTaskRunConcurrencyLimit, isPending } =

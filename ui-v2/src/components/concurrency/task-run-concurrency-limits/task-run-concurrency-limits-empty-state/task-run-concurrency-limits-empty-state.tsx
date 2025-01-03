@@ -9,10 +9,12 @@ import {
 } from "@/components/ui/empty-state";
 import { Icon } from "@/components/ui/icons";
 
-type Props = {
+type TaskRunConcurrencyLimitsEmptyStateProps = {
 	onAdd: () => void;
 };
-export const TaskRunConcurrencyLimitsEmptyState = ({ onAdd }: Props) => (
+export const TaskRunConcurrencyLimitsEmptyState = ({
+	onAdd,
+}: TaskRunConcurrencyLimitsEmptyStateProps) => (
 	<EmptyState>
 		<EmptyStateIcon id="CircleArrowOutUpRight" />
 		<EmptyStateTitle>

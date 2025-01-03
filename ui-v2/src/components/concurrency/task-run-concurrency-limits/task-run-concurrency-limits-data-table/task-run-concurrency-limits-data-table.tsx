@@ -52,7 +52,7 @@ const createColumns = ({
 	}),
 ];
 
-type Props = {
+type TaskRunConcurrencyLimitsDataTableProps = {
 	data: Array<TaskRunConcurrencyLimit>;
 	onDeleteRow: (row: TaskRunConcurrencyLimit) => void;
 	onResetRow: (row: TaskRunConcurrencyLimit) => void;
@@ -62,7 +62,7 @@ export const TaskRunConcurrencyLimitsDataTable = ({
 	data,
 	onDeleteRow,
 	onResetRow,
-}: Props) => {
+}: TaskRunConcurrencyLimitsDataTableProps) => {
 	const navigate = routeApi.useNavigate();
 	const { search } = routeApi.useSearch();
 	const deferredSearch = useDeferredValue(search ?? "");

@@ -17,12 +17,15 @@ const DOCS_LINKS = {
 
 type DocsID = keyof typeof DOCS_LINKS;
 
-type Props = {
+type DocsLinkProps = {
 	id: DocsID;
 	label?: "View Docs" | "Documentation";
 };
 
-export const DocsLink = ({ id, label = "View Docs" }: Props): JSX.Element => {
+export const DocsLink = ({
+	id,
+	label = "View Docs",
+}: DocsLinkProps): JSX.Element => {
 	return (
 		<a href={DOCS_LINKS[id]} target="_blank" rel="noreferrer">
 			<Button variant="outline">
