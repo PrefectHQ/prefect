@@ -7,7 +7,7 @@ import { buildListFlowsQuery } from "@/api/flows";
 import { DeploymentsDataTable } from "@/components/deployments/data-table";
 import { DeploymentsEmptyState } from "@/components/deployments/empty-state";
 import { DeploymentsPageHeader } from "@/components/deployments/header";
-import { useSuspenseQueries, useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQueries } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
@@ -96,12 +96,14 @@ function RouteComponent() {
 
 	const deployments = deploymentsPage?.results ?? [];
 
-	const { data: flows } = useSuspenseQuery(
+	const { data: flows } = useQuery(
 		buildListFlowsQuery({
 			flows: {
 				operator: "and_",
 				id: {
-					any_: deployments.map((deployment) => deployment.flow_id),
+					any_: [
+						...new Set(deployments.map((deployment) => deployment.flow_id)),
+					],
 				},
 			},
 			offset: 0,
@@ -111,7 +113,7 @@ function RouteComponent() {
 
 	const deploymentsWithFlows = deployments.map((deployment) => ({
 		...deployment,
-		flow: flows.find((flow) => flow.id === deployment.flow_id),
+		flow: flows?.find((flow) => flow.id === deployment.flow_id),
 	}));
 
 	return (
