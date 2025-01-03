@@ -377,7 +377,6 @@ class RunnerDeployment(BaseModel):
                     sla.set_deployment_id(deployment_id)
                     await client.create_sla(sla)
                 except Exception as e:
-                    e.add_note(f"SLA named '{sla.name}' failed to create")
                     exceptions.append(e)
             if exceptions:
                 raise ExceptionGroup("Failed to create SLAs", exceptions)  # novermin
