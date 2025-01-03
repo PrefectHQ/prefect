@@ -25,7 +25,8 @@ automations_app = PrefectTyper(
     name="automation",
     help="Manage automations.",
 )
-app.add_typer(automations_app, aliases=["automations"])
+app.add_typer(automations_app, no_args_is_help=True)
+app.add_typer(automations_app, name="automations", hidden=True, no_args_is_help=True)
 
 
 def requires_automations(func):
@@ -41,7 +42,7 @@ def requires_automations(func):
     return wrapper
 
 
-@automations_app.command()
+@automations_app.acommand()
 @requires_automations
 async def ls():
     """List all automations."""
@@ -100,7 +101,7 @@ async def ls():
     app.console.print(table)
 
 
-@automations_app.command()
+@automations_app.acommand()
 @requires_automations
 async def inspect(
     name: Optional[str] = typer.Argument(None, help="An automation's name"),
@@ -175,7 +176,6 @@ async def inspect(
         app.console.print(Pretty(automation))
 
 
-@automations_app.command(aliases=["enable"])
 @requires_automations
 async def resume(
     name: Optional[str] = typer.Argument(None, help="An automation's name"),
@@ -230,7 +230,10 @@ async def resume(
             exit_with_success(f"Resumed automation with id {str(automation.id)!r}.")
 
 
-@automations_app.command(aliases=["disable"])
+automations_app.acommand("resume")(resume)
+automations_app.acommand("enable", hidden=True)(resume)
+
+
 @requires_automations
 async def pause(
     name: Optional[str] = typer.Argument(None, help="An automation's name"),
@@ -285,7 +288,11 @@ async def pause(
             exit_with_success(f"Paused automation with id {str(automation.id)!r}.")
 
 
-@automations_app.command()
+automations_app.acommand("pause")(pause)
+automations_app.acommand("disable", hidden=True)(pause)
+
+
+@automations_app.acommand()
 @requires_automations
 async def delete(
     name: Optional[str] = typer.Argument(None, help="An automation's name"),

@@ -79,7 +79,7 @@ if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
 
 
-@app.command()
+@app.acommand()
 async def init(
     name: Optional[str] = None,
     recipe: Optional[str] = None,
@@ -196,7 +196,7 @@ async def init(
     app.console.print(file_msg if files else empty_msg)
 
 
-@app.command()
+@app.acommand()
 async def deploy(
     entrypoint: str = typer.Argument(
         None,

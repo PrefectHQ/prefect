@@ -21,7 +21,8 @@ from prefect.client.schemas.objects import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 
 work_app = PrefectTyper(name="work-queue", help="Manage work queues.")
-app.add_typer(work_app, aliases=["work-queues"])
+app.add_typer(work_app, no_args_is_help=True)
+app.add_typer(work_app, name="work-queues", hidden=True, no_args_is_help=True)
 
 
 async def _get_work_queue_id_from_name_or_id(
@@ -59,7 +60,7 @@ async def _get_work_queue_id_from_name_or_id(
                 )
 
 
-@work_app.command()
+@work_app.acommand()
 async def create(
     name: str = typer.Argument(..., help="The unique name to assign this work queue"),
     limit: int = typer.Option(
@@ -118,7 +119,7 @@ async def create(
     exit_with_success(output_msg)
 
 
-@work_app.command()
+@work_app.acommand()
 async def set_concurrency_limit(
     name: str = typer.Argument(..., help="The name or ID of the work queue"),
     limit: int = typer.Argument(..., help="The concurrency limit to set on the queue."),
@@ -162,7 +163,7 @@ async def set_concurrency_limit(
     exit_with_success(success_message)
 
 
-@work_app.command()
+@work_app.acommand()
 async def clear_concurrency_limit(
     name: str = typer.Argument(..., help="The name or ID of the work queue to clear"),
     pool: Optional[str] = typer.Option(
@@ -201,7 +202,7 @@ async def clear_concurrency_limit(
     exit_with_success(success_message)
 
 
-@work_app.command()
+@work_app.acommand()
 async def pause(
     name: str = typer.Argument(..., help="The name or ID of the work queue to pause"),
     pool: Optional[str] = typer.Option(
@@ -245,7 +246,7 @@ async def pause(
     exit_with_success(success_message)
 
 
-@work_app.command()
+@work_app.acommand()
 async def resume(
     name: str = typer.Argument(..., help="The name or ID of the work queue to resume"),
     pool: Optional[str] = typer.Option(
@@ -283,7 +284,7 @@ async def resume(
     exit_with_success(success_message)
 
 
-@work_app.command()
+@work_app.acommand()
 async def inspect(
     name: str = typer.Argument(
         None, help="The name or ID of the work queue to inspect"
@@ -323,7 +324,7 @@ async def inspect(
             pass
 
 
-@work_app.command()
+@work_app.acommand()
 async def ls(
     verbose: bool = typer.Option(
         False, "--verbose", "-v", help="Display more information."
@@ -427,7 +428,7 @@ async def ls(
     app.console.print(table)
 
 
-@work_app.command()
+@work_app.acommand()
 async def preview(
     name: str = typer.Argument(
         None, help="The name or ID of the work queue to preview"
@@ -514,7 +515,7 @@ async def preview(
         )
 
 
-@work_app.command()
+@work_app.acommand()
 async def delete(
     name: str = typer.Argument(..., help="The name or ID of the work queue to delete"),
     pool: Optional[str] = typer.Option(
@@ -555,7 +556,7 @@ async def delete(
     exit_with_success(success_message)
 
 
-@work_app.command("read-runs")
+@work_app.acommand("read-runs")
 async def read_wq_runs(
     name: str = typer.Argument(..., help="The name or ID of the work queue to poll"),
     pool: Optional[str] = typer.Option(
