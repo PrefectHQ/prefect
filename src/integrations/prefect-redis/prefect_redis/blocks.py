@@ -50,7 +50,7 @@ class RedisDatabase(WritableFileSystem):
             ```
     """
 
-    _logo_url = "https://stprododpcmscdnendpoint.azureedge.net/assets/icons/redis.png"
+    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/dfb02cfce09ce3ca88fea097659a83554dd7a850-596x512.png"
     _block_type_name = "Redis Database"
 
     host: str = Field(default="localhost", description="Redis hostname")

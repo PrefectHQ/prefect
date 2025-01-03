@@ -1,3 +1,7 @@
+import {
+	type TaskRunConcurrencyLimit,
+	useDeleteTaskRunConcurrencyLimit,
+} from "@/api/task-run-concurrency-limits";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -8,10 +12,6 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-	type TaskRunConcurrencyLimit,
-	useDeleteTaskRunConcurrencyLimit,
-} from "@/hooks/task-run-concurrency-limits";
 import { useToast } from "@/hooks/use-toast";
 
 type TaskRunConcurrencyLimitsDeleteDialogProps = {
