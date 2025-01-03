@@ -130,6 +130,7 @@ class RunnerDeployment(BaseModel):
         job_variables: Settings used to override the values specified default base job template
             of the chosen work pool. Refer to the base job template of the chosen work pool for
             available settings.
+        sla: Experimental: SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
     """
 
     model_config: ClassVar[ConfigDict] = ConfigDict(arbitrary_types_allowed=True)
@@ -528,6 +529,7 @@ class RunnerDeployment(BaseModel):
             job_variables: Settings used to override the values specified default base job template
                 of the chosen work pool. Refer to the base job template of the chosen work pool for
                 available settings.
+            sla: Experimental: SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
         """
         constructed_schedules = cls._construct_deployment_schedules(
             interval=interval,
@@ -671,6 +673,7 @@ class RunnerDeployment(BaseModel):
             job_variables: Settings used to override the values specified default base job template
                 of the chosen work pool. Refer to the base job template of the chosen work pool for
                 available settings.
+            sla: Experimental: SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
         """
         from prefect.flows import load_flow_from_entrypoint
 
@@ -774,6 +777,7 @@ class RunnerDeployment(BaseModel):
             job_variables: Settings used to override the values specified default base job template
                 of the chosen work pool. Refer to the base job template of the chosen work pool for
                 available settings.
+            sla: Experimental: SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
         """
         from prefect.flows import load_flow_from_entrypoint
 

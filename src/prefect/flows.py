@@ -685,6 +685,7 @@ class Flow(Generic[P, R]):
                 of the chosen work pool. Refer to the base job template of the chosen work pool for
             entrypoint_type: Type of entrypoint to use for the deployment. When using a module path
                 entrypoint, ensure that the module will be importable in the execution environment.
+            sla: Experimental: SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
 
         Examples:
             Prepare two deployments and serve them:
@@ -1120,6 +1121,7 @@ class Flow(Generic[P, R]):
             print_next_steps_message: Whether or not to print a message with next steps
                 after deploying the deployments.
             ignore_warnings: Whether or not to ignore warnings about the work pool type.
+            sla: Experimental: SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
         Returns:
             The ID of the created/updated deployment.
 
