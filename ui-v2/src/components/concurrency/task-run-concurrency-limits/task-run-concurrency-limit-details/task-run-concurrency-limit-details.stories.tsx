@@ -1,4 +1,4 @@
-import { createFakeTaskRunConcurrencyLimit } from "@/storybook/utils";
+import { createFakeTaskRunConcurrencyLimit } from "@/mocks";
 import type { Meta, StoryObj } from "@storybook/react";
 
 import { TaskRunConcurrencyLimitDetails } from "./task-run-concurrency-limit-details";

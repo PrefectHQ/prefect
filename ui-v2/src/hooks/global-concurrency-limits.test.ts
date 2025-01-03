@@ -4,6 +4,7 @@ import { createWrapper, server } from "@tests/utils";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 
+import { createFakeGlobalConcurrencyLimit } from "@/mocks";
 import {
 	type GlobalConcurrencyLimit,
 	queryKeyFactory,
@@ -14,18 +15,10 @@ import {
 } from "./global-concurrency-limits";
 
 describe("global concurrency limits hooks", () => {
-	const seedGlobalConcurrencyLimits = () => [
-		{
-			id: "0",
-			created: "2021-01-01T00:00:00Z",
-			updated: "2021-01-01T00:00:00Z",
-			active: false,
-			name: "global concurrency limit 0",
-			limit: 0,
-			active_slots: 0,
-			slot_decay_per_second: 0,
-		},
-	];
+	const MOCK_DATA = createFakeGlobalConcurrencyLimit({
+		id: "0",
+	});
+	const seedData = () => [MOCK_DATA];
 
 	const mockFetchGlobalConcurrencyLimitsAPI = (
 		globalConcurrencyLimits: Array<GlobalConcurrencyLimit>,
@@ -50,7 +43,7 @@ describe("global concurrency limits hooks", () => {
 	 */
 	it("is stores list data into the appropriate list query when using useQuery()", async () => {
 		// ------------ Mock API requests when cache is empty
-		const mockList = seedGlobalConcurrencyLimits();
+		const mockList = seedData();
 		mockFetchGlobalConcurrencyLimitsAPI(mockList);
 
 		// ------------ Initialize hooks to test
@@ -73,16 +66,11 @@ describe("global concurrency limits hooks", () => {
 		const queryClient = new QueryClient();
 
 		// ------------ Mock API requests after queries are invalidated
-		const mockData = seedGlobalConcurrencyLimits().filter(
-			(limit) => limit.id !== ID_TO_DELETE,
-		);
+		const mockData = seedData().filter((limit) => limit.id !== ID_TO_DELETE);
 		mockFetchGlobalConcurrencyLimitsAPI(mockData);
 
 		// ------------ Initialize cache
-		queryClient.setQueryData(
-			queryKeyFactory.list(filter),
-			seedGlobalConcurrencyLimits(),
-		);
+		queryClient.setQueryData(queryKeyFactory.list(filter), seedData());
 
 		// ------------ Initialize hooks to test
 		const { result: useListGlobalConcurrencyLimitsResult } = renderHook(
@@ -129,23 +117,16 @@ describe("global concurrency limits hooks", () => {
 		};
 
 		// ------------ Mock API requests after queries are invalidated
-		const NEW_LIMIT_DATA = {
-			...MOCK_NEW_LIMIT,
+		const NEW_LIMIT_DATA = createFakeGlobalConcurrencyLimit({
 			id: MOCK_NEW_LIMIT_ID,
-			created: "2021-01-01T00:00:00Z",
-			updated: "2021-01-01T00:00:00Z",
-			active_slots: 0,
-			slot_decay_per_second: 0,
-		};
+			...MOCK_NEW_LIMIT,
+		});
 
-		const mockData = [...seedGlobalConcurrencyLimits(), NEW_LIMIT_DATA];
+		const mockData = [...seedData(), NEW_LIMIT_DATA];
 		mockFetchGlobalConcurrencyLimitsAPI(mockData);
 
 		// ------------ Initialize cache
-		queryClient.setQueryData(
-			queryKeyFactory.list(filter),
-			seedGlobalConcurrencyLimits(),
-		);
+		queryClient.setQueryData(queryKeyFactory.list(filter), seedData());
 
 		// ------------ Initialize hooks to test
 		const { result: useListGlobalConcurrencyLimitsResult } = renderHook(
@@ -201,17 +182,14 @@ describe("global concurrency limits hooks", () => {
 		};
 
 		// ------------ Mock API requests after queries are invalidated
-		const mockData = seedGlobalConcurrencyLimits().map((limit) =>
+		const mockData = seedData().map((limit) =>
 			limit.id === MOCK_UPDATE_LIMIT_ID ? UPDATED_LIMIT : limit,
 		);
 		mockFetchGlobalConcurrencyLimitsAPI(mockData);
 
 		// ------------ Initialize cache
 
-		queryClient.setQueryData(
-			queryKeyFactory.list(filter),
-			seedGlobalConcurrencyLimits(),
-		);
+		queryClient.setQueryData(queryKeyFactory.list(filter), seedData());
 
 		// ------------ Initialize hooks to test
 		const { result: useListGlobalConcurrencyLimitsResult } = renderHook(
