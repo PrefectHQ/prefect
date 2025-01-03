@@ -2,12 +2,9 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 
-import {
-	type Deployment,
-	useCountDeployments,
-	usePaginateDeployments,
-} from "./index";
+import { useCountDeployments, usePaginateDeployments } from "./index";
 
+import { Deployment } from "@/api/deployments";
 import { createWrapper, server } from "@tests/utils";
 
 describe("deployments hooks", () => {

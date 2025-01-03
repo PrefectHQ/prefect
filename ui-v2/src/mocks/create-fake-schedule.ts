@@ -95,7 +95,7 @@ const scheduleGenerators = [
 	generateRandomRRuleSchedule,
 ];
 
-export function generateRandomSchedule(): components["schemas"]["DeploymentSchedule"] {
+export function createFakeSchedule(): components["schemas"]["DeploymentSchedule"] {
 	const selectedScheduleGenerator =
 		faker.helpers.arrayElement(scheduleGenerators);
 	return {
