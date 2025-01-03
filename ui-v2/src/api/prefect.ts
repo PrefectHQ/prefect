@@ -9551,7 +9551,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": boolean;
                 };
             };
         };
@@ -9571,7 +9571,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": string;
                 };
             };
         };

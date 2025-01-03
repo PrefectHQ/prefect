@@ -1,4 +1,4 @@
-from typing import Type, Union
+from typing import Any, Type, Union
 from uuid import UUID, uuid4
 
 import pytest
@@ -273,8 +273,8 @@ async def create_deployment_with_work_pool(
     session: AsyncSession,
     flow: ORMFlow,
     work_pool: ORMWorkPool,
-    **kwargs,
-):
+    **kwargs: Any,
+) -> ORMDeployment:
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
