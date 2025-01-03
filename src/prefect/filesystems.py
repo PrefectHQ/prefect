@@ -97,7 +97,6 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
     def cast_pathlib(cls, value: str | Path | None) -> str | None:
         if value is None:
             return value
-        print(f"\n\n\n\n{value}\n\n\n\n")
         return stringify_path(value)
 
     def _resolve_path(self, path: str, validate: bool = False) -> Path:
