@@ -866,6 +866,9 @@ class BaseWorker(abc.ABC):
 
         for flow_run in submittable_flow_runs:
             if flow_run.id in self._submitting_flow_run_ids:
+                self._logger.debug(
+                    f"Skipping {flow_run.id} because it's already being submitted"
+                )
                 continue
             try:
                 if self._limiter:
@@ -945,7 +948,7 @@ class BaseWorker(abc.ABC):
             return
 
         ready_to_submit = await self._propose_pending_state(flow_run)
-
+        self._logger.debug(f"Ready to submit {flow_run.id}: {ready_to_submit}")
         if ready_to_submit:
             readiness_result = await self._runs_task_group.start(
                 self._submit_run_and_capture_errors, flow_run
@@ -969,10 +972,9 @@ class BaseWorker(abc.ABC):
             else:
                 # If the run is not ready to submit, release the concurrency slot
                 self._release_limit_slot(flow_run.id)
-
-            self._submitting_flow_run_ids.remove(flow_run.id)
         else:
             self._release_limit_slot(flow_run.id)
+        self._submitting_flow_run_ids.remove(flow_run.id)
 
     async def _submit_run_and_capture_errors(
         self, flow_run: "FlowRun", task_status: Optional[anyio.abc.TaskStatus] = None
@@ -1102,6 +1104,7 @@ class BaseWorker(abc.ABC):
                     f"Server sent an abort signal: {exc}"
                 ),
             )
+
             return False
         except Exception:
             run_logger.exception(
