@@ -1,7 +1,7 @@
 import {
 	type TaskRunConcurrencyLimit,
 	useListTaskRunConcurrencyLimits,
-} from "@/hooks/task-run-concurrency-limits";
+} from "@/api/task-run-concurrency-limits";
 import { useState } from "react";
 
 import { TaskRunConcurrencyLimitsDataTable } from "@/components/concurrency/task-run-concurrency-limits/task-run-concurrency-limits-data-table";
