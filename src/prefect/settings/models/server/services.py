@@ -46,7 +46,7 @@ class ServerServicesEventPersisterSettings(PrefectBaseSettings):
     )
 
     enabled: bool = Field(
-        default=True,
+        default=False,
         description="Whether or not to start the event persister service in the server application.",
         validation_alias=AliasChoices(
             AliasPath("enabled"),
