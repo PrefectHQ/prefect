@@ -14,11 +14,13 @@ import {
 } from "./task-run-concurrency-limit-dialog";
 import { TaskRunConcurrencyLimitTabNavigation } from "./task-run-concurrency-limit-tab-navigation";
 
-type Props = {
+type TaskRunConcurrencyLimitPageProps = {
 	id: string;
 };
 
-export const TaskRunConcurrencyLimitPage = ({ id }: Props) => {
+export const TaskRunConcurrencyLimitPage = ({
+	id,
+}: TaskRunConcurrencyLimitPageProps) => {
 	const [openDialog, setOpenDialog] = useState<Dialogs>(null);
 	const { data } = useSuspenseQuery(
 		buildConcurrenyLimitDetailsActiveRunsQuery(id),
@@ -35,7 +37,7 @@ export const TaskRunConcurrencyLimitPage = ({ id }: Props) => {
 		}
 	};
 
-	const { activeTaskRuns, taskRunConcurrencyLimit } = data;
+	const { activeTaskRunsPromise, taskRunConcurrencyLimit } = data;
 	const numActiveTaskRuns = taskRunConcurrencyLimit.active_slots?.length;
 	return (
 		<>
@@ -48,11 +50,11 @@ export const TaskRunConcurrencyLimitPage = ({ id }: Props) => {
 				<div className="grid gap-4" style={{ gridTemplateColumns: "3fr 1fr" }}>
 					<TaskRunConcurrencyLimitTabNavigation>
 						<Await
-							promise={activeTaskRuns}
+							promise={activeTaskRunsPromise}
 							fallback={<SkeletonLoading length={numActiveTaskRuns} />}
 						>
-							{(promiseData) => (
-								<TaskRunConcurrencyLimitActiveTaskRuns data={promiseData} />
+							{(activeTaskRuns) => (
+								<TaskRunConcurrencyLimitActiveTaskRuns data={activeTaskRuns} />
 							)}
 						</Await>
 					</TaskRunConcurrencyLimitTabNavigation>
