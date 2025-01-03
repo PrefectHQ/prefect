@@ -556,6 +556,7 @@ class DeploymentClient(BaseClient):
         context = context or {}
         state = state or Scheduled()
         tags = tags or []
+        labels = labels or {}
 
         flow_run_create = DeploymentFlowRunCreate(
             parameters=parameters,
@@ -1100,6 +1101,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
         context = context or {}
         state = state or Scheduled()
         tags = tags or []
+        labels = labels or {}
 
         flow_run_create = DeploymentFlowRunCreate(
             parameters=parameters,
