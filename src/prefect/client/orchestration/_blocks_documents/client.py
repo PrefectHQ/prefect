@@ -122,9 +122,6 @@ class BlocksDocumentClient(BaseClient):
             A block document or None.
         """
 
-        assert (
-            block_document_id is not None
-        ), "Unexpected ID on block document. Was it persisted?"
         try:
             response = self.request(
                 "GET",
