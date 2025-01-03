@@ -184,13 +184,11 @@ class Automation(AutomationCore):
 
     @overload
     @classmethod
-    async def aread(cls, id: None = None, name: str = ...) -> Optional[Self]:
+    async def aread(cls, id: None = None, name: str = ...) -> Self:
         ...
 
     @classmethod
-    async def aread(
-        cls, id: Optional[UUID] = None, name: Optional[str] = None
-    ) -> Optional[Self]:
+    async def aread(cls, id: Optional[UUID] = None, name: Optional[str] = None) -> Self:
         """
         Asynchronously read an automation by ID or name.
 
@@ -224,9 +222,8 @@ class Automation(AutomationCore):
                     assert name is not None
                 automation = await client.read_automations_by_name(name=name)
                 if len(automation) > 0:
-                    return cls(**automation[0].model_dump()) if automation else None
-                else:
-                    raise ValueError(f"Automation with name {name!r} not found")
+                    return cls(**automation[0].model_dump())
+                raise ValueError(f"Automation with name {name!r} not found")
 
     @overload
     @classmethod
@@ -235,14 +232,12 @@ class Automation(AutomationCore):
 
     @overload
     @classmethod
-    async def read(cls, id: None = None, name: str = ...) -> Optional[Self]:
+    async def read(cls, id: None = None, name: str = ...) -> Self:
         ...
 
     @classmethod
     @async_dispatch(aread)
-    def read(
-        cls, id: Optional[UUID] = None, name: Optional[str] = None
-    ) -> Optional[Self]:
+    def read(cls, id: Optional[UUID] = None, name: Optional[str] = None) -> Self:
         """
         Read an automation by ID or name.
 
@@ -276,9 +271,8 @@ class Automation(AutomationCore):
                     assert name is not None
                 automation = client.read_automations_by_name(name=name)
                 if len(automation) > 0:
-                    return cls(**automation[0].model_dump()) if automation else None
-                else:
-                    raise ValueError(f"Automation with name {name!r} not found")
+                    return cls(**automation[0].model_dump())
+                raise ValueError(f"Automation with name {name!r} not found")
 
     async def adelete(self: Self) -> bool:
         """
