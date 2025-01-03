@@ -172,7 +172,7 @@ export const useUpdateAutomation = () => {
 		mutationFn: ({
 			id,
 			...body
-		}: components["schemas"]["AutomationUpdate"] & { id: string }) =>
+		}: components["schemas"]["AutomationPartialUpdate"] & { id: string }) =>
 			getQueryService().PATCH("/automations/{id}", {
 				body,
 				params: { path: { id } },
