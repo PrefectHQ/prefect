@@ -1,7 +1,4 @@
-import {
-	type GlobalConcurrencyLimit,
-	useDeleteGlobalConcurrencyLimit,
-} from "@/api/global-concurrency-limits";
+import { Automation, useDeleteAutomation } from "@/api/automations";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -14,29 +11,28 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 
-type GlobalConcurrencyLimitsDeleteDialogProps = {
-	limit: GlobalConcurrencyLimit;
+type AutomationsDeleteDialogProps = {
+	automation: Automation;
 	onOpenChange: (open: boolean) => void;
 	onDelete: () => void;
 };
 
-export const GlobalConcurrencyLimitsDeleteDialog = ({
-	limit,
+export const AutomationsDeleteDialog = ({
+	automation,
 	onOpenChange,
 	onDelete,
-}: GlobalConcurrencyLimitsDeleteDialogProps) => {
+}: AutomationsDeleteDialogProps) => {
 	const { toast } = useToast();
-	const { deleteGlobalConcurrencyLimit, isPending } =
-		useDeleteGlobalConcurrencyLimit();
+	const { deleteAutomation, isPending } = useDeleteAutomation();
 
 	const handleOnClick = (id: string) => {
-		deleteGlobalConcurrencyLimit(id, {
+		deleteAutomation(id, {
 			onSuccess: () => {
-				toast({ description: "Concurrency limit deleted" });
+				toast({ description: "Automation deleted" });
 			},
 			onError: (error) => {
 				const message =
-					error.message || "Unknown error while deleting concurrency limit.";
+					error.message || "Unknown error while deleting automation.";
 				console.error(message);
 			},
 			onSettled: onDelete,
@@ -47,10 +43,10 @@ export const GlobalConcurrencyLimitsDeleteDialog = ({
 		<Dialog open onOpenChange={onOpenChange}>
 			<DialogContent>
 				<DialogHeader>
-					<DialogTitle>Delete Concurrency Limit</DialogTitle>
+					<DialogTitle>Delete Automation</DialogTitle>
 				</DialogHeader>
 				<DialogDescription>
-					Are you sure you want to delete {limit.name}
+					Are you sure you want to delete {automation.name}
 				</DialogDescription>
 				<DialogFooter>
 					<DialogTrigger asChild>
@@ -58,7 +54,7 @@ export const GlobalConcurrencyLimitsDeleteDialog = ({
 					</DialogTrigger>
 					<Button
 						variant="destructive"
-						onClick={() => handleOnClick(limit.id)}
+						onClick={() => handleOnClick(automation.id)}
 						loading={isPending}
 					>
 						Delete
