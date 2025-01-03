@@ -82,6 +82,8 @@ class LogAsyncClient(BaseAsyncClient):
         """
         Read flow and task run logs.
         """
+        from prefect.client.schemas.sorting import LogSort
+
         body: dict[str, Any] = {
             "logs": log_filter.model_dump(mode="json") if log_filter else None,
             "limit": limit,
