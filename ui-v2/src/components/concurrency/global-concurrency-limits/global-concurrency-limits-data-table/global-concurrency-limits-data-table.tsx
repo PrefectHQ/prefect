@@ -54,7 +54,7 @@ const createColumns = ({
 	}),
 ];
 
-type Props = {
+type GlobalConcurrencyLimitsDataTableProps = {
 	data: Array<GlobalConcurrencyLimit>;
 	onEditRow: (row: GlobalConcurrencyLimit) => void;
 	onDeleteRow: (row: GlobalConcurrencyLimit) => void;
@@ -64,7 +64,7 @@ export const GlobalConcurrencyLimitsDataTable = ({
 	data,
 	onEditRow,
 	onDeleteRow,
-}: Props) => {
+}: GlobalConcurrencyLimitsDataTableProps) => {
 	const navigate = routeApi.useNavigate();
 	const { search } = routeApi.useSearch();
 	const deferredSearch = useDeferredValue(search ?? "");

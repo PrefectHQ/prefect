@@ -14,7 +14,7 @@ import {
 } from "@/hooks/global-concurrency-limits";
 import { useToast } from "@/hooks/use-toast";
 
-type Props = {
+type GlobalConcurrencyLimitsDeleteDialogProps = {
 	limit: GlobalConcurrencyLimit;
 	onOpenChange: (open: boolean) => void;
 	onDelete: () => void;
@@ -24,7 +24,7 @@ export const GlobalConcurrencyLimitsDeleteDialog = ({
 	limit,
 	onOpenChange,
 	onDelete,
-}: Props) => {
+}: GlobalConcurrencyLimitsDeleteDialogProps) => {
 	const { toast } = useToast();
 	const { deleteGlobalConcurrencyLimit, isPending } =
 		useDeleteGlobalConcurrencyLimit();
