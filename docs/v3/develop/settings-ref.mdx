@@ -413,6 +413,18 @@ API URL for Prefect Cloud. Used for authentication with Prefect Cloud.
 **Supported environment variables**:
 `PREFECT_CLOUD_API_URL`
 
+### `enable_orchestration_telemetry`
+Whether or not to enable orchestration telemetry.
+
+**Type**: `boolean`
+
+**Default**: `True`
+
+**TOML dotted key path**: `cloud.enable_orchestration_telemetry`
+
+**Supported environment variables**:
+`PREFECT_CLOUD_ENABLE_ORCHESTRATION_TELEMETRY`
+
 ### `ui_url`
 The URL of the Prefect Cloud UI. If not set, the client will attempt to infer it.
 
@@ -466,18 +478,6 @@ If `True`, warn on usage of experimental features.
 
 **Supported environment variables**:
 `PREFECT_EXPERIMENTS_WARN`, `PREFECT_EXPERIMENTAL_WARN`
-
-### `telemetry_enabled`
-Enables sending telemetry to Prefect Cloud.
-
-**Type**: `boolean`
-
-**Default**: `False`
-
-**TOML dotted key path**: `experiments.telemetry_enabled`
-
-**Supported environment variables**:
-`PREFECT_EXPERIMENTS_TELEMETRY_ENABLED`
 
 ### `lineage_events_enabled`
 If `True`, enables emitting lineage events. Set to `False` to disable lineage event emission.
