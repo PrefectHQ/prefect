@@ -14,7 +14,7 @@ import {
 } from "@/hooks/task-run-concurrency-limits";
 import { useToast } from "@/hooks/use-toast";
 
-type Props = {
+type TaskRunConcurrencyLimitsResetDialogProps = {
 	data: TaskRunConcurrencyLimit;
 	onOpenChange: (open: boolean) => void;
 	onReset: () => void;
@@ -24,7 +24,7 @@ export const TaskRunConcurrencyLimitsResetDialog = ({
 	data,
 	onOpenChange,
 	onReset,
-}: Props) => {
+}: TaskRunConcurrencyLimitsResetDialogProps) => {
 	const { toast } = useToast();
 	const { resetTaskRunConcurrencyLimitTag, isPending } =
 		useResetTaskRunConcurrencyLimitTag();

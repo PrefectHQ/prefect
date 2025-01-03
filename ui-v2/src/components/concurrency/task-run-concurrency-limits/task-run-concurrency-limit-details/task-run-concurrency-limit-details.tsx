@@ -4,11 +4,13 @@ import type { TaskRunConcurrencyLimit } from "@/hooks/task-run-concurrency-limit
 import { format, parseISO } from "date-fns";
 import React from "react";
 
-type Props = {
+type TaskRunConcurrencyLimitDetailsProps = {
 	data: TaskRunConcurrencyLimit;
 };
 
-export const TaskRunConcurrencyLimitDetails = ({ data }: Props) => {
+export const TaskRunConcurrencyLimitDetails = ({
+	data,
+}: TaskRunConcurrencyLimitDetailsProps) => {
 	return (
 		<div className="flex flex-col gap-4">
 			<dt className="text-muted-foreground">Tag</dt>
