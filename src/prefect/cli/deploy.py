@@ -1760,8 +1760,8 @@ def _handle_deprecated_schedule_fields(deploy_config: Dict):
 
 
 def _gather_deployment_sla_definitions(
-    sla_flags: list[str] | None, existing_slas: list[dict[str, Any]] | None
-) -> list[dict[str, Any]] | None:
+    sla_flags: Union[list[str], None], existing_slas: Union[list[dict[str, Any]], None]
+) -> Union[list[dict[str, Any]], None]:
     """Parses SLA flags from CLI and existing deployment config in `prefect.yaml`.
     Prefers CLI-provided SLAs over config in `prefect.yaml`.
     """
