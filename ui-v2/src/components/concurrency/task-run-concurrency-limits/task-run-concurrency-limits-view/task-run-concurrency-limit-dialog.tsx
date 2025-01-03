@@ -1,7 +1,7 @@
+import type { TaskRunConcurrencyLimit } from "@/api/task-run-concurrency-limits";
 import { TaskRunConcurrencyLimitsCreateDialog } from "@/components/concurrency/task-run-concurrency-limits/task-run-concurrency-limits-create-dialog";
 import { TaskRunConcurrencyLimitsDeleteDialog } from "@/components/concurrency/task-run-concurrency-limits/task-run-concurrency-limits-delete-dialog";
 import { TaskRunConcurrencyLimitsResetDialog } from "@/components/concurrency/task-run-concurrency-limits/task-run-concurrency-limits-reset-dialog";
-import type { TaskRunConcurrencyLimit } from "@/hooks/task-run-concurrency-limits";
 
 export type DialogState =
 	| { dialog: null | "create"; data: undefined }

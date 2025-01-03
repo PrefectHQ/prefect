@@ -1,5 +1,5 @@
+import type { TaskRunConcurrencyLimit } from "@/api/task-run-concurrency-limits";
 import { TaskRunConcurrencyLimitsActionsMenu } from "@/components/concurrency/task-run-concurrency-limits/task-run-concurrency-limits-actions-menu";
-import type { TaskRunConcurrencyLimit } from "@/hooks/task-run-concurrency-limits";
 
 import { NavHeader } from "./nav-header";
 
