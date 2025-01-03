@@ -4,7 +4,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { AutomationsCreateHeader } from "./automations-create-header";
 
 const meta = {
-	title: "Components/Automations/Create/AutomationsCreateHeader",
+	title: "Components/Automations/AutomationsCreateHeader",
 	component: AutomationsCreateHeader,
 	decorators: [routerDecorator],
 } satisfies Meta<typeof AutomationsCreateHeader>;
