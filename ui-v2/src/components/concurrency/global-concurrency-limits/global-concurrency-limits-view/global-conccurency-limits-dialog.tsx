@@ -1,4 +1,4 @@
-import type { GlobalConcurrencyLimit } from "@/hooks/global-concurrency-limits";
+import type { GlobalConcurrencyLimit } from "@/api/global-concurrency-limits";
 
 import { GlobalConcurrencyLimitsCreateOrEditDialog } from "@/components/concurrency/global-concurrency-limits/global-concurrency-limits-create-or-edit-dialog";
 import { GlobalConcurrencyLimitsDeleteDialog } from "@/components/concurrency/global-concurrency-limits/global-concurrency-limits-delete-dialog";
