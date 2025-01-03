@@ -31,6 +31,7 @@ import { Route as FlowsFlowIdImport } from './routes/flows/flow.$id'
 import { Route as DeploymentsDeploymentIdImport } from './routes/deployments/deployment.$id'
 import { Route as ConcurrencyLimitsConcurrencyLimitIdImport } from './routes/concurrency-limits/concurrency-limit.$id'
 import { Route as AutomationsAutomationIdImport } from './routes/automations/automation.$id'
+import { Route as AutomationsAutomationIdEditImport } from './routes/automations/automation.$id.edit'
 
 // Create/Update Routes
 
@@ -154,6 +155,13 @@ const AutomationsAutomationIdRoute = AutomationsAutomationIdImport.update({
   path: '/automations/automation/$id',
   getParentRoute: () => rootRoute,
 } as any)
+
+const AutomationsAutomationIdEditRoute =
+  AutomationsAutomationIdEditImport.update({
+    id: '/edit',
+    path: '/edit',
+    getParentRoute: () => AutomationsAutomationIdRoute,
+  } as any)
 
 // Populate the FileRoutesByPath interface
 
@@ -299,10 +307,31 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RunsTaskRunIdImport
       parentRoute: typeof rootRoute
     }
+    '/automations/automation/$id/edit': {
+      id: '/automations/automation/$id/edit'
+      path: '/edit'
+      fullPath: '/automations/automation/$id/edit'
+      preLoaderRoute: typeof AutomationsAutomationIdEditImport
+      parentRoute: typeof AutomationsAutomationIdImport
+    }
   }
 }
 
 // Create and export the route tree
+
+interface AutomationsAutomationIdRouteChildren {
+  AutomationsAutomationIdEditRoute: typeof AutomationsAutomationIdEditRoute
+}
+
+const AutomationsAutomationIdRouteChildren: AutomationsAutomationIdRouteChildren =
+  {
+    AutomationsAutomationIdEditRoute: AutomationsAutomationIdEditRoute,
+  }
+
+const AutomationsAutomationIdRouteWithChildren =
+  AutomationsAutomationIdRoute._addFileChildren(
+    AutomationsAutomationIdRouteChildren,
+  )
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -319,12 +348,13 @@ export interface FileRoutesByFullPath {
   '/deployments': typeof DeploymentsIndexRoute
   '/flows': typeof FlowsIndexRoute
   '/runs': typeof RunsIndexRoute
-  '/automations/automation/$id': typeof AutomationsAutomationIdRoute
+  '/automations/automation/$id': typeof AutomationsAutomationIdRouteWithChildren
   '/concurrency-limits/concurrency-limit/$id': typeof ConcurrencyLimitsConcurrencyLimitIdRoute
   '/deployments/deployment/$id': typeof DeploymentsDeploymentIdRoute
   '/flows/flow/$id': typeof FlowsFlowIdRoute
   '/runs/flow-run/$id': typeof RunsFlowRunIdRoute
   '/runs/task-run/$id': typeof RunsTaskRunIdRoute
+  '/automations/automation/$id/edit': typeof AutomationsAutomationIdEditRoute
 }
 
 export interface FileRoutesByTo {
@@ -342,12 +372,13 @@ export interface FileRoutesByTo {
   '/deployments': typeof DeploymentsIndexRoute
   '/flows': typeof FlowsIndexRoute
   '/runs': typeof RunsIndexRoute
-  '/automations/automation/$id': typeof AutomationsAutomationIdRoute
+  '/automations/automation/$id': typeof AutomationsAutomationIdRouteWithChildren
   '/concurrency-limits/concurrency-limit/$id': typeof ConcurrencyLimitsConcurrencyLimitIdRoute
   '/deployments/deployment/$id': typeof DeploymentsDeploymentIdRoute
   '/flows/flow/$id': typeof FlowsFlowIdRoute
   '/runs/flow-run/$id': typeof RunsFlowRunIdRoute
   '/runs/task-run/$id': typeof RunsTaskRunIdRoute
+  '/automations/automation/$id/edit': typeof AutomationsAutomationIdEditRoute
 }
 
 export interface FileRoutesById {
@@ -366,12 +397,13 @@ export interface FileRoutesById {
   '/deployments/': typeof DeploymentsIndexRoute
   '/flows/': typeof FlowsIndexRoute
   '/runs/': typeof RunsIndexRoute
-  '/automations/automation/$id': typeof AutomationsAutomationIdRoute
+  '/automations/automation/$id': typeof AutomationsAutomationIdRouteWithChildren
   '/concurrency-limits/concurrency-limit/$id': typeof ConcurrencyLimitsConcurrencyLimitIdRoute
   '/deployments/deployment/$id': typeof DeploymentsDeploymentIdRoute
   '/flows/flow/$id': typeof FlowsFlowIdRoute
   '/runs/flow-run/$id': typeof RunsFlowRunIdRoute
   '/runs/task-run/$id': typeof RunsTaskRunIdRoute
+  '/automations/automation/$id/edit': typeof AutomationsAutomationIdEditRoute
 }
 
 export interface FileRouteTypes {
@@ -397,6 +429,7 @@ export interface FileRouteTypes {
     | '/flows/flow/$id'
     | '/runs/flow-run/$id'
     | '/runs/task-run/$id'
+    | '/automations/automation/$id/edit'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -419,6 +452,7 @@ export interface FileRouteTypes {
     | '/flows/flow/$id'
     | '/runs/flow-run/$id'
     | '/runs/task-run/$id'
+    | '/automations/automation/$id/edit'
   id:
     | '__root__'
     | '/'
@@ -441,6 +475,7 @@ export interface FileRouteTypes {
     | '/flows/flow/$id'
     | '/runs/flow-run/$id'
     | '/runs/task-run/$id'
+    | '/automations/automation/$id/edit'
   fileRoutesById: FileRoutesById
 }
 
@@ -459,7 +494,7 @@ export interface RootRouteChildren {
   DeploymentsIndexRoute: typeof DeploymentsIndexRoute
   FlowsIndexRoute: typeof FlowsIndexRoute
   RunsIndexRoute: typeof RunsIndexRoute
-  AutomationsAutomationIdRoute: typeof AutomationsAutomationIdRoute
+  AutomationsAutomationIdRoute: typeof AutomationsAutomationIdRouteWithChildren
   ConcurrencyLimitsConcurrencyLimitIdRoute: typeof ConcurrencyLimitsConcurrencyLimitIdRoute
   DeploymentsDeploymentIdRoute: typeof DeploymentsDeploymentIdRoute
   FlowsFlowIdRoute: typeof FlowsFlowIdRoute
@@ -482,7 +517,7 @@ const rootRouteChildren: RootRouteChildren = {
   DeploymentsIndexRoute: DeploymentsIndexRoute,
   FlowsIndexRoute: FlowsIndexRoute,
   RunsIndexRoute: RunsIndexRoute,
-  AutomationsAutomationIdRoute: AutomationsAutomationIdRoute,
+  AutomationsAutomationIdRoute: AutomationsAutomationIdRouteWithChildren,
   ConcurrencyLimitsConcurrencyLimitIdRoute:
     ConcurrencyLimitsConcurrencyLimitIdRoute,
   DeploymentsDeploymentIdRoute: DeploymentsDeploymentIdRoute,
@@ -566,7 +601,10 @@ export const routeTree = rootRoute
       "filePath": "runs/index.tsx"
     },
     "/automations/automation/$id": {
-      "filePath": "automations/automation.$id.ts"
+      "filePath": "automations/automation.$id.ts",
+      "children": [
+        "/automations/automation/$id/edit"
+      ]
     },
     "/concurrency-limits/concurrency-limit/$id": {
       "filePath": "concurrency-limits/concurrency-limit.$id.tsx"
@@ -582,6 +620,10 @@ export const routeTree = rootRoute
     },
     "/runs/task-run/$id": {
       "filePath": "runs/task-run.$id.tsx"
+    },
+    "/automations/automation/$id/edit": {
+      "filePath": "automations/automation.$id.edit.ts",
+      "parent": "/automations/automation/$id"
     }
   }
 }
