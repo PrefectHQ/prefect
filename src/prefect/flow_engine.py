@@ -209,7 +209,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
 
     def _resolve_parameters(self):
         if not self.parameters:
-            return {}
+            return
 
         resolved_parameters = {}
         for parameter, value in self.parameters.items():
@@ -277,7 +277,6 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                     ),
                 )
                 self.short_circuit = True
-                self.call_hooks()
 
         new_state = Running()
         state = self.set_state(new_state)
@@ -300,6 +299,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         self.flow_run.state_type = state.type  # type: ignore
 
         self._telemetry.update_state(state)
+        self.call_hooks(state)
         return state
 
     def result(self, raise_on_failure: bool = True) -> "Union[R, State, None]":
@@ -711,8 +711,6 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
             ):
                 self.begin_run()
 
-                if self.state.is_running():
-                    self.call_hooks()
                 yield
 
     @contextmanager
@@ -734,9 +732,6 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
             except Exception as exc:
                 self.logger.exception("Encountered exception during execution: %r", exc)
                 self.handle_exception(exc)
-            finally:
-                if self.state.is_final() or self.state.is_cancelling():
-                    self.call_hooks()
 
     def call_flow_fn(self) -> Union[R, Coroutine[Any, Any, R]]:
         """
@@ -774,7 +769,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
 
     def _resolve_parameters(self):
         if not self.parameters:
-            return {}
+            return
 
         resolved_parameters = {}
         for parameter, value in self.parameters.items():
@@ -842,7 +837,6 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     ),
                 )
                 self.short_circuit = True
-                await self.call_hooks()
 
         new_state = Running()
         state = await self.set_state(new_state)
@@ -865,6 +859,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         self.flow_run.state_type = state.type  # type: ignore
 
         self._telemetry.update_state(state)
+        await self.call_hooks(state)
         return state
 
     async def result(self, raise_on_failure: bool = True) -> "Union[R, State, None]":
@@ -1279,8 +1274,6 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             ):
                 await self.begin_run()
 
-                if self.state.is_running():
-                    await self.call_hooks()
                 yield
 
     @asynccontextmanager
@@ -1302,9 +1295,6 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             except Exception as exc:
                 self.logger.exception("Encountered exception during execution: %r", exc)
                 await self.handle_exception(exc)
-            finally:
-                if self.state.is_final() or self.state.is_cancelling():
-                    await self.call_hooks()
 
     async def call_flow_fn(self) -> Coroutine[Any, Any, R]:
         """
