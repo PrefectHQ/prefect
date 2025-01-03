@@ -12,6 +12,7 @@ import pytest
 import readchar
 import respx
 import yaml
+from exceptiongroup import ExceptionGroup  # novermin
 from typer import Exit
 
 import prefect
@@ -257,16 +258,15 @@ class TestRunnerDeploymentApply:
             sla=[sla1, sla2],
         )
 
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(ExceptionGroup) as exc_info:  # novermin
             await deployment._create_slas(uuid4(), client)
 
         assert len(client.create_sla.await_args_list) == 2
         assert client.create_sla.await_args_list[0].args[0].name == sla1.name
         assert client.create_sla.await_args_list[1].args[0].name == sla2.name
-        assert (
-            str(exc_info.value)
-            == """[("SLA named 'whoa this is bad' failed to create", ValueError('Failed to create SLA'))]"""
-        )
+        assert str(exc_info.value) == "Failed to create SLAs (1 sub-exception)"
+        assert len(exc_info.value.exceptions) == 1
+        assert str(exc_info.value.exceptions[0]) == "Failed to create SLA"
 
 
 class TestDeploymentCLI:
