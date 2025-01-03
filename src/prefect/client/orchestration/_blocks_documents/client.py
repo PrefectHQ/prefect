@@ -279,9 +279,6 @@ class BlocksDocumentAsyncClient(BaseAsyncClient):
         Returns:
             A block document or None.
         """
-        assert (
-            block_document_id is not None
-        ), "Unexpected ID on block document. Was it persisted?"
         try:
             response = await self.request(
                 "GET",
