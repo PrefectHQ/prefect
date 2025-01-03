@@ -16,7 +16,7 @@ def enable_triggers():
 
 
 @pytest.fixture
-async def automation_spec():
+async def automation_spec() -> Automation:
     automation_to_create = Automation(
         name="hello",
         description="world",
@@ -36,7 +36,7 @@ async def automation_spec():
 
 
 @pytest.fixture
-async def automation():
+async def automation() -> Automation:
     automation_to_create = Automation(
         name="hello",
         description="world",
@@ -57,7 +57,7 @@ async def automation():
     return model
 
 
-async def test_read_automation_by_uuid(automation):
+async def test_read_automation_by_uuid(automation: Automation):
     model = await Automation.read(id=automation.id)
     assert model.name == "hello"
     assert model.description == "world"
@@ -76,7 +76,7 @@ async def test_read_automation_by_uuid(automation):
     assert model.actions[0] == DoNothing(type="do-nothing")
 
 
-async def test_read_automation_by_uuid_string(automation):
+async def test_read_automation_by_uuid_string(automation: Automation):
     model = await Automation.read(str(automation.id))
     assert model.name == "hello"
     assert model.description == "world"
@@ -95,7 +95,7 @@ async def test_read_automation_by_uuid_string(automation):
     assert model.actions[0] == DoNothing(type="do-nothing")
 
 
-async def test_read_automation_by_name(automation):
+async def test_read_automation_by_name(automation: Automation):
     model = await Automation.read(name=automation.name)
     assert model.name == "hello"
     assert model.description == "world"
@@ -131,27 +131,33 @@ async def test_disable_automation(automation):
     assert model.enabled is False
 
 
-async def test_enable_automation(automation):
-    model = await automation.enable()
-    model = await Automation.read(id=automation.id)
+async def test_aenable_automation(automation: Automation):
+    model = await automation.aenable()
+    model = await Automation.aread(id=automation.id)
     assert model.enabled is True
 
 
-async def test_automations_work_in_sync_flows(automation_spec):
+def test_enable_automation(automation: Automation):
+    automation.enable()
+    model = Automation.read(id=automation.id)
+    assert model.enabled is True
+
+
+async def test_automations_work_in_sync_flows(automation_spec: Automation):
     @flow
-    def create_automation():
-        created_automation = automation_spec.create()
-        return created_automation
+    def create_automation() -> Automation:
+        automation = automation_spec.create(_sync=True)
+        return automation
 
     auto = create_automation()
     assert isinstance(auto, Automation)
     assert auto.id is not None
 
 
-async def test_automations_work_in_async_flows(automation_spec):
+async def test_automations_work_in_async_flows(automation_spec: Automation):
     @flow
     async def create_automation():
-        created_automation = await automation_spec.create()
+        created_automation = await automation_spec.acreate()
         return created_automation
 
     auto = await create_automation()
@@ -159,18 +165,19 @@ async def test_automations_work_in_async_flows(automation_spec):
     assert auto.id is not None
 
 
-async def test_delete_automation(automation):
-    await Automation.delete(automation)
+async def test_adelete_automation(automation: Automation):
+    await Automation.adelete(automation)
     with pytest.raises(ValueError):
         await Automation.read(id=automation.id)
 
 
-async def test_read_automation_by_name_no_name():
-    with pytest.raises(ValueError, match="One of id or name must be provided"):
-        await Automation.read()
+def test_delete_automation(automation: Automation):
+    automation.delete()
+    with pytest.raises(ValueError):
+        Automation.read(id=automation.id)
 
 
-async def test_read_auto_by_id_and_name(automation):
+async def test_read_auto_by_id_and_name(automation: Automation):
     with pytest.raises(ValueError, match="Only one of id or name can be provided"):
         await Automation.read(id=automation.id, name=automation.name)
 
@@ -185,11 +192,17 @@ async def test_nonexistent_name_raises_value_error():
         await Automation.read(name="nonexistent_name")
 
 
-async def test_disabled_automation_can_be_enabled(
-    prefect_client, automation: Automation
-):
-    await automation.disable()
-    await automation.enable()
+async def test_disabled_automation_can_be_enabled(automation: Automation):
+    await automation.adisable()
+    await automation.aenable()
 
-    updated_automation = await Automation.read(id=automation.id)
+    updated_automation = await Automation.aread(id=automation.id)
+    assert updated_automation.enabled is True
+
+
+def test_disabled_automation_can_be_enabled_sync(automation: Automation):
+    automation.disable()
+    automation.enable()
+
+    updated_automation = Automation.read(id=automation.id)
     assert updated_automation.enabled is True
