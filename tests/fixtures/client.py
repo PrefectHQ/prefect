@@ -35,7 +35,7 @@ async def in_memory_prefect_client(app: FastAPI) -> AsyncGenerator[PrefectClient
 @pytest.fixture
 def sync_prefect_client(
     test_database_connection_url: str,
-) -> Generator[SyncPrefectClient, None]:
+) -> Generator[SyncPrefectClient, None, None]:
     yield get_client(sync_client=True)
 
 

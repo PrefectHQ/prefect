@@ -112,6 +112,9 @@ class Automation(AutomationCore):
         """
         Create a new automation.
 
+        Examples:
+
+        ```python
         auto_to_create = Automation(
             name="woodchonk",
             trigger=EventTrigger(
@@ -127,10 +130,11 @@ class Automation(AutomationCore):
             actions=[CancelFlowRun()]
         )
         created_automation = auto_to_create.create()
+        ```
         """
         with get_client(sync_client=True) as client:
             automation = AutomationCore(**self.model_dump(exclude={"id"}))
-            client.create_automation(automation=automation)
+            self.id = client.create_automation(automation=automation)
             return self
 
     async def aupdate(self: Self):
