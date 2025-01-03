@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from typing_extensions import TypeAlias
 
+from prefect.client.base import ServerType
+
 if TYPE_CHECKING:
     from httpx import AsyncClient, Client, Response
 
@@ -13,6 +15,8 @@ HTTP_METHODS: TypeAlias = Literal["GET", "POST", "PUT", "DELETE", "PATCH"]
 
 
 class BaseClient:
+    server_type: ServerType
+
     def __init__(self, client: "Client"):
         self._client = client
 
@@ -30,6 +34,8 @@ class BaseClient:
 
 
 class BaseAsyncClient:
+    server_type: ServerType
+
     def __init__(self, client: "AsyncClient"):
         self._client = client
 
