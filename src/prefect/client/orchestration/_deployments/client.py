@@ -7,7 +7,6 @@ from httpx import HTTPStatusError, RequestError
 
 from prefect.client.orchestration.base import BaseAsyncClient, BaseClient
 from prefect.exceptions import ObjectNotFound
-from prefect.states import Scheduled
 
 if TYPE_CHECKING:
     import datetime
@@ -551,11 +550,13 @@ class DeploymentClient(BaseClient):
         """
         from prefect.client.schemas.actions import DeploymentFlowRunCreate
         from prefect.client.schemas.objects import FlowRun
+        from prefect.states import Scheduled
 
         parameters = parameters or {}
         context = context or {}
         state = state or Scheduled()
         tags = tags or []
+        labels = labels or {}
 
         flow_run_create = DeploymentFlowRunCreate(
             parameters=parameters,
@@ -1094,11 +1095,13 @@ class DeploymentAsyncClient(BaseAsyncClient):
         """
         from prefect.client.schemas.actions import DeploymentFlowRunCreate
         from prefect.client.schemas.objects import FlowRun
+        from prefect.states import Scheduled
 
         parameters = parameters or {}
         context = context or {}
         state = state or Scheduled()
         tags = tags or []
+        labels = labels or {}
 
         flow_run_create = DeploymentFlowRunCreate(
             parameters=parameters,
