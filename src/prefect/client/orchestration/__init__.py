@@ -58,6 +58,21 @@ from prefect.client.orchestration._flow_runs.client import (
     FlowRunAsyncClient,
 )
 
+from prefect.client.orchestration._blocks_documents.client import (
+    BlocksDocumentClient,
+    BlocksDocumentAsyncClient,
+)
+
+from prefect.client.orchestration._blocks_schemas.client import (
+    BlocksSchemaClient,
+    BlocksSchemaAsyncClient,
+)
+
+from prefect.client.orchestration._blocks_types.client import (
+    BlocksTypeClient,
+    BlocksTypeAsyncClient,
+)
+
 import prefect
 import prefect.exceptions
 import prefect.settings
@@ -251,6 +266,9 @@ class PrefectClient(
     AutomationAsyncClient,
     FlowRunAsyncClient,
     FlowAsyncClient,
+    BlocksDocumentAsyncClient,
+    BlocksSchemaAsyncClient,
+    BlocksTypeAsyncClient,
 ):
     """
     An asynchronous client for interacting with the [Prefect REST API](/api-ref/rest-api/).
@@ -1865,6 +1883,9 @@ class SyncPrefectClient(
     AutomationClient,
     FlowRunClient,
     FlowClient,
+    BlocksDocumentClient,
+    BlocksSchemaClient,
+    BlocksTypeClient,
 ):
     """
     A synchronous client for interacting with the [Prefect REST API](/api-ref/rest-api/).
