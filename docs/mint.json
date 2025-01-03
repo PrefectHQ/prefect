@@ -1,5 +1,6 @@
 {
   "$schema": "https://mintlify.com/schema.json",
+  "rounded": "sharp",
   "anchors": [
     {
       "icon": "github",
