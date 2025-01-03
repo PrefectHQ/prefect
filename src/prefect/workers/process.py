@@ -24,12 +24,13 @@ import tempfile
 import threading
 from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Dict, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple
 
 import anyio
 import anyio.abc
 from pydantic import Field, field_validator
 
+from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.schemas.validators import validate_command
 from prefect.client.schemas import FlowRun
 from prefect.client.schemas.filters import (
@@ -43,14 +44,17 @@ from prefect.client.schemas.filters import (
     WorkQueueFilter,
     WorkQueueFilterName,
 )
-from prefect.client.schemas.objects import StateType
+from prefect.client.schemas.objects import State, StateType
 from prefect.events.utilities import emit_event
 from prefect.exceptions import (
     InfrastructureNotAvailable,
     InfrastructureNotFound,
     ObjectNotFound,
 )
+from prefect.flows import Flow, load_flow_from_flow_run
+from prefect.logging.loggers import flow_run_logger
 from prefect.settings import PREFECT_WORKER_QUERY_SECONDS
+from prefect.utilities.asyncutils import is_async_fn
 from prefect.utilities.processutils import get_sys_executable, run_process
 from prefect.utilities.services import critical_service_loop
 from prefect.workers.base import (
@@ -61,7 +65,7 @@ from prefect.workers.base import (
 )
 
 if TYPE_CHECKING:
-    from prefect.client.schemas.objects import Flow
+    from prefect.client.schemas.objects import Flow as FlowSchema
     from prefect.client.schemas.responses import DeploymentResponse
 
 if sys.platform == "win32":
@@ -92,7 +96,7 @@ class ProcessJobConfiguration(BaseJobConfiguration):
         self,
         flow_run: "FlowRun",
         deployment: Optional["DeploymentResponse"] = None,
-        flow: Optional["Flow"] = None,
+        flow: Optional["FlowSchema"] = None,
     ):
         super().prepare_for_flow_run(flow_run, deployment, flow)
 
@@ -239,10 +243,10 @@ class ProcessWorker(BaseWorker):
 
     async def run(
         self,
-        flow_run: FlowRun,
-        configuration: ProcessJobConfiguration,
-        task_status: Optional[anyio.abc.TaskStatus] = None,
-    ):
+        flow_run: "FlowRun",
+        configuration: "ProcessJobConfiguration",
+        task_status: anyio.abc.TaskStatus[Any] | None = None,
+    ) -> "ProcessWorkerResult":
         command = configuration.command
         if not command:
             command = f"{get_sys_executable()} -m prefect.engine"
@@ -503,6 +507,46 @@ class ProcessWorker(BaseWorker):
             await self._mark_flow_run_as_cancelled(flow_run)
             run_logger.info(f"Cancelled flow run '{flow_run.id}'!")
 
+    async def _run_on_cancellation_hooks(
+        self,
+        flow_run: "FlowRun",
+        state: State,
+    ) -> None:
+        """
+        Run the hooks for a flow.
+        """
+        if state.is_cancelling():
+            try:
+                flow = await load_flow_from_flow_run(flow_run)
+                hooks = flow.on_cancellation_hooks or []
+
+                await _run_hooks(hooks, flow_run, flow, state)
+            except ObjectNotFound:
+                _flow_run_logger = flow_run_logger(flow_run)
+                _flow_run_logger.warning(
+                    f"ProcessWorker cannot retrieve flow to execute cancellation hooks for flow run {flow_run.id!r}."
+                )
+
+    async def _run_on_crashed_hooks(
+        self,
+        flow_run: "FlowRun",
+        state: State,
+    ) -> None:
+        """
+        Run the hooks for a flow.
+        """
+        if state.is_crashed():
+            try:
+                flow = await load_flow_from_flow_run(flow_run)
+                hooks = flow.on_crashed_hooks or []
+
+                await _run_hooks(hooks, flow_run, flow, state)
+            except ObjectNotFound:
+                _flow_run_logger = flow_run_logger(flow_run)
+                _flow_run_logger.warning(
+                    f"ProcessWorker cannot retrieve flow to execute crashed hooks for flow run {flow_run.id!r}."
+                )
+
     def _emit_flow_run_cancelled_event(
         self, flow_run: "FlowRun", configuration: BaseJobConfiguration
     ):
@@ -519,3 +563,31 @@ class ProcessWorker(BaseWorker):
             resource=self._event_resource(),
             related=related,
         )
+
+
+async def _run_hooks(
+    hooks: list[Callable[[Flow[..., Any], "FlowRun", State], None]],
+    flow_run: "FlowRun",
+    flow: Flow[..., Any],
+    state: State,
+):
+    logger = flow_run_logger(flow_run, flow)
+    for hook in hooks:
+        try:
+            logger.info(
+                f"Running hook {hook.__name__!r} in response to entering state"
+                f" {state.name!r}"
+            )
+            if is_async_fn(hook):
+                await hook(flow=flow, flow_run=flow_run, state=state)
+            else:
+                await from_async.call_in_new_thread(
+                    create_call(hook, flow=flow, flow_run=flow_run, state=state)
+                )
+        except Exception:
+            logger.error(
+                f"An error was encountered while running hook {hook.__name__!r}",
+                exc_info=True,
+            )
+        else:
+            logger.info(f"Hook {hook.__name__!r} finished running successfully")

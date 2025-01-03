@@ -30,6 +30,8 @@ Example:
 
 """
 
+from __future__ import annotations
+
 import asyncio
 import datetime
 import logging
@@ -485,8 +487,8 @@ class Runner:
 
         return asyncio.run_coroutine_threadsafe(func(*args, **kwargs), self._loop)
 
-    async def cancel_all(self):
-        runs_to_cancel = []
+    async def cancel_all(self) -> None:
+        runs_to_cancel: list[FlowRun] = []
 
         # done to avoid dictionary size changing during iteration
         for info in self._flow_run_process_map.values():
@@ -853,7 +855,9 @@ class Runner:
 
         return cancelling_flow_runs
 
-    async def _cancel_run(self, flow_run: "FlowRun", state_msg: Optional[str] = None):
+    async def _cancel_run(
+        self, flow_run: "FlowRun", state_msg: str | None = None
+    ) -> None:
         run_logger = self._get_flow_run_logger(flow_run)
 
         pid = self._flow_run_process_map.get(flow_run.id, {}).get("pid")
@@ -1174,9 +1178,9 @@ class Runner:
     async def _submit_run_and_capture_errors(
         self,
         flow_run: "FlowRun",
-        task_status: Optional[anyio.abc.TaskStatus] = None,
-        entrypoint: Optional[str] = None,
-    ) -> Union[Optional[int], Exception]:
+        task_status: anyio.abc.TaskStatus[Any] | None = None,
+        entrypoint: str | None = None,
+    ) -> int | Exception:
         run_logger = self._get_flow_run_logger(flow_run)
 
         try:
@@ -1230,7 +1234,11 @@ class Runner:
 
         api_flow_run = await self._client.read_flow_run(flow_run_id=flow_run.id)
         terminal_state = api_flow_run.state
-        if terminal_state.is_crashed():
+        if terminal_state is None:
+            run_logger.warning(
+                f"Flow run '{flow_run.id}' has no recorded terminal state. Could not run crashed hooks."
+            )
+        elif terminal_state.is_crashed():
             await self._run_on_crashed_hooks(flow_run=flow_run, state=terminal_state)
 
         return status_code
@@ -1437,7 +1445,10 @@ if sys.platform == "win32":
 
 
 async def _run_hooks(
-    hooks: List[Callable[[Flow, "FlowRun", State], None]], flow_run, flow, state
+    hooks: list[Callable[[Flow[..., Any], "FlowRun", State], None]],
+    flow_run: "FlowRun",
+    flow: Flow[..., Any],
+    state: State,
 ):
     logger = flow_run_logger(flow_run, flow)
     for hook in hooks:
