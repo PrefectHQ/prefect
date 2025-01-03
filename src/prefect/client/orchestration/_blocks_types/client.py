@@ -24,8 +24,8 @@ class BlocksTypeClient(BaseClient):
     def read_block_documents_by_type(
         self,
         block_type_slug: str,
-        offset: "int | None" = None,
-        limit: "int | None" = None,
+        offset: int | None = None,
+        limit: int | None = None,
         include_secrets: bool = True,
     ) -> "list[BlockDocument]":
         """Retrieve block documents by block type slug.
