@@ -48,6 +48,7 @@ from prefect.client.orchestration._automations.client import (
     AutomationClient,
     AutomationAsyncClient,
 )
+from prefect._experimental.sla.client import SlaClient, SlaAsyncClient
 
 from prefect.client.orchestration._flows.client import (
     FlowClient,
@@ -264,6 +265,7 @@ class PrefectClient(
     ConcurrencyLimitAsyncClient,
     DeploymentAsyncClient,
     AutomationAsyncClient,
+    SlaAsyncClient,
     FlowRunAsyncClient,
     FlowAsyncClient,
     BlocksDocumentAsyncClient,
@@ -1881,6 +1883,7 @@ class SyncPrefectClient(
     ConcurrencyLimitClient,
     DeploymentClient,
     AutomationClient,
+    SlaClient,
     FlowRunClient,
     FlowClient,
     BlocksDocumentClient,
