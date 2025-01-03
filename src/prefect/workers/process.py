@@ -85,7 +85,7 @@ class ProcessJobConfiguration(BaseJobConfiguration):
 
     @field_validator("working_dir")
     @classmethod
-    def validate_command(cls, v):
+    def validate_command(cls, v: str) -> str:
         return validate_command(v)
 
     def prepare_for_flow_run(
