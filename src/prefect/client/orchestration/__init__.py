@@ -54,7 +54,6 @@ import prefect
 import prefect.exceptions
 import prefect.settings
 import prefect.states
-from prefect._experimental.sla.objects import SlaTypes
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun, sorting
 from prefect.client.schemas.actions import (
