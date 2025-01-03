@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { buildGetAutomationQuery } from "@/hooks/automations";
+import { buildGetAutomationQuery } from "@/api/automations";
 
 export const Route = createFileRoute("/automations/automation/$id")({
 	component: RouteComponent,

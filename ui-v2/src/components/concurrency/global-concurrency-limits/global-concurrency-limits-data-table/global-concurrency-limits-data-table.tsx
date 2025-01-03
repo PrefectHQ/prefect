@@ -1,5 +1,5 @@
+import type { GlobalConcurrencyLimit } from "@/api/global-concurrency-limits";
 import { DataTable } from "@/components/ui/data-table";
-import type { GlobalConcurrencyLimit } from "@/hooks/global-concurrency-limits";
 import { getRouteApi } from "@tanstack/react-router";
 import {
 	createColumnHelper,

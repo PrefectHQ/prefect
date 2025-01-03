@@ -2,7 +2,7 @@ import {
 	type GlobalConcurrencyLimit,
 	useCreateGlobalConcurrencyLimit,
 	useUpdateGlobalConcurrencyLimit,
-} from "@/hooks/global-concurrency-limits";
+} from "@/api/global-concurrency-limits";
 import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";

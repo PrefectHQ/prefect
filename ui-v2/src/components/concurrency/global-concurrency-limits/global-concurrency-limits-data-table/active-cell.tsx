@@ -1,11 +1,11 @@
 import { useToast } from "@/hooks/use-toast";
 import type { CellContext } from "@tanstack/react-table";
 
-import { Switch } from "@/components/ui/switch";
 import {
 	type GlobalConcurrencyLimit,
 	useUpdateGlobalConcurrencyLimit,
-} from "@/hooks/global-concurrency-limits";
+} from "@/api/global-concurrency-limits";
+import { Switch } from "@/components/ui/switch";
 
 export const ActiveCell = (
 	props: CellContext<GlobalConcurrencyLimit, boolean>,

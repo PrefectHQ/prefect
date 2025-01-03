@@ -1,4 +1,4 @@
-import type { TaskRunConcurrencyLimit } from "@/hooks/task-run-concurrency-limits";
+import type { TaskRunConcurrencyLimit } from "@/api/task-run-concurrency-limits";
 import type { CellContext } from "@tanstack/react-table";
 
 type ActiveTaskRunCellsProps = CellContext<

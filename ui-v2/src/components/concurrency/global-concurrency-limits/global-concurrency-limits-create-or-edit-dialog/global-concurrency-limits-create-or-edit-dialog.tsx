@@ -1,3 +1,4 @@
+import type { GlobalConcurrencyLimit } from "@/api/global-concurrency-limits";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -17,7 +18,6 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import type { GlobalConcurrencyLimit } from "@/hooks/global-concurrency-limits";
 
 import { useCreateOrEditGlobalConcurrencyLimitForm } from "./use-create-or-edit-global-concurrency-limit-form";
 
