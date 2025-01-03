@@ -2,9 +2,15 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, test, vi } from "vitest";
 
-import { AutomationsActionSelect } from "./automations-action-select";
+import { useState } from "react";
+import { ChangeFlowRunStateFields } from "./change-flow-run-state-fields";
 
-test("AutomationsActionSelect can select an option", async () => {
+function TestComponent() {
+	const [values, setValues] = useState<Record<string, unknown>>({});
+	return <ChangeFlowRunStateFields values={values} onChange={setValues} />;
+}
+
+test("ChangeFlowRunStateFields can select an option", async () => {
 	/**
 	 * JSDOM doesn't implement PointerEvent so we need to mock our own implementation
 	 * Default to mouse left click interaction
@@ -31,20 +37,18 @@ test("AutomationsActionSelect can select an option", async () => {
 	const user = userEvent.setup();
 
 	// ------------ Setup
-	const mockOnChangeActionTypeFn = vi.fn();
 
-	render(
-		<AutomationsActionSelect
-			onChangeActionType={mockOnChangeActionTypeFn}
-			onActionFieldsChange={vi.fn()}
-		/>,
-	);
+	render(<TestComponent />);
 
 	// ------------ Act
-	await user.click(screen.getByLabelText("Action Type"));
-	await user.click(screen.getByRole("option", { name: "Resume a flow run" }));
+	await user.click(screen.getByLabelText("State"));
+	await user.click(screen.getByRole("option", { name: "Running" }));
+
+	await user.type(screen.getByLabelText("Name"), "my name");
+	await user.type(screen.getByLabelText("Message"), "my message");
 
 	// ------------ Assert
-	expect(screen.getByText("Resume a flow run")).toBeVisible();
-	expect(mockOnChangeActionTypeFn).toBeCalledWith("resume-flow-run");
+	expect(screen.getByText("Running")).toBeVisible();
+	expect(screen.getByLabelText("Name")).toHaveValue("my name");
+	expect(screen.getByLabelText("Message")).toHaveValue("my message");
 });
