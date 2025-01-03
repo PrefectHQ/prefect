@@ -12,7 +12,6 @@ from uuid import UUID
 
 import anyio
 import anyio.abc
-import pendulum
 import uvicorn
 from exceptiongroup import BaseExceptionGroup  # novermin
 from fastapi import FastAPI
@@ -33,6 +32,7 @@ from prefect.settings import (
 )
 from prefect.states import Pending
 from prefect.task_engine import run_task_async, run_task_sync
+from prefect.types import DateTime
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
 from prefect.utilities.engine import emit_task_run_state_change_event
@@ -102,7 +102,7 @@ class TaskWorker:
 
         self.task_keys = set(t.task_key for t in tasks if isinstance(t, Task))  # pyright: ignore[reportUnnecessaryIsInstance]
 
-        self._started_at: Optional[pendulum.DateTime] = None
+        self._started_at: Optional[DateTime] = None
         self.stopping: bool = False
 
         self._client = get_client()
@@ -119,7 +119,7 @@ class TaskWorker:
         self._executor = ThreadPoolExecutor(max_workers=limit if limit else None)
         self._limiter = anyio.CapacityLimiter(limit) if limit else None
 
-        self.in_flight_task_runs: dict[str, dict[UUID, pendulum.DateTime]] = {
+        self.in_flight_task_runs: dict[str, dict[UUID, DateTime]] = {
             task_key: {} for task_key in self.task_keys
         }
         self.finished_task_runs: dict[str, int] = {
@@ -131,7 +131,7 @@ class TaskWorker:
         return f"{socket.gethostname()}-{os.getpid()}"
 
     @property
-    def started_at(self) -> Optional[pendulum.DateTime]:
+    def started_at(self) -> Optional[DateTime]:
         return self._started_at
 
     @property
@@ -251,7 +251,7 @@ class TaskWorker:
                 )
 
     async def _safe_submit_scheduled_task_run(self, task_run: TaskRun):
-        self.in_flight_task_runs[task_run.task_key][task_run.id] = pendulum.now()
+        self.in_flight_task_runs[task_run.task_key][task_run.id] = DateTime.now()
         try:
             await self._submit_scheduled_task_run(task_run)
         except BaseException as exc:
@@ -374,7 +374,7 @@ class TaskWorker:
         await self._exit_stack.enter_async_context(self._runs_task_group)
         self._exit_stack.enter_context(self._executor)
 
-        self._started_at = pendulum.now()
+        self._started_at = DateTime.now()
         return self
 
     async def __aexit__(self, *exc_info: Any) -> None:

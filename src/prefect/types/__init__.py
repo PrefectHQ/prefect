@@ -1,10 +1,10 @@
+from __future__ import annotations
+
 from functools import partial
-from typing import Annotated, Any, Dict, List, Optional, Set, TypeVar, Union
-from typing_extensions import Literal, TypeAlias
+from typing import Annotated, Any, TypeVar
+from typing_extensions import Literal
 import orjson
 import pydantic
-from pydantic_extra_types.pendulum_dt import DateTime as PydanticDateTime
-from pydantic_extra_types.pendulum_dt import Date as PydanticDate
 from pydantic import (
     BeforeValidator,
     Field,
@@ -14,7 +14,8 @@ from pydantic import (
     StrictStr,
     TypeAdapter,
 )
-from zoneinfo import available_timezones
+
+from prefect.types._datetime import DateTime, Date, Duration
 
 T = TypeVar("T")
 
@@ -25,18 +26,6 @@ NonNegativeInteger = Annotated[int, Field(ge=0)]
 PositiveInteger = Annotated[int, Field(gt=0)]
 NonNegativeFloat = Annotated[float, Field(ge=0.0)]
 
-TimeZone = Annotated[
-    str,
-    Field(
-        default="UTC",
-        pattern="|".join(
-            [z for z in sorted(available_timezones()) if "localtime" not in z]
-        ),
-    ),
-]
-
-DateTime: TypeAlias = PydanticDateTime
-Date: TypeAlias = PydanticDate
 
 BANNED_CHARACTERS = ["/", "%", "&", ">", "<"]
 
@@ -61,15 +50,9 @@ NonEmptyishName = Annotated[
 ]
 
 
-VariableValue = Union[
-    StrictStr,
-    StrictInt,
-    StrictBool,
-    StrictFloat,
-    None,
-    Dict[str, Any],
-    List[Any],
-]
+VariableValue = (
+    StrictStr | StrictInt | StrictBool | StrictFloat | None | dict[str, Any] | list[Any]
+)
 
 
 def check_variable_value(value: object) -> object:
@@ -99,23 +82,25 @@ def cast_none_to_empty_dict(value: Any) -> dict[str, Any]:
 
 
 KeyValueLabels = Annotated[
-    Dict[str, Union[StrictBool, StrictInt, StrictFloat, str]],
+    dict[str, StrictBool | StrictInt | StrictFloat | str],
     BeforeValidator(cast_none_to_empty_dict),
 ]
 
 
 ListOfNonEmptyStrings = Annotated[
-    List[str], BeforeValidator(lambda x: [s for s in x if s.strip()])
+    list[str], BeforeValidator(lambda x: [s for s in x if s.strip()])
 ]
 
 
-class SecretDict(pydantic.Secret[Dict[str, Any]]):
+class SecretDict(pydantic.Secret[dict[str, Any]]):
     pass
 
 
 def validate_set_T_from_delim_string(
-    value: Union[str, T, Set[T], None], type_, delim=None
-) -> Set[T]:
+    value: str | T | set[T] | None,
+    type_: Any,
+    delim: str | None = None,
+) -> set[T]:
     """
     "no-info" before validator useful in scooping env vars
 
@@ -129,20 +114,20 @@ def validate_set_T_from_delim_string(
     delim = delim or ","
     if isinstance(value, str):
         return {T_adapter.validate_strings(s.strip()) for s in value.split(delim)}
-    errors = []
+    errors: list[pydantic.ValidationError] = []
     try:
         return {T_adapter.validate_python(value)}
     except pydantic.ValidationError as e:
         errors.append(e)
     try:
-        return TypeAdapter(Set[type_]).validate_python(value)
+        return TypeAdapter(set[type_]).validate_python(value)
     except pydantic.ValidationError as e:
         errors.append(e)
     raise ValueError(f"Invalid set[{type_}]: {errors}")
 
 
 ClientRetryExtraCodes = Annotated[
-    Union[str, StatusCode, Set[StatusCode], None],
+    str | StatusCode | set[StatusCode] | None,
     BeforeValidator(partial(validate_set_T_from_delim_string, type_=StatusCode)),
 ]
 
@@ -152,7 +137,7 @@ LogLevel = Annotated[
 ]
 
 
-def convert_none_to_empty_dict(v: Optional[KeyValueLabels]) -> KeyValueLabels:
+def convert_none_to_empty_dict(v: KeyValueLabels | None) -> KeyValueLabels:
     return v or {}
 
 
@@ -169,6 +154,9 @@ KeyValueLabelsField = Annotated[
 
 __all__ = [
     "ClientRetryExtraCodes",
+    "DateTime",
+    "Date",
+    "Duration",
     "LogLevel",
     "KeyValueLabelsField",
     "NonNegativeInteger",

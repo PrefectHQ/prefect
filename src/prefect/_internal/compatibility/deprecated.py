@@ -19,6 +19,7 @@ import pendulum
 from pydantic import BaseModel
 from typing_extensions import ParamSpec, TypeAlias, TypeVar
 
+from prefect.types import DateTime
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.importtools import (
     AliasedModuleDefinition,
@@ -60,7 +61,7 @@ def generate_deprecation_message(
     if not start_date and not end_date:
         raise ValueError(
             "A start date is required if an end date is not provided. Suggested start"
-            f" date is {pendulum.now('UTC').format(DEPRECATED_DATEFMT)!r}"
+            f" date is {DateTime.now('UTC').format(DEPRECATED_DATEFMT)!r}"
         )
 
     if not end_date:
