@@ -1,9 +1,9 @@
+import { DeploymentWithFlow } from "@/api/deployments";
 import { DataTable } from "@/components/ui/data-table";
 import { Icon } from "@/components/ui/icons";
 import { ScheduleBadgeGroup } from "@/components/ui/schedule-badge";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
-import type { DeploymentWithFlow } from "@/hooks/deployments";
 import {
 	createColumnHelper,
 	getCoreRowModel,
@@ -46,12 +46,14 @@ const createColumns = ({
 				>
 					{row.original.name}
 				</span>
-				<span className="text-xs text-muted-foreground flex items-center gap-1">
-					<Icon id="Workflow" size={12} />
-					<span className="truncate" title={row.original.flow.name}>
-						{row.original.flow.name}
+				{row.original.flow && (
+					<span className="text-xs text-muted-foreground flex items-center gap-1">
+						<Icon id="Workflow" size={12} />
+						<span className="truncate" title={row.original.flow.name}>
+							{row.original.flow.name}
+						</span>
 					</span>
-				</span>
+				)}
 			</div>
 		),
 		size: 100,

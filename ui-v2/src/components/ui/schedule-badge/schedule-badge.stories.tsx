@@ -1,10 +1,10 @@
-import { faker } from "@faker-js/faker";
-import type { Meta, StoryObj } from "@storybook/react";
 import {
 	generateRandomCronSchedule,
 	generateRandomIntervalSchedule,
 	generateRandomRRuleSchedule,
-} from "@tests/utils/mock-factories";
+} from "@/mocks/create-fake-schedule";
+import { faker } from "@faker-js/faker";
+import type { Meta, StoryObj } from "@storybook/react";
 import { ScheduleBadge } from ".";
 
 export default {

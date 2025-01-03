@@ -1,4 +1,4 @@
-import type { DeploymentWithFlow } from "@/hooks/deployments";
+import type { DeploymentWithFlow } from "@/api/deployments";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, test, vi } from "vitest";
