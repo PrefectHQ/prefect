@@ -210,9 +210,9 @@ class RunnerDeployment(BaseModel):
             " a built runner."
         ),
     )
-    _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = Field(
+    # Experimental: SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
+    _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = PrivateAttr(
         default=None,
-        description="Experimental: SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.",
     )
     _entrypoint_type: EntrypointType = PrivateAttr(
         default=EntrypointType.FILE_PATH,
@@ -360,18 +360,18 @@ class RunnerDeployment(BaseModel):
 
             # We plan to support SLA configuration on the Prefect Server in the future.
             # For now, we only support it on Prefect Cloud.
-            if self.sla:
+            if self._sla:
                 await self._create_slas(deployment_id, client)
 
             return deployment_id
 
     async def _create_slas(self, deployment_id: UUID, client: PrefectClient):
-        if not isinstance(self.sla, list):
-            self.sla = [self.sla]
+        if not isinstance(self._sla, list):
+            self._sla = [self._sla]
 
         if client.server_type == ServerType.CLOUD:
             exceptions = []
-            for sla in self.sla:
+            for sla in self._sla:
                 try:
                     sla.set_deployment_id(deployment_id)
                     await client.create_sla(sla)
@@ -564,8 +564,8 @@ class RunnerDeployment(BaseModel):
             work_pool_name=work_pool_name,
             work_queue_name=work_queue_name,
             job_variables=job_variables,
-            sla=sla,
         )
+        deployment._sla = sla
 
         if not deployment.entrypoint:
             no_file_location_error = (
@@ -712,8 +712,8 @@ class RunnerDeployment(BaseModel):
             work_pool_name=work_pool_name,
             work_queue_name=work_queue_name,
             job_variables=job_variables,
-            sla=sla,
         )
+        deployment._sla = sla
         deployment._path = str(Path.cwd())
 
         cls._set_defaults_from_flow(deployment, flow)
@@ -825,8 +825,8 @@ class RunnerDeployment(BaseModel):
             work_pool_name=work_pool_name,
             work_queue_name=work_queue_name,
             job_variables=job_variables,
-            sla=sla,
         )
+        deployment._sla = sla
         deployment._path = str(storage.destination).replace(
             tmpdir, "$STORAGE_BASE_PATH"
         )
