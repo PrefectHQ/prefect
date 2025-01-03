@@ -131,7 +131,7 @@ class RunnerDeployment(BaseModel):
         job_variables: Settings used to override the values specified default base job template
             of the chosen work pool. Refer to the base job template of the chosen work pool for
             available settings.
-        sla: Experimental: SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
+        _sla: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
     """
 
     model_config: ClassVar[ConfigDict] = ConfigDict(arbitrary_types_allowed=True)
@@ -211,7 +211,7 @@ class RunnerDeployment(BaseModel):
             " a built runner."
         ),
     )
-    # Experimental: SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
+    # (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
     _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = PrivateAttr(
         default=None,
     )
@@ -500,7 +500,7 @@ class RunnerDeployment(BaseModel):
         work_queue_name: Optional[str] = None,
         job_variables: Optional[dict[str, Any]] = None,
         entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
-        sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,  # experimental
+        _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,  # experimental
     ) -> "RunnerDeployment":
         """
         Configure a deployment for a given flow.
@@ -531,7 +531,7 @@ class RunnerDeployment(BaseModel):
             job_variables: Settings used to override the values specified default base job template
                 of the chosen work pool. Refer to the base job template of the chosen work pool for
                 available settings.
-            sla: Experimental: SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
+            _sla: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
         """
         constructed_schedules = cls._construct_deployment_schedules(
             interval=interval,
@@ -567,7 +567,7 @@ class RunnerDeployment(BaseModel):
             work_queue_name=work_queue_name,
             job_variables=job_variables,
         )
-        deployment._sla = sla
+        deployment._sla = _sla
 
         if not deployment.entrypoint:
             no_file_location_error = (
@@ -643,7 +643,7 @@ class RunnerDeployment(BaseModel):
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
         job_variables: Optional[dict[str, Any]] = None,
-        sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,  # experimental
+        _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,  # experimental
     ) -> "RunnerDeployment":
         """
         Configure a deployment for a given flow located at a given entrypoint.
@@ -675,7 +675,7 @@ class RunnerDeployment(BaseModel):
             job_variables: Settings used to override the values specified default base job template
                 of the chosen work pool. Refer to the base job template of the chosen work pool for
                 available settings.
-            sla: Experimental: SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
+            _sla: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
         """
         from prefect.flows import load_flow_from_entrypoint
 
@@ -715,7 +715,7 @@ class RunnerDeployment(BaseModel):
             work_queue_name=work_queue_name,
             job_variables=job_variables,
         )
-        deployment._sla = sla
+        deployment._sla = _sla
         deployment._path = str(Path.cwd())
 
         cls._set_defaults_from_flow(deployment, flow)
@@ -747,7 +747,7 @@ class RunnerDeployment(BaseModel):
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
         job_variables: Optional[dict[str, Any]] = None,
-        sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,  # experimental
+        _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,  # experimental
     ):
         """
         Create a RunnerDeployment from a flow located at a given entrypoint and stored in a
@@ -779,7 +779,7 @@ class RunnerDeployment(BaseModel):
             job_variables: Settings used to override the values specified default base job template
                 of the chosen work pool. Refer to the base job template of the chosen work pool for
                 available settings.
-            sla: Experimental: SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
+            _sla: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
         """
         from prefect.flows import load_flow_from_entrypoint
 
@@ -828,7 +828,7 @@ class RunnerDeployment(BaseModel):
             work_queue_name=work_queue_name,
             job_variables=job_variables,
         )
-        deployment._sla = sla
+        deployment._sla = _sla
         deployment._path = str(storage.destination).replace(
             tmpdir, "$STORAGE_BASE_PATH"
         )

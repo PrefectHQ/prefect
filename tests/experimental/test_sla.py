@@ -161,7 +161,7 @@ class TestRunnerDeploymentApply:
         deployment = RunnerDeployment.from_flow(
             flow=tired_flow,
             name=__file__,
-            sla=sla,
+            _sla=sla,
         )
         monkeypatch.setattr(
             deployment, "_create_slas", mock.AsyncMock(name="mock_create_slas")
@@ -190,7 +190,7 @@ class TestRunnerDeploymentApply:
         deployment = RunnerDeployment.from_flow(
             flow=tired_flow,
             name=__file__,
-            sla=sla,
+            _sla=sla,
         )
         await deployment._create_slas(uuid4(), client)
         assert client.create_sla.await_args_list[0].args[0].name == sla.name
@@ -210,7 +210,7 @@ class TestRunnerDeploymentApply:
         deployment = RunnerDeployment.from_flow(
             flow=tired_flow,
             name=__file__,
-            sla=[sla1, sla2],
+            _sla=[sla1, sla2],
         )
         await deployment._create_slas(uuid4(), client)
         calls = client.create_sla.await_args_list
@@ -228,7 +228,7 @@ class TestRunnerDeploymentApply:
         deployment = RunnerDeployment.from_flow(
             flow=tired_flow,
             name=__file__,
-            sla=sla,
+            _sla=sla,
         )
 
         with pytest.raises(
@@ -255,7 +255,7 @@ class TestRunnerDeploymentApply:
         deployment = RunnerDeployment.from_flow(
             flow=tired_flow,
             name=__file__,
-            sla=[sla1, sla2],
+            _sla=[sla1, sla2],
         )
 
         with pytest.raises(ExceptionGroup) as exc_info:  # novermin

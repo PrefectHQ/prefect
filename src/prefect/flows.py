@@ -654,7 +654,7 @@ class Flow(Generic[P, R]):
         work_queue_name: Optional[str] = None,
         job_variables: Optional[dict[str, Any]] = None,
         entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
-        sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,  # experimental
+        _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,  # experimental
     ) -> "RunnerDeployment":
         """
         Creates a runner deployment object for this flow.
@@ -685,7 +685,7 @@ class Flow(Generic[P, R]):
                 of the chosen work pool. Refer to the base job template of the chosen work pool for
             entrypoint_type: Type of entrypoint to use for the deployment. When using a module path
                 entrypoint, ensure that the module will be importable in the execution environment.
-            sla: Experimental: SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
+            _sla: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
 
         Examples:
             Prepare two deployments and serve them:
@@ -733,7 +733,7 @@ class Flow(Generic[P, R]):
                 work_pool_name=work_pool_name,
                 work_queue_name=work_queue_name,
                 job_variables=job_variables,
-                sla=sla,
+                _sla=_sla,
             )  # type: ignore # TODO: remove sync_compatible
         else:
             return RunnerDeployment.from_flow(
@@ -755,7 +755,7 @@ class Flow(Generic[P, R]):
                 work_queue_name=work_queue_name,
                 job_variables=job_variables,
                 entrypoint_type=entrypoint_type,
-                sla=sla,
+                _sla=_sla,
             )
 
     def on_completion(self, fn: StateHookCallable) -> StateHookCallable:
@@ -1068,8 +1068,7 @@ class Flow(Generic[P, R]):
         entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
         print_next_steps: bool = True,
         ignore_warnings: bool = False,
-        # Experimental: SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
-        sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,
+        _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,
     ) -> UUID:
         """
         Deploys a flow to run on dynamic infrastructure via a work pool.
@@ -1121,7 +1120,7 @@ class Flow(Generic[P, R]):
             print_next_steps_message: Whether or not to print a message with next steps
                 after deploying the deployments.
             ignore_warnings: Whether or not to ignore warnings about the work pool type.
-            sla: Experimental: SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
+            _sla: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
         Returns:
             The ID of the created/updated deployment.
 
@@ -1199,7 +1198,7 @@ class Flow(Generic[P, R]):
             work_queue_name=work_queue_name,
             job_variables=job_variables,
             entrypoint_type=entrypoint_type,
-            sla=sla,
+            _sla=_sla,
         )
 
         from prefect.deployments.runner import deploy
