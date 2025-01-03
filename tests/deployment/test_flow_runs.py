@@ -11,7 +11,7 @@ from httpx import Response
 from prefect import flow
 from prefect.client.schemas.responses import DeploymentResponse
 from prefect.context import FlowRunContext
-from prefect.deployments import run_deployment
+from prefect.deployments import arun_deployment, run_deployment
 from prefect.flow_engine import run_flow_async
 from prefect.server.schemas.core import TaskRunResult
 from prefect.settings import (
@@ -25,20 +25,21 @@ if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
 
 
+@pytest.fixture
+async def test_deployment(prefect_client: "PrefectClient") -> DeploymentResponse:
+    flow_id = await prefect_client.create_flow_from_name("foo")
+
+    deployment_id = await prefect_client.create_deployment(
+        name="foo-deployment", flow_id=flow_id, parameter_openapi_schema={}
+    )
+    deployment = await prefect_client.read_deployment(deployment_id)
+
+    return deployment
+
+
 class TestRunDeployment:
-    @pytest.fixture
-    async def test_deployment(self, prefect_client):
-        flow_id = await prefect_client.create_flow_from_name("foo")
-
-        deployment_id = await prefect_client.create_deployment(
-            name="foo-deployment", flow_id=flow_id, parameter_openapi_schema={}
-        )
-        deployment = await prefect_client.read_deployment(deployment_id)
-
-        return deployment
-
     async def test_run_deployment_with_ephemeral_api(
-        self, prefect_client, test_deployment
+        self, prefect_client: "PrefectClient", test_deployment: DeploymentResponse
     ):
         deployment = test_deployment
         flow_run = await run_deployment(
@@ -488,3 +489,17 @@ class TestRunDeployment:
 
         assert child_span.parent.span_id == parent_span.get_span_context().span_id
         assert child_span.parent.trace_id == parent_span.get_span_context().trace_id
+
+
+class TestARunDeployment:
+    """`arun_deployment` is implicitly tested by every above instance of `await run_deployment`
+    since `async_dispatch` is used to dispatch `arun_deployment` from `run_deployment`
+    when used in an async context
+    """
+
+    async def test_arun_deployment(
+        self, prefect_client: "PrefectClient", test_deployment: DeploymentResponse
+    ):
+        flow_run = await arun_deployment(f"foo/{test_deployment.name}", timeout=0)
+        assert flow_run.state is not None
+        assert flow_run.state.is_scheduled()
