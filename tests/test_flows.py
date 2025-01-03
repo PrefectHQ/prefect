@@ -3667,7 +3667,7 @@ class TestFlowHooksOnCrashed:
             await my_flow(return_state=True)
         assert my_mock.mock_calls == [call("crashed")]
 
-    async def test_on_crashed_hook_not_called_on_sigterm_from_flow_with_cancelling_state(
+    async def test_on_crashed_hook_called_on_sigterm_from_flow_with_cancelling_state(
         self, mock_sigterm_handler
     ):
         my_mock = MagicMock()
@@ -3691,7 +3691,7 @@ class TestFlowHooksOnCrashed:
 
         with pytest.raises(prefect.exceptions.TerminationSignal):
             await my_flow(return_state=True)
-        my_mock.assert_not_called()
+        my_mock.assert_called_once()
 
     def test_on_crashed_hooks_respect_env_var(self, monkeypatch):
         my_mock = MagicMock()
