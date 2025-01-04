@@ -7,7 +7,7 @@ import sys
 import tempfile
 from datetime import timedelta
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 from unittest import mock
 from uuid import UUID, uuid4
 
@@ -290,7 +290,7 @@ class TestProjectDeploy:
         assert deployment.enforce_parameter_schema
 
     async def test_deploy_with_no_enforce_parameter_schema(
-        self, project_dir, work_pool, prefect_client
+        self, project_dir: Path, work_pool: WorkPool, prefect_client: PrefectClient
     ):
         await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -1793,7 +1793,9 @@ class TestProjectDeploy:
         )
 
     @pytest.mark.usefixtures("interactive_console", "project_dir")
-    async def test_deploy_without_name_interactive(self, work_pool, prefect_client):
+    async def test_deploy_without_name_interactive(
+        self, work_pool: WorkPool, prefect_client: PrefectClient
+    ):
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
@@ -1837,7 +1839,7 @@ class TestProjectDeploy:
 
     @pytest.mark.usefixtures("interactive_console", "project_dir")
     async def test_deploy_without_work_pool_interactive(
-        self, work_pool, prefect_client
+        self, work_pool: WorkPool, prefect_client: PrefectClient
     ):
         await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -1885,7 +1887,10 @@ class TestProjectDeploy:
 
     @pytest.mark.usefixtures("interactive_console", "project_dir")
     async def test_deploy_with_prefect_agent_work_pool_interactive(
-        self, work_pool, prefect_client, default_agent_pool
+        self,
+        work_pool: WorkPool,
+        prefect_client: PrefectClient,
+        default_agent_pool: WorkPool,
     ):
         await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -1921,7 +1926,9 @@ class TestProjectDeploy:
         assert deployment.entrypoint == "./flows/hello.py:my_flow"
 
     @pytest.mark.usefixtures("interactive_console", "project_dir")
-    async def test_deploy_with_push_pool_no_worker_start_message(self, push_work_pool):
+    async def test_deploy_with_push_pool_no_worker_start_message(
+        self, push_work_pool: WorkPool
+    ):
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
@@ -1943,7 +1950,9 @@ class TestProjectDeploy:
         )
 
     @pytest.mark.usefixtures("interactive_console", "project_dir")
-    async def test_deploy_with_no_available_work_pool_interactive(self, prefect_client):
+    async def test_deploy_with_no_available_work_pool_interactive(
+        self, prefect_client: PrefectClient
+    ):
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command="deploy ./flows/hello.py:my_flow -n test-name --interval 3600",
@@ -1985,7 +1994,7 @@ class TestProjectDeploy:
 
     @pytest.mark.usefixtures("project_dir")
     async def test_deploy_with_entrypoint_does_not_fail_with_missing_prefect_folder(
-        self, work_pool
+        self, work_pool: WorkPool
     ):
         Path(".prefect").rmdir()
         await run_sync_in_worker_thread(
@@ -2000,7 +2009,7 @@ class TestProjectDeploy:
     @pytest.mark.parametrize("schedule_value", [None, {}])
     @pytest.mark.usefixtures("project_dir", "interactive_console")
     async def test_deploy_does_not_prompt_schedule_when_empty_schedule_prefect_yaml(
-        self, schedule_value, work_pool, prefect_client
+        self, schedule_value: Any, work_pool: WorkPool, prefect_client: PrefectClient
     ):
         prefect_yaml_file = Path("prefect.yaml")
         with prefect_yaml_file.open(mode="r") as f:
@@ -2042,7 +2051,7 @@ class TestProjectDeploy:
     @pytest.mark.parametrize("build_value", [None, {}])
     @pytest.mark.usefixtures("project_dir", "interactive_console")
     async def test_deploy_does_not_prompt_build_docker_image_when_empty_build_action_prefect_yaml(
-        self, build_value, work_pool, prefect_client
+        self, build_value, work_pool: WorkPool, prefect_client: PrefectClient
     ):
         prefect_yaml_file = Path("prefect.yaml")
         with prefect_yaml_file.open(mode="r") as f:
@@ -2083,7 +2092,7 @@ class TestProjectDeploy:
         )
 
     async def test_deploy_with_bad_run_shell_script_raises(
-        self, project_dir, work_pool
+        self, project_dir: Path, work_pool: WorkPool
     ):
         """
         Regression test for a bug where deployment steps would continue even when
@@ -2273,6 +2282,39 @@ class TestProjectDeploy:
                     + readchar.key.ENTER
                 ),
             )
+
+    @pytest.mark.usefixtures("project_dir")
+    async def test_deploy_respects_yaml_enforce_parameter_schema(
+        self, work_pool: WorkPool, prefect_client: PrefectClient
+    ):
+        prefect_yaml_file = Path("prefect.yaml")
+        with prefect_yaml_file.open(mode="r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        deploy_config["deployments"] = [
+            {
+                "name": "test-name",
+                "entrypoint": "flows/hello.py:my_flow",
+                "work_pool": {
+                    "name": work_pool.name,
+                },
+                "enforce_parameter_schema": False,
+            }
+        ]
+
+        with prefect_yaml_file.open(mode="w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy -n test-name",
+            expected_code=0,
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert not deployment.enforce_parameter_schema
 
 
 class TestSchedules:
