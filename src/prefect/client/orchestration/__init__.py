@@ -1,8 +1,6 @@
 import asyncio
 import base64
-import datetime
 import ssl
-import warnings
 from collections.abc import Iterable
 from contextlib import AsyncExitStack
 from logging import Logger
@@ -12,7 +10,6 @@ from uuid import UUID
 import certifi
 import httpcore
 import httpx
-import pendulum
 import pydantic
 from asgi_lifespan import LifespanManager
 from packaging import version
@@ -74,21 +71,27 @@ from prefect.client.orchestration._blocks_types.client import (
     BlocksTypeAsyncClient,
 )
 
+from prefect.client.orchestration._work_pools.client import (
+    WorkPoolClient,
+    WorkPoolAsyncClient,
+)
+
+from prefect.client.orchestration._work_queues.client import (
+    WorkQueueClient,
+    WorkQueueAsyncClient,
+)
+
 import prefect
 import prefect.exceptions
 import prefect.settings
 import prefect.states
 from prefect.client.constants import SERVER_API_VERSION
-from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun
+from prefect.client.schemas import OrchestrationResult, TaskRun
 from prefect.client.schemas.actions import (
     FlowRunNotificationPolicyCreate,
     FlowRunNotificationPolicyUpdate,
     TaskRunCreate,
     TaskRunUpdate,
-    WorkPoolCreate,
-    WorkPoolUpdate,
-    WorkQueueCreate,
-    WorkQueueUpdate,
 )
 from prefect.client.schemas.filters import (
     DeploymentFilter,
@@ -96,10 +99,6 @@ from prefect.client.schemas.filters import (
     FlowRunFilter,
     FlowRunNotificationPolicyFilter,
     TaskRunFilter,
-    WorkerFilter,
-    WorkPoolFilter,
-    WorkQueueFilter,
-    WorkQueueFilterName,
 )
 from prefect.client.schemas.objects import (
     Constant,
@@ -107,14 +106,6 @@ from prefect.client.schemas.objects import (
     Parameter,
     TaskRunPolicy,
     TaskRunResult,
-    Worker,
-    WorkerMetadata,
-    WorkPool,
-    WorkQueue,
-    WorkQueueStatusDetail,
-)
-from prefect.client.schemas.responses import (
-    WorkerFlowRunResponse,
 )
 from prefect.client.schemas.sorting import (
     TaskRunSort,
@@ -133,7 +124,6 @@ from prefect.settings import (
     PREFECT_CLOUD_API_URL,
     PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
     PREFECT_TESTING_UNIT_TEST_MODE,
-    get_current_settings,
 )
 
 if TYPE_CHECKING:
@@ -263,6 +253,8 @@ class PrefectClient(
     BlocksDocumentAsyncClient,
     BlocksSchemaAsyncClient,
     BlocksTypeAsyncClient,
+    WorkPoolAsyncClient,
+    WorkQueueAsyncClient,
 ):
     """
     An asynchronous client for interacting with the [Prefect REST API](/api-ref/rest-api/).
@@ -474,273 +466,6 @@ class PrefectClient(
         Send a GET request to /hello for testing purposes.
         """
         return await self._client.get("/hello")
-
-    async def create_work_queue(
-        self,
-        name: str,
-        description: Optional[str] = None,
-        is_paused: Optional[bool] = None,
-        concurrency_limit: Optional[int] = None,
-        priority: Optional[int] = None,
-        work_pool_name: Optional[str] = None,
-    ) -> WorkQueue:
-        """
-        Create a work queue.
-
-        Args:
-            name: a unique name for the work queue
-            description: An optional description for the work queue.
-            is_paused: Whether or not the work queue is paused.
-            concurrency_limit: An optional concurrency limit for the work queue.
-            priority: The queue's priority. Lower values are higher priority (1 is the highest).
-            work_pool_name: The name of the work pool to use for this queue.
-
-        Raises:
-            prefect.exceptions.ObjectAlreadyExists: If request returns 409
-            httpx.RequestError: If request fails
-
-        Returns:
-            The created work queue
-        """
-        create_model = WorkQueueCreate(name=name, filter=None)
-        if description is not None:
-            create_model.description = description
-        if is_paused is not None:
-            create_model.is_paused = is_paused
-        if concurrency_limit is not None:
-            create_model.concurrency_limit = concurrency_limit
-        if priority is not None:
-            create_model.priority = priority
-
-        data = create_model.model_dump(mode="json")
-        try:
-            if work_pool_name is not None:
-                response = await self._client.post(
-                    f"/work_pools/{work_pool_name}/queues", json=data
-                )
-            else:
-                response = await self._client.post("/work_queues/", json=data)
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_409_CONFLICT:
-                raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
-            elif e.response.status_code == status.HTTP_404_NOT_FOUND:
-                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
-            else:
-                raise
-        return WorkQueue.model_validate(response.json())
-
-    async def read_work_queue_by_name(
-        self,
-        name: str,
-        work_pool_name: Optional[str] = None,
-    ) -> WorkQueue:
-        """
-        Read a work queue by name.
-
-        Args:
-            name (str): a unique name for the work queue
-            work_pool_name (str, optional): the name of the work pool
-                the queue belongs to.
-
-        Raises:
-            prefect.exceptions.ObjectNotFound: if no work queue is found
-            httpx.HTTPStatusError: other status errors
-
-        Returns:
-            WorkQueue: a work queue API object
-        """
-        try:
-            if work_pool_name is not None:
-                response = await self._client.get(
-                    f"/work_pools/{work_pool_name}/queues/{name}"
-                )
-            else:
-                response = await self._client.get(f"/work_queues/name/{name}")
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_404_NOT_FOUND:
-                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
-            else:
-                raise
-
-        return WorkQueue.model_validate(response.json())
-
-    async def update_work_queue(self, id: UUID, **kwargs: Any) -> None:
-        """
-        Update properties of a work queue.
-
-        Args:
-            id: the ID of the work queue to update
-            **kwargs: the fields to update
-
-        Raises:
-            ValueError: if no kwargs are provided
-            prefect.exceptions.ObjectNotFound: if request returns 404
-            httpx.RequestError: if the request fails
-
-        """
-        if not kwargs:
-            raise ValueError("No fields provided to update.")
-
-        data = WorkQueueUpdate(**kwargs).model_dump(mode="json", exclude_unset=True)
-        try:
-            await self._client.patch(f"/work_queues/{id}", json=data)
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_404_NOT_FOUND:
-                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
-            else:
-                raise
-
-    async def get_runs_in_work_queue(
-        self,
-        id: UUID,
-        limit: int = 10,
-        scheduled_before: Optional[datetime.datetime] = None,
-    ) -> list[FlowRun]:
-        """
-        Read flow runs off a work queue.
-
-        Args:
-            id: the id of the work queue to read from
-            limit: a limit on the number of runs to return
-            scheduled_before: a timestamp; only runs scheduled before this time will be returned.
-                Defaults to now.
-
-        Raises:
-            prefect.exceptions.ObjectNotFound: If request returns 404
-            httpx.RequestError: If request fails
-
-        Returns:
-            List[FlowRun]: a list of FlowRun objects read from the queue
-        """
-        if scheduled_before is None:
-            scheduled_before = pendulum.now("UTC")
-
-        try:
-            response = await self._client.post(
-                f"/work_queues/{id}/get_runs",
-                json={
-                    "limit": limit,
-                    "scheduled_before": scheduled_before.isoformat(),
-                },
-            )
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_404_NOT_FOUND:
-                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
-            else:
-                raise
-        return pydantic.TypeAdapter(list[FlowRun]).validate_python(response.json())
-
-    async def read_work_queue(
-        self,
-        id: UUID,
-    ) -> WorkQueue:
-        """
-        Read a work queue.
-
-        Args:
-            id: the id of the work queue to load
-
-        Raises:
-            prefect.exceptions.ObjectNotFound: If request returns 404
-            httpx.RequestError: If request fails
-
-        Returns:
-            WorkQueue: an instantiated WorkQueue object
-        """
-        try:
-            response = await self._client.get(f"/work_queues/{id}")
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_404_NOT_FOUND:
-                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
-            else:
-                raise
-        return WorkQueue.model_validate(response.json())
-
-    async def read_work_queue_status(
-        self,
-        id: UUID,
-    ) -> WorkQueueStatusDetail:
-        """
-        Read a work queue status.
-
-        Args:
-            id: the id of the work queue to load
-
-        Raises:
-            prefect.exceptions.ObjectNotFound: If request returns 404
-            httpx.RequestError: If request fails
-
-        Returns:
-            WorkQueueStatus: an instantiated WorkQueueStatus object
-        """
-        try:
-            response = await self._client.get(f"/work_queues/{id}/status")
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_404_NOT_FOUND:
-                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
-            else:
-                raise
-        return WorkQueueStatusDetail.model_validate(response.json())
-
-    async def match_work_queues(
-        self,
-        prefixes: list[str],
-        work_pool_name: Optional[str] = None,
-    ) -> list[WorkQueue]:
-        """
-        Query the Prefect API for work queues with names with a specific prefix.
-
-        Args:
-            prefixes: a list of strings used to match work queue name prefixes
-            work_pool_name: an optional work pool name to scope the query to
-
-        Returns:
-            a list of WorkQueue model representations
-                of the work queues
-        """
-        page_length = 100
-        current_page = 0
-        work_queues: list[WorkQueue] = []
-
-        while True:
-            new_queues = await self.read_work_queues(
-                work_pool_name=work_pool_name,
-                offset=current_page * page_length,
-                limit=page_length,
-                work_queue_filter=WorkQueueFilter(
-                    name=WorkQueueFilterName(startswith_=prefixes)
-                ),
-            )
-            if not new_queues:
-                break
-            work_queues += new_queues
-            current_page += 1
-
-        return work_queues
-
-    async def delete_work_queue_by_id(
-        self,
-        id: UUID,
-    ) -> None:
-        """
-        Delete a work queue by its ID.
-
-        Args:
-            id: the id of the work queue to delete
-
-        Raises:
-            prefect.exceptions.ObjectNotFound: If request returns 404
-            httpx.RequestError: If requests fails
-        """
-        try:
-            await self._client.delete(
-                f"/work_queues/{id}",
-            )
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_404_NOT_FOUND:
-                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
-            else:
-                raise
 
     async def set_task_run_name(self, task_run_id: UUID, name: str) -> httpx.Response:
         task_run_data = TaskRunUpdate(name=name)
@@ -1100,294 +825,6 @@ class PrefectClient(
             response.json()
         )
 
-    async def send_worker_heartbeat(
-        self,
-        work_pool_name: str,
-        worker_name: str,
-        heartbeat_interval_seconds: Optional[float] = None,
-        get_worker_id: bool = False,
-        worker_metadata: Optional[WorkerMetadata] = None,
-    ) -> Optional[UUID]:
-        """
-        Sends a worker heartbeat for a given work pool.
-
-        Args:
-            work_pool_name: The name of the work pool to heartbeat against.
-            worker_name: The name of the worker sending the heartbeat.
-            return_id: Whether to return the worker ID. Note: will return `None` if the connected server does not support returning worker IDs, even if `return_id` is `True`.
-            worker_metadata: Metadata about the worker to send to the server.
-        """
-        params: dict[str, Any] = {
-            "name": worker_name,
-            "heartbeat_interval_seconds": heartbeat_interval_seconds,
-        }
-        if worker_metadata:
-            params["metadata"] = worker_metadata.model_dump(mode="json")
-        if get_worker_id:
-            params["return_id"] = get_worker_id
-
-        resp = await self._client.post(
-            f"/work_pools/{work_pool_name}/workers/heartbeat",
-            json=params,
-        )
-
-        if (
-            (
-                self.server_type == ServerType.CLOUD
-                or get_current_settings().testing.test_mode
-            )
-            and get_worker_id
-            and resp.status_code == 200
-        ):
-            return UUID(resp.text)
-        else:
-            return None
-
-    async def read_workers_for_work_pool(
-        self,
-        work_pool_name: str,
-        worker_filter: Optional[WorkerFilter] = None,
-        offset: Optional[int] = None,
-        limit: Optional[int] = None,
-    ) -> list[Worker]:
-        """
-        Reads workers for a given work pool.
-
-        Args:
-            work_pool_name: The name of the work pool for which to get
-                member workers.
-            worker_filter: Criteria by which to filter workers.
-            limit: Limit for the worker query.
-            offset: Limit for the worker query.
-        """
-        response = await self._client.post(
-            f"/work_pools/{work_pool_name}/workers/filter",
-            json={
-                "workers": (
-                    worker_filter.model_dump(mode="json", exclude_unset=True)
-                    if worker_filter
-                    else None
-                ),
-                "offset": offset,
-                "limit": limit,
-            },
-        )
-
-        return pydantic.TypeAdapter(list[Worker]).validate_python(response.json())
-
-    async def read_work_pool(self, work_pool_name: str) -> WorkPool:
-        """
-        Reads information for a given work pool
-
-        Args:
-            work_pool_name: The name of the work pool to for which to get
-                information.
-
-        Returns:
-            Information about the requested work pool.
-        """
-        try:
-            response = await self._client.get(f"/work_pools/{work_pool_name}")
-            return WorkPool.model_validate(response.json())
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_404_NOT_FOUND:
-                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
-            else:
-                raise
-
-    async def read_work_pools(
-        self,
-        limit: Optional[int] = None,
-        offset: int = 0,
-        work_pool_filter: Optional[WorkPoolFilter] = None,
-    ) -> list[WorkPool]:
-        """
-        Reads work pools.
-
-        Args:
-            limit: Limit for the work pool query.
-            offset: Offset for the work pool query.
-            work_pool_filter: Criteria by which to filter work pools.
-
-        Returns:
-            A list of work pools.
-        """
-
-        body: dict[str, Any] = {
-            "limit": limit,
-            "offset": offset,
-            "work_pools": (
-                work_pool_filter.model_dump(mode="json") if work_pool_filter else None
-            ),
-        }
-        response = await self._client.post("/work_pools/filter", json=body)
-        return pydantic.TypeAdapter(list[WorkPool]).validate_python(response.json())
-
-    async def create_work_pool(
-        self,
-        work_pool: WorkPoolCreate,
-        overwrite: bool = False,
-    ) -> WorkPool:
-        """
-        Creates a work pool with the provided configuration.
-
-        Args:
-            work_pool: Desired configuration for the new work pool.
-
-        Returns:
-            Information about the newly created work pool.
-        """
-        try:
-            response = await self._client.post(
-                "/work_pools/",
-                json=work_pool.model_dump(mode="json", exclude_unset=True),
-            )
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_409_CONFLICT:
-                if overwrite:
-                    existing_work_pool = await self.read_work_pool(
-                        work_pool_name=work_pool.name
-                    )
-                    if existing_work_pool.type != work_pool.type:
-                        warnings.warn(
-                            "Overwriting work pool type is not supported. Ignoring provided type.",
-                            category=UserWarning,
-                        )
-                    await self.update_work_pool(
-                        work_pool_name=work_pool.name,
-                        work_pool=WorkPoolUpdate.model_validate(
-                            work_pool.model_dump(exclude={"name", "type"})
-                        ),
-                    )
-                    response = await self._client.get(f"/work_pools/{work_pool.name}")
-                else:
-                    raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
-            else:
-                raise
-
-        return WorkPool.model_validate(response.json())
-
-    async def update_work_pool(
-        self,
-        work_pool_name: str,
-        work_pool: WorkPoolUpdate,
-    ) -> None:
-        """
-        Updates a work pool.
-
-        Args:
-            work_pool_name: Name of the work pool to update.
-            work_pool: Fields to update in the work pool.
-        """
-        try:
-            await self._client.patch(
-                f"/work_pools/{work_pool_name}",
-                json=work_pool.model_dump(mode="json", exclude_unset=True),
-            )
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_404_NOT_FOUND:
-                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
-            else:
-                raise
-
-    async def delete_work_pool(
-        self,
-        work_pool_name: str,
-    ) -> None:
-        """
-        Deletes a work pool.
-
-        Args:
-            work_pool_name: Name of the work pool to delete.
-        """
-        try:
-            await self._client.delete(f"/work_pools/{work_pool_name}")
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_404_NOT_FOUND:
-                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
-            else:
-                raise
-
-    async def read_work_queues(
-        self,
-        work_pool_name: Optional[str] = None,
-        work_queue_filter: Optional[WorkQueueFilter] = None,
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
-    ) -> list[WorkQueue]:
-        """
-        Retrieves queues for a work pool.
-
-        Args:
-            work_pool_name: Name of the work pool for which to get queues.
-            work_queue_filter: Criteria by which to filter queues.
-            limit: Limit for the queue query.
-            offset: Limit for the queue query.
-
-        Returns:
-            List of queues for the specified work pool.
-        """
-        json: dict[str, Any] = {
-            "work_queues": (
-                work_queue_filter.model_dump(mode="json", exclude_unset=True)
-                if work_queue_filter
-                else None
-            ),
-            "limit": limit,
-            "offset": offset,
-        }
-
-        if work_pool_name:
-            try:
-                response = await self._client.post(
-                    f"/work_pools/{work_pool_name}/queues/filter",
-                    json=json,
-                )
-            except httpx.HTTPStatusError as e:
-                if e.response.status_code == status.HTTP_404_NOT_FOUND:
-                    raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
-                else:
-                    raise
-        else:
-            response = await self._client.post("/work_queues/filter", json=json)
-
-        return pydantic.TypeAdapter(list[WorkQueue]).validate_python(response.json())
-
-    async def get_scheduled_flow_runs_for_work_pool(
-        self,
-        work_pool_name: str,
-        work_queue_names: Optional[list[str]] = None,
-        scheduled_before: Optional[datetime.datetime] = None,
-    ) -> list[WorkerFlowRunResponse]:
-        """
-        Retrieves scheduled flow runs for the provided set of work pool queues.
-
-        Args:
-            work_pool_name: The name of the work pool that the work pool
-                queues are associated with.
-            work_queue_names: The names of the work pool queues from which
-                to get scheduled flow runs.
-            scheduled_before: Datetime used to filter returned flow runs. Flow runs
-                scheduled for after the given datetime string will not be returned.
-
-        Returns:
-            A list of worker flow run responses containing information about the
-            retrieved flow runs.
-        """
-        body: dict[str, Any] = {}
-        if work_queue_names is not None:
-            body["work_queue_names"] = list(work_queue_names)
-        if scheduled_before:
-            body["scheduled_before"] = str(scheduled_before)
-
-        response = await self._client.post(
-            f"/work_pools/{work_pool_name}/get_scheduled_flow_runs",
-            json=body,
-        )
-        return pydantic.TypeAdapter(list[WorkerFlowRunResponse]).validate_python(
-            response.json()
-        )
-
     async def read_worker_metadata(self) -> dict[str, Any]:
         """Reads worker metadata stored in Prefect collection registry."""
         response = await self._client.get("collections/views/aggregate-worker-metadata")
@@ -1504,6 +941,8 @@ class SyncPrefectClient(
     BlocksDocumentClient,
     BlocksSchemaClient,
     BlocksTypeClient,
+    WorkPoolClient,
+    WorkQueueClient,
 ):
     """
     A synchronous client for interacting with the [Prefect REST API](/api-ref/rest-api/).
