@@ -1,4 +1,1 @@
-export {
-	AutomationsActionSelect,
-	type AutomationActions,
-} from "./automations-action-select";
+export { AutomationsActionSelect } from "./automations-action-select";

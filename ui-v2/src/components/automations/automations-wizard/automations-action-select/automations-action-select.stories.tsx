@@ -1,18 +1,24 @@
+import { ActionType } from "@/components/automations/automations-wizard/types";
 import type { Meta, StoryObj } from "@storybook/react";
-import { fn } from "@storybook/test";
 import { useState } from "react";
-import {
-	type AutomationActions,
-	AutomationsActionSelect,
-} from "./automations-action-select";
+import { AutomationsActionSelect } from "./automations-action-select";
 
 const meta = {
 	title: "Components/Automations/Wizard/AutomationsActionSelect",
 	component: AutomationsActionSelect,
-	args: { onValueChange: fn() },
 	render: function ComponentExmaple() {
-		const [action, setAction] = useState<AutomationActions>();
-		return <AutomationsActionSelect onValueChange={setAction} value={action} />;
+		const [type, setType] = useState<ActionType>();
+		const [actionFields, setActionFields] = useState<Record<string, unknown>>(
+			{},
+		);
+		return (
+			<AutomationsActionSelect
+				actionFields={actionFields}
+				onActionFieldsChange={setActionFields}
+				actionType={type}
+				onChangeActionType={setType}
+			/>
+		);
 	},
 } satisfies Meta<typeof AutomationsActionSelect>;
 

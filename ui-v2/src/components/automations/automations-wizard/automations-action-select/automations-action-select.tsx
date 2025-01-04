@@ -1,3 +1,4 @@
+import { ActionType } from "@/components/automations/automations-wizard/types";
 import { Label } from "@/components/ui/label";
 import {
 	Select,
@@ -9,7 +10,9 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 
-const AUTOMATION_ACTION_TYPES = {
+import { ChangeFlowRunStateFields } from "./change-flow-run-state-fields";
+
+const AUTOMATION_ACTION_TYPES: Record<ActionType, string> = {
 	"cancel-flow-run": "Cancel a flow run",
 	"suspend-flow-run": "Suspend a flow run",
 	"resume-flow-run": "Resume a flow run",
@@ -24,56 +27,69 @@ const AUTOMATION_ACTION_TYPES = {
 	"pause-automation": "Pause an automation",
 	"resume-automation": "Resume an automation",
 	"send-notification": "Send a notification",
-	"do-nothing": "Do nothing",
-} as const;
-
-export type AutomationActions = keyof typeof AUTOMATION_ACTION_TYPES;
+};
 
 type AutomationsActionSelectSelectProps = {
-	onValueChange: (value: AutomationActions) => void;
-	value?: AutomationActions;
+	actionType?: ActionType;
+	actionFields?: Record<string, unknown>;
+	onActionFieldsChange: (actionFields: Record<string, unknown>) => void;
+	onChangeActionType: (actionType: ActionType) => void;
 };
 
 export const AutomationsActionSelect = ({
-	onValueChange,
-	value,
+	actionType,
+	actionFields,
+	onActionFieldsChange,
+	onChangeActionType,
 }: AutomationsActionSelectSelectProps) => {
 	return (
 		<div className="row flex-col gap-4">
 			<div>
 				<Label htmlFor="automations-action-select">Action Type</Label>
-				<Select value={value} onValueChange={onValueChange}>
+				<Select value={actionType} onValueChange={onChangeActionType}>
 					<SelectTrigger id="automations-action-select">
 						<SelectValue placeholder="Select action" />
 					</SelectTrigger>
 					<SelectContent>
 						<SelectGroup>
 							<SelectLabel>Actions</SelectLabel>
-							{Object.keys(AUTOMATION_ACTION_TYPES)
-								.filter((key) => (key as AutomationActions) !== "do-nothing")
-								.map((key) => (
-									<SelectItem key={key} value={key}>
-										{AUTOMATION_ACTION_TYPES[key as AutomationActions]}
-									</SelectItem>
-								))}
+							{Object.keys(AUTOMATION_ACTION_TYPES).map((key) => (
+								<SelectItem key={key} value={key}>
+									{AUTOMATION_ACTION_TYPES[key as ActionType]}
+								</SelectItem>
+							))}
 						</SelectGroup>
 					</SelectContent>
 				</Select>
 			</div>
-			<AdditionalActionFields actionType={value} />
+			<AdditionalActionFields
+				actionType={actionType}
+				actionFields={actionFields}
+				onActionFieldsChange={onActionFieldsChange}
+			/>
 		</div>
 	);
 };
 
 type AdditionalActionFieldsProps = {
-	actionType?: AutomationActions;
+	actionType: ActionType | undefined;
+	actionFields: Record<string, unknown> | undefined;
+	onActionFieldsChange: (actionFields: Record<string, unknown>) => void;
 };
+
 const AdditionalActionFields = ({
 	actionType,
+	actionFields,
+	onActionFieldsChange,
 }: AdditionalActionFieldsProps) => {
 	switch (actionType) {
 		case "change-flow-run-state":
-			return <div>TODO Flow Run state</div>;
+			return (
+				<ChangeFlowRunStateFields
+					values={actionFields as ChangeFlowRunStateFields}
+					onChange={onActionFieldsChange}
+				/>
+			);
 		case "run-deployment":
 		case "pause-deployment":
 		case "resume-deployment":
@@ -92,7 +108,6 @@ const AdditionalActionFields = ({
 		case "cancel-flow-run":
 		case "suspend-flow-run":
 		case "resume-flow-run":
-		case "do-nothing":
 		default:
 			return null;
 	}
