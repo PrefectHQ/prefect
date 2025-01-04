@@ -9,7 +9,7 @@ from copy import deepcopy
 from datetime import timedelta
 from getpass import GetPassWarning
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 from uuid import UUID
 
 import pydantic
@@ -398,7 +398,7 @@ async def deploy(
         )
     )
 
-    options = {
+    options: dict[str, Any] = {
         "entrypoint": entrypoint,
         "description": description,
         "version": version,
@@ -421,7 +421,7 @@ async def deploy(
         deploy_configs, actions = _load_deploy_configs_and_actions(
             prefect_file=prefect_file,
         )
-        parsed_names = []
+        parsed_names: list[str] = []
         for name in names or []:
             if "*" in name:
                 parsed_names.extend(_parse_name_from_pattern(deploy_configs, name))
@@ -450,14 +450,34 @@ async def deploy(
                 prefect_file=prefect_file,
             )
         else:
+            deploy_config = deploy_configs[0] if deploy_configs else {}
             # Accommodate passing in -n flow-name/deployment-name as well as -n deployment-name
             options["names"] = [
                 name.split("/", 1)[-1] if "/" in name else name for name in parsed_names
             ]
-            options["enforce_parameter_schema"] = enforce_parameter_schema
+
+            _selected_enforce_parameter_schema = deploy_config.get(
+                "enforce_parameter_schema", None
+            )
+
+            if (
+                _selected_enforce_parameter_schema is False
+                and enforce_parameter_schema is True
+            ):
+                app.console.print(
+                    "\n[yellow]Warning:[/yellow] the deployment configuration selected"
+                    " has enforce_parameter_schema set to False, but the CLI"
+                    " option is True. The deployment configuration value of False will be used."
+                    " If this is intended and you want to suppress this warning, explicitly"
+                    " set the CLI option to False with the --no-enforce-parameter-schema"
+                    " flag.\n"
+                )
+                _selected_enforce_parameter_schema = enforce_parameter_schema
+
+            options["enforce_parameter_schema"] = _selected_enforce_parameter_schema
 
             await _run_single_deploy(
-                deploy_config=deploy_configs[0] if deploy_configs else {},
+                deploy_config=deploy_config,
                 actions=actions,
                 options=options,
                 prefect_file=prefect_file,
@@ -670,7 +690,7 @@ async def _run_single_deploy(
     )
 
     ## RUN BUILD AND PUSH STEPS
-    step_outputs = {}
+    step_outputs: dict[str, Any] = {}
     if build_steps:
         app.console.print("Running deployment build steps...")
         step_outputs.update(
@@ -1232,12 +1252,12 @@ async def _generate_default_pull_action(
 
 def _load_deploy_configs_and_actions(
     prefect_file: Path,
-) -> Tuple[List[Dict], Dict]:
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """
     Load deploy configs and actions from a deployment configuration YAML file.
 
     Returns:
-        Tuple[List[Dict], Dict]: a tuple of deployment configurations and actions
+        tuple[list[dict[str, Any]], dict[str, Any]]: a tuple of deployment configurations and actions
     """
     try:
         with prefect_file.open("r") as f:
@@ -1247,15 +1267,15 @@ def _load_deploy_configs_and_actions(
             f"Unable to read the specified config file. Reason: {exc}. Skipping.",
             style="yellow",
         )
-        prefect_yaml_contents = {}
+        prefect_yaml_contents: dict[str, Any] = {}
     if not isinstance(prefect_yaml_contents, dict):
         app.console.print(
             "Unable to parse the specified config file. Skipping.",
             style="yellow",
         )
-        prefect_yaml_contents = {}
+        prefect_yaml_contents: dict[str, Any] = {}
 
-    actions = {
+    actions: dict[str, Any] = {
         "build": prefect_yaml_contents.get("build", []),
         "push": prefect_yaml_contents.get("push", []),
         "pull": prefect_yaml_contents.get("pull", []),
@@ -1266,7 +1286,9 @@ def _load_deploy_configs_and_actions(
     return deploy_configs, actions
 
 
-def _handle_pick_deploy_without_name(deploy_configs):
+def _handle_pick_deploy_without_name(
+    deploy_configs: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
     # Prompt the user to select one or more deployment configurations
     selectable_deploy_configs = [
         deploy_config for deploy_config in deploy_configs if deploy_config.get("name")
@@ -1331,7 +1353,9 @@ def _filter_matching_deploy_config(name, deploy_configs):
     return matching_deployments
 
 
-def _parse_name_from_pattern(deploy_configs, name_pattern):
+def _parse_name_from_pattern(
+    deploy_configs: list[dict[str, Any]], name_pattern: str
+) -> list[str]:
     """
     Parse the deployment names from a user-provided pattern such as "flow-name/*" or "my-deployment-*"
 
@@ -1353,7 +1377,7 @@ def _parse_name_from_pattern(deploy_configs, name_pattern):
     Returns:
         List[str]: a list of deployment names that match the given pattern
     """
-    parsed_names = []
+    parsed_names: list[str] = []
 
     name_pattern = re.escape(name_pattern).replace(r"\*", ".*")
 
@@ -1390,11 +1414,11 @@ def _parse_name_from_pattern(deploy_configs, name_pattern):
 
 
 def _handle_pick_deploy_with_name(
-    deploy_configs,
-    names,
-):
-    matched_deploy_configs = []
-    deployment_names = []
+    deploy_configs: list[dict[str, Any]],
+    names: list[str],
+) -> list[dict[str, Any]]:
+    matched_deploy_configs: list[dict[str, Any]] = []
+    deployment_names: list[str] = []
     for name in names:
         matching_deployments = _filter_matching_deploy_config(name, deploy_configs)
 
@@ -1430,10 +1454,10 @@ def _handle_pick_deploy_with_name(
 
 
 def _pick_deploy_configs(
-    deploy_configs,
-    names,
-    deploy_all,
-):
+    deploy_configs: list[dict[str, Any]],
+    names: list[str],
+    deploy_all: bool,
+) -> list[dict[str, Any]]:
     """
     Return a list of deploy configs to deploy based on the given
     deploy configs, names, and deploy_all flag.
@@ -1480,7 +1504,7 @@ def _pick_deploy_configs(
         return []
 
 
-def _extract_variable(variable: str) -> Dict[str, Any]:
+def _extract_variable(variable: str) -> dict[str, Any]:
     """
     Extracts a variable from a string. Variables can be in the format
     key=value or a JSON object.
@@ -1505,7 +1529,9 @@ def _extract_variable(variable: str) -> Dict[str, Any]:
         ) from e
 
 
-def _apply_cli_options_to_deploy_config(deploy_config, cli_options):
+def _apply_cli_options_to_deploy_config(
+    deploy_config: dict[str, Any], cli_options: dict[str, Any]
+) -> dict[str, Any]:
     """
     Applies CLI options to a deploy config. CLI options take
     precedence over values in the deploy config.
@@ -1528,7 +1554,7 @@ def _apply_cli_options_to_deploy_config(deploy_config, cli_options):
     if len(cli_options.get("names", [])) == 1:
         deploy_config["name"] = cli_options["names"][0]
 
-    variable_overrides = {}
+    variable_overrides: dict[str, Any] = {}
     for cli_option, cli_value in cli_options.items():
         if (
             cli_option
@@ -1570,7 +1596,7 @@ def _apply_cli_options_to_deploy_config(deploy_config, cli_options):
                 deploy_config["schedules"].append({cli_option: value})
 
         elif cli_option in ["param", "params"] and cli_value:
-            parameters = dict()
+            parameters: dict[str, Any] = {}
             if cli_option == "param":
                 for p in cli_value or []:
                     k, unparsed_value = p.split("=", 1)
