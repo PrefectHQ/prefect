@@ -49,8 +49,11 @@ class BlocksSchemaClient(BaseClient):
                 "GET",
                 "/block_schemas/checksum/{checksum}",
                 path_params={"checksum": checksum},
-                params={"version": version},
+                **({"params": {"version": version}} if version else {}),
             )
+            import sys
+
+            print(f"URL: {response.url}", file=sys.stderr)
         except HTTPStatusError as e:
             if e.response.status_code == 404:
                 raise ObjectNotFound(http_exc=e) from e
@@ -143,7 +146,7 @@ class BlocksSchemaAsyncClient(BaseAsyncClient):
                 "GET",
                 "/block_schemas/checksum/{checksum}",
                 path_params={"checksum": checksum},
-                params={"version": version},
+                **({"params": {"version": version}} if version else {}),
             )
         except HTTPStatusError as e:
             if e.response.status_code == 404:
