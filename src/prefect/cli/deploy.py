@@ -417,6 +417,7 @@ async def deploy(
         "params": params,
         "sla": sla,
     }
+
     try:
         deploy_configs, actions = _load_deploy_configs_and_actions(
             prefect_file=prefect_file,
@@ -456,25 +457,9 @@ async def deploy(
                 name.split("/", 1)[-1] if "/" in name else name for name in parsed_names
             ]
 
-            _selected_enforce_parameter_schema = deploy_config.get(
-                "enforce_parameter_schema", None
-            )
-
-            if (
-                _selected_enforce_parameter_schema is False
-                and enforce_parameter_schema is True
-            ):
-                app.console.print(
-                    "\n[yellow]Warning:[/yellow] the deployment configuration selected"
-                    " has enforce_parameter_schema set to False, but the CLI"
-                    " option is True. The deployment configuration value of False will be used."
-                    " If this is intended and you want to suppress this warning, explicitly"
-                    " set the CLI option to False with the --no-enforce-parameter-schema"
-                    " flag.\n"
-                )
-                _selected_enforce_parameter_schema = enforce_parameter_schema
-
-            options["enforce_parameter_schema"] = _selected_enforce_parameter_schema
+            # Only set enforce_parameter_schema in options if CLI flag was explicitly passed
+            if not enforce_parameter_schema:
+                options["enforce_parameter_schema"] = False
 
             await _run_single_deploy(
                 deploy_config=deploy_config,
