@@ -1,6 +1,7 @@
 import { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
 
+export type Flow = components["schemas"]["Flow"];
 export type FlowsFilter =
 	components["schemas"]["Body_read_flows_flows_filter_post"];
 

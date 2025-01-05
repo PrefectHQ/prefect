@@ -1,5 +1,5 @@
 import { createFakeDeployment } from "@/mocks";
-import { toastDecorator } from "@/storybook/utils";
+import { routerDecorator, toastDecorator } from "@/storybook/utils";
 import type { Meta, StoryObj } from "@storybook/react";
 import { fn } from "@storybook/test";
 import { DeploymentsDataTable } from ".";
@@ -7,11 +7,11 @@ import { DeploymentsDataTable } from ".";
 export default {
 	title: "Components/Deployments/DataTable",
 	component: DeploymentsDataTable,
-	decorators: [toastDecorator],
+	decorators: [toastDecorator, routerDecorator],
 } satisfies Meta<typeof DeploymentsDataTable>;
 
 export const Default: StoryObj = {
-	name: "DataTable",
+	name: "Randomized Data",
 	args: {
 		deployments: Array.from({ length: 10 }, createFakeDeployment),
 		onQuickRun: fn(),

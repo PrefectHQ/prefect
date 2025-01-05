@@ -1,7 +1,6 @@
 import type { components } from "@/api/prefect";
 import { faker } from "@faker-js/faker";
 import { createFakeState } from "./create-fake-state";
-
 export const createFakeFlowRun = (
 	overrides?: Partial<components["schemas"]["FlowRun"]>,
 ): components["schemas"]["FlowRun"] => {
@@ -39,9 +38,9 @@ export const createFakeFlowRun = (
 		run_count: 1,
 		expected_start_time: faker.date.past().toISOString(),
 		next_scheduled_start_time: null,
-		start_time: faker.date.past().toISOString(),
-		end_time: faker.date.past().toISOString(),
-		total_run_time: 0,
+		start_time: faker.date.past({ years: 0.1 }).toISOString(),
+		end_time: faker.date.past({ years: 0.1 }).toISOString(),
+		total_run_time: faker.number.int({ min: 1, max: 100 }),
 		estimated_run_time: faker.number.float({ max: 30 }),
 		estimated_start_time_delta: faker.number.float({ max: 30 }),
 		auto_scheduled: false,
