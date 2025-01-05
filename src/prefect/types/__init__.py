@@ -1,6 +1,4 @@
-from __future__ import annotations
-
-
+from typing import Optional, Union
 from functools import partial
 from typing import Annotated, Any, TypeVar
 from typing_extensions import Literal
@@ -51,9 +49,9 @@ NonEmptyishName = Annotated[
 ]
 
 
-VariableValue = (
-    StrictStr | StrictInt | StrictBool | StrictFloat | None | dict[str, Any] | list[Any]
-)
+VariableValue = Union[
+    StrictStr, StrictInt, StrictBool, StrictFloat, None, dict[str, Any], list[Any]
+]
 
 
 def check_variable_value(value: object) -> object:
@@ -83,7 +81,7 @@ def cast_none_to_empty_dict(value: Any) -> dict[str, Any]:
 
 
 KeyValueLabels = Annotated[
-    dict[str, StrictBool | StrictInt | StrictFloat | str],
+    dict[str, Union[StrictBool, StrictInt, StrictFloat, str]],
     BeforeValidator(cast_none_to_empty_dict),
 ]
 
@@ -98,9 +96,9 @@ class SecretDict(pydantic.Secret[dict[str, Any]]):
 
 
 def validate_set_T_from_delim_string(
-    value: str | T | set[T] | None,
+    value: Union[str, T, set[T], None],
     type_: Any,
-    delim: str | None = None,
+    delim: Optional[str] = None,
 ) -> set[T]:
     """
     "no-info" before validator useful in scooping env vars
@@ -128,7 +126,7 @@ def validate_set_T_from_delim_string(
 
 
 ClientRetryExtraCodes = Annotated[
-    str | StatusCode | set[StatusCode] | None,
+    Union[str, StatusCode, set[StatusCode], None],
     BeforeValidator(partial(validate_set_T_from_delim_string, type_=StatusCode)),
 ]
 
@@ -138,7 +136,7 @@ LogLevel = Annotated[
 ]
 
 
-def convert_none_to_empty_dict(v: KeyValueLabels | None) -> KeyValueLabels:
+def convert_none_to_empty_dict(v: Union[KeyValueLabels, None]) -> KeyValueLabels:
     return v or {}
 
 
