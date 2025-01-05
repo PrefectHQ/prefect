@@ -4,9 +4,7 @@ from typing import Annotated, Any
 
 from pendulum import FixedTimezone, format_diff, from_format, instance, parse, tz
 from pendulum.tz import UTC, Timezone
-from pydantic import (
-    Field,
-)
+from pydantic import Field
 from pydantic_extra_types.pendulum_dt import Date as PydanticDate
 from pydantic_extra_types.pendulum_dt import DateTime as PydanticDateTime
 from pydantic_extra_types.pendulum_dt import Duration as PydanticDuration
@@ -38,11 +36,11 @@ def datetime_from_format(
 
 
 def parse_datetime(string: str) -> DateTime:
-    return PydanticDateTime(parse(string))  # type: ignore
+    return parse(string)  # type: ignore
 
 
 def datetime_instance(value: Any) -> DateTime:
-    return PydanticDateTime(instance(value))  # type: ignore
+    return instance(value)  # type: ignore
 
 
 def local_timezone() -> Timezone | FixedTimezone:

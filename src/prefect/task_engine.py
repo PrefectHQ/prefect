@@ -481,9 +481,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
     def handle_success(self, result: R, transaction: Transaction) -> R:
         if self.task.cache_expiration is not None:
-            expiration = DateTime.now("utc") + Duration(
-                seconds=self.task.cache_expiration
-            )
+            expiration = DateTime.now("utc") + self.task.cache_expiration
         else:
             expiration = None
 
