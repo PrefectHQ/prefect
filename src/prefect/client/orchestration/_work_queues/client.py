@@ -374,7 +374,7 @@ class WorkQueueClient(BaseClient):
         return WorkQueue.model_validate_list(response.json())
 
 
-class AsyncWorkQueueClient(BaseAsyncClient):
+class WorkQueueAsyncClient(BaseAsyncClient):
     async def create_work_queue(
         self,
         name: str,
