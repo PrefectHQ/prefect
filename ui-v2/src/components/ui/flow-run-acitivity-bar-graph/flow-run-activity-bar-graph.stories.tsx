@@ -2,26 +2,9 @@ import type { Meta, StoryObj } from "@storybook/react";
 import type { ComponentProps } from "react";
 import { FlowRunActivityBarChart } from ".";
 
-import { faker } from "@faker-js/faker";
-
-import { FlowRunWithDeploymentAndFlow } from "@/api/flow-runs";
-import {
-	createFakeDeployment,
-	createFakeFlow,
-	createFakeFlowRun,
-} from "@/mocks";
+import { createFakeFlowRunWithDeploymentAndFlow } from "@/mocks/create-fake-flow-run";
 import { routerDecorator } from "@/storybook/utils";
-
-const createFakeFlowRunWithDeploymentAndFlow =
-	(): FlowRunWithDeploymentAndFlow => {
-		const flowRun = createFakeFlowRun();
-
-		return {
-			...flowRun,
-			deployment: createFakeDeployment(),
-			flow: createFakeFlow(),
-		};
-	};
+import { faker } from "@faker-js/faker";
 
 export default {
 	title: "UI/FlowRunActivityBarChart",

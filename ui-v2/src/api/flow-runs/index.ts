@@ -50,7 +50,10 @@ export const queryKeyFactory = {
  * ```
  */
 export const buildListFlowRunsQuery = (
-	filter: FlowRunsFilter,
+	filter: FlowRunsFilter = {
+		sort: "ID_DESC",
+		offset: 0,
+	},
 	refetchInterval: number = 30_000,
 ) => {
 	return queryOptions({

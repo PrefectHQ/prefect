@@ -1,9 +1,5 @@
-import { FlowRunWithDeploymentAndFlow } from "@/api/flow-runs";
-import {
-	createFakeDeployment,
-	createFakeFlow,
-	createFakeFlowRun,
-} from "@/mocks";
+import { createFakeDeployment } from "@/mocks";
+import { createFakeFlowRunWithDeploymentAndFlow } from "@/mocks/create-fake-flow-run";
 import {
 	reactQueryDecorator,
 	routerDecorator,
@@ -14,17 +10,6 @@ import { fn } from "@storybook/test";
 import { buildApiUrl } from "@tests/utils/handlers";
 import { http, HttpResponse } from "msw";
 import { DeploymentsDataTable } from ".";
-
-const createFakeFlowRunWithDeploymentAndFlow =
-	(): FlowRunWithDeploymentAndFlow => {
-		const flowRun = createFakeFlowRun();
-
-		return {
-			...flowRun,
-			deployment: createFakeDeployment(),
-			flow: createFakeFlow(),
-		};
-	};
 
 export default {
 	title: "Components/Deployments/DataTable",

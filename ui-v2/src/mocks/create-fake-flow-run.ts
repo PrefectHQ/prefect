@@ -1,6 +1,10 @@
+import { FlowRunWithDeploymentAndFlow } from "@/api/flow-runs";
 import type { components } from "@/api/prefect";
 import { faker } from "@faker-js/faker";
+import { createFakeDeployment } from "./create-fake-deployment";
+import { createFakeFlow } from "./create-fake-flow";
 import { createFakeState } from "./create-fake-state";
+
 export const createFakeFlowRun = (
 	overrides?: Partial<components["schemas"]["FlowRun"]>,
 ): components["schemas"]["FlowRun"] => {
@@ -77,3 +81,14 @@ export const createFakeFlowRun = (
 		...overrides,
 	};
 };
+
+export const createFakeFlowRunWithDeploymentAndFlow =
+	(): FlowRunWithDeploymentAndFlow => {
+		const flowRun = createFakeFlowRun();
+
+		return {
+			...flowRun,
+			deployment: createFakeDeployment(),
+			flow: createFakeFlow(),
+		};
+	};
