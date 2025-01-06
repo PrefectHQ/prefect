@@ -1,5 +1,6 @@
 import { createFakeGlobalConcurrencyLimit } from "@/mocks";
-import { reactQueryDecorator } from "@/storybook/utils";
+
+import { reactQueryDecorator, toastDecorator } from "@/storybook/utils";
 import type { Meta, StoryObj } from "@storybook/react";
 import { fn } from "@storybook/test";
 import { GlobalConcurrencyLimitsDeleteDialog } from "./global-concurrency-limits-delete-dialog";
@@ -8,7 +9,7 @@ const meta = {
 	title:
 		"Components/Concurrency/GlobalConcurrencyLimits/GlobalConcurrencyLimitsDeleteDialog",
 	component: GlobalConcurrencyLimitsDeleteDialog,
-	decorators: [reactQueryDecorator],
+	decorators: [reactQueryDecorator, toastDecorator],
 	args: {
 		limit: createFakeGlobalConcurrencyLimit(),
 		onOpenChange: fn(),
