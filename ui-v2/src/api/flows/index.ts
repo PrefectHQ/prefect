@@ -1,5 +1,6 @@
 import { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
+import { queryOptions } from "@tanstack/react-query";
 
 export type Flow = components["schemas"]["Flow"];
 export type FlowsFilter =
@@ -46,13 +47,14 @@ export const queryKeyFactory = {
  */
 export const buildListFlowsQuery = (
 	filter: FlowsFilter = { offset: 0, sort: "CREATED_DESC" },
-) => ({
-	queryKey: queryKeyFactory.list(filter),
-	queryFn: async () => {
-		const result = await getQueryService().POST("/flows/filter", {
-			body: filter,
-		});
-		return result.data ?? [];
-	},
-	staleTime: 1000,
-});
+) =>
+	queryOptions({
+		queryKey: queryKeyFactory.list(filter),
+		queryFn: async () => {
+			const result = await getQueryService().POST("/flows/filter", {
+				body: filter,
+			});
+			return result.data ?? [];
+		},
+		staleTime: 1000,
+	});

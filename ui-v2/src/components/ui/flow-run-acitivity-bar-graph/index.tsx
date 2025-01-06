@@ -60,7 +60,7 @@ const barVariants = cva("gap-1 z-1", {
 });
 
 const CustomBar = (props: CustomShapeProps) => {
-	const minHeight = 10; // Minimum height for zero values
+	const minHeight = 8; // Minimum height for zero values
 	const {
 		x = 0,
 		width = 0,
@@ -91,7 +91,7 @@ const CustomBar = (props: CustomShapeProps) => {
 
 type EnrichedFlowRun = components["schemas"]["FlowRun"] & {
 	deployment: components["schemas"]["DeploymentResponse"];
-	flow: components["schemas"]["Flow"];
+	flow?: components["schemas"]["Flow"];
 };
 
 /**
@@ -193,91 +193,81 @@ type FlowRunActivityBarChartProps = {
 	numberOfBars: number;
 };
 
-export const FlowRunActivityBarChart = React.forwardRef<
-	HTMLDivElement,
-	FlowRunActivityBarChartProps
->(
-	(
-		{
-			chartId,
-			enrichedFlowRuns,
-			startDate,
-			endDate,
-			barWidth = 8,
-			numberOfBars,
-			className,
-		},
-		ref,
-	) => {
-		const [isTooltipActive, setIsTooltipActive] = useIsTooltipActive(chartId);
-		const internalRef = useRef<HTMLDivElement>(null);
-		const containerRef =
-			(ref as React.RefObject<HTMLDivElement>) || internalRef;
+export const FlowRunActivityBarChart = ({
+	chartId,
+	enrichedFlowRuns,
+	startDate,
+	endDate,
+	barWidth = 8,
+	numberOfBars,
+	className,
+}: FlowRunActivityBarChartProps) => {
+	const [isTooltipActive, setIsTooltipActive] = useIsTooltipActive(chartId);
+	const containerRef = useRef<HTMLDivElement>(null);
 
-		const buckets = organizeFlowRunsWithGaps(
-			enrichedFlowRuns,
-			startDate,
-			endDate,
-			numberOfBars,
-		);
+	const buckets = organizeFlowRunsWithGaps(
+		enrichedFlowRuns,
+		startDate,
+		endDate,
+		numberOfBars,
+	);
 
-		const data = buckets.map((flowRun) => ({
-			value: flowRun?.total_run_time,
-			id: flowRun?.id,
-			stateType: flowRun?.state_type,
-			flowRun,
-		}));
-		const containerHeight =
-			containerRef.current?.getBoundingClientRect().height ?? 0;
-		return (
-			<ChartContainer
-				ref={containerRef}
-				config={{
-					inactivity: {
-						color: "hsl(210 40% 45%)",
-					},
+	const data = buckets.map((flowRun) => ({
+		value: flowRun?.total_run_time,
+		id: flowRun?.id,
+		stateType: flowRun?.state_type,
+		flowRun,
+	}));
+	const containerHeight =
+		containerRef.current?.getBoundingClientRect().height ?? 0;
+	return (
+		<ChartContainer
+			ref={containerRef}
+			config={{
+				inactivity: {
+					color: "hsl(210 40% 45%)",
+				},
+			}}
+			className={className}
+		>
+			<BarChart
+				data={data}
+				margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
+				barSize={barWidth}
+				onMouseMove={() => {
+					setIsTooltipActive(true);
 				}}
-				className={className}
+				onMouseLeave={() => {
+					setIsTooltipActive(undefined);
+				}}
+				role="graphics-document"
 			>
-				<BarChart
-					data={data}
-					margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
-					barSize={barWidth}
-					onMouseMove={() => {
-						setIsTooltipActive(true);
+				<ChartTooltip
+					content={<FlowRunTooltip containerRef={containerRef} />}
+					position={{
+						y: containerHeight ?? 0,
 					}}
-					onMouseLeave={() => {
-						setIsTooltipActive(undefined);
-					}}
-					role="graphics-document"
+					isAnimationActive={false}
+					allowEscapeViewBox={{ x: true, y: true }}
+					active={isTooltipActive}
+					// Allows the tooltip to react to mouse events
+					wrapperStyle={{ pointerEvents: "auto" }}
+				/>
+				<Bar
+					dataKey="value"
+					shape={<CustomBar containerHeight={containerHeight} />}
+					radius={[5, 5, 5, 5]}
+					onMouseEnter={() => setIsTooltipActive(true)}
+					onMouseLeave={() => setIsTooltipActive(undefined)}
 				>
-					<ChartTooltip
-						content={<FlowRunTooltip containerRef={containerRef} />}
-						position={{
-							y: containerHeight ?? 0,
-						}}
-						isAnimationActive={false}
-						allowEscapeViewBox={{ x: true, y: true }}
-						active={isTooltipActive}
-						// Allows the tooltip to react to mouse events
-						wrapperStyle={{ pointerEvents: "auto" }}
-					/>
-					<Bar
-						dataKey="value"
-						shape={<CustomBar containerHeight={containerHeight} />}
-						radius={[5, 5, 5, 5]}
-						onMouseEnter={() => setIsTooltipActive(true)}
-						onMouseLeave={() => setIsTooltipActive(undefined)}
-					>
-						{data.map((entry) => (
-							<Cell key={`cell-${entry.id}`} role="graphics-symbol" />
-						))}
-					</Bar>
-				</BarChart>
-			</ChartContainer>
-		);
-	},
-);
+					{data.map((entry) => (
+						<Cell key={`cell-${entry.id}`} role="graphics-symbol" />
+					))}
+				</Bar>
+			</BarChart>
+		</ChartContainer>
+	);
+};
 
 FlowRunActivityBarChart.displayName = "FlowRunActivityBarChart";
 
@@ -390,13 +380,15 @@ const FlowRunTooltip = ({
 			<Card>
 				<CardHeader>
 					<CardTitle className="flex items-center gap-1">
-						<Link
-							to={"/flows/flow/$id"}
-							params={{ id: flow.id }}
-							className="text-base font-medium"
-						>
-							{flowRun.flow.name}
-						</Link>
+						{flow && (
+							<Link
+								to={"/flows/flow/$id"}
+								params={{ id: flow.id }}
+								className="text-base font-medium"
+							>
+								{flow.name}
+							</Link>
+						)}
 						<ChevronRight className="w-4 h-4" />
 						<Link
 							to={"/runs/flow-run/$id"}

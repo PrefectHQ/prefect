@@ -1,7 +1,7 @@
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
 import { DeploymentWithFlow } from "@/api/deployments";
-import { FlowRunWithDeploymentAndFlow } from "@/api/flow-runs";
+import { buildListFlowRunsQuery } from "@/api/flow-runs";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -11,14 +11,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { FlowRunActivityBarChart } from "@/components/ui/flow-run-acitivity-bar-graph";
 import { Icon } from "@/components/ui/icons";
+import useDebounce from "@/hooks/use-debounce";
 import { useToast } from "@/hooks/use-toast";
-import {
-	createFakeDeployment,
-	createFakeFlow,
-	createFakeFlowRun,
-} from "@/mocks";
+import { useQuery } from "@tanstack/react-query";
 import type { CellContext } from "@tanstack/react-table";
-import { useEffect, useRef, useState } from "react";
+import { subSeconds } from "date-fns";
+import { secondsInWeek } from "date-fns/constants";
+import { useCallback, useState } from "react";
 
 type ActionsCellProps = CellContext<DeploymentWithFlow, unknown> & {
 	onQuickRun: (deployment: DeploymentWithFlow) => void;
@@ -82,61 +81,65 @@ export const ActionsCell = ({
 	);
 };
 
-// TODO: Remove this once we have a real implementation
-const createFakeFlowRunWithDeploymentAndFlow =
-	(): FlowRunWithDeploymentAndFlow => {
-		const flowRun = createFakeFlowRun();
-
-		return {
-			...flowRun,
-			deployment: createFakeDeployment(),
-			flow: createFakeFlow(),
-		};
-	};
-
 const BAR_WIDTH = 8;
 const BAR_GAP = 4;
 
 export const ActivityCell = ({
 	row,
 }: CellContext<DeploymentWithFlow, unknown>) => {
-	const chartRef = useRef<HTMLDivElement>(null);
 	const [numberOfBars, setNumberOfBars] = useState(0);
+	const debouncedNumberOfBars = useDebounce(numberOfBars, 100);
 
-	useEffect(() => {
-		const element = chartRef.current;
-		if (!element) return;
+	const chartRef = useCallback((node: HTMLDivElement | null) => {
+		if (!node) return;
 
 		const updateBars = () => {
-			const chartWidth = element.getBoundingClientRect().width;
+			const chartWidth = node.getBoundingClientRect().width;
 			setNumberOfBars(Math.floor(chartWidth / (BAR_WIDTH + BAR_GAP)));
 		};
 
 		updateBars();
 
 		const resizeObserver = new ResizeObserver(updateBars);
-		resizeObserver.observe(element);
-
+		resizeObserver.observe(node);
 		return () => {
 			resizeObserver.disconnect();
 		};
 	}, []);
 
-	// TODO: Replace with an API call for flow runs
-	const flowRuns = Array.from(
-		{ length: numberOfBars },
-		createFakeFlowRunWithDeploymentAndFlow,
+	const { data: flowRuns } = useQuery(
+		buildListFlowRunsQuery({
+			deployments: {
+				operator: "and_",
+				id: {
+					any_: [row.original.id],
+				},
+			},
+			sort: "START_TIME_DESC",
+			limit: debouncedNumberOfBars,
+			offset: 0,
+		}),
 	);
+
+	const { flow, ...deployment } = row.original;
+	const enrichedFlowRuns =
+		flowRuns?.map((flowRun) => ({
+			...flowRun,
+			deployment,
+			flow,
+		})) ?? [];
+
 	return (
-		<FlowRunActivityBarChart
-			ref={chartRef}
-			startDate={new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)}
-			endDate={new Date()}
-			numberOfBars={numberOfBars}
-			barWidth={BAR_WIDTH}
-			enrichedFlowRuns={flowRuns}
-			className="h-8 w-full"
-			chartId={row.original.id}
-		/>
+		<div className="w-full" ref={chartRef}>
+			<FlowRunActivityBarChart
+				startDate={subSeconds(new Date(), secondsInWeek)}
+				endDate={new Date()}
+				numberOfBars={debouncedNumberOfBars}
+				barWidth={BAR_WIDTH}
+				enrichedFlowRuns={enrichedFlowRuns}
+				className="h-12 w-full"
+				chartId={row.original.id}
+			/>
+		</div>
 	);
 };
