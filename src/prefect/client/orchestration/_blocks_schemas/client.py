@@ -49,7 +49,7 @@ class BlocksSchemaClient(BaseClient):
                 "GET",
                 "/block_schemas/checksum/{checksum}",
                 path_params={"checksum": checksum},
-                params={"version": version},
+                **({"params": {"version": version}} if version else {}),
             )
         except HTTPStatusError as e:
             if e.response.status_code == 404:
@@ -143,7 +143,7 @@ class BlocksSchemaAsyncClient(BaseAsyncClient):
                 "GET",
                 "/block_schemas/checksum/{checksum}",
                 path_params={"checksum": checksum},
-                params={"version": version},
+                **({"params": {"version": version}} if version else {}),
             )
         except HTTPStatusError as e:
             if e.response.status_code == 404:
