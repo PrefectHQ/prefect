@@ -8,7 +8,7 @@ from prefect.telemetry.logging import (
 )
 
 
-def test_add_telemetry_log_handler_with_handler(enable_telemetry):
+def test_add_telemetry_log_handler_with_handler():
     logger = logging.getLogger("test")
     initial_handlers = list(logger.handlers)
 

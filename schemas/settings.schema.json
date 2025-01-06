@@ -259,6 +259,15 @@
                     "title": "Api Url",
                     "type": "string"
                 },
+                "enable_orchestration_telemetry": {
+                    "default": true,
+                    "description": "Whether or not to enable orchestration telemetry.",
+                    "supported_environment_variables": [
+                        "PREFECT_CLOUD_ENABLE_ORCHESTRATION_TELEMETRY"
+                    ],
+                    "title": "Enable Orchestration Telemetry",
+                    "type": "boolean"
+                },
                 "ui_url": {
                     "anyOf": [
                         {
@@ -335,15 +344,6 @@
                         "PREFECT_EXPERIMENTAL_WARN"
                     ],
                     "title": "Warn",
-                    "type": "boolean"
-                },
-                "telemetry_enabled": {
-                    "default": false,
-                    "description": "Enables sending telemetry to Prefect Cloud.",
-                    "supported_environment_variables": [
-                        "PREFECT_EXPERIMENTS_TELEMETRY_ENABLED"
-                    ],
-                    "title": "Telemetry Enabled",
                     "type": "boolean"
                 },
                 "lineage_events_enabled": {
