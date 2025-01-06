@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { useCountDeployments, usePaginateDeployments } from "./index";
 
 import { Deployment } from "@/api/deployments";
-import { createWrapper, server } from "@tests/utils";
+import { buildApiUrl, createWrapper, server } from "@tests/utils";
 
 describe("deployments hooks", () => {
 	const seedDeployments = (): Deployment[] => [
@@ -34,7 +34,7 @@ describe("deployments hooks", () => {
 
 	const mockFetchDeploymentsAPI = (deployments: Array<Deployment>) => {
 		server.use(
-			http.post("http://localhost:4200/api/deployments/paginate", () => {
+			http.post(buildApiUrl("/deployments/paginate"), () => {
 				return HttpResponse.json(deployments);
 			}),
 		);
@@ -42,7 +42,7 @@ describe("deployments hooks", () => {
 
 	const mockFetchDeploymentsCountAPI = (count: number) => {
 		server.use(
-			http.post("http://localhost:4200/api/deployments/count", () => {
+			http.post(buildApiUrl("/deployments/count"), () => {
 				return HttpResponse.json(count);
 			}),
 		);
