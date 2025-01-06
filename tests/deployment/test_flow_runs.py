@@ -490,6 +490,17 @@ class TestRunDeployment:
         assert child_span.parent.span_id == parent_span.get_span_context().span_id
         assert child_span.parent.trace_id == parent_span.get_span_context().trace_id
 
+    def test_run_deployment_passing_async_client(
+        self, test_deployment: DeploymentResponse, prefect_client: "PrefectClient"
+    ):
+        flow_run = run_deployment(
+            f"foo/{test_deployment.name}",
+            timeout=0,
+            client=prefect_client,
+        )
+        assert flow_run.state is not None
+        assert flow_run.state.is_scheduled()
+
 
 class TestARunDeployment:
     """`arun_deployment` is implicitly tested by every above instance of `await run_deployment`

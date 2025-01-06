@@ -1,5 +1,4 @@
 import time
-from contextlib import nullcontext
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Iterable, Optional, Union
 from uuid import UUID
@@ -9,7 +8,7 @@ import pendulum
 
 import prefect
 from prefect._internal.compatibility.async_dispatch import async_dispatch
-from prefect.client.orchestration import get_client
+from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import FlowRun
 from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, TaskRunContext
@@ -25,7 +24,6 @@ from prefect.utilities.slugify import slugify
 from prefect.utilities.timeout import timeout as timeout_context
 
 if TYPE_CHECKING:
-    from prefect.client.orchestration import PrefectClient, SyncPrefectClient
     from prefect.client.schemas.objects import FlowRun
 
 prefect.client.schemas.StateCreate.model_rebuild(
@@ -198,10 +196,37 @@ async def arun_deployment(
     return flow_run
 
 
+def _ensure_call_client_method_sync(
+    client: Union["PrefectClient", "SyncPrefectClient"],
+    method: str,
+    *args: Any,
+    **kwargs: Any,
+) -> Any:
+    """
+    Ensure that a client method is called synchronously.
+
+    If the client is an async client, we need to run the method synchronously.
+    """
+    maybe_coro = getattr(client, method)(*args, **kwargs)
+    if isinstance(client, PrefectClient):
+        # TODO: this is not ideal, but just use a sync client context for now
+        # since we can't run async client methods with run_coro_as_sync
+        # due to event loop binding issues
+        from prefect.context import SyncClientContext
+
+        with SyncClientContext.get_or_create() as client_ctx:
+            sync_client = client_ctx.client
+            return getattr(sync_client, method)(*args, **kwargs)
+    elif isinstance(client, SyncPrefectClient):
+        return maybe_coro
+    else:
+        raise ValueError(f"Invalid client type: {type(client)}")
+
+
 @async_dispatch(arun_deployment)
 def run_deployment(
     name: Union[str, UUID],
-    client: Optional["SyncPrefectClient"] = None,
+    client: Optional["PrefectClient"] = None,
     parameters: Optional[dict[str, Any]] = None,
     scheduled_time: Optional[datetime] = None,
     flow_run_name: Optional[str] = None,
@@ -253,117 +278,127 @@ def run_deployment(
             will be applied at runtime; for example `env.CONFIG_KEY=config_value` or
             `namespace='prefect'`
     """
-    client = client or get_client(sync_client=True)
-    with client if not client._started else nullcontext():
-        if timeout is not None and timeout < 0:
-            raise ValueError("`timeout` cannot be negative")
+    _client = client or get_client(sync_client=True)
 
-        if scheduled_time is None:
-            scheduled_time = pendulum.now("UTC")
+    if timeout is not None and timeout < 0:
+        raise ValueError("`timeout` cannot be negative")
 
-        parameters = parameters or {}
+    if scheduled_time is None:
+        scheduled_time = pendulum.now("UTC")
 
-        deployment_id = None
+    parameters = parameters or {}
 
-        if isinstance(name, UUID):
-            deployment_id = name
-        else:
-            try:
-                deployment_id = UUID(name)
-            except ValueError:
-                pass
+    deployment_id = None
 
-        if deployment_id:
-            deployment = client.read_deployment(deployment_id=deployment_id)
-        else:
-            deployment = client.read_deployment_by_name(name)
+    if isinstance(name, UUID):
+        deployment_id = name
+    else:
+        try:
+            deployment_id = UUID(name)
+        except ValueError:
+            pass
 
-        flow_run_ctx = FlowRunContext.get()
-        task_run_ctx = TaskRunContext.get()
-        if as_subflow and (flow_run_ctx or task_run_ctx):
-            # TODO: this logic can likely be simplified by using `Task.create_run`
-            from prefect.utilities._engine import dynamic_key_for_task_run
-            from prefect.utilities.engine import collect_task_run_inputs
-
-            # This was called from a flow. Link the flow run as a subflow.
-            task_inputs = {
-                k: run_coro_as_sync(collect_task_run_inputs(v))
-                for k, v in parameters.items()
-            }
-
-            if deployment_id:
-                flow = client.read_flow(deployment.flow_id)
-                deployment_name = f"{flow.name}/{deployment.name}"
-            else:
-                deployment_name = name
-
-            # Generate a task in the parent flow run to represent the result of the subflow
-            dummy_task = Task(
-                name=deployment_name,
-                fn=lambda: None,
-                version=deployment.version,
-            )
-            # Override the default task key to include the deployment name
-            dummy_task.task_key = (
-                f"{__name__}.run_deployment.{slugify(deployment_name)}"
-            )
-            flow_run_id = (
-                flow_run_ctx.flow_run.id
-                if flow_run_ctx
-                else task_run_ctx.task_run.flow_run_id
-            )
-            dynamic_key = (
-                dynamic_key_for_task_run(flow_run_ctx, dummy_task)
-                if flow_run_ctx
-                else task_run_ctx.task_run.dynamic_key
-            )
-            parent_task_run = client.create_task_run(
-                task=dummy_task,
-                flow_run_id=flow_run_id,
-                dynamic_key=dynamic_key,
-                task_inputs=task_inputs,
-                state=Pending(),
-            )
-            parent_task_run_id = parent_task_run.id
-        else:
-            parent_task_run_id = None
-
-        if flow_run_ctx and flow_run_ctx.flow_run:
-            traceparent = flow_run_ctx.flow_run.labels.get(LABELS_TRACEPARENT_KEY)
-        else:
-            traceparent = None
-
-        trace_labels = {LABELS_TRACEPARENT_KEY: traceparent} if traceparent else {}
-
-        flow_run = client.create_flow_run_from_deployment(
-            deployment.id,
-            parameters=parameters,
-            state=Scheduled(scheduled_time=scheduled_time),
-            name=flow_run_name,
-            tags=tags,
-            idempotency_key=idempotency_key,
-            parent_task_run_id=parent_task_run_id,
-            work_queue_name=work_queue_name,
-            job_variables=job_variables,
-            labels=trace_labels,
+    if deployment_id:
+        deployment = _ensure_call_client_method_sync(
+            _client, "read_deployment", deployment_id=deployment_id
+        )
+    else:
+        deployment = _ensure_call_client_method_sync(
+            _client, "read_deployment_by_name", name
         )
 
-        flow_run_id = flow_run.id
+    flow_run_ctx = FlowRunContext.get()
+    task_run_ctx = TaskRunContext.get()
+    if as_subflow and (flow_run_ctx or task_run_ctx):
+        # TODO: this logic can likely be simplified by using `Task.create_run`
+        from prefect.utilities._engine import dynamic_key_for_task_run
+        from prefect.utilities.engine import collect_task_run_inputs
 
-        if timeout == 0:
-            return flow_run
+        # This was called from a flow. Link the flow run as a subflow.
+        task_inputs = {
+            k: run_coro_as_sync(collect_task_run_inputs(v))
+            for k, v in parameters.items()
+        }
 
-        try:
-            with timeout_context(timeout):
-                while True:
-                    flow_run = client.read_flow_run(flow_run_id)
-                    flow_state = flow_run.state
-                    if flow_state and flow_state.is_final():
-                        return flow_run
-                    time.sleep(poll_interval)
-        except TimeoutError:
-            logger.warning(
-                f"Flow run {flow_run_id} did not complete within {timeout} seconds"
+        if deployment_id:
+            flow = _ensure_call_client_method_sync(
+                _client, "read_flow", deployment.flow_id
             )
+            deployment_name = f"{flow.name}/{deployment.name}"
+        else:
+            deployment_name = name
 
+        # Generate a task in the parent flow run to represent the result of the subflow
+        dummy_task = Task(
+            name=deployment_name,
+            fn=lambda: None,
+            version=deployment.version,
+        )
+        # Override the default task key to include the deployment name
+        dummy_task.task_key = f"{__name__}.run_deployment.{slugify(deployment_name)}"
+        flow_run_id = (
+            flow_run_ctx.flow_run.id
+            if flow_run_ctx
+            else task_run_ctx.task_run.flow_run_id
+        )
+        dynamic_key = (
+            dynamic_key_for_task_run(flow_run_ctx, dummy_task)
+            if flow_run_ctx
+            else task_run_ctx.task_run.dynamic_key
+        )
+        parent_task_run = _ensure_call_client_method_sync(
+            _client,
+            "create_task_run",
+            task=dummy_task,
+            flow_run_id=flow_run_id,
+            dynamic_key=dynamic_key,
+            task_inputs=task_inputs,
+            state=Pending(),
+        )
+        parent_task_run_id = parent_task_run.id
+    else:
+        parent_task_run_id = None
+
+    if flow_run_ctx and flow_run_ctx.flow_run:
+        traceparent = flow_run_ctx.flow_run.labels.get(LABELS_TRACEPARENT_KEY)
+    else:
+        traceparent = None
+
+    trace_labels = {LABELS_TRACEPARENT_KEY: traceparent} if traceparent else {}
+
+    flow_run = _ensure_call_client_method_sync(
+        _client,
+        "create_flow_run_from_deployment",
+        deployment.id,
+        parameters=parameters,
+        state=Scheduled(scheduled_time=scheduled_time),
+        name=flow_run_name,
+        tags=tags,
+        idempotency_key=idempotency_key,
+        parent_task_run_id=parent_task_run_id,
+        work_queue_name=work_queue_name,
+        job_variables=job_variables,
+        labels=trace_labels,
+    )
+
+    flow_run_id = flow_run.id
+
+    if timeout == 0:
         return flow_run
+
+    try:
+        with timeout_context(timeout):
+            while True:
+                flow_run = _ensure_call_client_method_sync(
+                    _client, "read_flow_run", flow_run_id
+                )
+                flow_state = flow_run.state
+                if flow_state and flow_state.is_final():
+                    return flow_run
+                time.sleep(poll_interval)
+    except TimeoutError:
+        logger.warning(
+            f"Flow run {flow_run_id} did not complete within {timeout} seconds"
+        )
+
+    return flow_run
