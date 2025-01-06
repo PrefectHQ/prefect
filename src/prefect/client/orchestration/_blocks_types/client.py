@@ -100,6 +100,8 @@ class BlocksTypeClient(BaseClient):
         """
         Update a block document in the Prefect API.
         """
+        from prefect.client.schemas.actions import BlockTypeUpdate
+
         try:
             self.request(
                 "PATCH",
@@ -278,6 +280,8 @@ class BlocksTypeAsyncClient(BaseAsyncClient):
         """
         Update a block document in the Prefect API.
         """
+        from prefect.client.schemas.actions import BlockTypeUpdate
+
         try:
             await self.request(
                 "PATCH",
