@@ -4,6 +4,7 @@ import pytest
 from prefect.server import models, schemas
 from prefect.server.schemas import states
 from prefect.server.services.cancellation_cleanup import CancellationCleanup
+from prefect.types import DateTime
 
 NON_TERMINAL_STATE_CONSTRUCTORS = {
     states.StateType.SCHEDULED: states.Scheduled,
@@ -20,8 +21,8 @@ TERMINAL_STATE_CONSTRUCTORS = {
     states.StateType.CANCELLED: states.Cancelled,
 }
 
-THE_PAST = pendulum.now("UTC") - pendulum.Duration(hours=5)
-THE_ANCIENT_PAST = pendulum.now("UTC") - pendulum.Duration(days=100)
+THE_PAST = DateTime.now("UTC") - pendulum.Duration(hours=5)
+THE_ANCIENT_PAST = DateTime.now("UTC") - pendulum.Duration(days=100)
 
 
 @pytest.fixture

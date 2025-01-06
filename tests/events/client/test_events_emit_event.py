@@ -2,8 +2,6 @@ from datetime import timedelta, timezone
 from unittest import mock
 from uuid import UUID
 
-import pendulum
-
 from prefect.events import emit_event
 from prefect.events.clients import AssertingEventsClient
 from prefect.events.worker import EventsWorker
@@ -98,7 +96,7 @@ def test_does_not_set_follows_not_tight_timing(
 ):
     destroyed_event = emit_event(
         event="planet.destroyed",
-        occurred=pendulum.now("UTC") - timedelta(minutes=10),
+        occurred=DateTime.now("UTC") - timedelta(minutes=10),
         resource={"prefect.resource.id": "milky-way.sol.earth"},
     )
     assert destroyed_event

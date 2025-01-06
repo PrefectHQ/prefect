@@ -1,12 +1,12 @@
 from uuid import uuid4
 
-import pendulum
 import pydantic
 import pytest
 from starlette import status
 
 from prefect.server import models, schemas
 from prefect.server.schemas import actions
+from prefect.types import DateTime
 from prefect.utilities.pydantic import parse_obj_as
 
 
@@ -758,7 +758,7 @@ class TestCountArtifacts:
 class TestUpdateArtifact:
     async def test_update_artifact_succeeds(self, artifact, client):
         response = await client.post("/artifacts/filter")
-        now = pendulum.now("utc")
+        now = DateTime.now("utc")
         assert response.status_code == status.HTTP_200_OK
         artifact_id = response.json()[0]["id"]
         artifact_key = response.json()[0]["key"]
@@ -782,7 +782,7 @@ class TestUpdateArtifact:
     async def test_update_artifact_does_not_update_if_fields_are_not_set(
         self, artifact, client
     ):
-        now = pendulum.now("utc")
+        now = DateTime.now("utc")
         artifact_id = artifact["id"]
 
         response = await client.patch(

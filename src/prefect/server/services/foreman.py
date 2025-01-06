@@ -5,7 +5,6 @@ Foreman is a loop service designed to monitor workers.
 from datetime import timedelta
 from typing import Optional
 
-import pendulum
 import sqlalchemy as sa
 
 from prefect.server import models
@@ -27,6 +26,7 @@ from prefect.settings import (
     PREFECT_API_SERVICES_FOREMAN_LOOP_SECONDS,
     PREFECT_API_SERVICES_FOREMAN_WORK_QUEUE_LAST_POLLED_TIMEOUT_SECONDS,
 )
+from prefect.types import DateTime
 
 
 class Foreman(LoopService):
@@ -175,7 +175,7 @@ class Foreman(LoopService):
             session (AsyncSession): The session to use for the database operation.
         """
         async with db.session_context(begin_transaction=True) as session:
-            status_timeout_threshold = pendulum.now("UTC") - timedelta(
+            status_timeout_threshold = DateTime.now("UTC") - timedelta(
                 seconds=self._deployment_last_polled_timeout_seconds
             )
             deployment_id_select_stmt = (
@@ -218,7 +218,7 @@ class Foreman(LoopService):
             session (AsyncSession): The session to use for the database operation.
         """
         async with db.session_context(begin_transaction=True) as session:
-            status_timeout_threshold = pendulum.now("UTC") - timedelta(
+            status_timeout_threshold = DateTime.now("UTC") - timedelta(
                 seconds=self._work_queue_last_polled_timeout_seconds
             )
             id_select_stmt = (

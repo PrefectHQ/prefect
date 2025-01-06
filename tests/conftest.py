@@ -31,6 +31,8 @@ import pytest
 from pytest_asyncio import is_async_test
 from sqlalchemy.dialects.postgresql.asyncpg import dialect as postgres_dialect
 
+from prefect.types import DateTime
+
 # Improve diff display for assertions in utilities
 # Note: This must occur before import of the module
 pytest.register_assert_rewrite("prefect.testing.utilities")
@@ -531,8 +533,8 @@ def disable_csrf_protection():
 
 
 @pytest.fixture
-def start_of_test() -> pendulum.DateTime:
-    return pendulum.now("UTC")
+def start_of_test() -> DateTime:
+    return DateTime.now("UTC")
 
 
 @pytest.fixture(autouse=True)

@@ -21,12 +21,13 @@ from prefect.server.events.storage.database import (
     read_events,
     write_events,
 )
+from prefect.types import DateTime
 
 
 @pytest.fixture
 def event() -> ReceivedEvent:
     return ReceivedEvent(
-        occurred=pendulum.now("UTC"),
+        occurred=DateTime.now("UTC"),
         event="hello",
         resource={"prefect.resource.id": "my.resource.id"},
         related=[
@@ -44,7 +45,7 @@ def event() -> ReceivedEvent:
 def other_events() -> List[ReceivedEvent]:
     return [
         ReceivedEvent(
-            occurred=pendulum.now("UTC"),
+            occurred=DateTime.now("UTC"),
             event="hello",
             resource={"prefect.resource.id": "my.resource.id"},
             related=[
@@ -83,7 +84,7 @@ class TestWriteEvents:
                 events_filter=EventFilter(
                     id=EventIDFilter(id=[event.id]),
                     occurred=EventOccurredFilter(
-                        since=pendulum.now("UTC").subtract(days=1)
+                        since=DateTime.now("UTC").subtract(days=1)
                     ),
                 ),
             )
@@ -170,7 +171,7 @@ class TestReadEvents:
     @pytest.fixture
     async def event_1(self, session: AsyncSession) -> ReceivedEvent:
         event = ReceivedEvent(
-            occurred=pendulum.now("UTC"),
+            occurred=DateTime.now("UTC"),
             event="hello",
             resource={"prefect.resource.id": "my.resource.id"},
             related=[
@@ -190,7 +191,7 @@ class TestReadEvents:
     @pytest.fixture
     async def event_2(self, session: AsyncSession) -> ReceivedEvent:
         event = ReceivedEvent(
-            occurred=pendulum.now("UTC").subtract(days=2),
+            occurred=DateTime.now("UTC").subtract(days=2),
             event="hello",
             resource={"prefect.resource.id": "my.resource.id"},
             related=[
@@ -213,7 +214,7 @@ class TestReadEvents:
                 session=session,
                 events_filter=EventFilter(
                     occurred=EventOccurredFilter(
-                        since=pendulum.now("UTC").subtract(days=1)
+                        since=DateTime.now("UTC").subtract(days=1)
                     ),
                 ),
             )
@@ -225,8 +226,8 @@ class TestReadEvents:
                 session=session,
                 events_filter=EventFilter(
                     occurred=EventOccurredFilter(
-                        since=pendulum.now("UTC").subtract(days=3),
-                        until=pendulum.now("UTC").subtract(days=1),
+                        since=DateTime.now("UTC").subtract(days=3),
+                        until=DateTime.now("UTC").subtract(days=1),
                     ),
                 ),
             )
@@ -241,7 +242,7 @@ class TestReadEvents:
                 events_filter=EventFilter(
                     resource=EventResourceFilter(id=["prefect.garbage.foo"]),
                     occurred=EventOccurredFilter(
-                        since=pendulum.now("UTC").subtract(days=1)
+                        since=DateTime.now("UTC").subtract(days=1)
                     ),
                 ),
             )

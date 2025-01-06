@@ -5,6 +5,7 @@ Utilities for Python version compatibility
 
 import sys
 
+
 if sys.version_info < (3, 10):
     import importlib_metadata as importlib_metadata
     from importlib_metadata import (

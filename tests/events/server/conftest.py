@@ -3,7 +3,6 @@ from typing import Any, Dict, List, Sequence, Tuple
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
-import pendulum
 import pytest
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -350,7 +349,7 @@ def email_me_when_that_dang_spider_comes(
     firing = Firing(
         trigger=arachnophobia.trigger,
         trigger_states={TriggerState.Triggered},
-        triggered=pendulum.now("UTC"),
+        triggered=DateTime.now("UTC"),
         triggering_labels={"hello": "world"},
         triggering_event=daddy_long_legs_walked,
     )

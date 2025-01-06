@@ -11,6 +11,7 @@ from prefect.context import FlowRunContext, TaskRunContext
 from prefect.flows import Flow
 from prefect.runtime import flow_run
 from prefect.settings import PREFECT_API_URL, PREFECT_UI_URL
+from prefect.types import DateTime
 
 
 class TestAttributeAccessPatterns:
@@ -40,9 +41,9 @@ class TestAttributeAccessPatterns:
             ("str_attribute", "foo", "bar", "bar"),
             (
                 "datetime_attribute",
-                pendulum.DateTime(2022, 1, 1, 0, tzinfo=pendulum.UTC),
+                DateTime(2022, 1, 1, 0, tzinfo=pendulum.UTC),
                 "2023-05-13 20:00:00",
-                pendulum.DateTime(2023, 5, 13, 20, tzinfo=pendulum.UTC),
+                DateTime(2023, 5, 13, 20, tzinfo=pendulum.UTC),
             ),
         ],
     )
@@ -195,7 +196,7 @@ class TestStartTime:
     async def test_scheduled_start_time_pulls_from_api_when_needed(
         self, monkeypatch, prefect_client
     ):
-        TIMESTAMP = pendulum.now("utc").add(days=7)
+        TIMESTAMP = DateTime.now("utc").add(days=7)
         run = await prefect_client.create_flow_run(
             flow=flow(lambda: None, name="test"),
             state=states.Scheduled(scheduled_time=TIMESTAMP),

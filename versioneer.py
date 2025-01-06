@@ -120,6 +120,8 @@ Code which uses Versioneer can learn about its version string at runtime by
 importing `_version` from your main `__init__.py` file and running the
 `get_versions()` function. From the "outside" (e.g. in `setup.py`), you can
 import the top-level `versioneer.py` and run `get_versions()`.
+from prefect.types import DateTime
+
 
 Both functions return a dictionary with different flavors of version
 information:

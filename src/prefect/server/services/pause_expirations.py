@@ -5,7 +5,6 @@ The FailExpiredPauses service. Responsible for putting Paused flow runs in a Fai
 import asyncio
 from typing import Optional
 
-import pendulum
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,6 +13,7 @@ from prefect.server.database import PrefectDBInterface, inject_db
 from prefect.server.schemas import states
 from prefect.server.services.loop_service import LoopService
 from prefect.settings import PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS
+from prefect.types import DateTime
 
 
 class FailExpiredPauses(LoopService):
@@ -70,7 +70,7 @@ class FailExpiredPauses(LoopService):
 
         Pass-through method for overrides.
         """
-        if flow_run.state.state_details.pause_timeout < pendulum.now("UTC"):
+        if flow_run.state.state_details.pause_timeout < DateTime.now("UTC"):
             await models.flow_runs.set_flow_run_state(
                 session=session,
                 flow_run_id=flow_run.id,

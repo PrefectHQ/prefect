@@ -2,14 +2,11 @@
 Utilities for creating and working with Prefect REST API schemas.
 """
 
-import datetime
 import os
-from typing import Any, ClassVar, Optional, TypeVar, cast
+from typing import Any, ClassVar, Optional, TypeVar
 from uuid import UUID, uuid4
 
-import pendulum
 from pydantic import BaseModel, ConfigDict, Field
-from rich.repr import RichReprResult
 from typing_extensions import Self
 
 from prefect.types import DateTime
@@ -67,27 +64,6 @@ class PrefectBaseModel(BaseModel):
         context: Optional[Any] = None,
     ) -> list[Self]:
         return validate_list(cls, obj)
-
-    def __rich_repr__(self) -> RichReprResult:
-        # Display all of the fields in the model if they differ from the default value
-        for name, field in self.model_fields.items():
-            value = getattr(self, name)
-
-            # Simplify the display of some common fields
-            if field.annotation == UUID and value:
-                value = str(value)
-            elif (
-                isinstance(field.annotation, datetime.datetime)
-                and name == "timestamp"
-                and value
-            ):
-                value = cast(pendulum.DateTime, pendulum.instance(value)).isoformat()
-            elif isinstance(field.annotation, datetime.datetime) and value:
-                value = cast(
-                    pendulum.DateTime, pendulum.instance(value)
-                ).diff_for_humans()
-
-            yield name, value, field.get_default()
 
     def reset_fields(self: Self) -> Self:
         """

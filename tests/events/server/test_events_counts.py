@@ -873,8 +873,8 @@ async def test_counting_by_time_must_result_in_reasonable_number_of_buckets(
             session=events_query_session,
             filter=EventFilter(
                 occurred=EventOccurredFilter(
-                    since=pendulum.now("UTC").subtract(days=7),
-                    until=pendulum.now("UTC"),
+                    since=DateTime.now("UTC").subtract(days=7),
+                    until=DateTime.now("UTC"),
                 ),
             ),
             countable=Countable.time,

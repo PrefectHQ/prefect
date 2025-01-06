@@ -7,7 +7,6 @@ import asyncio
 import datetime
 from typing import Optional
 
-import pendulum
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,6 +20,7 @@ from prefect.settings import (
     PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS,
     PREFECT_API_SERVICES_LATE_RUNS_LOOP_SECONDS,
 )
+from prefect.types import DateTime
 
 
 class MarkLateRuns(LoopService):
@@ -55,7 +55,7 @@ class MarkLateRuns(LoopService):
         - Querying for flow runs in a scheduled state that are Scheduled to start in the past
         - For any runs past the "late" threshold, setting the flow run state to a new `Late` state
         """
-        scheduled_to_start_before = pendulum.now("UTC").subtract(
+        scheduled_to_start_before = DateTime.now("UTC").subtract(
             seconds=self.mark_late_after.total_seconds()
         )
 

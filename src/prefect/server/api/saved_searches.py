@@ -5,7 +5,6 @@ Routes for interacting with saved search objects.
 from typing import List
 from uuid import UUID
 
-import pendulum
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 
 import prefect.server.api.dependencies as dependencies
@@ -13,6 +12,7 @@ import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.utilities.server import PrefectRouter
+from prefect.types import DateTime
 
 router = PrefectRouter(prefix="/saved_searches", tags=["SavedSearches"])
 
@@ -32,7 +32,7 @@ async def create_saved_search(
     # hydrate the input model into a full model
     saved_search = schemas.core.SavedSearch(**saved_search.model_dump())
 
-    now = pendulum.now("UTC")
+    now = DateTime.now("UTC")
 
     async with db.session_context(begin_transaction=True) as session:
         model = await models.saved_searches.create_saved_search(

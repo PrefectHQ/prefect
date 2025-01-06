@@ -12,6 +12,7 @@ from prefect.server import models, schemas
 from prefect.server.events.clients import AssertingEventsClient
 from prefect.server.schemas.actions import WorkQueueCreate, WorkQueueUpdate
 from prefect.server.schemas.statuses import WorkQueueStatus
+from prefect.types import DateTime
 from prefect.utilities.pydantic import parse_obj_as
 
 
@@ -68,7 +69,7 @@ class TestCreateWorkQueue:
         session,
         client,
     ):
-        now = pendulum.now(tz="UTC")
+        now = DateTime.now(tz="UTC")
         data = WorkQueueCreate(name="wq-1").model_dump(mode="json")
         response = await client.post("/work_queues/", json=data)
         assert response.status_code == status.HTTP_201_CREATED
@@ -415,7 +416,7 @@ class TestUpdateWorkQueue:
     ):
         # first, pause the work pool queue with a expired last_polled
         pause_data = schemas.actions.WorkQueueUpdate(
-            last_polled=pendulum.now("UTC") - timedelta(minutes=2), is_paused=True
+            last_polled=DateTime.now("UTC") - timedelta(minutes=2), is_paused=True
         ).model_dump(mode="json", exclude_unset=True)
 
         response = await client.patch(
@@ -486,7 +487,7 @@ class TestUpdateWorkQueue:
     ):
         # first, pause the work pool queue with a recent last_polled
         pause_data = schemas.actions.WorkQueueUpdate(
-            last_polled=pendulum.now("UTC"), is_paused=True
+            last_polled=DateTime.now("UTC"), is_paused=True
         ).model_dump(mode="json", exclude_unset=True)
 
         response = await client.patch(
@@ -679,7 +680,7 @@ class TestReadWorkQueues:
     ):
         # Update the queue with an old last_polled time
         new_data = WorkQueueUpdate(
-            last_polled=pendulum.now("UTC").subtract(days=1)
+            last_polled=DateTime.now("UTC").subtract(days=1)
         ).model_dump(mode="json", exclude_unset=True)
         response = await client.patch(f"/work_queues/{work_queue.id}", json=new_data)
         assert response.status_code == status.HTTP_204_NO_CONTENT
@@ -713,9 +714,9 @@ class TestGetRunsInWorkQueue:
                         work_queue_name=wq.name,
                         state=schemas.states.State(
                             type="SCHEDULED",
-                            timestamp=pendulum.now("UTC").add(minutes=i),
+                            timestamp=DateTime.now("UTC").add(minutes=i),
                             state_details=dict(
-                                scheduled_time=pendulum.now("UTC").add(minutes=i)
+                                scheduled_time=DateTime.now("UTC").add(minutes=i)
                             ),
                         ),
                     ),
@@ -734,7 +735,7 @@ class TestGetRunsInWorkQueue:
                         work_queue_name=wq.name,
                         state=schemas.states.State(
                             type="RUNNING" if i == 0 else "PENDING",
-                            timestamp=pendulum.now("UTC").subtract(seconds=10),
+                            timestamp=DateTime.now("UTC").subtract(seconds=10),
                         ),
                     ),
                 )
@@ -782,7 +783,7 @@ class TestGetRunsInWorkQueue:
     ):
         response1 = await client.post(
             f"/work_queues/{work_queue.id}/get_runs",
-            json=dict(scheduled_before=pendulum.now("UTC").isoformat()),
+            json=dict(scheduled_before=DateTime.now("UTC").isoformat()),
         )
         runs_wq1 = parse_obj_as(
             List[schemas.responses.FlowRunResponse], response1.json()
@@ -847,7 +848,7 @@ class TestGetRunsInWorkQueue:
         work_queue,
         session,
     ):
-        now = pendulum.now("UTC")
+        now = DateTime.now("UTC")
         response = await client.post(
             f"/work_queues/{work_queue.id}/get_runs",
             json=dict(),
@@ -881,7 +882,7 @@ class TestGetRunsInWorkQueue:
         work_queue,
         session,
     ):
-        now = pendulum.now("UTC")
+        now = DateTime.now("UTC")
         fake_agent_id = uuid4()
         response = await client.post(
             f"/work_queues/{work_queue.id}/get_runs",
@@ -993,7 +994,7 @@ class TestReadWorkQueueStatus:
             work_queue=schemas.core.WorkQueue(
                 name="wq-1",
                 description="All about my work queue",
-                last_polled=pendulum.now("UTC"),
+                last_polled=DateTime.now("UTC"),
                 work_pool_id=work_pool.id,
                 priority=1,
             ),
@@ -1016,7 +1017,7 @@ class TestReadWorkQueueStatus:
             work_queue=schemas.core.WorkQueue(
                 name="wq-1",
                 description="All about my work queue",
-                last_polled=pendulum.now("UTC"),
+                last_polled=DateTime.now("UTC"),
                 work_pool_id=work_pool.id,
                 priority=1,
             ),
@@ -1031,7 +1032,7 @@ class TestReadWorkQueueStatus:
             work_queue=schemas.core.WorkQueue(
                 name="wq-1",
                 description="All about my work queue",
-                last_polled=pendulum.now("UTC").subtract(days=1),
+                last_polled=DateTime.now("UTC").subtract(days=1),
                 work_pool_id=work_pool.id,
                 priority=2,
             ),
@@ -1046,7 +1047,7 @@ class TestReadWorkQueueStatus:
             work_queue=schemas.core.WorkQueue(
                 name="wq-1",
                 description="All about my work queue",
-                last_polled=pendulum.now("UTC"),
+                last_polled=DateTime.now("UTC"),
                 work_pool_id=work_pool.id,
                 priority=1,
             ),
@@ -1056,7 +1057,7 @@ class TestReadWorkQueueStatus:
             flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
                 state=schemas.states.Late(
-                    scheduled_time=pendulum.now("UTC").subtract(minutes=60)
+                    scheduled_time=DateTime.now("UTC").subtract(minutes=60)
                 ),
                 work_queue_id=work_queue.id,
             ),

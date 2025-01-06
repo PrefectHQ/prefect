@@ -1,4 +1,3 @@
-import pendulum
 import pytest
 
 from prefect.server import models, schemas
@@ -139,8 +138,8 @@ class TestNextRunsByFlow:
                 flow_version="0.1",
                 state=schemas.states.State(
                     type=schemas.states.StateType.SCHEDULED,
-                    timestamp=pendulum.now("UTC").add(hours=1),
-                    state_details={"scheduled_time": pendulum.now("UTC").add(hours=1)},
+                    timestamp=DateTime.now("UTC").add(hours=1),
+                    state_details={"scheduled_time": DateTime.now("UTC").add(hours=1)},
                 ),
             ),
         )
@@ -152,8 +151,8 @@ class TestNextRunsByFlow:
                 flow_version="0.1",
                 state=schemas.states.State(
                     type=schemas.states.StateType.SCHEDULED,
-                    timestamp=pendulum.now("UTC").add(hours=1),
-                    state_details={"scheduled_time": pendulum.now("UTC").add(hours=1)},
+                    timestamp=DateTime.now("UTC").add(hours=1),
+                    state_details={"scheduled_time": DateTime.now("UTC").add(hours=1)},
                 ),
             ),
         )

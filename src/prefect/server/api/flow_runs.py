@@ -9,7 +9,6 @@ from typing import Any, Dict, List, Optional, Type
 from uuid import UUID
 
 import orjson
-import pendulum
 import sqlalchemy as sa
 from fastapi import (
     Body,
@@ -80,7 +79,7 @@ async def create_flow_run(
     if not flow_run_object.state:
         flow_run_object.state = schemas.states.Pending()
 
-    now = pendulum.now("UTC")
+    now = DateTime.now("UTC")
 
     async with db.session_context(begin_transaction=True) as session:
         model = await models.flow_runs.create_flow_run(
@@ -365,7 +364,7 @@ async def resume_flow_run(
     """
     Resume a paused flow run.
     """
-    now = pendulum.now("UTC")
+    now = DateTime.now("UTC")
 
     async with db.session_context(begin_transaction=True) as session:
         flow_run = await models.flow_runs.read_flow_run(session, flow_run_id)
@@ -453,7 +452,7 @@ async def resume_flow_run(
                 session=session,
                 flow_run_id=flow_run_id,
                 state=schemas.states.Scheduled(
-                    name="Resuming", scheduled_time=pendulum.now("UTC")
+                    name="Resuming", scheduled_time=DateTime.now("UTC")
                 ),
                 flow_policy=flow_policy,
                 orchestration_parameters=orchestration_parameters,
@@ -579,7 +578,7 @@ async def set_flow_run_state(
     # pass the request version to the orchestration engine to support compatibility code
     orchestration_parameters.update({"api-version": api_version})
 
-    now = pendulum.now("UTC")
+    now = DateTime.now("UTC")
 
     # create the state
     async with db.session_context(

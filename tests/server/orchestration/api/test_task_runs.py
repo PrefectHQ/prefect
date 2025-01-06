@@ -1,7 +1,6 @@
 import uuid
 from uuid import uuid4
 
-import pendulum
 import pytest
 from starlette import status
 
@@ -12,6 +11,7 @@ from prefect.server.database.orm_models import TaskRun
 from prefect.server.schemas import responses, states
 from prefect.server.schemas.responses import OrchestrationResult
 from prefect.states import Pending
+from prefect.types import DateTime
 
 
 class TestCreateTaskRun:
@@ -284,7 +284,7 @@ class TestReadTaskRuns:
         assert response.json() == []
 
     async def test_read_task_runs_applies_sort(self, flow_run, session, client):
-        now = pendulum.now("UTC")
+        now = DateTime.now("UTC")
         task_run_1 = await models.task_runs.create_task_run(
             session=session,
             task_run=schemas.core.TaskRun(
@@ -560,7 +560,7 @@ class TestSetTaskRunState:
             task_run=schemas.core.TaskRun(
                 flow_run_id=None,  # autonomous task runs have no flow run
                 task_key="my-task-key",
-                expected_start_time=pendulum.now("UTC"),
+                expected_start_time=DateTime.now("UTC"),
                 dynamic_key="0",
             ),
         )
@@ -589,8 +589,8 @@ class TestTaskRunHistory:
         response = await client.post(
             "/task_runs/history",
             json=dict(
-                history_start=str(pendulum.now("UTC")),
-                history_end=str(pendulum.now("UTC").add(days=1)),
+                history_start=str(DateTime.now("UTC")),
+                history_end=str(DateTime.now("UTC").add(days=1)),
                 history_interval_seconds=0.9,
             ),
         )

@@ -8,7 +8,6 @@ from contextlib import asynccontextmanager
 from datetime import timedelta
 from typing import AsyncGenerator, List, Optional
 
-import pendulum
 import sqlalchemy as sa
 
 from prefect.logging import get_logger
@@ -21,6 +20,7 @@ from prefect.settings import (
     PREFECT_API_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL,
     PREFECT_EVENTS_RETENTION_PERIOD,
 )
+from prefect.types import DateTime
 
 logger = get_logger(__name__)
 
@@ -112,7 +112,7 @@ async def create_handler(
                 queue.put_nowait(event)
 
     async def trim() -> None:
-        older_than = pendulum.now("UTC") - PREFECT_EVENTS_RETENTION_PERIOD.value()
+        older_than = DateTime.now("UTC") - PREFECT_EVENTS_RETENTION_PERIOD.value()
 
         try:
             async with db.session_context() as session:

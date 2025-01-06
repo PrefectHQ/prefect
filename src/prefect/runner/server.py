@@ -1,7 +1,6 @@
 import uuid
 from typing import TYPE_CHECKING, Any, Callable, Coroutine, Hashable, Optional, Tuple
 
-import pendulum
 import uvicorn
 from fastapi import APIRouter, FastAPI, HTTPException, status
 from fastapi.responses import JSONResponse
@@ -22,6 +21,7 @@ from prefect.settings import (
     PREFECT_RUNNER_SERVER_MISSED_POLLS_TOLERANCE,
     PREFECT_RUNNER_SERVER_PORT,
 )
+from prefect.types import DateTime
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.importtools import load_script_as_module
 
@@ -52,7 +52,7 @@ def perform_health_check(
         )
 
     def _health_check():
-        now = pendulum.now("utc")
+        now = DateTime.now("utc")
         poll_delay = (now - runner.last_polled).total_seconds()
 
         if poll_delay > delay_threshold:

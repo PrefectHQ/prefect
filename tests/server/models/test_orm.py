@@ -7,6 +7,7 @@ import pytest
 import sqlalchemy as sa
 
 from prefect.server import models, schemas
+from prefect.types import DateTime
 
 
 @pytest.fixture
@@ -32,7 +33,7 @@ async def many_flow_run_states(flow, session, db):
                         1: schemas.states.StateType.RUNNING,
                         2: schemas.states.StateType.COMPLETED,
                     }[i],
-                    timestamp=pendulum.now("UTC").add(minutes=i),
+                    timestamp=DateTime.now("UTC").add(minutes=i),
                 ).orm_dict(),
             )
             for i in range(3)
@@ -71,7 +72,7 @@ async def many_task_run_states(flow_run, session, db):
                         1: schemas.states.StateType.RUNNING,
                         2: schemas.states.StateType.COMPLETED,
                     }[i],
-                    timestamp=pendulum.now("UTC").add(minutes=i),
+                    timestamp=DateTime.now("UTC").add(minutes=i),
                 ).orm_dict(),
             )
             for i in range(3)
@@ -208,7 +209,7 @@ class TestFlowRun:
         # delete all states
         await session.execute(sa.delete(db.FlowRunState))
 
-        now = pendulum.now("UTC")
+        now = DateTime.now("UTC")
         flow_run.set_state(
             db.FlowRunState(**schemas.states.Pending(timestamp=now).orm_dict())
         )
@@ -352,7 +353,7 @@ class TestTaskRun:
         # delete all states
         await session.execute(sa.delete(db.TaskRunState))
 
-        now = pendulum.now("UTC")
+        now = DateTime.now("UTC")
         task_run.set_state(
             db.TaskRunState(**schemas.states.Pending(timestamp=now).orm_dict())
         )
@@ -387,7 +388,7 @@ class TestTotalRunTimeEstimate:
     async def test_flow_run_estimated_run_time_matches_total_run_time(
         self, session, flow, db
     ):
-        dt = pendulum.now("UTC").subtract(minutes=1)
+        dt = DateTime.now("UTC").subtract(minutes=1)
         fr = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
@@ -422,7 +423,7 @@ class TestTotalRunTimeEstimate:
     ):
         tolerance = datetime.timedelta(seconds=3)
 
-        dt = pendulum.now("UTC").subtract(minutes=1)
+        dt = DateTime.now("UTC").subtract(minutes=1)
         fr = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
@@ -458,7 +459,7 @@ class TestTotalRunTimeEstimate:
     async def test_task_run_estimated_run_time_matches_total_run_time(
         self, session, flow_run, db
     ):
-        dt = pendulum.now("UTC").subtract(minutes=1)
+        dt = DateTime.now("UTC").subtract(minutes=1)
         tr = await models.task_runs.create_task_run(
             session=session,
             task_run=schemas.core.TaskRun(
@@ -496,7 +497,7 @@ class TestTotalRunTimeEstimate:
     ):
         tolerance = datetime.timedelta(seconds=3)
 
-        dt = pendulum.now("UTC").subtract(minutes=1)
+        dt = DateTime.now("UTC").subtract(minutes=1)
         tr = await models.task_runs.create_task_run(
             session=session,
             task_run=schemas.core.TaskRun(
@@ -538,7 +539,7 @@ class TestTotalRunTimeEstimate:
         The estimated_run_time includes a .correlate() statement that ensures it can
         be used as a correlated subquery within other selects or joins.
         """
-        dt = pendulum.now("UTC").subtract(minutes=1)
+        dt = DateTime.now("UTC").subtract(minutes=1)
         fr = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
@@ -590,7 +591,7 @@ class TestTotalRunTimeEstimate:
 class TestExpectedStartTimeDelta:
     async def test_flow_run_lateness_when_scheduled(self, session, flow, db):
         lateness = pendulum.duration(seconds=60)
-        dt = pendulum.now("UTC") - lateness
+        dt = DateTime.now("UTC") - lateness
 
         fr = await models.flow_runs.create_flow_run(
             session=session,
@@ -598,7 +599,7 @@ class TestExpectedStartTimeDelta:
                 flow_id=flow.id, state=schemas.states.Scheduled(scheduled_time=dt)
             ),
         )
-        assert lateness <= fr.estimated_start_time_delta <= (pendulum.now() - dt)
+        assert lateness <= fr.estimated_start_time_delta <= (DateTime.now() - dt)
 
         # check SQL logic
         await session.commit()
@@ -609,11 +610,11 @@ class TestExpectedStartTimeDelta:
 
         # allow for some wiggle room in the time delta
         assert (estimated_start_time_delta - lateness) <= pendulum.duration(seconds=1)
-        assert (pendulum.now() - dt - lateness) <= pendulum.duration(seconds=1)
+        assert (DateTime.now() - dt - lateness) <= pendulum.duration(seconds=1)
 
     async def test_flow_run_lateness_when_pending(self, session, flow, db):
         lateness = pendulum.duration(seconds=60)
-        dt = pendulum.now("UTC") - lateness
+        dt = DateTime.now("UTC") - lateness
 
         fr = await models.flow_runs.create_flow_run(
             session=session,
@@ -628,7 +629,7 @@ class TestExpectedStartTimeDelta:
         )
 
         # pending has no impact on lateness
-        assert lateness <= fr.estimated_start_time_delta <= (pendulum.now() - dt)
+        assert lateness <= fr.estimated_start_time_delta <= (DateTime.now() - dt)
 
         # check SQL logic
         await session.commit()
@@ -641,10 +642,10 @@ class TestExpectedStartTimeDelta:
         wiggle_room = pendulum.duration(seconds=5)
 
         assert (estimated_start_time_delta - lateness) <= wiggle_room
-        assert (pendulum.now() - dt - lateness) <= wiggle_room
+        assert (DateTime.now() - dt - lateness) <= wiggle_room
 
     async def test_flow_run_lateness_when_running(self, session, flow, db):
-        dt = pendulum.now("UTC").subtract(minutes=1)
+        dt = DateTime.now("UTC").subtract(minutes=1)
         fr = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
@@ -668,7 +669,7 @@ class TestExpectedStartTimeDelta:
         assert result.scalar() == pendulum.duration(seconds=5)
 
     async def test_flow_run_lateness_when_terminal(self, session, flow, db):
-        dt = pendulum.now("UTC").subtract(minutes=1)
+        dt = DateTime.now("UTC").subtract(minutes=1)
         fr = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
@@ -692,7 +693,7 @@ class TestExpectedStartTimeDelta:
         assert result.scalar() == pendulum.duration(seconds=0)
 
     async def test_flow_run_lateness_is_zero_when_early(self, session, flow, db):
-        dt = pendulum.now("UTC").subtract(minutes=1)
+        dt = DateTime.now("UTC").subtract(minutes=1)
         fr = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
@@ -718,7 +719,7 @@ class TestExpectedStartTimeDelta:
 
 class TestLog:
     async def test_create_log_with_flow_run_id_and_task_run_id(self, session, db):
-        now = pendulum.now("UTC")
+        now = DateTime.now("UTC")
         fifteen_mins_ago = now - datetime.timedelta(minutes=15)
 
         log = db.Log(
@@ -743,7 +744,7 @@ class TestLog:
         assert result.scalar() == log
 
     async def test_create_log_without_task_run_id(self, session, db):
-        now = pendulum.now("UTC")
+        now = DateTime.now("UTC")
         fifteen_mins_ago = now - datetime.timedelta(minutes=15)
 
         log = db.Log(

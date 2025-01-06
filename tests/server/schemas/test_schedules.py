@@ -18,6 +18,7 @@ from prefect.server.schemas.schedules import (
     IntervalSchedule,
     RRuleSchedule,
 )
+from prefect.types._datetime import Date, DateTime
 
 dt = pendulum.datetime(2020, 1, 1)
 RRDaily = "FREQ=DAILY"
@@ -29,7 +30,7 @@ class TestCreateIntervalSchedule:
             IntervalSchedule()
 
     @pytest.mark.parametrize("minutes", [-1, 0])
-    def test_interval_must_be_positive(self, minutes):
+    def test_interval_must_be_positive(self, minutes: int):
         with pytest.raises(
             ValidationError,
             match="(interval must be positive|should be greater than 0 seconds)",
@@ -44,14 +45,14 @@ class TestCreateIntervalSchedule:
             hour=1,
             minute=1,
         )
-        with mock.patch("pendulum.now", return_value=mock_now):
+        with mock.patch("DateTime.now", return_value=mock_now):
             clock = IntervalSchedule(interval=timedelta(days=1))
         assert clock.anchor_date == mock_now
         assert clock.timezone == "UTC"
 
     def test_default_timezone_from_anchor_date(self):
         clock = IntervalSchedule(
-            interval=timedelta(days=1), anchor_date=pendulum.now("America/New_York")
+            interval=timedelta(days=1), anchor_date=DateTime.now("America/New_York")
         )
         assert clock.timezone == "America/New_York"
 
@@ -61,7 +62,7 @@ class TestCreateIntervalSchedule:
         clock = IntervalSchedule(
             interval=timedelta(days=1),
             timezone="America/Los_Angeles",
-            anchor_date=pendulum.now("America/New_York"),
+            anchor_date=DateTime.now("America/New_York"),
         )
         assert clock.timezone == "America/Los_Angeles"
         assert clock.anchor_date.tz.name == "America/New_York"
@@ -79,12 +80,12 @@ class TestCreateIntervalSchedule:
         # when pendulum parses a datetime, it keeps the UTC offset as the "timezone"
         # and we need to make sure this doesn't get picked up as the schedule's timezone
         # since the schedule should infer that it has the same behavior as "UTC"
-        offset_dt = pendulum.parse(str(pendulum.now("America/New_York")))
+        offset_dt = pendulum.parse(str(DateTime.now("America/New_York")))
         clock = IntervalSchedule(interval=timedelta(days=1), anchor_date=offset_dt)
         assert clock.timezone == "UTC"
 
     def test_parse_utc_offset_timezone(self):
-        offset_dt = pendulum.parse(str(pendulum.now("America/New_York")))
+        offset_dt = pendulum.parse(str(DateTime.now("America/New_York")))
         clock = IntervalSchedule(interval=timedelta(days=1), anchor_date=offset_dt)
         clock_dict = clock.model_dump(mode="json")
 
@@ -100,7 +101,7 @@ class TestCreateIntervalSchedule:
         assert parsed.timezone == "UTC"
 
     def test_parse_utc_offset_timezone_with_specified_tz(self):
-        offset_dt = pendulum.parse(str(pendulum.now("America/New_York")))
+        offset_dt = pendulum.parse(str(DateTime.now("America/New_York")))
         clock = IntervalSchedule(
             interval=timedelta(days=1),
             anchor_date=offset_dt,
@@ -630,7 +631,7 @@ class TestCreateRRuleSchedule:
         dates = await s.get_dates(5)
         assert dates[0].tz.name == "America/New_York"
         assert dates == [
-            pendulum.now("America/New_York").start_of("day").add(days=i + 1)
+            DateTime.now("America/New_York").start_of("day").add(days=i + 1)
             for i in range(5)
         ]
 
@@ -660,7 +661,7 @@ class TestRRuleSchedule:
         s = RRuleSchedule.from_rrule(
             rrule.rrule(freq=rrule.DAILY, dtstart=pendulum.datetime(2030, 1, 1))
         )
-        dates = await s.get_dates(5, start=pendulum.now("UTC"))
+        dates = await s.get_dates(5, start=DateTime.now("UTC"))
         assert dates == [pendulum.datetime(2030, 1, 1).add(days=i) for i in range(5)]
 
     async def test_rrule_validates_rrule_str(self):
@@ -826,12 +827,8 @@ class TestRRuleSchedule:
         assert s1.timezone == "CET"
         assert s2.timezone == "CET"
         base_dates = list(base_rule.xafter(datetime(1900, 1, 1), count=5))
-        s1_dates = await s1.get_dates(
-            5, start=pendulum.DateTime(year=1900, month=1, day=1)
-        )
-        s2_dates = await s2.get_dates(
-            5, start=pendulum.DateTime(year=1900, month=1, day=1)
-        )
+        s1_dates = await s1.get_dates(5, start=DateTime(year=1900, month=1, day=1))
+        s2_dates = await s2.get_dates(5, start=DateTime(year=1900, month=1, day=1))
         assert base_dates == s1_dates == s2_dates
 
     async def test_rrule_from_str(self):
@@ -840,7 +837,7 @@ class TestRRuleSchedule:
             rrule.rrule(
                 freq=rrule.DAILY,
                 count=5,
-                dtstart=pendulum.now("UTC").add(hours=1),
+                dtstart=DateTime.now("UTC").add(hours=1),
             )
         )
         assert isinstance(s1.rrule, str)
@@ -1029,9 +1026,9 @@ async def test_unanchored_rrule_schedules_are_idempotent(
     assert first_set == second_set
 
     assert [dt.date() for dt in first_set] == [
-        pendulum.date(2023, 6, 9),
-        pendulum.date(2023, 6, 16),
-        pendulum.date(2023, 6, 23),
+        Date(2023, 6, 9),
+        Date(2023, 6, 16),
+        Date(2023, 6, 23),
     ]
     for date in first_set:
         assert date.day_of_week == pendulum.FRIDAY

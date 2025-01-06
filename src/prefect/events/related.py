@@ -14,8 +14,6 @@ from typing import (
 )
 from uuid import UUID
 
-import pendulum
-
 from prefect.types import DateTime
 
 from .schemas.events import RelatedResource
@@ -207,7 +205,7 @@ async def _get_and_cache_related_object(
             "object": obj_,
         }
 
-    cache[cache_key] = (entry, pendulum.now("UTC"))
+    cache[cache_key] = (entry, DateTime.now("UTC"))
 
     # In the case of a worker or agent this cache could be long-lived. To keep
     # from running out of memory only keep `MAX_CACHE_SIZE` entries in the

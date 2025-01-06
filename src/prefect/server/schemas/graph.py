@@ -1,13 +1,12 @@
 from typing import TYPE_CHECKING, Any, List, Literal, Optional, Tuple
 from uuid import UUID
 
-import pendulum
-
 from prefect.server.schemas.states import StateType
 from prefect.server.utilities.schemas import PrefectBaseModel
+from prefect.types import DateTime
 
 if TYPE_CHECKING:
-    DateTime = pendulum.DateTime
+    DateTime = DateTime
 else:
     from prefect.types import DateTime
 

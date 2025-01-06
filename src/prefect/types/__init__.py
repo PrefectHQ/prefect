@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 from functools import partial
 from typing import Annotated, Any, TypeVar
 from typing_extensions import Literal
@@ -15,7 +16,7 @@ from pydantic import (
     TypeAdapter,
 )
 
-from prefect.types._datetime import DateTime, Date, Duration
+from prefect.types._datetime import Date, Duration, DateTime, TimeZone
 
 T = TypeVar("T")
 
@@ -169,4 +170,5 @@ __all__ = [
     "SecretDict",
     "StatusCode",
     "StrictVariableValue",
+    "TimeZone",
 ]

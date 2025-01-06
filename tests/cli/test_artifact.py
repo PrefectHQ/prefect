@@ -1,16 +1,17 @@
 import sys
 from uuid import uuid4
 
-import pendulum
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 from typer import Exit
 
 from prefect.server import models, schemas
 from prefect.testing.cli import invoke_and_assert
+from prefect.types._datetime import datetime_instance
 
 
 @pytest.fixture(autouse=True)
-def interactive_console(monkeypatch):
+def interactive_console(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr("prefect.cli.artifact.is_interactive", lambda: True)
 
     # `readchar` does not like the fake stdin provided by typer isolation so we provide
@@ -29,7 +30,7 @@ def interactive_console(monkeypatch):
 
 
 @pytest.fixture
-async def artifact(session):
+async def artifact(session: AsyncSession):
     artifact_schema = schemas.core.Artifact(
         key="voltaic", data={"a": 1}, type="table", description="opens many doors"
     )
@@ -45,7 +46,7 @@ async def artifact(session):
 
 
 @pytest.fixture
-async def artifact_null_field(session):
+async def artifact_null_field(session: AsyncSession):
     artifact_schema = schemas.core.Artifact(
         key="voltaic", data=1, metadata_={"description": "opens many doors"}
     )
@@ -61,7 +62,7 @@ async def artifact_null_field(session):
 
 
 @pytest.fixture
-async def artifacts(session):
+async def artifacts(session: AsyncSession):
     model1 = await models.artifacts.create_artifact(
         session=session,
         artifact=schemas.core.Artifact(
@@ -105,7 +106,7 @@ def test_listing_artifacts_after_creating_artifacts(artifact):
             ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━┳━━━━━━━━━━━━━━━━━━━┓
             ┃                                   ID ┃ Key     ┃ Type  ┃ Updated           ┃
             ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━╇━━━━━━━━━━━━━━━━━━━┩
-            │ {artifact.id} │ {artifact.key} │ {artifact.type} │ {pendulum.instance(artifact.updated).diff_for_humans()} │
+            │ {artifact.id} │ {artifact.key} │ {artifact.type} │ {datetime_instance(artifact.updated).diff_for_humans()} │
             └──────────────────────────────────────┴─────────┴───────┴───────────────────┘
             """,
     )
@@ -121,7 +122,7 @@ def test_listing_artifacts_after_creating_artifacts_with_null_fields(
             ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━┳━━━━━━━━━━━━━━━━━━━┓
             ┃                                   ID ┃ Key     ┃ Type ┃ Updated           ┃
             ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━╇━━━━━━━━━━━━━━━━━━━┩
-            │ {artifact.id} │ {artifact.key} │      │ {pendulum.instance(artifact.updated).diff_for_humans()} │
+            │ {artifact.id} │ {artifact.key} │      │ {datetime_instance(artifact.updated).diff_for_humans()} │
             └──────────────────────────────────────┴─────────┴──────┴───────────────────┘
             """,
     )

@@ -5,6 +5,7 @@ import pendulum
 import pytest
 
 from prefect.server.services.loop_service import LoopService
+from prefect.types import DateTime
 
 
 async def test_asyncio_sleep_accepts_negative_numbers():
@@ -122,9 +123,9 @@ async def test_early_stop():
     assert service._is_running is True
     assert service._should_stop is False
 
-    dt = pendulum.now("UTC")
+    dt = DateTime.now("UTC")
     await service.stop()
-    dt2 = pendulum.now("UTC")
+    dt2 = DateTime.now("UTC")
 
     assert service._should_stop is True
     assert service._is_running is False

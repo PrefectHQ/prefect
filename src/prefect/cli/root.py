@@ -7,9 +7,8 @@ import platform
 import sys
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as import_version
-from typing import Any, Dict
+from typing import Any
 
-import pendulum
 import typer
 
 import prefect
@@ -25,6 +24,7 @@ from prefect.settings import (
     PREFECT_CLI_WRAP_LINES,
     PREFECT_TEST_MODE,
 )
+from prefect.types._datetime import parse_datetime
 
 app = PrefectTyper(add_completion=True, no_args_is_help=True)
 
@@ -107,14 +107,16 @@ async def version(
     from prefect.server.utilities.database import get_dialect
     from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
 
-    version_info = {
+    version_info: dict[str, Any] = {
         "Version": prefect.__version__,
         "API version": SERVER_API_VERSION,
         "Python version": platform.python_version(),
         "Git commit": prefect.__version_info__["full-revisionid"][:8],
-        "Built": pendulum.parse(
-            prefect.__version_info__["date"]
-        ).to_day_datetime_string(),
+        "Built": (
+            parse_datetime(date).to_day_datetime_string()
+            if (date := prefect.__version_info__["date"])
+            else "Could not determine build date"
+        ),
         "OS/Arch": f"{sys.platform}/{platform.machine()}",
         "Profile": prefect.context.get_settings_context().profile.name,
     }
@@ -143,11 +145,11 @@ async def version(
     display(version_info)
 
 
-def get_prefect_integrations() -> Dict[str, str]:
+def get_prefect_integrations() -> dict[str, str]:
     """Get information about installed Prefect integrations."""
     from importlib.metadata import distributions
 
-    integrations = {}
+    integrations: dict[str, str] = {}
     for dist in distributions():
         if dist.metadata["Name"].startswith("prefect-"):
             author_email = dist.metadata.get("Author-email", "").strip()
@@ -157,7 +159,7 @@ def get_prefect_integrations() -> Dict[str, str]:
     return integrations
 
 
-def display(object: Dict[str, Any], nesting: int = 0):
+def display(object: dict[str, Any], nesting: int = 0):
     """Recursive display of a dictionary with nesting."""
     for key, value in object.items():
         key += ":"

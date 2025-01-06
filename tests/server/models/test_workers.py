@@ -1,11 +1,11 @@
 from uuid import uuid4
 
-import pendulum
 import pydantic
 import pytest
 import sqlalchemy as sa
 
 from prefect.server import models, schemas
+from prefect.types import DateTime
 
 
 class TestCreateWorkPool:
@@ -746,7 +746,7 @@ class TestGetScheduledRuns:
                     flow_run=schemas.core.FlowRun(
                         flow_id=flow.id,
                         state=schemas.states.Scheduled(
-                            scheduled_time=pendulum.now("UTC").add(hours=i)
+                            scheduled_time=DateTime.now("UTC").add(hours=i)
                         ),
                         work_queue_id=wq.id,
                     ),
@@ -798,13 +798,13 @@ class TestGetScheduledRuns:
 
     async def test_get_all_runs_scheduled_before(self, session):
         runs = await models.workers.get_scheduled_flow_runs(
-            session=session, scheduled_before=pendulum.now("UTC")
+            session=session, scheduled_before=DateTime.now("UTC")
         )
         assert len(runs) == 18
 
     async def test_get_all_runs_scheduled_after(self, session):
         runs = await models.workers.get_scheduled_flow_runs(
-            session=session, scheduled_after=pendulum.now("UTC")
+            session=session, scheduled_after=DateTime.now("UTC")
         )
         assert len(runs) == 27
 

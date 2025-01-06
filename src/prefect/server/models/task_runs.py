@@ -7,7 +7,6 @@ import contextlib
 from typing import Any, Dict, Optional, Sequence, Type, TypeVar, Union, cast
 from uuid import UUID
 
-import pendulum
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,6 +25,7 @@ from prefect.server.orchestration.global_policy import GlobalTaskPolicy
 from prefect.server.orchestration.policies import BaseOrchestrationPolicy
 from prefect.server.orchestration.rules import TaskOrchestrationContext
 from prefect.server.schemas.responses import OrchestrationResult
+from prefect.types import DateTime
 
 T = TypeVar("T", bound=tuple)
 
@@ -54,7 +54,7 @@ async def create_task_run(
         orm_models.TaskRun: the newly-created or existing task run
     """
 
-    now = pendulum.now("UTC")
+    now = DateTime.now("UTC")
     model: Union[orm_models.TaskRun, None]
 
     task_run.labels = await with_system_labels_for_task_run(

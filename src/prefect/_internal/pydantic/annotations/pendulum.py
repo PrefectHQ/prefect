@@ -1,5 +1,5 @@
 """
-This file contains compat code to handle pendulum.DateTime objects during jsonschema
+This file contains compat code to handle DateTime objects during jsonschema
 generation and validation.
 """
 
@@ -10,14 +10,16 @@ from pydantic import GetCoreSchemaHandler, GetJsonSchemaHandler
 from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import core_schema
 
+from prefect.types import DateTime
+
 
 class _PendulumDateTimeAnnotation:
     _pendulum_type: type[
-        Union[pendulum.DateTime, pendulum.Date, pendulum.Time, pendulum.Duration]
-    ] = pendulum.DateTime
+        Union[DateTime, pendulum.Date, pendulum.Time, pendulum.Duration]
+    ] = DateTime
 
     _pendulum_types_to_schemas = {
-        pendulum.DateTime: core_schema.datetime_schema(),
+        DateTime: core_schema.datetime_schema(),
         pendulum.Date: core_schema.date_schema(),
         pendulum.Time: core_schema.time_schema(),
         pendulum.Duration: core_schema.timedelta_schema(),
@@ -31,11 +33,11 @@ class _PendulumDateTimeAnnotation:
     ) -> core_schema.CoreSchema:
         def validate_from_str(
             value: str,
-        ) -> Union[pendulum.DateTime, pendulum.Date, pendulum.Time, pendulum.Duration]:
+        ) -> Union[DateTime, pendulum.Date, pendulum.Time, pendulum.Duration]:
             return pendulum.parse(value)
 
         def to_str(
-            value: Union[pendulum.DateTime, pendulum.Date, pendulum.Time],
+            value: Union[DateTime, pendulum.Date, pendulum.Time],
         ) -> str:
             return value.isoformat()
 
@@ -73,6 +75,6 @@ class _PendulumDurationAnnotation(_PendulumDateTimeAnnotation):
     _pendulum_type = pendulum.Duration
 
 
-PydanticPendulumDateTimeType = Annotated[pendulum.DateTime, _PendulumDateTimeAnnotation]
+PydanticPendulumDateTimeType = Annotated[DateTime, _PendulumDateTimeAnnotation]
 PydanticPendulumDateType = Annotated[pendulum.Date, _PendulumDateAnnotation]
 PydanticPendulumDurationType = Annotated[pendulum.Duration, _PendulumDurationAnnotation]

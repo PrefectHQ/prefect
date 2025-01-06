@@ -1,6 +1,8 @@
-from typing import Annotated
+from __future__ import annotations
 
-from pendulum import from_format
+from typing import Annotated, Any
+
+from pendulum import FixedTimezone, format_diff, from_format, instance, parse, tz
 from pendulum.tz import UTC, Timezone
 from pydantic import (
     Field,
@@ -32,4 +34,27 @@ def datetime_from_format(
     tz: str | Timezone = UTC,
     locale: str | None = None,
 ) -> DateTime:
-    return PydanticDateTime(from_format(string, fmt, tz, locale))
+    return PydanticDateTime(from_format(string, fmt, tz, locale))  # type: ignore
+
+
+def parse_datetime(string: str) -> DateTime:
+    return PydanticDateTime(parse(string))  # type: ignore
+
+
+def datetime_instance(value: Any) -> DateTime:
+    return PydanticDateTime(instance(value))  # type: ignore
+
+
+def local_timezone() -> Timezone | FixedTimezone:
+    return tz.local_timezone()
+
+
+__all__ = [
+    "DateTime",
+    "Date",
+    "Duration",
+    "datetime_from_format",
+    "parse_datetime",
+    "datetime_instance",
+    "format_diff",
+]

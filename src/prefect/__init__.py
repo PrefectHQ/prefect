@@ -3,6 +3,7 @@
 # Setup version and path constants
 
 import sys
+
 from . import _version
 import importlib
 import pathlib

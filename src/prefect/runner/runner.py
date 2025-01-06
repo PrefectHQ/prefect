@@ -59,7 +59,6 @@ from uuid import UUID, uuid4
 
 import anyio
 import anyio.abc
-import pendulum
 from cachetools import LRUCache
 
 from prefect._internal.concurrency.api import (
@@ -104,6 +103,7 @@ from prefect.states import (
     Pending,
     exception_to_failed_state,
 )
+from prefect.types import DateTime
 from prefect.types.entrypoint import EntrypointType
 from prefect.utilities.asyncutils import (
     asyncnullcontext,
@@ -774,7 +774,7 @@ class Runner:
         if self.stopping:
             return
         runs_response = await self._get_scheduled_flow_runs()
-        self.last_polled = pendulum.now("UTC")
+        self.last_polled = DateTime.now("UTC")
         return await self._submit_scheduled_flow_runs(flow_run_response=runs_response)
 
     async def _check_for_cancelled_flow_runs(
@@ -1035,7 +1035,7 @@ class Runner:
         """
         Retrieve scheduled flow runs for this runner.
         """
-        scheduled_before = pendulum.now("utc").add(seconds=int(self._prefetch_seconds))
+        scheduled_before = DateTime.now("utc").add(seconds=int(self._prefetch_seconds))
         self._logger.debug(
             f"Querying for flow runs scheduled before {scheduled_before}"
         )

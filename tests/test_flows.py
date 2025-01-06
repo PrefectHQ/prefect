@@ -5094,7 +5094,7 @@ class TestSafeLoadFlowFromEntrypoint:
         @flow
         def f(
             x: datetime.datetime,
-            y: pendulum.DateTime = pendulum.datetime(2025, 1, 1),
+            y: DateTime = pendulum.datetime(2025, 1, 1),
             z: datetime.timedelta = datetime.timedelta(seconds=5),
         ):
             return x, y, z

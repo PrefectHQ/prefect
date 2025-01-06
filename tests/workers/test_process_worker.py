@@ -9,7 +9,6 @@ from uuid import UUID
 
 import anyio
 import anyio.abc
-import pendulum
 import pytest
 from exceptiongroup import ExceptionGroup, catch
 from pydantic import BaseModel
@@ -61,7 +60,7 @@ async def flow_run(prefect_client: PrefectClient):
         state=State(
             type=client_schemas.StateType.SCHEDULED,
             state_details=client_schemas.StateDetails(
-                scheduled_time=pendulum.now("utc").subtract(minutes=5)
+                scheduled_time=DateTime.now("utc").subtract(minutes=5)
             ),
         ),
     )
@@ -76,7 +75,7 @@ async def flow_run_with_overrides(deployment, prefect_client: PrefectClient):
         state=State(
             type=client_schemas.StateType.SCHEDULED,
             state_details=client_schemas.StateDetails(
-                scheduled_time=pendulum.now("utc").subtract(minutes=5)
+                scheduled_time=DateTime.now("utc").subtract(minutes=5)
             ),
         ),
     )
@@ -112,7 +111,7 @@ def patch_client(monkeypatch, overrides: Optional[Dict[str, Any]] = None):
         id: UUID = uuid.uuid4()
         job_variables: Dict[str, Any] = overrides or {}
         name: str = "test-deployment"
-        updated: DateTime = pendulum.now("utc")
+        updated: DateTime = DateTime.now("utc")
 
     class MockFlow(BaseModel):
         id: UUID = uuid.uuid4()

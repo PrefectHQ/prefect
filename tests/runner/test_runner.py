@@ -16,7 +16,6 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import anyio
-import pendulum
 import pytest
 from starlette import status
 
@@ -54,6 +53,7 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.testing.utilities import AsyncMock
+from prefect.types import DateTime
 from prefect.utilities.dockerutils import parse_image_tag
 from prefect.utilities.filesystem import tmpchdir
 from prefect.utilities.slugify import slugify
@@ -1776,12 +1776,12 @@ class TestRunnerDeployment:
 class TestServer:
     async def test_healthcheck_fails_as_expected(self):
         runner = Runner()
-        runner.last_polled = pendulum.now("utc").subtract(minutes=5)
+        runner.last_polled = DateTime.now("utc").subtract(minutes=5)
 
         health_check = perform_health_check(runner)
         assert health_check().status_code == status.HTTP_503_SERVICE_UNAVAILABLE
 
-        runner.last_polled = pendulum.now("utc")
+        runner.last_polled = DateTime.now("utc")
         assert health_check().status_code == status.HTTP_200_OK
 
     @pytest.mark.skip("This test is flaky and needs to be fixed")
@@ -2029,7 +2029,7 @@ class TestDeploy:
             name="test-registry/test-image",
         )
         assert image.name == "test-registry/test-image"
-        assert image.tag.startswith(str(pendulum.now("utc").year))
+        assert image.tag.startswith(str(DateTime.now("utc").year))
 
         # test image tag can be inferred
         image = DockerImage(

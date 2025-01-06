@@ -7,7 +7,6 @@ import datetime
 from typing import Dict, List, Optional
 from uuid import UUID
 
-import pendulum
 import sqlalchemy as sa
 
 import prefect.server.models as models
@@ -23,6 +22,7 @@ from prefect.settings import (
     PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS,
     PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME,
 )
+from prefect.types import DateTime
 from prefect.utilities.collections import batched_iterable
 
 
@@ -126,7 +126,7 @@ class Scheduler(LoopService):
                 - fewer than `min_runs` auto-scheduled runs
                 - OR the max scheduled time is less than `max_scheduled_time` in the future
         """
-        now = pendulum.now("UTC")
+        now = DateTime.now("UTC")
         query = (
             sa.select(db.Deployment.id)
             .select_from(db.Deployment)
@@ -184,7 +184,7 @@ class Scheduler(LoopService):
     ) -> List[Dict]:
         runs_to_insert = []
         for deployment_id in deployment_ids:
-            now = pendulum.now("UTC")
+            now = DateTime.now("UTC")
             # guard against erroneously configured schedules
             try:
                 runs_to_insert.extend(
@@ -324,7 +324,7 @@ class RecentDeploymentsScheduler(Scheduler):
                     # second to run). Scheduling is idempotent so picking up schedules
                     # multiple times is not a concern.
                     db.Deployment.updated
-                    >= pendulum.now("UTC").subtract(seconds=self.loop_seconds + 1),
+                    >= DateTime.now("UTC").subtract(seconds=self.loop_seconds + 1),
                     (
                         # Only include deployments that have at least one
                         # active schedule.

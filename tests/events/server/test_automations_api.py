@@ -5,7 +5,6 @@ from unittest import mock
 from uuid import UUID, uuid4
 
 import httpx
-import pendulum
 import pydantic
 import pytest
 import sqlalchemy as sa
@@ -883,7 +882,7 @@ async def test_delete_automations_owned_by_resource(
             owned_by_resource=(automation in [old_owned, new_owned]),
         )
 
-    now = pendulum.now("UTC")
+    now = DateTime.now("UTC")
 
     # Make sure the old owned automation is older than the horizon
     await automations_session.execute(

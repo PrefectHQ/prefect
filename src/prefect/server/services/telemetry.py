@@ -9,7 +9,6 @@ from typing import Optional
 from uuid import uuid4
 
 import httpx
-import pendulum
 
 import prefect
 from prefect.server.database import PrefectDBInterface, inject_db
@@ -17,6 +16,7 @@ from prefect.server.models import configuration
 from prefect.server.schemas.core import Configuration
 from prefect.server.services.loop_service import LoopService
 from prefect.settings import PREFECT_DEBUG_MODE
+from prefect.types import DateTime
 
 
 class Telemetry(LoopService):
@@ -50,7 +50,7 @@ class Telemetry(LoopService):
             if telemetry_session is None:
                 self.logger.debug("No telemetry session found, setting")
                 session_id = str(uuid4())
-                session_start_timestamp = pendulum.now("UTC").to_iso8601_string()
+                session_start_timestamp = DateTime.now("UTC").to_iso8601_string()
 
                 telemetry_session = Configuration(
                     key="TELEMETRY_SESSION",

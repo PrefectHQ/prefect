@@ -6,6 +6,7 @@ from starlette import status
 
 from prefect.server import models, schemas
 from prefect.server.schemas.actions import SavedSearchCreate
+from prefect.types import DateTime
 
 
 class TestCreateSavedSearch:
@@ -75,7 +76,7 @@ class TestCreateSavedSearch:
         self,
         client,
     ):
-        now = pendulum.now(tz="UTC")
+        now = DateTime.now(tz="UTC")
 
         data = SavedSearchCreate(
             name="My SavedSearch",

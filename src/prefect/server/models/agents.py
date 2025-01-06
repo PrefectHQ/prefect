@@ -6,13 +6,13 @@ Intended for internal use by the Prefect REST API.
 from typing import Sequence, Union
 from uuid import UUID
 
-import pendulum
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.schemas as schemas
 from prefect.server.database import PrefectDBInterface, db_injector, orm_models
+from prefect.types import DateTime
 
 
 @db_injector
@@ -145,7 +145,7 @@ async def record_agent_poll(
         work_queue_id: A work queue id
     """
     agent_data = schemas.core.Agent(
-        id=agent_id, work_queue_id=work_queue_id, last_activity_time=pendulum.now("UTC")
+        id=agent_id, work_queue_id=work_queue_id, last_activity_time=DateTime.now("UTC")
     )
     insert_stmt = (
         db.queries.insert(db.Agent)

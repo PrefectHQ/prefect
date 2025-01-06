@@ -9,6 +9,8 @@ in Python as the following examples demonstrate.
 Examples
 ```python
 from prefect_bitbucket.repository import BitBucketRepository
+from prefect.types import DateTime
+
 
 # public BitBucket repository
 public_bitbucket_block = BitBucketRepository(

@@ -9,6 +9,7 @@ import pydantic_core
 from typing_extensions import TypedDict
 
 from prefect.logging.loggers import get_logger
+from prefect.types import DateTime
 
 from .protocol import LockManager
 
@@ -26,7 +27,7 @@ class _LockInfo(TypedDict):
     """
 
     holder: str
-    expiration: Optional[pendulum.DateTime]
+    expiration: Optional[DateTime]
     path: Path
 
 
@@ -116,7 +117,7 @@ class FileSystemLockManager(LockManager):
                 )
                 return self.acquire_lock(key, holder, acquire_timeout, hold_timeout)
         expiration = (
-            pendulum.now("utc") + pendulum.duration(seconds=hold_timeout)
+            DateTime.now("utc") + pendulum.duration(seconds=hold_timeout)
             if hold_timeout is not None
             else None
         )
@@ -165,7 +166,7 @@ class FileSystemLockManager(LockManager):
                 )
                 return self.acquire_lock(key, holder, acquire_timeout, hold_timeout)
         expiration = (
-            pendulum.now("utc") + pendulum.duration(seconds=hold_timeout)
+            DateTime.now("utc") + pendulum.duration(seconds=hold_timeout)
             if hold_timeout is not None
             else None
         )
@@ -207,7 +208,7 @@ class FileSystemLockManager(LockManager):
         if (expiration := lock_info.get("expiration")) is None:
             return True
 
-        expired = expiration < pendulum.now("utc")
+        expired = expiration < DateTime.now("utc")
         if expired:
             Path(lock_info["path"]).unlink()
             self._locks.pop(key, None)

@@ -2,7 +2,6 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, MutableMapping, Optional, Set, Union
 from uuid import UUID, uuid4
 
-import pendulum
 from cachetools import TTLCache
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,6 +20,7 @@ from prefect.server.events.schemas.events import Event
 from prefect.server.models import deployments
 from prefect.server.schemas.statuses import DeploymentStatus
 from prefect.settings import PREFECT_API_EVENTS_RELATED_RESOURCE_CACHE_TTL
+from prefect.types import DateTime
 from prefect.utilities.text import truncated_to
 
 ResourceData = Dict[str, Dict[str, Any]]
@@ -289,7 +289,7 @@ async def deployment_status_event(
     session: AsyncSession,
     deployment_id: UUID,
     status: DeploymentStatus,
-    occurred: pendulum.DateTime,
+    occurred: DateTime,
 ) -> Event:
     deployment = await models.deployments.read_deployment(
         session=session, deployment_id=deployment_id
@@ -359,7 +359,7 @@ async def deployment_status_event(
 async def work_queue_status_event(
     session: AsyncSession,
     work_queue: "ORMWorkQueue",
-    occurred: pendulum.DateTime,
+    occurred: DateTime,
 ) -> Event:
     related_work_pool_info: List[Dict[str, Any]] = []
 
@@ -394,7 +394,7 @@ async def work_queue_status_event(
 
 async def work_pool_status_event(
     event_id: UUID,
-    occurred: pendulum.DateTime,
+    occurred: DateTime,
     pre_update_work_pool: Optional["ORMWorkPool"],
     work_pool: "ORMWorkPool",
 ) -> Event:
@@ -426,7 +426,7 @@ def _get_recent_preceding_work_pool_event_id(
     time_since_last_event = timedelta(hours=24)
     if work_pool.last_transitioned_status_at:
         time_since_last_event = (
-            pendulum.now("UTC") - work_pool.last_transitioned_status_at
+            DateTime.now("UTC") - work_pool.last_transitioned_status_at
         )
 
     return (

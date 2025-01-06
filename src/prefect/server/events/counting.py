@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 # The earliest possible event.occurred date in any Prefect environment is
 # 2024-04-04, so we use the Monday before that as our pivot date.
-PIVOT_DATETIME = pendulum.DateTime(2024, 4, 1, tzinfo=pendulum.timezone("UTC"))
+PIVOT_DATETIME = DateTime(2024, 4, 1, tzinfo=pendulum.timezone("UTC"))
 
 
 class InvalidEventCountParameters(ValueError):
@@ -86,8 +86,8 @@ class TimeUnit(AutoEnum):
         start_in_utc = start_datetime.in_timezone("UTC")
         end_in_utc = end_datetime.in_timezone("UTC")
 
-        if end_in_utc > pendulum.now("UTC"):
-            end_in_utc = pendulum.now("UTC").end_of(self.value)
+        if end_in_utc > DateTime.now("UTC"):
+            end_in_utc = DateTime.now("UTC").end_of(self.value)
 
         first_span_index = math.floor((start_in_utc - PIVOT_DATETIME) / delta)
 

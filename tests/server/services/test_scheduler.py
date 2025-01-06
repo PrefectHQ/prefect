@@ -1,6 +1,5 @@
 import datetime
 
-import pendulum
 import pytest
 import sqlalchemy as sa
 
@@ -10,6 +9,7 @@ from prefect.settings import (
     PREFECT_API_SERVICES_SCHEDULER_INSERT_BATCH_SIZE,
     PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS,
 )
+from prefect.types import DateTime
 
 
 @pytest.fixture
@@ -126,7 +126,7 @@ async def test_create_schedules_from_deployment(
 
 async def test_create_schedule_respects_max_future_time(flow, session):
     schedule = schemas.schedules.IntervalSchedule(
-        interval=datetime.timedelta(days=30), anchor_date=pendulum.now("UTC")
+        interval=datetime.timedelta(days=30), anchor_date=DateTime.now("UTC")
     )
 
     await models.deployments.create_deployment(
@@ -152,7 +152,7 @@ async def test_create_schedule_respects_max_future_time(flow, session):
 
     assert len(runs) == 3
     expected_dates = await schedule.get_dates(
-        service.max_runs, end=pendulum.now("UTC") + service.max_scheduled_time
+        service.max_runs, end=DateTime.now("UTC") + service.max_scheduled_time
     )
     assert set(expected_dates) == {r.state.state_details.scheduled_time for r in runs}
 
@@ -218,8 +218,8 @@ async def test_create_schedules_from_multiple_deployments(flow, session):
     for schedule in [schedule1, schedule2, schedule3]:
         dep_runs = await schedule.get_dates(
             service.min_runs,
-            start=pendulum.now("UTC"),
-            end=pendulum.now("UTC") + service.max_scheduled_time,
+            start=DateTime.now("UTC"),
+            end=DateTime.now("UTC") + service.max_scheduled_time,
         )
         expected_dates.update(dep_runs)
     assert set(expected_dates) == {r.state.state_details.scheduled_time for r in runs}
@@ -397,7 +397,7 @@ class TestRecentDeploymentsScheduler:
         await session.execute(
             sa.update(db.Deployment)
             .where(db.Deployment.id == deployment.id)
-            .values(created=pendulum.now("UTC").subtract(hours=1))
+            .values(created=DateTime.now("UTC").subtract(hours=1))
         )
         await session.commit()
 
@@ -423,7 +423,7 @@ class TestRecentDeploymentsScheduler:
         await session.execute(
             sa.update(db.Deployment)
             .where(db.Deployment.id == deployment.id)
-            .values(updated=pendulum.now("UTC").subtract(minutes=1))
+            .values(updated=DateTime.now("UTC").subtract(minutes=1))
         )
         await session.commit()
 
@@ -489,7 +489,7 @@ class TestScheduleRulesWaterfall:
                     schemas.core.DeploymentSchedule(
                         schedule=schemas.schedules.IntervalSchedule(
                             interval=interval,
-                            anchor_date=pendulum.now("UTC").add(seconds=1),
+                            anchor_date=DateTime.now("UTC").add(seconds=1),
                         ),
                         active=True,
                     )

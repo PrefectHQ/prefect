@@ -6,7 +6,6 @@ import asyncio
 from typing import Optional
 from uuid import UUID
 
-import pendulum
 import sqlalchemy as sa
 from sqlalchemy.sql.expression import or_
 
@@ -15,6 +14,7 @@ from prefect.server.database import PrefectDBInterface, inject_db, orm_models
 from prefect.server.schemas import filters, states
 from prefect.server.services.loop_service import LoopService
 from prefect.settings import PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS
+from prefect.types import DateTime
 
 NON_TERMINAL_STATES = list(set(states.StateType) - states.TERMINAL_STATES)
 
@@ -56,7 +56,7 @@ class CancellationCleanup(LoopService):
                 .where(
                     db.FlowRun.state_type == states.StateType.CANCELLED,
                     db.FlowRun.end_time.is_not(None),
-                    db.FlowRun.end_time >= (pendulum.now("UTC").subtract(days=1)),
+                    db.FlowRun.end_time >= (DateTime.now("UTC").subtract(days=1)),
                 )
                 .limit(self.batch_size)
             )

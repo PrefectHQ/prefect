@@ -3,7 +3,6 @@ from typing import AsyncGenerator, Generator, List, Type
 from unittest import mock
 from uuid import uuid4
 
-import pendulum
 import pytest
 
 from prefect.server.events.clients import (
@@ -64,7 +63,7 @@ async def test_asserting_events_client_must_be_opened(example_event: Event):
 
 
 @pytest.fixture
-def example_event_1(start_of_test: pendulum.DateTime) -> Event:
+def example_event_1(start_of_test: DateTime) -> Event:
     return Event(
         occurred=start_of_test + timedelta(seconds=1),
         event="marvelous.things.happened",
@@ -74,7 +73,7 @@ def example_event_1(start_of_test: pendulum.DateTime) -> Event:
 
 
 @pytest.fixture
-def example_event_2(start_of_test: pendulum.DateTime) -> Event:
+def example_event_2(start_of_test: DateTime) -> Event:
     return Event(
         occurred=start_of_test + timedelta(seconds=2),
         event="wondrous.things.happened",
@@ -84,7 +83,7 @@ def example_event_2(start_of_test: pendulum.DateTime) -> Event:
 
 
 @pytest.fixture
-def example_event_3(start_of_test: pendulum.DateTime) -> Event:
+def example_event_3(start_of_test: DateTime) -> Event:
     return Event(
         occurred=start_of_test + timedelta(seconds=3),
         event="delightful.things.happened",
@@ -113,7 +112,7 @@ def example_event_3(start_of_test: pendulum.DateTime) -> Event:
 
 
 @pytest.fixture
-def example_event_4(start_of_test: pendulum.DateTime) -> Event:
+def example_event_4(start_of_test: DateTime) -> Event:
     return Event(
         occurred=start_of_test + timedelta(seconds=4),
         event="ingenious.things.happened",
@@ -123,7 +122,7 @@ def example_event_4(start_of_test: pendulum.DateTime) -> Event:
 
 
 @pytest.fixture
-def example_event_5(start_of_test: pendulum.DateTime) -> Event:
+def example_event_5(start_of_test: DateTime) -> Event:
     return Event(
         occurred=start_of_test + timedelta(seconds=5),
         event="delectable.things.happened",

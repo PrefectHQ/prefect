@@ -1,7 +1,6 @@
 from typing import Optional, Sequence, TypeVar, Union
 from uuid import UUID
 
-import pendulum
 import sqlalchemy as sa
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,6 +9,7 @@ from sqlalchemy.sql import Select
 from prefect.server.database import PrefectDBInterface, db_injector, orm_models
 from prefect.server.schemas import actions, filters, sorting
 from prefect.server.schemas.core import Artifact
+from prefect.types import DateTime
 
 T = TypeVar("T", bound=tuple)
 
@@ -19,7 +19,7 @@ async def _insert_into_artifact_collection(
     db: PrefectDBInterface,
     session: AsyncSession,
     artifact: Artifact,
-    now: Optional[pendulum.DateTime] = None,
+    now: Optional[DateTime] = None,
 ) -> orm_models.ArtifactCollection:
     """
     Inserts a new artifact into the artifact_collection table or updates it.
@@ -72,7 +72,7 @@ async def _insert_into_artifact(
     db: PrefectDBInterface,
     session: AsyncSession,
     artifact: Artifact,
-    now: Optional[pendulum.DateTime] = None,
+    now: Optional[DateTime] = None,
 ) -> orm_models.Artifact:
     """
     Inserts a new artifact into the artifact table.
@@ -100,7 +100,7 @@ async def create_artifact(
     session: AsyncSession,
     artifact: Artifact,
 ) -> orm_models.Artifact:
-    now = pendulum.now("UTC")
+    now = DateTime.now("UTC")
 
     if artifact.key is not None:
         await _insert_into_artifact_collection(

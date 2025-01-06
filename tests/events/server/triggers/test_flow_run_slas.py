@@ -3,7 +3,6 @@ from typing import Callable, List, Union, cast
 from unittest import mock
 from uuid import uuid4
 
-import pendulum
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -55,7 +54,7 @@ async def stuck_flow_runs_sla(
 
 
 @pytest.fixture
-def fast_and_happy_flow(frozen_time: pendulum.DateTime) -> List[Event]:
+def fast_and_happy_flow(frozen_time: DateTime) -> List[Event]:
     """This fast and happy flow runs multiple times successfully in a short period of
     time, which should not trigger any SLA conditions and should also not mask the
     fact that a slower run got stuck"""
@@ -122,7 +121,7 @@ def fast_and_happy_flow(frozen_time: pendulum.DateTime) -> List[Event]:
 
 
 @pytest.fixture
-def stuck_flow(frozen_time: pendulum.DateTime) -> List[Event]:
+def stuck_flow(frozen_time: DateTime) -> List[Event]:
     """This flow gets stuck and doesn't complete in the time allotted"""
     resource = {"prefect.resource.id": "prefect.flow-run.SLOWBOI"}
     return [
@@ -185,7 +184,7 @@ async def test_only_the_stuck_flow_triggers(
     received_events: List[ReceivedEvent],
     act: mock.AsyncMock,
     assert_acted_with: Callable[[Union[Firing, List[Firing]]], None],
-    frozen_time: pendulum.DateTime,
+    frozen_time: DateTime,
 ):
     for event in received_events:
         await triggers.reactive_evaluation(event)
@@ -265,7 +264,7 @@ async def test_the_stuck_flow_triggers_with_a_wildcard_expect_that_is_a_superset
     received_events: List[ReceivedEvent],
     act: mock.AsyncMock,
     assert_acted_with: Callable[[Union[Firing, List[Firing]]], None],
-    frozen_time: pendulum.DateTime,
+    frozen_time: DateTime,
 ):
     """Regression test for observed failures to trigger proactive automations when
     the `after` event is a subset of the `expect` events"""
@@ -346,7 +345,7 @@ async def test_react_only_to_scheduled_flows_completing(
     received_events: List[ReceivedEvent],
     act: mock.AsyncMock,
     assert_acted_with: Callable[[Union[Firing, List[Firing]]], None],
-    frozen_time: pendulum.DateTime,
+    frozen_time: DateTime,
 ):
     for event in received_events:
         await triggers.reactive_evaluation(event)
@@ -401,7 +400,7 @@ async def test_react_to_runs_that_go_to_any_state_after_pending(
     any_event_after_pending: EventTrigger,
     received_events: List[ReceivedEvent],
     act: mock.AsyncMock,
-    frozen_time: pendulum.DateTime,
+    frozen_time: DateTime,
 ):
     for event in received_events:
         await triggers.reactive_evaluation(event)
@@ -458,9 +457,9 @@ def trigger_from_3521(automation_from_3521: Automation) -> EventTrigger:
 
 @pytest.fixture
 async def sequence_of_events_3521(
-    start_of_test: pendulum.DateTime,
-) -> List[Union[ReceivedEvent, pendulum.DateTime]]:
-    baseline: pendulum.DateTime = start_of_test
+    start_of_test: DateTime,
+) -> List[Union[ReceivedEvent, DateTime]]:
+    baseline: DateTime = start_of_test
 
     pending = Event(
         occurred=baseline.add(minutes=0),
@@ -534,14 +533,14 @@ async def sequence_of_events_3521(
 
 async def test_regression_3521_negative_case(
     trigger_from_3521: EventTrigger,
-    sequence_of_events_3521: List[Union[ReceivedEvent, pendulum.DateTime]],
+    sequence_of_events_3521: List[Union[ReceivedEvent, DateTime]],
     act: mock.AsyncMock,
 ):
     # we expect no action to ever be called for these
     for item in sequence_of_events_3521:
         if isinstance(item, ReceivedEvent):
             await triggers.reactive_evaluation(event=item)
-        elif isinstance(item, pendulum.DateTime):
+        elif isinstance(item, DateTime):
             await triggers.proactive_evaluation(trigger_from_3521, as_of=item)
         else:  # pragma: no cover
             raise NotImplementedError()
@@ -551,7 +550,7 @@ async def test_regression_3521_negative_case(
 
 async def test_regression_3521_positive_case(
     trigger_from_3521: EventTrigger,
-    sequence_of_events_3521: List[Union[ReceivedEvent, pendulum.DateTime]],
+    sequence_of_events_3521: List[Union[ReceivedEvent, DateTime]],
     act: mock.AsyncMock,
 ):
     # if we never get the completed event, the automation should fire
@@ -560,7 +559,7 @@ async def test_regression_3521_positive_case(
             if item.event == "prefect.flow-run.Completed":
                 continue
             await triggers.reactive_evaluation(event=item)
-        elif isinstance(item, pendulum.DateTime):
+        elif isinstance(item, DateTime):
             await triggers.proactive_evaluation(trigger_from_3521, as_of=item)
         else:  # pragma: no cover
             raise NotImplementedError()
@@ -570,7 +569,7 @@ async def test_regression_3521_positive_case(
 
 async def test_regression_3521_side_quest(
     trigger_from_3521: EventTrigger,
-    sequence_of_events_3521: List[Union[ReceivedEvent, pendulum.DateTime]],
+    sequence_of_events_3521: List[Union[ReceivedEvent, DateTime]],
     act: mock.AsyncMock,
 ):
     """While testing this issue, found another issue where sweeping older buckets might
@@ -582,7 +581,7 @@ async def test_regression_3521_side_quest(
             if item.event == "prefect.flow-run.Completed":
                 continue
             await triggers.reactive_evaluation(event=item)
-        elif isinstance(item, pendulum.DateTime):
+        elif isinstance(item, DateTime):
             continue  # do not run proactive evaluations for a while
         else:  # pragma: no cover
             raise NotImplementedError()
@@ -591,7 +590,7 @@ async def test_regression_3521_side_quest(
 
     # now run one at the end, which represents a time after the automation should have
     # triggered but didn't
-    assert isinstance(item, pendulum.DateTime)
+    assert isinstance(item, DateTime)
     await triggers.proactive_evaluation(trigger_from_3521, as_of=item)
     act.assert_awaited_once()
 
@@ -658,9 +657,9 @@ def trigger_from_3244(automation_from_3244: Automation) -> EventTrigger:
 
 @pytest.fixture
 async def sequence_of_events_3244(
-    start_of_test: pendulum.DateTime,
-) -> List[Union[ReceivedEvent, pendulum.DateTime]]:
-    baseline: pendulum.DateTime = start_of_test
+    start_of_test: DateTime,
+) -> List[Union[ReceivedEvent, DateTime]]:
+    baseline: DateTime = start_of_test
 
     pending = Event(
         occurred=baseline.add(minutes=0),
@@ -735,7 +734,7 @@ async def sequence_of_events_3244(
 
 async def test_regression_3244_negative_case(
     trigger_from_3244: EventTrigger,
-    sequence_of_events_3244: List[Union[ReceivedEvent, pendulum.DateTime]],
+    sequence_of_events_3244: List[Union[ReceivedEvent, DateTime]],
     act: mock.AsyncMock,
     automations_session: AsyncSession,
 ):
@@ -750,7 +749,7 @@ async def test_regression_3244_negative_case(
                     await triggers.reactive_evaluation(event=item)
             else:
                 await triggers.reactive_evaluation(event=item)
-        elif isinstance(item, pendulum.DateTime):
+        elif isinstance(item, DateTime):
             await triggers.proactive_evaluation(trigger_from_3244, as_of=item)
         else:  # pragma: no cover
             raise NotImplementedError()
@@ -760,7 +759,7 @@ async def test_regression_3244_negative_case(
 
 async def test_regression_3244_positive_case(
     trigger_from_3244: EventTrigger,
-    sequence_of_events_3244: List[Union[ReceivedEvent, pendulum.DateTime]],
+    sequence_of_events_3244: List[Union[ReceivedEvent, DateTime]],
     act: mock.AsyncMock,
 ):
     # if we never get the completed event, the automation should fire
@@ -769,7 +768,7 @@ async def test_regression_3244_positive_case(
             if item.event == "prefect.flow-run.Completed":
                 continue
             await triggers.reactive_evaluation(event=item)
-        elif isinstance(item, pendulum.DateTime):
+        elif isinstance(item, DateTime):
             await triggers.proactive_evaluation(trigger_from_3244, as_of=item)
         else:  # pragma: no cover
             raise NotImplementedError()
@@ -785,7 +784,7 @@ async def test_regression_3244_positive_case(
 # ------------------------------------------------------
 #          0 |            -10 | prefect.flow-run.Pending
 #        1-5 |              - | 5 minutes worth of backlogged events
-#          5 |              - | proactive evaluation runs here using pendulum.now("UTC")
+#          5 |              - | proactive evaluation runs here using DateTime.now("UTC")
 #          6 |             -9 | prefect.flow-run.Running
 #
 # In this case, the Running event was only 1 minute after the pending event, but it

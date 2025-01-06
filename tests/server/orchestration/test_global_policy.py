@@ -1,6 +1,5 @@
 import datetime
 
-import pendulum
 import pytest
 
 from prefect.server import models
@@ -21,6 +20,7 @@ from prefect.server.orchestration.global_policy import (
 )
 from prefect.server.orchestration.rules import TERMINAL_STATES
 from prefect.server.schemas import core, states
+from prefect.types import DateTime
 
 # Convert constants from sets to lists for deterministic ordering of tests
 TERMINAL_STATES = list(sorted(TERMINAL_STATES))
@@ -94,7 +94,7 @@ class TestGlobalPolicyRules:
         initial_state_type = None
         proposed_state_type = states.StateType.SCHEDULED
         intended_transition = (initial_state_type, proposed_state_type)
-        scheduled_time = pendulum.now("UTC").add(seconds=42)
+        scheduled_time = DateTime.now("UTC").add(seconds=42)
         ctx = await initialize_orchestration(
             session,
             run_type,
@@ -120,7 +120,7 @@ class TestGlobalPolicyRules:
         initial_state_type = states.StateType.SCHEDULED
         proposed_state_type = states.StateType.PENDING
         intended_transition = (initial_state_type, proposed_state_type)
-        scheduled_time = pendulum.now("UTC").add(seconds=42)
+        scheduled_time = DateTime.now("UTC").add(seconds=42)
         ctx = await initialize_orchestration(
             session,
             run_type,
@@ -173,7 +173,7 @@ class TestGlobalPolicyRules:
         run_type,
         initialize_orchestration,
     ):
-        dt = pendulum.now("UTC").add(days=10)
+        dt = DateTime.now("UTC").add(days=10)
 
         initial_state_type = None
         proposed_state_type = states.StateType.SCHEDULED
@@ -288,7 +288,7 @@ class TestGlobalPolicyRules:
             *intended_transition,
         )
 
-        now = pendulum.now("UTC")
+        now = DateTime.now("UTC")
         run = ctx.run
         run.start_time = now.subtract(seconds=42)
         ctx.initial_state.timestamp = now.subtract(seconds=42)
@@ -316,7 +316,7 @@ class TestGlobalPolicyRules:
             *intended_transition,
         )
 
-        now = pendulum.now("UTC")
+        now = DateTime.now("UTC")
         run = ctx.run
         run.start_time = now.subtract(seconds=42)
         ctx.initial_state.timestamp = now.subtract(seconds=42)
@@ -343,7 +343,7 @@ class TestGlobalPolicyRules:
         )
 
         run = ctx.run
-        run.start_time = pendulum.now("UTC").subtract(seconds=42)
+        run.start_time = DateTime.now("UTC").subtract(seconds=42)
         assert run.end_time is None
 
         async with SetEndTime(ctx, *intended_transition) as ctx:
@@ -364,8 +364,8 @@ class TestGlobalPolicyRules:
         )
 
         run = ctx.run
-        run.start_time = pendulum.now("UTC").subtract(seconds=42)
-        run.end_time = pendulum.now("UTC")
+        run.start_time = DateTime.now("UTC").subtract(seconds=42)
+        run.end_time = DateTime.now("UTC")
         assert run.end_time is not None
 
         async with SetEndTime(ctx, *intended_transition) as ctx:
@@ -388,7 +388,7 @@ class TestGlobalPolicyRules:
             *intended_transition,
         )
 
-        dt = pendulum.now("UTC")
+        dt = DateTime.now("UTC")
 
         run = ctx.run
         run.start_time = dt.subtract(seconds=42)

@@ -2,13 +2,14 @@
 Schedule schemas
 """
 
+from __future__ import annotations
+
 import datetime
 from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Optional, Union
 
 import dateutil
 import dateutil.rrule
 import dateutil.tz
-import pendulum
 from pydantic import AfterValidator, ConfigDict, Field, field_validator, model_validator
 from typing_extensions import TypeAlias, TypeGuard
 
@@ -19,14 +20,7 @@ from prefect._internal.schemas.validators import (
     validate_cron_string,
     validate_rrule_string,
 )
-
-if TYPE_CHECKING:
-    # type checkers have difficulty accepting that
-    # pydantic_extra_types.pendulum_dt and pendulum.DateTime can be used
-    # together.
-    DateTime = pendulum.DateTime
-else:
-    from prefect.types import DateTime
+from prefect.types._datetime import Date, DateTime, datetime_instance
 
 MAX_ITERATIONS = 1000
 # approx. 1 years worth of RDATEs + buffer
@@ -83,7 +77,7 @@ class IntervalSchedule(PrefectBaseModel):
 
     interval: datetime.timedelta = Field(gt=datetime.timedelta(0))
     anchor_date: Annotated[DateTime, AfterValidator(default_anchor_date)] = Field(
-        default_factory=lambda: pendulum.now("UTC"),
+        default_factory=lambda: DateTime.now("UTC"),
         examples=["2020-01-01T00:00:00Z"],
     )
     timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
@@ -99,9 +93,7 @@ class IntervalSchedule(PrefectBaseModel):
             self,
             /,
             interval: datetime.timedelta,
-            anchor_date: Optional[
-                Union[pendulum.DateTime, datetime.datetime, str]
-            ] = None,
+            anchor_date: Optional[Union[DateTime, datetime.datetime, str]] = None,
             timezone: Optional[str] = None,
         ) -> None:
             ...
@@ -145,7 +137,7 @@ class CronSchedule(PrefectBaseModel):
 
     @field_validator("timezone")
     @classmethod
-    def valid_timezone(cls, v: Optional[str]) -> str:
+    def valid_timezone(cls, v: Optional[str]) -> str | None:
         return default_timezone(v)
 
     @field_validator("cron")
@@ -154,7 +146,7 @@ class CronSchedule(PrefectBaseModel):
         return validate_cron_string(v)
 
 
-DEFAULT_ANCHOR_DATE = pendulum.date(2020, 1, 1)
+DEFAULT_ANCHOR_DATE = Date(2020, 1, 1)
 
 
 def _rrule_dt(
@@ -220,7 +212,7 @@ class RRuleSchedule(PrefectBaseModel):
             return RRuleSchedule(rrule=str(rrule), timezone=timezone)
         rrules = _rrule(rrule)
         dtstarts = [dts for rr in rrules if (dts := _rrule_dt(rr)) is not None]
-        unique_dstarts = set(pendulum.instance(d).in_tz("UTC") for d in dtstarts)
+        unique_dstarts = set(datetime_instance(d).in_tz("UTC") for d in dtstarts)
         unique_timezones = set(d.tzinfo for d in dtstarts if d.tzinfo is not None)
 
         if len(unique_timezones) > 1:
@@ -381,7 +373,7 @@ def construct_schedule(
         if isinstance(interval, (int, float)):
             interval = datetime.timedelta(seconds=interval)
         if not anchor_date:
-            anchor_date = pendulum.DateTime.now()
+            anchor_date = DateTime.now()
         schedule = IntervalSchedule(
             interval=interval, anchor_date=anchor_date, timezone=timezone
         )

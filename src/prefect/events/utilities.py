@@ -2,7 +2,7 @@ from datetime import timedelta
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
-import pendulum
+from prefect.types import DateTime
 
 from .clients import (
     AssertingEventsClient,
@@ -19,7 +19,7 @@ TIGHT_TIMING = timedelta(minutes=5)
 def emit_event(
     event: str,
     resource: Dict[str, str],
-    occurred: Optional[pendulum.DateTime] = None,
+    occurred: Optional[DateTime] = None,
     related: Optional[Union[List[Dict[str, str]], List[RelatedResource]]] = None,
     payload: Optional[Dict[str, Any]] = None,
     id: Optional[UUID] = None,
@@ -67,7 +67,7 @@ def emit_event(
     }
 
     if occurred is None:
-        occurred = pendulum.now("UTC")
+        occurred = DateTime.now("UTC")
     event_kwargs["occurred"] = occurred
 
     if related is not None:
