@@ -40,7 +40,7 @@ Date: TypeAlias = PydanticDate
 Duration: TypeAlias = PydanticDuration
 
 
-def datetime_from_format(
+def from_format(
     string: str,
     fmt: str,
     tz: str | Timezone = UTC,
@@ -74,7 +74,7 @@ __all__ = [
     "DateTime",
     "Date",
     "Duration",
-    "datetime_from_format",
+    "from_format",
     "parse_datetime",
     "datetime_instance",
     "format_diff",
