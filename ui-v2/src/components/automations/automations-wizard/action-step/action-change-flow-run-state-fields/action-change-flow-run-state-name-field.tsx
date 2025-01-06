@@ -1,4 +1,4 @@
-import { ActionsSchema } from "@/components/automations/automations-wizard/action-type-schemas";
+import { ActionsSchema } from "@/components/automations/automations-wizard/action-step/action-type-schemas";
 import {
 	FormControl,
 	FormField,
@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { useFormContext, useWatch } from "react-hook-form";
 import { FLOW_STATES, FlowStates } from "./flow-states";
 
-export const AutomationsWizardActionChangeFlowRunStateNameField = () => {
+export const ActionChangeFlowRunStateNameField = () => {
 	const form = useFormContext();
 	const stateField = useWatch<ActionsSchema>({ name: "state" }) as FlowStates;
 	return (

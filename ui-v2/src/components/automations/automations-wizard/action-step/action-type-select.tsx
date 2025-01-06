@@ -35,7 +35,7 @@ const AUTOMATION_ACTION_TYPES: Record<ActionType, string> = {
 	"send-notification": "Send a notification",
 };
 
-export const AutomationsWizardActionTypeSelect = () => {
+export const ActionTypeSelect = () => {
 	const form = useFormContext();
 	return (
 		<FormField

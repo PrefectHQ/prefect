@@ -8,7 +8,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useFormContext } from "react-hook-form";
 
-export const AutomationsWizardActionChangeFlowRunStateMessageField = () => {
+export const ActionChangeFlowRunStateMessageField = () => {
 	const form = useFormContext();
 	return (
 		<FormField

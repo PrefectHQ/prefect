@@ -5,17 +5,15 @@ import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
-import { ActionsSchema } from "@/components/automations/automations-wizard/action-type-schemas";
-import { AutomationsWizardActionTypeAdditionalFields } from "@/components/automations/automations-wizard/automations-wizard-action-type-additional-fields";
-import { AutomationsWizardActionTypeSelect } from "@/components/automations/automations-wizard/automations-wizard-action-type-select";
+import { ActionTypeAdditionalFields } from "./action-type-additional-fields";
+import { ActionsSchema } from "./action-type-schemas";
+import { ActionTypeSelect } from "./action-type-select";
 
-type AutomationWizardActionStepProps = {
+type ActionStepProps = {
 	onSubmit: (schema: ActionsSchema) => void;
 };
 
-export const AutomationsWizardActionStep = ({
-	onSubmit,
-}: AutomationWizardActionStepProps) => {
+export const ActionStep = ({ onSubmit }: ActionStepProps) => {
 	const form = useForm<z.infer<typeof ActionsSchema>>({
 		resolver: zodResolver(ActionsSchema),
 	});
@@ -31,8 +29,8 @@ export const AutomationsWizardActionStep = ({
 	return (
 		<Form {...form}>
 			<form onSubmit={(e) => void form.handleSubmit(onSubmit)(e)}>
-				<AutomationsWizardActionTypeSelect />
-				<AutomationsWizardActionTypeAdditionalFields />
+				<ActionTypeSelect />
+				<ActionTypeAdditionalFields actionType={watchType} />
 				<FormMessage>{form.formState.errors.root?.message}</FormMessage>
 				{/** nb: This button will change once we integrate it with the full wizard */}
 				<Button className="mt-2" type="submit">

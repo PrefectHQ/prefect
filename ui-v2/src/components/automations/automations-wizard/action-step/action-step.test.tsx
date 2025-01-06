@@ -1,10 +1,10 @@
-import { AutomationsWizardActionStep } from "./automations-wizard-action-step";
+import { ActionStep } from "./action-step";
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
-describe("AutomationsWizardActionStep", () => {
+describe("ActionStep", () => {
 	beforeAll(() => {
 		/**
 		 * JSDOM doesn't implement PointerEvent so we need to mock our own implementation
@@ -35,7 +35,7 @@ describe("AutomationsWizardActionStep", () => {
 
 		// ------------ Setup
 		const mockOnSubmitFn = vi.fn();
-		render(<AutomationsWizardActionStep onSubmit={mockOnSubmitFn} />);
+		render(<ActionStep onSubmit={mockOnSubmitFn} />);
 
 		// ------------ Act
 		await user.click(screen.getByRole("combobox", { name: /select action/i }));
@@ -50,7 +50,7 @@ describe("AutomationsWizardActionStep", () => {
 
 		// ------------ Setup
 		const mockOnSubmitFn = vi.fn();
-		render(<AutomationsWizardActionStep onSubmit={mockOnSubmitFn} />);
+		render(<ActionStep onSubmit={mockOnSubmitFn} />);
 
 		// ------------ Act
 		await user.click(screen.getByRole("combobox", { name: /select action/i }));

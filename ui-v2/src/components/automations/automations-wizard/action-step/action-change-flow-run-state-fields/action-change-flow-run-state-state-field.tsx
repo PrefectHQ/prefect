@@ -17,7 +17,7 @@ import {
 import { useFormContext } from "react-hook-form";
 import { FLOW_STATES, type FlowStates } from "./flow-states";
 
-export const AutomationsWizardActionChangeFlowRunStateStateField = () => {
+export const ActionChangeFlowRunStateStateField = () => {
 	const form = useFormContext();
 	return (
 		<FormField
