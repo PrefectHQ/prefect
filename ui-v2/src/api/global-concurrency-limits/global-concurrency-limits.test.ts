@@ -1,6 +1,6 @@
 import { QueryClient } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { createWrapper, prefectURL, server } from "@tests/utils";
+import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 
@@ -24,7 +24,7 @@ describe("global concurrency limits hooks", () => {
 		globalConcurrencyLimits: Array<GlobalConcurrencyLimit>,
 	) => {
 		server.use(
-			http.post(prefectURL("/v2/concurrency_limits/filter"), () => {
+			http.post(buildApiUrl("/v2/concurrency_limits/filter"), () => {
 				return HttpResponse.json(globalConcurrencyLimits);
 			}),
 		);

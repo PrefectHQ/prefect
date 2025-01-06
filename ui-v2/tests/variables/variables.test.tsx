@@ -11,7 +11,7 @@ import {
 	screen,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { createWrapper, prefectURL, server } from "@tests/utils";
+import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { http, HttpResponse } from "msw";
 import {
 	afterEach,
@@ -110,7 +110,7 @@ describe("Variables page", () => {
 
 		it("should show error when API call fails with detail", async () => {
 			server.use(
-				http.post(prefectURL("/variables/"), () => {
+				http.post(buildApiUrl("/variables/"), () => {
 					return HttpResponse.json(
 						{ detail: "Failed to create variable" },
 						{ status: 500 },
@@ -129,7 +129,7 @@ describe("Variables page", () => {
 
 		it("should show error when API call fails without detail", async () => {
 			server.use(
-				http.post(prefectURL("/variables/"), () => {
+				http.post(buildApiUrl("/variables/"), () => {
 					return HttpResponse.json(
 						{ error: "Internal server error" },
 						{ status: 500 },
@@ -167,10 +167,10 @@ describe("Variables page", () => {
 				},
 			];
 			server.use(
-				http.post(prefectURL("/variables/filter"), () => {
+				http.post(buildApiUrl("/variables/filter"), () => {
 					return HttpResponse.json(variables);
 				}),
-				http.post(prefectURL("/variables/count"), () => {
+				http.post(buildApiUrl("/variables/count"), () => {
 					return HttpResponse.json(1);
 				}),
 			);
@@ -203,16 +203,16 @@ describe("Variables page", () => {
 				},
 			];
 			server.use(
-				http.patch(prefectURL("/variables/:id"), () => {
+				http.patch(buildApiUrl("/variables/:id"), () => {
 					return HttpResponse.json(
 						{ detail: "Failed to update variable. Here's some detail..." },
 						{ status: 500 },
 					);
 				}),
-				http.post(prefectURL("/variables/filter"), () => {
+				http.post(buildApiUrl("/variables/filter"), () => {
 					return HttpResponse.json(variables);
 				}),
-				http.post(prefectURL("/variables/count"), () => {
+				http.post(buildApiUrl("/variables/count"), () => {
 					return HttpResponse.json(1);
 				}),
 			);
@@ -247,16 +247,16 @@ describe("Variables page", () => {
 			},
 		];
 		server.use(
-			http.patch(prefectURL("/variables/:id"), () => {
+			http.patch(buildApiUrl("/variables/:id"), () => {
 				return HttpResponse.json(
 					{ error: "Internal server error" },
 					{ status: 500 },
 				);
 			}),
-			http.post(prefectURL("/variables/filter"), () => {
+			http.post(buildApiUrl("/variables/filter"), () => {
 				return HttpResponse.json(variables);
 			}),
-			http.post(prefectURL("/variables/count"), () => {
+			http.post(buildApiUrl("/variables/count"), () => {
 				return HttpResponse.json(1);
 			}),
 		);
