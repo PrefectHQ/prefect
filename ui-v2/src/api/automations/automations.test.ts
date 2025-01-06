@@ -23,7 +23,6 @@ describe("automations queries and mutations", () => {
 	];
 
 	const mockFetchListAutomationsAPI = (automations: Array<Automation>) => {
-		console.log(buildApiUrl("/automations/filter"));
 		server.use(
 			http.post(buildApiUrl("/automations/filter"), () => {
 				return HttpResponse.json(automations);

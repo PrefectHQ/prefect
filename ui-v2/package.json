@@ -4,16 +4,16 @@
 	"version": "0.0.0",
 	"type": "module",
 	"scripts": {
-		"dev": "VITE_API_URL='http://localhost:4200/api' vite",
+		"dev": "vite",
 		"build": "tsc -b && vite build",
-		"test": "VITE_API_URL='http://localhost:4200/api' vitest",
+		"test": "vitest",
 		"lint": "eslint .",
 		"lint:fix": "eslint . --fix",
 		"format:check": "biome check",
 		"format": "biome check --write",
 		"preview": "vite preview",
 		"service-sync": "uv run --with-editable ../. ../scripts/generate_oss_openapi_schema.py && npx openapi-typescript oss_schema.json -o src/api/prefect.ts && rm oss_schema.json",
-		"storybook": "VITE_API_URL='http://localhost:6006/api' storybook dev -p 6006",
+		"storybook": "storybook dev -p 6006",
 		"build-storybook": "storybook build"
 	},
 	"dependencies": {
