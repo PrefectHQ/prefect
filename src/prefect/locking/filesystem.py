@@ -4,12 +4,12 @@ from pathlib import Path
 from typing import Optional
 
 import anyio
-import pendulum
 import pydantic_core
 from typing_extensions import TypedDict
 
 from prefect.logging.loggers import get_logger
 from prefect.types import DateTime
+from prefect.types._datetime import Duration, parse_datetime
 
 from .protocol import LockManager
 
@@ -64,7 +64,7 @@ class FileSystemLockManager(LockManager):
                 lock_info["path"] = lock_path
                 expiration = lock_info.get("expiration")
                 lock_info["expiration"] = (
-                    pendulum.parse(expiration) if expiration is not None else None
+                    parse_datetime(expiration) if expiration is not None else None
                 )
             self._locks[key] = lock_info
             return lock_info
@@ -86,7 +86,7 @@ class FileSystemLockManager(LockManager):
             lock_info["path"] = lock_path
             expiration = lock_info.get("expiration")
             lock_info["expiration"] = (
-                pendulum.parse(expiration) if expiration is not None else None
+                parse_datetime(expiration) if expiration is not None else None
             )
             self._locks[key] = lock_info
             return lock_info
@@ -117,7 +117,7 @@ class FileSystemLockManager(LockManager):
                 )
                 return self.acquire_lock(key, holder, acquire_timeout, hold_timeout)
         expiration = (
-            DateTime.now("utc") + pendulum.duration(seconds=hold_timeout)
+            DateTime.now("utc") + Duration(seconds=hold_timeout)
             if hold_timeout is not None
             else None
         )
@@ -166,7 +166,7 @@ class FileSystemLockManager(LockManager):
                 )
                 return self.acquire_lock(key, holder, acquire_timeout, hold_timeout)
         expiration = (
-            DateTime.now("utc") + pendulum.duration(seconds=hold_timeout)
+            DateTime.now("utc") + Duration(seconds=hold_timeout)
             if hold_timeout is not None
             else None
         )

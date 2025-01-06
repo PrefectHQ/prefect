@@ -2,7 +2,21 @@ from __future__ import annotations
 
 from typing import Annotated, Any
 
-from pendulum import FixedTimezone, format_diff, from_format, instance, parse, tz
+from pendulum import (
+    FixedTimezone,
+    format_diff,
+    parse,
+    tz,
+)
+from pendulum import (
+    from_format as from_format_pendulum,
+)
+from pendulum import (
+    from_timestamp as from_timestamp_pendulum,
+)
+from pendulum import (
+    instance as instance_pendulum,
+)
 from pendulum.tz import UTC, Timezone
 from pydantic import Field
 from pydantic_extra_types.pendulum_dt import Date as PydanticDate
@@ -32,7 +46,7 @@ def datetime_from_format(
     tz: str | Timezone = UTC,
     locale: str | None = None,
 ) -> DateTime:
-    return PydanticDateTime(from_format(string, fmt, tz, locale))  # type: ignore
+    return from_format_pendulum(string, fmt, tz, locale)  # type: ignore
 
 
 def parse_datetime(string: str) -> DateTime:
@@ -40,11 +54,20 @@ def parse_datetime(string: str) -> DateTime:
 
 
 def datetime_instance(value: Any) -> DateTime:
-    return instance(value)  # type: ignore
+    """
+    Here to fulfull the needs that pendulum.instance meets, but it
+    is often used ambiguously and we should phase this out over time
+    in favor of more explicit datetime utilities.
+    """
+    return instance_pendulum(value)  # type: ignore
 
 
 def local_timezone() -> Timezone | FixedTimezone:
     return tz.local_timezone()
+
+
+def from_timestamp(timestamp: float) -> DateTime:
+    return from_timestamp_pendulum(timestamp)  # type: ignore
 
 
 __all__ = [

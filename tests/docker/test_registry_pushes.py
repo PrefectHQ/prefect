@@ -31,7 +31,7 @@ def contexts() -> Path:
 @pytest.fixture(scope="module")
 def frozen_now():
     now = DateTime.now("UTC")
-    with mock.patch("DateTime.now", return_value=now):
+    with mock.patch("prefect.types.DateTime.now", return_value=now):
         yield now
 
 
@@ -45,8 +45,7 @@ def howdy(docker: DockerClient, worker_id: str, frozen_now: DateTime) -> str:
         image.add_line(f'ENTRYPOINT [ "echo", "{message}" ]')
         image_id = image.build()
 
-    greeting = docker.containers.run(image_id, remove=True).decode().strip()
-    assert greeting == message
+    assert docker.containers.run(image_id, remove=True).decode().strip() == message  # type: ignore
 
     # Give the image a unit tag for this run we we can confirm it is only untagged but
     # not removed by the process of pushing it to the registry
