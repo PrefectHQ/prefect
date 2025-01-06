@@ -7,7 +7,7 @@ import {
 } from "@/mocks";
 import { QueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { createWrapper, server } from "@tests/utils";
+import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 import {
@@ -30,7 +30,7 @@ describe("task run concurrency limits hooks", () => {
 
 	const mockFetchDetailsAPI = (data: TaskRunConcurrencyLimit) => {
 		server.use(
-			http.get("http://localhost:4200/api/concurrency_limits/:id", () => {
+			http.get(buildApiUrl("/concurrency_limits/:id"), () => {
 				return HttpResponse.json(data);
 			}),
 		);
@@ -38,7 +38,7 @@ describe("task run concurrency limits hooks", () => {
 
 	const mockFetchListAPI = (data: Array<TaskRunConcurrencyLimit>) => {
 		server.use(
-			http.post("http://localhost:4200/api/concurrency_limits/filter", () => {
+			http.post(buildApiUrl("/concurrency_limits/filter"), () => {
 				return HttpResponse.json(data);
 			}),
 		);
@@ -46,7 +46,7 @@ describe("task run concurrency limits hooks", () => {
 
 	const mockCreateAPI = (data: TaskRunConcurrencyLimit) => {
 		server.use(
-			http.post("http://localhost:4200/api/concurrency_limits/", () => {
+			http.post(buildApiUrl("/concurrency_limits/"), () => {
 				return HttpResponse.json(data, { status: 201 });
 			}),
 		);
@@ -266,7 +266,7 @@ describe("buildConcurrenyLimitDetailsActiveRunsQuery()", () => {
 
 	const mockFetchDetailsAPI = (data: TaskRunConcurrencyLimit) => {
 		server.use(
-			http.get("http://localhost:4200/api/concurrency_limits/:id", () => {
+			http.get(buildApiUrl("/concurrency_limits/:id"), () => {
 				return HttpResponse.json(data);
 			}),
 		);
@@ -276,7 +276,7 @@ describe("buildConcurrenyLimitDetailsActiveRunsQuery()", () => {
 		data: Array<components["schemas"]["TaskRun"]>,
 	) => {
 		server.use(
-			http.post("http://localhost:4200/api/task_runs/filter", () => {
+			http.post(buildApiUrl("/task_runs/filter"), () => {
 				return HttpResponse.json(data);
 			}),
 		);
@@ -285,7 +285,7 @@ describe("buildConcurrenyLimitDetailsActiveRunsQuery()", () => {
 		data: Array<components["schemas"]["FlowRun"]>,
 	) => {
 		server.use(
-			http.post("http://localhost:4200/api/flow_runs/filter", () => {
+			http.post(buildApiUrl("/flow_runs/filter"), () => {
 				return HttpResponse.json(data);
 			}),
 		);
@@ -293,7 +293,7 @@ describe("buildConcurrenyLimitDetailsActiveRunsQuery()", () => {
 
 	const mockGetFlowAPI = (data: components["schemas"]["Flow"]) => {
 		server.use(
-			http.get("http://localhost:4200/api/flows/:id", () => {
+			http.get(buildApiUrl("/flows/:id"), () => {
 				return HttpResponse.json(data);
 			}),
 		);
