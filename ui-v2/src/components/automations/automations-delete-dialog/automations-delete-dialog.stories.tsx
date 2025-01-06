@@ -1,5 +1,5 @@
 import { createFakeAutomation } from "@/mocks";
-import { reactQueryDecorator } from "@/storybook/utils";
+import { reactQueryDecorator, toastDecorator } from "@/storybook/utils";
 import type { Meta, StoryObj } from "@storybook/react";
 import { fn } from "@storybook/test";
 import { AutomationsDeleteDialog } from "./automations-delete-dialog";
@@ -7,7 +7,7 @@ import { AutomationsDeleteDialog } from "./automations-delete-dialog";
 const meta = {
 	title: "Components/Automations/AutomationsDeleteDialog",
 	component: AutomationsDeleteDialog,
-	decorators: [reactQueryDecorator],
+	decorators: [reactQueryDecorator, toastDecorator],
 	args: {
 		automation: createFakeAutomation(),
 		onOpenChange: fn(),

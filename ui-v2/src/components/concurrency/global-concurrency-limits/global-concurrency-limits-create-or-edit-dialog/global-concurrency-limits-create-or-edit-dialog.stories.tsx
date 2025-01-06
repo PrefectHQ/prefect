@@ -1,5 +1,5 @@
 import { createFakeGlobalConcurrencyLimit } from "@/mocks";
-import { reactQueryDecorator } from "@/storybook/utils";
+import { reactQueryDecorator, toastDecorator } from "@/storybook/utils";
 import type { Meta, StoryObj } from "@storybook/react";
 import { fn } from "@storybook/test";
 import { GlobalConcurrencyLimitsCreateOrEditDialog } from "./global-concurrency-limits-create-or-edit-dialog";
@@ -8,7 +8,7 @@ const meta = {
 	title:
 		"Components/Concurrency/GlobalConcurrencyLimits/GlobalConcurrencyLimitsCreateOrEditDialog",
 	component: GlobalConcurrencyLimitsCreateOrEditDialog,
-	decorators: [reactQueryDecorator],
+	decorators: [reactQueryDecorator, toastDecorator],
 	args: {
 		onOpenChange: fn(),
 		onSubmit: fn(),
