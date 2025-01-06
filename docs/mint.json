@@ -57,7 +57,6 @@
         "v3/get-started/quickstart",
         "v3/get-started/install",
         "v3/get-started/whats-new-prefect-3"
-        
       ],
       "version": "v3"
     },
@@ -1414,4 +1413,3 @@
     "v2"
   ]
 }
-
