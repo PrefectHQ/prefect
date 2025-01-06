@@ -10,7 +10,6 @@ from typing import (
     Generic,
     Optional,
     Union,
-    cast,
     overload,
 )
 from uuid import UUID, uuid4
@@ -65,7 +64,7 @@ from prefect.utilities.pydantic import handle_secret_render
 
 if TYPE_CHECKING:
     from prefect.client.schemas.actions import StateCreate
-    from prefect.results import BaseResult, ResultRecordMetadata
+    from prefect.results import ResultRecordMetadata
 
     DateTime = pendulum.DateTime
 else:
@@ -191,14 +190,11 @@ class StateDetails(PrefectBaseModel):
     transition_id: Optional[UUID] = None
     task_parameters_id: Optional[UUID] = None
     # Captures the trace_id and span_id of the span where this state was created
-    trace_id: Optional[int] = None
-    span_id: Optional[int] = None
+    traceparent: Optional[str] = None
 
 
 def data_discriminator(x: Any) -> str:
-    if isinstance(x, dict) and "type" in x and x["type"] != "unpersisted":
-        return "BaseResult"
-    elif isinstance(x, dict) and "storage_key" in x:
+    if isinstance(x, dict) and "storage_key" in x:
         return "ResultRecordMetadata"
     return "Any"
 
@@ -215,7 +211,6 @@ class State(ObjectBaseModel, Generic[R]):
     state_details: StateDetails = Field(default_factory=StateDetails)
     data: Annotated[
         Union[
-            Annotated["BaseResult[R]", Tag("BaseResult")],
             Annotated["ResultRecordMetadata", Tag("ResultRecordMetadata")],
             Annotated[Any, Tag("Any")],
         ],
@@ -235,6 +230,15 @@ class State(ObjectBaseModel, Generic[R]):
     def result(
         self: "State[R]",
         raise_on_failure: Literal[False] = False,
+        fetch: bool = ...,
+        retry_result_failure: bool = ...,
+    ) -> Union[R, Exception]:
+        ...
+
+    @overload
+    def result(
+        self: "State[R]",
+        raise_on_failure: bool = ...,
         fetch: bool = ...,
         retry_result_failure: bool = ...,
     ) -> Union[R, Exception]:
@@ -339,14 +343,11 @@ class State(ObjectBaseModel, Generic[R]):
         """
         from prefect.client.schemas.actions import StateCreate
         from prefect.results import (
-            BaseResult,
             ResultRecord,
             should_persist_result,
         )
 
-        if isinstance(self.data, BaseResult):
-            data = cast(BaseResult[R], self.data)
-        elif isinstance(self.data, ResultRecord) and should_persist_result():
+        if isinstance(self.data, ResultRecord) and should_persist_result():
             data = self.data.metadata
         else:
             data = None

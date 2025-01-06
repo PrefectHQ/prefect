@@ -58,7 +58,7 @@ jobs:
           - name: Server Tests
             modules: tests/server/ tests/events/server
           - name: Client Tests
-            modules: tests/ --ignore=tests/server/ --ignore=tests/events/server --ignore=tests/test_task_runners.py --ignore=tests/runner --ignore=tests/workers
+            modules: tests/ --ignore=tests/typesafety --ignore=tests/server/ --ignore=tests/events/server --ignore=tests/test_task_runners.py --ignore=tests/runner --ignore=tests/workers
           - name: Runner and Worker Tests
             modules: tests/test_task_runners.py tests/runner tests/workers
         database:
@@ -73,7 +73,7 @@ jobs:
           - database: "sqlite"
             test-type:
               name: Client Tests
-              modules: tests/ --ignore=tests/server/ --ignore=tests/events/server --ignore=tests/test_task_runners.py --ignore=tests/runner --ignore=tests/workers
+              modules: tests/ --ignore=tests/typesafety --ignore=tests/server/ --ignore=tests/events/server --ignore=tests/test_task_runners.py --ignore=tests/runner --ignore=tests/workers
           - database: "sqlite"
             test-type:
               name: Runner and Worker Tests
@@ -364,7 +364,7 @@ jobs:
       - name: Run tests
         run: |
           echo "Using COVERAGE_FILE=$COVERAGE_FILE"
-          pytest tests \
+          pytest tests --ignore=tests/typesafety \
           --numprocesses auto \
           --maxprocesses 6 \
           --dist worksteal \
@@ -449,3 +449,40 @@ jobs:
           echo "## Coverage Report" >> $GITHUB_STEP_SUMMARY
           echo "[Detailed Report](${{ steps.upload_combined_coverage_report.outputs.artifact_url }})" >> $GITHUB_STEP_SUMMARY
           coverage report --format=markdown >> $GITHUB_STEP_SUMMARY
+
+  run-typesafety-test:
+    name: typesafety
+    runs-on: ubuntu-latest
+
+    steps:
+
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+        fetch-depth: 0
+
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v5
+      id: setup_python
+      with:
+        python-version: 3.12
+
+    - name: UV Cache
+      # Manually cache the uv cache directory
+      # until setup-python supports it:
+      # https://github.com/actions/setup-python/issues/822
+      uses: actions/cache@v4
+      id: cache-uv
+      with:
+        path: ~/.cache/uv
+        key: uvcache-${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements-client.txt', 'requirements.txt', 'requirements-dev.txt') }}
+
+    - name: Install packages
+      run: |
+        python -m pip install -U uv
+        uv pip install --upgrade --system -e .[dev]
+
+    - name: Run tests
+      run: |
+        pytest tests/typesafety \
+        --disable-docker-image-builds

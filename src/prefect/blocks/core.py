@@ -38,7 +38,7 @@ from pydantic import (
     model_serializer,
 )
 from pydantic.json_schema import GenerateJsonSchema
-from typing_extensions import Literal, ParamSpec, Self, get_args
+from typing_extensions import Literal, ParamSpec, Self, TypeGuard, get_args
 
 import prefect.exceptions
 from prefect._internal.compatibility.async_dispatch import async_dispatch
@@ -276,7 +276,7 @@ class Block(BaseModel, ABC):
     initialization.
     """
 
-    model_config = ConfigDict(
+    model_config: ClassVar[ConfigDict] = ConfigDict(
         extra="allow",
         json_schema_extra=schema_extra,
     )
@@ -1163,7 +1163,7 @@ class Block(BaseModel, ABC):
             ) from e
 
     @staticmethod
-    def is_block_class(block) -> bool:
+    def is_block_class(block: Any) -> TypeGuard[Type["Block"]]:
         return _is_subclass(block, Block)
 
     @staticmethod

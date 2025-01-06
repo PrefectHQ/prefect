@@ -18,7 +18,7 @@ from typing import (
 from uuid import UUID
 
 import anyio
-from opentelemetry import trace
+from opentelemetry import propagate, trace
 from typing_extensions import TypeIs
 
 import prefect
@@ -45,7 +45,7 @@ from prefect.exceptions import (
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture
 from prefect.logging.loggers import get_logger
-from prefect.results import BaseResult, ResultRecord, should_persist_result
+from prefect.results import ResultRecord, should_persist_result
 from prefect.settings import PREFECT_LOGGING_LOG_PRINTS
 from prefect.states import State
 from prefect.tasks import Task
@@ -283,10 +283,6 @@ async def resolve_inputs(
     return resolved_parameters
 
 
-def _is_base_result(data: Any) -> TypeIs[BaseResult[Any]]:
-    return isinstance(data, BaseResult)
-
-
 def _is_result_record(data: Any) -> TypeIs[ResultRecord[Any]]:
     return isinstance(data, ResultRecord)
 
@@ -335,11 +331,7 @@ async def propose_state(
     # Handle task and sub-flow tracing
     if state.is_final():
         result: Any
-        if _is_base_result(state.data) and state.data.has_cached_object():
-            # Avoid fetching the result unless it is cached, otherwise we defeat
-            # the purpose of disabling `cache_result_in_memory`
-            result = state.result(raise_on_failure=False, fetch=True)
-        elif _is_result_record(state.data):
+        if _is_result_record(state.data):
             result = state.data.result
         else:
             result = state.data
@@ -451,13 +443,7 @@ def propose_state_sync(
 
     # Handle task and sub-flow tracing
     if state.is_final():
-        if _is_base_result(state.data) and state.data.has_cached_object():
-            # Avoid fetching the result unless it is cached, otherwise we defeat
-            # the purpose of disabling `cache_result_in_memory`
-            result = state.result(raise_on_failure=False, fetch=True)
-            if asyncio.iscoroutine(result):
-                result = run_coro_as_sync(result)
-        elif _is_result_record(state.data):
+        if _is_result_record(state.data):
             result = state.data.result
         else:
             result = state.data
@@ -636,8 +622,6 @@ def emit_task_run_state_change_event(
 
     if _is_result_record(validated_state.data) and should_persist_result():
         data = validated_state.data.metadata.model_dump(mode="json")
-    elif _is_base_result(validated_state.data):
-        data = validated_state.data.model_dump(mode="json")
     else:
         data = None
 
@@ -769,13 +753,12 @@ def resolve_to_final_result(expr: Any, context: dict[str, Any]) -> Any:
     if asyncio.iscoroutine(result):
         result = run_coro_as_sync(result)
 
-    if state.state_details.trace_id and state.state_details.span_id:
+    if state.state_details.traceparent:
+        parameter_context = propagate.extract(
+            {"traceparent": state.state_details.traceparent}
+        )
         trace.get_current_span().add_link(
-            context=trace.SpanContext(
-                trace_id=state.state_details.trace_id,
-                span_id=state.state_details.span_id,
-                is_remote=True,
-            ),
+            context=trace.get_current_span(parameter_context).get_span_context(),
             attributes={
                 "prefect.input.name": context["parameter_name"],
                 "prefect.input.type": type(result).__name__,

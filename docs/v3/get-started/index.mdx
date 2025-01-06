@@ -1,37 +1,61 @@
 ---
-title: Welcome to Prefect
-sidebarTitle: Overview
-description: Prefect is a workflow orchestration framework for building resilient data pipelines in Python.
-mode: wide
+title: Introduction
+sidebarTitle: Introduction
 ---
+## What is Prefect?
+Prefect is an open-source orchestration engine that turns your Python functions into production-grade data pipelines with minimal friction. You can build and schedule workflows in pure Python—no DSLs or complex config files—and run them anywhere. Prefect handles the heavy lifting for you out of the box: automatic state tracking, failure handling, real-time monitoring, and more.
 
-```python
-from prefect import flow, task
+**Under the hood**, Prefect manages scheduling and execution details so you can focus on writing clean, maintainable Python code instead of juggling infrastructure. Whether you’re a data engineer or part of a broader team, Prefect makes it simple to move from idea to production-ready workflows—fast.
 
-@task(log_prints=True)
-def say_hello(name: str):
-    print(f"Hello, {name}!")
+## Main features
+<div className="t-full-width">
+| Feature | Description |
+|---------|-------------|
+| **Pure Python Development** | Write workflows in native Python—no DSLs, YAML, or special syntax. Full support for type hints, async/await, and modern Python patterns. Use your existing IDE, debugger, and testing tools. |
+| **State & Recovery** | Robust state management that tracks success, failure, and retry states. Resume interrupted runs from the last successful point, and cache expensive computations to avoid unnecessary rework. |
+| **Flexible & Portable Execution** | Start flows locally for easy development, then deploy them anywhere—from a single process to containers, Kubernetes, or cloud services—without locking into a vendor. Infrastructure is defined by code (not just configuration), making it simple to scale or change environments. |
+| **Event-Driven** | Trigger flows on schedules, external events, or via API. Pause flows for human intervention or approval. Chain flows together based on states, conditions, or any custom logic. |
+| **Dynamic Runtime** | Create tasks dynamically at runtime based on actual data or conditions. Easily spawn new tasks and branches during execution for truly data-driven workflows. |
+| **Modern UI** | Real-time flow run monitoring, logging, and state tracking through an intuitive interface. View dependency graphs and DAGs automatically—just run your flow and open the UI. |
+| **CI/CD First** | Test and simulate flows like normal Python code, giving you fast feedback during development. Integrate seamlessly into your existing CI/CD pipeline for automated testing and deployment. |
+| **Actually open source** | Host the Prefect orchestration server yourself using containers, Kubernetes, or infrastructure-as-code—or let us handle server operations with our fully managed cloud service. Keep your workflow infrastructure wherever it belongs while choosing the orchestration model that fits your needs. |
+</div>
 
-@flow
-def hello_universe(names: list[str]):
-    for name in names:
-        say_hello(name)
-
-if __name__ == "__main__":
-    hello_universe(['Marvin', 'Trillian', 'Ford'])
-```
 
 ## Get started
 
 <CardGroup cols={3}>
   <Card title="Quickstart" icon="play" href="/v3/get-started/quickstart">
-    Learn how to schedule a script to run on remote infrastructure and observe its state.
+    In five minutes, create your first deployable workflow tracked with Prefect.
   </Card>
   <Card title="Prefect Cloud" icon="cloud" href="/v3/manage/cloud/index">
     Supercharge Prefect with enhanced governance, security, and performance capabilities.
   </Card>
   <Card title="Upgrade to Prefect 3" icon="sparkles" href="/v3/resources/upgrade-to-prefect-3">
     Upgrade from Prefect 2 to Prefect 3 to get the latest features and performance enhancements.
+  </Card>
+</CardGroup>
+
+## Tutorials
+
+<CardGroup cols={3}>
+  <Card title="Schedule a flow" icon="calendar" href="/v3/tutorials/schedule">
+    Get a workflow off of your laptop and run it on remote infrastructure on a schedule.
+  </Card>
+  <Card title="Build a data pipeline" icon="database" href="/v3/tutorials/pipelines">
+    Build a resilient and performant data pipeline with Prefect's primitives.
+  </Card>
+  <Card title="Extract data from websites" icon="globe" href="/v3/tutorials/scraping">
+    Handle data dependencies and use pagination to efficiently extract data from websites.
+  </Card>
+  <Card title="Set up a platform" icon="code" href="/v3/tutorials/platform">
+    Use Prefect as a platform for your teams' data pipelines.
+  </Card>
+  <Card title="Debug a data pipeline" icon="bug" href="/v3/tutorials/debug">
+    Learn how to debug flow runs that fail, crash, or hang.
+  </Card>
+  <Card title="Send alerts on failure" icon="bell" href="/v3/tutorials/alerts">
+    Set up an email alert to notify your teams about failures.
   </Card>
 </CardGroup>
 

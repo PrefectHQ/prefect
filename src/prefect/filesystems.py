@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import abc
 import urllib.parse
 from pathlib import Path
 from shutil import copytree
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 
 import anyio
 import fsspec
@@ -92,7 +94,9 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
     )
 
     @field_validator("basepath", mode="before")
-    def cast_pathlib(cls, value):
+    def cast_pathlib(cls, value: str | Path | None) -> str | None:
+        if value is None:
+            return value
         return stringify_path(value)
 
     def _resolve_path(self, path: str, validate: bool = False) -> Path:
@@ -132,7 +136,7 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
         Defaults to copying the entire contents of the block's basepath to the current working directory.
         """
         if not from_path:
-            from_path = Path(self.basepath).expanduser().resolve()
+            from_path = Path(self.basepath or ".").expanduser().resolve()
         else:
             from_path = self._resolve_path(from_path)
 
@@ -544,4 +548,4 @@ class NullFileSystem(BaseModel):
         pass
 
 
-__getattr__ = getattr_migration(__name__)
+__getattr__: Callable[[str], Any] = getattr_migration(__name__)

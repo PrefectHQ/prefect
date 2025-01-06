@@ -280,6 +280,51 @@ class TestSnowflakeConnector:
 
         assert args[0] == OriginalSnowflakeCursorClass
 
+    def test_fetch_all_executes_directly_on_cursor(
+        self, snowflake_connector: SnowflakeConnector
+    ):
+        """Test that fetch_all executes directly on the cursor instead of using self.execute."""
+        snowflake_connector._start_connection()
+        mock_cursor = MagicMock()
+        snowflake_connector._connection.cursor.return_value = mock_cursor
+        mock_cursor.fetchall.return_value = [(1,)]
+
+        result = snowflake_connector.fetch_all("SELECT 1")
+
+        mock_cursor.execute.assert_called_once_with("SELECT 1", params=None)
+        mock_cursor.fetchall.assert_called_once()
+        assert result == [(1,)]
+
+    def test_fetch_one_executes_directly_on_cursor(
+        self, snowflake_connector: SnowflakeConnector
+    ):
+        """Test that fetch_one executes directly on the cursor instead of using self.execute."""
+        snowflake_connector._start_connection()
+        mock_cursor = MagicMock()
+        snowflake_connector._connection.cursor.return_value = mock_cursor
+        mock_cursor.fetchone.return_value = (1,)
+
+        result = snowflake_connector.fetch_one("SELECT 1")
+
+        mock_cursor.execute.assert_called_once_with("SELECT 1", params=None)
+        mock_cursor.fetchone.assert_called_once()
+        assert result == (1,)
+
+    def test_fetch_many_executes_directly_on_cursor(
+        self, snowflake_connector: SnowflakeConnector
+    ):
+        """Test that fetch_many executes directly on the cursor instead of using self.execute."""
+        snowflake_connector._start_connection()
+        mock_cursor = MagicMock()
+        snowflake_connector._connection.cursor.return_value = mock_cursor
+        mock_cursor.fetchmany.return_value = [(1,), (2,)]
+
+        result = snowflake_connector.fetch_many("SELECT 1", size=2)
+
+        mock_cursor.execute.assert_called_once_with("SELECT 1", params=None)
+        mock_cursor.fetchmany.assert_called_once_with(size=2)
+        assert result == [(1,), (2,)]
+
     @pytest.mark.parametrize("fetch_function_name", ["fetch_many", "fetch_many_async"])
     async def test_fetch_many(self, fetch_function_name, snowflake_connector):
         fetch_function = getattr(snowflake_connector, fetch_function_name)

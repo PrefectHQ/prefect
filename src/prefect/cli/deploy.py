@@ -1,5 +1,7 @@
 """Module containing implementation for deploying flows."""
 
+from __future__ import annotations
+
 import json
 import os
 import re
@@ -19,6 +21,7 @@ from rich.table import Table
 from yaml.error import YAMLError
 
 import prefect
+from prefect._experimental.sla.objects import SlaTypes
 from prefect._internal.compatibility.deprecated import (
     generate_deprecation_message,
 )
@@ -40,6 +43,7 @@ from prefect.cli._utilities import (
     exit_with_error,
 )
 from prefect.cli.root import app, is_interactive
+from prefect.client.base import ServerType
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.filters import WorkerFilter
 from prefect.client.schemas.objects import ConcurrencyLimitConfig
@@ -52,8 +56,6 @@ from prefect.client.utilities import inject_client
 from prefect.deployments import initialize_project
 from prefect.deployments.base import (
     _format_deployment_for_saving_to_prefect_file,
-    _get_git_branch,
-    _get_git_remote_origin_url,
     _save_deployment_to_prefect_file,
 )
 from prefect.deployments.steps.core import run_steps
@@ -64,6 +66,7 @@ from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
     PREFECT_UI_URL,
 )
+from prefect.utilities._git import get_git_branch, get_git_remote_origin_url
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.callables import (
     parameter_schema,
@@ -351,6 +354,12 @@ async def deploy(
         "--prefect-file",
         help="Specify a custom path to a prefect.yaml file",
     ),
+    sla: List[str] = typer.Option(
+        None,
+        "--sla",
+        help="Experimental: One or more SLA configurations for the deployment. May be"
+        " removed or modified at any time. Currently only supported on Prefect Cloud.",
+    ),
 ):
     """
     Create a deployment to deploy a flow from this project.
@@ -406,6 +415,7 @@ async def deploy(
         "triggers": trigger,
         "param": param,
         "params": params,
+        "sla": sla,
     }
     try:
         deploy_configs, actions = _load_deploy_configs_and_actions(
@@ -735,6 +745,14 @@ async def _run_single_deploy(
 
     await _create_deployment_triggers(client, deployment_id, triggers)
 
+    if sla_specs := _gather_deployment_sla_definitions(
+        options.get("sla"), deploy_config.get("sla")
+    ):
+        slas = _initialize_deployment_slas(deployment_id, sla_specs)
+        await _create_slas(client, slas)
+    else:
+        slas = []
+
     app.console.print(
         Panel(
             f"Deployment '{deploy_config['flow_name']}/{deploy_config['name']}'"
@@ -792,6 +810,7 @@ async def _run_single_deploy(
                     push_steps=push_steps or None,
                     pull_steps=pull_steps or None,
                     triggers=trigger_specs or None,
+                    sla=sla_specs or None,
                     prefect_file=prefect_file,
                 )
                 app.console.print(
@@ -991,7 +1010,7 @@ async def _generate_git_clone_pull_step(
     deploy_config: Dict,
     remote_url: str,
 ):
-    branch = _get_git_branch() or "main"
+    branch = get_git_branch() or "main"
 
     if not remote_url:
         remote_url = prompt(
@@ -1125,7 +1144,7 @@ async def _generate_actions_for_remote_flow_storage(
         actions["pull"] = await _generate_git_clone_pull_step(
             console=console,
             deploy_config=deploy_config,
-            remote_url=_get_git_remote_origin_url(),
+            remote_url=get_git_remote_origin_url(),
         )
 
     elif selected_storage_provider in storage_provider_to_collection.keys():
@@ -1738,3 +1757,71 @@ def _handle_deprecated_schedule_fields(deploy_config: Dict):
         )
 
     return deploy_config
+
+
+def _gather_deployment_sla_definitions(
+    sla_flags: Union[list[str], None], existing_slas: Union[list[dict[str, Any]], None]
+) -> Union[list[dict[str, Any]], None]:
+    """Parses SLA flags from CLI and existing deployment config in `prefect.yaml`.
+    Prefers CLI-provided SLAs over config in `prefect.yaml`.
+    """
+    if sla_flags:
+        sla_specs = []
+        for s in sla_flags:
+            try:
+                if s.endswith(".yaml"):
+                    with open(s, "r") as f:
+                        sla_specs.extend(yaml.safe_load(f).get("sla", []))
+                elif s.endswith(".json"):
+                    with open(s, "r") as f:
+                        sla_specs.extend(json.load(f).get("sla", []))
+                else:
+                    sla_specs.append(json.loads(s))
+            except Exception as e:
+                raise ValueError(f"Failed to parse SLA: {s}. Error: {str(e)}")
+        return sla_specs
+
+    return existing_slas
+
+
+def _initialize_deployment_slas(
+    deployment_id: UUID, sla_specs: list[dict[str, Any]]
+) -> list[SlaTypes]:
+    """Initializes SLAs for a deployment.
+
+    Args:
+        deployment_id: Deployment ID.
+        sla_specs: SLA specification dictionaries.
+
+    Returns:
+        List of SLAs.
+    """
+    slas = [pydantic.TypeAdapter(SlaTypes).validate_python(spec) for spec in sla_specs]
+
+    for sla in slas:
+        sla.set_deployment_id(deployment_id)
+
+    return slas
+
+
+async def _create_slas(
+    client: "PrefectClient",
+    slas: List[SlaTypes],
+):
+    if client.server_type == ServerType.CLOUD:
+        exceptions = []
+        for sla in slas:
+            try:
+                await client.create_sla(sla)
+            except Exception as e:
+                app.console.print(
+                    f"""Failed to create SLA: {sla.get("name")}. Error: {str(e)}""",
+                    style="red",
+                )
+                exceptions.append((f"""Failed to create SLA: {sla.get('name')}""", e))
+        if exceptions:
+            raise ValueError("Failed to create one or more SLAs.", exceptions)
+    else:
+        raise ValueError(
+            "SLA configuration is currently only supported on Prefect Cloud."
+        )

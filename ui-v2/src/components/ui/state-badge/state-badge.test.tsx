@@ -62,7 +62,7 @@ describe("StateBadge", () => {
 	test.each(states)(
 		"renders correct icon and classes for $type state",
 		({ type, name }) => {
-			render(<StateBadge state={{ type, name }} />);
+			render(<StateBadge state={{ id: "1", type, name }} />);
 
 			// Check if state name is rendered
 			expect(screen.getByText(name)).toBeInTheDocument();

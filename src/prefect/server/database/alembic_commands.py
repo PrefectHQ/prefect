@@ -2,16 +2,24 @@ import warnings
 from functools import wraps
 from pathlib import Path
 from threading import Lock
-from typing import Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
 from sqlalchemy.exc import SAWarning
+from typing_extensions import ParamSpec, TypeVar
 
 import prefect.server.database
+
+if TYPE_CHECKING:
+    from alembic.config import Config
+
+
+P = ParamSpec("P")
+R = TypeVar("R", infer_variance=True)
 
 ALEMBIC_LOCK = Lock()
 
 
-def with_alembic_lock(fn):
+def with_alembic_lock(fn: Callable[P, R]) -> Callable[P, R]:
     """
     Decorator that prevents alembic commands from running concurrently.
     This is necessary because alembic uses a global configuration object
@@ -23,14 +31,14 @@ def with_alembic_lock(fn):
     """
 
     @wraps(fn)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
         with ALEMBIC_LOCK:
             return fn(*args, **kwargs)
 
     return wrapper
 
 
-def alembic_config():
+def alembic_config() -> "Config":
     from alembic.config import Config
 
     alembic_dir = Path(prefect.server.database.__file__).parent
@@ -43,7 +51,7 @@ def alembic_config():
 
 
 @with_alembic_lock
-def alembic_upgrade(revision: str = "head", dry_run: bool = False):
+def alembic_upgrade(revision: str = "head", dry_run: bool = False) -> None:
     """
     Run alembic upgrades on Prefect REST API database
 
@@ -65,7 +73,7 @@ def alembic_upgrade(revision: str = "head", dry_run: bool = False):
 
 
 @with_alembic_lock
-def alembic_downgrade(revision: str = "-1", dry_run: bool = False):
+def alembic_downgrade(revision: str = "-1", dry_run: bool = False) -> None:
     """
     Run alembic downgrades on Prefect REST API database
 
@@ -81,8 +89,8 @@ def alembic_downgrade(revision: str = "-1", dry_run: bool = False):
 
 @with_alembic_lock
 def alembic_revision(
-    message: Optional[str] = None, autogenerate: bool = False, **kwargs
-):
+    message: Optional[str] = None, autogenerate: bool = False, **kwargs: Any
+) -> None:
     """
     Create a new revision file for the database.
 
@@ -99,7 +107,7 @@ def alembic_revision(
 
 
 @with_alembic_lock
-def alembic_stamp(revision):
+def alembic_stamp(revision: Union[str, list[str], tuple[str, ...]]) -> None:
     """
     Stamp the revision table with the given revision; don't run any migrations
 
