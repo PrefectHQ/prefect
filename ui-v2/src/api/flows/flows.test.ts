@@ -2,7 +2,7 @@ import type { components } from "@/api/prefect";
 import { createFakeFlow } from "@/mocks";
 import { QueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
-import { createWrapper, server } from "@tests/utils";
+import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 import { buildListFlowsQuery } from ".";
@@ -12,7 +12,7 @@ type Flow = components["schemas"]["Flow"];
 describe("flows api", () => {
 	const mockFetchFlowsAPI = (flows: Array<Flow>) => {
 		server.use(
-			http.post("http://localhost:4200/api/flows/filter", () => {
+			http.post(buildApiUrl("/flows/filter"), () => {
 				return HttpResponse.json(flows);
 			}),
 		);
