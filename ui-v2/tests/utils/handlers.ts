@@ -1,24 +1,28 @@
 import { http, HttpResponse } from "msw";
 
+export const prefectURL = (path: string) => {
+	return `${import.meta.env.VITE_API_URL}${path}`;
+};
+
 const automationsHandlers = [
-	http.post("http://localhost:4200/api/automations/filter", () => {
+	http.post(prefectURL("/automations/filter"), () => {
 		return HttpResponse.json([]);
 	}),
 
-	http.post("http://localhost:4200/api/automations/", () => {
+	http.post(prefectURL("/automations/"), () => {
 		return HttpResponse.json({ status: "success" }, { status: 201 });
 	}),
 
-	http.patch("http://localhost:4200/api/automations/:id", () => {
+	http.patch(prefectURL("/automations/:id"), () => {
 		return new HttpResponse(null, { status: 204 });
 	}),
-	http.delete("http://localhost:4200/api/automations/:id", () => {
+	http.delete(prefectURL("/automations/:id"), () => {
 		return HttpResponse.json({ status: 204 });
 	}),
 ];
 
 const flowHandlers = [
-	http.post("http://localhost:4200/api/flows/paginate", () => {
+	http.post(prefectURL("/flows/paginate"), () => {
 		return HttpResponse.json({
 			results: [
 				{ id: "1", name: "Flow 1", tags: [] },
@@ -26,71 +30,62 @@ const flowHandlers = [
 			],
 		});
 	}),
-	http.post("http://localhost:4200/api/flow_runs/filter", () => {
+	http.post(prefectURL("/flow_runs/filter"), () => {
 		return HttpResponse.json([
 			{ id: "1", name: "Flow 1", tags: [] },
 			{ id: "2", name: "Flow 2", tags: [] },
 		]);
 	}),
 
-	http.post("http://localhost:4200/api/deployments/count", () => {
+	http.post(prefectURL("/deployments/count"), () => {
 		return HttpResponse.json(1);
 	}),
 ];
 
 const globalConcurrencyLimitsHandlers = [
-	http.post("http://localhost:4200/api/v2/concurrency_limits/filter", () => {
+	http.post(prefectURL("/v2/concurrency_limits/filter"), () => {
 		return HttpResponse.json([]);
 	}),
-	http.post("http://localhost:4200/api/v2/concurrency_limits/", () => {
+	http.post(prefectURL("/v2/concurrency_limits/"), () => {
 		return HttpResponse.json({ status: "success" }, { status: 201 });
 	}),
-	http.patch(
-		"http://localhost:4200/api/v2/concurrency_limits/:id_or_name",
-		() => {
-			return new HttpResponse(null, { status: 204 });
-		},
-	),
-	http.delete(
-		"http://localhost:4200/api/v2/concurrency_limits/:id_or_name",
-		() => {
-			return HttpResponse.json({ status: 204 });
-		},
-	),
+	http.patch(prefectURL("/v2/concurrency_limits/:id_or_name"), () => {
+		return new HttpResponse(null, { status: 204 });
+	}),
+	http.delete(prefectURL("/v2/concurrency_limits/:id_or_name"), () => {
+		return HttpResponse.json({ status: 204 });
+	}),
 ];
 
 const taskRunConcurrencyLimitsHandlers = [
-	http.post("http://localhost:4200/api/concurrency_limits/filter", () => {
+	http.post(prefectURL("/concurrency_limits/filter"), () => {
 		return HttpResponse.json([]);
 	}),
-	http.post(
-		"http://localhost:4200/api/concurrency_limits/tag/:tag/reset",
-		() => {
-			return HttpResponse.json({ status: 200 });
-		},
-	),
-	http.delete("http://localhost:4200/api/concurrency_limits/:id", () => {
+	http.post(prefectURL("/concurrency_limits/tag/:tag/reset"), () => {
+		return HttpResponse.json({ status: 200 });
+	}),
+	http.delete(prefectURL("/concurrency_limits/:id"), () => {
 		return HttpResponse.json({ status: 204 });
 	}),
 ];
 
 const variablesHandlers = [
-	http.post("http://localhost:4200/api/variables/", () => {
+	http.post(prefectURL("/variables/"), () => {
 		return HttpResponse.json({ status: "success" }, { status: 201 });
 	}),
 
-	http.post("http://localhost:4200/api/variables/filter", () => {
+	http.post(prefectURL("/variables/filter"), () => {
 		return HttpResponse.json([]);
 	}),
 
-	http.post("http://localhost:4200/api/variables/count", () => {
+	http.post(prefectURL("/variables/count"), () => {
 		return HttpResponse.json(0);
 	}),
 
-	http.patch("http://localhost:4200/api/variables/:id", () => {
+	http.patch(prefectURL("/variables/:id"), () => {
 		return new HttpResponse(null, { status: 204 });
 	}),
-	http.delete("http://localhost:4200/api/variables/:id", () => {
+	http.delete(prefectURL("/variables/:id"), () => {
 		return HttpResponse.json({ status: 204 });
 	}),
 ];

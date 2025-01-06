@@ -1,7 +1,7 @@
 import { createFakeDeployment } from "@/mocks/create-fake-deployment";
 import { QueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
-import { createWrapper, server } from "@tests/utils";
+import { createWrapper, prefectURL, server } from "@tests/utils";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 import type { Deployment } from "./index";
@@ -16,7 +16,7 @@ describe("deployments api", () => {
 		total: number = deployments.length,
 	) => {
 		server.use(
-			http.post("http://localhost:4200/api/deployments/paginate", () => {
+			http.post(prefectURL("/deployments/paginate"), () => {
 				return HttpResponse.json({
 					results: deployments,
 					count: total,
@@ -25,7 +25,7 @@ describe("deployments api", () => {
 					limit: 10,
 				});
 			}),
-			http.post("http://localhost:4200/api/deployments/count", () => {
+			http.post("/deployments/count", () => {
 				return HttpResponse.json(total);
 			}),
 		);

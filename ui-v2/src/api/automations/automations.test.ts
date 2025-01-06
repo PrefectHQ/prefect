@@ -1,6 +1,6 @@
 import { QueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { createWrapper, server } from "@tests/utils";
+import { createWrapper, prefectURL, server } from "@tests/utils";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 
@@ -23,8 +23,9 @@ describe("automations queries and mutations", () => {
 	];
 
 	const mockFetchListAutomationsAPI = (automations: Array<Automation>) => {
+		console.log(prefectURL("/automations/filter"));
 		server.use(
-			http.post("http://localhost:4200/api/automations/filter", () => {
+			http.post(prefectURL("/automations/filter"), () => {
 				return HttpResponse.json(automations);
 			}),
 		);
@@ -32,7 +33,7 @@ describe("automations queries and mutations", () => {
 
 	const mockFetchGetAutomationsAPI = (automation: Automation) => {
 		server.use(
-			http.get("http://localhost:4200/api/automations/:id", () => {
+			http.get(prefectURL("/automations/:id"), () => {
 				return HttpResponse.json(automation);
 			}),
 		);

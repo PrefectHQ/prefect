@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createElement } from "react";
 export { server } from "./node";
+export { prefectURL } from "./handlers";
 
 /* Wraps render() components with app-wide providers
  *
