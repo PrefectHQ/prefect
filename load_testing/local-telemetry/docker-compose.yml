@@ -1,0 +1,32 @@
+services:
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    ports:
+      - 9090:9090
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+  jaeger:
+    image: jaegertracing/all-in-one:1.51.0
+    depends_on:
+      - prometheus
+    ports:
+      - 5775:5775/udp # zipkin.thrift (legacy)
+      - 6831:6831/udp # jaeger.thrift (compact)
+      - 6832:6832/udp # jaeger.thrift (binary)
+      - 5778:5778 # configs
+      - 16686:16686 # frontend
+      - 14250:14250 # model.proto
+      - 14268:14268 # jaeger.thrift (direct)
+      - 14269:14269 # jaeger's health check
+      - 9411:9411 # zipkin (http)
+  collector:
+    image: otel/opentelemetry-collector-contrib:0.113.0
+    depends_on:
+      - jaeger
+      - prometheus
+    ports:
+      - 4317:4317 # OTLP (gRPC)
+      - 8888:8888 # collector's metrics for Prometheus
+      - 8889:8889 # Prometheus exporter
+    volumes:
+      - ./otelcol-config.yaml:/etc/otelcol-contrib/config.yaml:ro

@@ -1,23 +1,9 @@
 import abc
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, AbstractAsyncContextManager
 from dataclasses import dataclass
 import importlib
-from typing import (
-    Any,
-    AsyncContextManager,
-    AsyncGenerator,
-    Awaitable,
-    Callable,
-    Dict,
-    List,
-    Optional,
-    Protocol,
-    Type,
-    TypeVar,
-    Union,
-    runtime_checkable,
-)
-from typing_extensions import Self
+from typing import Any, Callable, Optional, Protocol, TypeVar, Union, runtime_checkable
+from collections.abc import AsyncGenerator, Awaitable, Iterable, Mapping
 
 from prefect.settings import PREFECT_MESSAGING_CACHE, PREFECT_MESSAGING_BROKER
 from prefect.logging import get_logger
@@ -25,16 +11,21 @@ from prefect.logging import get_logger
 logger = get_logger(__name__)
 
 
+M = TypeVar("M", bound="Message", covariant=True)
+
+
 class Message(Protocol):
     """
     A protocol representing a message sent to a message broker.
     """
 
-    data: Union[bytes, str]
-    attributes: Dict[str, Any]
+    @property
+    def data(self) -> Union[str, bytes]:
+        ...
 
-
-M = TypeVar("M", bound=Message)
+    @property
+    def attributes(self) -> Mapping[str, Any]:
+        ...
 
 
 class Cache(abc.ABC):
@@ -43,36 +34,40 @@ class Cache(abc.ABC):
         ...
 
     @abc.abstractmethod
-    async def without_duplicates(self, attribute: str, messages: List[M]) -> List[M]:
+    async def without_duplicates(
+        self, attribute: str, messages: Iterable[M]
+    ) -> list[M]:
         ...
 
     @abc.abstractmethod
-    async def forget_duplicates(self, attribute: str, messages: List[M]) -> None:
+    async def forget_duplicates(
+        self, attribute: str, messages: Iterable[Message]
+    ) -> None:
         ...
 
 
-class Publisher(abc.ABC):
-    @abc.abstractmethod
-    async def __aenter__(self) -> Self:
+class Publisher(AbstractAsyncContextManager["Publisher"], abc.ABC):
+    def __init__(
+        self,
+        topic: str,
+        cache: Optional[Cache] = None,
+        deduplicate_by: Optional[str] = None,
+    ) -> None:
         ...
 
     @abc.abstractmethod
-    async def __aexit__(self, exc_type, exc_value, traceback):
-        ...
-
-    @abc.abstractmethod
-    async def publish_data(self, data: bytes, attributes: Dict[str, str]):
+    async def publish_data(self, data: bytes, attributes: Mapping[str, str]) -> None:
         ...
 
 
 @dataclass
 class CapturedMessage:
     data: bytes
-    attributes: Dict[str, str]
+    attributes: Mapping[str, str]
 
 
 class CapturingPublisher(Publisher):
-    messages: List[CapturedMessage] = []
+    messages: list[CapturedMessage] = []
     deduplicate_by: Optional[str]
 
     def __init__(
@@ -85,13 +80,10 @@ class CapturingPublisher(Publisher):
         self.cache = cache or create_cache()
         self.deduplicate_by = deduplicate_by
 
-    async def __aenter__(self) -> Self:
-        return self
-
-    async def __aexit__(self, exc_type, exc_value, traceback):
+    async def __aexit__(self, *args: Any) -> None:
         pass
 
-    async def publish_data(self, data: bytes, attributes: Dict[str, str]):
+    async def publish_data(self, data: bytes, attributes: Mapping[str, str]):
         to_publish = [CapturedMessage(data, attributes)]
 
         if self.deduplicate_by:
@@ -120,6 +112,9 @@ class Consumer(abc.ABC):
     call a handler function for each message received.
     """
 
+    def __init__(self, topic: str, **kwargs: Any) -> None:
+        self.topic = topic
+
     @abc.abstractmethod
     async def run(self, handler: MessageHandler) -> None:
         """Runs the consumer (indefinitely)"""
@@ -128,29 +123,33 @@ class Consumer(abc.ABC):
 
 @runtime_checkable
 class CacheModule(Protocol):
-    Cache: Type[Cache]
+    Cache: type[Cache]
 
 
 def create_cache() -> Cache:
     """
     Creates a new cache with the applications default settings.
+
     Returns:
         a new Cache instance
     """
     module = importlib.import_module(PREFECT_MESSAGING_CACHE.value())
     assert isinstance(module, CacheModule)
+
     return module.Cache()
 
 
 @runtime_checkable
 class BrokerModule(Protocol):
-    Publisher: Type[Publisher]
-    Consumer: Type[Consumer]
-    ephemeral_subscription: Callable[[str], AsyncGenerator[Dict[str, Any], None]]
+    Publisher: type[Publisher]
+    Consumer: type[Consumer]
+    ephemeral_subscription: Callable[
+        [str], AbstractAsyncContextManager[Mapping[str, Any]]
+    ]
 
     # Used for testing: a context manager that breaks the topic in a way that raises
     # a ValueError("oops") when attempting to publish a message.
-    break_topic: Callable[[], AsyncContextManager[None]]
+    break_topic: Callable[[], AbstractAsyncContextManager[None]]
 
 
 def create_publisher(
@@ -171,7 +170,7 @@ def create_publisher(
 
 
 @asynccontextmanager
-async def ephemeral_subscription(topic: str) -> AsyncGenerator[Dict[str, Any], None]:
+async def ephemeral_subscription(topic: str) -> AsyncGenerator[Mapping[str, Any], Any]:
     """
     Creates an ephemeral subscription to the given source, removing it when the context
     exits.
@@ -182,7 +181,7 @@ async def ephemeral_subscription(topic: str) -> AsyncGenerator[Dict[str, Any], N
         yield consumer_create_kwargs
 
 
-def create_consumer(topic: str, **kwargs) -> Consumer:
+def create_consumer(topic: str, **kwargs: Any) -> Consumer:
     """
     Creates a new consumer with the applications default settings.
     Args:

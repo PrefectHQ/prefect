@@ -9,18 +9,16 @@ from dataclasses import dataclass, field
 from functools import partial
 from textwrap import dedent
 from typing import (
+    TYPE_CHECKING,
     Any,
     AsyncGenerator,
     Callable,
     Coroutine,
-    Dict,
     Generator,
     Generic,
-    Iterable,
     Literal,
     Optional,
     Sequence,
-    Set,
     Type,
     TypeVar,
     Union,
@@ -32,7 +30,6 @@ import pendulum
 from opentelemetry import trace
 from typing_extensions import ParamSpec
 
-from prefect import Task
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import State, TaskRunInput
@@ -55,10 +52,8 @@ from prefect.exceptions import (
     TerminationSignal,
     UpstreamTaskError,
 )
-from prefect.futures import PrefectFuture
 from prefect.logging.loggers import get_logger, patch_print, task_run_logger
 from prefect.results import (
-    BaseResult,
     ResultRecord,
     _format_user_supplied_storage_key,
     get_result_store,
@@ -95,6 +90,9 @@ from prefect.utilities.engine import (
 from prefect.utilities.math import clamped_poisson_interval
 from prefect.utilities.timeout import timeout, timeout_async
 
+if TYPE_CHECKING:
+    from prefect.tasks import OneOrManyFutureOrResult, Task
+
 P = ParamSpec("P")
 R = TypeVar("R")
 
@@ -107,13 +105,13 @@ class TaskRunTimeoutError(TimeoutError):
 
 @dataclass
 class BaseTaskRunEngine(Generic[P, R]):
-    task: Union[Task[P, R], Task[P, Coroutine[Any, Any, R]]]
+    task: Union["Task[P, R]", "Task[P, Coroutine[Any, Any, R]]"]
     logger: logging.Logger = field(default_factory=lambda: get_logger("engine"))
-    parameters: Optional[Dict[str, Any]] = None
+    parameters: Optional[dict[str, Any]] = None
     task_run: Optional[TaskRun] = None
     retries: int = 0
-    wait_for: Optional[Iterable[PrefectFuture]] = None
-    context: Optional[Dict[str, Any]] = None
+    wait_for: Optional["OneOrManyFutureOrResult[Any]"] = None
+    context: Optional[dict[str, Any]] = None
     # holds the return value from the user code
     _return_value: Union[R, Type[NotSet]] = NotSet
     # holds the exception raised by the user code, if any
@@ -210,6 +208,7 @@ class BaseTaskRunEngine(Generic[P, R]):
             )
             self.task_run.name = task_run_name
             self._task_name_set = True
+            self._telemetry.update_run_name(name=task_run_name)
 
     def _wait_for_dependencies(self):
         if not self.wait_for:
@@ -305,7 +304,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
     def can_retry(self, exc: Exception) -> bool:
         retry_condition: Optional[
-            Callable[[Task[P, Coroutine[Any, Any, R]], TaskRun, State], bool]
+            Callable[["Task[P, Coroutine[Any, Any, R]]", TaskRun, State], bool]
         ] = self.task.retry_condition_fn
         if not self.task_run:
             raise ValueError("Task run is not set")
@@ -448,13 +447,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             self.task_run.run_count += 1
 
         if new_state.is_final():
-            if isinstance(state.data, BaseResult) and state.data.has_cached_object():
-                # Avoid fetching the result unless it is cached, otherwise we defeat
-                # the purpose of disabling `cache_result_in_memory`
-                result = state.result(raise_on_failure=False, fetch=True)
-                if asyncio.iscoroutine(result):
-                    result = run_coro_as_sync(result)
-            elif isinstance(state.data, ResultRecord):
+            if isinstance(state.data, ResultRecord):
                 result = state.data.result
             else:
                 result = state.data
@@ -473,13 +466,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
     def result(self, raise_on_failure: bool = True) -> "Union[R, State, None]":
         if self._return_value is not NotSet:
-            # if the return value is a BaseResult, we need to fetch it
-            if isinstance(self._return_value, BaseResult):
-                _result = self._return_value.get()
-                if asyncio.iscoroutine(_result):
-                    _result = run_coro_as_sync(_result)
-                return _result
-            elif isinstance(self._return_value, ResultRecord):
+            if isinstance(self._return_value, ResultRecord):
                 return self._return_value.result
             # otherwise, return the value as is
             return self._return_value
@@ -660,7 +647,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     def initialize_run(
         self,
         task_run_id: Optional[UUID] = None,
-        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+        dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
     ) -> Generator["SyncTaskRunEngine", Any, Any]:
         """
         Enters a client context and creates a task run if needed.
@@ -700,7 +687,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
                         self._telemetry.start_span(
                             run=self.task_run,
-                            name=self.task.name,
                             client=self.client,
                             parameters=self.parameters,
                         )
@@ -753,12 +739,14 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     def start(
         self,
         task_run_id: Optional[UUID] = None,
-        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+        dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
     ) -> Generator[None, None, None]:
         with self.initialize_run(task_run_id=task_run_id, dependencies=dependencies):
-            with trace.use_span(
-                self._telemetry.span
-            ) if self._telemetry.span else nullcontext():
+            with (
+                trace.use_span(self._telemetry.span)
+                if self._telemetry.span
+                else nullcontext()
+            ):
                 self.begin_run()
                 try:
                     yield
@@ -847,7 +835,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
     async def can_retry(self, exc: Exception) -> bool:
         retry_condition: Optional[
-            Callable[[Task[P, Coroutine[Any, Any, R]], TaskRun, State], bool]
+            Callable[["Task[P, Coroutine[Any, Any, R]]", TaskRun, State], bool]
         ] = self.task.retry_condition_fn
         if not self.task_run:
             raise ValueError("Task run is not set")
@@ -989,14 +977,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             self.task_run.run_count += 1
 
         if new_state.is_final():
-            if (
-                isinstance(new_state.data, BaseResult)
-                and new_state.data.has_cached_object()
-            ):
-                # Avoid fetching the result unless it is cached, otherwise we defeat
-                # the purpose of disabling `cache_result_in_memory`
-                result = await new_state.result(raise_on_failure=False, fetch=True)
-            elif isinstance(new_state.data, ResultRecord):
+            if isinstance(new_state.data, ResultRecord):
                 result = new_state.data.result
             else:
                 result = new_state.data
@@ -1016,10 +997,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
     async def result(self, raise_on_failure: bool = True) -> "Union[R, State, None]":
         if self._return_value is not NotSet:
-            # if the return value is a BaseResult, we need to fetch it
-            if isinstance(self._return_value, BaseResult):
-                return await self._return_value.get()
-            elif isinstance(self._return_value, ResultRecord):
+            if isinstance(self._return_value, ResultRecord):
                 return self._return_value.result
             # otherwise, return the value as is
             return self._return_value
@@ -1199,7 +1177,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     async def initialize_run(
         self,
         task_run_id: Optional[UUID] = None,
-        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+        dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
     ) -> AsyncGenerator["AsyncTaskRunEngine", Any]:
         """
         Enters a client context and creates a task run if needed.
@@ -1237,7 +1215,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
                         await self._telemetry.async_start_span(
                             run=self.task_run,
-                            name=self.task.name,
                             client=self.client,
                             parameters=self.parameters,
                         )
@@ -1290,14 +1267,16 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     async def start(
         self,
         task_run_id: Optional[UUID] = None,
-        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+        dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
     ) -> AsyncGenerator[None, None]:
         async with self.initialize_run(
             task_run_id=task_run_id, dependencies=dependencies
         ):
-            with trace.use_span(
-                self._telemetry.span
-            ) if self._telemetry.span else nullcontext():
+            with (
+                trace.use_span(self._telemetry.span)
+                if self._telemetry.span
+                else nullcontext()
+            ):
                 await self.begin_run()
                 try:
                     yield
@@ -1374,14 +1353,14 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
 
 def run_task_sync(
-    task: Task[P, R],
+    task: "Task[P, R]",
     task_run_id: Optional[UUID] = None,
     task_run: Optional[TaskRun] = None,
-    parameters: Optional[Dict[str, Any]] = None,
-    wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
+    parameters: Optional[dict[str, Any]] = None,
+    wait_for: Optional["OneOrManyFutureOrResult[Any]"] = None,
     return_type: Literal["state", "result"] = "result",
-    dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
-    context: Optional[Dict[str, Any]] = None,
+    dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
+    context: Optional[dict[str, Any]] = None,
 ) -> Union[R, State, None]:
     engine = SyncTaskRunEngine[P, R](
         task=task,
@@ -1401,14 +1380,14 @@ def run_task_sync(
 
 
 async def run_task_async(
-    task: Task[P, R],
+    task: "Task[P, R]",
     task_run_id: Optional[UUID] = None,
     task_run: Optional[TaskRun] = None,
-    parameters: Optional[Dict[str, Any]] = None,
-    wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
+    parameters: Optional[dict[str, Any]] = None,
+    wait_for: Optional["OneOrManyFutureOrResult[Any]"] = None,
     return_type: Literal["state", "result"] = "result",
-    dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
-    context: Optional[Dict[str, Any]] = None,
+    dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
+    context: Optional[dict[str, Any]] = None,
 ) -> Union[R, State, None]:
     engine = AsyncTaskRunEngine[P, R](
         task=task,
@@ -1428,14 +1407,14 @@ async def run_task_async(
 
 
 def run_generator_task_sync(
-    task: Task[P, R],
+    task: "Task[P, R]",
     task_run_id: Optional[UUID] = None,
     task_run: Optional[TaskRun] = None,
-    parameters: Optional[Dict[str, Any]] = None,
-    wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
+    parameters: Optional[dict[str, Any]] = None,
+    wait_for: Optional["OneOrManyFutureOrResult[Any]"] = None,
     return_type: Literal["state", "result"] = "result",
-    dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
-    context: Optional[Dict[str, Any]] = None,
+    dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
+    context: Optional[dict[str, Any]] = None,
 ) -> Generator[R, None, None]:
     if return_type != "result":
         raise ValueError("The return_type for a generator task must be 'result'")
@@ -1483,14 +1462,14 @@ def run_generator_task_sync(
 
 
 async def run_generator_task_async(
-    task: Task[P, R],
+    task: "Task[P, R]",
     task_run_id: Optional[UUID] = None,
     task_run: Optional[TaskRun] = None,
-    parameters: Optional[Dict[str, Any]] = None,
-    wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
+    parameters: Optional[dict[str, Any]] = None,
+    wait_for: Optional["OneOrManyFutureOrResult[Any]"] = None,
     return_type: Literal["state", "result"] = "result",
-    dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
-    context: Optional[Dict[str, Any]] = None,
+    dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
+    context: Optional[dict[str, Any]] = None,
 ) -> AsyncGenerator[R, None]:
     if return_type != "result":
         raise ValueError("The return_type for a generator task must be 'result'")
@@ -1539,14 +1518,14 @@ async def run_generator_task_async(
 
 
 def run_task(
-    task: Task[P, Union[R, Coroutine[Any, Any, R]]],
+    task: "Task[P, Union[R, Coroutine[Any, Any, R]]]",
     task_run_id: Optional[UUID] = None,
     task_run: Optional[TaskRun] = None,
-    parameters: Optional[Dict[str, Any]] = None,
-    wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
+    parameters: Optional[dict[str, Any]] = None,
+    wait_for: Optional["OneOrManyFutureOrResult[Any]"] = None,
     return_type: Literal["state", "result"] = "result",
-    dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
-    context: Optional[Dict[str, Any]] = None,
+    dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
+    context: Optional[dict[str, Any]] = None,
 ) -> Union[R, State, None, Coroutine[Any, Any, Union[R, State, None]]]:
     """
     Runs the provided task.

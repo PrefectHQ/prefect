@@ -4,18 +4,16 @@ Utilities for creating and working with Prefect REST API schemas.
 
 import datetime
 import os
-from typing import Any, ClassVar, Generator, Optional, Set, TypeVar, cast
+from typing import Any, ClassVar, Optional, TypeVar, cast
 from uuid import UUID, uuid4
 
 import pendulum
-from pydantic import (
-    BaseModel,
-    ConfigDict,
-    Field,
-)
+from pydantic import BaseModel, ConfigDict, Field
+from rich.repr import RichReprResult
 from typing_extensions import Self
 
 from prefect.types import DateTime
+from prefect.utilities.generics import validate_list
 
 T = TypeVar("T")
 
@@ -32,7 +30,7 @@ class PrefectBaseModel(BaseModel):
     subtle unintentional testing errors.
     """
 
-    _reset_fields: ClassVar[Set[str]] = set()
+    _reset_fields: ClassVar[set[str]] = set()
 
     model_config: ClassVar[ConfigDict] = ConfigDict(
         ser_json_timedelta="float",
@@ -59,7 +57,18 @@ class PrefectBaseModel(BaseModel):
         else:
             return copy_dict == other
 
-    def __rich_repr__(self) -> Generator[tuple[str, Any, Any], None, None]:
+    @classmethod
+    def model_validate_list(
+        cls,
+        obj: Any,
+        *,
+        strict: Optional[bool] = None,
+        from_attributes: Optional[bool] = None,
+        context: Optional[Any] = None,
+    ) -> list[Self]:
+        return validate_list(cls, obj)
+
+    def __rich_repr__(self) -> RichReprResult:
         # Display all of the fields in the model if they differ from the default value
         for name, field in self.model_fields.items():
             value = getattr(self, name)
@@ -102,7 +111,7 @@ class IDBaseModel(PrefectBaseModel):
     The ID is reset on copy() and not included in equality comparisons.
     """
 
-    _reset_fields: ClassVar[Set[str]] = {"id"}
+    _reset_fields: ClassVar[set[str]] = {"id"}
     id: UUID = Field(default_factory=uuid4)
 
 
@@ -115,7 +124,7 @@ class ObjectBaseModel(IDBaseModel):
     equality comparisons.
     """
 
-    _reset_fields: ClassVar[Set[str]] = {"id", "created", "updated"}
+    _reset_fields: ClassVar[set[str]] = {"id", "created", "updated"}
     model_config: ClassVar[ConfigDict] = ConfigDict(from_attributes=True)
 
     created: Optional[DateTime] = Field(default=None, repr=False)
