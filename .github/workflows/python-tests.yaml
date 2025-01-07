@@ -52,6 +52,7 @@ jobs:
     runs-on: ubuntu-latest
     name: ${{ matrix.test-type.name }} - python:${{ matrix.python-version }}, ${{ matrix.database }}
     strategy:
+      fail-fast: false
       matrix:
         test-type:
           - name: Server Tests
@@ -215,7 +216,7 @@ jobs:
           - "3.11"
           - "3.12"
 
-      fail-fast: true
+      fail-fast: false
 
     timeout-minutes: 45
 
