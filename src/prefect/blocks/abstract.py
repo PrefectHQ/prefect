@@ -1,6 +1,8 @@
+import logging
+import sys
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
-from logging import Logger, LoggerAdapter
+from logging import Logger
 from pathlib import Path
 from typing import (
     Any,
@@ -23,7 +25,12 @@ from prefect.logging.loggers import get_logger, get_run_logger
 
 T = TypeVar("T")
 
-LoggerOrAdapter: TypeAlias = Union[Logger, LoggerAdapter]
+if sys.version_info >= (3, 12):
+    LoggingAdapter = logging.LoggerAdapter[logging.Logger]
+else:
+    LoggingAdapter = logging.LoggerAdapter
+
+LoggerOrAdapter: TypeAlias = Union[Logger, LoggingAdapter]
 
 
 class CredentialsBlock(Block, ABC):
@@ -52,7 +59,7 @@ class CredentialsBlock(Block, ABC):
             return get_logger(self.__class__.__name__)
 
     @abstractmethod
-    def get_client(self, *args, **kwargs):
+    def get_client(self, *args: Any, **kwargs: Any) -> Any:
         """
         Returns a client for interacting with the external system.
 
@@ -153,7 +160,7 @@ class JobRun(ABC, Generic[T]):  # not a block
         """
 
 
-class JobBlock(Block, ABC):
+class JobBlock(Block, ABC, Generic[T]):
     """
     Block that represents an entity in an external service
     that can trigger a long running execution.
@@ -176,7 +183,7 @@ class JobBlock(Block, ABC):
             return get_logger(self.__class__.__name__)
 
     @abstractmethod
-    async def trigger(self) -> JobRun:
+    async def trigger(self) -> JobRun[T]:
         """
         Triggers a job run in an external service and returns a JobRun object
         to track the execution of the run.
@@ -221,7 +228,10 @@ class DatabaseBlock(Block, ABC):
 
     @abstractmethod
     async def fetch_one(
-        self, operation, parameters=None, **execution_kwargs
+        self,
+        operation: str,
+        parameters: dict[str, Any] | None = None,
+        **execution_kwargs: Any,
     ) -> Tuple[Any]:
         """
         Fetch a single result from the database.
@@ -238,7 +248,11 @@ class DatabaseBlock(Block, ABC):
 
     @abstractmethod
     async def fetch_many(
-        self, operation, parameters=None, size=None, **execution_kwargs
+        self,
+        operation: str,
+        parameters: dict[str, Any] | None = None,
+        size: int | None = None,
+        **execution_kwargs: Any,
     ) -> List[Tuple[Any]]:
         """
         Fetch a limited number of results from the database.
@@ -256,7 +270,10 @@ class DatabaseBlock(Block, ABC):
 
     @abstractmethod
     async def fetch_all(
-        self, operation, parameters=None, **execution_kwargs
+        self,
+        operation: str,
+        parameters: dict[str, Any] | None = None,
+        **execution_kwargs: Any,
     ) -> List[Tuple[Any]]:
         """
         Fetch all results from the database.
@@ -272,7 +289,12 @@ class DatabaseBlock(Block, ABC):
         """
 
     @abstractmethod
-    async def execute(self, operation, parameters=None, **execution_kwargs) -> None:
+    async def execute(
+        self,
+        operation: str,
+        parameters: dict[str, Any] | None = None,
+        **execution_kwargs: Any,
+    ) -> None:
         """
         Executes an operation on the database. This method is intended to be used
         for operations that do not return data, such as INSERT, UPDATE, or DELETE.
@@ -285,7 +307,10 @@ class DatabaseBlock(Block, ABC):
 
     @abstractmethod
     async def execute_many(
-        self, operation, seq_of_parameters, **execution_kwargs
+        self,
+        operation: str,
+        seq_of_parameters: list[dict[str, Any]],
+        **execution_kwargs: Any,
     ) -> None:
         """
         Executes multiple operations on the database. This method is intended to be used
@@ -307,7 +332,7 @@ class DatabaseBlock(Block, ABC):
             f"{self.__class__.__name__} does not support async context management."
         )
 
-    async def __aexit__(self, *args) -> None:
+    async def __aexit__(self, *args: Any) -> None:
         """
         Context management method for async databases.
         """
@@ -323,7 +348,7 @@ class DatabaseBlock(Block, ABC):
             f"{self.__class__.__name__} does not support context management."
         )
 
-    def __exit__(self, *args) -> None:
+    def __exit__(self, *args: Any) -> None:
         """
         Context management method for databases.
         """
@@ -496,7 +521,7 @@ class SecretBlock(Block, ABC):
         """
 
     @abstractmethod
-    async def write_secret(self, secret_data) -> str:
+    async def write_secret(self, secret_data: bytes) -> str:
         """
         Writes secret data to the configured secret in the secret storage service.
 

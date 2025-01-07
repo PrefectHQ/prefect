@@ -10,7 +10,7 @@ except ImportError:
         "You can install it with `pip install redis>=5.0.1"
     )
 
-from pydantic import Field
+from pydantic import Field, HttpUrl
 from pydantic.types import SecretStr
 from typing_extensions import Self
 
@@ -48,7 +48,9 @@ class RedisStorageContainer(WritableFileSystem):
         ```
     """
 
-    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/dfb02cfce09ce3ca88fea097659a83554dd7a850-596x512.png"
+    _logo_url = HttpUrl(
+        "https://cdn.sanity.io/images/3ugk85nk/production/dfb02cfce09ce3ca88fea097659a83554dd7a850-596x512.png"
+    )
 
     host: Optional[str] = Field(default=None, description="Redis hostname")
     port: int = Field(default=6379, description="Redis port")
@@ -97,7 +99,7 @@ class RedisStorageContainer(WritableFileSystem):
     @asynccontextmanager
     async def _client(self) -> AsyncGenerator[redis.Redis, None]:
         if self.connection_string:
-            client = redis.Redis.from_url(self.connection_string.get_secret_value())
+            client = redis.Redis.from_url(self.connection_string.get_secret_value())  # pyright: ignore[reportUnknownMemberType] incomplete typing for redis-py
         else:
             assert self.host
             client = redis.Redis(

@@ -1,7 +1,7 @@
-from typing import Optional
+from typing import Any, Optional
 
 from httpx import AsyncClient, AsyncHTTPTransport, Response
-from pydantic import Field, SecretStr
+from pydantic import Field, HttpUrl, SecretStr
 from typing_extensions import Literal
 
 from prefect.blocks.core import Block
@@ -21,7 +21,7 @@ class Webhook(Block):
 
     _block_type_name = "Webhook"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/c7247cb359eb6cf276734d4b1fbf00fb8930e89e-250x250.png"  # type: ignore
-    _documentation_url = (
+    _documentation_url = HttpUrl(
         "https://docs.prefect.io/latest/automate/events/webhook-triggers"
     )
 
@@ -50,13 +50,13 @@ class Webhook(Block):
         description="Whether or not to enforce a secure connection to the webhook.",
     )
 
-    def block_initialization(self):
+    def block_initialization(self) -> None:
         if self.verify:
             self._client = AsyncClient(transport=_http_transport)
         else:
             self._client = AsyncClient(transport=_insecure_http_transport)
 
-    async def call(self, payload: Optional[dict] = None) -> Response:
+    async def call(self, payload: Optional[dict[str, Any]] = None) -> Response:
         """
         Call the webhook.
 
