@@ -73,7 +73,6 @@ Example:
 from __future__ import annotations
 
 import asyncio  # noqa: I001
-import sys
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -131,12 +130,23 @@ class PrefectRayFuture(PrefectWrappedFuture[R, "ray.ObjectRef"]):
         raise_on_failure: bool = True,
     ) -> R:
         if not self._final_state:
-            self.wait(timeout=timeout)
-        if not self._final_state:
-            raise RuntimeError("No final state could be retrieved.")
+            try:
+                object_ref_result = ray.get(self.wrapped_future, timeout=timeout)
+            except ray.exceptions.GetTimeoutError as exc:
+                raise TimeoutError(
+                    f"Task run {self.task_run_id} did not complete within {timeout} seconds"
+                ) from exc
+
+            if isinstance(object_ref_result, State):
+                self._final_state = object_ref_result
+            else:
+                return object_ref_result
+
         _result = self._final_state.result(
             raise_on_failure=raise_on_failure, fetch=True
         )
+        # state.result is a `sync_compatible` function that may or may not return an awaitable
+        # depending on whether the parent frame is sync or not
         if asyncio.iscoroutine(_result):
             _result = run_coro_as_sync(_result)
         return _result
@@ -145,6 +155,7 @@ class PrefectRayFuture(PrefectWrappedFuture[R, "ray.ObjectRef"]):
         if not self._final_state:
 
             def call_with_self(future: "PrefectRayFuture[R]"):
+                """Call the callback with self as the argument, this is necessary to ensure we remove the future from the pending set"""
                 fn(self)
 
             self._wrapped_future._on_completed(call_with_self)
@@ -156,21 +167,12 @@ class PrefectRayFuture(PrefectWrappedFuture[R, "ray.ObjectRef"]):
         if self._final_state:
             return
 
-        # If the Python interpreter is shutting down, skip
-        if sys.is_finalizing():
-            return
-
-        # If Ray is not initialized, skip
-        if not ray.is_initialized():
-            return
-
         try:
             ray.get(self.wrapped_future, timeout=0)
         except ray.exceptions.GetTimeoutError:
             pass
 
-        # Optionally do your "future was GCed" warning if you still want it
-        # but note: logging in __del__ can also fail at shutdown
+        # logging in __del__ can also fail at shutdown
         try:
             local_logger = get_run_logger()
         except Exception:
@@ -355,7 +357,7 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture[R]]):
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
         dependencies: dict[str, set[TaskRunInput]] | None = None,
-    ) -> State:
+    ) -> Any:
         """Resolves Ray futures before calling the actual Prefect task function.
 
         Passing upstream_ray_obj_refs directly as args enables Ray to wait for
@@ -385,15 +387,12 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture[R]]):
             "return_type": "state",
         }
 
-        try:
-            # Ray does not support the submission of async functions and we must create a
-            # sync entrypoint
-            if task.isasync:
-                return asyncio.run(run_task_async(**run_task_kwargs))
-            else:
-                return run_task_sync(**run_task_kwargs)
-        except Exception as exc:
-            return run_coro_as_sync(exception_to_crashed_state(exc))
+        # Ray does not support the submission of async functions and we must create a
+        # sync entrypoint
+        if task.isasync:
+            return asyncio.run(run_task_async(**run_task_kwargs))
+        else:
+            return run_task_sync(**run_task_kwargs)
 
     def __enter__(self) -> Self:
         super().__enter__()
