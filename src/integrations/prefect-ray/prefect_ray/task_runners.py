@@ -70,21 +70,23 @@ Example:
     #9
     ```
 """
+from __future__ import annotations
 
 import asyncio  # noqa: I001
+import sys
 from typing import (
     TYPE_CHECKING,
     Any,
+    Callable,
     Coroutine,
-    Dict,
     Iterable,
     Optional,
-    Set,
     TypeVar,
     overload,
 )
-from typing_extensions import ParamSpec
 from uuid import UUID, uuid4
+
+from typing_extensions import ParamSpec, Self
 
 from prefect.client.schemas.objects import TaskRunInput
 from prefect.context import serialize_context
@@ -108,12 +110,12 @@ logger = get_logger(__name__)
 
 P = ParamSpec("P")
 T = TypeVar("T")
-F = TypeVar("F", bound=PrefectFuture)
+F = TypeVar("F", bound=PrefectFuture[Any])
 R = TypeVar("R")
 
 
 class PrefectRayFuture(PrefectWrappedFuture[R, "ray.ObjectRef"]):
-    def wait(self, timeout: Optional[float] = None) -> None:
+    def wait(self, timeout: float | None = None) -> None:
         try:
             result = ray.get(self.wrapped_future, timeout=timeout)
         except ray.exceptions.GetTimeoutError:
@@ -125,36 +127,24 @@ class PrefectRayFuture(PrefectWrappedFuture[R, "ray.ObjectRef"]):
 
     def result(
         self,
-        timeout: Optional[float] = None,
+        timeout: float | None = None,
         raise_on_failure: bool = True,
     ) -> R:
         if not self._final_state:
-            try:
-                object_ref_result = ray.get(self.wrapped_future, timeout=timeout)
-            except ray.exceptions.GetTimeoutError as exc:
-                raise TimeoutError(
-                    f"Task run {self.task_run_id} did not complete within {timeout} seconds"
-                ) from exc
-
-            if isinstance(object_ref_result, State):
-                self._final_state = object_ref_result
-            else:
-                return object_ref_result
-
+            self.wait(timeout=timeout)
+        if not self._final_state:
+            raise RuntimeError("No final state could be retrieved.")
         _result = self._final_state.result(
             raise_on_failure=raise_on_failure, fetch=True
         )
-        # state.result is a `sync_compatible` function that may or may not return an awaitable
-        # depending on whether the parent frame is sync or not
         if asyncio.iscoroutine(_result):
             _result = run_coro_as_sync(_result)
         return _result
 
-    def add_done_callback(self, fn):
+    def add_done_callback(self, fn: Callable[["PrefectRayFuture[R]"], Any]):
         if not self._final_state:
 
-            def call_with_self(future):
-                """Call the callback with self as the argument, this is necessary to ensure we remove the future from the pending set"""
+            def call_with_self(future: "PrefectRayFuture[R]"):
                 fn(self)
 
             self._wrapped_future._on_completed(call_with_self)
@@ -162,25 +152,36 @@ class PrefectRayFuture(PrefectWrappedFuture[R, "ray.ObjectRef"]):
         fn(self)
 
     def __del__(self):
+        # If we already have a final state, skip
         if self._final_state:
             return
+
+        # If the Python interpreter is shutting down, skip
+        if sys.is_finalizing():
+            return
+
+        # If Ray is not initialized, skip
+        if not ray.is_initialized():
+            return
+
         try:
             ray.get(self.wrapped_future, timeout=0)
-            return
         except ray.exceptions.GetTimeoutError:
             pass
 
+        # Optionally do your "future was GCed" warning if you still want it
+        # but note: logging in __del__ can also fail at shutdown
         try:
             local_logger = get_run_logger()
         except Exception:
             local_logger = logger
         local_logger.warning(
             "A future was garbage collected before it resolved."
-            " Please call `.wait()` or `.result()` on futures to ensure they resolve.",
+            " Please call `.wait()` or `.result()` on futures to ensure they resolve."
         )
 
 
-class RayTaskRunner(TaskRunner[PrefectRayFuture]):
+class RayTaskRunner(TaskRunner[PrefectRayFuture[R]]):
     """
     A parallel task_runner that submits tasks to `ray`.
     By default, a temporary Ray cluster is created for the duration of the flow run.
@@ -209,7 +210,7 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture]):
     def __init__(
         self,
         address: Optional[str] = None,
-        init_kwargs: Optional[Dict] = None,
+        init_kwargs: dict[str, Any] | None = None,
     ):
         # Store settings
         self.address = address
@@ -243,28 +244,28 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture]):
     def submit(
         self,
         task: "Task[P, Coroutine[Any, Any, R]]",
-        parameters: Dict[str, Any],
-        wait_for: Optional[Iterable[PrefectFuture]] = None,
-        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+        parameters: dict[str, Any],
+        wait_for: Iterable[PrefectFuture[Any]] | None = None,
+        dependencies: dict[str, set[TaskRunInput]] | None = None,
     ) -> PrefectRayFuture[R]:
         ...
 
     @overload
     def submit(
         self,
-        task: "Task[Any, R]",
-        parameters: Dict[str, Any],
-        wait_for: Optional[Iterable[PrefectFuture]] = None,
-        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+        task: "Task[P, R]",
+        parameters: dict[str, Any],
+        wait_for: Iterable[PrefectFuture[Any]] | None = None,
+        dependencies: dict[str, set[TaskRunInput]] | None = None,
     ) -> PrefectRayFuture[R]:
         ...
 
     def submit(
         self,
-        task: Task,
-        parameters: Dict[str, Any],
-        wait_for: Optional[Iterable[PrefectFuture]] = None,
-        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
+        task: Task[P, R],
+        parameters: dict[str, Any],
+        wait_for: Iterable[PrefectFuture[Any]] | None = None,
+        dependencies: dict[str, set[TaskRunInput]] | None = None,
     ):
         if not self._started:
             raise RuntimeError(
@@ -296,14 +297,14 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture]):
                 context=context,
             )
         )
-        return PrefectRayFuture(task_run_id=task_run_id, wrapped_future=object_ref)
+        return PrefectRayFuture[R](task_run_id=task_run_id, wrapped_future=object_ref)
 
     @overload
     def map(
         self,
         task: "Task[P, Coroutine[Any, Any, R]]",
-        parameters: Dict[str, Any],
-        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        parameters: dict[str, Any],
+        wait_for: Iterable[PrefectFuture[Any]] | None = None,
     ) -> PrefectFutureList[PrefectRayFuture[R]]:
         ...
 
@@ -311,25 +312,25 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture]):
     def map(
         self,
         task: "Task[Any, R]",
-        parameters: Dict[str, Any],
-        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        parameters: dict[str, Any],
+        wait_for: Iterable[PrefectFuture[Any]] | None = None,
     ) -> PrefectFutureList[PrefectRayFuture[R]]:
         ...
 
     def map(
         self,
-        task: "Task",
-        parameters: Dict[str, Any],
-        wait_for: Optional[Iterable[PrefectFuture]] = None,
-    ):
+        task: "Task[P, R]",
+        parameters: dict[str, Any],
+        wait_for: Iterable[PrefectFuture[Any]] | None = None,
+    ) -> PrefectFutureList[PrefectRayFuture[R]]:
         return super().map(task, parameters, wait_for)
 
-    def _exchange_prefect_for_ray_futures(self, kwargs_prefect_futures):
+    def _exchange_prefect_for_ray_futures(self, kwargs_prefect_futures: dict[str, Any]):
         """Exchanges Prefect futures for Ray futures."""
 
-        upstream_ray_obj_refs = []
+        upstream_ray_obj_refs: list[Any] = []
 
-        def exchange_prefect_for_ray_future(expr):
+        def exchange_prefect_for_ray_future(expr: Any):
             """Exchanges Prefect future for Ray future."""
             if isinstance(expr, PrefectRayFuture):
                 ray_future = expr.wrapped_future
@@ -347,14 +348,14 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture]):
 
     @staticmethod
     def _run_prefect_task(
-        *upstream_ray_obj_refs,
-        task: Task,
+        *upstream_ray_obj_refs: Any,
+        task: Task[P, R],
         task_run_id: UUID,
-        context: Dict[str, Any],
-        parameters: Dict[str, Any],
-        wait_for: Optional[Iterable[PrefectFuture]] = None,
-        dependencies: Optional[Dict[str, Set[TaskRunInput]]] = None,
-    ):
+        context: dict[str, Any],
+        parameters: dict[str, Any],
+        wait_for: Iterable[PrefectFuture[Any]] | None = None,
+        dependencies: dict[str, set[TaskRunInput]] | None = None,
+    ) -> State:
         """Resolves Ray futures before calling the actual Prefect task function.
 
         Passing upstream_ray_obj_refs directly as args enables Ray to wait for
@@ -364,7 +365,7 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture]):
         """
 
         # Resolve Ray futures to ensure that the task function receives the actual values
-        def resolve_ray_future(expr):
+        def resolve_ray_future(expr: Any):
             """Resolves Ray future."""
             if isinstance(expr, ray.ObjectRef):
                 return ray.get(expr)
@@ -374,7 +375,7 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture]):
             parameters, visit_fn=resolve_ray_future, return_data=True
         )
 
-        run_task_kwargs = {
+        run_task_kwargs: dict[str, Any] = {
             "task": task,
             "task_run_id": task_run_id,
             "parameters": parameters,
@@ -384,14 +385,17 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture]):
             "return_type": "state",
         }
 
-        # Ray does not support the submission of async functions and we must create a
-        # sync entrypoint
-        if task.isasync:
-            return asyncio.run(run_task_async(**run_task_kwargs))
-        else:
-            return run_task_sync(**run_task_kwargs)
+        try:
+            # Ray does not support the submission of async functions and we must create a
+            # sync entrypoint
+            if task.isasync:
+                return asyncio.run(run_task_async(**run_task_kwargs))
+            else:
+                return run_task_sync(**run_task_kwargs)
+        except Exception as exc:
+            return run_coro_as_sync(exception_to_crashed_state(exc))
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         super().__enter__()
 
         if ray.is_initialized():
@@ -424,7 +428,7 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture]):
 
         return self
 
-    def __exit__(self, *exc_info):
+    def __exit__(self, *exc_info: Any):
         """
         Shuts down the driver/cluster.
         """

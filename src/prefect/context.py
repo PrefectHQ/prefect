@@ -52,7 +52,6 @@ def serialize_context() -> dict[str, Any]:
     """
     Serialize the current context for use in a remote execution environment.
     """
-
     flow_run_context = EngineContext.get()
     task_run_context = TaskRunContext.get()
     tags_context = TagsContext.get()
@@ -71,6 +70,8 @@ def hydrated_context(
     serialized_context: Optional[dict[str, Any]] = None,
     client: Union[PrefectClient, SyncPrefectClient, None] = None,
 ) -> Generator[None, Any, None]:
+    from prefect.main import _types
+
     with ExitStack() as stack:
         if serialized_context:
             # Set up settings context
@@ -81,6 +82,7 @@ def hydrated_context(
             if flow_run_context := serialized_context.get("flow_run_context"):
                 flow = flow_run_context["flow"]
                 task_runner = stack.enter_context(flow.task_runner.duplicate())
+                FlowRunContext.model_rebuild(_types_namespace=_types)
                 flow_run_context = FlowRunContext(
                     **flow_run_context,
                     client=client,
