@@ -12,6 +12,7 @@ from typing import (
     Generator,
     Generic,
     TypeVar,
+    Union,
 )
 
 from typing_extensions import Self, TypeAlias
@@ -27,7 +28,7 @@ if sys.version_info >= (3, 12):
 else:
     LoggingAdapter = logging.LoggerAdapter
 
-LoggerOrAdapter: TypeAlias = Logger | LoggingAdapter
+LoggerOrAdapter: TypeAlias = Union[Logger, LoggingAdapter]
 
 
 class CredentialsBlock(Block, ABC):
