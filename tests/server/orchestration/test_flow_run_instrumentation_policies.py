@@ -583,6 +583,7 @@ async def test_instrumenting_a_flow_run_from_a_work_queue(
                 "prefect.resource.id": f"prefect.work-pool.{work_pool.id}",
                 "prefect.resource.role": "work-pool",
                 "prefect.resource.name": work_pool.name,
+                "prefect.work-pool.type": work_pool.type,
             }
         )
         in event.related
@@ -880,6 +881,7 @@ async def test_caches_resource_data(
             "name": work_pool.name,
             "tags": [],
             "role": "work-pool",
+            "type": work_pool.type,
         },
         "task-run": {},
     }
@@ -960,6 +962,7 @@ async def test_caches_resource_data_for_subflow_runs(
             "name": work_pool.name,
             "tags": [],
             "role": "work-pool",
+            "type": work_pool.type,
         },
         "task-run": {
             "id": str(task_run.id),
