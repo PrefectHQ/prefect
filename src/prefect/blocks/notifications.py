@@ -496,7 +496,7 @@ class OpsgenieWebhook(AbstractAppriseNotificationBlock):
         default=None, description="The entity to associate with the message."
     )
 
-    details: dict[str, str] | None = Field(
+    details: Optional[dict[str, str]] = Field(
         default=None,
         description="Additional details composed of key/values pairs.",
         examples=['{"key1": "value1", "key2": "value2"}'],
@@ -582,7 +582,7 @@ class MattermostWebhook(AbstractAppriseNotificationBlock):
         description="The name of the bot that will send the message.",
     )
 
-    channels: list[str] | None = Field(
+    channels: Optional[list[str]] = Field(
         default=None,
         description="The channel(s) you wish to notify.",
     )
@@ -769,7 +769,7 @@ class CustomWebhookNotificationBlock(NotificationBlock):
         default="POST", description="The webhook request method. Defaults to `POST`."
     )
 
-    params: dict[str, str] | None = Field(
+    params: Optional[dict[str, str]] = Field(
         default=None, title="Query Params", description="Custom query params."
     )
     json_data: Optional[dict[str, Any]] = Field(
@@ -781,7 +781,7 @@ class CustomWebhookNotificationBlock(NotificationBlock):
             ' "{{tokenFromSecrets}}"}'
         ],
     )
-    form_data: dict[str, str] | None = Field(
+    form_data: Optional[dict[str, str]] = Field(
         default=None,
         title="Form Data",
         description=(
@@ -793,8 +793,8 @@ class CustomWebhookNotificationBlock(NotificationBlock):
         ],
     )
 
-    headers: dict[str, str] | None = Field(None, description="Custom headers.")
-    cookies: dict[str, str] | None = Field(None, description="Custom cookies.")
+    headers: Optional[dict[str, str]] = Field(None, description="Custom headers.")
+    cookies: Optional[dict[str, str]] = Field(None, description="Custom cookies.")
 
     timeout: float = Field(
         default=10, description="Request timeout in seconds. Defaults to 10."
