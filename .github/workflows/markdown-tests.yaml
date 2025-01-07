@@ -52,8 +52,7 @@ concurrency:
 
 jobs:
   run-markdown-tests:
-    runs-on:
-      group: oss-larger-runners
+    runs-on: ubuntu-latest
     name: markdown:${{ matrix.python-version }}, ${{ matrix.database }}
     strategy:
       matrix:
