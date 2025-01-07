@@ -123,8 +123,8 @@ def test_meter_provider(telemetry_account_id: UUID, telemetry_workspace_id: UUID
     assert isinstance(meter_provider, MeterProvider)
 
     metric_reader = list(meter_provider._all_metric_readers)[0]
-    exporter = metric_reader._exporter
     assert isinstance(metric_reader, PeriodicExportingMetricReader)
+    exporter = metric_reader._exporter
     assert isinstance(exporter, OTLPMetricExporter)
 
     resource_attributes = {
