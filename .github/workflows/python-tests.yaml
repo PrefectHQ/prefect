@@ -55,15 +55,13 @@ jobs:
       matrix:
         test-type:
           - name: Server Tests
-            modules: tests/server/ tests/events/server --ignore=tests/server/database/
-          - name: Server Database Tests
-            modules: tests/server/database/
+            modules: tests/server/ tests/events/server --ignore=tests/server/database/ --ignore=tests/server/models/
+          - name: Database Tests
+            modules: tests/server/database/ tests/server/models/
           - name: Client Tests
             modules: tests/ --ignore=tests/typesafety --ignore=tests/server/ --ignore=tests/events/server --ignore=tests/test_task_runners.py --ignore=tests/runner --ignore=tests/workers --ignore=tests/cli/
-          - name: Runner and Worker Tests
-            modules: tests/test_task_runners.py tests/runner tests/workers
-          - name: CLI Tests
-            modules: tests/cli/
+          - name: Runner, Worker, and CLI Tests
+            modules: tests/test_task_runners.py tests/runner tests/workers tests/cli/
         database:
           - "postgres:14"
           - "sqlite"
@@ -79,12 +77,8 @@ jobs:
               modules: tests/ --ignore=tests/typesafety --ignore=tests/server/ --ignore=tests/events/server --ignore=tests/test_task_runners.py --ignore=tests/runner --ignore=tests/workers --ignore=tests/cli/
           - database: "sqlite"
             test-type:
-              name: Runner and Worker Tests
-              modules: tests/test_task_runners.py tests/runner tests/workers
-          - database: "sqlite"
-            test-type:
-              name: CLI Tests
-              modules: tests/cli/
+              name: Runner, Worker, and CLI Tests
+              modules: tests/test_task_runners.py tests/runner tests/workers tests/cli/
 
       fail-fast: true
 
