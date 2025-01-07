@@ -388,7 +388,7 @@ Create an EventBridge rule named `training-data-changed` to trigger model traini
 ```
 * Target:  
 An API destination named `model-training-webhook`, set to the endpoint for the `model-training` webhook that you created in Prefect Cloud.
-  * To make authentication work, create a new Connection, configure its authorization to use **API Key**, and set the **API key name** to `Authorization` and the **Value** to `Bearer <your-prefect-service-account-api-key>`.
+  * To authenticate with the webhook, create a new Connection, configure its authorization to use **API Key**, and set the **API key name** to `Authorization` and the **Value** to `Bearer <your-prefect-service-account-api-key>`.
     * The service account API key is the same as the API key you created for the `s3` service account in Prefect Cloud.
 
 #### Trigger inference when the model changes
