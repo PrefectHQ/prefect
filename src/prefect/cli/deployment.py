@@ -71,8 +71,12 @@ schedule_app: PrefectTyper = PrefectTyper(
     name="schedule", help="Manage deployment schedules."
 )
 
-deployment_app.add_typer(schedule_app, aliases=["schedule"])
-app.add_typer(deployment_app, aliases=["deployments"])
+deployment_app.add_typer(schedule_app, no_args_is_help=True)
+deployment_app.add_typer(
+    schedule_app, name="schedule", hidden=True, no_args_is_help=True
+)
+app.add_typer(deployment_app, no_args_is_help=True)
+app.add_typer(deployment_app, name="deployments", hidden=True, no_args_is_help=True)
 
 
 def assert_deployment_name_format(name: str) -> None:
@@ -207,7 +211,7 @@ class RichTextIO:
         self.console.print(content)
 
 
-@deployment_app.command()
+@deployment_app.acommand()
 async def inspect(name: str):
     """
     View details about a deployment.
@@ -279,7 +283,7 @@ async def inspect(name: str):
     app.console.print(Pretty(deployment_json))
 
 
-@schedule_app.command("create")
+@schedule_app.acommand("create")
 async def create_schedule(
     name: str,
     interval: Optional[float] = typer.Option(
@@ -438,7 +442,7 @@ async def create_schedule(
             exit_with_success("Created deployment schedule!")
 
 
-@schedule_app.command("delete")
+@schedule_app.acommand("delete")
 async def delete_schedule(
     deployment_name: str,
     schedule_id: UUID,
@@ -478,7 +482,7 @@ async def delete_schedule(
         exit_with_success(f"Deleted deployment schedule {schedule_id}")
 
 
-@schedule_app.command("pause")
+@schedule_app.acommand("pause")
 async def pause_schedule(deployment_name: str, schedule_id: UUID):
     """
     Pause a deployment schedule.
@@ -509,7 +513,7 @@ async def pause_schedule(deployment_name: str, schedule_id: UUID):
         )
 
 
-@schedule_app.command("resume")
+@schedule_app.acommand("resume")
 async def resume_schedule(deployment_name: str, schedule_id: UUID):
     """
     Resume a deployment schedule.
@@ -538,7 +542,7 @@ async def resume_schedule(deployment_name: str, schedule_id: UUID):
         )
 
 
-@schedule_app.command("ls")
+@schedule_app.acommand("ls")
 async def list_schedules(deployment_name: str):
     """
     View all schedules for a deployment.
@@ -581,7 +585,7 @@ async def list_schedules(deployment_name: str):
     app.console.print(table)
 
 
-@schedule_app.command("clear")
+@schedule_app.acommand("clear")
 async def clear_schedules(
     deployment_name: str,
     assume_yes: bool = typer.Option(
@@ -618,7 +622,7 @@ async def clear_schedules(
         exit_with_success(f"Cleared all schedules for deployment {deployment_name}")
 
 
-@deployment_app.command()
+@deployment_app.acommand()
 async def ls(flow_name: Optional[list[str]] = None, by_created: bool = False):
     """
     View all deployments or deployments for specific flows.
@@ -667,7 +671,7 @@ async def ls(flow_name: Optional[list[str]] = None, by_created: bool = False):
     app.console.print(table)
 
 
-@deployment_app.command()
+@deployment_app.acommand()
 async def run(
     name: Optional[str] = typer.Argument(
         None, help="A deployed flow's name: <FLOW_NAME>/<DEPLOYMENT_NAME>"
@@ -913,7 +917,7 @@ async def run(
         )
 
 
-@deployment_app.command()
+@deployment_app.acommand()
 async def delete(
     name: Optional[str] = typer.Argument(
         None, help="A deployed flow's name: <FLOW_NAME>/<DEPLOYMENT_NAME>"

@@ -62,8 +62,9 @@ cloud_app: PrefectTyper = PrefectTyper(
 workspace_app: PrefectTyper = PrefectTyper(
     name="workspace", help="View and set Prefect Cloud Workspaces"
 )
-cloud_app.add_typer(workspace_app, aliases=["workspaces"])
-app.add_typer(cloud_app)
+cloud_app.add_typer(workspace_app, no_args_is_help=True)
+cloud_app.add_typer(workspace_app, name="workspaces", hidden=True, no_args_is_help=True)
+app.add_typer(cloud_app, no_args_is_help=True)
 
 
 def set_login_api_ready_event() -> None:
@@ -374,7 +375,7 @@ async def _prompt_for_account_and_workspace(
         return result, False
 
 
-@cloud_app.command()
+@cloud_app.acommand()
 async def login(
     key: Optional[str] = typer.Option(
         None, "--key", "-k", help="API Key to authenticate with Prefect"
@@ -576,7 +577,7 @@ async def login(
     )
 
 
-@cloud_app.command()
+@cloud_app.acommand()
 async def logout():
     """
     Logout the current workspace.
@@ -597,15 +598,15 @@ async def logout():
     exit_with_success("Logged out from Prefect Cloud.")
 
 
-@cloud_app.command(
+@cloud_app.acommand(
     deprecated=True,
-    deprecated_name="prefect cloud open",
-    deprecated_start_date="Oct 2024",
-    deprecated_help="Use `prefect dashboard open` to open the Prefect UI.",
+    hidden=True,
 )
 async def open():
     """
     Open the Prefect Cloud UI in the browser.
+    Will be removed after April 2025.
+    Use `prefect dashboard open` to open the Prefect UI.
     """
     confirm_logged_in()
 
@@ -625,7 +626,7 @@ async def open():
     exit_with_success(f"Opened {current_workspace.handle!r} in browser.")
 
 
-@workspace_app.command()
+@workspace_app.acommand()
 async def ls():
     """List available workspaces."""
 
@@ -655,7 +656,7 @@ async def ls():
     app.console.print(table)
 
 
-@workspace_app.command()
+@workspace_app.acommand()
 async def set(
     workspace_handle: str = typer.Option(
         None,

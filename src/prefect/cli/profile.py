@@ -27,7 +27,8 @@ from prefect.settings import ProfilesCollection
 from prefect.utilities.collections import AutoEnum
 
 profile_app = PrefectTyper(name="profile", help="Select and manage Prefect profiles.")
-app.add_typer(profile_app, aliases=["profiles"])
+app.add_typer(profile_app, no_args_is_help=True)
+app.add_typer(profile_app, name="profiles", hidden=True, no_args_is_help=True)
 
 _OLD_MINIMAL_DEFAULT_PROFILE_CONTENT: str = """active = "default"
 
@@ -107,7 +108,7 @@ def create(
     )
 
 
-@profile_app.command()
+@profile_app.acommand()
 async def use(name: str):
     """
     Set the given profile to active.

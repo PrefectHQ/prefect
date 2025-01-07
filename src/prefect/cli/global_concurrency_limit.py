@@ -27,14 +27,17 @@ global_concurrency_limit_app = PrefectTyper(
     help="Manage global concurrency limits.",
 )
 
-app.add_typer(global_concurrency_limit_app, aliases=["gcl"])
+app.add_typer(global_concurrency_limit_app, no_args_is_help=True)
+app.add_typer(
+    global_concurrency_limit_app, name="gcl", hidden=True, no_args_is_help=True
+)
 
 
 class OutputFormat(Enum):
     JSON = "json"
 
 
-@global_concurrency_limit_app.command("ls")
+@global_concurrency_limit_app.acommand("ls")
 async def list_global_concurrency_limits():
     """
     List all global concurrency limits.
@@ -74,7 +77,7 @@ async def list_global_concurrency_limits():
     app.console.print(table)
 
 
-@global_concurrency_limit_app.command("inspect")
+@global_concurrency_limit_app.acommand("inspect")
 async def inspect_global_concurrency_limit(
     name: str = typer.Argument(
         ..., help="The name of the global concurrency limit to inspect."
@@ -138,7 +141,7 @@ async def inspect_global_concurrency_limit(
         app.console.print(Pretty(gcl_limit))
 
 
-@global_concurrency_limit_app.command("delete")
+@global_concurrency_limit_app.acommand("delete")
 async def delete_global_concurrency_limit(
     name: str = typer.Argument(
         ..., help="The name of the global concurrency limit to delete."
@@ -167,7 +170,7 @@ async def delete_global_concurrency_limit(
     exit_with_success(f"Deleted global concurrency limit with name {name!r}.")
 
 
-@global_concurrency_limit_app.command("enable")
+@global_concurrency_limit_app.acommand("enable")
 async def enable_global_concurrency_limit(
     name: str = typer.Argument(
         ..., help="The name of the global concurrency limit to enable."
@@ -196,7 +199,7 @@ async def enable_global_concurrency_limit(
     exit_with_success(f"Enabled global concurrency limit with name {name!r}.")
 
 
-@global_concurrency_limit_app.command("disable")
+@global_concurrency_limit_app.acommand("disable")
 async def disable_global_concurrency_limit(
     name: str = typer.Argument(
         ..., help="The name of the global concurrency limit to disable."
@@ -225,7 +228,7 @@ async def disable_global_concurrency_limit(
     exit_with_success(f"Disabled global concurrency limit with name {name!r}.")
 
 
-@global_concurrency_limit_app.command("update")
+@global_concurrency_limit_app.acommand("update")
 async def update_global_concurrency_limit(
     name: str = typer.Argument(
         ..., help="The name of the global concurrency limit to update."
@@ -315,7 +318,7 @@ async def update_global_concurrency_limit(
     exit_with_success(f"Updated global concurrency limit with name {name!r}.")
 
 
-@global_concurrency_limit_app.command("create")
+@global_concurrency_limit_app.acommand("create")
 async def create_global_concurrency_limit(
     name: str = typer.Argument(
         ..., help="The name of the global concurrency limit to create."

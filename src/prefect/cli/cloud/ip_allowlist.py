@@ -19,7 +19,10 @@ from prefect.logging.loggers import get_logger
 ip_allowlist_app: PrefectTyper = PrefectTyper(
     name="ip-allowlist", help="Manage Prefect Cloud IP Allowlists"
 )
-cloud_app.add_typer(ip_allowlist_app, aliases=["ip-allowlists"])
+cloud_app.add_typer(ip_allowlist_app, no_args_is_help=True)
+cloud_app.add_typer(
+    ip_allowlist_app, name="ip-allowlists", hidden=True, no_args_is_help=True
+)
 
 logger: Logger = get_logger(__name__)
 
@@ -50,7 +53,7 @@ async def _require_access_to_ip_allowlisting(ctx: typer.Context) -> None:
     ctx.meta["enforce_ip_allowlist"] = enforce_ip_allowlist
 
 
-@ip_allowlist_app.command()
+@ip_allowlist_app.acommand()
 async def enable(ctx: typer.Context) -> None:
     """Enable the IP allowlist for your account. When enabled, if the allowlist is non-empty, then access to your Prefect Cloud account will be restricted to only those IP addresses on the allowlist."""
     enforcing_ip_allowlist = ctx.meta["enforce_ip_allowlist"]
@@ -76,7 +79,7 @@ async def enable(ctx: typer.Context) -> None:
     exit_with_success("IP allowlist enabled.")
 
 
-@ip_allowlist_app.command()
+@ip_allowlist_app.acommand()
 async def disable():
     """Disable the IP allowlist for your account. When disabled, all IP addresses will be allowed to access your Prefect Cloud account."""
     async with get_cloud_client(infer_cloud_url=True) as client:
@@ -85,7 +88,7 @@ async def disable():
     exit_with_success("IP allowlist disabled.")
 
 
-@ip_allowlist_app.command()
+@ip_allowlist_app.acommand()
 async def ls(ctx: typer.Context):
     """Fetch and list all IP allowlist entries in your account."""
     async with get_cloud_client(infer_cloud_url=True) as client:
@@ -118,7 +121,7 @@ IP_ARGUMENT = Annotated[
 ]
 
 
-@ip_allowlist_app.command()
+@ip_allowlist_app.acommand()
 async def add(
     ctx: typer.Context,
     ip_address_or_range: IP_ARGUMENT,
@@ -163,7 +166,7 @@ async def add(
         )
 
 
-@ip_allowlist_app.command()
+@ip_allowlist_app.acommand()
 async def remove(ctx: typer.Context, ip_address_or_range: IP_ARGUMENT):
     """Remove an IP entry from your account IP allowlist."""
     async with get_cloud_client(infer_cloud_url=True) as client:
@@ -185,7 +188,7 @@ async def remove(ctx: typer.Context, ip_address_or_range: IP_ARGUMENT):
         )
 
 
-@ip_allowlist_app.command()
+@ip_allowlist_app.acommand()
 async def toggle(ctx: typer.Context, ip_address_or_range: IP_ARGUMENT):
     """Toggle the enabled status of an individual IP entry in your account IP allowlist."""
     async with get_cloud_client(infer_cloud_url=True) as client:

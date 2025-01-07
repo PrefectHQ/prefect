@@ -23,13 +23,14 @@ from prefect.client.schemas.sorting import LogSort, TaskRunSort
 from prefect.exceptions import ObjectNotFound
 
 task_run_app = PrefectTyper(name="task-run", help="View and inspect task runs.")
-app.add_typer(task_run_app, aliases=["task-runs"])
+app.add_typer(task_run_app, no_args_is_help=True)
+app.add_typer(task_run_app, name="task-runs", hidden=True, no_args_is_help=True)
 
 LOGS_DEFAULT_PAGE_SIZE = 200
 LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS = 20
 
 
-@task_run_app.command()
+@task_run_app.acommand()
 async def inspect(id: UUID):
     """
     View details about a task run.
@@ -46,7 +47,7 @@ async def inspect(id: UUID):
     app.console.print(Pretty(task_run))
 
 
-@task_run_app.command()
+@task_run_app.acommand()
 async def ls(
     task_run_name: List[str] = typer.Option(None, help="Name of the task"),
     limit: int = typer.Option(15, help="Maximum number of task runs to list"),
@@ -100,7 +101,7 @@ async def ls(
     app.console.print(table)
 
 
-@task_run_app.command()
+@task_run_app.acommand()
 async def logs(
     id: UUID,
     head: bool = typer.Option(
