@@ -28,10 +28,7 @@ concurrency:
 jobs:
   run-benchmarks:
     name: Benchmark
-    # Runs with ephemeral API and SQLite database right now
-
-    runs-on:
-      group: oss-larger-runners
+    runs-on: ubuntu-latest
     timeout-minutes: 20
 
     steps:

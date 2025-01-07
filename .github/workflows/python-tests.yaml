@@ -49,18 +49,30 @@ concurrency:
 
 jobs:
   run-tests:
-    runs-on:
-      group: oss-larger-runners
+    runs-on: ubuntu-latest
     name: ${{ matrix.test-type.name }} - python:${{ matrix.python-version }}, ${{ matrix.database }}
     strategy:
+      fail-fast: false
       matrix:
         test-type:
           - name: Server Tests
-            modules: tests/server/ tests/events/server
+            modules: tests/server/ tests/events/server --ignore=tests/server/database/ --ignore=tests/server/orchestration/
+          - name: Database and Orchestration Tests
+            modules: tests/server/database/ tests/server/orchestration/
           - name: Client Tests
-            modules: tests/ --ignore=tests/typesafety --ignore=tests/server/ --ignore=tests/events/server --ignore=tests/test_task_runners.py --ignore=tests/runner --ignore=tests/workers
-          - name: Runner and Worker Tests
-            modules: tests/test_task_runners.py tests/runner tests/workers
+            modules: >-
+              tests/
+              --ignore=tests/typesafety
+              --ignore=tests/server/
+              --ignore=tests/events/server
+              --ignore=tests/test_task_runners.py
+              --ignore=tests/runner
+              --ignore=tests/workers
+              --ignore=tests/cli/
+              --ignore=tests/test_settings.py
+              --ignore=tests/input/
+          - name: Runner, Worker, Settings, Input, and CLI Tests
+            modules: tests/test_task_runners.py tests/runner tests/workers tests/cli/ tests/test_settings.py tests/input/
         database:
           - "postgres:14"
           - "sqlite"
@@ -73,13 +85,21 @@ jobs:
           - database: "sqlite"
             test-type:
               name: Client Tests
-              modules: tests/ --ignore=tests/typesafety --ignore=tests/server/ --ignore=tests/events/server --ignore=tests/test_task_runners.py --ignore=tests/runner --ignore=tests/workers
+              modules: >-
+                tests/
+                --ignore=tests/typesafety
+                --ignore=tests/server/
+                --ignore=tests/events/server
+                --ignore=tests/test_task_runners.py
+                --ignore=tests/runner
+                --ignore=tests/workers
+                --ignore=tests/cli/
+                --ignore=tests/test_settings.py
+                --ignore=tests/input/
           - database: "sqlite"
             test-type:
-              name: Runner and Worker Tests
-              modules: tests/test_task_runners.py tests/runner tests/workers
-
-      fail-fast: true
+              name: Runner, Worker, Settings, Input, and CLI Tests
+              modules: tests/test_task_runners.py tests/runner tests/workers tests/cli/ tests/test_settings.py tests/input/
 
     timeout-minutes: 15
 
@@ -148,26 +168,8 @@ jobs:
           --publish 6379:6379
           redis:latest
 
-      - name: Set coverage file and artifact name
-        id: set_coverage_and_artifact_name
-        run: |
-          sanitized_test_type="${{ matrix.test-type.name }}"
-          sanitized_test_type="${sanitized_test_type// /_}"
-          sanitized_database="${{ matrix.database }}"
-          sanitized_database="${sanitized_database//:/\-}"
-          sanitized_python_version="${{ matrix.python-version }}"
-          export COVERAGE_FILE=".coverage.${sanitized_test_type}.${sanitized_python_version}.${sanitized_database}"
-          echo "COVERAGE_FILE=${COVERAGE_FILE}" >> $GITHUB_ENV
-          echo "artifact_name=coverage-data-${sanitized_test_type}-${{ matrix.python-version }}-${sanitized_database}" >> $GITHUB_OUTPUT
-
-      - name: Set coverage core
-        if: ${{ matrix.python-version == '3.12' }}
-        run: |
-          echo "COVERAGE_CORE=sysmon" >> $GITHUB_ENV
-
       - name: Run tests
         run: |
-          echo "Using COVERAGE_FILE=$COVERAGE_FILE"
           pytest ${{ matrix.test-type.modules }} \
           --numprocesses auto \
           --maxprocesses 6 \
@@ -176,17 +178,6 @@ jobs:
           --exclude-service kubernetes \
           --exclude-service docker \
           --durations 26 \
-          --cov=prefect \
-          --cov-config=setup.cfg \
-          --cov-report=''
-
-      - name: Upload coverage data
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ steps.set_coverage_and_artifact_name.outputs.artifact_name }}
-          path: ${{ env.COVERAGE_FILE }}
-          include-hidden-files: true
-          retention-days: 1
 
       - name: Create and Upload failure flag
         if: ${{ failure() }}
@@ -213,8 +204,7 @@ jobs:
           || echo "Ignoring bad exit code"
 
   run-docker-tests:
-    runs-on:
-      group: oss-larger-runners
+    runs-on: ubuntu-latest
     name: docker, python:${{ matrix.python-version }}
     strategy:
       matrix:
@@ -226,7 +216,7 @@ jobs:
           - "3.11"
           - "3.12"
 
-      fail-fast: true
+      fail-fast: false
 
     timeout-minutes: 45
 
@@ -346,21 +336,6 @@ jobs:
           --publish 6379:6379
           redis:latest
 
-      - name: Set coverage file and artifact name
-        id: set_coverage_and_artifact_name
-        run: |
-          sanitized_database="${{ matrix.database }}"
-          sanitized_database="${sanitized_database//:/\-}"
-          sanitized_python_version="${{ matrix.python-version }}"
-          export COVERAGE_FILE=".coverage.${sanitized_python_version}.${sanitized_database}"
-          echo "COVERAGE_FILE=${COVERAGE_FILE}" >> $GITHUB_ENV
-          echo "artifact_name=coverage-data-docker-${{ matrix.python-version }}-${sanitized_database}" >> $GITHUB_OUTPUT
-
-      - name: Set coverage core
-        if: ${{ matrix.python-version == '3.12' }}
-        run: |
-          echo "COVERAGE_CORE=sysmon" >> $GITHUB_ENV
-
       - name: Run tests
         run: |
           echo "Using COVERAGE_FILE=$COVERAGE_FILE"
@@ -371,17 +346,6 @@ jobs:
           --disable-docker-image-builds \
           --only-service docker \
           --durations 26 \
-          --cov=prefect \
-          --cov-config=setup.cfg \
-          --cov-report=''
-
-      - name: Upload coverage data
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ steps.set_coverage_and_artifact_name.outputs.artifact_name }}
-          path: ${{ env.COVERAGE_FILE }}
-          include-hidden-files: true
-          retention-days: 1
 
       - name: Create and Upload failure flag
         if: ${{ failure() }}
@@ -406,49 +370,6 @@ jobs:
           docker container inspect postgres \
           && docker container logs postgres \
           || echo "Ignoring bad exit code"
-
-  combine-coverage:
-    runs-on: ubuntu-latest
-    needs:
-      - run-tests
-      - run-docker-tests
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
-        id: setup_python
-        with:
-          python-version: "3.12"
-
-      - name: Download coverage data artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: coverage-data-*
-          merge-multiple: true
-
-      - name: Install coverage
-        run: pip install coverage
-
-      - name: Combine coverage data
-        run: coverage combine
-
-      - name: Generate HTML coverage report
-        run: coverage html
-
-      - name: Upload combined coverage report
-        uses: actions/upload-artifact@v4
-        with:
-          name: combined-coverage-report
-          path: htmlcov/
-
-      - name: Publish coverage markdown report
-        run: |
-          echo "## Coverage Report" >> $GITHUB_STEP_SUMMARY
-          echo "[Detailed Report](${{ steps.upload_combined_coverage_report.outputs.artifact_url }})" >> $GITHUB_STEP_SUMMARY
-          coverage report --format=markdown >> $GITHUB_STEP_SUMMARY
 
   run-typesafety-test:
     name: typesafety
