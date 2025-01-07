@@ -30,15 +30,18 @@ const flowHandlers = [
 			],
 		});
 	}),
+
+	http.post(buildApiUrl("/deployments/count"), () => {
+		return HttpResponse.json(1);
+	}),
+];
+
+const flowRunHandlers = [
 	http.post(buildApiUrl("/flow_runs/filter"), () => {
 		return HttpResponse.json([
 			{ id: "1", name: "Flow 1", tags: [] },
 			{ id: "2", name: "Flow 2", tags: [] },
 		]);
-	}),
-
-	http.post(buildApiUrl("/deployments/count"), () => {
-		return HttpResponse.json(1);
 	}),
 ];
 
@@ -93,6 +96,7 @@ const variablesHandlers = [
 export const handlers = [
 	...automationsHandlers,
 	...flowHandlers,
+	...flowRunHandlers,
 	...globalConcurrencyLimitsHandlers,
 	...taskRunConcurrencyLimitsHandlers,
 	...variablesHandlers,

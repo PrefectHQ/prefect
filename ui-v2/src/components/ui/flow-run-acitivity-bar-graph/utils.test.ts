@@ -204,7 +204,9 @@ describe("organizeFlowRunsWithGaps", () => {
 				endDate,
 				numberOfBars,
 			),
-		).toThrow("Number of flow runs is greater than the number of buckets");
+		).toThrow(
+			`Number of flow runs (${flowRuns.length}) is greater than the number of buckets (${numberOfBars})`,
+		);
 	});
 
 	it("should sort runs chronologically for future time spans", () => {
