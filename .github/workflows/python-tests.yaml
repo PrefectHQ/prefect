@@ -56,12 +56,22 @@ jobs:
         test-type:
           - name: Server Tests
             modules: tests/server/ tests/events/server --ignore=tests/server/database/ --ignore=tests/server/models/
-          - name: Database Tests
-            modules: tests/server/database/ tests/server/models/
+          - name: Database and Orchestration Tests
+            modules: tests/server/database/ tests/server/models/ tests/server/orchestration/
           - name: Client Tests
-            modules: tests/ --ignore=tests/typesafety --ignore=tests/server/ --ignore=tests/events/server --ignore=tests/test_task_runners.py --ignore=tests/runner --ignore=tests/workers --ignore=tests/cli/
-          - name: Runner, Worker, and CLI Tests
-            modules: tests/test_task_runners.py tests/runner tests/workers tests/cli/
+            modules: >-
+              tests/
+              --ignore=tests/typesafety
+              --ignore=tests/server/
+              --ignore=tests/events/server
+              --ignore=tests/test_task_runners.py
+              --ignore=tests/runner
+              --ignore=tests/workers
+              --ignore=tests/cli/
+              --ignore=tests/test_settings.py
+              --ignore=tests/input/
+          - name: Runner, Worker, Settings, Input, and CLI Tests
+            modules: tests/test_task_runners.py tests/runner tests/workers tests/cli/ tests/test_settings.py tests/input/
         database:
           - "postgres:14"
           - "sqlite"
@@ -74,11 +84,21 @@ jobs:
           - database: "sqlite"
             test-type:
               name: Client Tests
-              modules: tests/ --ignore=tests/typesafety --ignore=tests/server/ --ignore=tests/events/server --ignore=tests/test_task_runners.py --ignore=tests/runner --ignore=tests/workers --ignore=tests/cli/
+              modules: >-
+                tests/
+                --ignore=tests/typesafety
+                --ignore=tests/server/
+                --ignore=tests/events/server
+                --ignore=tests/test_task_runners.py
+                --ignore=tests/runner
+                --ignore=tests/workers
+                --ignore=tests/cli/
+                --ignore=tests/test_settings.py
+                --ignore=tests/input/
           - database: "sqlite"
             test-type:
-              name: Runner, Worker, and CLI Tests
-              modules: tests/test_task_runners.py tests/runner tests/workers tests/cli/
+              name: Runner, Worker, Settings, Input, and CLI Tests
+              modules: tests/test_task_runners.py tests/runner tests/workers tests/cli/ tests/test_settings.py tests/input/
 
       fail-fast: true
 
