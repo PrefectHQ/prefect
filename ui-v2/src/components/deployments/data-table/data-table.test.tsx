@@ -1,10 +1,27 @@
 import type { DeploymentWithFlow } from "@/api/deployments";
+import { createFakeFlowRunWithDeploymentAndFlow } from "@/mocks/create-fake-flow-run";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, test, vi } from "vitest";
+import { buildApiUrl, createWrapper, server } from "@tests/utils";
+import { HttpResponse } from "msw";
+import { http } from "msw";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DeploymentsDataTable } from ".";
 
 describe("DeploymentsDataTable", () => {
+	beforeEach(() => {
+		console.log("beforeEach");
+		server.use(
+			http.post(buildApiUrl("/flow_runs/filter"), async ({ request }) => {
+				const { limit } = (await request.json()) as { limit: number };
+				console.log("limit", limit);
+
+				return HttpResponse.json(
+					Array.from({ length: limit }, createFakeFlowRunWithDeploymentAndFlow),
+				);
+			}),
+		);
+	});
 	const mockDeployment: DeploymentWithFlow = {
 		id: "test-id",
 		created: new Date().toISOString(),
@@ -32,33 +49,41 @@ describe("DeploymentsDataTable", () => {
 		onDuplicate: vi.fn(),
 	};
 
-	test("renders deployment name and flow name", () => {
-		render(<DeploymentsDataTable {...defaultProps} />);
+	it("renders deployment name and flow name", () => {
+		render(<DeploymentsDataTable {...defaultProps} />, {
+			wrapper: createWrapper(),
+		});
 
 		expect(screen.getByText("Test Deployment")).toBeInTheDocument();
 		expect(screen.getByText("test-flow")).toBeInTheDocument();
 	});
 
-	test("renders status badge", () => {
-		render(<DeploymentsDataTable {...defaultProps} />);
+	it("renders status badge", () => {
+		render(<DeploymentsDataTable {...defaultProps} />, {
+			wrapper: createWrapper(),
+		});
 
 		expect(screen.getByText("Ready")).toBeInTheDocument();
 	});
 
-	test("renders tags", () => {
-		render(<DeploymentsDataTable {...defaultProps} />);
+	it("renders tags", () => {
+		render(<DeploymentsDataTable {...defaultProps} />, {
+			wrapper: createWrapper(),
+		});
 
 		expect(screen.getByText("tag1")).toBeInTheDocument();
 		expect(screen.getByText("tag2")).toBeInTheDocument();
 	});
 
-	test("renders with empty deployments array", () => {
-		render(<DeploymentsDataTable {...defaultProps} deployments={[]} />);
+	it("renders with empty deployments array", () => {
+		render(<DeploymentsDataTable {...defaultProps} deployments={[]} />, {
+			wrapper: createWrapper(),
+		});
 
 		expect(screen.queryByText("No Results")).not.toBeInTheDocument();
 	});
 
-	test("renders multiple deployments", () => {
+	it("renders multiple deployments", () => {
 		const multipleDeployments = [
 			mockDeployment,
 			{
@@ -81,6 +106,9 @@ describe("DeploymentsDataTable", () => {
 				{...defaultProps}
 				deployments={multipleDeployments}
 			/>,
+			{
+				wrapper: createWrapper(),
+			},
 		);
 
 		expect(screen.getByText("Test Deployment")).toBeInTheDocument();
@@ -89,9 +117,11 @@ describe("DeploymentsDataTable", () => {
 		expect(screen.getByText("second-flow")).toBeInTheDocument();
 	});
 
-	test("calls onQuickRun when quick run action is clicked", async () => {
+	it("calls onQuickRun when quick run action is clicked", async () => {
 		const onQuickRun = vi.fn();
-		render(<DeploymentsDataTable {...defaultProps} onQuickRun={onQuickRun} />);
+		render(<DeploymentsDataTable {...defaultProps} onQuickRun={onQuickRun} />, {
+			wrapper: createWrapper(),
+		});
 
 		await userEvent.click(screen.getByRole("button", { name: "Open menu" }));
 		const quickRunButton = screen.getByRole("menuitem", { name: "Quick Run" });
@@ -100,10 +130,13 @@ describe("DeploymentsDataTable", () => {
 		expect(onQuickRun).toHaveBeenCalledWith(mockDeployment);
 	});
 
-	test("calls onCustomRun when custom run action is clicked", async () => {
+	it("calls onCustomRun when custom run action is clicked", async () => {
 		const onCustomRun = vi.fn();
 		render(
 			<DeploymentsDataTable {...defaultProps} onCustomRun={onCustomRun} />,
+			{
+				wrapper: createWrapper(),
+			},
 		);
 
 		await userEvent.click(screen.getByRole("button", { name: "Open menu" }));
@@ -115,9 +148,11 @@ describe("DeploymentsDataTable", () => {
 		expect(onCustomRun).toHaveBeenCalledWith(mockDeployment);
 	});
 
-	test("calls onEdit when edit action is clicked", async () => {
+	it("calls onEdit when edit action is clicked", async () => {
 		const onEdit = vi.fn();
-		render(<DeploymentsDataTable {...defaultProps} onEdit={onEdit} />);
+		render(<DeploymentsDataTable {...defaultProps} onEdit={onEdit} />, {
+			wrapper: createWrapper(),
+		});
 
 		await userEvent.click(screen.getByRole("button", { name: "Open menu" }));
 		const editButton = screen.getByRole("menuitem", { name: "Edit" });
@@ -126,9 +161,11 @@ describe("DeploymentsDataTable", () => {
 		expect(onEdit).toHaveBeenCalledWith(mockDeployment);
 	});
 
-	test("calls onDelete when delete action is clicked", async () => {
+	it("calls onDelete when delete action is clicked", async () => {
 		const onDelete = vi.fn();
-		render(<DeploymentsDataTable {...defaultProps} onDelete={onDelete} />);
+		render(<DeploymentsDataTable {...defaultProps} onDelete={onDelete} />, {
+			wrapper: createWrapper(),
+		});
 
 		await userEvent.click(screen.getByRole("button", { name: "Open menu" }));
 		const deleteButton = screen.getByRole("menuitem", { name: "Delete" });
@@ -137,10 +174,13 @@ describe("DeploymentsDataTable", () => {
 		expect(onDelete).toHaveBeenCalledWith(mockDeployment);
 	});
 
-	test("calls onDuplicate when duplicate action is clicked", async () => {
+	it("calls onDuplicate when duplicate action is clicked", async () => {
 		const onDuplicate = vi.fn();
 		render(
 			<DeploymentsDataTable {...defaultProps} onDuplicate={onDuplicate} />,
+			{
+				wrapper: createWrapper(),
+			},
 		);
 
 		await userEvent.click(screen.getByRole("button", { name: "Open menu" }));
