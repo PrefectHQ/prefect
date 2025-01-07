@@ -1,5 +1,6 @@
 import { DeploymentWithFlow } from "@/api/deployments";
 import { DataTable } from "@/components/ui/data-table";
+import { FlowRunActivityBarGraphTooltipProvider } from "@/components/ui/flow-run-acitivity-bar-graph";
 import { Icon } from "@/components/ui/icons";
 import { ScheduleBadgeGroup } from "@/components/ui/schedule-badge";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -9,7 +10,7 @@ import {
 	getCoreRowModel,
 	useReactTable,
 } from "@tanstack/react-table";
-import { ActionsCell } from "./cells";
+import { ActionsCell, ActivityCell } from "./cells";
 
 type DeploymentsDataTableProps = {
 	deployments: DeploymentWithFlow[];
@@ -75,9 +76,9 @@ const createColumns = ({
 	columnHelper.display({
 		id: "activity",
 		header: "Activity",
-		cell: () => (
+		cell: (props) => (
 			<div className="flex flex-row gap-2 items-center min-w-28">
-				<span className="text-sm text-muted-foreground">TODO</span>
+				<ActivityCell {...props} />
 			</div>
 		),
 		size: 300,
@@ -135,5 +136,9 @@ export const DeploymentsDataTable = ({
 			maxSize: 300,
 		},
 	});
-	return <DataTable table={table} />;
+	return (
+		<FlowRunActivityBarGraphTooltipProvider>
+			<DataTable table={table} />
+		</FlowRunActivityBarGraphTooltipProvider>
+	);
 };
