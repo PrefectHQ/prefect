@@ -458,7 +458,7 @@ Next, create the following Blocks in Prefect Cloud:
 
 * An **AWS Credentials** Block named `aws-credentials`.
 Set the `AWS Access Key ID` and `AWS Access Key Secret` fields to the values from the access key you created earlier.
-* An **S3 Bucket** Block named `s3-bucket-block`, set to the name of your data bucket (`prefect-ml-data` by default).
+* An **S3 Bucket** Block named `s3-bucket-block`, set to the name of your model bucket (`prefect-model` by default).
 This Block can use the `aws-credentials` Block you created earlier.
 * A **Secret** Block named `sagemaker-role-arn`.
 This Block stores the IAM role ARN for SageMaker that you created earlier.
