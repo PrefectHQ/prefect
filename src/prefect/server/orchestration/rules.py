@@ -16,10 +16,21 @@ as discrete units of logic that operate against each state transition and can be
 observable, extensible, and customizable -- all without needing to store or parse a
 single line of user code.
 """
+from __future__ import annotations
 
 import contextlib
 from types import TracebackType
-from typing import Any, ClassVar, Dict, Iterable, List, Optional, Type, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    ClassVar,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Type,
+    Union,
+)
 
 import sqlalchemy as sa
 from pydantic import ConfigDict, Field
@@ -27,6 +38,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.logging import get_logger
 from prefect.server.database import PrefectDBInterface, inject_db
+from prefect.server.database.dependencies import db_injector
 from prefect.server.exceptions import OrchestrationError
 from prefect.server.models import artifacts, flow_runs
 from prefect.server.schemas import core, states
@@ -40,13 +52,17 @@ from prefect.server.schemas.responses import (
 )
 from prefect.server.utilities.schemas import PrefectBaseModel
 
+if TYPE_CHECKING:
+    from logging import Logger
+
+
 # all valid state types in the context of a task- or flow- run transition
 ALL_ORCHESTRATION_STATES = {*states.StateType, None}
 
 # all terminal states
 TERMINAL_STATES = states.TERMINAL_STATES
 
-logger = get_logger("server")
+logger: "Logger" = get_logger("server")
 
 
 class OrchestrationContext(PrefectBaseModel):
@@ -90,9 +106,9 @@ class OrchestrationContext(PrefectBaseModel):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(arbitrary_types_allowed=True)
 
-    session: Optional[Union[sa.orm.Session, AsyncSession]] = ...
-    initial_state: Optional[states.State] = ...
-    proposed_state: Optional[states.State] = ...
+    session: Union[sa.orm.Session, AsyncSession]
+    initial_state: Optional[states.State] = None
+    proposed_state: Optional[states.State] = None
     validated_state: Optional[states.State] = Field(default=None)
     rule_signature: List[str] = Field(default_factory=list)
     finalization_signature: List[str] = Field(default_factory=list)
@@ -250,7 +266,7 @@ class FlowOrchestrationContext(OrchestrationContext):
             self.response_status = SetStateStatus.ABORT
             self.response_details = StateAbortDetails(reason=reason)
 
-    @inject_db
+    @db_injector
     async def _validate_proposed_state(
         self,
         db: PrefectDBInterface,
@@ -258,18 +274,13 @@ class FlowOrchestrationContext(OrchestrationContext):
         if self.proposed_state is None:
             validated_orm_state = self.run.state
             # We cannot access `self.run.state.data` directly for unknown reasons
-            state_data = (
-                (
-                    await artifacts.read_artifact(
-                        self.session, self.run.state.result_artifact_id
-                    )
-                ).data
-                if self.run.state.result_artifact_id
-                else None
+            artifact = await artifacts.read_artifact(
+                self.session, self.run.state.result_artifact_id
             )
+            state_data = artifact.data if artifact else None
         else:
             state_payload = self.proposed_state.model_dump_for_orm()
-            state_data = state_payload.pop("data", None)
+            state_data: dict[str, Any] | Any | None = state_payload.pop("data", None)
 
             if state_data is not None and not (
                 isinstance(state_data, dict) and state_data.get("type") == "unpersisted"
