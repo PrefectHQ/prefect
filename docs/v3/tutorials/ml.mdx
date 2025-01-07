@@ -1,124 +1,483 @@
 ---
 title: Train a machine learning model
-description: Use an automation to trigger an ML training flow whenever data changes
+description: Use S3 webhooks to trigger an ML training flow on SageMaker
 ---
 
 In the [Extract data from websites](/v3/tutorials/scraping) tutorial, you learned how to handle data dependencies and ingest large amounts of data.
-Now, you'll learn how to train a machine learning model using that data.
+Now, you'll learn how to train a machine learning model using your data.
 
-## Create a GPU work pool
+## Prerequisites
 
-Run the following command to automatically provision an ECS push work pool and supporting ECS infrastructure on AWS:
+* A Prefect Cloud account
+* An AWS account with the service quotas to use an `ml.g4dn.xlarge` instance with SageMaker
+
+## Set up Prefect Cloud resources
+
+This tutorial uses Prefect webhooks and automations to trigger the deployments responsible for model training and inference.
+
+### Create deployments
+
+First, clone the repository with the flow code you'll be deploying to Prefect Cloud.
 
 ```bash
-prefect work-pool create --type ecs:push --provision-infra my-ecs-pool
+git clone https://github.com/PrefectHQ/demos.git
+cd demos/
 ```
 
-Now create a `task_definition.json` file with the following task definition which the work pool will use to provision `g4dn.xlarge` instances on EC2.
-TODO: Do we need to specify a Amazon ECS GPU-optimized AMI separately anywhere?
-TODO: Create a new Docker image that has the necessary dependencies (python, pip, prefect[aws]) and use that image instead of the base nvidia/cuda one (or the Amazon ECS GPU-optimized kernel 5.10 AMI if needed).
+Now deploy the `model-training` flow to Prefect Cloud.
+This flow trains an XGBoost model on the Iris dataset using SageMaker.
 
-```json task_definition.json
+```bash
+python model_training.py
+```
+
+<Expandable title="Model training flow">
+This is the flow that you just deployed to Prefect Cloud.
+
+```python
+from prefect import flow, task
+from prefect_aws import AwsCredentials
+from prefect.blocks.system import Secret
+import sagemaker
+from sagemaker.xgboost.estimator import XGBoost
+import boto3
+
+@task(log_prints=True)
+def get_sagemaker_session(aws_credentials):
+    """Create a SageMaker session using AWS credentials."""
+    boto_session = boto3.Session(
+        aws_access_key_id=aws_credentials.aws_access_key_id,
+        aws_secret_access_key=aws_credentials.aws_secret_access_key.get_secret_value(),
+        region_name=aws_credentials.region_name
+    )
+    return sagemaker.Session(boto_session=boto_session)
+
+@task
+def get_training_inputs():
+    """Get the S3 paths for training and test data."""
+    bucket = "prefect-tutorial"
+    
+    return {
+        "train": f"s3://{bucket}/train.csv",
+        "validation": f"s3://{bucket}/test.csv"
+    }
+
+@task
+def create_training_script():
+    """Create the training script dynamically"""
+    training_script = """import argparse
+import boto3
+import os
+import json
+import pandas as pd
+import numpy as np
+import xgboost as xgb
+from sklearn.preprocessing import LabelEncoder
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+
+    # Hyperparameters are described here.
+    parser.add_argument(
+        "--max_depth",
+        type=int,
+    )
+    parser.add_argument("--eta", type=float)
+    parser.add_argument("--gamma", type=float)
+    parser.add_argument("--min_child_weight", type=float)
+    parser.add_argument("--subsample", type=float)
+    parser.add_argument("--verbosity", type=int)
+    parser.add_argument("--objective", type=str)
+    parser.add_argument("--num_round", type=int)
+    parser.add_argument("--tree_method", type=str, default="auto")
+    parser.add_argument("--predictor", type=str, default="auto")
+    parser.add_argument("--device", type=str, default="cuda")
+    parser.add_argument("--num_class", type=int)
+
+    # Sagemaker specific arguments. Defaults are set in the environment variables.
+    parser.add_argument("--output-data-dir", type=str, default=os.environ["SM_OUTPUT_DATA_DIR"])
+    parser.add_argument("--model-dir", type=str, default=os.environ["SM_MODEL_DIR"])
+    parser.add_argument("--train", type=str, default=os.environ["SM_CHANNEL_TRAIN"])
+    parser.add_argument("--validation", type=str, default=os.environ["SM_CHANNEL_VALIDATION"])
+    parser.add_argument("--num-round", type=int, default=100)
+
+    args, _ = parser.parse_known_args()
+
+    # Load training and validation data with appropriate column names
+    column_names = ['sepal_length', 'sepal_width', 'petal_length', 'petal_width', 'target']
+    train_data = pd.read_csv(os.path.join(args.train, "train.csv"), 
+                            names=column_names, 
+                            header=None)
+    validation_data = pd.read_csv(os.path.join(args.validation, "test.csv"), 
+                                names=column_names, 
+                                header=None)
+
+    # For XGBoost, we need to convert the text labels to numeric values
+    # Create a label encoder
+    label_encoder = LabelEncoder()
+    y_train = label_encoder.fit_transform(train_data['target'])
+    y_validation = label_encoder.transform(validation_data['target'])
+
+    # Get features (all columns except target)
+    X_train = train_data.drop('target', axis=1)
+    X_validation = validation_data.drop('target', axis=1)
+
+    # Create DMatrix for XGBoost
+    dtrain = xgb.DMatrix(X_train, label=y_train)
+    dvalidation = xgb.DMatrix(X_validation, label=y_validation)
+
+    hyperparameters = {
+        "max_depth": args.max_depth,
+        "eta": args.eta,
+        "gamma": args.gamma,
+        "min_child_weight": args.min_child_weight,
+        "subsample": args.subsample,
+        "verbosity": args.verbosity,
+        "objective": args.objective,
+        "tree_method": args.tree_method,
+        "predictor": args.predictor,
+        "device": args.device,
+        "num_class": args.num_class
+    }
+
+    # Train the model
+    watchlist = [(dtrain, "train"), (dvalidation, "validation")]
+    model = xgb.train(
+        hyperparameters,
+        dtrain,
+        num_boost_round=args.num_round,
+        evals=watchlist,
+        early_stopping_rounds=10
+    )
+
+    # Save the model
+    filename = "xgboost-model"
+    model_location = os.path.join(args.model_dir, filename)
+    model.save_model(model_location)
+
+    # Save the model parameters
+    hyperparameters_location = os.path.join(args.model_dir, "hyperparameters.json")
+    with open(hyperparameters_location, "w") as f:
+        json.dump(hyperparameters, f)
+
+    # Upload the model to an S3 bucket for inference using boto3
+    s3_client = boto3.client('s3')
+    bucket_name = "prefect-model"  # Make sure this matches your bucket
+    s3_client.upload_file(
+        model_location,
+        bucket_name,
+        filename
+    )
+"""
+    
+    with open("train.py", "w") as f:
+        f.write(training_script)
+
+@task(cache_policy=None)
+def create_xgboost_estimator(sagemaker_session, role_arn):
+    """Create and configure the XGBoost estimator."""
+    hyperparameters = {
+        "max_depth": 5,
+        "eta": 0.2,
+        "gamma": 4,
+        "min_child_weight": 6,
+        "subsample": 0.8,
+        "objective": "multi:softmax",
+        "num_class": 3,
+        "num_round": 100,
+        "tree_method": "gpu_hist",
+        "device": "cuda"
+    }
+
+    return XGBoost(
+        entry_point="train.py",
+        hyperparameters=hyperparameters,
+        role=role_arn,
+        instance_count=1,
+        instance_type="ml.g4dn.xlarge",
+        framework_version="1.7-1",
+        py_version="py3",
+        sagemaker_session=sagemaker_session
+    )
+
+@flow(log_prints=True)
+def train_iris_model():
+    """Main flow to train XGBoost model on Iris dataset using SageMaker."""
+    # Load AWS credentials from Prefect Block
+    aws_credentials = AwsCredentials.load("aws-credentials")
+    
+    # Get SageMaker role ARN from Prefect Secret Block
+    role_arn = Secret.load("sagemaker-role-arn").get()
+    
+    # Create SageMaker session
+    sagemaker_session = get_sagemaker_session(aws_credentials)
+
+    # Get training inputs
+    training_inputs = get_training_inputs()
+    create_training_script()
+    
+    # Create and train estimator
+    estimator = create_xgboost_estimator(sagemaker_session, role_arn)
+
+    estimator.fit(training_inputs, wait=True)
+    
+    return estimator
+```
+</Expandable>
+
+Next, deploy the `model-inference` flow to Prefect Cloud.
+This flow calculates performance metrics using the fitted model from S3.
+
+```bash
+python model_inference.py
+```
+
+<Expandable title="Model inference flow">
+This is the flow that you just deployed to Prefect Cloud.
+
+```python
+from prefect import flow, task
+from prefect_aws import S3Bucket
+import xgboost as xgb
+import numpy as np
+import tempfile
+import os
+
+# Load the saved model:
+@task
+def load_model(filename):
+    """Load a saved XGBoost model from S3"""
+
+    # Get the S3 bucket Block
+    s3_bucket = S3Bucket.load("s3-bucket-block")
+
+    # Create a temporary file to store the model
+    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+        temp_path = temp_file.name
+        
+        # Download the model file
+        s3_bucket.download_object_to_path(
+            from_path=filename,
+            to_path=temp_path
+        )
+        
+        # Load the XGBoost model
+        model = xgb.Booster()
+        model.load_model(temp_path)
+    
+    # Clean up the temporary file
+    os.unlink(temp_path)
+
+    return model
+
+# Run inference with loaded model:
+@task
+def predict(model, X):
+    """Make predictions using the loaded model
+    Args:
+        model: Loaded XGBoost model
+        X: Features array/matrix in the same format used during training
+    """
+    # Convert input to DMatrix (optional but recommended)
+    dtest = xgb.DMatrix(np.array(X))
+    # Get predictions
+    predictions = model.predict(dtest)
+    return predictions
+
+@flow(log_prints=True)
+def run_inference(samples: list = [[5.0,3.4,1.5,0.2], [6.4,3.2,4.5,1.5], [7.2,3.6,6.1,2.5]]):
+    model = load_model('xgboost-model')
+    predictions = predict(model, samples)
+    for sample, prediction in zip(samples, predictions):
+        print(f"Prediction for sample {sample}: {prediction}")
+```
+</Expandable>
+
+### Create webhooks
+
+In order to trigger the deployments you just created, you need to create webhooks in Prefect Cloud.
+These webhooks will receive events from S3.
+
+#### Model training webhook
+
+Create a webhook named `s3-model-webhook`:
+
+* Create a new service account named `s3` to enforce webhook authentication (save the API key somewhere safe)
+* Use the following static template:  
+```json
 {
-  "family": "gpu-task",
-  "requiresCompatibilities": [
-    "EC2"
-  ],
-  "cpu": "4096",
-  "memory": "16384",
-  "containerDefinitions": [
-    {
-      "name": "gpu-container",
-      "image": "nvidia/cuda:latest",
-      "cpu": 4096,
-      "memory": 16384,
-      "essential": true,
-      "resourceRequirements": [
-        {
-          "type": "GPU",
-          "value": "1"
-        }
-      ],
-      "linuxParameters": {
-        "devices": [
-          {
-            "hostPath": "/dev/nvidia0",
-            "containerPath": "/dev/nvidia0",
-            "permissions": [
-              "read",
-              "write"
-            ]
-          }
-        ]
-      }
+    "event": "webhook.called",
+    "resource": {
+        "prefect.resource.id": "webhook.resource.id"
     }
-  ],
-  "placementConstraints": [
-    {
-      "type": "memberOf",
-      "expression": "attribute:instance-type == g4dn.xlarge"
-    }
-  ]
 }
 ```
 
-Command to register the task definition in `us-east-1` using the AWS CLI:
+Note the endpoint for this webhook, as you'll need it later.
 
-```bash
-aws ecs register-task-definition --cli-input-json file://task_definition.json --region us-east-1
+#### Model inference webhook
+
+Create a webhook named `s3-data-webhook`:
+
+* You can use the same service account that you created for the model training webhook.
+* Use the following static template:  
+```json
+{
+    "event": "webhook.called",
+    "resource": {
+        "prefect.resource.id": "webhook.resource.id"
+    }
+}
 ```
 
-Finally, edit the `my-ecs-pool` work pool definition in Prefect Cloud and:
+Note the endpoint for this webhook, as you'll need it later.
 
-1. Set the **Base Job Template** / **Task Definition Arn** setting to the ARN of the task definition you just registered.
-1. Set the **Base Job Template** / **Launch Type** setting to `EC2`
+### Create automations
 
-You'll also need 
+Finally, create automations which are triggered by each webhook you just created.
+These automations run the deployments you created earlier.
 
-## Store training data in S3
+#### Model training automation
 
-TBD.
-Show the scraping code, but give people file(s) they can upload to S3 (original data plus changes to trigger the flow).
+Create an automation named `train-model`:
 
-## Train a model when the training data changes
+* Trigger on any event matching `webhook.called` from the `s3-data-webhook` webhook.
+* Trigger whenever you see that event 1 time within 0 days (this ensures your model will train every time the event occurs).
+* Run the `train-iris-model > model-training` deployment whenever this automation is triggered.
 
-Prefect configuration:
+#### Model inference automation
 
-* Create two Prefect blocks:
-  * An `AWS Credentials` block named `aws-credentials`
-  * An `S3 Bucket` block named `s3-bucket`
-* Create a Prefect webhook named `s3-webhook`
-  * Create a new service account named `s3` to enforce webhook authentication (save the API key somewhere safe)
-  * Create a static template preset with the default settings (event named `webhook.called`)
-* Create a Prefect automation named `s3-automation`
-  * Trigger settings
-    * Trigger on any `webhook.called` event that comes from the `s3-webhook` webhook resource that you created.
-  * Trigger whenever you see that event 1 time within 0 day (this way your model will only trained whenever you see the event)
-  * Action settings:
-    * Action type: `Run a deployment`
-    * Deployment to run: `update-model > webhook-test`
-    * path: `test.txt`
+Create an automation named `run-inference`:
 
-AWS configuration:
+* Trigger on any event matching `webhook.called` from the `s3-model-webhook` webhook.
+* Trigger whenever you see that event 1 time within 0 days (this ensures your model will train every time the event occurs).
+* Run the `run-inference > model-inference` deployment whenever this automation is triggered.
 
-* Create a new S3 bucket named `prefect-tutorial`
-  * Under **Properties** > **Amazon EventBridge**, turn on the option to send notifications to EventBridge for all events in this bucket.
-* Create a new EventBridge rule that sends an event to the Prefect webhook whenever an object is created in the `prefect-tutorial` bucket.
-  * You'll need to use the URL and credentials from the webhook that you created earlier.
-    * Create a new Connection and configure its authorization to use **API Key** and set the **API key name** to `Authorization` and the **Value** to `Bearer <your-api-key>`.
+## Set up AWS resources
 
-Code configuration:
+This tutorial uses S3 to store the data and models, EventBridge to trigger the Prefect webhooks, and SageMaker to train the model.
 
-* Clone the Prefect demo repository
-* Run `python train_model.py` to deploy the flow to Prefect Cloud
+### Create S3 buckets
 
-## Test the model
+* Create a `prefect-tutorial` bucket to store training and test data.
+* Create a `prefect-model` bucket to store the trained model.
 
-* Run `prefect deployment run 'update-model/webhook-test'` to run the flow manually (fetching `test.txt` from S3)
-* Upload a new file to S3 to run the flow automatically using the webhook you set up
-* Once the flow is complete, go to artifacts to see the model's performance metrics
+<Note>
+You must turn on EventBridge notifications for all events in these buckets.
+</Note>
 
-The model is now trained and uploaded to S3 for your inference needs.
+### Create EventBridge rules
+
+The easiest way to send events from S3 to a Prefect Cloud webhook is with AWS EventBridge.
+
+#### Trigger training when training data changes
+
+Create an EventBridge rule named `training-data-changed` to trigger model training whenever a new object is uploaded to the `prefect-tutorial` bucket.
+
+* Event pattern:  
+```json
+{
+  "source": ["aws.s3"],
+  "detail-type": ["Object Created"],
+  "detail": {
+    "bucket": {
+      "name": ["prefect-tutorial"]
+    }
+  }
+}
+```
+* Target:  
+An API destination named `prefect-tutorial`, set to the endpoint for the `s3-data-webhook` webhook that you created in Prefect Cloud.
+  * To make authentication work, create a new Connection, configure its authorization to use **API Key**, and set the **API key name** to `Authorization` and the **Value** to `Bearer <your-prefect-service-account-api-key>`.
+    * The service account API key is the same as the API key you created for the `s3` service account in Prefect Cloud.
+
+#### Trigger inference when the model changes
+
+Create an EventBridge rule named `model-changed` to trigger model inference whenever a new object is uploaded to the `prefect-model` bucket.
+
+* Event pattern:  
+```json
+{
+  "source": ["aws.s3"],
+  "detail-type": ["Object Created"],
+  "detail": {
+    "bucket": {
+      "name": ["prefect-model"]
+    }
+  }
+}
+```
+* Target:  
+Create an API destination named `prefect-model-webhook`, set to the endpoint of the `s3-model-webhook` webhook that you created earlier.
+You can reuse the connection that you created for the `training-data-changed` rule.
+
+### Grant access to AWS resources
+
+Your Prefect flows need access to the AWS resources that you created.
+First, create the following resources in AWS:
+
+* A new access key in your AWS account with permissions to read objects in your S3 buckets and create SageMaker sessions.  
+The easiest way to do this is to create a new access key for your root account.
+* A SageMaker role with the `Amazon SageMaker Full Access` policy. Note the role ARN, as you'll need this later.
+
+Next, create the following Prefect Blocks:
+
+* An `AWS Credentials` Block named `aws-credentials`.  
+Set the `AWS Access Key ID` and `AWS Access Key Secret` fields to the values from the access key you created earlier.
+* An `S3 Bucket` Block named `s3-bucket-block`.  
+This Block can use the `aws-credentials` Block you created earlier.
+* A `Secret` Block named `sagemaker-role-arn`.
+This Block stores the SageMaker role ARN that you created earlier.
+
+Now, when you run the flows in Prefect Cloud, they can use these Blocks to authenticate with AWS.
+
+## Test the ML pipeline
+
+Before you can test the ML pipeline, you need to create a work pool and start a worker.
+To keep this simple, create a new Process work pool named `my-process-pool` in Prefect Cloud.
+
+Now, start a worker in that work pool.
+
+```bash
+prefect worker start --pool my-process-pool
+```
+
+Use the AWS Console to upload the following files to the `prefect-tutorial` bucket:
+
+* [train.csv](https://raw.githubusercontent.com/PrefectHQ/demos/refs/heads/main/datasets/train.csv)
+* [test.csv](https://raw.githubusercontent.com/PrefectHQ/demos/refs/heads/main/datasets/test.csv)
+
+After the files are uploaded, the `train-iris-model` flow will automatically run.
+Open the flow run details in Prefect Cloud to see the model training logs.
+Training will take a few minutes.
+
+```
+...
+[43]#011train-mlogloss:0.18166#011validation-mlogloss:0.24436
+[44]#011train-mlogloss:0.18166#011validation-mlogloss:0.24436
+[45]#011train-mlogloss:0.18168#011validation-mlogloss:0.24422
+[46]#011train-mlogloss:0.18166#011validation-mlogloss:0.24443
+[47]#011train-mlogloss:0.18166#011validation-mlogloss:0.24443
+[48]#011train-mlogloss:0.18165#011validation-mlogloss:0.24458
+
+2024-12-20 20:16:56 Completed - Training job completed
+
+Training seconds: 101
+Billable seconds: 101
+Memory usage post-training: total - 17179869184, percent - 78.2%
+Finished in state Completed()
+```
+
+After training is complete, the model will be uploaded to the `prefect-model` bucket, which will trigger the `run-inference` flow.
+Inference will take a few seconds to complete, after which you can see the predictions in the flow logs:
+
+```
+...
+Prediction for sample [5.0, 3.4, 1.5, 0.2]: 0.0
+Prediction for sample [6.4, 3.2, 4.5, 1.5]: 1.0
+Prediction for sample [7.2, 3.6, 6.1, 2.5]: 2.0
+Finished in state Completed()
+```
 
 ## Next steps
 
