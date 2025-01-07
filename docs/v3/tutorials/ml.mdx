@@ -388,8 +388,10 @@ Create an EventBridge rule named `training-data-changed` to trigger model traini
 ```
 * Target:  
 An API destination named `model-training-webhook`, set to the endpoint for the `model-training` webhook that you created in Prefect Cloud.
-  * To authenticate with the webhook, create a new Connection, configure its authorization to use **API Key**, and set the **API key name** to `Authorization` and the **Value** to `Bearer <your-prefect-service-account-api-key>`.
-    * The service account API key is the same as the API key you created for the `s3` service account in Prefect Cloud.
+  * To authenticate with the webhook, create a new Connection, configure its authorization to use **API Key**, and set the **API key name** to `Authorization` and the **Value** to `Bearer <service-account-api-key>`.  
+    <Note>
+    The service account API key is the API key you created for the `s3` service account in Prefect Cloud.
+    </Note>
 
 #### Trigger inference when the model changes
 
@@ -416,20 +418,20 @@ You can reuse the connection that you created for the `training-data-changed` ru
 Your Prefect flows need access to the AWS resources that you created.
 First, create the following resources in AWS:
 
-* A new access key in your AWS account with permissions to read objects in your S3 buckets and create SageMaker sessions.  
+* A new access key in your AWS account with permissions to read objects in your S3 buckets and create SageMaker sessions.
 The easiest way to do this is to create a new access key for your root account.
 * A SageMaker role with the `Amazon SageMaker Full Access` policy. Note the role ARN, as you'll need this later.
 
 Next, create the following Prefect Blocks:
 
-* An `AWS Credentials` Block named `aws-credentials`.  
+* An **AWS Credentials** Block named `aws-credentials`.
 Set the `AWS Access Key ID` and `AWS Access Key Secret` fields to the values from the access key you created earlier.
-* An `S3 Bucket` Block named `s3-bucket-block`.  
+* An **S3 Bucket** Block named `s3-bucket-block`.
 This Block can use the `aws-credentials` Block you created earlier.
-* A `Secret` Block named `sagemaker-role-arn`.
+* A **Secret** Block named `sagemaker-role-arn`.
 This Block stores the SageMaker role ARN that you created earlier.
 
-Now, when you run the flows in Prefect Cloud, they can use these Blocks to authenticate with AWS.
+Now, when you run your flows in Prefect Cloud, they can use these Blocks to authenticate with AWS.
 
 ## Test the ML pipeline
 
