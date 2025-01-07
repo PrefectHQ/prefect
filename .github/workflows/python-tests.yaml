@@ -100,8 +100,6 @@ jobs:
               name: Runner, Worker, Settings, Input, and CLI Tests
               modules: tests/test_task_runners.py tests/runner tests/workers tests/cli/ tests/test_settings.py tests/input/
 
-      fail-fast: true
-
     timeout-minutes: 15
 
     steps:
