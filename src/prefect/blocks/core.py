@@ -59,7 +59,7 @@ from prefect.events import emit_event
 from prefect.logging.loggers import disable_logger
 from prefect.plugins import load_prefect_collections
 from prefect.types import SecretDict
-from prefect.utilities.asyncutils import sync_compatible
+from prefect.utilities.asyncutils import run_coro_as_sync, sync_compatible
 from prefect.utilities.collections import listrepr, remove_nested_keys, visit_collection
 from prefect.utilities.dispatch import lookup_type, register_base_type
 from prefect.utilities.hashing import hash_objects
@@ -1066,12 +1066,17 @@ class Block(BaseModel, ABC):
         """
         # Need to use a `PrefectClient` here to ensure `Block.load` and `Block.aload` signatures match
         # TODO: replace with only sync client once all internal calls are updated to use `Block.aload` and `@async_dispatch` is removed
-        # Need to use a sync client here since this is a sync function
-        from prefect.client.orchestration import get_client
+        if client is None:
+            # If a client wasn't provided, we get to use a sync client
+            from prefect.client.orchestration import get_client
 
-        with get_client(sync_client=True) as sync_client:
-            block_document, _ = cls._get_block_document(name, client=sync_client)
-
+            with get_client(sync_client=True) as sync_client:
+                block_document, _ = cls._get_block_document(name, client=sync_client)
+        else:
+            # If a client was provided, reuse it, even though it's async, to avoid excessive client creation
+            block_document, _ = run_coro_as_sync(
+                cls._aget_block_document(name, client=client)
+            )
         return cls._load_from_block_document(block_document, validate=validate)
 
     @classmethod
