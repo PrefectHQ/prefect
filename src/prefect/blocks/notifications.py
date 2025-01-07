@@ -31,12 +31,6 @@ class AbstractAppriseNotificationBlock(NotificationBlock, ABC):
             "is a plain notification that does not attach an image."
         ),
     )
-    url: SecretStr = Field(
-        default=...,
-        title="Webhook URL",
-        description="Incoming webhook URL used to send notifications.",
-        examples=["https://hooks.example.com/XXX"],
-    )
 
     def __init__(self, *args: Any, **kwargs: Any):
         from apprise import (
@@ -63,7 +57,7 @@ class AbstractAppriseNotificationBlock(NotificationBlock, ABC):
         self._apprise_client.add(servers=url.get_secret_value())  # pyright: ignore[reportUnknownMemberType]
 
     def block_initialization(self) -> None:
-        self._start_apprise_client(self.url)
+        self._start_apprise_client(getattr(self, "url"))
 
     @sync_compatible
     async def notify(  # pyright: ignore[reportIncompatibleMethodOverride] TODO: update to sync only once base class is updated
@@ -88,6 +82,12 @@ class AppriseNotificationBlock(AbstractAppriseNotificationBlock, ABC):
 
     _documentation_url = HttpUrl(
         "https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations"
+    )
+    url: SecretStr = Field(
+        default=...,
+        title="Webhook URL",
+        description="Incoming webhook URL used to send notifications.",
+        examples=["https://hooks.example.com/XXX"],
     )
     allow_private_urls: bool = Field(
         default=True,
