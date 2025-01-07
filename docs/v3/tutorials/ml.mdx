@@ -8,16 +8,41 @@ Now, you'll learn how to train a machine learning model using your data.
 
 ## Prerequisites
 
-* A Prefect Cloud account
+* A forever-free [Prefect Cloud account](https://app.prefect.cloud)
+* The [Prefect SDK](/v3/get-started/install)
 * An AWS account with the service quotas to use an `ml.g4dn.xlarge` instance with SageMaker
 
 ## Set up Prefect Cloud resources
 
 This tutorial uses Prefect webhooks and automations to trigger the deployments responsible for model training and inference.
 
+### Login to Prefect Cloud
+
+If needed, log in to your Prefect Cloud account.
+
+```bash
+prefect cloud login
+```
+
+### Create a work pool
+
+Create a new Process work pool named `my-process-pool` in Prefect Cloud.
+
+```bash
+prefect work-pool create my-process-pool --type process
+```
+
+Now, start a worker in that work pool.
+
+```bash
+prefect worker start --pool my-process-pool
+```
+
+Leave this worker running for the rest of the tutorial.
+
 ### Create deployments
 
-First, clone the repository with the flow code you'll be deploying to Prefect Cloud.
+Clone the repository with the flow code you'll be deploying to Prefect Cloud.
 
 ```bash
 git clone https://github.com/PrefectHQ/demos.git
@@ -416,7 +441,7 @@ You can reuse the connection that you created for the `training-data-changed` ru
 ### Grant access to AWS resources
 
 Your Prefect flows need access to the AWS resources that you created.
-First, create the following resources in AWS:
+Create the following resources in AWS:
 
 * A new access key in your AWS account with permissions to read objects in your S3 buckets and create SageMaker sessions.
 The easiest way to do this is to create a new access key for your root account.
@@ -434,15 +459,6 @@ This Block stores the SageMaker role ARN that you created earlier.
 Now, when you run your flows in Prefect Cloud, they can use these Blocks to authenticate with AWS.
 
 ## Test the ML pipeline
-
-Before you can test the ML pipeline, you need to create a work pool and start a worker.
-To keep this simple, create a new Process work pool named `my-process-pool` in Prefect Cloud.
-
-Now, start a worker in that work pool.
-
-```bash
-prefect worker start --pool my-process-pool
-```
 
 Use the AWS Console to upload the following files to the `prefect-data` bucket:
 
