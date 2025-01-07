@@ -55,7 +55,7 @@ def get_sagemaker_session(aws_credentials):
 @task
 def get_training_inputs():
     """Get the S3 paths for training and test data."""
-    bucket = "prefect-tutorial"
+    bucket = "prefect-data"
     
     return {
         "train": f"s3://{bucket}/train.csv",
@@ -300,7 +300,7 @@ These webhooks will receive events from S3.
 
 #### Model training webhook
 
-Create a webhook named `s3-model-webhook`:
+Create a webhook named `model-training`:
 
 * Create a new service account named `s3` to enforce webhook authentication (save the API key somewhere safe)
 * Use the following static template:  
@@ -317,7 +317,7 @@ Note the endpoint for this webhook, as you'll need it later.
 
 #### Model inference webhook
 
-Create a webhook named `s3-data-webhook`:
+Create a webhook named `model-inference`:
 
 * You can use the same service account that you created for the model training webhook.
 * Use the following static template:  
@@ -341,15 +341,15 @@ These automations run the deployments you created earlier.
 
 Create an automation named `train-model`:
 
-* Trigger on any event matching `webhook.called` from the `s3-data-webhook` webhook.
+* Trigger on any event matching `webhook.called` from the `model-training` webhook.
 * Trigger whenever you see that event 1 time within 0 days (this ensures your model will train every time the event occurs).
-* Run the `train-iris-model > model-training` deployment whenever this automation is triggered.
+* Run the `train-model > model-training` deployment whenever this automation is triggered.
 
 #### Model inference automation
 
 Create an automation named `run-inference`:
 
-* Trigger on any event matching `webhook.called` from the `s3-model-webhook` webhook.
+* Trigger on any event matching `webhook.called` from the `model-inference` webhook.
 * Trigger whenever you see that event 1 time within 0 days (this ensures your model will train every time the event occurs).
 * Run the `run-inference > model-inference` deployment whenever this automation is triggered.
 
@@ -359,7 +359,7 @@ This tutorial uses S3 to store the data and models, EventBridge to trigger the P
 
 ### Create S3 buckets
 
-* Create a `prefect-tutorial` bucket to store training and test data.
+* Create a `prefect-data` bucket to store training and test data.
 * Create a `prefect-model` bucket to store the trained model.
 
 <Note>
@@ -372,7 +372,7 @@ The easiest way to send events from S3 to a Prefect Cloud webhook is with AWS Ev
 
 #### Trigger training when training data changes
 
-Create an EventBridge rule named `training-data-changed` to trigger model training whenever a new object is uploaded to the `prefect-tutorial` bucket.
+Create an EventBridge rule named `training-data-changed` to trigger model training whenever a new object is uploaded to the `prefect-data` bucket.
 
 * Event pattern:  
 ```json
@@ -381,13 +381,13 @@ Create an EventBridge rule named `training-data-changed` to trigger model traini
   "detail-type": ["Object Created"],
   "detail": {
     "bucket": {
-      "name": ["prefect-tutorial"]
+      "name": ["prefect-data"]
     }
   }
 }
 ```
 * Target:  
-An API destination named `prefect-tutorial`, set to the endpoint for the `s3-data-webhook` webhook that you created in Prefect Cloud.
+An API destination named `model-training-webhook`, set to the endpoint for the `model-training` webhook that you created in Prefect Cloud.
   * To make authentication work, create a new Connection, configure its authorization to use **API Key**, and set the **API key name** to `Authorization` and the **Value** to `Bearer <your-prefect-service-account-api-key>`.
     * The service account API key is the same as the API key you created for the `s3` service account in Prefect Cloud.
 
@@ -408,7 +408,7 @@ Create an EventBridge rule named `model-changed` to trigger model inference when
 }
 ```
 * Target:  
-Create an API destination named `prefect-model-webhook`, set to the endpoint of the `s3-model-webhook` webhook that you created earlier.
+Create an API destination named `model-inference-webhook`, set to the endpoint of the `model-inference` webhook that you created earlier.
 You can reuse the connection that you created for the `training-data-changed` rule.
 
 ### Grant access to AWS resources
@@ -442,12 +442,12 @@ Now, start a worker in that work pool.
 prefect worker start --pool my-process-pool
 ```
 
-Use the AWS Console to upload the following files to the `prefect-tutorial` bucket:
+Use the AWS Console to upload the following files to the `prefect-data` bucket:
 
 * [train.csv](https://raw.githubusercontent.com/PrefectHQ/demos/refs/heads/main/datasets/train.csv)
 * [test.csv](https://raw.githubusercontent.com/PrefectHQ/demos/refs/heads/main/datasets/test.csv)
 
-After the files are uploaded, the `train-iris-model` flow will automatically run.
+After the files are uploaded, the `train-model` flow will automatically run.
 Open the flow run details in Prefect Cloud to see the model training logs.
 Training will take a few minutes.
 
