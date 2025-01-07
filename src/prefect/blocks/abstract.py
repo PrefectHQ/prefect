@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import sys
 from abc import ABC, abstractmethod
@@ -7,14 +9,9 @@ from pathlib import Path
 from typing import (
     Any,
     BinaryIO,
-    Dict,
     Generator,
     Generic,
-    List,
-    Optional,
-    Tuple,
     TypeVar,
-    Union,
 )
 
 from typing_extensions import Self, TypeAlias
@@ -30,7 +27,7 @@ if sys.version_info >= (3, 12):
 else:
     LoggingAdapter = logging.LoggerAdapter
 
-LoggerOrAdapter: TypeAlias = Union[Logger, LoggingAdapter]
+LoggerOrAdapter: TypeAlias = Logger | LoggingAdapter
 
 
 class CredentialsBlock(Block, ABC):
@@ -101,7 +98,7 @@ class NotificationBlock(Block, ABC):
             return get_logger(self.__class__.__name__)
 
     @abstractmethod
-    async def notify(self, body: str, subject: Optional[str] = None) -> None:
+    async def notify(self, body: str, subject: str | None = None) -> None:
         """
         Send a notification.
 
@@ -232,7 +229,7 @@ class DatabaseBlock(Block, ABC):
         operation: str,
         parameters: dict[str, Any] | None = None,
         **execution_kwargs: Any,
-    ) -> Tuple[Any]:
+    ) -> tuple[Any, ...]:
         """
         Fetch a single result from the database.
 
@@ -253,7 +250,7 @@ class DatabaseBlock(Block, ABC):
         parameters: dict[str, Any] | None = None,
         size: int | None = None,
         **execution_kwargs: Any,
-    ) -> List[Tuple[Any]]:
+    ) -> list[tuple[Any, ...]]:
         """
         Fetch a limited number of results from the database.
 
@@ -274,7 +271,7 @@ class DatabaseBlock(Block, ABC):
         operation: str,
         parameters: dict[str, Any] | None = None,
         **execution_kwargs: Any,
-    ) -> List[Tuple[Any]]:
+    ) -> list[tuple[Any, ...]]:
         """
         Fetch all results from the database.
 
@@ -383,8 +380,8 @@ class ObjectStorageBlock(Block, ABC):
     async def download_object_to_path(
         self,
         from_path: str,
-        to_path: Union[str, Path],
-        **download_kwargs: Dict[str, Any],
+        to_path: str | Path,
+        **download_kwargs: Any,
     ) -> Path:
         """
         Downloads an object from the object storage service to a path.
@@ -403,7 +400,7 @@ class ObjectStorageBlock(Block, ABC):
         self,
         from_path: str,
         to_file_object: BinaryIO,
-        **download_kwargs: Dict[str, Any],
+        **download_kwargs: Any,
     ) -> BinaryIO:
         """
         Downloads an object from the object storage service to a file-like object,
@@ -422,8 +419,8 @@ class ObjectStorageBlock(Block, ABC):
     async def download_folder_to_path(
         self,
         from_folder: str,
-        to_folder: Union[str, Path],
-        **download_kwargs: Dict[str, Any],
+        to_folder: str | Path,
+        **download_kwargs: Any,
     ) -> Path:
         """
         Downloads a folder from the object storage service to a path.
@@ -439,7 +436,7 @@ class ObjectStorageBlock(Block, ABC):
 
     @abstractmethod
     async def upload_from_path(
-        self, from_path: Union[str, Path], to_path: str, **upload_kwargs: Dict[str, Any]
+        self, from_path: str | Path, to_path: str, **upload_kwargs: Any
     ) -> str:
         """
         Uploads an object from a path to the object storage service.
@@ -455,7 +452,7 @@ class ObjectStorageBlock(Block, ABC):
 
     @abstractmethod
     async def upload_from_file_object(
-        self, from_file_object: BinaryIO, to_path: str, **upload_kwargs: Dict[str, Any]
+        self, from_file_object: BinaryIO, to_path: str, **upload_kwargs: Any
     ) -> str:
         """
         Uploads an object to the object storage service from a file-like object,
@@ -473,9 +470,9 @@ class ObjectStorageBlock(Block, ABC):
     @abstractmethod
     async def upload_from_folder(
         self,
-        from_folder: Union[str, Path],
+        from_folder: str | Path,
         to_folder: str,
-        **upload_kwargs: Dict[str, Any],
+        **upload_kwargs: Any,
     ) -> str:
         """
         Uploads a folder to the object storage service from a path.

@@ -69,7 +69,7 @@ class AbstractAppriseNotificationBlock(NotificationBlock, ABC):
     async def notify(  # pyright: ignore[reportIncompatibleMethodOverride] TODO: update to sync only once base class is updated
         self,
         body: str,
-        subject: Optional[str] = None,
+        subject: str | None = None,
     ) -> None:
         with LogEavesdropper("apprise", level=logging.DEBUG) as eavesdropper:
             result = await self._apprise_client.async_notify(  # pyright: ignore[reportUnknownMemberType] incomplete type hints in apprise
@@ -98,7 +98,7 @@ class AppriseNotificationBlock(AbstractAppriseNotificationBlock, ABC):
     async def notify(  # pyright: ignore[reportIncompatibleMethodOverride] TODO: update to sync only once base class is updated
         self,
         body: str,
-        subject: Optional[str] = None,
+        subject: str | None = None,
     ):
         if not self.allow_private_urls:
             try:
@@ -191,8 +191,8 @@ class MicrosoftTeamsWebhook(AppriseNotificationBlock):
         if not (
             parsed_url := cast(
                 dict[str, Any],
-                NotifyWorkflows.parse_native_url(self.url.get_secret_value()),
-            )  # pyright: ignore[reportUnknownMemberType] incomplete type hints in apprise
+                NotifyWorkflows.parse_native_url(self.url.get_secret_value()),  # pyright: ignore[reportUnknownMemberType] incomplete type hints in apprise
+            )
         ):
             raise ValueError("Invalid Microsoft Teams Workflow URL provided.")
 
@@ -323,7 +323,7 @@ class PagerDutyWebHook(AbstractAppriseNotificationBlock):
     async def notify(  # pyright: ignore[reportIncompatibleMethodOverride] TODO: update to sync only once base class is updated
         self,
         body: str,
-        subject: Optional[str] = None,
+        subject: str | None = None,
     ):
         """
         Apprise will combine subject and body by default, so we need to move
@@ -807,7 +807,7 @@ class CustomWebhookNotificationBlock(NotificationBlock):
         examples=['{"tokenFromSecrets":"SomeSecretToken"}'],
     )
 
-    def _build_request_args(self, body: str, subject: Optional[str]) -> dict[str, Any]:
+    def _build_request_args(self, body: str, subject: str | None) -> dict[str, Any]:
         """Build kwargs for httpx.AsyncClient.request"""
         # prepare values
         values = self.secrets.get_secret_value()
@@ -853,7 +853,7 @@ class CustomWebhookNotificationBlock(NotificationBlock):
                     raise KeyError(f"{name}/{placeholder}")
 
     @sync_compatible
-    async def notify(self, body: str, subject: Optional[str] = None) -> None:  # pyright: ignore[reportIncompatibleMethodOverride]
+    async def notify(self, body: str, subject: str | None = None) -> None:  # pyright: ignore[reportIncompatibleMethodOverride]
         import httpx
 
         request_args = self._build_request_args(body, subject)

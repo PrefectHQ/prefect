@@ -1,4 +1,6 @@
-from typing import Any, Optional
+from __future__ import annotations
+
+from typing import Any
 
 from httpx import AsyncClient, AsyncHTTPTransport, Response
 from pydantic import Field, HttpUrl, SecretStr
@@ -56,7 +58,7 @@ class Webhook(Block):
         else:
             self._client = AsyncClient(transport=_insecure_http_transport)
 
-    async def call(self, payload: Optional[dict[str, Any]] = None) -> Response:
+    async def call(self, payload: dict[str, Any] | None = None) -> Response:
         """
         Call the webhook.
 

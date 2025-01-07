@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import AsyncGenerator, Optional, Union
+from typing import AsyncGenerator, Optional
 
 try:
     import redis.asyncio as redis
@@ -72,7 +74,7 @@ class RedisStorageContainer(WritableFileSystem):
             )
 
     @sync_compatible
-    async def read_path(self, path: Union[Path, str]):
+    async def read_path(self, path: Path | str):
         """Read the redis content at `path`
 
         Args:
@@ -85,7 +87,7 @@ class RedisStorageContainer(WritableFileSystem):
             return await client.get(str(path))
 
     @sync_compatible
-    async def write_path(self, path: Union[Path, str], content: bytes):
+    async def write_path(self, path: Path | str, content: bytes):
         """Write `content` to the redis at `path`
 
         Args:
@@ -121,8 +123,8 @@ class RedisStorageContainer(WritableFileSystem):
         host: str,
         port: int = 6379,
         db: int = 0,
-        username: Union[None, str, SecretStr] = None,
-        password: Union[None, str, SecretStr] = None,
+        username: None | str | SecretStr = None,
+        password: None | str | SecretStr = None,
     ) -> Self:
         """Create block from hostname, username and password
 
@@ -142,7 +144,7 @@ class RedisStorageContainer(WritableFileSystem):
         return cls(host=host, port=port, db=db, username=username, password=password)
 
     @classmethod
-    def from_connection_string(cls, connection_string: Union[str, SecretStr]) -> Self:
+    def from_connection_string(cls, connection_string: str | SecretStr) -> Self:
         """Create block from a Redis connection string
 
         Supports the following URL schemes:
