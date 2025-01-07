@@ -320,8 +320,7 @@ def run_inference(samples: list = [[5.0,3.4,1.5,0.2], [6.4,3.2,4.5,1.5], [7.2,3.
 
 ### Create webhooks
 
-In order to trigger the deployments you just created, you need to create webhooks in Prefect Cloud.
-These webhooks will receive events from S3.
+In Prefect Cloud, go to **Configuration** > **Webhooks** to create the webhooks that will receive events from S3.
 
 #### Model training webhook
 
@@ -338,7 +337,7 @@ Create a webhook named `model-training`:
 }
 ```
 
-Note the endpoint for this webhook, as you'll need it later.
+Note the URL for this webhook, as you'll need it later.
 
 #### Model inference webhook
 
@@ -355,28 +354,30 @@ Create a webhook named `model-inference`:
 }
 ```
 
-Note the endpoint for this webhook, as you'll need it later.
+Note the URL for this webhook, as you'll need it later.
 
 ### Create automations
 
-Finally, create automations which are triggered by each webhook you just created.
-These automations run the deployments you created earlier.
+In Prefect Cloud, go to **Automations** to create automations that will get triggered by the webhooks you just created.
+These automations are responsible for running your deployments.
 
 #### Model training automation
 
-Create an automation named `train-model`:
+Create an automation with a **custom** trigger type:
 
 * Trigger on any event matching `webhook.called` from the `model-training` webhook.
 * Trigger whenever you see that event 1 time within 0 days (this ensures your model will train every time the event occurs).
 * Run the `train-model > model-training` deployment whenever this automation is triggered.
+* Name this automation `train-model`.
 
 #### Model inference automation
 
-Create an automation named `run-inference`:
+Create an automation with a **custom** trigger type:
 
 * Trigger on any event matching `webhook.called` from the `model-inference` webhook.
 * Trigger whenever you see that event 1 time within 0 days (this ensures your model will train every time the event occurs).
 * Run the `run-inference > model-inference` deployment whenever this automation is triggered.
+* Name this automation `run-inference`.
 
 ## Set up AWS resources
 
