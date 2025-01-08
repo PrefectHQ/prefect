@@ -109,7 +109,7 @@ def load_flow_run(flow_run_id: UUID) -> FlowRun:
     return flow_run
 
 
-def load_flow(flow_run: FlowRun) -> Flow:
+def load_flow(flow_run: FlowRun) -> Flow[..., Any]:
     entrypoint = os.environ.get("PREFECT__FLOW_ENTRYPOINT")
 
     if entrypoint:
@@ -122,7 +122,7 @@ def load_flow(flow_run: FlowRun) -> Flow:
     return flow
 
 
-def load_flow_and_flow_run(flow_run_id: UUID) -> Tuple[FlowRun, Flow]:
+def load_flow_and_flow_run(flow_run_id: UUID) -> tuple[FlowRun, Flow[..., Any]]:
     flow_run = load_flow_run(flow_run_id)
     flow = load_flow(flow_run)
     return flow_run, flow
