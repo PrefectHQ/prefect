@@ -5,6 +5,31 @@ description: Use S3 webhooks to trigger an ML training flow on SageMaker
 
 In the [Extract data from websites](/v3/tutorials/scraping) tutorial, you learned how to handle data dependencies and ingest large amounts of data.
 Now, you'll learn how to train a machine learning model using your data.
+Here's the pipeline that you'll construct:
+
+```mermaid
+sequenceDiagram
+    actor Data Engineer
+    Data Engineer->>S3: Upload training data
+    S3->>S3: Trigger EventBridge rule
+    S3->>Prefect Cloud: Send event to webhook
+    Note right of Prefect Cloud: Start model training
+    Prefect Cloud->>Prefect Cloud: Trigger automation
+    Prefect Cloud->>Prefect Cloud: Run deployment
+    Prefect Cloud->>SageMaker: Train model
+    activate SageMaker
+    Note left of SageMaker: Provision instance
+    SageMaker-->>Prefect Cloud: 
+    deactivate SageMaker
+    Data Engineer-->>Prefect Cloud: View model performance in logs
+    Prefect Cloud->>S3: Save fitted model
+    S3->>S3: Trigger EventBridge rule
+    S3->>Prefect Cloud: Send event to webhook
+    Note right of Prefect Cloud: Start model inference
+    Prefect Cloud->>Prefect Cloud: Trigger automation
+    Prefect Cloud->>Prefect Cloud: Run deployment
+    Data Engineer-->>Prefect Cloud: View predictions in logs
+```
 
 ## Prerequisites
 
