@@ -5,7 +5,7 @@ Injected orchestration dependencies
 from __future__ import annotations
 
 from contextlib import contextmanager
-from typing import Annotated, Any, Awaitable, Callable, TypedDict, cast
+from typing import Annotated, Any, Awaitable, Callable, Optional, TypedDict, cast
 
 from fastapi.params import Depends
 
@@ -56,7 +56,7 @@ async def provide_task_policy() -> type[TaskRunOrchestrationPolicy]:
 
 async def provide_flow_policy(
     client_version: Annotated[
-        str | None, Depends(dependencies.get_prefect_client_version)
+        Optional[str], Depends(dependencies.get_prefect_client_version)
     ],
 ) -> type[FlowRunOrchestrationPolicy]:
     policy_provider = ORCHESTRATION_DEPENDENCIES.get("flow_policy_provider")

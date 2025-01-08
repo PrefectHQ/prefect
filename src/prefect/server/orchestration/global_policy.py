@@ -11,7 +11,7 @@ state database, they should be the most deeply nested contexts in orchestration 
 
 from __future__ import annotations
 
-from typing import cast
+from typing import Union, cast
 
 from packaging.version import Version
 
@@ -36,7 +36,7 @@ def COMMON_GLOBAL_TRANSFORMS() -> (
     list[
         type[
             BaseUniversalTransform[
-                orm_models.Run, core.FlowRunPolicy | core.TaskRunPolicy
+                orm_models.Run, Union[core.FlowRunPolicy, core.TaskRunPolicy]
             ]
         ]
     ]
@@ -65,17 +65,19 @@ class GlobalFlowPolicy(BaseOrchestrationPolicy[orm_models.FlowRun, core.FlowRunP
     @staticmethod
     def priority() -> (
         list[
-            type[
-                BaseUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy]
-                | BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]
+            Union[
+                type[BaseUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy]],
+                type[BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]],
             ]
         ]
     ):
         return cast(
             list[
-                type[
-                    BaseUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy]
-                    | BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]
+                Union[
+                    type[
+                        BaseUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy]
+                    ],
+                    type[BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]],
                 ]
             ],
             COMMON_GLOBAL_TRANSFORMS(),
@@ -87,7 +89,7 @@ class GlobalFlowPolicy(BaseOrchestrationPolicy[orm_models.FlowRun, core.FlowRunP
         ]
 
 
-class GlobalTaskPolicy(TaskOrchestrationContext):
+class GlobalTaskPolicy(BaseOrchestrationPolicy[orm_models.TaskRun, core.TaskRunPolicy]):
     """
     Global transforms that run against task-run-state transitions in priority order.
 
@@ -96,15 +98,31 @@ class GlobalTaskPolicy(TaskOrchestrationContext):
     """
 
     @staticmethod
-    def priority() -> list[type[TaskRunUniversalTransform]]:
+    def priority() -> (
+        list[
+            Union[
+                type[BaseUniversalTransform[orm_models.TaskRun, core.TaskRunPolicy]],
+                type[BaseOrchestrationRule[orm_models.TaskRun, core.TaskRunPolicy]],
+            ]
+        ]
+    ):
         return cast(
-            list[type[TaskRunUniversalTransform]],
+            list[
+                Union[
+                    type[
+                        BaseUniversalTransform[orm_models.TaskRun, core.TaskRunPolicy]
+                    ],
+                    type[BaseOrchestrationRule[orm_models.TaskRun, core.TaskRunPolicy]],
+                ]
+            ],
             COMMON_GLOBAL_TRANSFORMS(),
         ) + [IncrementTaskRunCount]
 
 
 class SetRunStateType(
-    BaseUniversalTransform[orm_models.Run, core.FlowRunPolicy | core.TaskRunPolicy]
+    BaseUniversalTransform[
+        orm_models.Run, Union[core.FlowRunPolicy, core.TaskRunPolicy]
+    ]
 ):
     """
     Updates the state type of a run on a state transition.
@@ -120,7 +138,9 @@ class SetRunStateType(
 
 
 class SetRunStateName(
-    BaseUniversalTransform[orm_models.Run, core.FlowRunPolicy | core.TaskRunPolicy]
+    BaseUniversalTransform[
+        orm_models.Run, Union[core.FlowRunPolicy, core.TaskRunPolicy]
+    ]
 ):
     """
     Updates the state name of a run on a state transition.
@@ -136,7 +156,9 @@ class SetRunStateName(
 
 
 class SetStartTime(
-    BaseUniversalTransform[orm_models.Run, core.FlowRunPolicy | core.TaskRunPolicy]
+    BaseUniversalTransform[
+        orm_models.Run, Union[core.FlowRunPolicy, core.TaskRunPolicy]
+    ]
 ):
     """
     Records the time a run enters a running state for the first time.
@@ -154,7 +176,9 @@ class SetStartTime(
 
 
 class SetRunStateTimestamp(
-    BaseUniversalTransform[orm_models.Run, core.FlowRunPolicy | core.TaskRunPolicy]
+    BaseUniversalTransform[
+        orm_models.Run, Union[core.FlowRunPolicy, core.TaskRunPolicy]
+    ]
 ):
     """
     Records the time a run changes states.
@@ -170,7 +194,9 @@ class SetRunStateTimestamp(
 
 
 class SetEndTime(
-    BaseUniversalTransform[orm_models.Run, core.FlowRunPolicy | core.TaskRunPolicy]
+    BaseUniversalTransform[
+        orm_models.Run, Union[core.FlowRunPolicy, core.TaskRunPolicy]
+    ]
 ):
     """
     Records the time a run enters a terminal state.
@@ -202,7 +228,9 @@ class SetEndTime(
 
 
 class IncrementRunTime(
-    BaseUniversalTransform[orm_models.Run, core.FlowRunPolicy | core.TaskRunPolicy]
+    BaseUniversalTransform[
+        orm_models.Run, Union[core.FlowRunPolicy, core.TaskRunPolicy]
+    ]
 ):
     """
     Records the amount of time a run spends in the running state.
@@ -291,7 +319,9 @@ class IncrementTaskRunCount(TaskRunUniversalTransform):
 
 
 class SetExpectedStartTime(
-    BaseUniversalTransform[orm_models.Run, core.FlowRunPolicy | core.TaskRunPolicy]
+    BaseUniversalTransform[
+        orm_models.Run, Union[core.FlowRunPolicy, core.TaskRunPolicy]
+    ]
 ):
     """
     Estimates the time a state is expected to start running if not set.
@@ -315,7 +345,9 @@ class SetExpectedStartTime(
 
 
 class SetNextScheduledStartTime(
-    BaseUniversalTransform[orm_models.Run, core.FlowRunPolicy | core.TaskRunPolicy]
+    BaseUniversalTransform[
+        orm_models.Run, Union[core.FlowRunPolicy, core.TaskRunPolicy]
+    ]
 ):
     """
     Records the scheduled time on a run.
@@ -397,7 +429,9 @@ class UpdateSubflowStateDetails(
 
 
 class UpdateStateDetails(
-    BaseUniversalTransform[orm_models.Run, core.FlowRunPolicy | core.TaskRunPolicy]
+    BaseUniversalTransform[
+        orm_models.Run, Union[core.FlowRunPolicy, core.TaskRunPolicy]
+    ]
 ):
     """
     Update a state's references to a corresponding flow- or task- run.

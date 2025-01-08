@@ -15,7 +15,7 @@ mechanism to configure and observe exactly what logic will fire against a transi
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Generic, TypeVar
+from typing import Generic, TypeVar, Union
 
 from prefect.server.database import orm_models
 from prefect.server.orchestration.rules import (
@@ -25,7 +25,7 @@ from prefect.server.orchestration.rules import (
 from prefect.server.schemas import core, states
 
 T = TypeVar("T", bound=orm_models.Run)
-RP = TypeVar("RP", bound=core.FlowRunPolicy | core.TaskRunPolicy)
+RP = TypeVar("RP", bound=Union[core.FlowRunPolicy, core.TaskRunPolicy])
 
 
 class BaseOrchestrationPolicy(ABC, Generic[T, RP]):
@@ -80,6 +80,8 @@ class FlowRunOrchestrationPolicy(
 
 
 class GenericOrchestrationPolicy(
-    BaseOrchestrationPolicy[orm_models.Run, core.FlowRunPolicy | core.TaskRunPolicy]
+    BaseOrchestrationPolicy[
+        orm_models.Run, Union[core.FlowRunPolicy, core.TaskRunPolicy]
+    ]
 ):
     pass

@@ -66,7 +66,7 @@ TERMINAL_STATES = set(states.TERMINAL_STATES)
 logger: "Logger" = get_logger("server")
 
 T = TypeVar("T", bound=orm_models.Run)
-RP = TypeVar("RP", bound=core.FlowRunPolicy | core.TaskRunPolicy)
+RP = TypeVar("RP", bound=Union[core.FlowRunPolicy, core.TaskRunPolicy])
 
 
 class OrchestrationContext(PrefectBaseModel, Generic[T, RP]):
@@ -637,7 +637,6 @@ class BaseOrchestrationRule(
         `OrchestrationContext` is considered invalid on entry, entering this context
         will do nothing. Otherwise, `self.before_transition` will fire.
         """
-
         if await self.invalid():
             pass
         else:
@@ -956,7 +955,7 @@ class TaskRunOrchestrationRule(
 
 
 class GenericOrchestrationRule(
-    BaseOrchestrationRule[orm_models.Run, core.FlowRunPolicy | core.TaskRunPolicy]
+    BaseOrchestrationRule[orm_models.Run, Union[core.FlowRunPolicy, core.TaskRunPolicy]]
 ):
     pass
 
@@ -1095,11 +1094,13 @@ class FlowRunUniversalTransform(
 
 
 class GenericUniversalTransform(
-    BaseUniversalTransform[orm_models.Run, core.FlowRunPolicy | core.TaskRunPolicy]
+    BaseUniversalTransform[
+        orm_models.Run, Union[core.FlowRunPolicy, core.TaskRunPolicy]
+    ]
 ):
     pass
 
 
 GenericOrchestrationContext = OrchestrationContext[
-    orm_models.Run, core.FlowRunPolicy | core.TaskRunPolicy
+    orm_models.Run, Union[core.FlowRunPolicy, core.TaskRunPolicy]
 ]

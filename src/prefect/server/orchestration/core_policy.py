@@ -7,7 +7,7 @@ Prefect enforces on a state transition.
 
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import Any, Union, cast
 from uuid import uuid4
 
 import pendulum
@@ -840,7 +840,7 @@ class RenameReruns(GenericOrchestrationRule):
 
 
 class CopyScheduledTime(
-    BaseOrchestrationRule[orm_models.Run, core.TaskRunPolicy | core.FlowRunPolicy]
+    BaseOrchestrationRule[orm_models.Run, Union[core.TaskRunPolicy, core.FlowRunPolicy]]
 ):
     """
     Ensures scheduled time is copied from scheduled states to pending states.
@@ -870,7 +870,7 @@ class CopyScheduledTime(
 
 
 class WaitForScheduledTime(
-    BaseOrchestrationRule[orm_models.Run, core.TaskRunPolicy | core.FlowRunPolicy]
+    BaseOrchestrationRule[orm_models.Run, Union[core.TaskRunPolicy, core.FlowRunPolicy]]
 ):
     """
     Prevents transitions to running states from happening too early.
@@ -1282,7 +1282,7 @@ class PreventPendingTransitions(GenericOrchestrationRule):
         initial_state: states.State | None,
         proposed_state: states.State | None,
         context: OrchestrationContext[
-            orm_models.Run, core.FlowRunPolicy | core.TaskRunPolicy
+            orm_models.Run, Union[core.FlowRunPolicy, core.TaskRunPolicy]
         ],
     ) -> None:
         if initial_state is None or proposed_state is None:
