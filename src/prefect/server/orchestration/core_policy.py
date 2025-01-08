@@ -58,17 +58,19 @@ class CoreFlowPolicyWithoutDeploymentConcurrency(FlowRunOrchestrationPolicy):
     @staticmethod
     def priority() -> (
         list[
-            type[
-                BaseUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy]
-                | BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]
+            Union[
+                type[BaseUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy],],
+                type[BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]],
             ]
         ]
     ):
         return cast(
             list[
-                type[
-                    BaseUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy]
-                    | BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]
+                Union[
+                    type[
+                        BaseUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy]
+                    ],
+                    type[BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]],
                 ]
             ],
             [
@@ -96,17 +98,19 @@ class CoreFlowPolicy(FlowRunOrchestrationPolicy):
     @staticmethod
     def priority() -> (
         list[
-            type[
-                BaseUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy]
-                | BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]
+            Union[
+                type[BaseUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy]],
+                type[BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]],
             ]
         ]
     ):
         return cast(
             list[
-                type[
-                    BaseUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy]
-                    | BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]
+                Union[
+                    type[
+                        BaseUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy]
+                    ],
+                    type[BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]],
                 ]
             ],
             [
@@ -136,17 +140,19 @@ class CoreTaskPolicy(TaskRunOrchestrationPolicy):
     @staticmethod
     def priority() -> (
         list[
-            type[
-                BaseUniversalTransform[orm_models.TaskRun, core.TaskRunPolicy]
-                | BaseOrchestrationRule[orm_models.TaskRun, core.TaskRunPolicy]
+            Union[
+                type[BaseUniversalTransform[orm_models.TaskRun, core.TaskRunPolicy]],
+                type[BaseOrchestrationRule[orm_models.TaskRun, core.TaskRunPolicy]],
             ]
         ]
     ):
         return cast(
             list[
-                type[
-                    BaseUniversalTransform[orm_models.TaskRun, core.TaskRunPolicy]
-                    | BaseOrchestrationRule[orm_models.TaskRun, core.TaskRunPolicy]
+                Union[
+                    type[
+                        BaseUniversalTransform[orm_models.TaskRun, core.TaskRunPolicy]
+                    ],
+                    type[BaseOrchestrationRule[orm_models.TaskRun, core.TaskRunPolicy]],
                 ]
             ],
             [

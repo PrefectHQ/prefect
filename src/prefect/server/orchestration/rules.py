@@ -322,11 +322,11 @@ class FlowOrchestrationContext(
                 **state_payload,
             )
 
-        self.session.add(validated_orm_state)
-        self.run.set_state(validated_orm_state)
-
-        await self.session.flush()
         if validated_orm_state:
+            self.session.add(validated_orm_state)
+            self.run.set_state(validated_orm_state)
+
+            await self.session.flush()
             self.validated_state = states.State.from_orm_without_result(
                 validated_orm_state, with_data=state_data
             )
@@ -483,11 +483,11 @@ class TaskOrchestrationContext(
                 **state_payload,
             )
 
-        self.session.add(validated_orm_state)
-        self.run.set_state(validated_orm_state)
-
-        await self.session.flush()
         if validated_orm_state:
+            self.session.add(validated_orm_state)
+            self.run.set_state(validated_orm_state)
+
+            await self.session.flush()
             self.validated_state = states.State.from_orm_without_result(
                 validated_orm_state, with_data=state_data
             )
