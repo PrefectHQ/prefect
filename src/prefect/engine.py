@@ -31,11 +31,24 @@ if __name__ == "__main__":
 
     try:
         from prefect.flow_engine import (
-            load_flow_and_flow_run,
+            flow_run_logger,
+            load_flow,
+            load_flow_run,
             run_flow,
         )
 
-        flow_run, flow = load_flow_and_flow_run(flow_run_id=flow_run_id)
+        flow_run = load_flow_run(flow_run_id=flow_run_id)
+        run_logger = flow_run_logger(flow_run=flow_run)
+
+        try:
+            flow = load_flow(flow_run)
+        except Exception:
+            run_logger.error(
+                "Unexpected exception encountered when trying to load flow",
+                exc_info=True,
+            )
+            raise
+
         # run the flow
         if flow.isasync:
             run_coro_as_sync(run_flow(flow, flow_run=flow_run))

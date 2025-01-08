@@ -103,13 +103,15 @@ class FlowRunTimeoutError(TimeoutError):
     """Raised when a flow run exceeds its defined timeout."""
 
 
-def load_flow_and_flow_run(flow_run_id: UUID) -> Tuple[FlowRun, Flow]:
-    ## TODO: add error handling to update state and log tracebacks
+def load_flow_run(flow_run_id: UUID) -> FlowRun:
+    client = cast(SyncPrefectClient, get_client(sync_client=True))
+    flow_run = client.read_flow_run(flow_run_id)
+    return flow_run
+
+
+def load_flow(flow_run: FlowRun) -> Flow:
     entrypoint = os.environ.get("PREFECT__FLOW_ENTRYPOINT")
 
-    client = cast(SyncPrefectClient, get_client(sync_client=True))
-
-    flow_run = client.read_flow_run(flow_run_id)
     if entrypoint:
         # we should not accept a placeholder flow at runtime
         flow = load_flow_from_entrypoint(entrypoint, use_placeholder_flow=False)
@@ -117,7 +119,12 @@ def load_flow_and_flow_run(flow_run_id: UUID) -> Tuple[FlowRun, Flow]:
         flow = run_coro_as_sync(
             load_flow_from_flow_run(flow_run, use_placeholder_flow=False)
         )
+    return flow
 
+
+def load_flow_and_flow_run(flow_run_id: UUID) -> Tuple[FlowRun, Flow]:
+    flow_run = load_flow_run(flow_run_id)
+    flow = load_flow(flow_run)
     return flow_run, flow
 
 
