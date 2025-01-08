@@ -57,7 +57,7 @@ async def provide_task_policy() -> type[TaskRunOrchestrationPolicy]:
 async def provide_flow_policy(
     client_version: Annotated[
         Optional[str], Depends(dependencies.get_prefect_client_version)
-    ],
+    ] = None,
 ) -> type[FlowRunOrchestrationPolicy]:
     policy_provider = ORCHESTRATION_DEPENDENCIES.get("flow_policy_provider")
 
