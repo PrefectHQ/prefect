@@ -113,8 +113,75 @@ def get_training_inputs(data_bucket):
 
 @task
 def create_training_script(model_bucket):
-    f"""Create the training script dynamically"""
-    training_script = """import argparse
+    """Create the training script dynamically from template"""
+    # Read the template
+    with open("templates/sagemaker_script_template.py", "r") as f:
+        training_script = f.read()
+
+    # Format the script with the model bucket
+    training_script = training_script.format(model_bucket=model_bucket)
+
+    # Write the formatted script
+    with open("train.py", "w") as f:
+        f.write(training_script)
+
+@task(cache_policy=None)
+def create_xgboost_estimator(sagemaker_session, role_arn):
+    """Create and configure the XGBoost estimator."""
+    hyperparameters = {
+        "max_depth": 5,
+        "eta": 0.2,
+        "gamma": 4,
+        "min_child_weight": 6,
+        "subsample": 0.8,
+        "objective": "multi:softmax",
+        "num_class": 3,
+        "num_round": 100,
+        "tree_method": "gpu_hist",
+        "device": "cuda"
+    }
+
+    return XGBoost(
+        entry_point="train.py",
+        hyperparameters=hyperparameters,
+        role=role_arn,
+        instance_count=1,
+        instance_type="ml.g4dn.xlarge",
+        framework_version="1.7-1",
+        py_version="py3",
+        sagemaker_session=sagemaker_session
+    )
+
+@flow(log_prints=True)
+def train_model(data_bucket: str = "prefect-ml-data", model_bucket: str = "prefect-model"):
+    """Main flow to train XGBoost model on Iris dataset using SageMaker."""
+    # Load AWS credentials from Prefect Block
+    aws_credentials = AwsCredentials.load("aws-credentials")
+    
+    # Get SageMaker role ARN from Prefect Secret Block
+    role_arn = Secret.load("sagemaker-role-arn").get()
+    
+    # Create SageMaker session
+    sagemaker_session = get_sagemaker_session(aws_credentials)
+
+    # Get training inputs
+    training_inputs = get_training_inputs(data_bucket)
+    create_training_script(model_bucket)
+    
+    # Create and train estimator
+    estimator = create_xgboost_estimator(sagemaker_session, role_arn)
+
+    estimator.fit(training_inputs, wait=True)
+    
+    return estimator
+```
+</Expandable>
+
+<Expandable title="SageMaker script template">
+And this is the template for the script that SageMaker uses to train the model.
+
+```python
+import argparse
 import boto3
 import os
 import json
@@ -175,7 +242,7 @@ if __name__ == "__main__":
     dtrain = xgb.DMatrix(X_train, label=y_train)
     dvalidation = xgb.DMatrix(X_validation, label=y_validation)
 
-    hyperparameters = {
+    hyperparameters = {{
         "max_depth": args.max_depth,
         "eta": args.eta,
         "gamma": args.gamma,
@@ -187,7 +254,7 @@ if __name__ == "__main__":
         "predictor": args.predictor,
         "device": args.device,
         "num_class": args.num_class
-    }
+    }}
 
     # Train the model
     watchlist = [(dtrain, "train"), (dvalidation, "validation")]
@@ -217,60 +284,6 @@ if __name__ == "__main__":
         bucket_name,
         filename
     )
-"""
-    
-    with open("train.py", "w") as f:
-        f.write(training_script)
-
-@task(cache_policy=None)
-def create_xgboost_estimator(sagemaker_session, role_arn):
-    """Create and configure the XGBoost estimator."""
-    hyperparameters = {
-        "max_depth": 5,
-        "eta": 0.2,
-        "gamma": 4,
-        "min_child_weight": 6,
-        "subsample": 0.8,
-        "objective": "multi:softmax",
-        "num_class": 3,
-        "num_round": 100,
-        "tree_method": "gpu_hist",
-        "device": "cuda"
-    }
-
-    return XGBoost(
-        entry_point="train.py",
-        hyperparameters=hyperparameters,
-        role=role_arn,
-        instance_count=1,
-        instance_type="ml.g4dn.xlarge",
-        framework_version="1.7-1",
-        py_version="py3",
-        sagemaker_session=sagemaker_session
-    )
-
-@flow(log_prints=True)
-def train_model(data_bucket: str = "prefect-ml-data", model_bucket: str = "prefect-model"):
-    """Main flow to train XGBoost model on Iris dataset using SageMaker."""
-    # Load AWS credentials from Prefect Block
-    aws_credentials = AwsCredentials.load("aws-credentials")
-    
-    # Get SageMaker role ARN from Prefect Secret Block
-    role_arn = Secret.load("sagemaker-role-arn").get()
-    
-    # Create SageMaker session
-    sagemaker_session = get_sagemaker_session(aws_credentials)
-
-    # Get training inputs
-    training_inputs = get_training_inputs(data_bucket)
-    create_training_script(model_bucket)
-    
-    # Create and train estimator
-    estimator = create_xgboost_estimator(sagemaker_session, role_arn)
-
-    estimator.fit(training_inputs, wait=True)
-    
-    return estimator
 ```
 </Expandable>
 
