@@ -32,7 +32,7 @@ Create a new Process work pool named `my-process-pool` in Prefect Cloud.
 prefect work-pool create my-process-pool --type process
 ```
 
-Now, start a worker in that work pool.
+Now, in a separate terminal, start a worker in that work pool.
 
 ```bash
 prefect worker start --pool my-process-pool
@@ -50,7 +50,7 @@ cd demos/
 ```
 
 Now deploy the `model-training` flow to Prefect Cloud.
-This flow trains an XGBoost model on the [Iris dataset](https://archive.ics.uci.edu/dataset/53/iris) using SageMaker.
+This flow trains an [XGBoost model](https://github.com/dmlc/xgboost) on the [Iris dataset](https://archive.ics.uci.edu/dataset/53/iris) using SageMaker.
 
 ```bash
 python model_training.py
