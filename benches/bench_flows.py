@@ -22,7 +22,7 @@ async def anoop_function():
 
 
 def bench_flow_decorator(benchmark: "BenchmarkFixture"):
-    benchmark(flow, noop_function)
+    benchmark(flow, noop_function, should_validate_parameters=False)
 
 
 @pytest.mark.parametrize("options", [{}, {"timeout_seconds": 10}])
