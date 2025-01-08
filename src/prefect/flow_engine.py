@@ -1441,7 +1441,7 @@ def run_flow(
     ret_val: Union[R, State, None] = None
 
     try:
-        kwargs = dict(
+        kwargs: dict[str, Any] = dict(
             flow=flow,
             flow_run=flow_run,
             parameters=_flow_parameters(
