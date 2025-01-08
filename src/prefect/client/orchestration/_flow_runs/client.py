@@ -46,6 +46,8 @@ class FlowRunClient(BaseClient):
         tags: "Iterable[str] | None" = None,
         parent_task_run_id: "UUID | None" = None,
         state: "State[R] | None" = None,
+        work_pool_name: str | None = None,
+        job_variables: dict[str, Any] | None = None,
     ) -> "FlowRun":
         """
         Create a flow run for a flow.
@@ -60,6 +62,8 @@ class FlowRunClient(BaseClient):
                 run identifier in the parent flow
             state: The initial state for the run. If not provided, defaults to
                 `Scheduled` for now. Should always be a `Scheduled` type.
+            work_pool_name: The name of the work pool to use for the flow run.
+            job_variables: A dictionary of job variables to use for the flow run.
 
         Raises:
             httpx.RequestError: if the Prefect API does not successfully create a run for any reason
@@ -98,6 +102,8 @@ class FlowRunClient(BaseClient):
                 retries=flow.retries,
                 retry_delay=int(flow.retry_delay_seconds or 0),
             ),
+            work_pool_name=work_pool_name,
+            job_variables=job_variables,
         )
 
         flow_run_create_json = flow_run_create.model_dump(mode="json")
@@ -478,6 +484,8 @@ class FlowRunAsyncClient(BaseAsyncClient):
         tags: "Iterable[str] | None" = None,
         parent_task_run_id: "UUID | None" = None,
         state: "State[R] | None" = None,
+        work_pool_name: str | None = None,
+        job_variables: dict[str, Any] | None = None,
     ) -> "FlowRun":
         """
         Create a flow run for a flow.
@@ -492,7 +500,8 @@ class FlowRunAsyncClient(BaseAsyncClient):
                 run identifier in the parent flow
             state: The initial state for the run. If not provided, defaults to
                 `Scheduled` for now. Should always be a `Scheduled` type.
-
+            work_pool_name: The name of the work pool to use for the flow run.
+            job_variables: A dictionary of job variables to use for the flow run.
         Raises:
             httpx.RequestError: if the Prefect API does not successfully create a run for any reason
 
@@ -530,6 +539,8 @@ class FlowRunAsyncClient(BaseAsyncClient):
                 retries=flow.retries,
                 retry_delay=int(flow.retry_delay_seconds or 0),
             ),
+            work_pool_name=work_pool_name,
+            job_variables=job_variables,
         )
 
         flow_run_create_json = flow_run_create.model_dump(mode="json")

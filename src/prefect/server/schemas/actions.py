@@ -508,6 +508,7 @@ class FlowRunCreate(ActionBaseModel):
         description="The context of the flow run.",
     )
     parent_task_run_id: Optional[UUID] = Field(None)
+    # TODO: Deprecate this
     infrastructure_document_id: Optional[UUID] = Field(None)
     empirical_policy: schemas.core.FlowRunPolicy = Field(
         default_factory=schemas.core.FlowRunPolicy,
@@ -530,6 +531,8 @@ class FlowRunCreate(ActionBaseModel):
             " has already been created, the existing flow run will be returned."
         ),
     )
+    work_pool_name: Optional[str] = Field(None)
+    job_variables: Optional[Dict[str, Any]] = Field(None)
 
     # DEPRECATED
 

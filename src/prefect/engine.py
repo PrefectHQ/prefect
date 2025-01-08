@@ -1,9 +1,17 @@
+import base64
+import gzip
+import json
 import os
 import sys
+import urllib.parse
 from typing import Any, Callable
 from uuid import UUID
 
+import cloudpickle
+import fsspec
+
 from prefect._internal.compatibility.migration import getattr_migration
+from prefect.client.orchestration import get_client
 from prefect.exceptions import (
     Abort,
     Pause,
@@ -35,12 +43,29 @@ if __name__ == "__main__":
             run_flow,
         )
 
-        flow_run, flow = load_flow_and_flow_run(flow_run_id=flow_run_id)
+        bundle_storage = os.environ.get("PREFECT__BUNDLE_STORAGE")
+
+        if bundle_storage:
+            scheme, netloc, urlpath, _, _ = urllib.parse.urlsplit(bundle_storage)
+            with fsspec.filesystem(scheme).open(f"{netloc}{urlpath}", "r") as f:
+                bundle = json.load(f)
+                flow = cloudpickle.loads(
+                    gzip.decompress(base64.b64decode(bundle["serialized_function"]))
+                )
+            flow_run = get_client(sync_client=True).read_flow_run(flow_run_id)
+            context = cloudpickle.loads(
+                gzip.decompress(base64.b64decode(bundle["serialized_context"]))
+            )
+        else:
+            flow_run, flow = load_flow_and_flow_run(
+                flow_run_id=flow_run_id, bundle_storage=bundle_storage
+            )
+            context = None
         # run the flow
         if flow.isasync:
-            run_coro_as_sync(run_flow(flow, flow_run=flow_run))
+            run_coro_as_sync(run_flow(flow, flow_run=flow_run, context=context))
         else:
-            run_flow(flow, flow_run=flow_run)
+            run_flow(flow, flow_run=flow_run, context=context)
 
     except Abort as exc:
         engine_logger.info(

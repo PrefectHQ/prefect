@@ -32,6 +32,7 @@ venv/
 # Documentation artifacts
 docs/
 site/
+schemas/
 
 # UI artifacts
 src/prefect/server/ui/*
@@ -56,3 +57,7 @@ tests/
 compat-tests/
 benches/
 build/
+.github/
+
+# Integrations
+src/integrations/

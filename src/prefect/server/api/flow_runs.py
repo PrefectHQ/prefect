@@ -30,6 +30,7 @@ import prefect.server.schemas as schemas
 from prefect.logging import get_logger
 from prefect.server.api.run_history import run_history
 from prefect.server.api.validation import validate_job_variables_for_deployment_flow_run
+from prefect.server.api.workers import WorkerLookups
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.exceptions import FlowRunGraphTooLarge
 from prefect.server.models.flow_runs import (
@@ -62,6 +63,7 @@ async def create_flow_run(
         orchestration_dependencies.provide_flow_orchestration_parameters
     ),
     api_version: str = Depends(dependencies.provide_request_api_version),
+    worker_lookups: WorkerLookups = Depends(WorkerLookups),
 ) -> schemas.responses.FlowRunResponse:
     """
     Create a flow run. If a flow run with the same flow_id and
@@ -83,6 +85,15 @@ async def create_flow_run(
     now = pendulum.now("UTC")
 
     async with db.session_context(begin_transaction=True) as session:
+        if flow_run.work_pool_name:
+            work_queue_id = (
+                await worker_lookups._get_default_work_queue_id_from_work_pool_name(
+                    session=session,
+                    work_pool_name=flow_run.work_pool_name,
+                )
+            )
+            flow_run_object.work_queue_id = work_queue_id
+
         model = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=flow_run_object,

@@ -14,32 +14,52 @@ For more information about work pools and workers,
 checkout out the [Prefect docs](https://docs.prefect.io/latest/deploy/infrastructure-concepts).
 """
 
+import base64
 import enum
+import gzip
+import json
 import os
 import re
 import sys
 import urllib.parse
+import uuid
 import warnings
-from typing import Any, Dict, Generator, List, Optional, Tuple
+from functools import wraps
+from pathlib import Path
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Generator,
+    List,
+    Optional,
+    Tuple,
+    TypeVar,
+)
 
 import anyio.abc
+import cloudpickle
 import docker
 import docker.errors
+import fsspec
 import packaging.version
 from docker import DockerClient
 from docker.models.containers import Container
 from pydantic import AfterValidator, Field
 from slugify import slugify
-from typing_extensions import Annotated, Literal
+from typing_extensions import Annotated, Literal, ParamSpec
 
 import prefect
 from prefect.client.orchestration import ServerType, get_client
 from prefect.client.schemas import FlowRun
+from prefect.context import FlowRunContext, serialize_context
 from prefect.events import Event, RelatedResource, emit_event
 from prefect.server.schemas.core import Flow
 from prefect.server.schemas.responses import DeploymentResponse
 from prefect.settings import PREFECT_API_URL
+from prefect.tasks import Task
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
+from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.dockerutils import (
     format_outlier_version_name,
     get_prefect_image_name,
@@ -51,6 +71,9 @@ from prefect_docker.credentials import DockerRegistryCredentials
 CONTAINER_LABELS = {
     "io.prefect.version": prefect.__version__,
 }
+
+P = ParamSpec("P")
+R = TypeVar("R")
 
 
 class ImagePullPolicy(enum.Enum):
@@ -400,12 +423,17 @@ class DockerWorker(BaseWorker):
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/2IfXXfMq66mrzJBDFFCHTp/6d8f320d9e4fc4393f045673d61ab612/Moby-logo.png?h=250"  # noqa
 
     def __init__(
-        self, *args: Any, test_mode: Optional[bool] = None, **kwargs: Any
+        self,
+        *args: Any,
+        test_mode: Optional[bool] = None,
+        bundle_storage: Optional[str] = None,
+        **kwargs: Any,
     ) -> None:
         if test_mode is None:
             self.test_mode = bool(os.getenv("PREFECT_DOCKER_TEST_MODE", False))
         else:
             self.test_mode = test_mode
+        self.bundle_storage = bundle_storage
         super().__init__(*args, **kwargs)
 
     async def setup(self):
@@ -420,6 +448,57 @@ class DockerWorker(BaseWorker):
                 )
 
         return await super().setup()
+
+    async def submit(
+        self,
+        flow: prefect.Flow[P, R],
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ):
+        flow_pickle = base64.b64encode(gzip.compress(cloudpickle.dumps(flow))).decode()
+        context_pickle = base64.b64encode(
+            gzip.compress(cloudpickle.dumps(serialize_context()))
+        ).decode()
+        bundle = {
+            "serialized_function": flow_pickle,
+            "serialized_context": context_pickle,
+        }
+        if TYPE_CHECKING:
+            assert self._client is not None
+
+        parameters = get_call_parameters(flow.fn, args, kwargs)
+        scheme, netloc, urlpath, _, _ = urllib.parse.urlsplit(self.bundle_storage)
+        remote_path = f"{netloc}{urlpath}/{uuid.uuid4()}.json"
+        with fsspec.filesystem(scheme).open(remote_path, "w") as f:
+            json.dump(bundle, f)
+        full_bundle_storage = f"{scheme}://{remote_path}"
+
+        parent_task_run = None
+        if flow_run_ctx := FlowRunContext.get():
+            parent_task_run = await Task(
+                name=flow.name, fn=flow.fn, version=flow.version
+            ).create_run(
+                flow_run_context=flow_run_ctx,
+                parameters=parameters,
+            )
+
+        flow_run = await self._client.create_flow_run(
+            flow=flow,
+            work_pool_name=self._work_pool_name,
+            parameters=flow.serialize_parameters(parameters),
+            parent_task_run_id=parent_task_run.id if parent_task_run else None,
+            job_variables={
+                "image": get_prefect_image_name(),
+                "env": {
+                    "PREFECT__BUNDLE_STORAGE": full_bundle_storage,
+                    "EXTRA_PIP_PACKAGES": "s3fs prefect-docker",
+                },
+                "volumes": [f"{str(Path.home())}/.aws:/root/.aws:ro"],
+            },
+        )
+
+        self._submitting_flow_run_ids.add(flow_run.id)
+        await self._submit_run(flow_run)
 
     async def run(
         self,
@@ -757,3 +836,18 @@ class DockerWorker(BaseWorker):
             related=related + [worker_related_resource],
             follows=last_event,
         )
+
+
+def docker_container(work_pool_name: str, bundle_storage: str):
+    def decorator(fn):
+        @wraps(fn)
+        async def wrapper(*args, **kwargs):
+            async with DockerWorker(
+                work_pool_name=work_pool_name,
+                bundle_storage=bundle_storage,
+            ) as worker:
+                return await worker.submit(fn, *args, **kwargs)
+
+        return wrapper
+
+    return decorator

@@ -6428,6 +6428,10 @@ export interface components {
              * @description An optional idempotency key. If a flow run with the same idempotency key has already been created, the existing flow run will be returned.
              */
             idempotency_key?: string | null;
+            /** Work Pool Name */
+            work_pool_name?: string | null;
+            /** Job Variables */
+            job_variables?: Record<string, never> | null;
             /**
              * Deployment Id
              * @deprecated

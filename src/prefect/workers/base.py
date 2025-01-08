@@ -435,7 +435,6 @@ class BaseWorker(abc.ABC):
         self.heartbeat_interval_seconds = (
             heartbeat_interval_seconds or PREFECT_WORKER_HEARTBEAT_SECONDS.value()
         )
-
         self._work_pool: Optional[WorkPool] = None
         self._exit_stack: AsyncExitStack = AsyncExitStack()
         self._runs_task_group: Optional[anyio.abc.TaskGroup] = None
@@ -546,8 +545,6 @@ class BaseWorker(abc.ABC):
         healthcheck_thread = None
         try:
             async with self as worker:
-                # wait for an initial heartbeat to configure the worker
-                await worker.sync_with_backend()
                 # schedule the scheduled flow run polling loop
                 async with anyio.create_task_group() as loops_task_group:
                     loops_task_group.start_soon(
@@ -947,7 +944,10 @@ class BaseWorker(abc.ABC):
             self._submitting_flow_run_ids.remove(flow_run.id)
             return
 
-        ready_to_submit = await self._propose_pending_state(flow_run)
+        if not flow_run.state.is_pending():
+            ready_to_submit = await self._propose_pending_state(flow_run)
+        else:
+            ready_to_submit = True
         self._logger.debug(f"Ready to submit {flow_run.id}: {ready_to_submit}")
         if ready_to_submit:
             readiness_result = await self._runs_task_group.start(
@@ -1064,14 +1064,19 @@ class BaseWorker(abc.ABC):
         flow_run: "FlowRun",
         deployment: Optional["DeploymentResponse"] = None,
     ) -> BaseJobConfiguration:
-        deployment = (
-            deployment
-            if deployment
-            else await self._client.read_deployment(flow_run.deployment_id)
-        )
+        if flow_run.deployment_id:
+            deployment = (
+                deployment
+                if deployment
+                else await self._client.read_deployment(flow_run.deployment_id)
+            )
+            deployment_vars = deployment.job_variables or {}
+        else:
+            deployment = None
+            deployment_vars = {}
+
         flow = await self._client.read_flow(flow_run.flow_id)
 
-        deployment_vars = deployment.job_variables or {}
         flow_run_vars = flow_run.job_variables or {}
         job_variables = {**deployment_vars}
 
@@ -1237,6 +1242,7 @@ class BaseWorker(abc.ABC):
     async def __aenter__(self):
         self._logger.debug("Entering worker context...")
         await self.setup()
+        await self.sync_with_backend()
 
         return self
 
