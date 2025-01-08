@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import hashlib
 import html
 import inspect
@@ -10,14 +12,10 @@ from textwrap import dedent
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     ClassVar,
-    Dict,
+    Coroutine,
     FrozenSet,
-    List,
     Optional,
-    Tuple,
-    Type,
     TypeVar,
     Union,
     get_origin,
@@ -34,6 +32,7 @@ from pydantic import (
     SecretBytes,
     SecretStr,
     SerializationInfo,
+    SerializerFunctionWrapHandler,
     ValidationError,
     model_serializer,
 )
@@ -48,6 +47,12 @@ from prefect.client.schemas import (
     BlockSchema,
     BlockType,
     BlockTypeUpdate,
+)
+from prefect.client.schemas.actions import (
+    BlockDocumentCreate,
+    BlockDocumentUpdate,
+    BlockSchemaCreate,
+    BlockTypeCreate,
 )
 from prefect.client.utilities import inject_client
 from prefect.events import emit_event
@@ -70,13 +75,15 @@ if TYPE_CHECKING:
 R = TypeVar("R")
 P = ParamSpec("P")
 
-ResourceTuple = Tuple[Dict[str, Any], List[Dict[str, Any]]]
+ResourceTuple = tuple[dict[str, Any], list[dict[str, Any]]]
 
 
 def block_schema_to_key(schema: BlockSchema) -> str:
     """
     Defines the unique key used to lookup the Block class for a given schema.
     """
+    if schema.block_type is None:
+        raise ValueError("Block type is not set")
     return f"{schema.block_type.slug}"
 
 
@@ -87,14 +94,16 @@ class InvalidBlockRegistration(Exception):
     """
 
 
-def _collect_nested_reference_strings(obj: Dict) -> List[str]:
+def _collect_nested_reference_strings(
+    obj: dict[str, Any] | list[Any],
+) -> list[dict[str, Any]]:
     """
     Collects all nested reference strings (e.g. #/definitions/Model) from a given object.
     """
-    found_reference_strings = []
+    found_reference_strings: list[dict[str, Any]] = []
     if isinstance(obj, dict):
-        if obj.get("$ref"):
-            found_reference_strings.append(obj.get("$ref"))
+        if ref := obj.get("$ref"):
+            found_reference_strings.append(ref)
         for value in obj.values():
             found_reference_strings.extend(_collect_nested_reference_strings(value))
     if isinstance(obj, list):
@@ -103,28 +112,31 @@ def _collect_nested_reference_strings(obj: Dict) -> List[str]:
     return found_reference_strings
 
 
-def _get_non_block_reference_definitions(object_definition: Dict, definitions: Dict):
+def _get_non_block_reference_definitions(
+    object_definition: dict[str, Any], definitions: dict[str, Any]
+) -> dict[str, Any]:
     """
     Given a definition of an object in a block schema OpenAPI spec and the dictionary
     of all reference definitions in that same block schema OpenAPI spec, return the
     definitions for objects that are referenced from the object or any children of
     the object that do not reference a block.
     """
-    non_block_definitions = {}
+    non_block_definitions: dict[str, Any] = {}
     reference_strings = _collect_nested_reference_strings(object_definition)
     for reference_string in reference_strings:
-        definition_key = reference_string.replace("#/definitions/", "")
-        definition = definitions.get(definition_key)
-        if definition and definition.get("block_type_slug") is None:
-            non_block_definitions = {
-                **non_block_definitions,
-                definition_key: definition,
-                **_get_non_block_reference_definitions(definition, definitions),
-            }
+        if isinstance(reference_string, str):
+            definition_key = reference_string.replace("#/definitions/", "")
+            definition = definitions.get(definition_key)
+            if definition and definition.get("block_type_slug") is None:
+                non_block_definitions = {
+                    **non_block_definitions,
+                    definition_key: definition,
+                    **_get_non_block_reference_definitions(definition, definitions),
+                }
     return non_block_definitions
 
 
-def _is_subclass(cls, parent_cls) -> bool:
+def _is_subclass(cls: type, parent_cls: type) -> TypeGuard[type[BaseModel]]:
     """
     Checks if a given class is a subclass of another class. Unlike issubclass,
     this will not throw an exception if cls is an instance instead of a type.
@@ -135,7 +147,9 @@ def _is_subclass(cls, parent_cls) -> bool:
 
 
 def _collect_secret_fields(
-    name: str, type_: Type[BaseModel], secrets: List[str]
+    name: str,
+    type_: type[BaseModel] | type[SecretStr] | type[SecretBytes] | type[SecretDict],
+    secrets: list[str],
 ) -> None:
     """
     Recursively collects all secret fields from a given type and adds them to the
@@ -148,7 +162,10 @@ def _collect_secret_fields(
         return
     elif _is_subclass(type_, BaseModel):
         for field_name, field in type_.model_fields.items():
-            _collect_secret_fields(f"{name}.{field_name}", field.annotation, secrets)
+            if field.annotation is not None:
+                _collect_secret_fields(
+                    f"{name}.{field_name}", field.annotation, secrets
+                )
         return
 
     if type_ in (SecretStr, SecretBytes) or (
@@ -212,7 +229,7 @@ class BlockNotSavedError(RuntimeError):
     pass
 
 
-def schema_extra(schema: Dict[str, Any], model: Type["Block"]):
+def schema_extra(schema: dict[str, Any], model: type["Block"]) -> None:
     """
     Customizes Pydantic's schema generation feature to add blocks related information.
     """
@@ -231,31 +248,35 @@ def schema_extra(schema: Dict[str, Any], model: Type["Block"]):
     # for example: ["x", "y", "z.*", "child.a"]
     # means the top-level keys "x" and "y", all keys under "z", and the key "a" of a block
     # nested under the "child" key are all secret. There is no limit to nesting.
-    secrets = schema["secret_fields"] = []
+    secrets: list[str] = []
     for name, field in model.model_fields.items():
-        _collect_secret_fields(name, field.annotation, secrets)
+        if field.annotation is not None:
+            _collect_secret_fields(name, field.annotation, secrets)
+    schema["secret_fields"] = secrets
 
     # create block schema references
-    refs = schema["block_schema_references"] = {}
+    refs: dict[str, Any] = {}
 
     def collect_block_schema_references(field_name: str, annotation: type) -> None:
         """Walk through the annotation and collect block schemas for any nested blocks."""
         if Block.is_block_class(annotation):
             if isinstance(refs.get(field_name), list):
-                refs[field_name].append(annotation._to_block_schema_reference_dict())
+                refs[field_name].append(annotation._to_block_schema_reference_dict())  # pyright: ignore[reportPrivateUsage]
             elif isinstance(refs.get(field_name), dict):
                 refs[field_name] = [
                     refs[field_name],
-                    annotation._to_block_schema_reference_dict(),
+                    annotation._to_block_schema_reference_dict(),  # pyright: ignore[reportPrivateUsage]
                 ]
             else:
-                refs[field_name] = annotation._to_block_schema_reference_dict()
+                refs[field_name] = annotation._to_block_schema_reference_dict()  # pyright: ignore[reportPrivateUsage]
         if get_origin(annotation) in (Union, list, tuple, dict):
             for type_ in get_args(annotation):
                 collect_block_schema_references(field_name, type_)
 
     for name, field in model.model_fields.items():
-        collect_block_schema_references(name, field.annotation)
+        if field.annotation is not None:
+            collect_block_schema_references(name, field.annotation)
+    schema["block_schema_references"] = refs
 
 
 @register_base_type
@@ -288,7 +309,7 @@ class Block(BaseModel, ABC):
     def __str__(self) -> str:
         return self.__repr__()
 
-    def __repr_args__(self):
+    def __repr_args__(self) -> list[tuple[str | None, Any]]:
         repr_args = super().__repr_args__()
         data_keys = self.model_json_schema()["properties"].keys()
         return [
@@ -315,7 +336,7 @@ class Block(BaseModel, ABC):
     _code_example: ClassVar[Optional[str]] = None
     _block_type_id: ClassVar[Optional[UUID]] = None
     _block_schema_id: ClassVar[Optional[UUID]] = None
-    _block_schema_capabilities: ClassVar[Optional[List[str]]] = None
+    _block_schema_capabilities: ClassVar[Optional[list[str]]] = None
     _block_schema_version: ClassVar[Optional[str]] = None
 
     # -- private instance variables
@@ -327,18 +348,20 @@ class Block(BaseModel, ABC):
 
     # Exclude `save` as it uses the `sync_compatible` decorator and needs to be
     # decorated directly.
-    _events_excluded_methods: ClassVar[List[str]] = PrivateAttr(
+    _events_excluded_methods: ClassVar[list[str]] = PrivateAttr(
         default=["block_initialization", "save", "dict"]
     )
 
     @classmethod
-    def __dispatch_key__(cls):
+    def __dispatch_key__(cls) -> str | None:
         if cls.__name__ == "Block":
             return None  # The base class is abstract
         return block_schema_to_key(cls._to_block_schema())
 
     @model_serializer(mode="wrap")
-    def ser_model(self, handler: Callable, info: SerializationInfo) -> Any:
+    def ser_model(
+        self, handler: SerializerFunctionWrapHandler, info: SerializationInfo
+    ) -> Any:
         jsonable_self = handler(self)
         if (ctx := info.context) and ctx.get("include_secrets") is True:
             jsonable_self.update(
@@ -363,11 +386,11 @@ class Block(BaseModel, ABC):
         return jsonable_self
 
     @classmethod
-    def get_block_type_name(cls):
+    def get_block_type_name(cls) -> str:
         return cls._block_type_name or cls.__name__
 
     @classmethod
-    def get_block_type_slug(cls):
+    def get_block_type_slug(cls) -> str:
         return slugify(cls._block_type_slug or cls.get_block_type_name())
 
     @classmethod
@@ -413,7 +436,7 @@ class Block(BaseModel, ABC):
 
     @classmethod
     def _calculate_schema_checksum(
-        cls, block_schema_fields: Optional[Dict[str, Any]] = None
+        cls, block_schema_fields: dict[str, Any] | None = None
     ):
         """
         Generates a unique hash for the underlying schema of block.
@@ -513,11 +536,24 @@ class Block(BaseModel, ABC):
                     "$ref": {"block_document_id": field_value._block_document_id}
                 }
 
+        block_schema_id = block_schema_id or self._block_schema_id
+        block_type_id = block_type_id or self._block_type_id
+
+        if block_schema_id is None:
+            raise ValueError(
+                "No block schema ID provided, either as an argument or on the block."
+            )
+        if block_type_id is None:
+            raise ValueError(
+                "No block type ID provided, either as an argument or on the block."
+            )
+
         return BlockDocument(
             id=self._block_document_id or uuid4(),
             name=(name or self._block_document_name) if not is_anonymous else None,
-            block_schema_id=block_schema_id or self._block_schema_id,
-            block_type_id=block_type_id or self._block_type_id,
+            block_schema_id=block_schema_id,
+            block_type_id=block_type_id,
+            block_type_name=self._block_type_name,
             data=block_document_data,
             block_schema=self._to_block_schema(
                 block_type_id=block_type_id or self._block_type_id,
@@ -551,13 +587,15 @@ class Block(BaseModel, ABC):
         )
 
     @classmethod
-    def _parse_docstring(cls) -> List[DocstringSection]:
+    def _parse_docstring(cls) -> list[DocstringSection]:
         """
         Parses the docstring into list of DocstringSection objects.
         Helper method used primarily to suppress irrelevant logs, e.g.
         `<module>:11: No type or annotation for parameter 'write_json'`
         because griffe is unable to parse the types from pydantic.BaseModel.
         """
+        if cls.__doc__ is None:
+            return []
         with disable_logger("griffe"):
             docstring = Docstring(cls.__doc__)
             parsed = parse(docstring, Parser.google)
@@ -710,7 +748,7 @@ class Block(BaseModel, ABC):
     def _event_kind(self) -> str:
         return f"prefect.block.{self.get_block_type_slug()}"
 
-    def _event_method_called_resources(self) -> Optional[ResourceTuple]:
+    def _event_method_called_resources(self) -> ResourceTuple | None:
         if not (self._block_document_id and self._block_document_name):
             return None
 
@@ -732,14 +770,14 @@ class Block(BaseModel, ABC):
         )
 
     @classmethod
-    def get_block_class_from_schema(cls: Type[Self], schema: BlockSchema) -> Type[Self]:
+    def get_block_class_from_schema(cls: type[Self], schema: BlockSchema) -> type[Self]:
         """
         Retrieve the block class implementation given a schema.
         """
         return cls.get_block_class_from_key(block_schema_to_key(schema))
 
     @classmethod
-    def get_block_class_from_key(cls: Type[Self], key: str) -> Type[Self]:
+    def get_block_class_from_key(cls: type[Self], key: str) -> type[Self]:
         """
         Retrieve the block class implementation given a key.
         """
@@ -751,7 +789,7 @@ class Block(BaseModel, ABC):
         return lookup_type(cls, key)
 
     def _define_metadata_on_nested_blocks(
-        self, block_document_references: Dict[str, Dict[str, Any]]
+        self, block_document_references: dict[str, dict[str, Any]]
     ):
         """
         Recursively populates metadata fields on nested blocks based on the
@@ -827,13 +865,14 @@ class Block(BaseModel, ABC):
         return block_document, block_document_name
 
     @classmethod
-    @sync_compatible
     @inject_client
     async def _get_block_document_by_id(
         cls,
         block_document_id: Union[str, uuid.UUID],
-        client: Optional["PrefectClient"] = None,
+        client: "PrefectClient | None" = None,
     ):
+        if TYPE_CHECKING:
+            assert isinstance(client, PrefectClient)
         if isinstance(block_document_id, str):
             try:
                 block_document_id = UUID(block_document_id)
@@ -1038,7 +1077,6 @@ class Block(BaseModel, ABC):
             block_document, _ = run_coro_as_sync(
                 cls._aget_block_document(name, client=client)
             )
-
         return cls._load_from_block_document(block_document, validate=validate)
 
     @classmethod
@@ -1046,10 +1084,10 @@ class Block(BaseModel, ABC):
     @inject_client
     async def load_from_ref(
         cls,
-        ref: Union[str, UUID, Dict[str, Any]],
+        ref: Union[str, UUID, dict[str, Any]],
         validate: bool = True,
-        client: Optional["PrefectClient"] = None,
-    ) -> "Self":
+        client: "PrefectClient | None" = None,
+    ) -> Self:
         """
         Retrieves data from the block document by given reference for the block type
         that corresponds with the current class and returns an instantiated version of
@@ -1089,16 +1127,18 @@ class Block(BaseModel, ABC):
             block document with the specified name.
 
         """
+        if TYPE_CHECKING:
+            assert isinstance(client, PrefectClient)
         block_document = None
         if isinstance(ref, (str, UUID)):
             block_document, _ = await cls._get_block_document_by_id(ref, client=client)
-        elif isinstance(ref, dict):
+        else:
             if block_document_id := ref.get("block_document_id"):
                 block_document, _ = await cls._get_block_document_by_id(
                     block_document_id, client=client
                 )
             elif block_document_slug := ref.get("block_document_slug"):
-                block_document, _ = await cls._get_block_document(
+                block_document, _ = await cls._aget_block_document(
                     block_document_slug, client=client
                 )
 
@@ -1110,7 +1150,7 @@ class Block(BaseModel, ABC):
     @classmethod
     def _load_from_block_document(
         cls, block_document: BlockDocument, validate: bool = True
-    ) -> "Self":
+    ) -> Self:
         """
         Loads a block from a given block document.
 
@@ -1144,7 +1184,9 @@ class Block(BaseModel, ABC):
         except ValidationError as e:
             if not validate:
                 missing_fields = tuple(err["loc"][0] for err in e.errors())
-                missing_block_data = {field: None for field in missing_fields}
+                missing_block_data: dict[str, None] = {
+                    field: None for field in missing_fields if isinstance(field, str)
+                }
                 warnings.warn(
                     f"Could not fully load {block_document.name!r} of block type"
                     f" {cls.get_block_type_slug()!r} - this is likely because one or more"
@@ -1163,7 +1205,7 @@ class Block(BaseModel, ABC):
             ) from e
 
     @staticmethod
-    def is_block_class(block: Any) -> TypeGuard[Type["Block"]]:
+    def is_block_class(block: Any) -> TypeGuard[type["Block"]]:
         return _is_subclass(block, Block)
 
     @staticmethod
@@ -1191,6 +1233,8 @@ class Block(BaseModel, ABC):
                 Prefect API. A new client will be created and used if one is not
                 provided.
         """
+        if TYPE_CHECKING:
+            assert isinstance(client, PrefectClient)
         if cls.__name__ == "Block":
             raise InvalidBlockRegistration(
                 "`register_type_and_schema` should be called on a Block "
@@ -1205,13 +1249,17 @@ class Block(BaseModel, ABC):
         async def register_blocks_in_annotation(annotation: type) -> None:
             """Walk through the annotation and register any nested blocks."""
             if Block.is_block_class(annotation):
-                await annotation.register_type_and_schema(client=client)
+                coro = annotation.register_type_and_schema(client=client)
+                if TYPE_CHECKING:
+                    assert isinstance(coro, Coroutine)
+                await coro
             elif get_origin(annotation) in (Union, tuple, list, dict):
                 for inner_annotation in get_args(annotation):
                     await register_blocks_in_annotation(inner_annotation)
 
         for field in cls.model_fields.values():
-            await register_blocks_in_annotation(field.annotation)
+            if field.annotation is not None:
+                await register_blocks_in_annotation(field.annotation)
 
         try:
             block_type = await client.read_block_type_by_slug(
@@ -1225,10 +1273,32 @@ class Block(BaseModel, ABC):
                 local_block_type=local_block_type, server_block_type=block_type
             ):
                 await client.update_block_type(
-                    block_type_id=block_type.id, block_type=local_block_type
+                    block_type_id=block_type.id,
+                    block_type=BlockTypeUpdate(
+                        **local_block_type.model_dump(
+                            include={
+                                "logo_url",
+                                "documentation_url",
+                                "description",
+                                "code_example",
+                            }
+                        )
+                    ),
                 )
         except prefect.exceptions.ObjectNotFound:
-            block_type = await client.create_block_type(block_type=cls._to_block_type())
+            block_type_create = BlockTypeCreate(
+                **cls._to_block_type().model_dump(
+                    include={
+                        "name",
+                        "slug",
+                        "logo_url",
+                        "documentation_url",
+                        "description",
+                        "code_example",
+                    }
+                )
+            )
+            block_type = await client.create_block_type(block_type=block_type_create)
             cls._block_type_id = block_type.id
 
         try:
@@ -1237,8 +1307,13 @@ class Block(BaseModel, ABC):
                 version=cls.get_block_schema_version(),
             )
         except prefect.exceptions.ObjectNotFound:
+            block_schema_create = BlockSchemaCreate(
+                **cls._to_block_schema(block_type_id=block_type.id).model_dump(
+                    include={"fields", "block_type_id", "capabilities", "version"}
+                )
+            )
             block_schema = await client.create_block_schema(
-                block_schema=cls._to_block_schema(block_type_id=block_type.id)
+                block_schema=block_schema_create
             )
 
         cls._block_schema_id = block_schema.id
@@ -1250,7 +1325,7 @@ class Block(BaseModel, ABC):
         is_anonymous: bool = False,
         overwrite: bool = False,
         client: Optional["PrefectClient"] = None,
-    ):
+    ) -> UUID:
         """
         Saves the values of a block as a block document with an option to save as an
         anonymous block document.
@@ -1268,6 +1343,8 @@ class Block(BaseModel, ABC):
             ValueError: If a name is not given and `is_anonymous` is `False` or a name is given and
                 `is_anonymous` is `True`.
         """
+        if TYPE_CHECKING:
+            assert isinstance(client, PrefectClient)
         if name is None and not is_anonymous:
             if self._block_document_name is None:
                 raise ValueError(
@@ -1281,25 +1358,47 @@ class Block(BaseModel, ABC):
         self._is_anonymous = is_anonymous
 
         # Ensure block type and schema are registered before saving block document.
-        await self.register_type_and_schema(client=client)
+        coro = self.register_type_and_schema(client=client)
+        if TYPE_CHECKING:
+            assert isinstance(coro, Coroutine)
+        await coro
 
+        block_document = None
         try:
+            block_document_create = BlockDocumentCreate(
+                **self._to_block_document(name=name, include_secrets=True).model_dump(
+                    include={
+                        "name",
+                        "block_schema_id",
+                        "block_type_id",
+                        "data",
+                        "is_anonymous",
+                    }
+                )
+            )
             block_document = await client.create_block_document(
-                block_document=self._to_block_document(name=name)
+                block_document=block_document_create
             )
         except prefect.exceptions.ObjectAlreadyExists as err:
             if overwrite:
                 block_document_id = self._block_document_id
-                if block_document_id is None:
+                if block_document_id is None and name is not None:
                     existing_block_document = await client.read_block_document_by_name(
                         name=name, block_type_slug=self.get_block_type_slug()
                     )
                     block_document_id = existing_block_document.id
+                if TYPE_CHECKING:
+                    # We know that the block document id is not None here because we
+                    # only get here if the block document already exists
+                    assert isinstance(block_document_id, UUID)
+                block_document_update = BlockDocumentUpdate(
+                    **self._to_block_document(
+                        name=name, include_secrets=True
+                    ).model_dump(include={"block_schema_id", "data"})
+                )
                 await client.update_block_document(
                     block_document_id=block_document_id,
-                    block_document=self._to_block_document(
-                        name=name, include_secrets=True
-                    ),
+                    block_document=block_document_update,
                 )
                 block_document = await client.read_block_document(
                     block_document_id=block_document_id
@@ -1351,7 +1450,7 @@ class Block(BaseModel, ABC):
 
         await client.delete_block_document(block_document.id)
 
-    def __new__(cls: Type[Self], **kwargs) -> Self:
+    def __new__(cls: type[Self], **kwargs: Any) -> Self:
         """
         Create an instance of the Block subclass type if a `block_type_slug` is
         present in the data payload.
@@ -1390,9 +1489,9 @@ class Block(BaseModel, ABC):
         cls,
         by_alias: bool = True,
         ref_template: str = "#/definitions/{model}",
-        schema_generator: Type[GenerateJsonSchema] = GenerateJsonSchema,
+        schema_generator: type[GenerateJsonSchema] = GenerateJsonSchema,
         mode: Literal["validation", "serialization"] = "validation",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """TODO: stop overriding this method - use GenerateSchema in ConfigDict instead?"""
         schema = super().model_json_schema(
             by_alias, ref_template, schema_generator, mode
@@ -1415,11 +1514,11 @@ class Block(BaseModel, ABC):
     @classmethod
     def model_validate(
         cls: type[Self],
-        obj: Any,
+        obj: dict[str, Any] | Any,
         *,
-        strict: Optional[bool] = None,
-        from_attributes: Optional[bool] = None,
-        context: Optional[Dict[str, Any]] = None,
+        strict: bool | None = None,
+        from_attributes: bool | None = None,
+        context: dict[str, Any] | None = None,
     ) -> Self:
         if isinstance(obj, dict):
             extra_serializer_fields = {
@@ -1437,18 +1536,18 @@ class Block(BaseModel, ABC):
     def model_dump(
         self,
         *,
-        mode: Union[Literal["json", "python"], str] = "python",
-        include: "IncEx" = None,
-        exclude: "IncEx" = None,
-        context: Optional[Dict[str, Any]] = None,
+        mode: Literal["json", "python"] | str = "python",
+        include: "IncEx | None" = None,
+        exclude: "IncEx | None" = None,
+        context: dict[str, Any] | None = None,
         by_alias: bool = False,
         exclude_unset: bool = False,
         exclude_defaults: bool = False,
         exclude_none: bool = False,
         round_trip: bool = False,
-        warnings: Union[bool, Literal["none", "warn", "error"]] = True,
+        warnings: bool | Literal["none", "warn", "error"] = True,
         serialize_as_any: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         d = super().model_dump(
             mode=mode,
             include=include,

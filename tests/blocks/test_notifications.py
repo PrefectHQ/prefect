@@ -87,7 +87,7 @@ class TestAppriseNotificationBlock:
                 block.url.get_secret_value()
             )
             apprise_instance_mock.async_notify.assert_awaited_once_with(
-                body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
+                body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
             )
 
     def test_notify_sync(self, block_class: Type[AppriseNotificationBlock]):
@@ -108,7 +108,7 @@ class TestAppriseNotificationBlock:
                 block.url.get_secret_value()
             )
             apprise_instance_mock.async_notify.assert_called_once_with(
-                body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
+                body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
             )
 
     def test_is_picklable(self, block_class: Type[AppriseNotificationBlock]):
@@ -167,7 +167,7 @@ class TestMattermostWebhook:
                 "?image=yes&format=text&overflow=upstream"
             )
             apprise_instance_mock.async_notify.assert_awaited_once_with(
-                body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
+                body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
             )
 
     def test_notify_sync(self):
@@ -189,7 +189,7 @@ class TestMattermostWebhook:
                 "?image=no&format=text&overflow=upstream"
             )
             apprise_instance_mock.async_notify.assert_called_once_with(
-                body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
+                body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
             )
 
     def test_notify_with_multiple_channels(self):
@@ -217,7 +217,7 @@ class TestMattermostWebhook:
             )
 
             apprise_instance_mock.async_notify.assert_called_once_with(
-                body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
+                body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
             )
 
     def test_is_picklable(self):
@@ -245,7 +245,7 @@ class TestDiscordWebhook:
                 "?tts=no&avatar=no&footer=no&footer_logo=yes&image=no&fields=yes&format=text&overflow=upstream"
             )
             apprise_instance_mock.async_notify.assert_awaited_once_with(
-                body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
+                body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
             )
 
     def test_notify_sync(self):
@@ -269,7 +269,7 @@ class TestDiscordWebhook:
                 "?tts=no&avatar=no&footer=no&footer_logo=yes&image=no&fields=yes&format=text&overflow=upstream"
             )
             apprise_instance_mock.async_notify.assert_called_once_with(
-                body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
+                body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
             )
 
     def test_is_picklable(self):
@@ -298,7 +298,7 @@ class TestOpsgenieWebhook:
             )
 
             apprise_instance_mock.async_notify.assert_awaited_once_with(
-                body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
+                body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
             )
 
     def _test_notify_sync(self, targets="", params=None, **kwargs):
@@ -324,7 +324,7 @@ class TestOpsgenieWebhook:
             )
 
             apprise_instance_mock.async_notify.assert_awaited_once_with(
-                body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
+                body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
             )
 
     def test_notify_sync_simple(self):
@@ -376,7 +376,7 @@ class TestPagerDutyWebhook:
 
             notify_type = "info"
             apprise_instance_mock.async_notify.assert_awaited_once_with(
-                body="test", title=None, notify_type=notify_type
+                body="test", title="", notify_type=notify_type
             )
 
     async def test_notify_async_with_subject(self):
@@ -427,7 +427,7 @@ class TestPagerDutyWebhook:
 
             notify_type = "info"
             apprise_instance_mock.async_notify.assert_awaited_once_with(
-                body="test", title=None, notify_type=notify_type
+                body="test", title="", notify_type=notify_type
             )
 
     def test_notify_sync_with_subject(self):
@@ -492,7 +492,7 @@ class TestTwilioSMS:
 
             client_instance_mock.async_notify.assert_awaited_once_with(
                 body="hello from prefect",
-                title=None,
+                title="",
                 notify_type=PREFECT_NOTIFY_TYPE_DEFAULT,
             )
 
@@ -519,7 +519,7 @@ class TestTwilioSMS:
 
             client_instance_mock.async_notify.assert_awaited_once_with(
                 body="hello from prefect",
-                title=None,
+                title="",
                 notify_type=PREFECT_NOTIFY_TYPE_DEFAULT,
             )
 
@@ -770,7 +770,7 @@ class TestSendgridEmail:
 
             apprise_instance_mock.add.assert_called_once_with(url)
             apprise_instance_mock.async_notify.assert_awaited_once_with(
-                body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
+                body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
             )
 
     def test_notify_sync(self):
@@ -801,7 +801,7 @@ class TestSendgridEmail:
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once_with(url)
             apprise_instance_mock.async_notify.assert_called_once_with(
-                body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
+                body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
             )
 
     def test_is_picklable(self):
@@ -833,7 +833,7 @@ class TestMicrosoftTeamsWebhook:
                 "&format=markdown&overflow=upstream"
             )
             apprise_instance_mock.async_notify.assert_awaited_once_with(
-                body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
+                body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
             )
 
     def test_notify_sync(self):
@@ -856,7 +856,7 @@ class TestMicrosoftTeamsWebhook:
                 "&format=markdown&overflow=upstream"
             )
             apprise_instance_mock.async_notify.assert_called_once_with(
-                body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
+                body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
             )
 
     def test_is_picklable(self):

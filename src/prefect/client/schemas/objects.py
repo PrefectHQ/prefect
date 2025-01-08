@@ -121,7 +121,7 @@ class WorkPoolStatus(AutoEnum):
     PAUSED = AutoEnum.auto()
 
     @property
-    def display_name(self):
+    def display_name(self) -> str:
         return self.name.replace("_", " ").capitalize()
 
 
@@ -348,7 +348,7 @@ class State(ObjectBaseModel, Generic[R]):
         )
 
         if isinstance(self.data, ResultRecord) and should_persist_result():
-            data = self.data.metadata
+            data = self.data.metadata  # pyright: ignore[reportUnknownMemberType] unable to narrow ResultRecord type
         else:
             data = None
 
@@ -379,7 +379,7 @@ class State(ObjectBaseModel, Generic[R]):
 
     @model_validator(mode="after")
     def set_unpersisted_results_to_none(self) -> Self:
-        if isinstance(self.data, dict) and self.data.get("type") == "unpersisted":
+        if isinstance(self.data, dict) and self.data.get("type") == "unpersisted":  # pyright: ignore[reportUnknownMemberType] unable to narrow dict type
             self.data = None
         return self
 
@@ -524,7 +524,7 @@ class FlowRunPolicy(PrefectBaseModel):
     @classmethod
     def populate_deprecated_fields(cls, values: Any) -> Any:
         if isinstance(values, dict):
-            return set_run_policy_deprecated_fields(values)
+            return set_run_policy_deprecated_fields(values)  # pyright: ignore[reportUnknownVariableType, reportUnknownArgumentType] unable to narrow dict type
         return values
 
 
@@ -1255,7 +1255,7 @@ class BlockDocumentReference(ObjectBaseModel):
     @classmethod
     def validate_parent_and_ref_are_different(cls, values: Any) -> Any:
         if isinstance(values, dict):
-            return validate_parent_and_ref_diff(values)
+            return validate_parent_and_ref_diff(values)  # pyright: ignore[reportUnknownVariableType, reportUnknownArgumentType] unable to narrow dict type
         return values
 
 
