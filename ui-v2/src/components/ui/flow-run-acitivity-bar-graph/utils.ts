@@ -27,7 +27,7 @@ export function organizeFlowRunsWithGaps(
 
 	if (flowRuns.length > numberOfBuckets) {
 		throw new Error(
-			"Number of flow runs is greater than the number of buckets",
+			`Number of flow runs (${flowRuns.length}) is greater than the number of buckets (${numberOfBuckets})`,
 		);
 	}
 
