@@ -1,6 +1,7 @@
 """
 Full schemas of Prefect REST API objects.
 """
+from __future__ import annotations
 
 import datetime
 from typing import TYPE_CHECKING, Any, ClassVar, Dict, List, Optional, Type, Union
