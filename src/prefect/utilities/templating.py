@@ -1,7 +1,17 @@
 import enum
 import os
 import re
-from typing import TYPE_CHECKING, Any, NamedTuple, Optional, TypeVar, Union, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Literal,
+    NamedTuple,
+    Optional,
+    TypeVar,
+    Union,
+    cast,
+    overload,
+)
 
 from prefect.client.utilities import inject_client
 from prefect.utilities.annotations import NotSet
@@ -77,6 +87,20 @@ def find_placeholders(template: T) -> set[Placeholder]:
         return seed.union(*[find_placeholders(item) for item in template])
     else:
         raise ValueError(f"Unexpected type: {type(template)}")
+
+
+@overload
+def apply_values(
+    template: T, values: dict[str, Any], remove_notset: Literal[True] = True
+) -> T:
+    ...
+
+
+@overload
+def apply_values(
+    template: T, values: dict[str, Any], remove_notset: Literal[False] = False
+) -> Union[T, type[NotSet]]:
+    ...
 
 
 def apply_values(
