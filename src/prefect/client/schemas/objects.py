@@ -1,13 +1,13 @@
 import datetime
 import warnings
+from collections.abc import Callable, Mapping
 from functools import partial
 from typing import (
     TYPE_CHECKING,
     Annotated,
     Any,
-    Dict,
+    ClassVar,
     Generic,
-    List,
     Optional,
     Union,
     overload,
@@ -23,15 +23,15 @@ from pydantic import (
     HttpUrl,
     IPvAnyNetwork,
     SerializationInfo,
+    SerializerFunctionWrapHandler,
     Tag,
     field_validator,
     model_serializer,
     model_validator,
 )
-from pydantic.functional_validators import ModelWrapValidatorHandler
-from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Literal, Self, TypeVar
 
+from prefect._internal.compatibility import deprecated
 from prefect._internal.compatibility.migration import getattr_migration
 from prefect._internal.schemas.bases import ObjectBaseModel, PrefectBaseModel
 from prefect._internal.schemas.fields import CreatedBy, UpdatedBy
@@ -52,6 +52,7 @@ from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.settings import PREFECT_CLOUD_API_URL, PREFECT_CLOUD_UI_URL
 from prefect.types import (
     MAX_VARIABLE_NAME_LENGTH,
+    KeyValueLabelsField,
     Name,
     NonNegativeInteger,
     PositiveInteger,
@@ -62,7 +63,12 @@ from prefect.utilities.names import generate_slug
 from prefect.utilities.pydantic import handle_secret_render
 
 if TYPE_CHECKING:
-    from prefect.results import BaseResult, ResultRecordMetadata
+    from prefect.client.schemas.actions import StateCreate
+    from prefect.results import ResultRecordMetadata
+
+    DateTime = pendulum.DateTime
+else:
+    from prefect.types import DateTime
 
 
 R = TypeVar("R", default=Any)
@@ -178,17 +184,17 @@ class StateDetails(PrefectBaseModel):
     pause_timeout: Optional[DateTime] = None
     pause_reschedule: bool = False
     pause_key: Optional[str] = None
-    run_input_keyset: Optional[Dict[str, str]] = None
+    run_input_keyset: Optional[dict[str, str]] = None
     refresh_cache: Optional[bool] = None
     retriable: Optional[bool] = None
     transition_id: Optional[UUID] = None
     task_parameters_id: Optional[UUID] = None
+    # Captures the trace_id and span_id of the span where this state was created
+    traceparent: Optional[str] = None
 
 
 def data_discriminator(x: Any) -> str:
-    if isinstance(x, dict) and "type" in x:
-        return "BaseResult"
-    elif isinstance(x, dict) and "storage_key" in x:
+    if isinstance(x, dict) and "storage_key" in x:
         return "ResultRecordMetadata"
     return "Any"
 
@@ -200,12 +206,11 @@ class State(ObjectBaseModel, Generic[R]):
 
     type: StateType
     name: Optional[str] = Field(default=None)
-    timestamp: DateTime = Field(default_factory=lambda: pendulum.now("UTC"))
+    timestamp: DateTime = Field(default_factory=lambda: DateTime.now("UTC"))
     message: Optional[str] = Field(default=None, examples=["Run started"])
     state_details: StateDetails = Field(default_factory=StateDetails)
     data: Annotated[
         Union[
-            Annotated["BaseResult[R]", Tag("BaseResult")],
             Annotated["ResultRecordMetadata", Tag("ResultRecordMetadata")],
             Annotated[Any, Tag("Any")],
         ],
@@ -213,17 +218,43 @@ class State(ObjectBaseModel, Generic[R]):
     ] = Field(default=None)
 
     @overload
-    def result(self: "State[R]", raise_on_failure: bool = True) -> R:
+    def result(
+        self: "State[R]",
+        raise_on_failure: Literal[True] = ...,
+        fetch: bool = ...,
+        retry_result_failure: bool = ...,
+    ) -> R:
         ...
 
     @overload
-    def result(self: "State[R]", raise_on_failure: bool = False) -> Union[R, Exception]:
+    def result(
+        self: "State[R]",
+        raise_on_failure: Literal[False] = False,
+        fetch: bool = ...,
+        retry_result_failure: bool = ...,
+    ) -> Union[R, Exception]:
         ...
 
+    @overload
+    def result(
+        self: "State[R]",
+        raise_on_failure: bool = ...,
+        fetch: bool = ...,
+        retry_result_failure: bool = ...,
+    ) -> Union[R, Exception]:
+        ...
+
+    @deprecated.deprecated_parameter(
+        "fetch",
+        when=lambda fetch: fetch is not True,
+        start_date="Oct 2024",
+        end_date="Jan 2025",
+        help="Please ensure you are awaiting the call to `result()` when calling in an async context.",
+    )
     def result(
         self,
         raise_on_failure: bool = True,
-        fetch: Optional[bool] = None,
+        fetch: bool = True,
         retry_result_failure: bool = True,
     ) -> Union[R, Exception]:
         """
@@ -248,22 +279,6 @@ class State(ObjectBaseModel, Generic[R]):
             The result of the run
 
         Examples:
-            >>> from prefect import flow, task
-            >>> @task
-            >>> def my_task(x):
-            >>>     return x
-
-            Get the result from a task future in a flow
-
-            >>> @flow
-            >>> def my_flow():
-            >>>     future = my_task("hello")
-            >>>     state = future.wait()
-            >>>     result = state.result()
-            >>>     print(result)
-            >>> my_flow()
-            hello
-
             Get the result from a flow state
 
             >>> @flow
@@ -307,7 +322,7 @@ class State(ObjectBaseModel, Generic[R]):
             >>>     raise ValueError("oh no!")
             >>> my_flow.deploy("my_deployment/my_flow")
             >>> flow_run = run_deployment("my_deployment/my_flow")
-            >>> await flow_run.state.result(raise_on_failure=True, fetch=True) # Raises `ValueError("oh no!")`
+            >>> await flow_run.state.result(raise_on_failure=True) # Raises `ValueError("oh no!")`
         """
         from prefect.states import get_state_result
 
@@ -318,7 +333,7 @@ class State(ObjectBaseModel, Generic[R]):
             retry_result_failure=retry_result_failure,
         )
 
-    def to_state_create(self):
+    def to_state_create(self) -> "StateCreate":
         """
         Convert this state to a `StateCreate` type which can be used to set the state of
         a run in the API.
@@ -328,14 +343,11 @@ class State(ObjectBaseModel, Generic[R]):
         """
         from prefect.client.schemas.actions import StateCreate
         from prefect.results import (
-            BaseResult,
             ResultRecord,
             should_persist_result,
         )
 
-        if isinstance(self.data, BaseResult):
-            data = self.data
-        elif isinstance(self.data, ResultRecord) and should_persist_result():
+        if isinstance(self.data, ResultRecord) and should_persist_result():
             data = self.data.metadata
         else:
             data = None
@@ -355,14 +367,20 @@ class State(ObjectBaseModel, Generic[R]):
         # validation check and an error will be raised after this function is called
         name = self.name
         if name is None and self.type:
-            self.name = " ".join([v.capitalize() for v in self.type.value.split("_")])
+            self.name = " ".join([v.capitalize() for v in self.type.split("_")])
         return self
 
     @model_validator(mode="after")
     def default_scheduled_start_time(self) -> Self:
         if self.type == StateType.SCHEDULED:
             if not self.state_details.scheduled_time:
-                self.state_details.scheduled_time = DateTime.now("utc")
+                self.state_details.scheduled_time = pendulum.DateTime.now("utc")
+        return self
+
+    @model_validator(mode="after")
+    def set_unpersisted_results_to_none(self) -> Self:
+        if isinstance(self.data, dict) and self.data.get("type") == "unpersisted":
+            self.data = None
         return self
 
     def is_scheduled(self) -> bool:
@@ -396,26 +414,28 @@ class State(ObjectBaseModel, Generic[R]):
         return self.type == StateType.PAUSED
 
     def model_copy(
-        self, *, update: Optional[Dict[str, Any]] = None, deep: bool = False
-    ):
+        self, *, update: Optional[Mapping[str, Any]] = None, deep: bool = False
+    ) -> Self:
         """
         Copying API models should return an object that could be inserted into the
         database again. The 'timestamp' is reset using the default factory.
         """
-        update = update or {}
-        update.setdefault("timestamp", self.model_fields["timestamp"].get_default())
+        update = {
+            "timestamp": self.model_fields["timestamp"].get_default(),
+            **(update or {}),
+        }
         return super().model_copy(update=update, deep=deep)
 
-    def fresh_copy(self, **kwargs) -> Self:
+    def fresh_copy(self, **kwargs: Any) -> Self:
         """
         Return a fresh copy of the state with a new ID.
         """
         return self.model_copy(
             update={
                 "id": uuid4(),
-                "created": pendulum.now("utc"),
-                "updated": pendulum.now("utc"),
-                "timestamp": pendulum.now("utc"),
+                "created": DateTime.now("utc"),
+                "updated": DateTime.now("utc"),
+                "timestamp": DateTime.now("utc"),
             },
             **kwargs,
         )
@@ -444,12 +464,14 @@ class State(ObjectBaseModel, Generic[R]):
         `MyCompletedState("my message", type=COMPLETED)`
         """
 
-        display = []
+        display: list[str] = []
 
         if self.message:
             display.append(repr(self.message))
 
-        if self.type.value.lower() != self.name.lower():
+        if TYPE_CHECKING:
+            assert self.name is not None
+        if self.type.lower() != self.name.lower():
             display.append(f"type={self.type.value}")
 
         return f"{self.name}({', '.join(display)})"
@@ -488,16 +510,19 @@ class FlowRunPolicy(PrefectBaseModel):
     retry_delay: Optional[int] = Field(
         default=None, description="The delay time between retries, in seconds."
     )
-    pause_keys: Optional[set] = Field(
+    pause_keys: Optional[set[str]] = Field(
         default_factory=set, description="Tracks pauses this run has observed."
     )
     resuming: Optional[bool] = Field(
         default=False, description="Indicates if this run is resuming from a pause."
     )
+    retry_type: Optional[Literal["in_process", "reschedule"]] = Field(
+        default=None, description="The type of retry this run is undergoing."
+    )
 
     @model_validator(mode="before")
     @classmethod
-    def populate_deprecated_fields(cls, values: Any):
+    def populate_deprecated_fields(cls, values: Any) -> Any:
         if isinstance(values, dict):
             return set_run_policy_deprecated_fields(values)
         return values
@@ -534,7 +559,7 @@ class FlowRun(ObjectBaseModel):
         description="The version of the flow executed in this flow run.",
         examples=["1.0"],
     )
-    parameters: Dict[str, Any] = Field(
+    parameters: dict[str, Any] = Field(
         default_factory=dict, description="Parameters for the flow run."
     )
     idempotency_key: Optional[str] = Field(
@@ -544,7 +569,7 @@ class FlowRun(ObjectBaseModel):
             " run is not created multiple times."
         ),
     )
-    context: Dict[str, Any] = Field(
+    context: dict[str, Any] = Field(
         default_factory=dict,
         description="Additional context for the flow run.",
         examples=[{"my_var": "my_val"}],
@@ -552,11 +577,12 @@ class FlowRun(ObjectBaseModel):
     empirical_policy: FlowRunPolicy = Field(
         default_factory=FlowRunPolicy,
     )
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         default_factory=list,
         description="A list of tags on the flow run",
         examples=[["tag-1", "tag-2"]],
     )
+    labels: KeyValueLabelsField = Field(default_factory=dict)
     parent_task_run_id: Optional[UUID] = Field(
         default=None,
         description=(
@@ -629,7 +655,7 @@ class FlowRun(ObjectBaseModel):
         description="The state of the flow run.",
         examples=["State(type=StateType.COMPLETED)"],
     )
-    job_variables: Optional[dict] = Field(
+    job_variables: Optional[dict[str, Any]] = Field(
         default=None,
         description="Job variables for the flow run.",
     )
@@ -660,7 +686,7 @@ class FlowRun(ObjectBaseModel):
 
     @field_validator("name", mode="before")
     @classmethod
-    def set_default_name(cls, name):
+    def set_default_name(cls, name: Optional[str]) -> str:
         return get_or_create_run_name(name)
 
 
@@ -684,7 +710,7 @@ class TaskRunPolicy(PrefectBaseModel):
         deprecated=True,
     )
     retries: Optional[int] = Field(default=None, description="The number of retries.")
-    retry_delay: Union[None, int, List[int]] = Field(
+    retry_delay: Union[None, int, list[int]] = Field(
         default=None,
         description="A delay time or list of delay times between retries, in seconds.",
     )
@@ -707,18 +733,20 @@ class TaskRunPolicy(PrefectBaseModel):
                 self.retries = self.max_retries
 
             if not self.retry_delay and self.retry_delay_seconds != 0:
-                self.retry_delay = self.retry_delay_seconds
+                self.retry_delay = int(self.retry_delay_seconds)
 
         return self
 
     @field_validator("retry_delay")
     @classmethod
-    def validate_configured_retry_delays(cls, v):
+    def validate_configured_retry_delays(
+        cls, v: Optional[list[float]]
+    ) -> Optional[list[float]]:
         return list_length_50_or_less(v)
 
     @field_validator("retry_jitter_factor")
     @classmethod
-    def validate_jitter_factor(cls, v):
+    def validate_jitter_factor(cls, v: Optional[float]) -> Optional[float]:
         return validate_not_negative(v)
 
 
@@ -728,9 +756,11 @@ class TaskRunInput(PrefectBaseModel):
     could include, constants, parameters, or other task runs.
     """
 
-    model_config = ConfigDict(frozen=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(frozen=True)
 
-    input_type: str
+    if not TYPE_CHECKING:
+        # subclasses provide the concrete type for this field
+        input_type: str
 
 
 class TaskRunResult(TaskRunInput):
@@ -788,15 +818,16 @@ class TaskRun(ObjectBaseModel):
     empirical_policy: TaskRunPolicy = Field(
         default_factory=TaskRunPolicy,
     )
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         default_factory=list,
         description="A list of tags for the task run.",
         examples=[["tag-1", "tag-2"]],
     )
+    labels: KeyValueLabelsField = Field(default_factory=dict)
     state_id: Optional[UUID] = Field(
         default=None, description="The id of the current task run state."
     )
-    task_inputs: Dict[str, List[Union[TaskRunResult, Parameter, Constant]]] = Field(
+    task_inputs: dict[str, list[Union[TaskRunResult, Parameter, Constant]]] = Field(
         default_factory=dict,
         description=(
             "Tracks the source of inputs to a task run. Used for internal bookkeeping. "
@@ -861,7 +892,7 @@ class TaskRun(ObjectBaseModel):
 
     @field_validator("name", mode="before")
     @classmethod
-    def set_default_name(cls, name):
+    def set_default_name(cls, name: Optional[str]) -> Name:
         return get_or_create_run_name(name)
 
 
@@ -879,7 +910,7 @@ class Workspace(PrefectBaseModel):
     workspace_name: str = Field(..., description="The workspace name.")
     workspace_description: str = Field(..., description="Description of the workspace.")
     workspace_handle: str = Field(..., description="The workspace's unique handle.")
-    model_config = ConfigDict(extra="ignore")
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="ignore")
 
     @property
     def handle(self) -> str:
@@ -908,7 +939,7 @@ class Workspace(PrefectBaseModel):
             f"/workspace/{self.workspace_id}"
         )
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self.handle)
 
 
@@ -931,7 +962,7 @@ class IPAllowlist(PrefectBaseModel):
     Expected payload for an IP allowlist from the Prefect Cloud API.
     """
 
-    entries: List[IPAllowlistEntry]
+    entries: list[IPAllowlistEntry]
 
 
 class IPAllowlistMyAccessResponse(PrefectBaseModel):
@@ -969,14 +1000,14 @@ class BlockSchema(ObjectBaseModel):
     """A representation of a block schema."""
 
     checksum: str = Field(default=..., description="The block schema's unique checksum")
-    fields: Dict[str, Any] = Field(
+    fields: dict[str, Any] = Field(
         default_factory=dict, description="The block schema's field schema"
     )
     block_type_id: Optional[UUID] = Field(default=..., description="A block type ID")
     block_type: Optional[BlockType] = Field(
         default=None, description="The associated block type"
     )
-    capabilities: List[str] = Field(
+    capabilities: list[str] = Field(
         default_factory=list,
         description="A list of Block capabilities",
     )
@@ -995,7 +1026,7 @@ class BlockDocument(ObjectBaseModel):
             "The block document's name. Not required for anonymous block documents."
         ),
     )
-    data: Dict[str, Any] = Field(
+    data: dict[str, Any] = Field(
         default_factory=dict, description="The block document's data"
     )
     block_schema_id: UUID = Field(default=..., description="A block schema ID")
@@ -1007,7 +1038,7 @@ class BlockDocument(ObjectBaseModel):
     block_type: Optional[BlockType] = Field(
         default=None, description="The associated block type"
     )
-    block_document_references: Dict[str, Dict[str, Any]] = Field(
+    block_document_references: dict[str, dict[str, Any]] = Field(
         default_factory=dict, description="Record of the block document's references"
     )
     is_anonymous: bool = Field(
@@ -1022,13 +1053,15 @@ class BlockDocument(ObjectBaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def validate_name_is_present_if_not_anonymous(cls, values):
+    def validate_name_is_present_if_not_anonymous(
+        cls, values: dict[str, Any]
+    ) -> dict[str, Any]:
         return validate_name_present_on_nonanonymous_blocks(values)
 
     @model_serializer(mode="wrap")
     def serialize_data(
-        self, handler: ModelWrapValidatorHandler, info: SerializationInfo
-    ):
+        self, handler: SerializerFunctionWrapHandler, info: SerializationInfo
+    ) -> Any:
         self.data = visit_collection(
             self.data,
             visit_fn=partial(handle_secret_render, context=info.context or {}),
@@ -1043,11 +1076,12 @@ class Flow(ObjectBaseModel):
     name: Name = Field(
         default=..., description="The name of the flow", examples=["my-flow"]
     )
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         default_factory=list,
         description="A list of flow tags",
         examples=[["tag-1", "tag-2"]],
     )
+    labels: KeyValueLabelsField
 
 
 class DeploymentSchedule(ObjectBaseModel):
@@ -1061,17 +1095,9 @@ class DeploymentSchedule(ObjectBaseModel):
     active: bool = Field(
         default=True, description="Whether or not the schedule is active."
     )
-    max_active_runs: Optional[PositiveInteger] = Field(
-        default=None,
-        description="The maximum number of active runs for the schedule.",
-    )
     max_scheduled_runs: Optional[PositiveInteger] = Field(
         default=None,
         description="The maximum number of scheduled runs for the schedule.",
-    )
-    catchup: bool = Field(
-        default=False,
-        description="Whether or not a worker should catch up on Late runs for the schedule.",
     )
 
 
@@ -1094,26 +1120,27 @@ class Deployment(ObjectBaseModel):
     concurrency_limit: Optional[int] = Field(
         default=None, description="The concurrency limit for the deployment."
     )
-    schedules: List[DeploymentSchedule] = Field(
+    schedules: list[DeploymentSchedule] = Field(
         default_factory=list, description="A list of schedules for the deployment."
     )
-    job_variables: Dict[str, Any] = Field(
+    job_variables: dict[str, Any] = Field(
         default_factory=dict,
         description="Overrides to apply to flow run infrastructure at runtime.",
     )
-    parameters: Dict[str, Any] = Field(
+    parameters: dict[str, Any] = Field(
         default_factory=dict,
         description="Parameters for flow runs scheduled by the deployment.",
     )
-    pull_steps: Optional[List[dict]] = Field(
+    pull_steps: Optional[list[dict[str, Any]]] = Field(
         default=None,
         description="Pull steps for cloning and running this deployment.",
     )
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         default_factory=list,
         description="A list of tags for the deployment",
         examples=[["tag-1", "tag-2"]],
     )
+    labels: KeyValueLabelsField
     work_queue_name: Optional[str] = Field(
         default=None,
         description=(
@@ -1125,7 +1152,7 @@ class Deployment(ObjectBaseModel):
         default=None,
         description="The last time the deployment was polled for status updates.",
     )
-    parameter_openapi_schema: Optional[Dict[str, Any]] = Field(
+    parameter_openapi_schema: Optional[dict[str, Any]] = Field(
         default=None,
         description="The parameter schema of the flow, including defaults.",
     )
@@ -1179,30 +1206,9 @@ class ConcurrencyLimit(ObjectBaseModel):
         default=..., description="A tag the concurrency limit is applied to."
     )
     concurrency_limit: int = Field(default=..., description="The concurrency limit.")
-    active_slots: List[UUID] = Field(
+    active_slots: list[UUID] = Field(
         default_factory=list,
         description="A list of active run ids using a concurrency slot",
-    )
-
-
-class BlockSchema(ObjectBaseModel):
-    """An ORM representation of a block schema."""
-
-    checksum: str = Field(default=..., description="The block schema's unique checksum")
-    fields: Dict[str, Any] = Field(
-        default_factory=dict, description="The block schema's field schema"
-    )
-    block_type_id: Optional[UUID] = Field(default=..., description="A block type ID")
-    block_type: Optional[BlockType] = Field(
-        default=None, description="The associated block type"
-    )
-    capabilities: List[str] = Field(
-        default_factory=list,
-        description="A list of Block capabilities",
-    )
-    version: str = Field(
-        default=DEFAULT_BLOCK_SCHEMA_VERSION,
-        description="Human readable identifier for the block schema",
     )
 
 
@@ -1247,7 +1253,7 @@ class BlockDocumentReference(ObjectBaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def validate_parent_and_ref_are_different(cls, values):
+    def validate_parent_and_ref_are_different(cls, values: Any) -> Any:
         if isinstance(values, dict):
             return validate_parent_and_ref_diff(values)
         return values
@@ -1257,7 +1263,7 @@ class Configuration(ObjectBaseModel):
     """An ORM representation of account info."""
 
     key: str = Field(default=..., description="Account info key")
-    value: Dict[str, Any] = Field(default=..., description="Account info")
+    value: dict[str, Any] = Field(default=..., description="Account info")
 
 
 class SavedSearchFilter(PrefectBaseModel):
@@ -1281,7 +1287,7 @@ class SavedSearch(ObjectBaseModel):
     """An ORM representation of saved search data. Represents a set of filter criteria."""
 
     name: str = Field(default=..., description="The name of the saved search.")
-    filters: List[SavedSearchFilter] = Field(
+    filters: list[SavedSearchFilter] = Field(
         default_factory=list, description="The filter set for the saved search."
     )
 
@@ -1304,11 +1310,11 @@ class Log(ObjectBaseModel):
 class QueueFilter(PrefectBaseModel):
     """Filter criteria definition for a work queue."""
 
-    tags: Optional[List[str]] = Field(
+    tags: Optional[list[str]] = Field(
         default=None,
         description="Only include flow runs with these tags in the work queue.",
     )
-    deployment_ids: Optional[List[UUID]] = Field(
+    deployment_ids: Optional[list[UUID]] = Field(
         default=None,
         description="Only include flow runs from these deployments in the work queue.",
     )
@@ -1368,7 +1374,7 @@ class WorkQueueHealthPolicy(PrefectBaseModel):
     )
 
     def evaluate_health_status(
-        self, late_runs_count: int, last_polled: Optional[DateTime] = None
+        self, late_runs_count: int, last_polled: Optional[pendulum.DateTime] = None
     ) -> bool:
         """
         Given empirical information about the state of the work queue, evaluate its health status.
@@ -1420,10 +1426,10 @@ class FlowRunNotificationPolicy(ObjectBaseModel):
     is_active: bool = Field(
         default=True, description="Whether the policy is currently active"
     )
-    state_names: List[str] = Field(
+    state_names: list[str] = Field(
         default=..., description="The flow run states that trigger notifications"
     )
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         default=...,
         description="The flow run tags that trigger notifications (set [] to disable)",
     )
@@ -1445,7 +1451,7 @@ class FlowRunNotificationPolicy(ObjectBaseModel):
 
     @field_validator("message_template")
     @classmethod
-    def validate_message_template_variables(cls, v):
+    def validate_message_template_variables(cls, v: Optional[str]) -> Optional[str]:
         return validate_message_template_variables(v)
 
 
@@ -1477,7 +1483,7 @@ class WorkPool(ObjectBaseModel):
         default=None, description="A description of the work pool."
     )
     type: str = Field(description="The work pool type.")
-    base_job_template: Dict[str, Any] = Field(
+    base_job_template: dict[str, Any] = Field(
         default_factory=dict, description="The work pool's base job template."
     )
     is_paused: bool = Field(
@@ -1492,10 +1498,12 @@ class WorkPool(ObjectBaseModel):
     )
 
     # this required field has a default of None so that the custom validator
-    # below will be called and produce a more helpful error message
-    default_queue_id: UUID = Field(
-        None, description="The id of the pool's default queue."
-    )
+    # below will be called and produce a more helpful error message. Because
+    # the field metadata is attached via an annotation, the default is hidden
+    # from type checkers.
+    default_queue_id: Annotated[
+        UUID, Field(default=None, description="The id of the pool's default queue.")
+    ]
 
     @property
     def is_push_pool(self) -> bool:
@@ -1507,7 +1515,7 @@ class WorkPool(ObjectBaseModel):
 
     @field_validator("default_queue_id")
     @classmethod
-    def helpful_error_for_missing_default_queue_id(cls, v):
+    def helpful_error_for_missing_default_queue_id(cls, v: Optional[UUID]) -> UUID:
         return validate_default_queue_id_not_none(v)
 
 
@@ -1518,8 +1526,8 @@ class Worker(ObjectBaseModel):
     work_pool_id: UUID = Field(
         description="The work pool with which the queue is associated."
     )
-    last_heartbeat_time: datetime.datetime = Field(
-        None, description="The last time the worker process sent a heartbeat."
+    last_heartbeat_time: Optional[datetime.datetime] = Field(
+        default=None, description="The last time the worker process sent a heartbeat."
     )
     heartbeat_interval_seconds: Optional[int] = Field(
         default=None,
@@ -1552,14 +1560,14 @@ class Artifact(ObjectBaseModel):
         default=None, description="A markdown-enabled description of the artifact."
     )
     # data will eventually be typed as `Optional[Union[Result, Any]]`
-    data: Optional[Union[Dict[str, Any], Any]] = Field(
+    data: Optional[Union[dict[str, Any], Any]] = Field(
         default=None,
         description=(
             "Data associated with the artifact, e.g. a result.; structure depends on"
             " the artifact type."
         ),
     )
-    metadata_: Optional[Dict[str, str]] = Field(
+    metadata_: Optional[dict[str, str]] = Field(
         default=None,
         description=(
             "User-defined artifact metadata. Content must be string key and value"
@@ -1575,7 +1583,9 @@ class Artifact(ObjectBaseModel):
 
     @field_validator("metadata_")
     @classmethod
-    def validate_metadata_length(cls, v):
+    def validate_metadata_length(
+        cls, v: Optional[dict[str, str]]
+    ) -> Optional[dict[str, str]]:
         return validate_max_metadata_length(v)
 
 
@@ -1594,14 +1604,14 @@ class ArtifactCollection(ObjectBaseModel):
     description: Optional[str] = Field(
         default=None, description="A markdown-enabled description of the artifact."
     )
-    data: Optional[Union[Dict[str, Any], Any]] = Field(
+    data: Optional[Union[dict[str, Any], Any]] = Field(
         default=None,
         description=(
             "Data associated with the artifact, e.g. a result.; structure depends on"
             " the artifact type."
         ),
     )
-    metadata_: Optional[Dict[str, str]] = Field(
+    metadata_: Optional[dict[str, str]] = Field(
         default=None,
         description=(
             "User-defined artifact metadata. Content must be string key and value"
@@ -1628,7 +1638,7 @@ class Variable(ObjectBaseModel):
         description="The value of the variable",
         examples=["my_value"],
     )
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         default_factory=list,
         description="A list of variable tags",
         examples=[["tag-1", "tag-2"]],
@@ -1653,7 +1663,7 @@ class FlowRunInput(ObjectBaseModel):
 
     @field_validator("key", check_fields=False)
     @classmethod
-    def validate_name_characters(cls, v):
+    def validate_name_characters(cls, v: str) -> str:
         raise_on_name_alphanumeric_dashes_only(v)
         return v
 
@@ -1698,4 +1708,25 @@ class CsrfToken(ObjectBaseModel):
     )
 
 
-__getattr__ = getattr_migration(__name__)
+__getattr__: Callable[[str], Any] = getattr_migration(__name__)
+
+
+class Integration(PrefectBaseModel):
+    """A representation of an installed Prefect integration."""
+
+    name: str = Field(description="The name of the Prefect integration.")
+    version: str = Field(description="The version of the Prefect integration.")
+
+
+class WorkerMetadata(PrefectBaseModel):
+    """
+    Worker metadata.
+
+    We depend on the structure of `integrations`, but otherwise, worker classes
+    should support flexible metadata.
+    """
+
+    integrations: list[Integration] = Field(
+        default=..., description="Prefect integrations installed in the worker."
+    )
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="allow")

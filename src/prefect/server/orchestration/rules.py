@@ -19,15 +19,14 @@ single line of user code.
 
 import contextlib
 from types import TracebackType
-from typing import Any, Dict, Iterable, List, Optional, Type, Union
+from typing import Any, ClassVar, Dict, Iterable, List, Optional, Type, Union
 
 import sqlalchemy as sa
 from pydantic import ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.logging import get_logger
-from prefect.server.database.dependencies import inject_db
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, inject_db
 from prefect.server.exceptions import OrchestrationError
 from prefect.server.models import artifacts, flow_runs
 from prefect.server.schemas import core, states
@@ -89,7 +88,7 @@ class OrchestrationContext(PrefectBaseModel):
         proposed_state: the proposed state a run is transitioning into
     """
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(arbitrary_types_allowed=True)
 
     session: Optional[Union[sa.orm.Session, AsyncSession]] = ...
     initial_state: Optional[states.State] = ...

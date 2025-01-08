@@ -12,8 +12,6 @@
     <br>
     <a href="https://prefect.io/slack" alt="Slack">
         <img src="https://img.shields.io/badge/slack-join_community-red.svg?color=0052FF&labelColor=090422&logo=slack" /></a>
-    <a href="https://discourse.prefect.io/" alt="Discourse">
-        <img src="https://img.shields.io/badge/discourse-browse_forum-red.svg?color=0052FF&labelColor=090422&logo=discourse" /></a>
     <a href="https://www.youtube.com/c/PrefectIO/" alt="YouTube">
         <img src="https://img.shields.io/badge/youtube-watch_videos-red.svg?color=0052FF&labelColor=090422&logo=youtube" /></a>
 </p>
@@ -40,7 +38,6 @@ Then create and run a Python file that uses Prefect `flow` and `task` decorators
 
 ```python
 from prefect import flow, task
-from typing import List
 import httpx
 
 
@@ -52,7 +49,7 @@ def get_stars(repo: str):
 
 
 @flow(name="GitHub Stars")
-def github_stars(repos: List[str]):
+def github_stars(repos: list[str]):
     for repo in repos:
         get_stars(repo)
 
@@ -62,7 +59,7 @@ if __name__=="__main__":
     github_stars(["PrefectHQ/Prefect"])
 ```
 
-Fire up the Prefect UI to see what happened:
+Fire up a Prefect server and open the UI at http://localhost:4200 to see what happened:
 
 ```bash
 prefect server start
@@ -72,11 +69,19 @@ To run your workflow on a schedule, turn it into a deployment and schedule it to
 
 ```python
 if __name__ == "__main__":
-    github_stars.serve(name="first-deployment", cron="* * * * *", parameters={ "repos": ["PrefectHQ/prefect"] })
+    github_stars.serve(
+        name="first-deployment",
+        cron="* * * * *",
+        parameters={"repos": ["PrefectHQ/prefect"]}
+    )
 ```
 
-You now have a server running locally that is looking for scheduled deployments!
+You now have a process running locally that is looking for scheduled deployments!
 Additionally you can run your workflow manually from the UI or CLI. You can even run deployments in response to [events](https://docs.prefect.io/latest/automate/?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none).
+
+> [!NOTE]
+> To explore different infrastructure options for your workflows, check out the [deployment documentation](https://docs.prefect.io/v3/deploy).
+
 
 ## Prefect Cloud
 

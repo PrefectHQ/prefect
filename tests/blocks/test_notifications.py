@@ -163,7 +163,7 @@ class TestMattermostWebhook:
 
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once_with(
-                f"mmost://{mm_block.hostname}/{mm_block.token.get_secret_value()}/"
+                f"mmost://{mm_block.hostname}:8065/{mm_block.token.get_secret_value()}/"
                 "?image=yes&format=text&overflow=upstream"
             )
             apprise_instance_mock.async_notify.assert_awaited_once_with(
@@ -185,7 +185,7 @@ class TestMattermostWebhook:
 
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once_with(
-                f"mmost://{mm_block.hostname}/{mm_block.token.get_secret_value()}/"
+                f"mmost://{mm_block.hostname}:8065/{mm_block.token.get_secret_value()}/"
                 "?image=no&format=text&overflow=upstream"
             )
             apprise_instance_mock.async_notify.assert_called_once_with(
@@ -211,7 +211,7 @@ class TestMattermostWebhook:
 
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once_with(
-                f"mmost://{mm_block.hostname}/{mm_block.token.get_secret_value()}/"
+                f"mmost://{mm_block.hostname}:8065/{mm_block.token.get_secret_value()}/"
                 "?image=no&format=text&overflow=upstream"
                 "&channel=death-metal-anonymous%2Cgeneral"
             )
@@ -292,7 +292,7 @@ class TestOpsgenieWebhook:
 
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once_with(
-                f"opsgenie://{self.API_KEY}//?action=map&region=us&priority=normal&"
+                f"opsgenie://{self.API_KEY}//?action=new&region=us&priority=normal&"
                 "batch=no&%3Ainfo=note&%3Asuccess=close&%3Awarning=new&%3Afailure="
                 "new&format=text&overflow=upstream"
             )
@@ -304,7 +304,7 @@ class TestOpsgenieWebhook:
     def _test_notify_sync(self, targets="", params=None, **kwargs):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
             if params is None:
-                params = "action=map&region=us&priority=normal&batch=no"
+                params = "action=new&region=us&priority=normal&batch=no"
 
             apprise_instance_mock = AppriseMock.return_value
             apprise_instance_mock.async_notify = AsyncMock()
@@ -331,7 +331,7 @@ class TestOpsgenieWebhook:
         self._test_notify_sync()
 
     def test_notify_sync_params(self):
-        params = "action=map&region=eu&priority=low&batch=yes"
+        params = "action=new&region=eu&priority=low&batch=yes"
         self._test_notify_sync(params=params, region_name="eu", priority=1, batch=True)
 
     def test_notify_sync_targets(self):
@@ -349,7 +349,7 @@ class TestOpsgenieWebhook:
         self._test_notify_sync(targets=targets, target_user=["user1", "user2"])
 
     def test_notify_sync_details(self):
-        params = "action=map&region=us&priority=normal&batch=no&%2Bkey1=value1&%2Bkey2=value2"
+        params = "action=new&region=us&priority=normal&batch=no&%2Bkey1=value1&%2Bkey2=value2"
         self._test_notify_sync(
             params=params,
             details={
@@ -546,9 +546,8 @@ class TestTwilioSMS:
 
 class TestCustomWebhook:
     async def test_notify_async(self):
-        with respx.mock as xmock:
+        with respx.mock(using="httpx") as xmock:
             xmock.post("https://example.com/")
-            xmock.route(host="localhost").pass_through()
 
             custom_block = CustomWebhookNotificationBlock(
                 name="test name",
@@ -562,16 +561,15 @@ class TestCustomWebhook:
             assert last_req.headers["user-agent"] == "Prefect Notifications"
             assert (
                 last_req.content
-                == b'{"msg": "subject\\ntest", "token": "someSecretToken"}'
+                == b'{"msg":"subject\\ntest","token":"someSecretToken"}'
             )
             assert last_req.extensions == {
                 "timeout": {"connect": 10, "pool": 10, "read": 10, "write": 10}
             }
 
     def test_notify_sync(self):
-        with respx.mock as xmock:
+        with respx.mock(using="httpx") as xmock:
             xmock.post("https://example.com/")
-            xmock.route(host="localhost").pass_through()
 
             custom_block = CustomWebhookNotificationBlock(
                 name="test name",
@@ -586,14 +584,14 @@ class TestCustomWebhook:
             assert last_req.headers["user-agent"] == "Prefect Notifications"
             assert (
                 last_req.content
-                == b'{"msg": "subject\\ntest", "token": "someSecretToken"}'
+                == b'{"msg":"subject\\ntest","token":"someSecretToken"}'
             )
             assert last_req.extensions == {
                 "timeout": {"connect": 10, "pool": 10, "read": 10, "write": 10}
             }
 
     async def test_user_agent_override(self):
-        with respx.mock as xmock:
+        with respx.mock(using="httpx") as xmock:
             xmock.post("https://example.com/")
 
             custom_block = CustomWebhookNotificationBlock(
@@ -609,14 +607,14 @@ class TestCustomWebhook:
             assert last_req.headers["user-agent"] == "CustomUA"
             assert (
                 last_req.content
-                == b'{"msg": "subject\\ntest", "token": "someSecretToken"}'
+                == b'{"msg":"subject\\ntest","token":"someSecretToken"}'
             )
             assert last_req.extensions == {
                 "timeout": {"connect": 10, "pool": 10, "read": 10, "write": 10}
             }
 
     async def test_timeout_override(self):
-        with respx.mock as xmock:
+        with respx.mock(using="httpx") as xmock:
             xmock.post("https://example.com/")
 
             custom_block = CustomWebhookNotificationBlock(
@@ -631,14 +629,14 @@ class TestCustomWebhook:
             last_req = xmock.calls.last.request
             assert (
                 last_req.content
-                == b'{"msg": "subject\\ntest", "token": "someSecretToken"}'
+                == b'{"msg":"subject\\ntest","token":"someSecretToken"}'
             )
             assert last_req.extensions == {
                 "timeout": {"connect": 30, "pool": 30, "read": 30, "write": 30}
             }
 
     async def test_request_cookie(self):
-        with respx.mock as xmock:
+        with respx.mock(using="httpx") as xmock:
             xmock.post("https://example.com/")
 
             custom_block = CustomWebhookNotificationBlock(
@@ -655,14 +653,14 @@ class TestCustomWebhook:
             assert last_req.headers["cookie"] == "key=secretCookieValue"
             assert (
                 last_req.content
-                == b'{"msg": "subject\\ntest", "token": "someSecretToken"}'
+                == b'{"msg":"subject\\ntest","token":"someSecretToken"}'
             )
             assert last_req.extensions == {
                 "timeout": {"connect": 30, "pool": 30, "read": 30, "write": 30}
             }
 
     async def test_subst_nested_list(self):
-        with respx.mock as xmock:
+        with respx.mock(using="httpx")(using="httpx") as xmock:
             xmock.post("https://example.com/")
 
             custom_block = CustomWebhookNotificationBlock(
@@ -679,14 +677,14 @@ class TestCustomWebhook:
             assert last_req.headers["user-agent"] == "Prefect Notifications"
             assert (
                 last_req.content
-                == b'{"data": {"sub1": [{"in-list": "test", "name": "test name"}]}}'
+                == b'{"data":{"sub1":[{"in-list":"test","name":"test name"}]}}'
             )
             assert last_req.extensions == {
                 "timeout": {"connect": 10, "pool": 10, "read": 10, "write": 10}
             }
 
     async def test_subst_none(self):
-        with respx.mock as xmock:
+        with respx.mock(using="httpx") as xmock:
             xmock.post("https://example.com/")
 
             custom_block = CustomWebhookNotificationBlock(
@@ -701,8 +699,7 @@ class TestCustomWebhook:
             last_req = xmock.calls.last.request
             assert last_req.headers["user-agent"] == "Prefect Notifications"
             assert (
-                last_req.content
-                == b'{"msg": "null\\ntest", "token": "someSecretToken"}'
+                last_req.content == b'{"msg":"null\\ntest","token":"someSecretToken"}'
             )
             assert last_req.extensions == {
                 "timeout": {"connect": 10, "pool": 10, "read": 10, "write": 10}

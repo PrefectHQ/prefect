@@ -21,10 +21,15 @@ import pytest
 from starlette import status
 
 import prefect.runner
-from prefect import __version__, flow, serve, task
+from prefect import __version__, aserve, flow, serve, task
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.actions import DeploymentScheduleCreate
-from prefect.client.schemas.objects import ConcurrencyLimitConfig, StateType
+from prefect.client.schemas.objects import (
+    ConcurrencyLimitConfig,
+    StateType,
+    Worker,
+    WorkerStatus,
+)
 from prefect.client.schemas.schedules import CronSchedule, IntervalSchedule
 from prefect.deployments.runner import (
     DeploymentApplyError,
@@ -38,10 +43,11 @@ from prefect.events.worker import EventsWorker
 from prefect.flows import load_flow_from_entrypoint
 from prefect.logging.loggers import flow_run_logger
 from prefect.runner.runner import Runner
-from prefect.runner.server import perform_health_check
+from prefect.runner.server import perform_health_check, start_webserver
 from prefect.settings import (
     PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE,
     PREFECT_DEFAULT_WORK_POOL_NAME,
+    PREFECT_RUNNER_HEARTBEAT_FREQUENCY,
     PREFECT_RUNNER_POLL_FREQUENCY,
     PREFECT_RUNNER_PROCESS_LIMIT,
     PREFECT_RUNNER_SERVER_ENABLE,
@@ -176,6 +182,23 @@ class TestInit:
             runner = Runner()
             assert runner.query_seconds == 100
 
+    async def test_runner_respects_heartbeat_setting(self):
+        runner = Runner()
+        assert runner.heartbeat_seconds == PREFECT_RUNNER_HEARTBEAT_FREQUENCY.value()
+        assert runner.heartbeat_seconds is None
+
+        with pytest.raises(
+            ValueError, match="Heartbeat must be 30 seconds or greater."
+        ):
+            Runner(heartbeat_seconds=29)
+
+        runner = Runner(heartbeat_seconds=50)
+        assert runner.heartbeat_seconds == 50
+
+        with temporary_settings({PREFECT_RUNNER_HEARTBEAT_FREQUENCY: 100}):
+            runner = Runner()
+            assert runner.heartbeat_seconds == 100
+
 
 class TestServe:
     @pytest.fixture(autouse=True)
@@ -263,6 +286,118 @@ class TestServe:
         deployment = dummy_flow_1.to_deployment("test")
 
         serve(deployment)
+
+        mock_runner_start.assert_awaited_once()
+
+    def test_log_level_lowercasing(self, monkeypatch):
+        runner_mock = mock.MagicMock()
+        log_level = "DEBUG"
+
+        # Mock build_server to return a webserver mock object
+        with mock.patch("prefect.runner.server.build_server") as mock_build_server:
+            webserver_mock = mock.MagicMock()
+            mock_build_server.return_value = webserver_mock
+
+            # Patch uvicorn.run to verify it's called with the correct arguments
+            with mock.patch("uvicorn.run") as mock_uvicorn:
+                start_webserver(runner_mock, log_level=log_level)
+                # Assert build_server was called once with the runner
+                mock_build_server.assert_called_once_with(runner_mock)
+
+                # Assert uvicorn.run was called with the lowercase log_level and the webserver mock
+                mock_uvicorn.assert_called_once_with(
+                    webserver_mock, host=mock.ANY, port=mock.ANY, log_level="debug"
+                )
+
+    def test_serve_in_async_context_raises_error(self, monkeypatch):
+        monkeypatch.setattr(
+            "asyncio.get_running_loop", lambda: asyncio.get_event_loop()
+        )
+
+        deployment = dummy_flow_1.to_deployment("test")
+
+        with pytest.raises(
+            RuntimeError,
+            match="Cannot call `serve` in an asynchronous context. Use `aserve` instead.",
+        ):
+            serve(deployment)
+
+
+class TestAServe:
+    @pytest.fixture(autouse=True)
+    async def mock_runner_start(self, monkeypatch):
+        mock = AsyncMock()
+        monkeypatch.setattr("prefect.runner.Runner.start", mock)
+        return mock
+
+    async def test_aserve_prints_help_message_on_startup(self, capsys):
+        await aserve(
+            await dummy_flow_1.to_deployment(__file__),
+            await dummy_flow_2.to_deployment(__file__),
+            await tired_flow.to_deployment(__file__),
+        )
+
+        captured = capsys.readouterr()
+
+        assert (
+            "Your deployments are being served and polling for scheduled runs!"
+            in captured.out
+        )
+        assert "dummy-flow-1/test_runner" in captured.out
+        assert "dummy-flow-2/test_runner" in captured.out
+        assert "tired-flow/test_runner" in captured.out
+        assert "$ prefect deployment run [DEPLOYMENT_NAME]" in captured.out
+
+    async def test_aserve_typed_container_inputs_flow(self, capsys):
+        @flow
+        def type_container_input_flow(arg1: List[str]) -> str:
+            print(arg1)
+            return ",".join(arg1)
+
+        await aserve(
+            await type_container_input_flow.to_deployment(__file__),
+        )
+
+        captured = capsys.readouterr()
+
+        assert (
+            "Your deployments are being served and polling for scheduled runs!"
+            in captured.out
+        )
+        assert "type-container-input-flow/test_runner" in captured.out
+        assert "$ prefect deployment run [DEPLOYMENT_NAME]" in captured.out
+
+    async def test_aserve_can_create_multiple_deployments(
+        self,
+        prefect_client: PrefectClient,
+    ):
+        deployment_1 = dummy_flow_1.to_deployment(__file__, interval=3600)
+        deployment_2 = dummy_flow_2.to_deployment(__file__, cron="* * * * *")
+
+        await aserve(await deployment_1, await deployment_2)
+
+        deployment = await prefect_client.read_deployment_by_name(
+            name="dummy-flow-1/test_runner"
+        )
+
+        assert deployment is not None
+        assert deployment.schedules[0].schedule.interval == datetime.timedelta(
+            seconds=3600
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            name="dummy-flow-2/test_runner"
+        )
+
+        assert deployment is not None
+        assert deployment.schedules[0].schedule.cron == "* * * * *"
+
+    async def test_aserve_starts_a_runner(
+        self, prefect_client: PrefectClient, mock_runner_start: AsyncMock
+    ):
+        deployment = dummy_flow_1.to_deployment("test")
+
+        await aserve(await deployment)
 
         mock_runner_start.assert_awaited_once()
 
@@ -384,7 +519,11 @@ class TestRunner:
         assert "All deployments have been paused" in caplog.text
 
     @pytest.mark.usefixtures("use_hosted_api_server")
-    async def test_runner_executes_flow_runs(self, prefect_client: PrefectClient):
+    async def test_runner_does_not_emit_heartbeats_if_not_set(
+        self,
+        prefect_client: PrefectClient,
+        asserting_events_worker: EventsWorker,
+    ):
         runner = Runner()
 
         deployment = await dummy_flow_1.to_deployment(__file__)
@@ -406,6 +545,70 @@ class TestRunner:
 
         assert flow_run.state
         assert flow_run.state.is_completed()
+
+        await asserting_events_worker.drain()
+
+        heartbeat_events = list(
+            filter(
+                lambda e: e.event == "prefect.flow-run.heartbeat",
+                asserting_events_worker._client.events,
+            )
+        )
+        assert len(heartbeat_events) == 0
+
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_runner_executes_flow_runs(
+        self,
+        prefect_client: PrefectClient,
+        asserting_events_worker: EventsWorker,
+    ):
+        runner = Runner(heartbeat_seconds=30)
+
+        deployment = await dummy_flow_1.to_deployment(__file__)
+
+        await runner.add_deployment(deployment)
+
+        await runner.start(run_once=True)
+
+        deployment = await prefect_client.read_deployment_by_name(
+            name="dummy-flow-1/test_runner"
+        )
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment.id
+        )
+
+        await runner.start(run_once=True)
+        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+
+        assert flow_run.state
+        assert flow_run.state.is_completed()
+
+        await asserting_events_worker.drain()
+
+        heartbeat_events = list(
+            filter(
+                lambda e: e.event == "prefect.flow-run.heartbeat",
+                asserting_events_worker._client.events,
+            )
+        )
+        assert len(heartbeat_events) == 1
+        assert heartbeat_events[0].resource.id == f"prefect.flow-run.{flow_run.id}"
+
+        related = [dict(r.items()) for r in heartbeat_events[0].related]
+
+        assert related == [
+            {
+                "prefect.resource.id": f"prefect.deployment.{deployment.id}",
+                "prefect.resource.role": "deployment",
+                "prefect.resource.name": "test_runner",
+            },
+            {
+                "prefect.resource.id": f"prefect.flow.{flow_run.flow_id}",
+                "prefect.resource.role": "flow",
+                "prefect.resource.name": dummy_flow_1.name,
+            },
+        ]
 
     @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_runner_runs_on_cancellation_hooks_for_remotely_stored_flows(
@@ -588,8 +791,8 @@ class TestRunner:
         assert "This flow crashed!" in caplog.text
 
     @pytest.mark.usefixtures("use_hosted_api_server")
-    async def test_runner_can_execute_a_single_flow_run(
-        self, prefect_client: PrefectClient
+    async def test_runner_does_not_emit_heartbeats_for_single_flow_run_if_not_set(
+        self, prefect_client: PrefectClient, asserting_events_worker: EventsWorker
     ):
         runner = Runner()
 
@@ -603,6 +806,59 @@ class TestRunner:
         flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
         assert flow_run.state
         assert flow_run.state.is_completed()
+
+        await asserting_events_worker.drain()
+
+        heartbeat_events = list(
+            filter(
+                lambda e: e.event == "prefect.flow-run.heartbeat",
+                asserting_events_worker._client.events,
+            )
+        )
+        assert len(heartbeat_events) == 0
+
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_runner_can_execute_a_single_flow_run(
+        self, prefect_client: PrefectClient, asserting_events_worker: EventsWorker
+    ):
+        runner = Runner(heartbeat_seconds=30)
+
+        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+        await runner.execute_flow_run(flow_run.id)
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+        assert flow_run.state
+        assert flow_run.state.is_completed()
+
+        await asserting_events_worker.drain()
+
+        heartbeat_events = list(
+            filter(
+                lambda e: e.event == "prefect.flow-run.heartbeat",
+                asserting_events_worker._client.events,
+            )
+        )
+        assert len(heartbeat_events) == 1
+        assert heartbeat_events[0].resource.id == f"prefect.flow-run.{flow_run.id}"
+
+        related = [dict(r.items()) for r in heartbeat_events[0].related]
+
+        assert related == [
+            {
+                "prefect.resource.id": f"prefect.deployment.{deployment_id}",
+                "prefect.resource.role": "deployment",
+                "prefect.resource.name": "test_runner",
+            },
+            {
+                "prefect.resource.id": f"prefect.flow.{flow_run.flow_id}",
+                "prefect.resource.role": "flow",
+                "prefect.resource.name": dummy_flow_1.name,
+            },
+        ]
 
     @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_runner_respects_set_limit(
@@ -848,8 +1104,6 @@ async def test_runner_emits_cancelled_event(
     await asserting_events_worker.drain()
 
     assert isinstance(asserting_events_worker._client, AssertingEventsClient)
-
-    assert len(asserting_events_worker._client.events) == 1
 
     cancelled_events = list(
         filter(
@@ -1508,6 +1762,16 @@ class TestRunnerDeployment:
                 ],
             )
 
+    async def test_deployment_name_with_dots(self):
+        # regression test for https://github.com/PrefectHQ/prefect/issues/16551
+        deployment = RunnerDeployment.from_flow(dummy_flow_1, name="..test-deployment")
+        assert deployment.name == "..test-deployment"
+
+        deployment2 = RunnerDeployment.from_flow(
+            dummy_flow_1, name="flow-from-my.python.module"
+        )
+        assert deployment2.name == "flow-from-my.python.module"
+
 
 class TestServer:
     async def test_healthcheck_fails_as_expected(self):
@@ -1667,6 +1931,73 @@ class TestDeploy:
                 in console_output
             )
             assert "prefect deployment run [DEPLOYMENT_NAME]" in console_output
+
+    async def test_deploy_with_active_workers(
+        self,
+        mock_build_image,
+        mock_docker_client,
+        mock_generate_default_dockerfile,
+        work_pool_with_image_variable,
+        prefect_client: PrefectClient,
+        capsys,
+        temp_storage: MockStorage,
+        monkeypatch,
+    ):
+        mock_read_workers_for_work_pool = AsyncMock(
+            return_value=[
+                Worker(
+                    name="test-worker",
+                    work_pool_id=work_pool_with_image_variable.id,
+                    status=WorkerStatus.ONLINE,
+                )
+            ]
+        )
+        monkeypatch.setattr(
+            "prefect.client.orchestration.PrefectClient.read_workers_for_work_pool",
+            mock_read_workers_for_work_pool,
+        )
+        deployment_ids = await deploy(
+            await dummy_flow_1.to_deployment(__file__),
+            await (
+                await flow.from_source(
+                    source=temp_storage, entrypoint="flows.py:test_flow"
+                )
+            ).to_deployment(__file__),
+            work_pool_name=work_pool_with_image_variable.name,
+            image=DockerImage(
+                name="test-registry/test-image",
+                tag="test-tag",
+            ),
+        )
+        assert len(deployment_ids) == 2
+        mock_generate_default_dockerfile.assert_called_once()
+        mock_build_image.assert_called_once_with(
+            tag="test-registry/test-image:test-tag", context=Path.cwd(), pull=True
+        )
+        mock_docker_client.api.push.assert_called_once_with(
+            repository="test-registry/test-image",
+            tag="test-tag",
+            stream=True,
+            decode=True,
+        )
+
+        deployment_1 = await prefect_client.read_deployment_by_name(
+            f"{dummy_flow_1.name}/test_runner"
+        )
+        assert deployment_1.id == deployment_ids[0]
+
+        deployment_2 = await prefect_client.read_deployment_by_name(
+            "test-flow/test_runner"
+        )
+        assert deployment_2.id == deployment_ids[1]
+        assert deployment_2.pull_steps == [{"prefect.fake.module": {}}]
+
+        console_output = capsys.readouterr().out
+        assert (
+            f"prefect worker start --pool {work_pool_with_image_variable.name!r}"
+            not in console_output
+        )
+        assert "prefect deployment run [DEPLOYMENT_NAME]" in console_output
 
     async def test_deploy_non_existent_work_pool(self):
         with pytest.raises(

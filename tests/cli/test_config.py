@@ -1,6 +1,7 @@
 import sys
 
 import pytest
+import toml
 from typer import Exit
 
 import prefect.context
@@ -9,6 +10,7 @@ from prefect.context import use_profile
 from prefect.settings import (
     PREFECT_API_DATABASE_TIMEOUT,
     PREFECT_API_KEY,
+    PREFECT_CLIENT_RETRY_EXTRA_CODES,
     PREFECT_LOGGING_TO_API_MAX_LOG_SIZE,
     PREFECT_PROFILES_PATH,
     PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
@@ -19,12 +21,17 @@ from prefect.settings import (
     save_profiles,
     temporary_settings,
 )
+from prefect.settings.legacy import _get_valid_setting_names
 from prefect.testing.cli import invoke_and_assert
+from prefect.utilities.filesystem import tmpchdir
 
 # Source strings displayed by `prefect config view`
 FROM_DEFAULT = "(from defaults)"
 FROM_ENV = "(from env)"
 FROM_PROFILE = "(from profile)"
+FROM_DOT_ENV = "(from .env file)"
+FROM_PREFECT_TOML = "(from prefect.toml)"
+FROM_PYPROJECT_TOML = "(from pyproject.toml)"
 
 
 @pytest.fixture(autouse=True)
@@ -333,7 +340,7 @@ def test_unset_multiple_settings():
 
 def test_view_excludes_unset_settings_without_show_defaults_flag(monkeypatch):
     # Clear the environment
-    for key in prefect.settings.Settings.valid_setting_names():
+    for key in _get_valid_setting_names(prefect.settings.Settings):
         monkeypatch.delenv(key, raising=False)
 
     monkeypatch.setenv("PREFECT_API_DATABASE_CONNECTION_TIMEOUT", "2.5")
@@ -357,7 +364,7 @@ def test_view_excludes_unset_settings_without_show_defaults_flag(monkeypatch):
     assert "PREFECT_PROFILE='foo'" in lines
 
     assert len(expected) < len(
-        prefect.settings.Settings.valid_setting_names()
+        _get_valid_setting_names(prefect.settings.Settings)
     ), "All settings were not expected; we should only have a subset."
 
 
@@ -378,8 +385,8 @@ def test_view_includes_unset_settings_with_show_defaults():
         ), f"Setting displayed multiple times: {setting}"
         printed_settings[setting] = value
 
-    assert (
-        printed_settings.keys() == prefect.settings.Settings.valid_setting_names()
+    assert printed_settings.keys() == _get_valid_setting_names(
+        prefect.settings.Settings
     ), "All settings should be displayed"
 
     for key, value in printed_settings.items():
@@ -543,3 +550,135 @@ def test_view_shows_secrets(monkeypatch, command):
 
     if "--show-defaults" in command:
         assert f"PREFECT_API_DATABASE_PASSWORD='None' {FROM_DEFAULT}" in lines
+
+
+def test_view_with_env_file(tmp_path):
+    with tmpchdir(tmp_path):
+        with open(".env", "w") as f:
+            f.write("PREFECT_CLIENT_RETRY_EXTRA_CODES=300\n")
+
+        res = invoke_and_assert(["config", "view"])
+
+        assert "PREFECT_CLIENT_RETRY_EXTRA_CODES='300'" in res.stdout
+        assert FROM_DOT_ENV in res.stdout
+
+
+def test_view_with_env_file_and_env_var(monkeypatch, tmp_path):
+    monkeypatch.setenv("PREFECT_CLIENT_RETRY_EXTRA_CODES", "400")
+
+    with tmpchdir(tmp_path):
+        with open(".env", "w") as f:
+            f.write("PREFECT_CLIENT_RETRY_EXTRA_CODES=300\n")
+
+        res = invoke_and_assert(["config", "view"])
+
+        assert "PREFECT_CLIENT_RETRY_EXTRA_CODES='400'" in res.stdout
+        assert FROM_DOT_ENV not in res.stdout
+
+
+def test_view_with_env_file_and_profile(tmp_path):
+    with tmpchdir(tmp_path):
+        with open(".env", "w") as f:
+            f.write("PREFECT_CLIENT_RETRY_EXTRA_CODES=300\n")
+
+        with prefect.context.use_profile(
+            prefect.settings.Profile(
+                name="foo",
+                settings={PREFECT_CLIENT_RETRY_EXTRA_CODES: [400]},
+            ),
+            include_current_context=False,
+        ):
+            res = invoke_and_assert(["config", "view"])
+
+        assert "PREFECT_CLIENT_RETRY_EXTRA_CODES='300'" in res.stdout
+        assert FROM_DOT_ENV in res.stdout
+
+
+def test_view_with_prefect_toml_file(tmp_path):
+    with tmpchdir(tmp_path):
+        toml_data = {"client": {"retry_extra_codes": "300"}}
+        with open("prefect.toml", "w") as f:
+            toml.dump(toml_data, f)
+
+        res = invoke_and_assert(["config", "view"])
+
+        assert "PREFECT_CLIENT_RETRY_EXTRA_CODES='300'" in res.stdout
+        assert FROM_PREFECT_TOML in res.stdout
+
+
+def test_view_with_prefect_toml_file_and_env_var(monkeypatch, tmp_path):
+    monkeypatch.setenv("PREFECT_CLIENT_RETRY_EXTRA_CODES", "400")
+
+    with tmpchdir(tmp_path):
+        toml_data = {"client": {"retry_extra_codes": "300"}}
+        with open("prefect.toml", "w") as f:
+            toml.dump(toml_data, f)
+
+        res = invoke_and_assert(["config", "view"])
+
+        assert "PREFECT_CLIENT_RETRY_EXTRA_CODES='400'" in res.stdout
+        assert FROM_PREFECT_TOML not in res.stdout
+
+
+def test_view_with_prefect_toml_file_and_profile(tmp_path):
+    with tmpchdir(tmp_path):
+        toml_data = {"client": {"retry_extra_codes": "300"}}
+        with open("prefect.toml", "w") as f:
+            toml.dump(toml_data, f)
+
+        with prefect.context.use_profile(
+            prefect.settings.Profile(
+                name="foo",
+                settings={PREFECT_CLIENT_RETRY_EXTRA_CODES: [400]},
+            ),
+            include_current_context=False,
+        ):
+            res = invoke_and_assert(["config", "view"])
+
+        assert "PREFECT_CLIENT_RETRY_EXTRA_CODES='300'" in res.stdout
+        assert FROM_PREFECT_TOML in res.stdout
+
+
+def test_view_with_pyproject_toml_file(tmp_path):
+    with tmpchdir(tmp_path):
+        toml_data = {"tool": {"prefect": {"client": {"retry_extra_codes": "300"}}}}
+        with open("pyproject.toml", "w") as f:
+            toml.dump(toml_data, f)
+
+        res = invoke_and_assert(["config", "view"])
+
+        assert "PREFECT_CLIENT_RETRY_EXTRA_CODES='300'" in res.stdout
+        assert FROM_PYPROJECT_TOML in res.stdout
+
+
+def test_view_with_pyproject_toml_file_and_env_var(monkeypatch, tmp_path):
+    monkeypatch.setenv("PREFECT_CLIENT_RETRY_EXTRA_CODES", "400")
+
+    with tmpchdir(tmp_path):
+        toml_data = {"tool": {"prefect": {"client": {"retry_extra_codes": "300"}}}}
+        with open("pyproject.toml", "w") as f:
+            toml.dump(toml_data, f)
+
+        res = invoke_and_assert(["config", "view"])
+
+        assert "PREFECT_CLIENT_RETRY_EXTRA_CODES='400'" in res.stdout
+        assert FROM_PYPROJECT_TOML not in res.stdout
+
+
+def test_view_with_pyproject_toml_file_and_profile(tmp_path):
+    with tmpchdir(tmp_path):
+        toml_data = {"tool": {"prefect": {"client": {"retry_extra_codes": "300"}}}}
+        with open("pyproject.toml", "w") as f:
+            toml.dump(toml_data, f)
+
+        with prefect.context.use_profile(
+            prefect.settings.Profile(
+                name="foo",
+                settings={PREFECT_CLIENT_RETRY_EXTRA_CODES: [400]},
+            ),
+            include_current_context=False,
+        ):
+            res = invoke_and_assert(["config", "view"])
+
+        assert "PREFECT_CLIENT_RETRY_EXTRA_CODES='300'" in res.stdout
+        assert FROM_PYPROJECT_TOML in res.stdout

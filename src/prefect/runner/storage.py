@@ -2,7 +2,15 @@ import shutil
 import subprocess
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Dict, Optional, Protocol, TypedDict, Union, runtime_checkable
+from typing import (
+    Any,
+    Dict,
+    Optional,
+    Protocol,
+    TypedDict,
+    Union,
+    runtime_checkable,
+)
 from urllib.parse import urlparse, urlsplit, urlunparse
 from uuid import uuid4
 
@@ -53,14 +61,14 @@ class RunnerStorage(Protocol):
         """
         ...
 
-    def to_pull_step(self) -> dict:
+    def to_pull_step(self) -> dict[str, Any]:
         """
         Returns a dictionary representation of the storage object that can be
         used as a deployment pull step.
         """
         ...
 
-    def __eq__(self, __value) -> bool:
+    def __eq__(self, __value: Any) -> bool:
         """
         Equality check for runner storage objects.
         """
@@ -69,7 +77,7 @@ class RunnerStorage(Protocol):
 
 class GitCredentials(TypedDict, total=False):
     username: str
-    access_token: Union[str, Secret]
+    access_token: Union[str, Secret[str]]
 
 
 class GitRepository:
@@ -87,6 +95,7 @@ class GitRepository:
         pull_interval: The interval in seconds at which to pull contents from
             remote storage to local storage. If None, remote storage will perform
             a one-time sync.
+        directories: The directories to pull from the Git repository (uses git sparse-checkout)
 
     Examples:
         Pull the contents of a private git repository to the local filesystem:
@@ -111,6 +120,7 @@ class GitRepository:
         branch: Optional[str] = None,
         include_submodules: bool = False,
         pull_interval: Optional[int] = 60,
+        directories: Optional[str] = None,
     ):
         if credentials is None:
             credentials = {}
@@ -134,6 +144,7 @@ class GitRepository:
         self._logger = get_logger(f"runner.storage.git-repository.{self._name}")
         self._storage_base_path = Path.cwd()
         self._pull_interval = pull_interval
+        self._directories = directories
 
     @property
     def destination(self) -> Path:
@@ -147,11 +158,9 @@ class GitRepository:
         return self._pull_interval
 
     @property
-    def _repository_url_with_credentials(self) -> str:
+    def _formatted_credentials(self) -> Optional[str]:
         if not self._credentials:
-            return self._url
-
-        url_components = urlparse(self._url)
+            return None
 
         credentials = (
             self._credentials.model_dump()
@@ -165,18 +174,52 @@ class GitRepository:
             elif isinstance(v, SecretStr):
                 credentials[k] = v.get_secret_value()
 
-        formatted_credentials = _format_token_from_credentials(
-            urlparse(self._url).netloc, credentials
-        )
-        if url_components.scheme == "https" and formatted_credentials is not None:
-            updated_components = url_components._replace(
-                netloc=f"{formatted_credentials}@{url_components.netloc}"
-            )
-            repository_url = urlunparse(updated_components)
-        else:
-            repository_url = self._url
+        return _format_token_from_credentials(urlparse(self._url).netloc, credentials)
 
-        return repository_url
+    def _add_credentials_to_url(self, url: str) -> str:
+        """Add credentials to given url if possible."""
+        components = urlparse(url)
+        credentials = self._formatted_credentials
+
+        if components.scheme != "https" or not credentials:
+            return url
+
+        return urlunparse(
+            components._replace(netloc=f"{credentials}@{components.netloc}")
+        )
+
+    @property
+    def _repository_url_with_credentials(self) -> str:
+        return self._add_credentials_to_url(self._url)
+
+    @property
+    def _git_config(self) -> list[str]:
+        """Build a git configuration to use when running git commands."""
+        config = {}
+
+        # Submodules can be private. The url in .gitmodules
+        # will not include the credentials, we need to
+        # propagate them down here if they exist.
+        if self._include_submodules and self._formatted_credentials:
+            base_url = urlparse(self._url)._replace(path="")
+            without_auth = urlunparse(base_url)
+            with_auth = self._add_credentials_to_url(without_auth)
+            config[f"url.{with_auth}.insteadOf"] = without_auth
+
+        return ["-c", " ".join(f"{k}={v}" for k, v in config.items())] if config else []
+
+    async def is_sparsely_checked_out(self) -> bool:
+        """
+        Check if existing repo is sparsely checked out
+        """
+
+        try:
+            result = await run_process(
+                ["git", "config", "--get", "core.sparseCheckout"], cwd=self.destination
+            )
+            return result.strip().lower() == "true"
+        except Exception:
+            return False
 
     async def pull_code(self):
         """
@@ -206,9 +249,20 @@ class GitRepository:
                     f"does not match the configured repository {self._url}"
                 )
 
+            # Sparsely checkout the repository if directories are specified and the repo is not in sparse-checkout mode already
+            if self._directories and not await self.is_sparsely_checked_out():
+                await run_process(
+                    ["git", "sparse-checkout", "set"] + self._directories,
+                    cwd=self.destination,
+                )
+
             self._logger.debug("Pulling latest changes from origin/%s", self._branch)
             # Update the existing repository
-            cmd = ["git", "pull", "origin"]
+            cmd = ["git"]
+            # Add the git configuration, must be given after `git` and before the command
+            cmd += self._git_config
+            # Add the pull command and parameters
+            cmd += ["pull", "origin"]
             if self._branch:
                 cmd += [self._branch]
             if self._include_submodules:
@@ -234,16 +288,20 @@ class GitRepository:
         self._logger.debug("Cloning repository %s", self._url)
 
         repository_url = self._repository_url_with_credentials
+        cmd = ["git"]
+        # Add the git configuration, must be given after `git` and before the command
+        cmd += self._git_config
+        # Add the clone command and its parameters
+        cmd += ["clone", repository_url]
 
-        cmd = [
-            "git",
-            "clone",
-            repository_url,
-        ]
         if self._branch:
             cmd += ["--branch", self._branch]
         if self._include_submodules:
             cmd += ["--recurse-submodules"]
+
+        # This will only checkout the top-level directory
+        if self._directories:
+            cmd += ["--sparse"]
 
         # Limit git history and set path to clone to
         cmd += ["--depth", "1", str(self.destination)]
@@ -257,6 +315,14 @@ class GitRepository:
                 f"Failed to clone repository {self._url!r} with exit code"
                 f" {exc.returncode}."
             ) from exc_chain
+
+        # Once repository is cloned and the repo is in sparse-checkout mode then grow the working directory
+        if self._directories:
+            self._logger.debug("Will add %s", self._directories)
+            await run_process(
+                ["git", "sparse-checkout", "set"] + self._directories,
+                cwd=self.destination,
+            )
 
     def __eq__(self, __value) -> bool:
         if isinstance(__value, GitRepository):

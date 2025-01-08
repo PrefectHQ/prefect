@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import inspect
 import json
+import threading
 import time
 from asyncio import Event, sleep
 from functools import partial
@@ -1969,6 +1970,80 @@ class TestTaskCaching:
         ):
             foo(1)
 
+    async def test_unhashable_input_provides_helpful_error(self, caplog):
+        """Test that trying to cache a task with unhashable inputs provides helpful error message"""
+        lock = threading.Lock()
+
+        @task(persist_result=True)
+        def foo(x, lock_obj):
+            return x
+
+        foo(42, lock_obj=lock)
+
+        error_msg = caplog.text
+
+        # First we see the cache policy's message
+        assert (
+            "This often occurs when task inputs contain objects that cannot be cached"
+            in error_msg
+        )
+        assert "like locks, file handles, or other system resources." in error_msg
+        assert "To resolve this, you can:" in error_msg
+        assert (
+            "1. Exclude these arguments by defining a custom `cache_key_fn`"
+            in error_msg
+        )
+        assert "2. Disable caching by passing `cache_policy=NONE`" in error_msg
+
+        # Then we see the original HashError details
+        assert "Unable to create hash - objects could not be serialized." in error_msg
+        assert (
+            "JSON error: Unable to serialize unknown type: <class '_thread.lock'>"
+            in error_msg
+        )
+        assert "Pickle error: cannot pickle '_thread.lock' object" in error_msg
+
+    async def test_unhashable_input_workarounds(self):
+        """Test workarounds for handling unhashable inputs"""
+        lock = threading.Lock()
+
+        # Solution 1: Use cache_key_fn to exclude problematic argument
+        def cache_on_x_only(context, parameters):
+            return str(parameters.get("x"))
+
+        @task(cache_key_fn=cache_on_x_only, persist_result=True)
+        def foo_with_key_fn(x, lock_obj):
+            return x
+
+        # Solution 2: Disable caching entirely
+        @task(cache_policy=NONE, persist_result=True)
+        def foo_with_none_policy(x, lock_obj):
+            return x
+
+        @flow
+        def test_flow():
+            # Both approaches should work without errors
+            return (
+                foo_with_key_fn(42, lock_obj=lock, return_state=True),
+                foo_with_key_fn(42, lock_obj=lock, return_state=True),
+                foo_with_none_policy(42, lock_obj=lock, return_state=True),
+                foo_with_none_policy(42, lock_obj=lock, return_state=True),
+            )
+
+        s1, s2, s3, s4 = test_flow()
+
+        # Key fn approach should still cache based on x
+        assert s1.name == "Completed"
+        assert s2.name == "Cached"
+        assert await s1.result() == 42
+        assert await s2.result() == 42
+
+        # NONE policy approach should never cache
+        assert s3.name == "Completed"
+        assert s4.name == "Completed"
+        assert await s3.result() == 42
+        assert await s4.result() == 42
+
 
 class TestCacheFunctionBuiltins:
     async def test_task_input_hash_within_flows(
@@ -2038,7 +2113,7 @@ class TestCacheFunctionBuiltins:
                 self.x = x
 
             def __eq__(self, other) -> bool:
-                return type(self) == type(other) and self.x == other.x
+                return type(self) is type(other) and self.x == other.x
 
         @task(
             cache_key_fn=task_input_hash,
@@ -2071,7 +2146,7 @@ class TestCacheFunctionBuiltins:
                 self.x = x
 
             def __eq__(self, other) -> bool:
-                return type(self) == type(other) and self.x == other.x
+                return type(self) is type(other) and self.x == other.x
 
         @task(
             cache_key_fn=task_input_hash,
@@ -2438,7 +2513,7 @@ class TestTaskInputs:
             # because it runs on the main thread with an active event loop. We need to update
             # result retrieval to be sync.
             result = upstream_state.result()
-            if inspect.isawaitable(result):
+            if asyncio.iscoroutine(result):
                 result = run_coro_as_sync(result)
             downstream_state = downstream(result, return_state=True)
             return upstream_state, downstream_state
@@ -4097,6 +4172,21 @@ class TestTaskMap:
 
 
 class TestTaskConstructorValidation:
+    async def test_task_cannot_configure_poorly_typed_retry_delay(self):
+        with pytest.raises(TypeError, match="Invalid"):
+
+            @task(retries=42, retry_delay_seconds=dict(x=4))
+            async def insanity():
+                raise RuntimeError("try again!")
+
+        with pytest.raises(TypeError, match="Invalid"):
+
+            @task(retries=42, retry_delay_seconds=2)
+            async def sanity():
+                raise RuntimeError("try again!")
+
+            more_insanity = sanity.with_options(retry_delay_seconds=dict(x=4))  # noqa: F841
+
     async def test_task_cannot_configure_too_many_custom_retry_delays(self):
         with pytest.raises(ValueError, match="Can not configure more"):
 

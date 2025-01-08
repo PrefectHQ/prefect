@@ -8,14 +8,13 @@ from typing import List, Optional
 
 import pydantic
 import sqlalchemy as sa
-from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Literal
 
 import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect.logging import get_logger
-from prefect.server.database.dependencies import db_injector
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, db_injector
+from prefect.types import DateTime
 
 logger = get_logger("server.api")
 
@@ -57,7 +56,7 @@ async def run_history(
         )
 
     # create a CTE for timestamp intervals
-    intervals = db.make_timestamp_intervals(
+    intervals = db.queries.make_timestamp_intervals(
         history_start,
         history_end,
         history_interval,
@@ -66,6 +65,7 @@ async def run_history(
     # apply filters to the flow runs (and related states)
     runs = (
         await run_filter_function(
+            db,
             sa.select(
                 run_model.id,
                 run_model.expected_start_time,
@@ -92,7 +92,7 @@ async def run_history(
             # build a JSON object, ignoring the case where the count of runs is 0
             sa.case(
                 (sa.func.count(runs.c.id) == 0, None),
-                else_=db.build_json_object(
+                else_=db.queries.build_json_object(
                     "state_type",
                     runs.c.state_type,
                     "state_name",
@@ -102,12 +102,14 @@ async def run_history(
                     # estimated run times only includes positive run times (to avoid any unexpected corner cases)
                     "sum_estimated_run_time",
                     sa.func.sum(
-                        db.greatest(0, sa.extract("epoch", runs.c.estimated_run_time))
+                        sa.func.greatest(
+                            0, sa.extract("epoch", runs.c.estimated_run_time)
+                        )
                     ),
                     # estimated lateness is the sum of any positive start time deltas
                     "sum_estimated_lateness",
                     sa.func.sum(
-                        db.greatest(
+                        sa.func.greatest(
                             0, sa.extract("epoch", runs.c.estimated_start_time_delta)
                         )
                     ),
@@ -138,10 +140,10 @@ async def run_history(
             counts.c.interval_start,
             counts.c.interval_end,
             sa.func.coalesce(
-                db.json_arr_agg(db.cast_to_json(counts.c.state_agg)).filter(
-                    counts.c.state_agg.is_not(None)
-                ),
-                sa.text("'[]'"),
+                db.queries.json_arr_agg(
+                    db.queries.cast_to_json(counts.c.state_agg)
+                ).filter(counts.c.state_agg.is_not(None)),
+                sa.literal("[]", literal_execute=True),
             ).label("states"),
         )
         .group_by(counts.c.interval_start, counts.c.interval_end)
@@ -155,7 +157,7 @@ async def run_history(
     records = result.mappings()
 
     # load and parse the record if the database returns JSON as strings
-    if db.uses_json_strings:
+    if db.queries.uses_json_strings:
         records = [dict(r) for r in records]
         for r in records:
             r["states"] = json.loads(r["states"])

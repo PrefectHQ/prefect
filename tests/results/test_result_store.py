@@ -1,3 +1,5 @@
+from unittest import mock
+
 import pytest
 
 import prefect.exceptions
@@ -16,6 +18,7 @@ from prefect.settings import (
     PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_RESULTS_DEFAULT_SERIALIZER,
     PREFECT_RESULTS_PERSIST_BY_DEFAULT,
+    PREFECT_TASKS_DEFAULT_PERSIST_RESULT,
     temporary_settings,
 )
 from prefect.testing.utilities import assert_blocks_equal
@@ -440,6 +443,55 @@ def test_task_default_persist_result_can_be_overriden_by_setting():
 
     assert persist_result is True
 
+    with temporary_settings({PREFECT_TASKS_DEFAULT_PERSIST_RESULT: True}):
+        persist_result = bar()
+
+    assert persist_result is True
+
+
+async def test_task_can_opt_out_of_result_persistence_with_setting():
+    with temporary_settings({PREFECT_TASKS_DEFAULT_PERSIST_RESULT: True}):
+
+        @task(persist_result=False)
+        def bar():
+            return should_persist_result()
+
+        persist_result = bar()
+        assert persist_result is False
+
+        async def abar():
+            return should_persist_result()
+
+        persist_result = await abar()
+        assert persist_result is False
+
+
+async def test_can_opt_out_of_result_persistence_with_setting_when_flow_uses_feature():
+    with temporary_settings({PREFECT_TASKS_DEFAULT_PERSIST_RESULT: False}):
+
+        @flow(persist_result=True)
+        def foo():
+            return bar()
+
+        @task
+        def bar():
+            return should_persist_result()
+
+        persist_result = foo()
+
+        assert persist_result is False
+
+        @flow(persist_result=True)
+        async def afoo():
+            return await abar()
+
+        @task
+        async def abar():
+            return should_persist_result()
+
+        persist_result = await afoo()
+        assert persist_result is False
+
 
 def test_nested_flow_custom_persist_setting():
     @flow(persist_result=True)
@@ -833,9 +885,70 @@ async def test_supports_isolation_level():
     )
 
 
-async def test_deprecation_warning_on_persist_result():
-    with pytest.warns(DeprecationWarning):
-        ResultStore(persist_result=True)
+class TestResultStoreEmitsEvents:
+    async def test_result_store_emits_write_event(
+        self, tmp_path, enable_lineage_events
+    ):
+        filesystem = LocalFileSystem(basepath=tmp_path)
+        result_store = ResultStore(result_storage=filesystem)
 
-    with pytest.warns(DeprecationWarning):
-        ResultStore(persist_result=False)
+        with mock.patch("prefect.results.emit_result_write_event") as mock_emit:
+            await result_store.awrite(key="test", obj="test")
+            resolved_key_path = result_store._resolved_key_path("test")
+            mock_emit.assert_called_once_with(result_store, resolved_key_path)
+
+    async def test_result_store_emits_read_event(self, tmp_path, enable_lineage_events):
+        filesystem = LocalFileSystem(basepath=tmp_path)
+        result_store = ResultStore(result_storage=filesystem)
+        await result_store.awrite(key="test", obj="test")
+
+        # Reading from a different result store allows us to test the read
+        # without the store's in-memory cache.
+        other_result_store = ResultStore(result_storage=filesystem)
+
+        with mock.patch("prefect.results.emit_result_read_event") as mock_emit:
+            await other_result_store.aread(key="test")
+            resolved_key_path = other_result_store._resolved_key_path("test")
+            mock_emit.assert_called_once_with(other_result_store, resolved_key_path)
+
+    async def test_result_store_emits_cached_read_event(
+        self, tmp_path, enable_lineage_events
+    ):
+        result_store = ResultStore(
+            cache_result_in_memory=True,
+        )
+        await result_store.awrite(key="test", obj="test")
+
+        with mock.patch("prefect.results.emit_result_read_event") as mock_emit:
+            await result_store.aread(key="test")  # cached read
+            resolved_key_path = result_store._resolved_key_path("test")
+            mock_emit.assert_called_once_with(
+                result_store,
+                resolved_key_path,
+                cached=True,
+            )
+
+    async def test_result_store_does_not_emit_lineage_write_events_when_disabled(
+        self, tmp_path
+    ):
+        filesystem = LocalFileSystem(basepath=tmp_path)
+        result_store = ResultStore(result_storage=filesystem)
+
+        with mock.patch(
+            "prefect._experimental.lineage.emit_lineage_event"
+        ) as mock_emit:
+            await result_store.awrite(key="test", obj="test")
+            mock_emit.assert_not_called()
+
+    async def test_result_store_does_not_emit_lineage_read_events_when_disabled(
+        self, tmp_path
+    ):
+        filesystem = LocalFileSystem(basepath=tmp_path)
+        result_store = ResultStore(result_storage=filesystem)
+        await result_store.awrite(key="test", obj="test")
+
+        with mock.patch(
+            "prefect._experimental.lineage.emit_lineage_event"
+        ) as mock_emit:
+            await result_store.aread(key="test")
+            mock_emit.assert_not_called()

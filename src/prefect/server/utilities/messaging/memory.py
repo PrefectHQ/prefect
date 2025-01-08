@@ -1,26 +1,23 @@
 import asyncio
+import copy
+from collections.abc import AsyncGenerator, Iterable, Mapping, MutableMapping
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import timedelta
-from typing import (
-    Any,
-    AsyncGenerator,
-    Dict,
-    List,
-    MutableMapping,
-    Optional,
-    TypeVar,
-    Union,
-)
+from pathlib import Path
+from typing import Any, Optional, TypeVar, Union
+from uuid import uuid4
 
+import anyio
 from cachetools import TTLCache
-from typing_extensions import Self
+from pydantic_core import to_json
 
 from prefect.logging import get_logger
 from prefect.server.utilities.messaging import Cache as _Cache
 from prefect.server.utilities.messaging import Consumer as _Consumer
 from prefect.server.utilities.messaging import Message, MessageHandler, StopConsumer
 from prefect.server.utilities.messaging import Publisher as _Publisher
+from prefect.settings.context import get_current_settings
 
 logger = get_logger(__name__)
 
@@ -28,43 +25,115 @@ logger = get_logger(__name__)
 @dataclass
 class MemoryMessage:
     data: Union[bytes, str]
-    attributes: Dict[str, Any]
+    attributes: Mapping[str, Any]
+    retry_count: int = 0
 
 
 class Subscription:
-    topic: "Topic"
-    _queue: asyncio.Queue
-    _retry: asyncio.Queue
+    """
+    A subscription to a topic.
 
-    def __init__(self, topic: "Topic") -> None:
+    Messages are delivered to the subscription's queue and retried up to a
+    maximum number of times. If a message cannot be delivered after the maximum
+    number of retries it is moved to the dead letter queue.
+
+    The dead letter queue is a directory of JSON files containing the serialized
+    message.
+
+    Messages remain in the dead letter queue until they are removed manually.
+
+    Attributes:
+        topic: The topic that the subscription receives messages from.
+        max_retries: The maximum number of times a message will be retried for
+            this subscription.
+        dead_letter_queue_path: The path to the dead letter queue folder.
+    """
+
+    def __init__(
+        self,
+        topic: "Topic",
+        max_retries: int = 3,
+        dead_letter_queue_path: Union[Path, str, None] = None,
+    ) -> None:
         self.topic = topic
-        self._queue = asyncio.Queue()
-        self._retry = asyncio.Queue()
+        self.max_retries = max_retries
+        self.dead_letter_queue_path = (
+            Path(dead_letter_queue_path)
+            if dead_letter_queue_path
+            else get_current_settings().home / "dlq"
+        )
+        self._queue: asyncio.Queue[MemoryMessage] = asyncio.Queue()
+        self._retry: asyncio.Queue[MemoryMessage] = asyncio.Queue()
 
     async def deliver(self, message: MemoryMessage) -> None:
+        """
+        Deliver a message to the subscription's queue.
+
+        Args:
+            message: The message to deliver.
+        """
         await self._queue.put(message)
 
     async def retry(self, message: MemoryMessage) -> None:
-        await self._retry.put(message)
+        """
+        Place a message back on the retry queue.
+
+        If the message has retried more than the maximum number of times it is
+        moved to the dead letter queue.
+
+        Args:
+            message: The message to retry.
+        """
+        message.retry_count += 1
+        if message.retry_count > self.max_retries:
+            logger.warning(
+                "Message failed after %d retries and will be moved to the dead letter queue",
+                message.retry_count,
+                extra={"event_message": message},
+            )
+            await self.send_to_dead_letter_queue(message)
+        else:
+            await self._retry.put(message)
 
     async def get(self) -> MemoryMessage:
-        if self._retry.qsize() > 0:
+        """
+        Get a message from the subscription's queue.
+        """
+        if not self._retry.empty():
             return await self._retry.get()
         return await self._queue.get()
 
+    async def send_to_dead_letter_queue(self, message: MemoryMessage) -> None:
+        """
+        Send a message to the dead letter queue.
+
+        The dead letter queue is a directory of JSON files containing the
+        serialized messages.
+
+        Args:
+            message: The message to send to the dead letter queue.
+        """
+        self.dead_letter_queue_path.mkdir(parents=True, exist_ok=True)
+        try:
+            await anyio.Path(self.dead_letter_queue_path / uuid4().hex).write_bytes(
+                to_json(asdict(message))
+            )
+        except Exception as e:
+            logger.warning("Failed to write message to dead letter queue", exc_info=e)
+
 
 class Topic:
-    _topics: Dict[str, "Topic"] = {}
+    _topics: dict[str, "Topic"] = {}
 
     name: str
-    _subscriptions: List[Subscription]
+    _subscriptions: list[Subscription]
 
     def __init__(self, name: str) -> None:
         self.name = name
         self._subscriptions = []
 
     @classmethod
-    def by_name(cls, name: str) -> Self:
+    def by_name(cls, name: str) -> "Topic":
         try:
             return cls._topics[name]
         except KeyError:
@@ -73,7 +142,7 @@ class Topic:
             return topic
 
     @classmethod
-    def clear_all(cls):
+    def clear_all(cls) -> None:
         for topic in cls._topics.values():
             topic.clear()
         cls._topics = {}
@@ -93,7 +162,8 @@ class Topic:
 
     async def publish(self, message: MemoryMessage) -> None:
         for subscription in self._subscriptions:
-            await subscription.deliver(message)
+            # Ensure that each subscription gets its own copy of the message
+            await subscription.deliver(copy.deepcopy(message))
 
 
 @asynccontextmanager
@@ -121,12 +191,14 @@ class Cache(_Cache):
     async def clear_recently_seen_messages(self) -> None:
         self._recently_seen_messages.clear()
 
-    async def without_duplicates(self, attribute: str, messages: List[M]) -> List[M]:
-        messages_with_attribute = []
-        messages_without_attribute = []
+    async def without_duplicates(
+        self, attribute: str, messages: Iterable[M]
+    ) -> list[M]:
+        messages_with_attribute: list[M] = []
+        messages_without_attribute: list[M] = []
 
         for m in messages:
-            if m.attributes is None or attribute not in m.attributes:
+            if not m.attributes or attribute not in m.attributes:
                 logger.warning(
                     "Message is missing deduplication attribute %r",
                     attribute,
@@ -143,9 +215,9 @@ class Cache(_Cache):
 
         return messages_with_attribute + messages_without_attribute
 
-    async def forget_duplicates(self, attribute: str, messages: List[M]) -> None:
+    async def forget_duplicates(self, attribute: str, messages: Iterable[M]) -> None:
         for m in messages:
-            if m.attributes is None or attribute not in m.attributes:
+            if not m.attributes or attribute not in m.attributes:
                 logger.warning(
                     "Message is missing deduplication attribute %r",
                     attribute,
@@ -161,13 +233,10 @@ class Publisher(_Publisher):
         self.deduplicate_by = deduplicate_by
         self._cache = cache
 
-    async def __aenter__(self) -> Self:
-        return self
-
-    async def __aexit__(self, exc_type, exc_value, traceback):
+    async def __aexit__(self, *args: Any) -> None:
         return None
 
-    async def publish_data(self, data: bytes, attributes: Dict[str, str]):
+    async def publish_data(self, data: bytes, attributes: Mapping[str, str]) -> None:
         to_publish = [MemoryMessage(data, attributes)]
         if self.deduplicate_by:
             to_publish = await self._cache.without_duplicates(
@@ -205,7 +274,7 @@ class Consumer(_Consumer):
 
 
 @asynccontextmanager
-async def ephemeral_subscription(topic: str) -> AsyncGenerator[Dict[str, Any], None]:
+async def ephemeral_subscription(topic: str) -> AsyncGenerator[Mapping[str, Any], None]:
     subscription = Topic.by_name(topic).subscribe()
     try:
         yield {"topic": topic, "subscription": subscription}

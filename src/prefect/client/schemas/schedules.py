@@ -3,13 +3,13 @@ Schedule schemas
 """
 
 import datetime
-from typing import Annotated, Any, Optional, Union
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Optional, Union
 
 import dateutil
 import dateutil.rrule
+import dateutil.tz
 import pendulum
 from pydantic import AfterValidator, ConfigDict, Field, field_validator, model_validator
-from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import TypeAlias, TypeGuard
 
 from prefect._internal.schemas.bases import PrefectBaseModel
@@ -20,9 +20,34 @@ from prefect._internal.schemas.validators import (
     validate_rrule_string,
 )
 
+if TYPE_CHECKING:
+    # type checkers have difficulty accepting that
+    # pydantic_extra_types.pendulum_dt and pendulum.DateTime can be used
+    # together.
+    DateTime = pendulum.DateTime
+else:
+    from prefect.types import DateTime
+
 MAX_ITERATIONS = 1000
 # approx. 1 years worth of RDATEs + buffer
 MAX_RRULE_LENGTH = 6500
+
+
+def is_valid_timezone(v: str) -> bool:
+    """
+    Validate that the provided timezone is a valid IANA timezone.
+
+    Unfortunately this list is slightly different from the list of valid
+    timezones in pendulum that we use for cron and interval timezone validation.
+    """
+    from prefect._internal.pytz import HAS_PYTZ
+
+    if HAS_PYTZ:
+        import pytz
+    else:
+        from prefect._internal import pytz
+
+    return v in pytz.all_timezones_set
 
 
 class IntervalSchedule(PrefectBaseModel):
@@ -54,7 +79,7 @@ class IntervalSchedule(PrefectBaseModel):
         timezone (str, optional): a valid timezone string
     """
 
-    model_config = ConfigDict(extra="forbid", exclude_none=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
     interval: datetime.timedelta = Field(gt=datetime.timedelta(0))
     anchor_date: Annotated[DateTime, AfterValidator(default_anchor_date)] = Field(
@@ -67,6 +92,19 @@ class IntervalSchedule(PrefectBaseModel):
     def validate_timezone(self):
         self.timezone = default_timezone(self.timezone, self.model_dump())
         return self
+
+    if TYPE_CHECKING:
+        # The model accepts str or datetime values for `anchor_date`
+        def __init__(
+            self,
+            /,
+            interval: datetime.timedelta,
+            anchor_date: Optional[
+                Union[pendulum.DateTime, datetime.datetime, str]
+            ] = None,
+            timezone: Optional[str] = None,
+        ) -> None:
+            ...
 
 
 class CronSchedule(PrefectBaseModel):
@@ -94,7 +132,7 @@ class CronSchedule(PrefectBaseModel):
 
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
     cron: str = Field(default=..., examples=["0 0 * * *"])
     timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
@@ -107,16 +145,34 @@ class CronSchedule(PrefectBaseModel):
 
     @field_validator("timezone")
     @classmethod
-    def valid_timezone(cls, v):
+    def valid_timezone(cls, v: Optional[str]) -> str:
         return default_timezone(v)
 
     @field_validator("cron")
     @classmethod
-    def valid_cron_string(cls, v):
+    def valid_cron_string(cls, v: str) -> str:
         return validate_cron_string(v)
 
 
 DEFAULT_ANCHOR_DATE = pendulum.date(2020, 1, 1)
+
+
+def _rrule_dt(
+    rrule: dateutil.rrule.rrule, name: str = "_dtstart"
+) -> Optional[datetime.datetime]:
+    return getattr(rrule, name, None)
+
+
+def _rrule(
+    rruleset: dateutil.rrule.rruleset, name: str = "_rrule"
+) -> list[dateutil.rrule.rrule]:
+    return getattr(rruleset, name, [])
+
+
+def _rdates(
+    rrule: dateutil.rrule.rruleset, name: str = "_rdate"
+) -> list[datetime.datetime]:
+    return getattr(rrule, name, [])
 
 
 class RRuleSchedule(PrefectBaseModel):
@@ -139,7 +195,7 @@ class RRuleSchedule(PrefectBaseModel):
         timezone (str, optional): a valid timezone string
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
     rrule: str
     timezone: Optional[str] = Field(
@@ -148,58 +204,60 @@ class RRuleSchedule(PrefectBaseModel):
 
     @field_validator("rrule")
     @classmethod
-    def validate_rrule_str(cls, v):
+    def validate_rrule_str(cls, v: str) -> str:
         return validate_rrule_string(v)
 
     @classmethod
-    def from_rrule(cls, rrule: dateutil.rrule.rrule):
+    def from_rrule(
+        cls, rrule: Union[dateutil.rrule.rrule, dateutil.rrule.rruleset]
+    ) -> "RRuleSchedule":
         if isinstance(rrule, dateutil.rrule.rrule):
-            if rrule._dtstart.tzinfo is not None:
-                timezone = rrule._dtstart.tzinfo.name
+            dtstart = _rrule_dt(rrule)
+            if dtstart and dtstart.tzinfo is not None:
+                timezone = dtstart.tzinfo.tzname(dtstart)
             else:
                 timezone = "UTC"
             return RRuleSchedule(rrule=str(rrule), timezone=timezone)
-        elif isinstance(rrule, dateutil.rrule.rruleset):
-            dtstarts = [rr._dtstart for rr in rrule._rrule if rr._dtstart is not None]
-            unique_dstarts = set(pendulum.instance(d).in_tz("UTC") for d in dtstarts)
-            unique_timezones = set(d.tzinfo for d in dtstarts if d.tzinfo is not None)
+        rrules = _rrule(rrule)
+        dtstarts = [dts for rr in rrules if (dts := _rrule_dt(rr)) is not None]
+        unique_dstarts = set(pendulum.instance(d).in_tz("UTC") for d in dtstarts)
+        unique_timezones = set(d.tzinfo for d in dtstarts if d.tzinfo is not None)
 
-            if len(unique_timezones) > 1:
-                raise ValueError(
-                    f"rruleset has too many dtstart timezones: {unique_timezones}"
-                )
+        if len(unique_timezones) > 1:
+            raise ValueError(
+                f"rruleset has too many dtstart timezones: {unique_timezones}"
+            )
 
-            if len(unique_dstarts) > 1:
-                raise ValueError(f"rruleset has too many dtstarts: {unique_dstarts}")
+        if len(unique_dstarts) > 1:
+            raise ValueError(f"rruleset has too many dtstarts: {unique_dstarts}")
 
-            if unique_dstarts and unique_timezones:
-                timezone = dtstarts[0].tzinfo.name
-            else:
-                timezone = "UTC"
-
-            rruleset_string = ""
-            if rrule._rrule:
-                rruleset_string += "\n".join(str(r) for r in rrule._rrule)
-            if rrule._exrule:
-                rruleset_string += "\n" if rruleset_string else ""
-                rruleset_string += "\n".join(str(r) for r in rrule._exrule).replace(
-                    "RRULE", "EXRULE"
-                )
-            if rrule._rdate:
-                rruleset_string += "\n" if rruleset_string else ""
-                rruleset_string += "RDATE:" + ",".join(
-                    rd.strftime("%Y%m%dT%H%M%SZ") for rd in rrule._rdate
-                )
-            if rrule._exdate:
-                rruleset_string += "\n" if rruleset_string else ""
-                rruleset_string += "EXDATE:" + ",".join(
-                    exd.strftime("%Y%m%dT%H%M%SZ") for exd in rrule._exdate
-                )
-            return RRuleSchedule(rrule=rruleset_string, timezone=timezone)
+        if unique_dstarts and unique_timezones:
+            [unique_tz] = unique_timezones
+            timezone = unique_tz.tzname(dtstarts[0])
         else:
-            raise ValueError(f"Invalid RRule object: {rrule}")
+            timezone = "UTC"
 
-    def to_rrule(self) -> dateutil.rrule.rrule:
+        rruleset_string = ""
+        if rrules:
+            rruleset_string += "\n".join(str(r) for r in rrules)
+        if exrule := _rrule(rrule, "_exrule"):
+            rruleset_string += "\n" if rruleset_string else ""
+            rruleset_string += "\n".join(str(r) for r in exrule).replace(
+                "RRULE", "EXRULE"
+            )
+        if rdates := _rdates(rrule):
+            rruleset_string += "\n" if rruleset_string else ""
+            rruleset_string += "RDATE:" + ",".join(
+                rd.strftime("%Y%m%dT%H%M%SZ") for rd in rdates
+            )
+        if exdates := _rdates(rrule, "_exdate"):
+            rruleset_string += "\n" if rruleset_string else ""
+            rruleset_string += "EXDATE:" + ",".join(
+                exd.strftime("%Y%m%dT%H%M%SZ") for exd in exdates
+            )
+        return RRuleSchedule(rrule=rruleset_string, timezone=timezone)
+
+    def to_rrule(self) -> Union[dateutil.rrule.rrule, dateutil.rrule.rruleset]:
         """
         Since rrule doesn't properly serialize/deserialize timezones, we localize dates
         here
@@ -211,73 +269,70 @@ class RRuleSchedule(PrefectBaseModel):
         )
         timezone = dateutil.tz.gettz(self.timezone)
         if isinstance(rrule, dateutil.rrule.rrule):
-            kwargs = dict(dtstart=rrule._dtstart.replace(tzinfo=timezone))
-            if rrule._until:
+            dtstart = _rrule_dt(rrule)
+            assert dtstart is not None
+            kwargs: dict[str, Any] = dict(dtstart=dtstart.replace(tzinfo=timezone))
+            if until := _rrule_dt(rrule, "_until"):
                 kwargs.update(
-                    until=rrule._until.replace(tzinfo=timezone),
+                    until=until.replace(tzinfo=timezone),
                 )
             return rrule.replace(**kwargs)
-        elif isinstance(rrule, dateutil.rrule.rruleset):
-            # update rrules
-            localized_rrules = []
-            for rr in rrule._rrule:
-                kwargs = dict(dtstart=rr._dtstart.replace(tzinfo=timezone))
-                if rr._until:
-                    kwargs.update(
-                        until=rr._until.replace(tzinfo=timezone),
-                    )
-                localized_rrules.append(rr.replace(**kwargs))
-            rrule._rrule = localized_rrules
 
-            # update exrules
-            localized_exrules = []
-            for exr in rrule._exrule:
-                kwargs = dict(dtstart=exr._dtstart.replace(tzinfo=timezone))
-                if exr._until:
-                    kwargs.update(
-                        until=exr._until.replace(tzinfo=timezone),
-                    )
-                localized_exrules.append(exr.replace(**kwargs))
-            rrule._exrule = localized_exrules
+        # update rrules
+        localized_rrules: list[dateutil.rrule.rrule] = []
+        for rr in _rrule(rrule):
+            dtstart = _rrule_dt(rr)
+            assert dtstart is not None
+            kwargs: dict[str, Any] = dict(dtstart=dtstart.replace(tzinfo=timezone))
+            if until := _rrule_dt(rr, "_until"):
+                kwargs.update(until=until.replace(tzinfo=timezone))
+            localized_rrules.append(rr.replace(**kwargs))
+        setattr(rrule, "_rrule", localized_rrules)
 
-            # update rdates
-            localized_rdates = []
-            for rd in rrule._rdate:
-                localized_rdates.append(rd.replace(tzinfo=timezone))
-            rrule._rdate = localized_rdates
+        # update exrules
+        localized_exrules: list[dateutil.rrule.rruleset] = []
+        for exr in _rrule(rrule, "_exrule"):
+            dtstart = _rrule_dt(exr)
+            assert dtstart is not None
+            kwargs = dict(dtstart=dtstart.replace(tzinfo=timezone))
+            if until := _rrule_dt(exr, "_until"):
+                kwargs.update(until=until.replace(tzinfo=timezone))
+            localized_exrules.append(exr.replace(**kwargs))
+        setattr(rrule, "_exrule", localized_exrules)
 
-            # update exdates
-            localized_exdates = []
-            for exd in rrule._exdate:
-                localized_exdates.append(exd.replace(tzinfo=timezone))
-            rrule._exdate = localized_exdates
+        # update rdates
+        localized_rdates: list[datetime.datetime] = []
+        for rd in _rdates(rrule):
+            localized_rdates.append(rd.replace(tzinfo=timezone))
+        setattr(rrule, "_rdate", localized_rdates)
 
-            return rrule
+        # update exdates
+        localized_exdates: list[datetime.datetime] = []
+        for exd in _rdates(rrule, "_exdate"):
+            localized_exdates.append(exd.replace(tzinfo=timezone))
+        setattr(rrule, "_exdate", localized_exdates)
+
+        return rrule
 
     @field_validator("timezone")
-    def valid_timezone(cls, v):
+    def valid_timezone(cls, v: Optional[str]) -> str:
         """
         Validate that the provided timezone is a valid IANA timezone.
 
         Unfortunately this list is slightly different from the list of valid
         timezones in pendulum that we use for cron and interval timezone validation.
         """
-        from prefect._internal.pytz import HAS_PYTZ
-
-        if HAS_PYTZ:
-            import pytz
-        else:
-            from prefect._internal import pytz
-
-        if v and v not in pytz.all_timezones_set:
-            raise ValueError(f'Invalid timezone: "{v}"')
-        elif v is None:
+        if v is None:
             return "UTC"
-        return v
+
+        if is_valid_timezone(v):
+            return v
+
+        raise ValueError(f'Invalid timezone: "{v}"')
 
 
 class NoSchedule(PrefectBaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
 
 SCHEDULE_TYPES: TypeAlias = Union[
@@ -326,7 +381,7 @@ def construct_schedule(
         if isinstance(interval, (int, float)):
             interval = datetime.timedelta(seconds=interval)
         if not anchor_date:
-            anchor_date = DateTime.now()
+            anchor_date = pendulum.DateTime.now()
         schedule = IntervalSchedule(
             interval=interval, anchor_date=anchor_date, timezone=timezone
         )

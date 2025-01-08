@@ -10,7 +10,8 @@ import inspect
 import queue
 import threading
 from collections import deque
-from typing import Awaitable, Generic, List, Optional, TypeVar, Union
+from collections.abc import AsyncGenerator, Awaitable, Generator
+from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar
 from weakref import WeakKeyDictionary
 
 import anyio
@@ -23,13 +24,13 @@ from prefect._internal.concurrency.primitives import Event
 T = TypeVar("T")
 
 
-# Waiters are stored in a stack for each thread
-_WAITERS_BY_THREAD: "WeakKeyDictionary[threading.Thread, deque[Waiter]]" = (
+# Waiters are stored in a queue for each thread
+_WAITERS_BY_THREAD: "WeakKeyDictionary[threading.Thread, deque[Waiter[Any]]]" = (
     WeakKeyDictionary()
 )
 
 
-def add_waiter_for_thread(waiter: "Waiter", thread: threading.Thread):
+def add_waiter_for_thread(waiter: "Waiter[Any]", thread: threading.Thread) -> None:
     """
     Add a waiter for a thread.
     """
@@ -48,8 +49,9 @@ class Waiter(Portal, abc.ABC, Generic[T]):
     """
 
     def __init__(self, call: Call[T]) -> None:
-        if not isinstance(call, Call):  # Guard against common mistake
-            raise TypeError(f"Expected call of type `Call`; got {call!r}.")
+        if not TYPE_CHECKING:
+            if not isinstance(call, Call):  # Guard against common mistake
+                raise TypeError(f"Expected call of type `Call`; got {call!r}.")
 
         self._call = call
         self._owner_thread = threading.current_thread()
@@ -62,7 +64,7 @@ class Waiter(Portal, abc.ABC, Generic[T]):
         return self._call.future.done()
 
     @abc.abstractmethod
-    def wait(self) -> Union[Awaitable[None], None]:
+    def wait(self) -> T:
         """
         Wait for the call to finish.
 
@@ -71,7 +73,7 @@ class Waiter(Portal, abc.ABC, Generic[T]):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def add_done_callback(self, callback: Call) -> Call:
+    def add_done_callback(self, callback: Call[Any]) -> None:
         """
         Schedule a call to run when the waiter is done waiting.
 
@@ -91,11 +93,11 @@ class SyncWaiter(Waiter[T]):
 
     def __init__(self, call: Call[T]) -> None:
         super().__init__(call=call)
-        self._queue: queue.Queue = queue.Queue()
-        self._done_callbacks = []
+        self._queue: queue.Queue[Optional[Call[T]]] = queue.Queue()
+        self._done_callbacks: list[Call[Any]] = []
         self._done_event = threading.Event()
 
-    def submit(self, call: Call):
+    def submit(self, call: Call[T]) -> Call[T]:
         """
         Submit a callback to execute while waiting.
         """
@@ -106,10 +108,10 @@ class SyncWaiter(Waiter[T]):
         call.set_runner(self)
         return call
 
-    def _handle_waiting_callbacks(self):
+    def _handle_waiting_callbacks(self) -> None:
         logger.debug("Waiter %r watching for callbacks", self)
         while True:
-            callback: Call = self._queue.get()
+            callback = self._queue.get()
             if callback is None:
                 break
 
@@ -120,7 +122,7 @@ class SyncWaiter(Waiter[T]):
             del callback
 
     @contextlib.contextmanager
-    def _handle_done_callbacks(self):
+    def _handle_done_callbacks(self) -> Generator[None, Any, None]:
         try:
             yield
         finally:
@@ -130,13 +132,13 @@ class SyncWaiter(Waiter[T]):
                 if callback:
                     callback.run()
 
-    def add_done_callback(self, callback: Call):
+    def add_done_callback(self, callback: Call[Any]) -> None:
         if self._done_event.is_set():
             raise RuntimeError("Cannot add done callbacks to done waiters.")
         else:
             self._done_callbacks.append(callback)
 
-    def wait(self) -> T:
+    def wait(self) -> Call[T]:
         # Stop watching for work once the future is done
         self._call.future.add_done_callback(lambda _: self._queue.put_nowait(None))
         self._call.future.add_done_callback(lambda _: self._done_event.set())
@@ -159,13 +161,13 @@ class AsyncWaiter(Waiter[T]):
 
         # Delay instantiating loop and queue as there may not be a loop present yet
         self._loop: Optional[asyncio.AbstractEventLoop] = None
-        self._queue: Optional[asyncio.Queue] = None
-        self._early_submissions: List[Call] = []
-        self._done_callbacks = []
+        self._queue: Optional[asyncio.Queue[Optional[Call[T]]]] = None
+        self._early_submissions: list[Call[T]] = []
+        self._done_callbacks: list[Call[Any]] = []
         self._done_event = Event()
         self._done_waiting = False
 
-    def submit(self, call: Call):
+    def submit(self, call: Call[T]) -> Call[T]:
         """
         Submit a callback to execute while waiting.
         """
@@ -180,23 +182,30 @@ class AsyncWaiter(Waiter[T]):
             return call
 
         # We must put items in the queue from the event loop that owns it
+        if TYPE_CHECKING:
+            assert self._loop is not None
         call_soon_in_loop(self._loop, self._queue.put_nowait, call)
         return call
 
-    def _resubmit_early_submissions(self):
-        assert self._queue
+    def _resubmit_early_submissions(self) -> None:
+        if TYPE_CHECKING:
+            assert self._queue is not None
+            assert self._loop is not None
         for call in self._early_submissions:
             # We must put items in the queue from the event loop that owns it
             call_soon_in_loop(self._loop, self._queue.put_nowait, call)
         self._early_submissions = []
 
-    async def _handle_waiting_callbacks(self):
+    async def _handle_waiting_callbacks(self) -> None:
         logger.debug("Waiter %r watching for callbacks", self)
-        tasks = []
+        tasks: list[Awaitable[None]] = []
+
+        if TYPE_CHECKING:
+            assert self._queue is not None
 
         try:
             while True:
-                callback: Call = await self._queue.get()
+                callback = await self._queue.get()
                 if callback is None:
                     break
 
@@ -216,7 +225,7 @@ class AsyncWaiter(Waiter[T]):
             self._done_waiting = True
 
     @contextlib.asynccontextmanager
-    async def _handle_done_callbacks(self):
+    async def _handle_done_callbacks(self) -> AsyncGenerator[None, Any]:
         try:
             yield
         finally:
@@ -228,21 +237,23 @@ class AsyncWaiter(Waiter[T]):
                     with anyio.CancelScope(shield=True):
                         await self._run_done_callback(callback)
 
-    async def _run_done_callback(self, callback: Call):
+    async def _run_done_callback(self, callback: Call[Any]) -> None:
         coro = callback.run()
         if coro:
             await coro
 
-    def add_done_callback(self, callback: Call):
+    def add_done_callback(self, callback: Call[Any]) -> None:
         if self._done_event.is_set():
             raise RuntimeError("Cannot add done callbacks to done waiters.")
         else:
             self._done_callbacks.append(callback)
 
-    def _signal_stop_waiting(self):
+    def _signal_stop_waiting(self) -> None:
         # Only send a `None` to the queue if the waiter is still blocked reading from
         # the queue. Otherwise, it's possible that the event loop is stopped.
         if not self._done_waiting:
+            assert self._loop is not None
+            assert self._queue is not None
             call_soon_in_loop(self._loop, self._queue.put_nowait, None)
 
     async def wait(self) -> Call[T]:

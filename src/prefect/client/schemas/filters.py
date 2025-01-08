@@ -6,10 +6,10 @@ from typing import List, Optional
 from uuid import UUID
 
 from pydantic import Field
-from pydantic_extra_types.pendulum_dt import DateTime
 
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect.client.schemas.objects import StateType
+from prefect.types import DateTime
 from prefect.utilities.collections import AutoEnum
 
 
@@ -128,6 +128,11 @@ class FlowRunFilterTags(PrefectBaseModel, OperatorMixin):
             "A list of tags. Flow runs will be returned only if their tags are a"
             " superset of the list"
         ),
+    )
+    any_: Optional[List[str]] = Field(
+        default=None,
+        examples=[["tag-1", "tag-2"]],
+        description="A list of tags to include",
     )
     is_null_: Optional[bool] = Field(
         default=None, description="If true, only include flow runs without tags"
@@ -499,6 +504,11 @@ class DeploymentFilterTags(PrefectBaseModel, OperatorMixin):
             "A list of tags. Deployments will be returned only if their tags are a"
             " superset of the list"
         ),
+    )
+    any_: Optional[list[str]] = Field(
+        default=None,
+        examples=[["tag-1", "tag-2"]],
+        description="A list of tags to include",
     )
     is_null_: Optional[bool] = Field(
         default=None, description="If true, only include deployments without tags"
@@ -912,6 +922,17 @@ class WorkerFilterLastHeartbeatTime(PrefectBaseModel):
     )
 
 
+class WorkerFilterStatus(PrefectBaseModel):
+    """Filter by `Worker.status`."""
+
+    any_: Optional[List[str]] = Field(
+        default=None, description="A list of worker statuses to include"
+    )
+    not_any_: Optional[List[str]] = Field(
+        default=None, description="A list of worker statuses to exclude"
+    )
+
+
 class WorkerFilter(PrefectBaseModel, OperatorMixin):
     # worker_config_id: Optional[WorkerFilterWorkPoolId] = Field(
     #     default=None, description="Filter criteria for `Worker.worker_config_id`"
@@ -920,6 +941,9 @@ class WorkerFilter(PrefectBaseModel, OperatorMixin):
     last_heartbeat_time: Optional[WorkerFilterLastHeartbeatTime] = Field(
         default=None,
         description="Filter criteria for `Worker.last_heartbeat_time`",
+    )
+    status: Optional[WorkerFilterStatus] = Field(
+        default=None, description="Filter criteria for `Worker.status`"
     )
 
 

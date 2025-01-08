@@ -12,10 +12,10 @@ pluggy >= 1.4.0
 pytest >= 8.3
 pytest-asyncio >= 0.24
 pytest-benchmark
-pytest-codspeed
 pytest-cov
 pytest-env
 pytest-flakefinder
+pytest-mypy-plugins >= 3.2.0
 pytest-timeout
 pytest-xdist >= 3.6.1
 pyyaml
@@ -37,3 +37,12 @@ mkdocs
 mkdocs-material
 mkdocstrings[python]
 mkdocs-gen-files
+
+# OpenTelemetry
+# Other than the `test-utils` package these versions should match the versions
+# in `requirements-otel.txt`
+opentelemetry-distro >= 0.48b0, < 1.0.0
+opentelemetry-exporter-otlp >= 1.27.0, < 2.0.0
+opentelemetry-instrumentation >= 0.48b0, < 1.0.0
+opentelemetry-instrumentation-logging >= 0.48b0, < 1.0.0
+opentelemetry-test-utils >= 0.48b0, < 1.0.0

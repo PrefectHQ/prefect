@@ -9,7 +9,7 @@ from fastapi import status
 from httpx import AsyncClient
 
 from prefect.server import models, schemas
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface
 from tests.server import AsyncSessionGetter
 
 

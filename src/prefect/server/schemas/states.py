@@ -2,27 +2,38 @@
 State schemas.
 """
 
-import datetime
 import warnings
-from typing import TYPE_CHECKING, Any, Dict, Optional, Type, TypeVar, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    ClassVar,
+    Literal,
+    Optional,
+    TypeVar,
+    Union,
+    overload,
+)
 from uuid import UUID, uuid4
 
 import pendulum
-from pydantic import ConfigDict, Field, field_validator, model_validator
-from pydantic_extra_types.pendulum_dt import DateTime
+from pydantic import ConfigDict, Field, ValidationInfo, field_validator, model_validator
 from typing_extensions import Self
 
-from prefect.server.utilities.schemas.bases import (
-    IDBaseModel,
-    PrefectBaseModel,
-)
+from prefect.client.schemas import objects
+from prefect.server.utilities.schemas.bases import IDBaseModel, PrefectBaseModel
 from prefect.utilities.collections import AutoEnum
 
 if TYPE_CHECKING:
     from prefect.server.database.orm_models import ORMFlowRunState, ORMTaskRunState
     from prefect.server.schemas.actions import StateCreate
 
+    DateTime = pendulum.DateTime
+else:
+    from prefect.types import DateTime
+
+
 R = TypeVar("R")
+_State = TypeVar("_State", bound="State")
 
 
 class StateType(AutoEnum):
@@ -50,13 +61,11 @@ class CountByState(PrefectBaseModel):
     CANCELLING: int = Field(default=0)
     SCHEDULED: int = Field(default=0)
 
-    # TODO[pydantic]: We couldn't refactor the `validator`, please replace it by `field_validator` manually.
-    # Check https://docs.pydantic.dev/dev-v2/migration/#changes-to-validators for more information.
     @field_validator("*")
     @classmethod
-    def check_key(cls, value, info):
-        if info.name not in StateType.__members__:
-            raise ValueError(f"{info.name} is not a valid StateType")
+    def check_key(cls, value: Optional[Any], info: ValidationInfo):
+        if info.field_name not in StateType.__members__:
+            raise ValueError(f"{info.field_name} is not a valid StateType")
         return value
 
 
@@ -81,15 +90,17 @@ class StateDetails(PrefectBaseModel):
     pause_timeout: Optional[DateTime] = None
     pause_reschedule: bool = False
     pause_key: Optional[str] = None
-    run_input_keyset: Optional[Dict[str, str]] = None
+    run_input_keyset: Optional[dict[str, str]] = None
     refresh_cache: Optional[bool] = None
     retriable: Optional[bool] = None
     transition_id: Optional[UUID] = None
     task_parameters_id: Optional[UUID] = None
+    # Captures the trace_id and span_id of the span where this state was created
+    traceparent: Optional[str] = None
 
 
 class StateBaseModel(IDBaseModel):
-    def orm_dict(self, *args, **kwargs) -> dict:
+    def orm_dict(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
         """
         This method is used as a convenience method for constructing fixtues by first
         building a `State` schema object and converting it into an ORM-compatible
@@ -107,7 +118,7 @@ class StateBaseModel(IDBaseModel):
 class State(StateBaseModel):
     """Represents the state of a run."""
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(from_attributes=True)
 
     type: StateType
     name: Optional[str] = Field(default=None)
@@ -127,7 +138,7 @@ class State(StateBaseModel):
         cls,
         orm_state: Union["ORMFlowRunState", "ORMTaskRunState"],
         with_data: Optional[Any] = None,
-    ):
+    ) -> Self:
         """
         During orchestration, ORM states can be instantiated prior to inserting results
         into the artifact table and the `data` field will not be eagerly loaded. In
@@ -140,7 +151,7 @@ class State(StateBaseModel):
         """
 
         field_keys = cls.model_json_schema()["properties"].keys()
-        state_data = {
+        state_data: dict[str, Any] = {
             field: getattr(orm_state, field, None)
             for field in field_keys
             if field != "data"
@@ -149,7 +160,7 @@ class State(StateBaseModel):
         return cls(**state_data)
 
     @model_validator(mode="after")
-    def default_name_from_type(self):
+    def default_name_from_type(self) -> Self:
         """If a name is not provided, use the type"""
         # if `type` is not in `values` it means the `type` didn't pass its own
         # validation check and an error will be raised after this function is called
@@ -159,7 +170,7 @@ class State(StateBaseModel):
         return self
 
     @model_validator(mode="after")
-    def default_scheduled_start_time(self):
+    def default_scheduled_start_time(self) -> Self:
         from prefect.server.schemas.states import StateType
 
         if self.type == StateType.SCHEDULED:
@@ -198,7 +209,7 @@ class State(StateBaseModel):
     def is_paused(self) -> bool:
         return self.type == StateType.PAUSED
 
-    def fresh_copy(self, **kwargs) -> Self:
+    def fresh_copy(self, **kwargs: Any) -> Self:
         """
         Return a fresh copy of the state with a new ID.
         """
@@ -213,7 +224,25 @@ class State(StateBaseModel):
             **kwargs,
         )
 
-    def result(self, raise_on_failure: bool = True, fetch: Optional[bool] = None):
+    @overload
+    def result(self, raise_on_failure: Literal[True] = ..., fetch: bool = ...) -> Any:
+        ...
+
+    @overload
+    def result(
+        self, raise_on_failure: Literal[False] = False, fetch: bool = ...
+    ) -> Union[Any, Exception]:
+        ...
+
+    @overload
+    def result(
+        self, raise_on_failure: bool = ..., fetch: bool = ...
+    ) -> Union[Any, Exception]:
+        ...
+
+    def result(
+        self, raise_on_failure: bool = True, fetch: bool = True
+    ) -> Union[Any, Exception]:
         # Backwards compatible `result` handling on the server-side schema
         from prefect.states import State
 
@@ -227,7 +256,7 @@ class State(StateBaseModel):
             stacklevel=2,
         )
 
-        state = State.model_validate(self)
+        state: State[Any] = objects.State.model_validate(self)
         return state.result(raise_on_failure=raise_on_failure, fetch=fetch)
 
     def to_state_create(self) -> "StateCreate":
@@ -265,12 +294,12 @@ class State(StateBaseModel):
         `MyCompletedState("my message", type=COMPLETED)`
         """
 
-        display = []
+        display: list[str] = []
 
         if self.message:
             display.append(repr(self.message))
 
-        if self.type.value.lower() != self.name.lower():
+        if self.type.value.lower() != (self.name or "").lower():
             display.append(f"type={self.type.value}")
 
         return f"{self.name}({', '.join(display)})"
@@ -287,10 +316,10 @@ class State(StateBaseModel):
 
 
 def Scheduled(
-    scheduled_time: Optional[datetime.datetime] = None,
-    cls: Type[State] = State,
-    **kwargs,
-) -> State:
+    scheduled_time: Optional[pendulum.DateTime] = None,
+    cls: type[_State] = State,
+    **kwargs: Any,
+) -> _State:
     """Convenience function for creating `Scheduled` states.
 
     Returns:
@@ -308,7 +337,7 @@ def Scheduled(
     return cls(type=StateType.SCHEDULED, state_details=state_details, **kwargs)
 
 
-def Completed(cls: Type[State] = State, **kwargs) -> State:
+def Completed(cls: type[_State] = State, **kwargs: Any) -> _State:
     """Convenience function for creating `Completed` states.
 
     Returns:
@@ -317,7 +346,7 @@ def Completed(cls: Type[State] = State, **kwargs) -> State:
     return cls(type=StateType.COMPLETED, **kwargs)
 
 
-def Running(cls: Type[State] = State, **kwargs) -> State:
+def Running(cls: type[_State] = State, **kwargs: Any) -> _State:
     """Convenience function for creating `Running` states.
 
     Returns:
@@ -326,7 +355,7 @@ def Running(cls: Type[State] = State, **kwargs) -> State:
     return cls(type=StateType.RUNNING, **kwargs)
 
 
-def Failed(cls: Type[State] = State, **kwargs) -> State:
+def Failed(cls: type[_State] = State, **kwargs: Any) -> _State:
     """Convenience function for creating `Failed` states.
 
     Returns:
@@ -335,7 +364,7 @@ def Failed(cls: Type[State] = State, **kwargs) -> State:
     return cls(type=StateType.FAILED, **kwargs)
 
 
-def Crashed(cls: Type[State] = State, **kwargs) -> State:
+def Crashed(cls: type[_State] = State, **kwargs: Any) -> _State:
     """Convenience function for creating `Crashed` states.
 
     Returns:
@@ -344,7 +373,7 @@ def Crashed(cls: Type[State] = State, **kwargs) -> State:
     return cls(type=StateType.CRASHED, **kwargs)
 
 
-def Cancelling(cls: Type[State] = State, **kwargs) -> State:
+def Cancelling(cls: type[_State] = State, **kwargs: Any) -> _State:
     """Convenience function for creating `Cancelling` states.
 
     Returns:
@@ -353,7 +382,7 @@ def Cancelling(cls: Type[State] = State, **kwargs) -> State:
     return cls(type=StateType.CANCELLING, **kwargs)
 
 
-def Cancelled(cls: Type[State] = State, **kwargs) -> State:
+def Cancelled(cls: type[_State] = State, **kwargs: Any) -> _State:
     """Convenience function for creating `Cancelled` states.
 
     Returns:
@@ -362,7 +391,7 @@ def Cancelled(cls: Type[State] = State, **kwargs) -> State:
     return cls(type=StateType.CANCELLED, **kwargs)
 
 
-def Pending(cls: Type[State] = State, **kwargs) -> State:
+def Pending(cls: type[_State] = State, **kwargs: Any) -> _State:
     """Convenience function for creating `Pending` states.
 
     Returns:
@@ -372,13 +401,13 @@ def Pending(cls: Type[State] = State, **kwargs) -> State:
 
 
 def Paused(
-    cls: Type[State] = State,
+    cls: type[_State] = State,
     timeout_seconds: Optional[int] = None,
-    pause_expiration_time: Optional[datetime.datetime] = None,
-    reschedule: Optional[bool] = False,
+    pause_expiration_time: Optional[pendulum.DateTime] = None,
+    reschedule: bool = False,
     pause_key: Optional[str] = None,
-    **kwargs,
-) -> State:
+    **kwargs: Any,
+) -> _State:
     """Convenience function for creating `Paused` states.
 
     Returns:
@@ -394,11 +423,11 @@ def Paused(
             "Cannot supply both a pause_expiration_time and timeout_seconds"
         )
 
-    if pause_expiration_time is None and timeout_seconds is None:
-        pass
-    else:
-        state_details.pause_timeout = pause_expiration_time or (
-            pendulum.now("UTC") + pendulum.Duration(seconds=timeout_seconds)
+    if pause_expiration_time:
+        state_details.pause_timeout = pause_expiration_time
+    elif timeout_seconds is not None:
+        state_details.pause_timeout = pendulum.now("UTC") + pendulum.Duration(
+            seconds=timeout_seconds
         )
 
     state_details.pause_reschedule = reschedule
@@ -408,12 +437,12 @@ def Paused(
 
 
 def Suspended(
-    cls: Type[State] = State,
+    cls: type[_State] = State,
     timeout_seconds: Optional[int] = None,
-    pause_expiration_time: Optional[datetime.datetime] = None,
+    pause_expiration_time: Optional[pendulum.DateTime] = None,
     pause_key: Optional[str] = None,
-    **kwargs,
-):
+    **kwargs: Any,
+) -> _State:
     """Convenience function for creating `Suspended` states.
 
     Returns:
@@ -431,8 +460,10 @@ def Suspended(
 
 
 def AwaitingRetry(
-    scheduled_time: datetime.datetime = None, cls: Type[State] = State, **kwargs
-) -> State:
+    cls: type[_State] = State,
+    scheduled_time: Optional[pendulum.DateTime] = None,
+    **kwargs: Any,
+) -> _State:
     """Convenience function for creating `AwaitingRetry` states.
 
     Returns:
@@ -443,7 +474,7 @@ def AwaitingRetry(
     )
 
 
-def Retrying(cls: Type[State] = State, **kwargs) -> State:
+def Retrying(cls: type[_State] = State, **kwargs: Any) -> _State:
     """Convenience function for creating `Retrying` states.
 
     Returns:
@@ -453,8 +484,10 @@ def Retrying(cls: Type[State] = State, **kwargs) -> State:
 
 
 def Late(
-    scheduled_time: datetime.datetime = None, cls: Type[State] = State, **kwargs
-) -> State:
+    cls: type[_State] = State,
+    scheduled_time: Optional[pendulum.DateTime] = None,
+    **kwargs: Any,
+) -> _State:
     """Convenience function for creating `Late` states.
 
     Returns:

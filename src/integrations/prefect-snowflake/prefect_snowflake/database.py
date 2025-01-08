@@ -75,7 +75,7 @@ class SnowflakeConnector(DatabaseBlock):
 
     _block_type_name = "Snowflake Connector"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/bd359de0b4be76c2254bd329fe3a267a1a3879c2-250x250.png"  # noqa
-    _documentation_url = "https://prefecthq.github.io/prefect-snowflake/database/#prefect_snowflake.database.SnowflakeConnector"  # noqa
+    _documentation_url = "https://docs.prefect.io/integrations/prefect-snowflake"  # noqa
     _description = "Perform data operations against a Snowflake database."
 
     credentials: SnowflakeCredentials = Field(
@@ -307,9 +307,7 @@ class SnowflakeConnector(DatabaseBlock):
         )
         new, cursor = self._get_cursor(inputs, cursor_type=cursor_type)
         if new:
-            self.execute(
-                operation, parameters, cursor_type=cursor_type, **execute_kwargs
-            )
+            cursor.execute(operation, params=parameters, **execute_kwargs)
         self.logger.debug("Preparing to fetch a row.")
         return cursor.fetchone()
 
@@ -439,7 +437,7 @@ class SnowflakeConnector(DatabaseBlock):
         )
         new, cursor = self._get_cursor(inputs, cursor_type)
         if new:
-            self.execute(cursor, inputs)
+            cursor.execute(operation, params=parameters, **execute_kwargs)
         size = size or self.fetch_size
         self.logger.debug(f"Preparing to fetch {size} rows.")
         return cursor.fetchmany(size=size)
@@ -548,9 +546,7 @@ class SnowflakeConnector(DatabaseBlock):
         )
         new, cursor = self._get_cursor(inputs, cursor_type)
         if new:
-            self.execute(
-                operation, parameters, cursor_type=cursor_type, **execute_kwargs
-            )
+            cursor.execute(operation, params=parameters, **execute_kwargs)
         self.logger.debug("Preparing to fetch all rows.")
         return cursor.fetchall()
 

@@ -1,20 +1,18 @@
-import sys
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import List, Optional, cast
 
 import pendulum
 import sqlalchemy as sa
 from fastapi import Depends, HTTPException, status
 from pydantic import Field, model_serializer
-from pydantic_extra_types.pendulum_dt import DateTime
 
 import prefect.server.schemas as schemas
-from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect.logging import get_logger
 from prefect.server import models
-from prefect.server.database.dependencies import provide_database_interface
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, provide_database_interface
+from prefect.server.utilities.schemas.bases import PrefectBaseModel
 from prefect.server.utilities.server import PrefectRouter
+from prefect.types import DateTime
 
 logger = get_logger("orion.api.ui.task_runs")
 
@@ -35,37 +33,6 @@ class TaskRunCount(PrefectBaseModel):
             "completed": int(self.completed),
             "failed": int(self.failed),
         }
-
-
-def _postgres_bucket_expression(
-    db: PrefectDBInterface, delta: pendulum.Duration, start_datetime: datetime
-):
-    # asyncpg under Python 3.7 doesn't support timezone-aware datetimes for the EXTRACT
-    # function, so we will send it as a naive datetime in UTC
-    if sys.version_info < (3, 8):
-        start_datetime = start_datetime.astimezone(timezone.utc).replace(tzinfo=None)
-
-    return sa.func.floor(
-        (
-            sa.func.extract("epoch", db.TaskRun.start_time)
-            - sa.func.extract("epoch", start_datetime)
-        )
-        / delta.total_seconds()
-    ).label("bucket")
-
-
-def _sqlite_bucket_expression(
-    db: PrefectDBInterface, delta: pendulum.Duration, start_datetime: datetime
-):
-    return sa.func.floor(
-        (
-            (
-                sa.func.strftime("%s", db.TaskRun.start_time)
-                - sa.func.strftime("%s", start_datetime)
-            )
-            / delta.total_seconds()
-        )
-    ).label("bucket")
 
 
 @router.post("/dashboard/counts")
@@ -121,15 +88,15 @@ async def read_dashboard_task_run_counts(
             start_time.microsecond,
             start_time.timezone,
         )
-        bucket_expression = (
-            _sqlite_bucket_expression(db, delta, start_datetime)
-            if db.dialect.name == "sqlite"
-            else _postgres_bucket_expression(db, delta, start_datetime)
-        )
+        bucket_expression = sa.func.floor(
+            sa.func.date_diff_seconds(db.TaskRun.start_time, start_datetime)
+            / delta.total_seconds()
+        ).label("bucket")
 
         raw_counts = (
             (
                 await models.task_runs._apply_task_run_filters(
+                    db,
                     sa.select(
                         bucket_expression,
                         sa.func.min(db.TaskRun.end_time).label("oldest"),

@@ -2,6 +2,8 @@ import inspect
 import ipaddress
 import socket
 import urllib.parse
+from logging import Logger
+from string import Formatter
 from typing import TYPE_CHECKING, Any, Literal, Optional, Union
 from urllib.parse import urlparse
 from uuid import UUID
@@ -18,11 +20,10 @@ if TYPE_CHECKING:
     from prefect.futures import PrefectFuture
     from prefect.variables import Variable
 
-logger = get_logger("utilities.urls")
+logger: Logger = get_logger("utilities.urls")
 
 # The following objects are excluded from UI URL generation because we lack a
 # directly-addressable URL:
-#   worker
 #   artifact
 #   variable
 #   saved-search
@@ -38,6 +39,7 @@ UI_URL_FORMATS = {
     "deployment": "deployments/deployment/{obj_id}",
     "automation": "automations/automation/{obj_id}",
     "received-event": "events/event/{occurred}/{obj_id}",
+    "worker": "work-pools/work-pool/{work_pool_name}/worker/{obj_id}",
 }
 
 # The following objects are excluded from API URL generation because we lack a
@@ -63,7 +65,7 @@ URLType = Literal["ui", "api"]
 RUN_TYPES = {"flow-run", "task-run"}
 
 
-def validate_restricted_url(url: str):
+def validate_restricted_url(url: str) -> None:
     """
     Validate that the provided URL is safe for outbound requests.  This prevents
     attacks like SSRF (Server Side Request Forgery), where an attacker can make
@@ -122,7 +124,7 @@ def convert_class_to_name(obj: Any) -> str:
 
 def url_for(
     obj: Union[
-        "PrefectFuture",
+        "PrefectFuture[Any]",
         "Block",
         "Variable",
         "Automation",
@@ -134,6 +136,7 @@ def url_for(
     obj_id: Optional[Union[str, UUID]] = None,
     url_type: URLType = "ui",
     default_base_url: Optional[str] = None,
+    **additional_format_kwargs: Any,
 ) -> Optional[str]:
     """
     Returns the URL for a Prefect object.
@@ -149,6 +152,8 @@ def url_for(
             Whether to return the URL for the UI (default) or API.
         default_base_url (str, optional):
             The default base URL to use if no URL is configured.
+        additional_format_kwargs (Dict[str, Any], optional):
+            Additional keyword arguments to pass to the URL format.
 
     Returns:
         Optional[str]: The URL for the given object or None if the object is not supported.
@@ -159,6 +164,7 @@ def url_for(
         url_for("flow-run", obj_id="123e4567-e89b-12d3-a456-426614174000")
     """
     from prefect.blocks.core import Block
+    from prefect.client.schemas.objects import WorkPool
     from prefect.events.schemas.automations import Automation
     from prefect.events.schemas.events import ReceivedEvent, Resource
     from prefect.futures import PrefectFuture
@@ -224,8 +230,10 @@ def url_for(
         elif name == "block":
             # Blocks are client-side objects whose API representation is a
             # BlockDocument.
-            obj_id = obj._block_document_id
+            obj_id = getattr(obj, "_block_document_id")
         elif name in ("variable", "work-pool"):
+            if TYPE_CHECKING:
+                assert isinstance(obj, (Variable, WorkPool))
             obj_id = obj.name
         elif isinstance(obj, Resource):
             obj_id = obj.id.rpartition(".")[2]
@@ -240,13 +248,25 @@ def url_for(
     url_format = (
         UI_URL_FORMATS.get(name) if url_type == "ui" else API_URL_FORMATS.get(name)
     )
+    assert url_format is not None
 
     if isinstance(obj, ReceivedEvent):
         url = url_format.format(
             occurred=obj.occurred.strftime("%Y-%m-%d"), obj_id=obj_id
         )
     else:
-        url = url_format.format(obj_id=obj_id)
+        obj_keys = [
+            fname
+            for _, fname, _, _ in Formatter().parse(url_format)
+            if fname is not None and fname != "obj_id"
+        ]
+
+        if not all(key in additional_format_kwargs for key in obj_keys):
+            raise ValueError(
+                f"Unable to generate URL for {name} because the following keys are missing: {', '.join(obj_keys)}"
+            )
+
+        url = url_format.format(obj_id=obj_id, **additional_format_kwargs)
 
     if not base_url.endswith("/"):
         base_url += "/"

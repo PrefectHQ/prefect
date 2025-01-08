@@ -15,7 +15,7 @@ def docs_path() -> Path:
 
 SKIPPED = [
     "prefect._internal",
-    "prefect.server.database.migrations",
+    "prefect.server.database._migrations",
 ]
 
 
@@ -33,8 +33,6 @@ def main():
             if any(submodule.startswith(skipped) for skipped in SKIPPED):
                 continue
             modules.append(submodule)
-
-        print(modules)
 
         package_docs = docs_path() / "mkdocs"
 

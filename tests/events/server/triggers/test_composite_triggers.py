@@ -5,10 +5,9 @@ from uuid import uuid4
 
 import pendulum
 import pytest
-from pendulum.datetime import DateTime
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface
 from prefect.server.events import actions, triggers
 from prefect.server.events.models import automations
 from prefect.server.events.schemas.automations import (
@@ -21,6 +20,7 @@ from prefect.server.events.schemas.automations import (
     TriggerState,
 )
 from prefect.server.events.schemas.events import ReceivedEvent
+from prefect.types import DateTime
 
 
 @pytest.fixture

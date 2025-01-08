@@ -1,10 +1,9 @@
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union
 from uuid import UUID, uuid4
 
 import jsonschema
 from pydantic import Field, field_validator, model_validator
-from pydantic_extra_types.pendulum_dt import DateTime
 
 import prefect.client.schemas.objects as objects
 from prefect._internal.schemas.bases import ActionBaseModel
@@ -27,6 +26,8 @@ from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
 from prefect.types import (
     MAX_VARIABLE_NAME_LENGTH,
+    DateTime,
+    KeyValueLabelsField,
     Name,
     NonEmptyishName,
     NonNegativeFloat,
@@ -38,7 +39,7 @@ from prefect.utilities.collections import listrepr
 from prefect.utilities.pydantic import get_class_fields_only
 
 if TYPE_CHECKING:
-    from prefect.results import BaseResult, ResultRecordMetadata
+    from prefect.results import ResultRecordMetadata
 
 R = TypeVar("R")
 
@@ -50,7 +51,7 @@ class StateCreate(ActionBaseModel):
     name: Optional[str] = Field(default=None)
     message: Optional[str] = Field(default=None, examples=["Run started"])
     state_details: StateDetails = Field(default_factory=StateDetails)
-    data: Union["BaseResult[R]", "ResultRecordMetadata", Any] = Field(
+    data: Union["ResultRecordMetadata", Any] = Field(
         default=None,
     )
 
@@ -61,17 +62,19 @@ class FlowCreate(ActionBaseModel):
     name: str = Field(
         default=..., description="The name of the flow", examples=["my-flow"]
     )
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         default_factory=list,
         description="A list of flow tags",
         examples=[["tag-1", "tag-2"]],
     )
 
+    labels: KeyValueLabelsField = Field(default_factory=dict)
+
 
 class FlowUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a flow."""
 
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         default_factory=list,
         description="A list of flow tags",
         examples=[["tag-1", "tag-2"]],
@@ -85,22 +88,14 @@ class DeploymentScheduleCreate(ActionBaseModel):
     active: bool = Field(
         default=True, description="Whether or not the schedule is active."
     )
-    max_active_runs: Optional[PositiveInteger] = Field(
-        default=None,
-        description="The maximum number of active runs for the schedule.",
-    )
     max_scheduled_runs: Optional[PositiveInteger] = Field(
         default=None,
         description="The maximum number of scheduled runs for the schedule.",
     )
-    catchup: bool = Field(
-        default=False,
-        description="Whether or not a worker should catch up on Late runs for the schedule.",
-    )
 
     @field_validator("max_scheduled_runs")
     @classmethod
-    def validate_max_scheduled_runs(cls, v):
+    def validate_max_scheduled_runs(cls, v: Optional[int]) -> Optional[int]:
         return validate_schedule_max_scheduled_runs(
             v, PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS.value()
         )
@@ -114,24 +109,14 @@ class DeploymentScheduleUpdate(ActionBaseModel):
         default=True, description="Whether or not the schedule is active."
     )
 
-    max_active_runs: Optional[PositiveInteger] = Field(
-        default=None,
-        description="The maximum number of active runs for the schedule.",
-    )
-
     max_scheduled_runs: Optional[PositiveInteger] = Field(
         default=None,
         description="The maximum number of scheduled runs for the schedule.",
     )
 
-    catchup: Optional[bool] = Field(
-        default=None,
-        description="Whether or not a worker should catch up on Late runs for the schedule.",
-    )
-
     @field_validator("max_scheduled_runs")
     @classmethod
-    def validate_max_scheduled_runs(cls, v):
+    def validate_max_scheduled_runs(cls, v: Optional[int]) -> Optional[int]:
         return validate_schedule_max_scheduled_runs(
             v, PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS.value()
         )
@@ -142,18 +127,20 @@ class DeploymentCreate(ActionBaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def remove_old_fields(cls, values):
+    def remove_old_fields(cls, values: dict[str, Any]) -> dict[str, Any]:
         return remove_old_deployment_fields(values)
 
     @field_validator("description", "tags", mode="before")
     @classmethod
-    def convert_to_strings(cls, values):
+    def convert_to_strings(
+        cls, values: Optional[Union[str, list[str]]]
+    ) -> Union[str, list[str]]:
         return convert_to_strings(values)
 
     name: str = Field(..., description="The name of the deployment.")
     flow_id: UUID = Field(..., description="The ID of the flow to deploy.")
-    paused: Optional[bool] = Field(None)
-    schedules: List[DeploymentScheduleCreate] = Field(
+    paused: Optional[bool] = Field(default=None)
+    schedules: list[DeploymentScheduleCreate] = Field(
         default_factory=list,
         description="A list of schedules for the deployment.",
     )
@@ -171,32 +158,33 @@ class DeploymentCreate(ActionBaseModel):
             "Whether or not the deployment should enforce the parameter schema."
         ),
     )
-    parameter_openapi_schema: Optional[Dict[str, Any]] = Field(default_factory=dict)
-    parameters: Dict[str, Any] = Field(
+    parameter_openapi_schema: Optional[dict[str, Any]] = Field(default_factory=dict)
+    parameters: dict[str, Any] = Field(
         default_factory=dict,
         description="Parameters for flow runs scheduled by the deployment.",
     )
-    tags: List[str] = Field(default_factory=list)
-    pull_steps: Optional[List[dict]] = Field(None)
+    tags: list[str] = Field(default_factory=list)
+    labels: KeyValueLabelsField = Field(default_factory=dict)
+    pull_steps: Optional[list[dict[str, Any]]] = Field(default=None)
 
-    work_queue_name: Optional[str] = Field(None)
+    work_queue_name: Optional[str] = Field(default=None)
     work_pool_name: Optional[str] = Field(
         default=None,
         description="The name of the deployment's work pool.",
         examples=["my-work-pool"],
     )
-    storage_document_id: Optional[UUID] = Field(None)
-    infrastructure_document_id: Optional[UUID] = Field(None)
-    description: Optional[str] = Field(None)
-    path: Optional[str] = Field(None)
-    version: Optional[str] = Field(None)
-    entrypoint: Optional[str] = Field(None)
-    job_variables: Dict[str, Any] = Field(
+    storage_document_id: Optional[UUID] = Field(default=None)
+    infrastructure_document_id: Optional[UUID] = Field(default=None)
+    description: Optional[str] = Field(default=None)
+    path: Optional[str] = Field(default=None)
+    version: Optional[str] = Field(default=None)
+    entrypoint: Optional[str] = Field(default=None)
+    job_variables: dict[str, Any] = Field(
         default_factory=dict,
         description="Overrides to apply to flow run infrastructure at runtime.",
     )
 
-    def check_valid_configuration(self, base_job_template: dict):
+    def check_valid_configuration(self, base_job_template: dict[str, Any]) -> None:
         """Check that the combination of base_job_template defaults
         and job_variables conforms to the specified schema.
         """
@@ -221,19 +209,19 @@ class DeploymentUpdate(ActionBaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def remove_old_fields(cls, values):
+    def remove_old_fields(cls, values: dict[str, Any]) -> dict[str, Any]:
         return remove_old_deployment_fields(values)
 
-    version: Optional[str] = Field(None)
-    description: Optional[str] = Field(None)
-    parameters: Optional[Dict[str, Any]] = Field(
+    version: Optional[str] = Field(default=None)
+    description: Optional[str] = Field(default=None)
+    parameters: Optional[dict[str, Any]] = Field(
         default=None,
         description="Parameters for flow runs scheduled by the deployment.",
     )
     paused: Optional[bool] = Field(
         default=None, description="Whether or not the deployment is paused."
     )
-    schedules: Optional[List[DeploymentScheduleCreate]] = Field(
+    schedules: Optional[list[DeploymentScheduleCreate]] = Field(
         default=None,
         description="A list of schedules for the deployment.",
     )
@@ -245,21 +233,21 @@ class DeploymentUpdate(ActionBaseModel):
         default=None,
         description="The concurrency options for the deployment.",
     )
-    tags: List[str] = Field(default_factory=list)
-    work_queue_name: Optional[str] = Field(None)
+    tags: list[str] = Field(default_factory=list)
+    work_queue_name: Optional[str] = Field(default=None)
     work_pool_name: Optional[str] = Field(
         default=None,
         description="The name of the deployment's work pool.",
         examples=["my-work-pool"],
     )
-    path: Optional[str] = Field(None)
-    job_variables: Optional[Dict[str, Any]] = Field(
+    path: Optional[str] = Field(default=None)
+    job_variables: Optional[dict[str, Any]] = Field(
         default_factory=dict,
         description="Overrides to apply to flow run infrastructure at runtime.",
     )
-    entrypoint: Optional[str] = Field(None)
-    storage_document_id: Optional[UUID] = Field(None)
-    infrastructure_document_id: Optional[UUID] = Field(None)
+    entrypoint: Optional[str] = Field(default=None)
+    storage_document_id: Optional[UUID] = Field(default=None)
+    infrastructure_document_id: Optional[UUID] = Field(default=None)
     enforce_parameter_schema: Optional[bool] = Field(
         default=None,
         description=(
@@ -267,7 +255,7 @@ class DeploymentUpdate(ActionBaseModel):
         ),
     )
 
-    def check_valid_configuration(self, base_job_template: dict):
+    def check_valid_configuration(self, base_job_template: dict[str, Any]) -> None:
         """Check that the combination of base_job_template defaults
         and job_variables conforms to the specified schema.
         """
@@ -291,15 +279,15 @@ class DeploymentUpdate(ActionBaseModel):
 class FlowRunUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a flow run."""
 
-    name: Optional[str] = Field(None)
-    flow_version: Optional[str] = Field(None)
-    parameters: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    name: Optional[str] = Field(default=None)
+    flow_version: Optional[str] = Field(default=None)
+    parameters: Optional[dict[str, Any]] = Field(default_factory=dict)
     empirical_policy: objects.FlowRunPolicy = Field(
         default_factory=objects.FlowRunPolicy
     )
-    tags: List[str] = Field(default_factory=list)
-    infrastructure_pid: Optional[str] = Field(None)
-    job_variables: Optional[Dict[str, Any]] = Field(None)
+    tags: list[str] = Field(default_factory=list)
+    infrastructure_pid: Optional[str] = Field(default=None)
+    job_variables: Optional[dict[str, Any]] = Field(default=None)
 
 
 class TaskRunCreate(ActionBaseModel):
@@ -315,7 +303,7 @@ class TaskRunCreate(ActionBaseModel):
         default=None,
         description="The name of the task run",
     )
-    flow_run_id: Optional[UUID] = Field(None)
+    flow_run_id: Optional[UUID] = Field(default=None)
     task_key: str = Field(
         default=..., description="A unique identifier for the task being run."
     )
@@ -326,16 +314,17 @@ class TaskRunCreate(ActionBaseModel):
             " within the same flow run."
         ),
     )
-    cache_key: Optional[str] = Field(None)
-    cache_expiration: Optional[objects.DateTime] = Field(None)
-    task_version: Optional[str] = Field(None)
+    cache_key: Optional[str] = Field(default=None)
+    cache_expiration: Optional[objects.DateTime] = Field(default=None)
+    task_version: Optional[str] = Field(default=None)
     empirical_policy: objects.TaskRunPolicy = Field(
         default_factory=objects.TaskRunPolicy,
     )
-    tags: List[str] = Field(default_factory=list)
-    task_inputs: Dict[
+    tags: list[str] = Field(default_factory=list)
+    labels: KeyValueLabelsField = Field(default_factory=dict)
+    task_inputs: dict[
         str,
-        List[
+        list[
             Union[
                 objects.TaskRunResult,
                 objects.Parameter,
@@ -348,7 +337,7 @@ class TaskRunCreate(ActionBaseModel):
 class TaskRunUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a task run"""
 
-    name: Optional[str] = Field(None)
+    name: Optional[str] = Field(default=None)
 
 
 class FlowRunCreate(ActionBaseModel):
@@ -361,21 +350,23 @@ class FlowRunCreate(ActionBaseModel):
 
     name: Optional[str] = Field(default=None, description="The name of the flow run.")
     flow_id: UUID = Field(default=..., description="The id of the flow being run.")
-    deployment_id: Optional[UUID] = Field(None)
-    flow_version: Optional[str] = Field(None)
-    parameters: Dict[str, Any] = Field(
+    deployment_id: Optional[UUID] = Field(default=None)
+    flow_version: Optional[str] = Field(default=None)
+    parameters: dict[str, Any] = Field(
         default_factory=dict, description="The parameters for the flow run."
     )
-    context: Dict[str, Any] = Field(
+    context: dict[str, Any] = Field(
         default_factory=dict, description="The context for the flow run."
     )
-    parent_task_run_id: Optional[UUID] = Field(None)
-    infrastructure_document_id: Optional[UUID] = Field(None)
+    parent_task_run_id: Optional[UUID] = Field(default=None)
+    infrastructure_document_id: Optional[UUID] = Field(default=None)
     empirical_policy: objects.FlowRunPolicy = Field(
         default_factory=objects.FlowRunPolicy
     )
-    tags: List[str] = Field(default_factory=list)
-    idempotency_key: Optional[str] = Field(None)
+    tags: list[str] = Field(default_factory=list)
+    idempotency_key: Optional[str] = Field(default=None)
+
+    labels: KeyValueLabelsField = Field(default_factory=dict)
 
 
 class DeploymentFlowRunCreate(ActionBaseModel):
@@ -387,32 +378,33 @@ class DeploymentFlowRunCreate(ActionBaseModel):
     )
 
     name: Optional[str] = Field(default=None, description="The name of the flow run.")
-    parameters: Dict[str, Any] = Field(
+    parameters: dict[str, Any] = Field(
         default_factory=dict, description="The parameters for the flow run."
     )
     enforce_parameter_schema: Optional[bool] = Field(
         default=None,
         description="Whether or not to enforce the parameter schema on this run.",
     )
-    context: Dict[str, Any] = Field(
+    context: dict[str, Any] = Field(
         default_factory=dict, description="The context for the flow run."
     )
-    infrastructure_document_id: Optional[UUID] = Field(None)
+    infrastructure_document_id: Optional[UUID] = Field(default=None)
     empirical_policy: objects.FlowRunPolicy = Field(
         default_factory=objects.FlowRunPolicy
     )
-    tags: List[str] = Field(default_factory=list)
-    idempotency_key: Optional[str] = Field(None)
-    parent_task_run_id: Optional[UUID] = Field(None)
-    work_queue_name: Optional[str] = Field(None)
-    job_variables: Optional[dict] = Field(None)
+    tags: list[str] = Field(default_factory=list)
+    idempotency_key: Optional[str] = Field(default=None)
+    parent_task_run_id: Optional[UUID] = Field(default=None)
+    work_queue_name: Optional[str] = Field(default=None)
+    job_variables: Optional[dict[str, Any]] = Field(default=None)
+    labels: KeyValueLabelsField = Field(default_factory=dict)
 
 
 class SavedSearchCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a saved search."""
 
     name: str = Field(default=..., description="The name of the saved search.")
-    filters: List[objects.SavedSearchFilter] = Field(
+    filters: list[objects.SavedSearchFilter] = Field(
         default_factory=list, description="The filter set for the saved search."
     )
 
@@ -449,12 +441,12 @@ class ConcurrencyLimitV2Create(ActionBaseModel):
 class ConcurrencyLimitV2Update(ActionBaseModel):
     """Data used by the Prefect REST API to update a v2 concurrency limit."""
 
-    active: Optional[bool] = Field(None)
-    name: Optional[Name] = Field(None)
-    limit: Optional[NonNegativeInteger] = Field(None)
-    active_slots: Optional[NonNegativeInteger] = Field(None)
-    denied_slots: Optional[NonNegativeInteger] = Field(None)
-    slot_decay_per_second: Optional[NonNegativeFloat] = Field(None)
+    active: Optional[bool] = Field(default=None)
+    name: Optional[Name] = Field(default=None)
+    limit: Optional[NonNegativeInteger] = Field(default=None)
+    active_slots: Optional[NonNegativeInteger] = Field(default=None)
+    denied_slots: Optional[NonNegativeInteger] = Field(default=None)
+    slot_decay_per_second: Optional[NonNegativeFloat] = Field(default=None)
 
 
 class BlockTypeCreate(ActionBaseModel):
@@ -484,24 +476,24 @@ class BlockTypeCreate(ActionBaseModel):
 class BlockTypeUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a block type."""
 
-    logo_url: Optional[objects.HttpUrl] = Field(None)
-    documentation_url: Optional[objects.HttpUrl] = Field(None)
-    description: Optional[str] = Field(None)
-    code_example: Optional[str] = Field(None)
+    logo_url: Optional[objects.HttpUrl] = Field(default=None)
+    documentation_url: Optional[objects.HttpUrl] = Field(default=None)
+    description: Optional[str] = Field(default=None)
+    code_example: Optional[str] = Field(default=None)
 
     @classmethod
-    def updatable_fields(cls) -> set:
+    def updatable_fields(cls) -> set[str]:
         return get_class_fields_only(cls)
 
 
 class BlockSchemaCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a block schema."""
 
-    fields: Dict[str, Any] = Field(
+    fields: dict[str, Any] = Field(
         default_factory=dict, description="The block schema's field schema"
     )
-    block_type_id: Optional[UUID] = Field(None)
-    capabilities: List[str] = Field(
+    block_type_id: Optional[UUID] = Field(default=None)
+    capabilities: list[str] = Field(
         default_factory=list,
         description="A list of Block capabilities",
     )
@@ -517,7 +509,7 @@ class BlockDocumentCreate(ActionBaseModel):
     name: Optional[Name] = Field(
         default=None, description="The name of the block document"
     )
-    data: Dict[str, Any] = Field(
+    data: dict[str, Any] = Field(
         default_factory=dict, description="The block document's data"
     )
     block_schema_id: UUID = Field(
@@ -537,7 +529,9 @@ class BlockDocumentCreate(ActionBaseModel):
     _validate_name_format = field_validator("name")(validate_block_document_name)
 
     @model_validator(mode="before")
-    def validate_name_is_present_if_not_anonymous(cls, values):
+    def validate_name_is_present_if_not_anonymous(
+        cls, values: dict[str, Any]
+    ) -> dict[str, Any]:
         return validate_name_present_on_nonanonymous_blocks(values)
 
 
@@ -547,7 +541,7 @@ class BlockDocumentUpdate(ActionBaseModel):
     block_schema_id: Optional[UUID] = Field(
         default=None, description="A block schema ID"
     )
-    data: Dict[str, Any] = Field(
+    data: dict[str, Any] = Field(
         default_factory=dict, description="The block document's data"
     )
     merge_existing_data: bool = Field(
@@ -578,8 +572,19 @@ class LogCreate(ActionBaseModel):
     level: int = Field(default=..., description="The log level.")
     message: str = Field(default=..., description="The log message.")
     timestamp: DateTime = Field(default=..., description="The log timestamp.")
-    flow_run_id: Optional[UUID] = Field(None)
-    task_run_id: Optional[UUID] = Field(None)
+    flow_run_id: Optional[UUID] = Field(default=None)
+    task_run_id: Optional[UUID] = Field(default=None)
+    worker_id: Optional[UUID] = Field(default=None)
+
+    def model_dump(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        """
+        The worker_id field is only included in logs sent to Prefect Cloud.
+        If it's unset, we should not include it in the log payload.
+        """
+        data = super().model_dump(*args, **kwargs)
+        if self.worker_id is None:
+            data.pop("worker_id")
+        return data
 
 
 class WorkPoolCreate(ActionBaseModel):
@@ -588,11 +593,11 @@ class WorkPoolCreate(ActionBaseModel):
     name: NonEmptyishName = Field(
         description="The name of the work pool.",
     )
-    description: Optional[str] = Field(None)
+    description: Optional[str] = Field(default=None)
     type: str = Field(
         description="The work pool type.", default="prefect-agent"
     )  # TODO: change default
-    base_job_template: Dict[str, Any] = Field(
+    base_job_template: dict[str, Any] = Field(
         default_factory=dict,
         description="The base job template for the work pool.",
     )
@@ -608,17 +613,17 @@ class WorkPoolCreate(ActionBaseModel):
 class WorkPoolUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a work pool."""
 
-    description: Optional[str] = Field(None)
-    is_paused: Optional[bool] = Field(None)
-    base_job_template: Optional[Dict[str, Any]] = Field(None)
-    concurrency_limit: Optional[int] = Field(None)
+    description: Optional[str] = Field(default=None)
+    is_paused: Optional[bool] = Field(default=None)
+    base_job_template: Optional[dict[str, Any]] = Field(default=None)
+    concurrency_limit: Optional[int] = Field(default=None)
 
 
 class WorkQueueCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a work queue."""
 
     name: str = Field(default=..., description="The name of the work queue.")
-    description: Optional[str] = Field(None)
+    description: Optional[str] = Field(default=None)
     is_paused: bool = Field(
         default=False,
         description="Whether the work queue is paused.",
@@ -646,16 +651,16 @@ class WorkQueueCreate(ActionBaseModel):
 class WorkQueueUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a work queue."""
 
-    name: Optional[str] = Field(None)
-    description: Optional[str] = Field(None)
+    name: Optional[str] = Field(default=None)
+    description: Optional[str] = Field(default=None)
     is_paused: bool = Field(
         default=False, description="Whether or not the work queue is paused."
     )
-    concurrency_limit: Optional[NonNegativeInteger] = Field(None)
+    concurrency_limit: Optional[NonNegativeInteger] = Field(default=None)
     priority: Optional[PositiveInteger] = Field(
         None, description="The queue's priority."
     )
-    last_polled: Optional[DateTime] = Field(None)
+    last_polled: Optional[DateTime] = Field(default=None)
 
     # DEPRECATED
 
@@ -672,10 +677,10 @@ class FlowRunNotificationPolicyCreate(ActionBaseModel):
     is_active: bool = Field(
         default=True, description="Whether the policy is currently active"
     )
-    state_names: List[str] = Field(
+    state_names: list[str] = Field(
         default=..., description="The flow run states that trigger notifications"
     )
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         default=...,
         description="The flow run tags that trigger notifications (set [] to disable)",
     )
@@ -697,30 +702,30 @@ class FlowRunNotificationPolicyCreate(ActionBaseModel):
 
     @field_validator("message_template")
     @classmethod
-    def validate_message_template_variables(cls, v):
+    def validate_message_template_variables(cls, v: Optional[str]) -> Optional[str]:
         return validate_message_template_variables(v)
 
 
 class FlowRunNotificationPolicyUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a flow run notification policy."""
 
-    is_active: Optional[bool] = Field(None)
-    state_names: Optional[List[str]] = Field(None)
-    tags: Optional[List[str]] = Field(None)
-    block_document_id: Optional[UUID] = Field(None)
-    message_template: Optional[str] = Field(None)
+    is_active: Optional[bool] = Field(default=None)
+    state_names: Optional[list[str]] = Field(default=None)
+    tags: Optional[list[str]] = Field(default=None)
+    block_document_id: Optional[UUID] = Field(default=None)
+    message_template: Optional[str] = Field(default=None)
 
 
 class ArtifactCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create an artifact."""
 
-    key: Optional[str] = Field(None)
-    type: Optional[str] = Field(None)
-    description: Optional[str] = Field(None)
-    data: Optional[Union[Dict[str, Any], Any]] = Field(None)
-    metadata_: Optional[Dict[str, str]] = Field(None)
-    flow_run_id: Optional[UUID] = Field(None)
-    task_run_id: Optional[UUID] = Field(None)
+    key: Optional[str] = Field(default=None)
+    type: Optional[str] = Field(default=None)
+    description: Optional[str] = Field(default=None)
+    data: Optional[Union[dict[str, Any], Any]] = Field(default=None)
+    metadata_: Optional[dict[str, str]] = Field(default=None)
+    flow_run_id: Optional[UUID] = Field(default=None)
+    task_run_id: Optional[UUID] = Field(default=None)
 
     _validate_artifact_format = field_validator("key")(validate_artifact_key)
 
@@ -728,9 +733,9 @@ class ArtifactCreate(ActionBaseModel):
 class ArtifactUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update an artifact."""
 
-    data: Optional[Union[Dict[str, Any], Any]] = Field(None)
-    description: Optional[str] = Field(None)
-    metadata_: Optional[Dict[str, str]] = Field(None)
+    data: Optional[Union[dict[str, Any], Any]] = Field(default=None)
+    description: Optional[str] = Field(default=None)
+    metadata_: Optional[dict[str, str]] = Field(default=None)
 
 
 class VariableCreate(ActionBaseModel):
@@ -747,7 +752,7 @@ class VariableCreate(ActionBaseModel):
         description="The value of the variable",
         examples=["my-value"],
     )
-    tags: Optional[List[str]] = Field(default=None)
+    tags: Optional[list[str]] = Field(default=None)
 
     # validators
     _validate_name_format = field_validator("name")(validate_variable_name)
@@ -767,7 +772,7 @@ class VariableUpdate(ActionBaseModel):
         description="The value of the variable",
         examples=["my-value"],
     )
-    tags: Optional[List[str]] = Field(default=None)
+    tags: Optional[list[str]] = Field(default=None)
 
     # validators
     _validate_name_format = field_validator("name")(validate_variable_name)
@@ -803,8 +808,8 @@ class GlobalConcurrencyLimitCreate(ActionBaseModel):
 class GlobalConcurrencyLimitUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a global concurrency limit."""
 
-    name: Optional[Name] = Field(None)
-    limit: Optional[NonNegativeInteger] = Field(None)
-    active: Optional[bool] = Field(None)
-    active_slots: Optional[NonNegativeInteger] = Field(None)
-    slot_decay_per_second: Optional[NonNegativeFloat] = Field(None)
+    name: Optional[Name] = Field(default=None)
+    limit: Optional[NonNegativeInteger] = Field(default=None)
+    active: Optional[bool] = Field(default=None)
+    active_slots: Optional[NonNegativeInteger] = Field(default=None)
+    slot_decay_per_second: Optional[NonNegativeFloat] = Field(default=None)

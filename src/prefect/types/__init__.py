@@ -1,13 +1,13 @@
 from functools import partial
-from typing import Annotated, Any, Dict, List, Set, TypeVar, Union
-from typing_extensions import Literal
+from typing import Annotated, Any, Dict, List, Optional, Set, TypeVar, Union
+from typing_extensions import Literal, TypeAlias
 import orjson
 import pydantic
-
+from pydantic_extra_types.pendulum_dt import DateTime as PydanticDateTime
+from pydantic_extra_types.pendulum_dt import Date as PydanticDate
 from pydantic import (
     BeforeValidator,
     Field,
-    SecretStr,
     StrictBool,
     StrictFloat,
     StrictInt,
@@ -35,6 +35,8 @@ TimeZone = Annotated[
     ),
 ]
 
+DateTime: TypeAlias = PydanticDateTime
+Date: TypeAlias = PydanticDate
 
 BANNED_CHARACTERS = ["/", "%", "&", ">", "<"]
 
@@ -87,8 +89,24 @@ StrictVariableValue = Annotated[VariableValue, BeforeValidator(check_variable_va
 
 LaxUrl = Annotated[str, BeforeValidator(lambda x: str(x).strip())]
 
-
 StatusCode = Annotated[int, Field(ge=100, le=599)]
+
+
+def cast_none_to_empty_dict(value: Any) -> dict[str, Any]:
+    if value is None:
+        return {}
+    return value
+
+
+KeyValueLabels = Annotated[
+    Dict[str, Union[StrictBool, StrictInt, StrictFloat, str]],
+    BeforeValidator(cast_none_to_empty_dict),
+]
+
+
+ListOfNonEmptyStrings = Annotated[
+    List[str], BeforeValidator(lambda x: [s for s in x if s.strip()])
+]
 
 
 class SecretDict(pydantic.Secret[Dict[str, Any]]):
@@ -110,7 +128,7 @@ def validate_set_T_from_delim_string(
     T_adapter = TypeAdapter(type_)
     delim = delim or ","
     if isinstance(value, str):
-        return {T_adapter.validate_strings(s) for s in value.split(delim)}
+        return {T_adapter.validate_strings(s.strip()) for s in value.split(delim)}
     errors = []
     try:
         return {T_adapter.validate_python(value)}
@@ -133,11 +151,29 @@ LogLevel = Annotated[
     BeforeValidator(lambda x: x.upper()),
 ]
 
+
+def convert_none_to_empty_dict(v: Optional[KeyValueLabels]) -> KeyValueLabels:
+    return v or {}
+
+
+KeyValueLabelsField = Annotated[
+    KeyValueLabels,
+    Field(
+        default_factory=dict,
+        description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
+        examples=[{"key": "value1", "key2": 42}],
+    ),
+    BeforeValidator(convert_none_to_empty_dict),
+]
+
+
 __all__ = [
     "ClientRetryExtraCodes",
     "LogLevel",
+    "KeyValueLabelsField",
     "NonNegativeInteger",
     "PositiveInteger",
+    "ListOfNonEmptyStrings",
     "NonNegativeFloat",
     "Name",
     "NameOrEmpty",

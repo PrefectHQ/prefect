@@ -188,7 +188,17 @@ async def mock_pods_stream_that_returns_completed_pod(
 
 @pytest.fixture
 def enable_store_api_key_in_secret(monkeypatch):
-    monkeypatch.setenv("PREFECT_KUBERNETES_WORKER_STORE_PREFECT_API_IN_SECRET", "true")
+    monkeypatch.setenv(
+        "PREFECT_INTEGRATIONS_KUBERNETES_WORKER_CREATE_SECRET_FOR_API_KEY", "true"
+    )
+
+
+@pytest.fixture
+def mock_api_key_secret_name(monkeypatch):
+    monkeypatch.setenv(
+        "PREFECT_INTEGRATIONS_KUBERNETES_WORKER_API_KEY_SECRET_NAME", "test-secret"
+    )
+    return "test-secret"
 
 
 from_template_and_values_cases = [
@@ -1609,6 +1619,104 @@ class TestKubernetesWorker:
                     ),
                 )
 
+    async def test_use_existing_secret_name(
+        self,
+        flow_run,
+        mock_core_client,
+        mock_watch,
+        mock_pods_stream_that_returns_running_pod,
+        mock_batch_client,
+        mock_api_key_secret_name,
+    ):
+        mock_watch.return_value.stream = mock_pods_stream_that_returns_running_pod
+
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            KubernetesWorker.get_default_base_job_template(), {"image": "foo"}
+        )
+        with temporary_settings(updates={PREFECT_API_KEY: "fake"}):
+            async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+                mock_core_client.return_value.read_namespaced_secret.return_value = (
+                    V1Secret(
+                        api_version="v1",
+                        kind="Secret",
+                        metadata=V1ObjectMeta(
+                            name=f"prefect-{_slugify_name(k8s_worker.name)}-api-key",
+                            namespace=configuration.namespace,
+                        ),
+                        data={
+                            "value": base64.b64encode("fake".encode("utf-8")).decode(
+                                "utf-8"
+                            )
+                        },
+                    )
+                )
+
+                configuration.prepare_for_flow_run(flow_run=flow_run)
+                await k8s_worker.run(flow_run, configuration)
+                mock_batch_client.return_value.create_namespaced_job.assert_called_once()
+                env = mock_batch_client.return_value.create_namespaced_job.call_args[0][
+                    1
+                ]["spec"]["template"]["spec"]["containers"][0]["env"]
+                assert {
+                    "name": "PREFECT_API_KEY",
+                    "valueFrom": {
+                        "secretKeyRef": {
+                            "name": mock_api_key_secret_name,
+                            "key": "value",
+                        }
+                    },
+                } in env
+
+    async def test_existing_secret_name_takes_precedence(
+        self,
+        flow_run,
+        mock_core_client,
+        mock_watch,
+        mock_pods_stream_that_returns_running_pod,
+        mock_batch_client,
+        mock_api_key_secret_name,
+        enable_store_api_key_in_secret,
+    ):
+        mock_watch.return_value.stream = mock_pods_stream_that_returns_running_pod
+
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            KubernetesWorker.get_default_base_job_template(), {"image": "foo"}
+        )
+        with temporary_settings(updates={PREFECT_API_KEY: "fake"}):
+            async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+                mock_core_client.return_value.read_namespaced_secret.return_value = (
+                    V1Secret(
+                        api_version="v1",
+                        kind="Secret",
+                        metadata=V1ObjectMeta(
+                            name=f"prefect-{_slugify_name(k8s_worker.name)}-api-key",
+                            namespace=configuration.namespace,
+                        ),
+                        data={
+                            "value": base64.b64encode("fake".encode("utf-8")).decode(
+                                "utf-8"
+                            )
+                        },
+                    )
+                )
+
+                configuration.prepare_for_flow_run(flow_run=flow_run)
+                await k8s_worker.run(flow_run, configuration)
+                mock_batch_client.return_value.create_namespaced_job.assert_called_once()
+                env = mock_batch_client.return_value.create_namespaced_job.call_args[0][
+                    1
+                ]["spec"]["template"]["spec"]["containers"][0]["env"]
+                assert {
+                    "name": "PREFECT_API_KEY",
+                    "valueFrom": {
+                        "secretKeyRef": {
+                            "name": mock_api_key_secret_name,
+                            "key": "value",
+                        }
+                    },
+                } in env
+                mock_core_client.return_value.replace_namespaced_secret.assert_not_called()
+
     async def test_create_job_failure(
         self,
         flow_run,
@@ -2301,6 +2409,7 @@ class TestKubernetesWorker:
                 func=mock_batch_client.return_value.list_namespaced_job,
                 namespace=mock.ANY,
                 field_selector=mock.ANY,
+                _request_timeout=mock.ANY,
             )
 
             if job_timeout is not None:
@@ -2322,6 +2431,7 @@ class TestKubernetesWorker:
                         namespace=mock.ANY,
                         label_selector=mock.ANY,
                         timeout_seconds=42,
+                        _request_timeout=mock.ANY,
                     ),
                     mock.call(**expected_job_call_kwargs),
                 ]
@@ -2365,11 +2475,13 @@ class TestKubernetesWorker:
                         namespace=mock.ANY,
                         label_selector=mock.ANY,
                         timeout_seconds=mock.ANY,
+                        _request_timeout=mock.ANY,
                     ),
                     mock.call(
                         func=mock_batch_client.return_value.list_namespaced_job,
                         namespace=mock.ANY,
                         field_selector=mock.ANY,
+                        _request_timeout=mock.ANY,
                         # Note: timeout_seconds is excluded here
                     ),
                 ]
@@ -2410,11 +2522,13 @@ class TestKubernetesWorker:
                         namespace="my-awesome-flows",
                         label_selector=mock.ANY,
                         timeout_seconds=60,
+                        _request_timeout=mock.ANY,
                     ),
                     mock.call(
                         func=mock_batch_client.return_value.list_namespaced_job,
                         namespace="my-awesome-flows",
                         field_selector=mock.ANY,
+                        _request_timeout=mock.ANY,
                     ),
                 ]
             )
@@ -2430,6 +2544,17 @@ class TestKubernetesWorker:
             mock_pod,
             mock_job,
         ):
+            job_pod = MagicMock(spec=kubernetes_asyncio.client.V1Pod)
+            mock_container_status = MagicMock(
+                spec=kubernetes_asyncio.client.V1ContainerStatus
+            )
+            mock_container_status.state.running = None
+            mock_container_status.state.waiting = None
+            job_pod.status.container_statuses = [mock_container_status]
+            mock_core_client.return_value.list_namespaced_pod.return_value.items = [
+                job_pod
+            ]
+
             async def mock_stream(*args, **kwargs):
                 mock_job.status.completion_time = pendulum.now("utc").timestamp()
                 stream = [
@@ -2516,6 +2641,16 @@ class TestKubernetesWorker:
 
             mock_core_client.return_value.read_namespaced_pod_log.return_value.stream = mock_log_stream
             mock_watch.return_value.stream = mock.Mock(side_effect=mock_stream)
+            job_pod = MagicMock(spec=kubernetes_asyncio.client.V1Pod)
+            mock_container_status = MagicMock(
+                spec=kubernetes_asyncio.client.V1ContainerStatus
+            )
+            mock_container_status.state.running = None
+            mock_container_status.state.waiting = None
+            job_pod.status.container_statuses = [mock_container_status]
+            mock_core_client.return_value.list_namespaced_pod.return_value.items = [
+                job_pod
+            ]
 
             default_configuration.job_watch_timeout_seconds = 100
             async with KubernetesWorker(work_pool_name="test") as k8s_worker:
@@ -2530,6 +2665,7 @@ class TestKubernetesWorker:
                         namespace=mock.ANY,
                         label_selector=mock.ANY,
                         timeout_seconds=mock.ANY,
+                        _request_timeout=mock.ANY,
                     ),
                     # Starts with the full timeout minus the amount we slept streaming logs
                     mock.call(
@@ -2537,6 +2673,7 @@ class TestKubernetesWorker:
                         field_selector=mock.ANY,
                         namespace=mock.ANY,
                         timeout_seconds=pytest.approx(50, 1),
+                        _request_timeout=mock.ANY,
                     ),
                 ]
             )
@@ -2595,6 +2732,8 @@ class TestKubernetesWorker:
                 spec=kubernetes_asyncio.client.V1ContainerStatus
             )
             mock_container_status.state.terminated.exit_code = 137
+            mock_container_status.state.running = None
+            mock_container_status.state.waiting = None
             job_pod.status.container_statuses = [mock_container_status]
             mock_core_client.return_value.list_namespaced_pod.return_value.items = [
                 job_pod
@@ -2679,6 +2818,8 @@ class TestKubernetesWorker:
             # The container may exist but because it has been forcefully terminated
             # it will not have an exit code.
             mock_container_status.state.terminated = None
+            mock_container_status.state.running = None
+            mock_container_status.state.waiting = None
             job_pod.status.container_statuses = [mock_container_status]
             mock_core_client.return_value.list_namespaced_pod.return_value.items = [
                 job_pod
@@ -2751,15 +2892,55 @@ class TestKubernetesWorker:
                         func=mock_batch_client.return_value.list_namespaced_job,
                         namespace=mock.ANY,
                         field_selector="metadata.name=mock-job",
+                        _request_timeout=mock.ANY,
                     ),
                     mock.call(
                         func=mock_batch_client.return_value.list_namespaced_job,
                         namespace=mock.ANY,
                         field_selector="metadata.name=mock-job",
                         resource_version="1",
+                        _request_timeout=mock.ANY,
                     ),
                 ]
             )
+
+        async def test_watch_early_exit(
+            self,
+            default_configuration: KubernetesWorkerJobConfiguration,
+            flow_run,
+            mock_batch_client,
+            mock_core_client,
+            mock_watch,
+            mock_job,
+            mock_pod,
+        ):
+            mock_batch_client.return_value.read_namespaced_job.return_value.status.completion_time = None
+            job_pod = MagicMock(spec=kubernetes_asyncio.client.V1Pod)
+            job_pod.status.phase = "Running"
+            mock_container_status = MagicMock(
+                spec=kubernetes_asyncio.client.V1ContainerStatus
+            )
+            mock_container_status.state.running = MagicMock(
+                start_time=pendulum.now("utc")
+            )
+            job_pod.status.container_statuses = [mock_container_status]
+            mock_core_client.return_value.list_namespaced_pod.return_value.items = [
+                job_pod
+            ]
+
+            async def mock_stream(*args, **kwargs):
+                if kwargs["func"] == mock_core_client.return_value.list_namespaced_pod:
+                    yield {"object": mock_pod, "type": "ADDED"}
+
+                if kwargs["func"] == mock_batch_client.return_value.list_namespaced_job:
+                    raise Exception("This is a test exception")
+
+            mock_watch.return_value.stream = mock.Mock(side_effect=mock_stream)
+
+            async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+                result = await k8s_worker.run(flow_run, default_configuration)
+
+            assert result.status_code == 0
 
     @pytest.fixture
     async def mock_events(self, mock_core_client):

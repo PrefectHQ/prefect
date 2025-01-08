@@ -50,6 +50,8 @@ from unittest.mock import AsyncMock  # noqa
 # MagicMock supports async magic methods in Python 3.9+
 from unittest.mock import MagicMock  # noqa
 
+from unittest.mock import call  # noqa
+
 
 def kubernetes_environments_equal(
     actual: List[Dict[str, str]],
@@ -249,7 +251,7 @@ async def assert_uses_result_storage(
             (
                 storage
                 if isinstance(storage, Block)
-                else await Block.load(storage, client=client)
+                else await Block.aload(storage, client=client)
             ),
         )
     else:
@@ -260,7 +262,7 @@ async def assert_uses_result_storage(
             (
                 storage
                 if isinstance(storage, Block)
-                else await Block.load(storage, client=client)
+                else await Block.aload(storage, client=client)
             ),
         )
 

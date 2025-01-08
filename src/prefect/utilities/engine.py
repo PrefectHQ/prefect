@@ -1,40 +1,40 @@
 import asyncio
 import contextlib
-import inspect
 import os
 import signal
 import time
+from collections.abc import Awaitable, Callable, Generator
 from functools import partial
+from logging import Logger
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
-    Dict,
-    Iterable,
+    NoReturn,
     Optional,
-    Set,
     TypeVar,
     Union,
+    cast,
 )
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import anyio
-from typing_extensions import Literal
+from opentelemetry import propagate, trace
+from typing_extensions import TypeIs
 
 import prefect
 import prefect.context
+import prefect.exceptions
 import prefect.plugins
 from prefect._internal.concurrency.cancellation import get_deadline
 from prefect.client.schemas import OrchestrationResult, TaskRun
-from prefect.client.schemas.objects import (
-    StateType,
-    TaskRunInput,
-    TaskRunResult,
+from prefect.client.schemas.objects import TaskRunInput, TaskRunResult
+from prefect.client.schemas.responses import (
+    SetStateStatus,
+    StateAbortDetails,
+    StateRejectDetails,
+    StateWaitDetails,
 )
-from prefect.client.schemas.responses import SetStateStatus
-from prefect.context import (
-    FlowRunContext,
-)
+from prefect.context import FlowRunContext
 from prefect.events import Event, emit_event
 from prefect.exceptions import (
     Pause,
@@ -44,37 +44,26 @@ from prefect.exceptions import (
 )
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture
-from prefect.logging.loggers import (
-    get_logger,
-    task_run_logger,
-)
-from prefect.results import BaseResult, ResultRecord, should_persist_result
-from prefect.settings import (
-    PREFECT_LOGGING_LOG_PRINTS,
-)
-from prefect.states import (
-    State,
-    get_state_exception,
-)
+from prefect.logging.loggers import get_logger
+from prefect.results import ResultRecord, should_persist_result
+from prefect.settings import PREFECT_LOGGING_LOG_PRINTS
+from prefect.states import State
 from prefect.tasks import Task
 from prefect.utilities.annotations import allow_failure, quote
-from prefect.utilities.asyncutils import (
-    gather,
-    run_coro_as_sync,
-)
+from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import StopVisiting, visit_collection
 from prefect.utilities.text import truncated_to
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 
-API_HEALTHCHECKS = {}
-UNTRACKABLE_TYPES = {bool, type(None), type(...), type(NotImplemented)}
-engine_logger = get_logger("engine")
+API_HEALTHCHECKS: dict[str, float] = {}
+UNTRACKABLE_TYPES: set[type[Any]] = {bool, type(None), type(...), type(NotImplemented)}
+engine_logger: Logger = get_logger("engine")
 T = TypeVar("T")
 
 
-async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> Set[TaskRunInput]:
+async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> set[TaskRunInput]:
     """
     This function recurses through an expression to generate a set of any discernible
     task run inputs it finds in the data structure. It produces a set of all inputs
@@ -87,14 +76,11 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> Set[TaskRun
     """
     # TODO: This function needs to be updated to detect parameters and constants
 
-    inputs = set()
-    futures = set()
+    inputs: set[TaskRunInput] = set()
 
-    def add_futures_and_states_to_inputs(obj):
+    def add_futures_and_states_to_inputs(obj: Any) -> None:
         if isinstance(obj, PrefectFuture):
-            # We need to wait for futures to be submitted before we can get the task
-            # run id but we want to do so asynchronously
-            futures.add(obj)
+            inputs.add(TaskRunResult(id=obj.task_run_id))
         elif isinstance(obj, State):
             if obj.state_details.task_run_id:
                 inputs.add(TaskRunResult(id=obj.state_details.task_run_id))
@@ -113,16 +99,12 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> Set[TaskRun
         max_depth=max_depth,
     )
 
-    await asyncio.gather(*[future._wait_for_submission() for future in futures])
-    for future in futures:
-        inputs.add(TaskRunResult(id=future.task_run.id))
-
     return inputs
 
 
 def collect_task_run_inputs_sync(
     expr: Any, future_cls: Any = PrefectFuture, max_depth: int = -1
-) -> Set[TaskRunInput]:
+) -> set[TaskRunInput]:
     """
     This function recurses through an expression to generate a set of any discernible
     task run inputs it finds in the data structure. It produces a set of all inputs
@@ -135,9 +117,9 @@ def collect_task_run_inputs_sync(
     """
     # TODO: This function needs to be updated to detect parameters and constants
 
-    inputs = set()
+    inputs: set[TaskRunInput] = set()
 
-    def add_futures_and_states_to_inputs(obj):
+    def add_futures_and_states_to_inputs(obj: Any) -> None:
         if isinstance(obj, future_cls) and hasattr(obj, "task_run_id"):
             inputs.add(TaskRunResult(id=obj.task_run_id))
         elif isinstance(obj, State):
@@ -161,58 +143,9 @@ def collect_task_run_inputs_sync(
     return inputs
 
 
-async def wait_for_task_runs_and_report_crashes(
-    task_run_futures: Iterable[PrefectFuture], client: "PrefectClient"
-) -> Literal[True]:
-    crash_exceptions = []
-
-    # Gather states concurrently first
-    states = await gather(*(future._wait for future in task_run_futures))
-
-    for future, state in zip(task_run_futures, states):
-        logger = task_run_logger(future.task_run)
-
-        if not state.type == StateType.CRASHED:
-            continue
-
-        # We use this utility instead of `state.result` for type checking
-        exception = await get_state_exception(state)
-
-        task_run = await client.read_task_run(future.task_run.id)
-        if not task_run.state.is_crashed():
-            logger.info(f"Crash detected! {state.message}")
-            logger.debug("Crash details:", exc_info=exception)
-
-            # Update the state of the task run
-            result = await client.set_task_run_state(
-                task_run_id=future.task_run.id, state=state, force=True
-            )
-            if result.status == SetStateStatus.ACCEPT:
-                engine_logger.debug(
-                    f"Reported crashed task run {future.name!r} successfully."
-                )
-            else:
-                engine_logger.warning(
-                    f"Failed to report crashed task run {future.name!r}. "
-                    f"Orchestrator did not accept state: {result!r}"
-                )
-        else:
-            # Populate the state details on the local state
-            future._final_state.state_details = task_run.state.state_details
-
-        crash_exceptions.append(exception)
-
-    # Now that we've finished reporting crashed tasks, reraise any exit exceptions
-    for exception in crash_exceptions:
-        if isinstance(exception, (KeyboardInterrupt, SystemExit)):
-            raise exception
-
-    return True
-
-
 @contextlib.contextmanager
-def capture_sigterm():
-    def cancel_flow_run(*args):
+def capture_sigterm() -> Generator[None, Any, None]:
+    def cancel_flow_run(*args: object) -> NoReturn:
         raise TerminationSignal(signal=signal.SIGTERM)
 
     original_term_handler = None
@@ -241,8 +174,8 @@ def capture_sigterm():
 
 
 async def resolve_inputs(
-    parameters: Dict[str, Any], return_data: bool = True, max_depth: int = -1
-) -> Dict[str, Any]:
+    parameters: dict[str, Any], return_data: bool = True, max_depth: int = -1
+) -> dict[str, Any]:
     """
     Resolve any `Quote`, `PrefectFuture`, or `State` types nested in parameters into
     data.
@@ -254,24 +187,26 @@ async def resolve_inputs(
         UpstreamTaskError: If any of the upstream states are not `COMPLETED`
     """
 
-    futures = set()
-    states = set()
-    result_by_state = {}
+    futures: set[PrefectFuture[Any]] = set()
+    states: set[State[Any]] = set()
+    result_by_state: dict[State[Any], Any] = {}
 
     if not parameters:
         return {}
 
-    def collect_futures_and_states(expr, context):
+    def collect_futures_and_states(expr: Any, context: dict[str, Any]) -> Any:
         # Expressions inside quotes should not be traversed
         if isinstance(context.get("annotation"), quote):
             raise StopVisiting()
 
         if isinstance(expr, PrefectFuture):
-            futures.add(expr)
+            fut: PrefectFuture[Any] = expr
+            futures.add(fut)
         if isinstance(expr, State):
-            states.add(expr)
+            state: State[Any] = expr
+            states.add(state)
 
-        return expr
+        return cast(Any, expr)
 
     visit_collection(
         parameters,
@@ -281,32 +216,27 @@ async def resolve_inputs(
         context={},
     )
 
-    # Wait for all futures so we do not block when we retrieve the state in `resolve_input`
-    states.update(await asyncio.gather(*[future._wait() for future in futures]))
-
     # Only retrieve the result if requested as it may be expensive
     if return_data:
         finished_states = [state for state in states if state.is_final()]
 
-        state_results = await asyncio.gather(
-            *[
-                state.result(raise_on_failure=False, fetch=True)
-                for state in finished_states
-            ]
-        )
+        state_results = [
+            state.result(raise_on_failure=False, fetch=True)
+            for state in finished_states
+        ]
 
         for state, result in zip(finished_states, state_results):
             result_by_state[state] = result
 
-    def resolve_input(expr, context):
-        state = None
+    def resolve_input(expr: Any, context: dict[str, Any]) -> Any:
+        state: Optional[State[Any]] = None
 
         # Expressions inside quotes should not be modified
         if isinstance(context.get("annotation"), quote):
             raise StopVisiting()
 
         if isinstance(expr, PrefectFuture):
-            state = expr._final_state
+            state = expr.state
         elif isinstance(expr, State):
             state = expr
         else:
@@ -329,7 +259,7 @@ async def resolve_inputs(
 
         return result_by_state.get(state)
 
-    resolved_parameters = {}
+    resolved_parameters: dict[str, Any] = {}
     for parameter, value in parameters.items():
         try:
             resolved_parameters[parameter] = visit_collection(
@@ -353,13 +283,17 @@ async def resolve_inputs(
     return resolved_parameters
 
 
+def _is_result_record(data: Any) -> TypeIs[ResultRecord[Any]]:
+    return isinstance(data, ResultRecord)
+
+
 async def propose_state(
     client: "PrefectClient",
-    state: State[object],
+    state: State[Any],
     force: bool = False,
     task_run_id: Optional[UUID] = None,
     flow_run_id: Optional[UUID] = None,
-) -> State[object]:
+) -> State[Any]:
     """
     Propose a new state for a flow run or task run, invoking Prefect orchestration logic.
 
@@ -396,11 +330,8 @@ async def propose_state(
 
     # Handle task and sub-flow tracing
     if state.is_final():
-        if isinstance(state.data, BaseResult) and state.data.has_cached_object():
-            # Avoid fetching the result unless it is cached, otherwise we defeat
-            # the purpose of disabling `cache_result_in_memory`
-            result = await state.result(raise_on_failure=False, fetch=True)
-        elif isinstance(state.data, ResultRecord):
+        result: Any
+        if _is_result_record(state.data):
             result = state.data.result
         else:
             result = state.data
@@ -409,9 +340,13 @@ async def propose_state(
 
     # Handle repeated WAITs in a loop instead of recursively, to avoid
     # reaching max recursion depth in extreme cases.
-    async def set_state_and_handle_waits(set_state_func) -> OrchestrationResult:
+    async def set_state_and_handle_waits(
+        set_state_func: Callable[[], Awaitable[OrchestrationResult[Any]]],
+    ) -> OrchestrationResult[Any]:
         response = await set_state_func()
         while response.status == SetStateStatus.WAIT:
+            if TYPE_CHECKING:
+                assert isinstance(response.details, StateWaitDetails)
             engine_logger.debug(
                 f"Received wait instruction for {response.details.delay_seconds}s: "
                 f"{response.details.reason}"
@@ -436,6 +371,8 @@ async def propose_state(
     # Parse the response to return the new state
     if response.status == SetStateStatus.ACCEPT:
         # Update the state with the details if provided
+        if TYPE_CHECKING:
+            assert response.state is not None
         state.id = response.state.id
         state.timestamp = response.state.timestamp
         if response.state.state_details:
@@ -443,9 +380,16 @@ async def propose_state(
         return state
 
     elif response.status == SetStateStatus.ABORT:
+        if TYPE_CHECKING:
+            assert isinstance(response.details, StateAbortDetails)
+
         raise prefect.exceptions.Abort(response.details.reason)
 
     elif response.status == SetStateStatus.REJECT:
+        if TYPE_CHECKING:
+            assert response.state is not None
+            assert isinstance(response.details, StateRejectDetails)
+
         if response.state.is_paused():
             raise Pause(response.details.reason, state=response.state)
         return response.state
@@ -458,11 +402,11 @@ async def propose_state(
 
 def propose_state_sync(
     client: "SyncPrefectClient",
-    state: State[object],
+    state: State[Any],
     force: bool = False,
     task_run_id: Optional[UUID] = None,
     flow_run_id: Optional[UUID] = None,
-) -> State[object]:
+) -> State[Any]:
     """
     Propose a new state for a flow run or task run, invoking Prefect orchestration logic.
 
@@ -499,13 +443,7 @@ def propose_state_sync(
 
     # Handle task and sub-flow tracing
     if state.is_final():
-        if isinstance(state.data, BaseResult) and state.data.has_cached_object():
-            # Avoid fetching the result unless it is cached, otherwise we defeat
-            # the purpose of disabling `cache_result_in_memory`
-            result = state.result(raise_on_failure=False, fetch=True)
-            if inspect.isawaitable(result):
-                result = run_coro_as_sync(result)
-        elif isinstance(state.data, ResultRecord):
+        if _is_result_record(state.data):
             result = state.data.result
         else:
             result = state.data
@@ -514,9 +452,13 @@ def propose_state_sync(
 
     # Handle repeated WAITs in a loop instead of recursively, to avoid
     # reaching max recursion depth in extreme cases.
-    def set_state_and_handle_waits(set_state_func) -> OrchestrationResult:
+    def set_state_and_handle_waits(
+        set_state_func: Callable[[], OrchestrationResult[Any]],
+    ) -> OrchestrationResult[Any]:
         response = set_state_func()
         while response.status == SetStateStatus.WAIT:
+            if TYPE_CHECKING:
+                assert isinstance(response.details, StateWaitDetails)
             engine_logger.debug(
                 f"Received wait instruction for {response.details.delay_seconds}s: "
                 f"{response.details.reason}"
@@ -540,6 +482,8 @@ def propose_state_sync(
 
     # Parse the response to return the new state
     if response.status == SetStateStatus.ACCEPT:
+        if TYPE_CHECKING:
+            assert response.state is not None
         # Update the state with the details if provided
         state.id = response.state.id
         state.timestamp = response.state.timestamp
@@ -548,9 +492,14 @@ def propose_state_sync(
         return state
 
     elif response.status == SetStateStatus.ABORT:
+        if TYPE_CHECKING:
+            assert isinstance(response.details, StateAbortDetails)
         raise prefect.exceptions.Abort(response.details.reason)
 
     elif response.status == SetStateStatus.REJECT:
+        if TYPE_CHECKING:
+            assert response.state is not None
+            assert isinstance(response.details, StateRejectDetails)
         if response.state.is_paused():
             raise Pause(response.details.reason, state=response.state)
         return response.state
@@ -559,26 +508,6 @@ def propose_state_sync(
         raise ValueError(
             f"Received unexpected `SetStateStatus` from server: {response.status!r}"
         )
-
-
-def _dynamic_key_for_task_run(
-    context: FlowRunContext, task: Task, stable: bool = True
-) -> Union[int, str]:
-    if (
-        stable is False or context.detached
-    ):  # this task is running on remote infrastructure
-        return str(uuid4())
-    elif context.flow_run is None:  # this is an autonomous task run
-        context.task_run_dynamic_keys[task.task_key] = getattr(
-            task, "dynamic_key", str(uuid4())
-        )
-
-    elif task.task_key not in context.task_run_dynamic_keys:
-        context.task_run_dynamic_keys[task.task_key] = 0
-    else:
-        context.task_run_dynamic_keys[task.task_key] += 1
-
-    return context.task_run_dynamic_keys[task.task_key]
 
 
 def get_state_for_result(obj: Any) -> Optional[State]:
@@ -631,28 +560,29 @@ def link_state_to_result(state: State, result: Any) -> None:
     # Holding large user objects in memory can cause memory bloat
     linked_state = state.model_copy(update={"data": None})
 
-    def link_if_trackable(obj: Any) -> None:
-        """Track connection between a task run result and its associated state if it has a unique ID.
-
-        We cannot track booleans, Ellipsis, None, NotImplemented, or the integers from -5 to 256
-        because they are singletons.
-
-        This function will mutate the State if the object is an untrackable type by setting the value
-        for `State.state_details.untrackable_result` to `True`.
-
-        """
-        if (type(obj) in UNTRACKABLE_TYPES) or (
-            isinstance(obj, int) and (-5 <= obj <= 256)
-        ):
-            state.state_details.untrackable_result = True
-            return
-        flow_run_context.task_run_results[id(obj)] = linked_state
-
     if flow_run_context:
+
+        def link_if_trackable(obj: Any) -> None:
+            """Track connection between a task run result and its associated state if it has a unique ID.
+
+            We cannot track booleans, Ellipsis, None, NotImplemented, or the integers from -5 to 256
+            because they are singletons.
+
+            This function will mutate the State if the object is an untrackable type by setting the value
+            for `State.state_details.untrackable_result` to `True`.
+
+            """
+            if (type(obj) in UNTRACKABLE_TYPES) or (
+                isinstance(obj, int) and (-5 <= obj <= 256)
+            ):
+                state.state_details.untrackable_result = True
+                return
+            flow_run_context.task_run_results[id(obj)] = linked_state
+
         visit_collection(expr=result, visit_fn=link_if_trackable, max_depth=1)
 
 
-def should_log_prints(flow_or_task: Union[Flow, Task]) -> bool:
+def should_log_prints(flow_or_task: Union["Flow[..., Any]", "Task[..., Any]"]) -> bool:
     flow_run_context = FlowRunContext.get()
 
     if flow_or_task.log_prints is None:
@@ -664,55 +594,7 @@ def should_log_prints(flow_or_task: Union[Flow, Task]) -> bool:
     return flow_or_task.log_prints
 
 
-def _resolve_custom_flow_run_name(flow: Flow, parameters: Dict[str, Any]) -> str:
-    if callable(flow.flow_run_name):
-        flow_run_name = flow.flow_run_name()
-        if not isinstance(flow_run_name, str):
-            raise TypeError(
-                f"Callable {flow.flow_run_name} for 'flow_run_name' returned type"
-                f" {type(flow_run_name).__name__} but a string is required."
-            )
-    elif isinstance(flow.flow_run_name, str):
-        flow_run_name = flow.flow_run_name.format(**parameters)
-    else:
-        raise TypeError(
-            "Expected string or callable for 'flow_run_name'; got"
-            f" {type(flow.flow_run_name).__name__} instead."
-        )
-
-    return flow_run_name
-
-
-def _resolve_custom_task_run_name(task: Task, parameters: Dict[str, Any]) -> str:
-    if callable(task.task_run_name):
-        task_run_name = task.task_run_name()
-        if not isinstance(task_run_name, str):
-            raise TypeError(
-                f"Callable {task.task_run_name} for 'task_run_name' returned type"
-                f" {type(task_run_name).__name__} but a string is required."
-            )
-    elif isinstance(task.task_run_name, str):
-        task_run_name = task.task_run_name.format(**parameters)
-    else:
-        raise TypeError(
-            "Expected string or callable for 'task_run_name'; got"
-            f" {type(task.task_run_name).__name__} instead."
-        )
-
-    return task_run_name
-
-
-def _get_hook_name(hook: Callable) -> str:
-    return (
-        hook.__name__
-        if hasattr(hook, "__name__")
-        else (
-            hook.func.__name__ if isinstance(hook, partial) else hook.__class__.__name__
-        )
-    )
-
-
-async def check_api_reachable(client: "PrefectClient", fail_message: str):
+async def check_api_reachable(client: "PrefectClient", fail_message: str) -> None:
     # Do not perform a healthcheck if it exists and is not expired
     api_url = str(client.api_url)
     if api_url in API_HEALTHCHECKS:
@@ -732,16 +614,14 @@ async def check_api_reachable(client: "PrefectClient", fail_message: str):
 
 def emit_task_run_state_change_event(
     task_run: TaskRun,
-    initial_state: Optional[State],
-    validated_state: State,
+    initial_state: Optional[State[Any]],
+    validated_state: State[Any],
     follows: Optional[Event] = None,
-) -> Event:
+) -> Optional[Event]:
     state_message_truncation_length = 100_000
 
-    if isinstance(validated_state.data, ResultRecord) and should_persist_result():
+    if _is_result_record(validated_state.data) and should_persist_result():
         data = validated_state.data.metadata.model_dump(mode="json")
-    elif isinstance(validated_state.data, BaseResult):
-        data = validated_state.data.model_dump(mode="json")
     else:
         data = None
 
@@ -822,20 +702,20 @@ def emit_task_run_state_change_event(
     )
 
 
-def resolve_to_final_result(expr, context):
+def resolve_to_final_result(expr: Any, context: dict[str, Any]) -> Any:
     """
     Resolve any `PrefectFuture`, or `State` types nested in parameters into
     data. Designed to be use with `visit_collection`.
     """
-    state = None
+    state: Optional[State[Any]] = None
 
     # Expressions inside quotes should not be modified
     if isinstance(context.get("annotation"), quote):
         raise StopVisiting()
 
     if isinstance(expr, PrefectFuture):
-        upstream_task_run = context.get("current_task_run")
-        upstream_task = context.get("current_task")
+        upstream_task_run: Optional[TaskRun] = context.get("current_task_run")
+        upstream_task: Optional["Task[..., Any]"] = context.get("current_task")
         if (
             upstream_task
             and upstream_task_run
@@ -869,15 +749,28 @@ def resolve_to_final_result(expr, context):
             " 'COMPLETED' state."
         )
 
-    _result = state.result(raise_on_failure=False, fetch=True)
-    if inspect.isawaitable(_result):
-        _result = run_coro_as_sync(_result)
-    return _result
+    result = state.result(raise_on_failure=False, fetch=True)
+    if asyncio.iscoroutine(result):
+        result = run_coro_as_sync(result)
+
+    if state.state_details.traceparent:
+        parameter_context = propagate.extract(
+            {"traceparent": state.state_details.traceparent}
+        )
+        trace.get_current_span().add_link(
+            context=trace.get_current_span(parameter_context).get_span_context(),
+            attributes={
+                "prefect.input.name": context["parameter_name"],
+                "prefect.input.type": type(result).__name__,
+            },
+        )
+
+    return result
 
 
 def resolve_inputs_sync(
-    parameters: Dict[str, Any], return_data: bool = True, max_depth: int = -1
-) -> Dict[str, Any]:
+    parameters: dict[str, Any], return_data: bool = True, max_depth: int = -1
+) -> dict[str, Any]:
     """
     Resolve any `Quote`, `PrefectFuture`, or `State` types nested in parameters into
     data.
@@ -892,7 +785,7 @@ def resolve_inputs_sync(
     if not parameters:
         return {}
 
-    resolved_parameters = {}
+    resolved_parameters: dict[str, Any] = {}
     for parameter, value in parameters.items():
         try:
             resolved_parameters[parameter] = visit_collection(
@@ -901,7 +794,7 @@ def resolve_inputs_sync(
                 return_data=return_data,
                 max_depth=max_depth,
                 remove_annotations=True,
-                context={},
+                context={"parameter_name": parameter},
             )
         except UpstreamTaskError:
             raise

@@ -15,8 +15,7 @@ from sqlalchemy import select
 
 from prefect.logging import get_logger
 from prefect.server import models
-from prefect.server.database.dependencies import inject_db
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, inject_db
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models import concurrency_limits, concurrency_limits_v2, deployments
 from prefect.server.orchestration.policies import BaseOrchestrationPolicy
@@ -595,6 +594,7 @@ class RetryFailedFlows(BaseOrchestrationRule):
             updated_policy = context.run.empirical_policy.model_dump()
             updated_policy["resuming"] = False
             updated_policy["pause_keys"] = set()
+            updated_policy["retry_type"] = "in_process"
             context.run.empirical_policy = core.FlowRunPolicy(**updated_policy)
 
         # Generate a new state for the flow
@@ -1067,6 +1067,10 @@ class HandleFlowTerminalStateTransitions(BaseOrchestrationRule):
                 updated_policy = context.run.empirical_policy.model_dump()
                 updated_policy["resuming"] = False
                 updated_policy["pause_keys"] = set()
+                if proposed_state.is_scheduled():
+                    updated_policy["retry_type"] = "reschedule"
+                else:
+                    updated_policy["retry_type"] = None
                 context.run.empirical_policy = core.FlowRunPolicy(**updated_policy)
 
     async def cleanup(

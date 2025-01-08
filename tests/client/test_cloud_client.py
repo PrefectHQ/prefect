@@ -6,7 +6,11 @@ import respx
 from respx.patterns import M
 
 from prefect.client.cloud import get_cloud_client
-from prefect.settings import PREFECT_API_URL, PREFECT_UNIT_TEST_MODE, temporary_settings
+from prefect.settings import (
+    PREFECT_API_URL,
+    PREFECT_TESTING_UNIT_TEST_MODE,
+    temporary_settings,
+)
 
 mock_work_pool_types_response = {
     "prefect": {
@@ -61,7 +65,7 @@ async def test_cloud_client_follow_redirects():
         assert client._client.follow_redirects is False
 
     # follow redirects by default
-    with temporary_settings({PREFECT_UNIT_TEST_MODE: False}):
+    with temporary_settings({PREFECT_TESTING_UNIT_TEST_MODE: False}):
         async with get_cloud_client() as client:
             assert client._client.follow_redirects is True
 
@@ -79,7 +83,7 @@ async def test_get_cloud_work_pool_types():
         }
     ):
         with respx.mock(
-            assert_all_mocked=False, base_url=PREFECT_API_URL.value()
+            assert_all_mocked=False, base_url=PREFECT_API_URL.value(), using="httpx"
         ) as respx_mock:
             respx_mock.route(
                 M(
@@ -107,7 +111,7 @@ async def test_read_current_workspace():
 
     with temporary_settings(updates={PREFECT_API_URL: api_url}):
         with respx.mock(
-            assert_all_mocked=False, base_url=PREFECT_API_URL.value()
+            assert_all_mocked=False, base_url=PREFECT_API_URL.value(), using="httpx"
         ) as respx_mock:
             respx_mock.get("https://api.prefect.cloud/api/me/workspaces").mock(
                 return_value=httpx.Response(

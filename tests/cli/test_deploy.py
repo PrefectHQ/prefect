@@ -7,7 +7,7 @@ import sys
 import tempfile
 from datetime import timedelta
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 from unittest import mock
 from uuid import UUID, uuid4
 
@@ -26,7 +26,7 @@ from prefect.cli.deploy import (
 )
 from prefect.client.orchestration import PrefectClient, ServerType
 from prefect.client.schemas.actions import WorkPoolCreate
-from prefect.client.schemas.objects import WorkPool
+from prefect.client.schemas.objects import Worker, WorkerStatus, WorkPool
 from prefect.client.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
@@ -51,7 +51,6 @@ from prefect.server.schemas.actions import (
 )
 from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
-    PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY,
     PREFECT_UI_URL,
     temporary_settings,
 )
@@ -61,12 +60,6 @@ from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.filesystem import tmpchdir
 
 TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
-
-
-@pytest.fixture
-def enable_schedule_concurrency():
-    with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_SCHEDULE_CONCURRENCY: True}):
-        yield
 
 
 @pytest.fixture
@@ -296,13 +289,58 @@ class TestProjectDeploy:
         assert deployment.job_variables == {"env": "prod"}
         assert deployment.enforce_parameter_schema
 
+    async def test_deploy_with_no_enforce_parameter_schema(
+        self, project_dir: Path, work_pool: WorkPool, prefect_client: PrefectClient
+    ):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=f"deploy ./flows/hello.py:my_flow --no-enforce-parameter-schema -n test-name -p {work_pool.name}",
+            expected_code=0,
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.name == "test-name"
+        assert deployment.work_pool_name == work_pool.name
+        assert deployment.tags == []
+        assert deployment.job_variables == {}
+        assert not deployment.enforce_parameter_schema
+
+    async def test_deploy_with_active_workers(
+        self, project_dir, work_pool, prefect_client, monkeypatch
+    ):
+        mock_read_workers_for_work_pool = AsyncMock(
+            return_value=[
+                Worker(
+                    name="test-worker",
+                    work_pool_id=work_pool.id,
+                    status=WorkerStatus.ONLINE,
+                )
+            ]
+        )
+        monkeypatch.setattr(
+            "prefect.client.orchestration.PrefectClient.read_workers_for_work_pool",
+            mock_read_workers_for_work_pool,
+        )
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(
+                f"deploy ./wrapped_flow_project/flow.py:test_flow -n test-name -p {work_pool.name}"
+            ),
+            expected_code=0,
+            expected_output_does_not_contain=[
+                f"prefect worker start --pool '{work_pool.name}'",
+            ],
+        )
+
     async def test_deploy_with_wrapped_flow_decorator(
         self, project_dir, work_pool, prefect_client
     ):
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                f"deploy ./wrapped-flow-project/flow.py:test_flow -n test-name -p {work_pool.name}"
+                f"deploy ./wrapped_flow_project/flow.py:test_flow -n test-name -p {work_pool.name}"
             ),
             expected_code=0,
             expected_output_does_not_contain=["test-flow"],
@@ -324,7 +362,7 @@ class TestProjectDeploy:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                f"deploy ./wrapped-flow-project/missing_imports.py:bloop_flow -n test-name -p {work_pool.name}"
+                f"deploy ./wrapped_flow_project/missing_imports.py:bloop_flow -n test-name -p {work_pool.name}"
             ),
             expected_code=0,
             expected_output_does_not_contain=["test-flow"],
@@ -1755,7 +1793,9 @@ class TestProjectDeploy:
         )
 
     @pytest.mark.usefixtures("interactive_console", "project_dir")
-    async def test_deploy_without_name_interactive(self, work_pool, prefect_client):
+    async def test_deploy_without_name_interactive(
+        self, work_pool: WorkPool, prefect_client: PrefectClient
+    ):
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
@@ -1799,7 +1839,7 @@ class TestProjectDeploy:
 
     @pytest.mark.usefixtures("interactive_console", "project_dir")
     async def test_deploy_without_work_pool_interactive(
-        self, work_pool, prefect_client
+        self, work_pool: WorkPool, prefect_client: PrefectClient
     ):
         await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -1847,7 +1887,10 @@ class TestProjectDeploy:
 
     @pytest.mark.usefixtures("interactive_console", "project_dir")
     async def test_deploy_with_prefect_agent_work_pool_interactive(
-        self, work_pool, prefect_client, default_agent_pool
+        self,
+        work_pool: WorkPool,
+        prefect_client: PrefectClient,
+        default_agent_pool: WorkPool,
     ):
         await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -1883,7 +1926,9 @@ class TestProjectDeploy:
         assert deployment.entrypoint == "./flows/hello.py:my_flow"
 
     @pytest.mark.usefixtures("interactive_console", "project_dir")
-    async def test_deploy_with_push_pool_no_worker_start_message(self, push_work_pool):
+    async def test_deploy_with_push_pool_no_worker_start_message(
+        self, push_work_pool: WorkPool
+    ):
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
@@ -1905,7 +1950,9 @@ class TestProjectDeploy:
         )
 
     @pytest.mark.usefixtures("interactive_console", "project_dir")
-    async def test_deploy_with_no_available_work_pool_interactive(self, prefect_client):
+    async def test_deploy_with_no_available_work_pool_interactive(
+        self, prefect_client: PrefectClient
+    ):
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command="deploy ./flows/hello.py:my_flow -n test-name --interval 3600",
@@ -1947,7 +1994,7 @@ class TestProjectDeploy:
 
     @pytest.mark.usefixtures("project_dir")
     async def test_deploy_with_entrypoint_does_not_fail_with_missing_prefect_folder(
-        self, work_pool
+        self, work_pool: WorkPool
     ):
         Path(".prefect").rmdir()
         await run_sync_in_worker_thread(
@@ -1962,7 +2009,7 @@ class TestProjectDeploy:
     @pytest.mark.parametrize("schedule_value", [None, {}])
     @pytest.mark.usefixtures("project_dir", "interactive_console")
     async def test_deploy_does_not_prompt_schedule_when_empty_schedule_prefect_yaml(
-        self, schedule_value, work_pool, prefect_client
+        self, schedule_value: Any, work_pool: WorkPool, prefect_client: PrefectClient
     ):
         prefect_yaml_file = Path("prefect.yaml")
         with prefect_yaml_file.open(mode="r") as f:
@@ -2004,7 +2051,7 @@ class TestProjectDeploy:
     @pytest.mark.parametrize("build_value", [None, {}])
     @pytest.mark.usefixtures("project_dir", "interactive_console")
     async def test_deploy_does_not_prompt_build_docker_image_when_empty_build_action_prefect_yaml(
-        self, build_value, work_pool, prefect_client
+        self, build_value, work_pool: WorkPool, prefect_client: PrefectClient
     ):
         prefect_yaml_file = Path("prefect.yaml")
         with prefect_yaml_file.open(mode="r") as f:
@@ -2045,7 +2092,7 @@ class TestProjectDeploy:
         )
 
     async def test_deploy_with_bad_run_shell_script_raises(
-        self, project_dir, work_pool
+        self, project_dir: Path, work_pool: WorkPool
     ):
         """
         Regression test for a bug where deployment steps would continue even when
@@ -2235,6 +2282,39 @@ class TestProjectDeploy:
                     + readchar.key.ENTER
                 ),
             )
+
+    @pytest.mark.usefixtures("project_dir")
+    async def test_deploy_respects_yaml_enforce_parameter_schema(
+        self, work_pool: WorkPool, prefect_client: PrefectClient
+    ):
+        prefect_yaml_file = Path("prefect.yaml")
+        with prefect_yaml_file.open(mode="r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        deploy_config["deployments"] = [
+            {
+                "name": "test-name",
+                "entrypoint": "flows/hello.py:my_flow",
+                "work_pool": {
+                    "name": work_pool.name,
+                },
+                "enforce_parameter_schema": False,
+            }
+        ]
+
+        with prefect_yaml_file.open(mode="w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy -n test-name",
+            expected_code=0,
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert not deployment.enforce_parameter_schema
 
 
 class TestSchedules:
@@ -2806,88 +2886,6 @@ class TestSchedules:
         assert deployment_schedule.active is False
         assert deployment_schedule.schedule.cron == "0 4 * * *"
         assert deployment_schedule.schedule.timezone == "America/Chicago"
-
-    @pytest.mark.usefixtures("project_dir", "enable_schedule_concurrency")
-    async def test_deploy_with_max_active_runs_and_catchup_provided_for_schedule(
-        self, work_pool, prefect_client
-    ):
-        prefect_file = Path("prefect.yaml")
-        with prefect_file.open(mode="r") as f:
-            deploy_config = yaml.safe_load(f)
-
-        deploy_config["deployments"] = [
-            {
-                "name": "test-name",
-                "entrypoint": "flows/hello.py:my_flow",
-                "work_pool": {"name": work_pool.name},
-                "schedules": [
-                    {
-                        "interval": 42,
-                        "max_active_runs": 5,
-                        "catchup": True,
-                    }
-                ],
-            }
-        ]
-
-        with prefect_file.open(mode="w") as f:
-            yaml.safe_dump(deploy_config, f)
-
-        await run_sync_in_worker_thread(
-            invoke_and_assert,
-            command="deploy --all",
-            expected_code=0,
-        )
-
-        deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
-        )
-
-        assert deployment.schedules[0].max_active_runs == 5
-        assert deployment.schedules[0].catchup is True
-
-    @pytest.mark.usefixtures(
-        "project_dir", "interactive_console", "enable_schedule_concurrency"
-    )
-    async def test_deploy_with_max_active_runs_and_catchup_interactive(
-        self, work_pool, prefect_client
-    ):
-        await run_sync_in_worker_thread(
-            invoke_and_assert,
-            command=(
-                f"deploy ./flows/hello.py:my_flow -n test-name --pool {work_pool.name}"
-            ),
-            user_input=(
-                # Confirm schedule creation
-                readchar.key.ENTER
-                # Select interval schedule
-                + readchar.key.ENTER
-                # Enter interval
-                + "42"
-                + readchar.key.ENTER
-                # accept schedule being active
-                + readchar.key.ENTER
-                # Enter max active runs
-                + "5"
-                + readchar.key.ENTER
-                # Enter catchup
-                + "y"
-                + readchar.key.ENTER
-                # decline adding another schedule
-                + readchar.key.ENTER
-                # decline save
-                + "n"
-                + readchar.key.ENTER
-            ),
-            expected_code=0,
-        )
-
-        deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
-        )
-
-        assert deployment.schedules[0].max_active_runs == 5
-        assert deployment.schedules[0].catchup is True
 
     @pytest.mark.usefixtures("project_dir")
     async def test_yaml_null_schedules(self, prefect_client, work_pool):
@@ -4496,8 +4494,6 @@ class TestSaveUserInputs:
             "day_or": True,
             "timezone": "UTC",
             "active": True,
-            "max_active_runs": None,
-            "catchup": False,
         }
 
     def test_deploy_existing_deployment_with_no_changes_does_not_prompt_save(self):
@@ -4541,8 +4537,6 @@ class TestSaveUserInputs:
             "day_or": True,
             "timezone": "UTC",
             "active": True,
-            "max_active_runs": None,
-            "catchup": False,
         }
 
         invoke_and_assert(
@@ -4574,8 +4568,6 @@ class TestSaveUserInputs:
             "day_or": True,
             "timezone": "UTC",
             "active": True,
-            "max_active_runs": None,
-            "catchup": False,
         }
 
     def test_deploy_existing_deployment_with_changes_prompts_save(self):
@@ -4723,8 +4715,6 @@ class TestSaveUserInputs:
             "rrule": "FREQ=MINUTELY",
             "timezone": "UTC",
             "active": True,
-            "max_active_runs": None,
-            "catchup": False,
         }
 
     async def test_save_user_inputs_with_actions(self):
@@ -5209,14 +5199,15 @@ class TestDeployWithoutEntrypoint:
             expected_code=0,
             expected_output_contains=[
                 "Select a flow to deploy",
-                "test_flow",
+                "test",
                 "import-project/my_module/flow.py",
-                "prod_flow",
+                "test",
                 "import-project/my_module/flow.py",
                 "foobar",
                 "nested-project/implicit_relative.py",
                 "nested-project/explicit_relative.py",
-                "my_flow",
+                "An important name",
+                "Second important name",
                 "flows/hello.py",
                 "successfully created",
             ],

@@ -12,8 +12,7 @@ import httpx
 import pendulum
 
 import prefect
-from prefect.server.database.dependencies import inject_db
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, inject_db
 from prefect.server.models import configuration
 from prefect.server.schemas.core import Configuration
 from prefect.server.services.loop_service import LoopService
@@ -94,6 +93,7 @@ class Telemetry(LoopService):
                 "python_version": platform.python_version(),
                 "python_implementation": platform.python_implementation(),
                 "environment": self.telemetry_environment,
+                "ephemeral_server": bool(os.getenv("PREFECT__SERVER_EPHEMERAL", False)),
                 "api_version": SERVER_API_VERSION,
                 "prefect_version": prefect.__version__,
                 "session_id": self.session_id,

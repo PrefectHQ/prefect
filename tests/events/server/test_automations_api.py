@@ -11,13 +11,12 @@ import pytest
 import sqlalchemy as sa
 from fastapi.applications import FastAPI
 from httpx import ASGITransport, AsyncClient
-from pendulum.datetime import DateTime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models as server_models
 from prefect.server import schemas as server_schemas
 from prefect.server.api.validation import ValidationError
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface
 from prefect.server.events import actions, filters
 from prefect.server.events.models.automations import (
     create_automation,
@@ -40,6 +39,7 @@ from prefect.settings import (
     PREFECT_API_SERVICES_TRIGGERS_ENABLED,
     temporary_settings,
 )
+from prefect.types import DateTime
 from prefect.utilities.pydantic import parse_obj_as
 
 

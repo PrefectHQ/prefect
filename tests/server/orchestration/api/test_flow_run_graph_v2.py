@@ -1,5 +1,4 @@
 from collections import defaultdict
-from datetime import datetime
 from operator import attrgetter
 from typing import Iterable, List, Union
 from unittest import mock
@@ -13,7 +12,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models, schemas
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface
 from prefect.server.exceptions import FlowRunGraphTooLarge, ObjectNotFoundError
 from prefect.server.models.flow_runs import read_flow_run_graph
 from prefect.server.schemas.graph import Edge, Graph, GraphArtifact, GraphState, Node
@@ -445,6 +444,81 @@ async def test_reading_graph_for_flow_run_with_nested_tasks(
             ),
         ),
     ]
+
+
+@pytest.fixture
+async def nested_tasks_including_parent_with_multiple_params(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    flow_run,  # db.FlowRun,
+    base_time: pendulum.DateTime,
+) -> List:
+    task_runs = []
+
+    task_runs.append(
+        db.TaskRun(
+            id=uuid4(),
+            flow_run_id=flow_run.id,
+            name="task-0",
+            task_key="task-0",
+            dynamic_key="task-0",
+            state_type=StateType.COMPLETED,
+            state_name="Irrelevant",
+            expected_start_time=base_time.add(seconds=1).subtract(microseconds=1),
+            start_time=base_time.add(seconds=1),
+            end_time=base_time.add(minutes=1, seconds=1),
+            task_inputs={
+                "first_arg": [],
+                "second_arg": [],
+            },
+        )
+    )
+
+    task_runs.append(
+        db.TaskRun(
+            id=uuid4(),
+            flow_run_id=flow_run.id,
+            name="task-1",
+            task_key="task-1",
+            dynamic_key="task-1",
+            state_type=StateType.COMPLETED,
+            state_name="Irrelevant",
+            expected_start_time=base_time.add(seconds=2).subtract(microseconds=1),
+            start_time=base_time.add(seconds=2),
+            end_time=base_time.add(minutes=1, seconds=2),
+            task_inputs={
+                "__parents__": [
+                    {"id": task_runs[0].id, "input_type": "task_run"},
+                ],
+            },
+        )
+    )
+
+    session.add_all(task_runs)
+    await session.commit()
+    return task_runs
+
+
+async def test_reading_graph_nested_tasks_including_parent_with_multiple_params(
+    session: AsyncSession,
+    flow_run,
+    nested_tasks_including_parent_with_multiple_params: List,
+    base_time: pendulum.DateTime,
+):
+    graph = await read_flow_run_graph(
+        session=session,
+        flow_run_id=flow_run.id,
+    )
+
+    parent_task, child_task = nested_tasks_including_parent_with_multiple_params
+
+    # Check that the encapsulating relationships are correct and deduplicated
+    nodes_by_id = {node.id: node for _, node in graph.nodes}
+    child_node = nodes_by_id[child_task.id]
+
+    # Verify the child task has exactly one encapsulating reference to the parent
+    assert len(child_node.encapsulating) == 1
+    assert child_node.encapsulating[0].id == parent_task.id
 
 
 @pytest.fixture
@@ -1363,9 +1437,7 @@ async def test_missing_flow_run_returns_404(
     assert response.status_code == 404, response.text
 
     model_method_mock.assert_awaited_once_with(
-        session=mock.ANY,
-        flow_run_id=flow_run_id,
-        since=datetime.min,
+        session=mock.ANY, flow_run_id=flow_run_id, since=pendulum.DateTime.min
     )
 
 
@@ -1380,9 +1452,7 @@ async def test_api_full(
     assert response.status_code == 200, response.text
 
     model_method_mock.assert_awaited_once_with(
-        session=mock.ANY,
-        flow_run_id=flow_run_id,
-        since=datetime.min,
+        session=mock.ANY, flow_run_id=flow_run_id, since=pendulum.DateTime.min
     )
     assert response.json() == graph.model_dump(mode="json")
 

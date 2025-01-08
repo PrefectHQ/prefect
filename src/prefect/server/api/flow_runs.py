@@ -20,8 +20,8 @@ from fastapi import (
     Response,
     status,
 )
+from fastapi.encoders import jsonable_encoder
 from fastapi.responses import ORJSONResponse, PlainTextResponse, StreamingResponse
-from pydantic_extra_types.pendulum_dt import DateTime
 from sqlalchemy.exc import IntegrityError
 
 import prefect.server.api.dependencies as dependencies
@@ -30,8 +30,7 @@ import prefect.server.schemas as schemas
 from prefect.logging import get_logger
 from prefect.server.api.run_history import run_history
 from prefect.server.api.validation import validate_job_variables_for_deployment_flow_run
-from prefect.server.database.dependencies import provide_database_interface
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.exceptions import FlowRunGraphTooLarge
 from prefect.server.models.flow_runs import (
     DependencyResult,
@@ -45,6 +44,7 @@ from prefect.server.schemas.responses import (
     OrchestrationResult,
 )
 from prefect.server.utilities.server import PrefectRouter
+from prefect.types import DateTime
 from prefect.utilities import schema_tools
 
 logger = get_logger("server.api")
@@ -56,12 +56,12 @@ router = PrefectRouter(prefix="/flow_runs", tags=["Flow Runs"])
 async def create_flow_run(
     flow_run: schemas.actions.FlowRunCreate,
     db: PrefectDBInterface = Depends(provide_database_interface),
-    response: Response = None,
+    response: Response = None,  # type: ignore
     created_by: Optional[schemas.core.CreatedBy] = Depends(dependencies.get_created_by),
     orchestration_parameters: Dict[str, Any] = Depends(
         orchestration_dependencies.provide_flow_orchestration_parameters
     ),
-    api_version=Depends(dependencies.provide_request_api_version),
+    api_version: str = Depends(dependencies.provide_request_api_version),
 ) -> schemas.responses.FlowRunResponse:
     """
     Create a flow run. If a flow run with the same flow_id and
@@ -70,20 +70,22 @@ async def create_flow_run(
     If no state is provided, the flow run will be created in a PENDING state.
     """
     # hydrate the input model into a full flow run / state model
-    flow_run = schemas.core.FlowRun(**flow_run.model_dump(), created_by=created_by)
+    flow_run_object = schemas.core.FlowRun(
+        **flow_run.model_dump(), created_by=created_by
+    )
 
     # pass the request version to the orchestration engine to support compatibility code
     orchestration_parameters.update({"api-version": api_version})
 
-    if not flow_run.state:
-        flow_run.state = schemas.states.Pending()
+    if not flow_run_object.state:
+        flow_run_object.state = schemas.states.Pending()
 
     now = pendulum.now("UTC")
 
     async with db.session_context(begin_transaction=True) as session:
         model = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=flow_run,
+            flow_run=flow_run_object,
             orchestration_parameters=orchestration_parameters,
         )
         if model.created >= now:
@@ -213,6 +215,7 @@ async def average_flow_run_lateness(
             base_query = db.FlowRun.estimated_start_time_delta
 
         query = await models.flow_runs._apply_flow_run_filters(
+            db,
             sa.select(sa.func.avg(base_query)),
             flow_filter=flows,
             flow_run_filter=flow_runs,
@@ -319,8 +322,8 @@ async def read_flow_run_graph_v1(
 @router.get("/{id:uuid}/graph-v2")
 async def read_flow_run_graph_v2(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
-    since: datetime.datetime = Query(
-        datetime.datetime.min,
+    since: DateTime = Query(
+        default=jsonable_encoder(DateTime.min),
         description="Only include runs that start or end after this time.",
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
@@ -837,4 +840,19 @@ async def download_logs(
             headers={
                 "Content-Disposition": f"attachment; filename={flow_run.name}-logs.csv"
             },
+        )
+
+
+@router.patch("/{id}/labels", status_code=status.HTTP_204_NO_CONTENT)
+async def update_flow_run_labels(
+    flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
+    labels: Dict[str, Any] = Body(..., description="The labels to update"),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+):
+    """
+    Update the labels of a flow run.
+    """
+    async with db.session_context(begin_transaction=True) as session:
+        await models.flow_runs.update_flow_run_labels(
+            session=session, flow_run_id=flow_run_id, labels=labels
         )

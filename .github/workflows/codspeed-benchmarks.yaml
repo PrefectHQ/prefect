@@ -28,10 +28,7 @@ concurrency:
 jobs:
   run-benchmarks:
     name: Benchmark
-    # Runs with ephemeral API and SQLite database right now
-
-    runs-on:
-      group: oss-larger-runners
+    runs-on: ubuntu-latest
     timeout-minutes: 20
 
     steps:
@@ -61,7 +58,8 @@ jobs:
       - name: Install packages
         run: |
           python -m pip install -U uv
-          uv pip install --upgrade --system -e .[dev]
+          uv pip install --upgrade --system .[dev] pytest-codspeed
+          uv pip uninstall --system pytest-benchmark
 
       - name: Start server
         run: |

@@ -1,9 +1,11 @@
 import json
 import os
+import ssl
 from contextlib import asynccontextmanager
 from datetime import timedelta
 from typing import Generator, List
-from unittest.mock import ANY, MagicMock, Mock
+from unittest import mock
+from unittest.mock import MagicMock, Mock
 from uuid import UUID, uuid4
 
 import anyio
@@ -15,8 +17,7 @@ import pydantic
 import pytest
 import respx
 from fastapi import Depends, FastAPI, status
-from fastapi.security import HTTPBearer
-from pydantic_extra_types.pendulum_dt import DateTime
+from fastapi.security import HTTPBasic, HTTPBearer
 
 import prefect.client.schemas as client_schemas
 import prefect.context
@@ -44,20 +45,26 @@ from prefect.client.schemas.actions import (
 from prefect.client.schemas.filters import (
     ArtifactFilter,
     ArtifactFilterKey,
+    DeploymentFilter,
+    DeploymentFilterTags,
     FlowFilter,
     FlowRunFilter,
+    FlowRunFilterTags,
     FlowRunNotificationPolicyFilter,
     LogFilter,
     LogFilterFlowRunId,
     TaskRunFilter,
+    TaskRunFilterFlowRunId,
 )
 from prefect.client.schemas.objects import (
     Flow,
     FlowRunNotificationPolicy,
     FlowRunPolicy,
+    Integration,
     StateType,
     TaskRun,
     Variable,
+    WorkerMetadata,
     WorkQueue,
 )
 from prefect.client.schemas.responses import (
@@ -69,7 +76,9 @@ from prefect.client.schemas.schedules import CronSchedule, IntervalSchedule
 from prefect.client.utilities import inject_client
 from prefect.events import AutomationCore, EventTrigger, Posture
 from prefect.server.api.server import create_app
+from prefect.server.database.orm_models import WorkPool
 from prefect.settings import (
+    PREFECT_API_AUTH_STRING,
     PREFECT_API_DATABASE_MIGRATE_ON_START,
     PREFECT_API_KEY,
     PREFECT_API_SSL_CERT_FILE,
@@ -77,12 +86,13 @@ from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_CLIENT_CSRF_SUPPORT_ENABLED,
     PREFECT_CLOUD_API_URL,
-    PREFECT_UNIT_TEST_MODE,
+    PREFECT_TESTING_UNIT_TEST_MODE,
     temporary_settings,
 )
 from prefect.states import Completed, Pending, Running, Scheduled, State
 from prefect.tasks import task
 from prefect.testing.utilities import AsyncMock, exceptions_equal
+from prefect.types import DateTime
 from prefect.utilities.pydantic import parse_obj_as
 
 
@@ -624,6 +634,19 @@ async def test_create_then_read_flow(prefect_client):
     assert lookup.name == foo.name
 
 
+async def test_create_then_delete_flow(prefect_client):
+    @flow
+    def foo():
+        pass
+
+    flow_id = await prefect_client.create_flow(foo)
+    assert isinstance(flow_id, UUID)
+
+    await prefect_client.delete_flow(flow_id)
+    with pytest.raises(prefect.exceptions.PrefectHTTPStatusError, match="404"):
+        await prefect_client.read_flow(flow_id)
+
+
 async def test_create_then_read_deployment(prefect_client, storage_document_id):
     @flow
     def foo():
@@ -765,9 +788,38 @@ async def test_read_deployment_by_name(prefect_client):
     assert lookup.name == "test-deployment"
 
 
-async def test_read_deployment_by_name_fails_with_helpful_suggestion(prefect_client):
-    """this is a regression test for https://github.com/PrefectHQ/prefect/issues/15571"""
-
+@pytest.mark.parametrize(
+    "deployment_tags,filter_tags,expected_match",
+    [
+        # Basic single tag matching
+        (["tag-1"], ["tag-1"], True),
+        (["tag-2"], ["tag-1"], False),
+        # Any matching - should match if ANY tag in filter matches
+        (["tag-1", "tag-2"], ["tag-1", "tag-3"], True),
+        (["tag-1"], ["tag-1", "tag-2"], True),
+        (["tag-2"], ["tag-1", "tag-2"], True),
+        # No matches
+        (["tag-1"], ["tag-2", "tag-3"], False),
+        (["tag-1"], ["get-real"], False),
+        # Empty cases
+        ([], ["tag-1"], False),
+        (["tag-1"], [], False),
+    ],
+    ids=[
+        "single_tag_match",
+        "single_tag_no_match",
+        "multiple_tags_partial_match",
+        "subset_match_1",
+        "subset_match_2",
+        "no_matching_tags",
+        "nonexistent_tag",
+        "empty_run_tags",
+        "empty_filter_tags",
+    ],
+)
+async def test_read_deployment_by_any_tag(
+    prefect_client, deployment_tags, filter_tags, expected_match
+):
     @flow
     def moo_deng():
         pass
@@ -777,13 +829,16 @@ async def test_read_deployment_by_name_fails_with_helpful_suggestion(prefect_cli
     await prefect_client.create_deployment(
         flow_id=flow_id,
         name="moisturized-deployment",
+        tags=deployment_tags,
     )
-
-    with pytest.raises(
-        prefect.exceptions.ObjectNotFound,
-        match="Deployment 'moo_deng/moisturized-deployment' not found; did you mean 'moo-deng/moisturized-deployment'?",
-    ):
-        await prefect_client.read_deployment_by_name("moo_deng/moisturized-deployment")
+    deployment_responses = await prefect_client.read_deployments(
+        deployment_filter=DeploymentFilter(tags=DeploymentFilterTags(any_=filter_tags))
+    )
+    if expected_match:
+        assert len(deployment_responses) == 1
+        assert deployment_responses[0].name == "moisturized-deployment"
+    else:
+        assert len(deployment_responses) == 0
 
 
 async def test_create_then_delete_deployment(prefect_client):
@@ -804,7 +859,7 @@ async def test_create_then_delete_deployment(prefect_client):
 
 
 async def test_read_nonexistent_deployment_by_name(prefect_client):
-    with pytest.raises(prefect.exceptions.ObjectNotFound):
+    with pytest.raises((prefect.exceptions.ObjectNotFound, ValueError)):
         await prefect_client.read_deployment_by_name("not-a-real-deployment")
 
 
@@ -976,6 +1031,55 @@ async def test_read_flow_runs_with_filtering(prefect_client):
     assert len(flow_runs) == 2
     assert all(isinstance(flow, client_schemas.FlowRun) for flow in flow_runs)
     assert {flow_run.id for flow_run in flow_runs} == {fr_id_4, fr_id_5}
+
+
+@pytest.mark.parametrize(
+    "run_tags,filter_tags,expected_match",
+    [
+        # Basic single tag matching
+        (["tag-1"], ["tag-1"], True),
+        (["tag-2"], ["tag-1"], False),
+        # Any matching - should match if ANY tag in filter matches
+        (["tag-1", "tag-2"], ["tag-1", "tag-3"], True),
+        (["tag-1"], ["tag-1", "tag-2"], True),
+        (["tag-2"], ["tag-1", "tag-2"], True),
+        # No matches
+        (["tag-1"], ["tag-2", "tag-3"], False),
+        (["tag-1"], ["get-real"], False),
+        # Empty cases
+        ([], ["tag-1"], False),
+        (["tag-1"], [], False),
+    ],
+    ids=[
+        "single_tag_match",
+        "single_tag_no_match",
+        "multiple_tags_partial_match",
+        "subset_match_1",
+        "subset_match_2",
+        "no_matching_tags",
+        "nonexistent_tag",
+        "empty_run_tags",
+        "empty_filter_tags",
+    ],
+)
+async def test_read_flow_runs_with_tags(
+    prefect_client, run_tags, filter_tags, expected_match
+):
+    @flow
+    def foo():
+        pass
+
+    flow_run = await prefect_client.create_flow_run(foo, tags=run_tags)
+
+    flow_runs = await prefect_client.read_flow_runs(
+        flow_run_filter=FlowRunFilter(tags=FlowRunFilterTags(any_=filter_tags))
+    )
+
+    if expected_match:
+        assert len(flow_runs) == 1
+        assert flow_runs[0].id == flow_run.id
+    else:
+        assert len(flow_runs) == 0
 
 
 async def test_read_flows_without_filter(prefect_client):
@@ -1247,7 +1351,7 @@ async def test_create_then_read_autonomous_task_runs(prefect_client):
     )
 
     autonotask_runs = await prefect_client.read_task_runs(
-        task_run_filter=TaskRunFilter(flow_run_id=dict(is_null_=True))
+        task_run_filter=TaskRunFilter(flow_run_id=TaskRunFilterFlowRunId(is_null_=True))
     )
 
     assert len(autonotask_runs) == 2
@@ -1391,15 +1495,14 @@ async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_true(monkeypa
         )
         get_client()
 
-    mock.assert_called_once_with(
-        headers=ANY,
-        verify=False,
-        base_url=ANY,
-        limits=ANY,
-        http2=ANY,
-        timeout=ANY,
-        enable_csrf_support=ANY,
-    )
+    # Get the verify argument from the mock call
+    call_kwargs = mock.call_args[1]
+    verify_ctx = call_kwargs["verify"]
+
+    # Verify it's an SSL context with the correct insecure settings
+    assert isinstance(verify_ctx, ssl.SSLContext)
+    assert verify_ctx.verify_mode == ssl.CERT_NONE
+    assert verify_ctx.check_hostname is False
 
 
 async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_false(monkeypatch):
@@ -1410,102 +1513,118 @@ async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_false(monkeyp
         )
         get_client()
 
-    mock.assert_called_once_with(
-        headers=ANY,
-        verify=ANY,
-        base_url=ANY,
-        limits=ANY,
-        http2=ANY,
-        timeout=ANY,
-        enable_csrf_support=ANY,
-    )
+    # Get the verify argument from the mock call
+    call_kwargs = mock.call_args[1]
+    verify_ctx = call_kwargs["verify"]
+
+    # Verify it's an SSL context with secure settings
+    assert isinstance(verify_ctx, ssl.SSLContext)
+    assert verify_ctx.verify_mode == ssl.CERT_REQUIRED
+    assert verify_ctx.check_hostname is True
 
 
 async def test_prefect_api_tls_insecure_skip_verify_default_setting(monkeypatch):
     mock = Mock()
     monkeypatch.setattr("prefect.client.orchestration.PrefectHttpxAsyncClient", mock)
     get_client()
-    mock.assert_called_once_with(
-        headers=ANY,
-        verify=ANY,
-        base_url=ANY,
-        limits=ANY,
-        http2=ANY,
-        timeout=ANY,
-        enable_csrf_support=ANY,
-    )
+
+    # Get the verify argument from the mock call
+    call_kwargs = mock.call_args[1]
+    verify_ctx = call_kwargs["verify"]
+
+    # Verify it's an SSL context with secure settings (default)
+    assert isinstance(verify_ctx, ssl.SSLContext)
+    assert verify_ctx.verify_mode == ssl.CERT_REQUIRED
+    assert verify_ctx.check_hostname is True
 
 
 async def test_prefect_api_ssl_cert_file_setting_explicitly_set(monkeypatch):
+    cert_path = "my_cert.pem"
+
+    # Mock the SSL context creation
+    mock_context = Mock()
+    mock_create_default_context = Mock(return_value=mock_context)
+    monkeypatch.setattr("ssl.create_default_context", mock_create_default_context)
+
     with temporary_settings(
         updates={
             PREFECT_API_TLS_INSECURE_SKIP_VERIFY: False,
-            PREFECT_API_SSL_CERT_FILE: "my_cert.pem",
+            PREFECT_API_SSL_CERT_FILE: cert_path,
         }
     ):
-        mock = Mock()
+        mock_client = Mock()
         monkeypatch.setattr(
-            "prefect.client.orchestration.PrefectHttpxAsyncClient", mock
+            "prefect.client.orchestration.PrefectHttpxAsyncClient", mock_client
         )
         get_client()
 
-    mock.assert_called_once_with(
-        headers=ANY,
-        verify="my_cert.pem",
-        base_url=ANY,
-        limits=ANY,
-        http2=ANY,
-        timeout=ANY,
-        enable_csrf_support=ANY,
-    )
+    # Verify SSL context was created with correct cert file
+    mock_create_default_context.assert_called_once_with(cafile=cert_path)
+
+    # Get the verify argument from the mock call
+    call_kwargs = mock_client.call_args[1]
+    verify_ctx = call_kwargs["verify"]
+
+    # Verify the context was passed to the client
+    assert verify_ctx == mock_context
 
 
 async def test_prefect_api_ssl_cert_file_default_setting(monkeypatch):
     os.environ["SSL_CERT_FILE"] = "my_cert.pem"
 
+    # Mock the SSL context creation
+    mock_context = Mock()
+    mock_create_default_context = Mock(return_value=mock_context)
+    monkeypatch.setattr("ssl.create_default_context", mock_create_default_context)
+
     with temporary_settings(
         updates={PREFECT_API_TLS_INSECURE_SKIP_VERIFY: False},
         set_defaults={PREFECT_API_SSL_CERT_FILE: os.environ.get("SSL_CERT_FILE")},
     ):
-        mock = Mock()
+        mock_client = Mock()
         monkeypatch.setattr(
-            "prefect.client.orchestration.PrefectHttpxAsyncClient", mock
+            "prefect.client.orchestration.PrefectHttpxAsyncClient", mock_client
         )
         get_client()
 
-    mock.assert_called_once_with(
-        headers=ANY,
-        verify="my_cert.pem",
-        base_url=ANY,
-        limits=ANY,
-        http2=ANY,
-        timeout=ANY,
-        enable_csrf_support=ANY,
-    )
+    # Verify SSL context was created with correct cert file
+    mock_create_default_context.assert_called_once_with(cafile="my_cert.pem")
+
+    # Get the verify argument from the mock call
+    call_kwargs = mock_client.call_args[1]
+    verify_ctx = call_kwargs["verify"]
+
+    # Verify the context was passed to the client
+    assert verify_ctx == mock_context
 
 
 async def test_prefect_api_ssl_cert_file_default_setting_fallback(monkeypatch):
     os.environ["SSL_CERT_FILE"] = ""
 
+    # Mock the SSL context creation
+    mock_context = Mock()
+    mock_create_default_context = Mock(return_value=mock_context)
+    monkeypatch.setattr("ssl.create_default_context", mock_create_default_context)
+
     with temporary_settings(
         updates={PREFECT_API_TLS_INSECURE_SKIP_VERIFY: False},
         set_defaults={PREFECT_API_SSL_CERT_FILE: os.environ.get("SSL_CERT_FILE")},
     ):
-        mock = Mock()
+        mock_client = Mock()
         monkeypatch.setattr(
-            "prefect.client.orchestration.PrefectHttpxAsyncClient", mock
+            "prefect.client.orchestration.PrefectHttpxAsyncClient", mock_client
         )
         get_client()
 
-    mock.assert_called_once_with(
-        headers=ANY,
-        verify=certifi.where(),
-        base_url=ANY,
-        limits=ANY,
-        http2=ANY,
-        timeout=ANY,
-        enable_csrf_support=ANY,
-    )
+    # Verify SSL context was created with certifi's default cert
+    mock_create_default_context.assert_called_once_with(cafile=certifi.where())
+
+    # Get the verify argument from the mock call
+    call_kwargs = mock_client.call_args[1]
+    verify_ctx = call_kwargs["verify"]
+
+    # Verify the context was passed to the client
+    assert verify_ctx == mock_context
 
 
 class TestClientAPIVersionRequests:
@@ -1648,6 +1767,39 @@ class TestClientAPIKey:
             client = get_client()
 
         assert client._client.headers["Authorization"] == "Bearer test"
+
+
+class TestClientAuthString:
+    @pytest.fixture
+    async def test_app(self):
+        app = FastAPI()
+        basic = HTTPBasic()
+
+        # Returns given credentials if an Authorization
+        # header is passed, otherwise raises 403
+        @app.get("/api/check_for_auth_header")
+        async def check_for_auth_header(credentials=Depends(basic)):
+            return {"username": credentials.username, "password": credentials.password}
+
+        return app
+
+    async def test_client_passes_auth_string_as_auth_header(self, test_app):
+        auth_string = "admin:admin"
+        async with PrefectClient(test_app, auth_string=auth_string) as client:
+            res = await client._client.get("/check_for_auth_header")
+        assert res.status_code == status.HTTP_200_OK
+        assert res.json() == {"username": "admin", "password": "admin"}
+
+    async def test_client_no_auth_header_without_auth_string(self, test_app):
+        async with PrefectClient(test_app) as client:
+            with pytest.raises(httpx.HTTPStatusError, match="401"):
+                await client._client.get("/check_for_auth_header")
+
+    async def test_get_client_includes_auth_string_from_context(self):
+        with temporary_settings(updates={PREFECT_API_AUTH_STRING: "admin:test"}):
+            client = get_client()
+
+        assert client._client.headers["Authorization"].startswith("Basic")
 
 
 class TestClientWorkQueues:
@@ -2145,7 +2297,9 @@ class TestAutomations:
         )
 
     async def test_create_automation(self, cloud_client, automation: AutomationCore):
-        with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
+        with respx.mock(
+            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+        ) as router:
             created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
             create_route = router.post("/automations/").mock(
@@ -2161,7 +2315,9 @@ class TestAutomations:
             assert automation_id == UUID(created_automation["id"])
 
     async def test_read_automation(self, cloud_client, automation: AutomationCore):
-        with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
+        with respx.mock(
+            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+        ) as router:
             created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
 
@@ -2179,7 +2335,9 @@ class TestAutomations:
     async def test_read_automation_not_found(
         self, cloud_client, automation: AutomationCore
     ):
-        with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
+        with respx.mock(
+            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+        ) as router:
             created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
 
@@ -2197,7 +2355,9 @@ class TestAutomations:
     async def test_read_automations_by_name(
         self, cloud_client, automation: AutomationCore
     ):
-        with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
+        with respx.mock(
+            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+        ) as router:
             created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
             read_route = router.post("/automations/filter").mock(
@@ -2230,7 +2390,9 @@ class TestAutomations:
     async def test_read_automations_by_name_multiple_same_name(
         self, cloud_client, automation: AutomationCore, automation2: AutomationCore
     ):
-        with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
+        with respx.mock(
+            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+        ) as router:
             created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
 
@@ -2260,7 +2422,9 @@ class TestAutomations:
     async def test_read_automations_by_name_not_found(
         self, cloud_client, automation: AutomationCore
     ):
-        with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
+        with respx.mock(
+            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+        ) as router:
             created_automation = automation.model_dump(mode="json")
             created_automation["id"] = str(uuid4())
             created_automation["name"] = "nonexistent"
@@ -2277,7 +2441,9 @@ class TestAutomations:
             assert nonexistent_automation == []
 
     async def test_delete_owned_automations(self, cloud_client):
-        with respx.mock(base_url=PREFECT_CLOUD_API_URL.value()) as router:
+        with respx.mock(
+            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+        ) as router:
             resource_id = f"prefect.deployment.{uuid4()}"
             delete_route = router.delete(f"/automations/owned-by/{resource_id}").mock(
                 return_value=httpx.Response(204)
@@ -2312,7 +2478,7 @@ async def test_prefect_client_follow_redirects():
         assert client._client.follow_redirects is False
 
     # follow redirects by default
-    with temporary_settings({PREFECT_UNIT_TEST_MODE: False}):
+    with temporary_settings({PREFECT_TESTING_UNIT_TEST_MODE: False}):
         async with PrefectClient(api=app) as client:
             assert client._client.follow_redirects is True
 
@@ -2698,3 +2864,59 @@ class TestSyncClientRaiseForAPIVersionMismatch:
             f"Found incompatible versions: client: {client_version}, server: {api_version}. "
             in str(e.value)
         )
+
+
+class TestPrefectClientWorkerHeartbeat:
+    async def test_worker_heartbeat(
+        self, prefect_client: PrefectClient, work_pool: WorkPool
+    ):
+        work_pool_name = str(work_pool.name)
+        await prefect_client.send_worker_heartbeat(
+            work_pool_name=work_pool_name,
+            worker_name="test-worker",
+            heartbeat_interval_seconds=10,
+        )
+        workers = await prefect_client.read_workers_for_work_pool(work_pool_name)
+        assert len(workers) == 1
+        assert workers[0].name == "test-worker"
+        assert workers[0].heartbeat_interval_seconds == 10
+
+    async def test_worker_heartbeat_sends_metadata_if_passed(
+        self, prefect_client: PrefectClient
+    ):
+        with mock.patch(
+            "prefect.client.orchestration.PrefectHttpxAsyncClient.post",
+            return_value=httpx.Response(status_code=204),
+        ) as mock_post:
+            await prefect_client.send_worker_heartbeat(
+                work_pool_name="work-pool",
+                worker_name="test-worker",
+                heartbeat_interval_seconds=10,
+                worker_metadata=WorkerMetadata(
+                    integrations=[Integration(name="prefect-aws", version="1.0.0")]
+                ),
+            )
+            assert mock_post.call_args[1]["json"] == {
+                "name": "test-worker",
+                "heartbeat_interval_seconds": 10,
+                "metadata": {
+                    "integrations": [{"name": "prefect-aws", "version": "1.0.0"}]
+                },
+            }
+
+    async def test_worker_heartbeat_does_not_send_metadata_if_not_passed(
+        self, prefect_client: PrefectClient
+    ):
+        with mock.patch(
+            "prefect.client.orchestration.PrefectHttpxAsyncClient.post",
+            return_value=httpx.Response(status_code=204),
+        ) as mock_post:
+            await prefect_client.send_worker_heartbeat(
+                work_pool_name="work-pool",
+                worker_name="test-worker",
+                heartbeat_interval_seconds=10,
+            )
+            assert mock_post.call_args[1]["json"] == {
+                "name": "test-worker",
+                "heartbeat_interval_seconds": 10,
+            }

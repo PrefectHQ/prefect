@@ -19,14 +19,12 @@ from uuid import UUID
 
 import pendulum
 import sqlalchemy as sa
-from pendulum.datetime import DateTime
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import Literal, TypeAlias
 
 from prefect._internal.retries import retry_async_fn
 from prefect.logging import get_logger
-from prefect.server.database.dependencies import db_injector
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, db_injector
 from prefect.server.events import messaging
 from prefect.server.events.actions import ServerActionTypes
 from prefect.server.events.models.automations import (
@@ -57,6 +55,7 @@ from prefect.server.events.schemas.automations import (
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.utilities.messaging import Message, MessageHandler
 from prefect.settings import PREFECT_EVENTS_EXPIRED_BUCKET_BUFFER
+from prefect.types import DateTime
 
 if TYPE_CHECKING:
     from prefect.server.database.orm_models import ORMAutomationBucket
@@ -803,7 +802,7 @@ async def increment_bucket(
     """Adds the given count to the bucket, returning the new bucket"""
     additional_updates: dict = {"last_event": last_event} if last_event else {}
     await session.execute(
-        db.insert(db.AutomationBucket)
+        db.queries.insert(db.AutomationBucket)
         .values(
             automation_id=bucket.automation_id,
             trigger_id=bucket.trigger_id,
@@ -852,7 +851,7 @@ async def start_new_bucket(
     automation = trigger.automation
 
     await session.execute(
-        db.insert(db.AutomationBucket)
+        db.queries.insert(db.AutomationBucket)
         .values(
             automation_id=automation.id,
             trigger_id=trigger.id,
@@ -904,7 +903,7 @@ async def ensure_bucket(
     automation = trigger.automation
     additional_updates: dict = {"last_event": last_event} if last_event else {}
     await session.execute(
-        db.insert(db.AutomationBucket)
+        db.queries.insert(db.AutomationBucket)
         .values(
             automation_id=automation.id,
             trigger_id=trigger.id,

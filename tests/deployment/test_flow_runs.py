@@ -9,14 +9,17 @@ import respx
 from httpx import Response
 
 from prefect import flow
+from prefect.client.schemas.responses import DeploymentResponse
 from prefect.context import FlowRunContext
 from prefect.deployments import run_deployment
+from prefect.flow_engine import run_flow_async
 from prefect.server.schemas.core import TaskRunResult
 from prefect.settings import (
     PREFECT_API_URL,
 )
 from prefect.tasks import task
 from prefect.utilities.slugify import slugify
+from tests.telemetry.instrumentation_tester import InstrumentationTester
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
@@ -111,7 +114,7 @@ class TestRunDeployment:
         }
 
         with respx.mock(
-            base_url=PREFECT_API_URL.value(), assert_all_mocked=True
+            base_url=PREFECT_API_URL.value(), assert_all_mocked=True, using="httpx"
         ) as router:
             router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
             router.get(f"/deployments/name/foo/{deployment.name}").pass_through()
@@ -146,6 +149,7 @@ class TestRunDeployment:
             base_url=PREFECT_API_URL.value(),
             assert_all_mocked=True,
             assert_all_called=False,
+            using="httpx",
         ) as router:
             router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
             router.get(f"/deployments/name/foo/{deployment.name}").pass_through()
@@ -163,6 +167,55 @@ class TestRunDeployment:
             )
             assert len(flow_polls.calls) == 0
             assert flow_run.state.is_scheduled()
+
+    async def test_returns_flow_run_from_2_dot_0(
+        self,
+        test_deployment,
+        use_hosted_api_server,
+    ):
+        """
+        See https://github.com/PrefectHQ/prefect/issues/15694
+        """
+        deployment = test_deployment
+
+        mock_flowrun_response = {
+            "id": str(uuid4()),
+            "flow_id": str(uuid4()),
+        }
+
+        side_effects = [
+            Response(
+                200, json={**mock_flowrun_response, "state": {"type": "SCHEDULED"}}
+            )
+        ]
+        side_effects.append(
+            Response(
+                200,
+                json={
+                    **mock_flowrun_response,
+                    "state": {"type": "COMPLETED", "data": {"type": "unpersisted"}},
+                },
+            )
+        )
+
+        with respx.mock(
+            base_url=PREFECT_API_URL.value(),
+            assert_all_mocked=True,
+            assert_all_called=False,
+            using="httpx",
+        ) as router:
+            router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
+            router.get(f"/deployments/name/foo/{deployment.name}").pass_through()
+            router.post(f"/deployments/{deployment.id}/create_flow_run").pass_through()
+            router.request(
+                "GET", re.compile(PREFECT_API_URL.value() + "/flow_runs/.*")
+            ).mock(side_effect=side_effects)
+
+            flow_run = await run_deployment(
+                f"foo/{deployment.name}", timeout=None, poll_interval=0
+            )
+            assert flow_run.state.is_completed()
+            assert flow_run.state.data is None
 
     async def test_polls_indefinitely(
         self,
@@ -191,6 +244,7 @@ class TestRunDeployment:
             base_url=PREFECT_API_URL.value(),
             assert_all_mocked=True,
             assert_all_called=False,
+            using="httpx",
         ) as router:
             router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
             router.get(f"/deployments/name/foo/{deployment.name}").pass_through()
@@ -382,3 +436,55 @@ class TestRunDeployment:
                 )
             ]
         }
+
+    async def test_propagates_otel_trace_to_deployment_flow_run(
+        self,
+        test_deployment: DeploymentResponse,
+        instrumentation: InstrumentationTester,
+        prefect_client: "PrefectClient",
+    ):
+        """Test that OTEL trace context gets propagated from parent flow to deployment flow run"""
+        deployment = test_deployment
+
+        @flow(flow_run_name="child-flow")
+        async def child_flow() -> None:
+            pass
+
+        flow_id = await prefect_client.create_flow(child_flow)
+
+        deployment_id = await prefect_client.create_deployment(
+            name="foo-deployment", flow_id=flow_id, parameter_openapi_schema={}
+        )
+        deployment = await prefect_client.read_deployment(deployment_id)
+
+        @flow(flow_run_name="parent-flow")
+        async def parent_flow():
+            return await run_deployment(
+                f"foo/{deployment.name}",
+                timeout=0,
+                poll_interval=0,
+            )
+
+        parent_state = await parent_flow(return_state=True)
+        child_flow_run = await parent_state.result()
+
+        await run_flow_async(child_flow, child_flow_run)
+        # Get all spans
+        spans = instrumentation.get_finished_spans()
+
+        # Find parent flow span
+        parent_span = next(
+            span
+            for span in spans
+            if span.attributes.get("prefect.run.name") == "parent-flow"
+        )
+        child_span = next(
+            span
+            for span in spans
+            if span.attributes.get("prefect.run.name") == "child-flow"
+        )
+        assert child_span
+        assert parent_span
+
+        assert child_span.parent.span_id == parent_span.get_span_context().span_id
+        assert child_span.parent.trace_id == parent_span.get_span_context().trace_id

@@ -4,21 +4,35 @@ import importlib.util
 import os
 import runpy
 import sys
+import threading
 import warnings
+from collections.abc import Iterable, Sequence
 from importlib.abc import Loader, MetaPathFinder
 from importlib.machinery import ModuleSpec
+from io import TextIOWrapper
+from logging import Logger
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from types import ModuleType
-from typing import Any, Callable, Dict, Iterable, NamedTuple, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, NamedTuple, Optional, Union
 
-import fsspec
+import fsspec  # type: ignore  # no typing stubs available
 
 from prefect.exceptions import ScriptError
 from prefect.logging.loggers import get_logger
 from prefect.utilities.filesystem import filename, is_local_path, tmpchdir
 
-logger = get_logger(__name__)
+logger: Logger = get_logger(__name__)
+
+_sys_path_lock: Optional[threading.Lock] = None
+
+
+def _get_sys_path_lock() -> threading.Lock:
+    """Get the global sys.path lock, initializing it if necessary."""
+    global _sys_path_lock
+    if _sys_path_lock is None:
+        _sys_path_lock = threading.Lock()
+    return _sys_path_lock
 
 
 def to_qualified_name(obj: Any) -> str:
@@ -70,7 +84,9 @@ def from_qualified_name(name: str) -> Any:
     return getattr(module, attr_name)
 
 
-def objects_from_script(path: str, text: Union[str, bytes] = None) -> Dict[str, Any]:
+def objects_from_script(
+    path: str, text: Optional[Union[str, bytes]] = None
+) -> dict[str, Any]:
     """
     Run a python script and return all the global variables
 
@@ -97,7 +113,7 @@ def objects_from_script(path: str, text: Union[str, bytes] = None) -> Dict[str, 
         ScriptError: if the script raises an exception during execution
     """
 
-    def run_script(run_path: str):
+    def run_script(run_path: str) -> dict[str, Any]:
         # Cast to an absolute path before changing directories to ensure relative paths
         # are not broken
         abs_run_path = os.path.abspath(run_path)
@@ -120,7 +136,9 @@ def objects_from_script(path: str, text: Union[str, bytes] = None) -> Dict[str, 
     else:
         if not is_local_path(path):
             # Remote paths need to be local to run
-            with fsspec.open(path) as f:
+            with fsspec.open(path) as f:  # type: ignore  # no typing stubs available
+                if TYPE_CHECKING:
+                    assert isinstance(f, TextIOWrapper)
                 contents = f.read()
             return objects_from_script(path, contents)
         else:
@@ -128,48 +146,48 @@ def objects_from_script(path: str, text: Union[str, bytes] = None) -> Dict[str, 
 
 
 def load_script_as_module(path: str) -> ModuleType:
-    """
-    Execute a script at the given path.
+    """Execute a script at the given path.
 
-    Sets the module name to `__prefect_loader__`.
+    Sets the module name to a unique identifier to ensure thread safety.
+    Uses a lock to safely modify sys.path for relative imports.
 
     If an exception occurs during execution of the script, a
     `prefect.exceptions.ScriptError` is created to wrap the exception and raised.
-
-    During the duration of this function call, `sys` is modified to support loading.
-    These changes are reverted after completion, but this function is not thread safe
-    and use of it in threaded contexts may result in undesirable behavior.
-
-    See https://docs.python.org/3/library/importlib.html#importing-a-source-file-directly
     """
-    # We will add the parent directory to search locations to support relative imports
-    # during execution of the script
     if not path.endswith(".py"):
         raise ValueError(f"The provided path does not point to a python file: {path!r}")
 
     parent_path = str(Path(path).resolve().parent)
     working_directory = os.getcwd()
 
+    # Generate unique module name for thread safety
+    module_name = f"__prefect_loader_{id(path)}__"
+
     spec = importlib.util.spec_from_file_location(
-        "__prefect_loader__",
+        module_name,
         path,
-        # Support explicit relative imports i.e. `from .foo import bar`
         submodule_search_locations=[parent_path, working_directory],
     )
-    module = importlib.util.module_from_spec(spec)
-    sys.modules["__prefect_loader__"] = module
+    if TYPE_CHECKING:
+        assert spec is not None
+        assert spec.loader is not None
 
-    # Support implicit relative imports i.e. `from foo import bar`
-    sys.path.insert(0, working_directory)
-    sys.path.insert(0, parent_path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+
     try:
-        spec.loader.exec_module(module)
+        with _get_sys_path_lock():
+            sys.path.insert(0, working_directory)
+            sys.path.insert(0, parent_path)
+            try:
+                spec.loader.exec_module(module)
+            finally:
+                sys.path.remove(parent_path)
+                sys.path.remove(working_directory)
     except Exception as exc:
         raise ScriptError(user_exc=exc, path=path) from exc
     finally:
-        sys.modules.pop("__prefect_loader__")
-        sys.path.remove(parent_path)
-        sys.path.remove(working_directory)
+        sys.modules.pop(module_name)
 
     return module
 
@@ -189,7 +207,7 @@ def load_module(module_name: str) -> ModuleType:
         sys.path.remove(working_directory)
 
 
-def import_object(import_path: str):
+def import_object(import_path: str) -> Any:
     """
     Load an object from an import path.
 
@@ -228,22 +246,20 @@ class DelayedImportErrorModule(ModuleType):
     [1]: https://github.com/scientific-python/lazy_loader
     """
 
-    def __init__(self, error_message, help_message, *args, **kwargs):
+    def __init__(self, error_message: str, help_message: Optional[str] = None) -> None:
         self.__error_message = error_message
-        self.__help_message = (
-            help_message or "Import errors for this module are only reported when used."
-        )
-        super().__init__(*args, **kwargs)
+        if not help_message:
+            help_message = "Import errors for this module are only reported when used."
+        super().__init__("DelayedImportErrorModule", help_message)
 
-    def __getattr__(self, attr):
-        if attr in ("__class__", "__file__", "__help_message"):
-            super().__getattr__(attr)
-        else:
-            raise ModuleNotFoundError(self.__error_message)
+    def __getattr__(self, attr: str) -> Any:
+        if attr == "__file__":  # not set but should result in an attribute error?
+            return super().__getattr__(attr)
+        raise ModuleNotFoundError(self.__error_message)
 
 
 def lazy_import(
-    name: str, error_on_import: bool = False, help_message: str = ""
+    name: str, error_on_import: bool = False, help_message: Optional[str] = None
 ) -> ModuleType:
     """
     Create a lazily-imported module to use in place of the module of the given name.
@@ -282,13 +298,13 @@ def lazy_import(
         if error_on_import:
             raise ModuleNotFoundError(import_error_message)
 
-        return DelayedImportErrorModule(
-            import_error_message, help_message, "DelayedImportErrorModule"
-        )
+        return DelayedImportErrorModule(import_error_message, help_message)
 
     module = importlib.util.module_from_spec(spec)
     sys.modules[name] = module
 
+    if TYPE_CHECKING:
+        assert spec.loader is not None
     loader = importlib.util.LazyLoader(spec.loader)
     loader.exec_module(module)
 
@@ -317,13 +333,13 @@ class AliasedModuleFinder(MetaPathFinder):
 
         Aliases apply to all modules nested within an alias.
         """
-        self.aliases = aliases
+        self.aliases: list[AliasedModuleDefinition] = list(aliases)
 
     def find_spec(
         self,
         fullname: str,
-        path=None,
-        target=None,
+        path: Optional[Sequence[str]] = None,
+        target: Optional[ModuleType] = None,
     ) -> Optional[ModuleSpec]:
         """
         The fullname is the imported path, e.g. "foo.bar". If there is an alias "phi"
@@ -334,6 +350,7 @@ class AliasedModuleFinder(MetaPathFinder):
             if fullname.startswith(alias):
                 # Retrieve the spec of the real module
                 real_spec = importlib.util.find_spec(fullname.replace(alias, real, 1))
+                assert real_spec is not None
                 # Create a new spec for the alias
                 return ModuleSpec(
                     fullname,
@@ -354,7 +371,7 @@ class AliasedModuleLoader(Loader):
         self.callback = callback
         self.real_spec = real_spec
 
-    def exec_module(self, _: ModuleType) -> None:
+    def exec_module(self, module: ModuleType) -> None:
         root_module = importlib.import_module(self.real_spec.name)
         if self.callback is not None:
             self.callback(self.alias)
@@ -363,7 +380,7 @@ class AliasedModuleLoader(Loader):
 
 def safe_load_namespace(
     source_code: str, filepath: Optional[str] = None
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Safely load a namespace from source code, optionally handling relative imports.
 
@@ -380,7 +397,7 @@ def safe_load_namespace(
     """
     parsed_code = ast.parse(source_code)
 
-    namespace: Dict[str, Any] = {"__name__": "prefect_safe_namespace_loader"}
+    namespace: dict[str, Any] = {"__name__": "prefect_safe_namespace_loader"}
 
     # Remove the body of the if __name__ == "__main__": block
     new_body = [node for node in parsed_code.body if not _is_main_block(node)]
@@ -427,6 +444,9 @@ def safe_load_namespace(
                     try:
                         if node.level > 0:
                             # For relative imports, use the parent package to inform the import
+                            if TYPE_CHECKING:
+                                assert temp_module is not None
+                                assert temp_module.__package__ is not None
                             package_parts = temp_module.__package__.split(".")
                             if len(package_parts) < node.level:
                                 raise ImportError(

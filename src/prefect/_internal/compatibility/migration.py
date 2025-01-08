@@ -43,7 +43,7 @@ Removed objects:
 """
 
 import sys
-from typing import Any, Callable, Dict
+from typing import Any, Callable
 
 from pydantic_core import PydanticCustomError
 
@@ -86,7 +86,7 @@ REMOVED_IN_V3 = {
 # See src/prefect/filesystems.py for an example
 
 
-def import_string_class_method(new_location: str) -> Callable:
+def import_string_class_method(new_location: str) -> Callable[..., Any]:
     """
     Handle moved class methods.
 
@@ -157,7 +157,7 @@ def getattr_migration(module_name: str) -> Callable[[str], Any]:
                 f"`{import_path}` has been removed. {error_message}"
             )
 
-        globals: Dict[str, Any] = sys.modules[module_name].__dict__
+        globals: dict[str, Any] = sys.modules[module_name].__dict__
         if name in globals:
             return globals[name]
 

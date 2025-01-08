@@ -3,7 +3,7 @@ import pytest
 import sqlalchemy as sa
 
 from prefect.server import models, schemas
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface
 
 
 class TestGetRunsInQueueQuery:
@@ -48,7 +48,7 @@ class TestGetRunsInQueueQuery:
 
     @pytest.fixture
     async def fr_1(self, session, deployment_1):
-        return await models.flow_runs.create_flow_run(
+        flow_run = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
                 name="fr1",
@@ -58,6 +58,7 @@ class TestGetRunsInQueueQuery:
                 state=schemas.states.Scheduled(pendulum.now("UTC").subtract(minutes=2)),
             ),
         )
+        return flow_run
 
     @pytest.fixture
     async def fr_2(self, session, deployment_2):

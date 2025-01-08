@@ -9,7 +9,6 @@ from uuid import UUID
 import jsonschema.exceptions
 import pendulum
 from fastapi import Body, Depends, HTTPException, Path, Response, status
-from pydantic_extra_types.pendulum_dt import DateTime
 from starlette.background import BackgroundTasks
 
 import prefect.server.api.dependencies as dependencies
@@ -20,13 +19,13 @@ from prefect.server.api.validation import (
     validate_job_variables_for_deployment_flow_run,
 )
 from prefect.server.api.workers import WorkerLookups
-from prefect.server.database.dependencies import provide_database_interface
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.exceptions import MissingVariableError, ObjectNotFoundError
 from prefect.server.models.deployments import mark_deployments_ready
 from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.server.schemas.responses import DeploymentPaginationResponse
 from prefect.server.utilities.server import PrefectRouter
+from prefect.types import DateTime
 from prefect.utilities.schema_tools.hydration import (
     HydrationContext,
     HydrationError,

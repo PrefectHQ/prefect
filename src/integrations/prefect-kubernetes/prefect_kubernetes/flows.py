@@ -1,6 +1,6 @@
 """A module to define flows interacting with Kubernetes resources."""
 
-import inspect
+import asyncio
 from typing import Any, Callable, Dict, Optional
 
 from prefect import flow, task
@@ -76,13 +76,13 @@ async def run_namespaced_job_async(
     """
     kubernetes_job_run = (
         await maybe_coro
-        if inspect.iscoroutine((maybe_coro := task(kubernetes_job.trigger)()))
+        if asyncio.iscoroutine((maybe_coro := task(kubernetes_job.trigger)()))
         else maybe_coro
     )
 
     (
         await maybe_coro
-        if inspect.iscoroutine(
+        if asyncio.iscoroutine(
             maybe_coro := task(kubernetes_job_run.wait_for_completion)(print_func)
         )
         else maybe_coro
@@ -90,6 +90,6 @@ async def run_namespaced_job_async(
 
     return (
         await maybe_coro
-        if inspect.iscoroutine(maybe_coro := task(kubernetes_job_run.fetch_result)())
+        if asyncio.iscoroutine(maybe_coro := task(kubernetes_job_run.fetch_result)())
         else maybe_coro
     )

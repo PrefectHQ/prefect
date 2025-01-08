@@ -1,38 +1,54 @@
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import (
-    Generator,
-    List,
-    Optional,
-    TypeVar,
-    Union,
-    cast,
-)
+from typing import Optional, TypeVar, Union
 
 import pendulum
-
-try:
-    from pendulum import Interval
-except ImportError:
-    # pendulum < 3
-    from pendulum.period import Period as Interval  # type: ignore
+from typing_extensions import Literal
 
 from prefect.client.schemas.responses import MinimalConcurrencyLimitResponse
+from prefect.utilities.asyncutils import run_coro_as_sync
 
-from .asyncio import (
-    _acquire_concurrency_slots,
-    _release_concurrency_slots,
+from ._asyncio import (
+    aacquire_concurrency_slots,
+    arelease_concurrency_slots,
 )
-from .events import (
-    _emit_concurrency_acquisition_events,
-    _emit_concurrency_release_events,
+from ._events import (
+    emit_concurrency_acquisition_events,
+    emit_concurrency_release_events,
 )
 
 T = TypeVar("T")
 
 
+def _release_concurrency_slots(
+    names: list[str], slots: int, occupancy_seconds: float
+) -> list[MinimalConcurrencyLimitResponse]:
+    result = run_coro_as_sync(
+        arelease_concurrency_slots(names, slots, occupancy_seconds)
+    )
+    return result
+
+
+def _acquire_concurrency_slots(
+    names: list[str],
+    slots: int,
+    mode: Literal["concurrency", "rate_limit"] = "concurrency",
+    timeout_seconds: Optional[float] = None,
+    create_if_missing: Optional[bool] = None,
+    max_retries: Optional[int] = None,
+    strict: bool = False,
+) -> list[MinimalConcurrencyLimitResponse]:
+    result = run_coro_as_sync(
+        aacquire_concurrency_slots(
+            names, slots, mode, timeout_seconds, create_if_missing, max_retries, strict
+        )
+    )
+    return result
+
+
 @contextmanager
 def concurrency(
-    names: Union[str, List[str]],
+    names: Union[str, list[str]],
     occupy: int = 1,
     timeout_seconds: Optional[float] = None,
     max_retries: Optional[int] = None,
@@ -74,33 +90,27 @@ def concurrency(
 
     names = names if isinstance(names, list) else [names]
 
-    limits: List[MinimalConcurrencyLimitResponse] = _acquire_concurrency_slots(
+    limits: list[MinimalConcurrencyLimitResponse] = _acquire_concurrency_slots(
         names,
         occupy,
         timeout_seconds=timeout_seconds,
         create_if_missing=create_if_missing,
         strict=strict,
         max_retries=max_retries,
-        _sync=True,
     )
     acquisition_time = pendulum.now("UTC")
-    emitted_events = _emit_concurrency_acquisition_events(limits, occupy)
+    emitted_events = emit_concurrency_acquisition_events(limits, occupy)
 
     try:
         yield
     finally:
-        occupancy_period = cast(Interval, pendulum.now("UTC") - acquisition_time)
-        _release_concurrency_slots(
-            names,
-            occupy,
-            occupancy_period.total_seconds(),
-            _sync=True,
-        )
-        _emit_concurrency_release_events(limits, occupy, emitted_events)
+        occupancy_period = pendulum.now("UTC") - acquisition_time
+        _release_concurrency_slots(names, occupy, occupancy_period.total_seconds())
+        emit_concurrency_release_events(limits, occupy, emitted_events)
 
 
 def rate_limit(
-    names: Union[str, List[str]],
+    names: Union[str, list[str]],
     occupy: int = 1,
     timeout_seconds: Optional[float] = None,
     create_if_missing: Optional[bool] = None,
@@ -134,6 +144,5 @@ def rate_limit(
         timeout_seconds=timeout_seconds,
         create_if_missing=create_if_missing,
         strict=strict,
-        _sync=True,
     )
-    _emit_concurrency_acquisition_events(limits, occupy)
+    emit_concurrency_acquisition_events(limits, occupy)

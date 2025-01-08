@@ -13,55 +13,48 @@ ECS (Elastic Container Service) tasks are a good option for executing Prefect fl
 
 ## ECS flow run execution
 
-Prefect enables remote flow execution via workers and work pools. To learn more about these concepts please see our [deployment docs](/latest/deploy/infrastructure-concepts/work-pools/).
+Prefect enables remote flow execution via workers and work pools. To learn more about these concepts please see our [deployment docs](/v3/deploy/infrastructure-concepts/work-pools/).
 
 For details on how workers and work pools are implemented for ECS, see the diagram below.
 
 ```mermaid
 %%{
   init: {
-    'theme': 'base',
+    'theme': 'neutral',
     'themeVariables': {
-      'primaryColor': '#2D6DF6',
-      'primaryTextColor': '#fff',
-      'lineColor': '#FE5A14',
-      'secondaryColor': '#E04BF0',
-      'tertiaryColor': '#fff'
+      'margin': '10px'
     }
   }
 }%%
-graph TB
 
-  subgraph ecs_cluster[ECS cluster]
-    subgraph ecs_service[ECS service]
-      td_worker[Worker task definition] --> |defines| prefect_worker((Prefect worker))
+flowchart TB
+    subgraph ecs_cluster[ECS Cluster]
+        subgraph ecs_service[ECS Service]
+            td_worker[Worker Task Definition] --> |defines| prefect_worker[Prefect Worker]
+        end
+
+        prefect_worker -->|kicks off| ecs_task
+    
+        fr_task_definition[Flow Run Task Definition]
+
+        subgraph ecs_task[ECS Task Execution]
+            flow_run((Flow Run))
+        end
+
+        fr_task_definition -->|defines| ecs_task
     end
-    prefect_worker -->|kicks off| ecs_task
-    fr_task_definition[Flow run task definition]
 
-
-    subgraph ecs_task["ECS task execution"]
-    style ecs_task text-align:center,display:flex
-
-
-    flow_run((Flow run))
-
+    subgraph prefect_cloud[Prefect Cloud]
+        work_pool[ECS Work Pool]
     end
-    fr_task_definition -->|defines| ecs_task
-  end
 
-  subgraph prefect_cloud[Prefect Cloud]
-    subgraph prefect_workpool[ECS work pool]
-      workqueue[Work queue]
+    subgraph github[ECR]
+        flow_code["Flow Code"]
     end
-  end
 
-  subgraph github["ECR"]
-    flow_code{{"Flow code"}}
-  end
-  flow_code --> |pulls| ecs_task
-  prefect_worker -->|polls| workqueue
-  prefect_workpool -->|configures| fr_task_definition
+    flow_code --> |pulls| ecs_task
+    prefect_worker -->|polls| work_pool
+    work_pool -->|configures| fr_task_definition
 ```
 
 ## ECS and Prefect
@@ -69,7 +62,7 @@ graph TB
 <Tip>
 **ECS tasks != Prefect tasks**
 
-An ECS task is **not** the same thing as a [Prefect task](/3.0/develop/write-tasks).
+An ECS task is **not** the same thing as a [Prefect task](/v3/develop/write-tasks).
 
 ECS tasks are groupings of containers that run within an ECS Cluster. An ECS task's behavior is determined by its task definition.
 </Tip>
@@ -104,7 +97,7 @@ If you prefer infrastructure as code check out this [Terraform module](https://r
 
 ## Step 1: Set up an ECS work pool
 
-Before setting up the worker, create a [work pool](/latest/deploy/infrastructure-concepts/work-pools/) of type ECS for the worker to pull work from. If doing so from the CLI, be sure to authenticate with Prefect Cloud or run a local Prefect server instance.
+Before setting up the worker, create a [work pool](/v3/deploy/infrastructure-concepts/work-pools/) of type ECS for the worker to pull work from. If doing so from the CLI, be sure to authenticate with Prefect Cloud or run a local Prefect server instance.
 
 Create a work pool from the CLI:
 
@@ -217,7 +210,7 @@ Next, create an ECS task definition that specifies the Docker image for the Pref
 
 - Use `prefect config view` to view the `PREFECT_API_URL` for your current Prefect profile. Use this to replace `<prefect-api-url>`.
 
-- For the `PREFECT_API_KEY`, if you are on a paid plan you can create a [service account](https://docs.prefect.io/latest/cloud/manage-users/service-accounts/) for the worker. If your are on a free plan, you can pass a user's API key.
+- For the `PREFECT_API_KEY`, if you are on a paid plan you can create a [service account](/v3/manage/cloud/manage-users/service-accounts) for the worker. If your are on a free plan, you can pass a user's API key.
 
 - Replace both instances of `<ecs-task-role-arn>` with the ARN of the IAM role you created in Step 2. You can grab this by running:
 ```
@@ -358,4 +351,4 @@ prefect deploy my_flow.py:my_ecs_deployment
     - Do your flow runs require higher `CPU`?
     - Would an EC2 `Launch Type` speed up your flow run execution?
 
-    These infrastructure configuration values can be set on your ECS work pool or they can be overridden on the deployment level through [job_variables](/latest/deploy/infrastructure-concepts/customize/) if desired.
+    These infrastructure configuration values can be set on your ECS work pool or they can be overridden on the deployment level through [job_variables](/v3/deploy/infrastructure-concepts/customize/) if desired.

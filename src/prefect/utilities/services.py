@@ -1,24 +1,25 @@
-import sys
 import threading
 from collections import deque
+from collections.abc import Coroutine
+from logging import Logger
 from traceback import format_exception
 from types import TracebackType
-from typing import Callable, Coroutine, Deque, Optional, Tuple
+from typing import Any, Callable, Optional
 from wsgiref.simple_server import WSGIServer
 
 import anyio
 import httpx
 
 from prefect.logging.loggers import get_logger
-from prefect.settings import PREFECT_CLIENT_ENABLE_METRICS, PREFECT_CLIENT_METRICS_PORT
+from prefect.settings import PREFECT_CLIENT_METRICS_ENABLED, PREFECT_CLIENT_METRICS_PORT
 from prefect.utilities.collections import distinct
 from prefect.utilities.math import clamped_poisson_interval
 
-logger = get_logger("utilities.services.critical_service_loop")
+logger: Logger = get_logger("utilities.services.critical_service_loop")
 
 
 async def critical_service_loop(
-    workload: Callable[..., Coroutine],
+    workload: Callable[..., Coroutine[Any, Any, Any]],
     interval: float,
     memory: int = 10,
     consecutive: int = 3,
@@ -26,7 +27,7 @@ async def critical_service_loop(
     printer: Callable[..., None] = print,
     run_once: bool = False,
     jitter_range: Optional[float] = None,
-):
+) -> None:
     """
     Runs the given `workload` function on the specified `interval`, while being
     forgiving of intermittent issues like temporary HTTP errors.  If more than a certain
@@ -50,8 +51,8 @@ async def critical_service_loop(
             between `interval * (1 - range) < rv < interval * (1 + range)`
     """
 
-    track_record: Deque[bool] = deque([True] * consecutive, maxlen=consecutive)
-    failures: Deque[Tuple[Exception, TracebackType]] = deque(maxlen=memory)
+    track_record: deque[bool] = deque([True] * consecutive, maxlen=consecutive)
+    failures: deque[tuple[Exception, Optional[TracebackType]]] = deque(maxlen=memory)
     backoff_count = 0
 
     while True:
@@ -78,7 +79,7 @@ async def critical_service_loop(
             # or Prefect Cloud is having an outage (which will be covered by the
             # exception clause below)
             track_record.append(False)
-            failures.append((exc, sys.exc_info()[-1]))
+            failures.append((exc, exc.__traceback__))
             logger.debug(
                 f"Run of {workload!r} failed with TransportError", exc_info=exc
             )
@@ -88,7 +89,7 @@ async def critical_service_loop(
                 # likely to be temporary and transient.  Don't quit over these unless
                 # it is prolonged.
                 track_record.append(False)
-                failures.append((exc, sys.exc_info()[-1]))
+                failures.append((exc, exc.__traceback__))
                 logger.debug(
                     f"Run of {workload!r} failed with HTTPStatusError", exc_info=exc
                 )
@@ -155,13 +156,13 @@ async def critical_service_loop(
         await anyio.sleep(sleep)
 
 
-_metrics_server: Optional[Tuple[WSGIServer, threading.Thread]] = None
+_metrics_server: Optional[tuple[WSGIServer, threading.Thread]] = None
 
 
-def start_client_metrics_server():
+def start_client_metrics_server() -> None:
     """Start the process-wide Prometheus metrics server for client metrics (if enabled
-    with `PREFECT_CLIENT_ENABLE_METRICS`) on the port `PREFECT_CLIENT_METRICS_PORT`."""
-    if not PREFECT_CLIENT_ENABLE_METRICS:
+    with `PREFECT_CLIENT_METRICS_ENABLED`) on the port `PREFECT_CLIENT_METRICS_PORT`."""
+    if not PREFECT_CLIENT_METRICS_ENABLED:
         return
 
     global _metrics_server
@@ -173,7 +174,7 @@ def start_client_metrics_server():
     _metrics_server = start_http_server(port=PREFECT_CLIENT_METRICS_PORT.value())
 
 
-def stop_client_metrics_server():
+def stop_client_metrics_server() -> None:
     """Start the process-wide Prometheus metrics server for client metrics, if it has
     previously been started"""
     global _metrics_server

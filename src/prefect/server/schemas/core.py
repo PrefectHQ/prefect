@@ -3,7 +3,7 @@ Full schemas of Prefect REST API objects.
 """
 
 import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type, Union
+from typing import TYPE_CHECKING, Any, ClassVar, Dict, List, Optional, Type, Union
 from uuid import UUID
 
 import pendulum
@@ -11,10 +11,13 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    StrictBool,
+    StrictFloat,
+    StrictInt,
     field_validator,
     model_validator,
 )
-from pydantic_extra_types.pendulum_dt import DateTime
+from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import Literal, Self
 
 from prefect._internal.schemas.validators import (
@@ -40,6 +43,7 @@ from prefect.server.utilities.schemas.bases import (
 from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
 from prefect.types import (
     MAX_VARIABLE_NAME_LENGTH,
+    DateTime,
     LaxUrl,
     Name,
     NameOrEmpty,
@@ -76,6 +80,8 @@ FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS = [
 
 DEFAULT_BLOCK_SCHEMA_VERSION = "non-versioned"
 
+KeyValueLabels = dict[str, Union[StrictBool, StrictInt, StrictFloat, str]]
+
 
 class Flow(ORMBaseModel):
     """An ORM representation of flow data."""
@@ -88,13 +94,16 @@ class Flow(ORMBaseModel):
         description="A list of flow tags",
         examples=[["tag-1", "tag-2"]],
     )
+    labels: Union[KeyValueLabels, None] = Field(
+        default_factory=dict,
+        description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
+        examples=[{"key": "value1", "key2": 42}],
+    )
 
 
 class FlowRunPolicy(PrefectBaseModel):
     """Defines of how a flow run should retry."""
 
-    # TODO: Determine how to separate between infrastructure and within-process level
-    #       retries
     max_retries: int = Field(
         default=0,
         description=(
@@ -120,6 +129,9 @@ class FlowRunPolicy(PrefectBaseModel):
     )
     resuming: Optional[bool] = Field(
         default=False, description="Indicates if this run is resuming from a pause."
+    )
+    retry_type: Optional[Literal["in_process", "reschedule"]] = Field(
+        default=None, description="The type of retry this run is undergoing."
     )
 
     @model_validator(mode="before")
@@ -223,6 +235,11 @@ class FlowRun(ORMBaseModel):
         default_factory=list,
         description="A list of tags on the flow run",
         examples=[["tag-1", "tag-2"]],
+    )
+    labels: Union[KeyValueLabels, None] = Field(
+        default_factory=dict,
+        description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
+        examples=[{"key": "value1", "key2": 42}],
     )
     parent_task_run_id: Optional[UUID] = Field(
         default=None,
@@ -372,7 +389,7 @@ class TaskRunInput(PrefectBaseModel):
     could include, constants, parameters, or other task runs.
     """
 
-    model_config = ConfigDict(frozen=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(frozen=True)
 
     input_type: str
 
@@ -438,6 +455,11 @@ class TaskRun(ORMBaseModel):
         default_factory=list,
         description="A list of tags for the task run.",
         examples=[["tag-1", "tag-2"]],
+    )
+    labels: Union[KeyValueLabels, None] = Field(
+        default_factory=dict,
+        description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
+        examples=[{"key": "value1", "key2": 42}],
     )
     state_id: Optional[UUID] = Field(
         default=None, description="The id of the current task run state."
@@ -526,17 +548,9 @@ class DeploymentSchedule(ORMBaseModel):
     active: bool = Field(
         default=True, description="Whether or not the schedule is active."
     )
-    max_active_runs: Optional[PositiveInteger] = Field(
-        default=None,
-        description="The maximum number of active runs for the schedule.",
-    )
     max_scheduled_runs: Optional[PositiveInteger] = Field(
         default=None,
         description="The maximum number of scheduled runs for the schedule.",
-    )
-    catchup: bool = Field(
-        default=False,
-        description="Whether or not a worker should catch up on Late runs for the schedule.",
     )
 
     @field_validator("max_scheduled_runs")
@@ -550,7 +564,7 @@ class DeploymentSchedule(ORMBaseModel):
 class Deployment(ORMBaseModel):
     """An ORM representation of deployment data."""
 
-    model_config = ConfigDict(populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(populate_by_name=True)
 
     name: NameOrEmpty = Field(default=..., description="The name of the deployment.")
     version: Optional[str] = Field(
@@ -582,7 +596,7 @@ class Deployment(ORMBaseModel):
         default_factory=dict,
         description="Parameters for flow runs scheduled by the deployment.",
     )
-    pull_steps: Optional[List[dict]] = Field(
+    pull_steps: Optional[list[dict[str, Any]]] = Field(
         default=None,
         description="Pull steps for cloning and running this deployment.",
     )
@@ -590,6 +604,11 @@ class Deployment(ORMBaseModel):
         default_factory=list,
         description="A list of tags for the deployment",
         examples=[["tag-1", "tag-2"]],
+    )
+    labels: Union[KeyValueLabels, None] = Field(
+        default_factory=dict,
+        description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
+        examples=[{"key": "value1", "key2": 42}],
     )
     work_queue_name: Optional[str] = Field(
         default=None,
@@ -755,7 +774,7 @@ class BlockDocument(ORMBaseModel):
             "The block document's name. Not required for anonymous block documents."
         ),
     )
-    data: Dict[str, Any] = Field(
+    data: dict[str, Any] = Field(
         default_factory=dict, description="The block document's data"
     )
     block_schema_id: UUID = Field(default=..., description="A block schema ID")
@@ -769,7 +788,7 @@ class BlockDocument(ORMBaseModel):
     block_type: Optional[BlockType] = Field(
         default=None, description="The associated block type"
     )
-    block_document_references: Dict[str, Dict[str, Any]] = Field(
+    block_document_references: dict[str, dict[str, Any]] = Field(
         default_factory=dict, description="Record of the block document's references"
     )
     is_anonymous: bool = Field(
@@ -781,13 +800,15 @@ class BlockDocument(ORMBaseModel):
     )
 
     @model_validator(mode="before")
-    def validate_name_is_present_if_not_anonymous(cls, values):
+    def validate_name_is_present_if_not_anonymous(
+        cls, values: dict[str, Any]
+    ) -> dict[str, Any]:
         return validate_name_present_on_nonanonymous_blocks(values)
 
     @classmethod
     async def from_orm_model(
         cls: type[Self],
-        session,
+        session: AsyncSession,
         orm_block_document: "orm_models.ORMBlockDocument",
         include_secrets: bool = False,
     ) -> Self:

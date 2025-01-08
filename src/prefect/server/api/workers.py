@@ -15,15 +15,13 @@ from fastapi import (
     Path,
     status,
 )
-from pydantic_extra_types.pendulum_dt import DateTime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect.server.api.validation import validate_job_variable_defaults_for_work_pool
-from prefect.server.database.dependencies import provide_database_interface
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.models.deployments import mark_deployments_ready
 from prefect.server.models.work_queues import (
     emit_work_queue_status_event,
@@ -32,6 +30,7 @@ from prefect.server.models.work_queues import (
 from prefect.server.models.workers import emit_work_pool_status_event
 from prefect.server.schemas.statuses import WorkQueueStatus
 from prefect.server.utilities.server import PrefectRouter
+from prefect.types import DateTime
 
 if TYPE_CHECKING:
     from prefect.server.database.orm_models import ORMWorkQueue
@@ -607,7 +606,7 @@ async def worker_heartbeat(
 @router.post("/{work_pool_name}/workers/filter")
 async def read_workers(
     work_pool_name: str = Path(..., description="The work pool name"),
-    workers: schemas.filters.WorkerFilter = None,
+    workers: Optional[schemas.filters.WorkerFilter] = None,
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),

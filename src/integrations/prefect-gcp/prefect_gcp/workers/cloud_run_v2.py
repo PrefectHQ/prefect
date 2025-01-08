@@ -106,6 +106,11 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
         title="Environment Variables from Secrets",
         description="Environment variables to set from GCP secrets when starting a flow run.",
     )
+    cloudsql_instances: Optional[List[str]] = Field(
+        default_factory=list,
+        title="Cloud SQL Instances",
+        description="List of Cloud SQL instance connection names to connect to. Format: {project}:{location}:{instance}",
+    )
     job_body: Dict[str, Any] = Field(
         json_schema_extra=dict(template=_get_default_job_body_template()),
     )
@@ -179,6 +184,7 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
         )
 
         self._populate_env()
+        self._configure_cloudsql_volumes()
         self._populate_or_format_command()
         self._format_args_if_present()
         self._populate_image_if_not_present()
@@ -205,7 +211,31 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
         ]
         envs.extend(envs_from_secrets)
 
-        self.job_body["template"]["template"]["containers"][0]["env"] = envs
+        self.job_body["template"]["template"]["containers"][0]["env"].extend(envs)
+
+    def _configure_cloudsql_volumes(self):
+        """
+        Populates volumes and volume mounts for cloudsql instances
+        """
+
+        if not self.cloudsql_instances:
+            return
+
+        template = self.job_body["template"]["template"]
+        containers = template["containers"]
+        if "volumes" not in template:
+            template["volumes"] = []
+        template["volumes"].append(
+            {
+                "name": "cloudsql",
+                "cloudSqlInstance": {"instances": self.cloudsql_instances},
+            }
+        )
+        if "volumeMounts" not in containers[0]:
+            containers[0]["volumeMounts"] = []
+        containers[0]["volumeMounts"].append(
+            {"name": "cloudsql", "mountPath": "/cloudsql"}
+        )
 
     def _populate_image_if_not_present(self):
         """
@@ -351,6 +381,12 @@ class CloudRunWorkerV2Variables(BaseVariables):
             }
         },
     )
+    cloudsql_instances: Optional[List[str]] = Field(
+        default_factory=list,
+        title="Cloud SQL Instances",
+        description="List of Cloud SQL instance connection names to connect to. Format: {project}:{location}:{instance}",
+        examples=["project:region:instance-id"],
+    )
     keep_job: bool = Field(
         default=False,
         title="Keep Job After Completion",
@@ -436,7 +472,7 @@ class CloudRunWorkerV2(BaseWorker):
     job_configuration_variables = CloudRunWorkerV2Variables
     _description = "Execute flow runs within containers on Google Cloud Run (V2 API). Requires a Google Cloud Platform account."  # noqa
     _display_name = "Google Cloud Run V2"
-    _documentation_url = "https://prefecthq.github.io/prefect-gcp/worker_v2/"
+    _documentation_url = "https://docs.prefect.io/integrations/prefect-gcp"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/4SpnOBvMYkHp6z939MDKP6/549a91bc1ce9afd4fb12c68db7b68106/social-icon-google-cloud-1200-630.png?h=250"  # noqa
 
     async def run(

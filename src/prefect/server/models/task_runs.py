@@ -4,7 +4,7 @@ Intended for internal use by the Prefect REST API.
 """
 
 import contextlib
-from typing import Any, Dict, Optional, Sequence, Type, TypeVar, Union
+from typing import Any, Dict, Optional, Sequence, Type, TypeVar, Union, cast
 from uuid import UUID
 
 import pendulum
@@ -16,9 +16,7 @@ from sqlalchemy.sql import Select
 import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect.logging import get_logger
-from prefect.server.database import orm_models
-from prefect.server.database.dependencies import db_injector
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, db_injector, orm_models
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.orchestration.core_policy import (
     BackgroundTaskPolicy,
@@ -59,10 +57,14 @@ async def create_task_run(
     now = pendulum.now("UTC")
     model: Union[orm_models.TaskRun, None]
 
+    task_run.labels = await with_system_labels_for_task_run(
+        session=session, task_run=task_run
+    )
+
     # if a dynamic key exists, we need to guard against conflicts
     if task_run.flow_run_id:
         insert_stmt = (
-            db.insert(orm_models.TaskRun)
+            db.queries.insert(db.TaskRun)
             .values(
                 created=now,
                 **task_run.model_dump_for_orm(
@@ -70,18 +72,18 @@ async def create_task_run(
                 ),
             )
             .on_conflict_do_nothing(
-                index_elements=db.task_run_unique_upsert_columns,
+                index_elements=db.orm.task_run_unique_upsert_columns,
             )
         )
         await session.execute(insert_stmt)
 
         query = (
-            sa.select(orm_models.TaskRun)
+            sa.select(db.TaskRun)
             .where(
                 sa.and_(
-                    orm_models.TaskRun.flow_run_id == task_run.flow_run_id,
-                    orm_models.TaskRun.task_key == task_run.task_key,
-                    orm_models.TaskRun.dynamic_key == task_run.dynamic_key,
+                    db.TaskRun.flow_run_id == task_run.flow_run_id,
+                    db.TaskRun.task_key == task_run.task_key,
+                    db.TaskRun.dynamic_key == task_run.dynamic_key,
                 )
             )
             .limit(1)
@@ -92,12 +94,12 @@ async def create_task_run(
     else:
         # Upsert on (task_key, dynamic_key) application logic.
         query = (
-            sa.select(orm_models.TaskRun)
+            sa.select(db.TaskRun)
             .where(
                 sa.and_(
-                    orm_models.TaskRun.flow_run_id.is_(None),
-                    orm_models.TaskRun.task_key == task_run.task_key,
-                    orm_models.TaskRun.dynamic_key == task_run.dynamic_key,
+                    db.TaskRun.flow_run_id.is_(None),
+                    db.TaskRun.task_key == task_run.task_key,
+                    db.TaskRun.dynamic_key == task_run.dynamic_key,
                 )
             )
             .limit(1)
@@ -108,7 +110,7 @@ async def create_task_run(
         model = result.scalar()
 
         if model is None:
-            model = orm_models.TaskRun(
+            model = db.TaskRun(
                 created=now,
                 **task_run.model_dump_for_orm(
                     exclude={"state", "created"}, exclude_unset=True
@@ -130,7 +132,9 @@ async def create_task_run(
     return model
 
 
+@db_injector
 async def update_task_run(
+    db: PrefectDBInterface,
     session: AsyncSession,
     task_run_id: UUID,
     task_run: schemas.actions.TaskRunUpdate,
@@ -147,8 +151,8 @@ async def update_task_run(
         bool: whether or not matching rows were found to update
     """
     update_stmt = (
-        sa.update(orm_models.TaskRun)
-        .where(orm_models.TaskRun.id == task_run_id)
+        sa.update(db.TaskRun)
+        .where(db.TaskRun.id == task_run_id)
         # exclude_unset=True allows us to only update values provided by
         # the user, ignoring any defaults on the model
         .values(**task_run.model_dump_for_orm(exclude_unset=True))
@@ -157,8 +161,9 @@ async def update_task_run(
     return result.rowcount > 0
 
 
+@db_injector
 async def read_task_run(
-    session: AsyncSession, task_run_id: UUID
+    db: PrefectDBInterface, session: AsyncSession, task_run_id: UUID
 ) -> Union[orm_models.TaskRun, None]:
     """
     Read a task run by id.
@@ -171,11 +176,12 @@ async def read_task_run(
         orm_models.TaskRun: the task run
     """
 
-    model = await session.get(orm_models.TaskRun, task_run_id)
+    model = await session.get(db.TaskRun, task_run_id)
     return model
 
 
 async def _apply_task_run_filters(
+    db: PrefectDBInterface,
     query: Select[T],
     flow_filter: Optional[schemas.filters.FlowFilter] = None,
     flow_run_filter: Optional[schemas.filters.FlowRunFilter] = None,
@@ -202,7 +208,7 @@ async def _apply_task_run_filters(
             [flow_filter, deployment_filter, work_pool_filter, work_queue_filter]
         )
     ):
-        query = query.where(orm_models.TaskRun.flow_run_id.in_(flow_run_filter.id.any_))
+        query = query.where(db.TaskRun.flow_run_id.in_(flow_run_filter.id.any_))
 
         return query
 
@@ -213,8 +219,8 @@ async def _apply_task_run_filters(
         or work_pool_filter
         or work_queue_filter
     ):
-        exists_clause = select(orm_models.FlowRun).where(
-            orm_models.FlowRun.id == orm_models.TaskRun.flow_run_id
+        exists_clause = select(db.FlowRun).where(
+            db.FlowRun.id == db.TaskRun.flow_run_id
         )
 
         if flow_run_filter:
@@ -222,28 +228,28 @@ async def _apply_task_run_filters(
 
         if flow_filter:
             exists_clause = exists_clause.join(
-                orm_models.Flow,
-                orm_models.Flow.id == orm_models.FlowRun.flow_id,
+                db.Flow,
+                db.Flow.id == db.FlowRun.flow_id,
             ).where(flow_filter.as_sql_filter())
 
         if deployment_filter:
             exists_clause = exists_clause.join(
-                orm_models.Deployment,
-                orm_models.Deployment.id == orm_models.FlowRun.deployment_id,
+                db.Deployment,
+                db.Deployment.id == db.FlowRun.deployment_id,
             ).where(deployment_filter.as_sql_filter())
 
         if work_queue_filter:
             exists_clause = exists_clause.join(
-                orm_models.WorkQueue,
-                orm_models.WorkQueue.id == orm_models.FlowRun.work_queue_id,
+                db.WorkQueue,
+                db.WorkQueue.id == db.FlowRun.work_queue_id,
             ).where(work_queue_filter.as_sql_filter())
 
         if work_pool_filter:
             exists_clause = exists_clause.join(
-                orm_models.WorkPool,
+                db.WorkPool,
                 sa.and_(
-                    orm_models.WorkPool.id == orm_models.WorkQueue.work_pool_id,
-                    orm_models.WorkQueue.id == orm_models.FlowRun.work_queue_id,
+                    db.WorkPool.id == db.WorkQueue.work_pool_id,
+                    db.WorkQueue.id == db.FlowRun.work_queue_id,
                 ),
             ).where(work_pool_filter.as_sql_filter())
 
@@ -252,7 +258,9 @@ async def _apply_task_run_filters(
     return query
 
 
+@db_injector
 async def read_task_runs(
+    db: PrefectDBInterface,
     session: AsyncSession,
     flow_filter: Optional[schemas.filters.FlowFilter] = None,
     flow_run_filter: Optional[schemas.filters.FlowRunFilter] = None,
@@ -279,9 +287,10 @@ async def read_task_runs(
         List[orm_models.TaskRun]: the task runs
     """
 
-    query = select(orm_models.TaskRun).order_by(sort.as_sql_sort())
+    query = select(db.TaskRun).order_by(*sort.as_sql_sort())
 
     query = await _apply_task_run_filters(
+        db,
         query,
         flow_filter=flow_filter,
         flow_run_filter=flow_run_filter,
@@ -300,7 +309,9 @@ async def read_task_runs(
     return result.scalars().unique().all()
 
 
+@db_injector
 async def count_task_runs(
+    db: PrefectDBInterface,
     session: AsyncSession,
     flow_filter: Optional[schemas.filters.FlowFilter] = None,
     flow_run_filter: Optional[schemas.filters.FlowRunFilter] = None,
@@ -320,9 +331,10 @@ async def count_task_runs(
         int: count of task runs
     """
 
-    query = select(sa.func.count(sa.text("*"))).select_from(orm_models.TaskRun)
+    query = select(sa.func.count(None)).select_from(db.TaskRun)
 
     query = await _apply_task_run_filters(
+        db,
         query,
         flow_filter=flow_filter,
         flow_run_filter=flow_run_filter,
@@ -334,7 +346,9 @@ async def count_task_runs(
     return result.scalar_one()
 
 
+@db_injector
 async def count_task_runs_by_state(
+    db: PrefectDBInterface,
     session: AsyncSession,
     flow_filter: Optional[schemas.filters.FlowFilter] = None,
     flow_run_filter: Optional[schemas.filters.FlowRunFilter] = None,
@@ -355,15 +369,13 @@ async def count_task_runs_by_state(
     """
 
     base_query = (
-        select(
-            orm_models.TaskRun.state_type,
-            sa.func.count(sa.text("*")).label("count"),
-        )
-        .select_from(orm_models.TaskRun)
-        .group_by(orm_models.TaskRun.state_type)
+        select(db.TaskRun.state_type, sa.func.count(None).label("count"))
+        .select_from(db.TaskRun)
+        .group_by(db.TaskRun.state_type)
     )
 
     query = await _apply_task_run_filters(
+        db,
         base_query,
         flow_filter=flow_filter,
         flow_run_filter=flow_run_filter,
@@ -381,7 +393,10 @@ async def count_task_runs_by_state(
     return counts
 
 
-async def delete_task_run(session: AsyncSession, task_run_id: UUID) -> bool:
+@db_injector
+async def delete_task_run(
+    db: PrefectDBInterface, session: AsyncSession, task_run_id: UUID
+) -> bool:
     """
     Delete a task run by id.
 
@@ -394,7 +409,7 @@ async def delete_task_run(session: AsyncSession, task_run_id: UUID) -> bool:
     """
 
     result = await session.execute(
-        delete(orm_models.TaskRun).where(orm_models.TaskRun.id == task_run_id)
+        delete(db.TaskRun).where(db.TaskRun.id == task_run_id)
     )
     return result.rowcount > 0
 
@@ -481,3 +496,24 @@ async def set_task_run_state(
     )
 
     return result
+
+
+async def with_system_labels_for_task_run(
+    session: AsyncSession,
+    task_run: schemas.core.TaskRun,
+) -> schemas.core.KeyValueLabels:
+    """Augment user supplied labels with system default labels for a task
+    run."""
+
+    client_supplied_labels = task_run.labels or {}
+    default_labels = cast(schemas.core.KeyValueLabels, {})
+    parent_labels: schemas.core.KeyValueLabels = {}
+
+    if task_run.flow_run_id:
+        default_labels["prefect.flow-run.id"] = str(task_run.flow_run_id)
+        flow_run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=task_run.flow_run_id
+        )
+        parent_labels = flow_run.labels if flow_run and flow_run.labels else {}
+
+    return parent_labels | default_labels | client_supplied_labels

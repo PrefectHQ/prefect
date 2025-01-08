@@ -1,10 +1,11 @@
 import re
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, NoReturn, Optional, cast
 
 import anyio
 import httpx
 import pydantic
 from starlette import status
+from typing_extensions import Self
 
 import prefect.context
 import prefect.settings
@@ -19,7 +20,7 @@ from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
-    PREFECT_UNIT_TEST_MODE,
+    PREFECT_TESTING_UNIT_TEST_MODE,
 )
 
 PARSE_API_URL_REGEX = re.compile(r"accounts/(.{36})/workspaces/(.{36})")
@@ -28,7 +29,7 @@ PARSE_API_URL_REGEX = re.compile(r"accounts/(.{36})/workspaces/(.{36})")
 def get_cloud_client(
     host: Optional[str] = None,
     api_key: Optional[str] = None,
-    httpx_settings: Optional[dict] = None,
+    httpx_settings: Optional[dict[str, Any]] = None,
     infer_cloud_url: bool = False,
 ) -> "CloudClient":
     """
@@ -42,6 +43,9 @@ def get_cloud_client(
     else:
         configured_url = prefect.settings.PREFECT_API_URL.value()
         host = re.sub(PARSE_API_URL_REGEX, "", configured_url)
+
+    if host is None:
+        raise ValueError("Host was not provided and could not be inferred")
 
     return CloudClient(
         host=host,
@@ -57,24 +61,27 @@ class CloudUnauthorizedError(PrefectException):
 
 
 class CloudClient:
+    account_id: Optional[str] = None
+    workspace_id: Optional[str] = None
+
     def __init__(
         self,
         host: str,
         api_key: str,
-        httpx_settings: Optional[Dict[str, Any]] = None,
+        httpx_settings: Optional[dict[str, Any]] = None,
     ) -> None:
         httpx_settings = httpx_settings or dict()
         httpx_settings.setdefault("headers", dict())
         httpx_settings["headers"].setdefault("Authorization", f"Bearer {api_key}")
 
         httpx_settings.setdefault("base_url", host)
-        if not PREFECT_UNIT_TEST_MODE.value():
+        if not PREFECT_TESTING_UNIT_TEST_MODE.value():
             httpx_settings.setdefault("follow_redirects", True)
         self._client = PrefectHttpxAsyncClient(
             **httpx_settings, enable_csrf_support=False
         )
 
-        api_url = prefect.settings.PREFECT_API_URL.value() or ""
+        api_url: str = prefect.settings.PREFECT_API_URL.value() or ""
         if match := (
             re.search(PARSE_API_URL_REGEX, host)
             or re.search(PARSE_API_URL_REGEX, api_url)
@@ -95,7 +102,7 @@ class CloudClient:
 
         return f"{self.account_base_url}/workspaces/{self.workspace_id}"
 
-    async def api_healthcheck(self):
+    async def api_healthcheck(self) -> None:
         """
         Attempts to connect to the Cloud API and raises the encountered exception if not
         successful.
@@ -105,8 +112,8 @@ class CloudClient:
         with anyio.fail_after(10):
             await self.read_workspaces()
 
-    async def read_workspaces(self) -> List[Workspace]:
-        workspaces = pydantic.TypeAdapter(List[Workspace]).validate_python(
+    async def read_workspaces(self) -> list[Workspace]:
+        workspaces = pydantic.TypeAdapter(list[Workspace]).validate_python(
             await self.get("/me/workspaces")
         )
         return workspaces
@@ -119,17 +126,17 @@ class CloudClient:
                 return workspace
         raise ValueError("Current workspace not found")
 
-    async def read_worker_metadata(self) -> Dict[str, Any]:
+    async def read_worker_metadata(self) -> dict[str, Any]:
         response = await self.get(
             f"{self.workspace_base_url}/collections/work_pool_types"
         )
-        return cast(Dict[str, Any], response)
+        return cast(dict[str, Any], response)
 
-    async def read_account_settings(self) -> Dict[str, Any]:
+    async def read_account_settings(self) -> dict[str, Any]:
         response = await self.get(f"{self.account_base_url}/settings")
-        return cast(Dict[str, Any], response)
+        return cast(dict[str, Any], response)
 
-    async def update_account_settings(self, settings: Dict[str, Any]):
+    async def update_account_settings(self, settings: dict[str, Any]) -> None:
         await self.request(
             "PATCH",
             f"{self.account_base_url}/settings",
@@ -140,7 +147,7 @@ class CloudClient:
         response = await self.get(f"{self.account_base_url}/ip_allowlist")
         return IPAllowlist.model_validate(response)
 
-    async def update_account_ip_allowlist(self, updated_allowlist: IPAllowlist):
+    async def update_account_ip_allowlist(self, updated_allowlist: IPAllowlist) -> None:
         await self.request(
             "PUT",
             f"{self.account_base_url}/ip_allowlist",
@@ -151,26 +158,26 @@ class CloudClient:
         response = await self.get(f"{self.account_base_url}/ip_allowlist/my_access")
         return IPAllowlistMyAccessResponse.model_validate(response)
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> Self:
         await self._client.__aenter__()
         return self
 
-    async def __aexit__(self, *exc_info):
+    async def __aexit__(self, *exc_info: Any) -> None:
         return await self._client.__aexit__(*exc_info)
 
-    def __enter__(self):
+    def __enter__(self) -> NoReturn:
         raise RuntimeError(
             "The `CloudClient` must be entered with an async context. Use 'async "
             "with CloudClient(...)' not 'with CloudClient(...)'"
         )
 
-    def __exit__(self, *_):
+    def __exit__(self, *_: object) -> NoReturn:
         assert False, "This should never be called but must be defined for __enter__"
 
-    async def get(self, route, **kwargs):
+    async def get(self, route: str, **kwargs: Any) -> Any:
         return await self.request("GET", route, **kwargs)
 
-    async def request(self, method, route, **kwargs):
+    async def request(self, method: str, route: str, **kwargs: Any) -> Any:
         try:
             res = await self._client.request(method, route, **kwargs)
             res.raise_for_status()

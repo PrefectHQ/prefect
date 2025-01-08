@@ -27,7 +27,7 @@ import prefect.exceptions
 from prefect import flow, runtime, tags, task
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
-from prefect.client.schemas.objects import ConcurrencyLimitConfig
+from prefect.client.schemas.objects import ConcurrencyLimitConfig, Worker, WorkerStatus
 from prefect.client.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
@@ -496,7 +496,7 @@ class TestFlowWithOptions:
             inspect.signature(Flow.with_options).parameters.keys()
         )
         # `with_options` does not accept a new function
-        flow_params.remove("__fn")
+        flow_params.remove("_FlowDecorator__fn")
         # `self` isn't in flow decorator
         with_options_params.remove("self")
 
@@ -1534,9 +1534,10 @@ class TestFlowTimeouts:
 
         @flow(timeout_seconds=0.1)
         def my_subflow():
-            time.sleep(0.5)
+            start = time.monotonic()
+            while time.monotonic() - start < 0.5:
+                pass
             timeout_noticing_task()
-            time.sleep(10)
             nonlocal completed
             completed = True
 
@@ -2828,6 +2829,25 @@ class TestFlowRunName:
         assert mocked_flow_method.call_count == 2
         assert generate_flow_run_name.call_count == 2
 
+    async def test_both_engines_logs_custom_flow_run_name(
+        self, caplog: pytest.LogCaptureFixture
+    ):
+        @flow(flow_run_name="very-bespoke-name")
+        def test():
+            pass
+
+        test()
+
+        assert "Beginning flow run 'very-bespoke-name'" in caplog.text
+
+        @flow(flow_run_name="very-bespoke-async-name")
+        async def test_async():
+            pass
+
+        await test_async()
+
+        assert "Beginning flow run 'very-bespoke-async-name'" in caplog.text
+
 
 def create_hook(mock_obj):
     def my_hook(flow, flow_run, state):
@@ -3647,7 +3667,7 @@ class TestFlowHooksOnCrashed:
             await my_flow(return_state=True)
         assert my_mock.mock_calls == [call("crashed")]
 
-    async def test_on_crashed_hook_not_called_on_sigterm_from_flow_with_cancelling_state(
+    async def test_on_crashed_hook_called_on_sigterm_from_flow_with_cancelling_state(
         self, mock_sigterm_handler
     ):
         my_mock = MagicMock()
@@ -3671,7 +3691,7 @@ class TestFlowHooksOnCrashed:
 
         with pytest.raises(prefect.exceptions.TerminationSignal):
             await my_flow(return_state=True)
-        my_mock.assert_not_called()
+        my_mock.assert_called_once()
 
     def test_on_crashed_hooks_respect_env_var(self, monkeypatch):
         my_mock = MagicMock()
@@ -4444,6 +4464,28 @@ class TestFlowDeploy:
             name="test",
             work_pool_name=push_work_pool.name,
             image="my-repo/my-image",
+        )
+
+        assert "prefect worker start" not in capsys.readouterr().out
+
+    async def test_no_worker_command_for_active_workers(
+        self, mock_deploy, local_flow, work_pool, capsys, monkeypatch
+    ):
+        mock_read_workers_for_work_pool = AsyncMock(
+            return_value=[
+                Worker(
+                    name="test-worker",
+                    work_pool_id=work_pool.id,
+                    status=WorkerStatus.ONLINE,
+                )
+            ]
+        )
+        monkeypatch.setattr(
+            "prefect.client.orchestration.PrefectClient.read_workers_for_work_pool",
+            mock_read_workers_for_work_pool,
+        )
+        await local_flow.deploy(
+            name="test", work_pool_name=work_pool.name, image="my-repo/my-image"
         )
 
         assert "prefect worker start" not in capsys.readouterr().out

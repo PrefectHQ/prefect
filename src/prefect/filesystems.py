@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 import abc
 import urllib.parse
 from pathlib import Path
-from typing import Any, Dict, Optional
+from shutil import copytree
+from typing import Any, Callable, Dict, Optional
 
 import anyio
 import fsspec
@@ -13,7 +16,6 @@ from prefect._internal.schemas.validators import (
 )
 from prefect.blocks.core import Block
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
-from prefect.utilities.compat import copytree
 from prefect.utilities.filesystem import filter_files
 
 from ._internal.compatibility.migration import getattr_migration
@@ -92,7 +94,9 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
     )
 
     @field_validator("basepath", mode="before")
-    def cast_pathlib(cls, value):
+    def cast_pathlib(cls, value: str | Path | None) -> str | None:
+        if value is None:
+            return value
         return stringify_path(value)
 
     def _resolve_path(self, path: str, validate: bool = False) -> Path:
@@ -132,7 +136,7 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
         Defaults to copying the entire contents of the block's basepath to the current working directory.
         """
         if not from_path:
-            from_path = Path(self.basepath).expanduser().resolve()
+            from_path = Path(self.basepath or ".").expanduser().resolve()
         else:
             from_path = self._resolve_path(from_path)
 
@@ -158,7 +162,7 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
         copytree(from_path, local_path, dirs_exist_ok=True, ignore=ignore_func)
 
     async def _get_ignore_func(self, local_path: str, ignore_file: str):
-        with open(ignore_file, "r") as f:
+        with open(ignore_file) as f:
             ignore_patterns = f.readlines()
         included_files = filter_files(root=local_path, ignore_patterns=ignore_patterns)
 
@@ -348,7 +352,7 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
         included_files = None
         if ignore_file:
-            with open(ignore_file, "r") as f:
+            with open(ignore_file) as f:
                 ignore_patterns = f.readlines()
 
             included_files = filter_files(
@@ -544,4 +548,4 @@ class NullFileSystem(BaseModel):
         pass
 
 
-__getattr__ = getattr_migration(__name__)
+__getattr__: Callable[[str], Any] = getattr_migration(__name__)

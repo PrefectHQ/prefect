@@ -25,11 +25,11 @@ from prefect.settings import (
     PREFECT_API_SERVICES_SCHEDULER_ENABLED,
     PREFECT_API_URL,
     PREFECT_HOME,
-    PREFECT_LOGGING_SERVER_LEVEL,
     PREFECT_SERVER_ANALYTICS_ENABLED,
     PREFECT_SERVER_API_HOST,
     PREFECT_SERVER_API_KEEPALIVE_TIMEOUT,
     PREFECT_SERVER_API_PORT,
+    PREFECT_SERVER_LOGGING_LEVEL,
     PREFECT_UI_ENABLED,
     Profile,
     load_current_profile,
@@ -204,7 +204,7 @@ async def start(
     host: str = SettingsOption(PREFECT_SERVER_API_HOST),
     port: int = SettingsOption(PREFECT_SERVER_API_PORT),
     keep_alive_timeout: int = SettingsOption(PREFECT_SERVER_API_KEEPALIVE_TIMEOUT),
-    log_level: str = SettingsOption(PREFECT_LOGGING_SERVER_LEVEL),
+    log_level: str = SettingsOption(PREFECT_SERVER_LOGGING_LEVEL),
     scheduler: bool = SettingsOption(PREFECT_API_SERVICES_SCHEDULER_ENABLED),
     analytics: bool = SettingsOption(
         PREFECT_SERVER_ANALYTICS_ENABLED, "--analytics-on/--analytics-off"
@@ -231,7 +231,7 @@ async def start(
     server_env["PREFECT_API_SERVICES_LATE_RUNS_ENABLED"] = str(late_runs)
     server_env["PREFECT_API_SERVICES_UI"] = str(ui)
     server_env["PREFECT_UI_ENABLED"] = str(ui)
-    server_env["PREFECT_LOGGING_SERVER_LEVEL"] = log_level
+    server_env["PREFECT_SERVER_LOGGING_LEVEL"] = log_level
 
     pid_file = anyio.Path(PREFECT_HOME.value() / PID_FILE)
     # check if port is already in use
@@ -312,10 +312,10 @@ async def start(
 
     except anyio.EndOfStream:
         logging.error("Subprocess stream ended unexpectedly")
-    except Exception as e:
-        logging.error(f"An error occurred: {str(e)}")
 
-    app.console.print("Server stopped!")
+    # This should only be reached if the server crashed, or was forcibly terminated,
+    # hence we exit with an error
+    exit_with_error("Server stopped!", code=process.returncode)
 
 
 @server_app.command()
@@ -341,7 +341,7 @@ async def stop():
 @database_app.command()
 async def reset(yes: bool = typer.Option(False, "--yes", "-y")):
     """Drop and recreate all Prefect database tables"""
-    from prefect.server.database.dependencies import provide_database_interface
+    from prefect.server.database import provide_database_interface
 
     db = provide_database_interface()
     engine = await db.engine()
@@ -379,8 +379,8 @@ async def upgrade(
     ),
 ):
     """Upgrade the Prefect database"""
+    from prefect.server.database import provide_database_interface
     from prefect.server.database.alembic_commands import alembic_upgrade
-    from prefect.server.database.dependencies import provide_database_interface
 
     db = provide_database_interface()
     engine = await db.engine()
@@ -419,8 +419,8 @@ async def downgrade(
     ),
 ):
     """Downgrade the Prefect database"""
+    from prefect.server.database import provide_database_interface
     from prefect.server.database.alembic_commands import alembic_downgrade
-    from prefect.server.database.dependencies import provide_database_interface
 
     db = provide_database_interface()
 

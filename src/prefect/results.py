@@ -1,4 +1,3 @@
-import abc
 import inspect
 import os
 import socket
@@ -11,11 +10,11 @@ from typing import (
     Annotated,
     Any,
     Callable,
+    ClassVar,
     Dict,
     Generic,
     Optional,
     Tuple,
-    Type,
     TypeVar,
     Union,
 )
@@ -28,21 +27,18 @@ from pydantic import (
     ConfigDict,
     Discriminator,
     Field,
-    PrivateAttr,
     Tag,
     ValidationError,
-    model_serializer,
     model_validator,
 )
-from pydantic_core import PydanticUndefinedType
-from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import ParamSpec, Self
 
 import prefect
-from prefect._internal.compatibility import deprecated
-from prefect._internal.compatibility.deprecated import deprecated_field
+from prefect._experimental.lineage import (
+    emit_result_read_event,
+    emit_result_write_event,
+)
 from prefect.blocks.core import Block
-from prefect.client.utilities import inject_client
 from prefect.exceptions import (
     ConfigurationError,
     MissingContextError,
@@ -56,20 +52,13 @@ from prefect.filesystems import (
 from prefect.locking.protocol import LockManager
 from prefect.logging import get_logger
 from prefect.serializers import PickleSerializer, Serializer
-from prefect.settings import (
-    PREFECT_DEFAULT_RESULT_STORAGE_BLOCK,
-    PREFECT_LOCAL_STORAGE_PATH,
-    PREFECT_RESULTS_DEFAULT_SERIALIZER,
-    PREFECT_RESULTS_PERSIST_BY_DEFAULT,
-    PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK,
-)
+from prefect.settings.context import get_current_settings
+from prefect.types import DateTime
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import sync_compatible
-from prefect.utilities.pydantic import get_dispatch_key, lookup_type, register_base_type
 
 if TYPE_CHECKING:
     from prefect import Flow, Task
-    from prefect.client.orchestration import PrefectClient
     from prefect.transactions import IsolationLevel
 
 
@@ -94,8 +83,9 @@ async def get_default_result_storage() -> WritableFileSystem:
     """
     Generate a default file system for result storage.
     """
-    default_block = PREFECT_DEFAULT_RESULT_STORAGE_BLOCK.value()
-    basepath = PREFECT_LOCAL_STORAGE_PATH.value()
+    settings = get_current_settings()
+    default_block = settings.results.default_storage_block
+    basepath = settings.results.local_storage_path
 
     cache_key = (str(default_block), str(basepath))
 
@@ -134,7 +124,7 @@ async def resolve_result_storage(
     elif isinstance(result_storage, Path):
         storage_block = LocalFileSystem(basepath=str(result_storage))
     elif isinstance(result_storage, str):
-        storage_block = await Block.load(result_storage, client=client)
+        storage_block = await Block.aload(result_storage, client=client)
         storage_block_id = storage_block._block_document_id
         assert storage_block_id is not None, "Loaded storage blocks must have ids"
     elif isinstance(result_storage, UUID):
@@ -169,13 +159,14 @@ async def get_or_create_default_task_scheduling_storage() -> ResultStorage:
     """
     Generate a default file system for background task parameter/result storage.
     """
-    default_block = PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK.value()
+    settings = get_current_settings()
+    default_block = settings.tasks.scheduling.default_storage_block
 
     if default_block is not None:
-        return await Block.load(default_block)
+        return await Block.aload(default_block)
 
     # otherwise, use the local file system
-    basepath = PREFECT_LOCAL_STORAGE_PATH.value()
+    basepath = settings.results.local_storage_path
     return LocalFileSystem(basepath=basepath)
 
 
@@ -183,22 +174,36 @@ def get_default_result_serializer() -> Serializer:
     """
     Generate a default file system for result storage.
     """
-    return resolve_serializer(PREFECT_RESULTS_DEFAULT_SERIALIZER.value())
+    settings = get_current_settings()
+    return resolve_serializer(settings.results.default_serializer)
 
 
 def get_default_persist_setting() -> bool:
     """
-    Return the default option for result persistence (False).
+    Return the default option for result persistence.
     """
-    return PREFECT_RESULTS_PERSIST_BY_DEFAULT.value()
+    settings = get_current_settings()
+    return settings.results.persist_by_default
+
+
+def get_default_persist_setting_for_tasks() -> bool:
+    """
+    Return the default option for result persistence for tasks.
+    """
+    settings = get_current_settings()
+    return (
+        settings.tasks.default_persist_result
+        if settings.tasks.default_persist_result is not None
+        else settings.results.persist_by_default
+    )
 
 
 def should_persist_result() -> bool:
     """
     Return the default option for result persistence determined by the current run context.
 
-    If there is no current run context, the default value set by
-    `PREFECT_RESULTS_PERSIST_BY_DEFAULT` will be returned.
+    If there is no current run context, the value of `results.persist_by_default` on the
+    current settings will be returned.
     """
     from prefect.context import FlowRunContext, TaskRunContext
 
@@ -209,7 +214,7 @@ def should_persist_result() -> bool:
     if flow_run_context is not None:
         return flow_run_context.persist_result
 
-    return PREFECT_RESULTS_PERSIST_BY_DEFAULT.value()
+    return get_default_persist_setting()
 
 
 def _format_user_supplied_storage_key(key: str) -> str:
@@ -219,7 +224,34 @@ def _format_user_supplied_storage_key(key: str) -> str:
     return key.format(**runtime_vars, parameters=prefect.runtime.task_run.parameters)
 
 
+async def _call_explicitly_async_block_method(
+    block: Union[WritableFileSystem, NullFileSystem],
+    method: str,
+    args: tuple[Any, ...],
+    kwargs: dict[str, Any],
+) -> Any:
+    """
+    TODO: remove this once we have explicit async methods on all storage blocks
+
+    see https://github.com/PrefectHQ/prefect/issues/15008
+    """
+    if hasattr(block, f"a{method}"):  # explicit async method
+        return await getattr(block, f"a{method}")(*args, **kwargs)
+    elif hasattr(getattr(block, method, None), "aio"):  # sync_compatible
+        return await getattr(block, method).aio(block, *args, **kwargs)
+    else:  # should not happen in prefect, but users can override impls
+        maybe_coro = getattr(block, method)(*args, **kwargs)
+        if inspect.isawaitable(maybe_coro):
+            return await maybe_coro
+        else:
+            return maybe_coro
+
+
 T = TypeVar("T")
+
+
+def default_cache() -> LRUCache[str, "ResultRecord[Any]"]:
+    return LRUCache(maxsize=1000)
 
 
 def result_storage_discriminator(x: Any) -> str:
@@ -235,13 +267,6 @@ def result_storage_discriminator(x: Any) -> str:
     return "None"
 
 
-@deprecated_field(
-    "persist_result",
-    when=lambda x: x is not None,
-    when_message="use the `should_persist_result` utility function instead",
-    start_date="Sep 2024",
-    end_date="Nov 2024",
-)
 class ResultStore(BaseModel):
     """
     Manages the storage and retrieval of results.
@@ -253,13 +278,12 @@ class ResultStore(BaseModel):
             the metadata will be stored alongside the results.
         lock_manager: The lock manager to use for locking result records. If not provided,
             the store cannot be used in transactions with the SERIALIZABLE isolation level.
-        persist_result: Whether to persist results.
         cache_result_in_memory: Whether to cache results in memory.
         serializer: The serializer to use for results.
         storage_key_fn: The function to generate storage keys.
     """
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(arbitrary_types_allowed=True)
 
     result_storage: Optional[WritableFileSystem] = Field(default=None)
     metadata_storage: Annotated[
@@ -274,10 +298,7 @@ class ResultStore(BaseModel):
     cache_result_in_memory: bool = Field(default=True)
     serializer: Serializer = Field(default_factory=get_default_result_serializer)
     storage_key_fn: Callable[[], str] = Field(default=DEFAULT_STORAGE_KEY_FN)
-    cache: LRUCache = Field(default_factory=lambda: LRUCache(maxsize=1000))
-
-    # Deprecated fields
-    persist_result: Optional[bool] = Field(default=None)
+    cache: LRUCache[str, "ResultRecord[Any]"] = Field(default_factory=default_cache)
 
     @property
     def result_storage_block_id(self) -> Optional[UUID]:
@@ -309,7 +330,7 @@ class ResultStore(BaseModel):
         return self.model_copy(update=update)
 
     @sync_compatible
-    async def update_for_task(self: Self, task: "Task") -> Self:
+    async def update_for_task(self: Self, task: "Task[P, R]") -> Self:
         """
         Create a new result store for a task.
 
@@ -387,7 +408,9 @@ class ResultStore(BaseModel):
             # TODO: Add an `exists` method to commonly used storage blocks
             # so the entire payload doesn't need to be read
             try:
-                metadata_content = await self.metadata_storage.read_path(key)
+                metadata_content = await _call_explicitly_async_block_method(
+                    self.metadata_storage, "read_path", (key,), {}
+                )
                 if metadata_content is None:
                     return False
                 metadata = ResultRecordMetadata.load_bytes(metadata_content)
@@ -396,7 +419,9 @@ class ResultStore(BaseModel):
                 return False
         else:
             try:
-                content = await self.result_storage.read_path(key)
+                content = await _call_explicitly_async_block_method(
+                    self.result_storage, "read_path", (key,), {}
+                )
                 if content is None:
                     return False
                 record = ResultRecord.deserialize(content)
@@ -436,8 +461,15 @@ class ResultStore(BaseModel):
         """
         return await self._exists(key=key, _sync=False)
 
+    def _resolved_key_path(self, key: str) -> str:
+        if self.result_storage_block_id is None and hasattr(
+            self.result_storage, "_resolve_path"
+        ):
+            return str(self.result_storage._resolve_path(key))
+        return key
+
     @sync_compatible
-    async def _read(self, key: str, holder: str) -> "ResultRecord":
+    async def _read(self, key: str, holder: str) -> "ResultRecord[Any]":
         """
         Read a result record from storage.
 
@@ -455,44 +487,60 @@ class ResultStore(BaseModel):
         if self.lock_manager is not None and not self.is_lock_holder(key, holder):
             await self.await_for_lock(key)
 
-        if key in self.cache:
-            return self.cache[key]
+        resolved_key_path = self._resolved_key_path(key)
+
+        if resolved_key_path in self.cache:
+            cached_result = self.cache[resolved_key_path]
+            await emit_result_read_event(self, resolved_key_path, cached=True)
+            return cached_result
 
         if self.result_storage is None:
             self.result_storage = await get_default_result_storage()
 
         if self.metadata_storage is not None:
-            metadata_content = await self.metadata_storage.read_path(key)
+            metadata_content = await _call_explicitly_async_block_method(
+                self.metadata_storage,
+                "read_path",
+                (key,),
+                {},
+            )
             metadata = ResultRecordMetadata.load_bytes(metadata_content)
             assert (
                 metadata.storage_key is not None
             ), "Did not find storage key in metadata"
-            result_content = await self.result_storage.read_path(metadata.storage_key)
-            result_record = ResultRecord.deserialize_from_result_and_metadata(
+            result_content = await _call_explicitly_async_block_method(
+                self.result_storage,
+                "read_path",
+                (metadata.storage_key,),
+                {},
+            )
+            result_record: ResultRecord[
+                Any
+            ] = ResultRecord.deserialize_from_result_and_metadata(
                 result=result_content, metadata=metadata_content
             )
+            await emit_result_read_event(self, resolved_key_path)
         else:
-            content = await self.result_storage.read_path(key)
-            result_record = ResultRecord.deserialize(
+            content = await _call_explicitly_async_block_method(
+                self.result_storage,
+                "read_path",
+                (key,),
+                {},
+            )
+            result_record: ResultRecord[Any] = ResultRecord.deserialize(
                 content, backup_serializer=self.serializer
             )
+            await emit_result_read_event(self, resolved_key_path)
 
         if self.cache_result_in_memory:
-            if self.result_storage_block_id is None and hasattr(
-                self.result_storage, "_resolve_path"
-            ):
-                cache_key = str(self.result_storage._resolve_path(key))
-            else:
-                cache_key = key
-
-            self.cache[cache_key] = result_record
+            self.cache[resolved_key_path] = result_record
         return result_record
 
     def read(
         self,
         key: str,
         holder: Optional[str] = None,
-    ) -> "ResultRecord":
+    ) -> "ResultRecord[Any]":
         """
         Read a result record from storage.
 
@@ -510,7 +558,7 @@ class ResultStore(BaseModel):
         self,
         key: str,
         holder: Optional[str] = None,
-    ) -> "ResultRecord":
+    ) -> "ResultRecord[Any]":
         """
         Read a result record from storage.
 
@@ -529,7 +577,7 @@ class ResultStore(BaseModel):
         obj: Any,
         key: Optional[str] = None,
         expiration: Optional[DateTime] = None,
-    ) -> "ResultRecord":
+    ) -> "ResultRecord[Any]":
         """
         Create a result record.
 
@@ -645,20 +693,28 @@ class ResultStore(BaseModel):
 
         # If metadata storage is configured, write result and metadata separately
         if self.metadata_storage is not None:
-            await self.result_storage.write_path(
-                result_record.metadata.storage_key,
-                content=result_record.serialize_result(),
+            await _call_explicitly_async_block_method(
+                self.result_storage,
+                "write_path",
+                (result_record.metadata.storage_key,),
+                {"content": result_record.serialize_result()},
             )
-            await self.metadata_storage.write_path(
-                base_key,
-                content=result_record.serialize_metadata(),
+            await _call_explicitly_async_block_method(
+                self.metadata_storage,
+                "write_path",
+                (base_key,),
+                {"content": result_record.serialize_metadata()},
             )
+            await emit_result_write_event(self, result_record.metadata.storage_key)
         # Otherwise, write the result metadata and result together
         else:
-            await self.result_storage.write_path(
-                result_record.metadata.storage_key, content=result_record.serialize()
+            await _call_explicitly_async_block_method(
+                self.result_storage,
+                "write_path",
+                (result_record.metadata.storage_key,),
+                {"content": result_record.serialize()},
             )
-
+            await emit_result_write_event(self, result_record.metadata.storage_key)
         if self.cache_result_in_memory:
             self.cache[key] = result_record
 
@@ -827,52 +883,6 @@ class ResultStore(BaseModel):
             )
         return await self.lock_manager.await_for_lock(key, timeout)
 
-    @deprecated.deprecated_callable(
-        start_date="Sep 2024",
-        end_date="Nov 2024",
-        help="Use `create_result_record` instead.",
-    )
-    @sync_compatible
-    async def create_result(
-        self,
-        obj: R,
-        key: Optional[str] = None,
-        expiration: Optional[DateTime] = None,
-    ) -> Union[R, "BaseResult[R]"]:
-        """
-        Create a `PersistedResult` for the given object.
-        """
-        # Null objects are "cached" in memory at no cost
-        should_cache_object = self.cache_result_in_memory or obj is None
-        should_persist_result = (
-            self.persist_result
-            if self.persist_result is not None
-            else not should_cache_object
-        )
-
-        if key:
-
-            def key_fn():
-                return key
-
-            storage_key_fn = key_fn
-        else:
-            storage_key_fn = self.storage_key_fn
-
-        if self.result_storage is None:
-            self.result_storage = await get_default_result_storage()
-
-        return await PersistedResult.create(
-            obj,
-            storage_block=self.result_storage,
-            storage_block_id=self.result_storage_block_id,
-            storage_key_fn=storage_key_fn,
-            serializer=self.serializer,
-            cache_object=should_cache_object,
-            expiration=expiration,
-            serialize_to_none=not should_persist_result,
-        )
-
     # TODO: These two methods need to find a new home
 
     @sync_compatible
@@ -883,14 +893,26 @@ class ResultStore(BaseModel):
                 serializer=self.serializer, storage_key=str(identifier)
             ),
         )
-        await self.result_storage.write_path(
-            f"parameters/{identifier}", content=record.serialize()
+        await _call_explicitly_async_block_method(
+            self.result_storage,
+            "write_path",
+            (f"parameters/{identifier}",),
+            {"content": record.serialize()},
         )
 
     @sync_compatible
-    async def read_parameters(self, identifier: UUID) -> Dict[str, Any]:
+    async def read_parameters(self, identifier: UUID) -> dict[str, Any]:
+        if self.result_storage is None:
+            raise ValueError(
+                "Result store is not configured - must have a result storage block to read parameters"
+            )
         record = ResultRecord.deserialize(
-            await self.result_storage.read_path(f"parameters/{identifier}")
+            await _call_explicitly_async_block_method(
+                self.result_storage,
+                "read_path",
+                (f"parameters/{identifier}",),
+                {},
+            )
         )
         return record.result
 
@@ -945,7 +967,7 @@ class ResultRecordMetadata(BaseModel):
         """
         return cls.model_validate_json(data)
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         if not isinstance(other, ResultRecordMetadata):
             return False
         return (
@@ -1019,7 +1041,7 @@ class ResultRecord(BaseModel, Generic[R]):
 
     @model_validator(mode="before")
     @classmethod
-    def coerce_old_format(cls, value: Any):
+    def coerce_old_format(cls, value: Any) -> Any:
         if isinstance(value, dict):
             if "data" in value:
                 value["result"] = value.pop("data")
@@ -1133,242 +1155,3 @@ class ResultRecord(BaseModel, Generic[R]):
         if not isinstance(other, ResultRecord):
             return False
         return self.metadata == other.metadata and self.result == other.result
-
-
-@deprecated.deprecated_class(
-    start_date="Sep 2024", end_date="Nov 2024", help="Use `ResultRecord` instead."
-)
-@register_base_type
-class BaseResult(BaseModel, abc.ABC, Generic[R]):
-    model_config = ConfigDict(extra="forbid")
-    type: str
-
-    def __init__(self, **data: Any) -> None:
-        type_string = (
-            get_dispatch_key(self) if type(self) is not BaseResult else "__base__"
-        )
-        data.setdefault("type", type_string)
-        super().__init__(**data)
-
-    def __new__(cls: Type[Self], **kwargs) -> Self:
-        if "type" in kwargs:
-            try:
-                subcls = lookup_type(cls, dispatch_key=kwargs["type"])
-            except KeyError as exc:
-                raise ValueError(f"Invalid type: {kwargs['type']}") from exc
-            return super().__new__(subcls)
-        else:
-            return super().__new__(cls)
-
-    _cache: Any = PrivateAttr(NotSet)
-
-    def _cache_object(self, obj: Any) -> None:
-        self._cache = obj
-
-    def has_cached_object(self) -> bool:
-        return self._cache is not NotSet
-
-    @abc.abstractmethod
-    @sync_compatible
-    async def get(self) -> R:
-        ...
-
-    @abc.abstractclassmethod
-    @sync_compatible
-    async def create(
-        cls: "Type[BaseResult[R]]",
-        obj: R,
-        **kwargs: Any,
-    ) -> "BaseResult[R]":
-        ...
-
-    @classmethod
-    def __dispatch_key__(cls, **kwargs):
-        default = cls.model_fields.get("type").get_default()
-        return cls.__name__ if isinstance(default, PydanticUndefinedType) else default
-
-
-@deprecated.deprecated_class(
-    start_date="Sep 2024", end_date="Nov 2024", help="Use `ResultRecord` instead."
-)
-class PersistedResult(BaseResult):
-    """
-    Result type which stores a reference to a persisted result.
-
-    When created, the user's object is serialized and stored. The format for the content
-    is defined by `ResultRecord`. This reference contains metadata necessary for retrieval
-    of the object, such as a reference to the storage block and the key where the
-    content was written.
-    """
-
-    type: str = "reference"
-
-    serializer_type: str
-    storage_key: str
-    storage_block_id: Optional[uuid.UUID] = None
-    expiration: Optional[DateTime] = None
-    serialize_to_none: bool = False
-
-    _persisted: bool = PrivateAttr(default=False)
-    _should_cache_object: bool = PrivateAttr(default=True)
-    _storage_block: WritableFileSystem = PrivateAttr(default=None)
-    _serializer: Serializer = PrivateAttr(default=None)
-
-    @model_serializer(mode="wrap")
-    def serialize_model(self, handler, info):
-        if self.serialize_to_none:
-            return None
-        return handler(self, info)
-
-    def _cache_object(
-        self,
-        obj: Any,
-        storage_block: WritableFileSystem = None,
-        serializer: Serializer = None,
-    ) -> None:
-        self._cache = obj
-        self._storage_block = storage_block
-        self._serializer = serializer
-
-    @inject_client
-    async def _get_storage_block(self, client: "PrefectClient") -> WritableFileSystem:
-        if self._storage_block is not None:
-            return self._storage_block
-        elif self.storage_block_id is not None:
-            block_document = await client.read_block_document(self.storage_block_id)
-            self._storage_block = Block._from_block_document(block_document)
-        else:
-            self._storage_block = await get_default_result_storage()
-        return self._storage_block
-
-    @sync_compatible
-    @inject_client
-    async def get(
-        self, ignore_cache: bool = False, client: "PrefectClient" = None
-    ) -> R:
-        """
-        Retrieve the data and deserialize it into the original object.
-        """
-        if self.has_cached_object() and not ignore_cache:
-            return self._cache
-
-        result_store_kwargs = {}
-        if self._serializer:
-            result_store_kwargs["serializer"] = resolve_serializer(self._serializer)
-        storage_block = await self._get_storage_block(client=client)
-        result_store = ResultStore(result_storage=storage_block, **result_store_kwargs)
-
-        record = await result_store.aread(self.storage_key)
-        self.expiration = record.expiration
-
-        if self._should_cache_object:
-            self._cache_object(record.result)
-
-        return record.result
-
-    @staticmethod
-    def _infer_path(storage_block, key) -> str:
-        """
-        Attempts to infer a path associated with a storage block key, this method will
-        defer to the block in the future
-        """
-
-        if hasattr(storage_block, "_resolve_path"):
-            return storage_block._resolve_path(key)
-        if hasattr(storage_block, "_remote_file_system"):
-            return storage_block._remote_file_system._resolve_path(key)
-
-    @sync_compatible
-    @inject_client
-    async def write(self, obj: R = NotSet, client: "PrefectClient" = None) -> None:
-        """
-        Write the result to the storage block.
-        """
-        if self._persisted or self.serialize_to_none:
-            # don't double write or overwrite
-            return
-
-        # load objects from a cache
-
-        # first the object itself
-        if obj is NotSet and not self.has_cached_object():
-            raise ValueError("Cannot write a result that has no object cached.")
-        obj = obj if obj is not NotSet else self._cache
-
-        # next, the storage block
-        storage_block = await self._get_storage_block(client=client)
-
-        # finally, the serializer
-        serializer = self._serializer
-        if serializer is None:
-            # this could error if the serializer requires kwargs
-            serializer = Serializer(type=self.serializer_type)
-
-        result_store = ResultStore(
-            result_storage=storage_block,
-            serializer=serializer,
-        )
-        await result_store.awrite(
-            obj=obj, key=self.storage_key, expiration=self.expiration
-        )
-
-        self._persisted = True
-
-        if not self._should_cache_object:
-            self._cache = NotSet
-
-    @classmethod
-    @sync_compatible
-    async def create(
-        cls: "Type[PersistedResult]",
-        obj: R,
-        storage_block: WritableFileSystem,
-        storage_key_fn: Callable[[], str],
-        serializer: Serializer,
-        storage_block_id: Optional[uuid.UUID] = None,
-        cache_object: bool = True,
-        expiration: Optional[DateTime] = None,
-        serialize_to_none: bool = False,
-    ) -> "PersistedResult[R]":
-        """
-        Create a new result reference from a user's object.
-
-        The object will be serialized and written to the storage block under a unique
-        key. It will then be cached on the returned result.
-        """
-        key = storage_key_fn()
-        if not isinstance(key, str):
-            raise TypeError(
-                f"Expected type 'str' for result storage key; got value {key!r}"
-            )
-        uri = cls._infer_path(storage_block, key)
-
-        # in this case we store an absolute path
-        if storage_block_id is None and uri is not None:
-            key = str(uri)
-
-        result = cls(
-            serializer_type=serializer.type,
-            storage_block_id=storage_block_id,
-            storage_key=key,
-            expiration=expiration,
-            serialize_to_none=serialize_to_none,
-        )
-
-        object.__setattr__(result, "_should_cache_object", cache_object)
-        # we must cache temporarily to allow for writing later
-        # the cache will be removed on write
-        result._cache_object(obj, storage_block=storage_block, serializer=serializer)
-
-        return result
-
-    def __eq__(self, other):
-        if not isinstance(other, PersistedResult):
-            return False
-        return (
-            self.type == other.type
-            and self.serializer_type == other.serializer_type
-            and self.storage_key == other.storage_key
-            and self.storage_block_id == other.storage_block_id
-            and self.expiration == other.expiration
-        )

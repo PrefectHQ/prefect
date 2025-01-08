@@ -4,14 +4,14 @@ import sys
 from builtins import print
 from contextlib import contextmanager
 from functools import lru_cache
-from logging import LoggerAdapter, LogRecord
-from typing import TYPE_CHECKING, Dict, List, Optional, Union
+from logging import LogRecord
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from typing_extensions import Self
 
-import prefect
 from prefect.exceptions import MissingContextError
 from prefect.logging.filters import ObfuscateApiKeyFilter
+from prefect.telemetry.logging import add_telemetry_log_handler
 
 if TYPE_CHECKING:
     from prefect.client.schemas import FlowRun as ClientFlowRun
@@ -19,9 +19,15 @@ if TYPE_CHECKING:
     from prefect.context import RunContext
     from prefect.flows import Flow
     from prefect.tasks import Task
+    from prefect.workers.base import BaseWorker
+
+if sys.version_info >= (3, 12):
+    LoggingAdapter = logging.LoggerAdapter[logging.Logger]
+else:
+    LoggingAdapter = logging.LoggerAdapter
 
 
-class PrefectLogAdapter(logging.LoggerAdapter):
+class PrefectLogAdapter(LoggingAdapter):
     """
     Adapter that ensures extra kwargs are passed through correctly; without this
     the `extra` fields set on the adapter would overshadow any provided on a
@@ -75,12 +81,14 @@ def get_logger(name: Optional[str] = None) -> logging.Logger:
     obfuscate_api_key_filter = ObfuscateApiKeyFilter()
     logger.addFilter(obfuscate_api_key_filter)
 
+    add_telemetry_log_handler(logger=logger)
+
     return logger
 
 
 def get_run_logger(
-    context: Optional["RunContext"] = None, **kwargs: str
-) -> Union[logging.Logger, logging.LoggerAdapter]:
+    context: Optional["RunContext"] = None, **kwargs: Any
+) -> Union[logging.Logger, LoggingAdapter]:
     """
     Get a Prefect logger for the current task run or flow run.
 
@@ -99,15 +107,17 @@ def get_run_logger(
     Raises:
         MissingContextError: If no context can be found
     """
+    from prefect.context import FlowRunContext, TaskRunContext
+
     # Check for existing contexts
-    task_run_context = prefect.context.TaskRunContext.get()
-    flow_run_context = prefect.context.FlowRunContext.get()
+    task_run_context = TaskRunContext.get()
+    flow_run_context = FlowRunContext.get()
 
     # Apply the context override
     if context:
-        if isinstance(context, prefect.context.FlowRunContext):
+        if isinstance(context, FlowRunContext):
             flow_run_context = context
-        elif isinstance(context, prefect.context.TaskRunContext):
+        elif isinstance(context, TaskRunContext):
             task_run_context = context
         else:
             raise TypeError(
@@ -126,7 +136,9 @@ def get_run_logger(
         )
     elif flow_run_context:
         logger = flow_run_logger(
-            flow_run=flow_run_context.flow_run, flow=flow_run_context.flow, **kwargs
+            flow_run=flow_run_context.flow_run,  # type: ignore
+            flow=flow_run_context.flow,
+            **kwargs,
         )
     elif (
         get_logger("prefect.flow_run").disabled
@@ -136,14 +148,20 @@ def get_run_logger(
     else:
         raise MissingContextError("There is no active flow or task run context.")
 
+    if isinstance(logger, logging.LoggerAdapter):
+        assert isinstance(logger.logger, logging.Logger)
+        add_telemetry_log_handler(logger.logger)
+    else:
+        add_telemetry_log_handler(logger)
+
     return logger
 
 
 def flow_run_logger(
     flow_run: Union["FlowRun", "ClientFlowRun"],
-    flow: Optional["Flow"] = None,
+    flow: Optional["Flow[Any, Any]"] = None,
     **kwargs: str,
-) -> LoggerAdapter:
+) -> LoggingAdapter:
     """
     Create a flow run logger with the run's metadata attached.
 
@@ -167,10 +185,10 @@ def flow_run_logger(
 
 def task_run_logger(
     task_run: "TaskRun",
-    task: "Task" = None,
-    flow_run: "FlowRun" = None,
-    flow: "Flow" = None,
-    **kwargs: str,
+    task: Optional["Task[Any, Any]"] = None,
+    flow_run: Optional["FlowRun"] = None,
+    flow: Optional["Flow[Any, Any]"] = None,
+    **kwargs: Any,
 ):
     """
     Create a task run logger with the run's metadata attached.
@@ -183,8 +201,10 @@ def task_run_logger(
     If only the flow run context is available, it will be used for default values
     of `flow_run` and `flow`.
     """
+    from prefect.context import FlowRunContext
+
     if not flow_run or not flow:
-        flow_run_context = prefect.context.FlowRunContext.get()
+        flow_run_context = FlowRunContext.get()
         if flow_run_context:
             flow_run = flow_run or flow_run_context.flow_run
             flow = flow or flow_run_context.flow
@@ -203,6 +223,29 @@ def task_run_logger(
             **kwargs,
         },
     )
+
+
+def get_worker_logger(worker: "BaseWorker", name: Optional[str] = None):
+    """
+    Create a worker logger with the worker's metadata attached.
+
+    If the worker has a backend_id, it will be attached to the log records.
+    If the worker does not have a backend_id a basic logger will be returned.
+    If the worker does not have a backend_id attribute, a basic logger will be returned.
+    """
+
+    worker_log_name = name or f"workers.{worker.__class__.type}.{worker.name.lower()}"
+
+    worker_id = getattr(worker, "backend_id", None)
+    if worker_id:
+        return PrefectLogAdapter(
+            get_logger(worker_log_name),
+            extra={
+                "worker_id": str(worker.backend_id),
+            },
+        )
+    else:
+        return get_logger(worker_log_name)
 
 
 @contextmanager
@@ -236,7 +279,7 @@ def disable_run_logger():
         yield
 
 
-def print_as_log(*args, **kwargs):
+def print_as_log(*args: Any, **kwargs: Any) -> None:
     """
     A patch for `print` to send printed messages to the Prefect run logger.
 
@@ -300,7 +343,7 @@ class LogEavesdropper(logging.Handler):
         # Outputs: "Hello, world!\nAnother one!"
     """
 
-    _target_logger: logging.Logger
+    _target_logger: Optional[logging.Logger]
     _lines: List[str]
 
     def __init__(self, eavesdrop_on: str, level: int = logging.NOTSET):

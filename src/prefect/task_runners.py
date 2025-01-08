@@ -29,6 +29,7 @@ from prefect.futures import (
     PrefectFutureList,
 )
 from prefect.logging.loggers import get_logger, get_run_logger
+from prefect.settings import PREFECT_TASK_RUNNER_THREAD_POOL_MAX_WORKERS
 from prefect.utilities.annotations import allow_failure, quote, unmapped
 from prefect.utilities.callables import (
     collapse_variadic_parameters,
@@ -96,9 +97,9 @@ class TaskRunner(abc.ABC, Generic[F]):
 
     def map(
         self,
-        task: "Task",
+        task: "Task[P, R]",
         parameters: Dict[str, Any],
-        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
     ) -> PrefectFutureList[F]:
         """
         Submit multiple tasks to the task run engine.
@@ -220,7 +221,11 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture]):
     def __init__(self, max_workers: Optional[int] = None):
         super().__init__()
         self._executor: Optional[ThreadPoolExecutor] = None
-        self._max_workers = sys.maxsize if max_workers is None else max_workers
+        self._max_workers = (
+            (PREFECT_TASK_RUNNER_THREAD_POOL_MAX_WORKERS.value() or sys.maxsize)
+            if max_workers is None
+            else max_workers
+        )
         self._cancel_events: Dict[uuid.UUID, threading.Event] = {}
 
     def duplicate(self) -> "ThreadPoolTaskRunner":

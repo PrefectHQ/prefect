@@ -6,16 +6,14 @@ import pendulum
 import sqlalchemy as sa
 from fastapi import Body, Depends
 from pydantic import Field, field_validator
-from pydantic_extra_types.pendulum_dt import DateTime
 
 from prefect.logging import get_logger
-from prefect.server.database import orm_models
-from prefect.server.database.dependencies import provide_database_interface
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.schemas.states import StateType
 from prefect.server.utilities.database import UUID as UUIDTypeDecorator
 from prefect.server.utilities.schemas import PrefectBaseModel
 from prefect.server.utilities.server import PrefectRouter
+from prefect.types import DateTime
 
 logger = get_logger()
 
@@ -51,11 +49,11 @@ async def count_deployments_by_flow(
     async with db.session_context() as session:
         query = (
             sa.select(
-                orm_models.Deployment.flow_id,
-                sa.func.count(orm_models.Deployment.id).label("deployment_count"),
+                db.Deployment.flow_id,
+                sa.func.count(db.Deployment.id).label("deployment_count"),
             )
-            .where(orm_models.Deployment.flow_id.in_(flow_ids))
-            .group_by(orm_models.Deployment.flow_id)
+            .where(db.Deployment.flow_id.in_(flow_ids))
+            .group_by(db.Deployment.flow_id)
         )
 
         results = await session.execute(query)

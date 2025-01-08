@@ -50,7 +50,7 @@ class RedisDatabase(WritableFileSystem):
             ```
     """
 
-    _logo_url = "https://stprododpcmscdnendpoint.azureedge.net/assets/icons/redis.png"
+    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/dfb02cfce09ce3ca88fea097659a83554dd7a850-596x512.png"
     _block_type_name = "Redis Database"
 
     host: str = Field(default="localhost", description="Redis hostname")
@@ -77,7 +77,7 @@ class RedisDatabase(WritableFileSystem):
         Returns:
             Contents at key as bytes
         """
-        client = self.get_client()
+        client = self.get_async_client()
         ret = await client.get(path)
 
         await client.close()
@@ -90,7 +90,7 @@ class RedisDatabase(WritableFileSystem):
             path: Redis key to write to
             content: Binary object to write
         """
-        client = self.get_client()
+        client = self.get_async_client()
         ret = await client.set(path, content)
 
         await client.close()
