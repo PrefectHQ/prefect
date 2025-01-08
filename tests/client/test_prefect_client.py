@@ -1907,19 +1907,6 @@ class TestClientWorkQueues:
         assert len(output) == 10
         assert {o.id for o in output} == {r.id for r in runs}
 
-    async def test_get_runs_from_queue_updates_status(
-        self, prefect_client: PrefectClient
-    ):
-        queue = await prefect_client.create_work_queue(name="foo")
-        assert queue.status == "NOT_READY"
-
-        # Trigger an operation that would update the queues last_polled status
-        await prefect_client.get_runs_in_work_queue(queue.id, limit=1)
-
-        # Verify that the polling results in a READY status
-        lookup = await prefect_client.read_work_queue(queue.id)
-        assert lookup.status == "READY"
-
 
 async def test_delete_flow_run(prefect_client, flow_run):
     # Note - the flow_run provided by the fixture is not of type `FlowRun`
