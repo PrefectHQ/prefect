@@ -314,7 +314,7 @@ class Inputs(CachePolicy):
 
 INPUTS = Inputs()
 NONE = _None()
-NO_POLICY = _None()
+NO_CACHE = _None()
 TASK_SOURCE = TaskSource()
 FLOW_PARAMETERS = FlowParameters()
 RUN_ID = RunId()
