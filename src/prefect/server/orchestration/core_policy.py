@@ -5,7 +5,9 @@ Orchestration logic that fires on state transitions.
 Prefect enforces on a state transition.
 """
 
-from typing import Optional
+from __future__ import annotations
+
+from typing import Any, Union, cast
 from uuid import uuid4
 
 import pendulum
@@ -15,18 +17,26 @@ from sqlalchemy import select
 
 from prefect.logging import get_logger
 from prefect.server import models
-from prefect.server.database import PrefectDBInterface, inject_db
+from prefect.server.database import PrefectDBInterface, orm_models
+from prefect.server.database.dependencies import db_injector
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models import concurrency_limits, concurrency_limits_v2, deployments
-from prefect.server.orchestration.policies import BaseOrchestrationPolicy
+from prefect.server.orchestration.policies import (
+    FlowRunOrchestrationPolicy,
+    TaskRunOrchestrationPolicy,
+)
 from prefect.server.orchestration.rules import (
     ALL_ORCHESTRATION_STATES,
     TERMINAL_STATES,
     BaseOrchestrationRule,
     BaseUniversalTransform,
     FlowOrchestrationContext,
+    FlowRunOrchestrationRule,
+    FlowRunUniversalTransform,
+    GenericOrchestrationRule,
     OrchestrationContext,
-    TaskOrchestrationContext,
+    TaskRunOrchestrationRule,
+    TaskRunUniversalTransform,
 )
 from prefect.server.schemas import core, filters, states
 from prefect.server.schemas.states import StateType
@@ -40,125 +50,215 @@ from prefect.utilities.math import clamped_poisson_interval
 from .instrumentation_policies import InstrumentFlowRunStateTransitions
 
 
-class CoreFlowPolicyWithoutDeploymentConcurrency(BaseOrchestrationPolicy):
+class CoreFlowPolicyWithoutDeploymentConcurrency(FlowRunOrchestrationPolicy):
     """
     Orchestration rules that run against flow-run-state transitions in priority order.
     """
 
     @staticmethod
-    def priority():
-        return [
-            PreventDuplicateTransitions,
-            HandleFlowTerminalStateTransitions,
-            EnforceCancellingToCancelledTransition,
-            BypassCancellingFlowRunsWithNoInfra,
-            PreventPendingTransitions,
-            EnsureOnlyScheduledFlowsMarkedLate,
-            HandlePausingFlows,
-            HandleResumingPausedFlows,
-            CopyScheduledTime,
-            WaitForScheduledTime,
-            RetryFailedFlows,
-            InstrumentFlowRunStateTransitions,
+    def priority() -> (
+        list[
+            Union[
+                type[BaseUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy],],
+                type[BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]],
+            ]
         ]
+    ):
+        return cast(
+            list[
+                Union[
+                    type[
+                        BaseUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy]
+                    ],
+                    type[BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]],
+                ]
+            ],
+            [
+                PreventDuplicateTransitions,
+                HandleFlowTerminalStateTransitions,
+                EnforceCancellingToCancelledTransition,
+                BypassCancellingFlowRunsWithNoInfra,
+                PreventPendingTransitions,
+                EnsureOnlyScheduledFlowsMarkedLate,
+                HandlePausingFlows,
+                HandleResumingPausedFlows,
+                CopyScheduledTime,
+                WaitForScheduledTime,
+                RetryFailedFlows,
+                InstrumentFlowRunStateTransitions,
+            ],
+        )
 
 
-class CoreFlowPolicy(BaseOrchestrationPolicy):
+class CoreFlowPolicy(FlowRunOrchestrationPolicy):
     """
     Orchestration rules that run against flow-run-state transitions in priority order.
     """
 
     @staticmethod
-    def priority():
-        return [
-            PreventDuplicateTransitions,
-            HandleFlowTerminalStateTransitions,
-            EnforceCancellingToCancelledTransition,
-            BypassCancellingFlowRunsWithNoInfra,
-            PreventPendingTransitions,
-            SecureFlowConcurrencySlots,
-            EnsureOnlyScheduledFlowsMarkedLate,
-            HandlePausingFlows,
-            HandleResumingPausedFlows,
-            CopyScheduledTime,
-            WaitForScheduledTime,
-            RetryFailedFlows,
-            InstrumentFlowRunStateTransitions,
-            ReleaseFlowConcurrencySlots,
+    def priority() -> (
+        list[
+            Union[
+                type[BaseUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy]],
+                type[BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]],
+            ]
         ]
+    ):
+        return cast(
+            list[
+                Union[
+                    type[
+                        BaseUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy]
+                    ],
+                    type[BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]],
+                ]
+            ],
+            [
+                PreventDuplicateTransitions,
+                HandleFlowTerminalStateTransitions,
+                EnforceCancellingToCancelledTransition,
+                BypassCancellingFlowRunsWithNoInfra,
+                PreventPendingTransitions,
+                SecureFlowConcurrencySlots,
+                EnsureOnlyScheduledFlowsMarkedLate,
+                HandlePausingFlows,
+                HandleResumingPausedFlows,
+                CopyScheduledTime,
+                WaitForScheduledTime,
+                RetryFailedFlows,
+                InstrumentFlowRunStateTransitions,
+                ReleaseFlowConcurrencySlots,
+            ],
+        )
 
 
-class CoreTaskPolicy(BaseOrchestrationPolicy):
+class CoreTaskPolicy(TaskRunOrchestrationPolicy):
     """
     Orchestration rules that run against task-run-state transitions in priority order.
     """
 
     @staticmethod
-    def priority():
-        return [
-            CacheRetrieval,
-            HandleTaskTerminalStateTransitions,
-            PreventRunningTasksFromStoppedFlows,
-            SecureTaskConcurrencySlots,  # retrieve cached states even if slots are full
-            CopyScheduledTime,
-            WaitForScheduledTime,
-            RetryFailedTasks,
-            RenameReruns,
-            UpdateFlowRunTrackerOnTasks,
-            CacheInsertion,
-            ReleaseTaskConcurrencySlots,
+    def priority() -> (
+        list[
+            Union[
+                type[BaseUniversalTransform[orm_models.TaskRun, core.TaskRunPolicy]],
+                type[BaseOrchestrationRule[orm_models.TaskRun, core.TaskRunPolicy]],
+            ]
         ]
+    ):
+        return cast(
+            list[
+                Union[
+                    type[
+                        BaseUniversalTransform[orm_models.TaskRun, core.TaskRunPolicy]
+                    ],
+                    type[BaseOrchestrationRule[orm_models.TaskRun, core.TaskRunPolicy]],
+                ]
+            ],
+            [
+                CacheRetrieval,
+                HandleTaskTerminalStateTransitions,
+                PreventRunningTasksFromStoppedFlows,
+                SecureTaskConcurrencySlots,  # retrieve cached states even if slots are full
+                CopyScheduledTime,
+                WaitForScheduledTime,
+                RetryFailedTasks,
+                RenameReruns,
+                UpdateFlowRunTrackerOnTasks,
+                CacheInsertion,
+                ReleaseTaskConcurrencySlots,
+            ],
+        )
 
 
-class ClientSideTaskOrchestrationPolicy(BaseOrchestrationPolicy):
+class ClientSideTaskOrchestrationPolicy(TaskRunOrchestrationPolicy):
     """
     Orchestration rules that run against task-run-state transitions in priority order,
     specifically for clients doing client-side orchestration.
     """
 
     @staticmethod
-    def priority():
-        return [
-            CacheRetrieval,
-            HandleTaskTerminalStateTransitions,
-            PreventRunningTasksFromStoppedFlows,
-            CopyScheduledTime,
-            WaitForScheduledTime,
-            RetryFailedTasks,
-            RenameReruns,
-            UpdateFlowRunTrackerOnTasks,
-            CacheInsertion,
-            ReleaseTaskConcurrencySlots,
+    def priority() -> (
+        list[
+            Union[
+                type[BaseUniversalTransform[orm_models.TaskRun, core.TaskRunPolicy]],
+                type[BaseOrchestrationRule[orm_models.TaskRun, core.TaskRunPolicy]],
+            ]
         ]
+    ):
+        return cast(
+            list[
+                Union[
+                    type[
+                        BaseUniversalTransform[orm_models.TaskRun, core.TaskRunPolicy]
+                    ],
+                    type[BaseOrchestrationRule[orm_models.TaskRun, core.TaskRunPolicy]],
+                ]
+            ],
+            [
+                CacheRetrieval,
+                HandleTaskTerminalStateTransitions,
+                PreventRunningTasksFromStoppedFlows,
+                CopyScheduledTime,
+                WaitForScheduledTime,
+                RetryFailedTasks,
+                RenameReruns,
+                UpdateFlowRunTrackerOnTasks,
+                CacheInsertion,
+                ReleaseTaskConcurrencySlots,
+            ],
+        )
 
 
-class BackgroundTaskPolicy(BaseOrchestrationPolicy):
+class BackgroundTaskPolicy(TaskRunOrchestrationPolicy):
     """
     Orchestration rules that run against task-run-state transitions in priority order.
     """
 
     @staticmethod
-    def priority():
-        return [
-            PreventPendingTransitions,
-            CacheRetrieval,
-            HandleTaskTerminalStateTransitions,
-            # SecureTaskConcurrencySlots,  # retrieve cached states even if slots are full
-            CopyScheduledTime,
-            CopyTaskParametersID,
-            WaitForScheduledTime,
-            RetryFailedTasks,
-            RenameReruns,
-            UpdateFlowRunTrackerOnTasks,
-            CacheInsertion,
-            ReleaseTaskConcurrencySlots,
-            EnqueueScheduledTasks,
+    def priority() -> (
+        list[
+            type[BaseUniversalTransform[orm_models.TaskRun, core.TaskRunPolicy]]
+            | type[BaseOrchestrationRule[orm_models.TaskRun, core.TaskRunPolicy]]
         ]
+    ):
+        return cast(
+            list[
+                Union[
+                    type[
+                        BaseUniversalTransform[orm_models.TaskRun, core.TaskRunPolicy]
+                    ],
+                    type[BaseOrchestrationRule[orm_models.TaskRun, core.TaskRunPolicy]],
+                ]
+            ],
+            [
+                PreventPendingTransitions,
+                CacheRetrieval,
+                HandleTaskTerminalStateTransitions,
+                # SecureTaskConcurrencySlots,  # retrieve cached states even if slots are full
+                CopyScheduledTime,
+                CopyTaskParametersID,
+                WaitForScheduledTime,
+                RetryFailedTasks,
+                RenameReruns,
+                UpdateFlowRunTrackerOnTasks,
+                CacheInsertion,
+                ReleaseTaskConcurrencySlots,
+                EnqueueScheduledTasks,
+            ],
+        )
 
 
-class MinimalFlowPolicy(BaseOrchestrationPolicy):
+class MinimalFlowPolicy(FlowRunOrchestrationPolicy):
     @staticmethod
-    def priority():
+    def priority() -> (
+        list[
+            Union[
+                type[BaseUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy]],
+                type[BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]],
+            ]
+        ]
+    ):
         return [
             BypassCancellingFlowRunsWithNoInfra,  # cancel scheduled or suspended runs from the UI
             InstrumentFlowRunStateTransitions,
@@ -166,24 +266,38 @@ class MinimalFlowPolicy(BaseOrchestrationPolicy):
         ]
 
 
-class MarkLateRunsPolicy(BaseOrchestrationPolicy):
+class MarkLateRunsPolicy(FlowRunOrchestrationPolicy):
     @staticmethod
-    def priority():
+    def priority() -> (
+        list[
+            Union[
+                type[BaseUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy]],
+                type[BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]],
+            ]
+        ]
+    ):
         return [
             EnsureOnlyScheduledFlowsMarkedLate,
             InstrumentFlowRunStateTransitions,
         ]
 
 
-class MinimalTaskPolicy(BaseOrchestrationPolicy):
+class MinimalTaskPolicy(TaskRunOrchestrationPolicy):
     @staticmethod
-    def priority():
+    def priority() -> (
+        list[
+            Union[
+                type[BaseUniversalTransform[orm_models.TaskRun, core.TaskRunPolicy]],
+                type[BaseOrchestrationRule[orm_models.TaskRun, core.TaskRunPolicy]],
+            ]
+        ]
+    ):
         return [
             ReleaseTaskConcurrencySlots,  # always release concurrency slots
         ]
 
 
-class SecureTaskConcurrencySlots(BaseOrchestrationRule):
+class SecureTaskConcurrencySlots(TaskRunOrchestrationRule):
     """
     Checks relevant concurrency slots are available before entering a Running state.
 
@@ -197,15 +311,15 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
     """
 
     FROM_STATES = ALL_ORCHESTRATION_STATES
-    TO_STATES = [StateType.RUNNING]
+    TO_STATES = {StateType.RUNNING}
 
     async def before_transition(
         self,
-        initial_state: Optional[states.State],
-        validated_state: Optional[states.State],
-        context: TaskOrchestrationContext,
+        initial_state: states.State | None,
+        proposed_state: states.State | None,
+        context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy],
     ) -> None:
-        self._applied_limits = []
+        self._applied_limits: list[str] = []
         filtered_limits = (
             await concurrency_limits.filter_concurrency_limits_for_orchestration(
                 context.session, tags=context.run.tags
@@ -218,9 +332,10 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
                 # limits of 0 will deadlock, and the transition needs to abort
                 for stale_tag in self._applied_limits:
                     stale_limit = run_limits.get(stale_tag, None)
-                    active_slots = set(stale_limit.active_slots)
-                    active_slots.discard(str(context.run.id))
-                    stale_limit.active_slots = list(active_slots)
+                    if stale_limit:
+                        active_slots: set[str] = set(stale_limit.active_slots)
+                        active_slots.discard(str(context.run.id))
+                        stale_limit.active_slots = list(active_slots)
 
                 await self.abort_transition(
                     reason=(
@@ -232,9 +347,10 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
                 # if the limit has already been reached, delay the transition
                 for stale_tag in self._applied_limits:
                     stale_limit = run_limits.get(stale_tag, None)
-                    active_slots = set(stale_limit.active_slots)
-                    active_slots.discard(str(context.run.id))
-                    stale_limit.active_slots = list(active_slots)
+                    if stale_limit:
+                        active_slots = set(stale_limit.active_slots)
+                        active_slots.discard(str(context.run.id))
+                        stale_limit.active_slots = list(active_slots)
 
                 await self.delay_transition(
                     PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS.value(),
@@ -249,20 +365,21 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
 
     async def cleanup(
         self,
-        initial_state: Optional[states.State],
-        validated_state: Optional[states.State],
-        context: OrchestrationContext,
+        initial_state: states.State | None,
+        validated_state: states.State | None,
+        context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy],
     ) -> None:
         for tag in self._applied_limits:
             cl = await concurrency_limits.read_concurrency_limit_by_tag(
                 context.session, tag
             )
-            active_slots = set(cl.active_slots)
-            active_slots.discard(str(context.run.id))
-            cl.active_slots = list(active_slots)
+            if cl:
+                active_slots = set(cl.active_slots)
+                active_slots.discard(str(context.run.id))
+                cl.active_slots = list(active_slots)
 
 
-class ReleaseTaskConcurrencySlots(BaseUniversalTransform):
+class ReleaseTaskConcurrencySlots(TaskRunUniversalTransform):
     """
     Releases any concurrency slots held by a run upon exiting a Running or
     Cancelling state.
@@ -270,8 +387,8 @@ class ReleaseTaskConcurrencySlots(BaseUniversalTransform):
 
     async def after_transition(
         self,
-        context: OrchestrationContext,
-    ):
+        context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy],
+    ) -> None:
         if self.nullified_transition():
             return
 
@@ -285,13 +402,13 @@ class ReleaseTaskConcurrencySlots(BaseUniversalTransform):
                 )
             )
             run_limits = {limit.tag: limit for limit in filtered_limits}
-            for tag, cl in run_limits.items():
+            for cl in run_limits.values():
                 active_slots = set(cl.active_slots)
                 active_slots.discard(str(context.run.id))
                 cl.active_slots = list(active_slots)
 
 
-class SecureFlowConcurrencySlots(BaseOrchestrationRule):
+class SecureFlowConcurrencySlots(FlowRunOrchestrationRule):
     """
     Enforce deployment concurrency limits.
 
@@ -309,12 +426,12 @@ class SecureFlowConcurrencySlots(BaseOrchestrationRule):
         states.StateType.RUNNING,
         states.StateType.CANCELLING,
     }
-    TO_STATES = [states.StateType.PENDING]
+    TO_STATES = {states.StateType.PENDING}
 
     async def before_transition(  # type: ignore
         self,
-        initial_state: Optional[states.State],
-        proposed_state: Optional[states.State],
+        initial_state: states.State | None,
+        proposed_state: states.State | None,
         context: FlowOrchestrationContext,
     ) -> None:
         if not context.session or not context.run.deployment_id:
@@ -328,7 +445,10 @@ class SecureFlowConcurrencySlots(BaseOrchestrationRule):
             await self.abort_transition("Deployment not found.")
             return
 
-        if not deployment.global_concurrency_limit:
+        if (
+            not deployment.global_concurrency_limit
+            or not deployment.concurrency_limit_id
+        ):
             return
 
         if deployment.global_concurrency_limit.limit == 0:
@@ -377,8 +497,8 @@ class SecureFlowConcurrencySlots(BaseOrchestrationRule):
 
     async def cleanup(  # type: ignore
         self,
-        initial_state: Optional[states.State],
-        validated_state: Optional[states.State],
+        initial_state: states.State | None,
+        validated_state: states.State | None,
         context: FlowOrchestrationContext,
     ) -> None:
         logger = get_logger()
@@ -403,7 +523,7 @@ class SecureFlowConcurrencySlots(BaseOrchestrationRule):
             logger.error(f"Error releasing concurrency slots on cleanup: {e}")
 
 
-class ReleaseFlowConcurrencySlots(BaseUniversalTransform):
+class ReleaseFlowConcurrencySlots(FlowRunUniversalTransform):
     """
     Releases deployment concurrency slots held by a flow run.
 
@@ -413,8 +533,8 @@ class ReleaseFlowConcurrencySlots(BaseUniversalTransform):
 
     async def after_transition(
         self,
-        context: FlowOrchestrationContext,
-    ):
+        context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy],
+    ) -> None:
         if self.nullified_transition():
             return
 
@@ -461,21 +581,21 @@ class ReleaseFlowConcurrencySlots(BaseUniversalTransform):
         )
 
 
-class CacheInsertion(BaseOrchestrationRule):
+class CacheInsertion(TaskRunOrchestrationRule):
     """
     Caches completed states with cache keys after they are validated.
     """
 
     FROM_STATES = ALL_ORCHESTRATION_STATES
-    TO_STATES = [StateType.COMPLETED]
+    TO_STATES = {StateType.COMPLETED}
 
-    @inject_db
+    @db_injector
     async def after_transition(
         self,
-        initial_state: Optional[states.State],
-        validated_state: Optional[states.State],
-        context: TaskOrchestrationContext,
         db: PrefectDBInterface,
+        initial_state: states.State | None,
+        validated_state: states.State | None,
+        context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy],
     ) -> None:
         if not validated_state or not context.session:
             return
@@ -490,7 +610,7 @@ class CacheInsertion(BaseOrchestrationRule):
             context.session.add(new_cache_item)
 
 
-class CacheRetrieval(BaseOrchestrationRule):
+class CacheRetrieval(TaskRunOrchestrationRule):
     """
     Rejects running states if a completed state has been cached.
 
@@ -500,16 +620,19 @@ class CacheRetrieval(BaseOrchestrationRule):
     """
 
     FROM_STATES = ALL_ORCHESTRATION_STATES
-    TO_STATES = [StateType.RUNNING]
+    TO_STATES = {StateType.RUNNING}
 
-    @inject_db
+    @db_injector
     async def before_transition(
         self,
-        initial_state: Optional[states.State],
-        proposed_state: Optional[states.State],
-        context: TaskOrchestrationContext,
         db: PrefectDBInterface,
+        initial_state: states.State | None,
+        proposed_state: states.State | None,
+        context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy],
     ) -> None:
+        if not proposed_state:
+            return
+
         cache_key = proposed_state.state_details.cache_key
         if cache_key and not proposed_state.state_details.refresh_cache:
             # Check for cached states matching the cache key
@@ -537,7 +660,7 @@ class CacheRetrieval(BaseOrchestrationRule):
                 )
 
 
-class RetryFailedFlows(BaseOrchestrationRule):
+class RetryFailedFlows(FlowRunOrchestrationRule):
     """
     Rejects failed states and schedules a retry if the retry limit has not been reached.
 
@@ -546,15 +669,18 @@ class RetryFailedFlows(BaseOrchestrationRule):
     instructed to transition into a scheduled state to retry flow execution.
     """
 
-    FROM_STATES = [StateType.RUNNING]
-    TO_STATES = [StateType.FAILED]
+    FROM_STATES = {StateType.RUNNING}
+    TO_STATES = {StateType.FAILED}
 
     async def before_transition(
         self,
-        initial_state: Optional[states.State],
-        proposed_state: Optional[states.State],
-        context: FlowOrchestrationContext,
+        initial_state: states.State | None,
+        proposed_state: states.State | None,
+        context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy],
     ) -> None:
+        if initial_state is None or proposed_state is None:
+            return
+
         run_settings = context.run_settings
         run_count = context.run.run_count
 
@@ -572,9 +698,13 @@ class RetryFailedFlows(BaseOrchestrationRule):
         if api_version and api_version < Version("0.8.3"):
             failed_task_runs = await models.task_runs.read_task_runs(
                 context.session,
-                flow_run_filter=filters.FlowRunFilter(id={"any_": [context.run.id]}),
+                flow_run_filter=filters.FlowRunFilter(
+                    id=filters.FlowRunFilterId(any_=[context.run.id])
+                ),
                 task_run_filter=filters.TaskRunFilter(
-                    state={"type": {"any_": ["FAILED"]}}
+                    state=filters.TaskRunFilterState(
+                        type=filters.TaskRunFilterStateType(any_=[StateType.FAILED])
+                    )
                 ),
             )
             for run in failed_task_runs:
@@ -606,7 +736,7 @@ class RetryFailedFlows(BaseOrchestrationRule):
         await self.reject_transition(state=retry_state, reason="Retrying")
 
 
-class RetryFailedTasks(BaseOrchestrationRule):
+class RetryFailedTasks(TaskRunOrchestrationRule):
     """
     Rejects failed states and schedules a retry if the retry limit has not been reached.
 
@@ -616,15 +746,18 @@ class RetryFailedTasks(BaseOrchestrationRule):
     transition into a scheduled state to retry task execution.
     """
 
-    FROM_STATES = [StateType.RUNNING]
-    TO_STATES = [StateType.FAILED]
+    FROM_STATES = {StateType.RUNNING}
+    TO_STATES = {StateType.FAILED}
 
     async def before_transition(
         self,
-        initial_state: Optional[states.State],
-        proposed_state: Optional[states.State],
-        context: TaskOrchestrationContext,
+        initial_state: states.State | None,
+        proposed_state: states.State | None,
+        context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy],
     ) -> None:
+        if initial_state is None or proposed_state is None:
+            return
+
         run_settings = context.run_settings
         run_count = context.run.run_count
         delay = run_settings.retry_delay
@@ -632,7 +765,7 @@ class RetryFailedTasks(BaseOrchestrationRule):
         if isinstance(delay, list):
             base_delay = delay[min(run_count - 1, len(delay) - 1)]
         else:
-            base_delay = run_settings.retry_delay or 0
+            base_delay = delay or 0
 
         # guard against negative relative jitter inputs
         if run_settings.retry_jitter_factor:
@@ -655,19 +788,19 @@ class RetryFailedTasks(BaseOrchestrationRule):
             await self.reject_transition(state=retry_state, reason="Retrying")
 
 
-class EnqueueScheduledTasks(BaseOrchestrationRule):
+class EnqueueScheduledTasks(TaskRunOrchestrationRule):
     """
     Enqueues background task runs when they are scheduled
     """
 
     FROM_STATES = ALL_ORCHESTRATION_STATES
-    TO_STATES = [StateType.SCHEDULED]
+    TO_STATES = {StateType.SCHEDULED}
 
     async def after_transition(
         self,
-        initial_state: Optional[states.State],
-        validated_state: Optional[states.State],
-        context: TaskOrchestrationContext,
+        initial_state: states.State | None,
+        validated_state: states.State | None,
+        context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy],
     ) -> None:
         if not validated_state:
             # Only if the transition was valid
@@ -686,7 +819,7 @@ class EnqueueScheduledTasks(BaseOrchestrationRule):
             await queue.enqueue(task_run)
 
 
-class RenameReruns(BaseOrchestrationRule):
+class RenameReruns(GenericOrchestrationRule):
     """
     Name the states if they have run more than once.
 
@@ -695,14 +828,19 @@ class RenameReruns(BaseOrchestrationRule):
     """
 
     FROM_STATES = ALL_ORCHESTRATION_STATES
-    TO_STATES = [StateType.RUNNING]
+    TO_STATES = {StateType.RUNNING}
 
     async def before_transition(
         self,
-        initial_state: Optional[states.State],
-        proposed_state: Optional[states.State],
-        context: TaskOrchestrationContext,
+        initial_state: states.State | None,
+        proposed_state: states.State | None,
+        context: OrchestrationContext[
+            orm_models.Run, core.TaskRunPolicy | core.FlowRunPolicy
+        ],
     ) -> None:
+        if initial_state is None or proposed_state is None:
+            return
+
         run_count = context.run.run_count
         if run_count > 0:
             if initial_state.name == "AwaitingRetry":
@@ -711,7 +849,9 @@ class RenameReruns(BaseOrchestrationRule):
                 await self.rename_state("Rerunning")
 
 
-class CopyScheduledTime(BaseOrchestrationRule):
+class CopyScheduledTime(
+    BaseOrchestrationRule[orm_models.Run, Union[core.TaskRunPolicy, core.FlowRunPolicy]]
+):
     """
     Ensures scheduled time is copied from scheduled states to pending states.
 
@@ -719,22 +859,29 @@ class CopyScheduledTime(BaseOrchestrationRule):
     on the scheduled state will be ignored.
     """
 
-    FROM_STATES = [StateType.SCHEDULED]
-    TO_STATES = [StateType.PENDING]
+    FROM_STATES = {StateType.SCHEDULED}
+    TO_STATES = {StateType.PENDING}
 
     async def before_transition(
         self,
-        initial_state: Optional[states.State],
-        proposed_state: Optional[states.State],
-        context: OrchestrationContext,
+        initial_state: states.State | None,
+        proposed_state: states.State | None,
+        context: OrchestrationContext[
+            orm_models.Run, core.TaskRunPolicy | core.FlowRunPolicy
+        ],
     ) -> None:
+        if initial_state is None or proposed_state is None:
+            return
+
         if not proposed_state.state_details.scheduled_time:
             proposed_state.state_details.scheduled_time = (
                 initial_state.state_details.scheduled_time
             )
 
 
-class WaitForScheduledTime(BaseOrchestrationRule):
+class WaitForScheduledTime(
+    BaseOrchestrationRule[orm_models.Run, Union[core.TaskRunPolicy, core.FlowRunPolicy]]
+):
     """
     Prevents transitions to running states from happening too early.
 
@@ -745,15 +892,20 @@ class WaitForScheduledTime(BaseOrchestrationRule):
     before attempting the transition again.
     """
 
-    FROM_STATES = [StateType.SCHEDULED, StateType.PENDING]
-    TO_STATES = [StateType.RUNNING]
+    FROM_STATES = {StateType.SCHEDULED, StateType.PENDING}
+    TO_STATES = {StateType.RUNNING}
 
     async def before_transition(
         self,
-        initial_state: Optional[states.State],
-        proposed_state: Optional[states.State],
-        context: OrchestrationContext,
+        initial_state: states.State | None,
+        proposed_state: states.State | None,
+        context: OrchestrationContext[
+            orm_models.Run, core.TaskRunPolicy | core.FlowRunPolicy
+        ],
     ) -> None:
+        if initial_state is None or proposed_state is None:
+            return
+
         scheduled_time = initial_state.state_details.scheduled_time
         if not scheduled_time:
             return
@@ -769,7 +921,7 @@ class WaitForScheduledTime(BaseOrchestrationRule):
             )
 
 
-class CopyTaskParametersID(BaseOrchestrationRule):
+class CopyTaskParametersID(TaskRunOrchestrationRule):
     """
     Ensures a task's parameters ID is copied from Scheduled to Pending and from
     Pending to Running states.
@@ -778,35 +930,41 @@ class CopyTaskParametersID(BaseOrchestrationRule):
     on the initial state will be ignored.
     """
 
-    FROM_STATES = [StateType.SCHEDULED, StateType.PENDING]
-    TO_STATES = [StateType.PENDING, StateType.RUNNING]
+    FROM_STATES = {StateType.SCHEDULED, StateType.PENDING}
+    TO_STATES = {StateType.PENDING, StateType.RUNNING}
 
     async def before_transition(
         self,
-        initial_state: Optional[states.State],
-        proposed_state: Optional[states.State],
-        context: OrchestrationContext,
+        initial_state: states.State | None,
+        proposed_state: states.State | None,
+        context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy],
     ) -> None:
+        if initial_state is None or proposed_state is None:
+            return
+
         if not proposed_state.state_details.task_parameters_id:
             proposed_state.state_details.task_parameters_id = (
                 initial_state.state_details.task_parameters_id
             )
 
 
-class HandlePausingFlows(BaseOrchestrationRule):
+class HandlePausingFlows(FlowRunOrchestrationRule):
     """
     Governs runs attempting to enter a Paused/Suspended state
     """
 
     FROM_STATES = ALL_ORCHESTRATION_STATES
-    TO_STATES = [StateType.PAUSED]
+    TO_STATES = {StateType.PAUSED}
 
     async def before_transition(
         self,
-        initial_state: Optional[states.State],
-        proposed_state: Optional[states.State],
-        context: TaskOrchestrationContext,
+        initial_state: states.State | None,
+        proposed_state: states.State | None,
+        context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy],
     ) -> None:
+        if proposed_state is None:
+            return
+
         verb = "suspend" if proposed_state.name == "Suspended" else "pause"
 
         if initial_state is None:
@@ -825,7 +983,8 @@ class HandlePausingFlows(BaseOrchestrationRule):
             # if no pause key is provided, default to a UUID
             self.key = str(uuid4())
 
-        if self.key in context.run.empirical_policy.pause_keys:
+        pause_keys = context.run.empirical_policy.pause_keys or set()
+        if self.key in pause_keys:
             await self.reject_transition(
                 state=None, reason=f"This {verb} has already fired."
             )
@@ -846,29 +1005,32 @@ class HandlePausingFlows(BaseOrchestrationRule):
 
     async def after_transition(
         self,
-        initial_state: Optional[states.State],
-        validated_state: Optional[states.State],
-        context: TaskOrchestrationContext,
+        initial_state: states.State | None,
+        validated_state: states.State | None,
+        context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy],
     ) -> None:
         updated_policy = context.run.empirical_policy.model_dump()
         updated_policy["pause_keys"].add(self.key)
         context.run.empirical_policy = core.FlowRunPolicy(**updated_policy)
 
 
-class HandleResumingPausedFlows(BaseOrchestrationRule):
+class HandleResumingPausedFlows(FlowRunOrchestrationRule):
     """
     Governs runs attempting to leave a Paused state
     """
 
-    FROM_STATES = [StateType.PAUSED]
+    FROM_STATES = {StateType.PAUSED}
     TO_STATES = ALL_ORCHESTRATION_STATES
 
     async def before_transition(
         self,
-        initial_state: Optional[states.State],
-        proposed_state: Optional[states.State],
-        context: TaskOrchestrationContext,
+        initial_state: states.State | None,
+        proposed_state: states.State | None,
+        context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy],
     ) -> None:
+        if initial_state is None or proposed_state is None:
+            return
+
         if not (
             proposed_state
             and (
@@ -888,12 +1050,18 @@ class HandleResumingPausedFlows(BaseOrchestrationRule):
 
         verb = "suspend" if proposed_state.name == "Suspended" else "pause"
 
+        display_state_name = (
+            proposed_state.name.lower()
+            if proposed_state.name
+            else proposed_state.type.value.lower()
+        )
+
         if initial_state.state_details.pause_reschedule:
             if not context.run.deployment_id:
                 await self.reject_transition(
                     state=None,
                     reason=(
-                        f"Cannot reschedule a {proposed_state.name.lower()} flow run"
+                        f"Cannot reschedule a {display_state_name} flow run"
                         " without a deployment."
                     ),
                 )
@@ -901,9 +1069,7 @@ class HandleResumingPausedFlows(BaseOrchestrationRule):
         pause_timeout = initial_state.state_details.pause_timeout
         if pause_timeout and pause_timeout < pendulum.now("UTC"):
             pause_timeout_failure = states.Failed(
-                message=(
-                    f"The flow was {proposed_state.name.lower()} and never resumed."
-                ),
+                message=(f"The flow was {display_state_name} and never resumed."),
             )
             await self.reject_transition(
                 state=pause_timeout_failure,
@@ -913,31 +1079,31 @@ class HandleResumingPausedFlows(BaseOrchestrationRule):
 
     async def after_transition(
         self,
-        initial_state: Optional[states.State],
-        validated_state: Optional[states.State],
-        context: TaskOrchestrationContext,
+        initial_state: states.State | None,
+        validated_state: states.State | None,
+        context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy],
     ) -> None:
         updated_policy = context.run.empirical_policy.model_dump()
         updated_policy["resuming"] = True
         context.run.empirical_policy = core.FlowRunPolicy(**updated_policy)
 
 
-class UpdateFlowRunTrackerOnTasks(BaseOrchestrationRule):
+class UpdateFlowRunTrackerOnTasks(TaskRunOrchestrationRule):
     """
     Tracks the flow run attempt a task run state is associated with.
     """
 
     FROM_STATES = ALL_ORCHESTRATION_STATES
-    TO_STATES = [StateType.RUNNING]
+    TO_STATES = {StateType.RUNNING}
 
     async def after_transition(
         self,
-        initial_state: Optional[states.State],
-        validated_state: Optional[states.State],
-        context: TaskOrchestrationContext,
+        initial_state: states.State | None,
+        validated_state: states.State | None,
+        context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy],
     ) -> None:
         if context.run.flow_run_id is not None:
-            self.flow_run = await context.flow_run()
+            self.flow_run: orm_models.FlowRun | None = await context.flow_run()
             if self.flow_run:
                 context.run.flow_run_run_count = self.flow_run.run_count
             else:
@@ -949,7 +1115,7 @@ class UpdateFlowRunTrackerOnTasks(BaseOrchestrationRule):
                 )
 
 
-class HandleTaskTerminalStateTransitions(BaseOrchestrationRule):
+class HandleTaskTerminalStateTransitions(TaskRunOrchestrationRule):
     """
     We do not allow tasks to leave terminal states if:
     - The task is completed and has a persisted result
@@ -959,16 +1125,19 @@ class HandleTaskTerminalStateTransitions(BaseOrchestrationRule):
     which resets task run retries; this is particularly relevant for flow run retries.
     """
 
-    FROM_STATES = TERMINAL_STATES
-    TO_STATES = ALL_ORCHESTRATION_STATES
+    FROM_STATES: set[states.StateType | None] = TERMINAL_STATES  # pyright: ignore[reportAssignmentType] technically TERMINAL_STATES doesn't contain None
+    TO_STATES: set[states.StateType | None] = ALL_ORCHESTRATION_STATES
 
     async def before_transition(
         self,
-        initial_state: Optional[states.State],
-        proposed_state: Optional[states.State],
-        context: TaskOrchestrationContext,
+        initial_state: states.State | None,
+        proposed_state: states.State | None,
+        context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy],
     ) -> None:
-        self.original_run_count = context.run.run_count
+        if initial_state is None or proposed_state is None:
+            return
+
+        self.original_run_count: int = context.run.run_count
 
         # Do not allow runs to be marked as crashed, paused, or cancelling if already terminal
         if proposed_state.type in {
@@ -994,22 +1163,23 @@ class HandleTaskTerminalStateTransitions(BaseOrchestrationRule):
 
         # Change the name of the state to retrying if its a flow run retry
         if proposed_state.is_running() and context.run.flow_run_id is not None:
-            self.flow_run = await context.flow_run()
-            flow_retrying = context.run.flow_run_run_count < self.flow_run.run_count
-            if flow_retrying:
-                await self.rename_state("Retrying")
+            self.flow_run: orm_models.FlowRun | None = await context.flow_run()
+            if self.flow_run is not None:
+                flow_retrying = context.run.flow_run_run_count < self.flow_run.run_count
+                if flow_retrying:
+                    await self.rename_state("Retrying")
 
     async def cleanup(
         self,
-        initial_state: Optional[states.State],
-        validated_state: Optional[states.State],
-        context: OrchestrationContext,
-    ):
+        initial_state: states.State | None,
+        validated_state: states.State | None,
+        context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy],
+    ) -> None:
         # reset run count
         context.run.run_count = self.original_run_count
 
 
-class HandleFlowTerminalStateTransitions(BaseOrchestrationRule):
+class HandleFlowTerminalStateTransitions(FlowRunOrchestrationRule):
     """
     We do not allow flows to leave terminal states if:
     - The flow is completed and has a persisted result
@@ -1020,16 +1190,21 @@ class HandleFlowTerminalStateTransitions(BaseOrchestrationRule):
     state. This resets pause behavior during manual flow run retries.
     """
 
-    FROM_STATES = TERMINAL_STATES
-    TO_STATES = ALL_ORCHESTRATION_STATES
+    FROM_STATES: set[states.StateType | None] = TERMINAL_STATES  # pyright: ignore[reportAssignmentType] technically TERMINAL_STATES doesn't contain None
+    TO_STATES: set[states.StateType | None] = ALL_ORCHESTRATION_STATES
 
     async def before_transition(
         self,
-        initial_state: Optional[states.State],
-        proposed_state: Optional[states.State],
-        context: FlowOrchestrationContext,
+        initial_state: states.State | None,
+        proposed_state: states.State | None,
+        context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy],
     ) -> None:
-        self.original_flow_policy = context.run.empirical_policy.model_dump()
+        if initial_state is None or proposed_state is None:
+            return
+
+        self.original_flow_policy: dict[
+            str, Any
+        ] = context.run.empirical_policy.model_dump()
 
         # Do not allow runs to be marked as crashed, paused, or cancelling if already terminal
         if proposed_state.type in {
@@ -1075,14 +1250,14 @@ class HandleFlowTerminalStateTransitions(BaseOrchestrationRule):
 
     async def cleanup(
         self,
-        initial_state: Optional[states.State],
-        validated_state: Optional[states.State],
-        context: OrchestrationContext,
-    ):
+        initial_state: states.State | None,
+        validated_state: states.State | None,
+        context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy],
+    ) -> None:
         context.run.empirical_policy = core.FlowRunPolicy(**self.original_flow_policy)
 
 
-class PreventPendingTransitions(BaseOrchestrationRule):
+class PreventPendingTransitions(GenericOrchestrationRule):
     """
     Prevents transitions to PENDING.
 
@@ -1104,20 +1279,25 @@ class PreventPendingTransitions(BaseOrchestrationRule):
     For re-runs of ad-hoc runs, they should transition directly to RUNNING.
     """
 
-    FROM_STATES = [
+    FROM_STATES = {
         StateType.PENDING,
         StateType.CANCELLING,
         StateType.RUNNING,
         StateType.CANCELLED,
-    ]
-    TO_STATES = [StateType.PENDING]
+    }
+    TO_STATES = {StateType.PENDING}
 
     async def before_transition(
         self,
-        initial_state: Optional[states.State],
-        proposed_state: Optional[states.State],
-        context: OrchestrationContext,
+        initial_state: states.State | None,
+        proposed_state: states.State | None,
+        context: OrchestrationContext[
+            orm_models.Run, Union[core.FlowRunPolicy, core.TaskRunPolicy]
+        ],
     ) -> None:
+        if initial_state is None or proposed_state is None:
+            return
+
         await self.abort_transition(
             reason=(
                 f"This run is in a {initial_state.type.name} state and cannot"
@@ -1126,16 +1306,19 @@ class PreventPendingTransitions(BaseOrchestrationRule):
         )
 
 
-class EnsureOnlyScheduledFlowsMarkedLate(BaseOrchestrationRule):
+class EnsureOnlyScheduledFlowsMarkedLate(FlowRunOrchestrationRule):
     FROM_STATES = ALL_ORCHESTRATION_STATES
-    TO_STATES = [StateType.SCHEDULED]
+    TO_STATES = {StateType.SCHEDULED}
 
     async def before_transition(
         self,
-        initial_state: Optional[states.State],
-        proposed_state: Optional[states.State],
-        context: OrchestrationContext,
+        initial_state: states.State | None,
+        proposed_state: states.State | None,
+        context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy],
     ) -> None:
+        if initial_state is None or proposed_state is None:
+            return
+
         marking_flow_late = (
             proposed_state.is_scheduled() and proposed_state.name == "Late"
         )
@@ -1145,7 +1328,7 @@ class EnsureOnlyScheduledFlowsMarkedLate(BaseOrchestrationRule):
             )
 
 
-class PreventRunningTasksFromStoppedFlows(BaseOrchestrationRule):
+class PreventRunningTasksFromStoppedFlows(TaskRunOrchestrationRule):
     """
     Prevents running tasks from stopped flows.
 
@@ -1154,13 +1337,13 @@ class PreventRunningTasksFromStoppedFlows(BaseOrchestrationRule):
     """
 
     FROM_STATES = ALL_ORCHESTRATION_STATES
-    TO_STATES = [StateType.RUNNING]
+    TO_STATES = {StateType.RUNNING}
 
     async def before_transition(
         self,
-        initial_state: Optional[states.State],
-        proposed_state: Optional[states.State],
-        context: TaskOrchestrationContext,
+        initial_state: states.State | None,
+        proposed_state: states.State | None,
+        context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy],
     ) -> None:
         flow_run = await context.flow_run()
         if flow_run is not None:
@@ -1192,7 +1375,7 @@ class PreventRunningTasksFromStoppedFlows(BaseOrchestrationRule):
                 )
 
 
-class EnforceCancellingToCancelledTransition(BaseOrchestrationRule):
+class EnforceCancellingToCancelledTransition(TaskRunOrchestrationRule):
     """
     Rejects transitions from Cancelling to any terminal state except for Cancelled.
     """
@@ -1202,9 +1385,9 @@ class EnforceCancellingToCancelledTransition(BaseOrchestrationRule):
 
     async def before_transition(
         self,
-        initial_state: Optional[states.State],
-        proposed_state: Optional[states.State],
-        context: TaskOrchestrationContext,
+        initial_state: states.State | None,
+        proposed_state: states.State | None,
+        context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy],
     ) -> None:
         await self.reject_transition(
             state=None,
@@ -1216,7 +1399,7 @@ class EnforceCancellingToCancelledTransition(BaseOrchestrationRule):
         return
 
 
-class BypassCancellingFlowRunsWithNoInfra(BaseOrchestrationRule):
+class BypassCancellingFlowRunsWithNoInfra(FlowRunOrchestrationRule):
     """Rejects transitions from Scheduled to Cancelling, and instead sets the state to Cancelled,
     if the flow run has no associated infrastructure process ID. Also Rejects transitions from
     Paused to Cancelling if the Paused state's details indicates the flow run has been suspended,
@@ -1234,10 +1417,13 @@ class BypassCancellingFlowRunsWithNoInfra(BaseOrchestrationRule):
 
     async def before_transition(
         self,
-        initial_state: Optional[states.State],
-        proposed_state: Optional[states.State],
-        context: FlowOrchestrationContext,
+        initial_state: states.State | None,
+        proposed_state: states.State | None,
+        context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy],
     ) -> None:
+        if initial_state is None or proposed_state is None:
+            return
+
         if (
             initial_state.type == states.StateType.SCHEDULED
             and not context.run.infrastructure_pid
@@ -1257,7 +1443,7 @@ class BypassCancellingFlowRunsWithNoInfra(BaseOrchestrationRule):
             )
 
 
-class PreventDuplicateTransitions(BaseOrchestrationRule):
+class PreventDuplicateTransitions(FlowRunOrchestrationRule):
     """
     Prevent duplicate transitions from being made right after one another.
 
@@ -1272,21 +1458,16 @@ class PreventDuplicateTransitions(BaseOrchestrationRule):
     - The client is unable to receive the response and retries the request
     """
 
-    FROM_STATES = ALL_ORCHESTRATION_STATES
-    TO_STATES = ALL_ORCHESTRATION_STATES
+    FROM_STATES: set[states.StateType | None] = ALL_ORCHESTRATION_STATES
+    TO_STATES: set[states.StateType | None] = ALL_ORCHESTRATION_STATES
 
     async def before_transition(
         self,
-        initial_state: Optional[states.State],
-        proposed_state: Optional[states.State],
-        context: OrchestrationContext,
+        initial_state: states.State | None,
+        proposed_state: states.State | None,
+        context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy],
     ) -> None:
-        if (
-            initial_state is None
-            or proposed_state is None
-            or initial_state.state_details is None
-            or proposed_state.state_details is None
-        ):
+        if initial_state is None or proposed_state is None:
             return
 
         initial_transition_id = getattr(

@@ -12,10 +12,23 @@ concurrency slot for a run if a cached state exists. Furthermore, policies, prov
 mechanism to configure and observe exactly what logic will fire against a transition.
 """
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
+from typing import Generic, TypeVar, Union
+
+from prefect.server.database import orm_models
+from prefect.server.orchestration.rules import (
+    BaseOrchestrationRule,
+    BaseUniversalTransform,
+)
+from prefect.server.schemas import core, states
+
+T = TypeVar("T", bound=orm_models.Run)
+RP = TypeVar("RP", bound=Union[core.FlowRunPolicy, core.TaskRunPolicy])
 
 
-class BaseOrchestrationPolicy(ABC):
+class BaseOrchestrationPolicy(ABC, Generic[T, RP]):
     """
     An abstract base class used to organize orchestration rules in priority order.
 
@@ -26,7 +39,9 @@ class BaseOrchestrationPolicy(ABC):
 
     @staticmethod
     @abstractmethod
-    def priority():
+    def priority() -> (
+        list[type[BaseUniversalTransform[T, RP] | BaseOrchestrationRule[T, RP]]]
+    ):
         """
         A list of orchestration rules in priority order.
         """
@@ -34,13 +49,39 @@ class BaseOrchestrationPolicy(ABC):
         return []
 
     @classmethod
-    def compile_transition_rules(cls, from_state=None, to_state=None):
+    def compile_transition_rules(
+        cls,
+        from_state: states.StateType | None = None,
+        to_state: states.StateType | None = None,
+    ) -> list[type[BaseUniversalTransform[T, RP] | BaseOrchestrationRule[T, RP]]]:
         """
         Returns rules in policy that are valid for the specified state transition.
         """
 
-        transition_rules = []
+        transition_rules: list[
+            type[BaseUniversalTransform[T, RP] | BaseOrchestrationRule[T, RP]]
+        ] = []
         for rule in cls.priority():
             if from_state in rule.FROM_STATES and to_state in rule.TO_STATES:
                 transition_rules.append(rule)
         return transition_rules
+
+
+class TaskRunOrchestrationPolicy(
+    BaseOrchestrationPolicy[orm_models.TaskRun, core.TaskRunPolicy]
+):
+    pass
+
+
+class FlowRunOrchestrationPolicy(
+    BaseOrchestrationPolicy[orm_models.FlowRun, core.FlowRunPolicy]
+):
+    pass
+
+
+class GenericOrchestrationPolicy(
+    BaseOrchestrationPolicy[
+        orm_models.Run, Union[core.FlowRunPolicy, core.TaskRunPolicy]
+    ]
+):
+    pass

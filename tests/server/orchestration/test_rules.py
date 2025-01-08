@@ -144,6 +144,7 @@ class TestBaseOrchestrationRule:
             session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
+            run=task_run,
         )
 
         rule_as_context_manager = IllustrativeRule(ctx, *intended_transition)
@@ -190,6 +191,7 @@ class TestBaseOrchestrationRule:
             session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
+            run=task_run,
         )
 
         minimal_rule = MinimalRule(ctx, *intended_transition)
@@ -233,6 +235,7 @@ class TestBaseOrchestrationRule:
             session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
+            run=task_run,
         )
 
         # each rule receives a context as an argument and yields it back after
@@ -296,6 +299,7 @@ class TestBaseOrchestrationRule:
             session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
+            run=task_run,
         )
 
         fizzling_rule = FizzlingRule(ctx, *intended_transition)
@@ -368,6 +372,7 @@ class TestBaseOrchestrationRule:
             session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
+            run=task_run,
         )
 
         mutating_rule = StateMutatingRule(ctx, *intended_transition)
@@ -424,6 +429,7 @@ class TestBaseOrchestrationRule:
             session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
+            run=task_run,
         )
 
         mutating_rule = StateMutatingRule(ctx, *intended_transition)
@@ -480,6 +486,7 @@ class TestBaseOrchestrationRule:
             session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
+            run=task_run,
         )
 
         mutating_rule = StateMutatingRule(ctx, *intended_transition)
@@ -528,6 +535,7 @@ class TestBaseOrchestrationRule:
             session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
+            run=task_run,
         )
 
         message_passer = MessagePassingRule(ctx, *intended_transition)
@@ -656,6 +664,7 @@ class TestBaseOrchestrationRule:
             session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
+            run=task_run,
         )
 
         state_enforcing_rule = StateEnforcingRule(ctx, *intended_transition)
@@ -695,6 +704,7 @@ class TestBaseOrchestrationRule:
             session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
+            run=task_run,
         )
 
         state_enforcing_rule = StateEnforcingRule(ctx, *intended_transition)
@@ -772,6 +782,7 @@ class TestBaseOrchestrationRule:
             session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
+            run=task_run,
         )
 
         # an ExitStack is a python builtin construction that allows us to
@@ -920,6 +931,7 @@ class TestBaseOrchestrationRule:
             session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
+            run=task_run,
         )
 
         # an ExitStack is a python builtin construction that allows us to
@@ -1018,6 +1030,7 @@ class TestBaseUniversalTransform:
             session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
+            run=task_run,
         )
 
         xform_as_context_manager = IllustrativeUniversalTransform(
@@ -1066,6 +1079,7 @@ class TestBaseUniversalTransform:
             session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
+            run=task_run,
         )
 
         universal_transform = IllustrativeUniversalTransform(ctx, *intended_transition)
@@ -1121,6 +1135,7 @@ class TestBaseUniversalTransform:
             session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
+            run=task_run,
         )
 
         universal_transform = IllustrativeUniversalTransform(ctx, *intended_transition)
@@ -1176,6 +1191,7 @@ class TestBaseUniversalTransform:
             session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
+            run=task_run,
         )
 
         universal_transform = IllustrativeUniversalTransform(ctx, *intended_transition)

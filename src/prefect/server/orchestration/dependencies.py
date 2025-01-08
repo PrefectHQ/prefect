@@ -2,13 +2,32 @@
 Injected orchestration dependencies
 """
 
+from __future__ import annotations
+
 from contextlib import contextmanager
+from typing import Annotated, Any, Awaitable, Callable, Optional, TypedDict, cast
 
 from fastapi.params import Depends
 
 from prefect.server.api import dependencies
+from prefect.server.orchestration.policies import (
+    FlowRunOrchestrationPolicy,
+    TaskRunOrchestrationPolicy,
+)
 
-ORCHESTRATION_DEPENDENCIES = {
+TaskRunPolicyProvider = Callable[[], Awaitable[type[TaskRunOrchestrationPolicy]]]
+FlowRunPolicyProvider = Callable[[], Awaitable[type[FlowRunOrchestrationPolicy]]]
+ParameterProvider = Callable[[], Awaitable[dict[str, Any]]]
+
+
+class OrchestrationDependencies(TypedDict):
+    task_policy_provider: TaskRunPolicyProvider | None
+    flow_policy_provider: FlowRunPolicyProvider | None
+    task_orchestration_parameters_provider: ParameterProvider | None
+    flow_orchestration_parameters_provider: ParameterProvider | None
+
+
+ORCHESTRATION_DEPENDENCIES: OrchestrationDependencies = {
     "task_policy_provider": None,
     "flow_policy_provider": None,
     "task_orchestration_parameters_provider": None,
@@ -24,7 +43,7 @@ WORKER_VERSIONS_THAT_MANAGE_DEPLOYMENT_CONCURRENCY = {
 }
 
 
-async def provide_task_policy():
+async def provide_task_policy() -> type[TaskRunOrchestrationPolicy]:
     policy_provider = ORCHESTRATION_DEPENDENCIES.get("task_policy_provider")
 
     if policy_provider is None:
@@ -36,8 +55,10 @@ async def provide_task_policy():
 
 
 async def provide_flow_policy(
-    client_version=Depends(dependencies.get_prefect_client_version),
-):
+    client_version: Annotated[
+        Optional[str], Depends(dependencies.get_prefect_client_version)
+    ] = None,
+) -> type[FlowRunOrchestrationPolicy]:
     policy_provider = ORCHESTRATION_DEPENDENCIES.get("flow_policy_provider")
 
     if policy_provider is None:
@@ -54,30 +75,30 @@ async def provide_flow_policy(
     return await policy_provider()
 
 
-async def provide_task_orchestration_parameters():
+async def provide_task_orchestration_parameters() -> dict[str, Any]:
     parameter_provider = ORCHESTRATION_DEPENDENCIES.get(
         "task_orchestration_parameters_provider"
     )
 
     if parameter_provider is None:
-        return dict()
+        return cast(dict[str, Any], dict())
 
     return await parameter_provider()
 
 
-async def provide_flow_orchestration_parameters():
+async def provide_flow_orchestration_parameters() -> dict[str, Any]:
     parameter_provider = ORCHESTRATION_DEPENDENCIES.get(
         "flow_orchestration_parameters_provider"
     )
 
     if parameter_provider is None:
-        return dict()
+        return cast(dict[str, Any], dict())
 
     return await parameter_provider()
 
 
 @contextmanager
-def temporary_task_policy(tmp_task_policy):
+def temporary_task_policy(tmp_task_policy: type[TaskRunOrchestrationPolicy]):
     starting_task_policy = ORCHESTRATION_DEPENDENCIES["task_policy_provider"]
 
     async def policy_lambda():
@@ -91,7 +112,7 @@ def temporary_task_policy(tmp_task_policy):
 
 
 @contextmanager
-def temporary_flow_policy(tmp_flow_policy):
+def temporary_flow_policy(tmp_flow_policy: type[FlowRunOrchestrationPolicy]):
     starting_flow_policy = ORCHESTRATION_DEPENDENCIES["flow_policy_provider"]
 
     async def policy_lambda():
@@ -105,7 +126,9 @@ def temporary_flow_policy(tmp_flow_policy):
 
 
 @contextmanager
-def temporary_task_orchestration_parameters(tmp_orchestration_parameters):
+def temporary_task_orchestration_parameters(
+    tmp_orchestration_parameters: dict[str, Any],
+):
     starting_task_orchestration_parameters = ORCHESTRATION_DEPENDENCIES[
         "task_orchestration_parameters_provider"
     ]
@@ -125,7 +148,9 @@ def temporary_task_orchestration_parameters(tmp_orchestration_parameters):
 
 
 @contextmanager
-def temporary_flow_orchestration_parameters(tmp_orchestration_parameters):
+def temporary_flow_orchestration_parameters(
+    tmp_orchestration_parameters: dict[str, Any],
+):
     starting_flow_orchestration_parameters = ORCHESTRATION_DEPENDENCIES[
         "flow_orchestration_parameters_provider"
     ]
