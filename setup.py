@@ -1,11 +1,11 @@
 from pathlib import Path
 
 import versioneer
-from setuptools import find_packages, setup
+from setuptools import find_packages, setup  # type: ignore
 
 
-def read_requirements(file):
-    requirements = []
+def read_requirements(file: str) -> list[str]:
+    requirements: list[str] = []
     if Path(file).exists():
         requirements = open(file).read().strip().split("\n")
     return requirements
