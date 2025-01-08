@@ -51,9 +51,9 @@ if __name__ == "__main__":
 
         # run the flow
         if flow.isasync:
-            run_coro_as_sync(run_flow(flow, flow_run=flow_run))
+            run_coro_as_sync(run_flow(flow, flow_run=flow_run, error_logger=run_logger))
         else:
-            run_flow(flow, flow_run=flow_run)
+            run_flow(flow, flow_run=flow_run, error_logger=run_logger)
 
     except Abort as exc:
         engine_logger.info(

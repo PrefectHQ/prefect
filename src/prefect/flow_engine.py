@@ -1436,25 +1436,36 @@ def run_flow(
     parameters: Optional[Dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
     return_type: Literal["state", "result"] = "result",
+    error_logger: Optional[logging.Logger] = None,
 ) -> Union[R, State, None]:
-    kwargs = dict(
-        flow=flow,
-        flow_run=flow_run,
-        parameters=_flow_parameters(
-            flow=flow, flow_run=flow_run, parameters=parameters
-        ),
-        wait_for=wait_for,
-        return_type=return_type,
-    )
+    ret_val: Union[R, State, None] = None
 
-    if flow.isasync and flow.isgenerator:
-        return run_generator_flow_async(**kwargs)
-    elif flow.isgenerator:
-        return run_generator_flow_sync(**kwargs)
-    elif flow.isasync:
-        return run_flow_async(**kwargs)
-    else:
-        return run_flow_sync(**kwargs)
+    try:
+        kwargs = dict(
+            flow=flow,
+            flow_run=flow_run,
+            parameters=_flow_parameters(
+                flow=flow, flow_run=flow_run, parameters=parameters
+            ),
+            wait_for=wait_for,
+            return_type=return_type,
+        )
+
+        if flow.isasync and flow.isgenerator:
+            ret_val = run_generator_flow_async(**kwargs)
+        elif flow.isgenerator:
+            ret_val = run_generator_flow_sync(**kwargs)
+        elif flow.isasync:
+            ret_val = run_flow_async(**kwargs)
+        else:
+            ret_val = run_flow_sync(**kwargs)
+    except:
+        if error_logger:
+            error_logger.error(
+                "Engine execution exited with unexpected exception", exc_info=True
+            )
+        raise
+    return ret_val
 
 
 def _flow_parameters(
