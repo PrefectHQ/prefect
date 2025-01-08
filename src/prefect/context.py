@@ -70,7 +70,7 @@ def hydrated_context(
     serialized_context: Optional[dict[str, Any]] = None,
     client: Union[PrefectClient, SyncPrefectClient, None] = None,
 ) -> Generator[None, Any, None]:
-    from prefect.main import _types
+    import prefect.main  # noqa # type: ignore
 
     with ExitStack() as stack:
         if serialized_context:
@@ -82,7 +82,6 @@ def hydrated_context(
             if flow_run_context := serialized_context.get("flow_run_context"):
                 flow = flow_run_context["flow"]
                 task_runner = stack.enter_context(flow.task_runner.duplicate())
-                FlowRunContext.model_rebuild(_types_namespace=_types)
                 flow_run_context = FlowRunContext(
                     **flow_run_context,
                     client=client,
