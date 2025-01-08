@@ -3,8 +3,11 @@ Orchestration rules related to instrumenting the orchestration engine for Prefec
 Observability
 """
 
+from __future__ import annotations
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect.server.database import orm_models
 from prefect.server.events.clients import PrefectServerEventsClient
 from prefect.server.models.events import (
     TRUNCATE_STATE_MESSAGES_AT,
@@ -12,16 +15,19 @@ from prefect.server.models.events import (
     truncated_to,
 )
 from prefect.server.orchestration.rules import (
-    BaseUniversalTransform,
     FlowOrchestrationContext,
+    FlowRunUniversalTransform,
     OrchestrationContext,
 )
+from prefect.server.schemas import core
 
 
-class InstrumentFlowRunStateTransitions(BaseUniversalTransform):
+class InstrumentFlowRunStateTransitions(FlowRunUniversalTransform):
     """When a Flow Run changes states, fire a Prefect Event for the state change"""
 
-    async def after_transition(self, context: OrchestrationContext) -> None:
+    async def after_transition(
+        self, context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy]
+    ) -> None:
         if not context.proposed_state or not context.validated_state:
             return
 
@@ -34,7 +40,7 @@ class InstrumentFlowRunStateTransitions(BaseUniversalTransform):
         validated_state = context.validated_state.model_copy()
 
         # Guard against passing large state payloads to arq
-        if initial_state:
+        if initial_state and context.initial_state:
             initial_state.timestamp = context.initial_state.timestamp
             initial_state.message = truncated_to(
                 TRUNCATE_STATE_MESSAGES_AT, initial_state.message

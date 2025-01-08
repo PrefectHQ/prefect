@@ -17,16 +17,29 @@ observable, extensible, and customizable -- all without needing to store or pars
 single line of user code.
 """
 
+from __future__ import annotations
+
 import contextlib
 from types import TracebackType
-from typing import Any, ClassVar, Dict, Iterable, List, Optional, Type, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    ClassVar,
+    Generic,
+    Iterable,
+    Optional,
+    TypeVar,
+    Union,
+)
 
 import sqlalchemy as sa
 from pydantic import ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
+from typing_extensions import Self
 
 from prefect.logging import get_logger
-from prefect.server.database import PrefectDBInterface, inject_db
+from prefect.server.database import PrefectDBInterface, inject_db, orm_models
+from prefect.server.database.dependencies import db_injector
 from prefect.server.exceptions import OrchestrationError
 from prefect.server.models import artifacts, flow_runs
 from prefect.server.schemas import core, states
@@ -40,16 +53,23 @@ from prefect.server.schemas.responses import (
 )
 from prefect.server.utilities.schemas import PrefectBaseModel
 
+if TYPE_CHECKING:
+    from logging import Logger
+
+
 # all valid state types in the context of a task- or flow- run transition
-ALL_ORCHESTRATION_STATES = {*states.StateType, None}
+ALL_ORCHESTRATION_STATES: set[states.StateType | None] = {*states.StateType, None}
 
 # all terminal states
-TERMINAL_STATES = states.TERMINAL_STATES
+TERMINAL_STATES = set(states.TERMINAL_STATES)
 
-logger = get_logger("server")
+logger: "Logger" = get_logger("server")
+
+T = TypeVar("T", bound=orm_models.Run)
+RP = TypeVar("RP", bound=Union[core.FlowRunPolicy, core.TaskRunPolicy])
 
 
-class OrchestrationContext(PrefectBaseModel):
+class OrchestrationContext(PrefectBaseModel, Generic[T, RP]):
     """
     A container for a state transition, governed by orchestration rules.
 
@@ -90,16 +110,17 @@ class OrchestrationContext(PrefectBaseModel):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(arbitrary_types_allowed=True)
 
-    session: Optional[Union[sa.orm.Session, AsyncSession]] = ...
-    initial_state: Optional[states.State] = ...
-    proposed_state: Optional[states.State] = ...
+    session: Union[sa.orm.Session, AsyncSession]
+    initial_state: Optional[states.State] = None
+    proposed_state: Optional[states.State] = None
     validated_state: Optional[states.State] = Field(default=None)
-    rule_signature: List[str] = Field(default_factory=list)
-    finalization_signature: List[str] = Field(default_factory=list)
+    rule_signature: list[str] = Field(default_factory=list)
+    finalization_signature: list[str] = Field(default_factory=list)
     response_status: SetStateStatus = Field(default=SetStateStatus.ACCEPT)
     response_details: StateResponseDetails = Field(default_factory=StateAcceptDetails)
     orchestration_error: Optional[Exception] = Field(default=None)
-    parameters: Dict[Any, Any] = Field(default_factory=dict)
+    parameters: dict[Any, Any] = Field(default_factory=dict)
+    run: T
 
     @property
     def initial_state_type(self) -> Optional[states.StateType]:
@@ -118,7 +139,14 @@ class OrchestrationContext(PrefectBaseModel):
         """The state type of `self.validated_state` if it exists."""
         return self.validated_state.type if self.validated_state else None
 
-    def safe_copy(self):
+    @property
+    def run_settings(self) -> RP:
+        """Run-level settings used to orchestrate the state transition."""
+        raise NotImplementedError(
+            "Run-level settings are not supported for this context"
+        )
+
+    def safe_copy(self) -> Self:
         """
         Creates a mostly-mutation-safe copy for use in orchestration rules.
 
@@ -146,7 +174,9 @@ class OrchestrationContext(PrefectBaseModel):
         safe_copy.parameters = self.parameters.copy()
         return safe_copy
 
-    def entry_context(self):
+    def entry_context(
+        self,
+    ) -> tuple[Optional[states.State], Optional[states.State], Self]:
         """
         A convenience method that generates input parameters for orchestration rules.
 
@@ -159,7 +189,9 @@ class OrchestrationContext(PrefectBaseModel):
         safe_context = self.safe_copy()
         return safe_context.initial_state, safe_context.proposed_state, safe_context
 
-    def exit_context(self):
+    def exit_context(
+        self,
+    ) -> tuple[Optional[states.State], Optional[states.State], Self]:
         """
         A convenience method that generates input parameters for orchestration rules.
 
@@ -172,8 +204,13 @@ class OrchestrationContext(PrefectBaseModel):
         safe_context = self.safe_copy()
         return safe_context.initial_state, safe_context.validated_state, safe_context
 
+    async def flow_run(self) -> orm_models.FlowRun | None:
+        raise NotImplementedError("Flow run is not supported for this context")
 
-class FlowOrchestrationContext(OrchestrationContext):
+
+class FlowOrchestrationContext(
+    OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy]
+):
     """
     A container for a flow run state transition, governed by orchestration rules.
 
@@ -209,8 +246,7 @@ class FlowOrchestrationContext(OrchestrationContext):
         proposed_state: the proposed state a run is transitioning into
     """
 
-    # run: db.FlowRun = ...
-    run: Any = ...
+    run: orm_models.FlowRun
 
     @inject_db
     async def validate_proposed_state(
@@ -239,7 +275,7 @@ class FlowOrchestrationContext(OrchestrationContext):
             return
         except Exception as exc:
             logger.exception("Encountered error during state validation")
-            self.proposed_state = None
+            self.proposed_state: states.State | None = None
 
             if is_client_retryable_exception(exc):
                 # Do not capture retryable database exceptions, this exception will be
@@ -248,28 +284,30 @@ class FlowOrchestrationContext(OrchestrationContext):
 
             reason = f"Error validating state: {exc!r}"
             self.response_status = SetStateStatus.ABORT
-            self.response_details = StateAbortDetails(reason=reason)
+            self.response_details: StateResponseDetails = StateAbortDetails(
+                reason=reason
+            )
 
-    @inject_db
+    @db_injector
     async def _validate_proposed_state(
         self,
         db: PrefectDBInterface,
     ):
         if self.proposed_state is None:
             validated_orm_state = self.run.state
-            # We cannot access `self.run.state.data` directly for unknown reasons
-            state_data = (
-                (
-                    await artifacts.read_artifact(
-                        self.session, self.run.state.result_artifact_id
-                    )
-                ).data
-                if self.run.state.result_artifact_id
-                else None
-            )
+            state_data = None
+            if (
+                self.run.state is not None
+                and self.run.state.result_artifact_id is not None
+            ):
+                # We cannot access `self.run.state.data` directly for unknown reasons
+                artifact = await artifacts.read_artifact(
+                    self.session, self.run.state.result_artifact_id
+                )
+                state_data = artifact.data if artifact else None
         else:
             state_payload = self.proposed_state.model_dump_for_orm()
-            state_data = state_payload.pop("data", None)
+            state_data: dict[str, Any] | Any | None = state_payload.pop("data", None)
 
             if state_data is not None and not (
                 isinstance(state_data, dict) and state_data.get("type") == "unpersisted"
@@ -284,18 +322,18 @@ class FlowOrchestrationContext(OrchestrationContext):
                 **state_payload,
             )
 
-        self.session.add(validated_orm_state)
-        self.run.set_state(validated_orm_state)
-
-        await self.session.flush()
         if validated_orm_state:
+            self.session.add(validated_orm_state)
+            self.run.set_state(validated_orm_state)
+
+            await self.session.flush()
             self.validated_state = states.State.from_orm_without_result(
                 validated_orm_state, with_data=state_data
             )
         else:
             self.validated_state = None
 
-    def safe_copy(self):
+    def safe_copy(self) -> Self:
         """
         Creates a mostly-mutation-safe copy for use in orchestration rules.
 
@@ -315,19 +353,21 @@ class FlowOrchestrationContext(OrchestrationContext):
         return super().safe_copy()
 
     @property
-    def run_settings(self) -> Dict:
+    def run_settings(self) -> core.FlowRunPolicy:
         """Run-level settings used to orchestrate the state transition."""
 
         return self.run.empirical_policy
 
-    async def task_run(self):
+    async def task_run(self) -> None:
         return None
 
-    async def flow_run(self):
+    async def flow_run(self) -> orm_models.FlowRun:
         return self.run
 
 
-class TaskOrchestrationContext(OrchestrationContext):
+class TaskOrchestrationContext(
+    OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy]
+):
     """
     A container for a task run state transition, governed by orchestration rules.
 
@@ -363,8 +403,7 @@ class TaskOrchestrationContext(OrchestrationContext):
         proposed_state: the proposed state a run is transitioning into
     """
 
-    # run: db.TaskRun = ...
-    run: Any = ...
+    run: orm_models.TaskRun
 
     @inject_db
     async def validate_proposed_state(
@@ -393,7 +432,7 @@ class TaskOrchestrationContext(OrchestrationContext):
             return
         except Exception as exc:
             logger.exception("Encountered error during state validation")
-            self.proposed_state = None
+            self.proposed_state: states.State | None = None
 
             if is_client_retryable_exception(exc):
                 # Do not capture retryable database exceptions, this exception will be
@@ -402,28 +441,30 @@ class TaskOrchestrationContext(OrchestrationContext):
 
             reason = f"Error validating state: {exc!r}"
             self.response_status = SetStateStatus.ABORT
-            self.response_details = StateAbortDetails(reason=reason)
+            self.response_details: StateResponseDetails = StateAbortDetails(
+                reason=reason
+            )
 
-    @inject_db
+    @db_injector
     async def _validate_proposed_state(
         self,
         db: PrefectDBInterface,
     ):
         if self.proposed_state is None:
             validated_orm_state = self.run.state
-            # We cannot access `self.run.state.data` directly for unknown reasons
-            state_data = (
-                (
-                    await artifacts.read_artifact(
-                        self.session, self.run.state.result_artifact_id
-                    )
-                ).data
-                if self.run.state.result_artifact_id
-                else None
-            )
+            state_data = None
+            if (
+                self.run.state is not None
+                and self.run.state.result_artifact_id is not None
+            ):
+                # We cannot access `self.run.state.data` directly for unknown reasons
+                artifact = await artifacts.read_artifact(
+                    self.session, self.run.state.result_artifact_id
+                )
+                state_data = artifact.data if artifact else None
         else:
             state_payload = self.proposed_state.model_dump_for_orm()
-            state_data = state_payload.pop("data", None)
+            state_data: dict[str, Any] | Any | None = state_payload.pop("data", None)
 
             if state_data is not None and not (
                 isinstance(state_data, dict) and state_data.get("type") == "unpersisted"
@@ -432,8 +473,7 @@ class TaskOrchestrationContext(OrchestrationContext):
                 state_result_artifact.task_run_id = self.run.id
 
                 if self.run.flow_run_id is not None:
-                    flow_run = await self.flow_run()
-                    state_result_artifact.flow_run_id = flow_run.id
+                    state_result_artifact.flow_run_id = self.run.flow_run_id
 
                 await artifacts.create_artifact(self.session, state_result_artifact)
                 state_payload["result_artifact_id"] = state_result_artifact.id
@@ -443,18 +483,18 @@ class TaskOrchestrationContext(OrchestrationContext):
                 **state_payload,
             )
 
-        self.session.add(validated_orm_state)
-        self.run.set_state(validated_orm_state)
-
-        await self.session.flush()
         if validated_orm_state:
+            self.session.add(validated_orm_state)
+            self.run.set_state(validated_orm_state)
+
+            await self.session.flush()
             self.validated_state = states.State.from_orm_without_result(
                 validated_orm_state, with_data=state_data
             )
         else:
             self.validated_state = None
 
-    def safe_copy(self):
+    def safe_copy(self) -> Self:
         """
         Creates a mostly-mutation-safe copy for use in orchestration rules.
 
@@ -474,22 +514,26 @@ class TaskOrchestrationContext(OrchestrationContext):
         return super().safe_copy()
 
     @property
-    def run_settings(self) -> Dict:
+    def run_settings(self) -> core.TaskRunPolicy:
         """Run-level settings used to orchestrate the state transition."""
 
         return self.run.empirical_policy
 
-    async def task_run(self):
+    async def task_run(self) -> orm_models.TaskRun:
         return self.run
 
-    async def flow_run(self):
+    async def flow_run(self) -> orm_models.FlowRun | None:
+        if self.run.flow_run_id is None:
+            return None
         return await flow_runs.read_flow_run(
             session=self.session,
             flow_run_id=self.run.flow_run_id,
         )
 
 
-class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
+class BaseOrchestrationRule(
+    contextlib.AbstractAsyncContextManager[OrchestrationContext[T, RP]]
+):
     """
     An abstract base class used to implement a discrete piece of orchestration logic.
 
@@ -570,12 +614,12 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
             this state type is not contained in `TO_STATES`, no hooks will fire
     """
 
-    FROM_STATES: Iterable = []
-    TO_STATES: Iterable = []
+    FROM_STATES: set[states.StateType | None] = set()
+    TO_STATES: set[states.StateType | None] = set()
 
     def __init__(
         self,
-        context: OrchestrationContext,
+        context: OrchestrationContext[T, RP],
         from_state_type: Optional[states.StateType],
         to_state_type: Optional[states.StateType],
     ):
@@ -584,7 +628,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         self.to_state_type = to_state_type
         self._invalid_on_entry = None
 
-    async def __aenter__(self) -> OrchestrationContext:
+    async def __aenter__(self) -> OrchestrationContext[T, RP]:
         """
         Enter an async runtime context governed by this rule.
 
@@ -593,7 +637,6 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         `OrchestrationContext` is considered invalid on entry, entering this context
         will do nothing. Otherwise, `self.before_transition` will fire.
         """
-
         if await self.invalid():
             pass
         else:
@@ -620,9 +663,9 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
 
     async def __aexit__(
         self,
-        exc_type: Optional[Type[BaseException]],
-        exc_val: Optional[BaseException],
-        exc_tb: Optional[TracebackType],
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
     ) -> None:
         """
         Exit the async runtime context governed by this rule.
@@ -648,7 +691,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         self,
         initial_state: Optional[states.State],
         proposed_state: Optional[states.State],
-        context: OrchestrationContext,
+        context: OrchestrationContext[T, RP],
     ) -> None:
         """
         Implements a hook that can fire before a state is committed to the database.
@@ -679,7 +722,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         self,
         initial_state: Optional[states.State],
         validated_state: Optional[states.State],
-        context: OrchestrationContext,
+        context: OrchestrationContext[T, RP],
     ) -> None:
         """
         Implements a hook that can fire after a state is committed to the database.
@@ -699,7 +742,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         self,
         initial_state: Optional[states.State],
         validated_state: Optional[states.State],
-        context: OrchestrationContext,
+        context: OrchestrationContext[T, RP],
     ) -> None:
         """
         Implements a hook that can fire after a state is committed to the database.
@@ -778,7 +821,9 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
             self.to_state_type != proposed_state_type
         )
 
-    async def reject_transition(self, state: Optional[states.State], reason: str):
+    async def reject_transition(
+        self, state: Optional[states.State], reason: str
+    ) -> None:
         """
         Rejects a proposed transition before the transition is validated.
 
@@ -818,7 +863,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         self,
         delay_seconds: int,
         reason: str,
-    ):
+    ) -> None:
         """
         Delays a proposed transition before the transition is validated.
 
@@ -846,7 +891,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
             delay_seconds=delay_seconds, reason=reason
         )
 
-    async def abort_transition(self, reason: str):
+    async def abort_transition(self, reason: str) -> None:
         """
         Aborts a proposed transition before the transition is validated.
 
@@ -870,7 +915,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         self.context.response_status = SetStateStatus.ABORT
         self.context.response_details = StateAbortDetails(reason=reason)
 
-    async def rename_state(self, state_name):
+    async def rename_state(self, state_name: str) -> None:
         """
         Sets the "name" attribute on a proposed state.
 
@@ -882,7 +927,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         if self.context.proposed_state is not None:
             self.context.proposed_state.name = state_name
 
-    async def update_context_parameters(self, key, value):
+    async def update_context_parameters(self, key: str, value: Any) -> None:
         """
         Updates the "parameters" dictionary attribute with the specified key-value pair.
 
@@ -897,7 +942,27 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         self.context.parameters.update({key: value})
 
 
-class BaseUniversalTransform(contextlib.AbstractAsyncContextManager):
+class FlowRunOrchestrationRule(
+    BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]
+):
+    pass
+
+
+class TaskRunOrchestrationRule(
+    BaseOrchestrationRule[orm_models.TaskRun, core.TaskRunPolicy]
+):
+    pass
+
+
+class GenericOrchestrationRule(
+    BaseOrchestrationRule[orm_models.Run, Union[core.FlowRunPolicy, core.TaskRunPolicy]]
+):
+    pass
+
+
+class BaseUniversalTransform(
+    contextlib.AbstractAsyncContextManager[OrchestrationContext[T, RP]]
+):
     """
     An abstract base class used to implement privileged bookkeeping logic.
 
@@ -924,12 +989,12 @@ class BaseUniversalTransform(contextlib.AbstractAsyncContextManager):
     """
 
     # `BaseUniversalTransform` will always fire on non-null transitions
-    FROM_STATES: Iterable = ALL_ORCHESTRATION_STATES
-    TO_STATES: Iterable = ALL_ORCHESTRATION_STATES
+    FROM_STATES: Iterable[states.StateType | None] = ALL_ORCHESTRATION_STATES
+    TO_STATES: Iterable[states.StateType | None] = ALL_ORCHESTRATION_STATES
 
     def __init__(
         self,
-        context: OrchestrationContext,
+        context: OrchestrationContext[T, RP],
         from_state_type: Optional[states.StateType],
         to_state_type: Optional[states.StateType],
     ):
@@ -937,7 +1002,7 @@ class BaseUniversalTransform(contextlib.AbstractAsyncContextManager):
         self.from_state_type = from_state_type
         self.to_state_type = to_state_type
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> OrchestrationContext[T, RP]:
         """
         Enter an async runtime context governed by this transform.
 
@@ -954,9 +1019,9 @@ class BaseUniversalTransform(contextlib.AbstractAsyncContextManager):
 
     async def __aexit__(
         self,
-        exc_type: Optional[Type[BaseException]],
-        exc_val: Optional[BaseException],
-        exc_tb: Optional[TracebackType],
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
     ) -> None:
         """
         Exit the async runtime context governed by this transform.
@@ -970,7 +1035,7 @@ class BaseUniversalTransform(contextlib.AbstractAsyncContextManager):
             await self.after_transition(self.context)
             self.context.finalization_signature.append(str(self.__class__))
 
-    async def before_transition(self, context) -> None:
+    async def before_transition(self, context: OrchestrationContext[T, RP]) -> None:
         """
         Implements a hook that fires before a state is committed to the database.
 
@@ -981,7 +1046,7 @@ class BaseUniversalTransform(contextlib.AbstractAsyncContextManager):
             None
         """
 
-    async def after_transition(self, context) -> None:
+    async def after_transition(self, context: OrchestrationContext[T, RP]) -> None:
         """
         Implements a hook that can fire after a state is committed to the database.
 
@@ -1014,3 +1079,28 @@ class BaseUniversalTransform(contextlib.AbstractAsyncContextManager):
         """
 
         return self.context.orchestration_error is not None
+
+
+class TaskRunUniversalTransform(
+    BaseUniversalTransform[orm_models.TaskRun, core.TaskRunPolicy]
+):
+    pass
+
+
+class FlowRunUniversalTransform(
+    BaseUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy]
+):
+    pass
+
+
+class GenericUniversalTransform(
+    BaseUniversalTransform[
+        orm_models.Run, Union[core.FlowRunPolicy, core.TaskRunPolicy]
+    ]
+):
+    pass
+
+
+GenericOrchestrationContext = OrchestrationContext[
+    orm_models.Run, Union[core.FlowRunPolicy, core.TaskRunPolicy]
+]
