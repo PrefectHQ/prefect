@@ -6953,7 +6953,7 @@ export interface components {
              * Pause Keys
              * @description Tracks pauses this run has observed.
              */
-            pause_keys?: string[] | null;
+            pause_keys?: unknown[] | null;
             /**
              * Resuming
              * @description Indicates if this run is resuming from a pause.

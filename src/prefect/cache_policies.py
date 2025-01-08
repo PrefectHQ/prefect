@@ -183,7 +183,7 @@ class CompoundCachePolicy(CachePolicy):
 class _None(CachePolicy):
     """
     Policy that always returns `None` for the computed cache key.
-    This policy prevents persistence.
+    This policy prevents persistence and avoids caching entirely.
     """
 
     def compute_key(
@@ -314,6 +314,7 @@ class Inputs(CachePolicy):
 
 INPUTS = Inputs()
 NONE = _None()
+NO_POLICY = _None()
 TASK_SOURCE = TaskSource()
 FLOW_PARAMETERS = FlowParameters()
 RUN_ID = RunId()
