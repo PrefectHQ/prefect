@@ -59,10 +59,10 @@ PID_FILE = "server.pid"
 def generate_welcome_blurb(base_url, ui_enabled: bool):
     blurb = textwrap.dedent(
         r"""
-         ___ ___ ___ ___ ___ ___ _____ 
-        | _ \ _ \ __| __| __/ __|_   _| 
-        |  _/   / _|| _|| _| (__  | |  
-        |_| |_|_\___|_| |___\___| |_|  
+         ___ ___ ___ ___ ___ ___ _____
+        | _ \ _ \ __| __| __/ __|_   _|
+        |  _/   / _|| _|| _| (__  | |
+        |_| |_|_\___|_| |___\___| |_|
 
         Configure Prefect to communicate with the server with:
 
@@ -232,6 +232,7 @@ async def start(
     server_env["PREFECT_API_SERVICES_UI"] = str(ui)
     server_env["PREFECT_UI_ENABLED"] = str(ui)
     server_env["PREFECT_SERVER_LOGGING_LEVEL"] = log_level
+    server_env["PREFECT__SERVER_FINAL"] = "1"
 
     pid_file = anyio.Path(PREFECT_HOME.value() / PID_FILE)
     # check if port is already in use
