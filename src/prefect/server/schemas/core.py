@@ -22,7 +22,6 @@ from typing_extensions import Literal, Self
 
 from prefect._internal.schemas.validators import (
     get_or_create_run_name,
-    list_length_50_or_less,
     raise_on_name_alphanumeric_dashes_only,
     set_run_policy_deprecated_fields,
     validate_cache_key_length,
@@ -124,7 +123,7 @@ class FlowRunPolicy(PrefectBaseModel):
     retry_delay: Optional[int] = Field(
         default=None, description="The delay time between retries, in seconds."
     )
-    pause_keys: Optional[set] = Field(
+    pause_keys: Optional[set[str]] = Field(
         default_factory=set, description="Tracks pauses this run has observed."
     )
     resuming: Optional[bool] = Field(
@@ -135,7 +134,7 @@ class FlowRunPolicy(PrefectBaseModel):
     )
 
     @model_validator(mode="before")
-    def populate_deprecated_fields(cls, values):
+    def populate_deprecated_fields(cls, values: dict[str, Any]) -> dict[str, Any]:
         return set_run_policy_deprecated_fields(values)
 
 
@@ -322,7 +321,7 @@ class FlowRun(ORMBaseModel):
 
     @field_validator("name", mode="before")
     @classmethod
-    def set_name(cls, name):
+    def set_name(cls, name: str) -> str:
         return get_or_create_run_name(name)
 
     def __eq__(self, other: Any) -> bool:
@@ -369,17 +368,21 @@ class TaskRunPolicy(PrefectBaseModel):
     )
 
     @model_validator(mode="before")
-    def populate_deprecated_fields(cls, values):
+    def populate_deprecated_fields(cls, values: dict[str, Any]) -> dict[str, Any]:
         return set_run_policy_deprecated_fields(values)
 
     @field_validator("retry_delay")
     @classmethod
-    def validate_configured_retry_delays(cls, v):
-        return list_length_50_or_less(v)
+    def validate_configured_retry_delays(
+        cls, v: int | list[int] | None
+    ) -> int | list[int] | None:
+        if isinstance(v, list) and (len(v) > 50):
+            raise ValueError("Can not configure more than 50 retry delays per task.")
+        return v
 
     @field_validator("retry_jitter_factor")
     @classmethod
-    def validate_jitter_factor(cls, v):
+    def validate_jitter_factor(cls, v: float | None) -> float | None:
         return validate_not_negative(v)
 
 
