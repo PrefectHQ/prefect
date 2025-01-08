@@ -14,7 +14,6 @@ from typing import (
     Iterable,
     Literal,
     Optional,
-    Tuple,
     Type,
     TypeVar,
     Union,
@@ -104,7 +103,7 @@ class FlowRunTimeoutError(TimeoutError):
 
 
 def load_flow_run(flow_run_id: UUID) -> FlowRun:
-    client = cast(SyncPrefectClient, get_client(sync_client=True))
+    client = get_client(sync_client=True)
     flow_run = client.read_flow_run(flow_run_id)
     return flow_run
 
@@ -135,7 +134,7 @@ class BaseFlowRunEngine(Generic[P, R]):
     flow_run: Optional[FlowRun] = None
     flow_run_id: Optional[UUID] = None
     logger: logging.Logger = field(default_factory=lambda: get_logger("engine"))
-    wait_for: Optional[Iterable[PrefectFuture]] = None
+    wait_for: Optional[Iterable[PrefectFuture[Any]]] = None
     # holds the return value from the user code
     _return_value: Union[R, Type[NotSet]] = NotSet
     # holds the exception raised by the user code, if any
