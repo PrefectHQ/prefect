@@ -13,19 +13,19 @@ sequenceDiagram
     Data Engineer->>S3: Upload training data
     S3->>S3: Trigger EventBridge rule
     S3->>Prefect Cloud: Send event to webhook
-    Note right of Prefect Cloud: Start model training
+    Note over Prefect Cloud: Start model training
     Prefect Cloud->>Prefect Cloud: Trigger automation
     Prefect Cloud->>Prefect Cloud: Run deployment
     Prefect Cloud->>SageMaker: Train model
     activate SageMaker
-    Note left of SageMaker: Provision instance
+    Note over SageMaker: Provision instance
     SageMaker-->>Prefect Cloud: 
     deactivate SageMaker
     Data Engineer-->>Prefect Cloud: View model performance in logs
     Prefect Cloud->>S3: Save fitted model
     S3->>S3: Trigger EventBridge rule
     S3->>Prefect Cloud: Send event to webhook
-    Note right of Prefect Cloud: Start model inference
+    Note over Prefect Cloud: Start model inference
     Prefect Cloud->>Prefect Cloud: Trigger automation
     Prefect Cloud->>Prefect Cloud: Run deployment
     Data Engineer-->>Prefect Cloud: View predictions in logs
