@@ -227,111 +227,60 @@ class TestUvicornSignalForwarding:
         sys.platform == "win32",
         reason="SIGTERM is only used in non-Windows environments",
     )
-    async def test_sigint_sends_sigterm(self):
+    async def test_sigint_shutsdown_cleanly(self):
         async with start_server_process() as server_process:
             server_process.send_signal(signal.SIGINT)
             with anyio.fail_after(SHUTDOWN_TIMEOUT):
-                assert (
-                    await server_process.wait() != 0
-                ), "Server process exited with zero code"
-            server_process.out.seek(0)
-            out = server_process.out.read().decode()
-
-            assert "Sending SIGTERM" in out, (
-                "When sending a SIGINT, the main process should send a SIGTERM to the"
-                f" uvicorn subprocess. Output:\n{out}"
-            )
-
-    @pytest.mark.skipif(
-        sys.platform == "win32",
-        reason="SIGTERM is only used in non-Windows environments",
-    )
-    async def test_sigterm_sends_sigterm_directly(self):
-        async with start_server_process() as server_process:
-            server_process.send_signal(signal.SIGTERM)
-            with anyio.fail_after(SHUTDOWN_TIMEOUT):
-                assert (
-                    await server_process.wait() != 0
-                ), "Server process exited with zero code"
-            server_process.out.seek(0)
-            out = server_process.out.read().decode()
-
-            assert "Sending SIGTERM" in out, (
-                "When sending a SIGTERM, the main process should send a SIGTERM to the"
-                f" uvicorn subprocess. Output:\n{out}"
-            )
-
-    @pytest.mark.skipif(
-        sys.platform == "win32",
-        reason="SIGTERM is only used in non-Windows environments",
-    )
-    async def test_sigint_sends_sigterm_then_sigkill(self):
-        async with start_server_process() as server_process:
-            server_process.send_signal(signal.SIGINT)
-            await anyio.sleep(
-                0.001
-            )  # some time needed for the recursive signal handler
-            server_process.send_signal(signal.SIGINT)
-            with anyio.fail_after(SHUTDOWN_TIMEOUT):
-                assert (
-                    await server_process.wait() != 0
-                ), "Server process exited with zero code"
-            server_process.out.seek(0)
-            out = server_process.out.read().decode()
+                exit_code = await server_process.wait()
 
             assert (
-                # either the main PID is still waiting for shutdown, so forwards the SIGKILL
-                "Sending SIGKILL" in out
-                # or SIGKILL came too late, and the main PID is already closing
-                or "KeyboardInterrupt" in out
-                or "Server stopped!" in out
-            ), (
-                "When sending two SIGINT shortly after each other, the main process"
-                " should first send a SIGTERM and then a SIGKILL to the uvicorn"
-                f" subprocess. Output:\n{out}"
+                exit_code == 0
+            ), "After one sigint, the process should exit successfully"
+
+            server_process.out.seek(0)
+            out = server_process.out.read().decode()
+
+            assert "Application shutdown complete." in out, (
+                "When sending a SIGINT, the application should shutdown cleanly. "
+                f"Output:\n{out}"
             )
 
     @pytest.mark.skipif(
         sys.platform == "win32",
         reason="SIGTERM is only used in non-Windows environments",
     )
-    async def test_sigterm_sends_sigterm_then_sigkill(self):
+    async def test_sigterm_shutsdown_cleanly(self):
         async with start_server_process() as server_process:
             server_process.send_signal(signal.SIGTERM)
-            await anyio.sleep(
-                0.001
-            )  # some time needed for the recursive signal handler
-            server_process.send_signal(signal.SIGTERM)
             with anyio.fail_after(SHUTDOWN_TIMEOUT):
-                assert (
-                    await server_process.wait() != 0
-                ), "Server process exited with zero code"
+                exit_code = await server_process.wait()
+
+            assert (
+                exit_code == -signal.SIGTERM
+            ), "After a sigterm, the server process should indicate it was terminated"
+
             server_process.out.seek(0)
             out = server_process.out.read().decode()
 
-            assert (
-                # either the main PID is still waiting for shutdown, so forwards the SIGKILL
-                "Sending SIGKILL" in out
-                # or SIGKILL came too late, and the main PID is already closing
-                or "KeyboardInterrupt" in out
-                or "Server stopped!" in out
-            ), (
-                "When sending two SIGTERM shortly after each other, the main process"
-                " should first send a SIGTERM and then a SIGKILL to the uvicorn"
-                f" subprocess. Output:\n{out}"
+            assert "Application shutdown complete." in out, (
+                "When sending a SIGTERM, the application should shutdown cleanly. "
+                f"Output:\n{out}"
             )
 
     @pytest.mark.skipif(
         sys.platform != "win32",
         reason="CTRL_BREAK_EVENT is only defined in Windows",
     )
-    async def test_sends_ctrl_break_win32(self):
+    async def test_ctrl_break_shutsdown_cleanly(self):
         async with start_server_process() as server_process:
             server_process.send_signal(signal.SIGINT)
             with anyio.fail_after(SHUTDOWN_TIMEOUT):
-                assert (
-                    await server_process.wait() != 0
-                ), "Server process exited with zero code"
+                exit_code = await server_process.wait()
+
+            assert (
+                exit_code == 0
+            ), "After a ctrl-break, the process should exit successfully"
+
             server_process.out.seek(0)
             out = server_process.out.read().decode()
 
