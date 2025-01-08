@@ -3175,6 +3175,48 @@ class TestFlowHooksOnFailure:
         assert state.type == StateType.COMPLETED
         my_mock.assert_not_called()
 
+    def test_on_failure_hooks_dont_run_on_retries(self):
+        my_mock = MagicMock()
+
+        def failed1(flow, flow_run, state):
+            my_mock("failed1")
+
+        def failed2(flow, flow_run, state):
+            my_mock("failed2")
+
+        @flow(on_failure=[failed1, failed2], retries=3)
+        def my_flow():
+            raise SyntaxError("oops")
+
+        state = my_flow(return_state=True)
+        assert state.type == StateType.FAILED
+        assert my_mock.call_count == 2
+        assert [call.args[0] for call in my_mock.call_args_list] == [
+            "failed1",
+            "failed2",
+        ]
+
+    async def test_on_async_failure_hooks_dont_run_on_retries(self):
+        my_mock = MagicMock()
+
+        async def failed1(flow, flow_run, state):
+            my_mock("failed1")
+
+        async def failed2(flow, flow_run, state):
+            my_mock("failed2")
+
+        @flow(on_failure=[failed1, failed2], retries=3)
+        async def my_flow():
+            raise SyntaxError("oops")
+
+        state = await my_flow(return_state=True)
+        assert state.type == StateType.FAILED
+        assert my_mock.call_count == 2
+        assert [call.args[0] for call in my_mock.call_args_list] == [
+            "failed1",
+            "failed2",
+        ]
+
     def test_other_failure_hooks_run_if_a_hook_fails(self):
         my_mock = MagicMock()
 
