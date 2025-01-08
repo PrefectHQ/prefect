@@ -94,12 +94,11 @@ def setup_logging(incremental: Optional[bool] = None) -> dict[str, Any]:
 
     for logger_name in PREFECT_LOGGING_EXTRA_LOGGERS.value():
         logger = logging.getLogger(logger_name)
+        logger.setLevel(extra_config.level)
+        logger.propagate = extra_config.propagate
         for handler in extra_config.handlers:
             if not config["incremental"]:
                 logger.addHandler(handler)
-            if logger.level == logging.NOTSET:
-                logger.setLevel(extra_config.level)
-            logger.propagate = extra_config.propagate
 
     PROCESS_LOGGING_CONFIG = config
 
