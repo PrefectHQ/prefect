@@ -8,6 +8,7 @@ import asyncio
 import atexit
 import base64
 import contextlib
+import gc
 import mimetypes
 import os
 import random
@@ -289,6 +290,7 @@ def create_api_app(
     health_check_path: str = "/health",
     version_check_path: str = "/version",
     fast_api_app_kwargs: dict[str, Any] | None = None,
+    final: bool = False,
 ) -> FastAPI:
     """
     Create a FastAPI app that includes the Prefect REST API
@@ -297,6 +299,8 @@ def create_api_app(
         dependencies: a list of global dependencies to add to each Prefect REST API router
         health_check_path: the health check route path
         fast_api_app_kwargs: kwargs to pass to the FastAPI constructor
+        final: whether this will be the last instance of the Prefect server to be
+            created in this process, so that additional optimizations may be applied
 
     Returns:
         a FastAPI app that serves the Prefect REST API
@@ -321,6 +325,25 @@ def create_api_app(
 
     for router in API_ROUTERS:
         api_app.include_router(router, dependencies=dependencies)
+        if final:
+            # Important note about how FastAPI works:
+            #
+            # When including a router, FastAPI copies the routes and builds entirely new
+            # Pydantic models to represent the request bodies of the routes in the
+            # router.  This is because the dependencies may change if the same router is
+            # included multiple times, but it also means that we are holding onto an
+            # entire set of Pydantic models on the original routers for the duration of
+            # the server process that will never be used.
+            #
+            # Because Prefect does not reuse routers, we are free to clean up the routes
+            # because we know they won't be used again.  Thus, if we have the hint that
+            # this is the final instance we will create in this process, we can clean up
+            # the routes on the original source routers to conserve memory (~50-55MB as
+            # of introducing this change).
+            del router.routes
+
+    if final:
+        gc.collect()
 
     auth_string = prefect.settings.PREFECT_SERVER_API_AUTH_STRING.value()
 
@@ -515,6 +538,7 @@ def _memoize_block_auto_registration(
 def create_app(
     settings: Optional[prefect.settings.Settings] = None,
     ephemeral: bool = False,
+    final: bool = False,
     ignore_cache: bool = False,
 ) -> FastAPI:
     """
@@ -523,14 +547,17 @@ def create_app(
     Args:
         settings: The settings to use to create the app. If not set, settings are pulled
             from the context.
-        ignore_cache: If set, a new application will be created even if the settings
-            match. Otherwise, an application is returned from the cache.
         ephemeral: If set, the application will be treated as ephemeral. The UI
             and services will be disabled.
+        final: whether this will be the last instance of the Prefect server to be
+            created in this process, so that additional optimizations may be applied
+        ignore_cache: If set, a new application will be created even if the settings
+            match. Otherwise, an application is returned from the cache.
     """
     settings = settings or prefect.settings.get_current_settings()
     cache_key = (settings.hash_key(), ephemeral)
     ephemeral = ephemeral or bool(os.getenv("PREFECT__SERVER_EPHEMERAL"))
+    final = final or bool(os.getenv("PREFECT__SERVER_FINAL"))
 
     from prefect.logging.configuration import setup_logging
 
@@ -677,6 +704,7 @@ def create_app(
                 ObjectNotFoundError: prefect_object_not_found_exception_handler,
             }
         },
+        final=final,
     )
     ui_app = create_ui_app(ephemeral)
 
@@ -872,6 +900,7 @@ class SubprocessASGIServer:
         server_env = {
             "PREFECT_UI_ENABLED": "0",
             "PREFECT__SERVER_EPHEMERAL": "1",
+            "PREFECT__SERVER_FINAL": "1",
         }
         return subprocess.Popen(
             args=[
