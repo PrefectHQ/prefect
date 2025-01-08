@@ -32,7 +32,7 @@ formatters:
 # Define any custom filters to drops records containing
 # sensitive information
 # my_filter:
-# class: your_module.FilterClass
+# (): your_module.FilterClass
 
 handlers:
   # The handlers we define here will output all logs they receive by default
