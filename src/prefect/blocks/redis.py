@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import AsyncGenerator, Optional, Union
+from typing import AsyncGenerator, Optional
 
 try:
     import redis.asyncio as redis
@@ -10,7 +12,7 @@ except ImportError:
         "You can install it with `pip install redis>=5.0.1"
     )
 
-from pydantic import Field
+from pydantic import Field, HttpUrl
 from pydantic.types import SecretStr
 from typing_extensions import Self
 
@@ -48,7 +50,9 @@ class RedisStorageContainer(WritableFileSystem):
         ```
     """
 
-    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/dfb02cfce09ce3ca88fea097659a83554dd7a850-596x512.png"
+    _logo_url = HttpUrl(
+        "https://cdn.sanity.io/images/3ugk85nk/production/dfb02cfce09ce3ca88fea097659a83554dd7a850-596x512.png"
+    )
 
     host: Optional[str] = Field(default=None, description="Redis hostname")
     port: int = Field(default=6379, description="Redis port")
@@ -70,7 +74,7 @@ class RedisStorageContainer(WritableFileSystem):
             )
 
     @sync_compatible
-    async def read_path(self, path: Union[Path, str]):
+    async def read_path(self, path: Path | str):
         """Read the redis content at `path`
 
         Args:
@@ -83,7 +87,7 @@ class RedisStorageContainer(WritableFileSystem):
             return await client.get(str(path))
 
     @sync_compatible
-    async def write_path(self, path: Union[Path, str], content: bytes):
+    async def write_path(self, path: Path | str, content: bytes):
         """Write `content` to the redis at `path`
 
         Args:
@@ -97,7 +101,7 @@ class RedisStorageContainer(WritableFileSystem):
     @asynccontextmanager
     async def _client(self) -> AsyncGenerator[redis.Redis, None]:
         if self.connection_string:
-            client = redis.Redis.from_url(self.connection_string.get_secret_value())
+            client = redis.Redis.from_url(self.connection_string.get_secret_value())  # pyright: ignore[reportUnknownMemberType] incomplete typing for redis-py
         else:
             assert self.host
             client = redis.Redis(
@@ -119,8 +123,8 @@ class RedisStorageContainer(WritableFileSystem):
         host: str,
         port: int = 6379,
         db: int = 0,
-        username: Union[None, str, SecretStr] = None,
-        password: Union[None, str, SecretStr] = None,
+        username: None | str | SecretStr = None,
+        password: None | str | SecretStr = None,
     ) -> Self:
         """Create block from hostname, username and password
 
@@ -140,7 +144,7 @@ class RedisStorageContainer(WritableFileSystem):
         return cls(host=host, port=port, db=db, username=username, password=password)
 
     @classmethod
-    def from_connection_string(cls, connection_string: Union[str, SecretStr]) -> Self:
+    def from_connection_string(cls, connection_string: str | SecretStr) -> Self:
         """Create block from a Redis connection string
 
         Supports the following URL schemes:
