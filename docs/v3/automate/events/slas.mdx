@@ -4,9 +4,11 @@ description: Service Level Agreements (SLAs) are a way to define the performance
 ---
 <Warning> <b>Experimental:</b> This feature is experimental and may change in the future.</Warning>
 
-<Note>Prefect Client Version 3.1.12 or later is required to use SLAs.</Note>
+## Prerequisites
+- Prefect Client Version 3.1.12 or later
+- Prefect Cloud account (SLAs are only available in Prefect Cloud)
 
-# Service Level Agreements
+## Service Level Agreements
 
 <span class="badge cloud"></span> Service Level Agreements (SLAs) are a way to define the performance expectations for your data stack and to enable automated alerts when those expectations are not met.
 
@@ -14,8 +16,10 @@ SLAs are defined on the Deployment level and can be used to trigger alerts when 
 
 ## Defining SLAs
 
-To define an SLA you can add them to the Deployment either through the `prefect.yaml` file, through using `.deploy` or the CLI.
+To define an SLA you can add them to the Deployment either through the `prefect.yaml` file, through using a `.deploy` method, or the CLI:
+<AccordionGroup>
 
+<Accordion title="Defining SLAs in your prefect.yaml file">
 ```yaml prefect.yaml SLA
 deployments:
   my-deployment:
@@ -24,7 +28,9 @@ deployments:
           duration: 10
           severity: "high"
 ```
+</Accordion>
 
+<Accordion title="Defining SLAs using a .deploy method">
 ```python .deploy SLA
     flow.from_source(
         source=source,
@@ -41,11 +47,14 @@ deployments:
         ]
     )
 ```
+</Accordion>    
 
+<Accordion title="Defining SLAs with the Prefect CLI">
 ```bash CLI SLA
 prefect deploy --sla '{"name": "my-sla", "duration": 10, "severity": "high"}'
 ```
-
+</Accordion>
+</AccordionGroup>
 ## Monitoring SLAs
 
 You can monitor SLAs in the Prefect Cloud UI. On the runs page you can see the SLA status in the top level metrics:
@@ -62,3 +71,5 @@ To set up an automation to notify a team or to take other actions when an SLA is
 3. For "From the Following Resources" choose: `prefect.flow-run.*`
 
 ![Create an automation](/v3/img/ui/sla-trigger-automation.png)
+
+After creating the trigger, you can create an automation to notify a team or to take other actions when an SLA is triggered using the [automations](/v3/automate/events/automations-triggers/) feature.
