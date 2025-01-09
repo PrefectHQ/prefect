@@ -1,13 +1,34 @@
 ---
 title: Quickstart
-description: Get started with Prefect, the easiest way to orchestrate and observe your data pipelines
+description: Convert a Python script into your first Prefect workflow
 ---
 
 import Installation from '/snippets/installation.mdx'
 
-Prefect is an orchestration and observability platform that empowers developers to build and scale workflows quickly.
-In this quickstart, you will use Prefect to convert the following Python script to a deployable workflow.
+Prefect makes it easy to deploy Python scripts (off of your laptop), run them on a schedule, and make them robust to failure.
+Let's start with a Python script that fetches the number of stars for a list of GitHub repositories.
 
+```mermaid
+sequenceDiagram
+    participant M as Main
+    participant S as show_stars()
+    participant F as fetch_stats()
+    participant G as get_stars()
+    participant A as GitHub API
+
+    M->>S: show_stars(['PrefectHQ/prefect', ...])
+    loop For each repo
+        S->>F: fetch_stats(repo)
+        F->>A: GET /repos/{repo}
+        A-->>F: Return repo statistics
+        F-->>S: Return JSON response
+        S->>G: get_stars(repo_stats)
+        G-->>S: Return stargazers_count
+        S->>S: Print repo stars
+    end
+```
+
+<Expandable title="the script">
 ```python my_script.py
 import httpx
 
@@ -40,6 +61,15 @@ if __name__ == "__main__":
         "huggingface/transformers"
     ])
 ```
+</Expandable>
+
+To convert this script to a Prefect workflow, you'll need to perform the following tasks:
+
+1. Install Prefect
+2. Connect to a Prefect API (self-hosted or Prefect Cloud)
+3. Add decorators to the methods in the script
+
+Let's get started!
 
 ## Install Prefect
 
