@@ -155,10 +155,10 @@ def create_xgboost_estimator(sagemaker_session, role_arn):
 @flow(log_prints=True)
 def train_model(data_bucket: str = "prefect-ml-data", model_bucket: str = "prefect-model"):
     """Main flow to train XGBoost model on Iris dataset using SageMaker."""
-    # Load AWS credentials from Prefect Block
+    # Load AWS credentials from Prefect block
     aws_credentials = AwsCredentials.load("aws-credentials")
     
-    # Get SageMaker role ARN from Prefect Secret Block
+    # Get SageMaker role ARN from Prefect Secret block
     role_arn = Secret.load("sagemaker-role-arn").get()
     
     # Create SageMaker session
@@ -402,7 +402,7 @@ Create an automation with a **custom** trigger type:
 
 * Trigger on any event matching `webhook.called` from the `model-training` webhook.
 Since the webhook is a related resource, you must go to the **JSON** tab and move the `prefect.resource.id` section from the `match` to the `match_related` array.
-* Trigger whenever you see that event 1 time within 1 minutes (this ensures your model will train only once when a batch of files are uploaded).
+* Trigger whenever you see that event 1 time within 1 minute (this ensures your model will train only once when a batch of files are uploaded).
 * Run the `train-model > model-training` deployment whenever this automation is triggered.
   * You only need to change the `data_bucket` and `model_bucket` parameters if you use different bucket names than those used in this tutorial.
 * Name this automation `train-model`.
@@ -492,14 +492,14 @@ The easiest way to do this is to create a new access key for your root account.
 
 Next, create the following blocks in Prefect Cloud:
 
-* An **AWS Credentials** Block named `aws-credentials`.
+* An **AWS Credentials** block named `aws-credentials`.
 Set the `AWS Access Key ID` and `AWS Access Key Secret` fields to the values from the access key you created earlier.
-* An **S3 Bucket** Block named `s3-bucket-block`, set to the name of your model bucket (`prefect-model` by default).
-This Block can use the `aws-credentials` Block you created earlier.
-* A **Secret** Block named `sagemaker-role-arn`.
-This Block stores the IAM role ARN for SageMaker that you created earlier.
+* An **S3 Bucket** block named `s3-bucket-block`, set to the name of your model bucket (`prefect-model` by default).
+This block can use the `aws-credentials` block you created earlier.
+* A **Secret** block named `sagemaker-role-arn`.
+This block stores the IAM role ARN for SageMaker that you created earlier.
 
-Now, when you run your flows in Prefect Cloud, they can use these Blocks to authenticate with AWS.
+Now, when you run your flows in Prefect Cloud, they can use these blocks to authenticate with AWS.
 
 ## Test the ML pipeline
 
