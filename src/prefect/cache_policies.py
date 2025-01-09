@@ -302,7 +302,7 @@ class Inputs(CachePolicy):
                 "like locks, file handles, or other system resources.\n\n"
                 "To resolve this, you can:\n"
                 "  1. Exclude these arguments by defining a custom `cache_key_fn`\n"
-                "  2. Disable caching by passing `cache_policy=NONE`\n"
+                "  2. Disable caching by passing `cache_policy=NO_CACHE`\n"
             )
             raise ValueError(msg) from exc
 
