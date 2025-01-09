@@ -63,7 +63,7 @@ Here are some common state transitions and what they mean:
 | ⛔ | Pending | Crashed | Worker or runner | Something went wrong. Some possibilities are 1) the worker could have failed to create the infrastructure, 2) the code is not present in storage or the worker failed to authenticate, or 3) the code has missing or broken imports, or syntax errors. |
 | ✅ | Running | Completed | Flow run | The flow completed successfully. |
 | ⛔ | Running | Failed | Flow run | This usually means that your code raised an exception, check the flow run logs. |
-| ⛔ | Running | Crashed | Worker or flow run | Probably not a raised exception in your code, but could be an infrastructure issue such as 1) an out of memory error, 2) your pod was evicted, or 3) you exceeded a timeout. |
+| ⛔ | Running | Crashed | Worker or flow run | Probably not a raised exception in your code, but could be an infrastructure issue such as 1) an out of memory error, 2) an evicted pod, or 3) a timeout. |
 
 ## Final state determination
 
