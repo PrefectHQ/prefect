@@ -1,5 +1,6 @@
 import {
 	Breadcrumb,
+	BreadcrumbItem,
 	BreadcrumbLink,
 	BreadcrumbList,
 } from "@/components/ui/breadcrumb";
@@ -21,12 +22,14 @@ const Header = () => (
 	<div className="flex items-center gap-2">
 		<Breadcrumb>
 			<BreadcrumbList>
-				<BreadcrumbLink
-					to="/concurrency-limits"
-					className="text-xl font-semibold"
-				>
-					Automations
-				</BreadcrumbLink>
+				<BreadcrumbItem>
+					<BreadcrumbLink
+						to="/concurrency-limits"
+						className="text-xl font-semibold"
+					>
+						Automations
+					</BreadcrumbLink>
+				</BreadcrumbItem>
 			</BreadcrumbList>
 		</Breadcrumb>
 		<Button size="icon" className="h-7 w-7" variant="outline">

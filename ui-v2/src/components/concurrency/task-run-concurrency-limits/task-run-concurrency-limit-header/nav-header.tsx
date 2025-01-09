@@ -16,12 +16,14 @@ export const NavHeader = ({ tag }: NavHeaderProps) => {
 		<div className="flex items-center gap-2">
 			<Breadcrumb>
 				<BreadcrumbList>
-					<BreadcrumbLink
-						to="/concurrency-limits"
-						className="text-xl font-semibold"
-					>
-						Concurrency Limits
-					</BreadcrumbLink>
+					<BreadcrumbItem>
+						<BreadcrumbLink
+							to="/concurrency-limits"
+							className="text-xl font-semibold"
+						>
+							Concurrency Limits
+						</BreadcrumbLink>
+					</BreadcrumbItem>
 					<BreadcrumbSeparator />
 					<BreadcrumbItem className="text-xl font-semibold">
 						<BreadcrumbPage>{tag}</BreadcrumbPage>
