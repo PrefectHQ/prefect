@@ -58,7 +58,7 @@ Here are some common state transitions and what they mean:
 | --- | --------------- | ------------ | ----------- | ----------- |
 | ✅ | None | Scheduled | Cloud (schedule) or user (custom run) | A flow run has been created and scheduled for future execution. |
 | ✅ | Scheduled | Pending | Worker | A worker is attempting to start the infrastructure for your flow run. |
-| ⛔ | Scheduled | Late | Cloud | Typically means that a worker did not pick up the run because 1) no workers are healthy, 2) workers are not polling the right work pool or work queue, or 3) workers are concurrency limited. |
+| ⛔ | Scheduled | Late | Cloud or self-hosted server | Typically means that a worker did not pick up the run because 1) no workers are healthy, 2) workers are not polling the right work pool or work queue, or 3) workers are concurrency limited. |
 | ✅ | Pending | Running | Worker | The infrastructure was provisioned and the flow is running |
 | ⛔ | Pending | Crashed | Worker or runner | Something went wrong. Some possibilities are 1) the worker could have failed to create the infrastructure, 2) the code is not present in storage or the worker failed to authenticate, or 3) the code has missing or broken imports, or syntax errors. |
 | ✅ | Running | Completed | Flow run | The flow completed successfully. |
