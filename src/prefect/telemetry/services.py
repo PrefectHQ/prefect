@@ -53,6 +53,8 @@ class QueueingSpanExporter(BaseQueueingExporter[ReadableSpan], SpanExporter):
 
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
         for item in spans:
+            if self._stopped:
+                break
             self.send(item)
         return SpanExportResult.SUCCESS
 
@@ -65,4 +67,6 @@ class QueueingLogExporter(BaseQueueingExporter[LogData], LogExporter):
 
     def export(self, batch: Sequence[LogData]) -> None:
         for item in batch:
+            if self._stopped:
+                break
             self.send(item)

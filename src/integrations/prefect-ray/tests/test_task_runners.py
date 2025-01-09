@@ -56,7 +56,20 @@ def machine_ray_instance():
     """
     Starts a ray instance for the current machine
     """
+    # First ensure any existing Ray processes are stopped
     try:
+        subprocess.run(
+            ["ray", "stop"],
+            check=True,
+            capture_output=True,
+            cwd=str(prefect.__development_base_path__),
+        )
+    except subprocess.CalledProcessError:
+        # It's okay if ray stop fails - it might not be running
+        pass
+
+    try:
+        # Start Ray with clean session
         subprocess.check_output(
             [
                 "ray",
@@ -70,9 +83,18 @@ def machine_ray_instance():
         )
         yield "ray://127.0.0.1:10001"
     except subprocess.CalledProcessError as exc:
-        pytest.fail(f"Failed to start ray: {exc.stderr}")
+        pytest.fail(f"Failed to start ray: {exc.stderr or exc}")
     finally:
-        subprocess.run(["ray", "stop"])
+        # Always try to stop Ray in the cleanup
+        try:
+            subprocess.run(
+                ["ray", "stop"],
+                check=True,
+                capture_output=True,
+                cwd=str(prefect.__development_base_path__),
+            )
+        except subprocess.CalledProcessError:
+            pass  # Best effort cleanup
 
 
 @pytest.fixture
