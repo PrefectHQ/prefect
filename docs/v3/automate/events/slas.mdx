@@ -10,9 +10,8 @@ description: Service Level Agreements (SLAs) are a way to define the performance
 
 ## Service Level Agreements
 
-<span class="badge cloud"></span> Service Level Agreements (SLAs) are a way to define the performance expectations for your data stack and to enable automated alerts when those expectations are not met.
-
-SLAs are defined on the Deployment level and can be used to trigger alerts when a flow run fails to adhere to the SLA. For example, you can define an SLA that triggers an alert if a flow run takes longer than 10 minutes to complete. When the SLA is triggered, an event is emitted and can be used to trigger an [automation](/v3/automate/events/automations-triggers/) to notify a team or to take other actions.
+<span class="badge cloud"></span> Service Level Agreements (SLAs) help you set and monitor performance standards for your data stack. By establishing specific thresholds for flow runs on your Deployments, you can automatically detect when your system isn't meeting expectations.
+When you set up an SLA, you define specific performance criteria - such as a maximum runtime of 10 minutes for a flow. If a flow run exceeds this threshold, the system generates an alert event. You can then use these events to trigger automated responses, whether that's sending notifications to your team or initiating other corrective actions through automations.
 
 ## Defining SLAs
 
