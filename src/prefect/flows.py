@@ -2,6 +2,8 @@
 Module containing the base workflow class and decorator - for most use cases, using the [`@flow` decorator][prefect.flows.flow] is preferred.
 """
 
+from __future__ import annotations
+
 # This file requires type-checking with pyright because mypy does not yet support PEP612
 # See https://github.com/python/mypy/issues/8645
 import ast
@@ -37,13 +39,13 @@ from typing import (
 from uuid import UUID
 
 import pydantic
-from fastapi.encoders import jsonable_encoder
 from pydantic.v1 import BaseModel as V1BaseModel
 from pydantic.v1.decorator import ValidatedFunction as V1ValidatedFunction
 from pydantic.v1.errors import ConfigError  # TODO
 from rich.console import Console
 from typing_extensions import Literal, ParamSpec, TypeAlias
 
+from prefect._experimental.sla.objects import SlaTypes
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect.blocks.core import Block
 from prefect.client.schemas.actions import DeploymentScheduleCreate
@@ -613,6 +615,8 @@ class Flow(Generic[P, R]):
                 serialized_parameters[key] = f"<{type(value).__name__}>"
                 continue
             try:
+                from fastapi.encoders import jsonable_encoder
+
                 serialized_parameters[key] = jsonable_encoder(value)
             except (TypeError, ValueError):
                 logger.debug(
@@ -650,6 +654,7 @@ class Flow(Generic[P, R]):
         work_queue_name: Optional[str] = None,
         job_variables: Optional[dict[str, Any]] = None,
         entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
+        _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,  # experimental
     ) -> "RunnerDeployment":
         """
         Creates a runner deployment object for this flow.
@@ -680,6 +685,7 @@ class Flow(Generic[P, R]):
                 of the chosen work pool. Refer to the base job template of the chosen work pool for
             entrypoint_type: Type of entrypoint to use for the deployment. When using a module path
                 entrypoint, ensure that the module will be importable in the execution environment.
+            _sla: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
 
         Examples:
             Prepare two deployments and serve them:
@@ -727,6 +733,7 @@ class Flow(Generic[P, R]):
                 work_pool_name=work_pool_name,
                 work_queue_name=work_queue_name,
                 job_variables=job_variables,
+                _sla=_sla,
             )  # type: ignore # TODO: remove sync_compatible
         else:
             return RunnerDeployment.from_flow(
@@ -748,6 +755,7 @@ class Flow(Generic[P, R]):
                 work_queue_name=work_queue_name,
                 job_variables=job_variables,
                 entrypoint_type=entrypoint_type,
+                _sla=_sla,
             )
 
     def on_completion(self, fn: StateHookCallable) -> StateHookCallable:
@@ -1060,6 +1068,7 @@ class Flow(Generic[P, R]):
         entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
         print_next_steps: bool = True,
         ignore_warnings: bool = False,
+        _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,
     ) -> UUID:
         """
         Deploys a flow to run on dynamic infrastructure via a work pool.
@@ -1111,7 +1120,7 @@ class Flow(Generic[P, R]):
             print_next_steps_message: Whether or not to print a message with next steps
                 after deploying the deployments.
             ignore_warnings: Whether or not to ignore warnings about the work pool type.
-
+            _sla: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
         Returns:
             The ID of the created/updated deployment.
 
@@ -1189,6 +1198,7 @@ class Flow(Generic[P, R]):
             work_queue_name=work_queue_name,
             job_variables=job_variables,
             entrypoint_type=entrypoint_type,
+            _sla=_sla,
         )
 
         from prefect.deployments.runner import deploy

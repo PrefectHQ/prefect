@@ -5,13 +5,13 @@ Each filter schema includes logic for transforming itself into a SQL `where` cla
 """
 
 from collections.abc import Iterable, Sequence
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, ClassVar, Optional
 from uuid import UUID
 
 from pydantic import ConfigDict, Field
 
 import prefect.server.schemas as schemas
-from prefect.server.database import PrefectDBInterface, db_injector
+from prefect.server.database import PrefectDBInterface, db_injector, orm_models
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
 from prefect.types import DateTime
 from prefect.utilities.collections import AutoEnum
@@ -43,7 +43,7 @@ class Operator(AutoEnum):
 class PrefectFilterBaseModel(PrefectBaseModel):
     """Base model for Prefect filters"""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
     @db_injector
     def as_sql_filter(self, db: PrefectDBInterface) -> sa.ColumnElement[bool]:
@@ -1158,6 +1158,12 @@ class DeploymentFilterTags(PrefectOperatorFilterBaseModel):
             " superset of the list"
         ),
     )
+    any_: Optional[list[str]] = Field(
+        default=None,
+        examples=[["tag-1", "tag-2"]],
+        description="A list of tags to include",
+    )
+
     is_null_: Optional[bool] = Field(
         default=None, description="If true, only include deployments without tags"
     )
@@ -1167,7 +1173,9 @@ class DeploymentFilterTags(PrefectOperatorFilterBaseModel):
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnElement[bool]] = []
         if self.all_ is not None:
-            filters.append(db.Deployment.tags.has_all(_as_array(self.all_)))
+            filters.append(orm_models.Deployment.tags.has_all(_as_array(self.all_)))
+        if self.any_ is not None:
+            filters.append(orm_models.Deployment.tags.has_any(_as_array(self.any_)))
         if self.is_null_ is not None:
             filters.append(
                 db.Deployment.tags == [] if self.is_null_ else db.Deployment.tags != []

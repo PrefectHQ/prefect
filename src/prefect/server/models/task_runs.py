@@ -23,7 +23,9 @@ from prefect.server.orchestration.core_policy import (
     MinimalTaskPolicy,
 )
 from prefect.server.orchestration.global_policy import GlobalTaskPolicy
-from prefect.server.orchestration.policies import BaseOrchestrationPolicy
+from prefect.server.orchestration.policies import (
+    TaskRunOrchestrationPolicy,
+)
 from prefect.server.orchestration.rules import TaskOrchestrationContext
 from prefect.server.schemas.responses import OrchestrationResult
 
@@ -419,7 +421,7 @@ async def set_task_run_state(
     task_run_id: UUID,
     state: schemas.states.State,
     force: bool = False,
-    task_policy: Optional[Type[BaseOrchestrationPolicy]] = None,
+    task_policy: Optional[Type[TaskRunOrchestrationPolicy]] = None,
     orchestration_parameters: Optional[Dict[str, Any]] = None,
 ) -> OrchestrationResult:
     """
