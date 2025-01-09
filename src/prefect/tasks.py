@@ -30,7 +30,7 @@ from uuid import UUID, uuid4
 from typing_extensions import Literal, ParamSpec, Self, TypeAlias, TypeIs
 
 import prefect.states
-from prefect.cache_policies import DEFAULT, NONE, CachePolicy
+from prefect.cache_policies import DEFAULT, NO_CACHE, CachePolicy
 from prefect.client.orchestration import get_client
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import (
@@ -441,7 +441,9 @@ class Task(Generic[P, R]):
         if persist_result is None:
             if any(
                 [
-                    cache_policy and cache_policy != NONE and cache_policy != NotSet,
+                    cache_policy
+                    and cache_policy != NO_CACHE
+                    and cache_policy != NotSet,
                     cache_key_fn is not None,
                     result_storage_key is not None,
                     result_storage is not None,
@@ -451,8 +453,8 @@ class Task(Generic[P, R]):
                 persist_result = True
 
         if persist_result is False:
-            self.cache_policy = None if cache_policy is None else NONE
-            if cache_policy and cache_policy is not NotSet and cache_policy != NONE:
+            self.cache_policy = None if cache_policy is None else NO_CACHE
+            if cache_policy and cache_policy is not NotSet and cache_policy != NO_CACHE:
                 logger.warning(
                     "Ignoring `cache_policy` because `persist_result` is False"
                 )

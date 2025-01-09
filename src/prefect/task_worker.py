@@ -21,7 +21,7 @@ from websockets.exceptions import InvalidStatusCode
 
 from prefect import Task
 from prefect._internal.concurrency.api import create_call, from_sync
-from prefect.cache_policies import DEFAULT, NONE
+from prefect.cache_policies import DEFAULT, NO_CACHE
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import TaskRun
 from prefect.client.subscriptions import Subscription
@@ -93,7 +93,7 @@ class TaskWorker:
                 if not isinstance(t, Task):
                     continue
 
-            if t.cache_policy in [None, NONE, NotSet]:
+            if t.cache_policy in [None, NO_CACHE, NotSet]:
                 self.tasks.append(
                     t.with_options(persist_result=True, cache_policy=DEFAULT)
                 )

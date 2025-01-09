@@ -350,7 +350,7 @@ Tasks allow for customization through optional arguments that can be provided to
 | `tags`                | An optional set of tags associated with runs of this task. These tags are combined with any tags defined by a `prefect.tags` context at task runtime.                                                             |
 | `timeout_seconds`     | An optional number of seconds indicating a maximum runtime for the task. If the task exceeds this runtime, it will be marked as failed. |
 | `cache_key_fn`        | An optional callable that, given the task run context and call parameters, generates a string key. If the key matches a previous completed state, that state result is restored instead of running the task again. |
-| `cache_policy`        | An optional policy that determines what information is used to generate cache keys. Available policies include `INPUTS`, `TASK_SOURCE`, `RUN_ID`, `FLOW_PARAMETERS`, and `NONE`. Can be combined using the + operator. |
+| `cache_policy`        | An optional policy that determines what information is used to generate cache keys. Available policies include `INPUTS`, `TASK_SOURCE`, `RUN_ID`, `FLOW_PARAMETERS`, and `NO_CACHE`. Can be combined using the + operator. |
 | `cache_expiration`    | An optional amount of time indicating how long cached states for this task are restorable; if not provided, cached states will never expire. |
 | `retries`             | An optional number of times to retry on task run failure. |
 | `retry_delay_seconds` | An optional number of seconds to wait before retrying the task after failure. This is only applicable if `retries` is nonzero.                                                                                          |
