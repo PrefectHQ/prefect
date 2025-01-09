@@ -7,6 +7,12 @@ import Installation from '/snippets/installation.mdx'
 
 Prefect makes it easy to deploy Python scripts, run them on a schedule, make them robust to failure, and observe them in a UI.
 
+To do this, you need to perform the following tasks:
+
+1. Install Prefect
+2. Connect to a Prefect API (self-hosted or Prefect Cloud)
+3. Add decorators to the methods in the script
+
 Let's start with a Python script that fetches the number of stars for a list of GitHub repositories.
 
 ```mermaid
@@ -63,14 +69,6 @@ if __name__ == "__main__":
     ])
 ```
 </Expandable>
-
-To convert this script to a Prefect workflow, you'll need to perform the following tasks:
-
-1. Install Prefect
-2. Connect to a Prefect API (self-hosted or Prefect Cloud)
-3. Add decorators to the methods in the script
-
-Let's get started!
 
 ## Install Prefect
 
