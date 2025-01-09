@@ -41,7 +41,7 @@ sequenceDiagram
 
 This tutorial uses Prefect webhooks and automations to trigger the deployments responsible for model training and inference.
 
-### Login to Prefect Cloud
+### Log in to Prefect Cloud
 
 If needed, log in to your Prefect Cloud account.
 
@@ -413,7 +413,7 @@ Create an automation with a **custom** trigger type:
 
 * Trigger on any event matching `webhook.called` from the `model-inference` webhook.
 As before, you must move the `prefect.resource.id` section from the `match` to the `match_related` array, using the **JSON** tab.
-* Trigger whenever you see that event 1 time within 1 minutes (this ensures your model will train only once when a batch of files are uploaded).
+* Trigger whenever you see that event 1 time within 1 minute (this ensures your model will train only once when a batch of files are uploaded).
 * Run the `run-inference > model-inference` deployment whenever this automation is triggered.
 * Name this automation `run-inference`.
 
@@ -490,7 +490,7 @@ Create the following resources in AWS:
 The easiest way to do this is to create a new access key for your root account.
 * An IAM role named `prefect-tutorial` with the `Amazon SageMaker Full Access` and `Amazon S3 Full Access` policies. Note the role ARN, as you'll need this later.
 
-Next, create the following Blocks in Prefect Cloud:
+Next, create the following blocks in Prefect Cloud:
 
 * An **AWS Credentials** Block named `aws-credentials`.
 Set the `AWS Access Key ID` and `AWS Access Key Secret` fields to the values from the access key you created earlier.
