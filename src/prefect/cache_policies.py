@@ -183,7 +183,7 @@ class CompoundCachePolicy(CachePolicy):
 class _None(CachePolicy):
     """
     Policy that always returns `None` for the computed cache key.
-    This policy prevents persistence.
+    This policy prevents persistence and avoids caching entirely.
     """
 
     def compute_key(
@@ -302,7 +302,7 @@ class Inputs(CachePolicy):
                 "like locks, file handles, or other system resources.\n\n"
                 "To resolve this, you can:\n"
                 "  1. Exclude these arguments by defining a custom `cache_key_fn`\n"
-                "  2. Disable caching by passing `cache_policy=NONE`\n"
+                "  2. Disable caching by passing `cache_policy=NO_CACHE`\n"
             )
             raise ValueError(msg) from exc
 
@@ -314,6 +314,7 @@ class Inputs(CachePolicy):
 
 INPUTS = Inputs()
 NONE = _None()
+NO_CACHE = _None()
 TASK_SOURCE = TaskSource()
 FLOW_PARAMETERS = FlowParameters()
 RUN_ID = RunId()
