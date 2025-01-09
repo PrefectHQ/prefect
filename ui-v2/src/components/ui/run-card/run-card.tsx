@@ -1,6 +1,7 @@
 import type { components } from "@/api/prefect";
 import {
 	Breadcrumb,
+	BreadcrumbItem,
 	BreadcrumbLink,
 	BreadcrumbList,
 	BreadcrumbSeparator,
@@ -80,25 +81,31 @@ const ConcurrencyLimitTaskRunBreadcrumb = ({
 		<Breadcrumb>
 			<BreadcrumbList>
 				{flow && (
-					<BreadcrumbLink
-						className="text-lg font-semibold"
-						to="/flows/flow/$id"
-						params={{ id: flow.id }}
-					>
-						{flow.name}
-					</BreadcrumbLink>
+					<BreadcrumbItem>
+						<BreadcrumbLink
+							className="text-lg font-semibold"
+							to="/flows/flow/$id"
+							params={{ id: flow.id }}
+						>
+							{flow.name}
+						</BreadcrumbLink>
+					</BreadcrumbItem>
 				)}
 				{flow && flowRun && <BreadcrumbSeparator />}
 				{flowRun && (
-					<BreadcrumbLink to="/runs/flow-run/$id" params={{ id: flowRun.id }}>
-						{flowRun.name}
-					</BreadcrumbLink>
+					<BreadcrumbItem>
+						<BreadcrumbLink to="/runs/flow-run/$id" params={{ id: flowRun.id }}>
+							{flowRun.name}
+						</BreadcrumbLink>
+					</BreadcrumbItem>
 				)}
 				{flowRun && taskRun && <BreadcrumbSeparator />}
 				{taskRun && (
-					<BreadcrumbLink to="/runs/task-run/$id" params={{ id: taskRun.id }}>
-						{taskRun.name}
-					</BreadcrumbLink>
+					<BreadcrumbItem>
+						<BreadcrumbLink to="/runs/task-run/$id" params={{ id: taskRun.id }}>
+							{taskRun.name}
+						</BreadcrumbLink>
+					</BreadcrumbItem>
 				)}
 			</BreadcrumbList>
 		</Breadcrumb>

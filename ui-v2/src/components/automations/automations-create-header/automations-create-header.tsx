@@ -19,9 +19,11 @@ const NavHeader = () => (
 	<div className="flex items-center gap-2">
 		<Breadcrumb>
 			<BreadcrumbList>
-				<BreadcrumbLink to="/automations" className="text-xl font-semibold">
-					Automations
-				</BreadcrumbLink>
+				<BreadcrumbItem>
+					<BreadcrumbLink to="/automations" className="text-xl font-semibold">
+						Automations
+					</BreadcrumbLink>
+				</BreadcrumbItem>
 				<BreadcrumbSeparator />
 				<BreadcrumbItem className="text-xl font-semibold">
 					<BreadcrumbPage>Create</BreadcrumbPage>
