@@ -10,7 +10,6 @@ from typing import (
     Generic,
     Optional,
     Union,
-    cast,
     overload,
 )
 from uuid import UUID, uuid4
@@ -65,7 +64,7 @@ from prefect.utilities.pydantic import handle_secret_render
 
 if TYPE_CHECKING:
     from prefect.client.schemas.actions import StateCreate
-    from prefect.results import BaseResult, ResultRecordMetadata
+    from prefect.results import ResultRecordMetadata
 
     DateTime = pendulum.DateTime
 else:
@@ -122,7 +121,7 @@ class WorkPoolStatus(AutoEnum):
     PAUSED = AutoEnum.auto()
 
     @property
-    def display_name(self):
+    def display_name(self) -> str:
         return self.name.replace("_", " ").capitalize()
 
 
@@ -195,9 +194,7 @@ class StateDetails(PrefectBaseModel):
 
 
 def data_discriminator(x: Any) -> str:
-    if isinstance(x, dict) and "type" in x and x["type"] != "unpersisted":
-        return "BaseResult"
-    elif isinstance(x, dict) and "storage_key" in x:
+    if isinstance(x, dict) and "storage_key" in x:
         return "ResultRecordMetadata"
     return "Any"
 
@@ -214,7 +211,6 @@ class State(ObjectBaseModel, Generic[R]):
     state_details: StateDetails = Field(default_factory=StateDetails)
     data: Annotated[
         Union[
-            Annotated["BaseResult[R]", Tag("BaseResult")],
             Annotated["ResultRecordMetadata", Tag("ResultRecordMetadata")],
             Annotated[Any, Tag("Any")],
         ],
@@ -347,15 +343,12 @@ class State(ObjectBaseModel, Generic[R]):
         """
         from prefect.client.schemas.actions import StateCreate
         from prefect.results import (
-            BaseResult,
             ResultRecord,
             should_persist_result,
         )
 
-        if isinstance(self.data, BaseResult):
-            data = cast(BaseResult[R], self.data)
-        elif isinstance(self.data, ResultRecord) and should_persist_result():
-            data = self.data.metadata
+        if isinstance(self.data, ResultRecord) and should_persist_result():
+            data = self.data.metadata  # pyright: ignore[reportUnknownMemberType] unable to narrow ResultRecord type
         else:
             data = None
 
@@ -386,7 +379,7 @@ class State(ObjectBaseModel, Generic[R]):
 
     @model_validator(mode="after")
     def set_unpersisted_results_to_none(self) -> Self:
-        if isinstance(self.data, dict) and self.data.get("type") == "unpersisted":
+        if isinstance(self.data, dict) and self.data.get("type") == "unpersisted":  # pyright: ignore[reportUnknownMemberType] unable to narrow dict type
             self.data = None
         return self
 
@@ -531,7 +524,7 @@ class FlowRunPolicy(PrefectBaseModel):
     @classmethod
     def populate_deprecated_fields(cls, values: Any) -> Any:
         if isinstance(values, dict):
-            return set_run_policy_deprecated_fields(values)
+            return set_run_policy_deprecated_fields(values)  # pyright: ignore[reportUnknownVariableType, reportUnknownArgumentType] unable to narrow dict type
         return values
 
 
@@ -1262,7 +1255,7 @@ class BlockDocumentReference(ObjectBaseModel):
     @classmethod
     def validate_parent_and_ref_are_different(cls, values: Any) -> Any:
         if isinstance(values, dict):
-            return validate_parent_and_ref_diff(values)
+            return validate_parent_and_ref_diff(values)  # pyright: ignore[reportUnknownVariableType, reportUnknownArgumentType] unable to narrow dict type
         return values
 
 

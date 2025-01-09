@@ -53,10 +53,9 @@ class RunTelemetry:
         self,
         run: FlowOrTaskRun,
         client: PrefectClient,
-        name: Optional[str] = None,
         parameters: Optional[dict[str, Any]] = None,
     ):
-        traceparent, span = self._start_span(run, name, parameters)
+        traceparent, span = self._start_span(run, parameters)
 
         if self._run_type(run) == "flow" and traceparent:
             # Only explicitly update labels if the run is a flow as task runs
@@ -71,10 +70,9 @@ class RunTelemetry:
         self,
         run: FlowOrTaskRun,
         client: SyncPrefectClient,
-        name: Optional[str] = None,
         parameters: Optional[dict[str, Any]] = None,
     ):
-        traceparent, span = self._start_span(run, name, parameters)
+        traceparent, span = self._start_span(run, parameters)
 
         if self._run_type(run) == "flow" and traceparent:
             # Only explicitly update labels if the run is a flow as task runs
@@ -86,7 +84,6 @@ class RunTelemetry:
     def _start_span(
         self,
         run: FlowOrTaskRun,
-        name: Optional[str] = None,
         parameters: Optional[dict[str, Any]] = None,
     ) -> tuple[Optional[str], Span]:
         """
@@ -117,10 +114,10 @@ class RunTelemetry:
         run_type = self._run_type(run)
 
         self.span = self._tracer.start_span(
-            name=name or run.name,
+            name=run.name,
             context=context,
             attributes={
-                "prefect.run.name": name or run.name,
+                "prefect.run.name": run.name,
                 "prefect.run.type": run_type,
                 "prefect.run.id": str(run.id),
                 "prefect.tags": run.tags,
@@ -152,7 +149,7 @@ class RunTelemetry:
         return propagate.extract(carrier)
 
     def _traceparent_from_span(self, span: Span) -> Optional[str]:
-        carrier = {}
+        carrier: dict[str, Any] = {}
         propagate.inject(carrier, context=trace.set_span_in_context(span))
         return carrier.get(TRACEPARENT_KEY)
 
@@ -197,6 +194,14 @@ class RunTelemetry:
                     "prefect.state.id": str(new_state.id),
                 },
             )
+
+    def update_run_name(self, name: str) -> None:
+        """
+        Update the name of the run.
+        """
+        if self.span:
+            self.span.update_name(name=name)
+            self.span.set_attribute("prefect.run.name", name)
 
     def _parent_run(self) -> Union[FlowOrTaskRun, None]:
         """

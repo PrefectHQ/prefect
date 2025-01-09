@@ -20,7 +20,10 @@
                         "description": "Successful Response",
                         "content": {
                             "application/json": {
-                                "schema": {}
+                                "schema": {
+                                    "type": "boolean",
+                                    "title": "Response Health Check Health Get"
+                                }
                             }
                         }
                     }
@@ -39,7 +42,10 @@
                         "description": "Successful Response",
                         "content": {
                             "application/json": {
-                                "schema": {}
+                                "schema": {
+                                    "type": "string",
+                                    "title": "Response Server Version Version Get"
+                                }
                             }
                         }
                     }
@@ -9904,6 +9910,7 @@
                     }
                 },
                 "type": "object",
+                "required": [],
                 "title": "Artifact"
             },
             "ArtifactCollection": {
@@ -10030,7 +10037,10 @@
                 "type": "object",
                 "required": [
                     "key",
-                    "latest_id"
+                    "latest_id",
+                    "id",
+                    "created",
+                    "updated"
                 ],
                 "title": "ArtifactCollection"
             },
@@ -10896,7 +10906,10 @@
                 "required": [
                     "name",
                     "trigger",
-                    "actions"
+                    "actions",
+                    "id",
+                    "created",
+                    "updated"
                 ],
                 "title": "Automation"
             },
@@ -11557,7 +11570,10 @@
                 "type": "object",
                 "required": [
                     "block_schema_id",
-                    "block_type_id"
+                    "block_type_id",
+                    "id",
+                    "created",
+                    "updated"
                 ],
                 "title": "BlockDocument",
                 "description": "An ORM representation of a block document."
@@ -11899,7 +11915,10 @@
                 "type": "object",
                 "required": [
                     "checksum",
-                    "block_type_id"
+                    "block_type_id",
+                    "id",
+                    "created",
+                    "updated"
                 ],
                 "title": "BlockSchema",
                 "description": "An ORM representation of a block schema."
@@ -12203,7 +12222,10 @@
                 "type": "object",
                 "required": [
                     "name",
-                    "slug"
+                    "slug",
+                    "id",
+                    "created",
+                    "updated"
                 ],
                 "title": "BlockType",
                 "description": "An ORM representation of a block type"
@@ -14627,7 +14649,10 @@
                 "type": "object",
                 "required": [
                     "tag",
-                    "concurrency_limit"
+                    "concurrency_limit",
+                    "id",
+                    "created",
+                    "updated"
                 ],
                 "title": "ConcurrencyLimit",
                 "description": "An ORM representation of a concurrency limit."
@@ -14739,7 +14764,10 @@
                 "type": "object",
                 "required": [
                     "name",
-                    "limit"
+                    "limit",
+                    "id",
+                    "created",
+                    "updated"
                 ],
                 "title": "ConcurrencyLimitV2",
                 "description": "An ORM representation of a v2 concurrency limit."
@@ -15101,7 +15129,10 @@
                 "required": [
                     "token",
                     "client",
-                    "expiration"
+                    "expiration",
+                    "id",
+                    "created",
+                    "updated"
                 ],
                 "title": "CsrfToken"
             },
@@ -15710,6 +15741,27 @@
                             ]
                         ]
                     },
+                    "any_": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Any",
+                        "description": "A list of tags to include",
+                        "examples": [
+                            [
+                                "tag-1",
+                                "tag-2"
+                            ]
+                        ]
+                    },
                     "is_null_": {
                         "anyOf": [
                             {
@@ -15839,6 +15891,40 @@
                         ],
                         "title": "Idempotency Key",
                         "description": "An optional idempotency key. If a flow run with the same idempotency key has already been created, the existing flow run will be returned."
+                    },
+                    "labels": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": {
+                                    "anyOf": [
+                                        {
+                                            "type": "boolean"
+                                        },
+                                        {
+                                            "type": "integer"
+                                        },
+                                        {
+                                            "type": "number"
+                                        },
+                                        {
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Labels",
+                        "description": "A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
+                        "examples": [
+                            {
+                                "key": "value1",
+                                "key2": 42
+                            }
+                        ]
                     },
                     "parent_task_run_id": {
                         "anyOf": [
@@ -16260,7 +16346,10 @@
                 "type": "object",
                 "required": [
                     "name",
-                    "flow_id"
+                    "flow_id",
+                    "id",
+                    "created",
+                    "updated"
                 ],
                 "title": "DeploymentResponse"
             },
@@ -16345,7 +16434,10 @@
                 },
                 "type": "object",
                 "required": [
-                    "schedule"
+                    "schedule",
+                    "id",
+                    "created",
+                    "updated"
                 ],
                 "title": "DeploymentSchedule"
             },
@@ -17345,7 +17437,10 @@
                 },
                 "type": "object",
                 "required": [
-                    "name"
+                    "name",
+                    "id",
+                    "created",
+                    "updated"
                 ],
                 "title": "Flow",
                 "description": "An ORM representation of flow data."
@@ -18034,7 +18129,10 @@
                 },
                 "type": "object",
                 "required": [
-                    "flow_id"
+                    "flow_id",
+                    "id",
+                    "created",
+                    "updated"
                 ],
                 "title": "FlowRun",
                 "description": "An ORM representation of flow run data."
@@ -19069,7 +19167,10 @@
                 "required": [
                     "flow_run_id",
                     "key",
-                    "value"
+                    "value",
+                    "id",
+                    "created",
+                    "updated"
                 ],
                 "title": "FlowRunInput"
             },
@@ -19152,7 +19253,10 @@
                 "required": [
                     "state_names",
                     "tags",
-                    "block_document_id"
+                    "block_document_id",
+                    "id",
+                    "created",
+                    "updated"
                 ],
                 "title": "FlowRunNotificationPolicy",
                 "description": "An ORM representation of a flow run notification."
@@ -19404,7 +19508,9 @@
                     "pause_keys": {
                         "anyOf": [
                             {
-                                "items": {},
+                                "items": {
+                                    "type": "string"
+                                },
                                 "type": "array",
                                 "uniqueItems": true
                             },
@@ -19854,7 +19960,10 @@
                 },
                 "type": "object",
                 "required": [
-                    "flow_id"
+                    "flow_id",
+                    "id",
+                    "created",
+                    "updated"
                 ],
                 "title": "FlowRunResponse"
             },
@@ -20036,7 +20145,10 @@
                 "required": [
                     "name",
                     "limit",
-                    "active_slots"
+                    "active_slots",
+                    "id",
+                    "created",
+                    "updated"
                 ],
                 "title": "GlobalConcurrencyLimitResponse",
                 "description": "A response object for global concurrency limits."
@@ -20411,7 +20523,10 @@
                     "name",
                     "level",
                     "message",
-                    "timestamp"
+                    "timestamp",
+                    "id",
+                    "created",
+                    "updated"
                 ],
                 "title": "Log",
                 "description": "An ORM representation of log data."
@@ -21428,7 +21543,10 @@
                 },
                 "type": "object",
                 "required": [
-                    "name"
+                    "name",
+                    "id",
+                    "created",
+                    "updated"
                 ],
                 "title": "SavedSearch",
                 "description": "An ORM representation of saved search data. Represents a set of filter criteria."
@@ -21783,7 +21901,8 @@
                 },
                 "type": "object",
                 "required": [
-                    "type"
+                    "type",
+                    "id"
                 ],
                 "title": "State",
                 "description": "Represents the state of a run."
@@ -22466,7 +22585,10 @@
                 "type": "object",
                 "required": [
                     "task_key",
-                    "dynamic_key"
+                    "dynamic_key",
+                    "id",
+                    "created",
+                    "updated"
                 ],
                 "title": "TaskRun",
                 "description": "An ORM representation of task run data."
@@ -23419,7 +23541,10 @@
                 "type": "object",
                 "required": [
                     "name",
-                    "value"
+                    "value",
+                    "id",
+                    "created",
+                    "updated"
                 ],
                 "title": "Variable"
             },
@@ -23836,7 +23961,10 @@
                 "type": "object",
                 "required": [
                     "name",
-                    "type"
+                    "type",
+                    "id",
+                    "created",
+                    "updated"
                 ],
                 "title": "WorkPool",
                 "description": "An ORM representation of a work pool"
@@ -24196,7 +24324,10 @@
                 },
                 "type": "object",
                 "required": [
-                    "name"
+                    "name",
+                    "id",
+                    "created",
+                    "updated"
                 ],
                 "title": "WorkQueue",
                 "description": "An ORM representation of a work queue"
@@ -24556,7 +24687,10 @@
                 },
                 "type": "object",
                 "required": [
-                    "name"
+                    "name",
+                    "id",
+                    "created",
+                    "updated"
                 ],
                 "title": "WorkQueueResponse"
             },
@@ -24892,7 +25026,10 @@
                 "type": "object",
                 "required": [
                     "name",
-                    "work_pool_id"
+                    "work_pool_id",
+                    "id",
+                    "created",
+                    "updated"
                 ],
                 "title": "WorkerResponse"
             },
