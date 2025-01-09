@@ -70,7 +70,20 @@ def hydrated_context(
     serialized_context: Optional[dict[str, Any]] = None,
     client: Union[PrefectClient, SyncPrefectClient, None] = None,
 ) -> Generator[None, Any, None]:
-    import prefect.main  # noqa # type: ignore
+    # We need to rebuild the models because we might be hydrating in a remote
+    # environment where the models are not available.
+    # TODO: Remove this once we have fixed our circular imports and we don't need to rebuild models any more.
+    from prefect.flows import Flow
+    from prefect.results import ResultRecordMetadata
+    from prefect.tasks import Task
+
+    _types: dict[str, Any] = dict(
+        Flow=Flow,
+        Task=Task,
+        ResultRecordMetadata=ResultRecordMetadata,
+    )
+    FlowRunContext.model_rebuild(_types_namespace=_types)
+    TaskRunContext.model_rebuild(_types_namespace=_types)
 
     with ExitStack() as stack:
         if serialized_context:
