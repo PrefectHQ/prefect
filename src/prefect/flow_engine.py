@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import logging
 import os
@@ -14,7 +16,6 @@ from typing import (
     Iterable,
     Literal,
     Optional,
-    Tuple,
     Type,
     TypeVar,
     Union,
@@ -103,13 +104,15 @@ class FlowRunTimeoutError(TimeoutError):
     """Raised when a flow run exceeds its defined timeout."""
 
 
-def load_flow_and_flow_run(flow_run_id: UUID) -> Tuple[FlowRun, Flow]:
-    ## TODO: add error handling to update state and log tracebacks
+def load_flow_run(flow_run_id: UUID) -> FlowRun:
+    client = get_client(sync_client=True)
+    flow_run = client.read_flow_run(flow_run_id)
+    return flow_run
+
+
+def load_flow(flow_run: FlowRun) -> Flow[..., Any]:
     entrypoint = os.environ.get("PREFECT__FLOW_ENTRYPOINT")
 
-    client = cast(SyncPrefectClient, get_client(sync_client=True))
-
-    flow_run = client.read_flow_run(flow_run_id)
     if entrypoint:
         # we should not accept a placeholder flow at runtime
         flow = load_flow_from_entrypoint(entrypoint, use_placeholder_flow=False)
@@ -117,7 +120,12 @@ def load_flow_and_flow_run(flow_run_id: UUID) -> Tuple[FlowRun, Flow]:
         flow = run_coro_as_sync(
             load_flow_from_flow_run(flow_run, use_placeholder_flow=False)
         )
+    return flow
 
+
+def load_flow_and_flow_run(flow_run_id: UUID) -> tuple[FlowRun, Flow[..., Any]]:
+    flow_run = load_flow_run(flow_run_id)
+    flow = load_flow(flow_run)
     return flow_run, flow
 
 
@@ -128,7 +136,7 @@ class BaseFlowRunEngine(Generic[P, R]):
     flow_run: Optional[FlowRun] = None
     flow_run_id: Optional[UUID] = None
     logger: logging.Logger = field(default_factory=lambda: get_logger("engine"))
-    wait_for: Optional[Iterable[PrefectFuture]] = None
+    wait_for: Optional[Iterable[PrefectFuture[Any]]] = None
     # holds the return value from the user code
     _return_value: Union[R, Type[NotSet]] = NotSet
     # holds the exception raised by the user code, if any
@@ -1429,25 +1437,36 @@ def run_flow(
     parameters: Optional[Dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
     return_type: Literal["state", "result"] = "result",
+    error_logger: Optional[logging.Logger] = None,
 ) -> Union[R, State, None]:
-    kwargs = dict(
-        flow=flow,
-        flow_run=flow_run,
-        parameters=_flow_parameters(
-            flow=flow, flow_run=flow_run, parameters=parameters
-        ),
-        wait_for=wait_for,
-        return_type=return_type,
-    )
+    ret_val: Union[R, State, None] = None
 
-    if flow.isasync and flow.isgenerator:
-        return run_generator_flow_async(**kwargs)
-    elif flow.isgenerator:
-        return run_generator_flow_sync(**kwargs)
-    elif flow.isasync:
-        return run_flow_async(**kwargs)
-    else:
-        return run_flow_sync(**kwargs)
+    try:
+        kwargs: dict[str, Any] = dict(
+            flow=flow,
+            flow_run=flow_run,
+            parameters=_flow_parameters(
+                flow=flow, flow_run=flow_run, parameters=parameters
+            ),
+            wait_for=wait_for,
+            return_type=return_type,
+        )
+
+        if flow.isasync and flow.isgenerator:
+            ret_val = run_generator_flow_async(**kwargs)
+        elif flow.isgenerator:
+            ret_val = run_generator_flow_sync(**kwargs)
+        elif flow.isasync:
+            ret_val = run_flow_async(**kwargs)
+        else:
+            ret_val = run_flow_sync(**kwargs)
+    except:
+        if error_logger:
+            error_logger.error(
+                "Engine execution exited with unexpected exception", exc_info=True
+            )
+        raise
+    return ret_val
 
 
 def _flow_parameters(
