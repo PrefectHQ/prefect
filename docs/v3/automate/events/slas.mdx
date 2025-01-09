@@ -1,0 +1,64 @@
+---
+title: Measure reliability with Service Level Agreements
+description: Service Level Agreements (SLAs) are a way to define the performance expectations for your flows and to enable automated alerts when those expectations are not met.
+---
+<Warning> <b>Experimental:</b> This feature is experimental and may change in the future.</Warning>
+
+<Note>Prefect Client Version 3.1.12 or later is required to use SLAs.</Note>
+
+# Service Level Agreements
+
+<span class="badge cloud"></span> Service Level Agreements (SLAs) are a way to define the performance expectations for your data stack and to enable automated alerts when those expectations are not met.
+
+SLAs are defined on the Deployment level and can be used to trigger alerts when a flow run fails to adhere to the SLA. For example, you can define an SLA that triggers an alert if a flow run takes longer than 10 minutes to complete. When the SLA is triggered, an event is emitted and can be used to trigger an [automation](/v3/automate/events/automations-triggers/) to notify a team or to take other actions.
+
+## Defining SLAs
+
+To define an SLA you can add them to the Deployment either through the `prefect.yaml` file, through using `.deploy` or the CLI.
+
+```yaml prefect.yaml SLA
+deployments:
+  my-deployment:
+    sla:
+        - name: "my-sla"
+          duration: 10
+          severity: "high"
+```
+
+```python .deploy SLA
+    flow.from_source(
+        source=source,
+        entrypoint="my_file.py:my_flow",
+    ).deploy(
+        name="private-bitbucket-deploy",
+        work_pool_name="my_pool",
+        sla=[
+            {
+                "name": "my-sla",
+                "duration": 10,
+                "severity": "high"
+            }
+        ]
+    )
+```
+
+```bash CLI SLA
+prefect deploy --sla '{"name": "my-sla", "duration": 10, "severity": "high"}'
+```
+
+## Monitoring SLAs
+
+You can monitor SLAs in the Prefect Cloud UI. On the runs page you can see the SLA status in the top level metrics:
+
+![SLA status](/v3/img/ui/sla-overview.png)
+
+
+## Setting up an automation
+
+To set up an automation to notify a team or to take other actions when an SLA is triggered, you can use the [automations](/v3/automate/events/automations-triggers/) feature. To create the automation first you'll need to create a trigger.
+
+1. Choose trigger type 'Custom'.
+2. Choose any event matching: `prefect.sla.sla-violation`
+3. For "From the Following Resources" choose: `prefect.flow-run.*`
+
+![Create an automation](/v3/img/ui/sla-trigger-automation.png)
