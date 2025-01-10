@@ -1,4 +1,4 @@
-import { ActionsSchema } from "@/components/automations/automations-wizard/action-step/action-type-schemas";
+import { type ActionsSchema } from "@/components/automations/automations-wizard/actions-step/action-type-schemas";
 import {
 	FormControl,
 	FormField,
@@ -10,13 +10,19 @@ import { Input } from "@/components/ui/input";
 import { useFormContext } from "react-hook-form";
 import { FLOW_STATES } from "./flow-states";
 
-export const ActionChangeFlowRunStateNameField = () => {
+type ActionChangeFlowRunStateNameFieldProps = {
+	index: number;
+};
+
+export const ActionChangeFlowRunStateNameField = ({
+	index,
+}: ActionChangeFlowRunStateNameFieldProps) => {
 	const form = useFormContext<ActionsSchema>();
-	const stateField = form.watch("state");
+	const stateField = form.watch(`actions.${index}.state`);
 	return (
 		<FormField
 			control={form.control}
-			name="name"
+			name={`actions.${index}.name`}
 			render={({ field }) => (
 				<FormItem>
 					<FormLabel>Name</FormLabel>

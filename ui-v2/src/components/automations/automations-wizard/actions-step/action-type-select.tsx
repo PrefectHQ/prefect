@@ -15,9 +15,12 @@ import {
 	FormLabel,
 } from "@/components/ui/form";
 import { useFormContext } from "react-hook-form";
-import { ActionsSchema } from "./action-type-schemas";
+import {
+	type ActionType,
+	type ActionsSchema,
+	UNASSIGNED,
+} from "./action-type-schemas";
 
-type ActionType = ActionsSchema["type"];
 const AUTOMATION_ACTION_TYPES: Record<ActionType, string> = {
 	"cancel-flow-run": "Cancel a flow run",
 	"suspend-flow-run": "Suspend a flow run",
@@ -35,17 +38,49 @@ const AUTOMATION_ACTION_TYPES: Record<ActionType, string> = {
 	"send-notification": "Send a notification",
 };
 
-export const ActionTypeSelect = () => {
-	const form = useFormContext();
+export const ActionTypeSelect = ({ index }: { index: number }) => {
+	const form = useFormContext<ActionsSchema>();
 	return (
 		<FormField
 			control={form.control}
-			name="type"
+			name={`actions.${index}.type`}
 			render={({ field }) => (
 				<FormItem>
 					<FormLabel>Action Type</FormLabel>
 					<FormControl>
-						<Select {...field} onValueChange={field.onChange}>
+						<Select
+							{...field}
+							onValueChange={(type) => {
+								field.onChange(type);
+								// Set default values based on the type selected
+								switch (type) {
+									case "run-deployment":
+									case "pause-deployment":
+									case "resume-deployment":
+										form.setValue(`actions.${index}.deployment_id`, UNASSIGNED);
+										break;
+									case "pause-work-queue":
+									case "resume-work-queue":
+										form.setValue(`actions.${index}.work_queue_id`, UNASSIGNED);
+										break;
+									case "pause-work-pool":
+									case "resume-work-pool":
+										form.setValue(`actions.${index}.work_pool_id`, UNASSIGNED);
+										break;
+									case "pause-automation":
+									case "resume-automation":
+										form.setValue(`actions.${index}.automation_id`, UNASSIGNED);
+										break;
+									case "send-notification":
+									case "cancel-flow-run":
+									case "suspend-flow-run":
+									case "resume-flow-run":
+									case "change-flow-run-state":
+									default:
+										break;
+								}
+							}}
+						>
 							<SelectTrigger aria-label="select action">
 								<SelectValue placeholder="Select action" />
 							</SelectTrigger>

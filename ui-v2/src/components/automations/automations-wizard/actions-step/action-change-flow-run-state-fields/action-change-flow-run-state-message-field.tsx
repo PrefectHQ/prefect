@@ -1,3 +1,4 @@
+import { type ActionsSchema } from "@/components/automations/automations-wizard/actions-step/action-type-schemas";
 import {
 	FormControl,
 	FormField,
@@ -8,12 +9,18 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useFormContext } from "react-hook-form";
 
-export const ActionChangeFlowRunStateMessageField = () => {
-	const form = useFormContext();
+type ActionChangeFlowRunStateMessageFieldProps = {
+	index: number;
+};
+
+export const ActionChangeFlowRunStateMessageField = ({
+	index,
+}: ActionChangeFlowRunStateMessageFieldProps) => {
+	const form = useFormContext<ActionsSchema>();
 	return (
 		<FormField
 			control={form.control}
-			name="message"
+			name={`actions.${index}.message`}
 			render={({ field }) => (
 				<FormItem>
 					<FormLabel>Message</FormLabel>

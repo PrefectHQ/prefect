@@ -1,3 +1,4 @@
+import { type ActionsSchema } from "@/components/automations/automations-wizard/actions-step/action-type-schemas";
 import {
 	FormControl,
 	FormField,
@@ -17,12 +18,18 @@ import {
 import { useFormContext } from "react-hook-form";
 import { FLOW_STATES, type FlowStates } from "./flow-states";
 
-export const ActionChangeFlowRunStateStateField = () => {
-	const form = useFormContext();
+type ActionChangeFlowRunStateStateFieldProps = {
+	index: number;
+};
+
+export const ActionChangeFlowRunStateStateField = ({
+	index,
+}: ActionChangeFlowRunStateStateFieldProps) => {
+	const form = useFormContext<ActionsSchema>();
 	return (
 		<FormField
 			control={form.control}
-			name="state"
+			name={`actions.${index}.state`}
 			render={({ field }) => (
 				<FormItem>
 					<FormLabel>State</FormLabel>

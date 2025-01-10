@@ -1,5 +1,5 @@
 import { createFakeAutomation } from "@/mocks";
-import { ActionStep } from "./action-step";
+import { ActionsStep } from "./actions-step";
 
 import { Automation } from "@/api/automations";
 import { render, screen } from "@testing-library/react";
@@ -8,7 +8,7 @@ import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { http, HttpResponse } from "msw";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
-describe("ActionStep", () => {
+describe("ActionsStep", () => {
 	const mockListAutomationAPI = (automations: Array<Automation>) => {
 		server.use(
 			http.post(buildApiUrl("/automations/filter"), () => {
@@ -42,13 +42,54 @@ describe("ActionStep", () => {
 		window.HTMLElement.prototype.hasPointerCapture = vi.fn();
 	});
 
+	describe("multiple actions", () => {
+		it("able to add multiple actions", async () => {
+			const user = userEvent.setup();
+			// ------------ Setup
+			render(<ActionsStep onPrevious={vi.fn()} onNext={vi.fn()} />);
+			// ------------ Act
+			await user.click(
+				screen.getByRole("combobox", { name: /select action/i }),
+			);
+			await user.click(
+				screen.getByRole("option", { name: "Cancel a flow run" }),
+			);
+			await user.click(screen.getByRole("button", { name: /add action/i }));
+			// ------------ Assert
+			expect(screen.getAllByText("Cancel a flow run")).toBeTruthy();
+			expect(screen.getByText(/action 1/i)).toBeVisible();
+			expect(screen.getByText(/action 2/i)).toBeVisible();
+		});
+
+		it("able to remove an action actions", async () => {
+			const user = userEvent.setup();
+			// ------------ Setup
+			render(<ActionsStep onPrevious={vi.fn()} onNext={vi.fn()} />);
+			// ------------ Act
+			await user.click(
+				screen.getByRole("combobox", { name: /select action/i }),
+			);
+			await user.click(
+				screen.getByRole("option", { name: "Cancel a flow run" }),
+			);
+			await user.click(screen.getByRole("button", { name: /add action/i }));
+
+			await user.click(
+				screen.getByRole("button", { name: /remove action 2/i }),
+			);
+
+			// ------------ Assert
+			expect(screen.getAllByText("Cancel a flow run")).toBeTruthy();
+			expect(screen.getByText(/action 1/i)).toBeVisible();
+			expect(screen.queryByText(/action 2/i)).not.toBeInTheDocument();
+		});
+	});
+
 	describe("action type -- basic action", () => {
 		it("able to select a basic action", async () => {
 			const user = userEvent.setup();
-
 			// ------------ Setup
-			const mockOnSubmitFn = vi.fn();
-			render(<ActionStep onSubmit={mockOnSubmitFn} />);
+			render(<ActionsStep onPrevious={vi.fn()} onNext={vi.fn()} />);
 
 			// ------------ Act
 			await user.click(
@@ -57,6 +98,7 @@ describe("ActionStep", () => {
 			await user.click(
 				screen.getByRole("option", { name: "Cancel a flow run" }),
 			);
+			await user.click(screen.getByRole("button", { name: /next/i }));
 
 			// ------------ Assert
 			expect(screen.getAllByText("Cancel a flow run")).toBeTruthy();
@@ -68,8 +110,7 @@ describe("ActionStep", () => {
 			const user = userEvent.setup();
 
 			// ------------ Setup
-			const mockOnSubmitFn = vi.fn();
-			render(<ActionStep onSubmit={mockOnSubmitFn} />);
+			render(<ActionsStep onPrevious={vi.fn()} onNext={vi.fn()} />);
 
 			// ------------ Act
 			await user.click(
@@ -102,8 +143,7 @@ describe("ActionStep", () => {
 			const user = userEvent.setup();
 
 			// ------------ Setup
-			const mockOnSubmitFn = vi.fn();
-			render(<ActionStep onSubmit={mockOnSubmitFn} />, {
+			render(<ActionsStep onPrevious={vi.fn()} onNext={vi.fn()} />, {
 				wrapper: createWrapper(),
 			});
 
@@ -121,7 +161,6 @@ describe("ActionStep", () => {
 			);
 
 			await user.click(screen.getByRole("option", { name: "my automation 0" }));
-
 			// ------------ Assert
 			expect(screen.getAllByText("Pause an automation")).toBeTruthy();
 			expect(screen.getAllByText("my automation 0")).toBeTruthy();
@@ -135,8 +174,7 @@ describe("ActionStep", () => {
 			const user = userEvent.setup();
 
 			// ------------ Setup
-			const mockOnSubmitFn = vi.fn();
-			render(<ActionStep onSubmit={mockOnSubmitFn} />, {
+			render(<ActionsStep onPrevious={vi.fn()} onNext={vi.fn()} />, {
 				wrapper: createWrapper(),
 			});
 
