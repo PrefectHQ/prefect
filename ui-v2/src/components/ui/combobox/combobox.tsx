@@ -33,9 +33,14 @@ const Combobox = ({ children }: { children: React.ReactNode }) => {
 };
 
 const ComboboxTrigger = ({
+	"aria-label": ariaLabel,
 	selected = false,
 	children,
-}: { selected?: boolean; withForm?: boolean; children: React.ReactNode }) => {
+}: {
+	"aria-label"?: string;
+	selected?: boolean;
+	children: React.ReactNode;
+}) => {
 	const comboboxCtx = use(ComboboxContext);
 	if (!comboboxCtx) {
 		throw new Error("'ComboboxTrigger' must be a child of `Combobox`");
@@ -45,6 +50,7 @@ const ComboboxTrigger = ({
 	return (
 		<PopoverTrigger asChild className="w-full">
 			<Button
+				aria-label={ariaLabel}
 				aria-expanded={open}
 				variant="outline"
 				role="combobox"
