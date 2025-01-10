@@ -7,12 +7,12 @@ import {
 	FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useFormContext, useWatch } from "react-hook-form";
-import { FLOW_STATES, FlowStates } from "./flow-states";
+import { useFormContext } from "react-hook-form";
+import { FLOW_STATES } from "./flow-states";
 
 export const ActionChangeFlowRunStateNameField = () => {
-	const form = useFormContext();
-	const stateField = useWatch<ActionsSchema>({ name: "state" }) as FlowStates;
+	const form = useFormContext<ActionsSchema>();
+	const stateField = form.watch("state");
 	return (
 		<FormField
 			control={form.control}
@@ -24,6 +24,7 @@ export const ActionChangeFlowRunStateNameField = () => {
 						<Input
 							type="text"
 							{...field}
+							value={field.value ?? ""}
 							placeholder={FLOW_STATES[stateField]}
 						/>
 					</FormControl>

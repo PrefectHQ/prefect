@@ -1,9 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
 import { Automation } from "@/api/automations";
+import { UNASSIGNED } from "@/components/automations/automations-wizard/action-step/action-type-schemas";
 import { createFakeAutomation } from "@/mocks";
 import { useState } from "react";
-
 import {
 	Combobox,
 	ComboboxCommandEmtpy,
@@ -22,7 +22,7 @@ const meta: Meta<typeof ComboboxStory> = {
 export default meta;
 
 const INFER_AUTOMATION = {
-	value: "UNASSIGNED" as const,
+	value: UNASSIGNED,
 	name: "Infer Automation" as const,
 } as const;
 
@@ -65,7 +65,7 @@ const filterAutomations = (
 
 function ComboboxStory() {
 	const [selectedAutomationId, setSelectedAutomationId] = useState<
-		"UNASSIGNED" | (string & {})
+		typeof UNASSIGNED | (string & {})
 	>(INFER_AUTOMATION.value);
 
 	const buttonLabel = getButtonLabel(MOCK_DATA, selectedAutomationId);

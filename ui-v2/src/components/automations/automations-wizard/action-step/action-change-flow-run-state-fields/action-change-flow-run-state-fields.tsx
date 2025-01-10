@@ -3,9 +3,9 @@ import { ActionChangeFlowRunStateNameField } from "./action-change-flow-run-stat
 import { ActionChangeFlowRunStateStateField } from "./action-change-flow-run-state-state-field";
 
 export const ActionChangeFlowRunStateFields = () => (
-	<div>
+	<>
 		<ActionChangeFlowRunStateStateField />
 		<ActionChangeFlowRunStateNameField />
 		<ActionChangeFlowRunStateMessageField />
-	</div>
+	</>
 );
