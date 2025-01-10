@@ -210,11 +210,11 @@ class Settings(PrefectBaseSettings):
         if self.logging.config_path is None:
             self.logging.config_path = Path(f"{self.home}/logging.yml")
             self.logging.__pydantic_fields_set__.remove("config_path")
-        db_url: str = (
-            self.server.database.connection_url.get_secret_value()
-            if self.server.database.connection_url
-            else _default_database_connection_url(self).get_secret_value()
-        )
+        # Set default database connection URL if not provided
+        if self.server.database.connection_url is None:
+            self.server.database.connection_url = _default_database_connection_url(self)
+            self.server.database.__pydantic_fields_set__.remove("connection_url")
+        db_url = self.server.database.connection_url.get_secret_value()
         if (
             "PREFECT_API_DATABASE_PASSWORD" in db_url
             or "PREFECT_SERVER_DATABASE_PASSWORD" in db_url
