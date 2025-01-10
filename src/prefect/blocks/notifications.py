@@ -880,6 +880,7 @@ class SendgridEmail(AbstractAppriseNotificationBlock):
         sendgrid_block = SendgridEmail.load("BLOCK_NAME")
 
         sendgrid_block.notify("Hello from Prefect!")
+        ```
     """
 
     _description = "Enables sending notifications via Sendgrid email service."
