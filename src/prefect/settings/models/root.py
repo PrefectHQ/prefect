@@ -210,14 +210,10 @@ class Settings(PrefectBaseSettings):
         if self.logging.config_path is None:
             self.logging.config_path = Path(f"{self.home}/logging.yml")
             self.logging.__pydantic_fields_set__.remove("config_path")
-        # Set default database connection URL if not provided
-        if self.server.database.connection_url is None:
-            self.server.database.connection_url = _default_database_connection_url(self)
-            self.server.database.__pydantic_fields_set__.remove("connection_url")
-        db_url = (
+        db_url: str = (
             self.server.database.connection_url.get_secret_value()
-            if isinstance(self.server.database.connection_url, SecretStr)
-            else self.server.database.connection_url
+            if self.server.database.connection_url
+            else _default_database_connection_url(self).get_secret_value()
         )
         if (
             "PREFECT_API_DATABASE_PASSWORD" in db_url
@@ -399,7 +395,7 @@ def _warn_on_misconfigured_api_url(settings: "Settings"):
 
 
 def _default_database_connection_url(settings: "Settings") -> SecretStr:
-    value = None
+    value: str = f"sqlite+aiosqlite:///{settings.home}/prefect.db"
     if settings.server.database.driver == "postgresql+asyncpg":
         required = [
             "host",
@@ -417,7 +413,7 @@ def _default_database_connection_url(settings: "Settings") -> SecretStr:
 
         from sqlalchemy import URL
 
-        return URL(
+        value = URL(
             drivername=settings.server.database.driver,
             host=settings.server.database.host,
             port=settings.server.database.port or 5432,
@@ -443,6 +439,4 @@ def _default_database_connection_url(settings: "Settings") -> SecretStr:
         raise ValueError(
             f"Unsupported database driver: {settings.server.database.driver}"
         )
-
-    value = value if value else f"sqlite+aiosqlite:///{settings.home}/prefect.db"
     return SecretStr(value)
