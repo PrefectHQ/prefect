@@ -991,6 +991,26 @@ class TestDatabaseSettings:
             assert url.database == "the-database"
             assert url.password == "the-password"
 
+    def test_postgres_connection_url_is_secret_when_parts_are_individually_set(self):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/16657
+        """
+        with temporary_settings(
+            {
+                PREFECT_SERVER_DATABASE_CONNECTION_URL: None,
+                PREFECT_API_DATABASE_DRIVER: "postgresql+asyncpg",
+                PREFECT_API_DATABASE_HOST: "the-database-server.example.com",
+                PREFECT_API_DATABASE_PORT: 15432,
+                PREFECT_API_DATABASE_USER: "the-user",
+                PREFECT_API_DATABASE_NAME: "the-database",
+                PREFECT_API_DATABASE_PASSWORD: "the-password",
+            }
+        ):
+            assert isinstance(
+                get_current_settings().server.database.connection_url,
+                pydantic.SecretStr,
+            )
+
     def test_postgres_password_is_quoted(self):
         with temporary_settings(
             {
