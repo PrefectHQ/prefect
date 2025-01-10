@@ -10,6 +10,7 @@ import pytest
 from pydantic import SecretStr
 
 from prefect.exceptions import ParameterBindError
+from prefect.types._datetime import Date, DateTime
 from prefect.utilities import callables
 
 
@@ -140,7 +141,7 @@ class TestFunctionToSchema:
     def test_function_with_datetime_arguments(self):
         def f(
             x: datetime.datetime,
-            y: pendulum.DateTime = pendulum.datetime(2025, 1, 1),
+            y: DateTime = pendulum.datetime(2025, 1, 1),
             z: datetime.timedelta = datetime.timedelta(seconds=5),
         ):
             pass
@@ -361,8 +362,8 @@ class TestFunctionToSchema:
             i: int = 0,
             x: float = 1.0,
             model: Foo = Foo(bar="bar"),
-            pdt: pendulum.DateTime = pendulum.datetime(2025, 1, 1),
-            pdate: pendulum.Date = pendulum.date(2025, 1, 1),
+            pdt: DateTime = pendulum.datetime(2025, 1, 1),
+            pdate: pendulum.Date = Date(2025, 1, 1),
             pduration: pendulum.Duration = pendulum.duration(seconds=5),
             c: Color = Color.BLUE,
         ):
@@ -969,7 +970,7 @@ class TestEntrypointToSchema:
 
         def f(
             x: datetime.datetime,
-            y: pendulum.DateTime = pendulum.datetime(2025, 1, 1),
+            y: DateTime = pendulum.datetime(2025, 1, 1),
             z: datetime.timedelta = datetime.timedelta(seconds=5),
         ):
             pass
@@ -1227,8 +1228,8 @@ class TestEntrypointToSchema:
             i: int = 0,
             x: float = 1.0,
             model: Foo = Foo(bar="bar"),
-            pdt: pendulum.DateTime = pendulum.datetime(2025, 1, 1),
-            pdate: pendulum.Date = pendulum.date(2025, 1, 1),
+            pdt: DateTime = pendulum.datetime(2025, 1, 1),
+            pdate: pendulum.Date = Date(2025, 1, 1),
             pduration: pendulum.Duration = pendulum.duration(seconds=5),
             c: Color = Color.BLUE,
         ):

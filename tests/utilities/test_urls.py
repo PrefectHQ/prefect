@@ -3,7 +3,6 @@ import uuid
 from datetime import timedelta
 from typing import Literal
 
-import pendulum
 import pytest
 
 from prefect.blocks.webhook import Webhook
@@ -13,6 +12,7 @@ from prefect.futures import PrefectConcurrentFuture, PrefectDistributedFuture
 from prefect.server.schemas.core import FlowRun, TaskRun
 from prefect.server.schemas.states import State
 from prefect.settings import PREFECT_API_URL, PREFECT_UI_URL, temporary_settings
+from prefect.types import DateTime
 from prefect.utilities.urls import url_for, validate_restricted_url
 from prefect.variables import Variable
 
@@ -125,8 +125,8 @@ async def automation() -> Automation:
 @pytest.fixture
 def received_event():
     return ReceivedEvent(
-        occurred=pendulum.now("UTC"),
-        received=pendulum.now("UTC"),
+        occurred=DateTime.now("UTC"),
+        received=DateTime.now("UTC"),
         event="was.tubular",
         resource=Resource.model_validate(
             {"prefect.resource.id": f"prefect.flow-run.{uuid.uuid4()}"}

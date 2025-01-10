@@ -5,7 +5,6 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, List, Optional, Sequence, Tuple
 from uuid import UUID
 
-import pendulum
 import sqlalchemy as sa
 from pydantic import Field, PrivateAttr
 from sqlalchemy.sql import Select
@@ -16,6 +15,7 @@ from prefect.server.schemas.filters import (
     PrefectOperatorFilterBaseModel,
 )
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
+from prefect.types import DateTime
 from prefect.utilities.collections import AutoEnum
 
 from .schemas.events import Event, Resource, ResourceSpecification
@@ -23,7 +23,7 @@ from .schemas.events import Event, Resource, ResourceSpecification
 if TYPE_CHECKING:
     from sqlalchemy.sql.expression import ColumnElement, ColumnExpressionArgument
 
-    DateTime = pendulum.DateTime
+    DateTime = DateTime
 else:
     from prefect.types import DateTime
 
@@ -112,17 +112,17 @@ class EventDataFilter(PrefectBaseModel, extra="forbid"):
 
 class EventOccurredFilter(EventDataFilter):
     since: DateTime = Field(
-        default_factory=lambda: pendulum.now("UTC").start_of("day").subtract(days=180),
+        default_factory=lambda: DateTime.now("UTC").start_of("day").subtract(days=180),
         description="Only include events after this time (inclusive)",
     )
     until: DateTime = Field(
-        default_factory=lambda: pendulum.now("UTC"),
+        default_factory=lambda: DateTime.now("UTC"),
         description="Only include events prior to this time (inclusive)",
     )
 
     def clamp(self, max_duration: timedelta):
         """Limit how far the query can look back based on the given duration"""
-        earliest = pendulum.now("UTC") - max_duration
+        earliest = DateTime.now("UTC") - max_duration
         self.since = max(earliest, self.since)
 
     def includes(self, event: Event) -> bool:

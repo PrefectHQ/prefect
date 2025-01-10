@@ -13,8 +13,6 @@ from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, Optional, TypedDict
 from uuid import UUID
 
-import pendulum
-import pendulum.tz
 import typer
 import yaml
 from rich.console import Console
@@ -42,6 +40,13 @@ from prefect.exceptions import (
 )
 from prefect.flow_runs import wait_for_flow_run
 from prefect.states import Scheduled
+from prefect.types import DateTime
+from prefect.types._datetime import (
+    datetime_instance,
+    format_diff,
+    local_timezone,
+    parse_datetime,
+)
 from prefect.utilities import urls
 from prefect.utilities.collections import listrepr
 
@@ -344,7 +349,7 @@ async def create_schedule(
     if interval is not None:
         if interval_anchor:
             try:
-                pendulum.parse(interval_anchor)
+                parse_datetime(interval_anchor)
             except ValueError:
                 return exit_with_error("The anchor date must be a valid date string.")
 
@@ -552,7 +557,7 @@ async def list_schedules(deployment_name: str):
 
     def sort_by_created_key(schedule: DeploymentSchedule):  # type: ignore
         assert schedule.created is not None, "All schedules should have a created time."
-        return pendulum.now("utc") - schedule.created
+        return DateTime.now("utc") - schedule.created
 
     def schedule_details(schedule: DeploymentSchedule) -> str:
         if isinstance(schedule.schedule, IntervalSchedule):
@@ -643,7 +648,7 @@ async def ls(flow_name: Optional[list[str]] = None, by_created: bool = False):
 
     def sort_by_created_key(d: DeploymentResponse):
         assert d.created is not None, "All deployments should have a created time."
-        return pendulum.now("utc") - d.created
+        return DateTime.now("utc") - d.created
 
     table = Table(
         title="Deployments",
@@ -751,7 +756,7 @@ async def run(
     """
     import dateparser
 
-    now = pendulum.now("UTC")
+    now = DateTime.now("UTC")
 
     multi_params: dict[str, Any] = {}
     if multiparams:
@@ -802,7 +807,7 @@ async def run(
             warnings.filterwarnings("ignore", module="dateparser")
 
             try:
-                start_time_parsed = dateparser.parse(
+                start_time_parsed = dateparser.parse(  # type: ignore TODO: remove this?
                     start_time_raw,
                     settings={
                         "TO_TIMEZONE": "UTC",
@@ -820,10 +825,8 @@ async def run(
         if start_time_parsed is None:
             exit_with_error(f"Unable to parse scheduled start time {start_time_raw!r}.")
 
-        scheduled_start_time = pendulum.instance(start_time_parsed)
-        human_dt_diff = (
-            " (" + pendulum.format_diff(scheduled_start_time.diff(now)) + ")"
-        )
+        scheduled_start_time = datetime_instance(start_time_parsed)
+        human_dt_diff = " (" + format_diff(scheduled_start_time.diff(now)) + ")"
 
     async with get_client() as client:
         deployment = await get_deployment(client, name, deployment_id)
@@ -871,7 +874,7 @@ async def run(
                 raise
 
     run_url = urls.url_for(flow_run) or "<no dashboard available>"
-    datetime_local_tz = scheduled_start_time.in_tz(pendulum.tz.local_timezone())
+    datetime_local_tz = scheduled_start_time.in_tz(local_timezone())
     scheduled_display = datetime_local_tz.to_datetime_string()
     tz_name = datetime_local_tz.tzname()
     if tz_name:

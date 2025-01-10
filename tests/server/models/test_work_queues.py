@@ -1,12 +1,12 @@
 from uuid import uuid4
 
-import pendulum
 import pytest
 from sqlalchemy.exc import IntegrityError
 
 from prefect.server import models, schemas
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
+from prefect.types import DateTime
 
 
 @pytest.fixture
@@ -270,9 +270,9 @@ class TestGetRunsInWorkQueue:
                         work_queue_name=wq.name,
                         state=schemas.states.State(
                             type="SCHEDULED",
-                            timestamp=pendulum.now("UTC").add(minutes=i),
+                            timestamp=DateTime.now("UTC").add(minutes=i),
                             state_details=dict(
-                                scheduled_time=pendulum.now("UTC").add(minutes=i)
+                                scheduled_time=DateTime.now("UTC").add(minutes=i)
                             ),
                         ),
                     ),
@@ -291,7 +291,7 @@ class TestGetRunsInWorkQueue:
                         work_queue_name=wq.name,
                         state=schemas.states.State(
                             type=state_type,
-                            timestamp=pendulum.now("UTC").subtract(seconds=10),
+                            timestamp=DateTime.now("UTC").subtract(seconds=10),
                         ),
                     ),
                 )
@@ -335,7 +335,7 @@ class TestGetRunsInWorkQueue:
         _, runs_wq1 = await models.work_queues.get_runs_in_work_queue(
             session=session,
             work_queue_id=work_queue.id,
-            scheduled_before=pendulum.now("UTC"),
+            scheduled_before=DateTime.now("UTC"),
         )
         assert len(runs_wq1) == 1
 

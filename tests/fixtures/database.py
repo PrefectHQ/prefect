@@ -28,6 +28,7 @@ from prefect.server.orchestration.rules import (
 )
 from prefect.server.schemas import states
 from prefect.server.schemas.core import ConcurrencyLimitV2
+from prefect.types import DateTime
 from prefect.utilities.callables import parameter_schema
 from prefect.workers.process import ProcessWorker
 
@@ -338,8 +339,8 @@ async def task_run_state(session, task_run, db):
 async def flow_run_states(session, flow_run, flow_run_state):
     scheduled_state = schemas.states.State(
         type=schemas.states.StateType.SCHEDULED,
-        timestamp=pendulum.now("UTC").subtract(seconds=5),
-        state_details=dict(scheduled_time=pendulum.now("UTC").subtract(seconds=1)),
+        timestamp=DateTime.now("UTC").subtract(seconds=5),
+        state_details=dict(scheduled_time=DateTime.now("UTC").subtract(seconds=1)),
     )
     scheduled_flow_run_state = (
         await models.flow_runs.set_flow_run_state(
@@ -366,7 +367,7 @@ async def flow_run_states(session, flow_run, flow_run_state):
 async def task_run_states(session, task_run, task_run_state):
     scheduled_state = schemas.states.State(
         type=schemas.states.StateType.SCHEDULED,
-        timestamp=pendulum.now("UTC").subtract(seconds=5),
+        timestamp=DateTime.now("UTC").subtract(seconds=5),
     )
     scheduled_task_run_state = (
         await models.task_runs.set_task_run_state(
@@ -948,7 +949,7 @@ async def commit_task_run_state(
 
     new_state = schemas.states.State(
         type=state_type,
-        timestamp=pendulum.now("UTC").subtract(seconds=5),
+        timestamp=DateTime.now("UTC").subtract(seconds=5),
         state_details=state_details,
         data=state_data,
         name=state_name,
@@ -979,7 +980,7 @@ async def commit_flow_run_state(
 
     new_state = schemas.states.State(
         type=state_type,
-        timestamp=pendulum.now("UTC").subtract(seconds=5),
+        timestamp=DateTime.now("UTC").subtract(seconds=5),
         state_details=state_details,
         data=state_data,
         name=state_name,

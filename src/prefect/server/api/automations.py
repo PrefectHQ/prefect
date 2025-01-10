@@ -1,7 +1,6 @@
 from typing import Optional, Sequence
 from uuid import UUID
 
-import pendulum
 from fastapi import Body, Depends, HTTPException, Path, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
@@ -23,6 +22,7 @@ from prefect.server.events.schemas.automations import (
 )
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.utilities.server import PrefectRouter
+from prefect.types import DateTime
 from prefect.utilities.schema_tools.validation import (
     ValidationError as JSONSchemaValidationError,
 )
@@ -234,6 +234,6 @@ async def delete_automations_owned_by_resource(
             session,
             resource_id=resource_id,
             automation_filter=AutomationFilter(
-                created=AutomationFilterCreated(before_=pendulum.now("UTC"))
+                created=AutomationFilterCreated(before_=DateTime.now("UTC"))
             ),
         )

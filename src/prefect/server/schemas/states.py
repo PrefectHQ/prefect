@@ -21,13 +21,14 @@ from typing_extensions import Self
 
 from prefect.client.schemas import objects
 from prefect.server.utilities.schemas.bases import IDBaseModel, PrefectBaseModel
+from prefect.types import DateTime
 from prefect.utilities.collections import AutoEnum
 
 if TYPE_CHECKING:
     from prefect.server.database.orm_models import ORMFlowRunState, ORMTaskRunState
     from prefect.server.schemas.actions import StateCreate
 
-    DateTime = pendulum.DateTime
+    DateTime = DateTime
 else:
     from prefect.types import DateTime
 
@@ -122,7 +123,7 @@ class State(StateBaseModel):
 
     type: StateType
     name: Optional[str] = Field(default=None)
-    timestamp: DateTime = Field(default_factory=lambda: pendulum.now("UTC"))
+    timestamp: DateTime = Field(default_factory=lambda: DateTime.now("UTC"))
     message: Optional[str] = Field(default=None, examples=["Run started"])
     data: Optional[Any] = Field(
         default=None,
@@ -175,7 +176,7 @@ class State(StateBaseModel):
 
         if self.type == StateType.SCHEDULED:
             if not self.state_details.scheduled_time:
-                self.state_details.scheduled_time = pendulum.now("utc")
+                self.state_details.scheduled_time = DateTime.now("utc")
 
         return self
 
@@ -216,9 +217,9 @@ class State(StateBaseModel):
         return self.model_copy(
             update={
                 "id": uuid4(),
-                "created": pendulum.now("utc"),
-                "updated": pendulum.now("utc"),
-                "timestamp": pendulum.now("utc"),
+                "created": DateTime.now("utc"),
+                "updated": DateTime.now("utc"),
+                "timestamp": DateTime.now("utc"),
             },
             deep=True,
             **kwargs,
@@ -316,7 +317,7 @@ class State(StateBaseModel):
 
 
 def Scheduled(
-    scheduled_time: Optional[pendulum.DateTime] = None,
+    scheduled_time: Optional[DateTime] = None,
     cls: type[_State] = State,
     **kwargs: Any,
 ) -> _State:
@@ -329,7 +330,7 @@ def Scheduled(
 
     state_details = StateDetails.model_validate(kwargs.pop("state_details", {}))
     if scheduled_time is None:
-        scheduled_time = pendulum.now("UTC")
+        scheduled_time = DateTime.now("UTC")
     elif state_details.scheduled_time:
         raise ValueError("An extra scheduled_time was provided in state_details")
     state_details.scheduled_time = scheduled_time
@@ -403,7 +404,7 @@ def Pending(cls: type[_State] = State, **kwargs: Any) -> _State:
 def Paused(
     cls: type[_State] = State,
     timeout_seconds: Optional[int] = None,
-    pause_expiration_time: Optional[pendulum.DateTime] = None,
+    pause_expiration_time: Optional[DateTime] = None,
     reschedule: bool = False,
     pause_key: Optional[str] = None,
     **kwargs: Any,
@@ -426,7 +427,7 @@ def Paused(
     if pause_expiration_time:
         state_details.pause_timeout = pause_expiration_time
     elif timeout_seconds is not None:
-        state_details.pause_timeout = pendulum.now("UTC") + pendulum.Duration(
+        state_details.pause_timeout = DateTime.now("UTC") + pendulum.Duration(
             seconds=timeout_seconds
         )
 
@@ -439,7 +440,7 @@ def Paused(
 def Suspended(
     cls: type[_State] = State,
     timeout_seconds: Optional[int] = None,
-    pause_expiration_time: Optional[pendulum.DateTime] = None,
+    pause_expiration_time: Optional[DateTime] = None,
     pause_key: Optional[str] = None,
     **kwargs: Any,
 ) -> _State:
@@ -461,7 +462,7 @@ def Suspended(
 
 def AwaitingRetry(
     cls: type[_State] = State,
-    scheduled_time: Optional[pendulum.DateTime] = None,
+    scheduled_time: Optional[DateTime] = None,
     **kwargs: Any,
 ) -> _State:
     """Convenience function for creating `AwaitingRetry` states.
@@ -485,7 +486,7 @@ def Retrying(cls: type[_State] = State, **kwargs: Any) -> _State:
 
 def Late(
     cls: type[_State] = State,
-    scheduled_time: Optional[pendulum.DateTime] = None,
+    scheduled_time: Optional[DateTime] = None,
     **kwargs: Any,
 ) -> _State:
     """Convenience function for creating `Late` states.

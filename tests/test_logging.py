@@ -67,6 +67,7 @@ from prefect.settings import (
 )
 from prefect.testing.cli import temporary_console_width
 from prefect.testing.utilities import AsyncMock
+from prefect.types import DateTime
 from prefect.utilities.names import obfuscate
 from prefect.workers.base import BaseJobConfiguration, BaseWorker
 
@@ -760,7 +761,7 @@ class TestAPILogWorker:
             task_run_id=uuid.uuid4(),
             name="test.logger",
             level=10,
-            timestamp=pendulum.now("utc"),
+            timestamp=DateTime.now("utc"),
             message="hello",
         ).model_dump(mode="json")
 

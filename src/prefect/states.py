@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, Optional, Type
 
 import anyio
 import httpx
-import pendulum
 from opentelemetry import propagate
 from typing_extensions import TypeGuard
 
@@ -28,6 +27,7 @@ from prefect.exceptions import (
     UnfinishedRun,
 )
 from prefect.logging.loggers import get_logger, get_run_logger
+from prefect.types import DateTime, Duration
 from prefect.utilities.annotations import BaseAnnotation
 from prefect.utilities.asyncutils import in_async_main_thread, sync_compatible
 from prefect.utilities.collections import ensure_iterable
@@ -627,7 +627,7 @@ def Scheduled(
     """
     state_details = StateDetails.model_validate(kwargs.pop("state_details", {}))
     if scheduled_time is None:
-        scheduled_time = pendulum.now("UTC")
+        scheduled_time = DateTime.now("UTC")
     elif state_details.scheduled_time:
         raise ValueError("An extra scheduled_time was provided in state_details")
     state_details.scheduled_time = scheduled_time
@@ -726,7 +726,7 @@ def Paused(
         pass
     else:
         state_details.pause_timeout = pause_expiration_time or (
-            pendulum.now("UTC") + pendulum.Duration(seconds=timeout_seconds)
+            DateTime.now("UTC") + Duration(seconds=timeout_seconds)
         )
 
     state_details.pause_reschedule = reschedule

@@ -1,9 +1,9 @@
-import pendulum
 import pytest
 import sqlalchemy as sa
 
 from prefect.server import models, schemas
 from prefect.server.database import PrefectDBInterface
+from prefect.types import DateTime
 
 
 class TestGetRunsInQueueQuery:
@@ -55,7 +55,7 @@ class TestGetRunsInQueueQuery:
                 flow_id=deployment_1.flow_id,
                 deployment_id=deployment_1.id,
                 work_queue_name=deployment_1.work_queue_name,
-                state=schemas.states.Scheduled(pendulum.now("UTC").subtract(minutes=2)),
+                state=schemas.states.Scheduled(DateTime.now("UTC").subtract(minutes=2)),
             ),
         )
         return flow_run
@@ -69,7 +69,7 @@ class TestGetRunsInQueueQuery:
                 flow_id=deployment_2.flow_id,
                 deployment_id=deployment_2.id,
                 work_queue_name=deployment_2.work_queue_name,
-                state=schemas.states.Scheduled(pendulum.now("UTC").subtract(minutes=1)),
+                state=schemas.states.Scheduled(DateTime.now("UTC").subtract(minutes=1)),
             ),
         )
 
@@ -82,7 +82,7 @@ class TestGetRunsInQueueQuery:
                 flow_id=deployment_3.flow_id,
                 deployment_id=deployment_3.id,
                 work_queue_name=deployment_3.work_queue_name,
-                state=schemas.states.Scheduled(pendulum.now("UTC")),
+                state=schemas.states.Scheduled(DateTime.now("UTC")),
             ),
         )
 
@@ -134,7 +134,7 @@ class TestGetRunsInQueueQuery:
         # clear all runs
         await session.execute(sa.delete(db.FlowRun))
 
-        now = pendulum.now("UTC")
+        now = DateTime.now("UTC")
 
         # add a bunch of runs whose physical order is the opposite of the order they should be returned in
         # in order to make it more likely (but not guaranteed!) that unsorted queries return the wrong value
@@ -163,7 +163,7 @@ class TestGetRunsInQueueQuery:
         self, session, db, fr_1, fr_2, fr_3
     ):
         query = db.queries.get_scheduled_flow_runs_from_work_queues(
-            scheduled_before=pendulum.now("UTC").subtract(seconds=90)
+            scheduled_before=DateTime.now("UTC").subtract(seconds=90)
         )
         result = await session.execute(query)
         runs = result.all()
@@ -324,7 +324,7 @@ class TestGetRunsFromWorkQueueQuery:
                     flow_run=schemas.core.FlowRun(
                         flow_id=flow.id,
                         state=schemas.states.Scheduled(
-                            scheduled_time=pendulum.now("UTC").add(hours=i)
+                            scheduled_time=DateTime.now("UTC").add(hours=i)
                         ),
                         work_queue_id=wq.id,
                     ),
@@ -728,7 +728,7 @@ class TestGetRunsFromWorkQueueQuery:
     ):
         runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session,
-            scheduled_before=pendulum.now("UTC").add(hours=hours),
+            scheduled_before=DateTime.now("UTC").add(hours=hours),
         )
         assert len(runs) == expected
 
@@ -740,7 +740,7 @@ class TestGetRunsFromWorkQueueQuery:
     ):
         runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session,
-            scheduled_after=pendulum.now("UTC").add(hours=hours),
+            scheduled_after=DateTime.now("UTC").add(hours=hours),
         )
         assert len(runs) == expected
 
@@ -748,7 +748,7 @@ class TestGetRunsFromWorkQueueQuery:
         runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session,
             # criteria should match no runs
-            scheduled_before=pendulum.now("UTC").subtract(hours=1),
-            scheduled_after=pendulum.now("UTC").add(hours=1),
+            scheduled_before=DateTime.now("UTC").subtract(hours=1),
+            scheduled_after=DateTime.now("UTC").add(hours=1),
         )
         assert len(runs) == 0

@@ -1,11 +1,11 @@
 from uuid import uuid4
 
-import pendulum
 import sqlalchemy as sa
 
 from prefect.server.schemas.filters import FlowRunFilter, LogFilter
+from prefect.types import DateTime
 
-NOW = pendulum.now("UTC")
+NOW = DateTime.now("UTC")
 
 
 class TestLogFilters:

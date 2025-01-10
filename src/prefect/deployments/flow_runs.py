@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Any, Iterable, Optional, Union
 from uuid import UUID
 
 import anyio
-import pendulum
 
 import prefect
 from prefect.client.schemas import FlowRun
@@ -16,6 +15,7 @@ from prefect.tasks import Task
 from prefect.telemetry.run_telemetry import (
     LABELS_TRACEPARENT_KEY,
 )
+from prefect.types import DateTime
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.slugify import slugify
 
@@ -92,7 +92,7 @@ async def run_deployment(
         raise ValueError("`timeout` cannot be negative")
 
     if scheduled_time is None:
-        scheduled_time = pendulum.now("UTC")
+        scheduled_time = DateTime.now("UTC")
 
     parameters = parameters or {}
 

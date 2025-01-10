@@ -20,7 +20,6 @@ from urllib.request import proxy_bypass
 from uuid import UUID
 
 import orjson
-import pendulum
 from cachetools import TTLCache
 from prometheus_client import Counter
 from python_socks.async_.asyncio import Proxy
@@ -42,6 +41,7 @@ from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
 )
+from prefect.types import DateTime
 
 if TYPE_CHECKING:
     from prefect.events.filters import EventFilter
@@ -611,8 +611,8 @@ class PrefectEventSubscriber:
         from prefect.events.filters import EventOccurredFilter
 
         self._filter.occurred = EventOccurredFilter(
-            since=pendulum.now("UTC").subtract(minutes=1),
-            until=pendulum.now("UTC").add(years=1),
+            since=DateTime.now("UTC").subtract(minutes=1),
+            until=DateTime.now("UTC").add(years=1),
         )
 
         logger.debug("  filtering events since %s...", self._filter.occurred.since)

@@ -1,10 +1,10 @@
 from uuid import uuid4
 
-import pendulum
 import pytest
 from sqlalchemy.exc import IntegrityError
 
 from prefect.server import models, schemas
+from prefect.types import DateTime
 
 
 @pytest.fixture
@@ -98,7 +98,7 @@ class TestReadAgents:
 
 class TestUpdateAgent:
     async def test_update_agent(self, session, agent, work_queue):
-        now = pendulum.now("UTC")
+        now = DateTime.now("UTC")
         result = await models.agents.update_agent(
             session=session,
             agent_id=agent.id,
@@ -133,7 +133,7 @@ class TestRecordAgentPolled:
     async def test_record_agent_poll_for_existing_agent(
         self, session, agent, work_queue
     ):
-        now = pendulum.now("UTC")
+        now = DateTime.now("UTC")
         await models.agents.record_agent_poll(
             session=session, agent_id=agent.id, work_queue_id=work_queue.id
         )
@@ -150,7 +150,7 @@ class TestRecordAgentPolled:
         assert updated_agent.name == agent.name
 
     async def test_record_agent_poll_for_new_agent(self, session, work_queue):
-        now = pendulum.now("UTC")
+        now = DateTime.now("UTC")
         agent_id = uuid4()
         await models.agents.record_agent_poll(
             session=session, agent_id=agent_id, work_queue_id=work_queue.id

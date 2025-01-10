@@ -12,6 +12,7 @@ from pydantic import TypeAdapter
 from prefect.server import models
 from prefect.server.schemas import actions, core, responses, states
 from prefect.server.schemas.states import StateType
+from prefect.types import DateTime
 
 dt = pendulum.datetime(2021, 7, 1)
 
@@ -905,7 +906,7 @@ async def test_flow_run_lateness(client, session):
 
     await session.commit()
 
-    request_time = pendulum.now("UTC")
+    request_time = DateTime.now("UTC")
     response = await client.post(
         "/flow_runs/history",
         json=dict(
@@ -935,7 +936,7 @@ async def test_flow_run_lateness(client, session):
     assert interval["states"][1]["state_type"] == StateType.RUNNING
     assert interval["states"][1]["count_runs"] == 1
 
-    expected_run_time = pendulum.now("UTC") - dt.subtract(minutes=5)
+    expected_run_time = DateTime.now("UTC") - dt.subtract(minutes=5)
     assert (
         expected_run_time - timedelta(seconds=2)
         < interval["states"][1]["sum_estimated_run_time"]

@@ -1,7 +1,6 @@
 from datetime import datetime
 from typing import List, Optional, cast
 
-import pendulum
 import sqlalchemy as sa
 from fastapi import Depends, HTTPException, status
 from pydantic import Field, model_serializer
@@ -66,7 +65,7 @@ async def read_dashboard_task_run_counts(
         (
             task_runs.start_time.before_.end_of("minute")
             if task_runs.start_time.before_
-            else pendulum.now("UTC").end_of("minute")
+            else DateTime.now("UTC").end_of("minute")
         ),
     )
     window = end_time - start_time

@@ -17,6 +17,8 @@ Sender flow:
 
 ```python
 import random
+from prefect.types import DateTime
+
 from uuid import UUID
 from prefect import flow
 from prefect.logging import get_run_logger

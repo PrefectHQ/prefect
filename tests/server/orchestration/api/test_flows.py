@@ -6,6 +6,7 @@ import pytest
 from starlette import status
 
 from prefect.server import models, schemas
+from prefect.types import DateTime
 from prefect.utilities.pydantic import parse_obj_as
 
 
@@ -23,7 +24,7 @@ class TestCreateFlow:
         assert flow.labels == {"env": "dev"}
 
     async def test_create_flow_populates_and_returned_created(self, client):
-        now = pendulum.now(tz="UTC")
+        now = DateTime.now(tz="UTC")
         flow_data = {"name": "my-flow"}
         response = await client.post("/flows/", json=flow_data)
         assert response.status_code == status.HTTP_201_CREATED
@@ -74,7 +75,7 @@ class TestUpdateFlow:
             flow=schemas.core.Flow(name="my-flow-1", tags=["db", "blue"]),
         )
         await session.commit()
-        now = pendulum.now("UTC")
+        now = DateTime.now("UTC")
 
         response = await client.patch(
             f"/flows/{str(flow.id)}",

@@ -8,8 +8,8 @@ from pendulum.tz.timezone import Timezone
 
 
 @pytest.fixture
-def frozen_time(monkeypatch: pytest.MonkeyPatch) -> pendulum.DateTime:
-    frozen = pendulum.now("UTC")
+def frozen_time(monkeypatch: pytest.MonkeyPatch) -> DateTime:
+    frozen = DateTime.now("UTC")
 
     def frozen_time(tz: Optional[Union[str, Timezone]] = None):
         if tz is None:
@@ -22,7 +22,7 @@ def frozen_time(monkeypatch: pytest.MonkeyPatch) -> pendulum.DateTime:
 
 @pytest.fixture
 def advance_time(monkeypatch: pytest.MonkeyPatch) -> Callable[[timedelta], DateTime]:
-    clock = pendulum.now("UTC")
+    clock = DateTime.now("UTC")
 
     def advance(amount: timedelta):
         nonlocal clock

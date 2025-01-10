@@ -2,7 +2,6 @@
 
 from uuid import uuid4
 
-import pendulum
 import pytest
 
 from prefect.server import models, schemas
@@ -11,6 +10,7 @@ from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models.deployments import check_work_queues_for_deployment
 from prefect.server.utilities.database import get_dialect
 from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
+from prefect.types import DateTime
 
 
 @pytest.fixture
@@ -135,9 +135,9 @@ class TestGetRunsInWorkQueue:
             flow_run_id=flow_run_1.id,
             state=schemas.states.State(
                 type=schemas.states.StateType.SCHEDULED,
-                timestamp=pendulum.now("UTC").subtract(seconds=5),
+                timestamp=DateTime.now("UTC").subtract(seconds=5),
                 state_details=dict(
-                    scheduled_time=pendulum.now("UTC").subtract(seconds=1)
+                    scheduled_time=DateTime.now("UTC").subtract(seconds=1)
                 ),
             ),
         )
@@ -151,7 +151,7 @@ class TestGetRunsInWorkQueue:
                 deployment_id=deployment.id,
                 flow_version="0.1",
                 tags=["tb12", "goat"],
-                next_scheduled_start_time=pendulum.now("UTC").subtract(minutes=1),
+                next_scheduled_start_time=DateTime.now("UTC").subtract(minutes=1),
             ),
         )
         await models.flow_runs.set_flow_run_state(
@@ -159,9 +159,9 @@ class TestGetRunsInWorkQueue:
             flow_run_id=flow_run_2.id,
             state=schemas.states.State(
                 type=schemas.states.StateType.SCHEDULED,
-                timestamp=pendulum.now("UTC").subtract(minutes=1),
+                timestamp=DateTime.now("UTC").subtract(minutes=1),
                 state_details=dict(
-                    scheduled_time=pendulum.now("UTC").subtract(minutes=1)
+                    scheduled_time=DateTime.now("UTC").subtract(minutes=1)
                 ),
             ),
         )
@@ -182,9 +182,9 @@ class TestGetRunsInWorkQueue:
             flow_run_id=flow_run_3.id,
             state=schemas.states.State(
                 type=schemas.states.StateType.SCHEDULED,
-                timestamp=pendulum.now("UTC").subtract(seconds=5),
+                timestamp=DateTime.now("UTC").subtract(seconds=5),
                 state_details=dict(
-                    scheduled_time=pendulum.now("UTC").subtract(seconds=1)
+                    scheduled_time=DateTime.now("UTC").subtract(seconds=1)
                 ),
             ),
         )
@@ -209,9 +209,9 @@ class TestGetRunsInWorkQueue:
             flow_run_id=flow_run_4.id,
             state=schemas.states.State(
                 type=schemas.states.StateType.SCHEDULED,
-                timestamp=pendulum.now("UTC").subtract(seconds=5),
+                timestamp=DateTime.now("UTC").subtract(seconds=5),
                 state_details=dict(
-                    scheduled_time=pendulum.now("UTC").subtract(seconds=1)
+                    scheduled_time=DateTime.now("UTC").subtract(seconds=1)
                 ),
             ),
         )
@@ -241,8 +241,8 @@ class TestGetRunsInWorkQueue:
             flow_run_id=flow_run_5.id,
             state=schemas.states.State(
                 type=schemas.states.StateType.SCHEDULED,
-                timestamp=pendulum.now("UTC").subtract(seconds=5),
-                state_details=dict(scheduled_time=pendulum.now("UTC").add(years=1)),
+                timestamp=DateTime.now("UTC").subtract(seconds=5),
+                state_details=dict(scheduled_time=DateTime.now("UTC").add(years=1)),
             ),
         )
 
@@ -261,9 +261,9 @@ class TestGetRunsInWorkQueue:
             flow_run_id=flow_run_6.id,
             state=schemas.states.State(
                 type=schemas.states.StateType.SCHEDULED,
-                timestamp=pendulum.now("UTC").subtract(seconds=5),
+                timestamp=DateTime.now("UTC").subtract(seconds=5),
                 state_details=dict(
-                    scheduled_time=pendulum.now("UTC").subtract(seconds=1)
+                    scheduled_time=DateTime.now("UTC").subtract(seconds=1)
                 ),
             ),
         )
@@ -284,9 +284,9 @@ class TestGetRunsInWorkQueue:
             flow_run_id=flow_run_7.id,
             state=schemas.states.State(
                 type=schemas.states.StateType.SCHEDULED,
-                timestamp=pendulum.now("UTC").subtract(seconds=5),
+                timestamp=DateTime.now("UTC").subtract(seconds=5),
                 state_details=dict(
-                    scheduled_time=pendulum.now("UTC").subtract(seconds=1)
+                    scheduled_time=DateTime.now("UTC").subtract(seconds=1)
                 ),
             ),
         )
@@ -314,7 +314,7 @@ class TestGetRunsInWorkQueue:
         _, runs = await models.work_queues.get_runs_in_work_queue(
             session=session,
             work_queue_id=work_queue.id,
-            scheduled_before=pendulum.now("UTC"),
+            scheduled_before=DateTime.now("UTC"),
         )
         assert {run.id for run in runs} == {flow_run_1_id, flow_run_2_id}
 
@@ -322,7 +322,7 @@ class TestGetRunsInWorkQueue:
         _, limited_runs = await models.work_queues.get_runs_in_work_queue(
             session=session,
             work_queue_id=work_queue.id,
-            scheduled_before=pendulum.now("UTC"),
+            scheduled_before=DateTime.now("UTC"),
             limit=1,
         )
         # flow run 2 is scheduled to start before flow run 1
@@ -333,7 +333,7 @@ class TestGetRunsInWorkQueue:
         _, runs_from_babylon = await models.work_queues.get_runs_in_work_queue(
             session=session,
             work_queue_id=work_queue.id,
-            scheduled_before=pendulum.now("UTC").subtract(years=2000),
+            scheduled_before=DateTime.now("UTC").subtract(years=2000),
             limit=1,
         )
         assert len(runs_from_babylon) == 0
@@ -349,7 +349,7 @@ class TestGetRunsInWorkQueue:
         _, runs = await models.work_queues.get_runs_in_work_queue(
             session=session,
             work_queue_id=tb12_work_queue.id,
-            scheduled_before=pendulum.now("UTC"),
+            scheduled_before=DateTime.now("UTC"),
         )
         assert {run.id for run in runs} == {flow_run_2_id}
 
@@ -374,7 +374,7 @@ class TestGetRunsInWorkQueue:
         _, runs = await models.work_queues.get_runs_in_work_queue(
             session=session,
             work_queue_id=deployment_work_queue.id,
-            scheduled_before=pendulum.now("UTC"),
+            scheduled_before=DateTime.now("UTC"),
         )
         assert {run.id for run in runs} == {flow_run_1_id, flow_run_2_id}
 
@@ -388,7 +388,7 @@ class TestGetRunsInWorkQueue:
         _, runs = await models.work_queues.get_runs_in_work_queue(
             session=session,
             work_queue_id=bad_deployment_work_queue.id,
-            scheduled_before=pendulum.now("UTC"),
+            scheduled_before=DateTime.now("UTC"),
         )
         assert runs == []
 
@@ -406,7 +406,7 @@ class TestGetRunsInWorkQueue:
         _, runs = await models.work_queues.get_runs_in_work_queue(
             session=session,
             work_queue_id=conflicting_filter_work_queue.id,
-            scheduled_before=pendulum.now("UTC"),
+            scheduled_before=DateTime.now("UTC"),
         )
         assert runs == []
 
@@ -420,7 +420,7 @@ class TestGetRunsInWorkQueue:
         _, runs = await models.work_queues.get_runs_in_work_queue(
             session=session,
             work_queue_id=work_queue.id,
-            scheduled_before=pendulum.now("UTC"),
+            scheduled_before=DateTime.now("UTC"),
         )
         assert {run.id for run in runs} == {flow_run_1_id, flow_run_2_id}
 
@@ -435,7 +435,7 @@ class TestGetRunsInWorkQueue:
         _, runs = await models.work_queues.get_runs_in_work_queue(
             session=session,
             work_queue_id=work_queue.id,
-            scheduled_before=pendulum.now("UTC"),
+            scheduled_before=DateTime.now("UTC"),
         )
         assert runs == []
 
@@ -444,7 +444,7 @@ class TestGetRunsInWorkQueue:
         _, runs = await models.work_queues.get_runs_in_work_queue(
             session=session,
             work_queue_id=work_queue.id,
-            scheduled_before=pendulum.now("UTC"),
+            scheduled_before=DateTime.now("UTC"),
             limit=9001,
         )
         assert runs == []
@@ -460,7 +460,7 @@ class TestGetRunsInWorkQueue:
         _, runs = await models.work_queues.get_runs_in_work_queue(
             session=session,
             work_queue_id=work_queue.id,
-            scheduled_before=pendulum.now("UTC"),
+            scheduled_before=DateTime.now("UTC"),
         )
         assert {run.id for run in runs} == {flow_run_2_id}
 
@@ -479,7 +479,7 @@ class TestGetRunsInWorkQueue:
         _, runs = await models.work_queues.get_runs_in_work_queue(
             session=session,
             work_queue_id=work_queue.id,
-            scheduled_before=pendulum.now("UTC"),
+            scheduled_before=DateTime.now("UTC"),
         )
         assert runs == []
 
@@ -488,7 +488,7 @@ class TestGetRunsInWorkQueue:
             await models.work_queues.get_runs_in_work_queue(
                 session=session,
                 work_queue_id=uuid4(),
-                scheduled_before=pendulum.now("UTC"),
+                scheduled_before=DateTime.now("UTC"),
             )
 
 

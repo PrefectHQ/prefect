@@ -1,7 +1,6 @@
 from typing import List, Optional, Tuple, cast
 from uuid import UUID
 
-import pendulum
 from pydantic import Field
 
 from prefect._internal.schemas.bases import PrefectBaseModel
@@ -62,12 +61,12 @@ class EventOccurredFilter(EventDataFilter):
     since: DateTime = Field(
         default_factory=lambda: cast(
             DateTime,
-            pendulum.now("UTC").start_of("day").subtract(days=180),
+            DateTime.now("UTC").start_of("day").subtract(days=180),
         ),
         description="Only include events after this time (inclusive)",
     )
     until: DateTime = Field(
-        default_factory=lambda: cast(DateTime, pendulum.now("UTC")),
+        default_factory=lambda: cast(DateTime, DateTime.now("UTC")),
         description="Only include events prior to this time (inclusive)",
     )
 

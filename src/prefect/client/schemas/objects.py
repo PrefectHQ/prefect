@@ -15,7 +15,6 @@ from typing import (
 from uuid import UUID, uuid4
 
 import orjson
-import pendulum
 from pydantic import (
     ConfigDict,
     Discriminator,
@@ -52,6 +51,7 @@ from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.settings import PREFECT_CLOUD_API_URL, PREFECT_CLOUD_UI_URL
 from prefect.types import (
     MAX_VARIABLE_NAME_LENGTH,
+    DateTime,
     KeyValueLabelsField,
     Name,
     NonNegativeInteger,
@@ -65,10 +65,6 @@ from prefect.utilities.pydantic import handle_secret_render
 if TYPE_CHECKING:
     from prefect.client.schemas.actions import StateCreate
     from prefect.results import ResultRecordMetadata
-
-    DateTime = pendulum.DateTime
-else:
-    from prefect.types import DateTime
 
 
 R = TypeVar("R", default=Any)
@@ -374,7 +370,7 @@ class State(ObjectBaseModel, Generic[R]):
     def default_scheduled_start_time(self) -> Self:
         if self.type == StateType.SCHEDULED:
             if not self.state_details.scheduled_time:
-                self.state_details.scheduled_time = pendulum.DateTime.now("utc")
+                self.state_details.scheduled_time = DateTime.now("utc")
         return self
 
     @model_validator(mode="after")
@@ -1374,7 +1370,7 @@ class WorkQueueHealthPolicy(PrefectBaseModel):
     )
 
     def evaluate_health_status(
-        self, late_runs_count: int, last_polled: Optional[pendulum.DateTime] = None
+        self, late_runs_count: int, last_polled: Optional[DateTime] = None
     ) -> bool:
         """
         Given empirical information about the state of the work queue, evaluate its health status.
@@ -1396,7 +1392,7 @@ class WorkQueueHealthPolicy(PrefectBaseModel):
         if self.maximum_seconds_since_last_polled is not None:
             if (
                 last_polled is None
-                or pendulum.now("UTC").diff(last_polled).in_seconds()
+                or DateTime.now("UTC").diff(last_polled).in_seconds()
                 > self.maximum_seconds_since_last_polled
             ):
                 healthy = False

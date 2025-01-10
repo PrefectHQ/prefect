@@ -79,7 +79,7 @@ from prefect.server.utilities.user_templates import (
     render_user_template,
     validate_user_template,
 )
-from prefect.types import StrictVariableValue
+from prefect.types import DateTime, StrictVariableValue
 from prefect.utilities.schema_tools.hydration import (
     HydrationContext,
     HydrationError,
@@ -162,7 +162,7 @@ class Action(PrefectBaseModel, abc.ABC):
             )
             await events.emit(
                 Event(
-                    occurred=pendulum.now("UTC"),
+                    occurred=DateTime.now("UTC"),
                     event="prefect.automation.action.failed",
                     resource=resource,
                     related=self._resulting_related_resources,
@@ -218,7 +218,7 @@ class Action(PrefectBaseModel, abc.ABC):
             )
             await events.emit(
                 Event(
-                    occurred=pendulum.now("UTC"),
+                    occurred=DateTime.now("UTC"),
                     event="prefect.automation.action.executed",
                     resource={
                         "prefect.resource.id": automation_resource_id,

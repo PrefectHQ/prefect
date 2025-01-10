@@ -18,6 +18,7 @@ from prefect.settings import (
     PREFECT_API_URL,
 )
 from prefect.tasks import task
+from prefect.types import DateTime
 from prefect.utilities.slugify import slugify
 from tests.telemetry.instrumentation_tester import InstrumentationTester
 
@@ -263,7 +264,7 @@ class TestRunDeployment:
     ):
         deployment = test_deployment
 
-        scheduled_time = pendulum.now("UTC")
+        scheduled_time = DateTime.now("UTC")
         flow_run = await run_deployment(
             f"foo/{deployment.name}",
             timeout=0,
@@ -277,7 +278,7 @@ class TestRunDeployment:
     ):
         deployment = test_deployment
 
-        scheduled_time = pendulum.now("UTC") + pendulum.Duration(minutes=5)
+        scheduled_time = DateTime.now("UTC") + pendulum.Duration(minutes=5)
         flow_run = await run_deployment(
             f"foo/{deployment.name}",
             scheduled_time=scheduled_time,

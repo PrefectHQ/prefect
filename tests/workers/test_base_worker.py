@@ -41,6 +41,7 @@ from prefect.states import (
     Scheduled,
 )
 from prefect.testing.utilities import AsyncMock
+from prefect.types import DateTime
 from prefect.utilities.pydantic import parse_obj_as
 from prefect.workers.base import (
     BaseJobConfiguration,
@@ -223,16 +224,16 @@ async def test_worker_with_work_pool(
     flow_runs = [
         await create_run_with_deployment(Pending()),
         await create_run_with_deployment(
-            Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1))
+            Scheduled(scheduled_time=DateTime.now("utc").subtract(days=1))
         ),
         await create_run_with_deployment(
-            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+            Scheduled(scheduled_time=DateTime.now("utc").add(seconds=5))
         ),
         await create_run_with_deployment(
-            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+            Scheduled(scheduled_time=DateTime.now("utc").add(seconds=5))
         ),
         await create_run_with_deployment(
-            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=20))
+            Scheduled(scheduled_time=DateTime.now("utc").add(seconds=20))
         ),
         await create_run_with_deployment(Running()),
         await create_run_with_deployment(Completed()),
@@ -272,16 +273,16 @@ async def test_worker_with_work_pool_and_work_queue(
     flow_runs = [
         await create_run_with_deployment_1(Pending()),
         await create_run_with_deployment_1(
-            Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1))
+            Scheduled(scheduled_time=DateTime.now("utc").subtract(days=1))
         ),
         await create_run_with_deployment_1(
-            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+            Scheduled(scheduled_time=DateTime.now("utc").add(seconds=5))
         ),
         await create_run_with_deployment_2(
-            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+            Scheduled(scheduled_time=DateTime.now("utc").add(seconds=5))
         ),
         await create_run_with_deployment_2(
-            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=20))
+            Scheduled(scheduled_time=DateTime.now("utc").add(seconds=20))
         ),
         await create_run_with_deployment_1(Running()),
         await create_run_with_deployment_1(Completed()),
@@ -356,7 +357,7 @@ async def test_workers_do_not_submit_flow_runs_awaiting_retry(
     flow_run = await prefect_client.read_flow_run(flow_run.id)
     # Check to ensure that the flow has a scheduled time earlier than now to rule out
     # that the worker doesn't pick up the flow run due to its scheduled time being in the future
-    assert flow_run.state.state_details.scheduled_time < pendulum.now("utc")
+    assert flow_run.state.state_details.scheduled_time < DateTime.now("utc")
 
     async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
         submitted_flow_runs = await worker.get_and_submit_flow_runs()
@@ -387,10 +388,10 @@ async def test_priority_trumps_lateness(
 
     flow_runs = [
         await create_run_with_deployment_2(
-            Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1))
+            Scheduled(scheduled_time=DateTime.now("utc").subtract(days=1))
         ),
         await create_run_with_deployment_1(
-            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+            Scheduled(scheduled_time=DateTime.now("utc").add(seconds=5))
         ),
     ]
     flow_run_ids = [run.id for run in flow_runs]
@@ -413,7 +414,7 @@ async def test_worker_releases_limit_slot_when_aborting_a_change_to_pending(
         )
 
     flow_run = await create_run_with_deployment(
-        Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1))
+        Scheduled(scheduled_time=DateTime.now("utc").subtract(days=1))
     )
 
     run_mock = AsyncMock()
@@ -445,16 +446,16 @@ async def test_worker_with_work_pool_and_limit(
     flow_runs = [
         await create_run_with_deployment(Pending()),
         await create_run_with_deployment(
-            Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1))
+            Scheduled(scheduled_time=DateTime.now("utc").subtract(days=1))
         ),
         await create_run_with_deployment(
-            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+            Scheduled(scheduled_time=DateTime.now("utc").add(seconds=5))
         ),
         await create_run_with_deployment(
-            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+            Scheduled(scheduled_time=DateTime.now("utc").add(seconds=5))
         ),
         await create_run_with_deployment(
-            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=20))
+            Scheduled(scheduled_time=DateTime.now("utc").add(seconds=20))
         ),
         await create_run_with_deployment(Running()),
         await create_run_with_deployment(Completed()),
@@ -500,16 +501,16 @@ async def test_worker_calls_run_with_expected_arguments(
     flow_runs = [
         await create_run_with_deployment(Pending()),
         await create_run_with_deployment(
-            Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1))
+            Scheduled(scheduled_time=DateTime.now("utc").subtract(days=1))
         ),
         await create_run_with_deployment(
-            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+            Scheduled(scheduled_time=DateTime.now("utc").add(seconds=5))
         ),
         await create_run_with_deployment(
-            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+            Scheduled(scheduled_time=DateTime.now("utc").add(seconds=5))
         ),
         await create_run_with_deployment(
-            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=20))
+            Scheduled(scheduled_time=DateTime.now("utc").add(seconds=20))
         ),
         await create_run_with_deployment(Running()),
         await create_run_with_deployment(Completed()),
@@ -540,7 +541,7 @@ async def test_worker_warns_when_running_a_flow_run_with_a_storage_block(
         )
 
     flow_run = await create_run_with_deployment(
-        Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+        Scheduled(scheduled_time=DateTime.now("utc").add(seconds=5))
     )
 
     async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
@@ -582,13 +583,13 @@ async def test_worker_creates_only_one_client_context(
         )
 
     await create_run_with_deployment(
-        Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1))
+        Scheduled(scheduled_time=DateTime.now("utc").subtract(days=1))
     )
     await create_run_with_deployment(
-        Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+        Scheduled(scheduled_time=DateTime.now("utc").add(seconds=5))
     )
     await create_run_with_deployment(
-        Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+        Scheduled(scheduled_time=DateTime.now("utc").add(seconds=5))
     )
 
     async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
@@ -1694,7 +1695,7 @@ class TestInfrastructureIntegration:
     ):
         flow_run = await prefect_client.create_flow_run_from_deployment(
             worker_deployment_infra_wq1.id,
-            state=Scheduled(scheduled_time=pendulum.now("utc")),
+            state=Scheduled(scheduled_time=DateTime.now("utc")),
         )
         await prefect_client.read_flow(worker_deployment_infra_wq1.flow_id)
 
@@ -1721,7 +1722,7 @@ class TestInfrastructureIntegration:
 async def test_worker_set_last_polled_time(
     work_pool,
 ):
-    now = pendulum.now("utc")
+    now = DateTime.now("utc")
 
     # https://github.com/PrefectHQ/prefect/issues/11619
     # Pendulum 3 Test Case
@@ -1770,7 +1771,7 @@ async def test_worker_set_last_polled_time(
 async def test_worker_last_polled_health_check(
     work_pool,
 ):
-    now = pendulum.now("utc")
+    now = DateTime.now("utc")
 
     # https://github.com/PrefectHQ/prefect/issues/11619
     # Pendulum 3 Test Case
@@ -1850,7 +1851,7 @@ class TestBaseWorkerStart:
 
         flow_run = await prefect_client.create_flow_run_from_deployment(
             worker_deployment_wq1.id,
-            state=Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1)),
+            state=Scheduled(scheduled_time=DateTime.now("utc").subtract(days=1)),
         )
 
         worker = WorkerTestImpl(work_pool_name=work_pool.name)
@@ -2096,7 +2097,7 @@ async def test_worker_gives_labels_to_flow_runs_when_using_cloud_api(
         )
 
     flow_run = await create_run_with_deployment(
-        Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1))
+        Scheduled(scheduled_time=DateTime.now("utc").subtract(days=1))
     )
 
     async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:

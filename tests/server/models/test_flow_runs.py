@@ -1,6 +1,5 @@
 from uuid import uuid4
 
-import pendulum
 import pytest
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,7 +8,7 @@ from prefect.server import models, schemas
 from prefect.server.database import orm_models
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.schemas.core import TaskRunResult
-from prefect.types import KeyValueLabels
+from prefect.types import DateTime, KeyValueLabels
 
 
 class TestCreateFlowRun:
@@ -625,7 +624,7 @@ class TestReadFlowRuns:
         assert len(result) == 0
 
     async def test_read_flow_runs_filters_by_start_time(self, flow, session):
-        now = pendulum.now("UTC")
+        now = DateTime.now("UTC")
         flow_run_1 = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
@@ -724,7 +723,7 @@ class TestReadFlowRuns:
     async def test_read_flow_runs_filters_by_next_scheduled_start_time(
         self, flow, session
     ):
-        now = pendulum.now("UTC")
+        now = DateTime.now("UTC")
         flow_run_1 = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
@@ -793,7 +792,7 @@ class TestReadFlowRuns:
         assert {res.id for res in result} == {flow_run_3.id}
 
     async def test_read_flow_runs_filters_by_expected_start_time(self, flow, session):
-        now = pendulum.now("UTC")
+        now = DateTime.now("UTC")
         flow_run_1 = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
@@ -1144,7 +1143,7 @@ class TestReadFlowRuns:
         assert {res.id for res in result} == {flow_run_2.id}
 
     async def test_read_flow_runs_applies_sort(self, flow, session):
-        now = pendulum.now("UTC")
+        now = DateTime.now("UTC")
         await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(

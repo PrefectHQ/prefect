@@ -19,6 +19,7 @@ from prefect.server.schemas.actions import LogCreate
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.responses import FlowRunResponse, OrchestrationResult
 from prefect.server.schemas.states import StateType
+from prefect.types import DateTime
 from prefect.utilities.pydantic import parse_obj_as
 
 
@@ -76,7 +77,7 @@ class TestCreateFlowRun:
             json=client_actions.FlowRunCreate(
                 flow_id=flow.id,
                 state=client_states.Completed(
-                    timestamp=pendulum.now("UTC").add(months=1)
+                    timestamp=DateTime.now("UTC").add(months=1)
                 ).to_state_create(),
             ).model_dump(mode="json"),
         )
@@ -86,7 +87,7 @@ class TestCreateFlowRun:
             session=session, flow_run_id=response.json()["id"]
         )
         # the timestamp was overwritten
-        assert flow_run.state.timestamp < pendulum.now("UTC")
+        assert flow_run.state.timestamp < DateTime.now("UTC")
 
     async def test_create_flow_run_without_state_yields_default_pending(
         self, flow, client, session
@@ -228,7 +229,7 @@ class TestUpdateFlowRun:
             flow_run=schemas.core.FlowRun(flow_id=flow.id, flow_version="1.0"),
         )
         await session.commit()
-        now = pendulum.now("UTC")
+        now = DateTime.now("UTC")
 
         response = await client.patch(
             f"flow_runs/{flow_run.id}",
@@ -313,7 +314,7 @@ class TestUpdateFlowRun:
                 flow_id=flow.id,
                 flow_version="1.0",
                 state=schemas.states.Scheduled(
-                    scheduled_time=pendulum.now("UTC").add(days=1)
+                    scheduled_time=DateTime.now("UTC").add(days=1)
                 ),
             ),
         )
@@ -350,7 +351,7 @@ class TestUpdateFlowRun:
                 flow_id=flow.id,
                 flow_version="1.0",
                 state=schemas.states.Scheduled(
-                    scheduled_time=pendulum.now("UTC").add(days=1)
+                    scheduled_time=DateTime.now("UTC").add(days=1)
                 ),
                 deployment_id=deployment.id,
             ),
@@ -736,7 +737,7 @@ class TestReadFlowRuns:
         assert response.json() == []
 
     async def test_read_flow_runs_applies_sort(self, session, flow, client):
-        now = pendulum.now("UTC")
+        now = DateTime.now("UTC")
         flow_run_1 = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
@@ -1697,7 +1698,7 @@ class TestSetFlowRunState:
                     type=StateType.SCHEDULED,
                     name="Scheduled",
                     state_details=dict(
-                        scheduled_time=str(pendulum.now("UTC").add(months=1))
+                        scheduled_time=str(DateTime.now("UTC").add(months=1))
                     ),
                 )
             ),
@@ -1748,7 +1749,7 @@ class TestSetFlowRunState:
             f"/flow_runs/{flow_run.id}/set_state",
             json=dict(
                 state=client_states.Scheduled(
-                    scheduled_time=pendulum.now("UTC").add(days=1)
+                    scheduled_time=DateTime.now("UTC").add(days=1)
                 )
                 .to_state_create()
                 .model_dump(mode="json")
@@ -1993,8 +1994,8 @@ class TestFlowRunHistory:
         response = await client.post(
             "/flow_runs/history",
             json=dict(
-                history_start=str(pendulum.now("UTC")),
-                history_end=str(pendulum.now("UTC").add(days=1)),
+                history_start=str(DateTime.now("UTC")),
+                history_end=str(DateTime.now("UTC").add(days=1)),
                 history_interval_seconds=0.9,
             ),
         )
@@ -2013,7 +2014,7 @@ class TestFlowRunLateness:
     async def late_flow_runs(self, session, flow):
         flow_runs = []
         for i in range(5):
-            one_minute_ago = pendulum.now("UTC").subtract(minutes=1)
+            one_minute_ago = DateTime.now("UTC").subtract(minutes=1)
             flow_run = await models.flow_runs.create_flow_run(
                 session=session,
                 flow_run=schemas.core.FlowRun(
@@ -2552,7 +2553,7 @@ class TestPaginateFlowRuns:
         assert response.json()["results"] == []
 
     async def test_read_flow_runs_applies_sort(self, session, flow, client):
-        now = pendulum.now("UTC")
+        now = DateTime.now("UTC")
         flow_run_1 = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
@@ -2829,7 +2830,7 @@ class TestDownloadFlowRunLogs:
 
     @pytest.fixture
     async def flow_run_1_logs(self, flow_run_1, session):
-        NOW = pendulum.now("UTC")
+        NOW = DateTime.now("UTC")
 
         logs = [
             LogCreate(
@@ -2850,7 +2851,7 @@ class TestDownloadFlowRunLogs:
 
     @pytest.fixture
     async def flow_run_2_logs(self, flow_run_2, session):
-        NOW = pendulum.now("UTC")
+        NOW = DateTime.now("UTC")
 
         logs = [
             LogCreate(

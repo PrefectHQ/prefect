@@ -14,7 +14,6 @@ from typing import (
 )
 from uuid import UUID
 
-import pendulum
 from pydantic import (
     AfterValidator,
     AnyHttpUrl,
@@ -169,7 +168,7 @@ class Event(PrefectBaseModel):
 
         return value
 
-    def receive(self, received: Optional[pendulum.DateTime] = None) -> "ReceivedEvent":
+    def receive(self, received: Optional[DateTime] = None) -> "ReceivedEvent":
         kwargs = self.model_dump()
         if received is not None:
             kwargs["received"] = received
@@ -197,14 +196,14 @@ class ReceivedEvent(Event):
     )
 
     received: DateTime = Field(
-        default_factory=lambda: pendulum.now("UTC"),
+        default_factory=lambda: DateTime.now("UTC"),
         description="When the event was received by Prefect Cloud",
     )
 
     def as_database_row(self) -> Dict[str, Any]:
         row = self.model_dump()
         row["resource_id"] = self.resource.id
-        row["recorded"] = pendulum.now("UTC")
+        row["recorded"] = DateTime.now("UTC")
         row["related_resource_ids"] = [related.id for related in self.related]
         return row
 

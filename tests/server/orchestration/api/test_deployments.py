@@ -19,6 +19,7 @@ from prefect.settings import (
     PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME,
     PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS,
 )
+from prefect.types import DateTime
 
 
 def assert_status_events(deployment_name: str, events: List[str]):
@@ -337,7 +338,7 @@ class TestCreateDeployment:
         client,
         flow,
     ):
-        now = pendulum.now(tz="UTC")
+        now = DateTime.now(tz="UTC")
 
         data = DeploymentCreate(
             name="My Deployment",
@@ -414,7 +415,7 @@ class TestCreateDeployment:
                 flow_id=deployment.flow_id,
                 deployment_id=deployment.id,
                 state=schemas.states.Scheduled(
-                    scheduled_time=pendulum.now("UTC").add(days=1)
+                    scheduled_time=DateTime.now("UTC").add(days=1)
                 ),
             ),
         )
@@ -459,7 +460,7 @@ class TestCreateDeployment:
                 flow_id=deployment.flow_id,
                 deployment_id=deployment.id,
                 state=schemas.states.Scheduled(
-                    scheduled_time=pendulum.now("UTC").add(seconds=2)
+                    scheduled_time=DateTime.now("UTC").add(seconds=2)
                 ),
             ),
         )
@@ -491,7 +492,7 @@ class TestCreateDeployment:
         # check that the maximum run is from the secondly schedule
         query = sa.select(sa.func.max(db.FlowRun.expected_start_time))
         result = await session.execute(query)
-        assert result.scalar() < pendulum.now("UTC").add(seconds=100)
+        assert result.scalar() < DateTime.now("UTC").add(seconds=100)
 
     async def test_create_deployment_throws_useful_error_on_missing_blocks(
         self,
@@ -1995,9 +1996,9 @@ class TestGetScheduledFlowRuns:
                 flow_version="0.1",
                 state=schemas.states.State(
                     type=schemas.states.StateType.SCHEDULED,
-                    timestamp=pendulum.now("UTC").subtract(minutes=5),
+                    timestamp=DateTime.now("UTC").subtract(minutes=5),
                     state_details=dict(
-                        scheduled_time=pendulum.now("UTC").subtract(minutes=5)
+                        scheduled_time=DateTime.now("UTC").subtract(minutes=5)
                     ),
                 ),
             ),
@@ -2013,9 +2014,9 @@ class TestGetScheduledFlowRuns:
                 tags=["tb12", "goat"],
                 state=schemas.states.State(
                     type=schemas.states.StateType.SCHEDULED,
-                    timestamp=pendulum.now("UTC").subtract(minutes=1),
+                    timestamp=DateTime.now("UTC").subtract(minutes=1),
                     state_details=dict(
-                        scheduled_time=pendulum.now("UTC").subtract(minutes=1)
+                        scheduled_time=DateTime.now("UTC").subtract(minutes=1)
                     ),
                 ),
             ),
@@ -2030,9 +2031,9 @@ class TestGetScheduledFlowRuns:
                 tags=["tb12", "goat"],
                 state=schemas.states.State(
                     type=schemas.states.StateType.SCHEDULED,
-                    timestamp=pendulum.now("UTC").subtract(minutes=1),
+                    timestamp=DateTime.now("UTC").subtract(minutes=1),
                     state_details=dict(
-                        scheduled_time=pendulum.now("UTC").subtract(minutes=1)
+                        scheduled_time=DateTime.now("UTC").subtract(minutes=1)
                     ),
                 ),
             ),
@@ -2110,7 +2111,7 @@ class TestGetScheduledFlowRuns:
             "/deployments/get_scheduled_flow_runs",
             json=dict(
                 deployment_ids=[str(deployment_1.id)],
-                scheduled_before=str(pendulum.now("UTC").subtract(minutes=2)),
+                scheduled_before=str(DateTime.now("UTC").subtract(minutes=2)),
             ),
         )
         assert response.status_code == 200
@@ -2164,7 +2165,7 @@ class TestGetScheduledFlowRuns:
 
         assert (
             updated_response_deployment_1.json()["last_polled"]
-            > pendulum.now("UTC").subtract(minutes=1).isoformat()
+            > DateTime.now("UTC").subtract(minutes=1).isoformat()
         )
         assert updated_response_deployment_1.json()["status"] == "READY"
 
@@ -2201,7 +2202,7 @@ class TestGetScheduledFlowRuns:
         assert updated_response_1.status_code == 200
         assert (
             updated_response_1.json()["last_polled"]
-            > pendulum.now("UTC").subtract(minutes=1).isoformat()
+            > DateTime.now("UTC").subtract(minutes=1).isoformat()
         )
         assert updated_response_1.json()["status"] == "READY"
 
@@ -2209,7 +2210,7 @@ class TestGetScheduledFlowRuns:
         assert updated_response_2.status_code == 200
         assert (
             updated_response_2.json()["last_polled"]
-            > pendulum.now("UTC").subtract(minutes=1).isoformat()
+            > DateTime.now("UTC").subtract(minutes=1).isoformat()
         )
         assert updated_response_2.json()["status"] == "READY"
 
@@ -2226,7 +2227,7 @@ class TestDeleteDeployment:
                 flow_version="1.0",
                 auto_scheduled=False,
                 state=schemas.states.Scheduled(
-                    scheduled_time=pendulum.now("UTC"),
+                    scheduled_time=DateTime.now("UTC"),
                     message="Flow run scheduled",
                 ),
             ),
@@ -2239,7 +2240,7 @@ class TestDeleteDeployment:
                 flow_version="1.0",
                 auto_scheduled=True,
                 state=schemas.states.Scheduled(
-                    scheduled_time=pendulum.now("UTC"),
+                    scheduled_time=DateTime.now("UTC"),
                     message="Flow run scheduled",
                 ),
             ),
@@ -2429,7 +2430,7 @@ class TestPauseAndResumeDeployment:
                 flow_id=deployment.flow_id,
                 deployment_id=deployment.id,
                 state=schemas.states.Scheduled(
-                    scheduled_time=pendulum.now("UTC").add(days=1)
+                    scheduled_time=DateTime.now("UTC").add(days=1)
                 ),
             ),
         )
@@ -2461,8 +2462,8 @@ class TestScheduleDeployment:
         runs = await models.flow_runs.read_flow_runs(session)
         expected_dates = await deployment_schedule.schedule.get_dates(
             n=PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS.value(),
-            start=pendulum.now("UTC"),
-            end=pendulum.now("UTC")
+            start=DateTime.now("UTC"),
+            end=DateTime.now("UTC")
             + PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME.value(),
         )
         actual_dates = {r.state.state_details.scheduled_time for r in runs}
@@ -2481,8 +2482,8 @@ class TestScheduleDeployment:
         runs = await models.flow_runs.read_flow_runs(session)
         expected_dates = await deployment_schedule.schedule.get_dates(
             n=5,
-            start=pendulum.now("UTC"),
-            end=pendulum.now("UTC")
+            start=DateTime.now("UTC"),
+            end=DateTime.now("UTC")
             + PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME.value(),
         )
         actual_dates = {r.state.state_details.scheduled_time for r in runs}
@@ -2496,14 +2497,14 @@ class TestScheduleDeployment:
 
         await client.post(
             f"/deployments/{deployment.id}/schedule",
-            json=dict(start_time=str(pendulum.now("UTC").add(days=120))),
+            json=dict(start_time=str(DateTime.now("UTC").add(days=120))),
         )
 
         runs = await models.flow_runs.read_flow_runs(session)
         expected_dates = await deployment_schedule.schedule.get_dates(
             n=PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS.value(),
-            start=pendulum.now("UTC").add(days=120),
-            end=pendulum.now("UTC").add(days=120)
+            start=DateTime.now("UTC").add(days=120),
+            end=DateTime.now("UTC").add(days=120)
             + PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME.value(),
         )
         actual_dates = {r.state.state_details.scheduled_time for r in runs}
@@ -2518,7 +2519,7 @@ class TestScheduleDeployment:
         await client.post(
             f"/deployments/{deployment.id}/schedule",
             json=dict(
-                end_time=str(pendulum.now("UTC").add(days=7)),
+                end_time=str(DateTime.now("UTC").add(days=7)),
                 # schedule a large number of min runs to see the effect of end_time
                 min_runs=100,
             ),
@@ -2527,8 +2528,8 @@ class TestScheduleDeployment:
         runs = await models.flow_runs.read_flow_runs(session)
         expected_dates = await deployment_schedule.schedule.get_dates(
             n=100,
-            start=pendulum.now("UTC"),
-            end=pendulum.now("UTC").add(days=7),
+            start=DateTime.now("UTC"),
+            end=DateTime.now("UTC").add(days=7),
         )
         actual_dates = {r.state.state_details.scheduled_time for r in runs}
         assert actual_dates == set(expected_dates)
@@ -2543,8 +2544,8 @@ class TestScheduleDeployment:
         await client.post(
             f"/deployments/{deployment.id}/schedule",
             json=dict(
-                start_time=str(pendulum.now("UTC").subtract(days=20)),
-                end_time=str(pendulum.now("UTC")),
+                start_time=str(DateTime.now("UTC").subtract(days=20)),
+                end_time=str(DateTime.now("UTC")),
                 min_runs=100,
             ),
         )
@@ -2552,8 +2553,8 @@ class TestScheduleDeployment:
         runs = await models.flow_runs.read_flow_runs(session)
         expected_dates = await deployment_schedule.schedule.get_dates(
             n=100,
-            start=pendulum.now("UTC").subtract(days=20),
-            end=pendulum.now("UTC"),
+            start=DateTime.now("UTC").subtract(days=20),
+            end=DateTime.now("UTC"),
         )
         actual_dates = {r.state.state_details.scheduled_time for r in runs}
         assert actual_dates == set(expected_dates)

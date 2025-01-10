@@ -20,7 +20,6 @@ from typing import (
 )
 from uuid import UUID
 
-import pendulum
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -45,7 +44,7 @@ from prefect.settings import (
     PREFECT_API_MAX_FLOW_RUN_GRAPH_ARTIFACTS,
     PREFECT_API_MAX_FLOW_RUN_GRAPH_NODES,
 )
-from prefect.types import KeyValueLabels
+from prefect.types import DateTime, KeyValueLabels
 
 logger = get_logger("flow_runs")
 
@@ -74,7 +73,7 @@ async def create_flow_run(
     Returns:
         orm_models.FlowRun: the newly-created flow run
     """
-    now = pendulum.now("UTC")
+    now = DateTime.now("UTC")
     # model: Union[orm_models.FlowRun, None] = None
 
     flow_run.labels = await with_system_labels_for_flow_run(
@@ -600,7 +599,7 @@ async def read_flow_run_graph(
     db: PrefectDBInterface,
     session: AsyncSession,
     flow_run_id: UUID,
-    since: pendulum.DateTime = pendulum.DateTime.min,
+    since: DateTime = DateTime.min,
 ) -> Graph:
     """Given a flow run, return the graph of it's task and subflow runs. If a `since`
     datetime is provided, only return items that may have changed since that time."""

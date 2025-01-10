@@ -73,6 +73,7 @@ Example:
 from __future__ import annotations
 
 import asyncio  # noqa: I001
+
 from typing import (
     TYPE_CHECKING,
     Any,

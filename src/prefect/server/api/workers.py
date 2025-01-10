@@ -5,7 +5,6 @@ Routes for interacting with work queue objects.
 from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID, uuid4
 
-import pendulum
 import sqlalchemy as sa
 from fastapi import (
     BackgroundTasks,
@@ -179,7 +178,7 @@ async def create_work_pool(
 
             await emit_work_pool_status_event(
                 event_id=uuid4(),
-                occurred=pendulum.now("UTC"),
+                occurred=DateTime.now("UTC"),
                 pre_update_work_pool=None,
                 work_pool=model,
             )

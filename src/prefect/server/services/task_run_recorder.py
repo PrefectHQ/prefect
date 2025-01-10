@@ -3,7 +3,6 @@ from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator, Dict, Optional
 from uuid import UUID
 
-import pendulum
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,6 +17,7 @@ from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.schemas.core import TaskRun
 from prefect.server.schemas.states import State
 from prefect.server.utilities.messaging import Message, MessageHandler, create_consumer
+from prefect.types import DateTime
 
 logger = get_logger(__name__)
 
@@ -38,7 +38,7 @@ async def _insert_task_run(
     await session.execute(
         db.queries.insert(db.TaskRun)
         .values(
-            created=pendulum.now("UTC"),
+            created=DateTime.now("UTC"),
             **task_run_attributes,
         )
         .on_conflict_do_update(
@@ -46,7 +46,7 @@ async def _insert_task_run(
                 "id",
             ],
             set_={
-                "updated": pendulum.now("UTC"),
+                "updated": DateTime.now("UTC"),
                 **task_run_attributes,
             },
             where=db.TaskRun.state_timestamp < task_run.state.timestamp,
@@ -61,7 +61,7 @@ async def _insert_task_run_state(
     await session.execute(
         db.queries.insert(db.TaskRunState)
         .values(
-            created=pendulum.now("UTC"),
+            created=DateTime.now("UTC"),
             task_run_id=task_run.id,
             **task_run.state.model_dump(),
         )

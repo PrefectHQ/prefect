@@ -14,6 +14,7 @@ from prefect._internal.pydantic.annotations.pendulum import (
     PydanticPendulumDurationType,
 )
 from prefect._internal.pydantic.schemas import GenerateEmptySchemaForUserClasses
+from prefect.types import DateTime
 
 
 def is_v2_model(v: t.Any) -> bool:
@@ -75,7 +76,7 @@ def process_v2_params(
     type_ = t.Any if param.annotation is inspect.Parameter.empty else param.annotation
 
     # Replace pendulum type annotations with our own so that they are pydantic compatible
-    if type_ == pendulum.DateTime:
+    if type_ == DateTime:
         type_ = PydanticPendulumDateTimeType
     if type_ == pendulum.Date:
         type_ = PydanticPendulumDateType

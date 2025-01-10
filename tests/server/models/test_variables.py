@@ -1,6 +1,5 @@
 import uuid
 
-import pendulum
 import pytest
 import sqlalchemy as sa
 
@@ -23,6 +22,7 @@ from prefect.server.schemas.filters import (
     VariableFilterTags,
 )
 from prefect.server.schemas.sorting import VariableSort
+from prefect.types import DateTime
 
 
 @pytest.fixture
@@ -62,7 +62,7 @@ class TestCreateVariable:
         self,
         session,
     ):
-        now = pendulum.now("UTC")
+        now = DateTime.now("UTC")
 
         variable = VariableCreate(
             name="my_variable", value="my-value", tags=["123", "456"]

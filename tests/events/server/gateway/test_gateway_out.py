@@ -1,7 +1,6 @@
 from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator, AsyncIterable, List, Tuple
 
-import pendulum
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.status import (
@@ -18,6 +17,7 @@ from prefect.server.events.filters import (
 )
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.events.storage import database
+from prefect.types import DateTime
 
 
 @pytest.fixture
@@ -75,8 +75,8 @@ def backfill_mock(
 def default_liberal_filter() -> EventFilter:
     return EventFilter(
         occurred=EventOccurredFilter(
-            since=pendulum.now("UTC"),
-            until=pendulum.now("UTC").add(years=1),
+            since=DateTime.now("UTC"),
+            until=DateTime.now("UTC").add(years=1),
         )
     )
 
@@ -115,7 +115,7 @@ def test_streaming_requires_authentication(
 
 async def test_streaming_requires_a_filter(
     monkeypatch,
-    frozen_time: pendulum.DateTime,
+    frozen_time: DateTime,
     test_client: TestClient,
     default_liberal_filter: EventFilter,
     old_event1: ReceivedEvent,
@@ -152,7 +152,7 @@ async def test_streaming_requires_a_filter(
 
 async def test_streaming_requires_a_valid_filter(
     monkeypatch,
-    frozen_time: pendulum.DateTime,
+    frozen_time: DateTime,
     test_client: TestClient,
     default_liberal_filter: EventFilter,
     old_event1: ReceivedEvent,
@@ -186,7 +186,7 @@ async def test_streaming_requires_a_valid_filter(
 
 async def test_user_may_decline_a_backfill(
     monkeypatch,
-    frozen_time: pendulum.DateTime,
+    frozen_time: DateTime,
     test_client: TestClient,
     default_liberal_filter: EventFilter,
     old_event1: ReceivedEvent,
@@ -226,7 +226,7 @@ async def test_user_may_decline_a_backfill(
 
 async def test_user_may_explicitly_request_a_backfill(
     monkeypatch,
-    frozen_time: pendulum.DateTime,
+    frozen_time: DateTime,
     test_client: TestClient,
     default_liberal_filter: EventFilter,
     old_event1: ReceivedEvent,

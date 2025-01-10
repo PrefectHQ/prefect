@@ -24,13 +24,14 @@ from prefect.server.utilities.database import (
     Timestamp,
     bindparams_from_clause,
 )
+from prefect.types import DateTime
 
-DBBase = declarative_base(type_annotation_map={pendulum.DateTime: Timestamp})
+DBBase = declarative_base(type_annotation_map={DateTime: Timestamp})
 
 
 class PydanticModel(pydantic.BaseModel):
     x: int
-    y: datetime.datetime = pydantic.Field(default_factory=lambda: pendulum.now("UTC"))
+    y: datetime.datetime = pydantic.Field(default_factory=lambda: DateTime.now("UTC"))
 
 
 class Color(enum.Enum):
@@ -55,8 +56,8 @@ class SQLTimestampModel(DBBase):
     __tablename__ = "_test_timestamp_model"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    ts_1: Mapped[Optional[pendulum.DateTime]]
-    ts_2: Mapped[Optional[pendulum.DateTime]]
+    ts_1: Mapped[Optional[DateTime]]
+    ts_2: Mapped[Optional[DateTime]]
     i_1: Mapped[Optional[datetime.timedelta]]
     i_2: Mapped[Optional[datetime.timedelta]]
 
@@ -108,7 +109,7 @@ class TestPydantic:
         results = query.all()
         assert len(results) == 1
         assert isinstance(results[0].data, PydanticModel)
-        assert results[0].data.y < pendulum.now("UTC")
+        assert results[0].data.y < DateTime.now("UTC")
 
     async def test_write_dict_to_Pydantic(self, session: AsyncSession):
         p_model = PydanticModel(x=100)
@@ -503,7 +504,7 @@ class TestDateFunctions:
     async def test_date_add(
         self,
         session: AsyncSession,
-        ts_1: Union[pendulum.DateTime, sa.Column[pendulum.DateTime]],
+        ts_1: Union[DateTime, sa.Column[DateTime]],
         i_1: Union[datetime.timedelta, sa.Column[datetime.timedelta]],
     ):
         result = await session.scalar(
@@ -523,8 +524,8 @@ class TestDateFunctions:
     async def test_date_diff(
         self,
         session: AsyncSession,
-        ts_1: Union[pendulum.DateTime, sa.Column[pendulum.DateTime]],
-        ts_2: Union[pendulum.DateTime, sa.Column[pendulum.DateTime]],
+        ts_1: Union[DateTime, sa.Column[DateTime]],
+        ts_2: Union[DateTime, sa.Column[DateTime]],
     ):
         result = await session.scalar(
             sa.select(sa.func.date_diff(ts_2, ts_1)).select_from(SQLTimestampModel)
@@ -566,8 +567,8 @@ class TestDateFunctions:
     async def test_date_diff_seconds(
         self,
         session: AsyncSession,
-        ts_1: Union[pendulum.DateTime, sa.Column[pendulum.DateTime]],
-        ts_2: Union[pendulum.DateTime, sa.Column[pendulum.DateTime]],
+        ts_1: Union[DateTime, sa.Column[DateTime]],
+        ts_2: Union[DateTime, sa.Column[DateTime]],
     ):
         result = await session.scalar(
             sa.select(sa.func.date_diff_seconds(ts_2, ts_1)).select_from(
