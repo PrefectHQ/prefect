@@ -13,8 +13,6 @@ import anyio
 import pendulum
 
 from prefect.logging import get_logger
-from prefect.server.database import PrefectDBInterface
-from prefect.server.database.dependencies import db_injector
 from prefect.settings import PREFECT_API_LOG_RETRYABLE_ERRORS
 from prefect.utilities.processutils import _register_signal
 
@@ -57,8 +55,7 @@ class LoopService:
             _register_signal(signal.SIGINT, self._stop)
             _register_signal(signal.SIGTERM, self._stop)
 
-    @db_injector
-    async def _on_start(self, db: PrefectDBInterface) -> None:
+    async def _on_start(self) -> None:
         """
         Called prior to running the service
         """
