@@ -1183,7 +1183,7 @@ A connection timeout, in seconds, applied to database connections. Defaults to `
 `PREFECT_SERVER_DATABASE_CONNECTION_TIMEOUT`, `PREFECT_API_DATABASE_CONNECTION_TIMEOUT`
 
 ### `sqlalchemy_pool_size`
-Controls connection pool size when using a PostgreSQL database with the Prefect API. If not set, the default SQLAlchemy pool size will be used.
+Controls connection pool size of database connection pools from the Prefect API. If not set, the default SQLAlchemy pool size will be used.
 
 **Type**: `integer | None`
 
@@ -1193,6 +1193,18 @@ Controls connection pool size when using a PostgreSQL database with the Prefect 
 
 **Supported environment variables**:
 `PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_SIZE`, `PREFECT_SQLALCHEMY_POOL_SIZE`
+
+### `connection_app_name`
+Controls the application_name field for connections opened from the connection pool when using a PostgreSQL database with the Prefect API.
+
+**Type**: `string | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `server.database.connection_app_name`
+
+**Supported environment variables**:
+`PREFECT_SERVER_DATABASE_CONNECTION_APP_NAME`
 
 ### `sqlalchemy_max_overflow`
 Controls maximum overflow of the connection pool when using a PostgreSQL database with the Prefect API. If not set, the default SQLAlchemy maximum overflow value will be used.
