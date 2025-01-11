@@ -317,7 +317,7 @@ class EventTrigger(ResourceTrigger):
     @model_validator(mode="before")
     @classmethod
     def enforce_minimum_within_for_proactive_triggers(
-        cls, data: Dict[str, Any]
+        cls, data: Dict[str, Any] | Any
     ) -> Dict[str, Any]:
         if not isinstance(data, dict):
             return data
@@ -342,7 +342,7 @@ class EventTrigger(ResourceTrigger):
 
         return data
 
-    def covers(self, event: ReceivedEvent):
+    def covers(self, event: ReceivedEvent) -> bool:
         if not self.covers_resources(event.resource, event.related):
             return False
 
@@ -356,10 +356,10 @@ class EventTrigger(ResourceTrigger):
         """Does this reactive trigger fire immediately for all events?"""
         return self.posture == Posture.Reactive and self.within == timedelta(0)
 
-    _event_pattern: Optional[re.Pattern] = PrivateAttr(None)
+    _event_pattern: Optional[re.Pattern[str]] = PrivateAttr(None)
 
     @property
-    def event_pattern(self) -> re.Pattern:
+    def event_pattern(self) -> re.Pattern[str]:
         """A regular expression which may be evaluated against any event string to
         determine if this trigger would be interested in the event"""
         if self._event_pattern:
@@ -625,13 +625,15 @@ class Firing(PrefectBaseModel):
 
     id: UUID = Field(default_factory=uuid4)
 
-    trigger: ServerTriggerTypes = Field(..., description="The trigger that is firing")
+    trigger: Union[ServerTriggerTypes, CompositeTrigger] = Field(
+        default=..., description="The trigger that is firing"
+    )
     trigger_states: Set[TriggerState] = Field(
-        ...,
+        default=...,
         description="The state changes represented by this Firing",
     )
     triggered: DateTime = Field(
-        ...,
+        default=...,
         description=(
             "The time at which this trigger fired, which may differ from the "
             "occurred time of the associated event (as events processing may always "
@@ -654,7 +656,7 @@ class Firing(PrefectBaseModel):
         ),
     )
     triggering_event: Optional[ReceivedEvent] = Field(
-        None,
+        default=None,
         description=(
             "The most recent event associated with this Firing.  This may be the "
             "event that caused the trigger to fire (for Reactive triggers), or the "
@@ -662,8 +664,8 @@ class Firing(PrefectBaseModel):
             "change event (for a Metric trigger)."
         ),
     )
-    triggering_value: Any = Field(
-        None,
+    triggering_value: Optional[Any] = Field(
+        default=None,
         description=(
             "A value associated with this firing of a trigger.  Maybe used to "
             "convey additional information at the point of firing, like the value of "

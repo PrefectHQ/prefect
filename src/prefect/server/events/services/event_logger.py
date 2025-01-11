@@ -1,14 +1,19 @@
+from __future__ import annotations
+
 import asyncio
-from typing import Optional
+from typing import TYPE_CHECKING, NoReturn
 
 import pendulum
 import rich
 
 from prefect.logging import get_logger
 from prefect.server.events.schemas.events import ReceivedEvent
-from prefect.server.utilities.messaging import Message, create_consumer
+from prefect.server.utilities.messaging import Consumer, Message, create_consumer
 
-logger = get_logger(__name__)
+if TYPE_CHECKING:
+    import logging
+
+logger: "logging.Logger" = get_logger(__name__)
 
 
 class EventLogger:
@@ -16,11 +21,11 @@ class EventLogger:
 
     name: str = "EventLogger"
 
-    consumer_task: Optional[asyncio.Task] = None
+    consumer_task: asyncio.Task[None] | None = None
 
-    async def start(self):
+    async def start(self) -> NoReturn:
         assert self.consumer_task is None, "Logger already started"
-        self.consumer = create_consumer("events")
+        self.consumer: Consumer = create_consumer("events")
 
         console = rich.console.Console()
 
@@ -46,7 +51,7 @@ class EventLogger:
         except asyncio.CancelledError:
             pass
 
-    async def stop(self):
+    async def stop(self) -> None:
         assert self.consumer_task is not None, "Logger not started"
         self.consumer_task.cancel()
         try:
