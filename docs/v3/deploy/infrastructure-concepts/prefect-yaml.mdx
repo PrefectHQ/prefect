@@ -456,7 +456,7 @@ push: ...
 pull: ...
 
 deployments:
-- name: deployment-1
+  - name: deployment-1
     entrypoint: flows/hello.py:my_flow
     parameters:
         number: 42,
@@ -465,13 +465,13 @@ deployments:
         name: my-process-work-pool
         work_queue_name: primary-queue
 
-- name: deployment-2
+  - name: deployment-2
     entrypoint: flows/goodbye.py:my_other_flow
     work_pool:
         name: my-process-work-pool
         work_queue_name: secondary-queue
 
-- name: deployment-3
+  - name: deployment-3
     entrypoint: flows/hello.py:yet_another_flow
     work_pool:
         name: my-docker-work-pool
@@ -574,7 +574,7 @@ definitions:
                 credentials: "{{ prefect.blocks.docker-registry-credentials.dev-registry }}"
 
 deployments:
-- name: deployment-1
+  - name: deployment-1
     entrypoint: flows/hello.py:my_flow
     schedule: *every_10_minutes
     parameters:
@@ -584,7 +584,7 @@ deployments:
     build: *docker_build # Uses the full docker_build action with no overrides
     push: *docker_push
 
-- name: deployment-2
+  - name: deployment-2
     entrypoint: flows/goodbye.py:my_other_flow
     work_pool: *my_docker_work_pool
     build:
@@ -593,7 +593,7 @@ deployments:
             dockerfile: Dockerfile.custom
     push: *docker_push
 
-- name: deployment-3
+  - name: deployment-3
     entrypoint: flows/hello.py:yet_another_flow
     schedule: *every_10_minutes
     work_pool:
