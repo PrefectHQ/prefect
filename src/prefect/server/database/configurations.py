@@ -23,8 +23,11 @@ from sqlalchemy.pool import ConnectionPoolEntry
 from typing_extensions import TypeAlias
 
 from prefect.settings import (
+    PREFECT_API_DATABASE_APPLICATION_NAME,
     PREFECT_API_DATABASE_CONNECTION_TIMEOUT,
     PREFECT_API_DATABASE_ECHO,
+    PREFECT_API_DATABASE_PREPARED_STATEMENT_CACHE_SIZE,
+    PREFECT_API_DATABASE_STATEMENT_CACHE_SIZE,
     PREFECT_API_DATABASE_TIMEOUT,
     PREFECT_SQLALCHEMY_MAX_OVERFLOW,
     PREFECT_SQLALCHEMY_POOL_SIZE,
@@ -176,6 +179,37 @@ class BaseDatabaseConfiguration(ABC):
 
 
 class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
+    def __init__(
+        self,
+        connection_url: str,
+        echo: Optional[bool] = None,
+        timeout: Optional[float] = None,
+        connection_timeout: Optional[float] = None,
+        sqlalchemy_pool_size: Optional[int] = None,
+        sqlalchemy_max_overflow: Optional[int] = None,
+        statement_cache_size: Optional[int] = None,
+        prepared_statement_cache_size: Optional[int] = None,
+        application_name: Optional[str] = None,
+    ):
+        super().__init__(
+            connection_url=connection_url,
+            echo=echo,
+            timeout=timeout,
+            connection_timeout=connection_timeout,
+            sqlalchemy_pool_size=sqlalchemy_pool_size,
+            sqlalchemy_max_overflow=sqlalchemy_max_overflow,
+        )
+        self.statement_cache_size = (
+            statement_cache_size or PREFECT_API_DATABASE_STATEMENT_CACHE_SIZE.value()
+        )
+        self.prepared_statement_cache_size = (
+            prepared_statement_cache_size
+            or PREFECT_API_DATABASE_PREPARED_STATEMENT_CACHE_SIZE.value()
+        )
+        self.application_name = (
+            application_name or PREFECT_API_DATABASE_APPLICATION_NAME.value()
+        )
+
     async def engine(self) -> AsyncEngine:
         """Retrieves an async SQLAlchemy engine.
 
@@ -209,6 +243,20 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
 
             if self.connection_timeout is not None:
                 connect_args["timeout"] = self.connection_timeout
+
+            if self.statement_cache_size is not None:
+                connect_args["statement_cache_size"] = self.statement_cache_size
+
+            if self.prepared_statement_cache_size is not None:
+                connect_args[
+                    "prepared_statement_cache_size"
+                ] = self.prepared_statement_cache_size
+
+            if self.application_name is not None:
+                connect_args.setdefault("server_settings", {})
+                connect_args["server_settings"][
+                    "application_name"
+                ] = self.application_name
 
             if connect_args:
                 kwargs["connect_args"] = connect_args
