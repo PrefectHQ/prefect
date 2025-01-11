@@ -456,9 +456,7 @@ class EventTrigger(ResourceTrigger):
         )
 
 
-ServerTriggerTypes: TypeAlias = Union[
-    EventTrigger, CompoundTrigger, SequenceTrigger, CompositeTrigger
-]
+ServerTriggerTypes: TypeAlias = Union[EventTrigger, CompoundTrigger, SequenceTrigger]
 """The union of all concrete trigger types that a user may actually create"""
 
 T = TypeVar("T", bound=Trigger)
@@ -627,7 +625,7 @@ class Firing(PrefectBaseModel):
 
     id: UUID = Field(default_factory=uuid4)
 
-    trigger: ServerTriggerTypes = Field(
+    trigger: Union[ServerTriggerTypes, CompositeTrigger] = Field(
         default=..., description="The trigger that is firing"
     )
     trigger_states: Set[TriggerState] = Field(

@@ -349,6 +349,7 @@ async def evaluate_composite_trigger(session: AsyncSession, firing: Firing):
 
         # clear by firing id
         await clear_child_firings(session, trigger, firing_ids=list(firing_ids))
+
         await fire(
             session,
             Firing(
