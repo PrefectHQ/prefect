@@ -3,10 +3,12 @@ The event persister moves event messages from the event bus to storage
 storage as fast as it can.  Never gets tired.
 """
 
+from __future__ import annotations
+
 import asyncio
 from contextlib import asynccontextmanager
 from datetime import timedelta
-from typing import AsyncGenerator, List, Optional
+from typing import TYPE_CHECKING, AsyncGenerator, List, NoReturn
 
 import pendulum
 import sqlalchemy as sa
@@ -15,14 +17,22 @@ from prefect.logging import get_logger
 from prefect.server.database import provide_database_interface
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.events.storage.database import write_events
-from prefect.server.utilities.messaging import Message, MessageHandler, create_consumer
+from prefect.server.utilities.messaging import (
+    Consumer,
+    Message,
+    MessageHandler,
+    create_consumer,
+)
 from prefect.settings import (
     PREFECT_API_SERVICES_EVENT_PERSISTER_BATCH_SIZE,
     PREFECT_API_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL,
     PREFECT_EVENTS_RETENTION_PERIOD,
 )
 
-logger = get_logger(__name__)
+if TYPE_CHECKING:
+    import logging
+
+logger: "logging.Logger" = get_logger(__name__)
 
 
 class EventPersister:
@@ -30,10 +40,10 @@ class EventPersister:
 
     name: str = "EventLogger"
 
-    consumer_task: Optional[asyncio.Task] = None
+    consumer_task: asyncio.Task[None] | None = None
 
     def __init__(self):
-        self._started_event: Optional[asyncio.Event] = None
+        self._started_event: asyncio.Event | None = None
 
     @property
     def started_event(self) -> asyncio.Event:
@@ -45,9 +55,9 @@ class EventPersister:
     def started_event(self, value: asyncio.Event) -> None:
         self._started_event = value
 
-    async def start(self):
+    async def start(self) -> NoReturn:
         assert self.consumer_task is None, "Event persister already started"
-        self.consumer = create_consumer("events")
+        self.consumer: Consumer = create_consumer("events")
 
         async with create_handler(
             batch_size=PREFECT_API_SERVICES_EVENT_PERSISTER_BATCH_SIZE.value(),
@@ -64,7 +74,7 @@ class EventPersister:
             except asyncio.CancelledError:
                 pass
 
-    async def stop(self):
+    async def stop(self) -> None:
         assert self.consumer_task is not None, "Event persister not started"
         self.consumer_task.cancel()
         try:

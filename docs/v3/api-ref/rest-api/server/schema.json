@@ -10696,6 +10696,9 @@
                             },
                             {
                                 "$ref": "#/components/schemas/SequenceTrigger-Output"
+                            },
+                            {
+                                "$ref": "#/components/schemas/CompositeTrigger-Output"
                             }
                         ],
                         "title": "Trigger",
@@ -10942,6 +10945,9 @@
                             },
                             {
                                 "$ref": "#/components/schemas/SequenceTrigger-Input"
+                            },
+                            {
+                                "$ref": "#/components/schemas/CompositeTrigger-Input"
                             }
                         ],
                         "title": "Trigger",
@@ -11271,6 +11277,9 @@
                             },
                             {
                                 "$ref": "#/components/schemas/SequenceTrigger-Input"
+                            },
+                            {
+                                "$ref": "#/components/schemas/CompositeTrigger-Input"
                             }
                         ],
                         "title": "Trigger",
@@ -14461,6 +14470,120 @@
                 "title": "ChangeFlowRunState",
                 "description": "Changes the state of a flow run associated with the trigger"
             },
+            "CompositeTrigger-Input": {
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "compound",
+                            "sequence"
+                        ],
+                        "title": "Type"
+                    },
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Id",
+                        "description": "The unique ID of this trigger"
+                    },
+                    "triggers": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "$ref": "#/components/schemas/EventTrigger"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/CompoundTrigger-Input"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/SequenceTrigger-Input"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/CompositeTrigger-Input"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "title": "Triggers"
+                    },
+                    "within": {
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Within"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "type",
+                    "triggers",
+                    "within"
+                ],
+                "title": "CompositeTrigger",
+                "description": "Requires some number of triggers to have fired within the given time period."
+            },
+            "CompositeTrigger-Output": {
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "compound",
+                            "sequence"
+                        ],
+                        "title": "Type"
+                    },
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Id",
+                        "description": "The unique ID of this trigger"
+                    },
+                    "triggers": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "$ref": "#/components/schemas/EventTrigger"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/CompoundTrigger-Output"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/SequenceTrigger-Output"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/CompositeTrigger-Output"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "title": "Triggers"
+                    },
+                    "within": {
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Within"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "type",
+                    "triggers",
+                    "within"
+                ],
+                "title": "CompositeTrigger",
+                "description": "Requires some number of triggers to have fired within the given time period."
+            },
             "CompoundTrigger-Input": {
                 "properties": {
                     "type": {
@@ -14486,6 +14609,9 @@
                                 },
                                 {
                                     "$ref": "#/components/schemas/SequenceTrigger-Input"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/CompositeTrigger-Input"
                                 }
                             ]
                         },
@@ -14553,6 +14679,9 @@
                                 },
                                 {
                                     "$ref": "#/components/schemas/SequenceTrigger-Output"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/CompositeTrigger-Output"
                                 }
                             ]
                         },
@@ -21671,6 +21800,9 @@
                                 },
                                 {
                                     "$ref": "#/components/schemas/SequenceTrigger-Input"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/CompositeTrigger-Input"
                                 }
                             ]
                         },
@@ -21722,6 +21854,9 @@
                                 },
                                 {
                                     "$ref": "#/components/schemas/SequenceTrigger-Output"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/CompositeTrigger-Output"
                                 }
                             ]
                         },
