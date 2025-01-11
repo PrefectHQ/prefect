@@ -7,12 +7,15 @@ from typing_extensions import TypeAlias
 if TYPE_CHECKING:
     from httpx import AsyncClient, Client, Response
 
+    from prefect.client.base import ServerType
     from prefect.client.orchestration.routes import ServerRoutes
 
 HTTP_METHODS: TypeAlias = Literal["GET", "POST", "PUT", "DELETE", "PATCH"]
 
 
 class BaseClient:
+    server_type: "ServerType"
+
     def __init__(self, client: "Client"):
         self._client = client
 
@@ -30,6 +33,8 @@ class BaseClient:
 
 
 class BaseAsyncClient:
+    server_type: "ServerType"
+
     def __init__(self, client: "AsyncClient"):
         self._client = client
 
