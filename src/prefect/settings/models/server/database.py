@@ -159,10 +159,6 @@ class ServerDatabaseSettings(PrefectBaseSettings):
     connection_app_name: Optional[str] = Field(
         default=None,
         description="Controls the application_name field for connections opened from the connection pool when using a PostgreSQL database with the Prefect API.",
-        validation_alias=AliasChoices(
-            AliasPath("connection_app_name"),
-            "prefect_server_database_connection_app_name",
-        ),
     )
 
     sqlalchemy_max_overflow: Optional[int] = Field(
