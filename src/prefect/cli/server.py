@@ -1,5 +1,5 @@
 """
-Command line interface for working with Prefect
+Command line interface for working with the Prefect API and server.
 """
 
 import os
@@ -212,6 +212,9 @@ def start(
     ),
     late_runs: bool = SettingsOption(PREFECT_API_SERVICES_LATE_RUNS_ENABLED),
     ui: bool = SettingsOption(PREFECT_UI_ENABLED),
+    no_services: bool = typer.Option(
+        False, "--no-services", help="Only run the webserver API"
+    ),
     background: bool = typer.Option(
         False, "--background", "-b", help="Run the server in the background"
     ),
@@ -233,6 +236,9 @@ def start(
         "PREFECT_UI_ENABLED": str(ui),
         "PREFECT_SERVER_LOGGING_LEVEL": log_level,
     }
+
+    if no_services:
+        server_settings["PREFECT_SERVER_ANALYTICS_ENABLED"] = "False"
 
     pid_file = Path(PREFECT_HOME.value() / PID_FILE)
     # check if port is already in use
@@ -265,9 +271,13 @@ def start(
     app.console.print("\n")
 
     if background:
-        _run_in_background(pid_file, server_settings, host, port, keep_alive_timeout)
+        _run_in_background(
+            pid_file, server_settings, host, port, keep_alive_timeout, no_services
+        )
     else:
-        _run_in_foreground(pid_file, server_settings, host, port, keep_alive_timeout)
+        _run_in_foreground(
+            pid_file, server_settings, host, port, keep_alive_timeout, no_services
+        )
 
 
 def _run_in_background(
@@ -276,6 +286,7 @@ def _run_in_background(
     host: str,
     port: int,
     keep_alive_timeout: int,
+    no_services: bool,
 ) -> None:
     command = [
         sys.executable,
@@ -293,13 +304,14 @@ def _run_in_background(
         str(keep_alive_timeout),
     ]
     logger.debug("Opening server process with command: %s", shlex.join(command))
+
+    env = {**os.environ, **server_settings, "PREFECT__SERVER_FINAL": "1"}
+    if no_services:
+        env["PREFECT__SERVER_EPHEMERAL"] = "1"
+
     process = subprocess.Popen(
         command,
-        env={
-            **os.environ,
-            **server_settings,
-            "PREFECT__SERVER_FINAL": "1",
-        },
+        env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
@@ -319,6 +331,7 @@ def _run_in_foreground(
     host: str,
     port: int,
     keep_alive_timeout: int,
+    no_services: bool,
 ) -> None:
     from prefect.server.api.server import create_app
 
@@ -326,7 +339,7 @@ def _run_in_foreground(
         {getattr(prefect.settings, k): v for k, v in server_settings.items()}
     ):
         uvicorn.run(
-            app=create_app(final=True),
+            app=create_app(final=True, ephemeral=no_services),
             app_dir=str(prefect.__module_path__.parent),
             host=host,
             port=port,
