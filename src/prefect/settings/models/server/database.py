@@ -162,7 +162,6 @@ class ServerDatabaseSettings(PrefectBaseSettings):
         validation_alias=AliasChoices(
             AliasPath("connection_app_name"),
             "prefect_server_database_connection_app_name",
-            "prefect_connection_app_name",
         ),
     )
 

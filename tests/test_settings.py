@@ -196,7 +196,6 @@ SUPPORTED_SETTINGS = {
     "PREFECT_CLOUD_API_URL": {"test_value": "https://cloud.prefect.io"},
     "PREFECT_CLOUD_ENABLE_ORCHESTRATION_TELEMETRY": {"test_value": True},
     "PREFECT_CLOUD_UI_URL": {"test_value": "https://cloud.prefect.io"},
-    "PREFECT_CONNECTION_APP_NAME": {"test_value": "testingconn"},
     "PREFECT_DEBUG_MODE": {"test_value": True},
     "PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE": {"test_value": "prefect", "legacy": True},
     "PREFECT_DEFAULT_RESULT_STORAGE_BLOCK": {"test_value": "block", "legacy": True},

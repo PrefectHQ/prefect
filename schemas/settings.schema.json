@@ -1065,8 +1065,7 @@
                     "default": null,
                     "description": "Controls the application_name field for connections opened from the connection pool when using a PostgreSQL database with the Prefect API.",
                     "supported_environment_variables": [
-                        "PREFECT_SERVER_DATABASE_CONNECTION_APP_NAME",
-                        "PREFECT_CONNECTION_APP_NAME"
+                        "PREFECT_SERVER_DATABASE_CONNECTION_APP_NAME"
                     ],
                     "title": "Connection App Name"
                 },
