@@ -1,19 +1,24 @@
-import { DeploymentWithFlow } from "@/api/deployments";
+import type { DeploymentWithFlow } from "@/api/deployments";
 import { DataTable } from "@/components/ui/data-table";
 import { FlowRunActivityBarGraphTooltipProvider } from "@/components/ui/flow-run-acitivity-bar-graph";
 import { Icon } from "@/components/ui/icons";
 import { ScheduleBadgeGroup } from "@/components/ui/schedule-badge";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
+import type { OnChangeFn, PaginationState } from "@tanstack/react-table";
 import {
 	createColumnHelper,
 	getCoreRowModel,
 	useReactTable,
 } from "@tanstack/react-table";
+import { useCallback } from "react";
 import { ActionsCell, ActivityCell } from "./cells";
 
 type DeploymentsDataTableProps = {
 	deployments: DeploymentWithFlow[];
+	pageCount: number;
+	pagination: PaginationState;
+	onPaginationChange: (pagination: PaginationState) => void;
 	onQuickRun: (deployment: DeploymentWithFlow) => void;
 	onCustomRun: (deployment: DeploymentWithFlow) => void;
 	onEdit: (deployment: DeploymentWithFlow) => void;
@@ -115,12 +120,28 @@ const createColumns = ({
 
 export const DeploymentsDataTable = ({
 	deployments,
+	pagination,
+	pageCount,
+	onPaginationChange,
 	onQuickRun,
 	onCustomRun,
 	onEdit,
 	onDelete,
 	onDuplicate,
 }: DeploymentsDataTableProps) => {
+	const handlePaginationChange: OnChangeFn<PaginationState> = useCallback(
+		(updater) => {
+			let newPagination = pagination;
+			if (typeof updater === "function") {
+				newPagination = updater(pagination);
+			} else {
+				newPagination = updater;
+			}
+			onPaginationChange(newPagination);
+		},
+		[pagination, onPaginationChange],
+	);
+
 	const table = useReactTable({
 		data: deployments,
 		columns: createColumns({
@@ -131,10 +152,15 @@ export const DeploymentsDataTable = ({
 			onDuplicate,
 		}),
 		getCoreRowModel: getCoreRowModel(),
+		pageCount,
 		manualPagination: true,
 		defaultColumn: {
 			maxSize: 300,
 		},
+		state: {
+			pagination,
+		},
+		onPaginationChange: handlePaginationChange,
 	});
 	return (
 		<FlowRunActivityBarGraphTooltipProvider>

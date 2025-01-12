@@ -1,6 +1,6 @@
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
-import { DeploymentWithFlow } from "@/api/deployments";
+import type { DeploymentWithFlow } from "@/api/deployments";
 import { buildListFlowRunsQuery } from "@/api/flow-runs";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,13 +11,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { FlowRunActivityBarChart } from "@/components/ui/flow-run-acitivity-bar-graph";
 import { Icon } from "@/components/ui/icons";
-import useDebounce from "@/hooks/use-debounce";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import type { CellContext } from "@tanstack/react-table";
 import { subSeconds } from "date-fns";
 import { secondsInWeek } from "date-fns/constants";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 type ActionsCellProps = CellContext<DeploymentWithFlow, unknown> & {
 	onQuickRun: (deployment: DeploymentWithFlow) => void;
@@ -88,21 +87,34 @@ export const ActivityCell = ({
 	row,
 }: CellContext<DeploymentWithFlow, unknown>) => {
 	const [numberOfBars, setNumberOfBars] = useState(0);
-	const debouncedNumberOfBars = useDebounce(numberOfBars, 100);
+	const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
 	const chartRef = useCallback((node: HTMLDivElement | null) => {
 		if (!node) return;
 
 		const updateBars = () => {
-			const chartWidth = node.getBoundingClientRect().width;
-			setNumberOfBars(Math.floor(chartWidth / (BAR_WIDTH + BAR_GAP)));
+			// Debounce the update to avoid multiple updates
+			if (timeoutRef.current) {
+				clearTimeout(timeoutRef.current);
+			}
+			timeoutRef.current = setTimeout(() => {
+				const chartWidth = node.getBoundingClientRect().width;
+				setNumberOfBars(Math.floor(chartWidth / (BAR_WIDTH + BAR_GAP)));
+			}, 150);
 		};
 
-		updateBars();
+		// Set the initial number of bars based on the chart width
+		const chartWidth = node.getBoundingClientRect().width;
+		setNumberOfBars(Math.floor(chartWidth / (BAR_WIDTH + BAR_GAP)));
 
+		// Observe the chart for resize events
 		const resizeObserver = new ResizeObserver(updateBars);
 		resizeObserver.observe(node);
 		return () => {
+			// Clean up the observer and timeout
+			if (timeoutRef.current) {
+				clearTimeout(timeoutRef.current);
+			}
 			resizeObserver.disconnect();
 		};
 	}, []);
@@ -116,7 +128,7 @@ export const ActivityCell = ({
 				},
 			},
 			sort: "START_TIME_DESC",
-			limit: debouncedNumberOfBars,
+			limit: numberOfBars,
 			offset: 0,
 		}),
 	);
@@ -134,7 +146,7 @@ export const ActivityCell = ({
 			<FlowRunActivityBarChart
 				startDate={subSeconds(new Date(), secondsInWeek)}
 				endDate={new Date()}
-				numberOfBars={debouncedNumberOfBars}
+				numberOfBars={numberOfBars}
 				barWidth={BAR_WIDTH}
 				enrichedFlowRuns={enrichedFlowRuns}
 				className="h-12 w-full"

@@ -1,5 +1,5 @@
 import {
-	DeploymentsPaginationFilter,
+	type DeploymentsPaginationFilter,
 	buildCountDeploymentsQuery,
 	buildPaginateDeploymentsQuery,
 } from "@/api/deployments";
@@ -9,11 +9,13 @@ import { DeploymentsEmptyState } from "@/components/deployments/empty-state";
 import { DeploymentsPageHeader } from "@/components/deployments/header";
 import { useQuery, useSuspenseQueries } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import type { PaginationState } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
+import { useCallback, useMemo } from "react";
 import { z } from "zod";
 /**
  * Schema for validating URL search parameters for the variables page.
- * @property {number} offset - The number of items to skip (for pagination). Must be non-negative. Defaults to 0.
+ * @property {number} page - The page number to display. Must be positive. Defaults to 1.
  * @property {number} limit - The maximum number of items to return. Must be positive. Defaults to 10.
  */
 const searchParams = z.object({
@@ -85,8 +87,52 @@ export const Route = createFileRoute("/deployments/")({
 	wrapInSuspense: true,
 });
 
+/**
+ * Hook to manage pagination state and navigation for deployments table
+ *
+ * Handles conversion between 1-based page numbers in the URL and 0-based indices used by React Table.
+ * Updates the URL search parameters when pagination changes.
+ *
+ * @returns A tuple containing:
+ * - pagination: Current pagination state with pageIndex and pageSize
+ * - onPaginationChange: Callback to update pagination and navigate with new search params
+ */
+const usePagination = () => {
+	const search = Route.useSearch();
+	const navigate = Route.useNavigate();
+
+	// React Table uses 0-based pagination, so we need to subtract 1 from the page number
+	const pageIndex = (search.page ?? 1) - 1;
+	const pageSize = search.limit ?? 10;
+	const pagination: PaginationState = useMemo(
+		() => ({
+			pageIndex,
+			pageSize,
+		}),
+		[pageIndex, pageSize],
+	);
+
+	const onPaginationChange = useCallback(
+		(newPagination: PaginationState) => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					page: newPagination.pageIndex + 1,
+					limit: newPagination.pageSize,
+				}),
+				replace: true,
+			});
+		},
+		[navigate],
+	);
+
+	return [pagination, onPaginationChange] as const;
+};
+
 function RouteComponent() {
 	const search = Route.useSearch();
+	const [pagination, onPaginationChange] = usePagination();
 
 	const [{ data: deploymentsCount }, { data: deploymentsPage }] =
 		useSuspenseQueries({
@@ -126,6 +172,9 @@ function RouteComponent() {
 			) : (
 				<DeploymentsDataTable
 					deployments={deploymentsWithFlows}
+					pageCount={deploymentsPage?.pages ?? 0}
+					pagination={pagination}
+					onPaginationChange={onPaginationChange}
 					// TODO: Replace console.log with actual handlers for deployment actions
 					onQuickRun={(deployment) => console.log(deployment)}
 					onCustomRun={(deployment) => console.log(deployment)}

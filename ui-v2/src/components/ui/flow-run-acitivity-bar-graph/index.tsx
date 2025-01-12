@@ -5,17 +5,17 @@ import { cva } from "class-variance-authority";
 import { format, formatDistanceStrict } from "date-fns";
 import { Calendar, ChevronRight, Clock, Rocket } from "lucide-react";
 import {
-	RefObject,
+	type RefObject,
 	useCallback,
 	useContext,
 	useEffect,
 	useRef,
 	useState,
 } from "react";
-import React from "react";
+import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Bar, BarChart, Cell, type TooltipProps } from "recharts";
-import { Coordinate } from "recharts/types/util/types";
+import type { Coordinate } from "recharts/types/util/types";
 import {
 	Card,
 	CardContent,
@@ -155,7 +155,7 @@ const useIsTooltipActive = (
  */
 export const FlowRunActivityBarGraphTooltipProvider = ({
 	children,
-}: { children: React.ReactNode }) => {
+}: { children: ReactNode }) => {
 	const [currentHolder, setCurrentHolder] = useState<string | undefined>(
 		undefined,
 	);
@@ -218,8 +218,7 @@ export const FlowRunActivityBarChart = ({
 		stateType: flowRun?.state_type,
 		flowRun,
 	}));
-	const containerHeight =
-		containerRef.current?.getBoundingClientRect().height ?? 0;
+	const containerHeight = containerRef.current?.getBoundingClientRect().height;
 	return (
 		<ChartContainer
 			ref={containerRef}
@@ -259,6 +258,7 @@ export const FlowRunActivityBarChart = ({
 					radius={[5, 5, 5, 5]}
 					onMouseEnter={() => setIsTooltipActive(true)}
 					onMouseLeave={() => setIsTooltipActive(undefined)}
+					isAnimationActive={false}
 				>
 					{data.map((entry) => (
 						<Cell key={`cell-${entry.id}`} role="graphics-symbol" />
@@ -286,7 +286,7 @@ const TooltipPortal = ({
 	coordinate,
 	children,
 }: {
-	children: React.ReactNode;
+	children: ReactNode;
 	position: Partial<Coordinate>;
 	coordinate: Partial<Coordinate>;
 	containerRef: RefObject<HTMLDivElement | null>;
