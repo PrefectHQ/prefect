@@ -588,7 +588,7 @@ def _get_service_map(
     }
 
 
-@services_app.command(aliases=["list"])
+@services_app.command(aliases=["ls", "list"])
 async def list_services():
     """List all services"""
     import inspect
