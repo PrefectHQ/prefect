@@ -6,13 +6,13 @@ import asyncio
 import inspect
 import os
 import shlex
+import shutil
 import signal
 import socket
 import subprocess
 import sys
 import textwrap
 from pathlib import Path
-from typing import Any
 
 import anyio
 import anyio.abc
@@ -515,8 +515,6 @@ def _discover_services() -> (
         dict[str, prefect.settings.Setting],
     ]
 ):
-    """Discover all available services and their settings"""
-
     from prefect.server.events.services import triggers
     from prefect.server.services import (
         cancellation_cleanup,
@@ -530,7 +528,6 @@ def _discover_services() -> (
         telemetry,
     )
 
-    # Map of service names to their settings
     service_settings = {
         "Telemetry": prefect.settings.PREFECT_SERVER_ANALYTICS_ENABLED,
         "TaskRunRecorder": prefect.settings.PREFECT_API_SERVICES_TASK_RUN_RECORDER_ENABLED,
@@ -548,7 +545,6 @@ def _discover_services() -> (
         "Actions": prefect.settings.PREFECT_API_SERVICES_TRIGGERS_ENABLED,
     }
 
-    # Find all service classes by inspecting modules
     service_modules = [
         cancellation_cleanup,
         flow_run_notifications,
@@ -561,7 +557,9 @@ def _discover_services() -> (
         triggers,
     ]
 
-    discovered_services: list[type[loop_service.LoopService]] = []
+    discovered_services: list[
+        type[prefect.server.services.loop_service.LoopService]
+    ] = []
     for module in service_modules:
         for _, obj in inspect.getmembers(module):
             if (
@@ -574,52 +572,53 @@ def _discover_services() -> (
     return discovered_services, service_settings
 
 
-def _get_service_map(
-    discovered_services: list[type[prefect.server.services.loop_service.LoopService]],
-    service_settings: dict[str, prefect.settings.Setting],
-) -> dict[str, Any]:
-    """Create a map of service names to their classes and settings"""
-    return {
-        service_class.__name__: (
-            service_class,
-            service_settings.get(service_class.__name__, False),
-        )
-        for service_class in discovered_services
-    }
+async def _run_services(
+    service_classes: list[type[prefect.server.services.loop_service.LoopService]],
+) -> None:
+    services = [cls() for cls in service_classes]
+    tasks: list[
+        tuple[
+            asyncio.Task[None], type[prefect.server.services.loop_service.LoopService]
+        ]
+    ] = []
+
+    for service in services:
+        task = asyncio.create_task(service.start())
+        tasks.append((task, service))
+        app.console.print(f"[dim]✓ {service.name}[/]")
+
+    try:
+        await asyncio.gather(*(task for task, _ in tasks))
+    except asyncio.CancelledError:
+        for task, service in tasks:
+            task.cancel()
+            app.console.print(f"[dim]✓ Stopped {service.name}[/]")
+        await asyncio.gather(*(task for task, _ in tasks), return_exceptions=True)
+
+
+def _is_process_running(pid: int) -> bool:
+    """Check if a process is running."""
+    try:
+        os.kill(pid, 0)
+        return True
+    except (ProcessLookupError, OSError):
+        return False
 
 
 @services_app.command(aliases=["ls", "list"])
 async def list_services():
     """List all services"""
-    import inspect
-
     discovered_services, service_settings = _discover_services()
-    service_map = _get_service_map(discovered_services, service_settings)
 
-    # Get currently running services
-    running_services = _check_for_running_services()
-
-    table = Table(
-        title="Available Services",
-        expand=True,
-    )
+    table = Table(title="Available Services", expand=True)
     table.add_column("Name", style="blue", no_wrap=True)
-    table.add_column("Status", style="green", no_wrap=True)
+    table.add_column("Setting Enabled (T/F)", style="green", no_wrap=True)
     table.add_column("Description", style="cyan", no_wrap=False)
 
-    for name, (service_class, setting) in sorted(service_map.items()):
-        enabled = setting.value()
-        running = name.lower() in running_services
-
-        if running:
-            status = "Running"
-            status_style = "green"
-        elif enabled:
-            status = "Enabled"
-            status_style = "yellow"
-        else:
-            status = "Disabled"
-            status_style = "red"
+    for service_class in discovered_services:
+        name = service_class.__name__
+        setting = service_settings.get(name, False)
+        enabled = "T" if setting.value() else "F"  # type: ignore
 
         description = ""
         if doc := inspect.getdoc(service_class):
@@ -627,64 +626,9 @@ async def list_services():
             if len(description) > 60:
                 description = description[:57] + "..."
 
-        table.add_row(name, status, description, style=status_style)
+        table.add_row(name, enabled, description)
 
     app.console.print(table)
-
-
-@services_app.command(aliases=["stop"])
-async def stop_services():
-    """Stop all background services"""
-    pid_dir = Path(PREFECT_HOME.value() / "services")
-    if not pid_dir.exists():
-        exit_with_success("No services are running in the background.")
-
-    if not (pid_files := list(pid_dir.glob("*.pid"))):
-        exit_with_success("No services are running in the background.")
-
-    app.console.print("\n[yellow]Shutting down...[/]")
-    for pid_file in pid_files:
-        service_name = pid_file.stem.title()  # Display in title case
-        try:
-            pid = int(pid_file.read_text())
-            try:
-                os.kill(pid, signal.SIGTERM)
-                app.console.print(f"[dim]✓ {service_name}[/]")
-            except ProcessLookupError:
-                app.console.print(
-                    f"[yellow]Process for {service_name} was not running[/]"
-                )
-        except (ValueError, OSError) as e:
-            app.console.print(f"[red]✗ {service_name}: {str(e)}[/]")
-        finally:
-            pid_file.unlink(missing_ok=True)
-
-    try:
-        pid_dir.rmdir()
-    except OSError:
-        pass
-
-    app.console.print("\n[green]All services stopped.[/]")
-
-
-def _check_for_running_services() -> list[str]:
-    """Check for any running services and return their names. Also cleans up stale PID files."""
-    pid_dir = Path(PREFECT_HOME.value() / "services")
-    if not pid_dir.exists():
-        return []
-
-    running_services: list[str] = []
-    for pid_file in pid_dir.glob("*.pid"):
-        try:
-            pid = int(pid_file.read_text())
-            os.kill(pid, 0)
-            # Store lowercase for matching, but title case for display
-            running_services.append(pid_file.stem)
-        except (ProcessLookupError, ValueError, OSError):
-            # Process doesn't exist or invalid PID, clean up stale file
-            pid_file.unlink(missing_ok=True)
-
-    return running_services
 
 
 @services_app.command(aliases=["start"])
@@ -692,109 +636,127 @@ async def start_services(
     background: bool = typer.Option(
         False, "--background", "-b", help="Run the services in the background"
     ),
+    _internal: bool = typer.Option(
+        False, "--internal", hidden=True, help="Internal flag for background process"
+    ),
 ):
     """Start all enabled Prefect services"""
-    if running_services := _check_for_running_services():
-        app.console.print(
-            "\n[yellow]Services are already running in the background:[/]"
-        )
-        for service in running_services:
-            app.console.print(f"[dim]• {service}[/]")
-        app.console.print(
-            "\n[blue]Use[/] [yellow]`prefect server services stop`[/] [blue]to stop them first.[/]"
-        )
-        return
+    pid_file = Path(PREFECT_HOME.value() / "services" / "manager.pid")
+    logger.debug(f"Using PID file at {pid_file}")
+
+    if pid_file.exists():
+        try:
+            pid = int(pid_file.read_text())
+            logger.debug(f"Found existing PID file with PID {pid}")
+            if _is_process_running(pid):
+                app.console.print(
+                    "\n[yellow]Services are already running in the background.[/]"
+                    "\n[blue]Use[/] [yellow]`prefect server services stop`[/] [blue]to stop them first.[/]"
+                )
+                return
+            logger.debug(f"Process {pid} is not running")
+        except (ValueError, OSError) as e:
+            logger.debug(f"Error reading PID file: {e}")
+        pid_file.unlink(missing_ok=True)
+        logger.debug("Removed stale PID file")
 
     discovered_services, service_settings = _discover_services()
-    service_map = _get_service_map(discovered_services, service_settings)
+    enabled_services = [
+        service_class
+        for service_class in discovered_services
+        if service_settings.get(service_class.__name__, False).value()
+    ]
 
-    service_instances: list[prefect.server.services.loop_service.LoopService] = []
-    for _, (service_class, setting) in service_map.items():
-        if setting.value():
-            service_instances.append(service_class())
-
-    if not service_instances:
+    if not enabled_services:
         exit_with_error("No services are enabled!")
 
-    if background:
+    if background and not _internal:
         pid_dir = Path(PREFECT_HOME.value() / "services")
         pid_dir.mkdir(parents=True, exist_ok=True)
+        logger.debug(f"Created services directory at {pid_dir}")
 
-        processes: list[subprocess.Popen[Any]] = []
-        for service in service_instances:
-            module_name = service.__class__.__module__.split(".")[-1]
-            command = [
-                sys.executable,
-                "-m",
-                f"prefect.server.services.{module_name}",
-            ]
+        prefect_executable = shutil.which("prefect")
+        logger.debug(f"Found prefect executable at {prefect_executable}")
+        if not prefect_executable:
+            app.console.print("[red]Could not find prefect executable[/]")
+            return
 
-            process = subprocess.Popen(
-                command,
-                env={**os.environ},
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
-            processes.append(process)
+        process = subprocess.Popen(
+            [prefect_executable, "server", "services", "start", "--internal"],
+            env=os.environ,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+        logger.debug(f"Started background process with PID {process.pid}")
 
-            pid_file = pid_dir / f"{service.name.lower()}.pid"
-            pid_file.write_text(str(process.pid))
+        await asyncio.sleep(1.0)
+        if process.poll() is not None:
+            logger.debug("Process failed to start")
+            app.console.print("[red]Failed to start services[/]")
+            return
 
-            try:
-                if process.poll() is not None:
-                    app.console.print(f"[red]✗ {service.name}: Failed to start[/]")
-                    stderr = process.stderr.read().decode() if process.stderr else ""
-                    if stderr:
-                        app.console.print(f"[red]{stderr}[/]")
-                    continue
-            except Exception as e:
-                app.console.print(f"[red]✗ {service.name}: {str(e)}[/]")
-                continue
-
-            app.console.print(f"[dim]✓ {service.name}[/]")
+        logger.debug(f"Writing PID {process.pid} to {pid_file}")
+        pid_file.write_text(str(process.pid))
+        logger.debug("Wrote PID file successfully")
 
         app.console.print(
             "\n[green]Services are running in the background.[/]"
-            "\n[blue]Use[/] [yellow]`prefect server services list`[/] [blue]to check their status.[/]"
+            "\n[blue]Use[/] [yellow]`prefect server services ls`[/] [blue]to check their status.[/]"
             "\n[blue]Use[/] [yellow]`prefect server services stop`[/] [blue]to stop them.[/]"
         )
     else:
         app.console.print("\n[blue]Starting services... Press CTRL+C to stop[/]\n")
-
-        service_tasks: list[
-            tuple[asyncio.Task[None], prefect.server.services.loop_service.LoopService]
-        ] = []
-
-        for service in service_instances:
-            task = asyncio.create_task(service.start())
-            service_tasks.append((task, service))
-            app.console.print(f"[dim]✓ {service.name}[/]")
-
-        app.console.print()  # Add blank line after startup
-        shutdown_event = asyncio.Event()
-
-        def handle_signal(signum: int, frame: Any):
-            app.console.print("\n[yellow]Shutting down...[/]")
-            for task, _ in service_tasks:
-                task.cancel()
-            asyncio.get_event_loop().call_soon_threadsafe(shutdown_event.set)
-
-        signal.signal(signal.SIGINT, handle_signal)
-        signal.signal(signal.SIGTERM, handle_signal)
-
         try:
-            await asyncio.gather(*(task for task, _ in service_tasks))
-        except asyncio.CancelledError:
-            await shutdown_event.wait()
-            results = await asyncio.gather(
-                *(task for task, _ in service_tasks), return_exceptions=True
-            )
-            for (_, service), result in zip(service_tasks, results):
-                if isinstance(result, asyncio.CancelledError):
-                    app.console.print(f"[dim]Stopped {service.name}[/]")
-                elif isinstance(result, Exception):
-                    app.console.print(f"[red]Failed {service.name}: {result}[/]")
-                else:
-                    app.console.print(f"[dim]Stopped {service.name}[/]")
+            await _run_services(enabled_services)
+        except KeyboardInterrupt:
+            pass
         finally:
             app.console.print("\n[green]All services stopped.[/]")
+
+
+@services_app.command(aliases=["stop"])
+async def stop_services():
+    """Stop all background services"""
+    pid_file = Path(PREFECT_HOME.value() / "services" / "manager.pid")
+    logger.debug(f"Looking for PID file at {pid_file}")
+
+    if not pid_file.exists():
+        logger.debug("PID file not found")
+        exit_with_success("No services are running in the background.")
+
+    try:
+        pid = int(pid_file.read_text())
+        logger.debug(f"Read PID {pid} from file")
+
+        if _is_process_running(pid):
+            logger.debug(f"Sending SIGTERM to process {pid}")
+            os.kill(pid, signal.SIGTERM)
+            app.console.print("\n[yellow]Shutting down...[/]")
+
+            # Wait for process to exit
+            for i in range(5):  # 5 second timeout
+                if not _is_process_running(pid):
+                    logger.debug(f"Process {pid} stopped after {i + 1} seconds")
+                    break
+                logger.debug(f"Waiting for process {pid} to stop...")
+                await asyncio.sleep(1)
+
+            app.console.print("[dim]✓ Services stopped[/]")
+        else:
+            logger.debug(f"Process {pid} was not running")
+            app.console.print("[yellow]Services were not running[/]")
+    except (ValueError, OSError) as e:
+        logger.debug(f"Error stopping process: {e}")
+        app.console.print(f"[red]✗ Failed to stop services: {str(e)}[/]")
+    finally:
+        logger.debug(f"Removing PID file {pid_file}")
+        pid_file.unlink(missing_ok=True)
+        try:
+            pid_file.parent.rmdir()
+            logger.debug("Removed services directory")
+        except OSError:
+            logger.debug("Could not remove services directory")
+            pass
+
+    app.console.print("\n[green]All services stopped.[/]")
