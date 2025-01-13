@@ -13,7 +13,7 @@ import pendulum
 import sqlalchemy as sa
 
 import prefect.server.models as models
-from prefect.server.database import PrefectDBInterface, inject_db
+from prefect.server.database import PrefectDBInterface
 from prefect.server.database.dependencies import db_injector
 from prefect.server.schemas.states import StateType
 from prefect.server.services.loop_service import LoopService, run_multiple_services
@@ -279,7 +279,6 @@ class Scheduler(LoopService):
             max_runs=max_runs,
         )
 
-    @inject_db
     async def _insert_scheduled_flow_runs(
         self,
         session: sa.orm.Session,
