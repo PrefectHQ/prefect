@@ -63,7 +63,7 @@ deployments:
   version: null
   tags: []
   description: null
-  schedule: null
+  schedules: null
 
   # flow-specific fields
   entrypoint: null
@@ -405,7 +405,7 @@ deployments:
   - "{{ $my_deployment_tag }}"
   - "{{ prefect.variables.some_common_tag }}"
   description: null
-  schedule: null
+  schedules: null
   concurrency_limit: null
 
   # flow-specific fields
@@ -576,7 +576,7 @@ definitions:
 deployments:
   - name: deployment-1
     entrypoint: flows/hello.py:my_flow
-    schedule: *every_10_minutes
+    schedules: *every_10_minutes
     parameters:
         number: 42,
         message: Don't panic!
@@ -595,7 +595,7 @@ deployments:
 
   - name: deployment-3
     entrypoint: flows/hello.py:yet_another_flow
-    schedule: *every_10_minutes
+    schedules: *every_10_minutes
     work_pool:
         name: my-process-work-pool
         work_queue_name: primary-queue
@@ -620,7 +620,7 @@ These are fields you can add to each deployment declaration.
 | `version`                                  | An optional version for the deployment.                                                                                                                                                                                                                                                  |
 | `tags`                                     | A list of strings to assign to the deployment as tags.                                                                                                                                                                                                                                   |
 | <span class="no-wrap">`description`</span> | An optional description for the deployment.                                                                                                                                                                                                                                              |
-| `schedule`                                 | An optional [schedule](/v3/automate/add-schedules) to assign to the deployment. Fields for this section are documented in the [Schedule Fields](#schedule-fields) section.                                                                                                                      |
+| `schedules`                                 | An optional [schedules](/v3/automate/add-schedules) to assign to the deployment. Fields for this section are documented in the [Schedule Fields](#schedule-fields) section.                                                                                                                      |
 | `concurrency_limit`                        | An optional [deployment concurrency limit](/v3/deploy/index#concurrency-limiting). Fields for this section are documented in the [Concurrency Limit Fields](#concurrency-limit-fields) section.                                                                                                                      |
 | `triggers`                                  | An optional array of [triggers](/v3/automate/events/automations-triggers/#custom-triggers) to assign to the deployment |
 | `entrypoint`                               | Required path to the `.py` file containing the flow you want to deploy (relative to the root directory of your development folder) combined with the name of the flow function. In the format `path/to/file.py:flow_function_name`. |
@@ -630,7 +630,7 @@ These are fields you can add to each deployment declaration.
 
 #### Schedule fields
 
-These are fields you can add to a deployment declaration's `schedule` section.
+These are fields you can add to a deployment declaration's `schedules` section.
 
 | Property                                   | Description                                                                                                                                                                                                            |
 | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
