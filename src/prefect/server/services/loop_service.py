@@ -10,11 +10,13 @@ from operator import methodcaller
 from typing import TYPE_CHECKING, Any, List, NoReturn, Optional, overload
 
 import anyio
-import pendulum
 
 from prefect.logging import get_logger
 from prefect.settings import PREFECT_API_LOG_RETRYABLE_ERRORS
-from prefect.utilities.processutils import _register_signal
+from prefect.types import DateTime
+from prefect.utilities.processutils import (
+    _register_signal,  # type: ignore[reportPrivateUsage]
+)
 
 if TYPE_CHECKING:
     import logging
@@ -59,17 +61,16 @@ class LoopService:
         """
         Called prior to running the service
         """
-        # reset the _should_stop flag
         self._should_stop = False
-        # set the _is_running flag
         self._is_running = True
+        self.logger.info(f"Starting {self.name}")
 
     async def _on_stop(self) -> None:
         """
         Called after running the service
         """
-        # reset the _is_running flag
         self._is_running = False
+        self.logger.info(f"Stopped {self.name}")
 
     @overload
     async def start(self, loops: None = None) -> NoReturn:
@@ -86,12 +87,11 @@ class LoopService:
         Args:
             loops (int, optional): the number of loops to run before exiting.
         """
-
         await self._on_start()
 
         i = 0
         while not self._should_stop:
-            start_time = pendulum.now("UTC")
+            start_time = DateTime.now("UTC")
 
             try:
                 self.logger.debug(f"About to run {self.name}...")
@@ -100,9 +100,11 @@ class LoopService:
             except NotImplementedError as exc:
                 raise exc from None
 
-            # if an error is raised, log and continue
+            except asyncio.CancelledError:
+                self.logger.info(f"Received cancellation signal for {self.name}")
+                raise
+
             except Exception as exc:
-                # avoid circular import
                 from prefect.server.api.server import is_client_retryable_exception
 
                 retryable_error = is_client_retryable_exception(exc)
@@ -113,35 +115,28 @@ class LoopService:
                         f"Unexpected error in: {repr(exc)}", exc_info=True
                     )
 
-            end_time = pendulum.now("UTC")
+            end_time = DateTime.now("UTC")
 
-            # if service took longer than its loop interval, log a warning
-            # that the interval might be too short
             if (end_time - start_time).total_seconds() > self.loop_seconds:
                 self.logger.warning(
-                    f"{self.name} took {(end_time-start_time).total_seconds()} seconds"
+                    f"{self.name} took {(end_time - start_time).total_seconds()} seconds"
                     " to run, which is longer than its loop interval of"
                     f" {self.loop_seconds} seconds."
                 )
 
-            # check if early stopping was requested
             i += 1
             if loops is not None and i == loops:
                 self.logger.debug(f"{self.name} exiting after {loops} loop(s).")
                 await self.stop(block=False)
 
-            # next run is every "loop seconds" after each previous run *started*.
-            # note that if the loop took unexpectedly long, the "next_run" time
-            # might be in the past, which will result in an instant start
             next_run = max(
-                start_time.add(seconds=self.loop_seconds), pendulum.now("UTC")
+                start_time.add(seconds=self.loop_seconds), DateTime.now("UTC")
             )
             self.logger.debug(f"Finished running {self.name}. Next run at {next_run}")
 
-            # check the `_should_stop` flag every 1 seconds until the next run time is reached
-            while pendulum.now("UTC") < next_run and not self._should_stop:
+            while DateTime.now("UTC") < next_run and not self._should_stop:
                 await asyncio.sleep(
-                    min(1, (next_run - pendulum.now("UTC")).total_seconds())
+                    min(1, (next_run - DateTime.now("UTC")).total_seconds())
                 )
 
         await self._on_stop()
@@ -157,16 +152,14 @@ class LoopService:
                 the service may still be running a final loop.
 
         """
+        self.logger.info(f"Stopping {self.name}...")
         self._stop()
 
         if block:
-            # if block=True, sleep until the service stops running,
-            # but no more than `loop_seconds` to avoid a deadlock
             with anyio.move_on_after(self.loop_seconds):
                 while self._is_running:
                     await asyncio.sleep(0.1)
 
-            # if the service is still running after `loop_seconds`, something's wrong
             if self._is_running:
                 self.logger.warning(
                     f"`stop(block=True)` was called on {self.name} but more than one"
