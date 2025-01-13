@@ -3,7 +3,7 @@ Foreman is a loop service designed to monitor workers.
 """
 
 from datetime import timedelta
-from typing import Optional
+from typing import Any, Optional
 
 import pendulum
 import sqlalchemy as sa
@@ -43,7 +43,7 @@ class Foreman(LoopService):
         fallback_heartbeat_interval_seconds: Optional[int] = None,
         deployment_last_polled_timeout_seconds: Optional[int] = None,
         work_queue_last_polled_timeout_seconds: Optional[int] = None,
-        **kwargs,
+        **kwargs: Any,
     ):
         super().__init__(
             loop_seconds=loop_seconds

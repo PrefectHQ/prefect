@@ -34,7 +34,9 @@ from prefect.server.database import PrefectDBInterface, db_injector, orm_models
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.orchestration.core_policy import MinimalFlowPolicy
 from prefect.server.orchestration.global_policy import GlobalFlowPolicy
-from prefect.server.orchestration.policies import BaseOrchestrationPolicy
+from prefect.server.orchestration.policies import (
+    FlowRunOrchestrationPolicy,
+)
 from prefect.server.orchestration.rules import FlowOrchestrationContext
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.graph import Graph
@@ -506,7 +508,7 @@ async def set_flow_run_state(
     flow_run_id: UUID,
     state: schemas.states.State,
     force: bool = False,
-    flow_policy: Optional[Type[BaseOrchestrationPolicy]] = None,
+    flow_policy: Optional[Type[FlowRunOrchestrationPolicy]] = None,
     orchestration_parameters: Optional[Dict[str, Any]] = None,
 ) -> OrchestrationResult:
     """

@@ -2,13 +2,18 @@
 A service that checks for flow run notifications and sends them.
 """
 
+from __future__ import annotations
+
 import asyncio
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import sqlalchemy as sa
 
 from prefect.server import models, schemas
-from prefect.server.database import PrefectDBInterface, inject_db
+from prefect.server.database import PrefectDBInterface
+from prefect.server.database.dependencies import db_injector
+from prefect.server.database.query_components import FlowRunNotificationsFromQueue
 from prefect.server.services.loop_service import LoopService
 from prefect.utilities import urls
 
@@ -23,10 +28,10 @@ class FlowRunNotifications(LoopService):
 
     # check queue every 4 seconds
     # note: a tight loop is executed until the queue is exhausted
-    loop_seconds: int = 4
+    loop_seconds: float = 4
 
-    @inject_db
-    async def run_once(self, db: PrefectDBInterface):
+    @db_injector
+    async def run_once(self, db: PrefectDBInterface) -> None:
         while True:
             async with db.session_context(begin_transaction=True) as session:
                 # Drain the queue one entry at a time, because if a transient
@@ -68,13 +73,12 @@ class FlowRunNotifications(LoopService):
                         await session.rollback()
                         assert not connection.invalidated
 
-    @inject_db
     async def send_flow_run_notification(
         self,
-        session: sa.orm.session,
         db: PrefectDBInterface,
-        notification,
-    ):
+        session: sa.orm.session,
+        notification: FlowRunNotificationsFromQueue,
+    ) -> None:
         try:
             orm_block_document = await session.get(
                 db.BlockDocument, notification.block_document_id
@@ -97,6 +101,10 @@ class FlowRunNotifications(LoopService):
             )
 
             message = self.construct_notification_message(notification=notification)
+            if TYPE_CHECKING:
+                from prefect.blocks.abstract import NotificationBlock
+
+                assert isinstance(block, NotificationBlock)
             await block.notify(
                 subject="Prefect flow run notification",
                 body=message,
@@ -118,7 +126,9 @@ class FlowRunNotifications(LoopService):
                 exc_info=True,
             )
 
-    def construct_notification_message(self, notification) -> str:
+    def construct_notification_message(
+        self, notification: FlowRunNotificationsFromQueue
+    ) -> str:
         """
         Construct the message for a flow run notification, including
         templating any variables.
@@ -129,7 +139,7 @@ class FlowRunNotifications(LoopService):
         )
 
         # create a dict from the sqlalchemy object for templating
-        notification_dict = dict(notification._mapping)
+        notification_dict: dict[str, Any] = dict(notification._mapping)
         # add the flow run url to the info
         notification_dict["flow_run_url"] = self.get_ui_url_for_flow_run_id(
             flow_run_id=notification_dict["flow_run_id"]
@@ -143,7 +153,7 @@ class FlowRunNotifications(LoopService):
         )
         return message
 
-    def get_ui_url_for_flow_run_id(self, flow_run_id: UUID) -> str:
+    def get_ui_url_for_flow_run_id(self, flow_run_id: UUID) -> str | None:
         """
         Returns a link to the flow run view of the given flow run id.
 

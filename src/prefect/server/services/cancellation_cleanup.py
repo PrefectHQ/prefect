@@ -3,7 +3,7 @@ The CancellationCleanup service. Responsible for cancelling tasks and subflows t
 """
 
 import asyncio
-from typing import Optional
+from typing import Any, Optional
 from uuid import UUID
 
 import pendulum
@@ -11,7 +11,8 @@ import sqlalchemy as sa
 from sqlalchemy.sql.expression import or_
 
 import prefect.server.models as models
-from prefect.server.database import PrefectDBInterface, inject_db, orm_models
+from prefect.server.database import PrefectDBInterface, orm_models
+from prefect.server.database.dependencies import db_injector
 from prefect.server.schemas import filters, states
 from prefect.server.services.loop_service import LoopService
 from prefect.settings import PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS
@@ -25,7 +26,7 @@ class CancellationCleanup(LoopService):
     cancelling flow runs
     """
 
-    def __init__(self, loop_seconds: Optional[float] = None, **kwargs):
+    def __init__(self, loop_seconds: Optional[float] = None, **kwargs: Any):
         super().__init__(
             loop_seconds=loop_seconds
             or PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS.value(),
@@ -35,8 +36,8 @@ class CancellationCleanup(LoopService):
         # query for this many runs to mark failed at once
         self.batch_size = 200
 
-    @inject_db
-    async def run_once(self, db: PrefectDBInterface):
+    @db_injector
+    async def run_once(self, db: PrefectDBInterface) -> None:
         """
         - cancels active tasks belonging to recently cancelled flow runs
         - cancels any active subflow that belongs to a cancelled flow
@@ -49,7 +50,9 @@ class CancellationCleanup(LoopService):
 
         self.logger.info("Finished cleaning up cancelled flow runs.")
 
-    async def clean_up_cancelled_flow_run_task_runs(self, db: PrefectDBInterface):
+    async def clean_up_cancelled_flow_run_task_runs(
+        self, db: PrefectDBInterface
+    ) -> None:
         while True:
             cancelled_flow_query = (
                 sa.select(db.FlowRun)
@@ -72,7 +75,7 @@ class CancellationCleanup(LoopService):
             if len(flow_runs) < self.batch_size:
                 break
 
-    async def clean_up_cancelled_subflow_runs(self, db: PrefectDBInterface):
+    async def clean_up_cancelled_subflow_runs(self, db: PrefectDBInterface) -> None:
         high_water_mark = UUID(int=0)
         while True:
             subflow_query = (
@@ -110,9 +113,13 @@ class CancellationCleanup(LoopService):
         async with db.session_context() as session:
             child_task_runs = await models.task_runs.read_task_runs(
                 session,
-                flow_run_filter=filters.FlowRunFilter(id={"any_": [flow_run.id]}),
+                flow_run_filter=filters.FlowRunFilter(
+                    id=filters.FlowRunFilterId(any_=[flow_run.id])
+                ),
                 task_run_filter=filters.TaskRunFilter(
-                    state={"type": {"any_": NON_TERMINAL_STATES}}
+                    state=filters.TaskRunFilterState(
+                        type=filters.TaskRunFilterStateType(any_=NON_TERMINAL_STATES)
+                    )
                 ),
                 limit=100,
             )
@@ -131,7 +138,7 @@ class CancellationCleanup(LoopService):
     async def _cancel_subflow(
         self, db: PrefectDBInterface, flow_run: orm_models.FlowRun
     ) -> Optional[bool]:
-        if not flow_run.parent_task_run_id:
+        if not flow_run.parent_task_run_id or not flow_run.state:
             return False
 
         if flow_run.state.type in states.TERMINAL_STATES:
@@ -142,7 +149,7 @@ class CancellationCleanup(LoopService):
                 session, task_run_id=flow_run.parent_task_run_id
             )
 
-            if not parent_task_run:
+            if not parent_task_run or not parent_task_run.flow_run_id:
                 # Global orchestration policy will prevent further orchestration
                 return False
 
@@ -152,6 +159,7 @@ class CancellationCleanup(LoopService):
 
             if (
                 containing_flow_run
+                and containing_flow_run.state
                 and containing_flow_run.state.type != states.StateType.CANCELLED
             ):
                 # Nothing to do here; the parent is not cancelled

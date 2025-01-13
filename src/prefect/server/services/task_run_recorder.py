@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import asyncio
 from contextlib import asynccontextmanager
-from typing import Any, AsyncGenerator, Dict, Optional
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, Optional
 from uuid import UUID
 
 import pendulum
@@ -17,12 +19,20 @@ from prefect.server.events.ordering import CausalOrdering, EventArrivedEarly
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.schemas.core import TaskRun
 from prefect.server.schemas.states import State
-from prefect.server.utilities.messaging import Message, MessageHandler, create_consumer
+from prefect.server.utilities.messaging import (
+    Consumer,
+    Message,
+    MessageHandler,
+    create_consumer,
+)
 
-logger = get_logger(__name__)
+if TYPE_CHECKING:
+    import logging
+
+logger: "logging.Logger" = get_logger(__name__)
 
 
-def causal_ordering():
+def causal_ordering() -> CausalOrdering:
     return CausalOrdering(
         "task-run-recorder",
     )
@@ -35,6 +45,8 @@ async def _insert_task_run(
     task_run: TaskRun,
     task_run_attributes: Dict[str, Any],
 ):
+    if TYPE_CHECKING:
+        assert task_run.state is not None
     await session.execute(
         db.queries.insert(db.TaskRun)
         .values(
@@ -58,6 +70,8 @@ async def _insert_task_run(
 async def _insert_task_run_state(
     db: PrefectDBInterface, session: AsyncSession, task_run: TaskRun
 ):
+    if TYPE_CHECKING:
+        assert task_run.state is not None
     await session.execute(
         db.queries.insert(db.TaskRunState)
         .values(
@@ -80,6 +94,8 @@ async def _update_task_run_with_state(
     task_run: TaskRun,
     denormalized_state_attributes: Dict[str, Any],
 ):
+    if TYPE_CHECKING:
+        assert task_run.state is not None
     await session.execute(
         sa.update(db.TaskRun)
         .where(
@@ -121,7 +137,7 @@ def task_run_from_event(event: ReceivedEvent) -> TaskRun:
     )
 
 
-async def record_task_run_event(event: ReceivedEvent):
+async def record_task_run_event(event: ReceivedEvent) -> None:
     task_run = task_run_from_event(event)
 
     task_run_attributes = task_run.model_dump_for_orm(
@@ -201,7 +217,7 @@ class TaskRunRecorder:
 
     name: str = "TaskRunRecorder"
 
-    consumer_task: Optional[asyncio.Task] = None
+    consumer_task: asyncio.Task[None] | None = None
 
     def __init__(self):
         self._started_event: Optional[asyncio.Event] = None
@@ -216,9 +232,9 @@ class TaskRunRecorder:
     def started_event(self, value: asyncio.Event) -> None:
         self._started_event = value
 
-    async def start(self):
+    async def start(self) -> None:
         assert self.consumer_task is None, "TaskRunRecorder already started"
-        self.consumer = create_consumer("events")
+        self.consumer: Consumer = create_consumer("events")
 
         async with consumer() as handler:
             self.consumer_task = asyncio.create_task(self.consumer.run(handler))
@@ -230,7 +246,7 @@ class TaskRunRecorder:
             except asyncio.CancelledError:
                 pass
 
-    async def stop(self):
+    async def stop(self) -> None:
         assert self.consumer_task is not None, "Logger not started"
         self.consumer_task.cancel()
         try:
