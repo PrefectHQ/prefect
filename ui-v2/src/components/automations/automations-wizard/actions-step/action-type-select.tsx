@@ -50,34 +50,14 @@ export const ActionTypeSelect = ({ index }: { index: number }) => {
 					<FormControl>
 						<Select
 							{...field}
-							onValueChange={(type) => {
+							onValueChange={(type: ActionType) => {
 								field.onChange(type);
-								// Set default values based on the type selected
-								switch (type) {
-									case "run-deployment":
-									case "pause-deployment":
-									case "resume-deployment":
-										form.setValue(`actions.${index}.deployment_id`, UNASSIGNED);
-										break;
-									case "pause-work-queue":
-									case "resume-work-queue":
-										form.setValue(`actions.${index}.work_queue_id`, UNASSIGNED);
-										break;
-									case "pause-work-pool":
-									case "resume-work-pool":
-										form.setValue(`actions.${index}.work_pool_id`, UNASSIGNED);
-										break;
-									case "pause-automation":
-									case "resume-automation":
-										form.setValue(`actions.${index}.automation_id`, UNASSIGNED);
-										break;
-									case "send-notification":
-									case "cancel-flow-run":
-									case "suspend-flow-run":
-									case "resume-flow-run":
-									case "change-flow-run-state":
-									default:
-										break;
+								const defaultActionField = getDefaultActionField({
+									index,
+									type,
+								});
+								if (defaultActionField) {
+									form.setValue(defaultActionField, UNASSIGNED);
 								}
 							}}
 						>
@@ -101,3 +81,37 @@ export const ActionTypeSelect = ({ index }: { index: number }) => {
 		/>
 	);
 };
+
+/**
+ * @returns form field name to be set that is associated with the passed `type` arg
+ */
+function getDefaultActionField({
+	index,
+	type,
+}: {
+	index: number;
+	type: ActionType;
+}) {
+	switch (type) {
+		case "run-deployment":
+		case "pause-deployment":
+		case "resume-deployment":
+			return `actions.${index}.deployment_id` as const;
+		case "pause-work-queue":
+		case "resume-work-queue":
+			return `actions.${index}.work_queue_id` as const;
+		case "pause-work-pool":
+		case "resume-work-pool":
+			return `actions.${index}.work_pool_id` as const;
+		case "pause-automation":
+		case "resume-automation":
+			return `actions.${index}.automation_id` as const;
+		case "send-notification":
+		case "cancel-flow-run":
+		case "suspend-flow-run":
+		case "resume-flow-run":
+		case "change-flow-run-state":
+		default:
+			return null;
+	}
+}
