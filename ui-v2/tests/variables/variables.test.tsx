@@ -12,6 +12,7 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
+import { mockPointerEvents } from "@tests/utils/browser";
 import { http, HttpResponse } from "msw";
 import {
 	afterEach,
@@ -277,24 +278,7 @@ describe("Variables page", () => {
 
 	describe("Variables table", () => {
 		beforeAll(() => {
-			// Need to mock PointerEvent for the selects to work
-			class MockPointerEvent extends Event {
-				button: number;
-				ctrlKey: boolean;
-				pointerType: string;
-
-				constructor(type: string, props: PointerEventInit) {
-					super(type, props);
-					this.button = props.button || 0;
-					this.ctrlKey = props.ctrlKey || false;
-					this.pointerType = props.pointerType || "mouse";
-				}
-			}
-			window.PointerEvent =
-				MockPointerEvent as unknown as typeof window.PointerEvent;
-			window.HTMLElement.prototype.scrollIntoView = vi.fn();
-			window.HTMLElement.prototype.releasePointerCapture = vi.fn();
-			window.HTMLElement.prototype.hasPointerCapture = vi.fn();
+			mockPointerEvents();
 		});
 		const originalToLocaleString = Date.prototype.toLocaleString; // eslint-disable-line @typescript-eslint/unbound-method
 		beforeEach(() => {

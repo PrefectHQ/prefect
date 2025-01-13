@@ -1,4 +1,4 @@
-import { components } from "@/api/prefect";
+import type { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
 import { queryOptions } from "@tanstack/react-query";
 
@@ -108,6 +108,6 @@ export const buildCountDeploymentsQuery = (
 			const res = await getQueryService().POST("/deployments/count", {
 				body: filter,
 			});
-			return res.data ?? [];
+			return res.data ?? 0;
 		},
 	});
