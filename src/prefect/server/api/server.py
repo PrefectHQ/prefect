@@ -538,6 +538,7 @@ def _memoize_block_auto_registration(
 def create_app(
     settings: Optional[prefect.settings.Settings] = None,
     ephemeral: bool = False,
+    webserver_only: bool = False,
     final: bool = False,
     ignore_cache: bool = False,
 ) -> FastAPI:
@@ -549,14 +550,17 @@ def create_app(
             from the context.
         ephemeral: If set, the application will be treated as ephemeral. The UI
             and services will be disabled.
+        webserver_only: If set, the webserver and UI will be available but all background
+            services will be disabled.
         final: whether this will be the last instance of the Prefect server to be
             created in this process, so that additional optimizations may be applied
         ignore_cache: If set, a new application will be created even if the settings
             match. Otherwise, an application is returned from the cache.
     """
     settings = settings or prefect.settings.get_current_settings()
-    cache_key = (settings.hash_key(), ephemeral)
+    cache_key = (settings.hash_key(), ephemeral, webserver_only)
     ephemeral = ephemeral or bool(os.getenv("PREFECT__SERVER_EPHEMERAL"))
+    webserver_only = webserver_only or bool(os.getenv("PREFECT__SERVER_WEBSERVER_ONLY"))
     final = final or bool(os.getenv("PREFECT__SERVER_FINAL"))
 
     from prefect.logging.configuration import setup_logging
@@ -596,9 +600,7 @@ def create_app(
 
         service_instances: list[Any] = []
 
-        if prefect.settings.PREFECT_SERVER_ANALYTICS_ENABLED.value():
-            service_instances.append(services.telemetry.Telemetry())
-
+        # these services are for events and are not implemented as loop services right now
         if prefect.settings.PREFECT_API_SERVICES_TASK_RUN_RECORDER_ENABLED:
             service_instances.append(TaskRunRecorder())
 
@@ -608,8 +610,14 @@ def create_app(
         if prefect.settings.PREFECT_API_EVENTS_STREAM_OUT_ENABLED:
             service_instances.append(stream.Distributor())
 
+        if (
+            not webserver_only
+            and prefect.settings.PREFECT_SERVER_ANALYTICS_ENABLED.value()
+        ):
+            service_instances.append(services.telemetry.Telemetry())
+
         # don't run services in ephemeral mode
-        if not ephemeral:
+        if not ephemeral and not webserver_only:
             if prefect.settings.PREFECT_API_SERVICES_SCHEDULER_ENABLED.value():
                 service_instances.append(services.scheduler.Scheduler())
                 service_instances.append(

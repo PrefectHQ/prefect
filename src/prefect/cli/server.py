@@ -213,7 +213,7 @@ def start(
     late_runs: bool = SettingsOption(PREFECT_API_SERVICES_LATE_RUNS_ENABLED),
     ui: bool = SettingsOption(PREFECT_UI_ENABLED),
     no_services: bool = typer.Option(
-        False, "--no-services", help="Only run the webserver API"
+        False, "--no-services", help="Only run the webserver API and UI"
     ),
     background: bool = typer.Option(
         False, "--background", "-b", help="Run the server in the background"
@@ -307,7 +307,7 @@ def _run_in_background(
 
     env = {**os.environ, **server_settings, "PREFECT__SERVER_FINAL": "1"}
     if no_services:
-        env["PREFECT__SERVER_EPHEMERAL"] = "1"
+        env["PREFECT__SERVER_WEBSERVER_ONLY"] = "1"
 
     process = subprocess.Popen(
         command,
@@ -339,7 +339,7 @@ def _run_in_foreground(
         {getattr(prefect.settings, k): v for k, v in server_settings.items()}
     ):
         uvicorn.run(
-            app=create_app(final=True, ephemeral=no_services),
+            app=create_app(final=True, webserver_only=no_services),
             app_dir=str(prefect.__module_path__.parent),
             host=host,
             port=port,
