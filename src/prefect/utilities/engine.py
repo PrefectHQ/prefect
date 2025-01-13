@@ -757,12 +757,19 @@ def resolve_to_final_result(expr: Any, context: dict[str, Any]) -> Any:
         parameter_context = propagate.extract(
             {"traceparent": state.state_details.traceparent}
         )
-        trace.get_current_span().add_link(
-            context=trace.get_current_span(parameter_context).get_span_context(),
-            attributes={
+        attributes = {}
+
+        # If this future is being used as a parameter (as opposed to just a wait_for),
+        # add attributes to the span to indicate the parameter name and type
+        if "parameter_name" in context:
+            attributes = {
                 "prefect.input.name": context["parameter_name"],
                 "prefect.input.type": type(result).__name__,
-            },
+            }
+
+        trace.get_current_span().add_link(
+            context=trace.get_current_span(parameter_context).get_span_context(),
+            attributes=attributes,
         )
 
     return result

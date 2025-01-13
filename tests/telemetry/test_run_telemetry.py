@@ -333,6 +333,60 @@ async def test_span_links(
     }
 
 
+async def test_span_links_wait_for_only(
+    engine_type: Literal["async", "sync"],
+    instrumentation: InstrumentationTester,
+):
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/16708, where
+    we are looking for the parameter name of a future that is only used for waiting"""
+
+    @task(task_run_name="produces42")
+    def produces42() -> int:
+        return 42
+
+    if engine_type == "async":
+
+        @task(task_run_name="async_task")
+        async def async_task():
+            return "hi"
+
+        @flow(flow_run_name="async-flow")
+        async def async_flow():
+            f = produces42.submit()
+            await async_task(wait_for=[f])
+
+        await async_flow()
+    else:
+
+        @task(task_run_name="sync_task")
+        def sync_task():
+            return "hi"
+
+        @flow(flow_run_name="sync-flow")
+        def sync_flow():
+            f = produces42.submit()
+            sync_task(wait_for=[f])
+
+        sync_flow()
+
+    spans = instrumentation.get_finished_spans()
+
+    assert len(spans) == 3  # flow, producer, task
+
+    flow_span = next(span for span in spans if span.name.endswith("-flow"))
+    task_span = next(span for span in spans if span.name.endswith("_task"))
+    producer_span = next(span for span in spans if span.name == "produces42")
+
+    assert not flow_span.links
+    assert not producer_span.links
+
+    assert len(task_span.links) == 1
+    link = task_span.links[0]
+    assert link.context.trace_id == producer_span.context.trace_id
+    assert link.context.span_id == producer_span.context.span_id
+    assert link.attributes == {}
+
+
 async def test_span_status_on_success(
     engine_type: Literal["async", "sync"],
     instrumentation: InstrumentationTester,
