@@ -160,7 +160,9 @@ class Event(PrefectBaseModel):
 
     @field_validator("related")
     @classmethod
-    def enforce_maximum_related_resources(cls, value: List[RelatedResource]):
+    def enforce_maximum_related_resources(
+        cls, value: List[RelatedResource]
+    ) -> List[RelatedResource]:
         if len(value) > PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES.value():
             raise ValueError(
                 "The maximum number of related resources "

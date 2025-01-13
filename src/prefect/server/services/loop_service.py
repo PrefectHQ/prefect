@@ -41,7 +41,7 @@ class LoopService:
                 gracefully intercepted and shut down the running service.
         """
         if loop_seconds:
-            self.loop_seconds: int = loop_seconds  # seconds between runs
+            self.loop_seconds: float = loop_seconds  # seconds between runs
         self._should_stop: bool = (
             False  # flag for whether the service should stop running
         )

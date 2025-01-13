@@ -532,12 +532,12 @@ class TaskRun(ORMBaseModel):
 
     @field_validator("name", mode="before")
     @classmethod
-    def set_name(cls, name):
+    def set_name(cls, name: str) -> str:
         return get_or_create_run_name(name)
 
     @field_validator("cache_key")
     @classmethod
-    def validate_cache_key(cls, cache_key):
+    def validate_cache_key(cls, cache_key: str) -> str:
         return validate_cache_key_length(cache_key)
 
 
