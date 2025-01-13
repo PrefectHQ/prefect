@@ -10,11 +10,9 @@ import { DeploymentsDataTable } from ".";
 
 describe("DeploymentsDataTable", () => {
 	beforeEach(() => {
-		console.log("beforeEach");
 		server.use(
 			http.post(buildApiUrl("/flow_runs/filter"), async ({ request }) => {
 				const { limit } = (await request.json()) as { limit: number };
-				console.log("limit", limit);
 
 				return HttpResponse.json(
 					Array.from({ length: limit }, createFakeFlowRunWithDeploymentAndFlow),
@@ -42,6 +40,12 @@ describe("DeploymentsDataTable", () => {
 
 	const defaultProps = {
 		deployments: [mockDeployment],
+		pageCount: 5,
+		pagination: {
+			pageSize: 10,
+			pageIndex: 2,
+		},
+		onPaginationChange: vi.fn(),
 		onQuickRun: vi.fn(),
 		onCustomRun: vi.fn(),
 		onEdit: vi.fn(),
@@ -188,5 +192,54 @@ describe("DeploymentsDataTable", () => {
 		await userEvent.click(duplicateButton);
 
 		expect(onDuplicate).toHaveBeenCalledWith(mockDeployment);
+	});
+
+	it("calls onPaginationChange when pagination buttons are clicked", async () => {
+		const onPaginationChange = vi.fn();
+		render(
+			<DeploymentsDataTable
+				{...defaultProps}
+				onPaginationChange={onPaginationChange}
+			/>,
+			{
+				wrapper: createWrapper(),
+			},
+		);
+
+		await userEvent.click(
+			screen.getByRole("button", { name: "Go to next page" }),
+		);
+
+		expect(onPaginationChange).toHaveBeenCalledWith({
+			pageIndex: 3,
+			pageSize: 10,
+		});
+
+		await userEvent.click(
+			screen.getByRole("button", { name: "Go to previous page" }),
+		);
+
+		expect(onPaginationChange).toHaveBeenCalledWith({
+			pageIndex: 1,
+			pageSize: 10,
+		});
+
+		await userEvent.click(
+			screen.getByRole("button", { name: "Go to first page" }),
+		);
+
+		expect(onPaginationChange).toHaveBeenCalledWith({
+			pageIndex: 0,
+			pageSize: 10,
+		});
+
+		await userEvent.click(
+			screen.getByRole("button", { name: "Go to last page" }),
+		);
+
+		expect(onPaginationChange).toHaveBeenCalledWith({
+			pageIndex: 4,
+			pageSize: 10,
+		});
 	});
 });

@@ -1,6 +1,6 @@
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
-import { DeploymentWithFlow } from "@/api/deployments";
+import type { DeploymentWithFlow } from "@/api/deployments";
 import { buildListFlowRunsQuery } from "@/api/flow-runs";
 import { Button } from "@/components/ui/button";
 import {
@@ -87,8 +87,8 @@ const BAR_GAP = 4;
 export const ActivityCell = ({
 	row,
 }: CellContext<DeploymentWithFlow, unknown>) => {
-	const [numberOfBars, setNumberOfBars] = useState(0);
-	const debouncedNumberOfBars = useDebounce(numberOfBars, 100);
+	const [numberOfBars, setNumberOfBars] = useState<number>(0);
+	const debouncedNumberOfBars = useDebounce(numberOfBars, 150);
 
 	const chartRef = useCallback((node: HTMLDivElement | null) => {
 		if (!node) return;
@@ -98,11 +98,14 @@ export const ActivityCell = ({
 			setNumberOfBars(Math.floor(chartWidth / (BAR_WIDTH + BAR_GAP)));
 		};
 
+		// Set the initial number of bars based on the chart width
 		updateBars();
 
+		// Observe the chart for resize events
 		const resizeObserver = new ResizeObserver(updateBars);
 		resizeObserver.observe(node);
 		return () => {
+			// Clean up the observer
 			resizeObserver.disconnect();
 		};
 	}, []);
@@ -116,7 +119,7 @@ export const ActivityCell = ({
 				},
 			},
 			sort: "START_TIME_DESC",
-			limit: debouncedNumberOfBars,
+			limit: numberOfBars,
 			offset: 0,
 		}),
 	);
@@ -129,12 +132,15 @@ export const ActivityCell = ({
 			flow,
 		})) ?? [];
 
+	console.log(debouncedNumberOfBars, numberOfBars);
+
 	return (
 		<div className="w-full" ref={chartRef}>
 			<FlowRunActivityBarChart
 				startDate={subSeconds(new Date(), secondsInWeek)}
 				endDate={new Date()}
-				numberOfBars={debouncedNumberOfBars}
+				// If debouncedNumberOfBars is 0, use numberOfBars for an asymmetric debounce to avoid rendering an empty chart on initial paint.
+				numberOfBars={debouncedNumberOfBars || numberOfBars}
 				barWidth={BAR_WIDTH}
 				enrichedFlowRuns={enrichedFlowRuns}
 				className="h-12 w-full"
