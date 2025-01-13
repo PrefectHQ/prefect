@@ -297,6 +297,7 @@ SUPPORTED_SETTINGS = {
         "test_value": timedelta(seconds=10),
         "legacy": True,
     },
+    "PREFECT_SERVER_DATABASE_CONNECTION_APP_NAME": {"test_value": "testingconn"},
     "PREFECT_SERVER_DATABASE_CONNECTION_TIMEOUT": {"test_value": 10.0},
     "PREFECT_SERVER_DATABASE_CONNECTION_URL": {"test_value": "sqlite:///"},
     "PREFECT_SERVER_DATABASE_DRIVER": {"test_value": "sqlite+aiosqlite"},
