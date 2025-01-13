@@ -9,7 +9,7 @@ import {
 	DropdownMenuLabel,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { FlowRunActivityBarChart } from "@/components/ui/flow-run-acitivity-bar-graph";
+import { FlowRunActivityBarChart } from "@/components/ui/flow-run-activity-bar-graph";
 import { Icon } from "@/components/ui/icons";
 import useDebounce from "@/hooks/use-debounce";
 import { useToast } from "@/hooks/use-toast";
