@@ -187,10 +187,10 @@ const useDeploymentsColumnFilters = () => {
 			void navigate({
 				to: ".",
 				search: (prev) => {
-					const flowOrDeploymentName = newColumnFilters.find(
+					const flowOrDeploymentName = newColumnFilters?.find(
 						(filter) => filter.id === "flowOrDeploymentName",
 					)?.value as string | undefined;
-					const tags = newColumnFilters.find((filter) => filter.id === "tags")
+					const tags = newColumnFilters?.find((filter) => filter.id === "tags")
 						?.value as string[] | undefined;
 					return {
 						...prev,

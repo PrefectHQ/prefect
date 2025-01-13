@@ -88,6 +88,7 @@ export const Default: StoryObj<StoryArgs> = {
 					pageIndex,
 					pageSize,
 				}}
+				columnFilters={[]}
 				pageCount={Math.ceil(numberOfDeployments / pageSize)}
 				onPaginationChange={(pagination) => {
 					setPageIndex(pagination.pageIndex);
