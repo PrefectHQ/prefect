@@ -1122,7 +1122,7 @@
                 },
                 "startup_timeout_seconds": {
                     "default": 20,
-                    "description": "\n        The number of seconds to wait for the server to start when ephemeral mode is enabled.\n        Defaults to `10`.\n        ",
+                    "description": "\n        The number of seconds to wait for the server to start when ephemeral mode is enabled.\n        Defaults to `20`.\n        ",
                     "supported_environment_variables": [
                         "PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS"
                     ],
