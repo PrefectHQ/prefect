@@ -38,11 +38,12 @@ def get_stars(repo_stats: dict):
     return repo_stats['stargazers_count']
 
 
-show_stars([
-    "PrefectHQ/prefect",
-    "pydantic/pydantic",
-    "huggingface/transformers"
-])
+if __name__ == "__main__":
+    show_stars([
+        "PrefectHQ/prefect",
+        "pydantic/pydantic",
+        "huggingface/transformers"
+    ])
 ```
 
 ## Install Prefect
@@ -125,11 +126,12 @@ def get_stars(repo_stats: dict):
 
 
 # Run the flow
-show_stars([
-    "PrefectHQ/prefect",
-    "pydantic/pydantic",
-    "huggingface/transformers"
-])
+if __name__ == "__main__":
+    show_stars([
+        "PrefectHQ/prefect",
+        "pydantic/pydantic",
+        "huggingface/transformers"
+    ])
 ```
 
 <Note>
