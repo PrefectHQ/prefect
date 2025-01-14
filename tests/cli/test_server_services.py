@@ -19,8 +19,24 @@ def enable_all_services():
         yield
 
 
+@pytest.fixture
+def pid_file(monkeypatch: pytest.MonkeyPatch) -> Path:
+    pid_file = Path(PREFECT_HOME.value()) / "services.pid"
+    monkeypatch.setattr("prefect.cli.server.PID_FILE", pid_file)
+    return pid_file
+
+
+@pytest.fixture(autouse=True)
+def cleanup_pid_file(pid_file: Path):
+    if pid_file.exists():
+        pid_file.unlink()
+    yield
+    if pid_file.exists():
+        pid_file.unlink()
+
+
 class TestBackgroundServices:
-    def test_start_and_stop_services(self):
+    def test_start_and_stop_services(self, pid_file: Path):
         invoke_and_assert(
             command=[
                 "server",
@@ -32,7 +48,6 @@ class TestBackgroundServices:
             expected_code=0,
         )
 
-        pid_file = Path(PREFECT_HOME.value()) / "services" / "manager.pid"
         assert pid_file.exists(), "Services PID file does not exist"
 
         invoke_and_assert(
@@ -47,7 +62,7 @@ class TestBackgroundServices:
 
         assert not pid_file.exists(), "Services PID file still exists"
 
-    def test_start_duplicate_services(self):
+    def test_start_duplicate_services(self, pid_file: Path):
         invoke_and_assert(
             command=[
                 "server",
@@ -58,6 +73,8 @@ class TestBackgroundServices:
             expected_output_contains="Services are running in the background.",
             expected_code=0,
         )
+
+        assert pid_file.exists(), "PID file should exist before duplicate test"
 
         invoke_and_assert(
             command=[
@@ -80,10 +97,9 @@ class TestBackgroundServices:
             expected_code=0,
         )
 
-    def test_stop_stale_pid_file(self):
-        pid_file = Path(PREFECT_HOME.value()) / "services" / "manager.pid"
+    def test_stop_stale_pid_file(self, pid_file: Path):
         pid_file.parent.mkdir(parents=True, exist_ok=True)
-        pid_file.write_text("99999")
+        pid_file.write_text("99999")  # Use a likely unused PID
 
         invoke_and_assert(
             command=[

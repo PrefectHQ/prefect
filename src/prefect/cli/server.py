@@ -62,7 +62,7 @@ app.add_typer(server_app)
 
 logger = get_logger(__name__)
 
-PID_FILE = "server.pid"
+PID_FILE = Path(PREFECT_HOME.value()) / "services.pid"
 
 
 def generate_welcome_blurb(base_url: str, ui_enabled: bool):
@@ -515,9 +515,6 @@ def _get_service_settings() -> dict[str, "prefect.settings.Setting"]:
     """Get mapping of service names to their enabled/disabled settings."""
     return {
         "Telemetry": prefect.settings.PREFECT_SERVER_ANALYTICS_ENABLED,
-        "TaskRunRecorder": prefect.settings.PREFECT_API_SERVICES_TASK_RUN_RECORDER_ENABLED,
-        "EventPersister": prefect.settings.PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED,
-        "Distributor": prefect.settings.PREFECT_API_EVENTS_STREAM_OUT_ENABLED,
         "Scheduler": prefect.settings.PREFECT_API_SERVICES_SCHEDULER_ENABLED,
         "RecentDeploymentsScheduler": prefect.settings.PREFECT_API_SERVICES_SCHEDULER_ENABLED,
         "MarkLateRuns": prefect.settings.PREFECT_API_SERVICES_LATE_RUNS_ENABLED,
@@ -698,11 +695,10 @@ def start_services(
     ),
 ):
     """Start all enabled Prefect services in one process."""
-    pid_file = Path(PREFECT_HOME.value()) / "services" / "manager.pid"
-    pid_file.parent.mkdir(parents=True, exist_ok=True)
+    PID_FILE.parent.mkdir(parents=True, exist_ok=True)
 
-    if pid_file.exists():
-        pid = _read_pid_file(pid_file)
+    if PID_FILE.exists():
+        pid = _read_pid_file(PID_FILE)
         if pid is not None and _is_process_running(pid):
             app.console.print(
                 "\n[yellow]Services are already running in the background.[/]"
@@ -711,7 +707,7 @@ def start_services(
             raise typer.Exit(code=1)
         else:
             # Stale or invalid file
-            _cleanup_pid_file(pid_file)
+            _cleanup_pid_file(PID_FILE)
 
     if not (enabled_services := _get_enabled_services()):
         app.console.print("[red]No services are enabled![/]")
@@ -747,7 +743,7 @@ def start_services(
         app.console.print("[red]Failed to start services in the background![/]")
         raise typer.Exit(code=1)
 
-    _write_pid_file(pid_file, process.pid)
+    _write_pid_file(PID_FILE, process.pid)
     app.console.print(
         "\n[green]Services are running in the background.[/]"
         "\n[blue]Use[/] [yellow]`prefect server services stop`[/] [blue]to stop them.[/]"
@@ -757,20 +753,19 @@ def start_services(
 @services_app.command(aliases=["stop"])
 async def stop_services():
     """Stop any background Prefect services that were started."""
-    pid_file = Path(PREFECT_HOME.value()) / "services" / "manager.pid"
 
-    if not pid_file.exists():
+    if not PID_FILE.exists():
         app.console.print("No services are running in the background.")
         raise typer.Exit()
 
-    if (pid := _read_pid_file(pid_file)) is None:
-        _cleanup_pid_file(pid_file)
+    if (pid := _read_pid_file(PID_FILE)) is None:
+        _cleanup_pid_file(PID_FILE)
         app.console.print("No valid PID file found.")
         raise typer.Exit()
 
     if not _is_process_running(pid):
         app.console.print("[yellow]Services were not running[/]")
-        _cleanup_pid_file(pid_file)
+        _cleanup_pid_file(PID_FILE)
         return
 
     app.console.print("\n[yellow]Shutting down...[/]")
@@ -790,5 +785,5 @@ async def stop_services():
             break
         await asyncio.sleep(1)
 
-    _cleanup_pid_file(pid_file)
+    _cleanup_pid_file(PID_FILE)
     app.console.print("\n[green]All services stopped.[/]")
