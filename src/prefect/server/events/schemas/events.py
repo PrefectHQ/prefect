@@ -120,11 +120,11 @@ class Event(PrefectBaseModel):
     resource: Resource = Field(
         description="The primary Resource this event concerns",
     )
-    related: List[RelatedResource] = Field(
+    related: list[RelatedResource] = Field(
         default_factory=list,
         description="A list of additional Resources involved in this event",
     )
-    payload: Dict[str, Any] = Field(
+    payload: dict[str, Any] = Field(
         default_factory=dict,
         description="An open-ended set of data describing what happened",
     )
@@ -132,7 +132,7 @@ class Event(PrefectBaseModel):
         description="The client-provided identifier of this event",
     )
     follows: Optional[UUID] = Field(
-        None,
+        default=None,
         description=(
             "The ID of an event that is known to have occurred prior to this one. "
             "If set, this may be used to establish a more precise ordering of causally-"
@@ -203,7 +203,7 @@ class ReceivedEvent(Event):
         description="When the event was received by Prefect Cloud",
     )
 
-    def as_database_row(self) -> Dict[str, Any]:
+    def as_database_row(self) -> dict[str, Any]:
         row = self.model_dump()
         row["resource_id"] = self.resource.id
         row["recorded"] = pendulum.now("UTC")

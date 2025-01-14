@@ -54,11 +54,11 @@ class AssertingEventsClient(EventsClient):
     last: ClassVar[Optional["AssertingEventsClient"]] = None
     all: ClassVar[List["AssertingEventsClient"]] = []
 
-    args: Tuple
-    kwargs: Dict[str, Any]
-    events: List[Event]
+    args: tuple[Any, ...]
+    kwargs: dict[str, Any]
+    events: list[Event]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any):
         AssertingEventsClient.last = self
         AssertingEventsClient.all.append(self)
         self.args = args
@@ -225,7 +225,7 @@ class PrefectServerEventsClient(EventsClient):
 class PrefectServerEventsAPIClient:
     _http_client: PrefectHttpxAsyncClient
 
-    def __init__(self, additional_headers: Dict[str, str] = {}):
+    def __init__(self, additional_headers: dict[str, str] = {}):
         from prefect.server.api.server import create_app
 
         # create_app caches application instances, and invoking it with no arguments
@@ -244,7 +244,7 @@ class PrefectServerEventsAPIClient:
         await self._http_client.__aenter__()
         return self
 
-    async def __aexit__(self, *args):
+    async def __aexit__(self, *args: Any) -> None:
         await self._http_client.__aexit__(*args)
 
     async def pause_automation(self, automation_id: UUID) -> httpx.Response:

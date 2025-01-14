@@ -139,6 +139,9 @@ class Distributor:
     async def start(self) -> None:
         await start_distributor()
         try:
+            if TYPE_CHECKING:
+                # start_distributor should have set _distributor_task
+                assert _distributor_task
             await _distributor_task
         except asyncio.CancelledError:
             pass

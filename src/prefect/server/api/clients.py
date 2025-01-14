@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from urllib.parse import quote
 from uuid import UUID
 
@@ -23,7 +23,7 @@ logger = get_logger(__name__)
 class BaseClient:
     _http_client: PrefectHttpxAsyncClient
 
-    def __init__(self, additional_headers: Dict[str, str] = {}):
+    def __init__(self, additional_headers: dict[str, str] = {}):
         from prefect.server.api.server import create_app
 
         # create_app caches application instances, and invoking it with no arguments
@@ -42,7 +42,7 @@ class BaseClient:
         await self._http_client.__aenter__()
         return self
 
-    async def __aexit__(self, *args):
+    async def __aexit__(self, *args: Any) -> None:
         await self._http_client.__aexit__(*args)
 
 

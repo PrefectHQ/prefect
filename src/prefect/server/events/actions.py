@@ -778,9 +778,7 @@ class RunDeployment(JinjaTemplateAction, DeploymentCommandAction):
         return response
 
     @field_validator("parameters")
-    def validate_parameters(
-        cls, value: Optional[Dict[str, Any]], field
-    ) -> Optional[Dict[str, Any]]:
+    def validate_parameters(cls, value: dict[str, Any] | None) -> dict[str, Any] | None:
         if not value:
             return value
 
