@@ -702,40 +702,29 @@ def start_services(
         app.console.print("\n[green]All services stopped.[/]")
         return
 
-    # 2) Background run => spawn the "manager" subcommand
-    #    We'll *not* discard logs. Instead, at least redirect them to a file.
-    log_file = pid_file.parent / "services.log"
-
     command = [
-        "prefect",  # We'll rely on `prefect` CLI group
+        "prefect",
         "server",
         "services",
-        "manager",  # subcommand above
+        "manager",
     ]
-    with open(log_file, "ab") as f:
-        process = subprocess.Popen(
-            command,
-            env=os.environ.copy(),
-            stdout=f,
-            stderr=f,
-            start_new_session=True,  # separate process group on Unix
-        )
+    process = subprocess.Popen(
+        command,
+        env=os.environ.copy(),
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,  # separate process group on Unix
+    )
 
-    time.sleep(1)
+    time.sleep(0.2)
     if process.poll() is not None:
         app.console.print("[red]Failed to start services in the background![/]")
-        # Print tail of log to help debugging
-        with open(log_file, "rb") as f:
-            lines = f.read().decode().splitlines()[-10:]
-            for line in lines:
-                app.console.print(f"[dim]{line}[/]")
         raise typer.Exit(code=1)
 
     # If child is still running, write out the PID
     pid_file.write_text(str(process.pid))
     app.console.print(
         "\n[green]Services are running in the background.[/]"
-        f"\n[dim]Logs are in: {log_file}[/]"
         "\n[blue]Use[/] [yellow]`prefect server services stop`[/] [blue]to stop them.[/]"
     )
 
