@@ -48,6 +48,8 @@ class ReactiveTriggers:
 
 
 class ProactiveTriggers(LoopService):
+    """A loop service that runs the proactive triggers consumer"""
+
     def __init__(self, loop_seconds: Optional[float] = None, **kwargs: Any):
         super().__init__(
             loop_seconds=(
