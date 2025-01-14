@@ -267,7 +267,7 @@ async def evaluate(
             )
 
 
-async def fire(session: AsyncSession, firing: Firing):
+async def fire(session: AsyncSession, firing: Firing) -> None:
     if isinstance(firing.trigger.parent, Automation):
         await act(firing)
     elif isinstance(firing.trigger.parent, CompositeTrigger):
@@ -278,7 +278,7 @@ async def fire(session: AsyncSession, firing: Firing):
         )
 
 
-async def evaluate_composite_trigger(session: AsyncSession, firing: Firing):
+async def evaluate_composite_trigger(session: AsyncSession, firing: Firing) -> None:
     automation = firing.trigger.automation
 
     assert isinstance(firing.trigger.parent, CompositeTrigger)
@@ -361,7 +361,7 @@ async def evaluate_composite_trigger(session: AsyncSession, firing: Firing):
         )
 
 
-async def act(firing: Firing):
+async def act(firing: Firing) -> None:
     """Given a Automation that has been triggered, the triggering labels and event
     (if there was one), publish an action for the `actions` service to process."""
     automation = firing.trigger.automation
@@ -423,7 +423,7 @@ def _events_clock_lock() -> asyncio.Lock:
     return __events_clock_lock
 
 
-async def update_events_clock(event: ReceivedEvent):
+async def update_events_clock(event: ReceivedEvent) -> None:
     global _events_clock, _events_clock_updated
     async with _events_clock_lock():
         # we want the offset to be negative to represent that we are always
@@ -464,14 +464,14 @@ async def get_events_clock_offset() -> float:
     return offset
 
 
-async def reset_events_clock():
+async def reset_events_clock() -> None:
     global _events_clock, _events_clock_updated
     async with _events_clock_lock():
         _events_clock = None
         _events_clock_updated = None
 
 
-async def reactive_evaluation(event: ReceivedEvent, depth: int = 0):
+async def reactive_evaluation(event: ReceivedEvent, depth: int = 0) -> None:
     """
     Evaluate all automations that may apply to this event.
 
@@ -590,7 +590,7 @@ async def get_lost_followers() -> List[ReceivedEvent]:
     return await causal_ordering().get_lost_followers()
 
 
-async def periodic_evaluation(now: pendulum.DateTime):
+async def periodic_evaluation(now: pendulum.DateTime) -> None:
     """Periodic tasks that should be run regularly, but not as often as every event"""
     offset = await get_events_clock_offset()
     as_of = now + timedelta(seconds=offset)
@@ -611,7 +611,7 @@ async def periodic_evaluation(now: pendulum.DateTime):
         await session.commit()
 
 
-async def evaluate_periodically(periodic_granularity: timedelta):
+async def evaluate_periodically(periodic_granularity: timedelta) -> None:
     """Runs periodic evaluation on the given interval"""
     logger.debug(
         "Starting periodic evaluation task every %s seconds",
@@ -650,7 +650,7 @@ def find_interested_triggers(event: ReceivedEvent) -> Collection[EventTrigger]:
     return [trigger for trigger in candidates if trigger.covers(event)]
 
 
-def load_automation(automation: Optional[Automation]):
+def load_automation(automation: Optional[Automation]) -> None:
     """Loads the given automation into memory so that it is available for evaluations"""
     if not automation:
         return
@@ -668,7 +668,7 @@ def load_automation(automation: Optional[Automation]):
         next_proactive_runs.pop(trigger.id, None)
 
 
-def forget_automation(automation_id: UUID):
+def forget_automation(automation_id: UUID) -> None:
     """Unloads the given automation from memory"""
     if automation := automations_by_id.pop(automation_id, None):
         for trigger in automation.triggers():
@@ -679,7 +679,7 @@ def forget_automation(automation_id: UUID):
 async def automation_changed(
     automation_id: UUID,
     event: Literal["automation__created", "automation__updated", "automation__deleted"],
-):
+) -> None:
     async with _automations_lock():
         if event in ("automation__deleted", "automation__updated"):
             forget_automation(automation_id)
@@ -979,7 +979,7 @@ async def sweep_closed_buckets(
     )
 
 
-async def reset():
+async def reset() -> None:
     """Resets the in-memory state of the service"""
     await reset_events_clock()
     automations_by_id.clear()
