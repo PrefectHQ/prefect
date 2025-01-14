@@ -11,8 +11,9 @@ import socket
 import subprocess
 import sys
 import textwrap
-import time
 from pathlib import Path
+from types import ModuleType
+from typing import NamedTuple
 
 import anyio
 import anyio.abc
@@ -509,21 +510,17 @@ async def stamp(revision: str):
     exit_with_success("Stamping database with revision succeeded!")
 
 
-def _discover_services():
-    from prefect.server.events.services import triggers
-    from prefect.server.services import (
-        cancellation_cleanup,
-        flow_run_notifications,
-        foreman,
-        late_runs,
-        loop_service,
-        pause_expirations,
-        scheduler,
-        task_run_recorder,
-        telemetry,
-    )
+class ServiceInfo(NamedTuple):
+    """Information about a discovered service and its configuration."""
 
-    service_settings = {
+    name: str
+    setting: "prefect.settings.Setting"
+    enabled: bool
+
+
+def _get_service_settings() -> dict[str, "prefect.settings.Setting"]:
+    """Get mapping of service names to their enabled/disabled settings."""
+    return {
         "Telemetry": prefect.settings.PREFECT_SERVER_ANALYTICS_ENABLED,
         "TaskRunRecorder": prefect.settings.PREFECT_API_SERVICES_TASK_RUN_RECORDER_ENABLED,
         "EventPersister": prefect.settings.PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED,
@@ -540,7 +537,22 @@ def _discover_services():
         "Actions": prefect.settings.PREFECT_API_SERVICES_TRIGGERS_ENABLED,
     }
 
-    service_modules = [
+
+def _get_service_modules() -> list[ModuleType]:
+    """Get list of modules containing service implementations."""
+    from prefect.server.events.services import triggers
+    from prefect.server.services import (
+        cancellation_cleanup,
+        flow_run_notifications,
+        foreman,
+        late_runs,
+        pause_expirations,
+        scheduler,
+        task_run_recorder,
+        telemetry,
+    )
+
+    return [
         cancellation_cleanup,
         flow_run_notifications,
         foreman,
@@ -552,28 +564,45 @@ def _discover_services():
         triggers,
     ]
 
-    discovered_services: list[
-        type[prefect.server.services.loop_service.LoopService]
-    ] = []
-    for module in service_modules:
+
+def _discover_service_classes() -> (
+    list[type["prefect.server.services.loop_service.LoopService"]]
+):
+    """Discover all available service classes."""
+    from prefect.server.services.loop_service import LoopService
+
+    discovered: list[type[LoopService]] = []
+    for module in _get_service_modules():
         for _, obj in inspect.getmembers(module):
             if (
                 inspect.isclass(obj)
-                and issubclass(obj, loop_service.LoopService)
-                and obj != loop_service.LoopService
+                and issubclass(obj, LoopService)
+                and obj != LoopService
             ):
-                discovered_services.append(obj)
+                discovered.append(obj)
+    return discovered
 
-    return discovered_services, service_settings
+
+def _get_enabled_services() -> (
+    list[type["prefect.server.services.loop_service.LoopService"]]
+):
+    """Get list of enabled service classes."""
+    service_settings = _get_service_settings()
+    return [
+        svc
+        for svc in _discover_service_classes()
+        if service_settings.get(svc.__name__, False).value()  # type: ignore
+    ]
 
 
 async def _run_services(
-    service_classes: list[type[prefect.server.services.loop_service.LoopService]],
+    service_classes: list[type["prefect.server.services.loop_service.LoopService"]],
 ):
+    """Run the given service classes until cancelled."""
     services = [cls() for cls in service_classes]
     tasks: list[
         tuple[
-            asyncio.Task[None], type[prefect.server.services.loop_service.LoopService]
+            asyncio.Task[None], type["prefect.server.services.loop_service.LoopService"]
         ]
     ] = []
 
@@ -593,11 +622,35 @@ async def _run_services(
 
 
 def _is_process_running(pid: int) -> bool:
+    """Check if a process is running by attempting to send signal 0."""
     try:
         os.kill(pid, 0)
         return True
     except (ProcessLookupError, OSError):
         return False
+
+
+def _read_pid_file(path: Path) -> int | None:
+    """Read and validate a PID from a file."""
+    try:
+        return int(path.read_text())
+    except (ValueError, OSError, FileNotFoundError):
+        return None
+
+
+def _write_pid_file(path: Path, pid: int) -> None:
+    """Write a PID to a file, creating parent directories if needed."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(str(pid))
+
+
+def _cleanup_pid_file(path: Path) -> None:
+    """Remove PID file and try to cleanup empty parent directory."""
+    path.unlink(missing_ok=True)
+    try:
+        path.parent.rmdir()
+    except OSError:
+        pass
 
 
 # this is a hidden command used by the `prefect server services start --background` command
@@ -609,13 +662,7 @@ def run_manager_process():
 
     We do everything in sync so that the child won't exit until the user kills it.
     """
-    discovered_services, service_settings = _discover_services()
-    enabled_services = [
-        svc
-        for svc in discovered_services
-        if service_settings.get(svc.__name__, False).value()  # type: ignore
-    ]
-    if not enabled_services:
+    if not (enabled_services := _get_enabled_services()):
         logger.error("No services are enabled! Exiting manager.")
         sys.exit(1)
 
@@ -624,30 +671,29 @@ def run_manager_process():
         asyncio.run(_run_services(enabled_services))
     except KeyboardInterrupt:
         pass
-    logger.info("Manager process has exited.")
+    finally:
+        logger.info("Manager process has exited.")
 
 
 # public, user-facing `prefect server services` commands
 @services_app.command(aliases=["ls"])
 def list_services():
-    discovered_services, service_settings = _discover_services()
+    """List all available services and their status."""
+    service_settings = _get_service_settings()
     table = Table(title="Available Services", expand=True)
     table.add_column("Name", style="blue", no_wrap=True)
     table.add_column("Enabled?", style="green", no_wrap=True)
     table.add_column("Description", style="cyan", no_wrap=False)
 
-    for svc in discovered_services:
+    for svc in _discover_service_classes():
         name = svc.__name__
         setting = service_settings.get(name, False)
         is_enabled = setting.value() if setting else False  # type: ignore
-        enabled_text = "T" if is_enabled else "F"
+        assert isinstance(is_enabled, bool), "Setting value is not a boolean"
 
         doc = inspect.getdoc(svc) or ""
         description = doc.split("\n", 1)[0].strip()
-        if len(description) > 60:
-            description = description[:57] + "..."
-
-        table.add_row(name, enabled_text, description)
+        table.add_row(name, str(is_enabled), description)
 
     app.console.print(table)
 
@@ -658,43 +704,28 @@ def start_services(
         False, "--background", "-b", help="Run the services in the background"
     ),
 ):
-    """
-    Start all enabled Prefect services in one process.
-    """
+    """Start all enabled Prefect services in one process."""
     pid_file = Path(PREFECT_HOME.value()) / "services" / "manager.pid"
-    pid_file.parent.mkdir(parents=True, exist_ok=True)  # ensure directory exists
+    pid_file.parent.mkdir(parents=True, exist_ok=True)
 
     if pid_file.exists():
-        try:
-            pid = int(pid_file.read_text())
-            if _is_process_running(pid):
-                app.console.print(
-                    "\n[yellow]Services are already running in the background.[/]"
-                    "\n[blue]Use[/] [yellow]`prefect server services stop`[/] [blue]to stop them.[/]"
-                )
-                raise typer.Exit()
-            else:
-                # Stale file
-                pid_file.unlink(missing_ok=True)
-        except (ValueError, OSError):
-            # Could not read or parse
-            pid_file.unlink(missing_ok=True)
+        pid = _read_pid_file(pid_file)
+        if pid is not None and _is_process_running(pid):
+            app.console.print(
+                "\n[yellow]Services are already running in the background.[/]"
+                "\n[blue]Use[/] [yellow]`prefect server services stop`[/] [blue]to stop them.[/]"
+            )
+            raise typer.Exit(code=1)
+        else:
+            # Stale or invalid file
+            _cleanup_pid_file(pid_file)
 
-    # 1) Foreground run
+    if not (enabled_services := _get_enabled_services()):
+        app.console.print("[red]No services are enabled![/]")
+        raise typer.Exit(code=1)
+
     if not background:
         app.console.print("\n[blue]Starting services... Press CTRL+C to stop[/]\n")
-        # Re-discover in the parent so we can fail fast if none enabled
-        discovered_services, service_settings = _discover_services()
-        enabled_services = [
-            svc
-            for svc in discovered_services
-            if service_settings.get(svc.__name__, False).value()  # type: ignore
-        ]
-
-        if not enabled_services:
-            app.console.print("[red]No services are enabled![/]")
-            raise typer.Exit(code=1)
-
         try:
             asyncio.run(_run_services(enabled_services))
         except KeyboardInterrupt:
@@ -702,27 +733,28 @@ def start_services(
         app.console.print("\n[green]All services stopped.[/]")
         return
 
-    command = [
-        "prefect",
-        "server",
-        "services",
-        "manager",
-    ]
+    for service in enabled_services:
+        app.console.print(f"Starting service: [yellow]{service.__name__}[/]")
+
     process = subprocess.Popen(
-        command,
+        [
+            "prefect",
+            "server",
+            "services",
+            "manager",
+        ],
         env=os.environ.copy(),
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
-        start_new_session=True,  # separate process group on Unix
+        start_new_session=(False if os.name == "nt" else True),  # POSIX-only
+        creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0,
     )
 
-    time.sleep(0.2)
     if process.poll() is not None:
         app.console.print("[red]Failed to start services in the background![/]")
         raise typer.Exit(code=1)
 
-    # If child is still running, write out the PID
-    pid_file.write_text(str(process.pid))
+    _write_pid_file(pid_file, process.pid)
     app.console.print(
         "\n[green]Services are running in the background.[/]"
         "\n[blue]Use[/] [yellow]`prefect server services stop`[/] [blue]to stop them.[/]"
@@ -731,37 +763,33 @@ def start_services(
 
 @services_app.command(aliases=["stop"])
 async def stop_services():
-    """
-    Stop any background Prefect services that were started.
-    """
+    """Stop any background Prefect services that were started."""
     pid_file = Path(PREFECT_HOME.value()) / "services" / "manager.pid"
 
     if not pid_file.exists():
         app.console.print("No services are running in the background.")
         raise typer.Exit()
 
-    pid = None
-    try:
-        pid = int(pid_file.read_text())
-    except (ValueError, OSError):
-        # Can't parse or read
-        pid_file.unlink(missing_ok=True)
+    if (pid := _read_pid_file(pid_file)) is None:
+        _cleanup_pid_file(pid_file)
         app.console.print("No valid PID file found.")
         raise typer.Exit()
 
     if not _is_process_running(pid):
         app.console.print("[yellow]Services were not running[/]")
-        pid_file.unlink(missing_ok=True)
-        # Attempt to remove directory if empty
-        try:
-            pid_file.parent.rmdir()
-        except OSError:
-            pass
-        app.console.print("\n[green]All services stopped.[/]")
+        _cleanup_pid_file(pid_file)
         return
 
     app.console.print("\n[yellow]Shutting down...[/]")
-    os.kill(pid, signal.SIGTERM)
+    try:
+        if os.name == "nt":
+            # On Windows, send Ctrl+C to the process group
+            os.kill(pid, signal.CTRL_C_EVENT)
+        else:
+            # On Unix, send SIGTERM
+            os.kill(pid, signal.SIGTERM)
+    except (ProcessLookupError, OSError):
+        pass
 
     for _ in range(5):
         if not _is_process_running(pid):
@@ -769,10 +797,5 @@ async def stop_services():
             break
         await asyncio.sleep(1)
 
-    pid_file.unlink(missing_ok=True)
-    try:
-        pid_file.parent.rmdir()
-    except OSError:
-        pass
-
+    _cleanup_pid_file(pid_file)
     app.console.print("\n[green]All services stopped.[/]")
