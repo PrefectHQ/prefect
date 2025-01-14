@@ -80,7 +80,7 @@ To set a flow to run on a schedule, you need to create a deployment.
    if __name__ == "__main__":
       flow.from_source(
          source=SOURCE_REPO,
-         entrypoint="my_workflow.py:show_stars",
+         entrypoint="my_workflow.py:show_stars", # Specific flow to run
       ).deploy(
          name="my-first-deployment",
          parameters={"github_repos": [
