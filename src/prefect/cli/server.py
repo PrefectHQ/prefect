@@ -607,7 +607,7 @@ async def _run_services(
         logger.info("Received cancellation, stopping services...")
         for task, service in tasks:
             task.cancel()
-            logger.info(f"Stopped service: {service.name}")
+            logger.debug(f"Stopped service: {service.name}")
         await asyncio.gather(*(t for t, _ in tasks), return_exceptions=True)
 
 
