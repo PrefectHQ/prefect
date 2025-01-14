@@ -16,8 +16,6 @@ import textwrap
 from pathlib import Path
 from types import ModuleType
 
-import anyio
-import anyio.abc
 import typer
 import uvicorn
 from rich.table import Table
@@ -62,7 +60,8 @@ app.add_typer(server_app)
 
 logger = get_logger(__name__)
 
-PID_FILE = Path(PREFECT_HOME.value()) / "services.pid"
+SERVER_PID_FILE = Path(PREFECT_HOME.value()) / "server.pid"
+SERVICES_PID_FILE = Path(PREFECT_HOME.value()) / "services.pid"
 
 
 def generate_welcome_blurb(base_url: str, ui_enabled: bool):
@@ -248,7 +247,7 @@ def start(
     if no_services:
         server_settings["PREFECT_SERVER_ANALYTICS_ENABLED"] = "False"
 
-    pid_file = Path(PREFECT_HOME.value() / PID_FILE)
+    pid_file = SERVER_PID_FILE
     # check if port is already in use
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -358,10 +357,10 @@ def _run_in_foreground(
 @server_app.command()
 async def stop():
     """Stop a Prefect server instance running in the background"""
-    pid_file = anyio.Path(PREFECT_HOME.value() / PID_FILE)
-    if not await pid_file.exists():
+    pid_file = SERVER_PID_FILE
+    if not pid_file.exists():
         exit_with_success("No server running in the background.")
-    pid = int(await pid_file.read_text())
+    pid = int(pid_file.read_text())
     try:
         os.kill(pid, signal.SIGTERM)
     except ProcessLookupError:
@@ -371,7 +370,7 @@ async def stop():
     finally:
         # The file probably exists, but use `missing_ok` to avoid an
         # error if the file was deleted by another actor
-        await pid_file.unlink(missing_ok=True)
+        pid_file.unlink(missing_ok=True)
     app.console.print("Server stopped!")
 
 
@@ -695,10 +694,10 @@ def start_services(
     ),
 ):
     """Start all enabled Prefect services in one process."""
-    PID_FILE.parent.mkdir(parents=True, exist_ok=True)
+    SERVICES_PID_FILE.parent.mkdir(parents=True, exist_ok=True)
 
-    if PID_FILE.exists():
-        pid = _read_pid_file(PID_FILE)
+    if SERVICES_PID_FILE.exists():
+        pid = _read_pid_file(SERVICES_PID_FILE)
         if pid is not None and _is_process_running(pid):
             app.console.print(
                 "\n[yellow]Services are already running in the background.[/]"
@@ -707,7 +706,7 @@ def start_services(
             raise typer.Exit(code=1)
         else:
             # Stale or invalid file
-            _cleanup_pid_file(PID_FILE)
+            _cleanup_pid_file(SERVICES_PID_FILE)
 
     if not (enabled_services := _get_enabled_services()):
         app.console.print("[red]No services are enabled![/]")
@@ -743,7 +742,7 @@ def start_services(
         app.console.print("[red]Failed to start services in the background![/]")
         raise typer.Exit(code=1)
 
-    _write_pid_file(PID_FILE, process.pid)
+    _write_pid_file(SERVICES_PID_FILE, process.pid)
     app.console.print(
         "\n[green]Services are running in the background.[/]"
         "\n[blue]Use[/] [yellow]`prefect server services stop`[/] [blue]to stop them.[/]"
@@ -754,18 +753,18 @@ def start_services(
 async def stop_services():
     """Stop any background Prefect services that were started."""
 
-    if not PID_FILE.exists():
+    if not SERVICES_PID_FILE.exists():
         app.console.print("No services are running in the background.")
         raise typer.Exit()
 
-    if (pid := _read_pid_file(PID_FILE)) is None:
-        _cleanup_pid_file(PID_FILE)
+    if (pid := _read_pid_file(SERVICES_PID_FILE)) is None:
+        _cleanup_pid_file(SERVICES_PID_FILE)
         app.console.print("No valid PID file found.")
         raise typer.Exit()
 
     if not _is_process_running(pid):
         app.console.print("[yellow]Services were not running[/]")
-        _cleanup_pid_file(PID_FILE)
+        _cleanup_pid_file(SERVICES_PID_FILE)
         return
 
     app.console.print("\n[yellow]Shutting down...[/]")
@@ -785,5 +784,5 @@ async def stop_services():
             break
         await asyncio.sleep(1)
 
-    _cleanup_pid_file(PID_FILE)
+    _cleanup_pid_file(SERVICES_PID_FILE)
     app.console.print("\n[green]All services stopped.[/]")

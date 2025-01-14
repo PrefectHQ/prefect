@@ -5,6 +5,8 @@ import socket
 import sys
 import tempfile
 from collections.abc import AsyncIterator
+from pathlib import Path
+from typing import Callable
 
 import anyio
 import httpx
@@ -13,7 +15,6 @@ import readchar
 from anyio.abc import Process
 from typer import Exit
 
-from prefect.cli.server import PID_FILE
 from prefect.context import get_settings_context
 from prefect.settings import (
     PREFECT_API_URL,
@@ -104,7 +105,7 @@ async def start_server_process() -> AsyncIterator[Process]:
 
 
 class TestBackgroundServer:
-    def test_start_and_stop_background_server(self, unused_tcp_port):
+    def test_start_and_stop_background_server(self, unused_tcp_port: int):
         invoke_and_assert(
             command=[
                 "server",
@@ -133,7 +134,9 @@ class TestBackgroundServer:
             PREFECT_HOME.value() / "server.pid"
         ).exists(), "Server PID file exists"
 
-    def test_start_duplicate_background_server(self, unused_tcp_port_factory):
+    def test_start_duplicate_background_server(
+        self, unused_tcp_port_factory: Callable[[], int]
+    ):
         port_1 = unused_tcp_port_factory()
         invoke_and_assert(
             command=[
@@ -169,7 +172,7 @@ class TestBackgroundServer:
             expected_code=0,
         )
 
-    def test_start_port_in_use(self, unused_tcp_port):
+    def test_start_port_in_use(self, unused_tcp_port: int):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.bind(("127.0.0.1", unused_tcp_port))
             invoke_and_assert(
@@ -184,8 +187,8 @@ class TestBackgroundServer:
                 expected_code=1,
             )
 
-    def test_start_port_in_use_by_background_server(self, unused_tcp_port):
-        pid_file = PREFECT_HOME.value() / PID_FILE
+    def test_start_port_in_use_by_background_server(self, unused_tcp_port: int):
+        pid_file = Path(PREFECT_HOME.value()) / "server.pid"
         pid_file.write_text("99999")
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.bind(("127.0.0.1", unused_tcp_port))
@@ -202,8 +205,8 @@ class TestBackgroundServer:
                 expected_code=1,
             )
 
-    def test_stop_stale_pid_file(self, unused_tcp_port):
-        pid_file = PREFECT_HOME.value() / PID_FILE
+    def test_stop_stale_pid_file(self, unused_tcp_port: int):
+        pid_file = Path(PREFECT_HOME.value()) / "server.pid"
         pid_file.write_text("99999")
 
         invoke_and_assert(
@@ -310,7 +313,7 @@ class TestPrestartCheck:
         monkeypatch.setattr("readchar._posix_read.readchar", readchar)
 
     @pytest.fixture(autouse=True)
-    def temporary_profiles_path(self, tmp_path):
+    def temporary_profiles_path(self, tmp_path: Path):
         path = tmp_path / "profiles.toml"
         with temporary_settings({PREFECT_PROFILES_PATH: path}):
             save_profiles(
