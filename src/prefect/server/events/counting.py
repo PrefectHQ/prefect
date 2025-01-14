@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import math
 from datetime import timedelta
 from typing import TYPE_CHECKING, Generator
