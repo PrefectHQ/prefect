@@ -1,7 +1,17 @@
 import abc
 from textwrap import dedent
 from types import TracebackType
-from typing import Any, ClassVar, Dict, List, Optional, Tuple, Type, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    ClassVar,
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+)
 from uuid import UUID
 
 import httpx
@@ -16,7 +26,10 @@ from prefect.server.events.schemas.events import (
     ResourceSpecification,
 )
 
-logger = get_logger(__name__)
+if TYPE_CHECKING:
+    import logging
+
+logger: "logging.Logger" = get_logger(__name__)
 
 LabelValue: TypeAlias = Union[str, List[str]]
 
@@ -111,7 +124,7 @@ class AssertingEventsClient(EventsClient):
         resource: Optional[Dict[str, LabelValue]] = None,
         related: Optional[List[Dict[str, LabelValue]]] = None,
         payload: Optional[Dict[str, Any]] = None,
-    ):
+    ) -> None:
         """Assert that an event was emitted containing the given properties."""
         assert cls.last is not None and cls.all, "No event client was created"
 
@@ -185,7 +198,7 @@ class AssertingEventsClient(EventsClient):
         resource: Optional[Dict[str, LabelValue]] = None,
         related: Optional[List[Dict[str, LabelValue]]] = None,
         payload: Optional[Dict[str, Any]] = None,
-    ):
+    ) -> None:
         try:
             cls.assert_emitted_event_with(event, resource, related, payload)
         except AssertionError:
@@ -218,7 +231,7 @@ class PrefectServerEventsClient(EventsClient):
                 "context manager"
             )
         received_event = event.receive()
-        await self._publisher.publish_event(event)
+        await self._publisher.publish_event(received_event)
         return received_event
 
 
