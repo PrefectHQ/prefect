@@ -662,7 +662,7 @@ def run_manager_process():
     except KeyboardInterrupt:
         pass
     finally:
-        logger.info("Manager process has exited.")
+        logger.debug("Manager process has exited.")
 
 
 # public, user-facing `prefect server services` commands
