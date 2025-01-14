@@ -53,9 +53,9 @@
       "group": "Get started",
       "pages": [
         "v3/get-started/index",
-        "v3/get-started/whats-new-prefect-3",
+        "v3/get-started/quickstart",
         "v3/get-started/install",
-        "v3/get-started/quickstart"
+        "v3/get-started/whats-new-prefect-3"
       ],
       "version": "v3"
     },
@@ -101,7 +101,8 @@
             "v3/develop/visualize-flow-structure",
             "v3/develop/big-data",
             "v3/develop/cli-shell",
-            "v3/develop/secrets"
+            "v3/develop/secrets",
+            "v3/develop/test-workflows"
           ],
           "version": "v3"
         },
@@ -145,8 +146,7 @@
             "v3/develop/settings-and-profiles",
             "v3/develop/settings-ref"
           ]
-        },
-        "v3/develop/test-workflows"
+        }
       ],
       "version": "v3"
     },
@@ -156,7 +156,7 @@
         "v3/deploy/index",
         "v3/deploy/run-flows-in-local-processes",
         {
-          "group": "Run flows on dynamic infrastructure",
+          "group": "Run on dynamic infrastructure",
           "pages": [
             "v3/deploy/infrastructure-concepts/work-pools",
             "v3/deploy/infrastructure-concepts/workers",
@@ -169,18 +169,12 @@
           "version": "v3"
         },
         {
-          "group": "Dynamic infrastructure examples",
+          "group": "Infrastructure examples",
           "pages": [
             "v3/deploy/infrastructure-examples/managed",
             "v3/deploy/infrastructure-examples/serverless",
             "v3/deploy/infrastructure-examples/docker",
-            "v3/deploy/infrastructure-examples/kubernetes"
-          ],
-          "version": "v3"
-        },
-        {
-          "group": "Static infrastructure examples",
-          "pages": [
+            "v3/deploy/infrastructure-examples/kubernetes",
             "v3/deploy/static-infrastructure-examples/docker"
           ],
           "version": "v3"
@@ -194,10 +188,16 @@
       "pages": [
         "v3/automate/index",
         "v3/automate/add-schedules",
-        "v3/automate/events/events",
-        "v3/automate/events/automations-triggers",
-        "v3/automate/events/custom-triggers",
-        "v3/automate/events/webhook-triggers"
+        {
+          "group": "Prefect events",
+          "pages": [
+            "v3/automate/events/events",
+            "v3/automate/events/automations-triggers",
+            "v3/automate/events/custom-triggers",
+            "v3/automate/events/webhook-triggers"
+          ],
+          "version": "v3"
+        }
       ],
       "version": "v3"
     },
@@ -232,15 +232,15 @@
           ],
           "version": "v3"
         },
-        "v3/manage/self-host"
-      ],
-      "version": "v3"
-    },
-    {
-      "group": "Migrate",
-      "pages": [
-        "v3/resources/upgrade-to-prefect-3",
+        "v3/manage/self-host",
+        {
+          "group": "Migrate",
+          "pages": [
+            "v3/resources/upgrade-to-prefect-3",
         "v3/resources/upgrade-agents-to-workers"
+          ],
+          "version": "v3"
+        }
       ],
       "version": "v3"
     },
