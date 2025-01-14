@@ -160,7 +160,7 @@ class LoopService:
                 the service may still be running a final loop.
 
         """
-        self.logger.info(f"Stopping {self.name}...")
+        self.logger.debug(f"Stopping {self.name}...")
         self._stop()
 
         if block:
