@@ -599,7 +599,7 @@ async def _run_services(
     for service in services:
         task = asyncio.create_task(service.start())
         tasks.append((task, service))
-        logger.info(f"Started service: {service.name}")
+        logger.debug(f"Started service: {service.name}")
 
     try:
         await asyncio.gather(*(t for t, _ in tasks))
