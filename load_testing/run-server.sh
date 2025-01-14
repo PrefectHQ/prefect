@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 DB_TYPE=${1:-sqlite}  # Default to sqlite if no argument provided
+NO_SERVICES=${2:-false}  # Default to false if no argument provided
 
 # Function to start postgres container
 start_postgres() {
@@ -65,13 +66,14 @@ if [[ $DB_TYPE == sqlite ]]; then
 elif [[ $DB_TYPE == postgres:* ]]; then
     PG_VERSION=${DB_TYPE#postgres:}
     start_postgres $PG_VERSION
-    export PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://postgres:yourTopSecretPassword@localhost:5432/prefect"
+    prefect config set PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://postgres:yourTopSecretPassword@localhost:5432/prefect"
 else
     echo "Invalid database type. Use 'sqlite' or 'postgres:<version>'"
     exit 1
 fi
 
 PREFECT_API_URL=http://localhost:4200/api \
+PREFECT__SERVER_WEBSERVER_ONLY=$NO_SERVICES \
 OTEL_SERVICE_NAME=prefect-server \
 OTEL_TRACES_EXPORTER=otlp \
 OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317 \
