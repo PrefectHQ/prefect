@@ -83,11 +83,13 @@ To set a flow to run on a schedule, you need to create a deployment.
          entrypoint="my_workflow.py:show_stars", # Specific flow to run
       ).deploy(
          name="my-first-deployment",
-         parameters={"github_repos": [
-               "PrefectHQ/prefect",
-               "pydantic/pydantic",
-               "huggingface/transformers"
-         ]},
+        parameters={
+            "github_repos": [
+                "PrefectHQ/prefect",
+                "pydantic/pydantic",
+                "huggingface/transformers",
+            ]
+        },
          work_pool_name="my-work-pool",
          cron="0 * * * *",  # Run every hour
       )
