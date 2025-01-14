@@ -3249,7 +3249,7 @@ export interface components {
              * Trigger
              * @description The criteria for which events this Automation covers and how it will respond to the presence or absence of those events
              */
-            trigger: components["schemas"]["EventTrigger"] | components["schemas"]["CompoundTrigger-Output"] | components["schemas"]["SequenceTrigger-Output"] | components["schemas"]["CompositeTrigger-Output"];
+            trigger: components["schemas"]["EventTrigger"] | components["schemas"]["CompoundTrigger-Output"] | components["schemas"]["SequenceTrigger-Output"];
             /**
              * Actions
              * @description The actions to perform when this Automation triggers
@@ -3298,7 +3298,7 @@ export interface components {
              * Trigger
              * @description The criteria for which events this Automation covers and how it will respond to the presence or absence of those events
              */
-            trigger: components["schemas"]["EventTrigger"] | components["schemas"]["CompoundTrigger-Input"] | components["schemas"]["SequenceTrigger-Input"] | components["schemas"]["CompositeTrigger-Input"];
+            trigger: components["schemas"]["EventTrigger"] | components["schemas"]["CompoundTrigger-Input"] | components["schemas"]["SequenceTrigger-Input"];
             /**
              * Actions
              * @description The actions to perform when this Automation triggers
@@ -3392,7 +3392,7 @@ export interface components {
              * Trigger
              * @description The criteria for which events this Automation covers and how it will respond to the presence or absence of those events
              */
-            trigger: components["schemas"]["EventTrigger"] | components["schemas"]["CompoundTrigger-Input"] | components["schemas"]["SequenceTrigger-Input"] | components["schemas"]["CompositeTrigger-Input"];
+            trigger: components["schemas"]["EventTrigger"] | components["schemas"]["CompoundTrigger-Input"] | components["schemas"]["SequenceTrigger-Input"];
             /**
              * Actions
              * @description The actions to perform when this Automation triggers
@@ -4797,48 +4797,6 @@ export interface components {
             message?: string | null;
         };
         /**
-         * CompositeTrigger
-         * @description Requires some number of triggers to have fired within the given time period.
-         */
-        "CompositeTrigger-Input": {
-            /**
-             * Type
-             * @enum {string}
-             */
-            type: "compound" | "sequence";
-            /**
-             * Id
-             * Format: uuid
-             * @description The unique ID of this trigger
-             */
-            id?: string;
-            /** Triggers */
-            triggers: (components["schemas"]["EventTrigger"] | components["schemas"]["CompoundTrigger-Input"] | components["schemas"]["SequenceTrigger-Input"] | components["schemas"]["CompositeTrigger-Input"])[];
-            /** Within */
-            within: number | null;
-        };
-        /**
-         * CompositeTrigger
-         * @description Requires some number of triggers to have fired within the given time period.
-         */
-        "CompositeTrigger-Output": {
-            /**
-             * Type
-             * @enum {string}
-             */
-            type: "compound" | "sequence";
-            /**
-             * Id
-             * Format: uuid
-             * @description The unique ID of this trigger
-             */
-            id?: string;
-            /** Triggers */
-            triggers: (components["schemas"]["EventTrigger"] | components["schemas"]["CompoundTrigger-Output"] | components["schemas"]["SequenceTrigger-Output"] | components["schemas"]["CompositeTrigger-Output"])[];
-            /** Within */
-            within: number | null;
-        };
-        /**
          * CompoundTrigger
          * @description A composite trigger that requires some number of triggers to have
          *     fired within the given time period
@@ -4857,7 +4815,7 @@ export interface components {
              */
             id?: string;
             /** Triggers */
-            triggers: (components["schemas"]["EventTrigger"] | components["schemas"]["CompoundTrigger-Input"] | components["schemas"]["SequenceTrigger-Input"] | components["schemas"]["CompositeTrigger-Input"])[];
+            triggers: (components["schemas"]["EventTrigger"] | components["schemas"]["CompoundTrigger-Input"] | components["schemas"]["SequenceTrigger-Input"])[];
             /** Within */
             within: number | null;
             /** Require */
@@ -4882,7 +4840,7 @@ export interface components {
              */
             id?: string;
             /** Triggers */
-            triggers: (components["schemas"]["EventTrigger"] | components["schemas"]["CompoundTrigger-Output"] | components["schemas"]["SequenceTrigger-Output"] | components["schemas"]["CompositeTrigger-Output"])[];
+            triggers: (components["schemas"]["EventTrigger"] | components["schemas"]["CompoundTrigger-Output"] | components["schemas"]["SequenceTrigger-Output"])[];
             /** Within */
             within: number | null;
             /** Require */
@@ -8114,7 +8072,7 @@ export interface components {
              */
             id?: string;
             /** Triggers */
-            triggers: (components["schemas"]["EventTrigger"] | components["schemas"]["CompoundTrigger-Input"] | components["schemas"]["SequenceTrigger-Input"] | components["schemas"]["CompositeTrigger-Input"])[];
+            triggers: (components["schemas"]["EventTrigger"] | components["schemas"]["CompoundTrigger-Input"] | components["schemas"]["SequenceTrigger-Input"])[];
             /** Within */
             within: number | null;
         };
@@ -8137,7 +8095,7 @@ export interface components {
              */
             id?: string;
             /** Triggers */
-            triggers: (components["schemas"]["EventTrigger"] | components["schemas"]["CompoundTrigger-Output"] | components["schemas"]["SequenceTrigger-Output"] | components["schemas"]["CompositeTrigger-Output"])[];
+            triggers: (components["schemas"]["EventTrigger"] | components["schemas"]["CompoundTrigger-Output"] | components["schemas"]["SequenceTrigger-Output"])[];
             /** Within */
             within: number | null;
         };

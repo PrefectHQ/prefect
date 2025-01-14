@@ -20,7 +20,6 @@ export const Default: Story = {
 		title: "Delete Item",
 		description:
 			"Are you sure you want to delete this item? This action cannot be undone.",
-		itemName: "Item",
 		onConfirm: fn(),
 		onClose: fn(),
 	},
@@ -32,7 +31,6 @@ export const WithCustomText: Story = {
 		title: "Delete User Account",
 		description:
 			"This will permanently delete the user account and all associated data. This action is irreversible.",
-		itemName: "User Account",
 		onConfirm: fn(),
 		onClose: fn(),
 	},

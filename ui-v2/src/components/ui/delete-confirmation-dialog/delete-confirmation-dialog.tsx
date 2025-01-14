@@ -9,11 +9,10 @@ import {
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-type DeleteConfirmationDialogProps = {
+export type DeleteConfirmationDialogProps = {
 	isOpen: boolean;
 	title: string;
 	description: string;
-	itemName: string;
 	onConfirm: () => void;
 	onClose: () => void;
 };
@@ -22,7 +21,6 @@ export const DeleteConfirmationDialog = ({
 	isOpen,
 	title,
 	description,
-	itemName,
 	onConfirm,
 	onClose,
 }: DeleteConfirmationDialogProps) => (
@@ -41,7 +39,7 @@ export const DeleteConfirmationDialog = ({
 						onClose();
 					}}
 				>
-					Delete {itemName}
+					Delete
 				</AlertDialogAction>
 			</AlertDialogFooter>
 		</AlertDialogContent>

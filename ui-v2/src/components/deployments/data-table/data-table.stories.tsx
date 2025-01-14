@@ -59,7 +59,6 @@ export const Default: StoryObj<StoryArgs> = {
 		onQuickRun: fn(),
 		onCustomRun: fn(),
 		onEdit: fn(),
-		onDelete: fn(),
 		onDuplicate: fn(),
 	},
 	render: (
