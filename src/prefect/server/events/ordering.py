@@ -8,6 +8,7 @@ from collections import defaultdict
 from contextlib import asynccontextmanager
 from datetime import timedelta
 from typing import (
+    TYPE_CHECKING,
     List,
     Mapping,
     MutableMapping,
@@ -24,7 +25,10 @@ from prefect.logging import get_logger
 from prefect.server.database import PrefectDBInterface, db_injector
 from prefect.server.events.schemas.events import Event, ReceivedEvent
 
-logger = get_logger(__name__)
+if TYPE_CHECKING:
+    import logging
+
+logger: "logging.Logger" = get_logger(__name__)
 
 # How long we'll retain preceding events (to aid with ordering)
 PRECEDING_EVENT_LOOKBACK = timedelta(minutes=15)
@@ -50,7 +54,7 @@ class MaxDepthExceeded(Exception):
 
 
 class event_handler(Protocol):
-    async def __call__(self, event: ReceivedEvent, depth: int = 0):
+    async def __call__(self, event: ReceivedEvent, depth: int = 0) -> None:
         ...  # pragma: no cover
 
 

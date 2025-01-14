@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import math
 from datetime import timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Generator
 
 import pendulum
 import sqlalchemy as sa
@@ -34,7 +36,7 @@ class TimeUnit(AutoEnum):
     minute = AutoEnum.auto()
     second = AutoEnum.auto()
 
-    def as_timedelta(self, interval) -> pendulum.Duration:
+    def as_timedelta(self, interval: float) -> pendulum.Duration:
         if self == self.week:
             return pendulum.Duration(days=7 * interval)
         elif self == self.day:
@@ -50,7 +52,7 @@ class TimeUnit(AutoEnum):
 
     def validate_buckets(
         self, start_datetime: DateTime, end_datetime: DateTime, interval: float
-    ):
+    ) -> None:
         MAX_ALLOWED_BUCKETS = 1000
 
         delta = self.as_timedelta(interval)
@@ -73,7 +75,7 @@ class TimeUnit(AutoEnum):
         start_datetime: DateTime,
         end_datetime: DateTime,
         interval: float,
-    ):
+    ) -> Generator[int | tuple[pendulum.DateTime, pendulum.DateTime], None, None]:
         """Divide the given range of dates into evenly-sized spans of interval units"""
         self.validate_buckets(start_datetime, end_datetime, interval)
 
@@ -100,7 +102,7 @@ class TimeUnit(AutoEnum):
             yield (span_start, next_span_start - timedelta(microseconds=1))
             span_start = next_span_start
 
-    def database_value_expression(self, time_interval: float):
+    def database_value_expression(self, time_interval: float) -> sa.Cast[str]:
         """Returns the SQL expression to place an event in a time bucket"""
         # The date_bin function can do the bucketing for us:
         # https://www.postgresql.org/docs/14/functions-datetime.html#FUNCTIONS-DATETIME-BIN
@@ -135,7 +137,9 @@ class TimeUnit(AutoEnum):
         else:
             raise NotImplementedError(f"Dialect {db.dialect.name} is not supported.")
 
-    def database_label_expression(self, db: PrefectDBInterface, time_interval: float):
+    def database_label_expression(
+        self, db: PrefectDBInterface, time_interval: float
+    ) -> sa.Function[str]:
         """Returns the SQL expression to label a time bucket"""
         time_delta = self.as_timedelta(time_interval)
         if db.dialect.name == "postgresql":
@@ -176,7 +180,7 @@ class Countable(AutoEnum):
         filter: "EventFilter",
         time_unit: TimeUnit,
         time_interval: float,
-    ) -> Select:
+    ) -> Select[tuple[str, str, DateTime, DateTime, int]]:
         db = provide_database_interface()
         # The innermost SELECT pulls the matching events and groups them up by their
         # buckets.  At this point, there may be duplicate buckets for each value, since

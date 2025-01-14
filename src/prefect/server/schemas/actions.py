@@ -597,7 +597,7 @@ class DeploymentFlowRunCreate(ActionBaseModel):
 
     @field_validator("name", mode="before")
     @classmethod
-    def set_name(cls, name):
+    def set_name(cls, name: str) -> str:
         return get_or_create_run_name(name)
 
 
