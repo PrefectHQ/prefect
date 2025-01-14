@@ -1,12 +1,20 @@
 ---
 title: Quickstart
-description: Get started with Prefect, the easiest way to orchestrate and observe your data pipelines
+description: Convert a Python script into your first Prefect workflow
 ---
 
 import Installation from '/snippets/installation.mdx'
 
-Prefect is an orchestration and observability platform that empowers developers to build and scale workflows quickly.
-In this quickstart, you will use Prefect to convert the following Python script to a deployable workflow.
+Prefect makes it easy to deploy Python scripts, run them on a schedule, make them robust to failure, and observe them in a UI.
+
+To do this, you need to perform the following tasks:
+
+1. Install Prefect
+2. Connect to a Prefect API (self-hosted or Prefect Cloud)
+3. Add decorators to the functions in the script
+
+Let's start with a Python script that fetches the number of stars for a list of GitHub repositories.
+
 
 ```python my_script.py
 import httpx
@@ -14,7 +22,6 @@ import httpx
 
 def show_stars(github_repos: list[str]):
     """Show the number of stars that GitHub repos have"""
-
     for repo in github_repos:
         repo_stats = fetch_stats(repo)
         stars = get_stars(repo_stats)
@@ -23,13 +30,11 @@ def show_stars(github_repos: list[str]):
 
 def fetch_stats(github_repo: str):
     """Fetch the statistics for a GitHub repo"""
-
     return httpx.get(f"https://api.github.com/repos/{github_repo}").json()
 
 
 def get_stars(repo_stats: dict):
     """Get the number of stars from GitHub repo statistics"""
-
     return repo_stats['stargazers_count']
 
 
@@ -51,18 +56,7 @@ See [Install Prefect](/v3/get-started/install/) for more details on installation
 
 ## Connect to a Prefect API
 
-Connect to a Prefect API:
-
 <Tabs>
-  <Tab title="Self-hosted">
-1. Start a local API server:
-
-   ```bash
-   prefect server start
-   ```
-
-1. Open the Prefect dashboard in your browser at [http://localhost:4200](http://localhost:4200).
-  </Tab>
   <Tab title="Prefect Cloud">
 1. Head to [https://app.prefect.cloud/](https://app.prefect.cloud/) and sign in or create a free Prefect Cloud account.
 1. Log in to Prefect Cloud from your development environment:
@@ -77,6 +71,15 @@ Your CLI is now authenticated with your Prefect Cloud account through a locally 
 
 If you have any issues with browser-based authentication, you can [authenticate with a manually created API key](/v3/manage/cloud/manage-users/api-keys/) instead.
   </Tab>
+  <Tab title="Self-hosted">
+1. Start a local API server:
+
+   ```bash
+   prefect server start
+   ```
+
+1. Open the Prefect dashboard in your browser at [http://localhost:4200](http://localhost:4200).
+  </Tab>
 </Tabs>
 
 ## Convert your script to a Prefect workflow
@@ -84,11 +87,11 @@ If you have any issues with browser-based authentication, you can [authenticate 
 Decorators are the easiest way to convert a Python script into a workflow.
 
 1. Add a `@flow` decorator to the script's entrypoint.
-1. Add `@task` decorators to any methods called by the flow.
+1. Add `@task` decorators to any functions called by the flow.
 
 This will create a [flow](/v3/develop/write-flows/) and corresponding [tasks](/v3/develop/write-tasks/). 
 Tasks receive metadata about upstream dependencies and the state of those dependencies before they run.
-Prefect records these dependencies and states as it orchestrates these tasks.
+Prefect records these dependencies and states as it orchestrates tasks.
 
 ```python my_workflow.py
 import httpx
@@ -99,7 +102,6 @@ from prefect import flow, task # Prefect flow and task decorators
 @flow(log_prints=True)
 def show_stars(github_repos: list[str]):
     """Flow: Show the number of stars that GitHub repos have"""
-
     for repo in github_repos:
         # Call Task 1
         repo_stats = fetch_stats(repo)
@@ -114,14 +116,12 @@ def show_stars(github_repos: list[str]):
 @task
 def fetch_stats(github_repo: str):
     """Task 1: Fetch the statistics for a GitHub repo"""
-
     return httpx.get(f"https://api.github.com/repos/{github_repo}").json()
 
 
 @task
 def get_stars(repo_stats: dict):
     """Task 2: Get the number of stars from GitHub repo statistics"""
-
     return repo_stats['stargazers_count']
 
 

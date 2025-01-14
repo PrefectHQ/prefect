@@ -2,17 +2,22 @@
 The base class for all Prefect REST API loop services.
 """
 
+from __future__ import annotations
+
 import asyncio
 import signal
-from typing import List, Optional
+from operator import methodcaller
+from typing import TYPE_CHECKING, Any, List, NoReturn, Optional, overload
 
 import anyio
 import pendulum
 
 from prefect.logging import get_logger
-from prefect.server.database import PrefectDBInterface, inject_db
 from prefect.settings import PREFECT_API_LOG_RETRYABLE_ERRORS
 from prefect.utilities.processutils import _register_signal
+
+if TYPE_CHECKING:
+    import logging
 
 
 class LoopService:
@@ -36,18 +41,21 @@ class LoopService:
                 gracefully intercepted and shut down the running service.
         """
         if loop_seconds:
-            self.loop_seconds = loop_seconds  # seconds between runs
-        self._should_stop = False  # flag for whether the service should stop running
-        self._is_running = False  # flag for whether the service is running
-        self.name = type(self).__name__
-        self.logger = get_logger(f"server.services.{self.name.lower()}")
+            self.loop_seconds: float = loop_seconds  # seconds between runs
+        self._should_stop: bool = (
+            False  # flag for whether the service should stop running
+        )
+        self._is_running: bool = False  # flag for whether the service is running
+        self.name: str = type(self).__name__
+        self.logger: "logging.Logger" = get_logger(
+            f"server.services.{self.name.lower()}"
+        )
 
         if handle_signals:
             _register_signal(signal.SIGINT, self._stop)
             _register_signal(signal.SIGTERM, self._stop)
 
-    @inject_db
-    async def _on_start(self, db: PrefectDBInterface) -> None:
+    async def _on_start(self) -> None:
         """
         Called prior to running the service
         """
@@ -63,7 +71,15 @@ class LoopService:
         # reset the _is_running flag
         self._is_running = False
 
-    async def start(self, loops=None) -> None:
+    @overload
+    async def start(self, loops: None = None) -> NoReturn:
+        ...
+
+    @overload
+    async def start(self, loops: int) -> None:
+        ...
+
+    async def start(self, loops: int | None = None) -> None | NoReturn:
         """
         Run the service `loops` time. Pass loops=None to run forever.
 
@@ -130,7 +146,7 @@ class LoopService:
 
         await self._on_stop()
 
-    async def stop(self, block=True) -> None:
+    async def stop(self, block: bool = True) -> None:
         """
         Gracefully stops a running LoopService and optionally blocks until the
         service stops.
@@ -159,7 +175,7 @@ class LoopService:
                     " inside the loop service, use `stop(block=False)` instead."
                 )
 
-    def _stop(self, *_) -> None:
+    def _stop(self, *_: Any) -> None:
         """
         Private, synchronous method for setting the `_should_stop` flag. Takes arbitrary
         arguments so it can be used as a signal handler.
@@ -179,15 +195,16 @@ class LoopService:
         raise NotImplementedError("LoopService subclasses must implement this method.")
 
 
-async def run_multiple_services(loop_services: List[LoopService]):
+async def run_multiple_services(loop_services: List[LoopService]) -> NoReturn:
     """
     Only one signal handler can be active at a time, so this function takes a list
     of loop services and runs all of them with a global signal handler.
     """
 
-    def stop_all_services(self, *_):
+    def stop_all_services(*_: Any) -> None:
         for service in loop_services:
-            service._stop()
+            stop = methodcaller("_stop")
+            stop(service)
 
     signal.signal(signal.SIGINT, stop_all_services)
     signal.signal(signal.SIGTERM, stop_all_services)

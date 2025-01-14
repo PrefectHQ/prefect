@@ -19508,7 +19508,9 @@
                     "pause_keys": {
                         "anyOf": [
                             {
-                                "items": {},
+                                "items": {
+                                    "type": "string"
+                                },
                                 "type": "array",
                                 "uniqueItems": true
                             },

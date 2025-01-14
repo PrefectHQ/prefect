@@ -5,14 +5,15 @@ The Telemetry service.
 import asyncio
 import os
 import platform
-from typing import Optional
+from typing import Any, Optional
 from uuid import uuid4
 
 import httpx
 import pendulum
 
 import prefect
-from prefect.server.database import PrefectDBInterface, inject_db
+from prefect.server.database import PrefectDBInterface
+from prefect.server.database.dependencies import db_injector
 from prefect.server.models import configuration
 from prefect.server.schemas.core import Configuration
 from prefect.server.services.loop_service import LoopService
@@ -25,15 +26,15 @@ class Telemetry(LoopService):
     improve. It can be toggled off with the PREFECT_SERVER_ANALYTICS_ENABLED setting.
     """
 
-    loop_seconds: int = 600
+    loop_seconds: float = 600
 
-    def __init__(self, loop_seconds: Optional[int] = None, **kwargs):
+    def __init__(self, loop_seconds: Optional[int] = None, **kwargs: Any):
         super().__init__(loop_seconds=loop_seconds, **kwargs)
-        self.telemetry_environment = os.environ.get(
+        self.telemetry_environment: str = os.environ.get(
             "PREFECT_API_TELEMETRY_ENVIRONMENT", "production"
         )
 
-    @inject_db
+    @db_injector
     async def _fetch_or_set_telemetry_session(self, db: PrefectDBInterface):
         """
         This method looks for a telemetry session in the configuration table. If there
@@ -66,8 +67,8 @@ class Telemetry(LoopService):
                 self.session_start_timestamp = session_start_timestamp
             else:
                 self.logger.debug("Session information retrieved from database")
-                self.session_id = telemetry_session.value["session_id"]
-                self.session_start_timestamp = telemetry_session.value[
+                self.session_id: str = telemetry_session.value["session_id"]
+                self.session_start_timestamp: str = telemetry_session.value[
                     "session_start_timestamp"
                 ]
         self.logger.debug(
@@ -75,7 +76,7 @@ class Telemetry(LoopService):
         )
         return (self.session_start_timestamp, self.session_id)
 
-    async def run_once(self):
+    async def run_once(self) -> None:
         """
         Sends a heartbeat to the sens-o-matic
         """
