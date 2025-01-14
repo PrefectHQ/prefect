@@ -120,7 +120,7 @@ def get_default_result_storage() -> WritableFileSystem:
         return _default_storages[cache_key]
 
     if default_block is not None:
-        storage = resolve_result_storage(default_block)
+        storage = resolve_result_storage(default_block, _sync=True)
         if TYPE_CHECKING:
             assert isinstance(storage, WritableFileSystem)
     else:
@@ -184,7 +184,7 @@ def resolve_result_storage(
     elif isinstance(result_storage, Path):
         storage_block = LocalFileSystem(basepath=str(result_storage))
     elif isinstance(result_storage, str):
-        block = Block.load(result_storage)
+        block = Block.load(result_storage, _sync=True)
         if TYPE_CHECKING:
             assert isinstance(block, WritableFileSystem)
         storage_block = block
@@ -489,8 +489,6 @@ class ResultStore(BaseModel):
             except Exception:
                 return False
         else:
-            if self.result_storage is None:
-                self.result_storage = await aget_default_result_storage()
             try:
                 content = await _call_explicitly_async_block_method(
                     self.result_storage, "read_path", (key,), {}
@@ -972,8 +970,7 @@ class ResultStore(BaseModel):
                 serializer=self.serializer, storage_key=str(identifier)
             ),
         )
-        if self.result_storage is None:
-            self.result_storage = await aget_default_result_storage()
+
         await _call_explicitly_async_block_method(
             self.result_storage,
             "write_path",
