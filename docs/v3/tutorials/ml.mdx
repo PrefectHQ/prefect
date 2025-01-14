@@ -50,16 +50,16 @@ prefect cloud login
 
 ## Create a work pool
 
-Create a new Process work pool named `my-process-pool` in Prefect Cloud.
+Create a new Process work pool named `my-work-pool` in Prefect Cloud.
 
 ```bash
-prefect work-pool create my-process-pool --type process
+prefect work-pool create my-work-pool --type process
 ```
 
 Now, in a separate terminal, start a worker in that work pool.
 
 ```bash
-prefect worker start --pool my-process-pool
+prefect worker start --pool my-work-pool
 ```
 
 Leave this worker running for the rest of the tutorial.
