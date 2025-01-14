@@ -24,9 +24,11 @@ from prefect.server.utilities.database import get_dialect
 from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
 
 if TYPE_CHECKING:
+    import logging
+
     from prefect.server.database.orm_models import ORMEvent
 
-logger = get_logger(__name__)
+logger: "logging.Logger" = get_logger(__name__)
 
 
 @db_injector
@@ -292,12 +294,12 @@ def get_max_query_parameters() -> int:
 
 
 # Events require a fixed number of parameters per event,...
-def get_number_of_event_fields():
+def get_number_of_event_fields() -> int:
     return provide_database_interface().Event.__table__.columns.__len__()
 
 
 # ...plus a variable number of parameters per resource...
-def get_number_of_resource_fields():
+def get_number_of_resource_fields() -> int:
     return provide_database_interface().EventResource.__table__.columns.__len__()
 
 

@@ -17,15 +17,15 @@ class EventsPipeline:
             messages.append(message)
         return messages
 
-    async def process_events(self, events: list[Event]):
+    async def process_events(self, events: list[Event]) -> None:
         messages = self.events_to_messages(events)
         await self.process_messages(messages)
 
-    async def process_messages(self, messages: list[MemoryMessage]):
+    async def process_messages(self, messages: list[MemoryMessage]) -> None:
         for message in messages:
             await self.process_message(message)
 
-    async def process_message(self, message: MemoryMessage):
+    async def process_message(self, message: MemoryMessage) -> None:
         """Process a single event message"""
 
         # TODO: Investigate if we want to include triggers/actions etc.
