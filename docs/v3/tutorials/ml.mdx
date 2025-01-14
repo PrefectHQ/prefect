@@ -33,11 +33,13 @@ sequenceDiagram
 
 ## Prerequisites
 
-* A forever-free [Prefect Cloud account](https://app.prefect.cloud)
+* A forever-free [Prefect Cloud account](https://app.prefect.cloud) and an API key
 * The [Prefect SDK](/v3/get-started/install)
-* An AWS account with the service quotas to use an `ml.g4dn.xlarge` instance with SageMaker
+* An AWS account, including:
+  * The ability to create an `ml.g4dn.xlarge` instance with SageMaker.
+  * An access key with full access to S3 and SageMaker.
 
-## Set up Prefect Cloud resources
+## Set up resources
 
 This tutorial uses Prefect webhooks and automations to trigger the deployments responsible for model training and inference.
 
@@ -353,43 +355,56 @@ def run_inference(samples: list = [[5.0,3.4,1.5,0.2], [6.4,3.2,4.5,1.5], [7.2,3.
 ```
 </Expandable>
 
-### Create webhooks
+### Provision AWS resources and create webhooks
 
-In Prefect Cloud, go to **Configuration** > **Webhooks** to create the webhooks that will receive events from S3.
+This tutorial uses AWS S3 and EventBridge to store data and emit events, and Prefect webhooks to trigger your flows.
+We'll use Terraform so you don't have to manually provision these resources.
 
-#### Model training webhook
+Set the following environment variables:
 
-Create a webhook named `model-training`:
+```bash
+# Prefect auth
+export PREFECT_API_KEY=<Your Prefect API key>
+export PREFECT_API_URL=https://api.prefect.cloud
+export PREFECT_CLOUD_ACCOUNT_ID=<Your account ID>
 
-* Create a new service account named `s3` to enforce webhook authentication (save the API key somewhere safe)
-* Use the following static template:  
-```json
-{
-    "event": "webhook.called",
-    "resource": {
-        "prefect.resource.id": "webhook.resource.id"
-    }
-}
+# AWS auth
+export AWS_ACCESS_KEY_ID=<Your AWS access key ID>
+export AWS_SECRET_ACCESS_KEY=<Your AWS secret access key>
+export AWS_REGION=us-east-1
+
+# Terraform variables
+export TF_VAR_prefect_workspace_id=<Your workspace ID>
+export TF_VAR_data_bucket_name=prefect-ml-data # You may need to change this if the bucket name is already taken
+export TF_VAR_model_bucket_name=prefect-model  # ...
 ```
 
-Note the URL for this webhook, as you'll need it later.
+Switch to the `infra/` directory.
 
-#### Model inference webhook
-
-Create a webhook named `model-inference`:
-
-* You can use the same service account that you created for the model training webhook.
-* Use the following static template:  
-```json
-{
-    "event": "webhook.called",
-    "resource": {
-        "prefect.resource.id": "webhook.resource.id"
-    }
-}
+```bash
+cd infra/
 ```
 
-Note the URL for this webhook, as you'll need it later.
+Provision these resources with Terraform.
+
+```bash
+terraform init
+terraform apply
+```
+
+### Grant access to AWS resources
+
+Your Prefect flows need access to the AWS resources that you just provisioned.
+Create the following blocks in Prefect Cloud:
+
+* An **AWS Credentials** block named `aws-credentials`.
+Set the `AWS Access Key ID` and `AWS Access Key Secret` fields to the values from the access key you created earlier.
+* An **S3 Bucket** block named `s3-bucket-block`, set to the name of your model bucket (`prefect-model` by default).
+This block can use the `aws-credentials` block you created earlier.
+* A **Secret** block named `sagemaker-role-arn`.
+This block stores the IAM role ARN for SageMaker that you created earlier.
+
+Now, when you run your flows in Prefect Cloud, they can use these blocks to authenticate with AWS.
 
 ### Create automations
 
@@ -416,90 +431,6 @@ As before, you must move the `prefect.resource.id` section from the `match` to t
 * Trigger whenever you see that event 1 time within 1 minute (this ensures your model will train only once when a batch of files are uploaded).
 * Run the `run-inference > model-inference` deployment whenever this automation is triggered.
 * Name this automation `run-inference`.
-
-## Set up AWS resources
-
-This tutorial uses AWS S3, EventBridge, and SageMaker to do the heavy lifting of data storage and model training.
-
-### Create S3 buckets
-
-Your data and model will be stored in S3.
-
-* Create a `prefect-ml-data` bucket to store training and test data.
-* Create a `prefect-model` bucket to store the trained model.
-* Turn on EventBridge notifications for all events in these buckets.
-
-<Note>
-You may need to choose different S3 bucket names if they're already in use.
-</Note>
-
-### Create EventBridge rules
-
-The easiest way to send events from S3 to a Prefect Cloud webhook is with AWS EventBridge.
-
-#### Trigger training when training data changes
-
-Create an EventBridge rule named `training-data-changed` to trigger model training whenever a new object is uploaded to the `prefect-ml-data` bucket.
-
-* Event pattern:  
-```json
-{
-  "source": ["aws.s3"],
-  "detail-type": ["Object Created"],
-  "detail": {
-    "bucket": {
-      "name": ["prefect-ml-data"]
-    }
-  }
-}
-```
-* Target:  
-An EventBridge API destination named `model-training-webhook`, set to the endpoint for the `model-training` webhook that you created in Prefect Cloud.
-  * Use an HTTP POST method.
-  * To authenticate with the webhook, create a new Connection named `prefect-webhooks`, configure its authorization to use **API Key**, and set the **API key name** to `Authorization` and the **Value** to `Bearer <service-account-api-key>`.  
-    <Note>
-    The service account API key is the API key you created for the `s3` service account in Prefect Cloud.
-    </Note>
-
-#### Trigger inference when the model changes
-
-Create an EventBridge rule named `model-changed` to trigger model inference whenever a new object is uploaded to the `prefect-model` bucket.
-
-* Event pattern:  
-```json
-{
-  "source": ["aws.s3"],
-  "detail-type": ["Object Created"],
-  "detail": {
-    "bucket": {
-      "name": ["prefect-model"]
-    }
-  }
-}
-```
-* Target:  
-Create an EventBridge API destination named `model-inference-webhook`, set to the endpoint of the `model-inference` webhook that you created earlier.
-You can reuse the connection that you created for the `training-data-changed` rule.
-
-### Grant access to AWS resources
-
-Your Prefect flows need access to the AWS resources that you created.
-Create the following resources in AWS:
-
-* A new access key in your AWS account with permissions to read objects in your S3 buckets and create SageMaker sessions.
-The easiest way to do this is to create a new access key for your root account.
-* An IAM role named `prefect-tutorial` with the `Amazon SageMaker Full Access` and `Amazon S3 Full Access` policies. Note the role ARN, as you'll need this later.
-
-Next, create the following blocks in Prefect Cloud:
-
-* An **AWS Credentials** block named `aws-credentials`.
-Set the `AWS Access Key ID` and `AWS Access Key Secret` fields to the values from the access key you created earlier.
-* An **S3 Bucket** block named `s3-bucket-block`, set to the name of your model bucket (`prefect-model` by default).
-This block can use the `aws-credentials` block you created earlier.
-* A **Secret** block named `sagemaker-role-arn`.
-This block stores the IAM role ARN for SageMaker that you created earlier.
-
-Now, when you run your flows in Prefect Cloud, they can use these blocks to authenticate with AWS.
 
 ## Test the ML pipeline
 
