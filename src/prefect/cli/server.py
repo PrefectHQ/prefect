@@ -656,7 +656,7 @@ def run_manager_process():
         logger.error("No services are enabled! Exiting manager.")
         sys.exit(1)
 
-    logger.info("Manager process started. Starting services...")
+    logger.debug("Manager process started. Starting services...")
     try:
         asyncio.run(_run_services(enabled_services))
     except KeyboardInterrupt:
