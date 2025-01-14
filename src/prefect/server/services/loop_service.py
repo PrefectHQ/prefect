@@ -63,7 +63,7 @@ class LoopService:
         """
         self._should_stop = False
         self._is_running = True
-        self.logger.info(f"Starting {self.name}")
+        self.logger.debug(f"Starting {self.name}")
 
     async def _on_stop(self) -> None:
         """
