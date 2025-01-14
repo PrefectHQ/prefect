@@ -15,7 +15,6 @@ import sys
 import textwrap
 from pathlib import Path
 from types import ModuleType
-from typing import NamedTuple
 
 import anyio
 import anyio.abc
@@ -510,14 +509,6 @@ async def stamp(revision: str):
     app.console.print("Stamping database with revision ...")
     await run_sync_in_worker_thread(alembic_stamp, revision=revision)
     exit_with_success("Stamping database with revision succeeded!")
-
-
-class ServiceInfo(NamedTuple):
-    """Information about a discovered service and its configuration."""
-
-    name: str
-    setting: "prefect.settings.Setting"
-    enabled: bool
 
 
 def _get_service_settings() -> dict[str, "prefect.settings.Setting"]:
