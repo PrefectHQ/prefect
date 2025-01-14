@@ -15,6 +15,7 @@ import readchar
 from anyio.abc import Process
 from typer import Exit
 
+from prefect.cli.server import SERVER_PID_FILE_NAME
 from prefect.context import get_settings_context
 from prefect.settings import (
     PREFECT_API_URL,
@@ -188,7 +189,7 @@ class TestBackgroundServer:
             )
 
     def test_start_port_in_use_by_background_server(self, unused_tcp_port: int):
-        pid_file = Path(PREFECT_HOME.value()) / "server.pid"
+        pid_file = PREFECT_HOME.value() / SERVER_PID_FILE_NAME
         pid_file.write_text("99999")
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.bind(("127.0.0.1", unused_tcp_port))
@@ -206,7 +207,7 @@ class TestBackgroundServer:
             )
 
     def test_stop_stale_pid_file(self, unused_tcp_port: int):
-        pid_file = Path(PREFECT_HOME.value()) / "server.pid"
+        pid_file = PREFECT_HOME.value() / SERVER_PID_FILE_NAME
         pid_file.write_text("99999")
 
         invoke_and_assert(
@@ -295,7 +296,7 @@ class TestUvicornSignalForwarding:
 
 class TestPrestartCheck:
     @pytest.fixture(autouse=True)
-    def interactive_console(self, monkeypatch):
+    def interactive_console(self, monkeypatch: pytest.MonkeyPatch):
         monkeypatch.setattr("prefect.cli.server.is_interactive", lambda: True)
 
         # `readchar` does not like the fake stdin provided by typer isolation so we provide

@@ -60,7 +60,7 @@ app.add_typer(server_app)
 
 logger = get_logger(__name__)
 
-SERVER_PID_FILE = Path(PREFECT_HOME.value()) / "server.pid"
+SERVER_PID_FILE_NAME = "server.pid"
 SERVICES_PID_FILE = Path(PREFECT_HOME.value()) / "services.pid"
 
 
@@ -247,7 +247,7 @@ def start(
     if no_services:
         server_settings["PREFECT_SERVER_ANALYTICS_ENABLED"] = "False"
 
-    pid_file = SERVER_PID_FILE
+    pid_file = Path(PREFECT_HOME.value()) / SERVER_PID_FILE_NAME
     # check if port is already in use
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -357,7 +357,7 @@ def _run_in_foreground(
 @server_app.command()
 async def stop():
     """Stop a Prefect server instance running in the background"""
-    pid_file = SERVER_PID_FILE
+    pid_file = Path(PREFECT_HOME.value()) / SERVER_PID_FILE_NAME
     if not pid_file.exists():
         exit_with_success("No server running in the background.")
     pid = int(pid_file.read_text())
