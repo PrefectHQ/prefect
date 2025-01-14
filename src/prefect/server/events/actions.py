@@ -91,10 +91,12 @@ from prefect.utilities.schema_tools.hydration import (
 from prefect.utilities.text import truncated_to
 
 if TYPE_CHECKING:  # pragma: no cover
+    import logging
+
     from prefect.server.api.clients import OrchestrationClient
     from prefect.server.events.schemas.automations import TriggeredAction
 
-logger = get_logger(__name__)
+logger: "logging.Logger" = get_logger(__name__)
 
 
 class ActionFailed(Exception):
@@ -1681,7 +1683,7 @@ ServerActionTypes: TypeAlias = Union[
 _recent_actions: MutableMapping[UUID, bool] = TTLCache(maxsize=10000, ttl=3600)
 
 
-async def record_action_happening(id: UUID):
+async def record_action_happening(id: UUID) -> None:
     """Record that an action has happened, with an expiration of an hour."""
     _recent_actions[id] = True
 
