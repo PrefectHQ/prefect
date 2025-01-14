@@ -93,7 +93,7 @@ from prefect.events.related import tags_as_related_resources
 from prefect.events.schemas.events import RelatedResource
 from prefect.events.utilities import emit_event
 from prefect.exceptions import Abort, ObjectNotFound
-from prefect.flows import Flow, StateHookCallable, load_flow_from_flow_run
+from prefect.flows import Flow, FlowStateHook, load_flow_from_flow_run
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
 from prefect.runner.storage import RunnerStorage
 from prefect.settings import (
@@ -130,7 +130,6 @@ if TYPE_CHECKING:
     from prefect.client.schemas.responses import DeploymentResponse
     from prefect.client.types.flexible_schedule_list import FlexibleScheduleList
     from prefect.deployments.runner import RunnerDeployment
-    from prefect.flows import StateHookCallable
 __all__ = ["Runner"]
 
 
@@ -480,7 +479,7 @@ class Runner:
 
     def execute_in_background(
         self, func: Callable[..., Any], *args: Any, **kwargs: Any
-    ) -> concurrent.Future[Any]:
+    ) -> "concurrent.futures.Future[Any]":
         """
         Executes a function in the background.
         """
@@ -1441,7 +1440,7 @@ if sys.platform == "win32":
 
 
 async def _run_hooks(
-    hooks: list[StateHookCallable[..., Any]],
+    hooks: list[FlowStateHook[..., Any]],
     flow_run: "FlowRun",
     flow: "Flow[..., Any]",
     state: State,

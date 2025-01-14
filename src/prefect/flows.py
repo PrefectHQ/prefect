@@ -218,7 +218,7 @@ class Flow(Generic[P, R]):
         on_crashed: Optional[list[FlowStateHook[P, R]]] = None,
         on_running: Optional[list[FlowStateHook[P, R]]] = None,
     ):
-        if not isinstance(name, str):
+        if name is not None and not isinstance(name, str):  # pyright: ignore[reportUnnecessaryIsInstance]
             raise TypeError(
                 "Expected string for flow parameter 'name'; got {} instead. {}".format(
                     type(name).__name__,
