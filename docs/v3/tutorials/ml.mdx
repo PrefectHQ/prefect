@@ -392,6 +392,108 @@ terraform init
 terraform apply
 ```
 
+#### Alternative: create AWS resources manually
+
+If you don't want to use Terraform, you can create the resources manually.
+
+<Expandable title="manual instructions">
+#### Model training webhook
+
+Create a webhook named `model-training`:
+
+* Create a new service account named `s3` to enforce webhook authentication (save the API key somewhere safe)
+* Use the following static template:  
+```json
+{
+    "event": "webhook.called",
+    "resource": {
+        "prefect.resource.id": "webhook.resource.id"
+    }
+}
+```
+
+Note the URL for this webhook, as you'll need it later.
+
+#### Model inference webhook
+
+Create a webhook named `model-inference`:
+
+* You can use the same service account that you created for the model training webhook.
+* Use the following static template:  
+```json
+{
+    "event": "webhook.called",
+    "resource": {
+        "prefect.resource.id": "webhook.resource.id"
+    }
+}
+```
+
+Note the URL for this webhook, as you'll need it later.
+
+#### Create S3 buckets
+
+Your data and model will be stored in S3.
+
+* Create a `prefect-ml-data` bucket to store training and test data.
+* Create a `prefect-model` bucket to store the trained model.
+* Turn on EventBridge notifications for all events in these buckets.
+
+<Note>
+You may need to choose different S3 bucket names if they're already in use.
+</Note>
+
+#### Create an EventBridge rule for training
+
+Create an EventBridge rule named `training-data-changed` to trigger model training whenever a new object is uploaded to the `prefect-ml-data` bucket.
+
+* Event pattern:  
+```json
+{
+  "source": ["aws.s3"],
+  "detail-type": ["Object Created"],
+  "detail": {
+    "bucket": {
+      "name": ["prefect-ml-data"]
+    }
+  }
+}
+```
+* Target:  
+An EventBridge API destination named `model-training-webhook`, set to the endpoint for the `model-training` webhook that you created in Prefect Cloud.
+  * Use an HTTP POST method.
+  * To authenticate with the webhook, create a new Connection named `prefect-webhooks`, configure its authorization to use **API Key**, and set the **API key name** to `Authorization` and the **Value** to `Bearer <service-account-api-key>`.  
+    <Note>
+    The service account API key is the API key you created for the `s3` service account in Prefect Cloud.
+    </Note>
+
+#### Create an EventBridge rule for inference
+
+Create an EventBridge rule named `model-changed` to trigger model inference whenever a new object is uploaded to the `prefect-model` bucket.
+
+* Event pattern:  
+```json
+{
+  "source": ["aws.s3"],
+  "detail-type": ["Object Created"],
+  "detail": {
+    "bucket": {
+      "name": ["prefect-model"]
+    }
+  }
+}
+```
+* Target:  
+Create an EventBridge API destination named `model-inference-webhook`, set to the endpoint of the `model-inference` webhook that you created earlier.
+You can reuse the connection that you created for the `training-data-changed` rule.
+
+#### Create an IAM role
+
+Your Prefect flows need access to the AWS resources that you created.
+Create an IAM role named `prefect-tutorial` with the `Amazon SageMaker Full Access` and `Amazon S3 Full Access` policies.
+Note the role ARN, as you'll need this later.
+</Expandable>
+
 ### Grant access to AWS resources
 
 Your Prefect flows need access to the AWS resources that you just provisioned.
