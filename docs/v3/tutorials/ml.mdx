@@ -40,11 +40,7 @@ sequenceDiagram
   * An access key with full access to S3 and SageMaker.
 * Optional: [Terraform](https://developer.hashicorp.com/terraform/install)
 
-## Set up resources
-
-This tutorial uses Prefect webhooks and automations to trigger the deployments responsible for model training and inference.
-
-### Log in to Prefect Cloud
+## Log in to Prefect Cloud
 
 If needed, log in to your Prefect Cloud account.
 
@@ -52,7 +48,7 @@ If needed, log in to your Prefect Cloud account.
 prefect cloud login
 ```
 
-### Create a work pool
+## Create a work pool
 
 Create a new Process work pool named `my-process-pool` in Prefect Cloud.
 
@@ -68,7 +64,7 @@ prefect worker start --pool my-process-pool
 
 Leave this worker running for the rest of the tutorial.
 
-### Create deployments
+## Create deployments
 
 Clone the repository with the flow code you'll be deploying to Prefect Cloud.
 
@@ -356,7 +352,7 @@ def run_inference(samples: list = [[5.0,3.4,1.5,0.2], [6.4,3.2,4.5,1.5], [7.2,3.
 ```
 </Expandable>
 
-### Provision cloud resources
+## Provision cloud resources
 
 This tutorial uses AWS S3 and EventBridge to store data and emit events, and Prefect webhooks and automations to trigger your flows.
 We'll use Terraform so you don't have to provision these resources manually.
@@ -399,7 +395,7 @@ terraform apply
 When you're ready to permanently delete these resources, empty the `prefect-ml-data` and `prefect-model` buckets and then run `terraform destroy` in your terminal.
 </Note>
 
-#### Alternative: manual provisioning
+### Alternative: manual provisioning
 
 If you don't want to use Terraform, you can create the resources manually.
 
@@ -523,7 +519,7 @@ Create an IAM role named `prefect-tutorial` with the `Amazon SageMaker Full Acce
 Note the role ARN, as you'll need this later.
 </Expandable>
 
-### Grant access to AWS resources
+## Grant access to AWS resources
 
 Your Prefect flows need access to the AWS resources that you just provisioned.
 Create the following blocks in Prefect Cloud:
