@@ -1,6 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { useDeleteConfirmationDialog } from "./useDeleteConfirmationDialog";
+import { useDeleteConfirmationDialog } from "./use-delete-confirmation-dialog";
 
 describe("useDeleteConfirmationDialog", () => {
 	it("initializes with default closed state", () => {

@@ -1,2 +1,2 @@
 export { DeleteConfirmationDialog } from "./delete-confirmation-dialog";
-export { useDeleteConfirmationDialog } from "./useDeleteConfirmationDialog";
+export { useDeleteConfirmationDialog } from "./use-delete-confirmation-dialog";
