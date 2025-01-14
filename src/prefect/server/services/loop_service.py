@@ -105,6 +105,7 @@ class LoopService:
                 raise
 
             except Exception as exc:
+                # avoid circular import
                 from prefect.server.api.server import is_client_retryable_exception
 
                 retryable_error = is_client_retryable_exception(exc)
@@ -117,6 +118,8 @@ class LoopService:
 
             end_time = DateTime.now("UTC")
 
+            # if service took longer than its loop interval, log a warning
+            # that the interval might be too short
             if (end_time - start_time).total_seconds() > self.loop_seconds:
                 self.logger.warning(
                     f"{self.name} took {(end_time - start_time).total_seconds()} seconds"
@@ -124,16 +127,21 @@ class LoopService:
                     f" {self.loop_seconds} seconds."
                 )
 
+            # check if early stopping was requested
             i += 1
             if loops is not None and i == loops:
                 self.logger.debug(f"{self.name} exiting after {loops} loop(s).")
                 await self.stop(block=False)
 
+            # next run is every "loop seconds" after each previous run *started*.
+            # note that if the loop took unexpectedly long, the "next_run" time
+            # might be in the past, which will result in an instant start
             next_run = max(
                 start_time.add(seconds=self.loop_seconds), DateTime.now("UTC")
             )
             self.logger.debug(f"Finished running {self.name}. Next run at {next_run}")
 
+            # check the `_should_stop` flag every 1 seconds until the next run time is reached
             while DateTime.now("UTC") < next_run and not self._should_stop:
                 await asyncio.sleep(
                     min(1, (next_run - DateTime.now("UTC")).total_seconds())
@@ -160,6 +168,7 @@ class LoopService:
                 while self._is_running:
                     await asyncio.sleep(0.1)
 
+            # if the service is still running after `loop_seconds`, something's wrong
             if self._is_running:
                 self.logger.warning(
                     f"`stop(block=True)` was called on {self.name} but more than one"

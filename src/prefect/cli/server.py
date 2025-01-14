@@ -2,6 +2,8 @@
 Command line interface for working with the Prefect API and server.
 """
 
+from __future__ import annotations
+
 import asyncio
 import inspect
 import os
