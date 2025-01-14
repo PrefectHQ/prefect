@@ -7,10 +7,9 @@ from typing import (
     ClassVar,
     Dict,
     Iterable,
-    List,
+    Iterator,
     Optional,
     Set,
-    Tuple,
     Union,
 )
 
@@ -77,8 +76,8 @@ class Profile(BaseModel):
             if value is not None
         }
 
-    def validate_settings(self):
-        errors: List[Tuple[Setting, ValidationError]] = []
+    def validate_settings(self) -> None:
+        errors: list[tuple[Setting, ValidationError]] = []
         for setting, value in self.settings.items():
             try:
                 model_fields = Settings.model_fields
@@ -109,7 +108,9 @@ class ProfilesCollection:
     def __init__(
         self, profiles: Iterable[Profile], active: Optional[str] = None
     ) -> None:
-        self.profiles_by_name = {profile.name: profile for profile in profiles}
+        self.profiles_by_name: dict[str, Profile] = {
+            profile.name: profile for profile in profiles
+        }
         self.active_name = active
 
     @property
@@ -128,7 +129,7 @@ class ProfilesCollection:
             return None
         return self[self.active_name]
 
-    def set_active(self, name: Optional[str], check: bool = True):
+    def set_active(self, name: Optional[str], check: bool = True) -> None:
         """
         Set the active profile name in the collection.
 
@@ -142,7 +143,7 @@ class ProfilesCollection:
     def update_profile(
         self,
         name: str,
-        settings: Dict[Setting, Any],
+        settings: dict[Setting, Any],
         source: Optional[Path] = None,
     ) -> Profile:
         """
@@ -214,7 +215,7 @@ class ProfilesCollection:
             active=self.active_name,
         )
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, Any]:
         """
         Convert to a dictionary suitable for writing to disk.
         """
@@ -229,11 +230,11 @@ class ProfilesCollection:
     def __getitem__(self, name: str) -> Profile:
         return self.profiles_by_name[name]
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         return self.profiles_by_name.__iter__()
 
-    def items(self):
-        return self.profiles_by_name.items()
+    def items(self) -> list[tuple[str, Profile]]:
+        return list(self.profiles_by_name.items())
 
     def __eq__(self, __o: object) -> bool:
         if not isinstance(__o, ProfilesCollection):
@@ -325,7 +326,7 @@ def load_profiles(include_defaults: bool = True) -> ProfilesCollection:
     return profiles
 
 
-def load_current_profile():
+def load_current_profile() -> Profile:
     """
     Load the current profile from the default and current profile paths.
 

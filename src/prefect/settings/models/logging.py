@@ -1,6 +1,6 @@
 from functools import partial
 from pathlib import Path
-from typing import Annotated, ClassVar, Literal, Optional, Union
+from typing import Annotated, Any, ClassVar, Literal, Optional, Union
 
 from pydantic import (
     AliasChoices,
@@ -16,7 +16,7 @@ from prefect.settings.base import PrefectBaseSettings, _build_settings_config
 from prefect.types import LogLevel, validate_set_T_from_delim_string
 
 
-def max_log_size_smaller_than_batch_size(values):
+def max_log_size_smaller_than_batch_size(values: dict[str, Any]) -> dict[str, Any]:
     """
     Validator for settings asserting the batch size and match log size are compatible
     """

@@ -93,7 +93,7 @@ from prefect.events.related import tags_as_related_resources
 from prefect.events.schemas.events import RelatedResource
 from prefect.events.utilities import emit_event
 from prefect.exceptions import Abort, ObjectNotFound
-from prefect.flows import Flow, load_flow_from_flow_run
+from prefect.flows import Flow, StateHookCallable, load_flow_from_flow_run
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
 from prefect.runner.storage import RunnerStorage
 from prefect.settings import (
@@ -125,10 +125,12 @@ from prefect.utilities.services import (
 from prefect.utilities.slugify import slugify
 
 if TYPE_CHECKING:
+    import concurrent.futures
+
     from prefect.client.schemas.responses import DeploymentResponse
     from prefect.client.types.flexible_schedule_list import FlexibleScheduleList
     from prefect.deployments.runner import RunnerDeployment
-
+    from prefect.flows import StateHookCallable
 __all__ = ["Runner"]
 
 
@@ -478,7 +480,7 @@ class Runner:
 
     def execute_in_background(
         self, func: Callable[..., Any], *args: Any, **kwargs: Any
-    ):
+    ) -> concurrent.Future[Any]:
         """
         Executes a function in the background.
         """
@@ -1411,7 +1413,7 @@ class Runner:
         self.started = True
         return self
 
-    async def __aexit__(self, *exc_info):
+    async def __aexit__(self, *exc_info: Any):
         self._logger.debug("Stopping runner...")
         if self.pause_on_shutdown:
             await self._pause_schedules()
@@ -1439,7 +1441,10 @@ if sys.platform == "win32":
 
 
 async def _run_hooks(
-    hooks: List[Callable[[Flow, "FlowRun", State], None]], flow_run, flow, state
+    hooks: list[StateHookCallable[..., Any]],
+    flow_run: "FlowRun",
+    flow: "Flow[..., Any]",
+    state: State,
 ):
     logger = flow_run_logger(flow_run, flow)
     for hook in hooks:

@@ -29,6 +29,7 @@ from typing import (
     Iterable,
     NoReturn,
     Optional,
+    Protocol,
     Tuple,
     Type,
     TypeVar,
@@ -43,15 +44,14 @@ from pydantic.v1 import BaseModel as V1BaseModel
 from pydantic.v1.decorator import ValidatedFunction as V1ValidatedFunction
 from pydantic.v1.errors import ConfigError  # TODO
 from rich.console import Console
-from typing_extensions import Literal, ParamSpec, TypeAlias
+from typing_extensions import Literal, ParamSpec
 
 from prefect._experimental.sla.objects import SlaTypes
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect.blocks.core import Block
 from prefect.client.schemas.actions import DeploymentScheduleCreate
-from prefect.client.schemas.filters import WorkerFilter
+from prefect.client.schemas.filters import WorkerFilter, WorkerFilterStatus
 from prefect.client.schemas.objects import ConcurrencyLimitConfig, FlowRun
-from prefect.client.schemas.objects import Flow as FlowSchema
 from prefect.client.utilities import client_injector
 from prefect.docker.docker_image import DockerImage
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
@@ -108,18 +108,30 @@ R = TypeVar("R")  # The return type of the user's function
 P = ParamSpec("P")  # The parameters of the flow
 F = TypeVar("F", bound="Flow[Any, Any]")  # The type of the flow
 
-StateHookCallable: TypeAlias = Callable[
-    [FlowSchema, FlowRun, State], Union[Awaitable[None], None]
-]
 
-logger = get_logger("flows")
+class FlowStateHook(Protocol, Generic[P, R]):
+    """
+    A callable that is invoked when a flow enters a given state.
+    """
+
+    __name__: str
+
+    def __call__(
+        self, flow: "Flow[P, R]", flow_run: FlowRun, state: State
+    ) -> Awaitable[None] | None:
+        ...
+
 
 if TYPE_CHECKING:
+    import logging
+
     from prefect.client.orchestration import PrefectClient
     from prefect.client.types.flexible_schedule_list import FlexibleScheduleList
     from prefect.deployments.runner import RunnerDeployment
     from prefect.flows import FlowRun
     from prefect.runner.storage import RunnerStorage
+
+logger: "logging.Logger" = get_logger("flows")
 
 
 class Flow(Generic[P, R]):
@@ -190,7 +202,7 @@ class Flow(Generic[P, R]):
         retries: Optional[int] = None,
         retry_delay_seconds: Optional[Union[int, float]] = None,
         task_runner: Union[
-            Type[TaskRunner[PrefectFuture[R]]], TaskRunner[PrefectFuture[R]], None
+            Type[TaskRunner[PrefectFuture[Any]]], TaskRunner[PrefectFuture[Any]], None
         ] = None,
         description: Optional[str] = None,
         timeout_seconds: Union[int, float, None] = None,
@@ -200,13 +212,13 @@ class Flow(Generic[P, R]):
         result_serializer: Optional[ResultSerializer] = None,
         cache_result_in_memory: bool = True,
         log_prints: Optional[bool] = None,
-        on_completion: Optional[list[StateHookCallable]] = None,
-        on_failure: Optional[list[StateHookCallable]] = None,
-        on_cancellation: Optional[list[StateHookCallable]] = None,
-        on_crashed: Optional[list[StateHookCallable]] = None,
-        on_running: Optional[list[StateHookCallable]] = None,
+        on_completion: Optional[list[FlowStateHook[P, R]]] = None,
+        on_failure: Optional[list[FlowStateHook[P, R]]] = None,
+        on_cancellation: Optional[list[FlowStateHook[P, R]]] = None,
+        on_crashed: Optional[list[FlowStateHook[P, R]]] = None,
+        on_running: Optional[list[FlowStateHook[P, R]]] = None,
     ):
-        if name is not None and not isinstance(name, str):
+        if not isinstance(name, str):
             raise TypeError(
                 "Expected string for flow parameter 'name'; got {} instead. {}".format(
                     type(name).__name__,
@@ -274,11 +286,14 @@ class Flow(Generic[P, R]):
                 )
         self.flow_run_name = flow_run_name
 
-        default_task_runner = ThreadPoolTaskRunner()
-        task_runner = task_runner or default_task_runner
-        self.task_runner = (
-            task_runner() if isinstance(task_runner, type) else task_runner
-        )
+        if task_runner is None:
+            self.task_runner = cast(
+                TaskRunner[PrefectFuture[Any]], ThreadPoolTaskRunner()
+            )
+        else:
+            self.task_runner = (
+                task_runner() if isinstance(task_runner, type) else task_runner
+            )
 
         self.log_prints = log_prints
 
@@ -301,9 +316,11 @@ class Flow(Generic[P, R]):
         raise_for_reserved_arguments(self.fn, ["return_state", "wait_for"])
 
         # Version defaults to a hash of the function's file
-        flow_file = inspect.getsourcefile(self.fn)
         if not version:
             try:
+                flow_file = inspect.getsourcefile(self.fn)
+                if flow_file is None:
+                    raise FileNotFoundError
                 version = file_hash(flow_file)
             except (FileNotFoundError, TypeError, OSError):
                 pass  # `getsourcefile` can return null values and "<stdin>" for objects in repls
@@ -355,11 +372,11 @@ class Flow(Generic[P, R]):
         self.result_storage = result_storage
         self.result_serializer = result_serializer
         self.cache_result_in_memory = cache_result_in_memory
-        self.on_completion_hooks = on_completion or []
-        self.on_failure_hooks = on_failure or []
-        self.on_cancellation_hooks = on_cancellation or []
-        self.on_crashed_hooks = on_crashed or []
-        self.on_running_hooks = on_running or []
+        self.on_completion_hooks: list[FlowStateHook[P, R]] = on_completion or []
+        self.on_failure_hooks: list[FlowStateHook[P, R]] = on_failure or []
+        self.on_cancellation_hooks: list[FlowStateHook[P, R]] = on_cancellation or []
+        self.on_crashed_hooks: list[FlowStateHook[P, R]] = on_crashed or []
+        self.on_running_hooks: list[FlowStateHook[P, R]] = on_running or []
 
         # Used for flows loaded from remote storage
         self._storage: Optional["RunnerStorage"] = None
@@ -376,7 +393,7 @@ class Flow(Generic[P, R]):
     def ismethod(self) -> bool:
         return hasattr(self.fn, "__prefect_self__")
 
-    def __get__(self, instance: Any, owner: Any):
+    def __get__(self, instance: Any, owner: Any) -> "Flow[P, R]":
         """
         Implement the descriptor protocol so that the flow can be used as an instance method.
         When an instance method is loaded, this method is called with the "self" instance as
@@ -391,7 +408,7 @@ class Flow(Generic[P, R]):
         # of the flow's function. This will allow it to be automatically added to the flow's parameters
         else:
             bound_flow = copy(self)
-            bound_flow.fn.__prefect_self__ = instance
+            setattr(bound_flow.fn, "__prefect_self__", instance)
             return bound_flow
 
     def with_options(
@@ -413,11 +430,11 @@ class Flow(Generic[P, R]):
         result_serializer: Optional[ResultSerializer] = NotSet,  # type: ignore
         cache_result_in_memory: Optional[bool] = None,
         log_prints: Optional[bool] = NotSet,  # type: ignore
-        on_completion: Optional[list[StateHookCallable]] = None,
-        on_failure: Optional[list[StateHookCallable]] = None,
-        on_cancellation: Optional[list[StateHookCallable]] = None,
-        on_crashed: Optional[list[StateHookCallable]] = None,
-        on_running: Optional[list[StateHookCallable]] = None,
+        on_completion: Optional[list[FlowStateHook[P, R]]] = None,
+        on_failure: Optional[list[FlowStateHook[P, R]]] = None,
+        on_cancellation: Optional[list[FlowStateHook[P, R]]] = None,
+        on_crashed: Optional[list[FlowStateHook[P, R]]] = None,
+        on_running: Optional[list[FlowStateHook[P, R]]] = None,
     ) -> "Flow[P, R]":
         """
         Create a new flow from the current object, updating provided options.
@@ -473,13 +490,18 @@ class Flow(Generic[P, R]):
             >>> state = my_flow.with_options(task_runner=ThreadPoolTaskRunner)(1, 3)
             >>> assert state.result() == 4
         """
+        new_task_runner = (
+            task_runner() if isinstance(task_runner, type) else task_runner
+        )
+        if new_task_runner is None:
+            new_task_runner = self.task_runner
         new_flow = Flow(
             fn=self.fn,
             name=name or self.name,
             description=description or self.description,
             flow_run_name=flow_run_name or self.flow_run_name,
             version=version or self.version,
-            task_runner=task_runner or self.task_runner,
+            task_runner=new_task_runner,
             retries=retries if retries is not None else self.retries,
             retry_delay_seconds=(
                 retry_delay_seconds
@@ -533,7 +555,7 @@ class Flow(Generic[P, R]):
             ParameterTypeError: if the provided parameters are not valid
         """
 
-        def resolve_block_reference(data: Any) -> Any:
+        def resolve_block_reference(data: Any | dict[str, Any]) -> Any:
             if isinstance(data, dict) and "$ref" in data:
                 return Block.load_from_ref(data["$ref"], _sync=True)
             return data
@@ -592,11 +614,16 @@ class Flow(Generic[P, R]):
         cast_parameters = {
             k: v
             for k, v in dict(iter(model)).items()
-            if k in model.model_fields_set or model.model_fields[k].default_factory
+            if k in getattr(model, "model_fields_set", {})
+            or getattr(model, "model_fields", {})
+            .get(k, {})
+            .get("default_factory", None)
         }
         return cast_parameters
 
-    def serialize_parameters(self, parameters: dict[str, Any]) -> dict[str, Any]:
+    def serialize_parameters(
+        self, parameters: dict[str, Any | PrefectFuture[Any] | State]
+    ) -> dict[str, Any]:
         """
         Convert parameters to a serializable form.
 
@@ -604,10 +631,10 @@ class Flow(Generic[P, R]):
         converting everything directly to a string. This maintains basic types like
         integers during API roundtrips.
         """
-        serialized_parameters = {}
+        serialized_parameters: dict[str, Any] = {}
         for key, value in parameters.items():
             # do not serialize the bound self object
-            if self.ismethod and value is self.fn.__prefect_self__:
+            if self.ismethod and value is getattr(self.fn, "__prefect_self__", None):
                 continue
             if isinstance(value, (PrefectFuture, State)):
                 # Don't call jsonable_encoder() on a PrefectFuture or State to
@@ -758,23 +785,23 @@ class Flow(Generic[P, R]):
                 _sla=_sla,
             )
 
-    def on_completion(self, fn: StateHookCallable) -> StateHookCallable:
+    def on_completion(self, fn: FlowStateHook[P, R]) -> FlowStateHook[P, R]:
         self.on_completion_hooks.append(fn)
         return fn
 
-    def on_cancellation(self, fn: StateHookCallable) -> StateHookCallable:
+    def on_cancellation(self, fn: FlowStateHook[P, R]) -> FlowStateHook[P, R]:
         self.on_cancellation_hooks.append(fn)
         return fn
 
-    def on_crashed(self, fn: StateHookCallable) -> StateHookCallable:
+    def on_crashed(self, fn: FlowStateHook[P, R]) -> FlowStateHook[P, R]:
         self.on_crashed_hooks.append(fn)
         return fn
 
-    def on_running(self, fn: StateHookCallable) -> StateHookCallable:
+    def on_running(self, fn: FlowStateHook[P, R]) -> FlowStateHook[P, R]:
         self.on_running_hooks.append(fn)
         return fn
 
-    def on_failure(self, fn: StateHookCallable) -> StateHookCallable:
+    def on_failure(self, fn: FlowStateHook[P, R]) -> FlowStateHook[P, R]:
         self.on_failure_hooks.append(fn)
         return fn
 
@@ -805,7 +832,7 @@ class Flow(Generic[P, R]):
         limit: Optional[int] = None,
         webserver: bool = False,
         entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
-    ):
+    ) -> None:
         """
         Creates a deployment for this flow and starts a runner to monitor for scheduled work.
 
@@ -1173,7 +1200,9 @@ class Flow(Generic[P, R]):
                 work_pool = await client.read_work_pool(work_pool_name)
                 active_workers = await client.read_workers_for_work_pool(
                     work_pool_name,
-                    worker_filter=WorkerFilter(status={"any_": ["ONLINE"]}),
+                    worker_filter=WorkerFilter(
+                        status=WorkerFilterStatus(any_=["ONLINE"])
+                    ),
                 )
         except ObjectNotFound as exc:
             raise ValueError(
@@ -1181,7 +1210,7 @@ class Flow(Generic[P, R]):
                 " deploying this flow."
             ) from exc
 
-        deployment = await self.to_deployment(
+        to_deployment_coro = self.to_deployment(
             name=name,
             interval=interval,
             cron=cron,
@@ -1201,9 +1230,14 @@ class Flow(Generic[P, R]):
             _sla=_sla,
         )
 
+        if TYPE_CHECKING:
+            assert inspect.isawaitable(to_deployment_coro)
+
+        deployment = await to_deployment_coro
+
         from prefect.deployments.runner import deploy
 
-        deployment_ids = await deploy(
+        deploy_coro = deploy(
             deployment,
             work_pool_name=work_pool_name,
             image=image,
@@ -1212,6 +1246,10 @@ class Flow(Generic[P, R]):
             print_next_steps_message=False,
             ignore_warnings=ignore_warnings,
         )
+        if TYPE_CHECKING:
+            assert inspect.isawaitable(deploy_coro)
+
+        deployment_ids = await deploy_coro
 
         if print_next_steps:
             console = Console()
@@ -1442,11 +1480,11 @@ class FlowDecorator:
         result_serializer: Optional[ResultSerializer] = None,
         cache_result_in_memory: bool = True,
         log_prints: Optional[bool] = None,
-        on_completion: Optional[list[StateHookCallable]] = None,
-        on_failure: Optional[list[StateHookCallable]] = None,
-        on_cancellation: Optional[list[StateHookCallable]] = None,
-        on_crashed: Optional[list[StateHookCallable]] = None,
-        on_running: Optional[list[StateHookCallable]] = None,
+        on_completion: Optional[list[FlowStateHook[P, R]]] = None,
+        on_failure: Optional[list[FlowStateHook[P, R]]] = None,
+        on_cancellation: Optional[list[FlowStateHook[P, R]]] = None,
+        on_crashed: Optional[list[FlowStateHook[P, R]]] = None,
+        on_running: Optional[list[FlowStateHook[P, R]]] = None,
     ) -> Callable[[Callable[P, R]], Flow[P, R]]:
         ...
 
@@ -1469,11 +1507,11 @@ class FlowDecorator:
         result_serializer: Optional[ResultSerializer] = None,
         cache_result_in_memory: bool = True,
         log_prints: Optional[bool] = None,
-        on_completion: Optional[list[StateHookCallable]] = None,
-        on_failure: Optional[list[StateHookCallable]] = None,
-        on_cancellation: Optional[list[StateHookCallable]] = None,
-        on_crashed: Optional[list[StateHookCallable]] = None,
-        on_running: Optional[list[StateHookCallable]] = None,
+        on_completion: Optional[list[FlowStateHook[P, R]]] = None,
+        on_failure: Optional[list[FlowStateHook[P, R]]] = None,
+        on_cancellation: Optional[list[FlowStateHook[P, R]]] = None,
+        on_crashed: Optional[list[FlowStateHook[P, R]]] = None,
+        on_running: Optional[list[FlowStateHook[P, R]]] = None,
     ) -> Callable[[Callable[P, R]], Flow[P, R]]:
         ...
 
@@ -1495,11 +1533,11 @@ class FlowDecorator:
         result_serializer: Optional[ResultSerializer] = None,
         cache_result_in_memory: bool = True,
         log_prints: Optional[bool] = None,
-        on_completion: Optional[list[StateHookCallable]] = None,
-        on_failure: Optional[list[StateHookCallable]] = None,
-        on_cancellation: Optional[list[StateHookCallable]] = None,
-        on_crashed: Optional[list[StateHookCallable]] = None,
-        on_running: Optional[list[StateHookCallable]] = None,
+        on_completion: Optional[list[FlowStateHook[P, R]]] = None,
+        on_failure: Optional[list[FlowStateHook[P, R]]] = None,
+        on_cancellation: Optional[list[FlowStateHook[P, R]]] = None,
+        on_crashed: Optional[list[FlowStateHook[P, R]]] = None,
+        on_running: Optional[list[FlowStateHook[P, R]]] = None,
     ) -> Union[Flow[P, R], Callable[[Callable[P, R]], Flow[P, R]]]:
         """
         Decorator to designate a function as a Prefect workflow.
@@ -1925,7 +1963,11 @@ async def aserve(
 
     runner = Runner(pause_on_shutdown=pause_on_shutdown, limit=limit, **kwargs)
     for deployment in args:
-        await runner.add_deployment(deployment)
+        add_deployment_coro = runner.add_deployment(deployment)
+        if TYPE_CHECKING:
+            assert inspect.isawaitable(add_deployment_coro)
+
+        await add_deployment_coro
 
     if print_starting_message:
         _display_serve_start_message(*args)
@@ -1971,13 +2013,16 @@ async def load_flow_from_flow_run(
     ignore_storage: bool = False,
     storage_base_path: Optional[str] = None,
     use_placeholder_flow: bool = True,
-) -> Flow[P, Any]:
+) -> Flow[..., Any]:
     """
     Load a flow from the location/script provided in a deployment's storage document.
 
     If `ignore_storage=True` is provided, no pull from remote storage occurs.  This flag
     is largely for testing, and assumes the flow is already available locally.
     """
+    if flow_run.deployment_id is None:
+        raise ValueError("Flow run does not have an associated deployment")
+
     deployment = await client.read_deployment(flow_run.deployment_id)
 
     if deployment.entrypoint is None:
