@@ -3,6 +3,8 @@ The actions consumer watches for actions that have been triggered by Automations
 and carries them out.  Also includes the various concrete subtypes of Actions
 """
 
+from __future__ import annotations
+
 import abc
 import asyncio
 import copy
@@ -95,6 +97,8 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from prefect.server.api.clients import OrchestrationClient
     from prefect.server.events.schemas.automations import TriggeredAction
+
+    Parameters: TypeAlias = dict[str, Any | dict[str, Any] | list[Any | dict[str, Any]]]
 
 logger: "logging.Logger" = get_logger(__name__)
 
@@ -208,11 +212,13 @@ class Action(PrefectBaseModel, abc.ABC):
                 Event(
                     occurred=triggered_action.triggered,
                     event="prefect.automation.action.triggered",
-                    resource={
-                        "prefect.resource.id": automation_resource_id,
-                        "prefect.resource.name": automation.name,
-                        "prefect.trigger-type": automation.trigger.type,
-                    },
+                    resource=Resource(
+                        {
+                            "prefect.resource.id": automation_resource_id,
+                            "prefect.resource.name": automation.name,
+                            "prefect.trigger-type": automation.trigger.type,
+                        }
+                    ),
                     related=self._resulting_related_resources,
                     payload=action_details,
                     id=triggered_event_id,
@@ -222,11 +228,13 @@ class Action(PrefectBaseModel, abc.ABC):
                 Event(
                     occurred=pendulum.now("UTC"),
                     event="prefect.automation.action.executed",
-                    resource={
-                        "prefect.resource.id": automation_resource_id,
-                        "prefect.resource.name": automation.name,
-                        "prefect.trigger-type": automation.trigger.type,
-                    },
+                    resource=Resource(
+                        {
+                            "prefect.resource.id": automation_resource_id,
+                            "prefect.resource.name": automation.name,
+                            "prefect.trigger-type": automation.trigger.type,
+                        }
+                    ),
                     related=self._resulting_related_resources,
                     payload={
                         **action_details,
@@ -339,7 +347,9 @@ def _first_resource_of_kind(event: "Event", expected_kind: str) -> Optional["Res
     return None
 
 
-def _kind_and_id_from_resource(resource) -> Union[Tuple[str, UUID], Tuple[None, None]]:
+def _kind_and_id_from_resource(
+    resource: Resource,
+) -> tuple[str, UUID] | tuple[None, None]:
     kind, _, id = resource.id.rpartition(".")
 
     try:
@@ -403,17 +413,17 @@ class JinjaTemplateAction(ExternalDataAction):
 
     @classmethod
     def templates_in_dictionary(
-        cls, dict_: Dict[Any, Any]
-    ) -> List[Tuple[Dict[Any, Any], Dict[Any, str]]]:
-        to_traverse = []
-        templates_at_layer: Dict[Any, str] = {}
+        cls, dict_: dict[Any, Any | dict[Any, Any]]
+    ) -> list[tuple[dict[Any, Any], dict[Any, str]]]:
+        to_traverse: list[dict[Any, Any]] = []
+        templates_at_layer: dict[Any, str] = {}
         for key, value in dict_.items():
             if isinstance(value, str) and maybe_template(value):
                 templates_at_layer[key] = value
             elif isinstance(value, dict):
                 to_traverse.append(value)
 
-        templates = []
+        templates: list[tuple[dict[Any, Any], dict[Any, str]]] = []
 
         if templates_at_layer:
             templates.append((dict_, templates_at_layer))
@@ -448,10 +458,13 @@ class JinjaTemplateAction(ExternalDataAction):
 
             if resource and all(field in resource for field in state_fields):
                 try:
+                    timestamp = pendulum.parse(resource["prefect.state-timestamp"])
+                    if TYPE_CHECKING:
+                        assert isinstance(timestamp, pendulum.DateTime)
                     object.state = State(
                         message=resource["prefect.state-message"],
                         name=resource["prefect.state-name"],
-                        timestamp=pendulum.parse(resource["prefect.state-timestamp"]),
+                        timestamp=timestamp,
                         type=StateType(resource["prefect.state-type"]),
                     )
                 except Exception:
@@ -524,9 +537,9 @@ class JinjaTemplateAction(ExternalDataAction):
         if any(response.status_code >= 300 for response in responses):
             return None
 
-        combined_response = {}
+        combined_response: dict[Any, Any] = {}
         for response in responses:
-            data = response.json()
+            data: Any | list[Any] = response.json()
 
             # Sometimes we have to call filter endpoints that return a list of 0..1
             if isinstance(data, list):
@@ -590,8 +603,8 @@ class JinjaTemplateAction(ExternalDataAction):
 
     async def _template_context(
         self, templates: List[str], triggered_action: "TriggeredAction"
-    ) -> Dict[str, Any]:
-        context = {
+    ) -> dict[str, Any]:
+        context: dict[str, Any] = {
             "automation": triggered_action.automation,
             "event": triggered_action.triggering_event,
             "labels": LabelDiver(triggered_action.triggering_labels),
@@ -809,9 +822,11 @@ class RunDeployment(JinjaTemplateAction, DeploymentCommandAction):
 
     @classmethod
     def _collect_errors(
-        cls, hydrated: Union[Dict[str, Any], Placeholder], prefix: str = ""
-    ) -> Dict[str, HydrationError]:
-        problems: Dict[str, HydrationError] = {}
+        cls,
+        hydrated: Union[dict[str, Any | dict[str, Any] | list[Any]], Placeholder],
+        prefix: str = "",
+    ) -> dict[str, HydrationError]:
+        problems: dict[str, HydrationError] = {}
 
         if isinstance(hydrated, HydrationError):
             problems[prefix] = hydrated
@@ -886,7 +901,7 @@ class RunDeployment(JinjaTemplateAction, DeploymentCommandAction):
         return parameters
 
     @classmethod
-    def _upgrade_v1_templates(cls, parameters: Dict[str, Any]):
+    def _upgrade_v1_templates(cls, parameters: Parameters):
         """
         Upgrades all v1-style template values from the parameters dictionary, changing
         the values in the given dictionary.  v1-style templates are any plain strings
@@ -904,17 +919,17 @@ class RunDeployment(JinjaTemplateAction, DeploymentCommandAction):
                         cls._upgrade_v1_templates(item)
                     elif isinstance(item, str) and maybe_template(item):
                         value[i] = {"__prefect_kind": "jinja", "template": item}
-            elif isinstance(value, str) and maybe_template(value):
+            elif isinstance(value, str) and maybe_template(value):  # pyright: ignore[reportUnnecessaryIsInstance]
                 parameters[key] = {"__prefect_kind": "jinja", "template": value}
 
     def _collect_placeholders(
-        self, parameters: Union[Dict[str, Any], Placeholder]
-    ) -> List[Placeholder]:
+        self, parameters: Parameters | Placeholder
+    ) -> list[Placeholder]:
         """
         Recursively collects all placeholder values embedded within the parameters
         dictionary, including templates and workspace variables
         """
-        placeholders = []
+        placeholders: list[Placeholder] = []
 
         if isinstance(parameters, Placeholder):
             return [parameters]
@@ -1200,7 +1215,6 @@ class CallWebhook(JinjaTemplateAction):
 
     async def act(self, triggered_action: "TriggeredAction") -> None:
         block = await self._get_webhook_block(triggered_action=triggered_action)
-        block = cast(Webhook, block)
 
         (payload,) = await self._render([self.payload], triggered_action)
 
@@ -1234,6 +1248,8 @@ class SendNotification(JinjaTemplateAction):
 
     @field_validator("subject", "body")
     def is_valid_template(cls, value: str, info: ValidationInfo) -> str:
+        if TYPE_CHECKING:
+            assert isinstance(info.field_name, str)
         return cls.validate_template(value, info.field_name)
 
     async def _get_notification_block(
