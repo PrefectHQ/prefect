@@ -70,7 +70,7 @@ class LoopService:
         Called after running the service
         """
         self._is_running = False
-        self.logger.info(f"Stopped {self.name}")
+        self.logger.debug(f"Stopped {self.name}")
 
     @overload
     async def start(self, loops: None = None) -> NoReturn:
