@@ -116,7 +116,7 @@ class BaseTaskRunEngine(Generic[P, R]):
     # holds the return value from the user code
     _return_value: Union[R, Type[NotSet]] = NotSet
     # holds the exception raised by the user code, if any
-    _raised: Union[BaseException, Type[NotSet]] = NotSet
+    _raised: Union[Exception, BaseException, Type[NotSet]] = NotSet
     _initial_run_context: Optional[TaskRunContext] = None
     _is_started: bool = False
     _task_name_set: bool = False
