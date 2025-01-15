@@ -1124,7 +1124,7 @@ class ElasticContainerServicePushProvisioner:
         await run_process(
             [shlex.quote(sys.executable), "-m", "pip", "install", "boto3"]
         )
-        boto3: ModuleType = importlib.import_module("boto3")
+        boto3 = importlib.import_module("boto3")
 
     @staticmethod
     def is_boto3_installed() -> bool:
