@@ -96,15 +96,20 @@ const SendNotificationSchema = z.object({
 	subject: z.string(),
 });
 
-export const ActionsSchema = z.union([
-	ChangeFlowRunStateSchema,
-	DeploymentsSchema,
-	RunDeploymentsSchema,
-	WorkPoolSchema,
-	WorkQueueSchema,
-	AutomationSchema,
-	SendNotificationSchema,
-	FlowRunSchema,
-]);
+export const ActionsSchema = z.object({
+	actions: z.array(
+		z.union([
+			ChangeFlowRunStateSchema,
+			DeploymentsSchema,
+			RunDeploymentsSchema,
+			WorkPoolSchema,
+			WorkQueueSchema,
+			AutomationSchema,
+			SendNotificationSchema,
+			FlowRunSchema,
+		]),
+	),
+});
 
 export type ActionsSchema = z.infer<typeof ActionsSchema>;
+export type ActionType = ActionsSchema["actions"][number]["type"];
