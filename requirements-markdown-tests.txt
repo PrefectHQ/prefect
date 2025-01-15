@@ -1,6 +1,5 @@
 pytest-markdown-docs >= 0.6.0
 
-pandas
 prefect-aws
 prefect-azure[blob_storage]
 prefect-bitbucket
