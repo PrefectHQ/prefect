@@ -28,7 +28,7 @@ class SQLAlchemySettings(PrefectBaseSettings):
         default=None,
         description="Controls connection pool size of database connection pools from the Prefect API. If not set, the default SQLAlchemy pool size will be used.",
         validation_alias=AliasChoices(
-            AliasPath("sqlalchemy_pool_size"),
+            AliasPath("pool_size"),
             "prefect_server_database_sqlalchemy_pool_size",
             "prefect_sqlalchemy_pool_size",
         ),
@@ -48,7 +48,7 @@ class SQLAlchemySettings(PrefectBaseSettings):
         default=None,
         description="Controls maximum overflow of the connection pool. If not set, the default SQLAlchemy maximum overflow value will be used.",
         validation_alias=AliasChoices(
-            AliasPath("sqlalchemy_max_overflow"),
+            AliasPath("max_overflow"),
             "prefect_server_database_sqlalchemy_max_overflow",
             "prefect_sqlalchemy_max_overflow",
         ),
