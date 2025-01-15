@@ -1711,7 +1711,7 @@ class FlowDecorator:
             ...
 
 
-flow = FlowDecorator()
+flow: FlowDecorator = FlowDecorator()
 
 
 def _raise_on_name_with_banned_characters(name: Optional[str]) -> Optional[str]:

@@ -5,7 +5,7 @@ import threading
 import uuid
 from collections.abc import Generator, Iterator
 from functools import partial
-from typing import Any, Callable, Generic, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Generic, Optional, Union
 
 from typing_extensions import NamedTuple, Self, TypeVar
 
@@ -22,7 +22,10 @@ from prefect.utilities.timeout import timeout as timeout_context
 F = TypeVar("F")
 R = TypeVar("R")
 
-logger = get_logger(__name__)
+if TYPE_CHECKING:
+    import logging
+
+logger: "logging.Logger" = get_logger(__name__)
 
 
 class PrefectFuture(abc.ABC, Generic[R]):

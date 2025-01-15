@@ -567,7 +567,7 @@ class StateGroup:
         self.paused_count: int = self.type_counts[StateType.PAUSED]
 
     @property
-    def fail_count(self):
+    def fail_count(self) -> int:
         return self.type_counts[StateType.FAILED] + self.type_counts[StateType.CRASHED]
 
     def all_completed(self) -> bool:

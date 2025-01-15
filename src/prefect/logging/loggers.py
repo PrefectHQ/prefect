@@ -229,7 +229,7 @@ def task_run_logger(
 
 
 def get_worker_logger(
-    worker: "BaseWorker", name: Optional[str] = None
+    worker: "BaseWorker[Any, Any, Any]", name: Optional[str] = None
 ) -> logging.Logger | LoggingAdapter:
     """
     Create a worker logger with the worker's metadata attached.
