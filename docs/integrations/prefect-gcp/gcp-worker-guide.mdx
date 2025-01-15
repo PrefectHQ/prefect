@@ -123,6 +123,7 @@ gcloud run deploy prefect-worker --image=prefecthq/prefect:3-latest \
 --service-account <YOUR-SERVICE-ACCOUNT-NAME> \
 --no-cpu-throttling \
 --min-instances 1 \
+--startup-probe httpGet.port=8080,httpGet.path=/health,initialDelaySeconds=100,periodSeconds=20,timeoutSeconds=20 \
 --args "prefect","worker","start","--install-policy","always","--with-healthcheck","-p","<WORK-POOL-NAME>","-t","cloud-run"
 ```
 
