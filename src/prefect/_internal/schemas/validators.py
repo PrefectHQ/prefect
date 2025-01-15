@@ -627,18 +627,18 @@ def validate_name_present_on_nonanonymous_blocks(values: M) -> M:
 
 
 @overload
-def validate_command(v: str) -> Path:
+def validate_working_dir(v: str) -> Path:
     ...
 
 
 @overload
-def validate_command(v: None) -> None:
+def validate_working_dir(v: None) -> None:
     ...
 
 
-def validate_command(v: Optional[str]) -> Optional[Path]:
+def validate_working_dir(v: Optional[Path | str]) -> Optional[Path]:
     """Make sure that the working directory is formatted for the current platform."""
-    if v is not None:
+    if isinstance(v, str):
         return relative_path_to_current_platform(v)
     return v
 

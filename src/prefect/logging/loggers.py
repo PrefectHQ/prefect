@@ -15,6 +15,11 @@ from prefect.exceptions import MissingContextError
 from prefect.logging.filters import ObfuscateApiKeyFilter
 from prefect.telemetry.logging import add_telemetry_log_handler
 
+if sys.version_info >= (3, 12):
+    LoggingAdapter = logging.LoggerAdapter[logging.Logger]
+else:
+    LoggingAdapter = logging.LoggerAdapter
+
 if TYPE_CHECKING:
     from prefect.client.schemas import FlowRun as ClientFlowRun
     from prefect.client.schemas.objects import FlowRun, TaskRun
@@ -22,11 +27,6 @@ if TYPE_CHECKING:
     from prefect.flows import Flow
     from prefect.tasks import Task
     from prefect.workers.base import BaseWorker
-
-if sys.version_info >= (3, 12):
-    LoggingAdapter = logging.LoggerAdapter[logging.Logger]
-else:
-    LoggingAdapter = logging.LoggerAdapter
 
 
 class PrefectLogAdapter(LoggingAdapter):
@@ -164,7 +164,7 @@ def flow_run_logger(
     flow_run: Union["FlowRun", "ClientFlowRun"],
     flow: Optional["Flow[Any, Any]"] = None,
     **kwargs: str,
-) -> LoggingAdapter:
+) -> PrefectLogAdapter:
     """
     Create a flow run logger with the run's metadata attached.
 

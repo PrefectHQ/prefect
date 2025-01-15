@@ -114,7 +114,7 @@ class SecretDict(pydantic.Secret[Dict[str, Any]]):
 
 
 def validate_set_T_from_delim_string(
-    value: Union[str, T, Set[T], None], type_, delim=None
+    value: Union[str, T, Set[T], None], type_: type[T], delim: str | None = None
 ) -> Set[T]:
     """
     "no-info" before validator useful in scooping env vars
