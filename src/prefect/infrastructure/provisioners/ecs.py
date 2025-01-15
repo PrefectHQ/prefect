@@ -35,7 +35,7 @@ from prefect.utilities.importtools import lazy_import
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
 
-boto3 = lazy_import("boto3")
+boto3: ModuleType = lazy_import("boto3")
 
 current_console: contextvars.ContextVar[Console] = contextvars.ContextVar(
     "console", default=Console()
@@ -1122,7 +1122,7 @@ class ElasticContainerServicePushProvisioner:
         await run_process(
             [shlex.quote(sys.executable), "-m", "pip", "install", "boto3"]
         )
-        boto3: ModuleType = importlib.import_module("boto3")
+        boto3 = importlib.import_module("boto3")
 
     @staticmethod
     def is_boto3_installed() -> bool:

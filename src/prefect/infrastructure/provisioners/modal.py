@@ -2,6 +2,7 @@ import importlib
 import shlex
 import sys
 from copy import deepcopy
+from types import ModuleType
 from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
 
 from anyio import run_process
@@ -19,7 +20,7 @@ if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
 
 
-modal = lazy_import("modal")
+modal: ModuleType = lazy_import("modal")
 
 
 class ModalPushProvisioner:
@@ -68,7 +69,7 @@ class ModalPushProvisioner:
             await run_process(
                 [shlex.quote(sys.executable), "-m", "pip", "install", "modal"]
             )
-            modal: Any = importlib.import_module("modal")
+            modal = importlib.import_module("modal")
             progress.advance(task)
 
     async def _get_modal_token_id_and_secret(self) -> Tuple[str, str]:
