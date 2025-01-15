@@ -740,7 +740,7 @@
             "type": "object"
         },
         "SQLAlchemySettings": {
-            "description": "Settings for controlling SQLAlchemy behavior",
+            "description": "Settings for controlling SQLAlchemy behavior; note that these settings only take effect when\nusing a PostgreSQL database.",
             "properties": {
                 "pool_size": {
                     "anyOf": [
@@ -923,6 +923,7 @@
             "properties": {
                 "sqlalchemy": {
                     "$ref": "#/$defs/SQLAlchemySettings",
+                    "description": "Settings for controlling SQLAlchemy behavior",
                     "supported_environment_variables": []
                 },
                 "connection_url": {
