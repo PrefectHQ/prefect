@@ -15,9 +15,12 @@ import {
 	FormLabel,
 } from "@/components/ui/form";
 import { useFormContext } from "react-hook-form";
-import { ActionsSchema } from "./action-type-schemas";
+import {
+	type ActionType,
+	type ActionsSchema,
+	UNASSIGNED,
+} from "./action-type-schemas";
 
-type ActionType = ActionsSchema["type"];
 const AUTOMATION_ACTION_TYPES: Record<ActionType, string> = {
 	"cancel-flow-run": "Cancel a flow run",
 	"suspend-flow-run": "Suspend a flow run",
@@ -35,17 +38,29 @@ const AUTOMATION_ACTION_TYPES: Record<ActionType, string> = {
 	"send-notification": "Send a notification",
 };
 
-export const ActionTypeSelect = () => {
-	const form = useFormContext();
+export const ActionTypeSelect = ({ index }: { index: number }) => {
+	const form = useFormContext<ActionsSchema>();
 	return (
 		<FormField
 			control={form.control}
-			name="type"
+			name={`actions.${index}.type`}
 			render={({ field }) => (
 				<FormItem>
 					<FormLabel>Action Type</FormLabel>
 					<FormControl>
-						<Select {...field} onValueChange={field.onChange}>
+						<Select
+							{...field}
+							onValueChange={(type: ActionType) => {
+								field.onChange(type);
+								const defaultActionField = getDefaultActionField({
+									index,
+									type,
+								});
+								if (defaultActionField) {
+									form.setValue(defaultActionField, UNASSIGNED);
+								}
+							}}
+						>
 							<SelectTrigger aria-label="select action">
 								<SelectValue placeholder="Select action" />
 							</SelectTrigger>
@@ -66,3 +81,37 @@ export const ActionTypeSelect = () => {
 		/>
 	);
 };
+
+/**
+ * @returns form field name to be set that is associated with the passed `type` arg
+ */
+function getDefaultActionField({
+	index,
+	type,
+}: {
+	index: number;
+	type: ActionType;
+}) {
+	switch (type) {
+		case "run-deployment":
+		case "pause-deployment":
+		case "resume-deployment":
+			return `actions.${index}.deployment_id` as const;
+		case "pause-work-queue":
+		case "resume-work-queue":
+			return `actions.${index}.work_queue_id` as const;
+		case "pause-work-pool":
+		case "resume-work-pool":
+			return `actions.${index}.work_pool_id` as const;
+		case "pause-automation":
+		case "resume-automation":
+			return `actions.${index}.automation_id` as const;
+		case "send-notification":
+		case "cancel-flow-run":
+		case "suspend-flow-run":
+		case "resume-flow-run":
+		case "change-flow-run-state":
+		default:
+			return null;
+	}
+}
