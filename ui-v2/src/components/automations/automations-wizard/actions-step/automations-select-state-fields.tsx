@@ -1,8 +1,8 @@
 import { Automation, buildListAutomationsQuery } from "@/api/automations";
 import {
-	ActionsSchema,
+	type AutomationWizardSchema,
 	UNASSIGNED,
-} from "@/components/automations/automations-wizard/actions-step/action-type-schemas";
+} from "@/components/automations/automations-wizard/automation-schema";
 import {
 	Combobox,
 	ComboboxCommandEmtpy,
@@ -72,7 +72,7 @@ export const AutomationsSelectStateFields = ({
 	action,
 	index,
 }: AutomationsSelectStateFieldsProps) => {
-	const form = useFormContext<ActionsSchema>();
+	const form = useFormContext<AutomationWizardSchema>();
 	const { data, isSuccess } = useQuery(buildListAutomationsQuery());
 
 	return (

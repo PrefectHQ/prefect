@@ -1,8 +1,8 @@
+import { type AutomationWizardSchema } from "@/components/automations/automations-wizard/automation-schema";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icons";
 import { Typography } from "@/components/ui/typography";
 import { useWatch } from "react-hook-form";
-import { ActionsSchema } from "./action-type-schemas";
 import { ActionTypeSelect } from "./action-type-select";
 import { AutomationsSelectStateFields } from "./automations-select-state-fields";
 import { ChangeFlowRunStateFields } from "./change-flow-run-fields";
@@ -42,7 +42,9 @@ type ActionTypeAdditionalFieldsProps = {
 const ActionTypeAdditionalFields = ({
 	index,
 }: ActionTypeAdditionalFieldsProps) => {
-	const actionType = useWatch<ActionsSchema>({ name: `actions.${index}.type` });
+	const actionType = useWatch<AutomationWizardSchema>({
+		name: `actions.${index}.type`,
+	});
 	switch (actionType) {
 		case "change-flow-run-state":
 			return <ChangeFlowRunStateFields index={index} />;

@@ -2,12 +2,34 @@ import { createFakeAutomation } from "@/mocks";
 import { ActionsStep } from "./actions-step";
 
 import { Automation } from "@/api/automations";
+import {
+	AutomationWizardSchema,
+	type AutomationWizardSchema as TAutomationWizardSchema,
+} from "@/components/automations/automations-wizard/automation-schema";
+import { Form } from "@/components/ui/form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { mockPointerEvents } from "@tests/utils/browser";
 import { http, HttpResponse } from "msw";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { useForm } from "react-hook-form";
+import { beforeAll, describe, expect, it } from "vitest";
+
+const ActionStepFormContainer = () => {
+	const form = useForm<TAutomationWizardSchema>({
+		resolver: zodResolver(AutomationWizardSchema),
+		defaultValues: { actions: [{ type: undefined }] },
+	});
+
+	return (
+		<Form {...form}>
+			<form>
+				<ActionsStep />
+			</form>
+		</Form>
+	);
+};
 
 describe("ActionsStep", () => {
 	const mockListAutomationAPI = (automations: Array<Automation>) => {
@@ -24,7 +46,7 @@ describe("ActionsStep", () => {
 		it("able to add multiple actions", async () => {
 			const user = userEvent.setup();
 			// ------------ Setup
-			render(<ActionsStep onPrevious={vi.fn()} onNext={vi.fn()} />);
+			render(<ActionStepFormContainer />);
 			// ------------ Act
 			await user.click(
 				screen.getByRole("combobox", { name: /select action/i }),
@@ -42,7 +64,50 @@ describe("ActionsStep", () => {
 		it("able to remove an action actions", async () => {
 			const user = userEvent.setup();
 			// ------------ Setup
-			render(<ActionsStep onPrevious={vi.fn()} onNext={vi.fn()} />);
+			render(<ActionStepFormContainer />);
+			// ------------ Act
+			await user.click(
+				screen.getByRole("combobox", { name: /select action/i }),
+			);
+			await user.click(
+				screen.getByRole("option", { name: "Cancel a flow run" }),
+			);
+			await user.click(screen.getByRole("button", { name: /add action/i }));
+
+			await user.click(
+				screen.getByRole("button", { name: /remove action 2/i }),
+			);
+
+			// ------------ Assert
+			expect(screen.getAllByText("Cancel a flow run")).toBeTruthy();
+			expect(screen.getByText(/action 1/i)).toBeVisible();
+			expect(screen.queryByText(/action 2/i)).not.toBeInTheDocument();
+		});
+	});
+
+	describe("multiple actions", () => {
+		it("able to add multiple actions", async () => {
+			const user = userEvent.setup();
+			// ------------ Setup
+			render(<ActionStepFormContainer />);
+			// ------------ Act
+			await user.click(
+				screen.getByRole("combobox", { name: /select action/i }),
+			);
+			await user.click(
+				screen.getByRole("option", { name: "Cancel a flow run" }),
+			);
+			await user.click(screen.getByRole("button", { name: /add action/i }));
+			// ------------ Assert
+			expect(screen.getAllByText("Cancel a flow run")).toBeTruthy();
+			expect(screen.getByText(/action 1/i)).toBeVisible();
+			expect(screen.getByText(/action 2/i)).toBeVisible();
+		});
+
+		it("able to remove an action actions", async () => {
+			const user = userEvent.setup();
+			// ------------ Setup
+			render(<ActionStepFormContainer />);
 			// ------------ Act
 			await user.click(
 				screen.getByRole("combobox", { name: /select action/i }),
@@ -67,7 +132,7 @@ describe("ActionsStep", () => {
 		it("able to select a basic action", async () => {
 			const user = userEvent.setup();
 			// ------------ Setup
-			render(<ActionsStep onPrevious={vi.fn()} onNext={vi.fn()} />);
+			render(<ActionStepFormContainer />);
 
 			// ------------ Act
 			await user.click(
@@ -76,7 +141,6 @@ describe("ActionsStep", () => {
 			await user.click(
 				screen.getByRole("option", { name: "Cancel a flow run" }),
 			);
-			await user.click(screen.getByRole("button", { name: /next/i }));
 
 			// ------------ Assert
 			expect(screen.getAllByText("Cancel a flow run")).toBeTruthy();
@@ -88,7 +152,7 @@ describe("ActionsStep", () => {
 			const user = userEvent.setup();
 
 			// ------------ Setup
-			render(<ActionsStep onPrevious={vi.fn()} onNext={vi.fn()} />);
+			render(<ActionStepFormContainer />);
 
 			// ------------ Act
 			await user.click(
@@ -121,7 +185,7 @@ describe("ActionsStep", () => {
 			const user = userEvent.setup();
 
 			// ------------ Setup
-			render(<ActionsStep onPrevious={vi.fn()} onNext={vi.fn()} />, {
+			render(<ActionStepFormContainer />, {
 				wrapper: createWrapper(),
 			});
 
@@ -152,7 +216,7 @@ describe("ActionsStep", () => {
 			const user = userEvent.setup();
 
 			// ------------ Setup
-			render(<ActionsStep onPrevious={vi.fn()} onNext={vi.fn()} />, {
+			render(<ActionStepFormContainer />, {
 				wrapper: createWrapper(),
 			});
 
