@@ -69,7 +69,7 @@ class ModalPushProvisioner:
             await run_process(
                 [shlex.quote(sys.executable), "-m", "pip", "install", "modal"]
             )
-            modal = importlib.import_module("modal")
+            modal: Any = importlib.import_module("modal")
             progress.advance(task)
 
     async def _get_modal_token_id_and_secret(self) -> Tuple[str, str]:
