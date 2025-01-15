@@ -50,6 +50,7 @@ Workflow activity is tracked and can be monitored with a self-hosted [Prefect se
 
 > [!TIP]
 > Prefect flows can handle retries, dependencies, and even complex branching logic
+> 
 > [Check our docs](https://docs.prefect.io/v3/get-started/index?utm_source=oss&utm_medium=oss&utm_campaign=oss_gh_repo&utm_term=none&utm_content=none) or see the example below to learn more!
 
 ## Getting started
