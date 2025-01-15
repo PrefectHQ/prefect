@@ -69,7 +69,9 @@ class Transaction(ContextModel):
         default_factory=list
     )
     overwrite: bool = False
-    logger: logging.Logger = Field(default_factory=partial(get_logger, "transactions"))
+    logger: Union[logging.Logger, LoggingAdapter] = Field(
+        default_factory=partial(get_logger, "transactions")
+    )
     write_on_commit: bool = True
     _stored_values: Dict[str, Any] = PrivateAttr(default_factory=dict)
     _staged_value: Any = None
