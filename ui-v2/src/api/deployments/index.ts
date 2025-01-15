@@ -1,6 +1,10 @@
-import { components } from "@/api/prefect";
+import type { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
-import { queryOptions } from "@tanstack/react-query";
+import {
+	queryOptions,
+	useMutation,
+	useQueryClient,
+} from "@tanstack/react-query";
 
 export type Deployment = components["schemas"]["DeploymentResponse"];
 export type DeploymentWithFlow = Deployment & {
@@ -108,6 +112,50 @@ export const buildCountDeploymentsQuery = (
 			const res = await getQueryService().POST("/deployments/count", {
 				body: filter,
 			});
-			return res.data ?? [];
+			return res.data ?? 0;
 		},
 	});
+
+// ----------------------------
+// --------  Mutations --------
+// ----------------------------
+
+/**
+ * Hook for deleting a deployment
+ *
+ * @returns Mutation object for deleting a deployment with loading/error states and trigger function
+ *
+ * @example
+ * ```ts
+ * const { deleteDeployment } = useDeleteDeployment();
+ *
+ * // Delete a deployment by id
+ * deleteDeployment('deployment-id', {
+ *   onSuccess: () => {
+ *     // Handle successful deletion
+ *     console.log('Deployment deleted successfully');
+ *   },
+ *   onError: (error) => {
+ *     // Handle error
+ *     console.error('Failed to delete deployment:', error);
+ *   }
+ * });
+ * ```
+ */
+export const useDeleteDeployment = () => {
+	const queryClient = useQueryClient();
+
+	const { mutate: deleteDeployment, ...rest } = useMutation({
+		mutationFn: (id: string) =>
+			getQueryService().DELETE("/deployments/{id}", {
+				params: { path: { id } },
+			}),
+		onSettled: async () => {
+			return await queryClient.invalidateQueries({
+				queryKey: queryKeyFactory.all(),
+			});
+		},
+	});
+
+	return { deleteDeployment, ...rest };
+};

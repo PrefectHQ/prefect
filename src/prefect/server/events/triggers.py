@@ -55,13 +55,14 @@ from prefect.server.events.schemas.automations import (
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.utilities.messaging import Message, MessageHandler
 from prefect.settings import PREFECT_EVENTS_EXPIRED_BUCKET_BUFFER
-from prefect.types import DateTime
 
 if TYPE_CHECKING:
+    import logging
+
     from prefect.server.database.orm_models import ORMAutomationBucket
 
 
-logger = get_logger(__name__)
+logger: "logging.Logger" = get_logger(__name__)
 
 AutomationID: TypeAlias = UUID
 TriggerID: TypeAlias = UUID
@@ -74,9 +75,9 @@ async def evaluate(
     session: AsyncSession,
     trigger: EventTrigger,
     bucket: "ORMAutomationBucket",
-    now: DateTime,
+    now: pendulum.DateTime,
     triggering_event: Optional[ReceivedEvent],
-) -> Optional["ORMAutomationBucket"]:
+) -> "ORMAutomationBucket | None":
     """Evaluates an Automation, either triggered by a specific event or proactively
     on a time interval.  Evaluating a Automation updates the associated counters for
     each automation, and will fire the associated action if it has met the threshold."""
@@ -249,7 +250,7 @@ async def evaluate(
             bucket = await start_new_bucket(
                 session,
                 trigger,
-                bucketing_key=bucket.bucketing_key,
+                bucketing_key=tuple(bucket.bucketing_key),
                 start=start,
                 end=end,
                 count=0,
@@ -259,14 +260,14 @@ async def evaluate(
             return await start_new_bucket(
                 session,
                 trigger,
-                bucketing_key=bucket.bucketing_key,
+                bucketing_key=tuple(bucket.bucketing_key),
                 start=start,
                 end=end,
                 count=count,
             )
 
 
-async def fire(session: AsyncSession, firing: Firing):
+async def fire(session: AsyncSession, firing: Firing) -> None:
     if isinstance(firing.trigger.parent, Automation):
         await act(firing)
     elif isinstance(firing.trigger.parent, CompositeTrigger):
@@ -277,7 +278,7 @@ async def fire(session: AsyncSession, firing: Firing):
         )
 
 
-async def evaluate_composite_trigger(session: AsyncSession, firing: Firing):
+async def evaluate_composite_trigger(session: AsyncSession, firing: Firing) -> None:
     automation = firing.trigger.automation
 
     assert isinstance(firing.trigger.parent, CompositeTrigger)
@@ -321,8 +322,10 @@ async def evaluate_composite_trigger(session: AsyncSession, firing: Firing):
     # what the current state of the world is. If we have enough firings, we'll
     # fire the parent trigger.
     await upsert_child_firing(session, firing)
-    firings = [cf.child_firing for cf in await get_child_firings(session, trigger)]
-    firing_ids = {f.id for f in firings}
+    firings: list[Firing] = [
+        cf.child_firing for cf in await get_child_firings(session, trigger)
+    ]
+    firing_ids: set[UUID] = {f.id for f in firings}
 
     # If our current firing no longer exists when we read firings
     # another firing has superseded it, and we should defer to that one
@@ -345,7 +348,8 @@ async def evaluate_composite_trigger(session: AsyncSession, firing: Firing):
         )
 
         # clear by firing id
-        await clear_child_firings(session, trigger, firing_ids=firing_ids)
+        await clear_child_firings(session, trigger, firing_ids=list(firing_ids))
+
         await fire(
             session,
             Firing(
@@ -357,7 +361,7 @@ async def evaluate_composite_trigger(session: AsyncSession, firing: Firing):
         )
 
 
-async def act(firing: Firing):
+async def act(firing: Firing) -> None:
     """Given a Automation that has been triggered, the triggering labels and event
     (if there was one), publish an action for the `actions` service to process."""
     automation = firing.trigger.automation
@@ -419,7 +423,7 @@ def _events_clock_lock() -> asyncio.Lock:
     return __events_clock_lock
 
 
-async def update_events_clock(event: ReceivedEvent):
+async def update_events_clock(event: ReceivedEvent) -> None:
     global _events_clock, _events_clock_updated
     async with _events_clock_lock():
         # we want the offset to be negative to represent that we are always
@@ -460,14 +464,14 @@ async def get_events_clock_offset() -> float:
     return offset
 
 
-async def reset_events_clock():
+async def reset_events_clock() -> None:
     global _events_clock, _events_clock_updated
     async with _events_clock_lock():
         _events_clock = None
         _events_clock_updated = None
 
 
-async def reactive_evaluation(event: ReceivedEvent, depth: int = 0):
+async def reactive_evaluation(event: ReceivedEvent, depth: int = 0) -> None:
     """
     Evaluate all automations that may apply to this event.
 
@@ -581,12 +585,12 @@ async def reactive_evaluation(event: ReceivedEvent, depth: int = 0):
 
 # retry on operational errors to account for db flakiness with sqlite
 @retry_async_fn(max_attempts=3, retry_on_exceptions=(sa.exc.OperationalError,))
-async def get_lost_followers():
+async def get_lost_followers() -> List[ReceivedEvent]:
     """Get followers that have been sitting around longer than our lookback"""
     return await causal_ordering().get_lost_followers()
 
 
-async def periodic_evaluation(now: DateTime):
+async def periodic_evaluation(now: pendulum.DateTime) -> None:
     """Periodic tasks that should be run regularly, but not as often as every event"""
     offset = await get_events_clock_offset()
     as_of = now + timedelta(seconds=offset)
@@ -607,7 +611,7 @@ async def periodic_evaluation(now: DateTime):
         await session.commit()
 
 
-async def evaluate_periodically(periodic_granularity: timedelta):
+async def evaluate_periodically(periodic_granularity: timedelta) -> None:
     """Runs periodic evaluation on the given interval"""
     logger.debug(
         "Starting periodic evaluation task every %s seconds",
@@ -626,7 +630,7 @@ async def evaluate_periodically(periodic_granularity: timedelta):
 # account and workspace
 automations_by_id: Dict[UUID, Automation] = {}
 triggers: Dict[TriggerID, EventTrigger] = {}
-next_proactive_runs: Dict[TriggerID, DateTime] = {}
+next_proactive_runs: Dict[TriggerID, pendulum.DateTime] = {}
 
 # This lock governs any changes to the set of loaded automations; any routine that will
 # add/remove automations must be holding this lock when it does so.  It's best to use
@@ -646,7 +650,7 @@ def find_interested_triggers(event: ReceivedEvent) -> Collection[EventTrigger]:
     return [trigger for trigger in candidates if trigger.covers(event)]
 
 
-def load_automation(automation: Optional[Automation]):
+def load_automation(automation: Optional[Automation]) -> None:
     """Loads the given automation into memory so that it is available for evaluations"""
     if not automation:
         return
@@ -664,7 +668,7 @@ def load_automation(automation: Optional[Automation]):
         next_proactive_runs.pop(trigger.id, None)
 
 
-def forget_automation(automation_id: UUID):
+def forget_automation(automation_id: UUID) -> None:
     """Unloads the given automation from memory"""
     if automation := automations_by_id.pop(automation_id, None):
         for trigger in automation.triggers():
@@ -675,7 +679,7 @@ def forget_automation(automation_id: UUID):
 async def automation_changed(
     automation_id: UUID,
     event: Literal["automation__created", "automation__updated", "automation__deleted"],
-):
+) -> None:
     async with _automations_lock():
         if event in ("automation__deleted", "automation__updated"):
             forget_automation(automation_id)
@@ -775,7 +779,7 @@ async def read_bucket_by_trigger_id(
     automation_id: UUID,
     trigger_id: UUID,
     bucketing_key: Tuple[str, ...],
-) -> Optional["ORMAutomationBucket"]:
+) -> "ORMAutomationBucket | None":
     """Gets the bucket this event would fall into for the given Automation, if there is
     one currently"""
     query = sa.select(db.AutomationBucket).where(
@@ -800,7 +804,9 @@ async def increment_bucket(
     last_event: Optional[ReceivedEvent],
 ) -> "ORMAutomationBucket":
     """Adds the given count to the bucket, returning the new bucket"""
-    additional_updates: dict = {"last_event": last_event} if last_event else {}
+    additional_updates: dict[str, ReceivedEvent] = (
+        {"last_event": last_event} if last_event else {}
+    )
     await session.execute(
         db.queries.insert(db.AutomationBucket)
         .values(
@@ -827,12 +833,17 @@ async def increment_bucket(
         )
     )
 
-    return await read_bucket_by_trigger_id(
+    read_bucket = await read_bucket_by_trigger_id(
         session,
         bucket.automation_id,
         bucket.trigger_id,
-        bucket.bucketing_key,
+        tuple(bucket.bucketing_key),
     )
+
+    if TYPE_CHECKING:
+        assert read_bucket is not None
+
+    return read_bucket
 
 
 @db_injector
@@ -841,10 +852,10 @@ async def start_new_bucket(
     session: AsyncSession,
     trigger: EventTrigger,
     bucketing_key: Tuple[str, ...],
-    start: DateTime,
-    end: DateTime,
+    start: pendulum.DateTime,
+    end: pendulum.DateTime,
     count: int,
-    triggered_at: Optional[DateTime] = None,
+    triggered_at: Optional[pendulum.DateTime] = None,
 ) -> "ORMAutomationBucket":
     """Ensures that a bucket with the given start and end exists with the given count,
     returning the new bucket"""
@@ -879,12 +890,17 @@ async def start_new_bucket(
         )
     )
 
-    return await read_bucket_by_trigger_id(
+    read_bucket = await read_bucket_by_trigger_id(
         session,
         automation.id,
         trigger.id,
-        bucketing_key,
+        tuple(bucketing_key),
     )
+
+    if TYPE_CHECKING:
+        assert read_bucket is not None
+
+    return read_bucket
 
 
 @db_injector
@@ -893,15 +909,17 @@ async def ensure_bucket(
     session: AsyncSession,
     trigger: EventTrigger,
     bucketing_key: Tuple[str, ...],
-    start: DateTime,
-    end: DateTime,
+    start: pendulum.DateTime,
+    end: pendulum.DateTime,
     last_event: Optional[ReceivedEvent],
     initial_count: int = 0,
 ) -> "ORMAutomationBucket":
     """Ensures that a bucket has been started for the given automation and key,
     returning the current bucket.  Will not modify the existing bucket."""
     automation = trigger.automation
-    additional_updates: dict = {"last_event": last_event} if last_event else {}
+    additional_updates: dict[str, ReceivedEvent] = (
+        {"last_event": last_event} if last_event else {}
+    )
     await session.execute(
         db.queries.insert(db.AutomationBucket)
         .values(
@@ -928,9 +946,14 @@ async def ensure_bucket(
         )
     )
 
-    return await read_bucket_by_trigger_id(
-        session, automation.id, trigger.id, bucketing_key
+    read_bucket = await read_bucket_by_trigger_id(
+        session, automation.id, trigger.id, tuple(bucketing_key)
     )
+
+    if TYPE_CHECKING:
+        assert read_bucket is not None
+
+    return read_bucket
 
 
 @db_injector
@@ -949,16 +972,16 @@ async def remove_bucket(
 
 @db_injector
 async def sweep_closed_buckets(
-    db: PrefectDBInterface, session: AsyncSession, older_than: DateTime
+    db: PrefectDBInterface, session: AsyncSession, older_than: pendulum.DateTime
 ) -> None:
     await session.execute(
         sa.delete(db.AutomationBucket).where(db.AutomationBucket.end <= older_than)
     )
 
 
-async def reset():
+async def reset() -> None:
     """Resets the in-memory state of the service"""
-    reset_events_clock()
+    await reset_events_clock()
     automations_by_id.clear()
     triggers.clear()
     next_proactive_runs.clear()
@@ -1022,7 +1045,9 @@ async def consumer(
         proactive_task.cancel()
 
 
-async def proactive_evaluation(trigger: EventTrigger, as_of: DateTime) -> DateTime:
+async def proactive_evaluation(
+    trigger: EventTrigger, as_of: pendulum.DateTime
+) -> pendulum.DateTime:
     """The core proactive evaluation operation for a single Automation"""
     assert isinstance(trigger, EventTrigger), repr(trigger)
     automation = trigger.automation
@@ -1070,7 +1095,7 @@ async def proactive_evaluation(trigger: EventTrigger, as_of: DateTime) -> DateTi
             await session.commit()
 
 
-async def evaluate_proactive_triggers():
+async def evaluate_proactive_triggers() -> None:
     for trigger in triggers.values():
         if trigger.posture != Posture.Proactive:
             continue

@@ -1,8 +1,10 @@
 import type { DeploymentWithFlow } from "@/api/deployments";
+import { Toaster } from "@/components/ui/toaster";
 import { createFakeFlowRunWithDeploymentAndFlow } from "@/mocks/create-fake-flow-run";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
+import { mockPointerEvents } from "@tests/utils/browser";
 import { HttpResponse } from "msw";
 import { http } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -10,11 +12,9 @@ import { DeploymentsDataTable } from ".";
 
 describe("DeploymentsDataTable", () => {
 	beforeEach(() => {
-		console.log("beforeEach");
 		server.use(
 			http.post(buildApiUrl("/flow_runs/filter"), async ({ request }) => {
 				const { limit } = (await request.json()) as { limit: number };
-				console.log("limit", limit);
 
 				return HttpResponse.json(
 					Array.from({ length: limit }, createFakeFlowRunWithDeploymentAndFlow),
@@ -42,10 +42,20 @@ describe("DeploymentsDataTable", () => {
 
 	const defaultProps = {
 		deployments: [mockDeployment],
+		currentDeploymentsCount: 1,
+		pageCount: 5,
+		pagination: {
+			pageSize: 10,
+			pageIndex: 2,
+		},
+		sort: "NAME_ASC" as const,
+		columnFilters: [],
+		onPaginationChange: vi.fn(),
+		onSortChange: vi.fn(),
+		onColumnFiltersChange: vi.fn(),
 		onQuickRun: vi.fn(),
 		onCustomRun: vi.fn(),
 		onEdit: vi.fn(),
-		onDelete: vi.fn(),
 		onDuplicate: vi.fn(),
 	};
 
@@ -115,6 +125,7 @@ describe("DeploymentsDataTable", () => {
 		expect(screen.getByText("Second Deployment")).toBeInTheDocument();
 		expect(screen.getByText("test-flow")).toBeInTheDocument();
 		expect(screen.getByText("second-flow")).toBeInTheDocument();
+		expect(screen.getByText("1 Deployment")).toBeInTheDocument();
 	});
 
 	it("calls onQuickRun when quick run action is clicked", async () => {
@@ -161,17 +172,27 @@ describe("DeploymentsDataTable", () => {
 		expect(onEdit).toHaveBeenCalledWith(mockDeployment);
 	});
 
-	it("calls onDelete when delete action is clicked", async () => {
-		const onDelete = vi.fn();
-		render(<DeploymentsDataTable {...defaultProps} onDelete={onDelete} />, {
-			wrapper: createWrapper(),
-		});
+	it("handles deletion", async () => {
+		render(
+			<>
+				<Toaster />
+				<DeploymentsDataTable {...defaultProps} />
+			</>,
+			{
+				wrapper: createWrapper(),
+			},
+		);
 
 		await userEvent.click(screen.getByRole("button", { name: "Open menu" }));
 		const deleteButton = screen.getByRole("menuitem", { name: "Delete" });
 		await userEvent.click(deleteButton);
 
-		expect(onDelete).toHaveBeenCalledWith(mockDeployment);
+		const confirmDeleteButton = screen.getByRole("button", {
+			name: "Delete",
+		});
+		await userEvent.click(confirmDeleteButton);
+
+		expect(screen.getByText("Deployment deleted")).toBeInTheDocument();
 	});
 
 	it("calls onDuplicate when duplicate action is clicked", async () => {
@@ -188,5 +209,141 @@ describe("DeploymentsDataTable", () => {
 		await userEvent.click(duplicateButton);
 
 		expect(onDuplicate).toHaveBeenCalledWith(mockDeployment);
+	});
+
+	it("calls onPaginationChange when pagination buttons are clicked", async () => {
+		const onPaginationChange = vi.fn();
+		render(
+			<DeploymentsDataTable
+				{...defaultProps}
+				onPaginationChange={onPaginationChange}
+			/>,
+			{
+				wrapper: createWrapper(),
+			},
+		);
+
+		await userEvent.click(
+			screen.getByRole("button", { name: "Go to next page" }),
+		);
+
+		expect(onPaginationChange).toHaveBeenCalledWith({
+			pageIndex: 3,
+			pageSize: 10,
+		});
+
+		await userEvent.click(
+			screen.getByRole("button", { name: "Go to previous page" }),
+		);
+
+		expect(onPaginationChange).toHaveBeenCalledWith({
+			pageIndex: 1,
+			pageSize: 10,
+		});
+
+		await userEvent.click(
+			screen.getByRole("button", { name: "Go to first page" }),
+		);
+
+		expect(onPaginationChange).toHaveBeenCalledWith({
+			pageIndex: 0,
+			pageSize: 10,
+		});
+
+		await userEvent.click(
+			screen.getByRole("button", { name: "Go to last page" }),
+		);
+
+		expect(onPaginationChange).toHaveBeenCalledWith({
+			pageIndex: 4,
+			pageSize: 10,
+		});
+	});
+
+	it("calls onSortChange when sort is changed", async () => {
+		const user = userEvent.setup();
+
+		mockPointerEvents();
+		const onSortChange = vi.fn();
+		render(
+			<DeploymentsDataTable {...defaultProps} onSortChange={onSortChange} />,
+			{
+				wrapper: createWrapper(),
+			},
+		);
+
+		const select = screen.getByRole("combobox", {
+			name: "Deployment sort order",
+		});
+		await userEvent.click(select);
+		await userEvent.click(screen.getByText("Created"));
+
+		expect(onSortChange).toHaveBeenCalledWith("CREATED_DESC");
+
+		await user.click(select);
+		await user.click(screen.getByText("Updated"));
+		expect(onSortChange).toHaveBeenCalledWith("UPDATED_DESC");
+
+		await user.click(select);
+		await user.click(screen.getByText("Z to A"));
+		expect(onSortChange).toHaveBeenCalledWith("NAME_DESC");
+	});
+
+	it("calls onColumnFiltersChange on deployment name search", async () => {
+		const user = userEvent.setup();
+
+		const onColumnFiltersChange = vi.fn();
+		render(
+			<DeploymentsDataTable
+				{...defaultProps}
+				columnFilters={[{ id: "flowOrDeploymentName", value: "start value" }]}
+				onColumnFiltersChange={onColumnFiltersChange}
+			/>,
+			{
+				wrapper: createWrapper(),
+			},
+		);
+
+		// Clear any initial calls from mounting
+		onColumnFiltersChange.mockClear();
+
+		const nameSearchInput = screen.getByPlaceholderText("Search deployments");
+		expect(nameSearchInput).toHaveValue("start value");
+
+		await user.clear(nameSearchInput);
+		await user.type(nameSearchInput, "my-deployment");
+
+		expect(onColumnFiltersChange).toHaveBeenCalledWith([
+			{ id: "flowOrDeploymentName", value: "my-deployment" },
+		]);
+	});
+
+	it("calls onColumnFiltersChange on tags search", async () => {
+		const user = userEvent.setup();
+
+		const onColumnFiltersChange = vi.fn();
+		render(
+			<DeploymentsDataTable
+				{...defaultProps}
+				columnFilters={[{ id: "tags", value: ["tag3"] }]}
+				onColumnFiltersChange={onColumnFiltersChange}
+			/>,
+			{
+				wrapper: createWrapper(),
+			},
+		);
+
+		// Clear any initial calls from mounting
+		onColumnFiltersChange.mockClear();
+
+		const tagsSearchInput = screen.getByPlaceholderText("Filter by tags");
+		expect(await screen.findByText("tag3")).toBeVisible();
+
+		await user.type(tagsSearchInput, "tag4");
+		await user.keyboard("{enter}");
+
+		expect(onColumnFiltersChange).toHaveBeenCalledWith([
+			{ id: "tags", value: ["tag3", "tag4"] },
+		]);
 	});
 });

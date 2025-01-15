@@ -1,6 +1,6 @@
 import { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
-import { queryOptions } from "@tanstack/react-query";
+import { keepPreviousData, queryOptions } from "@tanstack/react-query";
 
 export type Flow = components["schemas"]["Flow"];
 export type FlowsFilter =
@@ -47,6 +47,7 @@ export const queryKeyFactory = {
  */
 export const buildListFlowsQuery = (
 	filter: FlowsFilter = { offset: 0, sort: "CREATED_DESC" },
+	{ enabled = true }: { enabled?: boolean } = {},
 ) =>
 	queryOptions({
 		queryKey: queryKeyFactory.list(filter),
@@ -57,4 +58,6 @@ export const buildListFlowsQuery = (
 			return result.data ?? [];
 		},
 		staleTime: 1000,
+		placeholderData: keepPreviousData,
+		enabled,
 	});

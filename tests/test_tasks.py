@@ -22,7 +22,7 @@ from prefect.blocks.core import Block
 from prefect.cache_policies import (
     DEFAULT,
     INPUTS,
-    NONE,
+    NO_CACHE,
     TASK_SOURCE,
     CachePolicy,
     Inputs,
@@ -1328,7 +1328,7 @@ class TestResultPersistence:
 
     @pytest.mark.parametrize(
         "cache_policy",
-        [policy for policy in CachePolicy.__subclasses__() if policy != NONE],
+        [policy for policy in CachePolicy.__subclasses__() if policy != NO_CACHE],
     )
     def test_setting_cache_policy_sets_persist_result_to_true(self, cache_policy):
         @task(cache_policy=cache_policy)
@@ -1861,7 +1861,7 @@ class TestTaskCaching:
         def foo(x):
             return x
 
-        assert foo.cache_policy == NONE
+        assert foo.cache_policy == NO_CACHE
         assert (
             "Ignoring `cache_policy` because `persist_result` is False"
             not in caplog.text
@@ -1872,13 +1872,13 @@ class TestTaskCaching:
         def foo(x):
             return x
 
-        assert foo.cache_policy == NONE
+        assert foo.cache_policy == NO_CACHE
 
         assert (
             "Ignoring `cache_policy` because `persist_result` is False" in caplog.text
         )
 
-    @pytest.mark.parametrize("cache_policy", [NONE, None])
+    @pytest.mark.parametrize("cache_policy", [NO_CACHE, None])
     async def test_does_not_warn_went_false_persist_result_and_none_cache_policy(
         self, caplog, cache_policy
     ):
@@ -1993,7 +1993,7 @@ class TestTaskCaching:
             "1. Exclude these arguments by defining a custom `cache_key_fn`"
             in error_msg
         )
-        assert "2. Disable caching by passing `cache_policy=NONE`" in error_msg
+        assert "2. Disable caching by passing `cache_policy=NO_CACHE`" in error_msg
 
         # Then we see the original HashError details
         assert "Unable to create hash - objects could not be serialized." in error_msg
@@ -2016,7 +2016,7 @@ class TestTaskCaching:
             return x
 
         # Solution 2: Disable caching entirely
-        @task(cache_policy=NONE, persist_result=True)
+        @task(cache_policy=NO_CACHE, persist_result=True)
         def foo_with_none_policy(x, lock_obj):
             return x
 
@@ -2038,7 +2038,7 @@ class TestTaskCaching:
         assert await s1.result() == 42
         assert await s2.result() == 42
 
-        # NONE policy approach should never cache
+        # NO_CACHE policy approach should never cache
         assert s3.name == "Completed"
         assert s4.name == "Completed"
         assert await s3.result() == 42
@@ -5245,7 +5245,7 @@ class TestCachePolicies:
         def my_task():
             pass
 
-        assert my_task.cache_policy is NONE
+        assert my_task.cache_policy is NO_CACHE
 
     def test_cache_policy_init_to_default_when_persisting_results(self):
         @task(persist_result=True)
