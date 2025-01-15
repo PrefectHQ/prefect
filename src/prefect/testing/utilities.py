@@ -94,7 +94,7 @@ def kubernetes_environments_equal(
 
 @contextmanager
 def assert_does_not_warn(
-    ignore_warnings: list[type[Warning]] | None,
+    ignore_warnings: list[type[Warning]] | None = None,
 ) -> Generator[None, None, None]:
     """
     Converts warnings to errors within this context to assert warnings are not raised,

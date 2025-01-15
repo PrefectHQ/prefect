@@ -132,7 +132,7 @@ async def _get_task_run(task_run_id: str) -> "TaskRun":
 
 async def _get_flow_from_run(flow_run_id: str) -> "Flow":
     async with get_client() as client:
-        flow_run = await client.read_flow_run(UUID(flow_run_id))
+        flow_run = await client.read_flow_run(flow_run_id)
         return await client.read_flow(flow_run.flow_id)
 
 
@@ -217,20 +217,19 @@ def get_flow_name() -> Optional[str]:
 
 
 def get_flow_version() -> Optional[str]:
+    breakpoint()
     flow_run_ctx = FlowRunContext.get()
     run_id = get_id()
     if flow_run_ctx is None and run_id is None:
         return None
-    elif flow_run_ctx is None and run_id is not None:
+    elif flow_run_ctx is None:
         flow = from_sync.call_soon_in_loop_thread(
             create_call(_get_flow_from_run, run_id)
         ).result()
 
         return flow.version
-    elif flow_run_ctx is not None and flow_run_ctx.flow_run is not None:
-        return flow_run_ctx.flow_run.version
     else:
-        return None
+        return flow_run_ctx.flow.version
 
 
 def get_scheduled_start_time() -> pendulum.DateTime | None:
