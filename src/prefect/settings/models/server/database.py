@@ -17,7 +17,8 @@ from prefect.settings.base import PrefectBaseSettings, _build_settings_config
 
 class SQLAlchemySettings(PrefectBaseSettings):
     """
-    Settings for controlling SQLAlchemy behavior
+    Settings for controlling SQLAlchemy behavior; note that these settings only take effect when
+    using a PostgreSQL database.
     """
 
     model_config: ClassVar[ConfigDict] = _build_settings_config(

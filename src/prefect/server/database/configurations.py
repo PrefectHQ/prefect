@@ -341,9 +341,7 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
                 f"{sqlite3.sqlite_version}"
             )
 
-        kwargs: dict[
-            str, Any
-        ] = get_current_settings().server.database.sqlalchemy.model_dump(mode="json")
+        kwargs: dict[str, Any] = dict()
 
         loop = get_running_loop()
 
@@ -352,12 +350,6 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
             # apply database timeout
             if self.timeout is not None:
                 kwargs["connect_args"] = dict(timeout=self.timeout)
-
-            if self.sqlalchemy_pool_size is not None:
-                kwargs["pool_size"] = self.sqlalchemy_pool_size
-
-            if self.sqlalchemy_max_overflow is not None:
-                kwargs["max_overflow"] = self.sqlalchemy_max_overflow
 
             # use `named` paramstyle for sqlite instead of `qmark` in very rare
             # circumstances, we've seen aiosqlite pass parameters in the wrong

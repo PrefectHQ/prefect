@@ -873,7 +873,8 @@ Number of seconds a runner should wait between heartbeats for flow runs.
 
 ---
 ## SQLAlchemySettings
-Settings for controlling SQLAlchemy behavior
+Settings for controlling SQLAlchemy behavior; note that these settings only take effect when
+using a PostgreSQL database.
 ### `pool_size`
 Controls connection pool size of database connection pools from the Prefect backend. If not set, the default SQLAlchemy pool size will be used.
 
@@ -1091,6 +1092,7 @@ The default limit applied to queries that can return multiple objects, such as `
 ## ServerDatabaseSettings
 Settings for controlling server database behavior
 ### `sqlalchemy`
+Settings for controlling SQLAlchemy behavior
 
 **Type**: [SQLAlchemySettings](#sqlalchemysettings)
 
