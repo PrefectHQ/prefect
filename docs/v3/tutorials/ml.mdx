@@ -188,6 +188,7 @@ def train_model(data_bucket: Union[str, None] = None, model_bucket: Union[str, N
 <Expandable title="SageMaker script template">
 And this is the template for the script that SageMaker uses to train the model.
 
+{/* pmd-metadata: notest */}
 ```python
 import argparse
 import boto3
@@ -303,6 +304,7 @@ python model_inference.py
 <Expandable title="model inference flow">
 This is the flow that you just deployed to Prefect Cloud.
 
+{/* pmd-metadata: notest */}
 ```python
 from prefect import flow, task
 from prefect_aws import S3Bucket

@@ -1,8 +1,5 @@
 pytest-markdown-docs >= 0.6.0
 
-boto3
-numpy
-pandas
 prefect-aws
 prefect-azure[blob_storage]
 prefect-bitbucket
@@ -19,5 +16,3 @@ prefect-shell
 prefect-slack
 prefect-snowflake
 prefect-sqlalchemy
-scikit-learn
-xgboost
