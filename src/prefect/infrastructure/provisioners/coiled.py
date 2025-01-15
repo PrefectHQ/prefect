@@ -197,15 +197,18 @@ class CoiledPushProvisioner:
                 ):
                     await self._install_coiled()
 
+            if not self._is_coiled_installed():
+                raise RuntimeError(
+                    "The coiled package is not installed.\n\nPlease try installing coiled,"
+                    " or you can use the Prefect UI to create your Coiled push work pool."
+                )
+
             # Get the current Coiled API token
             coiled_api_token = await self._get_coiled_token()
             if not coiled_api_token:
                 # Create a new token one wasn't found
                 if self.console.is_interactive and Confirm.ask(
-                    (
-                        "Coiled credentials not found. Would you like to create a new"
-                        " token?"
-                    ),
+                    "Coiled credentials not found. Would you like to create a new token?",
                     console=self.console,
                     default=True,
                 ):
