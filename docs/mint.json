@@ -1,6 +1,11 @@
 {
   "$schema": "https://mintlify.com/schema.json",
   "rounded": "sharp",
+  "analytics": {
+    "ga4": {
+      "measurementId": "G-8GR5P04T5Y"
+    }
+  },
   "anchors": [
     {
       "icon": "github",
