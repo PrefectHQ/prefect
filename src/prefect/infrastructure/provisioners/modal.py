@@ -28,14 +28,14 @@ class ModalPushProvisioner:
     """
 
     def __init__(self, client: Optional["PrefectClient"] = None):
-        self._console = Console()
+        self._console: Console = Console()
 
     @property
-    def console(self):
+    def console(self) -> Console:
         return self._console
 
     @console.setter
-    def console(self, value):
+    def console(self, value: Console) -> None:
         self._console = value
 
     @staticmethod
@@ -68,7 +68,7 @@ class ModalPushProvisioner:
             await run_process(
                 [shlex.quote(sys.executable), "-m", "pip", "install", "modal"]
             )
-            modal = importlib.import_module("modal")
+            modal: Any = importlib.import_module("modal")
             progress.advance(task)
 
     async def _get_modal_token_id_and_secret(self) -> Tuple[str, str]:
