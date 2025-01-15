@@ -450,7 +450,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
         if new_state.is_final():
             if isinstance(state.data, ResultRecord):
-                result = state.data.result  # type: ignore[reportUnknownMemberType]
+                result = state.data.result
             else:
                 result = state.data
 
