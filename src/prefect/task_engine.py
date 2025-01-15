@@ -30,6 +30,7 @@ import pendulum
 from opentelemetry import trace
 from typing_extensions import ParamSpec
 
+from prefect.cache_policies import CachePolicy
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import State, TaskRunInput
@@ -55,7 +56,7 @@ from prefect.exceptions import (
 from prefect.logging.loggers import get_logger, patch_print, task_run_logger
 from prefect.results import (
     ResultRecord,
-    _format_user_supplied_storage_key,
+    _format_user_supplied_storage_key,  # type: ignore[reportPrivateUsage]
     get_result_store,
     should_persist_result,
 )
@@ -115,7 +116,7 @@ class BaseTaskRunEngine(Generic[P, R]):
     # holds the return value from the user code
     _return_value: Union[R, Type[NotSet]] = NotSet
     # holds the exception raised by the user code, if any
-    _raised: Union[Exception, Type[NotSet]] = NotSet
+    _raised: Union[BaseException, Type[NotSet]] = NotSet
     _initial_run_context: Optional[TaskRunContext] = None
     _is_started: bool = False
     _task_name_set: bool = False
@@ -128,7 +129,7 @@ class BaseTaskRunEngine(Generic[P, R]):
 
     @property
     def state(self) -> State:
-        if not self.task_run:
+        if not self.task_run or not self.task_run.state:
             raise ValueError("Task run is not set")
         return self.task_run.state
 
@@ -142,8 +143,8 @@ class BaseTaskRunEngine(Generic[P, R]):
         return False
 
     def compute_transaction_key(self) -> Optional[str]:
-        key = None
-        if self.task.cache_policy:
+        key: Optional[str] = None
+        if self.task.cache_policy and isinstance(self.task.cache_policy, CachePolicy):
             flow_run_context = FlowRunContext.get()
             task_run_context = TaskRunContext.get()
 
@@ -153,10 +154,12 @@ class BaseTaskRunEngine(Generic[P, R]):
                 parameters = None
 
             try:
+                if not task_run_context:
+                    raise ValueError("Task run context is not set")
                 key = self.task.cache_policy.compute_key(
                     task_ctx=task_run_context,
-                    inputs=self.parameters,
-                    flow_parameters=parameters,
+                    inputs=self.parameters or {},
+                    flow_parameters=parameters or {},
                 )
             except Exception:
                 self.logger.exception(
@@ -169,7 +172,7 @@ class BaseTaskRunEngine(Generic[P, R]):
 
     def _resolve_parameters(self):
         if not self.parameters:
-            return {}
+            return None
 
         resolved_parameters = {}
         for parameter, value in self.parameters.items():
@@ -227,10 +230,8 @@ class BaseTaskRunEngine(Generic[P, R]):
         if self.task_run and self.task_run.start_time and not self.task_run.end_time:
             self.task_run.end_time = state.timestamp
 
-            if self.task_run.state.is_running():
-                self.task_run.total_run_time += (
-                    state.timestamp - self.task_run.state.timestamp
-                )
+            if self.state.is_running():
+                self.task_run.total_run_time += state.timestamp - self.state.timestamp
 
     def is_running(self) -> bool:
         """Whether or not the engine is currently running a task."""
@@ -390,6 +391,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
         new_state = Running()
 
+        assert self.task_run is not None, "Task run is not set"
         self.task_run.start_time = new_state.timestamp
 
         flow_run_context = FlowRunContext.get()
@@ -406,7 +408,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         # result reference that no longer exists
         if state.is_completed():
             try:
-                state.result(retry_result_failure=False, _sync=True)
+                state.result(retry_result_failure=False, _sync=True)  # type: ignore[reportCallIssue]
             except Exception:
                 state = self.set_state(new_state, force=True)
 
@@ -422,7 +424,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             time.sleep(interval)
             state = self.set_state(new_state)
 
-    def set_state(self, state: State, force: bool = False) -> State:
+    def set_state(self, state: State[R], force: bool = False) -> State[R]:
         last_state = self.state
         if not self.task_run:
             raise ValueError("Task run is not set")
@@ -448,7 +450,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
         if new_state.is_final():
             if isinstance(state.data, ResultRecord):
-                result = state.data.result
+                result = state.data.result  # type: ignore[reportUnknownMemberType]
             else:
                 result = state.data
 
@@ -467,9 +469,9 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     def result(self, raise_on_failure: bool = True) -> "Union[R, State, None]":
         if self._return_value is not NotSet:
             if isinstance(self._return_value, ResultRecord):
-                return self._return_value.result
+                return self._return_value.result  # type: ignore[reportUnknownMemberType]
             # otherwise, return the value as is
-            return self._return_value
+            return self._return_value  # type: ignore[reportUnknownMemberType]
 
         if self._raised is not NotSet:
             # if the task raised an exception, raise it
@@ -537,7 +539,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 new_state = Retrying()
 
             self.logger.info(
-                "Task run failed with exception: %r - " "Retry %s/%s will start %s",
+                "Task run failed with exception: %r - Retry %s/%s will start %s",
                 exc,
                 self.retries + 1,
                 self.task.retries,
@@ -1067,7 +1069,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 new_state = Retrying()
 
             self.logger.info(
-                "Task run failed with exception: %r - " "Retry %s/%s will start %s",
+                "Task run failed with exception: %r - Retry %s/%s will start %s",
                 exc,
                 self.retries + 1,
                 self.task.retries,
@@ -1341,7 +1343,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if transaction.is_committed():
             result = transaction.read()
         else:
-            if self.task_run.tags:
+            if self.task_run and self.task_run.tags:
                 # Acquire a concurrency slot for each tag, but only if a limit
                 # matching the tag already exists.
                 async with aconcurrency(list(self.task_run.tags), self.task_run.id):
@@ -1546,7 +1548,7 @@ def run_task(
     Returns:
         The result of the task run
     """
-    kwargs = dict(
+    kwargs: dict[str, Any] = dict(
         task=task,
         task_run_id=task_run_id,
         task_run=task_run,
