@@ -9,19 +9,19 @@ import {
 } from "@/components/ui/select";
 
 import {
+	type ActionType,
+	type AutomationWizardSchema,
+	UNASSIGNED,
+} from "@/components/automations/automations-wizard/automation-schema";
+import {
 	FormControl,
 	FormField,
 	FormItem,
 	FormLabel,
 } from "@/components/ui/form";
 import { useFormContext } from "react-hook-form";
-import {
-	type ActionType,
-	type ActionsSchema,
-	UNASSIGNED,
-} from "./action-type-schemas";
 
-const AUTOMATION_ACTION_TYPES: Record<ActionType, string> = {
+const AUTOMATION_ACTION_TYPES: Partial<Record<ActionType, string>> = {
 	"cancel-flow-run": "Cancel a flow run",
 	"suspend-flow-run": "Suspend a flow run",
 	"resume-flow-run": "Resume a flow run",
@@ -39,7 +39,7 @@ const AUTOMATION_ACTION_TYPES: Record<ActionType, string> = {
 };
 
 export const ActionTypeSelect = ({ index }: { index: number }) => {
-	const form = useFormContext<ActionsSchema>();
+	const form = useFormContext<AutomationWizardSchema>();
 	return (
 		<FormField
 			control={form.control}

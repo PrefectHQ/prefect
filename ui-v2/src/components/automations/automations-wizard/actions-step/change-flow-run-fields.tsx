@@ -1,4 +1,5 @@
 import { components } from "@/api/prefect";
+import { type AutomationWizardSchema } from "@/components/automations/automations-wizard/automation-schema";
 import {
 	FormControl,
 	FormField,
@@ -18,8 +19,6 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useFormContext } from "react-hook-form";
-import { ActionsSchema } from "./action-type-schemas";
-
 const FLOW_STATES = {
 	COMPLETED: "Completed",
 	RUNNING: "Running",
@@ -43,7 +42,7 @@ type ChangeFlowRunStateFieldsProps = {
 export const ChangeFlowRunStateFields = ({
 	index,
 }: ChangeFlowRunStateFieldsProps) => {
-	const form = useFormContext<ActionsSchema>();
+	const form = useFormContext<AutomationWizardSchema>();
 	const stateField = form.watch(`actions.${index}.state`);
 
 	return (
