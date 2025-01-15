@@ -245,7 +245,7 @@ async def exception_to_failed_state(
     exc: Optional[BaseException] = None,
     result_store: Optional["ResultStore"] = None,
     write_result: bool = False,
-    **kwargs,
+    **kwargs: Any,
 ) -> State:
     """
     Convenience function for creating `Failed` states from exceptions
