@@ -21,6 +21,12 @@ const automationsHandlers = [
 	}),
 ];
 
+const deploymentsHandlers = [
+	http.delete(buildApiUrl("/deployments/:id"), () => {
+		return HttpResponse.json({ status: 204 });
+	}),
+];
+
 const flowHandlers = [
 	http.post(buildApiUrl("/flows/paginate"), () => {
 		return HttpResponse.json({
@@ -95,6 +101,7 @@ const variablesHandlers = [
 
 export const handlers = [
 	...automationsHandlers,
+	...deploymentsHandlers,
 	...flowHandlers,
 	...flowRunHandlers,
 	...globalConcurrencyLimitsHandlers,

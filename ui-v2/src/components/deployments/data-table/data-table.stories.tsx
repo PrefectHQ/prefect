@@ -59,7 +59,6 @@ export const Default: StoryObj<StoryArgs> = {
 		onQuickRun: fn(),
 		onCustomRun: fn(),
 		onEdit: fn(),
-		onDelete: fn(),
 		onDuplicate: fn(),
 	},
 	render: (
@@ -88,6 +87,7 @@ export const Default: StoryObj<StoryArgs> = {
 					pageIndex,
 					pageSize,
 				}}
+				columnFilters={[]}
 				pageCount={Math.ceil(numberOfDeployments / pageSize)}
 				onPaginationChange={(pagination) => {
 					setPageIndex(pagination.pageIndex);
