@@ -60,7 +60,7 @@ class BlockStandardTestSuite(ABC):
         assert (
             logo_url is not None
         ), f"{block.__name__} is missing a value for _logo_url"
-        img = Image.open(urlopen(logo_url))
+        img = Image.open(urlopen(str(logo_url)))
         assert img.width == img.height, "Logo should be a square image"
         assert (
             1000 > img.width > 45

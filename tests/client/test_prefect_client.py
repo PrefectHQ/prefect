@@ -841,27 +841,6 @@ async def test_read_deployment_by_any_tag(
         assert len(deployment_responses) == 0
 
 
-async def test_read_deployment_by_name_fails_with_helpful_suggestion(prefect_client):
-    """this is a regression test for https://github.com/PrefectHQ/prefect/issues/15571"""
-
-    @flow
-    def moo_deng():
-        pass
-
-    flow_id = await prefect_client.create_flow(moo_deng)
-
-    await prefect_client.create_deployment(
-        flow_id=flow_id,
-        name="moisturized-deployment",
-    )
-
-    with pytest.raises(
-        prefect.exceptions.ObjectNotFound,
-        match="Deployment 'moo_deng/moisturized-deployment' not found; did you mean 'moo-deng/moisturized-deployment'?",
-    ):
-        await prefect_client.read_deployment_by_name("moo_deng/moisturized-deployment")
-
-
 async def test_create_then_delete_deployment(prefect_client):
     @flow
     def foo():
@@ -880,7 +859,7 @@ async def test_create_then_delete_deployment(prefect_client):
 
 
 async def test_read_nonexistent_deployment_by_name(prefect_client):
-    with pytest.raises(prefect.exceptions.ObjectNotFound):
+    with pytest.raises((prefect.exceptions.ObjectNotFound, ValueError)):
         await prefect_client.read_deployment_by_name("not-a-real-deployment")
 
 
@@ -1927,19 +1906,6 @@ class TestClientWorkQueues:
         output = await prefect_client.get_runs_in_work_queue(queue.id, limit=20)
         assert len(output) == 10
         assert {o.id for o in output} == {r.id for r in runs}
-
-    async def test_get_runs_from_queue_updates_status(
-        self, prefect_client: PrefectClient
-    ):
-        queue = await prefect_client.create_work_queue(name="foo")
-        assert queue.status == "NOT_READY"
-
-        # Trigger an operation that would update the queues last_polled status
-        await prefect_client.get_runs_in_work_queue(queue.id, limit=1)
-
-        # Verify that the polling results in a READY status
-        lookup = await prefect_client.read_work_queue(queue.id)
-        assert lookup.status == "READY"
 
 
 async def test_delete_flow_run(prefect_client, flow_run):

@@ -1,3 +1,7 @@
+import {
+	type TaskRunConcurrencyLimit,
+	useDeleteTaskRunConcurrencyLimit,
+} from "@/api/task-run-concurrency-limits";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -8,13 +12,9 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-	type TaskRunConcurrencyLimit,
-	useDeleteTaskRunConcurrencyLimit,
-} from "@/hooks/task-run-concurrency-limits";
 import { useToast } from "@/hooks/use-toast";
 
-type Props = {
+type TaskRunConcurrencyLimitsDeleteDialogProps = {
 	data: TaskRunConcurrencyLimit;
 	onOpenChange: (open: boolean) => void;
 	onDelete: () => void;
@@ -24,7 +24,7 @@ export const TaskRunConcurrencyLimitsDeleteDialog = ({
 	data,
 	onOpenChange,
 	onDelete,
-}: Props) => {
+}: TaskRunConcurrencyLimitsDeleteDialogProps) => {
 	const { toast } = useToast();
 	const { deleteTaskRunConcurrencyLimit, isPending } =
 		useDeleteTaskRunConcurrencyLimit();

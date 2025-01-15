@@ -1,5 +1,6 @@
 {
   "$schema": "https://mintlify.com/schema.json",
+  "rounded": "sharp",
   "anchors": [
     {
       "icon": "github",
@@ -53,8 +54,8 @@
       "group": "Get started",
       "pages": [
         "v3/get-started/index",
-        "v3/get-started/whats-new-prefect-3",
         "v3/get-started/install",
+        "v3/get-started/whats-new-prefect-3",
         "v3/get-started/quickstart"
       ],
       "version": "v3"
@@ -67,7 +68,8 @@
           "pages": [
             "v3/tutorials/schedule",
             "v3/tutorials/pipelines",
-            "v3/tutorials/scraping"
+            "v3/tutorials/scraping",
+            "v3/tutorials/ml"
           ]
         },
         {
@@ -197,7 +199,8 @@
         "v3/automate/events/events",
         "v3/automate/events/automations-triggers",
         "v3/automate/events/custom-triggers",
-        "v3/automate/events/webhook-triggers"
+        "v3/automate/events/webhook-triggers",
+        "v3/automate/events/slas"
       ],
       "version": "v3"
     },

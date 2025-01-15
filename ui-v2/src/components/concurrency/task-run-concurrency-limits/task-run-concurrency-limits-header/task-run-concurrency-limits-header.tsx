@@ -2,14 +2,18 @@ import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icons";
 import { Typography } from "@/components/ui/typography";
 
-type Props = {
+type TaskRunConcurrencyLimitsHeaderProps = {
 	onAdd: () => void;
 };
 
-export const TaskRunConcurrencyLimitsHeader = ({ onAdd }: Props) => {
+export const TaskRunConcurrencyLimitsHeader = ({
+	onAdd,
+}: TaskRunConcurrencyLimitsHeaderProps) => {
 	return (
 		<div className="flex gap-2 items-center">
-			<Typography variant="h4">Task Run Concurrency Limits</Typography>
+			<Typography className="font-semibold">
+				Task Run Concurrency Limits
+			</Typography>
 			<Button
 				onClick={onAdd}
 				size="icon"

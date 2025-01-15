@@ -194,6 +194,7 @@ SUPPORTED_SETTINGS = {
     "PREFECT_CLI_PROMPT": {"test_value": True},
     "PREFECT_CLI_WRAP_LINES": {"test_value": True},
     "PREFECT_CLOUD_API_URL": {"test_value": "https://cloud.prefect.io"},
+    "PREFECT_CLOUD_ENABLE_ORCHESTRATION_TELEMETRY": {"test_value": True},
     "PREFECT_CLOUD_UI_URL": {"test_value": "https://cloud.prefect.io"},
     "PREFECT_DEBUG_MODE": {"test_value": True},
     "PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE": {"test_value": "prefect", "legacy": True},
@@ -230,7 +231,6 @@ SUPPORTED_SETTINGS = {
     },
     "PREFECT_EVENTS_WEBSOCKET_BACKFILL_PAGE_SIZE": {"test_value": 10, "legacy": True},
     "PREFECT_EXPERIMENTAL_WARN": {"test_value": True, "legacy": True},
-    "PREFECT_EXPERIMENTS_TELEMETRY_ENABLED": {"test_value": False},
     "PREFECT_EXPERIMENTS_WARN": {"test_value": True},
     "PREFECT_EXPERIMENTS_LINEAGE_EVENTS_ENABLED": {"test_value": True},
     "PREFECT_FLOW_DEFAULT_RETRIES": {"test_value": 10, "legacy": True},
@@ -297,6 +297,7 @@ SUPPORTED_SETTINGS = {
         "test_value": timedelta(seconds=10),
         "legacy": True,
     },
+    "PREFECT_SERVER_DATABASE_CONNECTION_APP_NAME": {"test_value": "testingconn"},
     "PREFECT_SERVER_DATABASE_CONNECTION_TIMEOUT": {"test_value": 10.0},
     "PREFECT_SERVER_DATABASE_CONNECTION_URL": {"test_value": "sqlite:///"},
     "PREFECT_SERVER_DATABASE_DRIVER": {"test_value": "sqlite+aiosqlite"},
@@ -990,6 +991,26 @@ class TestDatabaseSettings:
             assert url.username == "the-user"
             assert url.database == "the-database"
             assert url.password == "the-password"
+
+    def test_postgres_connection_url_is_secret_when_parts_are_individually_set(self):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/16657
+        """
+        with temporary_settings(
+            {
+                PREFECT_SERVER_DATABASE_CONNECTION_URL: None,
+                PREFECT_API_DATABASE_DRIVER: "postgresql+asyncpg",
+                PREFECT_API_DATABASE_HOST: "the-database-server.example.com",
+                PREFECT_API_DATABASE_PORT: 15432,
+                PREFECT_API_DATABASE_USER: "the-user",
+                PREFECT_API_DATABASE_NAME: "the-database",
+                PREFECT_API_DATABASE_PASSWORD: "the-password",
+            }
+        ):
+            assert isinstance(
+                get_current_settings().server.database.connection_url,
+                pydantic.SecretStr,
+            )
 
     def test_postgres_password_is_quoted(self):
         with temporary_settings(

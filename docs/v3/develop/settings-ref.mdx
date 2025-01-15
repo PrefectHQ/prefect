@@ -413,6 +413,18 @@ API URL for Prefect Cloud. Used for authentication with Prefect Cloud.
 **Supported environment variables**:
 `PREFECT_CLOUD_API_URL`
 
+### `enable_orchestration_telemetry`
+Whether or not to enable orchestration telemetry.
+
+**Type**: `boolean`
+
+**Default**: `True`
+
+**TOML dotted key path**: `cloud.enable_orchestration_telemetry`
+
+**Supported environment variables**:
+`PREFECT_CLOUD_ENABLE_ORCHESTRATION_TELEMETRY`
+
 ### `ui_url`
 The URL of the Prefect Cloud UI. If not set, the client will attempt to infer it.
 
@@ -466,18 +478,6 @@ If `True`, warn on usage of experimental features.
 
 **Supported environment variables**:
 `PREFECT_EXPERIMENTS_WARN`, `PREFECT_EXPERIMENTAL_WARN`
-
-### `telemetry_enabled`
-Enables sending telemetry to Prefect Cloud.
-
-**Type**: `boolean`
-
-**Default**: `False`
-
-**TOML dotted key path**: `experiments.telemetry_enabled`
-
-**Supported environment variables**:
-`PREFECT_EXPERIMENTS_TELEMETRY_ENABLED`
 
 ### `lineage_events_enabled`
 If `True`, enables emitting lineage events. Set to `False` to disable lineage event emission.
@@ -1183,7 +1183,7 @@ A connection timeout, in seconds, applied to database connections. Defaults to `
 `PREFECT_SERVER_DATABASE_CONNECTION_TIMEOUT`, `PREFECT_API_DATABASE_CONNECTION_TIMEOUT`
 
 ### `sqlalchemy_pool_size`
-Controls connection pool size when using a PostgreSQL database with the Prefect API. If not set, the default SQLAlchemy pool size will be used.
+Controls connection pool size of database connection pools from the Prefect API. If not set, the default SQLAlchemy pool size will be used.
 
 **Type**: `integer | None`
 
@@ -1193,6 +1193,18 @@ Controls connection pool size when using a PostgreSQL database with the Prefect 
 
 **Supported environment variables**:
 `PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_SIZE`, `PREFECT_SQLALCHEMY_POOL_SIZE`
+
+### `connection_app_name`
+Controls the application_name field for connections opened from the connection pool when using a PostgreSQL database with the Prefect API.
+
+**Type**: `string | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `server.database.connection_app_name`
+
+**Supported environment variables**:
+`PREFECT_SERVER_DATABASE_CONNECTION_APP_NAME`
 
 ### `sqlalchemy_max_overflow`
 Controls maximum overflow of the connection pool when using a PostgreSQL database with the Prefect API. If not set, the default SQLAlchemy maximum overflow value will be used.
@@ -1243,7 +1255,7 @@ Settings for controlling ephemeral server behavior
 ### `startup_timeout_seconds`
 
         The number of seconds to wait for the server to start when ephemeral mode is enabled.
-        Defaults to `10`.
+        Defaults to `20`.
         
 
 **Type**: `integer`

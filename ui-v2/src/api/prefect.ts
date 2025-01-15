@@ -6953,7 +6953,7 @@ export interface components {
              * Pause Keys
              * @description Tracks pauses this run has observed.
              */
-            pause_keys?: unknown[] | null;
+            pause_keys?: string[] | null;
             /**
              * Resuming
              * @description Indicates if this run is resuming from a pause.
@@ -9551,7 +9551,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": boolean;
                 };
             };
         };
@@ -9571,7 +9571,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": string;
                 };
             };
         };

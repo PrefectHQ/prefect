@@ -12,9 +12,7 @@ test("GlobalConcurrencyLimitsHeader can successfully call onAdd", async () => {
 	render(<GlobalConcurrencyLimitsHeader onAdd={mockOnAddFn} />);
 
 	// ------------ Act
-	expect(
-		screen.getByRole("heading", { name: /global concurrency limits/i }),
-	).toBeVisible();
+	expect(screen.getByText(/global concurrency limits/i)).toBeVisible();
 	await user.click(
 		screen.getByRole("button", {
 			name: /add global concurrency limit/i,

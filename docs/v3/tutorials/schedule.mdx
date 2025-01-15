@@ -80,11 +80,18 @@ To set a flow to run on a schedule, you need to create a deployment.
    if __name__ == "__main__":
        flow.from_source(
            source=SOURCE_REPO,
-           entrypoint="my_gh_workflow.py:repo_info", # Specific flow to run
+           entrypoint="my_workflow.py:show_stars", # Specific flow to run
        ).deploy(
            name="my-first-deployment",
-           work_pool_name="my-work-pool", # Work pool target
-           cron="* * * * *", # Cron schedule (every minute)
+           parameters={
+               "github_repos": [
+                   "PrefectHQ/prefect",
+                   "pydantic/pydantic",
+                   "huggingface/transformers"
+               ]
+           },
+           work_pool_name="my-work-pool",
+           cron="0 * * * *",  # Run every hour
        )
    ```
 
@@ -103,25 +110,23 @@ To set a flow to run on a schedule, you need to create a deployment.
 
    ```bash
    Successfully created/updated all deployments!
-   ______________________________________________________
-   |                    Deployments                     |  
-   ______________________________________________________
-   |    Name                       |  Status  | Details |
-   ______________________________________________________
-   | repo-info/my-first-deployment | applied  |         |
-   ______________________________________________________
+   _______________________________________________________
+   |                    Deployments                      |
+   _______________________________________________________
+   |    Name                        |  Status  | Details |
+   _______________________________________________________
+   | show-stars/my-first-deployment | applied  |         |
+   _______________________________________________________
    ```
 
 1. Schedule a run for the deployment:
 
    ```bash
-   prefect deployment run 'repo-info/my-first-deployment'
+   prefect deployment run 'show-stars/my-first-deployment'
    ```
 
    Soon you should see the flow run graph and logs on the **Flow Run** page in the UI.
    Logs are also streamed to the terminal.
-
-   ![Flow run graph and logs](/v3/img/ui/qs-flow-run.png)
 
 ## Next steps
 

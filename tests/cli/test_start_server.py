@@ -5,6 +5,8 @@ import socket
 import sys
 import tempfile
 from collections.abc import AsyncIterator
+from pathlib import Path
+from typing import Callable
 
 import anyio
 import httpx
@@ -13,7 +15,7 @@ import readchar
 from anyio.abc import Process
 from typer import Exit
 
-from prefect.cli.server import PID_FILE
+from prefect.cli.server import SERVER_PID_FILE_NAME
 from prefect.context import get_settings_context
 from prefect.settings import (
     PREFECT_API_URL,
@@ -104,7 +106,7 @@ async def start_server_process() -> AsyncIterator[Process]:
 
 
 class TestBackgroundServer:
-    def test_start_and_stop_background_server(self, unused_tcp_port):
+    def test_start_and_stop_background_server(self, unused_tcp_port: int):
         invoke_and_assert(
             command=[
                 "server",
@@ -133,7 +135,9 @@ class TestBackgroundServer:
             PREFECT_HOME.value() / "server.pid"
         ).exists(), "Server PID file exists"
 
-    def test_start_duplicate_background_server(self, unused_tcp_port_factory):
+    def test_start_duplicate_background_server(
+        self, unused_tcp_port_factory: Callable[[], int]
+    ):
         port_1 = unused_tcp_port_factory()
         invoke_and_assert(
             command=[
@@ -169,7 +173,7 @@ class TestBackgroundServer:
             expected_code=0,
         )
 
-    def test_start_port_in_use(self, unused_tcp_port):
+    def test_start_port_in_use(self, unused_tcp_port: int):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.bind(("127.0.0.1", unused_tcp_port))
             invoke_and_assert(
@@ -184,8 +188,8 @@ class TestBackgroundServer:
                 expected_code=1,
             )
 
-    def test_start_port_in_use_by_background_server(self, unused_tcp_port):
-        pid_file = PREFECT_HOME.value() / PID_FILE
+    def test_start_port_in_use_by_background_server(self, unused_tcp_port: int):
+        pid_file = PREFECT_HOME.value() / SERVER_PID_FILE_NAME
         pid_file.write_text("99999")
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.bind(("127.0.0.1", unused_tcp_port))
@@ -202,8 +206,8 @@ class TestBackgroundServer:
                 expected_code=1,
             )
 
-    def test_stop_stale_pid_file(self, unused_tcp_port):
-        pid_file = PREFECT_HOME.value() / PID_FILE
+    def test_stop_stale_pid_file(self, unused_tcp_port: int):
+        pid_file = PREFECT_HOME.value() / SERVER_PID_FILE_NAME
         pid_file.write_text("99999")
 
         invoke_and_assert(
@@ -227,111 +231,60 @@ class TestUvicornSignalForwarding:
         sys.platform == "win32",
         reason="SIGTERM is only used in non-Windows environments",
     )
-    async def test_sigint_sends_sigterm(self):
+    async def test_sigint_shutsdown_cleanly(self):
         async with start_server_process() as server_process:
             server_process.send_signal(signal.SIGINT)
             with anyio.fail_after(SHUTDOWN_TIMEOUT):
-                assert (
-                    await server_process.wait() != 0
-                ), "Server process exited with zero code"
-            server_process.out.seek(0)
-            out = server_process.out.read().decode()
-
-            assert "Sending SIGTERM" in out, (
-                "When sending a SIGINT, the main process should send a SIGTERM to the"
-                f" uvicorn subprocess. Output:\n{out}"
-            )
-
-    @pytest.mark.skipif(
-        sys.platform == "win32",
-        reason="SIGTERM is only used in non-Windows environments",
-    )
-    async def test_sigterm_sends_sigterm_directly(self):
-        async with start_server_process() as server_process:
-            server_process.send_signal(signal.SIGTERM)
-            with anyio.fail_after(SHUTDOWN_TIMEOUT):
-                assert (
-                    await server_process.wait() != 0
-                ), "Server process exited with zero code"
-            server_process.out.seek(0)
-            out = server_process.out.read().decode()
-
-            assert "Sending SIGTERM" in out, (
-                "When sending a SIGTERM, the main process should send a SIGTERM to the"
-                f" uvicorn subprocess. Output:\n{out}"
-            )
-
-    @pytest.mark.skipif(
-        sys.platform == "win32",
-        reason="SIGTERM is only used in non-Windows environments",
-    )
-    async def test_sigint_sends_sigterm_then_sigkill(self):
-        async with start_server_process() as server_process:
-            server_process.send_signal(signal.SIGINT)
-            await anyio.sleep(
-                0.001
-            )  # some time needed for the recursive signal handler
-            server_process.send_signal(signal.SIGINT)
-            with anyio.fail_after(SHUTDOWN_TIMEOUT):
-                assert (
-                    await server_process.wait() != 0
-                ), "Server process exited with zero code"
-            server_process.out.seek(0)
-            out = server_process.out.read().decode()
+                exit_code = await server_process.wait()
 
             assert (
-                # either the main PID is still waiting for shutdown, so forwards the SIGKILL
-                "Sending SIGKILL" in out
-                # or SIGKILL came too late, and the main PID is already closing
-                or "KeyboardInterrupt" in out
-                or "Server stopped!" in out
-            ), (
-                "When sending two SIGINT shortly after each other, the main process"
-                " should first send a SIGTERM and then a SIGKILL to the uvicorn"
-                f" subprocess. Output:\n{out}"
+                exit_code == 0
+            ), "After one sigint, the process should exit successfully"
+
+            server_process.out.seek(0)
+            out = server_process.out.read().decode()
+
+            assert "Application shutdown complete." in out, (
+                "When sending a SIGINT, the application should shutdown cleanly. "
+                f"Output:\n{out}"
             )
 
     @pytest.mark.skipif(
         sys.platform == "win32",
         reason="SIGTERM is only used in non-Windows environments",
     )
-    async def test_sigterm_sends_sigterm_then_sigkill(self):
+    async def test_sigterm_shutsdown_cleanly(self):
         async with start_server_process() as server_process:
             server_process.send_signal(signal.SIGTERM)
-            await anyio.sleep(
-                0.001
-            )  # some time needed for the recursive signal handler
-            server_process.send_signal(signal.SIGTERM)
             with anyio.fail_after(SHUTDOWN_TIMEOUT):
-                assert (
-                    await server_process.wait() != 0
-                ), "Server process exited with zero code"
+                exit_code = await server_process.wait()
+
+            assert (
+                exit_code == -signal.SIGTERM
+            ), "After a sigterm, the server process should indicate it was terminated"
+
             server_process.out.seek(0)
             out = server_process.out.read().decode()
 
-            assert (
-                # either the main PID is still waiting for shutdown, so forwards the SIGKILL
-                "Sending SIGKILL" in out
-                # or SIGKILL came too late, and the main PID is already closing
-                or "KeyboardInterrupt" in out
-                or "Server stopped!" in out
-            ), (
-                "When sending two SIGTERM shortly after each other, the main process"
-                " should first send a SIGTERM and then a SIGKILL to the uvicorn"
-                f" subprocess. Output:\n{out}"
+            assert "Application shutdown complete." in out, (
+                "When sending a SIGTERM, the application should shutdown cleanly. "
+                f"Output:\n{out}"
             )
 
     @pytest.mark.skipif(
         sys.platform != "win32",
         reason="CTRL_BREAK_EVENT is only defined in Windows",
     )
-    async def test_sends_ctrl_break_win32(self):
+    async def test_ctrl_break_shutsdown_cleanly(self):
         async with start_server_process() as server_process:
             server_process.send_signal(signal.SIGINT)
             with anyio.fail_after(SHUTDOWN_TIMEOUT):
-                assert (
-                    await server_process.wait() != 0
-                ), "Server process exited with zero code"
+                exit_code = await server_process.wait()
+
+            assert (
+                exit_code == 0
+            ), "After a ctrl-break, the process should exit successfully"
+
             server_process.out.seek(0)
             out = server_process.out.read().decode()
 
@@ -343,7 +296,7 @@ class TestUvicornSignalForwarding:
 
 class TestPrestartCheck:
     @pytest.fixture(autouse=True)
-    def interactive_console(self, monkeypatch):
+    def interactive_console(self, monkeypatch: pytest.MonkeyPatch):
         monkeypatch.setattr("prefect.cli.server.is_interactive", lambda: True)
 
         # `readchar` does not like the fake stdin provided by typer isolation so we provide
@@ -361,7 +314,7 @@ class TestPrestartCheck:
         monkeypatch.setattr("readchar._posix_read.readchar", readchar)
 
     @pytest.fixture(autouse=True)
-    def temporary_profiles_path(self, tmp_path):
+    def temporary_profiles_path(self, tmp_path: Path):
         path = tmp_path / "profiles.toml"
         with temporary_settings({PREFECT_PROFILES_PATH: path}):
             save_profiles(

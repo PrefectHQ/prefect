@@ -597,7 +597,7 @@ class DeploymentFlowRunCreate(ActionBaseModel):
 
     @field_validator("name", mode="before")
     @classmethod
-    def set_name(cls, name):
+    def set_name(cls, name: str) -> str:
         return get_or_create_run_name(name)
 
 
@@ -836,10 +836,10 @@ class WorkPoolCreate(ActionBaseModel):
 class WorkPoolUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a work pool."""
 
-    description: Optional[str] = Field(None)
-    is_paused: Optional[bool] = Field(None)
-    base_job_template: Optional[Dict[str, Any]] = Field(None)
-    concurrency_limit: Optional[NonNegativeInteger] = Field(None)
+    description: Optional[str] = Field(default=None)
+    is_paused: Optional[bool] = Field(default=None)
+    base_job_template: Optional[Dict[str, Any]] = Field(default=None)
+    concurrency_limit: Optional[NonNegativeInteger] = Field(default=None)
 
     _validate_base_job_template = field_validator("base_job_template")(
         validate_base_job_template

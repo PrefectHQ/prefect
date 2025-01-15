@@ -20,7 +20,10 @@
                         "description": "Successful Response",
                         "content": {
                             "application/json": {
-                                "schema": {}
+                                "schema": {
+                                    "type": "boolean",
+                                    "title": "Response Health Check Health Get"
+                                }
                             }
                         }
                     }
@@ -39,7 +42,10 @@
                         "description": "Successful Response",
                         "content": {
                             "application/json": {
-                                "schema": {}
+                                "schema": {
+                                    "type": "string",
+                                    "title": "Response Server Version Version Get"
+                                }
                             }
                         }
                     }
@@ -19502,7 +19508,9 @@
                     "pause_keys": {
                         "anyOf": [
                             {
-                                "items": {},
+                                "items": {
+                                    "type": "string"
+                                },
                                 "type": "array",
                                 "uniqueItems": true
                             },

@@ -7,21 +7,23 @@ import {
 	BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 
-type Props = {
+type NavHeaderProps = {
 	tag: string;
 };
 
-export const NavHeader = ({ tag }: Props) => {
+export const NavHeader = ({ tag }: NavHeaderProps) => {
 	return (
 		<div className="flex items-center gap-2">
 			<Breadcrumb>
 				<BreadcrumbList>
-					<BreadcrumbLink
-						to="/concurrency-limits"
-						className="text-xl font-semibold"
-					>
-						Concurrency Limits
-					</BreadcrumbLink>
+					<BreadcrumbItem>
+						<BreadcrumbLink
+							to="/concurrency-limits"
+							className="text-xl font-semibold"
+						>
+							Concurrency Limits
+						</BreadcrumbLink>
+					</BreadcrumbItem>
 					<BreadcrumbSeparator />
 					<BreadcrumbItem className="text-xl font-semibold">
 						<BreadcrumbPage>{tag}</BreadcrumbPage>
