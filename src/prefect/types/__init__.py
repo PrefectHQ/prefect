@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from functools import partial
 from typing import Annotated, Any, Dict, List, Optional, Set, TypeVar, Union
 from typing_extensions import Literal, TypeAlias

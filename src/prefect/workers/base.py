@@ -702,7 +702,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
 
         return is_still_polling
 
-    async def get_and_submit_flow_runs(self) -> list[FlowRun]:
+    async def get_and_submit_flow_runs(self) -> list["FlowRun"]:
         runs_response = await self._get_scheduled_flow_runs()
 
         self._last_polled_time = pendulum.now("utc")
