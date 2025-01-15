@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import os
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
-from uuid import UUID
 
 import pendulum
 
@@ -67,8 +66,8 @@ type_cast: dict[
     | type[int]
     | type[float]
     | type[str]
-    | type[pendulum.DateTime]
-    | type[None],
+    | type[None]
+    | type[pendulum.DateTime],
     Callable[[Any], Any],
 ] = {
     bool: lambda x: x.lower() == "true",
@@ -122,12 +121,12 @@ def __dir__() -> List[str]:
 
 async def _get_flow_run(flow_run_id: str) -> "FlowRun":
     async with get_client() as client:
-        return await client.read_flow_run(UUID(flow_run_id))
+        return await client.read_flow_run(flow_run_id)
 
 
 async def _get_task_run(task_run_id: str) -> "TaskRun":
     async with get_client() as client:
-        return await client.read_task_run(UUID(task_run_id))
+        return await client.read_task_run(task_run_id)
 
 
 async def _get_flow_from_run(flow_run_id: str) -> "Flow":
@@ -139,7 +138,7 @@ async def _get_flow_from_run(flow_run_id: str) -> "Flow":
 def get_id() -> Optional[str]:
     flow_run_ctx = FlowRunContext.get()
     task_run_ctx = TaskRunContext.get()
-    if flow_run_ctx is not None and flow_run_ctx.flow_run is not None:
+    if flow_run_ctx is not None:
         return str(flow_run_ctx.flow_run.id)
     if task_run_ctx is not None:
         return str(task_run_ctx.task_run.flow_run_id)
@@ -152,16 +151,14 @@ def get_tags() -> List[str]:
     run_id = get_id()
     if flow_run_ctx is None and run_id is None:
         return []
-    elif flow_run_ctx is None and run_id is not None:
+    elif flow_run_ctx is None:
         flow_run = from_sync.call_soon_in_loop_thread(
             create_call(_get_flow_run, run_id)
         ).result()
 
         return flow_run.tags
-    elif flow_run_ctx is not None and flow_run_ctx.flow_run is not None:
-        return flow_run_ctx.flow_run.tags
     else:
-        return []
+        return flow_run_ctx.flow_run.tags
 
 
 def get_run_count() -> int:
@@ -169,17 +166,14 @@ def get_run_count() -> int:
     run_id = get_id()
     if flow_run_ctx is None and run_id is None:
         return 0
-
-    elif flow_run_ctx is None and run_id is not None:
+    elif flow_run_ctx is None:
         flow_run = from_sync.call_soon_in_loop_thread(
             create_call(_get_flow_run, run_id)
         ).result()
 
         return flow_run.run_count
-    elif flow_run_ctx is not None and flow_run_ctx.flow_run is not None:
-        return flow_run_ctx.flow_run.run_count
     else:
-        return 0
+        return flow_run_ctx.flow_run.run_count
 
 
 def get_name() -> Optional[str]:
@@ -187,16 +181,14 @@ def get_name() -> Optional[str]:
     run_id = get_id()
     if flow_run_ctx is None and run_id is None:
         return None
-    elif flow_run_ctx is None and run_id is not None:
+    elif flow_run_ctx is None:
         flow_run = from_sync.call_soon_in_loop_thread(
             create_call(_get_flow_run, run_id)
         ).result()
 
         return flow_run.name
-    elif flow_run_ctx is not None and flow_run_ctx.flow_run is not None:
-        return flow_run_ctx.flow_run.name
     else:
-        return None
+        return flow_run_ctx.flow_run.name
 
 
 def get_flow_name() -> Optional[str]:
@@ -204,20 +196,17 @@ def get_flow_name() -> Optional[str]:
     run_id = get_id()
     if flow_run_ctx is None and run_id is None:
         return None
-    elif flow_run_ctx is None and run_id is not None:
+    elif flow_run_ctx is None:
         flow = from_sync.call_soon_in_loop_thread(
             create_call(_get_flow_from_run, run_id)
         ).result()
 
         return flow.name
-    elif flow_run_ctx is not None and flow_run_ctx.flow_run is not None:
-        return flow_run_ctx.flow_run.name
     else:
-        return None
+        return flow_run_ctx.flow.name
 
 
 def get_flow_version() -> Optional[str]:
-    breakpoint()
     flow_run_ctx = FlowRunContext.get()
     run_id = get_id()
     if flow_run_ctx is None and run_id is None:
@@ -232,21 +221,19 @@ def get_flow_version() -> Optional[str]:
         return flow_run_ctx.flow.version
 
 
-def get_scheduled_start_time() -> pendulum.DateTime | None:
+def get_scheduled_start_time() -> pendulum.DateTime:
     flow_run_ctx = FlowRunContext.get()
     run_id = get_id()
     if flow_run_ctx is None and run_id is None:
         return pendulum.now("utc")
-    elif flow_run_ctx is None and run_id is not None:
+    elif flow_run_ctx is None:
         flow_run = from_sync.call_soon_in_loop_thread(
             create_call(_get_flow_run, run_id)
         ).result()
 
         return flow_run.expected_start_time
-    elif flow_run_ctx is not None and flow_run_ctx.flow_run is not None:
-        return flow_run_ctx.flow_run.expected_start_time
     else:
-        return None
+        return flow_run_ctx.flow_run.expected_start_time
 
 
 def get_parameters() -> Dict[str, Any]:
@@ -254,7 +241,7 @@ def get_parameters() -> Dict[str, Any]:
     run_id = get_id()
     if flow_run_ctx is not None:
         # Use the unserialized parameters from the context if available
-        return flow_run_ctx.parameters or {}
+        return flow_run_ctx.parameters
     elif run_id is not None:
         flow_run = from_sync.call_soon_in_loop_thread(
             create_call(_get_flow_run, run_id)
@@ -268,7 +255,7 @@ def get_parameters() -> Dict[str, Any]:
 def get_parent_flow_run_id() -> Optional[str]:
     flow_run_ctx = FlowRunContext.get()
     run_id = get_id()
-    if flow_run_ctx is not None and flow_run_ctx.flow_run is not None:
+    if flow_run_ctx is not None:
         parent_task_run_id = flow_run_ctx.flow_run.parent_task_run_id
     elif run_id is not None:
         flow_run = from_sync.call_soon_in_loop_thread(
@@ -280,7 +267,7 @@ def get_parent_flow_run_id() -> Optional[str]:
 
     if parent_task_run_id is not None:
         parent_task_run = from_sync.call_soon_in_loop_thread(
-            create_call(_get_task_run, str(parent_task_run_id))
+            create_call(_get_task_run, parent_task_run_id)
         ).result()
         return str(parent_task_run.flow_run_id) if parent_task_run.flow_run_id else None
 
@@ -306,13 +293,13 @@ def get_parent_deployment_id() -> Optional[str]:
     return None
 
 
-def get_root_flow_run_id() -> str | None:
+def get_root_flow_run_id() -> str:
     run_id = get_id()
     parent_flow_run_id = get_parent_flow_run_id()
     if parent_flow_run_id is None:
         return run_id
 
-    def _get_root_flow_run_id(flow_run_id: str) -> str:
+    def _get_root_flow_run_id(flow_run_id):
         flow_run = from_sync.call_soon_in_loop_thread(
             create_call(_get_flow_run, flow_run_id)
         ).result()
@@ -321,9 +308,9 @@ def get_root_flow_run_id() -> str | None:
             return str(flow_run_id)
         else:
             parent_task_run = from_sync.call_soon_in_loop_thread(
-                create_call(_get_task_run, str(flow_run.parent_task_run_id))
+                create_call(_get_task_run, flow_run.parent_task_run_id)
             ).result()
-            return _get_root_flow_run_id(str(parent_task_run.flow_run_id))
+            return _get_root_flow_run_id(parent_task_run.flow_run_id)
 
     root_flow_run_id = _get_root_flow_run_id(parent_flow_run_id)
 
@@ -344,13 +331,9 @@ def get_flow_run_ui_url() -> Optional[str]:
     return f"{PREFECT_UI_URL.value()}/flow-runs/flow-run/{flow_run_id}"
 
 
-def get_job_variables() -> dict[str, Any] | None:
+def get_job_variables() -> Optional[Dict[str, Any]]:
     flow_run_ctx = FlowRunContext.get()
-    return (
-        flow_run_ctx.flow_run.job_variables
-        if flow_run_ctx and flow_run_ctx.flow_run
-        else None
-    )
+    return flow_run_ctx.flow_run.job_variables if flow_run_ctx else None
 
 
 FIELDS: dict[str, Callable[[], Any]] = {
