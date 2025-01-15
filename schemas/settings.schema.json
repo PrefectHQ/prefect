@@ -752,7 +752,7 @@
                         }
                     ],
                     "default": null,
-                    "description": "Controls connection pool size of database connection pools from the Prefect API. If not set, the default SQLAlchemy pool size will be used.",
+                    "description": "Controls connection pool size of database connection pools from the Prefect backend. If not set, the default SQLAlchemy pool size will be used.",
                     "supported_environment_variables": [
                         "PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_SIZE",
                         "PREFECT_SQLALCHEMY_POOL_SIZE"
@@ -1082,7 +1082,7 @@
                         }
                     ],
                     "default": 10.0,
-                    "description": "A statement timeout, in seconds, applied to all database interactions made by the API. Defaults to 10 seconds.",
+                    "description": "A statement timeout, in seconds, applied to all database interactions made by the Prefect backend. Defaults to 10 seconds.",
                     "supported_environment_variables": [
                         "PREFECT_SERVER_DATABASE_TIMEOUT",
                         "PREFECT_API_DATABASE_TIMEOUT"
@@ -1116,7 +1116,7 @@
                         }
                     ],
                     "default": null,
-                    "description": "Controls the application_name field for connections opened from the connection pool when using a PostgreSQL database with the Prefect API.",
+                    "description": "Controls the application_name field for connections opened from the connection pool when using a PostgreSQL database with the Prefect backend.",
                     "supported_environment_variables": [
                         "PREFECT_SERVER_DATABASE_CONNECTION_APP_NAME"
                     ],

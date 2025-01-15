@@ -875,7 +875,7 @@ Number of seconds a runner should wait between heartbeats for flow runs.
 ## SQLAlchemySettings
 Settings for controlling SQLAlchemy behavior
 ### `pool_size`
-Controls connection pool size of database connection pools from the Prefect API. If not set, the default SQLAlchemy pool size will be used.
+Controls connection pool size of database connection pools from the Prefect backend. If not set, the default SQLAlchemy pool size will be used.
 
 **Type**: `integer | None`
 
@@ -1216,7 +1216,7 @@ If `True`, the database will be migrated on application startup.
 `PREFECT_SERVER_DATABASE_MIGRATE_ON_START`, `PREFECT_API_DATABASE_MIGRATE_ON_START`
 
 ### `timeout`
-A statement timeout, in seconds, applied to all database interactions made by the API. Defaults to 10 seconds.
+A statement timeout, in seconds, applied to all database interactions made by the Prefect backend. Defaults to 10 seconds.
 
 **Type**: `number | None`
 
@@ -1240,7 +1240,7 @@ A connection timeout, in seconds, applied to database connections. Defaults to `
 `PREFECT_SERVER_DATABASE_CONNECTION_TIMEOUT`, `PREFECT_API_DATABASE_CONNECTION_TIMEOUT`
 
 ### `connection_app_name`
-Controls the application_name field for connections opened from the connection pool when using a PostgreSQL database with the Prefect API.
+Controls the application_name field for connections opened from the connection pool when using a PostgreSQL database with the Prefect backend.
 
 **Type**: `string | None`
 
