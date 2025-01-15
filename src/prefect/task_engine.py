@@ -469,7 +469,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     def result(self, raise_on_failure: bool = True) -> "Union[R, State, None]":
         if self._return_value is not NotSet:
             if isinstance(self._return_value, ResultRecord):
-                return self._return_value.result  # type: ignore[reportUnknownMemberType]
+                return self._return_value.result
             # otherwise, return the value as is
             return self._return_value  # type: ignore[reportUnknownMemberType]
 
