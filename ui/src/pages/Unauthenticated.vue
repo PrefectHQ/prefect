@@ -8,7 +8,7 @@
         <p-text-input
           v-model="password"
           type="password"
-          placeholder="Enter password"
+          placeholder="admin:pass"
           :error="error"
           autofocus
           class="w-full"
