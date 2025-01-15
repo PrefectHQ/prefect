@@ -47,6 +47,7 @@ export const queryKeyFactory = {
  */
 export const buildListFlowsQuery = (
 	filter: FlowsFilter = { offset: 0, sort: "CREATED_DESC" },
+	{ enabled = true }: { enabled?: boolean } = {},
 ) =>
 	queryOptions({
 		queryKey: queryKeyFactory.list(filter),
@@ -58,4 +59,5 @@ export const buildListFlowsQuery = (
 		},
 		staleTime: 1000,
 		placeholderData: keepPreviousData,
+		enabled,
 	});
