@@ -36,6 +36,11 @@ from prefect.settings import (
     PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW,
 )
 
+if sys.version_info >= (3, 12):
+    StreamHandler = logging.StreamHandler[TextIO]
+else:
+    StreamHandler = logging.StreamHandler
+
 
 class APILogWorker(BatchedQueueService[Dict[str, Any]]):
     @property
@@ -280,7 +285,7 @@ class WorkerAPILogHandler(APILogHandler):
         return log
 
 
-class PrefectConsoleHandler(logging.StreamHandler[TextIO]):
+class PrefectConsoleHandler(StreamHandler):
     def __init__(
         self,
         stream: TextIO | None = None,
