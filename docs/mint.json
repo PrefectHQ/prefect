@@ -68,7 +68,8 @@
           "pages": [
             "v3/tutorials/schedule",
             "v3/tutorials/pipelines",
-            "v3/tutorials/scraping"
+            "v3/tutorials/scraping",
+            "v3/tutorials/ml"
           ]
         },
         {
@@ -198,7 +199,8 @@
         "v3/automate/events/events",
         "v3/automate/events/automations-triggers",
         "v3/automate/events/custom-triggers",
-        "v3/automate/events/webhook-triggers"
+        "v3/automate/events/webhook-triggers",
+        "v3/automate/events/slas"
       ],
       "version": "v3"
     },

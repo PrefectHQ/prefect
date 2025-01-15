@@ -1,5 +1,5 @@
 import type { FlowRunWithDeploymentAndFlow } from "@/api/flow-runs";
-import { createFakeDeployment } from "@/mocks";
+import { createFakeDeploymentWithFlow } from "@/mocks";
 import { createFakeFlowRunWithDeploymentAndFlow } from "@/mocks/create-fake-flow-run";
 import {
 	reactQueryDecorator,
@@ -59,7 +59,6 @@ export const Default: StoryObj<StoryArgs> = {
 		onQuickRun: fn(),
 		onCustomRun: fn(),
 		onEdit: fn(),
-		onDelete: fn(),
 		onDuplicate: fn(),
 	},
 	render: (
@@ -74,7 +73,10 @@ export const Default: StoryObj<StoryArgs> = {
 
 		// eslint-disable-next-line react-hooks/rules-of-hooks
 		const deployments = useMemo(() => {
-			return Array.from({ length: numberOfDeployments }, createFakeDeployment);
+			return Array.from(
+				{ length: numberOfDeployments },
+				createFakeDeploymentWithFlow,
+			);
 		}, [numberOfDeployments]);
 
 		return (
@@ -88,6 +90,7 @@ export const Default: StoryObj<StoryArgs> = {
 					pageIndex,
 					pageSize,
 				}}
+				columnFilters={[]}
 				pageCount={Math.ceil(numberOfDeployments / pageSize)}
 				onPaginationChange={(pagination) => {
 					setPageIndex(pagination.pageIndex);

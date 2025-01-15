@@ -1,6 +1,8 @@
 import { z } from "zod";
-
 export const UNASSIGNED = "UNASSIGNED";
+
+//----- Actions
+const DoNothingSchema = z.object({ type: z.literal("do-nothing") });
 
 const FlowRunSchema = z.object({
 	type: z.enum(["cancel-flow-run", "suspend-flow-run", "resume-flow-run"]),
@@ -96,15 +98,23 @@ const SendNotificationSchema = z.object({
 	subject: z.string(),
 });
 
-export const ActionsSchema = z.union([
-	ChangeFlowRunStateSchema,
-	DeploymentsSchema,
-	RunDeploymentsSchema,
-	WorkPoolSchema,
-	WorkQueueSchema,
-	AutomationSchema,
-	SendNotificationSchema,
-	FlowRunSchema,
-]);
-
-export type ActionsSchema = z.infer<typeof ActionsSchema>;
+export const AutomationWizardSchema = z.object({
+	name: z.string(),
+	description: z.string().optional(),
+	actions: z.array(
+		z.union([
+			DoNothingSchema,
+			ChangeFlowRunStateSchema,
+			DeploymentsSchema,
+			RunDeploymentsSchema,
+			WorkPoolSchema,
+			WorkQueueSchema,
+			AutomationSchema,
+			SendNotificationSchema,
+			FlowRunSchema,
+		]),
+	),
+});
+export type AutomationWizardSchema = z.infer<typeof AutomationWizardSchema>;
+export type ActionsSchema = AutomationWizardSchema["actions"][number];
+export type ActionType = AutomationWizardSchema["actions"][number]["type"];

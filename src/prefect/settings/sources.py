@@ -2,7 +2,7 @@ import os
 import sys
 import warnings
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Type
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple, Type
 
 import dotenv
 import toml
@@ -54,6 +54,7 @@ class EnvFilterSettingsSource(EnvSettingsSource):
             env_parse_none_str,
             env_parse_enums,
         )
+        self.env_vars: Mapping[str, str | None]
         if env_filter:
             if isinstance(self.env_vars, dict):
                 for key in env_filter:
@@ -97,7 +98,7 @@ class FilteredDotEnvSettingsSource(DotEnvSettingsSource):
                 for key in self.env_blacklist:
                     self.env_vars.pop(key, None)
             else:
-                self.env_vars = {
+                self.env_vars: dict[str, str | None] = {
                     key: value
                     for key, value in self.env_vars.items()  # type: ignore
                     if key.lower() not in env_blacklist
@@ -114,8 +115,8 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
     def __init__(self, settings_cls: Type[BaseSettings]):
         super().__init__(settings_cls)
         self.settings_cls = settings_cls
-        self.profiles_path = _get_profiles_path()
-        self.profile_settings = self._load_profile_settings()
+        self.profiles_path: Path = _get_profiles_path()
+        self.profile_settings: dict[str, Any] = self._load_profile_settings()
 
     def _load_profile_settings(self) -> Dict[str, Any]:
         """Helper method to load the profile settings from the profiles.toml file"""
@@ -213,14 +214,14 @@ class TomlConfigSettingsSourceBase(PydanticBaseSettingsSource, ConfigFileSourceM
     def __init__(self, settings_cls: Type[BaseSettings]):
         super().__init__(settings_cls)
         self.settings_cls = settings_cls
-        self.toml_data = {}
+        self.toml_data: dict[str, Any] = {}
 
-    def _read_file(self, path: Path) -> Dict[str, Any]:
+    def _read_file(self, path: Path) -> dict[str, Any]:
         return toml.load(path)
 
     def get_field_value(
         self, field: FieldInfo, field_name: str
-    ) -> Tuple[Any, str, bool]:
+    ) -> tuple[Any, str, bool]:
         """Concrete implementation to get the field value from toml data"""
         value = self.toml_data.get(field_name)
         if isinstance(value, dict):
@@ -244,9 +245,9 @@ class TomlConfigSettingsSourceBase(PydanticBaseSettingsSource, ConfigFileSourceM
                         break
         return value, name, self.field_is_complex(field)
 
-    def __call__(self) -> Dict[str, Any]:
+    def __call__(self) -> dict[str, Any]:
         """Called by pydantic to get the settings from our custom source"""
-        toml_setings: Dict[str, Any] = {}
+        toml_setings: dict[str, Any] = {}
         for field_name, field in self.settings_cls.model_fields.items():
             value, key, is_complex = self.get_field_value(field, field_name)
             if value is not None:
@@ -265,15 +266,15 @@ class PrefectTomlConfigSettingsSource(TomlConfigSettingsSourceBase):
         settings_cls: Type[BaseSettings],
     ):
         super().__init__(settings_cls)
-        self.toml_file_path = settings_cls.model_config.get(
-            "toml_file", DEFAULT_PREFECT_TOML_PATH
-        )
-        self.toml_data = self._read_files(self.toml_file_path)
-        self.toml_table_header = settings_cls.model_config.get(
+        self.toml_file_path: Path | str | Sequence[
+            Path | str
+        ] | None = settings_cls.model_config.get("toml_file", DEFAULT_PREFECT_TOML_PATH)
+        self.toml_data: dict[str, Any] = self._read_files(self.toml_file_path)
+        self.toml_table_header: tuple[str, ...] = settings_cls.model_config.get(
             "prefect_toml_table_header", tuple()
         )
         for key in self.toml_table_header:
-            self.toml_data = self.toml_data.get(key, {})
+            self.toml_data: dict[str, Any] = self.toml_data.get(key, {})
 
 
 class PyprojectTomlConfigSettingsSource(TomlConfigSettingsSourceBase):
@@ -284,13 +285,13 @@ class PyprojectTomlConfigSettingsSource(TomlConfigSettingsSourceBase):
         settings_cls: Type[BaseSettings],
     ):
         super().__init__(settings_cls)
-        self.toml_file_path = Path("pyproject.toml")
-        self.toml_data = self._read_files(self.toml_file_path)
-        self.toml_table_header = settings_cls.model_config.get(
+        self.toml_file_path: Path = Path("pyproject.toml")
+        self.toml_data: dict[str, Any] = self._read_files(self.toml_file_path)
+        self.toml_table_header: tuple[str, ...] = settings_cls.model_config.get(
             "pyproject_toml_table_header", ("tool", "prefect")
         )
         for key in self.toml_table_header:
-            self.toml_data = self.toml_data.get(key, {})
+            self.toml_data: dict[str, Any] = self.toml_data.get(key, {})
 
 
 def _is_test_mode() -> bool:
