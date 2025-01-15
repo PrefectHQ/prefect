@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import asyncio
 import atexit
 import threading
 import uuid
-from typing import Callable, Dict, Optional
+from typing import TYPE_CHECKING, Callable, Dict, Optional
 
 import anyio
 from cachetools import TTLCache
@@ -69,12 +71,12 @@ class TaskRunWaiter:
 
     def __init__(self):
         self.logger = get_logger("TaskRunWaiter")
-        self._consumer_task: Optional[asyncio.Task] = None
+        self._consumer_task: asyncio.Task[None] | None = None
         self._observed_completed_task_runs: TTLCache[uuid.UUID, bool] = TTLCache(
             maxsize=10000, ttl=600
         )
         self._completion_events: Dict[uuid.UUID, asyncio.Event] = {}
-        self._completion_callbacks: Dict[uuid.UUID, Callable] = {}
+        self._completion_callbacks: Dict[uuid.UUID, Callable[[], None]] = {}
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._observed_completed_task_runs_lock = threading.Lock()
         self._completion_events_lock = threading.Lock()
@@ -89,10 +91,12 @@ class TaskRunWaiter:
         self.logger.debug("Starting TaskRunWaiter")
         loop_thread = get_global_loop()
 
-        if not asyncio.get_running_loop() == loop_thread._loop:
+        if not asyncio.get_running_loop() == loop_thread.loop:
             raise RuntimeError("TaskRunWaiter must run on the global loop thread.")
 
-        self._loop = loop_thread._loop
+        self._loop = loop_thread.loop
+        if TYPE_CHECKING:
+            assert self._loop is not None
 
         consumer_started = asyncio.Event()
         self._consumer_task = self._loop.create_task(
@@ -199,7 +203,9 @@ class TaskRunWaiter:
                 instance._completion_events.pop(task_run_id, None)
 
     @classmethod
-    def add_done_callback(cls, task_run_id: uuid.UUID, callback):
+    def add_done_callback(
+        cls, task_run_id: uuid.UUID, callback: Callable[[], None]
+    ) -> None:
         """
         Add a callback to be called when a task run finishes.
 
