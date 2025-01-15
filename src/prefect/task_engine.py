@@ -471,7 +471,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             if isinstance(self._return_value, ResultRecord):
                 return self._return_value.result
             # otherwise, return the value as is
-            return self._return_value  # type: ignore[reportUnknownMemberType]
+            return self._return_value
 
         if self._raised is not NotSet:
             # if the task raised an exception, raise it
