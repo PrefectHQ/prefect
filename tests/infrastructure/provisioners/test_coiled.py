@@ -53,10 +53,20 @@ def mock_confirm():
         yield mock
 
 
+@pytest.fixture
+def mock_dask_config():
+    with patch(
+        "prefect.infrastructure.provisioners.coiled.CoiledPushProvisioner._get_coiled_token"
+    ) as mock:
+        mock.return_value = "local-api-token-from-dask-config"
+        yield mock
+
+
 async def test_provision(
     prefect_client: PrefectClient,
     mock_run_process: AsyncMock,
     mock_coiled: MagicMock,
+    mock_dask_config: MagicMock,
     mock_confirm: MagicMock,
     mock_importlib: MagicMock,
 ):
@@ -74,7 +84,11 @@ async def test_provision(
         True,
         True,
     ]  # confirm provision, install coiled, create new token
-    mock_importlib.import_module.side_effect = [ModuleNotFoundError, mock_coiled]
+    mock_importlib.import_module.side_effect = [
+        ModuleNotFoundError,
+        mock_coiled,
+        mock_coiled,
+    ]
     # simulate coiled token creation
     mock_coiled.config.Config.return_value.get.side_effect = [
         None,
@@ -131,6 +145,7 @@ async def test_provision_existing_coiled_credentials(
     prefect_client: PrefectClient,
     mock_run_process: AsyncMock,
     mock_coiled: MagicMock,
+    mock_dask_config: MagicMock,
     mock_confirm: MagicMock,
     mock_importlib: MagicMock,
 ):
@@ -142,7 +157,8 @@ async def test_provision_existing_coiled_credentials(
         True,
     ]  # confirm provision
     mock_importlib.import_module.side_effect = [
-        mock_coiled
+        mock_coiled,
+        mock_coiled,
     ]  # coiled is already installed
     mock_coiled.config.Config.return_value.get.side_effect = [
         "mock_token",
