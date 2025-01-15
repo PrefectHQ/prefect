@@ -1440,7 +1440,7 @@ if sys.platform == "win32":
 
 
 async def _run_hooks(
-    hooks: list[FlowStateHook[..., Any]],
+    hooks: list[FlowStateHook[Any, Any]],
     flow_run: "FlowRun",
     flow: "Flow[..., Any]",
     state: State,
