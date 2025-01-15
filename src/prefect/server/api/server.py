@@ -47,6 +47,8 @@ import prefect.settings
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.logging import get_logger
 from prefect.server.api.dependencies import EnforceMinimumAPIVersion
+from prefect.server.database.configurations import AsyncPostgresConfiguration
+from prefect.server.database.dependencies import temporary_database_interface
 from prefect.server.events import stream
 from prefect.server.events.services.actions import Actions
 from prefect.server.events.services.event_persister import EventPersister
@@ -545,33 +547,37 @@ def _memoize_block_auto_registration(
     return wrapper
 
 
-def create_app(
-    settings: Optional[prefect.settings.Settings] = None,
-    ephemeral: bool = False,
-    webserver_only: bool = False,
-    final: bool = False,
-    ignore_cache: bool = False,
-) -> FastAPI:
+def create_app():
     """
-    Create a FastAPI app that includes the Prefect REST API and UI
+    Create a FastAPI application with all Prefect REST API routes registered.
+    """
+    # Set web-specific database configuration
+    connection_url = PREFECT_API_DATABASE_CONNECTION_URL.value()
+    if "postgresql" in connection_url:
+        # Web server needs more connections to handle concurrent requests
+        # But can use shorter timeouts since operations are user-facing
+        config = AsyncPostgresConfiguration(
+            connection_url=connection_url,
+            connection_app_name="prefect-server-web",
+            sqlalchemy_pool_size=10,  # More connections for concurrent requests
+            sqlalchemy_max_overflow=20,  # Allow more overflow for request spikes
+            timeout=10,  # Shorter timeout for web requests
+            connection_timeout=5,  # Shorter connection timeout
+        )
+        with temporary_database_interface(tmp_database_config=config):
+            return _create_app()
+    else:
+        return _create_app()
 
-    Args:
-        settings: The settings to use to create the app. If not set, settings are pulled
-            from the context.
-        ephemeral: If set, the application will be treated as ephemeral. The UI
-            and services will be disabled.
-        webserver_only: If set, the webserver and UI will be available but all background
-            services will be disabled.
-        final: whether this will be the last instance of the Prefect server to be
-            created in this process, so that additional optimizations may be applied
-        ignore_cache: If set, a new application will be created even if the settings
-            match. Otherwise, an application is returned from the cache.
-    """
-    settings = settings or prefect.settings.get_current_settings()
-    cache_key = (settings.hash_key(), ephemeral, webserver_only)
-    ephemeral = ephemeral or bool(os.getenv("PREFECT__SERVER_EPHEMERAL"))
-    webserver_only = webserver_only or bool(os.getenv("PREFECT__SERVER_WEBSERVER_ONLY"))
-    final = final or bool(os.getenv("PREFECT__SERVER_FINAL"))
+
+def _create_app():
+    """Internal function to create the FastAPI app"""
+    settings = prefect.settings.get_current_settings()
+    cache_key = (settings.hash_key(), False, False)
+    ephemeral = False
+    webserver_only = False
+    final = False
+    ignore_cache = False
 
     from prefect.logging.configuration import setup_logging
 

@@ -12,7 +12,14 @@ from typing import TYPE_CHECKING, Any, List, NoReturn, Optional, overload
 import anyio
 
 from prefect.logging import get_logger
-from prefect.settings import PREFECT_API_LOG_RETRYABLE_ERRORS
+from prefect.server.database.configurations import (
+    AsyncPostgresConfiguration,
+)
+from prefect.server.database.dependencies import temporary_database_interface
+from prefect.settings import (
+    PREFECT_API_DATABASE_CONNECTION_URL,
+    PREFECT_API_LOG_RETRYABLE_ERRORS,
+)
 from prefect.types import DateTime
 from prefect.utilities.processutils import (
     _register_signal,  # type: ignore[reportPrivateUsage]
@@ -64,6 +71,25 @@ class LoopService:
         self._should_stop = False
         self._is_running = True
         self.logger.debug(f"Starting {self.name}")
+
+        # Set service-specific database configuration
+        connection_url = PREFECT_API_DATABASE_CONNECTION_URL.value()
+        if "postgresql" in connection_url:
+            # Services typically need fewer connections than the web server
+            # They also benefit from keeping connections alive longer
+            # since they run on fixed intervals
+            config = AsyncPostgresConfiguration(
+                connection_url=connection_url,
+                connection_app_name=f"{self.name.lower()}-service",
+                sqlalchemy_pool_size=2,  # Services need fewer connections
+                sqlalchemy_max_overflow=3,  # Allow some overflow for spikes
+                timeout=30,  # Longer timeout for background operations
+                connection_timeout=10,  # Longer connection timeout
+            )
+            with temporary_database_interface(tmp_database_config=config):
+                await self.run_once()
+        else:
+            await self.run_once()
 
     async def _on_stop(self) -> None:
         """
