@@ -26,7 +26,7 @@ class SQLAlchemySettings(PrefectBaseSettings):
 
     pool_size: Optional[int] = Field(
         default=None,
-        description="Controls connection pool size of database connection pools from the Prefect API. If not set, the default SQLAlchemy pool size will be used.",
+        description="Controls connection pool size of database connection pools from the Prefect backend. If not set, the default SQLAlchemy pool size will be used.",
         validation_alias=AliasChoices(
             AliasPath("pool_size"),
             "prefect_server_database_sqlalchemy_pool_size",
@@ -173,7 +173,7 @@ class ServerDatabaseSettings(PrefectBaseSettings):
 
     timeout: Optional[float] = Field(
         default=10.0,
-        description="A statement timeout, in seconds, applied to all database interactions made by the API. Defaults to 10 seconds.",
+        description="A statement timeout, in seconds, applied to all database interactions made by the Prefect backend. Defaults to 10 seconds.",
         validation_alias=AliasChoices(
             AliasPath("timeout"),
             "prefect_server_database_timeout",
@@ -193,7 +193,7 @@ class ServerDatabaseSettings(PrefectBaseSettings):
 
     connection_app_name: Optional[str] = Field(
         default=None,
-        description="Controls the application_name field for connections opened from the connection pool when using a PostgreSQL database with the Prefect API.",
+        description="Controls the application_name field for connections opened from the connection pool when using a PostgreSQL database with the Prefect backend.",
     )
 
     @model_validator(mode="after")
