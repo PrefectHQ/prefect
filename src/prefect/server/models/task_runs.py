@@ -4,7 +4,17 @@ Intended for internal use by the Prefect REST API.
 """
 
 import contextlib
-from typing import Any, Dict, Optional, Sequence, Type, TypeVar, Union, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Optional,
+    Sequence,
+    Type,
+    TypeVar,
+    Union,
+    cast,
+)
 from uuid import UUID
 
 import pendulum
@@ -29,9 +39,12 @@ from prefect.server.orchestration.policies import (
 from prefect.server.orchestration.rules import TaskOrchestrationContext
 from prefect.server.schemas.responses import OrchestrationResult
 
-T = TypeVar("T", bound=tuple)
+if TYPE_CHECKING:
+    import logging
 
-logger = get_logger("server")
+T = TypeVar("T", bound=tuple[Any, ...])
+
+logger: "logging.Logger" = get_logger("server")
 
 
 @db_injector

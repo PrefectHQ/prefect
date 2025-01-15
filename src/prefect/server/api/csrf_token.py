@@ -1,3 +1,5 @@
+from typing import TYPE_CHECKING
+
 from fastapi import Depends, Query, status
 from starlette.exceptions import HTTPException
 
@@ -7,9 +9,12 @@ from prefect.server.database import PrefectDBInterface, provide_database_interfa
 from prefect.server.utilities.server import PrefectRouter
 from prefect.settings import PREFECT_SERVER_CSRF_PROTECTION_ENABLED
 
-logger = get_logger("server.api")
+if TYPE_CHECKING:
+    import logging
 
-router = PrefectRouter(prefix="/csrf-token")
+logger: "logging.Logger" = get_logger("server.api")
+
+router: PrefectRouter = PrefectRouter(prefix="/csrf-token")
 
 
 @router.get("")

@@ -13,10 +13,12 @@ from prefect.logging import get_logger
 from prefect.server import models, schemas
 
 if TYPE_CHECKING:
+    import logging
+
     from prefect.client.schemas import BlockSchema as ClientBlockSchema
     from prefect.client.schemas import BlockType as ClientBlockType
 
-logger = get_logger("server")
+logger: "logging.Logger" = get_logger("server")
 
 COLLECTIONS_BLOCKS_DATA_PATH = (
     Path(__file__).parent.parent / "collection_blocks_data.json"
