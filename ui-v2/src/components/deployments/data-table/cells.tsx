@@ -119,7 +119,7 @@ export const ActivityCell = ({
 				},
 			},
 			sort: "START_TIME_DESC",
-			limit: numberOfBars,
+			limit: debouncedNumberOfBars || numberOfBars,
 			offset: 0,
 		}),
 	);
@@ -131,8 +131,6 @@ export const ActivityCell = ({
 			deployment,
 			flow,
 		})) ?? [];
-
-	console.log(debouncedNumberOfBars, numberOfBars);
 
 	return (
 		<div className="w-full" ref={chartRef}>

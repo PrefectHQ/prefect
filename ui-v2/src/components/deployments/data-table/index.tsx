@@ -1,6 +1,13 @@
-import type { DeploymentWithFlow } from "@/api/deployments";
+import {
+	type DeploymentWithFlow,
+	useDeleteDeployment,
+} from "@/api/deployments";
 import type { components } from "@/api/prefect";
 import { DataTable } from "@/components/ui/data-table";
+import {
+	DeleteConfirmationDialog,
+	useDeleteConfirmationDialog,
+} from "@/components/ui/delete-confirmation-dialog";
 import { FlowRunActivityBarGraphTooltipProvider } from "@/components/ui/flow-run-activity-bar-graph";
 import { Icon } from "@/components/ui/icons";
 import { SearchInput } from "@/components/ui/input";
@@ -15,6 +22,7 @@ import {
 import { StatusBadge } from "@/components/ui/status-badge";
 import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
 import { TagsInput } from "@/components/ui/tags-input";
+import { useToast } from "@/hooks/use-toast";
 import type {
 	ColumnFiltersState,
 	OnChangeFn,
@@ -41,7 +49,6 @@ type DeploymentsDataTableProps = {
 	onQuickRun: (deployment: DeploymentWithFlow) => void;
 	onCustomRun: (deployment: DeploymentWithFlow) => void;
 	onEdit: (deployment: DeploymentWithFlow) => void;
-	onDelete: (deployment: DeploymentWithFlow) => void;
 	onDuplicate: (deployment: DeploymentWithFlow) => void;
 };
 
@@ -150,9 +157,13 @@ export const DeploymentsDataTable = ({
 	onQuickRun,
 	onCustomRun,
 	onEdit,
-	onDelete,
 	onDuplicate,
 }: DeploymentsDataTableProps) => {
+	const [deleteConfirmationDialogState, confirmDelete] =
+		useDeleteConfirmationDialog();
+	const { deleteDeployment } = useDeleteDeployment();
+	const { toast } = useToast();
+
 	const nameSearchValue = (columnFilters.find(
 		(filter) => filter.id === "flowOrDeploymentName",
 	)?.value ?? "") as string;
@@ -202,7 +213,24 @@ export const DeploymentsDataTable = ({
 			onQuickRun,
 			onCustomRun,
 			onEdit,
-			onDelete,
+			onDelete: (deployment) => {
+				const name = deployment.flow?.name
+					? `${deployment.flow?.name}/${deployment.name}`
+					: deployment.name;
+				confirmDelete({
+					title: "Delete Deployment",
+					description: `Are you sure you want to delete ${name}? This action cannot be undone.`,
+					onConfirm: () => {
+						deleteDeployment(deployment.id, {
+							onSuccess: () => {
+								toast({
+									title: "Deployment deleted",
+								});
+							},
+						});
+					},
+				});
+			},
 			onDuplicate,
 		}),
 		getCoreRowModel: getCoreRowModel(),
@@ -254,6 +282,7 @@ export const DeploymentsDataTable = ({
 				</div>
 			</div>
 
+			<DeleteConfirmationDialog {...deleteConfirmationDialogState} />
 			<FlowRunActivityBarGraphTooltipProvider>
 				<DataTable table={table} />
 			</FlowRunActivityBarGraphTooltipProvider>
