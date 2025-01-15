@@ -22,3 +22,4 @@ prefect-sqlalchemy
 sagemaker
 scikit-learn
 xgboost
+protobuf<=3.20.0
