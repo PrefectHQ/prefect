@@ -15,12 +15,57 @@ from typing_extensions import Literal, Self
 from prefect.settings.base import PrefectBaseSettings, _build_settings_config
 
 
+class SQLAlchemySettings(PrefectBaseSettings):
+    """
+    Settings for controlling SQLAlchemy behavior
+    """
+
+    model_config: ClassVar[ConfigDict] = _build_settings_config(
+        ("server", "database", "sqlalchemy")
+    )
+
+    pool_size: Optional[int] = Field(
+        default=None,
+        description="Controls connection pool size of database connection pools from the Prefect API. If not set, the default SQLAlchemy pool size will be used.",
+        validation_alias=AliasChoices(
+            AliasPath("sqlalchemy_pool_size"),
+            "prefect_server_database_sqlalchemy_pool_size",
+            "prefect_sqlalchemy_pool_size",
+        ),
+    )
+
+    pool_recycle: int = Field(
+        default=3600,
+        description="This setting causes the pool to recycle connections after the given number of seconds has passed; set it to -1 to avoid recycling entirely.",
+    )
+
+    pool_timeout: Optional[float] = Field(
+        default=30.0,
+        description="Number of seconds to wait before giving up on getting a connection from the pool. Defaults to 30 seconds.",
+    )
+
+    max_overflow: Optional[int] = Field(
+        default=None,
+        description="Controls maximum overflow of the connection pool. If not set, the default SQLAlchemy maximum overflow value will be used.",
+        validation_alias=AliasChoices(
+            AliasPath("sqlalchemy_max_overflow"),
+            "prefect_server_database_sqlalchemy_max_overflow",
+            "prefect_sqlalchemy_max_overflow",
+        ),
+    )
+
+
 class ServerDatabaseSettings(PrefectBaseSettings):
     """
     Settings for controlling server database behavior
     """
 
     model_config: ClassVar[ConfigDict] = _build_settings_config(("server", "database"))
+
+    sqlalchemy: SQLAlchemySettings = Field(
+        default_factory=SQLAlchemySettings,
+        description="Settings for controlling SQLAlchemy behavior",
+    )
 
     connection_url: Optional[SecretStr] = Field(
         default=None,
@@ -146,29 +191,9 @@ class ServerDatabaseSettings(PrefectBaseSettings):
         ),
     )
 
-    sqlalchemy_pool_size: Optional[int] = Field(
-        default=None,
-        description="Controls connection pool size of database connection pools from the Prefect API. If not set, the default SQLAlchemy pool size will be used.",
-        validation_alias=AliasChoices(
-            AliasPath("sqlalchemy_pool_size"),
-            "prefect_server_database_sqlalchemy_pool_size",
-            "prefect_sqlalchemy_pool_size",
-        ),
-    )
-
     connection_app_name: Optional[str] = Field(
         default=None,
         description="Controls the application_name field for connections opened from the connection pool when using a PostgreSQL database with the Prefect API.",
-    )
-
-    sqlalchemy_max_overflow: Optional[int] = Field(
-        default=None,
-        description="Controls maximum overflow of the connection pool when using a PostgreSQL database with the Prefect API. If not set, the default SQLAlchemy maximum overflow value will be used.",
-        validation_alias=AliasChoices(
-            AliasPath("sqlalchemy_max_overflow"),
-            "prefect_server_database_sqlalchemy_max_overflow",
-            "prefect_sqlalchemy_max_overflow",
-        ),
     )
 
     @model_validator(mode="after")
