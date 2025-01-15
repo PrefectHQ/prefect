@@ -73,7 +73,7 @@ class CoiledPushProvisioner:
 
     async def _get_coiled_token(self) -> str:
         """
-        Gets a Model API token from the current Modal configuration.
+        Gets a Coiled API token from the current Coiled configuration.
         """
         import dask.config
 
@@ -83,7 +83,7 @@ class CoiledPushProvisioner:
         """
         Triggers a Coiled login via the browser if no current token. Will create a new token.
         """
-        await run_process([shlex.quote(sys.executable), "-m", "coiled", "login"])
+        await run_process(["coiled", "login"])
 
     async def _create_coiled_credentials_block(
         self,
@@ -167,12 +167,16 @@ class CoiledPushProvisioner:
         except ObjectNotFound:
             if self._console.is_interactive and not Confirm.ask(
                 (
+                    "\n"
                     "To configure your Coiled push work pool we'll need to store a Coiled"
-                    " token with Prefect Cloud as a block. We'll pull the token from"
+                    " API token with Prefect Cloud as a block. We'll pull the token from"
                     " your local Coiled configuration or create a new token if we"
-                    " can't find one. Would you like to continue?"
+                    " can't find one.\n"
+                    "\n"
+                    "Would you like to continue?"
                 ),
                 console=self.console,
+                default=True,
             ):
                 self.console.print(
                     "No problem! You can always configure your Coiled push work pool"
@@ -184,14 +188,16 @@ class CoiledPushProvisioner:
                 if self.console.is_interactive and Confirm.ask(
                     (
                         "The [blue]coiled[/] package is required to configure"
-                        " authentication for your work pool. Would you like to install"
-                        " it now?"
+                        " authentication for your work pool.\n"
+                        "\n"
+                        "Would you like to install it now?"
                     ),
                     console=self.console,
+                    default=True,
                 ):
                     await self._install_coiled()
 
-            # Get the current Modal token ID and secret
+            # Get the current Coiled API token
             coiled_api_token = await self._get_coiled_token()
             if not coiled_api_token:
                 # Create a new token one wasn't found
@@ -201,6 +207,7 @@ class CoiledPushProvisioner:
                         " token?"
                     ),
                     console=self.console,
+                    default=True,
                 ):
                     await self._create_new_coiled_token()
                     coiled_api_token = await self._get_coiled_token()
