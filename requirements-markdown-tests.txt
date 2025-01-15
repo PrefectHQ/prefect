@@ -17,3 +17,5 @@ prefect-shell
 prefect-slack
 prefect-snowflake
 prefect-sqlalchemy
+sagemaker
+xgboost
