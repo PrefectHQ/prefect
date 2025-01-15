@@ -117,7 +117,7 @@ class FlowStateHook(Protocol, Generic[P, R]):
     __name__: str
 
     def __call__(
-        self, flow: "Flow[P, R]", flow_run: FlowRun, state: State
+        self, flow: Flow[P, R], flow_run: FlowRun, state: State
     ) -> Awaitable[None] | None:
         ...
 
@@ -614,10 +614,7 @@ class Flow(Generic[P, R]):
         cast_parameters = {
             k: v
             for k, v in dict(iter(model)).items()
-            if k in getattr(model, "model_fields_set", {})
-            or getattr(model, "model_fields", {})
-            .get(k, {})
-            .get("default_factory", None)
+            if k in model.model_fields_set or model.model_fields[k].default_factory
         }
         return cast_parameters
 
@@ -1480,11 +1477,11 @@ class FlowDecorator:
         result_serializer: Optional[ResultSerializer] = None,
         cache_result_in_memory: bool = True,
         log_prints: Optional[bool] = None,
-        on_completion: Optional[list[FlowStateHook[P, R]]] = None,
-        on_failure: Optional[list[FlowStateHook[P, R]]] = None,
-        on_cancellation: Optional[list[FlowStateHook[P, R]]] = None,
-        on_crashed: Optional[list[FlowStateHook[P, R]]] = None,
-        on_running: Optional[list[FlowStateHook[P, R]]] = None,
+        on_completion: Optional[list[FlowStateHook[..., Any]]] = None,
+        on_failure: Optional[list[FlowStateHook[..., Any]]] = None,
+        on_cancellation: Optional[list[FlowStateHook[..., Any]]] = None,
+        on_crashed: Optional[list[FlowStateHook[..., Any]]] = None,
+        on_running: Optional[list[FlowStateHook[..., Any]]] = None,
     ) -> Callable[[Callable[P, R]], Flow[P, R]]:
         ...
 
@@ -1507,11 +1504,11 @@ class FlowDecorator:
         result_serializer: Optional[ResultSerializer] = None,
         cache_result_in_memory: bool = True,
         log_prints: Optional[bool] = None,
-        on_completion: Optional[list[FlowStateHook[P, R]]] = None,
-        on_failure: Optional[list[FlowStateHook[P, R]]] = None,
-        on_cancellation: Optional[list[FlowStateHook[P, R]]] = None,
-        on_crashed: Optional[list[FlowStateHook[P, R]]] = None,
-        on_running: Optional[list[FlowStateHook[P, R]]] = None,
+        on_completion: Optional[list[FlowStateHook[..., Any]]] = None,
+        on_failure: Optional[list[FlowStateHook[..., Any]]] = None,
+        on_cancellation: Optional[list[FlowStateHook[..., Any]]] = None,
+        on_crashed: Optional[list[FlowStateHook[..., Any]]] = None,
+        on_running: Optional[list[FlowStateHook[..., Any]]] = None,
     ) -> Callable[[Callable[P, R]], Flow[P, R]]:
         ...
 
@@ -1533,11 +1530,11 @@ class FlowDecorator:
         result_serializer: Optional[ResultSerializer] = None,
         cache_result_in_memory: bool = True,
         log_prints: Optional[bool] = None,
-        on_completion: Optional[list[FlowStateHook[P, R]]] = None,
-        on_failure: Optional[list[FlowStateHook[P, R]]] = None,
-        on_cancellation: Optional[list[FlowStateHook[P, R]]] = None,
-        on_crashed: Optional[list[FlowStateHook[P, R]]] = None,
-        on_running: Optional[list[FlowStateHook[P, R]]] = None,
+        on_completion: Optional[list[FlowStateHook[..., Any]]] = None,
+        on_failure: Optional[list[FlowStateHook[..., Any]]] = None,
+        on_cancellation: Optional[list[FlowStateHook[..., Any]]] = None,
+        on_crashed: Optional[list[FlowStateHook[..., Any]]] = None,
+        on_running: Optional[list[FlowStateHook[..., Any]]] = None,
     ) -> Union[Flow[P, R], Callable[[Callable[P, R]], Flow[P, R]]]:
         """
         Decorator to designate a function as a Prefect workflow.
