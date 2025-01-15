@@ -4,7 +4,6 @@ import sys
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
-import dask.config
 from anyio import run_process
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -76,6 +75,8 @@ class CoiledPushProvisioner:
         """
         Gets a Model API token from the current Modal configuration.
         """
+        import dask.config
+
         return dask.config.get("coiled.token", "")
 
     async def _create_new_coiled_token(self):
