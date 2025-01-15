@@ -19,7 +19,5 @@ prefect-shell
 prefect-slack
 prefect-snowflake
 prefect-sqlalchemy
-protobuf<=3.20.0
-sagemaker
 scikit-learn
 xgboost
