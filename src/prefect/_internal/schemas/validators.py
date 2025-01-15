@@ -6,6 +6,8 @@ format.
 This will be subject to consolidation and refactoring over the next few months.
 """
 
+from __future__ import annotations
+
 import os
 import re
 import urllib.parse

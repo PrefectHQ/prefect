@@ -25,6 +25,8 @@ Available attributes:
         object or those directly provided via API for this run
 """
 
+from __future__ import annotations
+
 import os
 from typing import TYPE_CHECKING, Any, Callable, List, Optional
 

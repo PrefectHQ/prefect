@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import inspect
 import uuid
@@ -27,7 +29,7 @@ if TYPE_CHECKING:
 
 logger: "logging.Logger" = get_logger("webserver")
 
-FlowOrTask: TypeAlias = Flow[Any, Any] | Task[Any, Any]
+FlowOrTask: TypeAlias = Union[Flow[Any, Any], Task[Any, Any]]
 
 
 async def _submit_flow_to_runner(

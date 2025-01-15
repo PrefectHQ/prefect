@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Union
 
 from opentelemetry import propagate, trace
 from opentelemetry.context import Context
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 LABELS_TRACEPARENT_KEY = "__OTEL_TRACEPARENT"
 TRACEPARENT_KEY = "traceparent"
 
-FlowOrTaskRun: TypeAlias = FlowRun | TaskRun
+FlowOrTaskRun: TypeAlias = Union[FlowRun, TaskRun]
 
 
 class OTELSetter(Setter[KeyValueLabels]):

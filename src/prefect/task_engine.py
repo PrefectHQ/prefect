@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import inspect
 import logging
@@ -295,7 +297,7 @@ class BaseTaskRunEngine(Generic[P, R]):
 
 @dataclass
 class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
-    task_run: TaskRun | None = None
+    task_run: Optional[TaskRun] = None
     _client: Optional[SyncPrefectClient] = None
 
     @property
