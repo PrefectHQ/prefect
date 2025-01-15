@@ -1,0 +1,108 @@
+import {
+	DeploymentsPaginationFilter,
+	buildPaginateDeploymentsQuery,
+} from "@/api/deployments";
+import { Flow, buildListFlowsQuery } from "@/api/flows";
+import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
+
+/**
+ * A hook that is used to get a pagination list of Deployments, with flow data joined
+ *
+ * @returns a pagination list of deployments, joined with flow data
+ *
+ *  @example
+ * ```tsx
+function DeploymentListWithFlows() {
+	const { data, status } = useListDeploymentsWithFlows();
+    
+	if (data) {
+		return (
+			<ul>
+				{data.results.map((deployment) => {
+					const label = deployment.flow
+						? `${deployment.flow.name} > ${deployment.name}`
+						: deployment.name;
+					return <li key={deployment.id}>{label}</li>;
+				})}
+			</ul>
+		);
+	}
+
+	if (status === "error") {
+		return <p>Error has occurred</p>;
+	}
+
+	return <div>Loading...</div>;
+}
+ * ```
+ */
+export const useListDeploymentsWithFlows = (
+	filter: DeploymentsPaginationFilter = {
+		page: 1,
+		limit: 100,
+		sort: "NAME_ASC",
+	},
+) => {
+	const { data: deploymentsData, status: deploymentsStatus } = useQuery(
+		buildPaginateDeploymentsQuery(filter),
+	);
+
+	const deploymentsFlowIds = deploymentsData?.results.map(
+		(deployment) => deployment.flow_id,
+	);
+
+	const { data: flowsData, status: flowsStatus } = useQuery(
+		buildListFlowsQuery(
+			{
+				flows: {
+					operator: "or_",
+					id: { any_: deploymentsFlowIds },
+				},
+				sort: "NAME_DESC",
+				offset: 0,
+			},
+			{ enabled: Boolean(deploymentsFlowIds) },
+		),
+	);
+
+	return useMemo(() => {
+		if (flowsData && deploymentsData) {
+			const flowMap = new Map<string, Flow>(
+				flowsData.map((flow) => [flow.id, flow]),
+			);
+			// Normalize data per deployment with deployment & flow
+			const deploymentsWithFlows = deploymentsData.results.map(
+				(deployment) => ({
+					...deployment,
+					flow: flowMap.get(deployment.flow_id),
+				}),
+			);
+
+			const { count, limit, pages, page } = deploymentsData;
+			const retData = {
+				count,
+				limit,
+				pages,
+				page,
+				results: deploymentsWithFlows,
+			};
+			return {
+				data: retData,
+				status: "success",
+			};
+		}
+
+		if (flowsStatus === "error" || deploymentsStatus === "error") {
+			return {
+				data: undefined,
+				status: "error",
+			};
+		}
+
+		return {
+			data: undefined,
+			status: "pending",
+		};
+	}, [deploymentsData, deploymentsStatus, flowsData, flowsStatus]);
+};
