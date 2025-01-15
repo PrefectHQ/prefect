@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import io
 import logging
 import sys
@@ -5,7 +7,7 @@ from builtins import print
 from contextlib import contextmanager
 from functools import lru_cache
 from logging import LogRecord
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, List, Mapping, Optional, Union
 
 from typing_extensions import Self
 
@@ -37,27 +39,28 @@ class PrefectLogAdapter(LoggingAdapter):
     not a bug in the LoggingAdapter and subclassing is the intended workaround.
     """
 
-    def process(self, msg, kwargs):
+    extra: Mapping[str, object] | None
+
+    def process(self, msg: str, kwargs: dict[str, Any]) -> tuple[str, dict[str, Any]]:  # type: ignore[incompatibleMethodOverride]
         kwargs["extra"] = {**(self.extra or {}), **(kwargs.get("extra") or {})}
         return (msg, kwargs)
 
     def getChild(
-        self, suffix: str, extra: Optional[Dict[str, str]] = None
+        self, suffix: str, extra: dict[str, Any] | None = None
     ) -> "PrefectLogAdapter":
-        if extra is None:
-            extra = {}
+        _extra: Mapping[str, object] = extra or {}
 
         return PrefectLogAdapter(
             self.logger.getChild(suffix),
             extra={
-                **self.extra,
-                **extra,
+                **(self.extra or {}),
+                **_extra,
             },
         )
 
 
 @lru_cache()
-def get_logger(name: Optional[str] = None) -> logging.Logger:
+def get_logger(name: str | None = None) -> logging.Logger:
     """
     Get a `prefect` logger. These loggers are intended for internal use within the
     `prefect` package.
