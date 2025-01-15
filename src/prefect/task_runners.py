@@ -40,6 +40,8 @@ from prefect.utilities.callables import (
 from prefect.utilities.collections import isiterable
 
 if TYPE_CHECKING:
+    import logging
+
     from prefect.tasks import Task
 
 P = ParamSpec("P")
@@ -61,7 +63,7 @@ class TaskRunner(abc.ABC, Generic[F]):
     """
 
     def __init__(self):
-        self.logger = get_logger(f"task_runner.{self.name}")
+        self.logger: "logging.Logger" = get_logger(f"task_runner.{self.name}")
         self._started = False
 
     @property
@@ -74,6 +76,28 @@ class TaskRunner(abc.ABC, Generic[F]):
         """Return a new instance of this task runner with the same configuration."""
         ...
 
+    @overload
+    @abc.abstractmethod
+    def submit(
+        self,
+        task: "Task[P, Coroutine[Any, Any, R]]",
+        parameters: dict[str, Any],
+        wait_for: Iterable[PrefectFuture[Any]] | None = None,
+        dependencies: dict[str, set[TaskRunInput]] | None = None,
+    ) -> F:
+        ...
+
+    @overload
+    @abc.abstractmethod
+    def submit(
+        self,
+        task: "Task[Any, R]",
+        parameters: dict[str, Any],
+        wait_for: Iterable[PrefectFuture[Any]] | None = None,
+        dependencies: dict[str, set[TaskRunInput]] | None = None,
+    ) -> F:
+        ...
+
     @abc.abstractmethod
     def submit(
         self,
@@ -82,24 +106,12 @@ class TaskRunner(abc.ABC, Generic[F]):
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
         dependencies: dict[str, set[TaskRunInput]] | None = None,
     ) -> F:
-        """
-        Submit a task to the task run engine.
-
-        Args:
-            task: The task to submit.
-            parameters: The parameters to use when running the task.
-            wait_for: A list of futures that the task depends on.
-
-        Returns:
-            A future object that can be used to wait for the task to complete and
-            retrieve the result.
-        """
         ...
 
     def map(
         self,
         task: "Task[P, R]",
-        parameters: dict[str, Any],
+        parameters: dict[str, Any | unmapped[Any] | allow_failure[Any]],
         wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
     ) -> PrefectFutureList[F]:
         """
@@ -205,7 +217,7 @@ class TaskRunner(abc.ABC, Generic[F]):
 
         return PrefectFutureList(futures)
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         if self._started:
             raise RuntimeError("This task runner is already started")
 
@@ -213,12 +225,12 @@ class TaskRunner(abc.ABC, Generic[F]):
         self._started = True
         return self
 
-    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any):
+    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
         self.logger.debug("Stopping task runner")
         self._started = False
 
 
-class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
+class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
     def __init__(self, max_workers: Optional[int] = None):
         super().__init__()
         self._executor: Optional[ThreadPoolExecutor] = None
@@ -229,7 +241,7 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
         )
         self._cancel_events: Dict[uuid.UUID, threading.Event] = {}
 
-    def duplicate(self) -> "ThreadPoolTaskRunner":
+    def duplicate(self) -> "ThreadPoolTaskRunner[R]":
         return type(self)(max_workers=self._max_workers)
 
     @overload
@@ -254,7 +266,7 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
 
     def submit(
         self,
-        task: "Task[P, R]",
+        task: "Task[P, R | Coroutine[Any, Any, R]]",
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
         dependencies: dict[str, set[TaskRunInput]] | None = None,
@@ -345,7 +357,7 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
     ) -> PrefectFutureList[PrefectConcurrentFuture[R]]:
         return super().map(task, parameters, wait_for)
 
-    def cancel_all(self):
+    def cancel_all(self) -> None:
         for event in self._cancel_events.values():
             event.set()
             self.logger.debug("Set cancel event")
@@ -354,12 +366,12 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
             self._executor.shutdown(cancel_futures=True)
             self._executor = None
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         super().__enter__()
         self._executor = ThreadPoolExecutor(max_workers=self._max_workers)
         return self
 
-    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any):
+    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
         self.cancel_all()
         if self._executor is not None:
             self._executor.shutdown(cancel_futures=True)
@@ -380,7 +392,7 @@ class PrefectTaskRunner(TaskRunner[PrefectDistributedFuture[R]]):
     def __init__(self):
         super().__init__()
 
-    def duplicate(self) -> "PrefectTaskRunner":
+    def duplicate(self) -> "PrefectTaskRunner[R]":
         return type(self)()
 
     @overload

@@ -5,7 +5,7 @@ from typing import Literal, Optional, Union
 from uuid import UUID
 
 from pydantic import Field, PrivateAttr, computed_field
-from typing_extensions import TypeAlias
+from typing_extensions import Self, TypeAlias
 
 from prefect._internal.schemas.bases import PrefectBaseModel
 
@@ -28,7 +28,7 @@ class ServiceLevelAgreement(PrefectBaseModel, abc.ABC):
         description="Whether the SLA is enabled.",
     )
 
-    def set_deployment_id(self, deployment_id: UUID):
+    def set_deployment_id(self, deployment_id: UUID) -> Self:
         self._deployment_id = deployment_id
         return self
 

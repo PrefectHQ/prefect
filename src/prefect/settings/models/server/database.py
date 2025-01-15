@@ -178,7 +178,9 @@ class ServerDatabaseSettings(PrefectBaseSettings):
         return self
 
 
-def warn_on_database_password_value_without_usage(settings: ServerDatabaseSettings):
+def warn_on_database_password_value_without_usage(
+    settings: ServerDatabaseSettings,
+) -> None:
     """
     Validator for settings warning if the database password is set but not used.
     """
