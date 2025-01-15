@@ -1122,7 +1122,7 @@ class WorkPool(ORMBaseModel):
     )
 
     @field_validator("default_queue_id")
-    def helpful_error_for_missing_default_queue_id(cls, v):
+    def helpful_error_for_missing_default_queue_id(cls, v: UUID | None) -> UUID:
         return validate_default_queue_id_not_none(v)
 
     @classmethod

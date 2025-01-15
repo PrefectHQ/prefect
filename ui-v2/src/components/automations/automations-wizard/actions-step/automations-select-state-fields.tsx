@@ -1,8 +1,8 @@
 import { Automation, buildListAutomationsQuery } from "@/api/automations";
 import {
-	ActionsSchema,
+	type AutomationWizardSchema,
 	UNASSIGNED,
-} from "@/components/automations/automations-wizard/action-step/action-type-schemas";
+} from "@/components/automations/automations-wizard/automation-schema";
 import {
 	Combobox,
 	ComboboxCommandEmtpy,
@@ -33,6 +33,7 @@ const NUM_SKELETONS = 4;
 
 type AutomationsSelectStateFieldsProps = {
 	action: "Pause" | "Resume";
+	index: number;
 };
 
 const getButtonLabel = (
@@ -69,14 +70,15 @@ const filterAutomations = (
 
 export const AutomationsSelectStateFields = ({
 	action,
+	index,
 }: AutomationsSelectStateFieldsProps) => {
-	const form = useFormContext<ActionsSchema>();
+	const form = useFormContext<AutomationWizardSchema>();
 	const { data, isSuccess } = useQuery(buildListAutomationsQuery());
 
 	return (
 		<FormField
 			control={form.control}
-			name="automation_id"
+			name={`actions.${index}.automation_id`}
 			render={({ field }) => {
 				const buttonLabel = getButtonLabel(data, field.value);
 				return (

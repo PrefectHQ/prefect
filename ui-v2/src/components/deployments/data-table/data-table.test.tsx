@@ -1,4 +1,5 @@
 import type { DeploymentWithFlow } from "@/api/deployments";
+import { Toaster } from "@/components/ui/toaster";
 import { createFakeFlowRunWithDeploymentAndFlow } from "@/mocks/create-fake-flow-run";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -55,7 +56,6 @@ describe("DeploymentsDataTable", () => {
 		onQuickRun: vi.fn(),
 		onCustomRun: vi.fn(),
 		onEdit: vi.fn(),
-		onDelete: vi.fn(),
 		onDuplicate: vi.fn(),
 	};
 
@@ -172,17 +172,27 @@ describe("DeploymentsDataTable", () => {
 		expect(onEdit).toHaveBeenCalledWith(mockDeployment);
 	});
 
-	it("calls onDelete when delete action is clicked", async () => {
-		const onDelete = vi.fn();
-		render(<DeploymentsDataTable {...defaultProps} onDelete={onDelete} />, {
-			wrapper: createWrapper(),
-		});
+	it("handles deletion", async () => {
+		render(
+			<>
+				<Toaster />
+				<DeploymentsDataTable {...defaultProps} />
+			</>,
+			{
+				wrapper: createWrapper(),
+			},
+		);
 
 		await userEvent.click(screen.getByRole("button", { name: "Open menu" }));
 		const deleteButton = screen.getByRole("menuitem", { name: "Delete" });
 		await userEvent.click(deleteButton);
 
-		expect(onDelete).toHaveBeenCalledWith(mockDeployment);
+		const confirmDeleteButton = screen.getByRole("button", {
+			name: "Delete",
+		});
+		await userEvent.click(confirmDeleteButton);
+
+		expect(screen.getByText("Deployment deleted")).toBeInTheDocument();
 	});
 
 	it("calls onDuplicate when duplicate action is clicked", async () => {

@@ -72,7 +72,7 @@ from prefect.workers.base import BaseJobConfiguration, BaseWorker
 
 
 @pytest.fixture
-def dictConfigMock(monkeypatch):
+def dictConfigMock(monkeypatch: pytest.MonkeyPatch):
     mock = MagicMock()
     monkeypatch.setattr("logging.config.dictConfig", mock)
     # Reset the process global since we're testing `setup_logging`

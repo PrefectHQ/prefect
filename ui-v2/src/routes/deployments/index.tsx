@@ -264,7 +264,6 @@ function RouteComponent() {
 					onQuickRun={(deployment) => console.log(deployment)}
 					onCustomRun={(deployment) => console.log(deployment)}
 					onEdit={(deployment) => console.log(deployment)}
-					onDelete={(deployment) => console.log(deployment)}
 					onDuplicate={(deployment) => console.log(deployment)}
 				/>
 			)}

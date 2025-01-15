@@ -1,14 +1,37 @@
 import { createFakeAutomation } from "@/mocks";
-import { ActionStep } from "./action-step";
+import { ActionsStep } from "./actions-step";
 
 import { Automation } from "@/api/automations";
+import {
+	AutomationWizardSchema,
+	type AutomationWizardSchema as TAutomationWizardSchema,
+} from "@/components/automations/automations-wizard/automation-schema";
+import { Form } from "@/components/ui/form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
+import { mockPointerEvents } from "@tests/utils/browser";
 import { http, HttpResponse } from "msw";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { useForm } from "react-hook-form";
+import { beforeAll, describe, expect, it } from "vitest";
 
-describe("ActionStep", () => {
+const ActionStepFormContainer = () => {
+	const form = useForm<TAutomationWizardSchema>({
+		resolver: zodResolver(AutomationWizardSchema),
+		defaultValues: { actions: [{ type: undefined }] },
+	});
+
+	return (
+		<Form {...form}>
+			<form>
+				<ActionsStep />
+			</form>
+		</Form>
+	);
+};
+
+describe("ActionsStep", () => {
 	const mockListAutomationAPI = (automations: Array<Automation>) => {
 		server.use(
 			http.post(buildApiUrl("/automations/filter"), () => {
@@ -17,38 +40,99 @@ describe("ActionStep", () => {
 		);
 	};
 
-	beforeAll(() => {
-		/**
-		 * JSDOM doesn't implement PointerEvent so we need to mock our own implementation
-		 * Default to mouse left click interaction
-		 * https://github.com/radix-ui/primitives/issues/1822
-		 * https://github.com/jsdom/jsdom/pull/2666
-		 */
-		class MockPointerEvent extends Event {
-			button: number;
-			ctrlKey: boolean;
-			pointerType: string;
+	beforeAll(mockPointerEvents);
 
-			constructor(type: string, props: PointerEventInit) {
-				super(type, props);
-				this.button = props.button || 0;
-				this.ctrlKey = props.ctrlKey || false;
-				this.pointerType = props.pointerType || "mouse";
-			}
-		}
-		window.PointerEvent = MockPointerEvent as never;
-		window.HTMLElement.prototype.scrollIntoView = vi.fn();
-		window.HTMLElement.prototype.releasePointerCapture = vi.fn();
-		window.HTMLElement.prototype.hasPointerCapture = vi.fn();
+	describe("multiple actions", () => {
+		it("able to add multiple actions", async () => {
+			const user = userEvent.setup();
+			// ------------ Setup
+			render(<ActionStepFormContainer />);
+			// ------------ Act
+			await user.click(
+				screen.getByRole("combobox", { name: /select action/i }),
+			);
+			await user.click(
+				screen.getByRole("option", { name: "Cancel a flow run" }),
+			);
+			await user.click(screen.getByRole("button", { name: /add action/i }));
+			// ------------ Assert
+			expect(screen.getAllByText("Cancel a flow run")).toBeTruthy();
+			expect(screen.getByText(/action 1/i)).toBeVisible();
+			expect(screen.getByText(/action 2/i)).toBeVisible();
+		});
+
+		it("able to remove an action actions", async () => {
+			const user = userEvent.setup();
+			// ------------ Setup
+			render(<ActionStepFormContainer />);
+			// ------------ Act
+			await user.click(
+				screen.getByRole("combobox", { name: /select action/i }),
+			);
+			await user.click(
+				screen.getByRole("option", { name: "Cancel a flow run" }),
+			);
+			await user.click(screen.getByRole("button", { name: /add action/i }));
+
+			await user.click(
+				screen.getByRole("button", { name: /remove action 2/i }),
+			);
+
+			// ------------ Assert
+			expect(screen.getAllByText("Cancel a flow run")).toBeTruthy();
+			expect(screen.getByText(/action 1/i)).toBeVisible();
+			expect(screen.queryByText(/action 2/i)).not.toBeInTheDocument();
+		});
+	});
+
+	describe("multiple actions", () => {
+		it("able to add multiple actions", async () => {
+			const user = userEvent.setup();
+			// ------------ Setup
+			render(<ActionStepFormContainer />);
+			// ------------ Act
+			await user.click(
+				screen.getByRole("combobox", { name: /select action/i }),
+			);
+			await user.click(
+				screen.getByRole("option", { name: "Cancel a flow run" }),
+			);
+			await user.click(screen.getByRole("button", { name: /add action/i }));
+			// ------------ Assert
+			expect(screen.getAllByText("Cancel a flow run")).toBeTruthy();
+			expect(screen.getByText(/action 1/i)).toBeVisible();
+			expect(screen.getByText(/action 2/i)).toBeVisible();
+		});
+
+		it("able to remove an action actions", async () => {
+			const user = userEvent.setup();
+			// ------------ Setup
+			render(<ActionStepFormContainer />);
+			// ------------ Act
+			await user.click(
+				screen.getByRole("combobox", { name: /select action/i }),
+			);
+			await user.click(
+				screen.getByRole("option", { name: "Cancel a flow run" }),
+			);
+			await user.click(screen.getByRole("button", { name: /add action/i }));
+
+			await user.click(
+				screen.getByRole("button", { name: /remove action 2/i }),
+			);
+
+			// ------------ Assert
+			expect(screen.getAllByText("Cancel a flow run")).toBeTruthy();
+			expect(screen.getByText(/action 1/i)).toBeVisible();
+			expect(screen.queryByText(/action 2/i)).not.toBeInTheDocument();
+		});
 	});
 
 	describe("action type -- basic action", () => {
 		it("able to select a basic action", async () => {
 			const user = userEvent.setup();
-
 			// ------------ Setup
-			const mockOnSubmitFn = vi.fn();
-			render(<ActionStep onSubmit={mockOnSubmitFn} />);
+			render(<ActionStepFormContainer />);
 
 			// ------------ Act
 			await user.click(
@@ -68,8 +152,7 @@ describe("ActionStep", () => {
 			const user = userEvent.setup();
 
 			// ------------ Setup
-			const mockOnSubmitFn = vi.fn();
-			render(<ActionStep onSubmit={mockOnSubmitFn} />);
+			render(<ActionStepFormContainer />);
 
 			// ------------ Act
 			await user.click(
@@ -102,8 +185,7 @@ describe("ActionStep", () => {
 			const user = userEvent.setup();
 
 			// ------------ Setup
-			const mockOnSubmitFn = vi.fn();
-			render(<ActionStep onSubmit={mockOnSubmitFn} />, {
+			render(<ActionStepFormContainer />, {
 				wrapper: createWrapper(),
 			});
 
@@ -121,7 +203,6 @@ describe("ActionStep", () => {
 			);
 
 			await user.click(screen.getByRole("option", { name: "my automation 0" }));
-
 			// ------------ Assert
 			expect(screen.getAllByText("Pause an automation")).toBeTruthy();
 			expect(screen.getAllByText("my automation 0")).toBeTruthy();
@@ -135,8 +216,7 @@ describe("ActionStep", () => {
 			const user = userEvent.setup();
 
 			// ------------ Setup
-			const mockOnSubmitFn = vi.fn();
-			render(<ActionStep onSubmit={mockOnSubmitFn} />, {
+			render(<ActionStepFormContainer />, {
 				wrapper: createWrapper(),
 			});
 
