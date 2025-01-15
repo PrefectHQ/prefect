@@ -229,7 +229,7 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
             if self.sqlalchemy_max_overflow is not None:
                 kwargs["max_overflow"] = self.sqlalchemy_max_overflow
 
-            kwargs["pool_timeout"] = 10
+            kwargs["pool_timeout"] = 11
             engine = create_async_engine(
                 self.connection_url,
                 echo=self.echo,
