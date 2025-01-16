@@ -35,13 +35,13 @@ Internal Prefect development.
 Note that many of these commands require extra dependencies (such as npm and MkDocs)
 to function properly.
 """
-dev_app = PrefectTyper(
+dev_app: PrefectTyper = PrefectTyper(
     name="dev", short_help="Internal Prefect development.", help=DEV_HELP
 )
 app.add_typer(dev_app)
 
 
-def exit_with_error_if_not_editable_install():
+def exit_with_error_if_not_editable_install() -> None:
     if (
         prefect.__module_path__.parent == "site-packages"
         or not (prefect.__development_base_path__ / "setup.py").exists()

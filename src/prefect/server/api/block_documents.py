@@ -12,7 +12,9 @@ from prefect.server.api import dependencies
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.utilities.server import PrefectRouter
 
-router = PrefectRouter(prefix="/block_documents", tags=["Block documents"])
+router: PrefectRouter = PrefectRouter(
+    prefix="/block_documents", tags=["Block documents"]
+)
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
@@ -124,7 +126,7 @@ async def delete_block_document(
         ..., description="The block document id", alias="id"
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     async with db.session_context(begin_transaction=True) as session:
         result = await models.block_documents.delete_block_document(
             session=session, block_document_id=block_document_id
@@ -142,7 +144,7 @@ async def update_block_document_data(
         ..., description="The block document id", alias="id"
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     try:
         async with db.session_context(begin_transaction=True) as session:
             result = await models.block_documents.update_block_document(

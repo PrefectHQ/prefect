@@ -70,18 +70,21 @@ EVENT_WEBSOCKET_CHECKPOINTS = Counter(
     labelnames=["client"],
 )
 
-logger = get_logger(__name__)
+if TYPE_CHECKING:
+    import logging
+
+logger: "logging.Logger" = get_logger(__name__)
 
 
-def http_to_ws(url: str):
+def http_to_ws(url: str) -> str:
     return url.replace("https://", "wss://").replace("http://", "ws://").rstrip("/")
 
 
-def events_in_socket_from_api_url(url: str):
+def events_in_socket_from_api_url(url: str) -> str:
     return http_to_ws(url) + "/events/in"
 
 
-def events_out_socket_from_api_url(url: str):
+def events_out_socket_from_api_url(url: str) -> str:
     return http_to_ws(url) + "/events/out"
 
 
@@ -250,11 +253,11 @@ class AssertingEventsClient(EventsClient):
     last: ClassVar["Optional[AssertingEventsClient]"] = None
     all: ClassVar[List["AssertingEventsClient"]] = []
 
-    args: Tuple
-    kwargs: Dict[str, Any]
-    events: List[Event]
+    args: tuple[Any, ...]
+    kwargs: dict[str, Any]
+    events: list[Event]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any):
         AssertingEventsClient.last = self
         AssertingEventsClient.all.append(self)
         self.args = args
@@ -431,13 +434,13 @@ class AssertingPassthroughEventsClient(PrefectEventsClient):
     during tests AND sends them to a Prefect server."""
 
     last: ClassVar["Optional[AssertingPassthroughEventsClient]"] = None
-    all: ClassVar[List["AssertingPassthroughEventsClient"]] = []
+    all: ClassVar[list["AssertingPassthroughEventsClient"]] = []
 
-    args: Tuple
-    kwargs: Dict[str, Any]
-    events: List[Event]
+    args: tuple[Any, ...]
+    kwargs: dict[str, Any]
+    events: list[Event]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
         AssertingPassthroughEventsClient.last = self
         AssertingPassthroughEventsClient.all.append(self)
@@ -449,7 +452,7 @@ class AssertingPassthroughEventsClient(PrefectEventsClient):
         cls.last = None
         cls.all = []
 
-    def pop_events(self) -> List[Event]:
+    def pop_events(self) -> list[Event]:
         events = self.events
         self.events = []
         return events

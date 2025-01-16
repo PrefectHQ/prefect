@@ -63,7 +63,7 @@ class CountByState(PrefectBaseModel):
 
     @field_validator("*")
     @classmethod
-    def check_key(cls, value: Optional[Any], info: ValidationInfo):
+    def check_key(cls, value: Optional[Any], info: ValidationInfo) -> Optional[Any]:
         if info.field_name not in StateType.__members__:
             raise ValueError(f"{info.field_name} is not a valid StateType")
         return value

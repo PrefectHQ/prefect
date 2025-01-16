@@ -4,7 +4,10 @@ import prefect.settings
 from prefect.client.base import ServerType, determine_server_type
 from prefect.logging.loggers import get_logger
 
-logger = get_logger(__name__)
+if TYPE_CHECKING:
+    import logging
+
+logger: "logging.Logger" = get_logger(__name__)
 
 if TYPE_CHECKING:
     from opentelemetry.sdk._logs import LoggerProvider

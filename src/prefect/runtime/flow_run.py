@@ -20,8 +20,10 @@ Available attributes:
     - `run_count`: the number of times this flow run has been run
 """
 
+from __future__ import annotations
+
 import os
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
 
 import pendulum
 
@@ -29,6 +31,9 @@ from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.client.orchestration import get_client
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.settings import PREFECT_API_URL, PREFECT_UI_URL
+
+if TYPE_CHECKING:
+    from prefect.client.schemas.objects import Flow, FlowRun, TaskRun
 
 __all__ = [
     "id",
@@ -56,7 +61,15 @@ def _pendulum_parse(dt: str) -> pendulum.DateTime:
     return pendulum.parse(dt, tz=None, strict=False).set(tz="UTC")
 
 
-type_cast = {
+type_cast: dict[
+    type[bool]
+    | type[int]
+    | type[float]
+    | type[str]
+    | type[None]
+    | type[pendulum.DateTime],
+    Callable[[Any], Any],
+] = {
     bool: lambda x: x.lower() == "true",
     int: int,
     float: float,
@@ -106,17 +119,17 @@ def __dir__() -> List[str]:
     return sorted(__all__)
 
 
-async def _get_flow_run(flow_run_id):
+async def _get_flow_run(flow_run_id: str) -> "FlowRun":
     async with get_client() as client:
         return await client.read_flow_run(flow_run_id)
 
 
-async def _get_task_run(task_run_id):
+async def _get_task_run(task_run_id: str) -> "TaskRun":
     async with get_client() as client:
         return await client.read_task_run(task_run_id)
 
 
-async def _get_flow_from_run(flow_run_id):
+async def _get_flow_from_run(flow_run_id: str) -> "Flow":
     async with get_client() as client:
         flow_run = await client.read_flow_run(flow_run_id)
         return await client.read_flow(flow_run.flow_id)
@@ -323,7 +336,7 @@ def get_job_variables() -> Optional[Dict[str, Any]]:
     return flow_run_ctx.flow_run.job_variables if flow_run_ctx else None
 
 
-FIELDS = {
+FIELDS: dict[str, Callable[[], Any]] = {
     "id": get_id,
     "tags": get_tags,
     "scheduled_start_time": get_scheduled_start_time,

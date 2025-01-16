@@ -40,7 +40,7 @@ async def create_block_schema(
         "ClientBlockSchema",
     ],
     override: bool = False,
-    definitions: Optional[Dict] = None,
+    definitions: Optional[dict[str, Any]] = None,
 ) -> Union[BlockSchema, orm_models.BlockSchema]:
     """
     Create a new block schema.

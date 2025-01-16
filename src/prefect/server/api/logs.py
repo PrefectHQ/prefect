@@ -12,14 +12,14 @@ import prefect.server.schemas as schemas
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.utilities.server import PrefectRouter
 
-router = PrefectRouter(prefix="/logs", tags=["Logs"])
+router: PrefectRouter = PrefectRouter(prefix="/logs", tags=["Logs"])
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_logs(
     logs: List[schemas.actions.LogCreate],
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     """Create new logs from the provided schema."""
     for batch in models.logs.split_logs_into_batches(logs):
         async with db.session_context(begin_transaction=True) as session:

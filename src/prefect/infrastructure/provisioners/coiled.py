@@ -3,7 +3,7 @@ import shlex
 import sys
 from copy import deepcopy
 from types import ModuleType
-from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from anyio import run_process
 from rich.console import Console
@@ -20,16 +20,16 @@ if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
 
 
-modal: ModuleType = lazy_import("modal")
+coiled: ModuleType = lazy_import("coiled")
 
 
-class ModalPushProvisioner:
+class CoiledPushProvisioner:
     """
-    A infrastructure provisioner for Modal push work pools.
+    A infrastructure provisioner for Coiled push work pools.
     """
 
     def __init__(self, client: Optional["PrefectClient"] = None):
-        self._console: Console = Console()
+        self._console = Console()
 
     @property
     def console(self) -> Console:
@@ -40,70 +40,64 @@ class ModalPushProvisioner:
         self._console = value
 
     @staticmethod
-    def _is_modal_installed() -> bool:
+    def _is_coiled_installed() -> bool:
         """
-        Checks if the modal package is installed.
+        Checks if the coiled package is installed.
 
         Returns:
-            True if the modal package is installed, False otherwise
+            True if the coiled package is installed, False otherwise
         """
         try:
-            importlib.import_module("modal")
+            importlib.import_module("coiled")
             return True
         except ModuleNotFoundError:
             return False
 
-    async def _install_modal(self):
+    async def _install_coiled(self):
         """
-        Installs the modal package.
+        Installs the coiled package.
         """
         with Progress(
             SpinnerColumn(),
-            TextColumn("[bold blue]Installing modal..."),
+            TextColumn("[bold blue]Installing coiled..."),
             transient=True,
             console=self.console,
         ) as progress:
-            task = progress.add_task("modal install")
+            task = progress.add_task("coiled install")
             progress.start()
-            global modal
+            global coiled
             await run_process(
-                [shlex.quote(sys.executable), "-m", "pip", "install", "modal"]
+                [shlex.quote(sys.executable), "-m", "pip", "install", "coiled"]
             )
-            modal = importlib.import_module("modal")
+            coiled = importlib.import_module("coiled")
             progress.advance(task)
 
-    async def _get_modal_token_id_and_secret(self) -> Tuple[str, str]:
+    async def _get_coiled_token(self) -> str:
         """
-        Gets a Model API token ID and secret from the current Modal configuration.
+        Gets a Coiled API token from the current Coiled configuration.
         """
-        modal_config = modal.config.Config()
-        modal_token_id = modal_config.get("token_id")
-        modal_token_secret = modal_config.get("token_secret")
+        import dask.config
 
-        return modal_token_id, modal_token_secret
+        return dask.config.get("coiled.token", "")
 
-    async def _create_new_modal_token(self):
+    async def _create_new_coiled_token(self):
         """
-        Triggers a Modal login via the browser. Will create a new token in the default Modal profile.
+        Triggers a Coiled login via the browser if no current token. Will create a new token.
         """
-        await run_process([shlex.quote(sys.executable), "-m", "modal", "token", "new"])
-        # Reload the modal.config module to pick up the new token
-        importlib.reload(modal.config)
+        await run_process(["coiled", "login"])
 
-    async def _create_modal_credentials_block(
+    async def _create_coiled_credentials_block(
         self,
         block_document_name: str,
-        modal_token_id: str,
-        modal_token_secret: str,
+        coiled_token: str,
         client: "PrefectClient",
     ) -> BlockDocument:
         """
-        Creates a ModalCredentials block containing the provided token ID and secret.
+        Creates a CoiledCredentials block containing the provided token.
 
         Args:
             block_document_name: The name of the block document to create
-            modal_token_id: The Modal token ID
-            modal_token_secret: The Modal token secret
+            coiled_token: The Coiled API token
 
         Returns:
             The ID of the created block
@@ -111,12 +105,12 @@ class ModalPushProvisioner:
         assert client is not None, "client injection failed"
         try:
             credentials_block_type = await client.read_block_type_by_slug(
-                "modal-credentials"
+                "coiled-credentials"
             )
         except ObjectNotFound:
             # Shouldn't happen, but just in case
             raise RuntimeError(
-                "Unable to find ModalCredentials block type. Please ensure you are"
+                "Unable to find CoiledCredentials block type. Please ensure you are"
                 " using Prefect Cloud."
             )
         credentials_block_schema = (
@@ -132,8 +126,7 @@ class ModalPushProvisioner:
             block_document=BlockDocumentCreate(
                 name=block_document_name,
                 data={
-                    "token_id": modal_token_id,
-                    "token_secret": modal_token_secret,
+                    "api_token": coiled_token,
                 },
                 block_type_id=credentials_block_type.id,
                 block_schema_id=credentials_block_schema.id,
@@ -149,10 +142,10 @@ class ModalPushProvisioner:
         client: Optional["PrefectClient"] = None,
     ) -> Dict[str, Any]:
         """
-        Provisions resources necessary for a Modal push work pool.
+        Provisions resources necessary for a Coiled push work pool.
 
         Provisioned resources:
-            - A ModalCredentials block containing a Modal API token
+            - A CoiledCredentials block containing a Coiled API token
 
         Args:
             work_pool_name: The name of the work pool to provision resources for
@@ -161,91 +154,96 @@ class ModalPushProvisioner:
         Returns:
             A copy of the provided base job template with the provisioned resources
         """
-        credentials_block_name = f"{work_pool_name}-modal-credentials"
+        credentials_block_name = f"{work_pool_name}-coiled-credentials"
         base_job_template_copy = deepcopy(base_job_template)
         assert client is not None, "client injection failed"
         try:
             block_doc = await client.read_block_document_by_name(
-                credentials_block_name, "modal-credentials"
+                credentials_block_name, "coiled-credentials"
             )
             self.console.print(
-                f"Work pool [blue]{work_pool_name!r}[/] will reuse the existing Modal"
+                f"Work pool [blue]{work_pool_name!r}[/] will reuse the existing Coiled"
                 f" credentials block [blue]{credentials_block_name!r}[/blue]"
             )
         except ObjectNotFound:
             if self._console.is_interactive and not Confirm.ask(
                 (
-                    "To configure your Modal push work pool we'll need to store a Modal"
-                    " token with Prefect Cloud as a block. We'll pull the token from"
-                    " your local Modal configuration or create a new token if we"
-                    " can't find one. Would you like to continue?"
+                    "\n"
+                    "To configure your Coiled push work pool we'll need to store a Coiled"
+                    " API token with Prefect Cloud as a block. We'll pull the token from"
+                    " your local Coiled configuration or create a new token if we"
+                    " can't find one.\n"
+                    "\n"
+                    "Would you like to continue?"
                 ),
                 console=self.console,
+                default=True,
             ):
                 self.console.print(
-                    "No problem! You can always configure your Modal push work pool"
+                    "No problem! You can always configure your Coiled push work pool"
                     " later via the Prefect UI."
                 )
                 return base_job_template
 
-            if not self._is_modal_installed():
+            if not self._is_coiled_installed():
                 if self.console.is_interactive and Confirm.ask(
                     (
-                        "The [blue]modal[/] package is required to configure"
-                        " authentication for your work pool. Would you like to install"
-                        " it now?"
+                        "The [blue]coiled[/] package is required to configure"
+                        " authentication for your work pool.\n"
+                        "\n"
+                        "Would you like to install it now?"
                     ),
                     console=self.console,
+                    default=True,
                 ):
-                    await self._install_modal()
+                    await self._install_coiled()
 
-            # Get the current Modal token ID and secret
-            (
-                modal_token_id,
-                modal_token_secret,
-            ) = await self._get_modal_token_id_and_secret()
-            if not modal_token_id or not modal_token_secret:
+            if not self._is_coiled_installed():
+                raise RuntimeError(
+                    "The coiled package is not installed.\n\nPlease try installing coiled,"
+                    " or you can use the Prefect UI to create your Coiled push work pool."
+                )
+
+            # Get the current Coiled API token
+            coiled_api_token = await self._get_coiled_token()
+            if not coiled_api_token:
                 # Create a new token one wasn't found
                 if self.console.is_interactive and Confirm.ask(
-                    (
-                        "Modal credentials not found. Would you like to create a new"
-                        " token?"
-                    ),
+                    "Coiled credentials not found. Would you like to create a new token?",
                     console=self.console,
+                    default=True,
                 ):
-                    await self._create_new_modal_token()
-                    (
-                        modal_token_id,
-                        modal_token_secret,
-                    ) = await self._get_modal_token_id_and_secret()
+                    await self._create_new_coiled_token()
+                    coiled_api_token = await self._get_coiled_token()
                 else:
                     raise RuntimeError(
-                        "Modal credentials not found. Please create a new token by"
-                        " running [blue]modal token new[/] and try again."
+                        "Coiled credentials not found. Please create a new token by"
+                        " running [blue]coiled login[/] and try again."
                     )
 
             # Create the credentials block
             with Progress(
                 SpinnerColumn(),
-                TextColumn("[bold blue]Saving Modal credentials..."),
+                TextColumn("[bold blue]Saving Coiled credentials..."),
                 transient=True,
                 console=self.console,
             ) as progress:
-                task = progress.add_task("create modal credentials block")
+                task = progress.add_task("create coiled credentials block")
                 progress.start()
-                block_doc = await self._create_modal_credentials_block(
+                block_doc = await self._create_coiled_credentials_block(
                     credentials_block_name,
-                    modal_token_id,
-                    modal_token_secret,
+                    coiled_api_token,
                     client=client,
                 )
                 progress.advance(task)
 
-        base_job_template_copy["variables"]["properties"]["modal_credentials"][
-            "default"
-        ] = {"$ref": {"block_document_id": str(block_doc.id)}}
+        base_job_template_copy["variables"]["properties"]["credentials"]["default"] = {
+            "$ref": {"block_document_id": str(block_doc.id)}
+        }
+        if "image" in base_job_template_copy["variables"]["properties"]:
+            base_job_template_copy["variables"]["properties"]["image"]["default"] = ""
         self.console.print(
-            f"Successfully configured Modal push work pool {work_pool_name!r}!",
+            f"Successfully configured Coiled push work pool {work_pool_name!r}!",
             style="green",
         )
         return base_job_template_copy

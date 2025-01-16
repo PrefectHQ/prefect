@@ -7,7 +7,7 @@ class LevelHighlighter(RegexHighlighter):
     """Apply style to log levels."""
 
     base_style = "level."
-    highlights = [
+    highlights: list[str] = [
         r"(?P<debug_level>DEBUG)",
         r"(?P<info_level>INFO)",
         r"(?P<warning_level>WARNING)",
@@ -20,7 +20,7 @@ class UrlHighlighter(RegexHighlighter):
     """Apply style to urls."""
 
     base_style = "url."
-    highlights = [
+    highlights: list[str] = [
         r"(?P<web_url>(https|http|ws|wss):\/\/[0-9a-zA-Z\$\-\_\+\!`\(\)\,\.\?\/\;\:\&\=\%\#]*)",
         r"(?P<local_url>(file):\/\/[0-9a-zA-Z\$\-\_\+\!`\(\)\,\.\?\/\;\:\&\=\%\#]*)",
     ]
@@ -30,7 +30,7 @@ class NameHighlighter(RegexHighlighter):
     """Apply style to names."""
 
     base_style = "name."
-    highlights = [
+    highlights: list[str] = [
         # ?i means case insensitive
         # ?<= means find string right after the words: flow run
         r"(?i)(?P<flow_run_name>(?<=flow run) \'(.*?)\')",
@@ -44,7 +44,7 @@ class StateHighlighter(RegexHighlighter):
     """Apply style to states."""
 
     base_style = "state."
-    highlights = [
+    highlights: list[str] = [
         rf"(?P<{state.lower()}_state>{state.title()})" for state in StateType
     ] + [
         r"(?P<cached_state>Cached)(?=\(type=COMPLETED\))"  # Highlight only "Cached"
@@ -55,7 +55,7 @@ class PrefectConsoleHighlighter(RegexHighlighter):
     """Applies style from multiple highlighters."""
 
     base_style = "log."
-    highlights = (
+    highlights: list[str] = (
         LevelHighlighter.highlights
         + UrlHighlighter.highlights
         + NameHighlighter.highlights

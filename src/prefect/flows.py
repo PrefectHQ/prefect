@@ -86,6 +86,7 @@ from prefect.utilities.asyncutils import (
     sync_compatible,
 )
 from prefect.utilities.callables import (
+    ParameterSchema,
     get_call_parameters,
     parameter_schema,
     parameters_to_args_kwargs,
@@ -272,7 +273,7 @@ class Flow(Generic[P, R]):
         if not callable(fn):
             raise TypeError("'fn' must be callable")
 
-        self.name = name or fn.__name__.replace("_", "-").replace(
+        self.name: str = name or fn.__name__.replace("_", "-").replace(
             "<lambda>",
             "unknown-lambda",  # prefect API will not accept "<" or ">" in flow names
         )
@@ -287,29 +288,29 @@ class Flow(Generic[P, R]):
         self.flow_run_name = flow_run_name
 
         if task_runner is None:
-            self.task_runner = cast(
+            self.task_runner: TaskRunner[PrefectFuture[Any]] = cast(
                 TaskRunner[PrefectFuture[Any]], ThreadPoolTaskRunner()
             )
         else:
-            self.task_runner = (
+            self.task_runner: TaskRunner[PrefectFuture[Any]] = (
                 task_runner() if isinstance(task_runner, type) else task_runner
             )
 
         self.log_prints = log_prints
 
-        self.description = description or inspect.getdoc(fn)
+        self.description: str | None = description or inspect.getdoc(fn)
         update_wrapper(self, fn)
         self.fn = fn
 
         # the flow is considered async if its function is async or an async
         # generator
-        self.isasync = asyncio.iscoroutinefunction(
+        self.isasync: bool = asyncio.iscoroutinefunction(
             self.fn
         ) or inspect.isasyncgenfunction(self.fn)
 
         # the flow is considered a generator if its function is a generator or
         # an async generator
-        self.isgenerator = inspect.isgeneratorfunction(
+        self.isgenerator: bool = inspect.isgeneratorfunction(
             self.fn
         ) or inspect.isasyncgenfunction(self.fn)
 
@@ -326,22 +327,24 @@ class Flow(Generic[P, R]):
                 pass  # `getsourcefile` can return null values and "<stdin>" for objects in repls
         self.version = version
 
-        self.timeout_seconds = float(timeout_seconds) if timeout_seconds else None
+        self.timeout_seconds: float | None = (
+            float(timeout_seconds) if timeout_seconds else None
+        )
 
         # FlowRunPolicy settings
         # TODO: We can instantiate a `FlowRunPolicy` and add Pydantic bound checks to
         #       validate that the user passes positive numbers here
-        self.retries = (
+        self.retries: int = (
             retries if retries is not None else PREFECT_FLOW_DEFAULT_RETRIES.value()
         )
 
-        self.retry_delay_seconds = (
+        self.retry_delay_seconds: float | int = (
             retry_delay_seconds
             if retry_delay_seconds is not None
             else PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS.value()
         )
 
-        self.parameters = parameter_schema(self.fn)
+        self.parameters: ParameterSchema = parameter_schema(self.fn)
         self.should_validate_parameters = validate_parameters
 
         if self.should_validate_parameters:
@@ -421,7 +424,7 @@ class Flow(Generic[P, R]):
         description: Optional[str] = None,
         flow_run_name: Optional[Union[Callable[[], str], str]] = None,
         task_runner: Union[
-            Type[TaskRunner[PrefectFuture[R]]], TaskRunner[PrefectFuture[R]], None
+            Type[TaskRunner[PrefectFuture[Any]]], TaskRunner[PrefectFuture[Any]], None
         ] = None,
         timeout_seconds: Union[int, float, None] = None,
         validate_parameters: Optional[bool] = None,
@@ -1708,7 +1711,7 @@ class FlowDecorator:
             ...
 
 
-flow = FlowDecorator()
+flow: FlowDecorator = FlowDecorator()
 
 
 def _raise_on_name_with_banned_characters(name: Optional[str]) -> Optional[str]:
