@@ -8,7 +8,7 @@ import traceback
 import uuid
 import warnings
 from contextlib import asynccontextmanager
-from typing import Any, Dict, List, TextIO, Type
+from typing import TYPE_CHECKING, Any, Dict, List, TextIO, Type
 
 import pendulum
 from rich.console import Console
@@ -39,7 +39,10 @@ from prefect.settings import (
 if sys.version_info >= (3, 12):
     StreamHandler = logging.StreamHandler[TextIO]
 else:
-    StreamHandler = logging.StreamHandler
+    if TYPE_CHECKING:
+        StreamHandler = logging.StreamHandler[TextIO]
+    else:
+        StreamHandler = logging.StreamHandler
 
 
 class APILogWorker(BatchedQueueService[Dict[str, Any]]):
