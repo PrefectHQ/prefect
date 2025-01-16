@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING, Any, Dict, Optional, Protocol, Type
 
+from prefect.infrastructure.provisioners.coiled import CoiledPushProvisioner
 from prefect.infrastructure.provisioners.modal import ModalPushProvisioner
 from .cloud_run import CloudRunPushProvisioner
 from .container_instance import ContainerInstancePushProvisioner
@@ -15,6 +16,7 @@ _provisioners = {
     "azure-container-instance:push": ContainerInstancePushProvisioner,
     "ecs:push": ElasticContainerServicePushProvisioner,
     "modal:push": ModalPushProvisioner,
+    "coiled:push": CoiledPushProvisioner,
 }
 
 
