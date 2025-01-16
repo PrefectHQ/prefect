@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 
-
+{% block extrahead %}
+  <meta name="robots" content="noindex, nofollow">
+  {{ super() }}
+{% endblock %}
 
 {% block analytics %}
 {{ super() }}
