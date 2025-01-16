@@ -665,7 +665,7 @@
                     "type": "integer"
                 },
                 "log_level": {
-                    "default": "error",
+                    "default": "ERROR",
                     "description": "The log level of the runner's webserver.",
                     "enum": [
                         "DEBUG",
