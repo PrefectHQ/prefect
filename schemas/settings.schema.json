@@ -1111,7 +1111,6 @@
                 },
                 "sqlalchemy_pool_size": {
                     "default": 5,
-                    "deprecated": true,
                     "description": "Controls connection pool size of database connection pools from the Prefect backend.",
                     "supported_environment_variables": [],
                     "title": "Sqlalchemy Pool Size",
@@ -1119,7 +1118,6 @@
                 },
                 "sqlalchemy_max_overflow": {
                     "default": 10,
-                    "deprecated": true,
                     "description": "Controls maximum overflow of the connection pool. To prevent overflow, set to -1.",
                     "supported_environment_variables": [],
                     "title": "Sqlalchemy Max Overflow",
