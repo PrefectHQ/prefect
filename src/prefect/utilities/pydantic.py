@@ -1,3 +1,4 @@
+import warnings
 from typing import (
     Any,
     Callable,
@@ -10,18 +11,13 @@ from typing import (
     overload,
 )
 
-from jsonpatch import (  # type: ignore  # no typing stubs available, see https://github.com/stefankoegl/python-json-patch/issues/158
-    JsonPatch as JsonPatchBase,
-)
 from pydantic import (
     BaseModel,
-    GetJsonSchemaHandler,
     Secret,
     TypeAdapter,
     ValidationError,
 )
-from pydantic.json_schema import JsonSchemaValue
-from pydantic_core import core_schema, to_jsonable_python
+from pydantic_core import to_jsonable_python
 from typing_extensions import Literal
 
 from prefect.utilities.dispatch import get_dispatch_key, lookup_type, register_base_type
@@ -262,36 +258,6 @@ class PartialModel(Generic[M]):
         return f"PartialModel(cls={self.model_cls.__name__}, {dsp_fields})"
 
 
-class JsonPatch(JsonPatchBase):
-    @classmethod
-    def __get_pydantic_core_schema__(
-        cls, source_type: Any, handler: GetJsonSchemaHandler
-    ) -> core_schema.CoreSchema:
-        return core_schema.typed_dict_schema(
-            {"patch": core_schema.typed_dict_field(core_schema.dict_schema())}
-        )
-
-    @classmethod
-    def __get_pydantic_json_schema__(
-        cls, core_schema: core_schema.CoreSchema, handler: GetJsonSchemaHandler
-    ) -> JsonSchemaValue:
-        json_schema = handler(core_schema)
-        json_schema = handler.resolve_ref_schema(json_schema)
-        json_schema.pop("required", None)
-        json_schema.pop("properties", None)
-        json_schema.update(
-            {
-                "type": "array",
-                "format": "rfc6902",
-                "items": {
-                    "type": "object",
-                    "additionalProperties": {"type": "string"},
-                },
-            }
-        )
-        return json_schema
-
-
 def custom_pydantic_encoder(
     type_encoders: dict[Any, Callable[[type[Any]], Any]], obj: Any
 ) -> Any:
@@ -382,3 +348,22 @@ def handle_secret_render(value: object, context: dict[str, Any]) -> object:
     elif isinstance(value, BaseModel):
         return value.model_dump(context=context)
     return value
+
+
+def __getattr__(name: str) -> Any:
+    """
+    Handles imports from this module that are deprecated.
+    """
+
+    if name == "JsonPatch":
+        warnings.warn(
+            "JsonPatch is deprecated and will be removed after March 2025. "
+            "Please use `JsonPatch` from the `jsonpatch` package instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        from ._deprecated import JsonPatch
+
+        return JsonPatch
+    else:
+        raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
