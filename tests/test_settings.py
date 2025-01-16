@@ -4,7 +4,7 @@ import textwrap
 import warnings
 from datetime import timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import pydantic
 import pytest
@@ -55,6 +55,7 @@ from prefect.settings import (
 from prefect.settings.base import _to_environment_variable_value
 from prefect.settings.constants import DEFAULT_PROFILES_PATH
 from prefect.settings.legacy import (
+    Setting,
     _env_var_to_accessor,
     _get_settings_fields,
     _get_valid_setting_names,
@@ -64,6 +65,10 @@ from prefect.settings.models.client import ClientSettings
 from prefect.settings.models.logging import LoggingSettings
 from prefect.settings.models.server import ServerSettings
 from prefect.settings.models.server.api import ServerAPISettings
+from prefect.settings.models.server.database import (
+    ServerDatabaseSettings,
+    SQLAlchemySettings,
+)
 from prefect.utilities.collections import get_from_dict, set_in_dict
 from prefect.utilities.filesystem import tmpchdir
 
@@ -875,7 +880,7 @@ class TestSettingAccess:
             ("400, 401, 402", {400, 401, 402}),
         ],
     )
-    def test_client_retry_extra_codes(self, extra_codes, expected):
+    def test_client_retry_extra_codes(self, extra_codes: str, expected: set[int]):
         with temporary_settings({PREFECT_CLIENT_RETRY_EXTRA_CODES: extra_codes}):
             assert PREFECT_CLIENT_RETRY_EXTRA_CODES.value() == expected
 
@@ -890,7 +895,7 @@ class TestSettingAccess:
             "400,500,foo",
         ],
     )
-    def test_client_retry_extra_codes_invalid(self, extra_codes):
+    def test_client_retry_extra_codes_invalid(self, extra_codes: str):
         with pytest.raises(ValueError):
             with temporary_settings({PREFECT_CLIENT_RETRY_EXTRA_CODES: extra_codes}):
                 PREFECT_CLIENT_RETRY_EXTRA_CODES.value()
@@ -912,7 +917,7 @@ class TestSettingAccess:
 
         assert value == settings.testing.test_mode
 
-    def test_settings_with_serialization_alias(self, monkeypatch):
+    def test_settings_with_serialization_alias(self, monkeypatch: pytest.MonkeyPatch):
         assert not Settings().client.metrics.enabled
         # Use old value
         monkeypatch.setenv("PREFECT_CLIENT_ENABLE_METRICS", "True")
@@ -927,9 +932,12 @@ class TestSettingAccess:
 
         # Check both can be imported
         from prefect.settings import (
-            PREFECT_CLIENT_ENABLE_METRICS,  # noqa
-            PREFECT_CLIENT_METRICS_ENABLED,  # noqa
+            PREFECT_CLIENT_ENABLE_METRICS,
+            PREFECT_CLIENT_METRICS_ENABLED,
         )
+
+        assert isinstance(PREFECT_CLIENT_ENABLE_METRICS, Setting)
+        assert isinstance(PREFECT_CLIENT_METRICS_ENABLED, Setting)
 
 
 class TestDatabaseSettings:
@@ -1112,6 +1120,57 @@ class TestDatabaseSettings:
             assert url.username == "the-user"
             assert url.database == "the-database"
             assert url.password == "the-$password"
+
+    def test_sqlalchemy_settings_migration(self):
+        """Test that SQLAlchemy settings work with both old and new structures."""
+
+        # old env vars
+        settings_with_old_keys = Settings(
+            server=ServerSettings(
+                database=ServerDatabaseSettings(
+                    sqlalchemy_pool_size=42,
+                    sqlalchemy_max_overflow=37,
+                )
+            )
+        )
+
+        with pytest.warns(
+            DeprecationWarning,
+            match="moved to the `sqlalchemy` settings",
+        ):
+            # old access works but throws a warning
+            assert settings_with_old_keys.server.database.sqlalchemy_pool_size == 42
+            assert settings_with_old_keys.server.database.sqlalchemy_max_overflow == 37
+
+        # new access works without warnings
+        assert settings_with_old_keys.server.database.sqlalchemy.pool_size == 42
+        assert settings_with_old_keys.server.database.sqlalchemy.max_overflow == 37
+
+        settings_with_new_keys = Settings(
+            server=ServerSettings(
+                database=ServerDatabaseSettings(
+                    sqlalchemy=SQLAlchemySettings(
+                        pool_size=42,
+                        max_overflow=37,
+                    )
+                )
+            )
+        )
+
+        # old keys not updated by setting new keys
+        default_db_settings = Settings().server.database
+        assert (
+            settings_with_new_keys.server.database.sqlalchemy_pool_size
+            == default_db_settings.sqlalchemy.pool_size
+        )
+        assert (
+            settings_with_new_keys.server.database.sqlalchemy_max_overflow
+            == default_db_settings.sqlalchemy.max_overflow
+        )
+
+        # new keys are updated by setting new keys
+        assert settings_with_new_keys.server.database.sqlalchemy.pool_size == 42
+        assert settings_with_new_keys.server.database.sqlalchemy.max_overflow == 37
 
 
 class TestTemporarySettings:
@@ -1729,7 +1788,9 @@ class TestProfile:
         ):
             profile.validate_settings()
 
-    def test_validate_settings_ignores_environment_variables(self, monkeypatch):
+    def test_validate_settings_ignores_environment_variables(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
         """
         If using `context.use_profile` to validate settings, environment variables may
         override the setting and hide validation errors
@@ -2089,7 +2150,10 @@ class TestSettingValues:
         self.check_setting_value(setting, value)
 
     def test_set_via_dot_env_file(
-        self, setting_and_value, temporary_env_file, monkeypatch
+        self,
+        setting_and_value: tuple[str, Any],
+        temporary_env_file: Callable[[str], None],
+        monkeypatch: pytest.MonkeyPatch,
     ):
         setting, value = setting_and_value
         if setting == "PREFECT_PROFILES_PATH":
@@ -2105,7 +2169,10 @@ class TestSettingValues:
         self.check_setting_value(setting, value)
 
     def test_set_via_prefect_toml_file(
-        self, setting_and_value, temporary_toml_file, monkeypatch
+        self,
+        setting_and_value: tuple[str, Any],
+        temporary_toml_file: Callable[[dict[str, Any], Path], None],
+        monkeypatch: pytest.MonkeyPatch,
     ):
         setting, value = setting_and_value
         if setting == "PREFECT_PROFILES_PATH":
@@ -2126,7 +2193,10 @@ class TestSettingValues:
         self.check_setting_value(setting, value)
 
     def test_set_via_pyproject_toml_file(
-        self, setting_and_value, temporary_toml_file, monkeypatch
+        self,
+        setting_and_value: tuple[str, Any],
+        temporary_toml_file: Callable[[dict[str, Any], Path], None],
+        monkeypatch: pytest.MonkeyPatch,
     ):
         setting, value = setting_and_value
         if setting == "PREFECT_PROFILES_PATH":
