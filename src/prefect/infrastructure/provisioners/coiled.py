@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
 
 
-coiled = lazy_import("coiled")
+coiled: ModuleType = lazy_import("coiled")
 
 
 class CoiledPushProvisioner:
@@ -69,7 +69,7 @@ class CoiledPushProvisioner:
             await run_process(
                 [shlex.quote(sys.executable), "-m", "pip", "install", "coiled"]
             )
-            coiled: ModuleType = importlib.import_module("coiled")
+            coiled = importlib.import_module("coiled")
             progress.advance(task)
 
     async def _get_coiled_token(self) -> str:
