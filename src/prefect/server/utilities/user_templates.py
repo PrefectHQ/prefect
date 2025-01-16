@@ -1,6 +1,6 @@
 """Utilities to support safely rendering user-supplied templates"""
 
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 import jinja2.sandbox
 from jinja2 import ChainableUndefined, nodes
@@ -8,7 +8,10 @@ from jinja2.sandbox import ImmutableSandboxedEnvironment
 
 from prefect.logging import get_logger
 
-logger = get_logger(__name__)
+if TYPE_CHECKING:
+    import logging
+
+logger: "logging.Logger" = get_logger(__name__)
 
 
 jinja2.sandbox.MAX_RANGE = 100
@@ -46,12 +49,12 @@ class TemplateSecurityError(Exception):
         super().__init__(message)
 
 
-def register_user_template_filters(filters: dict[str, Any]):
+def register_user_template_filters(filters: dict[str, Any]) -> None:
     """Register additional filters that will be available to user templates"""
     _template_environment.filters.update(filters)
 
 
-def validate_user_template(template: str):
+def validate_user_template(template: str) -> None:
     root_node = _template_environment.parse(template)
     _validate_loop_constraints(root_node)
 

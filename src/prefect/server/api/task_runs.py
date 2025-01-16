@@ -4,7 +4,7 @@ Routes for interacting with task run objects.
 
 import asyncio
 import datetime
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from uuid import UUID
 
 import pendulum
@@ -27,17 +27,19 @@ from prefect.server.api.run_history import run_history
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.orchestration import dependencies as orchestration_dependencies
 from prefect.server.orchestration.core_policy import CoreTaskPolicy
-from prefect.server.orchestration.policies import BaseOrchestrationPolicy
+from prefect.server.orchestration.policies import TaskRunOrchestrationPolicy
 from prefect.server.schemas.responses import OrchestrationResult
 from prefect.server.task_queue import MultiQueue, TaskQueue
 from prefect.server.utilities import subscriptions
 from prefect.server.utilities.server import PrefectRouter
 from prefect.types import DateTime
 
-logger = get_logger("server.api")
+if TYPE_CHECKING:
+    import logging
 
+logger: "logging.Logger" = get_logger("server.api")
 
-router = PrefectRouter(prefix="/task_runs", tags=["Task Runs"])
+router: PrefectRouter = PrefectRouter(prefix="/task_runs", tags=["Task Runs"])
 
 
 @router.post("/")
@@ -87,7 +89,7 @@ async def update_task_run(
     task_run: schemas.actions.TaskRunUpdate,
     task_run_id: UUID = Path(..., description="The task run id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     """
     Updates a task run.
     """
@@ -214,7 +216,7 @@ async def read_task_runs(
 async def delete_task_run(
     task_run_id: UUID = Path(..., description="The task run id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     """
     Delete a task run by id.
     """
@@ -239,7 +241,7 @@ async def set_task_run_state(
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
     response: Response = None,
-    task_policy: BaseOrchestrationPolicy = Depends(
+    task_policy: TaskRunOrchestrationPolicy = Depends(
         orchestration_dependencies.provide_task_policy
     ),
     orchestration_parameters: Dict[str, Any] = Depends(
@@ -275,7 +277,7 @@ async def set_task_run_state(
 
 
 @router.websocket("/subscriptions/scheduled")
-async def scheduled_task_subscription(websocket: WebSocket):
+async def scheduled_task_subscription(websocket: WebSocket) -> None:
     websocket = await subscriptions.accept_prefect_socket(websocket)
     if not websocket:
         return

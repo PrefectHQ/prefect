@@ -4,7 +4,7 @@ Utilities for querying flow and task run history.
 
 import datetime
 import json
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 import pydantic
 import sqlalchemy as sa
@@ -16,7 +16,10 @@ from prefect.logging import get_logger
 from prefect.server.database import PrefectDBInterface, db_injector
 from prefect.types import DateTime
 
-logger = get_logger("server.api")
+if TYPE_CHECKING:
+    import logging
+
+logger: "logging.Logger" = get_logger("server.api")
 
 
 @db_injector

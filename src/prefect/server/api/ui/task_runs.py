@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional, cast
+from typing import TYPE_CHECKING, List, Optional, cast
 
 import pendulum
 import sqlalchemy as sa
@@ -14,9 +14,12 @@ from prefect.server.utilities.schemas.bases import PrefectBaseModel
 from prefect.server.utilities.server import PrefectRouter
 from prefect.types import DateTime
 
-logger = get_logger("orion.api.ui.task_runs")
+if TYPE_CHECKING:
+    import logging
 
-router = PrefectRouter(prefix="/ui/task_runs", tags=["Task Runs", "UI"])
+logger: "logging.Logger" = get_logger("server.api.ui.task_runs")
+
+router: PrefectRouter = PrefectRouter(prefix="/ui/task_runs", tags=["Task Runs", "UI"])
 
 FAILED_STATES = [schemas.states.StateType.CRASHED, schemas.states.StateType.FAILED]
 
@@ -28,7 +31,7 @@ class TaskRunCount(PrefectBaseModel):
     failed: int = Field(default=..., description="The number of failed task runs.")
 
     @model_serializer
-    def ser_model(self) -> dict:
+    def ser_model(self) -> dict[str, int]:
         return {
             "completed": int(self.completed),
             "failed": int(self.failed),

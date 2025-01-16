@@ -35,7 +35,7 @@ from prefect.types import DateTime
 if TYPE_CHECKING:
     from prefect.server.database.orm_models import ORMWorkQueue
 
-router = PrefectRouter(
+router: PrefectRouter = PrefectRouter(
     prefix="/work_pools",
     tags=["Work Pools"],
 )
@@ -257,7 +257,7 @@ async def update_work_pool(
     work_pool_name: str = Path(..., description="The work pool name", alias="name"),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     """
     Update a work pool
     """
@@ -292,7 +292,7 @@ async def delete_work_pool(
     work_pool_name: str = Path(..., description="The work pool name", alias="name"),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     """
     Delete a work pool
     """
@@ -505,7 +505,7 @@ async def update_work_queue(
     ),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     """
     Update a work pool queue
     """
@@ -535,7 +535,7 @@ async def delete_work_queue(
     ),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     """
     Delete a work pool queue
     """
@@ -573,7 +573,7 @@ async def worker_heartbeat(
     ),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     async with db.session_context(begin_transaction=True) as session:
         work_pool = await models.workers.read_work_pool_by_name(
             session=session,
@@ -638,7 +638,7 @@ async def delete_worker(
     ),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     """
     Delete a work pool's worker
     """

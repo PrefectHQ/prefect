@@ -77,7 +77,7 @@ class InMemoryTaskWorkerTracker:
 
 
 # Global instance of the task worker tracker
-task_worker_tracker = InMemoryTaskWorkerTracker()
+task_worker_tracker: InMemoryTaskWorkerTracker = InMemoryTaskWorkerTracker()
 
 
 # Main utilities to be used in the API layer

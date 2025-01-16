@@ -17,7 +17,9 @@ from prefect.server.models import concurrency_limits
 from prefect.server.utilities.server import PrefectRouter
 from prefect.settings import PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS
 
-router = PrefectRouter(prefix="/concurrency_limits", tags=["Concurrency Limits"])
+router: PrefectRouter = PrefectRouter(
+    prefix="/concurrency_limits", tags=["Concurrency Limits"]
+)
 
 
 @router.post("/")
@@ -119,7 +121,7 @@ async def reset_concurrency_limit_by_tag(
         description="Manual override for active concurrency limit slots.",
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     async with db.session_context(begin_transaction=True) as session:
         model = await models.concurrency_limits.reset_concurrency_limit_by_tag(
             session=session, tag=tag, slot_override=slot_override
@@ -136,7 +138,7 @@ async def delete_concurrency_limit(
         ..., description="The concurrency limit id", alias="id"
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     async with db.session_context(begin_transaction=True) as session:
         result = await models.concurrency_limits.delete_concurrency_limit(
             session=session, concurrency_limit_id=concurrency_limit_id
@@ -151,7 +153,7 @@ async def delete_concurrency_limit(
 async def delete_concurrency_limit_by_tag(
     tag: str = Path(..., description="The tag name"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     async with db.session_context(begin_transaction=True) as session:
         result = await models.concurrency_limits.delete_concurrency_limit_by_tag(
             session=session, tag=tag
@@ -263,7 +265,7 @@ async def decrement_concurrency_limits_v1(
         ..., description="The ID of the task run releasing the slot"
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     async with db.session_context(begin_transaction=True) as session:
         filtered_limits = (
             await concurrency_limits.filter_concurrency_limits_for_orchestration(

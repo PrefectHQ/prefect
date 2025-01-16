@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import datetime
-from typing import List
+from typing import TYPE_CHECKING, List
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -14,9 +16,12 @@ from prefect.server.utilities.schemas.bases import PrefectBaseModel
 from prefect.server.utilities.server import PrefectRouter
 from prefect.types import DateTime
 
-logger = get_logger("server.api.ui.flow_runs")
+if TYPE_CHECKING:
+    import logging
 
-router = PrefectRouter(prefix="/ui/flow_runs", tags=["Flow Runs", "UI"])
+logger: "logging.Logger" = get_logger("server.api.ui.flow_runs")
+
+router: PrefectRouter = PrefectRouter(prefix="/ui/flow_runs", tags=["Flow Runs", "UI"])
 
 
 class SimpleFlowRun(PrefectBaseModel):

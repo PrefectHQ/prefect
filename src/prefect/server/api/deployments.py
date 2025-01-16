@@ -37,7 +37,7 @@ from prefect.utilities.schema_tools.validation import (
     validate,
 )
 
-router = PrefectRouter(prefix="/deployments", tags=["Deployments"])
+router: PrefectRouter = PrefectRouter(prefix="/deployments", tags=["Deployments"])
 
 
 def _multiple_schedules_error(deployment_id) -> HTTPException:
@@ -181,7 +181,7 @@ async def update_deployment(
     deployment: schemas.actions.DeploymentUpdate,
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     async with db.session_context(begin_transaction=True) as session:
         existing_deployment = await models.deployments.read_deployment(
             session=session, deployment_id=deployment_id
@@ -485,7 +485,7 @@ async def count_deployments(
 async def delete_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     """
     Delete a deployment by id.
     """
@@ -811,7 +811,7 @@ async def update_deployment_schedule(
         default=..., description="The updated schedule"
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     async with db.session_context(begin_transaction=True) as session:
         deployment = await models.deployments.read_deployment(
             session=session, deployment_id=deployment_id
@@ -844,7 +844,7 @@ async def delete_deployment_schedule(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     schedule_id: UUID = Path(..., description="The schedule id", alias="schedule_id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     async with db.session_context(begin_transaction=True) as session:
         deployment = await models.deployments.read_deployment(
             session=session, deployment_id=deployment_id

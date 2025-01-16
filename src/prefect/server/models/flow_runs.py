@@ -7,6 +7,7 @@ import contextlib
 import datetime
 from itertools import chain
 from typing import (
+    TYPE_CHECKING,
     Any,
     Dict,
     List,
@@ -49,13 +50,13 @@ from prefect.settings import (
 )
 from prefect.types import KeyValueLabels
 
-logger = get_logger("flow_runs")
+if TYPE_CHECKING:
+    import logging
+
+logger: "logging.Logger" = get_logger("flow_runs")
 
 
-logger = get_logger("flow_runs")
-
-
-T = TypeVar("T", bound=tuple)
+T = TypeVar("T", bound=tuple[Any, ...])
 
 
 @db_injector
@@ -281,7 +282,7 @@ async def _apply_flow_run_filters(
 async def read_flow_runs(
     db: PrefectDBInterface,
     session: AsyncSession,
-    columns: Optional[List] = None,
+    columns: Optional[list[str]] = None,
     flow_filter: Optional[schemas.filters.FlowFilter] = None,
     flow_run_filter: Optional[schemas.filters.FlowRunFilter] = None,
     task_run_filter: Optional[schemas.filters.TaskRunFilter] = None,
@@ -344,7 +345,7 @@ async def read_flow_runs(
 async def cleanup_flow_run_concurrency_slots(
     session: AsyncSession,
     flow_run: orm_models.FlowRun,
-):
+) -> None:
     """
     Cleanup flow run related resources, such as releasing concurrency slots.
     All operations should be idempotent and safe to call multiple times.

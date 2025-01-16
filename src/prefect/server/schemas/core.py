@@ -559,7 +559,7 @@ class DeploymentSchedule(ORMBaseModel):
 
     @field_validator("max_scheduled_runs")
     @classmethod
-    def validate_max_scheduled_runs(cls, v):
+    def validate_max_scheduled_runs(cls, v: int) -> int:
         return validate_schedule_max_scheduled_runs(
             v, PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS.value()
         )
@@ -1069,7 +1069,7 @@ class FlowRunNotificationPolicy(ORMBaseModel):
 
     @field_validator("message_template")
     @classmethod
-    def validate_message_template_variables(cls, v):
+    def validate_message_template_variables(cls, v: str) -> str:
         return validate_message_template_variables(v)
 
 
@@ -1187,7 +1187,7 @@ class Artifact(ORMBaseModel):
             " the artifact type."
         ),
     )
-    metadata_: Optional[Dict[str, str]] = Field(
+    metadata_: Optional[dict[str, str]] = Field(
         default=None,
         description=(
             "User-defined artifact metadata. Content must be string key and value"
@@ -1202,8 +1202,8 @@ class Artifact(ORMBaseModel):
     )
 
     @classmethod
-    def from_result(cls, data: Any):
-        artifact_info = dict()
+    def from_result(cls, data: Any | dict[str, Any]) -> "Artifact":
+        artifact_info: dict[str, Any] = dict()
         if isinstance(data, dict):
             artifact_key = data.pop("artifact_key", None)
             if artifact_key:
@@ -1221,7 +1221,7 @@ class Artifact(ORMBaseModel):
 
     @field_validator("metadata_")
     @classmethod
-    def validate_metadata_length(cls, v):
+    def validate_metadata_length(cls, v: dict[str, str]) -> dict[str, str]:
         return validate_max_metadata_length(v)
 
 
@@ -1289,7 +1289,7 @@ class FlowRunInput(ORMBaseModel):
 
     @field_validator("key", check_fields=False)
     @classmethod
-    def validate_name_characters(cls, v):
+    def validate_name_characters(cls, v: str) -> str:
         raise_on_name_alphanumeric_dashes_only(v)
         return v
 
