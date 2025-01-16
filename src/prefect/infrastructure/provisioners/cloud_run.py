@@ -33,7 +33,7 @@ if TYPE_CHECKING:
 
 class CloudRunPushProvisioner:
     def __init__(self):
-        self._console = Console()
+        self._console: Console = Console()
         self._project = None
         self._region = None
         self._service_account_name = "prefect-cloud-run"
@@ -41,14 +41,14 @@ class CloudRunPushProvisioner:
         self._image_repository_name = "prefect-images"
 
     @property
-    def console(self):
+    def console(self) -> Console:
         return self._console
 
     @console.setter
-    def console(self, value):
+    def console(self, value: Console) -> None:
         self._console = value
 
-    async def _run_command(self, command: str, *args, **kwargs):
+    async def _run_command(self, command: str, *args: Any, **kwargs: Any) -> str:
         result = await run_process(shlex.split(command), check=False, *args, **kwargs)
 
         if result.returncode != 0:

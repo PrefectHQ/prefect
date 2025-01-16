@@ -8,7 +8,7 @@ import logging
 import subprocess
 import sys
 import threading
-from typing import Any, Dict, List, Optional
+from typing import IO, Any, Callable, Dict, List, Optional
 
 import typer
 from typing_extensions import Annotated
@@ -25,13 +25,13 @@ from prefect.runner import Runner
 from prefect.settings import PREFECT_UI_URL
 from prefect.types.entrypoint import EntrypointType
 
-shell_app = PrefectTyper(
+shell_app: PrefectTyper = PrefectTyper(
     name="shell", help="Serve and watch shell commands as Prefect flows."
 )
 app.add_typer(shell_app)
 
 
-def output_stream(pipe, logger_function):
+def output_stream(pipe: IO[str], logger_function: Callable[[str], None]) -> None:
     """
     Read from a pipe line by line and log using the provided logging function.
 
@@ -44,7 +44,7 @@ def output_stream(pipe, logger_function):
             logger_function(line.strip())
 
 
-def output_collect(pipe, container):
+def output_collect(pipe: IO[str], container: list[str]) -> None:
     """
     Collects output from a subprocess pipe and stores it in a container list.
 

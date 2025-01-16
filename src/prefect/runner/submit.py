@@ -1,11 +1,13 @@
+from __future__ import annotations
+
 import asyncio
 import inspect
 import uuid
-from typing import Any, Dict, List, Optional, Union, overload
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union, overload
 
 import anyio
 import httpx
-from typing_extensions import Literal
+from typing_extensions import Literal, TypeAlias
 
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.filters import FlowRunFilter, TaskRunFilter
@@ -22,12 +24,17 @@ from prefect.states import Pending
 from prefect.tasks import Task
 from prefect.utilities.asyncutils import sync_compatible
 
-logger = get_logger("webserver")
+if TYPE_CHECKING:
+    import logging
+
+logger: "logging.Logger" = get_logger("webserver")
+
+FlowOrTask: TypeAlias = Union[Flow[Any, Any], Task[Any, Any]]
 
 
 async def _submit_flow_to_runner(
-    flow: Flow,
-    parameters: Dict[str, Any],
+    flow: Flow[Any, Any],
+    parameters: dict[str, Any],
     retry_failed_submissions: bool = True,
 ) -> FlowRun:
     """
@@ -91,7 +98,7 @@ async def _submit_flow_to_runner(
 
 @overload
 def submit_to_runner(
-    prefect_callable: Union[Flow, Task],
+    prefect_callable: Union[Flow[Any, Any], Task[Any, Any]],
     parameters: Dict[str, Any],
     retry_failed_submissions: bool = True,
 ) -> FlowRun:
@@ -100,19 +107,19 @@ def submit_to_runner(
 
 @overload
 def submit_to_runner(
-    prefect_callable: Union[Flow, Task],
-    parameters: List[Dict[str, Any]],
+    prefect_callable: Union[Flow[Any, Any], Task[Any, Any]],
+    parameters: list[dict[str, Any]],
     retry_failed_submissions: bool = True,
-) -> List[FlowRun]:
+) -> list[FlowRun]:
     ...
 
 
 @sync_compatible
 async def submit_to_runner(
-    prefect_callable: Union[Flow, Task],
-    parameters: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None,
+    prefect_callable: FlowOrTask,
+    parameters: Optional[Union[dict[str, Any], list[dict[str, Any]]]] = None,
     retry_failed_submissions: bool = True,
-) -> Union[FlowRun, List[FlowRun]]:
+) -> Union[FlowRun, list[FlowRun]]:
     """
     Submit a callable in the background via the runner webserver one or more times.
 

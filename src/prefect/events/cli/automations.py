@@ -3,7 +3,7 @@ Command line interface for working with automations.
 """
 
 import functools
-from typing import Optional, Type
+from typing import Any, Callable, Optional, Type
 from uuid import UUID
 
 import orjson
@@ -21,16 +21,16 @@ from prefect.client.orchestration import get_client
 from prefect.events.schemas.automations import Automation
 from prefect.exceptions import PrefectHTTPStatusError
 
-automations_app = PrefectTyper(
+automations_app: PrefectTyper = PrefectTyper(
     name="automation",
     help="Manage automations.",
 )
 app.add_typer(automations_app, aliases=["automations"])
 
 
-def requires_automations(func):
+def requires_automations(func: Callable[..., Any]) -> Callable[..., Any]:
     @functools.wraps(func)
-    async def wrapper(*args, **kwargs):
+    async def wrapper(*args: Any, **kwargs: Any) -> Any:
         try:
             return await func(*args, **kwargs)
         except RuntimeError as exc:

@@ -26,12 +26,14 @@ from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.importtools import load_script_as_module
 
 if TYPE_CHECKING:
+    import logging
+
     from prefect.client.schemas.responses import DeploymentResponse
     from prefect.runner import Runner
 
 from pydantic import BaseModel
 
-logger = get_logger("webserver")
+logger: "logging.Logger" = get_logger("webserver")
 
 RunnableEndpoint = Literal["deployment", "flow", "task"]
 

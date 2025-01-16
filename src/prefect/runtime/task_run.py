@@ -15,15 +15,19 @@ Available attributes:
     - `task_name`: the name of the task
 """
 
+from __future__ import annotations
+
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from prefect.context import TaskRunContext
 
 __all__ = ["id", "tags", "name", "parameters", "run_count", "task_name"]
 
 
-type_cast = {
+type_cast: dict[
+    type[bool] | type[int] | type[float] | type[str] | type[None], Callable[[Any], Any]
+] = {
     bool: lambda x: x.lower() == "true",
     int: int,
     float: float,
@@ -118,7 +122,7 @@ def get_parameters() -> Dict[str, Any]:
         return {}
 
 
-FIELDS = {
+FIELDS: dict[str, Callable[[], Any]] = {
     "id": get_id,
     "tags": get_tags,
     "name": get_name,

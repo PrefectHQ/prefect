@@ -12,7 +12,10 @@ from prefect.logging.loggers import get_logger
 from prefect.runner.storage import BlockStorageAdapter, GitRepository, RemoteStorage
 from prefect.utilities.asyncutils import run_coro_as_sync
 
-deployment_logger = get_logger("deployment")
+if TYPE_CHECKING:
+    import logging
+
+deployment_logger: "logging.Logger" = get_logger("deployment")
 
 if TYPE_CHECKING:
     from prefect.blocks.core import Block
@@ -197,7 +200,7 @@ def git_clone(
     return dict(directory=str(storage.destination.relative_to(Path.cwd())))
 
 
-async def pull_from_remote_storage(url: str, **settings: Any):
+async def pull_from_remote_storage(url: str, **settings: Any) -> dict[str, Any]:
     """
     Pulls code from a remote storage location into the current working directory.
 
@@ -239,7 +242,9 @@ async def pull_from_remote_storage(url: str, **settings: Any):
     return {"directory": directory}
 
 
-async def pull_with_block(block_document_name: str, block_type_slug: str):
+async def pull_with_block(
+    block_document_name: str, block_type_slug: str
+) -> dict[str, Any]:
     """
     Pulls code using a block.
 

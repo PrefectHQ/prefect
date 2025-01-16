@@ -32,11 +32,11 @@ from prefect.workers.utilities import (
     get_default_base_job_template_for_infrastructure_type,
 )
 
-work_pool_app = PrefectTyper(name="work-pool", help="Manage work pools.")
+work_pool_app: PrefectTyper = PrefectTyper(name="work-pool", help="Manage work pools.")
 app.add_typer(work_pool_app, aliases=["work-pool"])
 
 
-def set_work_pool_as_default(name: str):
+def set_work_pool_as_default(name: str) -> None:
     profile = update_current_profile({"PREFECT_DEFAULT_WORK_POOL_NAME": name})
     app.console.print(
         f"Set {name!r} as default work pool for profile {profile.name!r}\n",

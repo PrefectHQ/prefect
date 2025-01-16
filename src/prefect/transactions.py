@@ -173,7 +173,7 @@ class Transaction(ContextModel):
     def is_active(self) -> bool:
         return self.state == TransactionState.ACTIVE
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         if self._token is not None:
             raise RuntimeError(
                 "Context already entered. Context enter calls cannot be nested."
@@ -206,7 +206,7 @@ class Transaction(ContextModel):
         self._token = self.__var__.set(self)
         return self
 
-    def __exit__(self, *exc_info: Any):
+    def __exit__(self, *exc_info: Any) -> None:
         exc_type, exc_val, _ = exc_info
         if not self._token:
             raise RuntimeError(
@@ -235,7 +235,7 @@ class Transaction(ContextModel):
 
         self.reset()
 
-    def begin(self):
+    def begin(self) -> None:
         if (
             self.store
             and self.key

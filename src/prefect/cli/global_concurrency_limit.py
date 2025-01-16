@@ -22,7 +22,7 @@ from prefect.exceptions import (
     PrefectHTTPStatusError,
 )
 
-global_concurrency_limit_app = PrefectTyper(
+global_concurrency_limit_app: PrefectTyper = PrefectTyper(
     name="global-concurrency-limit",
     help="Manage global concurrency limits.",
 )

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import inspect
 import logging
@@ -28,7 +30,7 @@ from uuid import UUID
 import anyio
 import pendulum
 from opentelemetry import trace
-from typing_extensions import ParamSpec
+from typing_extensions import ParamSpec, Self
 
 from prefect.cache_policies import CachePolicy
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
@@ -123,7 +125,7 @@ class BaseTaskRunEngine(Generic[P, R]):
     _last_event: Optional[PrefectEvent] = None
     _telemetry: RunTelemetry = field(default_factory=RunTelemetry)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.parameters is None:
             self.parameters = {}
 
@@ -239,7 +241,7 @@ class BaseTaskRunEngine(Generic[P, R]):
             return False
         return task_run.state.is_running() or task_run.state.is_scheduled()
 
-    def log_finished_message(self):
+    def log_finished_message(self) -> None:
         if not self.task_run:
             return
 
@@ -295,6 +297,7 @@ class BaseTaskRunEngine(Generic[P, R]):
 
 @dataclass
 class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
+    task_run: Optional[TaskRun] = None
     _client: Optional[SyncPrefectClient] = None
 
     @property
@@ -337,7 +340,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             )
             return False
 
-    def call_hooks(self, state: Optional[State] = None):
+    def call_hooks(self, state: Optional[State] = None) -> None:
         if state is None:
             state = self.state
         task = self.task
@@ -372,7 +375,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             else:
                 self.logger.info(f"Hook {hook_name!r} finished running successfully")
 
-    def begin_run(self):
+    def begin_run(self) -> None:
         try:
             self._resolve_parameters()
             self._set_custom_task_run_name()
@@ -547,7 +550,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             )
 
             self.set_state(new_state, force=True)
-            self.retries = self.retries + 1
+            self.retries: int = self.retries + 1
             return True
         elif self.retries >= self.task.retries:
             self.logger.error(
@@ -641,7 +644,9 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             stack.enter_context(ConcurrencyContextV1())
             stack.enter_context(ConcurrencyContext())
 
-            self.logger = task_run_logger(task_run=self.task_run, task=self.task)  # type: ignore
+            self.logger: "logging.Logger" = task_run_logger(
+                task_run=self.task_run, task=self.task
+            )  # type: ignore
 
             yield
 
@@ -650,7 +655,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         self,
         task_run_id: Optional[UUID] = None,
         dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
-    ) -> Generator["SyncTaskRunEngine", Any, Any]:
+    ) -> Generator[Self, Any, Any]:
         """
         Enters a client context and creates a task run if needed.
         """
@@ -720,7 +725,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     self._is_started = False
                     self._client = None
 
-    async def wait_until_ready(self):
+    async def wait_until_ready(self) -> None:
         """Waits until the scheduled time (if its the future), then enters Running."""
         if scheduled_time := self.state.state_details.scheduled_time:
             sleep_time = (scheduled_time - pendulum.now("utc")).total_seconds()
@@ -827,6 +832,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
 @dataclass
 class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
+    task_run: TaskRun | None = None
     _client: Optional[PrefectClient] = None
 
     @property
@@ -868,7 +874,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             )
             return False
 
-    async def call_hooks(self, state: Optional[State] = None):
+    async def call_hooks(self, state: Optional[State] = None) -> None:
         if state is None:
             state = self.state
         task = self.task
@@ -903,7 +909,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             else:
                 self.logger.info(f"Hook {hook_name!r} finished running successfully")
 
-    async def begin_run(self):
+    async def begin_run(self) -> None:
         try:
             self._resolve_parameters()
             self._set_custom_task_run_name()
@@ -1077,7 +1083,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             )
 
             await self.set_state(new_state, force=True)
-            self.retries = self.retries + 1
+            self.retries: int = self.retries + 1
             return True
         elif self.retries >= self.task.retries:
             self.logger.error(
@@ -1171,7 +1177,9 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             )
             stack.enter_context(ConcurrencyContext())
 
-            self.logger = task_run_logger(task_run=self.task_run, task=self.task)  # type: ignore
+            self.logger: "logging.Logger" = task_run_logger(
+                task_run=self.task_run, task=self.task
+            )  # type: ignore
 
             yield
 
@@ -1180,7 +1188,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         self,
         task_run_id: Optional[UUID] = None,
         dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
-    ) -> AsyncGenerator["AsyncTaskRunEngine", Any]:
+    ) -> AsyncGenerator[Self, Any]:
         """
         Enters a client context and creates a task run if needed.
         """
@@ -1248,7 +1256,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     self._is_started = False
                     self._client = None
 
-    async def wait_until_ready(self):
+    async def wait_until_ready(self) -> None:
         """Waits until the scheduled time (if its the future), then enters Running."""
         if scheduled_time := self.state.state_details.scheduled_time:
             sleep_time = (scheduled_time - pendulum.now("utc")).total_seconds()
