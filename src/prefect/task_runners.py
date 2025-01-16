@@ -67,7 +67,7 @@ class TaskRunner(abc.ABC, Generic[F]):
         self._started = False
 
     @property
-    def name(self):
+    def name(self) -> str:
         """The name of this task runner"""
         return type(self).__name__.lower().replace("taskrunner", "")
 

@@ -38,7 +38,7 @@ class TaskQueue:
         task_key: str,
         scheduled_size: Optional[int] = None,
         retry_size: Optional[int] = None,
-    ):
+    ) -> None:
         scheduled_size = scheduled_size or cls.default_scheduled_max_size
         retry_size = retry_size or cls.default_retry_max_size
         cls._queue_size_configs[task_key] = (scheduled_size, retry_size)

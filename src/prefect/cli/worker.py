@@ -28,7 +28,9 @@ from prefect.utilities.processutils import (
 )
 from prefect.workers.base import BaseWorker
 
-worker_app = PrefectTyper(name="worker", help="Start and interact with workers.")
+worker_app: PrefectTyper = PrefectTyper(
+    name="worker", help="Start and interact with workers."
+)
 app.add_typer(worker_app)
 
 

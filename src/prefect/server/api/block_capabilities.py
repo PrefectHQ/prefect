@@ -10,7 +10,9 @@ from prefect.server import models
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.utilities.server import PrefectRouter
 
-router = PrefectRouter(prefix="/block_capabilities", tags=["Block capabilities"])
+router: PrefectRouter = PrefectRouter(
+    prefix="/block_capabilities", tags=["Block capabilities"]
+)
 
 
 @router.get("/")
