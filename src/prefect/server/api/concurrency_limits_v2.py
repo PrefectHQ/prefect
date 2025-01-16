@@ -11,7 +11,9 @@ from prefect.server.schemas import actions
 from prefect.server.utilities.schemas import PrefectBaseModel
 from prefect.server.utilities.server import PrefectRouter
 
-router = PrefectRouter(prefix="/v2/concurrency_limits", tags=["Concurrency Limits V2"])
+router: PrefectRouter = PrefectRouter(
+    prefix="/v2/concurrency_limits", tags=["Concurrency Limits V2"]
+)
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
@@ -85,7 +87,7 @@ async def update_concurrency_limit_v2(
         ..., description="The ID or name of the concurrency limit", alias="id_or_name"
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     if isinstance(id_or_name, str):  # TODO: this seems like it shouldn't be necessary
         try:
             id_or_name = UUID(id_or_name)
@@ -115,7 +117,7 @@ async def delete_concurrency_limit_v2(
         ..., description="The ID or name of the concurrency limit", alias="id_or_name"
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     if isinstance(id_or_name, str):  # TODO: this seems like it shouldn't be necessary
         try:
             id_or_name = UUID(id_or_name)

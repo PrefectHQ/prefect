@@ -33,7 +33,7 @@ from prefect.server.schemas.statuses import WorkQueueStatus
 from prefect.server.utilities.server import PrefectRouter
 from prefect.types import DateTime
 
-router = PrefectRouter(prefix="/work_queues", tags=["Work Queues"])
+router: PrefectRouter = PrefectRouter(prefix="/work_queues", tags=["Work Queues"])
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
@@ -69,7 +69,7 @@ async def update_work_queue(
     work_queue: schemas.actions.WorkQueueUpdate,
     work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     """
     Updates an existing work queue.
     """
@@ -229,7 +229,7 @@ async def read_work_queues(
 async def delete_work_queue(
     work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     """
     Delete a work queue by id.
     """
