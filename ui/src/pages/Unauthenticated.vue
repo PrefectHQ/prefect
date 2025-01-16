@@ -8,7 +8,7 @@
         <p-text-input
           v-model="password"
           type="password"
-          placeholder="Enter password"
+          placeholder="admin:pass"
           :error="error"
           autofocus
           class="w-full"
@@ -29,6 +29,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { usePrefectApi } from '@/compositions/usePrefectApi'
+import { showToast } from '@prefecthq/prefect-design'
 
 const props = defineProps<{
   redirect?: string
@@ -48,7 +49,25 @@ const handleSubmit = async (): Promise<void> => {
 
   try {
     localStorage.setItem('prefect-password', btoa(password.value))
-    router.push(props.redirect || '/')
+    api.admin.authCheck().then(status_code => {
+      if (status_code == 401) {
+        localStorage.removeItem('prefect-pasword')
+        showToast('Authentication failed.', 'error', { timeout: false })
+        if (router.currentRoute.value.name !== 'login') {
+          router.push({
+            name: 'login', 
+            query: { redirect: router.currentRoute.value.fullPath }
+          })
+        }
+      } else {
+        api.health.isHealthy().then(healthy => {
+          if (!healthy) {
+            showToast(`Can't connect to Server API at ${config.baseUrl}. Check that it's accessible from your machine.`, 'error', { timeout: false })
+          }
+          router.push(props.redirect || '/')
+        })
+      }
+    })
   } catch (e) {
     localStorage.removeItem('prefect-password')
     error.value = 'Invalid password'
