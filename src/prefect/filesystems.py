@@ -281,7 +281,7 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
     _filesystem: fsspec.AbstractFileSystem = None
 
     @field_validator("basepath")
-    def check_basepath(cls, value):
+    def check_basepath(cls, value: str) -> str:
         return validate_basepath(value)
 
     def _resolve_path(self, path: str) -> str:

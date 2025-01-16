@@ -26,7 +26,9 @@ from prefect.exceptions import ObjectNotFound
 from prefect.settings import ProfilesCollection
 from prefect.utilities.collections import AutoEnum
 
-profile_app = PrefectTyper(name="profile", help="Select and manage Prefect profiles.")
+profile_app: PrefectTyper = PrefectTyper(
+    name="profile", help="Select and manage Prefect profiles."
+)
 app.add_typer(profile_app, aliases=["profiles"])
 
 _OLD_MINIMAL_DEFAULT_PROFILE_CONTENT: str = """active = "default"
@@ -263,8 +265,8 @@ def inspect(
 
 def show_profile_changes(
     user_profiles: ProfilesCollection, default_profiles: ProfilesCollection
-):
-    changes = []
+) -> bool:
+    changes: list[tuple[str, str]] = []
 
     for name in default_profiles.names:
         if name not in user_profiles:
@@ -343,7 +345,7 @@ class ConnectionStatus(AutoEnum):
     INVALID_API = AutoEnum.auto()
 
 
-async def check_server_connection():
+async def check_server_connection() -> ConnectionStatus:
     httpx_settings = dict(timeout=3)
     try:
         # attempt to infer Cloud 2.0 API from the connection URL

@@ -19,7 +19,7 @@ from prefect.exceptions import MissingFlowError
 from prefect.runner import Runner
 from prefect.utilities import urls
 
-flow_app = PrefectTyper(name="flow", help="View and serve flows.")
+flow_app: PrefectTyper = PrefectTyper(name="flow", help="View and serve flows.")
 app.add_typer(flow_app, aliases=["flows"])
 
 

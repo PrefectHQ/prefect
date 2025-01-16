@@ -8,7 +8,7 @@ from prefect.client.cloud import CloudUnauthorizedError, get_cloud_client
 from prefect.settings import PREFECT_UI_URL
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
-dashboard_app = PrefectTyper(
+dashboard_app: PrefectTyper = PrefectTyper(
     name="dashboard",
     help="Commands for interacting with the Prefect UI.",
 )
@@ -16,7 +16,7 @@ app.add_typer(dashboard_app)
 
 
 @dashboard_app.command()
-async def open():
+async def open() -> None:
     """
     Open the Prefect UI in the browser.
     """

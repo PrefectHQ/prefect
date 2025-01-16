@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Any
 
 import uvicorn
 import uvicorn.server
@@ -10,14 +10,13 @@ from prefect.settings import (
     PREFECT_WORKER_WEBSERVER_PORT,
 )
 from prefect.workers.base import BaseWorker
-from prefect.workers.process import ProcessWorker
 
 
 def build_healthcheck_server(
-    worker: Union[BaseWorker, ProcessWorker],
+    worker: BaseWorker[Any, Any, Any],
     query_interval_seconds: float,
     log_level: str = "error",
-):
+) -> uvicorn.Server:
     """
     Build a healthcheck FastAPI server for a worker.
 
@@ -54,7 +53,7 @@ def build_healthcheck_server(
 
 
 def start_healthcheck_server(
-    worker: Union[BaseWorker, ProcessWorker],
+    worker: BaseWorker[Any, Any, Any],
     query_interval_seconds: float,
     log_level: str = "error",
 ) -> None:

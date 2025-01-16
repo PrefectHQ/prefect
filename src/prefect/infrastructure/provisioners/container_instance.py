@@ -10,6 +10,7 @@ Classes:
     ContainerInstancePushProvisioner: A class for provisioning infrastructure using Azure Container Instances.
 
 """
+from __future__ import annotations
 
 import json
 import random
@@ -64,7 +65,7 @@ class AzureCLI:
         failure_message: Optional[str] = None,
         ignore_if_exists: bool = False,
         return_json: bool = False,
-    ):
+    ) -> str | dict[str, Any] | None:
         """
         Runs an Azure CLI command and processes the output.
 
@@ -156,7 +157,7 @@ class ContainerInstancePushProvisioner:
         self._subscription_name = None
         self._location = "eastus"
         self._identity_name = "prefect-acr-identity"
-        self.azure_cli = AzureCLI(self.console)
+        self.azure_cli: AzureCLI = AzureCLI(self.console)
         self._credentials_block_name = None
         self._resource_group_name = "prefect-aci-push-pool-rg"
         self._app_registration_name = "prefect-aci-push-pool-app"
@@ -170,7 +171,7 @@ class ContainerInstancePushProvisioner:
     def console(self, value: Console) -> None:
         self._console = value
 
-    async def set_location(self):
+    async def set_location(self) -> None:
         """
         Set the Azure resource deployment location to the default or 'eastus' on failure.
 

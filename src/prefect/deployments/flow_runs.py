@@ -29,7 +29,11 @@ prefect.client.schemas.StateCreate.model_rebuild(
     }
 )
 
-logger = get_logger(__name__)
+
+if TYPE_CHECKING:
+    import logging
+
+logger: "logging.Logger" = get_logger(__name__)
 
 
 @sync_compatible

@@ -26,7 +26,7 @@ import shlex
 import string
 import subprocess
 import sys
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 from anyio import create_task_group
 from anyio.streams.text import TextReceiveStream
@@ -205,7 +205,7 @@ async def pip_install_requirements(
     directory: Optional[str] = None,
     requirements_file: str = "requirements.txt",
     stream_output: bool = True,
-):
+) -> dict[str, Any]:
     """
     Installs dependencies from a requirements.txt file.
 

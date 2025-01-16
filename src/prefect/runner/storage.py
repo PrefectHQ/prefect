@@ -33,7 +33,7 @@ class RunnerStorage(Protocol):
     remotely stored flow code.
     """
 
-    def set_base_path(self, path: Path):
+    def set_base_path(self, path: Path) -> None:
         """
         Sets the base path to use when pulling contents from remote storage to
         local storage.
@@ -55,7 +55,7 @@ class RunnerStorage(Protocol):
         """
         ...
 
-    async def pull_code(self):
+    async def pull_code(self) -> None:
         """
         Pulls contents from remote storage to the local filesystem.
         """
@@ -150,7 +150,7 @@ class GitRepository:
     def destination(self) -> Path:
         return self._storage_base_path / self._name
 
-    def set_base_path(self, path: Path):
+    def set_base_path(self, path: Path) -> None:
         self._storage_base_path = path
 
     @property
@@ -221,7 +221,7 @@ class GitRepository:
         except Exception:
             return False
 
-    async def pull_code(self):
+    async def pull_code(self) -> None:
         """
         Pulls the contents of the configured repository to the local filesystem.
         """
@@ -324,7 +324,7 @@ class GitRepository:
                 cwd=self.destination,
             )
 
-    def __eq__(self, __value) -> bool:
+    def __eq__(self, __value: Any) -> bool:
         if isinstance(__value, GitRepository):
             return (
                 self._url == __value._url
@@ -339,7 +339,7 @@ class GitRepository:
             f" branch={self._branch!r})"
         )
 
-    def to_pull_step(self) -> Dict:
+    def to_pull_step(self) -> dict[str, Any]:
         pull_step = {
             "prefect.deployments.steps.git_clone": {
                 "repository": self._url,
@@ -466,7 +466,7 @@ class RemoteStorage:
 
         return fsspec.filesystem(scheme, **settings_with_block_values)
 
-    def set_base_path(self, path: Path):
+    def set_base_path(self, path: Path) -> None:
         self._storage_base_path = path
 
     @property
@@ -492,7 +492,7 @@ class RemoteStorage:
         _, netloc, urlpath, _, _ = urlsplit(self._url)
         return Path(netloc) / Path(urlpath.lstrip("/"))
 
-    async def pull_code(self):
+    async def pull_code(self) -> None:
         """
         Pulls contents from remote storage to the local filesystem.
         """
@@ -522,7 +522,7 @@ class RemoteStorage:
                 f" {self.destination!r}"
             ) from exc
 
-    def to_pull_step(self) -> dict:
+    def to_pull_step(self) -> dict[str, Any]:
         """
         Returns a dictionary representation of the storage object that can be
         used as a deployment pull step.
@@ -551,7 +551,7 @@ class RemoteStorage:
             ] = required_package
         return step
 
-    def __eq__(self, __value) -> bool:
+    def __eq__(self, __value: Any) -> bool:
         """
         Equality check for runner storage objects.
         """
@@ -590,7 +590,7 @@ class BlockStorageAdapter:
             else str(uuid4())
         )
 
-    def set_base_path(self, path: Path):
+    def set_base_path(self, path: Path) -> None:
         self._storage_base_path = path
 
     @property
@@ -601,12 +601,12 @@ class BlockStorageAdapter:
     def destination(self) -> Path:
         return self._storage_base_path / self._name
 
-    async def pull_code(self):
+    async def pull_code(self) -> None:
         if not self.destination.exists():
             self.destination.mkdir(parents=True, exist_ok=True)
         await self._block.get_directory(local_path=str(self.destination))
 
-    def to_pull_step(self) -> dict:
+    def to_pull_step(self) -> dict[str, Any]:
         # Give blocks the change to implement their own pull step
         if hasattr(self._block, "get_pull_step"):
             return self._block.get_pull_step()
@@ -623,7 +623,7 @@ class BlockStorageAdapter:
                 }
             }
 
-    def __eq__(self, __value) -> bool:
+    def __eq__(self, __value: Any) -> bool:
         if isinstance(__value, BlockStorageAdapter):
             return self._block == __value._block
         return False
@@ -658,19 +658,19 @@ class LocalStorage:
     def destination(self) -> Path:
         return self._path
 
-    def set_base_path(self, path: Path):
+    def set_base_path(self, path: Path) -> None:
         self._storage_base_path = path
 
     @property
     def pull_interval(self) -> Optional[int]:
         return self._pull_interval
 
-    async def pull_code(self):
+    async def pull_code(self) -> None:
         # Local storage assumes the code already exists on the local filesystem
         # and does not need to be pulled from a remote location
         pass
 
-    def to_pull_step(self) -> dict:
+    def to_pull_step(self) -> dict[str, Any]:
         """
         Returns a dictionary representation of the storage object that can be
         used as a deployment pull step.
@@ -682,7 +682,7 @@ class LocalStorage:
         }
         return step
 
-    def __eq__(self, __value) -> bool:
+    def __eq__(self, __value: Any) -> bool:
         if isinstance(__value, LocalStorage):
             return self._path == __value._path
         return False

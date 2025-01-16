@@ -1,6 +1,7 @@
 import copy
 from collections import defaultdict
 from typing import (
+    TYPE_CHECKING,
     Any,
     ClassVar,
     Dict,
@@ -32,7 +33,10 @@ from prefect.types import DateTime
 
 from .labelling import Labelled
 
-logger = get_logger(__name__)
+if TYPE_CHECKING:
+    import logging
+
+logger: "logging.Logger" = get_logger(__name__)
 
 
 class Resource(Labelled):

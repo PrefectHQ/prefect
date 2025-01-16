@@ -19,6 +19,7 @@ from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.objects import ConcurrencyLimitStrategy
 from prefect.client.schemas.schedules import IntervalSchedule
 from prefect.utilities._git import get_git_branch, get_git_remote_origin_url
+from prefect.utilities.annotations import NotSet
 from prefect.utilities.filesystem import create_default_ignore_file
 from prefect.utilities.templating import apply_values
 
@@ -113,7 +114,9 @@ def create_default_prefect_yaml(
     return True
 
 
-def configure_project_by_recipe(recipe: str, **formatting_kwargs) -> dict:
+def configure_project_by_recipe(
+    recipe: str, **formatting_kwargs: Any
+) -> dict[str, Any] | type[NotSet]:
     """
     Given a recipe name, returns a dictionary representing base configuration options.
 
@@ -131,13 +134,13 @@ def configure_project_by_recipe(recipe: str, **formatting_kwargs) -> dict:
         raise ValueError(f"Unknown recipe {recipe!r} provided.")
 
     with recipe_path.open(mode="r") as f:
-        config = yaml.safe_load(f)
+        config: dict[str, Any] = yaml.safe_load(f)
 
-    config = apply_values(
+    templated_config = apply_values(
         template=config, values=formatting_kwargs, remove_notset=False
     )
 
-    return config
+    return templated_config
 
 
 def initialize_project(

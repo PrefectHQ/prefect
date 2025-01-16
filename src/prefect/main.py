@@ -3,7 +3,7 @@ from typing import Any
 from prefect.deployments import deploy
 from prefect.states import State
 from prefect.logging import get_run_logger
-from prefect.flows import flow, Flow, serve, aserve
+from prefect.flows import FlowDecorator, flow, Flow, serve, aserve
 from prefect.transactions import Transaction
 from prefect.tasks import task, Task
 from prefect.context import tags
@@ -57,6 +57,8 @@ from prefect._internal.compatibility.deprecated import (
 )
 
 inject_renamed_module_alias_finder()
+
+flow: FlowDecorator
 
 
 # Declare API for type-checkers

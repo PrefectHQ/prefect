@@ -15,7 +15,7 @@ from prefect.events.clients import (
     get_events_subscriber,
 )
 
-events_app = PrefectTyper(name="events", help="Stream events.")
+events_app: PrefectTyper = PrefectTyper(name="events", help="Stream events.")
 app.add_typer(events_app, aliases=["event"])
 
 
@@ -60,7 +60,7 @@ async def stream(
         handle_error(exc)
 
 
-async def handle_event(event: Event, format: StreamFormat, output_file: str):
+async def handle_event(event: Event, format: StreamFormat, output_file: str) -> None:
     if format == StreamFormat.json:
         event_data = orjson.dumps(event.model_dump(), default=str).decode()
     elif format == StreamFormat.text:
@@ -74,7 +74,7 @@ async def handle_event(event: Event, format: StreamFormat, output_file: str):
         print(event_data)
 
 
-def handle_error(exc):
+def handle_error(exc: Exception) -> None:
     if isinstance(exc, websockets.exceptions.ConnectionClosedError):
         exit_with_error(f"Connection closed, retrying... ({exc})")
     elif isinstance(exc, (KeyboardInterrupt, asyncio.exceptions.CancelledError)):
