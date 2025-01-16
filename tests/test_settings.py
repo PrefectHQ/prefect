@@ -4,6 +4,7 @@ import textwrap
 import warnings
 from datetime import timedelta
 from pathlib import Path
+from typing import Any
 
 import pydantic
 import pytest
@@ -1989,18 +1990,20 @@ class TestProfilesCollection:
 
 class TestSettingValues:
     @pytest.fixture(autouse=True)
-    def clear_env_vars(self, monkeypatch):
+    def clear_env_vars(self, monkeypatch: pytest.MonkeyPatch):
         for env_var in os.environ:
             if env_var.startswith("PREFECT_"):
                 monkeypatch.delenv(env_var, raising=False)
 
     @pytest.fixture(scope="function", params=list(SUPPORTED_SETTINGS.keys()))
-    def setting_and_value(self, request):
+    def setting_and_value(self, request: pytest.FixtureRequest) -> tuple[str, Any]:
         setting = request.param
         return setting, SUPPORTED_SETTINGS[setting]["test_value"]
 
     @pytest.fixture(autouse=True)
-    def temporary_profiles_path(self, tmp_path, monkeypatch):
+    def temporary_profiles_path(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> Path:
         path = tmp_path / "profiles.toml"
         monkeypatch.setenv("PREFECT_PROFILES_PATH", str(path))
         yield path
@@ -2058,7 +2061,10 @@ class TestSettingValues:
         self.check_setting_value(setting, value)
 
     def test_set_via_profile(
-        self, temporary_profiles_path, setting_and_value, monkeypatch
+        self,
+        temporary_profiles_path: Path,
+        setting_and_value: tuple[str, Any],
+        monkeypatch: pytest.MonkeyPatch,
     ):
         setting, value = setting_and_value
         if setting == "PREFECT_PROFILES_PATH":

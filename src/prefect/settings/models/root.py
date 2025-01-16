@@ -272,7 +272,7 @@ class Settings(PrefectBaseSettings):
         # To restore defaults, we need to resolve the setting path and then
         # set the default value on the new settings object. When restoring
         # defaults, all settings sources will be ignored.
-        restore_defaults_obj = {}
+        restore_defaults_obj: dict[str, Any] = {}
         for r in restore_defaults or []:
             path = r.accessor.split(".")
             model = self
@@ -298,11 +298,11 @@ class Settings(PrefectBaseSettings):
         updates = updates or {}
         set_defaults = set_defaults or {}
 
-        set_defaults_obj = {}
+        set_defaults_obj: dict[str, Any] = {}
         for setting, value in set_defaults.items():
             set_in_dict(set_defaults_obj, setting.accessor, value)
 
-        updates_obj = {}
+        updates_obj: dict[str, Any] = {}
         for setting, value in updates.items():
             set_in_dict(updates_obj, setting.accessor, value)
 

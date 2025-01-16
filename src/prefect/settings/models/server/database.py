@@ -199,10 +199,53 @@ class ServerDatabaseSettings(PrefectBaseSettings):
         description="Controls the application_name field for connections opened from the connection pool when using a PostgreSQL database with the Prefect backend.",
     )
 
+    # deprecated fields
+
+    sqlalchemy_pool_size: int = Field(
+        default=5,
+        description="Controls connection pool size of database connection pools from the Prefect backend.",
+        deprecated="`sqlalchemy_pool_size` has been moved to the `sqlalchemy` settings group as `pool_size`.",
+        # maintain backwards compat for prefect.toml but impossible to set via env vars
+        validation_alias=AliasPath("sqlalchemy_pool_size"),
+    )
+
+    sqlalchemy_max_overflow: int = Field(
+        default=10,
+        description="Controls maximum overflow of the connection pool. To prevent overflow, set to -1.",
+        deprecated="`sqlalchemy_max_overflow` has been moved to the `sqlalchemy` settings group as `max_overflow`.",
+        # maintain backwards compat for prefect.toml but impossible to set via env vars
+        validation_alias=AliasPath("sqlalchemy_max_overflow"),
+    )
+
+    # validators
+
     @model_validator(mode="after")
     def emit_warnings(self) -> Self:  # noqa: F821
         """More post-hoc validation of settings, including warnings for misconfigurations."""
         warn_on_database_password_value_without_usage(self)
+        return self
+
+    @model_validator(mode="after")
+    def set_deprecated_sqlalchemy_settings_on_child_model_and_warn(self) -> Self:
+        """
+        Set deprecated settings on the child model.
+        """
+        if "sqlalchemy_pool_size" in self.model_fields_set:
+            warnings.warn(
+                "`sqlalchemy_pool_size` has been moved to the `sqlalchemy` settings group as `pool_size`.",
+                DeprecationWarning,
+            )
+            if "pool_size" not in self.sqlalchemy.model_fields_set:
+                self.sqlalchemy.pool_size = self.sqlalchemy_pool_size
+
+        if "sqlalchemy_max_overflow" in self.model_fields_set:
+            warnings.warn(
+                "`sqlalchemy_max_overflow` has been moved to the `sqlalchemy` settings group as `max_overflow`.",
+                DeprecationWarning,
+            )
+            if "max_overflow" not in self.sqlalchemy.model_fields_set:
+                self.sqlalchemy.max_overflow = self.sqlalchemy_max_overflow
+
         return self
 
 

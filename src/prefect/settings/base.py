@@ -196,7 +196,7 @@ def _add_environment_variables(
             env_vars.append(f"{model.model_config.get('env_prefix')}{property.upper()}")
 
 
-def build_settings_config(  # pyright: ignore[reportUnusedFunction] This is used elsewhere. TODO: update to be a public function because it is used in integration libraries.
+def build_settings_config(
     path: Tuple[str, ...] = tuple(), frozen: bool = False
 ) -> PrefectSettingsConfigDict:
     env_prefix = f"PREFECT_{'_'.join(path).upper()}_" if path else "PREFECT_"
