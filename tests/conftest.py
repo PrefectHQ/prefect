@@ -491,14 +491,10 @@ def test_database_connection_url(
     if url is None:
         yield None
     else:
-        # Suppress DeprecationWarnings during test setup - they will be tested explicitly
-        # in test_sqlalchemy_settings_migration
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", category=DeprecationWarning)
-            with temporary_settings(
-                updates={PREFECT_SERVER_DATABASE_CONNECTION_URL: url},
-            ):
-                yield url
+        with temporary_settings(
+            updates={PREFECT_SERVER_DATABASE_CONNECTION_URL: url},
+        ):
+            yield url
 
 
 @pytest.fixture(autouse=True)

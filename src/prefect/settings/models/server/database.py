@@ -1,5 +1,5 @@
 import warnings
-from typing import ClassVar, Optional
+from typing import Any, ClassVar, Optional
 from urllib.parse import quote_plus
 
 from pydantic import (
@@ -204,20 +204,39 @@ class ServerDatabaseSettings(PrefectBaseSettings):
     sqlalchemy_pool_size: int = Field(
         default=5,
         description="Controls connection pool size of database connection pools from the Prefect backend.",
-        deprecated="`sqlalchemy_pool_size` has been moved to the `sqlalchemy` settings group as `pool_size`.",
-        # maintain backwards compat for prefect.toml but impossible to set via env vars
+        # deprecated="`sqlalchemy_pool_size` has been moved to the `sqlalchemy` settings group as `pool_size`.",
         validation_alias=AliasPath("sqlalchemy_pool_size"),
     )
 
     sqlalchemy_max_overflow: int = Field(
         default=10,
         description="Controls maximum overflow of the connection pool. To prevent overflow, set to -1.",
-        deprecated="`sqlalchemy_max_overflow` has been moved to the `sqlalchemy` settings group as `max_overflow`.",
+        # deprecated="`sqlalchemy_max_overflow` has been moved to the `sqlalchemy` settings group as `max_overflow`.",
         # maintain backwards compat for prefect.toml but impossible to set via env vars
         validation_alias=AliasPath("sqlalchemy_max_overflow"),
     )
 
     # validators
+
+    @model_validator(mode="before")
+    @classmethod
+    def emit_deprecated_sqlalchemy_settings_on_construction(
+        cls, values: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        Emit deprecation warnings on construction if deprecated settings are set.
+        """
+        if "sqlalchemy_pool_size" in values:
+            warnings.warn(
+                "`sqlalchemy_pool_size` has been moved to the `sqlalchemy` settings group as `pool_size`.",
+                DeprecationWarning,
+            )
+        if "sqlalchemy_max_overflow" in values:
+            warnings.warn(
+                "`sqlalchemy_max_overflow` has been moved to the `sqlalchemy` settings group as `max_overflow`.",
+                DeprecationWarning,
+            )
+        return values
 
     @model_validator(mode="after")
     def emit_warnings(self) -> Self:  # noqa: F821

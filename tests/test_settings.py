@@ -1124,25 +1124,21 @@ class TestDatabaseSettings:
     def test_sqlalchemy_settings_migration(self):
         """Test that SQLAlchemy settings work with both old and new structures."""
 
-        # old env vars
-        settings_with_old_keys = Settings(
-            server=ServerSettings(
-                database=ServerDatabaseSettings(
-                    sqlalchemy_pool_size=42,
-                    sqlalchemy_max_overflow=37,
+        with pytest.warns(
+            DeprecationWarning, match="moved to the `sqlalchemy` settings"
+        ):
+            settings_with_old_keys = Settings(
+                server=ServerSettings(
+                    database=ServerDatabaseSettings(
+                        sqlalchemy_pool_size=42,
+                        sqlalchemy_max_overflow=37,
+                    )
                 )
             )
-        )
 
-        with pytest.warns(
-            DeprecationWarning,
-            match="moved to the `sqlalchemy` settings",
-        ):
-            # old access works but throws a warning
-            assert settings_with_old_keys.server.database.sqlalchemy_pool_size == 42
-            assert settings_with_old_keys.server.database.sqlalchemy_max_overflow == 37
+        assert settings_with_old_keys.server.database.sqlalchemy_pool_size == 42
+        assert settings_with_old_keys.server.database.sqlalchemy_max_overflow == 37
 
-        # new access works without warnings
         assert settings_with_old_keys.server.database.sqlalchemy.pool_size == 42
         assert settings_with_old_keys.server.database.sqlalchemy.max_overflow == 37
 
@@ -1215,7 +1211,7 @@ class TestTemporarySettings:
 
 
 class TestSettingsSources:
-    def test_env_source(self, temporary_env_file):
+    def test_env_source(self, temporary_env_file: Callable[[str], None]):
         temporary_env_file("PREFECT_CLIENT_RETRY_EXTRA_CODES=420,500")
 
         assert Settings().client.retry_extra_codes == {420, 500}
@@ -1224,7 +1220,12 @@ class TestSettingsSources:
 
         assert Settings().client.retry_extra_codes == set()
 
-    def test_resolution_order(self, temporary_env_file, monkeypatch, tmp_path):
+    def test_resolution_order(
+        self,
+        temporary_env_file: Callable[[str], None],
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ):
         profiles_path = tmp_path / "profiles.toml"
 
         monkeypatch.delenv("PREFECT_TESTING_TEST_MODE", raising=False)
