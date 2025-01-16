@@ -2,6 +2,7 @@ import importlib
 import shlex
 import sys
 from copy import deepcopy
+from types import ModuleType
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from anyio import run_process
@@ -19,7 +20,7 @@ if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
 
 
-coiled = lazy_import("coiled")
+coiled: ModuleType = lazy_import("coiled")
 
 
 class CoiledPushProvisioner:
@@ -31,11 +32,11 @@ class CoiledPushProvisioner:
         self._console = Console()
 
     @property
-    def console(self):
+    def console(self) -> Console:
         return self._console
 
     @console.setter
-    def console(self, value):
+    def console(self, value: Console) -> None:
         self._console = value
 
     @staticmethod
