@@ -15,6 +15,7 @@ import sys
 import textwrap
 from pathlib import Path
 from types import ModuleType
+from typing import TYPE_CHECKING
 
 import typer
 import uvicorn
@@ -48,23 +49,30 @@ from prefect.settings import (
 from prefect.settings.context import temporary_settings
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
-server_app = PrefectTyper(
+if TYPE_CHECKING:
+    import logging
+
+server_app: PrefectTyper = PrefectTyper(
     name="server",
     help="Start a Prefect server instance and interact with the database",
 )
-database_app = PrefectTyper(name="database", help="Interact with the database.")
-services_app = PrefectTyper(name="services", help="Interact with server loop services.")
+database_app: PrefectTyper = PrefectTyper(
+    name="database", help="Interact with the database."
+)
+services_app: PrefectTyper = PrefectTyper(
+    name="services", help="Interact with server loop services."
+)
 server_app.add_typer(database_app)
 server_app.add_typer(services_app)
 app.add_typer(server_app)
 
-logger = get_logger(__name__)
+logger: "logging.Logger" = get_logger(__name__)
 
 SERVER_PID_FILE_NAME = "server.pid"
 SERVICES_PID_FILE = Path(PREFECT_HOME.value()) / "services.pid"
 
 
-def generate_welcome_blurb(base_url: str, ui_enabled: bool):
+def generate_welcome_blurb(base_url: str, ui_enabled: bool) -> str:
     blurb = textwrap.dedent(
         r"""
          ___ ___ ___ ___ ___ ___ _____
@@ -109,7 +117,7 @@ def generate_welcome_blurb(base_url: str, ui_enabled: bool):
     return blurb
 
 
-def prestart_check(base_url: str):
+def prestart_check(base_url: str) -> None:
     """
     Check if `PREFECT_API_URL` is set in the current profile. If not, prompt the user to set it.
 
@@ -251,6 +259,7 @@ def start(
     # check if port is already in use
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             s.bind((host, port))
     except socket.error:
         if pid_file.exists():

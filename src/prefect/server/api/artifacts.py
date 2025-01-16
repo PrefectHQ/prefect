@@ -14,7 +14,7 @@ from prefect.server.database import PrefectDBInterface, provide_database_interfa
 from prefect.server.schemas import actions, core, filters, sorting
 from prefect.server.utilities.server import PrefectRouter
 
-router = PrefectRouter(
+router: PrefectRouter = PrefectRouter(
     prefix="/artifacts",
     tags=["Artifacts"],
 )
@@ -191,7 +191,7 @@ async def update_artifact(
         ..., description="The ID of the artifact to update.", alias="id"
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     """
     Update an artifact in the database.
     """
@@ -211,7 +211,7 @@ async def delete_artifact(
         ..., description="The ID of the artifact to delete.", alias="id"
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     """
     Delete an artifact from the database.
     """

@@ -26,16 +26,16 @@ from prefect.settings import (
     PREFECT_TEST_MODE,
 )
 
-app = PrefectTyper(add_completion=True, no_args_is_help=True)
+app: PrefectTyper = PrefectTyper(add_completion=True, no_args_is_help=True)
 
 
-def version_callback(value: bool):
+def version_callback(value: bool) -> None:
     if value:
         print(prefect.__version__)
         raise typer.Exit()
 
 
-def is_interactive():
+def is_interactive() -> bool:
     return app.console.is_interactive
 
 
@@ -157,7 +157,7 @@ def get_prefect_integrations() -> Dict[str, str]:
     return integrations
 
 
-def display(object: Dict[str, Any], nesting: int = 0):
+def display(object: Dict[str, Any], nesting: int = 0) -> None:
     """Recursive display of a dictionary with nesting."""
     for key, value in object.items():
         key += ":"
