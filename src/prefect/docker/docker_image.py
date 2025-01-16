@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from pendulum import now as pendulum_now
 
@@ -34,7 +34,11 @@ class DockerImage:
     """
 
     def __init__(
-        self, name: str, tag: Optional[str] = None, dockerfile="auto", **build_kwargs
+        self,
+        name: str,
+        tag: Optional[str] = None,
+        dockerfile: str = "auto",
+        **build_kwargs: Any,
     ):
         image_name, image_tag = parse_image_tag(name)
         if tag and image_tag:
@@ -49,16 +53,16 @@ class DockerImage:
             namespace = PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE.value()
         # join the namespace and repository to create the full image name
         # ignore namespace if it is None
-        self.name = "/".join(filter(None, [namespace, repository]))
-        self.tag = tag or image_tag or slugify(pendulum_now("utc").isoformat())
-        self.dockerfile = dockerfile
-        self.build_kwargs = build_kwargs
+        self.name: str = "/".join(filter(None, [namespace, repository]))
+        self.tag: str = tag or image_tag or slugify(pendulum_now("utc").isoformat())
+        self.dockerfile: str = dockerfile
+        self.build_kwargs: dict[str, Any] = build_kwargs
 
     @property
-    def reference(self):
+    def reference(self) -> str:
         return f"{self.name}:{self.tag}"
 
-    def build(self):
+    def build(self) -> None:
         full_image_name = self.reference
         build_kwargs = self.build_kwargs.copy()
         build_kwargs["context"] = Path.cwd()
@@ -72,7 +76,7 @@ class DockerImage:
             build_kwargs["dockerfile"] = self.dockerfile
             build_image(**build_kwargs)
 
-    def push(self):
+    def push(self) -> None:
         with docker_client() as client:
             events = client.api.push(
                 repository=self.name, tag=self.tag, stream=True, decode=True

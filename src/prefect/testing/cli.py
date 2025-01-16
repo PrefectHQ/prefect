@@ -13,7 +13,7 @@ from prefect.cli import app
 from prefect.utilities.asyncutils import in_async_main_thread
 
 
-def check_contains(cli_result: Result, content: str, should_contain: bool):
+def check_contains(cli_result: Result, content: str, should_contain: bool) -> None:
     """
     Utility function to see if content is or is not in a CLI result.
 

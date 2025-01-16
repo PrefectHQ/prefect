@@ -4,7 +4,7 @@ import os
 import socket
 import sys
 from contextlib import contextmanager
-from typing import AsyncGenerator, Generator, List, Optional, Union
+from typing import Any, AsyncGenerator, Callable, Generator, List, Optional, Union
 from unittest import mock
 from uuid import UUID
 
@@ -39,7 +39,9 @@ from prefect.utilities.processutils import open_process
 
 
 @pytest.fixture(autouse=True)
-def add_prefect_loggers_to_caplog(caplog):
+def add_prefect_loggers_to_caplog(
+    caplog: pytest.LogCaptureFixture,
+) -> Generator[None, None, None]:
     import logging
 
     logger = logging.getLogger("prefect")
@@ -57,7 +59,9 @@ def is_port_in_use(port: int) -> bool:
 
 
 @pytest.fixture(scope="session")
-async def hosted_api_server(unused_tcp_port_factory):
+async def hosted_api_server(
+    unused_tcp_port_factory: Callable[[], int],
+) -> AsyncGenerator[str, None]:
     """
     Runs an instance of the Prefect API server in a subprocess instead of the using the
     ephemeral application.
@@ -134,7 +138,7 @@ async def hosted_api_server(unused_tcp_port_factory):
 
 
 @pytest.fixture(autouse=True)
-def use_hosted_api_server(hosted_api_server):
+def use_hosted_api_server(hosted_api_server: str) -> Generator[str, None, None]:
     """
     Sets `PREFECT_API_URL` to the test session's hosted API endpoint.
     """
@@ -148,7 +152,7 @@ def use_hosted_api_server(hosted_api_server):
 
 
 @pytest.fixture
-def disable_hosted_api_server():
+def disable_hosted_api_server() -> Generator[None, None, None]:
     """
     Disables the hosted API server by setting `PREFECT_API_URL` to `None`.
     """
@@ -157,11 +161,13 @@ def disable_hosted_api_server():
             PREFECT_API_URL: None,
         }
     ):
-        yield hosted_api_server
+        yield
 
 
 @pytest.fixture
-def enable_ephemeral_server(disable_hosted_api_server):
+def enable_ephemeral_server(
+    disable_hosted_api_server: None,
+) -> Generator[None, None, None]:
     """
     Enables the ephemeral server by setting `PREFECT_SERVER_ALLOW_EPHEMERAL_MODE` to `True`.
     """
@@ -170,13 +176,15 @@ def enable_ephemeral_server(disable_hosted_api_server):
             PREFECT_SERVER_ALLOW_EPHEMERAL_MODE: True,
         }
     ):
-        yield hosted_api_server
+        yield
 
     SubprocessASGIServer().stop()
 
 
 @pytest.fixture
-def mock_anyio_sleep(monkeypatch):
+def mock_anyio_sleep(
+    monkeypatch: pytest.MonkeyPatch,
+) -> Generator[Callable[[float], None], None, None]:
     """
     Mock sleep used to not actually sleep but to set the current time to now + sleep
     delay seconds while still yielding to other tasks in the event loop.
@@ -188,18 +196,18 @@ def mock_anyio_sleep(monkeypatch):
     original_sleep = anyio.sleep
     time_shift = 0.0
 
-    async def callback(delay_in_seconds):
+    async def callback(delay_in_seconds: float) -> None:
         nonlocal time_shift
         time_shift += float(delay_in_seconds)
         # Preserve yield effects of sleep
         await original_sleep(0)
 
-    def latest_now(*args):
+    def latest_now(*args: Any) -> pendulum.DateTime:
         # Fast-forwards the time by the total sleep time
         return original_now(*args).add(
             # Ensure we retain float precision
             seconds=int(time_shift),
-            microseconds=(time_shift - int(time_shift)) * 1000000,
+            microseconds=int((time_shift - int(time_shift)) * 1000000),
         )
 
     monkeypatch.setattr("pendulum.now", latest_now)
@@ -368,7 +376,7 @@ def events_cloud_api_url(events_server: WebSocketServer, unused_tcp_port: int) -
 
 
 @pytest.fixture
-def mock_should_emit_events(monkeypatch) -> mock.Mock:
+def mock_should_emit_events(monkeypatch: pytest.MonkeyPatch) -> mock.Mock:
     m = mock.Mock()
     m.return_value = True
     monkeypatch.setattr("prefect.events.utilities.should_emit_events", m)
@@ -376,7 +384,9 @@ def mock_should_emit_events(monkeypatch) -> mock.Mock:
 
 
 @pytest.fixture
-def asserting_events_worker(monkeypatch) -> Generator[EventsWorker, None, None]:
+def asserting_events_worker(
+    monkeypatch: pytest.MonkeyPatch,
+) -> Generator[EventsWorker, None, None]:
     worker = EventsWorker.instance(AssertingEventsClient)
     # Always yield the asserting worker when new instances are retrieved
     monkeypatch.setattr(EventsWorker, "instance", lambda *_: worker)
@@ -388,7 +398,7 @@ def asserting_events_worker(monkeypatch) -> Generator[EventsWorker, None, None]:
 
 @pytest.fixture
 def asserting_and_emitting_events_worker(
-    monkeypatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> Generator[EventsWorker, None, None]:
     worker = EventsWorker.instance(AssertingPassthroughEventsClient)
     # Always yield the asserting worker when new instances are retrieved
@@ -400,7 +410,9 @@ def asserting_and_emitting_events_worker(
 
 
 @pytest.fixture
-async def events_pipeline(asserting_events_worker: EventsWorker):
+async def events_pipeline(
+    asserting_events_worker: EventsWorker,
+) -> AsyncGenerator[EventsPipeline, None]:
     class AssertingEventsPipeline(EventsPipeline):
         @sync_compatible
         async def process_events(
@@ -435,7 +447,9 @@ async def events_pipeline(asserting_events_worker: EventsWorker):
 
 
 @pytest.fixture
-async def emitting_events_pipeline(asserting_and_emitting_events_worker: EventsWorker):
+async def emitting_events_pipeline(
+    asserting_and_emitting_events_worker: EventsWorker,
+) -> AsyncGenerator[EventsPipeline, None]:
     class AssertingAndEmittingEventsPipeline(EventsPipeline):
         @sync_compatible
         async def process_events(self):
@@ -449,14 +463,16 @@ async def emitting_events_pipeline(asserting_and_emitting_events_worker: EventsW
 
 
 @pytest.fixture
-def reset_worker_events(asserting_events_worker: EventsWorker):
+def reset_worker_events(
+    asserting_events_worker: EventsWorker,
+) -> Generator[None, None, None]:
     yield
     assert isinstance(asserting_events_worker._client, AssertingEventsClient)
     asserting_events_worker._client.events = []
 
 
 @pytest.fixture
-def enable_lineage_events():
+def enable_lineage_events() -> Generator[None, None, None]:
     """A fixture that ensures lineage events are enabled."""
     with temporary_settings(updates={PREFECT_EXPERIMENTS_LINEAGE_EVENTS_ENABLED: True}):
         yield

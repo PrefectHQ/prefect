@@ -52,7 +52,7 @@ class Trigger(PrefectBaseModel, abc.ABC, extra="ignore"):  # type: ignore[call-a
 
     _deployment_id: Optional[UUID] = PrivateAttr(default=None)
 
-    def set_deployment_id(self, deployment_id: UUID):
+    def set_deployment_id(self, deployment_id: UUID) -> None:
         self._deployment_id = deployment_id
 
     def owner_resource(self) -> Optional[str]:
@@ -277,7 +277,7 @@ class MetricTriggerQuery(PrefectBaseModel):
     )
 
     @field_validator("range", "firing_for")
-    def enforce_minimum_range(cls, value: timedelta):
+    def enforce_minimum_range(cls, value: timedelta) -> timedelta:
         if value < timedelta(seconds=300):
             raise ValueError("The minimum range is 300 seconds (5 minutes)")
         return value
@@ -404,13 +404,17 @@ class AutomationCore(PrefectBaseModel, extra="ignore"):  # type: ignore[call-arg
     """Defines an action a user wants to take when a certain number of events
     do or don't happen to the matching resources"""
 
-    name: str = Field(..., description="The name of this automation")
-    description: str = Field("", description="A longer description of this automation")
+    name: str = Field(default=..., description="The name of this automation")
+    description: str = Field(
+        default="", description="A longer description of this automation"
+    )
 
-    enabled: bool = Field(True, description="Whether this automation will be evaluated")
+    enabled: bool = Field(
+        default=True, description="Whether this automation will be evaluated"
+    )
 
     trigger: TriggerTypes = Field(
-        ...,
+        default=...,
         description=(
             "The criteria for which events this Automation covers and how it will "
             "respond to the presence or absence of those events"
@@ -418,7 +422,7 @@ class AutomationCore(PrefectBaseModel, extra="ignore"):  # type: ignore[call-arg
     )
 
     actions: List[ActionTypes] = Field(
-        ...,
+        default=...,
         description="The actions to perform when this Automation triggers",
     )
 
@@ -438,4 +442,4 @@ class AutomationCore(PrefectBaseModel, extra="ignore"):  # type: ignore[call-arg
 
 
 class Automation(AutomationCore):
-    id: UUID = Field(..., description="The ID of this automation")
+    id: UUID = Field(default=..., description="The ID of this automation")

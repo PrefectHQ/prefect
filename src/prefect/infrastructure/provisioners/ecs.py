@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import base64
 import contextlib
 import contextvars
@@ -9,9 +11,11 @@ import sys
 from copy import deepcopy
 from functools import partial
 from textwrap import dedent
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
+from types import ModuleType
+from typing import TYPE_CHECKING, Any, Callable, Dict, Generator, List, Optional
 
 import anyio
+import anyio.to_thread
 from anyio import run_process
 from rich.console import Console
 from rich.panel import Panel
@@ -33,13 +37,15 @@ from prefect.utilities.importtools import lazy_import
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
 
-boto3 = lazy_import("boto3")
+boto3: ModuleType = lazy_import("boto3")
 
-current_console = contextvars.ContextVar("console", default=Console())
+current_console: contextvars.ContextVar[Console] = contextvars.ContextVar(
+    "console", default=Console()
+)
 
 
 @contextlib.contextmanager
-def console_context(value: Console):
+def console_context(value: Console) -> Generator[None, None, None]:
     token = current_console.set(value)
     try:
         yield
@@ -73,7 +79,7 @@ class IamPolicyResource:
         """
         return 1 if await self.requires_provisioning() else 0
 
-    def _get_policy_by_name(self, name):
+    def _get_policy_by_name(self, name: str) -> dict[str, Any] | None:
         paginator = self._iam_client.get_paginator("list_policies")
         page_iterator = paginator.paginate(Scope="Local")
 
@@ -119,9 +125,9 @@ class IamPolicyResource:
 
     async def provision(
         self,
-        policy_document: Dict[str, Any],
+        policy_document: dict[str, Any],
         advance: Callable[[], None],
-    ):
+    ) -> str:
         """
         Provisions an IAM policy.
 
@@ -153,7 +159,7 @@ class IamPolicyResource:
             return policy["Arn"]
 
     @property
-    def next_steps(self):
+    def next_steps(self) -> list[str]:
         return []
 
 
@@ -215,7 +221,7 @@ class IamUserResource:
     async def provision(
         self,
         advance: Callable[[], None],
-    ):
+    ) -> None:
         """
         Provisions an IAM user.
 
@@ -231,7 +237,7 @@ class IamUserResource:
             advance()
 
     @property
-    def next_steps(self):
+    def next_steps(self) -> list[str]:
         return []
 
 
@@ -241,7 +247,7 @@ class CredentialsBlockResource:
         self._user_name = user_name
         self._requires_provisioning = None
 
-    async def get_task_count(self):
+    async def get_task_count(self) -> int:
         """
         Returns the number of tasks that will be executed to provision this resource.
 
@@ -357,7 +363,7 @@ class CredentialsBlockResource:
         }
 
     @property
-    def next_steps(self):
+    def next_steps(self) -> list[str]:
         return []
 
 
@@ -374,7 +380,7 @@ class AuthenticationResource:
             credentials_block_name or f"{work_pool_name}-aws-credentials"
         )
         self._policy_name = policy_name
-        self._policy_document = {
+        self._policy_document: dict[str, Any] = {
             "Version": "2012-10-17",
             "Statement": [
                 {
@@ -417,7 +423,11 @@ class AuthenticationResource:
         self._execution_role_resource = ExecutionRoleResource()
 
     @property
-    def resources(self):
+    def resources(
+        self,
+    ) -> list[
+        "ExecutionRoleResource | IamUserResource | IamPolicyResource | CredentialsBlockResource"
+    ]:
         return [
             self._execution_role_resource,
             self._iam_user_resource,
@@ -425,7 +435,7 @@ class AuthenticationResource:
             self._credentials_block_resource,
         ]
 
-    async def get_task_count(self):
+    async def get_task_count(self) -> int:
         """
         Returns the number of tasks that will be executed to provision this resource.
 
@@ -461,9 +471,9 @@ class AuthenticationResource:
 
     async def provision(
         self,
-        base_job_template: Dict[str, Any],
+        base_job_template: dict[str, Any],
         advance: Callable[[], None],
-    ):
+    ) -> None:
         """
         Provisions the authentication resources.
 
@@ -507,7 +517,7 @@ class AuthenticationResource:
         )
 
     @property
-    def next_steps(self):
+    def next_steps(self) -> list[str]:
         return [
             next_step
             for resource in self.resources
@@ -521,7 +531,7 @@ class ClusterResource:
         self._cluster_name = cluster_name
         self._requires_provisioning = None
 
-    async def get_task_count(self):
+    async def get_task_count(self) -> int:
         """
         Returns the number of tasks that will be executed to provision this resource.
 
@@ -566,9 +576,9 @@ class ClusterResource:
 
     async def provision(
         self,
-        base_job_template: Dict[str, Any],
+        base_job_template: dict[str, Any],
         advance: Callable[[], None],
-    ):
+    ) -> None:
         """
         Provisions an ECS cluster.
 
@@ -592,7 +602,7 @@ class ClusterResource:
         ] = self._cluster_name
 
     @property
-    def next_steps(self):
+    def next_steps(self) -> list[str]:
         return []
 
 
@@ -608,7 +618,7 @@ class VpcResource:
         self._requires_provisioning = None
         self._ecs_security_group_name = ecs_security_group_name
 
-    async def get_task_count(self):
+    async def get_task_count(self) -> int:
         """
         Returns the number of tasks that will be executed to provision this resource.
 
@@ -642,7 +652,9 @@ class VpcResource:
         response = await anyio.to_thread.run_sync(self._ec2_client.describe_vpcs)
         return [vpc["CidrBlock"] for vpc in response["Vpcs"]]
 
-    async def _find_non_overlapping_cidr(self, default_cidr="172.31.0.0/16"):
+    async def _find_non_overlapping_cidr(
+        self, default_cidr: str = "172.31.0.0/16"
+    ) -> str:
         """Find a non-overlapping CIDR block"""
         response = await anyio.to_thread.run_sync(self._ec2_client.describe_vpcs)
         existing_cidrs = [vpc["CidrBlock"] for vpc in response["Vpcs"]]
@@ -708,9 +720,9 @@ class VpcResource:
 
     async def provision(
         self,
-        base_job_template: Dict[str, Any],
+        base_job_template: dict[str, Any],
         advance: Callable[[], None],
-    ):
+    ) -> None:
         """
         Provisions a VPC.
 
@@ -768,7 +780,7 @@ class VpcResource:
                 )
             )["AvailabilityZones"]
             zones = [az["ZoneName"] for az in azs]
-            subnets = []
+            subnets: list[Any] = []
             for i, subnet_cidr in enumerate(subnet_cidrs[0:3]):
                 subnets.append(
                     await anyio.to_thread.run_sync(
@@ -828,7 +840,7 @@ class VpcResource:
             )
 
     @property
-    def next_steps(self):
+    def next_steps(self) -> list[str]:
         return []
 
 
@@ -838,9 +850,9 @@ class ContainerRepositoryResource:
         self._repository_name = repository_name
         self._requires_provisioning = None
         self._work_pool_name = work_pool_name
-        self._next_steps = []
+        self._next_steps: list[str | Panel] = []
 
-    async def get_task_count(self):
+    async def get_task_count(self) -> int:
         """
         Returns the number of tasks that will be executed to provision this resource.
 
@@ -895,9 +907,9 @@ class ContainerRepositoryResource:
 
     async def provision(
         self,
-        base_job_template: Dict[str, Any],
+        base_job_template: dict[str, Any],
         advance: Callable[[], None],
-    ):
+    ) -> None:
         """
         Provisions an ECR repository.
 
@@ -978,7 +990,7 @@ class ContainerRepositoryResource:
         )
 
     @property
-    def next_steps(self):
+    def next_steps(self) -> list[str | Panel]:
         return self._next_steps
 
 
@@ -1000,7 +1012,7 @@ class ExecutionRoleResource:
         )
         self._requires_provisioning = None
 
-    async def get_task_count(self):
+    async def get_task_count(self) -> int:
         """
         Returns the number of tasks that will be executed to provision this resource.
 
@@ -1046,9 +1058,9 @@ class ExecutionRoleResource:
 
     async def provision(
         self,
-        base_job_template: Dict[str, Any],
+        base_job_template: dict[str, Any],
         advance: Callable[[], None],
-    ):
+    ) -> str:
         """
         Provisions an IAM role.
 
@@ -1087,7 +1099,7 @@ class ExecutionRoleResource:
         return response["Role"]["Arn"]
 
     @property
-    def next_steps(self):
+    def next_steps(self) -> list[str]:
         return []
 
 
@@ -1100,11 +1112,11 @@ class ElasticContainerServicePushProvisioner:
         self._console = Console()
 
     @property
-    def console(self):
+    def console(self) -> Console:
         return self._console
 
     @console.setter
-    def console(self, value):
+    def console(self, value: Console) -> None:
         self._console = value
 
     async def _prompt_boto3_installation(self):
@@ -1115,7 +1127,7 @@ class ElasticContainerServicePushProvisioner:
         boto3 = importlib.import_module("boto3")
 
     @staticmethod
-    def is_boto3_installed():
+    def is_boto3_installed() -> bool:
         """
         Check if boto3 is installed.
         """
@@ -1157,8 +1169,8 @@ class ElasticContainerServicePushProvisioner:
     async def provision(
         self,
         work_pool_name: str,
-        base_job_template: dict,
-    ) -> Dict[str, Any]:
+        base_job_template: dict[str, Any],
+    ) -> dict[str, Any]:
         """
         Provisions the infrastructure for an ECS push work pool.
 
@@ -1310,7 +1322,7 @@ class ElasticContainerServicePushProvisioner:
                 # provision calls will be no-ops, but update the base job template
 
             base_job_template_copy = deepcopy(base_job_template)
-            next_steps = []
+            next_steps: list[str | Panel] = []
             with Progress(console=self._console, disable=num_tasks == 0) as progress:
                 task = progress.add_task(
                     "Provisioning Infrastructure",

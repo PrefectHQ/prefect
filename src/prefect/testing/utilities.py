@@ -2,6 +2,8 @@
 Internal utilities for tests.
 """
 
+from __future__ import annotations
+
 import atexit
 import shutil
 import warnings
@@ -9,7 +11,7 @@ from contextlib import ExitStack, contextmanager
 from pathlib import Path
 from pprint import pprint
 from tempfile import mkdtemp
-from typing import TYPE_CHECKING, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 import prefect.context
 import prefect.settings
@@ -30,6 +32,7 @@ from prefect.states import State
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
+    from prefect.client.schemas.objects import FlowRun
     from prefect.filesystems import ReadableFileSystem
 
 
@@ -175,7 +178,7 @@ def prefect_test_harness(server_startup_timeout: Optional[int] = 30):
         test_server.stop()
 
 
-async def get_most_recent_flow_run(client: "PrefectClient" = None):
+async def get_most_recent_flow_run(client: "PrefectClient | None" = None) -> "FlowRun":
     if client is None:
         client = get_client()
 
@@ -187,8 +190,8 @@ async def get_most_recent_flow_run(client: "PrefectClient" = None):
 
 
 def assert_blocks_equal(
-    found: Block, expected: Block, exclude_private: bool = True, **kwargs
-) -> bool:
+    found: Block, expected: Block, exclude_private: bool = True, **kwargs: Any
+) -> None:
     assert isinstance(
         found, type(expected)
     ), f"Unexpected type {type(found).__name__}, expected {type(expected).__name__}"
@@ -205,7 +208,7 @@ def assert_blocks_equal(
 
 async def assert_uses_result_serializer(
     state: State, serializer: Union[str, Serializer], client: "PrefectClient"
-):
+) -> None:
     assert isinstance(state.data, (ResultRecord, ResultRecordMetadata))
     if isinstance(state.data, ResultRecord):
         result_serializer = state.data.metadata.serializer
@@ -241,7 +244,7 @@ async def assert_uses_result_serializer(
 @inject_client
 async def assert_uses_result_storage(
     state: State, storage: Union[str, "ReadableFileSystem"], client: "PrefectClient"
-):
+) -> None:
     assert isinstance(state.data, (ResultRecord, ResultRecordMetadata))
     if isinstance(state.data, ResultRecord):
         assert_blocks_equal(
@@ -267,11 +270,11 @@ async def assert_uses_result_storage(
         )
 
 
-def a_test_step(**kwargs):
+def a_test_step(**kwargs: Any) -> dict[str, Any]:
     kwargs.update({"output1": 1, "output2": ["b", 2, 3]})
     return kwargs
 
 
-def b_test_step(**kwargs):
+def b_test_step(**kwargs: Any) -> dict[str, Any]:
     kwargs.update({"output1": 1, "output2": ["b", 2, 3]})
     return kwargs

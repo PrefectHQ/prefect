@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import logging.handlers
 import sys
 import traceback
 from types import TracebackType
-from typing import Optional, Tuple, Type, Union
+from typing import Any, Literal, Optional, Tuple, Type, Union
 
 import orjson
 
@@ -14,7 +16,7 @@ ExceptionInfoType = Union[
 ]
 
 
-def format_exception_info(exc_info: ExceptionInfoType) -> dict:
+def format_exception_info(exc_info: ExceptionInfoType) -> dict[str, Any]:
     # if sys.exc_info() returned a (None, None, None) tuple,
     # then there's nothing to format
     if exc_info[0] is None:
@@ -40,13 +42,15 @@ class JsonFormatter(logging.Formatter):
     newlines.
     """
 
-    def __init__(self, fmt, dmft, style) -> None:  # noqa
+    def __init__(
+        self, fmt: Literal["pretty", "default"], dmft: str, style: str
+    ) -> None:  # noqa
         super().__init__()
 
         if fmt not in ["pretty", "default"]:
             raise ValueError("Format must be either 'pretty' or 'default'.")
 
-        self.serializer = JSONSerializer(
+        self.serializer: JSONSerializer = JSONSerializer(
             jsonlib="orjson",
             dumps_kwargs={"option": orjson.OPT_INDENT_2} if fmt == "pretty" else {},
         )
@@ -72,13 +76,13 @@ class JsonFormatter(logging.Formatter):
 class PrefectFormatter(logging.Formatter):
     def __init__(
         self,
-        format=None,
-        datefmt=None,
-        style="%",
-        validate=True,
+        format: str | None = None,
+        datefmt: str | None = None,
+        style: str = "%",
+        validate: bool = True,
         *,
-        defaults=None,
-        task_run_fmt: Optional[str] = None,
+        defaults: dict[str, Any] | None = None,
+        task_run_fmt: str | None = None,
         flow_run_fmt: Optional[str] = None,
     ) -> None:
         """
@@ -118,7 +122,7 @@ class PrefectFormatter(logging.Formatter):
             self._flow_run_style.validate()
             self._task_run_style.validate()
 
-    def formatMessage(self, record: logging.LogRecord):
+    def formatMessage(self, record: logging.LogRecord) -> str:
         if record.name == "prefect.flow_runs":
             style = self._flow_run_style
         elif record.name == "prefect.task_runs":
