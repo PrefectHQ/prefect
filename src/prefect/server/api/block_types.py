@@ -10,7 +10,7 @@ from prefect.server.api import dependencies
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.utilities.server import PrefectRouter
 
-router = PrefectRouter(prefix="/block_types", tags=["Block types"])
+router: PrefectRouter = PrefectRouter(prefix="/block_types", tags=["Block types"])
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
@@ -101,7 +101,7 @@ async def update_block_type(
     block_type: schemas.actions.BlockTypeUpdate,
     block_type_id: UUID = Path(..., description="The block type ID", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     """
     Update a block type.
     """
@@ -131,7 +131,7 @@ async def update_block_type(
 async def delete_block_type(
     block_type_id: UUID = Path(..., description="The block type ID", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     async with db.session_context(begin_transaction=True) as session:
         db_block_type = await models.block_types.read_block_type(
             session=session, block_type_id=block_type_id
@@ -204,7 +204,7 @@ async def read_block_document_by_name_for_block_type(
 @router.post("/install_system_block_types")
 async def install_system_block_types(
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     # Don't begin a transaction. _install_protected_system_blocks will manage
     # the transactions.
     async with db.session_context(begin_transaction=False) as session:

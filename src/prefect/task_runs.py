@@ -17,6 +17,9 @@ from prefect.events.clients import get_events_subscriber
 from prefect.events.filters import EventFilter, EventNameFilter
 from prefect.logging.loggers import get_logger
 
+if TYPE_CHECKING:
+    import logging
+
 
 class TaskRunWaiter:
     """
@@ -70,8 +73,8 @@ class TaskRunWaiter:
     _instance_lock = threading.Lock()
 
     def __init__(self):
-        self.logger = get_logger("TaskRunWaiter")
-        self._consumer_task: asyncio.Task[None] | None = None
+        self.logger: "logging.Logger" = get_logger("TaskRunWaiter")
+        self._consumer_task: "asyncio.Task[None] | None" = None
         self._observed_completed_task_runs: TTLCache[uuid.UUID, bool] = TTLCache(
             maxsize=10000, ttl=600
         )
@@ -82,7 +85,7 @@ class TaskRunWaiter:
         self._completion_events_lock = threading.Lock()
         self._started = False
 
-    def start(self):
+    def start(self) -> None:
         """
         Start the TaskRunWaiter service.
         """
@@ -145,7 +148,7 @@ class TaskRunWaiter:
                 except Exception as exc:
                     self.logger.error(f"Error processing event: {exc}")
 
-    def stop(self):
+    def stop(self) -> None:
         """
         Stop the TaskRunWaiter service.
         """
@@ -159,7 +162,7 @@ class TaskRunWaiter:
     @classmethod
     async def wait_for_task_run(
         cls, task_run_id: uuid.UUID, timeout: Optional[float] = None
-    ):
+    ) -> None:
         """
         Wait for a task run to finish.
 
@@ -225,7 +228,7 @@ class TaskRunWaiter:
             instance._completion_callbacks[task_run_id] = callback
 
     @classmethod
-    def instance(cls):
+    def instance(cls) -> Self:
         """
         Get the singleton instance of TaskRunWaiter.
         """

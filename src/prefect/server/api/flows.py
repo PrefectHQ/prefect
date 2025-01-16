@@ -16,7 +16,7 @@ from prefect.server.database import PrefectDBInterface, provide_database_interfa
 from prefect.server.schemas.responses import FlowPaginationResponse
 from prefect.server.utilities.server import PrefectRouter
 
-router = PrefectRouter(prefix="/flows", tags=["Flows"])
+router: PrefectRouter = PrefectRouter(prefix="/flows", tags=["Flows"])
 
 
 @router.post("/")
@@ -46,7 +46,7 @@ async def update_flow(
     flow: schemas.actions.FlowUpdate,
     flow_id: UUID = Path(..., description="The flow id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     """
     Updates a flow.
     """
@@ -150,7 +150,7 @@ async def read_flows(
 async def delete_flow(
     flow_id: UUID = Path(..., description="The flow id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     """
     Delete a flow by id.
     """

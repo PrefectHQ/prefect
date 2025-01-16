@@ -3,7 +3,7 @@ Functions for interacting with log ORM objects.
 Intended for internal use by the Prefect REST API.
 """
 
-from typing import Generator, List, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Generator, List, Optional, Sequence, Tuple
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,7 +23,10 @@ NUMBER_OF_LOG_FIELDS = len(schemas.core.Log.model_fields)
 # ...so we can only INSERT batches of a certain size at a time
 LOG_BATCH_SIZE = MAXIMUM_QUERY_PARAMETERS // NUMBER_OF_LOG_FIELDS
 
-logger = get_logger(__name__)
+if TYPE_CHECKING:
+    import logging
+
+logger: "logging.Logger" = get_logger(__name__)
 
 
 def split_logs_into_batches(

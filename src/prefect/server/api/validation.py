@@ -35,7 +35,7 @@ Note some important details:
    allow None values, the Pydantic model will fail to validate at runtime.
 """
 
-from typing import Any, Dict, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 from uuid import UUID
 
 import pydantic
@@ -50,7 +50,10 @@ from prefect.server.events.actions import RunDeployment
 from prefect.server.schemas.core import WorkPool
 from prefect.utilities.schema_tools import ValidationError, is_valid_schema, validate
 
-logger = get_logger("server.api.validation")
+if TYPE_CHECKING:
+    import logging
+
+logger: "logging.Logger" = get_logger("server.api.validation")
 
 DeploymentAction = Union[
     schemas.actions.DeploymentCreate, schemas.actions.DeploymentUpdate
