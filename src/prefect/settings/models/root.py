@@ -312,8 +312,7 @@ class Settings(PrefectBaseSettings):
                 self.model_dump(exclude_unset=True),
                 restore_defaults_obj,
                 updates_obj,
-            ),
-            context={"ignore_deprecation": True},
+            )
         )
         return new_settings
 
