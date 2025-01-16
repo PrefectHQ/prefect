@@ -20,7 +20,10 @@ from prefect.logging.loggers import get_logger
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.context import get_task_and_flow_run_ids
 
-logger = get_logger("artifacts")
+if TYPE_CHECKING:
+    import logging
+
+logger: "logging.Logger" = get_logger("artifacts")
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient

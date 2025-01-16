@@ -11,7 +11,7 @@ from contextlib import ExitStack, contextmanager
 from pathlib import Path
 from pprint import pprint
 from tempfile import mkdtemp
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Generator
 
 import prefect.context
 import prefect.settings
@@ -36,7 +36,7 @@ if TYPE_CHECKING:
     from prefect.filesystems import ReadableFileSystem
 
 
-def exceptions_equal(a, b):
+def exceptions_equal(a: Exception, b: Exception) -> bool:
     """
     Exceptions cannot be compared by `==`. They can be compared using `is` but this
     will fail if the exception is serialized/deserialized so this utility does its
@@ -57,9 +57,9 @@ from unittest.mock import call  # noqa
 
 
 def kubernetes_environments_equal(
-    actual: List[Dict[str, str]],
-    expected: Union[List[Dict[str, str]], Dict[str, str]],
-):
+    actual: list[dict[str, str]],
+    expected: list[dict[str, str]] | dict[str, str],
+) -> bool:
     # Convert to a required format and sort by name
     if isinstance(expected, dict):
         expected = [{"name": key, "value": value} for key, value in expected.items()]
@@ -93,7 +93,9 @@ def kubernetes_environments_equal(
 
 
 @contextmanager
-def assert_does_not_warn(ignore_warnings=[]):
+def assert_does_not_warn(
+    ignore_warnings: list[type[Warning]] | None = None,
+) -> Generator[None, None, None]:
     """
     Converts warnings to errors within this context to assert warnings are not raised,
     except for those specified in ignore_warnings.
@@ -101,6 +103,7 @@ def assert_does_not_warn(ignore_warnings=[]):
     Parameters:
     - ignore_warnings: List of warning types to ignore. Example: [DeprecationWarning, UserWarning]
     """
+    ignore_warnings = ignore_warnings or []
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         for warning_type in ignore_warnings:
@@ -113,7 +116,7 @@ def assert_does_not_warn(ignore_warnings=[]):
 
 
 @contextmanager
-def prefect_test_harness(server_startup_timeout: Optional[int] = 30):
+def prefect_test_harness(server_startup_timeout: int | None = 30):
     """
     Temporarily run flows against a local SQLite database for testing.
 
@@ -207,7 +210,7 @@ def assert_blocks_equal(
 
 
 async def assert_uses_result_serializer(
-    state: State, serializer: Union[str, Serializer], client: "PrefectClient"
+    state: State, serializer: str | Serializer, client: "PrefectClient"
 ) -> None:
     assert isinstance(state.data, (ResultRecord, ResultRecordMetadata))
     if isinstance(state.data, ResultRecord):
@@ -243,7 +246,7 @@ async def assert_uses_result_serializer(
 
 @inject_client
 async def assert_uses_result_storage(
-    state: State, storage: Union[str, "ReadableFileSystem"], client: "PrefectClient"
+    state: State, storage: "str | ReadableFileSystem", client: "PrefectClient"
 ) -> None:
     assert isinstance(state.data, (ResultRecord, ResultRecordMetadata))
     if isinstance(state.data, ResultRecord):
