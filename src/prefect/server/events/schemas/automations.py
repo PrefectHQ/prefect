@@ -5,6 +5,7 @@ import re
 import weakref
 from datetime import timedelta
 from typing import (
+    TYPE_CHECKING,
     Any,
     Dict,
     List,
@@ -41,7 +42,10 @@ from prefect.server.utilities.schemas import ORMBaseModel, PrefectBaseModel
 from prefect.types import DateTime
 from prefect.utilities.collections import AutoEnum
 
-logger = get_logger(__name__)
+if TYPE_CHECKING:
+    import logging
+
+logger: "logging.Logger" = get_logger(__name__)
 
 
 class Posture(AutoEnum):
@@ -317,7 +321,7 @@ class EventTrigger(ResourceTrigger):
     @model_validator(mode="before")
     @classmethod
     def enforce_minimum_within_for_proactive_triggers(
-        cls, data: Dict[str, Any]
+        cls, data: Dict[str, Any] | Any
     ) -> Dict[str, Any]:
         if not isinstance(data, dict):
             return data
@@ -342,7 +346,7 @@ class EventTrigger(ResourceTrigger):
 
         return data
 
-    def covers(self, event: ReceivedEvent):
+    def covers(self, event: ReceivedEvent) -> bool:
         if not self.covers_resources(event.resource, event.related):
             return False
 
@@ -356,10 +360,10 @@ class EventTrigger(ResourceTrigger):
         """Does this reactive trigger fire immediately for all events?"""
         return self.posture == Posture.Reactive and self.within == timedelta(0)
 
-    _event_pattern: Optional[re.Pattern] = PrivateAttr(None)
+    _event_pattern: Optional[re.Pattern[str]] = PrivateAttr(None)
 
     @property
-    def event_pattern(self) -> re.Pattern:
+    def event_pattern(self) -> re.Pattern[str]:
         """A regular expression which may be evaluated against any event string to
         determine if this trigger would be interested in the event"""
         if self._event_pattern:
@@ -422,10 +426,12 @@ class EventTrigger(ResourceTrigger):
         automation = firing.trigger.automation
         triggering_event = firing.triggering_event
 
-        resource_data = {
-            "prefect.resource.id": f"prefect.automation.{automation.id}",
-            "prefect.resource.name": automation.name,
-        }
+        resource_data = Resource(
+            {
+                "prefect.resource.id": f"prefect.automation.{automation.id}",
+                "prefect.resource.name": automation.name,
+            }
+        )
 
         if self.posture.value:
             resource_data["prefect.posture"] = self.posture.value
@@ -436,10 +442,12 @@ class EventTrigger(ResourceTrigger):
             resource=resource_data,
             related=(
                 [
-                    {
-                        "prefect.resource.id": f"prefect.event.{triggering_event.id}",
-                        "prefect.resource.role": "triggering-event",
-                    }
+                    RelatedResource(
+                        {
+                            "prefect.resource.id": f"prefect.event.{triggering_event.id}",
+                            "prefect.resource.role": "triggering-event",
+                        }
+                    )
                 ]
                 if triggering_event
                 else []
@@ -466,30 +474,34 @@ class AutomationCore(PrefectBaseModel, extra="ignore"):
     """Defines an action a user wants to take when a certain number of events
     do or don't happen to the matching resources"""
 
-    name: str = Field(..., description="The name of this automation")
-    description: str = Field("", description="A longer description of this automation")
+    name: str = Field(default=..., description="The name of this automation")
+    description: str = Field(
+        default="", description="A longer description of this automation"
+    )
 
-    enabled: bool = Field(True, description="Whether this automation will be evaluated")
+    enabled: bool = Field(
+        default=True, description="Whether this automation will be evaluated"
+    )
 
     trigger: ServerTriggerTypes = Field(
-        ...,
+        default=...,
         description=(
             "The criteria for which events this Automation covers and how it will "
             "respond to the presence or absence of those events"
         ),
     )
 
-    actions: List[ServerActionTypes] = Field(
-        ...,
+    actions: list[ServerActionTypes] = Field(
+        default=...,
         description="The actions to perform when this Automation triggers",
     )
 
-    actions_on_trigger: List[ServerActionTypes] = Field(
+    actions_on_trigger: list[ServerActionTypes] = Field(
         default_factory=list,
         description="The actions to perform when an Automation goes into a triggered state",
     )
 
-    actions_on_resolve: List[ServerActionTypes] = Field(
+    actions_on_resolve: list[ServerActionTypes] = Field(
         default_factory=list,
         description="The actions to perform when an Automation goes into a resolving state",
     )
@@ -577,7 +589,7 @@ class AutomationCore(PrefectBaseModel, extra="ignore"):
 
 
 class Automation(ORMBaseModel, AutomationCore, extra="ignore"):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
         self.trigger._set_parent(self)
 
@@ -586,9 +598,9 @@ class Automation(ORMBaseModel, AutomationCore, extra="ignore"):
         cls: type[Self],
         obj: Any,
         *,
-        strict: Optional[bool] = None,
-        from_attributes: Optional[bool] = None,
-        context: Optional[dict[str, Any]] = None,
+        strict: bool | None = None,
+        from_attributes: bool | None = None,
+        context: dict[str, Any] | None = None,
     ) -> Self:
         automation = super().model_validate(
             obj, strict=strict, from_attributes=from_attributes, context=context
@@ -625,13 +637,15 @@ class Firing(PrefectBaseModel):
 
     id: UUID = Field(default_factory=uuid4)
 
-    trigger: ServerTriggerTypes = Field(..., description="The trigger that is firing")
+    trigger: Union[ServerTriggerTypes, CompositeTrigger] = Field(
+        default=..., description="The trigger that is firing"
+    )
     trigger_states: Set[TriggerState] = Field(
-        ...,
+        default=...,
         description="The state changes represented by this Firing",
     )
     triggered: DateTime = Field(
-        ...,
+        default=...,
         description=(
             "The time at which this trigger fired, which may differ from the "
             "occurred time of the associated event (as events processing may always "
@@ -654,7 +668,7 @@ class Firing(PrefectBaseModel):
         ),
     )
     triggering_event: Optional[ReceivedEvent] = Field(
-        None,
+        default=None,
         description=(
             "The most recent event associated with this Firing.  This may be the "
             "event that caused the trigger to fire (for Reactive triggers), or the "
@@ -662,8 +676,8 @@ class Firing(PrefectBaseModel):
             "change event (for a Metric trigger)."
         ),
     )
-    triggering_value: Any = Field(
-        None,
+    triggering_value: Optional[Any] = Field(
+        default=None,
         description=(
             "A value associated with this firing of a trigger.  Maybe used to "
             "convey additional information at the point of firing, like the value of "
@@ -673,7 +687,7 @@ class Firing(PrefectBaseModel):
 
     @field_validator("trigger_states")
     @classmethod
-    def validate_trigger_states(cls, value: Set[TriggerState]):
+    def validate_trigger_states(cls, value: set[TriggerState]) -> set[TriggerState]:
         if not value:
             raise ValueError("At least one trigger state must be provided")
         return value

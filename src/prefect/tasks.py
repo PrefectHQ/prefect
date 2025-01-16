@@ -30,7 +30,7 @@ from uuid import UUID, uuid4
 from typing_extensions import Literal, ParamSpec, Self, TypeAlias, TypeIs
 
 import prefect.states
-from prefect.cache_policies import DEFAULT, NONE, CachePolicy
+from prefect.cache_policies import DEFAULT, NO_CACHE, CachePolicy
 from prefect.client.orchestration import get_client
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import (
@@ -53,10 +53,7 @@ from prefect.results import (
     ResultStore,
     get_or_create_default_task_scheduling_storage,
 )
-from prefect.settings import (
-    PREFECT_TASK_DEFAULT_RETRIES,
-    PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
-)
+from prefect.settings.context import get_current_settings
 from prefect.states import Pending, Scheduled, State
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_coro_as_sync, sync_compatible
@@ -70,6 +67,8 @@ from prefect.utilities.importtools import to_qualified_name
 from prefect.utilities.urls import url_for
 
 if TYPE_CHECKING:
+    import logging
+
     from prefect.client.orchestration import PrefectClient
     from prefect.context import TaskRunContext
     from prefect.transactions import Transaction
@@ -80,7 +79,7 @@ P = ParamSpec("P")  # The parameters of the task
 
 NUM_CHARS_DYNAMIC_KEY = 8
 
-logger = get_logger("tasks")
+logger: "logging.Logger" = get_logger("tasks")
 
 FutureOrResult: TypeAlias = Union[PrefectFuture[T], T]
 OneOrManyFutureOrResult: TypeAlias = Union[
@@ -383,19 +382,19 @@ class Task(Generic[P, R]):
         if not callable(fn):
             raise TypeError("'fn' must be callable")
 
-        self.description = description or inspect.getdoc(fn)
+        self.description: str | None = description or inspect.getdoc(fn)
         update_wrapper(self, fn)
         self.fn = fn
 
         # the task is considered async if its function is async or an async
         # generator
-        self.isasync = asyncio.iscoroutinefunction(
+        self.isasync: bool = asyncio.iscoroutinefunction(
             self.fn
         ) or inspect.isasyncgenfunction(self.fn)
 
         # the task is considered a generator if its function is a generator or
         # an async generator
-        self.isgenerator = inspect.isgeneratorfunction(
+        self.isgenerator: bool = inspect.isgeneratorfunction(
             self.fn
         ) or inspect.isasyncgenfunction(self.fn)
 
@@ -405,7 +404,7 @@ class Task(Generic[P, R]):
             else:
                 self.name = self.fn.__name__
         else:
-            self.name = name
+            self.name: str = name
 
         if task_run_name is not None:
             if not isinstance(task_run_name, str) and not callable(task_run_name):
@@ -420,9 +419,9 @@ class Task(Generic[P, R]):
 
         raise_for_reserved_arguments(self.fn, ["return_state", "wait_for"])
 
-        self.tags = set(tags if tags else [])
+        self.tags: set[str] = set(tags if tags else [])
 
-        self.task_key = _generate_task_key(self.fn)
+        self.task_key: str = _generate_task_key(self.fn)
 
         if cache_policy is not NotSet and cache_key_fn is not None:
             logger.warning(
@@ -441,7 +440,9 @@ class Task(Generic[P, R]):
         if persist_result is None:
             if any(
                 [
-                    cache_policy and cache_policy != NONE and cache_policy != NotSet,
+                    cache_policy
+                    and cache_policy != NO_CACHE
+                    and cache_policy != NotSet,
                     cache_key_fn is not None,
                     result_storage_key is not None,
                     result_storage is not None,
@@ -451,8 +452,8 @@ class Task(Generic[P, R]):
                 persist_result = True
 
         if persist_result is False:
-            self.cache_policy = None if cache_policy is None else NONE
-            if cache_policy and cache_policy is not NotSet and cache_policy != NONE:
+            self.cache_policy = None if cache_policy is None else NO_CACHE
+            if cache_policy and cache_policy is not NotSet and cache_policy != NO_CACHE:
                 logger.warning(
                     "Ignoring `cache_policy` because `persist_result` is False"
                 )
@@ -462,26 +463,29 @@ class Task(Generic[P, R]):
             # TODO: handle this situation with double storage
             self.cache_policy = None
         else:
-            self.cache_policy = cache_policy
+            self.cache_policy: Union[CachePolicy, type[NotSet], None] = cache_policy
 
         # TaskRunPolicy settings
         # TODO: We can instantiate a `TaskRunPolicy` and add Pydantic bound checks to
         #       validate that the user passes positive numbers here
 
-        self.retries = (
-            retries if retries is not None else PREFECT_TASK_DEFAULT_RETRIES.value()
+        settings = get_current_settings()
+        self.retries: int = (
+            retries if retries is not None else settings.tasks.default_retries
         )
         if retry_delay_seconds is None:
-            retry_delay_seconds = PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS.value()
+            retry_delay_seconds = settings.tasks.default_retry_delay_seconds
 
         if callable(retry_delay_seconds):
-            self.retry_delay_seconds = retry_delay_seconds(retries)
+            self.retry_delay_seconds = retry_delay_seconds(self.retries)
         elif not isinstance(retry_delay_seconds, (list, int, float, type(None))):
             raise TypeError(
                 f"Invalid `retry_delay_seconds` provided; must be an int, float, list or callable. Received type {type(retry_delay_seconds)}"
             )
         else:
-            self.retry_delay_seconds = retry_delay_seconds
+            self.retry_delay_seconds: Union[
+                float, int, list[float], None
+            ] = retry_delay_seconds
 
         if isinstance(self.retry_delay_seconds, list) and (
             len(self.retry_delay_seconds) > 50
@@ -505,11 +509,15 @@ class Task(Generic[P, R]):
         self.result_serializer = result_serializer
         self.result_storage_key = result_storage_key
         self.cache_result_in_memory = cache_result_in_memory
-        self.timeout_seconds = float(timeout_seconds) if timeout_seconds else None
-        self.on_rollback_hooks = on_rollback or []
-        self.on_commit_hooks = on_commit or []
-        self.on_completion_hooks = on_completion or []
-        self.on_failure_hooks = on_failure or []
+        self.timeout_seconds: Union[float, None] = (
+            float(timeout_seconds) if timeout_seconds else None
+        )
+        self.on_rollback_hooks: list[Callable[["Transaction"], None]] = (
+            on_rollback or []
+        )
+        self.on_commit_hooks: list[Callable[["Transaction"], None]] = on_commit or []
+        self.on_completion_hooks: list[StateHookCallable] = on_completion or []
+        self.on_failure_hooks: list[StateHookCallable] = on_failure or []
 
         # retry_condition_fn must be a callable or None. If it is neither, raise a TypeError
         if retry_condition_fn is not None and not (callable(retry_condition_fn)):
@@ -525,7 +533,7 @@ class Task(Generic[P, R]):
     def ismethod(self) -> bool:
         return hasattr(self.fn, "__prefect_self__")
 
-    def __get__(self, instance: Any, owner: Any):
+    def __get__(self, instance: Any, owner: Any) -> "Task[P, R]":
         """
         Implement the descriptor protocol so that the task can be used as an instance method.
         When an instance method is loaded, this method is called with the "self" instance as
@@ -580,7 +588,7 @@ class Task(Generic[P, R]):
             Callable[["Task[..., Any]", TaskRun, State], bool]
         ] = None,
         viz_return_value: Optional[Any] = None,
-    ):
+    ) -> "Task[P, R]":
         """
         Create a new task from the current object, updating provided options.
 

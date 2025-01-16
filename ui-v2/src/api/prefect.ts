@@ -6953,7 +6953,7 @@ export interface components {
              * Pause Keys
              * @description Tracks pauses this run has observed.
              */
-            pause_keys?: unknown[] | null;
+            pause_keys?: string[] | null;
             /**
              * Resuming
              * @description Indicates if this run is resuming from a pause.
@@ -8487,7 +8487,9 @@ export interface components {
             /** @description The current task run state. */
             state?: components["schemas"]["State"] | null;
         };
-        TaskRunCount: Record<string, never>;
+        TaskRunCount: {
+            [key: string]: number;
+        };
         /**
          * TaskRunCreate
          * @description Data used by the Prefect REST API to create a task run
@@ -15409,7 +15411,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": Record<string, never>;
                 };
             };
             /** @description Validation Error */
@@ -15671,7 +15673,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": string;
                 };
             };
             /** @description Validation Error */

@@ -141,7 +141,7 @@ async def run_steps(
     steps: List[Dict[str, Any]],
     upstream_outputs: Optional[Dict[str, Any]] = None,
     print_function: Any = print,
-):
+) -> dict[str, Any]:
     upstream_outputs = deepcopy(upstream_outputs) if upstream_outputs else {}
     for step in steps:
         if not step:

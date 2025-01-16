@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import logging
 import os
@@ -14,7 +16,6 @@ from typing import (
     Iterable,
     Literal,
     Optional,
-    Tuple,
     Type,
     TypeVar,
     Union,
@@ -103,13 +104,15 @@ class FlowRunTimeoutError(TimeoutError):
     """Raised when a flow run exceeds its defined timeout."""
 
 
-def load_flow_and_flow_run(flow_run_id: UUID) -> Tuple[FlowRun, Flow]:
-    ## TODO: add error handling to update state and log tracebacks
+def load_flow_run(flow_run_id: UUID) -> FlowRun:
+    client = get_client(sync_client=True)
+    flow_run = client.read_flow_run(flow_run_id)
+    return flow_run
+
+
+def load_flow(flow_run: FlowRun) -> Flow[..., Any]:
     entrypoint = os.environ.get("PREFECT__FLOW_ENTRYPOINT")
 
-    client = cast(SyncPrefectClient, get_client(sync_client=True))
-
-    flow_run = client.read_flow_run(flow_run_id)
     if entrypoint:
         # we should not accept a placeholder flow at runtime
         flow = load_flow_from_entrypoint(entrypoint, use_placeholder_flow=False)
@@ -117,7 +120,12 @@ def load_flow_and_flow_run(flow_run_id: UUID) -> Tuple[FlowRun, Flow]:
         flow = run_coro_as_sync(
             load_flow_from_flow_run(flow_run, use_placeholder_flow=False)
         )
+    return flow
 
+
+def load_flow_and_flow_run(flow_run_id: UUID) -> tuple[FlowRun, Flow[..., Any]]:
+    flow_run = load_flow_run(flow_run_id)
+    flow = load_flow(flow_run)
     return flow_run, flow
 
 
@@ -128,7 +136,7 @@ class BaseFlowRunEngine(Generic[P, R]):
     flow_run: Optional[FlowRun] = None
     flow_run_id: Optional[UUID] = None
     logger: logging.Logger = field(default_factory=lambda: get_logger("engine"))
-    wait_for: Optional[Iterable[PrefectFuture]] = None
+    wait_for: Optional[Iterable[PrefectFuture[Any]]] = None
     # holds the return value from the user code
     _return_value: Union[R, Type[NotSet]] = NotSet
     # holds the exception raised by the user code, if any
@@ -138,7 +146,7 @@ class BaseFlowRunEngine(Generic[P, R]):
     _flow_run_name_set: bool = False
     _telemetry: RunTelemetry = field(default_factory=RunTelemetry)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.flow is None and self.flow_run_id is None:
             raise ValueError("Either a flow or a flow_run_id must be provided.")
 
@@ -159,7 +167,7 @@ class BaseFlowRunEngine(Generic[P, R]):
             return False  # TODO: handle this differently?
         return getattr(self, "flow_run").state.is_pending()
 
-    def cancel_all_tasks(self):
+    def cancel_all_tasks(self) -> None:
         if hasattr(self.flow.task_runner, "cancel_all"):
             self.flow.task_runner.cancel_all()  # type: ignore
 
@@ -200,6 +208,8 @@ class BaseFlowRunEngine(Generic[P, R]):
 @dataclass
 class FlowRunEngine(BaseFlowRunEngine[P, R]):
     _client: Optional[SyncPrefectClient] = None
+    flow_run: FlowRun | None = None
+    parameters: dict[str, Any] | None = None
 
     @property
     def client(self) -> SyncPrefectClient:
@@ -494,7 +504,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
             tags=TagsContext.get().current_tags,
         )
 
-    def call_hooks(self, state: Optional[State] = None):
+    def call_hooks(self, state: Optional[State] = None) -> None:
         if state is None:
             state = self.state
         flow = self.flow
@@ -592,7 +602,9 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
 
             # set the logger to the flow run logger
 
-            self.logger = flow_run_logger(flow_run=self.flow_run, flow=self.flow)
+            self.logger: "logging.Logger" = flow_run_logger(
+                flow_run=self.flow_run, flow=self.flow
+            )  # type: ignore
 
             # update the flow run name if necessary
             if not self._flow_run_name_set and self.flow.flow_run_name:
@@ -760,6 +772,8 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
     """
 
     _client: Optional[PrefectClient] = None
+    parameters: dict[str, Any] | None = None
+    flow_run: FlowRun | None = None
 
     @property
     def client(self) -> PrefectClient:
@@ -1053,7 +1067,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             tags=TagsContext.get().current_tags,
         )
 
-    async def call_hooks(self, state: Optional[State] = None):
+    async def call_hooks(self, state: Optional[State] = None) -> None:
         if state is None:
             state = self.state
         flow = self.flow
@@ -1150,7 +1164,9 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             stack.enter_context(ConcurrencyContext())
 
             # set the logger to the flow run logger
-            self.logger = flow_run_logger(flow_run=self.flow_run, flow=self.flow)
+            self.logger: "logging.Logger" = flow_run_logger(
+                flow_run=self.flow_run, flow=self.flow
+            )
 
             # update the flow run name if necessary
 
@@ -1312,7 +1328,7 @@ def run_flow_sync(
     flow: Flow[P, R],
     flow_run: Optional[FlowRun] = None,
     parameters: Optional[Dict[str, Any]] = None,
-    wait_for: Optional[Iterable[PrefectFuture]] = None,
+    wait_for: Optional[Iterable[PrefectFuture[Any]]] = None,
     return_type: Literal["state", "result"] = "result",
 ) -> Union[R, State, None]:
     engine = FlowRunEngine[P, R](
@@ -1334,7 +1350,7 @@ async def run_flow_async(
     flow: Flow[P, R],
     flow_run: Optional[FlowRun] = None,
     parameters: Optional[Dict[str, Any]] = None,
-    wait_for: Optional[Iterable[PrefectFuture]] = None,
+    wait_for: Optional[Iterable[PrefectFuture[Any]]] = None,
     return_type: Literal["state", "result"] = "result",
 ) -> Union[R, State, None]:
     engine = AsyncFlowRunEngine[P, R](
@@ -1353,7 +1369,7 @@ def run_generator_flow_sync(
     flow: Flow[P, R],
     flow_run: Optional[FlowRun] = None,
     parameters: Optional[Dict[str, Any]] = None,
-    wait_for: Optional[Iterable[PrefectFuture]] = None,
+    wait_for: Optional[Iterable[PrefectFuture[Any]]] = None,
     return_type: Literal["state", "result"] = "result",
 ) -> Generator[R, None, None]:
     if return_type != "result":
@@ -1429,25 +1445,36 @@ def run_flow(
     parameters: Optional[Dict[str, Any]] = None,
     wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
     return_type: Literal["state", "result"] = "result",
+    error_logger: Optional[logging.Logger] = None,
 ) -> Union[R, State, None]:
-    kwargs = dict(
-        flow=flow,
-        flow_run=flow_run,
-        parameters=_flow_parameters(
-            flow=flow, flow_run=flow_run, parameters=parameters
-        ),
-        wait_for=wait_for,
-        return_type=return_type,
-    )
+    ret_val: Union[R, State, None] = None
 
-    if flow.isasync and flow.isgenerator:
-        return run_generator_flow_async(**kwargs)
-    elif flow.isgenerator:
-        return run_generator_flow_sync(**kwargs)
-    elif flow.isasync:
-        return run_flow_async(**kwargs)
-    else:
-        return run_flow_sync(**kwargs)
+    try:
+        kwargs: dict[str, Any] = dict(
+            flow=flow,
+            flow_run=flow_run,
+            parameters=_flow_parameters(
+                flow=flow, flow_run=flow_run, parameters=parameters
+            ),
+            wait_for=wait_for,
+            return_type=return_type,
+        )
+
+        if flow.isasync and flow.isgenerator:
+            ret_val = run_generator_flow_async(**kwargs)
+        elif flow.isgenerator:
+            ret_val = run_generator_flow_sync(**kwargs)
+        elif flow.isasync:
+            ret_val = run_flow_async(**kwargs)
+        else:
+            ret_val = run_flow_sync(**kwargs)
+    except:
+        if error_logger:
+            error_logger.error(
+                "Engine execution exited with unexpected exception", exc_info=True
+            )
+        raise
+    return ret_val
 
 
 def _flow_parameters(

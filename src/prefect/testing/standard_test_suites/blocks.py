@@ -14,13 +14,13 @@ class BlockStandardTestSuite(ABC):
     def block(self) -> type[Block]:
         pass
 
-    def test_has_a_description(self, block: type[Block]):
+    def test_has_a_description(self, block: type[Block]) -> None:
         assert block.get_description()
 
-    def test_has_a_documentation_url(self, block: type[Block]):
+    def test_has_a_documentation_url(self, block: type[Block]) -> None:
         assert block._documentation_url
 
-    def test_all_fields_have_a_description(self, block: type[Block]):
+    def test_all_fields_have_a_description(self, block: type[Block]) -> None:
         for name, field in block.model_fields.items():
             if Block.annotation_refers_to_block_class(field.annotation):
                 # TODO: Block field descriptions aren't currently handled by the UI, so
@@ -34,7 +34,7 @@ class BlockStandardTestSuite(ABC):
                 "."
             ), f"{name} description on {block.__name__} does not end with a period"
 
-    def test_has_a_valid_code_example(self, block: type[Block]):
+    def test_has_a_valid_code_example(self, block: type[Block]) -> None:
         code_example = block.get_code_example()
         assert code_example is not None, f"{block.__name__} is missing a code example"
 
@@ -55,12 +55,12 @@ class BlockStandardTestSuite(ABC):
             f" matching the pattern {block_load_pattern}"
         )
 
-    def test_has_a_valid_image(self, block: type[Block]):
+    def test_has_a_valid_image(self, block: type[Block]) -> None:
         logo_url = block._logo_url
         assert (
             logo_url is not None
         ), f"{block.__name__} is missing a value for _logo_url"
-        img = Image.open(urlopen(logo_url))
+        img = Image.open(urlopen(str(logo_url)))
         assert img.width == img.height, "Logo should be a square image"
         assert (
             1000 > img.width > 45

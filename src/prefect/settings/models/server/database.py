@@ -148,12 +148,17 @@ class ServerDatabaseSettings(PrefectBaseSettings):
 
     sqlalchemy_pool_size: Optional[int] = Field(
         default=None,
-        description="Controls connection pool size when using a PostgreSQL database with the Prefect API. If not set, the default SQLAlchemy pool size will be used.",
+        description="Controls connection pool size of database connection pools from the Prefect API. If not set, the default SQLAlchemy pool size will be used.",
         validation_alias=AliasChoices(
             AliasPath("sqlalchemy_pool_size"),
             "prefect_server_database_sqlalchemy_pool_size",
             "prefect_sqlalchemy_pool_size",
         ),
+    )
+
+    connection_app_name: Optional[str] = Field(
+        default=None,
+        description="Controls the application_name field for connections opened from the connection pool when using a PostgreSQL database with the Prefect API.",
     )
 
     sqlalchemy_max_overflow: Optional[int] = Field(
@@ -173,7 +178,9 @@ class ServerDatabaseSettings(PrefectBaseSettings):
         return self
 
 
-def warn_on_database_password_value_without_usage(settings: ServerDatabaseSettings):
+def warn_on_database_password_value_without_usage(
+    settings: ServerDatabaseSettings,
+) -> None:
     """
     Validator for settings warning if the database password is set but not used.
     """

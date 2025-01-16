@@ -9355,7 +9355,10 @@
                         "description": "Successful Response",
                         "content": {
                             "application/json": {
-                                "schema": {}
+                                "schema": {
+                                    "type": "object",
+                                    "title": "Response Validate Obj Ui Schemas Validate Post"
+                                }
                             }
                         }
                     },
@@ -9727,7 +9730,10 @@
                         "description": "Successful Response",
                         "content": {
                             "application/json": {
-                                "schema": {}
+                                "schema": {
+                                    "type": "string",
+                                    "title": "Response Hello Hello Get"
+                                }
                             }
                         }
                     },
@@ -19508,7 +19514,9 @@
                     "pause_keys": {
                         "anyOf": [
                             {
-                                "items": {},
+                                "items": {
+                                    "type": "string"
+                                },
                                 "type": "array",
                                 "uniqueItems": true
                             },
@@ -22592,6 +22600,9 @@
                 "description": "An ORM representation of task run data."
             },
             "TaskRunCount": {
+                "additionalProperties": {
+                    "type": "integer"
+                },
                 "type": "object"
             },
             "TaskRunCreate": {

@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import time
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Union
 
 from opentelemetry import propagate, trace
 from opentelemetry.context import Context
@@ -47,14 +49,14 @@ class RunTelemetry:
     _tracer: "Tracer" = field(
         default_factory=lambda: get_tracer("prefect", prefect.__version__)
     )
-    span: Optional[Span] = None
+    span: Span | None = None
 
     async def async_start_span(
         self,
         run: FlowOrTaskRun,
         client: PrefectClient,
-        parameters: Optional[dict[str, Any]] = None,
-    ):
+        parameters: dict[str, Any] | None = None,
+    ) -> Span:
         traceparent, span = self._start_span(run, parameters)
 
         if self._run_type(run) == "flow" and traceparent:
@@ -70,8 +72,8 @@ class RunTelemetry:
         self,
         run: FlowOrTaskRun,
         client: SyncPrefectClient,
-        parameters: Optional[dict[str, Any]] = None,
-    ):
+        parameters: dict[str, Any] | None = None,
+    ) -> Span:
         traceparent, span = self._start_span(run, parameters)
 
         if self._run_type(run) == "flow" and traceparent:
@@ -84,8 +86,8 @@ class RunTelemetry:
     def _start_span(
         self,
         run: FlowOrTaskRun,
-        parameters: Optional[dict[str, Any]] = None,
-    ) -> tuple[Optional[str], Span]:
+        parameters: dict[str, Any] | None = None,
+    ) -> tuple[str | None, Span]:
         """
         Start a span for a run.
         """
@@ -139,8 +141,8 @@ class RunTelemetry:
         return "task" if isinstance(run, TaskRun) else "flow"
 
     def _trace_context_from_labels(
-        self, labels: Optional[KeyValueLabels]
-    ) -> Optional[Context]:
+        self, labels: KeyValueLabels | None
+    ) -> Context | None:
         """Get trace context from run labels if it exists."""
         if not labels or LABELS_TRACEPARENT_KEY not in labels:
             return None
@@ -148,7 +150,7 @@ class RunTelemetry:
         carrier = {TRACEPARENT_KEY: traceparent}
         return propagate.extract(carrier)
 
-    def _traceparent_from_span(self, span: Span) -> Optional[str]:
+    def _traceparent_from_span(self, span: Span) -> str | None:
         carrier: dict[str, Any] = {}
         propagate.inject(carrier, context=trace.set_span_in_context(span))
         return carrier.get(TRACEPARENT_KEY)
@@ -162,7 +164,7 @@ class RunTelemetry:
             self.span.end(time.time_ns())
             self.span = None
 
-    def end_span_on_failure(self, terminal_message: Optional[str] = None) -> None:
+    def end_span_on_failure(self, terminal_message: str | None = None) -> None:
         """
         End a span for a run on failure.
         """
@@ -203,7 +205,7 @@ class RunTelemetry:
             self.span.update_name(name=name)
             self.span.set_attribute("prefect.run.name", name)
 
-    def _parent_run(self) -> Union[FlowOrTaskRun, None]:
+    def _parent_run(self) -> FlowOrTaskRun | None:
         """
         Identify the "parent run" for the current execution context.
 

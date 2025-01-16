@@ -1,6 +1,7 @@
 """
 Schedule schemas
 """
+from __future__ import annotations
 
 import datetime
 from typing import Annotated, Any, ClassVar, Generator, List, Optional, Tuple, Union
@@ -225,7 +226,7 @@ class CronSchedule(PrefectBaseModel):
 
     @field_validator("cron")
     @classmethod
-    def valid_cron_string(cls, v):
+    def valid_cron_string(cls, v: str) -> str:
         return validate_cron_string(v)
 
     async def get_dates(
@@ -368,11 +369,13 @@ class RRuleSchedule(PrefectBaseModel):
 
     @field_validator("rrule")
     @classmethod
-    def validate_rrule_str(cls, v):
+    def validate_rrule_str(cls, v: str) -> str:
         return validate_rrule_string(v)
 
     @classmethod
-    def from_rrule(cls, rrule: dateutil.rrule.rrule):
+    def from_rrule(
+        cls, rrule: dateutil.rrule.rrule | dateutil.rrule.rruleset
+    ) -> "RRuleSchedule":
         if isinstance(rrule, dateutil.rrule.rrule):
             if rrule._dtstart.tzinfo is not None:
                 timezone = rrule._dtstart.tzinfo.name

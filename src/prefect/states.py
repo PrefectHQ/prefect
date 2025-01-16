@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import datetime
 import sys
@@ -33,12 +35,14 @@ from prefect.utilities.asyncutils import in_async_main_thread, sync_compatible
 from prefect.utilities.collections import ensure_iterable
 
 if TYPE_CHECKING:
+    import logging
+
     from prefect.results import (
         R,
         ResultStore,
     )
 
-logger = get_logger("states")
+logger: "logging.Logger" = get_logger("states")
 
 
 @deprecated.deprecated_parameter(
@@ -245,8 +249,8 @@ async def exception_to_failed_state(
     exc: Optional[BaseException] = None,
     result_store: Optional["ResultStore"] = None,
     write_result: bool = False,
-    **kwargs,
-) -> State:
+    **kwargs: Any,
+) -> State[BaseException]:
     """
     Convenience function for creating `Failed` states from exceptions
     """
@@ -553,17 +557,17 @@ def is_state_iterable(obj: Any) -> TypeGuard[Iterable[State]]:
 
 
 class StateGroup:
-    def __init__(self, states: Iterable[State]) -> None:
-        self.states = states
-        self.type_counts = self._get_type_counts(states)
-        self.total_count = len(states)
-        self.cancelled_count = self.type_counts[StateType.CANCELLED]
-        self.final_count = sum(state.is_final() for state in states)
-        self.not_final_count = self.total_count - self.final_count
-        self.paused_count = self.type_counts[StateType.PAUSED]
+    def __init__(self, states: list[State]) -> None:
+        self.states: list[State] = states
+        self.type_counts: dict[StateType, int] = self._get_type_counts(states)
+        self.total_count: int = len(states)
+        self.cancelled_count: int = self.type_counts[StateType.CANCELLED]
+        self.final_count: int = sum(state.is_final() for state in states)
+        self.not_final_count: int = self.total_count - self.final_count
+        self.paused_count: int = self.type_counts[StateType.PAUSED]
 
     @property
-    def fail_count(self):
+    def fail_count(self) -> int:
         return self.type_counts[StateType.FAILED] + self.type_counts[StateType.CRASHED]
 
     def all_completed(self) -> bool:
@@ -741,7 +745,7 @@ def Suspended(
     pause_expiration_time: Optional[datetime.datetime] = None,
     pause_key: Optional[str] = None,
     **kwargs: Any,
-):
+) -> "State[R]":
     """Convenience function for creating `Suspended` states.
 
     Returns:

@@ -1,11 +1,12 @@
 """
 Utilities for injecting FastAPI dependencies.
 """
+from __future__ import annotations
 
 import logging
 import re
 from base64 import b64decode
-from typing import Annotated, Optional
+from typing import Annotated, Any, Optional
 from uuid import UUID
 
 from fastapi import Body, Depends, Header, HTTPException, status
@@ -16,13 +17,15 @@ from prefect.server import schemas
 from prefect.settings import PREFECT_API_DEFAULT_LIMIT
 
 
-def provide_request_api_version(x_prefect_api_version: str = Header(None)):
+def provide_request_api_version(
+    x_prefect_api_version: str = Header(None),
+) -> Version | None:
     if not x_prefect_api_version:
         return
 
     # parse version
     try:
-        major, minor, patch = [int(v) for v in x_prefect_api_version.split(".")]
+        _, _, _ = [int(v) for v in x_prefect_api_version.split(".")]
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -46,15 +49,15 @@ class EnforceMinimumAPIVersion:
     def __init__(self, minimum_api_version: str, logger: logging.Logger):
         self.minimum_api_version = minimum_api_version
         versions = [int(v) for v in minimum_api_version.split(".")]
-        self.api_major = versions[0]
-        self.api_minor = versions[1]
-        self.api_patch = versions[2]
+        self.api_major: int = versions[0]
+        self.api_minor: int = versions[1]
+        self.api_patch: int = versions[2]
         self.logger = logger
 
     async def __call__(
         self,
         x_prefect_api_version: str = Header(None),
-    ):
+    ) -> None:
         request_version = x_prefect_api_version
 
         # if no version header, assume latest and continue
@@ -96,7 +99,7 @@ class EnforceMinimumAPIVersion:
         )
 
 
-def LimitBody() -> Depends:
+def LimitBody() -> Any:
     """
     A `fastapi.Depends` factory for pulling a `limit: int` parameter from the
     request body while determining the default from the current settings.
@@ -163,7 +166,7 @@ def get_updated_by(
     return None
 
 
-def is_ephemeral_request(request: Request):
+def is_ephemeral_request(request: Request) -> bool:
     """
     A dependency that returns whether the request is to an ephemeral server.
     """

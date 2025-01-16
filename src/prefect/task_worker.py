@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import inspect
 import os
@@ -16,12 +18,12 @@ import pendulum
 import uvicorn
 from exceptiongroup import BaseExceptionGroup  # novermin
 from fastapi import FastAPI
-from typing_extensions import ParamSpec, TypeVar
+from typing_extensions import ParamSpec, Self, TypeVar
 from websockets.exceptions import InvalidStatusCode
 
 from prefect import Task
 from prefect._internal.concurrency.api import create_call, from_sync
-from prefect.cache_policies import DEFAULT, NONE
+from prefect.cache_policies import DEFAULT, NO_CACHE
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import TaskRun
 from prefect.client.subscriptions import Subscription
@@ -42,7 +44,10 @@ from prefect.utilities.processutils import (
 from prefect.utilities.services import start_client_metrics_server
 from prefect.utilities.urls import url_for
 
-logger = get_logger("task_worker")
+if TYPE_CHECKING:
+    import logging
+
+logger: "logging.Logger" = get_logger("task_worker")
 
 P = ParamSpec("P")
 R = TypeVar("R", infer_variance=True)
@@ -85,7 +90,7 @@ class TaskWorker:
     def __init__(
         self,
         *tasks: Task[P, R],
-        limit: Optional[int] = 10,
+        limit: int | None = 10,
     ):
         self.tasks: list["Task[..., Any]"] = []
         for t in tasks:
@@ -93,14 +98,14 @@ class TaskWorker:
                 if not isinstance(t, Task):
                     continue
 
-            if t.cache_policy in [None, NONE, NotSet]:
+            if t.cache_policy in [None, NO_CACHE, NotSet]:
                 self.tasks.append(
                     t.with_options(persist_result=True, cache_policy=DEFAULT)
                 )
             else:
                 self.tasks.append(t.with_options(persist_result=True))
 
-        self.task_keys = set(t.task_key for t in tasks if isinstance(t, Task))  # pyright: ignore[reportUnnecessaryIsInstance]
+        self.task_keys: set[str] = set(t.task_key for t in tasks if isinstance(t, Task))  # pyright: ignore[reportUnnecessaryIsInstance]
 
         self._started_at: Optional[pendulum.DateTime] = None
         self.stopping: bool = False
@@ -154,7 +159,7 @@ class TaskWorker:
     def available_tasks(self) -> Optional[int]:
         return int(self._limiter.available_tokens) if self._limiter else None
 
-    def handle_sigterm(self, signum: int, frame: object):
+    def handle_sigterm(self, signum: int, frame: object) -> None:
         """
         Shuts down the task worker when a SIGTERM is received.
         """
@@ -355,14 +360,14 @@ class TaskWorker:
             )
             await asyncio.wrap_future(future)
 
-    async def execute_task_run(self, task_run: TaskRun):
+    async def execute_task_run(self, task_run: TaskRun) -> None:
         """Execute a task run in the task worker."""
         async with self if not self.started else asyncnullcontext():
             token_acquired = await self._acquire_token(task_run.id)
             if token_acquired:
                 await self._safe_submit_scheduled_task_run(task_run)
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> Self:
         logger.debug("Starting task worker...")
 
         if self._client._closed:  # pyright: ignore[reportPrivateUsage]

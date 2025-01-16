@@ -26,6 +26,7 @@ from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_TIMEOUT,
     PREFECT_API_DATABASE_ECHO,
     PREFECT_API_DATABASE_TIMEOUT,
+    PREFECT_SERVER_DATABASE_CONNECTION_APP_NAME,
     PREFECT_SQLALCHEMY_MAX_OVERFLOW,
     PREFECT_SQLALCHEMY_POOL_SIZE,
     PREFECT_TESTING_UNIT_TEST_MODE,
@@ -121,6 +122,7 @@ class BaseDatabaseConfiguration(ABC):
         connection_timeout: Optional[float] = None,
         sqlalchemy_pool_size: Optional[int] = None,
         sqlalchemy_max_overflow: Optional[int] = None,
+        connection_app_name: Optional[str] = None,
     ) -> None:
         self.connection_url = connection_url
         self.echo: bool = echo or PREFECT_API_DATABASE_ECHO.value()
@@ -133,6 +135,9 @@ class BaseDatabaseConfiguration(ABC):
         )
         self.sqlalchemy_max_overflow: Optional[int] = (
             sqlalchemy_max_overflow or PREFECT_SQLALCHEMY_MAX_OVERFLOW.value()
+        )
+        self.connection_app_name: Optional[str] = (
+            connection_app_name or PREFECT_SERVER_DATABASE_CONNECTION_APP_NAME.value()
         )
 
     def unique_key(self) -> tuple[Hashable, ...]:
@@ -209,6 +214,11 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
 
             if self.connection_timeout is not None:
                 connect_args["timeout"] = self.connection_timeout
+
+            if self.connection_app_name is not None:
+                connect_args["server_settings"] = dict(
+                    application_name=self.connection_app_name
+                )
 
             if connect_args:
                 kwargs["connect_args"] = connect_args
@@ -336,6 +346,12 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
             # apply database timeout
             if self.timeout is not None:
                 kwargs["connect_args"] = dict(timeout=self.timeout)
+
+            if self.sqlalchemy_pool_size is not None:
+                kwargs["pool_size"] = self.sqlalchemy_pool_size
+
+            if self.sqlalchemy_max_overflow is not None:
+                kwargs["max_overflow"] = self.sqlalchemy_max_overflow
 
             # use `named` paramstyle for sqlite instead of `qmark` in very rare
             # circumstances, we've seen aiosqlite pass parameters in the wrong

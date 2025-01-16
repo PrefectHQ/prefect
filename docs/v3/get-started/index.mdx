@@ -2,31 +2,28 @@
 title: Introduction
 sidebarTitle: Introduction
 ---
-## What is Prefect?
 Prefect is an open-source orchestration engine that turns your Python functions into production-grade data pipelines with minimal friction. You can build and schedule workflows in pure Python—no DSLs or complex config files—and run them anywhere. Prefect handles the heavy lifting for you out of the box: automatic state tracking, failure handling, real-time monitoring, and more.
 
-**Under the hood**, Prefect manages scheduling and execution details so you can focus on writing clean, maintainable Python code instead of juggling infrastructure. Whether you’re a data engineer or part of a broader team, Prefect makes it simple to move from idea to production-ready workflows—fast.
+**Why?** In 2018, we set out to solve a problem many of you know too well: orchestrating data workflows shouldn’t feel like pulling teeth (e.g. writing DAGs in YAML). Prefect was designed to handle the challenges that tools like Airflow struggled with: dynamic workflows, modern infrastructure, and the complexity of today’s data pipelines. Since then, it’s become a go-to tool for everyone from startups to Fortune 100 companies. Prefect helps you ship production-ready workflows without the headaches, so you can spend more time building and less time debugging.
 
-## Main features
+### Essential features
 <div className="t-full-width">
 | Feature | Description |
 |---------|-------------|
-| **Pure Python Development** | Write workflows in native Python—no DSLs, YAML, or special syntax. Full support for type hints, async/await, and modern Python patterns. Use your existing IDE, debugger, and testing tools. |
+| **Pythonic** | Write workflows in native Python—no DSLs, YAML, or special syntax. Full support for type hints, async/await, and modern Python patterns. Use your existing IDE, debugger, and testing tools. |
 | **State & Recovery** | Robust state management that tracks success, failure, and retry states. Resume interrupted runs from the last successful point, and cache expensive computations to avoid unnecessary rework. |
 | **Flexible & Portable Execution** | Start flows locally for easy development, then deploy them anywhere—from a single process to containers, Kubernetes, or cloud services—without locking into a vendor. Infrastructure is defined by code (not just configuration), making it simple to scale or change environments. |
 | **Event-Driven** | Trigger flows on schedules, external events, or via API. Pause flows for human intervention or approval. Chain flows together based on states, conditions, or any custom logic. |
 | **Dynamic Runtime** | Create tasks dynamically at runtime based on actual data or conditions. Easily spawn new tasks and branches during execution for truly data-driven workflows. |
 | **Modern UI** | Real-time flow run monitoring, logging, and state tracking through an intuitive interface. View dependency graphs and DAGs automatically—just run your flow and open the UI. |
 | **CI/CD First** | Test and simulate flows like normal Python code, giving you fast feedback during development. Integrate seamlessly into your existing CI/CD pipeline for automated testing and deployment. |
-| **Actually open source** | Host the Prefect orchestration server yourself using containers, Kubernetes, or infrastructure-as-code—or let us handle server operations with our fully managed cloud service. Keep your workflow infrastructure wherever it belongs while choosing the orchestration model that fits your needs. |
 </div>
-
 
 ## Get started
 
 <CardGroup cols={3}>
   <Card title="Quickstart" icon="play" href="/v3/get-started/quickstart">
-    In five minutes, create your first deployable workflow tracked with Prefect.
+    Quickly create your first deployable workflow tracked by Prefect.
   </Card>
   <Card title="Prefect Cloud" icon="cloud" href="/v3/manage/cloud/index">
     Supercharge Prefect with enhanced governance, security, and performance capabilities.

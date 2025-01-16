@@ -13,8 +13,10 @@ export const TaskRunConcurrencyLimitDetails = ({
 }: TaskRunConcurrencyLimitDetailsProps) => {
 	return (
 		<div className="flex flex-col gap-4">
-			<dt className="text-muted-foreground">Tag</dt>
-			<dd className="text-sm font-medium leading-none">{data.tag}</dd>
+			<dl className="flex flex-col gap-2">
+				<dt className="text-muted-foreground">Tag</dt>
+				<dd className="text-sm font-medium leading-none">{data.tag}</dd>
+			</dl>
 			<hr />
 			<dl className="flex flex-col gap-2">
 				{getKeyValueList(data).map((d) => (

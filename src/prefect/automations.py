@@ -137,7 +137,7 @@ class Automation(AutomationCore):
             self.id = client.create_automation(automation=automation)
             return self
 
-    async def aupdate(self: Self):
+    async def aupdate(self: Self) -> None:
         """
         Updates an existing automation.
 

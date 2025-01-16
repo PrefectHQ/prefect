@@ -171,6 +171,7 @@ def _as_resource_data(
                 "name": work_pool.name,
                 "tags": [],
                 "role": "work-pool",
+                "type": work_pool.type,
             }
             if work_pool
             else {}
@@ -204,13 +205,16 @@ def _resource_data_as_related_resources(
         if kind in excluded_kinds or not data:
             continue
 
-        related.append(
-            {
-                "prefect.resource.id": f"prefect.{kind}.{data['id']}",
-                "prefect.resource.role": data["role"],
-                "prefect.resource.name": data["name"],
-            }
-        )
+        related_resource = {
+            "prefect.resource.id": f"prefect.{kind}.{data['id']}",
+            "prefect.resource.role": data["role"],
+            "prefect.resource.name": data["name"],
+        }
+
+        if kind == "work-pool":
+            related_resource["prefect.work-pool.type"] = data["type"]
+
+        related.append(related_resource)
 
     related += [
         {

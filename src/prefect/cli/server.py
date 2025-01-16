@@ -1,19 +1,28 @@
 """
-Command line interface for working with Prefect
+Command line interface for working with the Prefect API and server.
 """
 
-import logging
+from __future__ import annotations
+
+import asyncio
+import inspect
 import os
 import shlex
+import signal
 import socket
+import subprocess
 import sys
 import textwrap
+from pathlib import Path
+from types import ModuleType
+from typing import TYPE_CHECKING
 
-import anyio
-import anyio.abc
 import typer
+import uvicorn
+from rich.table import Table
 
 import prefect
+import prefect.settings
 from prefect.cli._prompts import prompt
 from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli._utilities import exit_with_error, exit_with_success
@@ -37,32 +46,39 @@ from prefect.settings import (
     save_profiles,
     update_current_profile,
 )
+from prefect.settings.context import temporary_settings
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
-from prefect.utilities.processutils import (
-    consume_process_output,
-    setup_signal_handlers_server,
-)
 
-server_app = PrefectTyper(
+if TYPE_CHECKING:
+    import logging
+
+server_app: PrefectTyper = PrefectTyper(
     name="server",
     help="Start a Prefect server instance and interact with the database",
 )
-database_app = PrefectTyper(name="database", help="Interact with the database.")
+database_app: PrefectTyper = PrefectTyper(
+    name="database", help="Interact with the database."
+)
+services_app: PrefectTyper = PrefectTyper(
+    name="services", help="Interact with server loop services."
+)
 server_app.add_typer(database_app)
+server_app.add_typer(services_app)
 app.add_typer(server_app)
 
-logger = get_logger(__name__)
+logger: "logging.Logger" = get_logger(__name__)
 
-PID_FILE = "server.pid"
+SERVER_PID_FILE_NAME = "server.pid"
+SERVICES_PID_FILE = Path(PREFECT_HOME.value()) / "services.pid"
 
 
-def generate_welcome_blurb(base_url, ui_enabled: bool):
+def generate_welcome_blurb(base_url: str, ui_enabled: bool) -> str:
     blurb = textwrap.dedent(
         r"""
-         ___ ___ ___ ___ ___ ___ _____ 
-        | _ \ _ \ __| __| __/ __|_   _| 
-        |  _/   / _|| _|| _| (__  | |  
-        |_| |_|_\___|_| |___\___| |_|  
+         ___ ___ ___ ___ ___ ___ _____
+        | _ \ _ \ __| __| __/ __|_   _|
+        |  _/   / _|| _|| _| (__  | |
+        |_| |_|_\___|_| |___\___| |_|
 
         Configure Prefect to communicate with the server with:
 
@@ -101,7 +117,7 @@ def generate_welcome_blurb(base_url, ui_enabled: bool):
     return blurb
 
 
-def prestart_check(base_url: str):
+def prestart_check(base_url: str) -> None:
     """
     Check if `PREFECT_API_URL` is set in the current profile. If not, prompt the user to set it.
 
@@ -200,7 +216,7 @@ def prestart_check(base_url: str):
 
 
 @server_app.command()
-async def start(
+def start(
     host: str = SettingsOption(PREFECT_SERVER_API_HOST),
     port: int = SettingsOption(PREFECT_SERVER_API_PORT),
     keep_alive_timeout: int = SettingsOption(PREFECT_SERVER_API_KEEPALIVE_TIMEOUT),
@@ -211,6 +227,9 @@ async def start(
     ),
     late_runs: bool = SettingsOption(PREFECT_API_SERVICES_LATE_RUNS_ENABLED),
     ui: bool = SettingsOption(PREFECT_UI_ENABLED),
+    no_services: bool = typer.Option(
+        False, "--no-services", help="Only run the webserver API and UI"
+    ),
     background: bool = typer.Option(
         False, "--background", "-b", help="Run the server in the background"
     ),
@@ -225,21 +244,25 @@ async def start(
         except Exception:
             pass
 
-    server_env = os.environ.copy()
-    server_env["PREFECT_API_SERVICES_SCHEDULER_ENABLED"] = str(scheduler)
-    server_env["PREFECT_SERVER_ANALYTICS_ENABLED"] = str(analytics)
-    server_env["PREFECT_API_SERVICES_LATE_RUNS_ENABLED"] = str(late_runs)
-    server_env["PREFECT_API_SERVICES_UI"] = str(ui)
-    server_env["PREFECT_UI_ENABLED"] = str(ui)
-    server_env["PREFECT_SERVER_LOGGING_LEVEL"] = log_level
+    server_settings = {
+        "PREFECT_API_SERVICES_SCHEDULER_ENABLED": str(scheduler),
+        "PREFECT_SERVER_ANALYTICS_ENABLED": str(analytics),
+        "PREFECT_API_SERVICES_LATE_RUNS_ENABLED": str(late_runs),
+        "PREFECT_UI_ENABLED": str(ui),
+        "PREFECT_SERVER_LOGGING_LEVEL": log_level,
+    }
 
-    pid_file = anyio.Path(PREFECT_HOME.value() / PID_FILE)
+    if no_services:
+        server_settings["PREFECT_SERVER_ANALYTICS_ENABLED"] = "False"
+
+    pid_file = Path(PREFECT_HOME.value()) / SERVER_PID_FILE_NAME
     # check if port is already in use
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             s.bind((host, port))
     except socket.error:
-        if await pid_file.exists():
+        if pid_file.exists():
             exit_with_error(
                 f"A background server process is already running on port {port}. "
                 "Run `prefect server stop` to stop it or specify a different port "
@@ -253,7 +276,7 @@ async def start(
     # check if server is already running in the background
     if background:
         try:
-            await pid_file.touch(mode=0o600, exist_ok=False)
+            pid_file.touch(mode=0o600, exist_ok=False)
         except FileExistsError:
             exit_with_error(
                 "A server is already running in the background. To stop it,"
@@ -263,69 +286,92 @@ async def start(
     app.console.print(generate_welcome_blurb(base_url, ui_enabled=ui))
     app.console.print("\n")
 
-    try:
-        command = [
-            sys.executable,
-            "-m",
-            "uvicorn",
-            "--app-dir",
-            str(prefect.__module_path__.parent),
-            "--factory",
-            "prefect.server.api.server:create_app",
-            "--host",
-            str(host),
-            "--port",
-            str(port),
-            "--timeout-keep-alive",
-            str(keep_alive_timeout),
-        ]
-        logger.debug("Opening server process with command: %s", shlex.join(command))
-        process = await anyio.open_process(
-            command=command,
-            env=server_env,
+    if background:
+        _run_in_background(
+            pid_file, server_settings, host, port, keep_alive_timeout, no_services
+        )
+    else:
+        _run_in_foreground(
+            pid_file, server_settings, host, port, keep_alive_timeout, no_services
         )
 
-        process_id = process.pid
-        if background:
-            await pid_file.write_text(str(process_id))
 
-            app.console.print(
-                "The Prefect server is running in the background. Run `prefect"
-                " server stop` to stop it."
-            )
-            return
+def _run_in_background(
+    pid_file: Path,
+    server_settings: dict[str, str],
+    host: str,
+    port: int,
+    keep_alive_timeout: int,
+    no_services: bool,
+) -> None:
+    command = [
+        sys.executable,
+        "-m",
+        "uvicorn",
+        "--app-dir",
+        str(prefect.__module_path__.parent),
+        "--factory",
+        "prefect.server.api.server:create_app",
+        "--host",
+        str(host),
+        "--port",
+        str(port),
+        "--timeout-keep-alive",
+        str(keep_alive_timeout),
+    ]
+    logger.debug("Opening server process with command: %s", shlex.join(command))
 
-        async with process:
-            # Explicitly handle the interrupt signal here, as it will allow us to
-            # cleanly stop the uvicorn server. Failing to do that may cause a
-            # large amount of anyio error traces on the terminal, because the
-            # SIGINT is handled by Typer/Click in this process (the parent process)
-            # and will start shutting down subprocesses:
-            # https://github.com/PrefectHQ/server/issues/2475
+    env = {**os.environ, **server_settings, "PREFECT__SERVER_FINAL": "1"}
+    if no_services:
+        env["PREFECT__SERVER_WEBSERVER_ONLY"] = "1"
 
-            setup_signal_handlers_server(
-                process_id, "the Prefect server", app.console.print
-            )
+    process = subprocess.Popen(
+        command,
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
 
-            await consume_process_output(process, sys.stdout, sys.stderr)
+    process_id = process.pid
+    pid_file.write_text(str(process_id))
 
-    except anyio.EndOfStream:
-        logging.error("Subprocess stream ended unexpectedly")
+    app.console.print(
+        "The Prefect server is running in the background. Run `prefect"
+        " server stop` to stop it."
+    )
 
-    # This should only be reached if the server crashed, or was forcibly terminated,
-    # hence we exit with an error
-    exit_with_error("Server stopped!", code=process.returncode)
+
+def _run_in_foreground(
+    pid_file: Path,
+    server_settings: dict[str, str],
+    host: str,
+    port: int,
+    keep_alive_timeout: int,
+    no_services: bool,
+) -> None:
+    from prefect.server.api.server import create_app
+
+    with temporary_settings(
+        {getattr(prefect.settings, k): v for k, v in server_settings.items()}
+    ):
+        uvicorn.run(
+            app=create_app(final=True, webserver_only=no_services),
+            app_dir=str(prefect.__module_path__.parent),
+            host=host,
+            port=port,
+            timeout_keep_alive=keep_alive_timeout,
+        )
 
 
 @server_app.command()
 async def stop():
     """Stop a Prefect server instance running in the background"""
-    pid_file = anyio.Path(PREFECT_HOME.value() / PID_FILE)
-    if not await pid_file.exists():
+    pid_file = Path(PREFECT_HOME.value()) / SERVER_PID_FILE_NAME
+    if not pid_file.exists():
         exit_with_success("No server running in the background.")
-    pid = int(await pid_file.read_text())
+    pid = int(pid_file.read_text())
     try:
-        os.kill(pid, 15)
+        os.kill(pid, signal.SIGTERM)
     except ProcessLookupError:
         exit_with_success(
             "The server process is not running. Cleaning up stale PID file."
@@ -333,7 +379,7 @@ async def stop():
     finally:
         # The file probably exists, but use `missing_ok` to avoid an
         # error if the file was deleted by another actor
-        await pid_file.unlink(missing_ok=True)
+        pid_file.unlink(missing_ok=True)
     app.console.print("Server stopped!")
 
 
@@ -471,3 +517,281 @@ async def stamp(revision: str):
     app.console.print("Stamping database with revision ...")
     await run_sync_in_worker_thread(alembic_stamp, revision=revision)
     exit_with_success("Stamping database with revision succeeded!")
+
+
+def _get_service_settings() -> dict[str, "prefect.settings.Setting"]:
+    """Get mapping of service names to their enabled/disabled settings."""
+    return {
+        "Telemetry": prefect.settings.PREFECT_SERVER_ANALYTICS_ENABLED,
+        "Scheduler": prefect.settings.PREFECT_API_SERVICES_SCHEDULER_ENABLED,
+        "RecentDeploymentsScheduler": prefect.settings.PREFECT_API_SERVICES_SCHEDULER_ENABLED,
+        "MarkLateRuns": prefect.settings.PREFECT_API_SERVICES_LATE_RUNS_ENABLED,
+        "FailExpiredPauses": prefect.settings.PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED,
+        "CancellationCleanup": prefect.settings.PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED,
+        "FlowRunNotifications": prefect.settings.PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED,
+        "Foreman": prefect.settings.PREFECT_API_SERVICES_FOREMAN_ENABLED,
+        "ReactiveTriggers": prefect.settings.PREFECT_API_SERVICES_TRIGGERS_ENABLED,
+        "ProactiveTriggers": prefect.settings.PREFECT_API_SERVICES_TRIGGERS_ENABLED,
+        "Actions": prefect.settings.PREFECT_API_SERVICES_TRIGGERS_ENABLED,
+    }
+
+
+def _get_service_modules() -> list[ModuleType]:
+    """Get list of modules containing service implementations."""
+    from prefect.server.events.services import triggers
+    from prefect.server.services import (
+        cancellation_cleanup,
+        flow_run_notifications,
+        foreman,
+        late_runs,
+        pause_expirations,
+        scheduler,
+        task_run_recorder,
+        telemetry,
+    )
+
+    return [
+        cancellation_cleanup,
+        flow_run_notifications,
+        foreman,
+        late_runs,
+        pause_expirations,
+        scheduler,
+        task_run_recorder,
+        telemetry,
+        triggers,
+    ]
+
+
+def _discover_service_classes() -> (
+    list[type["prefect.server.services.loop_service.LoopService"]]
+):
+    """Discover all available service classes."""
+    from prefect.server.services.loop_service import LoopService
+
+    discovered: list[type[LoopService]] = []
+    for module in _get_service_modules():
+        for _, obj in inspect.getmembers(module):
+            if (
+                inspect.isclass(obj)
+                and issubclass(obj, LoopService)
+                and obj != LoopService
+            ):
+                discovered.append(obj)
+    return discovered
+
+
+def _get_enabled_services() -> (
+    list[type["prefect.server.services.loop_service.LoopService"]]
+):
+    """Get list of enabled service classes."""
+    service_settings = _get_service_settings()
+    return [
+        svc
+        for svc in _discover_service_classes()
+        if service_settings.get(svc.__name__, False).value()  # type: ignore
+    ]
+
+
+async def _run_services(
+    service_classes: list[type["prefect.server.services.loop_service.LoopService"]],
+):
+    """Run the given service classes until cancelled."""
+    services = [cls() for cls in service_classes]
+    tasks: list[
+        tuple[
+            asyncio.Task[None], type["prefect.server.services.loop_service.LoopService"]
+        ]
+    ] = []
+
+    for service in services:
+        task = asyncio.create_task(service.start())
+        tasks.append((task, service))
+        logger.debug(f"Started service: {service.name}")
+
+    try:
+        await asyncio.gather(*(t for t, _ in tasks))
+    except asyncio.CancelledError:
+        logger.info("Received cancellation, stopping services...")
+        for task, service in tasks:
+            task.cancel()
+            logger.debug(f"Stopped service: {service.name}")
+        await asyncio.gather(*(t for t, _ in tasks), return_exceptions=True)
+
+
+def _is_process_running(pid: int) -> bool:
+    """Check if a process is running by attempting to send signal 0."""
+    try:
+        os.kill(pid, 0)
+        return True
+    except (ProcessLookupError, OSError):
+        return False
+
+
+def _read_pid_file(path: Path) -> int | None:
+    """Read and validate a PID from a file."""
+    try:
+        return int(path.read_text())
+    except (ValueError, OSError, FileNotFoundError):
+        return None
+
+
+def _write_pid_file(path: Path, pid: int) -> None:
+    """Write a PID to a file, creating parent directories if needed."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(str(pid))
+
+
+def _cleanup_pid_file(path: Path) -> None:
+    """Remove PID file and try to cleanup empty parent directory."""
+    path.unlink(missing_ok=True)
+    try:
+        path.parent.rmdir()
+    except OSError:
+        pass
+
+
+# this is a hidden command used by the `prefect server services start --background` command
+@services_app.command(hidden=True, name="manager")
+def run_manager_process():
+    """
+    This is an internal entrypoint used by `prefect server services start --background`.
+    Users do not call this directly.
+
+    We do everything in sync so that the child won't exit until the user kills it.
+    """
+    if not (enabled_services := _get_enabled_services()):
+        logger.error("No services are enabled! Exiting manager.")
+        sys.exit(1)
+
+    logger.debug("Manager process started. Starting services...")
+    try:
+        asyncio.run(_run_services(enabled_services))
+    except KeyboardInterrupt:
+        pass
+    finally:
+        logger.debug("Manager process has exited.")
+
+
+# public, user-facing `prefect server services` commands
+@services_app.command(aliases=["ls"])
+def list_services():
+    """List all available services and their status."""
+    service_settings = _get_service_settings()
+    table = Table(title="Available Services", expand=True)
+    table.add_column("Name", style="blue", no_wrap=True)
+    table.add_column("Enabled?", style="green", no_wrap=True)
+    table.add_column("Description", style="cyan", no_wrap=False)
+
+    for svc in _discover_service_classes():
+        name = svc.__name__
+        setting = service_settings.get(name, False)
+        is_enabled = setting.value() if setting else False  # type: ignore
+        assert isinstance(is_enabled, bool), "Setting value is not a boolean"
+
+        doc = inspect.getdoc(svc) or ""
+        description = doc.split("\n", 1)[0].strip()
+        table.add_row(name, str(is_enabled), description)
+
+    app.console.print(table)
+
+
+@services_app.command(aliases=["start"])
+def start_services(
+    background: bool = typer.Option(
+        False, "--background", "-b", help="Run the services in the background"
+    ),
+):
+    """Start all enabled Prefect services in one process."""
+    SERVICES_PID_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+    if SERVICES_PID_FILE.exists():
+        pid = _read_pid_file(SERVICES_PID_FILE)
+        if pid is not None and _is_process_running(pid):
+            app.console.print(
+                "\n[yellow]Services are already running in the background.[/]"
+                "\n[blue]Use[/] [yellow]`prefect server services stop`[/] [blue]to stop them.[/]"
+            )
+            raise typer.Exit(code=1)
+        else:
+            # Stale or invalid file
+            _cleanup_pid_file(SERVICES_PID_FILE)
+
+    if not (enabled_services := _get_enabled_services()):
+        app.console.print("[red]No services are enabled![/]")
+        raise typer.Exit(code=1)
+
+    if not background:
+        app.console.print("\n[blue]Starting services... Press CTRL+C to stop[/]\n")
+        try:
+            asyncio.run(_run_services(enabled_services))
+        except KeyboardInterrupt:
+            pass
+        app.console.print("\n[green]All services stopped.[/]")
+        return
+
+    for service in enabled_services:
+        app.console.print(f"Starting service: [yellow]{service.__name__}[/]")
+
+    process = subprocess.Popen(
+        [
+            "prefect",
+            "server",
+            "services",
+            "manager",
+        ],
+        env=os.environ.copy(),
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=(False if os.name == "nt" else True),  # POSIX-only
+        creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0,
+    )
+
+    if process.poll() is not None:
+        app.console.print("[red]Failed to start services in the background![/]")
+        raise typer.Exit(code=1)
+
+    _write_pid_file(SERVICES_PID_FILE, process.pid)
+    app.console.print(
+        "\n[green]Services are running in the background.[/]"
+        "\n[blue]Use[/] [yellow]`prefect server services stop`[/] [blue]to stop them.[/]"
+    )
+
+
+@services_app.command(aliases=["stop"])
+async def stop_services():
+    """Stop any background Prefect services that were started."""
+
+    if not SERVICES_PID_FILE.exists():
+        app.console.print("No services are running in the background.")
+        raise typer.Exit()
+
+    if (pid := _read_pid_file(SERVICES_PID_FILE)) is None:
+        _cleanup_pid_file(SERVICES_PID_FILE)
+        app.console.print("No valid PID file found.")
+        raise typer.Exit()
+
+    if not _is_process_running(pid):
+        app.console.print("[yellow]Services were not running[/]")
+        _cleanup_pid_file(SERVICES_PID_FILE)
+        return
+
+    app.console.print("\n[yellow]Shutting down...[/]")
+    try:
+        if os.name == "nt":
+            # On Windows, send Ctrl+C to the process group
+            os.kill(pid, signal.CTRL_C_EVENT)
+        else:
+            # On Unix, send SIGTERM
+            os.kill(pid, signal.SIGTERM)
+    except (ProcessLookupError, OSError):
+        pass
+
+    for _ in range(5):
+        if not _is_process_running(pid):
+            app.console.print("[dim]✓ Services stopped[/]")
+            break
+        await asyncio.sleep(1)
+
+    _cleanup_pid_file(SERVICES_PID_FILE)
+    app.console.print("\n[green]All services stopped.[/]")

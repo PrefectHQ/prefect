@@ -2,13 +2,25 @@ import abc
 from contextlib import asynccontextmanager, AbstractAsyncContextManager
 from dataclasses import dataclass
 import importlib
-from typing import Any, Callable, Optional, Protocol, TypeVar, Union, runtime_checkable
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Optional,
+    Protocol,
+    TypeVar,
+    Union,
+    runtime_checkable,
+)
 from collections.abc import AsyncGenerator, Awaitable, Iterable, Mapping
 
 from prefect.settings import PREFECT_MESSAGING_CACHE, PREFECT_MESSAGING_BROKER
 from prefect.logging import get_logger
 
-logger = get_logger(__name__)
+if TYPE_CHECKING:
+    import logging
+
+logger: "logging.Logger" = get_logger(__name__)
 
 
 M = TypeVar("M", bound="Message", covariant=True)
@@ -77,13 +89,13 @@ class CapturingPublisher(Publisher):
         deduplicate_by: Optional[str] = None,
     ) -> None:
         self.topic = topic
-        self.cache = cache or create_cache()
+        self.cache: Cache = cache or create_cache()
         self.deduplicate_by = deduplicate_by
 
     async def __aexit__(self, *args: Any) -> None:
         pass
 
-    async def publish_data(self, data: bytes, attributes: Mapping[str, str]):
+    async def publish_data(self, data: bytes, attributes: Mapping[str, str]) -> None:
         to_publish = [CapturedMessage(data, attributes)]
 
         if self.deduplicate_by:

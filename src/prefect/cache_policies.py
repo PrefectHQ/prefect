@@ -2,7 +2,7 @@ import inspect
 from copy import deepcopy
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Literal, Optional, Union
 
 from typing_extensions import Self
 
@@ -73,8 +73,8 @@ class CachePolicy:
     def compute_key(
         self,
         task_ctx: TaskRunContext,
-        inputs: Dict[str, Any],
-        flow_parameters: Dict[str, Any],
+        inputs: dict[str, Any],
+        flow_parameters: dict[str, Any],
         **kwargs: Any,
     ) -> Optional[str]:
         raise NotImplementedError
@@ -132,14 +132,14 @@ class CacheKeyFnPolicy(CachePolicy):
 
     # making it optional for tests
     cache_key_fn: Optional[
-        Callable[["TaskRunContext", Dict[str, Any]], Optional[str]]
+        Callable[["TaskRunContext", dict[str, Any]], Optional[str]]
     ] = None
 
     def compute_key(
         self,
         task_ctx: TaskRunContext,
-        inputs: Dict[str, Any],
-        flow_parameters: Dict[str, Any],
+        inputs: dict[str, Any],
+        flow_parameters: dict[str, Any],
         **kwargs: Any,
     ) -> Optional[str]:
         if self.cache_key_fn:
@@ -155,13 +155,13 @@ class CompoundCachePolicy(CachePolicy):
     Any keys that return `None` will be ignored.
     """
 
-    policies: List[CachePolicy] = field(default_factory=list)
+    policies: list[CachePolicy] = field(default_factory=list)
 
     def compute_key(
         self,
         task_ctx: TaskRunContext,
-        inputs: Dict[str, Any],
-        flow_parameters: Dict[str, Any],
+        inputs: dict[str, Any],
+        flow_parameters: dict[str, Any],
         **kwargs: Any,
     ) -> Optional[str]:
         keys: list[str] = []
@@ -183,14 +183,14 @@ class CompoundCachePolicy(CachePolicy):
 class _None(CachePolicy):
     """
     Policy that always returns `None` for the computed cache key.
-    This policy prevents persistence.
+    This policy prevents persistence and avoids caching entirely.
     """
 
     def compute_key(
         self,
         task_ctx: TaskRunContext,
-        inputs: Dict[str, Any],
-        flow_parameters: Dict[str, Any],
+        inputs: dict[str, Any],
+        flow_parameters: dict[str, Any],
         **kwargs: Any,
     ) -> Optional[str]:
         return None
@@ -209,8 +209,8 @@ class TaskSource(CachePolicy):
     def compute_key(
         self,
         task_ctx: TaskRunContext,
-        inputs: Optional[Dict[str, Any]],
-        flow_parameters: Optional[Dict[str, Any]],
+        inputs: Optional[dict[str, Any]],
+        flow_parameters: Optional[dict[str, Any]],
         **kwargs: Any,
     ) -> Optional[str]:
         if not task_ctx:
@@ -236,8 +236,8 @@ class FlowParameters(CachePolicy):
     def compute_key(
         self,
         task_ctx: TaskRunContext,
-        inputs: Dict[str, Any],
-        flow_parameters: Dict[str, Any],
+        inputs: dict[str, Any],
+        flow_parameters: dict[str, Any],
         **kwargs: Any,
     ) -> Optional[str]:
         if not flow_parameters:
@@ -255,8 +255,8 @@ class RunId(CachePolicy):
     def compute_key(
         self,
         task_ctx: TaskRunContext,
-        inputs: Dict[str, Any],
-        flow_parameters: Dict[str, Any],
+        inputs: dict[str, Any],
+        flow_parameters: dict[str, Any],
         **kwargs: Any,
     ) -> Optional[str]:
         if not task_ctx:
@@ -273,13 +273,13 @@ class Inputs(CachePolicy):
     Policy that computes a cache key based on a hash of the runtime inputs provided to the task..
     """
 
-    exclude: List[str] = field(default_factory=list)
+    exclude: list[str] = field(default_factory=list)
 
     def compute_key(
         self,
         task_ctx: TaskRunContext,
-        inputs: Dict[str, Any],
-        flow_parameters: Dict[str, Any],
+        inputs: dict[str, Any],
+        flow_parameters: dict[str, Any],
         **kwargs: Any,
     ) -> Optional[str]:
         hashed_inputs = {}
@@ -302,7 +302,7 @@ class Inputs(CachePolicy):
                 "like locks, file handles, or other system resources.\n\n"
                 "To resolve this, you can:\n"
                 "  1. Exclude these arguments by defining a custom `cache_key_fn`\n"
-                "  2. Disable caching by passing `cache_policy=NONE`\n"
+                "  2. Disable caching by passing `cache_policy=NO_CACHE`\n"
             )
             raise ValueError(msg) from exc
 
@@ -314,6 +314,7 @@ class Inputs(CachePolicy):
 
 INPUTS = Inputs()
 NONE = _None()
+NO_CACHE = _None()
 TASK_SOURCE = TaskSource()
 FLOW_PARAMETERS = FlowParameters()
 RUN_ID = RunId()

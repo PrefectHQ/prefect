@@ -5,7 +5,7 @@ from prefect.utilities.collections import visit_collection
 from prefect.utilities.names import obfuscate
 
 
-def redact_substr(obj: Any, substr: str):
+def redact_substr(obj: Any, substr: str) -> Any:
     """
     Redact a string from a potentially nested object.
 
@@ -17,7 +17,7 @@ def redact_substr(obj: Any, substr: str):
         Any: The object with the API key redacted.
     """
 
-    def redact_item(item):
+    def redact_item(item: Any) -> Any:
         if isinstance(item, str):
             return item.replace(substr, obfuscate(substr))
         return item

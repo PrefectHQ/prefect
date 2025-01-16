@@ -1,6 +1,8 @@
 """
-Runners are responsible for managing the execution of deployments created and managed by
-either `flow.serve` or the `serve` utility.
+Runners are responsible for managing the execution of all deployments.
+
+When creating a deployment using either `flow.serve` or the `serve` utility,
+they also will poll for scheduled runs.
 
 Example:
     ```python
@@ -29,6 +31,8 @@ Example:
     ```
 
 """
+
+from __future__ import annotations
 
 import asyncio
 import datetime
@@ -61,13 +65,14 @@ import anyio
 import anyio.abc
 import pendulum
 from cachetools import LRUCache
+from typing_extensions import Self
 
 from prefect._internal.concurrency.api import (
     create_call,
     from_async,
     from_sync,
 )
-from prefect.client.orchestration import get_client
+from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.filters import (
     FlowRunFilter,
     FlowRunFilterId,
@@ -91,7 +96,7 @@ from prefect.events.related import tags_as_related_resources
 from prefect.events.schemas.events import RelatedResource
 from prefect.events.utilities import emit_event
 from prefect.exceptions import Abort, ObjectNotFound
-from prefect.flows import Flow, load_flow_from_flow_run
+from prefect.flows import Flow, FlowStateHook, load_flow_from_flow_run
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
 from prefect.runner.storage import RunnerStorage
 from prefect.settings import (
@@ -123,10 +128,11 @@ from prefect.utilities.services import (
 from prefect.utilities.slugify import slugify
 
 if TYPE_CHECKING:
+    import concurrent.futures
+
     from prefect.client.schemas.responses import DeploymentResponse
     from prefect.client.types.flexible_schedule_list import FlexibleScheduleList
     from prefect.deployments.runner import RunnerDeployment
-
 __all__ = ["Runner"]
 
 
@@ -193,25 +199,25 @@ class Runner:
 
         if name and ("/" in name or "%" in name):
             raise ValueError("Runner name cannot contain '/' or '%'")
-        self.name = Path(name).stem if name is not None else f"runner-{uuid4()}"
-        self._logger = get_logger("runner")
+        self.name: str = Path(name).stem if name is not None else f"runner-{uuid4()}"
+        self._logger: "logging.Logger" = get_logger("runner")
 
-        self.started = False
-        self.stopping = False
-        self.pause_on_shutdown = pause_on_shutdown
-        self.limit = limit or settings.runner.process_limit
-        self.webserver = webserver
+        self.started: bool = False
+        self.stopping: bool = False
+        self.pause_on_shutdown: bool = pause_on_shutdown
+        self.limit: int | None = limit or settings.runner.process_limit
+        self.webserver: bool = webserver
 
-        self.query_seconds = query_seconds or settings.runner.poll_frequency
-        self._prefetch_seconds = prefetch_seconds
-        self.heartbeat_seconds = (
+        self.query_seconds: float = query_seconds or settings.runner.poll_frequency
+        self._prefetch_seconds: float = prefetch_seconds
+        self.heartbeat_seconds: float | None = (
             heartbeat_seconds or settings.runner.heartbeat_frequency
         )
         if self.heartbeat_seconds is not None and self.heartbeat_seconds < 30:
             raise ValueError("Heartbeat must be 30 seconds or greater.")
 
-        self._limiter: Optional[anyio.CapacityLimiter] = None
-        self._client = get_client()
+        self._limiter: anyio.CapacityLimiter | None = None
+        self._client: PrefectClient = get_client()
         self._submitting_flow_run_ids: set[UUID] = set()
         self._cancelling_flow_run_ids: set[UUID] = set()
         self._scheduled_task_scopes: set[UUID] = set()
@@ -221,8 +227,8 @@ class Runner:
         self._tmp_dir: Path = (
             Path(tempfile.gettempdir()) / "runner_storage" / str(uuid4())
         )
-        self._storage_objs: List[RunnerStorage] = []
-        self._deployment_storage_map: Dict[UUID, RunnerStorage] = {}
+        self._storage_objs: list[RunnerStorage] = []
+        self._deployment_storage_map: dict[UUID, RunnerStorage] = {}
 
         self._loop: Optional[asyncio.AbstractEventLoop] = None
 
@@ -476,7 +482,7 @@ class Runner:
 
     def execute_in_background(
         self, func: Callable[..., Any], *args: Any, **kwargs: Any
-    ):
+    ) -> "concurrent.futures.Future[Any]":
         """
         Executes a function in the background.
         """
@@ -485,7 +491,7 @@ class Runner:
 
         return asyncio.run_coroutine_threadsafe(func(*args, **kwargs), self._loop)
 
-    async def cancel_all(self):
+    async def cancel_all(self) -> None:
         runs_to_cancel = []
 
         # done to avoid dictionary size changing during iteration
@@ -522,7 +528,7 @@ class Runner:
 
     async def execute_flow_run(
         self, flow_run_id: UUID, entrypoint: Optional[str] = None
-    ):
+    ) -> None:
         """
         Executes a single flow run with the given ID.
 
@@ -774,7 +780,7 @@ class Runner:
         if self.stopping:
             return
         runs_response = await self._get_scheduled_flow_runs()
-        self.last_polled = pendulum.now("UTC")
+        self.last_polled: pendulum.DateTime = pendulum.now("UTC")
         return await self._submit_scheduled_flow_runs(flow_run_response=runs_response)
 
     async def _check_for_cancelled_flow_runs(
@@ -1387,7 +1393,7 @@ class Runner:
 
             await _run_hooks(hooks, flow_run, flow, state)
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> Self:
         self._logger.debug("Starting runner...")
         self._client = get_client()
         self._tmp_dir.mkdir(parents=True)
@@ -1409,7 +1415,7 @@ class Runner:
         self.started = True
         return self
 
-    async def __aexit__(self, *exc_info):
+    async def __aexit__(self, *exc_info: Any) -> None:
         self._logger.debug("Stopping runner...")
         if self.pause_on_shutdown:
             await self._pause_schedules()
@@ -1427,7 +1433,7 @@ class Runner:
         shutil.rmtree(str(self._tmp_dir))
         del self._runs_task_group, self._loops_task_group
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"Runner(name={self.name!r})"
 
 
@@ -1437,7 +1443,10 @@ if sys.platform == "win32":
 
 
 async def _run_hooks(
-    hooks: List[Callable[[Flow, "FlowRun", State], None]], flow_run, flow, state
+    hooks: list[FlowStateHook[Any, Any]],
+    flow_run: "FlowRun",
+    flow: "Flow[..., Any]",
+    state: State,
 ):
     logger = flow_run_logger(flow_run, flow)
     for hook in hooks:

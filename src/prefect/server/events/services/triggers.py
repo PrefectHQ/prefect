@@ -1,13 +1,18 @@
+from __future__ import annotations
+
 import asyncio
-from typing import Optional
+from typing import TYPE_CHECKING, Any, NoReturn, Optional
 
 from prefect.logging import get_logger
 from prefect.server.events import triggers
 from prefect.server.services.loop_service import LoopService
-from prefect.server.utilities.messaging import create_consumer
+from prefect.server.utilities.messaging import Consumer, create_consumer
 from prefect.settings import PREFECT_EVENTS_PROACTIVE_GRANULARITY
 
-logger = get_logger(__name__)
+if TYPE_CHECKING:
+    import logging
+
+logger: "logging.Logger" = get_logger(__name__)
 
 
 class ReactiveTriggers:
@@ -15,11 +20,11 @@ class ReactiveTriggers:
 
     name: str = "ReactiveTriggers"
 
-    consumer_task: Optional[asyncio.Task] = None
+    consumer_task: asyncio.Task[None] | None = None
 
-    async def start(self):
+    async def start(self) -> NoReturn:
         assert self.consumer_task is None, "Reactive triggers already started"
-        self.consumer = create_consumer("events")
+        self.consumer: Consumer = create_consumer("events")
 
         async with triggers.consumer() as handler:
             self.consumer_task = asyncio.create_task(self.consumer.run(handler))
@@ -30,7 +35,7 @@ class ReactiveTriggers:
             except asyncio.CancelledError:
                 pass
 
-    async def stop(self):
+    async def stop(self) -> None:
         assert self.consumer_task is not None, "Reactive triggers not started"
         self.consumer_task.cancel()
         try:
@@ -43,7 +48,9 @@ class ReactiveTriggers:
 
 
 class ProactiveTriggers(LoopService):
-    def __init__(self, loop_seconds: Optional[float] = None, **kwargs):
+    """A loop service that runs the proactive triggers consumer"""
+
+    def __init__(self, loop_seconds: Optional[float] = None, **kwargs: Any):
         super().__init__(
             loop_seconds=(
                 loop_seconds
@@ -52,5 +59,5 @@ class ProactiveTriggers(LoopService):
             **kwargs,
         )
 
-    async def run_once(self):
+    async def run_once(self) -> None:
         await triggers.evaluate_proactive_triggers()
