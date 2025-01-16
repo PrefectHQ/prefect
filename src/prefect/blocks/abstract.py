@@ -15,7 +15,7 @@ from typing import (
     Union,
 )
 
-from typing_extensions import Self, TypeAlias
+from typing_extensions import TYPE_CHECKING, Self, TypeAlias
 
 from prefect.blocks.core import Block
 from prefect.exceptions import MissingContextError
@@ -26,7 +26,10 @@ T = TypeVar("T")
 if sys.version_info >= (3, 12):
     LoggingAdapter = logging.LoggerAdapter[logging.Logger]
 else:
-    LoggingAdapter = logging.LoggerAdapter
+    if TYPE_CHECKING:
+        LoggingAdapter = logging.LoggerAdapter[logging.Logger]
+    else:
+        LoggingAdapter = logging.LoggerAdapter
 
 LoggerOrAdapter: TypeAlias = Union[Logger, LoggingAdapter]
 
