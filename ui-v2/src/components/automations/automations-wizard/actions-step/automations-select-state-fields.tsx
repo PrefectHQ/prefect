@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/form";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
+import { useDeferredValue, useMemo, useState } from "react";
 import { useFormContext } from "react-hook-form";
 
 const INFER_AUTOMATION = {
@@ -44,36 +45,34 @@ const getButtonLabel = (
 		return INFER_AUTOMATION.name;
 	}
 	const automation = data?.find((automation) => automation.id === fieldValue);
-	if (automation?.name) {
+	if (automation) {
 		return automation.name;
 	}
 	return undefined;
-};
-
-/** Because ShadCN only filters by `value` and not by a specific field, we need to write custom logic to filter objects by id */
-const filterAutomations = (
-	value: string | null,
-	search: string,
-	data: Array<Automation> | undefined,
-) => {
-	const searchTerm = search.toLowerCase();
-	const automation = data?.find((automation) => automation.id === value);
-	if (!automation) {
-		return 0;
-	}
-	const automationName = automation.name.toLowerCase();
-	if (automationName.includes(searchTerm)) {
-		return 1;
-	}
-	return 0;
 };
 
 export const AutomationsSelectStateFields = ({
 	action,
 	index,
 }: AutomationsSelectStateFieldsProps) => {
+	const [search, setSearch] = useState("");
 	const form = useFormContext<AutomationWizardSchema>();
 	const { data, isSuccess } = useQuery(buildListAutomationsQuery());
+
+	// nb: because automations API does not have filtering _like by name, do client-side filtering
+	const deferredSearch = useDeferredValue(search);
+	const filteredData = useMemo(() => {
+		if (!data) {
+			return [];
+		}
+		return data.filter((automation) =>
+			automation.name.toLowerCase().includes(deferredSearch.toLowerCase()),
+		);
+	}, [data, deferredSearch]);
+
+	const isInferredOptionFiltered = INFER_AUTOMATION.name
+		.toLowerCase()
+		.includes(deferredSearch.toLowerCase());
 
 	return (
 		<FormField
@@ -89,30 +88,38 @@ export const AutomationsSelectStateFields = ({
 								selected={Boolean(buttonLabel)}
 								aria-label={`Select Automation to ${action}`}
 							>
-								{getButtonLabel(data, field.value) ?? "Select automation"}
+								{buttonLabel ?? "Select automation"}
 							</ComboboxTrigger>
-							<ComboboxContent
-								filter={(value, search) =>
-									filterAutomations(value, search, data)
-								}
-							>
-								<ComboboxCommandInput placeholder="Search for an automation..." />
+							<ComboboxContent>
+								<ComboboxCommandInput
+									value={search}
+									onValueChange={setSearch}
+									placeholder="Search for an automation..."
+								/>
 								<ComboboxCommandEmtpy>No automation found</ComboboxCommandEmtpy>
 								<ComboboxCommandList>
 									<ComboboxCommandGroup>
-										<ComboboxCommandItem
-											selected={field.value === INFER_AUTOMATION.value}
-											onSelect={field.onChange}
-											value={INFER_AUTOMATION.value}
-										>
-											{INFER_AUTOMATION.name}
-										</ComboboxCommandItem>
+										{isInferredOptionFiltered && (
+											<ComboboxCommandItem
+												selected={field.value === INFER_AUTOMATION.value}
+												onSelect={(value) => {
+													field.onChange(value);
+													setSearch("");
+												}}
+												value={INFER_AUTOMATION.value}
+											>
+												{INFER_AUTOMATION.name}
+											</ComboboxCommandItem>
+										)}
 										{isSuccess ? (
-											data.map((automation) => (
+											filteredData.map((automation) => (
 												<ComboboxCommandItem
 													key={automation.id}
 													selected={field.value === automation.id}
-													onSelect={field.onChange}
+													onSelect={(value) => {
+														field.onChange(value);
+														setSearch("");
+													}}
 													value={automation.id}
 												>
 													{automation.name}

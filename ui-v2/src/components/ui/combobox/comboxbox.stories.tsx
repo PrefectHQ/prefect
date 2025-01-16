@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 
 import { Automation } from "@/api/automations";
 import { createFakeAutomation } from "@/mocks";
-import { useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import {
 	Combobox,
 	ComboboxCommandEmtpy,
@@ -27,13 +27,7 @@ const INFER_AUTOMATION = {
 	name: "Infer Automation" as const,
 } as const;
 
-const MOCK_DATA = [
-	createFakeAutomation(),
-	createFakeAutomation(),
-	createFakeAutomation(),
-	createFakeAutomation(),
-	createFakeAutomation(),
-];
+const MOCK_DATA = Array.from({ length: 5 }, createFakeAutomation);
 
 const getButtonLabel = (data: Array<Automation>, fieldValue: string) => {
 	if (fieldValue === INFER_AUTOMATION.value) {
@@ -46,28 +40,23 @@ const getButtonLabel = (data: Array<Automation>, fieldValue: string) => {
 	return undefined;
 };
 
-/** Because ShadCN only filters by `value` and not by a specific field, we need to write custom logic to filter objects by id */
-const filterAutomations = (
-	value: string,
-	search: string,
-	data: Array<Automation> | undefined,
-) => {
-	const searchTerm = search.toLowerCase();
-	const automation = data?.find((automation) => automation.id === value);
-	if (!automation) {
-		return 0;
-	}
-	const automationName = automation.name.toLowerCase();
-	if (automationName.includes(searchTerm)) {
-		return 1;
-	}
-	return 0;
-};
-
 function ComboboxStory() {
+	const [search, setSearch] = useState("");
 	const [selectedAutomationId, setSelectedAutomationId] = useState<
 		typeof UNASSIGNED | (string & {})
 	>(INFER_AUTOMATION.value);
+
+	const deferredSearch = useDeferredValue(search);
+
+	const filteredData = useMemo(() => {
+		return MOCK_DATA.filter((automation) =>
+			automation.name.toLowerCase().includes(deferredSearch.toLowerCase()),
+		);
+	}, [deferredSearch]);
+
+	const isInferredOptionFiltered = INFER_AUTOMATION.name
+		.toLowerCase()
+		.includes(deferredSearch.toLowerCase());
 
 	const buttonLabel = getButtonLabel(MOCK_DATA, selectedAutomationId);
 
@@ -76,25 +65,35 @@ function ComboboxStory() {
 			<ComboboxTrigger selected={Boolean(buttonLabel)}>
 				{buttonLabel ?? "Select automation"}
 			</ComboboxTrigger>
-			<ComboboxContent
-				filter={(value, search) => filterAutomations(value, search, MOCK_DATA)}
-			>
-				<ComboboxCommandInput placeholder="Search for an automation..." />
+			<ComboboxContent>
+				<ComboboxCommandInput
+					value={search}
+					onValueChange={setSearch}
+					placeholder="Search for an automation..."
+				/>
 				<ComboboxCommandEmtpy>No automation found</ComboboxCommandEmtpy>
 				<ComboboxCommandList>
 					<ComboboxCommandGroup>
-						<ComboboxCommandItem
-							selected={selectedAutomationId === INFER_AUTOMATION.value}
-							onSelect={setSelectedAutomationId}
-							value={INFER_AUTOMATION.value}
-						>
-							{INFER_AUTOMATION.name}
-						</ComboboxCommandItem>
-						{MOCK_DATA.map((automation) => (
+						{isInferredOptionFiltered && (
+							<ComboboxCommandItem
+								selected={selectedAutomationId === INFER_AUTOMATION.value}
+								onSelect={(value) => {
+									setSelectedAutomationId(value);
+									setSearch("");
+								}}
+								value={INFER_AUTOMATION.value}
+							>
+								{INFER_AUTOMATION.name}
+							</ComboboxCommandItem>
+						)}
+						{filteredData.map((automation) => (
 							<ComboboxCommandItem
 								key={automation.id}
 								selected={selectedAutomationId === automation.id}
-								onSelect={setSelectedAutomationId}
+								onSelect={(value) => {
+									setSelectedAutomationId(value);
+									setSearch("");
+								}}
 								value={automation.id}
 							>
 								{automation.name}
