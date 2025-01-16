@@ -67,21 +67,34 @@ const ComboboxTrigger = ({
 };
 
 const ComboboxContent = ({
-	filter,
 	children,
 }: {
-	filter?: (value: string, search: string, keywords?: string[]) => number;
 	children: React.ReactNode;
 }) => {
 	return (
 		<PopoverContent fullWidth>
-			<Command filter={filter}>{children}</Command>
+			<Command shouldFilter={false}>{children}</Command>
 		</PopoverContent>
 	);
 };
 
-const ComboboxCommandInput = ({ placeholder }: { placeholder?: string }) => {
-	return <CommandInput placeholder={placeholder} className="h-9" />;
+const ComboboxCommandInput = ({
+	value,
+	onValueChange,
+	placeholder,
+}: {
+	value?: string;
+	onValueChange?: (value: string) => void;
+	placeholder?: string;
+}) => {
+	return (
+		<CommandInput
+			value={value}
+			onValueChange={onValueChange}
+			placeholder={placeholder}
+			className="h-9"
+		/>
+	);
 };
 
 const ComboboxCommandList = ({ children }: { children: React.ReactNode }) => {
