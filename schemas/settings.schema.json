@@ -743,21 +743,14 @@
             "description": "Settings for controlling SQLAlchemy behavior; note that these settings only take effect when\nusing a PostgreSQL database.",
             "properties": {
                 "pool_size": {
-                    "anyOf": [
-                        {
-                            "type": "integer"
-                        },
-                        {
-                            "type": "null"
-                        }
-                    ],
-                    "default": null,
-                    "description": "Controls connection pool size of database connection pools from the Prefect backend. If not set, the default SQLAlchemy pool size will be used.",
+                    "default": 5,
+                    "description": "Controls connection pool size of database connection pools from the Prefect backend.",
                     "supported_environment_variables": [
                         "PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_SIZE",
                         "PREFECT_SQLALCHEMY_POOL_SIZE"
                     ],
-                    "title": "Pool Size"
+                    "title": "Pool Size",
+                    "type": "integer"
                 },
                 "pool_recycle": {
                     "default": 3600,
