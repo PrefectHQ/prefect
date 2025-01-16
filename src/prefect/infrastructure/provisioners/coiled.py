@@ -2,6 +2,7 @@ import importlib
 import shlex
 import sys
 from copy import deepcopy
+from types import ModuleType
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from anyio import run_process
@@ -31,11 +32,11 @@ class CoiledPushProvisioner:
         self._console = Console()
 
     @property
-    def console(self):
+    def console(self) -> Console:
         return self._console
 
     @console.setter
-    def console(self, value):
+    def console(self, value: Console) -> None:
         self._console = value
 
     @staticmethod
@@ -68,7 +69,7 @@ class CoiledPushProvisioner:
             await run_process(
                 [shlex.quote(sys.executable), "-m", "pip", "install", "coiled"]
             )
-            coiled = importlib.import_module("coiled")
+            coiled: ModuleType = importlib.import_module("coiled")
             progress.advance(task)
 
     async def _get_coiled_token(self) -> str:
