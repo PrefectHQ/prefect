@@ -12,7 +12,9 @@ import prefect.server.schemas as schemas
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.utilities.server import PrefectRouter
 
-router = PrefectRouter(prefix="/flow_run_states", tags=["Flow Run States"])
+router: PrefectRouter = PrefectRouter(
+    prefix="/flow_run_states", tags=["Flow Run States"]
+)
 
 
 @router.get("/{id}")

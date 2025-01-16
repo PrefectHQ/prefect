@@ -7,7 +7,7 @@ from prefect.server import models
 from prefect.server.models.task_workers import TaskWorkerResponse
 from prefect.server.utilities.server import PrefectRouter
 
-router = PrefectRouter(prefix="/task_workers", tags=["Task Workers"])
+router: PrefectRouter = PrefectRouter(prefix="/task_workers", tags=["Task Workers"])
 
 
 class TaskWorkerFilter(BaseModel):

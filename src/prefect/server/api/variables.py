@@ -11,12 +11,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models
 from prefect.server.api.dependencies import LimitBody
-from prefect.server.database import PrefectDBInterface, provide_database_interface
+from prefect.server.database import (
+    PrefectDBInterface,
+    orm_models,
+    provide_database_interface,
+)
 from prefect.server.schemas import actions, core, filters, sorting
 from prefect.server.utilities.server import PrefectRouter
 
 
-async def get_variable_or_404(session: AsyncSession, variable_id: UUID):
+async def get_variable_or_404(
+    session: AsyncSession, variable_id: UUID
+) -> orm_models.Variable:
     """Returns a variable or raises 404 HTTPException if it does not exist"""
 
     variable = await models.variables.read_variable(
@@ -28,7 +34,9 @@ async def get_variable_or_404(session: AsyncSession, variable_id: UUID):
     return variable
 
 
-async def get_variable_by_name_or_404(session: AsyncSession, name: str):
+async def get_variable_by_name_or_404(
+    session: AsyncSession, name: str
+) -> orm_models.Variable:
     """Returns a variable or raises 404 HTTPException if it does not exist"""
 
     variable = await models.variables.read_variable_by_name(session=session, name=name)
@@ -38,7 +46,7 @@ async def get_variable_by_name_or_404(session: AsyncSession, name: str):
     return variable
 
 
-router = PrefectRouter(
+router: PrefectRouter = PrefectRouter(
     prefix="/variables",
     tags=["Variables"],
 )
@@ -120,7 +128,7 @@ async def update_variable(
     variable: actions.VariableUpdate,
     variable_id: UUID = Path(..., alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     async with db.session_context(begin_transaction=True) as session:
         updated = await models.variables.update_variable(
             session=session,
@@ -136,7 +144,7 @@ async def update_variable_by_name(
     variable: actions.VariableUpdate,
     name: str = Path(..., alias="name"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     async with db.session_context(begin_transaction=True) as session:
         updated = await models.variables.update_variable_by_name(
             session=session,
@@ -151,7 +159,7 @@ async def update_variable_by_name(
 async def delete_variable(
     variable_id: UUID = Path(..., alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     async with db.session_context(begin_transaction=True) as session:
         deleted = await models.variables.delete_variable(
             session=session, variable_id=variable_id
@@ -164,7 +172,7 @@ async def delete_variable(
 async def delete_variable_by_name(
     name: str = Path(...),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     async with db.session_context(begin_transaction=True) as session:
         deleted = await models.variables.delete_variable_by_name(
             session=session, name=name

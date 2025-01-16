@@ -676,8 +676,8 @@ class FlowRunFilter(PrefectOperatorFilterBaseModel):
         default=None, description="Filter criteria for `FlowRun.idempotency_key`"
     )
 
-    def only_filters_on_id(self):
-        return (
+    def only_filters_on_id(self) -> bool:
+        return bool(
             self.id is not None
             and (self.id.any_ and not self.id.not_any_)
             and self.name is None

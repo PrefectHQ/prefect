@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional
 from uuid import UUID
 
 import pendulum
@@ -15,9 +17,12 @@ from prefect.server.utilities.schemas import PrefectBaseModel
 from prefect.server.utilities.server import PrefectRouter
 from prefect.types import DateTime
 
-logger = get_logger()
+if TYPE_CHECKING:
+    import logging
 
-router = PrefectRouter(prefix="/ui/flows", tags=["Flows", "UI"])
+logger: "logging.Logger" = get_logger()
+
+router: PrefectRouter = PrefectRouter(prefix="/ui/flows", tags=["Flows", "UI"])
 
 
 class SimpleNextFlowRun(PrefectBaseModel):
@@ -32,7 +37,9 @@ class SimpleNextFlowRun(PrefectBaseModel):
 
     @field_validator("next_scheduled_start_time", mode="before")
     @classmethod
-    def validate_next_scheduled_start_time(cls, v):
+    def validate_next_scheduled_start_time(
+        cls, v: pendulum.DateTime | datetime
+    ) -> pendulum.DateTime:
         if isinstance(v, datetime):
             return pendulum.instance(v)
         return v

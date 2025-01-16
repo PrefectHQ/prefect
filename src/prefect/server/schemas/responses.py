@@ -410,7 +410,7 @@ class DeploymentResponse(ORMBaseModel):
             " storage or an absolute path."
         ),
     )
-    pull_steps: Optional[List[dict]] = Field(
+    pull_steps: Optional[list[dict[str, Any]]] = Field(
         default=None, description="Pull steps for cloning and running this deployment."
     )
     entrypoint: Optional[str] = Field(

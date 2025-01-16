@@ -8,11 +8,11 @@ from fastapi.responses import JSONResponse
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.utilities.server import PrefectRouter
 
-router = PrefectRouter(prefix="", tags=["Root"])
+router: PrefectRouter = PrefectRouter(prefix="", tags=["Root"])
 
 
 @router.get("/hello")
-async def hello():
+async def hello() -> str:
     """Say hello!"""
     return "👋"
 
@@ -20,7 +20,7 @@ async def hello():
 @router.get("/ready")
 async def perform_readiness_check(
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> JSONResponse:
     is_db_connectable = await db.is_db_connectable()
 
     if is_db_connectable:

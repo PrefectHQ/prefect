@@ -9,7 +9,7 @@ import prefect.settings
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.utilities.server import PrefectRouter
 
-router = PrefectRouter(prefix="/admin", tags=["Admin"])
+router: PrefectRouter = PrefectRouter(prefix="/admin", tags=["Admin"])
 
 
 @router.get("/settings")
@@ -37,7 +37,7 @@ async def clear_database(
         description="Pass confirm=True to confirm you want to modify the database.",
     ),
     response: Response = None,  # type: ignore
-):
+) -> None:
     """Clear all database tables without dropping them."""
     if not confirm:
         response.status_code = status.HTTP_400_BAD_REQUEST
@@ -58,7 +58,7 @@ async def drop_database(
         description="Pass confirm=True to confirm you want to modify the database.",
     ),
     response: Response = None,
-):
+) -> None:
     """Drop all database objects."""
     if not confirm:
         response.status_code = status.HTTP_400_BAD_REQUEST
@@ -76,7 +76,7 @@ async def create_database(
         description="Pass confirm=True to confirm you want to modify the database.",
     ),
     response: Response = None,
-):
+) -> None:
     """Create all database objects."""
     if not confirm:
         response.status_code = status.HTTP_400_BAD_REQUEST

@@ -5,7 +5,7 @@ Routes for interacting with flow run objects.
 import csv
 import datetime
 import io
-from typing import Any, Dict, List, Optional, Type
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from uuid import UUID
 
 import orjson
@@ -37,7 +37,10 @@ from prefect.server.models.flow_runs import (
     read_flow_run_graph,
 )
 from prefect.server.orchestration import dependencies as orchestration_dependencies
-from prefect.server.orchestration.policies import BaseOrchestrationPolicy
+from prefect.server.orchestration.policies import (
+    FlowRunOrchestrationPolicy,
+    TaskRunOrchestrationPolicy,
+)
 from prefect.server.schemas.graph import Graph
 from prefect.server.schemas.responses import (
     FlowRunPaginationResponse,
@@ -47,9 +50,12 @@ from prefect.server.utilities.server import PrefectRouter
 from prefect.types import DateTime
 from prefect.utilities import schema_tools
 
-logger = get_logger("server.api")
+if TYPE_CHECKING:
+    import logging
 
-router = PrefectRouter(prefix="/flow_runs", tags=["Flow Runs"])
+logger: "logging.Logger" = get_logger("server.api")
+
+router: PrefectRouter = PrefectRouter(prefix="/flow_runs", tags=["Flow Runs"])
 
 
 @router.post("/")
@@ -101,7 +107,7 @@ async def update_flow_run(
     flow_run: schemas.actions.FlowRunUpdate,
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     """
     Updates a flow run.
     """
@@ -349,18 +355,18 @@ async def read_flow_run_graph_v2(
 async def resume_flow_run(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-    run_input: Optional[Dict] = Body(default=None, embed=True),
+    run_input: Optional[dict[str, Any]] = Body(default=None, embed=True),
     response: Response = None,
-    flow_policy: Type[BaseOrchestrationPolicy] = Depends(
+    flow_policy: type[FlowRunOrchestrationPolicy] = Depends(
         orchestration_dependencies.provide_flow_policy
     ),
-    task_policy: BaseOrchestrationPolicy = Depends(
+    task_policy: type[TaskRunOrchestrationPolicy] = Depends(
         orchestration_dependencies.provide_task_policy
     ),
     orchestration_parameters: Dict[str, Any] = Depends(
         orchestration_dependencies.provide_flow_orchestration_parameters
     ),
-    api_version=Depends(dependencies.provide_request_api_version),
+    api_version: str = Depends(dependencies.provide_request_api_version),
 ) -> OrchestrationResult:
     """
     Resume a paused flow run.
@@ -539,7 +545,7 @@ async def read_flow_runs(
 async def delete_flow_run(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     """
     Delete a flow run by id.
     """
@@ -565,14 +571,14 @@ async def set_flow_run_state(
         ),
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
-    response: Response = None,
-    flow_policy: Type[BaseOrchestrationPolicy] = Depends(
+    flow_policy: type[FlowRunOrchestrationPolicy] = Depends(
         orchestration_dependencies.provide_flow_policy
     ),
     orchestration_parameters: Dict[str, Any] = Depends(
         orchestration_dependencies.provide_flow_orchestration_parameters
     ),
-    api_version=Depends(dependencies.provide_request_api_version),
+    response: Response = None,
+    api_version: str = Depends(dependencies.provide_request_api_version),
 ) -> OrchestrationResult:
     """Set a flow run state, invoking any orchestration rules."""
 
@@ -611,7 +617,7 @@ async def create_flow_run_input(
     value: bytes = Body(..., description="The value of the input"),
     sender: Optional[str] = Body(None, description="The sender of the input"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     """
     Create a key/value input for a flow run.
     """
@@ -693,7 +699,7 @@ async def delete_flow_run_input(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     key: str = Path(..., description="The input key", alias="key"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     """
     Delete a flow run input
     """
@@ -848,7 +854,7 @@ async def update_flow_run_labels(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     labels: Dict[str, Any] = Body(..., description="The labels to update"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     """
     Update the labels of a flow run.
     """

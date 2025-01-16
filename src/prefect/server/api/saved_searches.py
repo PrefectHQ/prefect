@@ -14,7 +14,7 @@ import prefect.server.schemas as schemas
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.utilities.server import PrefectRouter
 
-router = PrefectRouter(prefix="/saved_searches", tags=["SavedSearches"])
+router: PrefectRouter = PrefectRouter(prefix="/saved_searches", tags=["SavedSearches"])
 
 
 @router.put("/")
@@ -85,7 +85,7 @@ async def read_saved_searches(
 async def delete_saved_search(
     saved_search_id: UUID = Path(..., description="The saved search id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-):
+) -> None:
     """
     Delete a saved search by id.
     """
