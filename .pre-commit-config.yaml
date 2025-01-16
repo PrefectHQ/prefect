@@ -32,6 +32,11 @@ repos:
           )$
   - repo: local
     hooks:
+      - id: type-completeness-check
+        name: Type Completeness Check
+        language: system
+        entry: uv run --with pyright pyright --ignoreexternal --verifytypes prefect
+        pass_filenames: false
       - id: generate-mintlify-openapi-docs
         name: Generating OpenAPI docs for Mintlify
         language: system
