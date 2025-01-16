@@ -778,21 +778,14 @@
                     "title": "Pool Timeout"
                 },
                 "max_overflow": {
-                    "anyOf": [
-                        {
-                            "type": "integer"
-                        },
-                        {
-                            "type": "null"
-                        }
-                    ],
-                    "default": null,
-                    "description": "Controls maximum overflow of the connection pool. If not set, the default SQLAlchemy maximum overflow value will be used.",
+                    "default": 10,
+                    "description": "Controls maximum overflow of the connection pool. To prevent overflow, set to -1.",
                     "supported_environment_variables": [
                         "PREFECT_SERVER_DATABASE_SQLALCHEMY_MAX_OVERFLOW",
                         "PREFECT_SQLALCHEMY_MAX_OVERFLOW"
                     ],
-                    "title": "Max Overflow"
+                    "title": "Max Overflow",
+                    "type": "integer"
                 }
             },
             "title": "SQLAlchemySettings",

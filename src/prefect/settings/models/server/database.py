@@ -45,9 +45,9 @@ class SQLAlchemySettings(PrefectBaseSettings):
         description="Number of seconds to wait before giving up on getting a connection from the pool. Defaults to 30 seconds.",
     )
 
-    max_overflow: Optional[int] = Field(
-        default=None,
-        description="Controls maximum overflow of the connection pool. If not set, the default SQLAlchemy maximum overflow value will be used.",
+    max_overflow: int = Field(
+        default=10,
+        description="Controls maximum overflow of the connection pool. To prevent overflow, set to -1.",
         validation_alias=AliasChoices(
             AliasPath("max_overflow"),
             "prefect_server_database_sqlalchemy_max_overflow",
