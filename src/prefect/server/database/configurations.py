@@ -28,7 +28,6 @@ from prefect.settings import (
     PREFECT_API_DATABASE_TIMEOUT,
     PREFECT_SERVER_DATABASE_CONNECTION_APP_NAME,
     PREFECT_SQLALCHEMY_MAX_OVERFLOW,
-    PREFECT_SQLALCHEMY_POOL_SIZE,
     PREFECT_TESTING_UNIT_TEST_MODE,
     get_current_settings,
 )
@@ -132,7 +131,8 @@ class BaseDatabaseConfiguration(ABC):
             connection_timeout or PREFECT_API_DATABASE_CONNECTION_TIMEOUT.value()
         )
         self.sqlalchemy_pool_size: Optional[int] = (
-            sqlalchemy_pool_size or PREFECT_SQLALCHEMY_POOL_SIZE.value()
+            sqlalchemy_pool_size
+            or get_current_settings().server.database.sqlalchemy.pool_size
         )
         self.sqlalchemy_max_overflow: Optional[int] = (
             sqlalchemy_max_overflow or PREFECT_SQLALCHEMY_MAX_OVERFLOW.value()
