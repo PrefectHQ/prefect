@@ -912,11 +912,11 @@ Number of seconds to wait before giving up on getting a connection from the pool
 `PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_TIMEOUT`
 
 ### `max_overflow`
-Controls maximum overflow of the connection pool. If not set, the default SQLAlchemy maximum overflow value will be used.
+Controls maximum overflow of the connection pool. To prevent overflow, set to -1.
 
-**Type**: `integer | None`
+**Type**: `integer`
 
-**Default**: `None`
+**Default**: `10`
 
 **TOML dotted key path**: `server.database.sqlalchemy.max_overflow`
 
