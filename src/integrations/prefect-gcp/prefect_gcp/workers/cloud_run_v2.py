@@ -11,12 +11,12 @@ from googleapiclient import discovery
 # noinspection PyProtectedMember
 from googleapiclient.discovery import Resource
 from googleapiclient.errors import HttpError
+from jsonpatch import JsonPatch
 from pydantic import Field, PrivateAttr, field_validator
 
 from prefect.logging.loggers import PrefectLogAdapter
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.dockerutils import get_prefect_image_name
-from prefect.utilities.pydantic import JsonPatch
 from prefect.workers.base import (
     BaseJobConfiguration,
     BaseVariables,

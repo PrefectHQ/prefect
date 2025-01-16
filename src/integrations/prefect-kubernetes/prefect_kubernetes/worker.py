@@ -121,6 +121,7 @@ from typing import (
 import aiohttp
 import anyio.abc
 import kubernetes_asyncio
+from jsonpatch import JsonPatch
 from kubernetes_asyncio import config
 from kubernetes_asyncio.client import (
     ApiClient,
@@ -148,7 +149,6 @@ from prefect.exceptions import (
 from prefect.server.schemas.core import Flow
 from prefect.server.schemas.responses import DeploymentResponse
 from prefect.utilities.dockerutils import get_prefect_image_name
-from prefect.utilities.pydantic import JsonPatch
 from prefect.utilities.templating import find_placeholders
 from prefect.utilities.timeout import timeout_async
 from prefect.workers.base import (

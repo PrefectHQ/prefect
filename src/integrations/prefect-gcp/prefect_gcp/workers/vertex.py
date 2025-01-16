@@ -28,11 +28,11 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 from uuid import uuid4
 
 import anyio
+from jsonpatch import JsonPatch
 from pydantic import Field, field_validator
 from slugify import slugify
 
 from prefect.logging.loggers import PrefectLogAdapter
-from prefect.utilities.pydantic import JsonPatch
 from prefect.workers.base import (
     BaseJobConfiguration,
     BaseVariables,
