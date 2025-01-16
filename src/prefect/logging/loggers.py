@@ -18,7 +18,10 @@ from prefect.telemetry.logging import add_telemetry_log_handler
 if sys.version_info >= (3, 12):
     LoggingAdapter = logging.LoggerAdapter[logging.Logger]
 else:
-    LoggingAdapter = logging.LoggerAdapter
+    if TYPE_CHECKING:
+        LoggingAdapter = logging.LoggerAdapter[logging.Logger]
+    else:
+        LoggingAdapter = logging.LoggerAdapter
 
 if TYPE_CHECKING:
     from prefect.client.schemas import FlowRun as ClientFlowRun
