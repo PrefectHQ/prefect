@@ -256,7 +256,7 @@ Must be provided in a SQLAlchemy-compatible format. Prefect currently supports S
 Self-hosted Prefect servers can be equipped with Basic Authentication through two settings:
 
 - **`server.api.auth_string="admin:pass"`**: this setting should be set with an administrator / password combination, separated by a colon, on any process that hosts the Prefect webserver (for example `prefect server start`).
-- **`api.auth_string="admin:pass"`**: this setting should be set with the same administrator / pasword combination as the server on any client process that needs to communicate with the Prefect API (for example, any process that runs a workflow).
+- **`api.auth_string="admin:pass"`**: this setting should be set with the same administrator / password combination as the server on any client process that needs to communicate with the Prefect API (for example, any process that runs a workflow).
 
 With these settings, the UI will prompt for the full authentication string `"admin:pass"` (no quotes) upon first load. It is recommended to store this information in a secure way, such as a Kubernetes Secret or in a private `.env` file.
 
