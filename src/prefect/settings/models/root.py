@@ -11,10 +11,11 @@ from typing import (
 )
 from urllib.parse import urlparse
 
-from pydantic import BeforeValidator, ConfigDict, Field, SecretStr, model_validator
+from pydantic import BeforeValidator, Field, SecretStr, model_validator
+from pydantic_settings import SettingsConfigDict
 from typing_extensions import Self
 
-from prefect.settings.base import PrefectBaseSettings, _build_settings_config
+from prefect.settings.base import PrefectBaseSettings, build_settings_config
 from prefect.settings.models.tasks import TasksSettings
 from prefect.settings.models.testing import TestingSettings
 from prefect.settings.models.worker import WorkerSettings
@@ -44,7 +45,7 @@ class Settings(PrefectBaseSettings):
     See https://docs.pydantic.dev/latest/concepts/pydantic_settings
     """
 
-    model_config: ClassVar[ConfigDict] = _build_settings_config()
+    model_config: ClassVar[SettingsConfigDict] = build_settings_config()
 
     home: Annotated[Path, BeforeValidator(lambda x: Path(x).expanduser())] = Field(
         default=Path("~") / ".prefect",

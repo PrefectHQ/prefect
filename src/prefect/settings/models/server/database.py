@@ -5,14 +5,14 @@ from urllib.parse import quote_plus
 from pydantic import (
     AliasChoices,
     AliasPath,
-    ConfigDict,
     Field,
     SecretStr,
     model_validator,
 )
+from pydantic_settings import SettingsConfigDict
 from typing_extensions import Literal, Self
 
-from prefect.settings.base import PrefectBaseSettings, _build_settings_config
+from prefect.settings.base import PrefectBaseSettings, build_settings_config
 
 
 class SQLAlchemySettings(PrefectBaseSettings):
@@ -21,7 +21,7 @@ class SQLAlchemySettings(PrefectBaseSettings):
     using a PostgreSQL database.
     """
 
-    model_config: ClassVar[ConfigDict] = _build_settings_config(
+    model_config: ClassVar[SettingsConfigDict] = build_settings_config(
         ("server", "database", "sqlalchemy")
     )
 
@@ -61,7 +61,9 @@ class ServerDatabaseSettings(PrefectBaseSettings):
     Settings for controlling server database behavior
     """
 
-    model_config: ClassVar[ConfigDict] = _build_settings_config(("server", "database"))
+    model_config: ClassVar[SettingsConfigDict] = build_settings_config(
+        ("server", "database")
+    )
 
     sqlalchemy: SQLAlchemySettings = Field(
         default_factory=SQLAlchemySettings,
@@ -234,4 +236,4 @@ def warn_on_database_password_value_without_usage(
             "PREFECT_SERVER_DATABASE_CONNECTION_URL. "
             "The provided password will be ignored."
         )
-    return settings
+    return None
