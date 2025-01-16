@@ -353,6 +353,9 @@ def create_api_app(
         async def token_validation(request: Request, call_next: Any):  # type: ignore[reportUnusedFunction]
             header_token = request.headers.get("Authorization")
 
+            # used for probes in k8s and such
+            if request.url.path in ["/api/health", "/api/ready"]:
+                return await call_next(request)
             try:
                 if header_token is None:
                     return JSONResponse(
