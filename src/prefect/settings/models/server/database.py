@@ -25,9 +25,9 @@ class SQLAlchemySettings(PrefectBaseSettings):
         ("server", "database", "sqlalchemy")
     )
 
-    pool_size: Optional[int] = Field(
-        default=None,
-        description="Controls connection pool size of database connection pools from the Prefect backend. If not set, the default SQLAlchemy pool size will be used.",
+    pool_size: int = Field(
+        default=5,
+        description="Controls connection pool size of database connection pools from the Prefect backend.",
         validation_alias=AliasChoices(
             AliasPath("pool_size"),
             "prefect_server_database_sqlalchemy_pool_size",
