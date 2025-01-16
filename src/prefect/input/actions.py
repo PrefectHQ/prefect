@@ -1,3 +1,4 @@
+import inspect
 from typing import TYPE_CHECKING, Any, Optional, Set
 from uuid import UUID
 
@@ -44,9 +45,12 @@ async def create_flow_run_input_from_model(
     else:
         json_safe = orjson.loads(model_instance.json())
 
-    await create_flow_run_input(
+    coro = create_flow_run_input(
         key=key, value=json_safe, flow_run_id=flow_run_id, sender=sender
     )
+    if TYPE_CHECKING:
+        assert inspect.iscoroutine(coro)
+    await coro
 
 
 @sync_compatible
