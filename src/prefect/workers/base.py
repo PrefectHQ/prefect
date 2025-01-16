@@ -432,7 +432,7 @@ class BaseWorker(abc.ABC):
         self._prefetch_seconds: float = (
             prefetch_seconds or PREFECT_WORKER_PREFETCH_SECONDS.value()
         )
-        self.heartbeat_interval_seconds = (
+        self.heartbeat_interval_seconds: int = (
             heartbeat_interval_seconds or PREFECT_WORKER_HEARTBEAT_SECONDS.value()
         )
 
@@ -640,7 +640,7 @@ class BaseWorker(abc.ABC):
     async def teardown(self, *exc_info):
         """Cleans up resources after the worker is stopped."""
         self._logger.debug("Tearing down worker...")
-        self.is_setup = False
+        self.is_setup: bool = False
         for scope in self._scheduled_task_scopes:
             scope.cancel()
 

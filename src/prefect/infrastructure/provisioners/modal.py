@@ -2,6 +2,7 @@ import importlib
 import shlex
 import sys
 from copy import deepcopy
+from types import ModuleType
 from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
 
 from anyio import run_process
@@ -19,7 +20,7 @@ if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
 
 
-modal = lazy_import("modal")
+modal: ModuleType = lazy_import("modal")
 
 
 class ModalPushProvisioner:
@@ -28,14 +29,14 @@ class ModalPushProvisioner:
     """
 
     def __init__(self, client: Optional["PrefectClient"] = None):
-        self._console = Console()
+        self._console: Console = Console()
 
     @property
-    def console(self):
+    def console(self) -> Console:
         return self._console
 
     @console.setter
-    def console(self, value):
+    def console(self, value: Console) -> None:
         self._console = value
 
     @staticmethod

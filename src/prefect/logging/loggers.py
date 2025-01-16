@@ -7,7 +7,7 @@ from builtins import print
 from contextlib import contextmanager
 from functools import lru_cache
 from logging import LogRecord
-from typing import TYPE_CHECKING, Any, List, Mapping, Optional, Union
+from typing import TYPE_CHECKING, Any, List, Mapping, MutableMapping, Optional, Union
 
 from typing_extensions import Self
 
@@ -39,9 +39,9 @@ class PrefectLogAdapter(LoggingAdapter):
     not a bug in the LoggingAdapter and subclassing is the intended workaround.
     """
 
-    extra: Mapping[str, object] | None
-
-    def process(self, msg: str, kwargs: dict[str, Any]) -> tuple[str, dict[str, Any]]:  # type: ignore[incompatibleMethodOverride]
+    def process(
+        self, msg: str, kwargs: MutableMapping[str, Any]
+    ) -> tuple[str, MutableMapping[str, Any]]:
         kwargs["extra"] = {**(self.extra or {}), **(kwargs.get("extra") or {})}
         return (msg, kwargs)
 
@@ -192,7 +192,7 @@ def task_run_logger(
     flow_run: Optional["FlowRun"] = None,
     flow: Optional["Flow[Any, Any]"] = None,
     **kwargs: Any,
-):
+) -> LoggingAdapter:
     """
     Create a task run logger with the run's metadata attached.
 
@@ -228,7 +228,9 @@ def task_run_logger(
     )
 
 
-def get_worker_logger(worker: "BaseWorker", name: Optional[str] = None):
+def get_worker_logger(
+    worker: "BaseWorker", name: Optional[str] = None
+) -> logging.Logger | LoggingAdapter:
     """
     Create a worker logger with the worker's metadata attached.
 
@@ -364,7 +366,9 @@ class LogEavesdropper(logging.Handler):
         # It's important that we use a very minimalistic formatter for use cases where
         # we may present these logs back to the user.  We shouldn't leak filenames,
         # versions, or other environmental information.
-        self.formatter = logging.Formatter("[%(levelname)s]: %(message)s")
+        self.formatter: logging.Formatter | None = logging.Formatter(
+            "[%(levelname)s]: %(message)s"
+        )
 
     def __enter__(self) -> Self:
         self._target_logger = logging.getLogger(self.eavesdrop_on)
@@ -374,7 +378,7 @@ class LogEavesdropper(logging.Handler):
         self._lines = []
         return self
 
-    def __exit__(self, *_):
+    def __exit__(self, *_: Any) -> None:
         if self._target_logger:
             self._target_logger.removeHandler(self)
             self._target_logger.level = self._original_level

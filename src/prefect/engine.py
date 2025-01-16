@@ -1,6 +1,6 @@
 import os
 import sys
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
 from uuid import UUID
 
 from prefect._internal.compatibility.migration import getattr_migration
@@ -15,12 +15,19 @@ from prefect.utilities.asyncutils import (
     run_coro_as_sync,
 )
 
-engine_logger = get_logger("engine")
+if TYPE_CHECKING:
+    import logging
+
+    from prefect.flow_engine import FlowRun
+    from prefect.flows import Flow
+    from prefect.logging.loggers import LoggingAdapter
+
+engine_logger: "logging.Logger" = get_logger("engine")
 
 
 if __name__ == "__main__":
     try:
-        flow_run_id = UUID(
+        flow_run_id: UUID = UUID(
             sys.argv[1] if len(sys.argv) > 1 else os.environ.get("PREFECT__FLOW_RUN_ID")
         )
     except Exception:
@@ -37,11 +44,11 @@ if __name__ == "__main__":
             run_flow,
         )
 
-        flow_run = load_flow_run(flow_run_id=flow_run_id)
-        run_logger = flow_run_logger(flow_run=flow_run)
+        flow_run: "FlowRun" = load_flow_run(flow_run_id=flow_run_id)
+        run_logger: "LoggingAdapter" = flow_run_logger(flow_run=flow_run)
 
         try:
-            flow = load_flow(flow_run)
+            flow: "Flow[..., Any]" = load_flow(flow_run)
         except Exception:
             run_logger.error(
                 "Unexpected exception encountered when trying to load flow",
@@ -55,15 +62,17 @@ if __name__ == "__main__":
         else:
             run_flow(flow, flow_run=flow_run, error_logger=run_logger)
 
-    except Abort as exc:
+    except Abort as abort_signal:
+        abort_signal: Abort
         engine_logger.info(
             f"Engine execution of flow run '{flow_run_id}' aborted by orchestrator:"
-            f" {exc}"
+            f" {abort_signal}"
         )
         exit(0)
-    except Pause as exc:
+    except Pause as pause_signal:
+        pause_signal: Pause
         engine_logger.info(
-            f"Engine execution of flow run '{flow_run_id}' is paused: {exc}"
+            f"Engine execution of flow run '{flow_run_id}' is paused: {pause_signal}"
         )
         exit(0)
     except Exception:
