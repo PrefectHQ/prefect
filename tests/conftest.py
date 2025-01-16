@@ -479,7 +479,7 @@ async def generate_test_database_connection_url(
 @pytest.fixture(scope="session", autouse=True)
 def test_database_connection_url(
     generate_test_database_connection_url: Optional[str],
-) -> Generator[Optional[str], None]:
+) -> Generator[Optional[str], None, None]:
     """
     Update the setting for the database connection url to the generated value from
     `generate_test_database_connection_url`
@@ -491,8 +491,14 @@ def test_database_connection_url(
     if url is None:
         yield None
     else:
-        with temporary_settings({PREFECT_SERVER_DATABASE_CONNECTION_URL: url}):
-            yield url
+        # Suppress DeprecationWarnings during test setup - they will be tested explicitly
+        # in test_sqlalchemy_settings_migration
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=DeprecationWarning)
+            with temporary_settings(
+                updates={PREFECT_SERVER_DATABASE_CONNECTION_URL: url},
+            ):
+                yield url
 
 
 @pytest.fixture(autouse=True)
