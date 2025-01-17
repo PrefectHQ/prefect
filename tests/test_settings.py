@@ -305,7 +305,6 @@ SUPPORTED_SETTINGS = {
         "test_value": timedelta(seconds=10),
         "legacy": True,
     },
-    "PREFECT_SERVER_DATABASE_CONNECTION_APP_NAME": {"test_value": "testingconn"},
     "PREFECT_SERVER_DATABASE_CONNECTION_TIMEOUT": {"test_value": 10.0},
     "PREFECT_SERVER_DATABASE_CONNECTION_URL": {"test_value": "sqlite:///"},
     "PREFECT_SERVER_DATABASE_DRIVER": {"test_value": "sqlite+aiosqlite"},
@@ -315,6 +314,9 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SERVER_DATABASE_NAME": {"test_value": "prefect"},
     "PREFECT_SERVER_DATABASE_PASSWORD": {"test_value": "password"},
     "PREFECT_SERVER_DATABASE_PORT": {"test_value": 5432},
+    "PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_APPLICATION_NAME": {
+        "test_value": "prefect"
+    },
     "PREFECT_SERVER_DATABASE_SQLALCHEMY_MAX_OVERFLOW": {"test_value": 10},
     "PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_RECYCLE": {"test_value": 10},
     "PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_SIZE": {"test_value": 10},
