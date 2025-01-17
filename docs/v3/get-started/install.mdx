@@ -30,6 +30,46 @@ Server:
   SQLite version:    3.45.2
 ```
 
+<Accordion title="More commands for power users">
+
+
+### If you use `uv`
+
+start an `ipython` shell with python 3.12 and `prefect` installed:
+
+```bash
+uvx -p 3.12 --with prefect ipython
+```
+
+install prefect into a `uv` virtual environment:
+
+```bash
+uv venv --python 3.12 && source .venv/bin/activate
+uv pip install -U prefect
+```
+
+add prefect to an active project:
+
+```bash
+uv add prefect
+```
+
+run prefect server in an ephemeral python environment with `uvx`:
+
+```bash
+uvx prefect server start
+```
+
+### If you use `docker`
+
+run prefect server in a container port-forwarded to your local machine's 4200 port:
+
+```bash
+docker run -d -p 4200:4200 prefecthq/prefect:3-latest -- prefect server start --host 0.0.0.0
+```
+
+</Accordion>
+
 ## Windows installation
 
 You can install and run Prefect via Windows PowerShell, the Windows Command Prompt, or [conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/windows.html). After installation, you may need to manually add the Python local packages `Scripts` folder to your `Path` environment variable.
@@ -54,47 +94,6 @@ To install the latest release of `prefect-client`, run:
 ```bash
 pip install -U prefect-client
 ```
-
-<Details>
-
-<Summary>Commands for power users</Summary>
-
-### If you use `uv`
-
-start an `ipython` shell with python 3.12 and `prefect` installed:
-
-```bash
-uvx -p 3.12 --with prefect ipython
-```
-
-to install prefect into a `uv` virtual environment:
-
-```bash
-uv venv --python 3.12 && source .venv/bin/activate
-uv pip install -U prefect
-```
-
-to add prefect to an active project:
-
-```bash
-uv add prefect
-```
-
-to run a prefect server in an ephemeral python environment with `uvx`:
-
-```bash
-uvx prefect server start
-```
-
-### If you use `docker`
-
-to run a prefect server in a container port-forwarded to your local machine's 4200 port:
-
-```bash
-docker run -d -p 4200:4200 prefecthq/prefect:3-latest -- prefect server start --host 0.0.0.0
-```
-
-</Details>
 
 ## Next steps
 

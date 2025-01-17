@@ -54,6 +54,7 @@ This example demonstrates using the following REST endpoints:
 
 First, set up the settings model to gather configuration.
 
+{/* pmd-metadata: notest */}
 ```python
 class PrefectSettings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
@@ -86,6 +87,7 @@ class PrefectSettings(BaseSettings):
 
 Create a helper function to handle block creation and retrieval:
 
+{/* pmd-metadata: notest */}
 ```python
 def get_or_create_block(
     client: httpx.Client, name: str, block_type_id: str, data: dict[str, Any]
@@ -131,6 +133,7 @@ def get_or_create_block(
 
 Initialize the client and create the blocks:
 
+{/* pmd-metadata: notest */}
 ```python
 settings = PrefectSettings()
 print(f"🔑 Connecting to {settings.api_url}")
@@ -184,11 +187,7 @@ powershell -Command "Get-Clipboard | uv run -"
 </CodeGroup>
 
 ```python create_s3_bucket_with_creds_in_workspace.py
-# /// script
-# dependencies = ["httpx", "pydantic-settings"]
-# ///
-
-from typing import Any
+from typing import Any, Optional
 import httpx
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -198,9 +197,9 @@ class PrefectSettings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
     
     # if these are not set, we'll use localhost
-    PREFECT_API_KEY: str | None = Field(default=None)
-    PREFECT_ACCOUNT_ID: str | None = Field(default=None)
-    PREFECT_WORKSPACE_ID: str | None = Field(default=None)
+    PREFECT_API_KEY: Optional[str] = Field(default=None)
+    PREFECT_ACCOUNT_ID: Optional[str] = Field(default=None)
+    PREFECT_WORKSPACE_ID: Optional[str] = Field(default=None)
     
     AWS_ACCESS_KEY_ID: str = Field(default=...)
     AWS_SECRET_ACCESS_KEY: str = Field(default=...)
