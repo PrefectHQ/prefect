@@ -11,10 +11,11 @@ from typing import (
 )
 from urllib.parse import urlparse
 
-from pydantic import BeforeValidator, ConfigDict, Field, SecretStr, model_validator
+from pydantic import BeforeValidator, Field, SecretStr, model_validator
+from pydantic_settings import SettingsConfigDict
 from typing_extensions import Self
 
-from prefect.settings.base import PrefectBaseSettings, _build_settings_config
+from prefect.settings.base import PrefectBaseSettings, build_settings_config
 from prefect.settings.models.tasks import TasksSettings
 from prefect.settings.models.testing import TestingSettings
 from prefect.settings.models.worker import WorkerSettings
@@ -44,7 +45,7 @@ class Settings(PrefectBaseSettings):
     See https://docs.pydantic.dev/latest/concepts/pydantic_settings
     """
 
-    model_config: ClassVar[ConfigDict] = _build_settings_config()
+    model_config: ClassVar[SettingsConfigDict] = build_settings_config()
 
     home: Annotated[Path, BeforeValidator(lambda x: Path(x).expanduser())] = Field(
         default=Path("~") / ".prefect",
@@ -271,7 +272,7 @@ class Settings(PrefectBaseSettings):
         # To restore defaults, we need to resolve the setting path and then
         # set the default value on the new settings object. When restoring
         # defaults, all settings sources will be ignored.
-        restore_defaults_obj = {}
+        restore_defaults_obj: dict[str, Any] = {}
         for r in restore_defaults or []:
             path = r.accessor.split(".")
             model = self
@@ -297,11 +298,11 @@ class Settings(PrefectBaseSettings):
         updates = updates or {}
         set_defaults = set_defaults or {}
 
-        set_defaults_obj = {}
+        set_defaults_obj: dict[str, Any] = {}
         for setting, value in set_defaults.items():
             set_in_dict(set_defaults_obj, setting.accessor, value)
 
-        updates_obj = {}
+        updates_obj: dict[str, Any] = {}
         for setting, value in updates.items():
             set_in_dict(updates_obj, setting.accessor, value)
 
@@ -373,7 +374,7 @@ def _warn_on_misconfigured_api_url(settings: "Settings"):
                 "`PREFECT_API_URL` uses `/workspace/` but should use `/workspaces/`."
             ),
         }
-        warnings_list = []
+        warnings_list: list[str] = []
 
         for misconfig, warning in misconfigured_mappings.items():
             if misconfig in api_url:

@@ -1,8 +1,9 @@
 from typing import ClassVar, Optional
 
-from pydantic import AliasChoices, AliasPath, ConfigDict, Field
+from pydantic import AliasChoices, AliasPath, Field
+from pydantic_settings import SettingsConfigDict
 
-from prefect.settings.base import PrefectBaseSettings, _build_settings_config
+from prefect.settings.base import PrefectBaseSettings, build_settings_config
 
 
 class DeploymentsSettings(PrefectBaseSettings):
@@ -10,7 +11,7 @@ class DeploymentsSettings(PrefectBaseSettings):
     Settings for configuring deployments defaults
     """
 
-    model_config: ClassVar[ConfigDict] = _build_settings_config(("deployments",))
+    model_config: ClassVar[SettingsConfigDict] = build_settings_config(("deployments",))
 
     default_work_pool_name: Optional[str] = Field(
         default=None,

@@ -665,7 +665,7 @@
                     "type": "integer"
                 },
                 "log_level": {
-                    "default": "error",
+                    "default": "ERROR",
                     "description": "The log level of the runner's webserver.",
                     "enum": [
                         "DEBUG",
@@ -737,6 +737,58 @@
                 }
             },
             "title": "RunnerSettings",
+            "type": "object"
+        },
+        "SQLAlchemySettings": {
+            "description": "Settings for controlling SQLAlchemy behavior; note that these settings only take effect when\nusing a PostgreSQL database.",
+            "properties": {
+                "pool_size": {
+                    "default": 5,
+                    "description": "Controls connection pool size of database connection pools from the Prefect backend.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_SIZE",
+                        "PREFECT_SQLALCHEMY_POOL_SIZE"
+                    ],
+                    "title": "Pool Size",
+                    "type": "integer"
+                },
+                "pool_recycle": {
+                    "default": 3600,
+                    "description": "This setting causes the pool to recycle connections after the given number of seconds has passed; set it to -1 to avoid recycling entirely.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_RECYCLE"
+                    ],
+                    "title": "Pool Recycle",
+                    "type": "integer"
+                },
+                "pool_timeout": {
+                    "anyOf": [
+                        {
+                            "type": "number"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": 30.0,
+                    "description": "Number of seconds to wait before giving up on getting a connection from the pool. Defaults to 30 seconds.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_TIMEOUT"
+                    ],
+                    "title": "Pool Timeout"
+                },
+                "max_overflow": {
+                    "default": 10,
+                    "description": "Controls maximum overflow of the connection pool. To prevent overflow, set to -1.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_DATABASE_SQLALCHEMY_MAX_OVERFLOW",
+                        "PREFECT_SQLALCHEMY_MAX_OVERFLOW"
+                    ],
+                    "title": "Max Overflow",
+                    "type": "integer"
+                }
+            },
+            "title": "SQLAlchemySettings",
             "type": "object"
         },
         "ServerAPISettings": {
@@ -855,6 +907,11 @@
         "ServerDatabaseSettings": {
             "description": "Settings for controlling server database behavior",
             "properties": {
+                "sqlalchemy": {
+                    "$ref": "#/$defs/SQLAlchemySettings",
+                    "description": "Settings for controlling SQLAlchemy behavior",
+                    "supported_environment_variables": []
+                },
                 "connection_url": {
                     "anyOf": [
                         {
@@ -1012,7 +1069,7 @@
                         }
                     ],
                     "default": 10.0,
-                    "description": "A statement timeout, in seconds, applied to all database interactions made by the API. Defaults to 10 seconds.",
+                    "description": "A statement timeout, in seconds, applied to all database interactions made by the Prefect backend. Defaults to 10 seconds.",
                     "supported_environment_variables": [
                         "PREFECT_SERVER_DATABASE_TIMEOUT",
                         "PREFECT_API_DATABASE_TIMEOUT"
@@ -1036,23 +1093,6 @@
                     ],
                     "title": "Connection Timeout"
                 },
-                "sqlalchemy_pool_size": {
-                    "anyOf": [
-                        {
-                            "type": "integer"
-                        },
-                        {
-                            "type": "null"
-                        }
-                    ],
-                    "default": null,
-                    "description": "Controls connection pool size of database connection pools from the Prefect API. If not set, the default SQLAlchemy pool size will be used.",
-                    "supported_environment_variables": [
-                        "PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_SIZE",
-                        "PREFECT_SQLALCHEMY_POOL_SIZE"
-                    ],
-                    "title": "Sqlalchemy Pool Size"
-                },
                 "connection_app_name": {
                     "anyOf": [
                         {
@@ -1063,28 +1103,11 @@
                         }
                     ],
                     "default": null,
-                    "description": "Controls the application_name field for connections opened from the connection pool when using a PostgreSQL database with the Prefect API.",
+                    "description": "Controls the application_name field for connections opened from the connection pool when using a PostgreSQL database with the Prefect backend.",
                     "supported_environment_variables": [
                         "PREFECT_SERVER_DATABASE_CONNECTION_APP_NAME"
                     ],
                     "title": "Connection App Name"
-                },
-                "sqlalchemy_max_overflow": {
-                    "anyOf": [
-                        {
-                            "type": "integer"
-                        },
-                        {
-                            "type": "null"
-                        }
-                    ],
-                    "default": null,
-                    "description": "Controls maximum overflow of the connection pool when using a PostgreSQL database with the Prefect API. If not set, the default SQLAlchemy maximum overflow value will be used.",
-                    "supported_environment_variables": [
-                        "PREFECT_SERVER_DATABASE_SQLALCHEMY_MAX_OVERFLOW",
-                        "PREFECT_SQLALCHEMY_MAX_OVERFLOW"
-                    ],
-                    "title": "Sqlalchemy Max Overflow"
                 }
             },
             "title": "ServerDatabaseSettings",

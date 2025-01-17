@@ -1,12 +1,13 @@
 from typing import ClassVar, Optional
 
-from pydantic import AliasChoices, AliasPath, ConfigDict, Field
+from pydantic import AliasChoices, AliasPath, Field
+from pydantic_settings import SettingsConfigDict
 
-from prefect.settings.base import PrefectBaseSettings, _build_settings_config
+from prefect.settings.base import PrefectBaseSettings, build_settings_config
 
 
 class ServerUISettings(PrefectBaseSettings):
-    model_config: ClassVar[ConfigDict] = _build_settings_config(("server", "ui"))
+    model_config: ClassVar[SettingsConfigDict] = build_settings_config(("server", "ui"))
 
     enabled: bool = Field(
         default=True,

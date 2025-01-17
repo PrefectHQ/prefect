@@ -123,7 +123,7 @@ def _get_settings_fields(
     settings: Type[BaseSettings], accessor_prefix: Optional[str] = None
 ) -> Dict[str, "Setting"]:
     """Get the settings fields for the settings object"""
-    settings_fields: Dict[str, Setting] = {}
+    settings_fields: dict[str, Setting] = {}
     for field_name, field in settings.model_fields.items():
         if inspect.isclass(field.annotation) and issubclass(
             field.annotation, PrefectBaseSettings
