@@ -9,15 +9,17 @@ app = typer.Typer()
 
 
 def upload(
-    bundle_path: Annotated[str, typer.Option(help="The path to the bundle to upload")],
+    bundle_path: Annotated[
+        str, typer.Argument(help="The path to the bundle to upload")
+    ],
     bucket_name: Annotated[
-        str, typer.Argument(help="The name of the bucket to upload to")
+        str, typer.Option(help="The name of the bucket to upload to")
     ],
     credentials_block_name: Annotated[
-        Optional[str], typer.Argument(help="The ID of the credentials block to use")
+        Optional[str], typer.Option(help="The ID of the credentials block to use")
     ] = None,
     bucket_path: Annotated[
-        Optional[str], typer.Argument(help="The path to upload the bundle to")
+        Optional[str], typer.Option(help="The path to upload the bundle to")
     ] = None,
 ):
     if credentials_block_name:
