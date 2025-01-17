@@ -11,23 +11,27 @@ Prefect Cloud has controls in place to ensure stability.
 **Prefect Cloud rate limits are subject to change**
 
 **API rate limits are subject to change.**
-Contact Prefect support at [help@prefect.io](mailto:help@prefect.io) with questions about rate limits.
+To view your account's rate usage, <TODO - UI page>. Contact Prefect support at [help@prefect.io](mailto:help@prefect.io) with questions about rate limits.
 </Note>
 
-Prefect Cloud's API rate limits restrict the number of requests that a single client can make to certain endpoints in a given time period. 
-The `flow_runs`, `task_runs`, and `flows` endpoints and their subroutes are limited to:
+### Orchestration API rate limits
+Prefect Cloud's API rate limits restrict the number of requests that an account can make to certain endpoints in a given time period. 
+API calls to any orchestration endpoint groups, such as  `flow_runs`, `task_runs`, and `flows`, are limited to:
 
 - 400 requests per minute for Free accounts
 - 2,000 requests per minute for Pro accounts
 
-These endpoints return a `429` response with an appropriate `Retry-After` header if this limit is triggered. See [ClientSettings](/v3/develop/settings-ref#clientsettings) for more information on how retries are handled client-side and how to modify the default behavior.
+### Observability API rate limits
+The number of logs and events that can be written per minute is limited to:
 
-The `logs` endpoint is limited to:
+- 700 per minute for Free accounts
+- 10,000 per minute for Pro accounts
 
-- 700 logs per minute for Free accounts
-- 10,000 logs per minute for Pro accounts
+API calls to read logs and events are limited to 100 requests per minute.
 
-The endpoint returns a `429` response if this limit is triggered.
+### Rate limit behavior
+When rate limits are reached, endpoints return a `429` response with an appropriate `Retry-After` header. See [ClientSettings](/v3/develop/settings-ref#clientsettings) for more information on how retries are handled client-side and how to modify the default behavior.
+In the special case where rate limits are reached when calling `/set_state` on a flow or task run, the resulting orchestration response will instruct the engine to wait and retry the request.
 
 ## Metadata retention period
 
