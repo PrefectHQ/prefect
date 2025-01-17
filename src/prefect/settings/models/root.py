@@ -374,7 +374,7 @@ def _warn_on_misconfigured_api_url(settings: "Settings"):
                 "`PREFECT_API_URL` uses `/workspace/` but should use `/workspaces/`."
             ),
         }
-        warnings_list = []
+        warnings_list: list[str] = []
 
         for misconfig, warning in misconfigured_mappings.items():
             if misconfig in api_url:
