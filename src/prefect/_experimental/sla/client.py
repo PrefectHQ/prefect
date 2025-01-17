@@ -15,7 +15,7 @@ class SlaClient(BaseClient):
         self, deployment_id: "UUID", slas: "list[SlaTypes]"
     ) -> "SlaMergeResponse":
         """
-        Merges service level agreements for a deployment. Performs matching by SLA name. If a SLA with the same name already exists, it will be updated. If a SLA with the same name does not exist, it will be created. Existing SLAs that are not in the list will be deleted.
+        Applies service level agreements for a deployment. Performs matching by SLA name. If a SLA with the same name already exists, it will be updated. If a SLA with the same name does not exist, it will be created. Existing SLAs that are not in the list will be deleted.
         Args:
             deployment_id: The ID of the deployment to update SLAs for
             slas: List of SLAs to associate with the deployment
@@ -56,7 +56,7 @@ class SlaAsyncClient(BaseAsyncClient):
         self, deployment_id: "UUID", slas: "list[SlaTypes]"
     ) -> "UUID":
         """
-        Merges service level agreements for a deployment. Performs matching by SLA name. If a SLA with the same name already exists, it will be updated. If a SLA with the same name does not exist, it will be created. Existing SLAs that are not in the list will be deleted.
+        Applies service level agreements for a deployment. Performs matching by SLA name. If a SLA with the same name already exists, it will be updated. If a SLA with the same name does not exist, it will be created. Existing SLAs that are not in the list will be deleted.
         Args:
             deployment_id: The ID of the deployment to update SLAs for
             slas: List of SLAs to associate with the deployment
