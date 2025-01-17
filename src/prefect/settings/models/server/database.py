@@ -15,6 +15,22 @@ from typing_extensions import Literal, Self
 from prefect.settings.base import PrefectBaseSettings, build_settings_config
 
 
+class SQLAlchemyConnectArgsSettings(PrefectBaseSettings):
+    """
+    Settings for controlling SQLAlchemy connection behavior; note that these settings only take effect when
+    using a PostgreSQL database.
+    """
+
+    model_config: ClassVar[SettingsConfigDict] = build_settings_config(
+        ("server", "database", "sqlalchemy", "connect_args")
+    )
+
+    application_name: Optional[str] = Field(
+        default=None,
+        description="Controls the application_name field for connections opened from the connection pool when using a PostgreSQL database with the Prefect backend.",
+    )
+
+
 class SQLAlchemySettings(PrefectBaseSettings):
     """
     Settings for controlling SQLAlchemy behavior; note that these settings only take effect when
@@ -23,6 +39,11 @@ class SQLAlchemySettings(PrefectBaseSettings):
 
     model_config: ClassVar[SettingsConfigDict] = build_settings_config(
         ("server", "database", "sqlalchemy")
+    )
+
+    connect_args: SQLAlchemyConnectArgsSettings = Field(
+        default_factory=SQLAlchemyConnectArgsSettings,
+        description="Settings for controlling SQLAlchemy connection behavior",
     )
 
     pool_size: int = Field(
@@ -192,11 +213,6 @@ class ServerDatabaseSettings(PrefectBaseSettings):
             "prefect_server_database_connection_timeout",
             "prefect_api_database_connection_timeout",
         ),
-    )
-
-    connection_app_name: Optional[str] = Field(
-        default=None,
-        description="Controls the application_name field for connections opened from the connection pool when using a PostgreSQL database with the Prefect backend.",
     )
 
     # handle deprecated fields
