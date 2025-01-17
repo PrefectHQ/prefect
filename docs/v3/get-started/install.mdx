@@ -17,7 +17,7 @@ prefect version
 You should see output similar to:
 
 ```bash
-Version:             3.0.0
+Version:             3.1.10
 API version:         0.8.4
 Python version:      3.12.2
 Git commit:          d6bdb075
@@ -29,6 +29,46 @@ Server:
   Database:          sqlite
   SQLite version:    3.45.2
 ```
+
+<Accordion title="More commands for power users">
+
+
+### If you use `uv`
+
+start an `ipython` shell with python 3.12 and `prefect` installed:
+
+```bash
+uvx --python 3.12 --with prefect ipython
+```
+
+install prefect into a `uv` virtual environment:
+
+```bash
+uv venv --python 3.12 && source .venv/bin/activate
+uv pip install -U prefect
+```
+
+add prefect to an active project:
+
+```bash
+uv add prefect
+```
+
+run prefect server in an ephemeral python environment with `uvx`:
+
+```bash
+uvx prefect server start
+```
+
+### If you use `docker`
+
+run prefect server in a container port-forwarded to your local machine's 4200 port:
+
+```bash
+docker run -d -p 4200:4200 prefecthq/prefect:3-latest -- prefect server start --host 0.0.0.0
+```
+
+</Accordion>
 
 ## Windows installation
 
