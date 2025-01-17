@@ -87,6 +87,14 @@ prefect run my_flow.py
 
 You can see supported environment variables for each setting in the [settings reference documentation](/v3/develop/settings-ref).
 
+<Tip>
+**Environment variables _always_ take precedence**
+
+Environment variables always take precedence over values declared in other sources.
+This allows you to configure certain runtime behavior for your workflows by setting the appropriate
+environment variable on the job or process executing the workflow.
+</Tip>
+
 ### `.env` file
 
 `.env` files are useful for declaring local settings that you want to apply across multiple runs. 
@@ -205,14 +213,6 @@ prefect profile inspect
 prefect config unset PREFECT_LOGGING_LEVEL -y
 ```
 
-<Tip>
-**Environment variables always take precedence**
-
-Environment variables always take precedence over values declared in other sources.
-This allows you to configure certain runtime behavior for your workflows by setting the appropriate
-environment variable on the job or process executing the workflow.
-</Tip>
-
 ## View current configuration
 
 To view all available settings and their active values from the command line, run:
@@ -250,6 +250,22 @@ Read more about [managing API keys](/v3/manage/cloud/manage-users/api-keys/).
 Must be provided in a SQLAlchemy-compatible format. Prefect currently supports SQLite and Postgres. 
 
 #### Security settings
+
+**Basic Authentication**
+
+Self-hosted Prefect servers can be equipped with Basic Authentication through two settings:
+
+- **`server.api.auth_string="admin:pass"`**: this setting should be set with an administrator / password combination, separated by a colon, on any process that hosts the Prefect webserver (for example `prefect server start`).
+- **`api.auth_string="admin:pass"`**: this setting should be set with the same administrator / password combination as the server on any client process that needs to communicate with the Prefect API (for example, any process that runs a workflow).
+
+With these settings, the UI will prompt for the full authentication string `"admin:pass"` (no quotes) upon first load. It is recommended to store this information in a secure way, such as a Kubernetes Secret or in a private `.env` file.
+
+Example `.env` file:
+
+```bash .env
+PREFECT_SERVER_API_AUTH_STRING="admin:pass"
+PREFECT_API_AUTH_STRING="admin:pass"
+```
 
 **Host the UI behind a reverse proxy**
 
