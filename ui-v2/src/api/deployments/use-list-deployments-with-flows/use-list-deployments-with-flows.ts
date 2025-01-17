@@ -48,8 +48,9 @@ export const useListDeploymentsWithFlows = (
 		buildPaginateDeploymentsQuery(filter),
 	);
 
-	const deploymentsFlowIds = deploymentsData?.results.map(
-		(deployment) => deployment.flow_id,
+	// Creates a set of unique flow ids
+	const deploymentsFlowIds = new Set(
+		deploymentsData?.results.map((deployment) => deployment.flow_id),
 	);
 
 	const { data: flowsData, status: flowsStatus } = useQuery(
@@ -57,12 +58,12 @@ export const useListDeploymentsWithFlows = (
 			{
 				flows: {
 					operator: "or_",
-					id: { any_: deploymentsFlowIds },
+					id: { any_: Array.from(deploymentsFlowIds) },
 				},
 				sort: "NAME_DESC",
 				offset: 0,
 			},
-			{ enabled: Boolean(deploymentsFlowIds) },
+			{ enabled: deploymentsFlowIds.size > 0 },
 		),
 	);
 
