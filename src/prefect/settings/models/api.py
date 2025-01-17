@@ -1,11 +1,12 @@
 import os
 from typing import ClassVar, Optional
 
-from pydantic import ConfigDict, Field, SecretStr
+from pydantic import Field, SecretStr
+from pydantic_settings import SettingsConfigDict
 
 from prefect.settings.base import (
     PrefectBaseSettings,
-    _build_settings_config,
+    build_settings_config,
 )
 
 
@@ -14,7 +15,7 @@ class APISettings(PrefectBaseSettings):
     Settings for interacting with the Prefect API
     """
 
-    model_config: ClassVar[ConfigDict] = _build_settings_config(("api",))
+    model_config: ClassVar[SettingsConfigDict] = build_settings_config(("api",))
     url: Optional[str] = Field(
         default=None,
         description="The URL of the Prefect API. If not set, the client will attempt to infer it.",
