@@ -5,7 +5,7 @@ description: Learn how Prefect runs deployments on Prefect's infrastructure.
 
 <span class="badge cloud"></span> Prefect Cloud can run your flows on your behalf with Prefect Managed work pools.
 
-Flows that run with this work pool do not require a worker or cloud provider 
+Flows that run with this work pool do not require a worker or cloud provider
 account—Prefect handles the infrastructure and code execution for you.
 
 Managed execution is a great option for users who want to get started quickly, with no infrastructure setup.
@@ -48,7 +48,7 @@ Managed execution is a great option for users who want to get started quickly, w
 ## Add dependencies
 
 Prefect can install Python packages in the container that runs your flow at runtime.
-Specify these dependencies in the **Pip Packages** field in the UI, or by configuring 
+Specify these dependencies in the **Pip Packages** field in the UI, or by configuring
 `job_variables={"pip_packages": ["pandas", "prefect-aws"]}` in your deployment creation like this:
 
 ```python
@@ -67,6 +67,17 @@ if __name__ == "__main__":
 
 Alternatively, you can create a `requirements.txt` file and reference it in your [prefect.yaml pull step](/v3/deploy/infrastructure-concepts/prefect-yaml#utility-steps).
 
+## Networking
+
+### Static Outbound IP addresses
+
+Flows running on Prefect Managed infrastructure will be assigned static IP addresses on outbound traffic.
+
+Include these addresses in your firewall rules to explicitly allow your flows to communicate with your system.
+
+- `34.138.254.187`
+- `34.148.94.191`
+
 ## Limitations
 
 ### Concurrency and work pools
@@ -83,8 +94,8 @@ Pro tier and above accounts are limited to:
 
 ### Images
 
-Managed execution requires that you run the official Prefect Docker image: `prefecthq/prefect:3-latest`. 
-However, as noted above, you can install Python package dependencies at runtime. 
+Managed execution requires that you run the official Prefect Docker image: `prefecthq/prefect:3-latest`.
+However, as noted above, you can install Python package dependencies at runtime.
 If you need to use your own image, we recommend using another type of work pool.
 
 ### Code storage
@@ -95,19 +106,19 @@ Remote block-based storage is also supported, so S3, GCS, and Azure Blob are add
 
 ### Resources
 
-Memory is limited to 2 GB of RAM, which includes all operations such as dependency installation. 
+Memory is limited to 2 GB of RAM, which includes all operations such as dependency installation.
 Maximum job run time is 24 hours.
 
 ## Usage limits
 
-Free tier accounts are limited to 10 compute hours per workspace per month. 
-Pro tier and above accounts are limited to 250 hours per workspace per month. 
+Free tier accounts are limited to 10 compute hours per workspace per month.
+Pro tier and above accounts are limited to 250 hours per workspace per month.
 You can view your compute hours quota usage on the **Work Pools** page in the UI.
 
 ## Next steps
 
 Read more about creating deployments in [Run flows in Docker containers](/v3/deploy/infrastructure-examples/docker/).
 
-For more control over your infrastructure, such as the ability to run 
-custom Docker images, [serverless push work pools](/v3/deploy/infrastructure-examples/serverless/) 
-are also a good option.
+For more control over your infrastructure, such as the ability to run
+custom Docker images, [serverless push work pools](/v3/deploy/infrastructure-examples/serverless/)
+are a good option.
