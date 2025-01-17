@@ -276,6 +276,10 @@ class TestRunnerDeploymentApply:
 
 
 class TestDeploymentCLI:
+    @pytest.fixture
+    def deployment_id(self):
+        return UUID("89f0ac57-514a-4eb1-a068-dbbf44d2e199")
+
     class TestSlaSyncing:
         async def test_initialize_slas(self, deployment_id):
             sla_spec = {
@@ -333,14 +337,19 @@ class TestDeploymentCLI:
             deployment_id = uuid4()
             slas = _initialize_deployment_slas(deployment_id, [sla_spec])
 
-            await _create_slas(client, slas)
+            await _create_slas(client, deployment_id, slas)
 
             assert slas[0]._deployment_id == deployment_id
             assert slas[0].owner_resource == f"prefect.deployment.{deployment_id}"
-            client.create_sla.assert_called_once_with(slas[0])
+            client.apply_slas_for_deployment.assert_called_once_with(
+                deployment_id, slas
+            )
 
         async def test_sla_creation_orchestrated(
-            self, project_dir, prefect_client, work_pool
+            self,
+            project_dir,
+            prefect_client,
+            work_pool,
         ):
             prefect_file = Path("prefect.yaml")
             with prefect_file.open(mode="r") as f:
@@ -381,12 +390,11 @@ class TestDeploymentCLI:
 
                 assert create_slas.call_count == 1
 
-                client, slas = create_slas.call_args[0]
+                client, deployment_id, slas = create_slas.call_args[0]
                 assert isinstance(client, PrefectClient)
 
-                returned_deployment_id = slas[0]._deployment_id
                 for sla in expected_slas:
-                    sla.set_deployment_id(returned_deployment_id)
+                    sla.set_deployment_id(deployment_id)
 
                 assert slas == expected_slas
 
@@ -425,12 +433,11 @@ class TestDeploymentCLI:
 
                 assert create_slas.call_count == 1
 
-                client, slas = create_slas.call_args[0]
+                client, called_deployment_id, slas = create_slas.call_args[0]
                 assert isinstance(client, PrefectClient)
 
-                returned_deployment_id = slas[0]._deployment_id
                 for sla in expected_slas:
-                    sla.set_deployment_id(returned_deployment_id)
+                    sla.set_deployment_id(called_deployment_id)
 
                 assert slas == expected_slas
 
@@ -471,12 +478,11 @@ class TestDeploymentCLI:
 
                 assert create_slas.call_count == 1
 
-                client, slas = create_slas.call_args[0]
+                client, called_deployment_id, slas = create_slas.call_args[0]
                 assert isinstance(client, PrefectClient)
 
-                returned_deployment_id = slas[0]._deployment_id
                 for sla in expected_slas:
-                    sla.set_deployment_id(returned_deployment_id)
+                    sla.set_deployment_id(called_deployment_id)
 
                 assert slas == expected_slas
 
@@ -516,12 +522,11 @@ class TestDeploymentCLI:
 
                 assert create_slas.call_count == 1
 
-                client, slas = create_slas.call_args[0]
+                client, called_deployment_id, slas = create_slas.call_args[0]
                 assert isinstance(client, PrefectClient)
 
-                returned_deployment_id = slas[0]._deployment_id
                 for sla in expected_slas:
-                    sla.set_deployment_id(returned_deployment_id)
+                    sla.set_deployment_id(called_deployment_id)
 
                 assert slas == expected_slas
 
@@ -563,12 +568,11 @@ class TestDeploymentCLI:
 
                 assert create_slas.call_count == 1
 
-                client, slas = create_slas.call_args[0]
+                client, called_deployment_id, slas = create_slas.call_args[0]
                 assert isinstance(client, PrefectClient)
 
-                returned_deployment_id = slas[0]._deployment_id
                 for sla in expected_slas:
-                    sla.set_deployment_id(returned_deployment_id)
+                    sla.set_deployment_id(called_deployment_id)
 
                 assert slas == expected_slas
 
@@ -621,12 +625,11 @@ class TestDeploymentCLI:
 
                 assert create_slas.call_count == 1
 
-                client, slas = create_slas.call_args[0]
+                client, called_deployment_id, slas = create_slas.call_args[0]
                 assert isinstance(client, PrefectClient)
 
-                returned_deployment_id = slas[0]._deployment_id
                 for sla in expected_slas:
-                    sla.set_deployment_id(returned_deployment_id)
+                    sla.set_deployment_id(called_deployment_id)
 
                 assert slas == expected_slas
 
@@ -687,12 +690,12 @@ class TestDeploymentCLI:
                     expected_code=0,
                 )
 
-                client, slas = create_slas.call_args[0]
+                client, called_deployment_id, slas = create_slas.call_args[0]
                 assert isinstance(client, PrefectClient)
                 assert len(slas) == 1
-                returned_deployment_id = slas[0]._deployment_id
+
                 for sla in expected_slas:
-                    sla.set_deployment_id(returned_deployment_id)
+                    sla.set_deployment_id(called_deployment_id)
                 assert slas == expected_slas
 
         @pytest.mark.usefixtures("project_dir")

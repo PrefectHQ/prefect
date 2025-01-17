@@ -360,7 +360,11 @@ class RunnerDeployment(BaseModel):
 
             # We plan to support SLA configuration on the Prefect Server in the future.
             # For now, we only support it on Prefect Cloud.
-            if self._sla:
+
+            # If we're provided with an empty list, we will call the apply endpoint
+            # to remove existing SLAs for the deployment. If the argument is not provided,
+            # we will not call the endpoint.
+            if self._sla or self._sla == []:
                 await self._create_slas(deployment_id, client)
 
             return deployment_id
