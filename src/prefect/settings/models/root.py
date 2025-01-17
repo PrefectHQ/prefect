@@ -312,8 +312,7 @@ class Settings(PrefectBaseSettings):
                 self.model_dump(exclude_unset=True),
                 restore_defaults_obj,
                 updates_obj,
-            ),
-            context={"ignore_deprecation": True},
+            )
         )
         return new_settings
 
@@ -375,7 +374,7 @@ def _warn_on_misconfigured_api_url(settings: "Settings"):
                 "`PREFECT_API_URL` uses `/workspace/` but should use `/workspaces/`."
             ),
         }
-        warnings_list = []
+        warnings_list: list[str] = []
 
         for misconfig, warning in misconfigured_mappings.items():
             if misconfig in api_url:

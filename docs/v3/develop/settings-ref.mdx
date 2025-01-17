@@ -1253,24 +1253,6 @@ Controls the application_name field for connections opened from the connection p
 **Supported environment variables**:
 `PREFECT_SERVER_DATABASE_CONNECTION_APP_NAME`
 
-### `sqlalchemy_pool_size`
-Controls connection pool size of database connection pools from the Prefect backend.
-
-**Type**: `integer`
-
-**Default**: `5`
-
-**TOML dotted key path**: `server.database.sqlalchemy_pool_size`
-
-### `sqlalchemy_max_overflow`
-Controls maximum overflow of the connection pool. To prevent overflow, set to -1.
-
-**Type**: `integer`
-
-**Default**: `10`
-
-**TOML dotted key path**: `server.database.sqlalchemy_max_overflow`
-
 ---
 ## ServerDeploymentsSettings
 ### `concurrency_slot_wait_seconds`
