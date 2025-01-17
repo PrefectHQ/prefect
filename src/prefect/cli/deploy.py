@@ -754,7 +754,7 @@ async def _run_single_deploy(
         options.get("sla"), deploy_config.get("sla")
     ):
         slas = _initialize_deployment_slas(deployment_id, sla_specs)
-        await _create_slas(client, slas)
+        await _create_slas(client, deployment_id, slas)
     else:
         slas = []
 
@@ -1817,21 +1817,11 @@ def _initialize_deployment_slas(
 
 async def _create_slas(
     client: "PrefectClient",
+    deployment_id: UUID,
     slas: List[SlaTypes],
 ):
     if client.server_type == ServerType.CLOUD:
-        exceptions = []
-        for sla in slas:
-            try:
-                await client.create_sla(sla)
-            except Exception as e:
-                app.console.print(
-                    f"""Failed to create SLA: {sla.get("name")}. Error: {str(e)}""",
-                    style="red",
-                )
-                exceptions.append((f"""Failed to create SLA: {sla.get('name')}""", e))
-        if exceptions:
-            raise ValueError("Failed to create one or more SLAs.", exceptions)
+        await client.apply_slas_for_deployment(deployment_id, slas)
     else:
         raise ValueError(
             "SLA configuration is currently only supported on Prefect Cloud."

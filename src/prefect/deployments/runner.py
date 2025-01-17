@@ -36,7 +36,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Iterable, List, Optional, Union
 from uuid import UUID
 
-from exceptiongroup import ExceptionGroup  # novermin
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -371,15 +370,7 @@ class RunnerDeployment(BaseModel):
             self._sla = [self._sla]
 
         if client.server_type == ServerType.CLOUD:
-            exceptions = []
-            for sla in self._sla:
-                try:
-                    sla.set_deployment_id(deployment_id)
-                    await client.create_sla(sla)
-                except Exception as e:
-                    exceptions.append(e)
-            if exceptions:
-                raise ExceptionGroup("Failed to create SLAs", exceptions)  # novermin
+            await client.apply_slas_for_deployment(deployment_id, self._sla)
         else:
             raise ValueError(
                 "SLA configuration is currently only supported on Prefect Cloud."

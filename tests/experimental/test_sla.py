@@ -12,7 +12,6 @@ import pytest
 import readchar
 import respx
 import yaml
-from exceptiongroup import ExceptionGroup  # novermin
 from typer import Exit
 
 import prefect
@@ -112,42 +111,50 @@ class TestSla:
         assert sla.owner_resource == f"prefect.deployment.{deployment_id}"
 
 
-class TestClientCreateSla:
+class TestClientApplySla:
     async def test_create_sla_against_cloud(self):
         account_id = uuid4()
         workspace_id = uuid4()
+        deployment_id = uuid4()
+        prefect_api_url = f"https://api.prefect.cloud/api/accounts/{account_id}/workspaces/{workspace_id}/"
+
         with temporary_settings(
             updates={
-                PREFECT_API_URL: f"https://api.prefect.cloud/api/accounts/{account_id}/workspaces/{workspace_id}/"
+                PREFECT_API_URL: prefect_api_url,
             }
         ):
             with respx.mock(
                 assert_all_mocked=True,
                 assert_all_called=False,
-                base_url="https://api.prefect.cloud/api",
+                base_url=prefect_api_url,
                 using="httpx",
             ) as router:
-                sla_id = str(uuid4())
+                sla_name = "test-sla"
 
                 router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
                 router.post(
-                    f"/accounts/{account_id}/workspaces/{workspace_id}/slas/",
+                    f"/slas/apply-resource-slas/prefect.deployment.{deployment_id}",
                 ).mock(
                     return_value=httpx.Response(
                         status_code=201,
-                        json={"id": sla_id},
+                        json={
+                            "created": [{"name": sla_name}],
+                            "updated": [],
+                            "deleted": [],
+                        },
                     )
                 )
                 prefect_client = get_client()
 
-                deployment_id = uuid4()
                 sla = TimeToCompletionSla(
-                    name="test-sla",
+                    name=sla_name,
                     duration=timedelta(minutes=10).total_seconds(),
                 )
-                sla.set_deployment_id(deployment_id)
-                response_id = await prefect_client.create_sla(sla)
-                assert response_id == UUID(sla_id)
+                response = await prefect_client.apply_slas_for_deployment(
+                    deployment_id, [sla]
+                )
+
+                assert response.created[0] == sla.name
 
 
 class TestRunnerDeploymentApply:
@@ -172,16 +179,28 @@ class TestRunnerDeploymentApply:
         assert deployment._create_slas.called
 
     @pytest.fixture
-    def client(self, monkeypatch, prefect_client):
+    def deployment_id(self):
+        return UUID("89f0ac57-514a-4eb1-a068-dbbf44d2e199")
+
+    @pytest.fixture
+    def client(self, monkeypatch, prefect_client, deployment_id):
         monkeypatch.setattr(prefect_client, "server_type", ServerType.CLOUD)
 
         monkeypatch.setattr(
-            prefect_client, "create_sla", mock.AsyncMock(name="mock_create_sla")
+            prefect_client,
+            "apply_slas_for_deployment",
+            mock.AsyncMock(name="mock_apply_slas_for_deployment"),
+        )
+
+        monkeypatch.setattr(
+            prefect_client,
+            "create_deployment",
+            mock.AsyncMock(name="mock_create_deployment", return_value=deployment_id),
         )
         return prefect_client
 
     async def test_create_deployment_with_sla_config_against_cloud(
-        self, deployment, client
+        self, deployment, client, deployment_id
     ):
         sla = TimeToCompletionSla(
             name="test-sla",
@@ -192,11 +211,18 @@ class TestRunnerDeploymentApply:
             name=__file__,
             _sla=sla,
         )
-        await deployment._create_slas(uuid4(), client)
-        assert client.create_sla.await_args_list[0].args[0].name == sla.name
-        assert client.create_sla.await_args_list[0].args[0].duration == sla.duration
+        await deployment._create_slas(deployment_id, client)
+        assert (
+            client.apply_slas_for_deployment.await_args_list[0].args[0] == deployment_id
+        )
+        assert (
+            client.apply_slas_for_deployment.await_args_list[0].args[1][0].name
+            == sla.name
+        )
 
-    async def test_create_deployment_with_multiple_slas_against_cloud(self, client):
+    async def test_create_deployment_with_multiple_slas_against_cloud(
+        self, client, deployment_id
+    ):
         sla1 = TimeToCompletionSla(
             name="a little long",
             severity="moderate",
@@ -212,14 +238,14 @@ class TestRunnerDeploymentApply:
             name=__file__,
             _sla=[sla1, sla2],
         )
-        await deployment._create_slas(uuid4(), client)
-        calls = client.create_sla.await_args_list
-        assert len(calls) == 2
-        assert calls[0].args[0].name == sla1.name
-        assert calls[1].args[0].name == sla2.name
+        await deployment._create_slas(deployment_id, client)
+        calls = client.apply_slas_for_deployment.await_args_list
+        assert len(calls) == 1
+        assert calls[0].args[0] == deployment_id
+        assert [sla.name for sla in calls[0].args[1]] == [sla1.name, sla2.name]
 
     async def test_create_deployment_against_oss_server_produces_error_log(
-        self, prefect_client
+        self, prefect_client, deployment_id
     ):
         sla = TimeToCompletionSla(
             name="test-sla",
@@ -235,50 +261,29 @@ class TestRunnerDeploymentApply:
             ValueError,
             match="SLA configuration is currently only supported on Prefect Cloud.",
         ):
-            await deployment._create_slas(uuid4(), prefect_client)
+            await deployment._create_slas(deployment_id, prefect_client)
 
-    async def test_failure_to_create_one_sla_does_not_prevent_other_slas_from_being_created(
-        self, client
+    async def test_passing_empty_sla_list_calls_client_apply_slas_for_deployment(
+        self, client, deployment_id
     ):
-        sla1 = TimeToCompletionSla(
-            name="a little long",
-            duration=timedelta(minutes=10).total_seconds(),
-        )
-
-        sla2 = TimeToCompletionSla(
-            name="whoa this is bad",
-            duration=timedelta(minutes=30).total_seconds(),
-        )
-
-        client.create_sla.side_effect = [None, ValueError("Failed to create SLA")]
-
         deployment = RunnerDeployment.from_flow(
             flow=tired_flow,
             name=__file__,
-            _sla=[sla1, sla2],
+            _sla=[],
         )
-
-        with pytest.raises(ExceptionGroup) as exc_info:  # novermin
-            await deployment._create_slas(uuid4(), client)
-
-        assert len(client.create_sla.await_args_list) == 2
-        assert client.create_sla.await_args_list[0].args[0].name == sla1.name
-        assert client.create_sla.await_args_list[1].args[0].name == sla2.name
-        assert str(exc_info.value) == "Failed to create SLAs (1 sub-exception)"
-        assert len(exc_info.value.exceptions) == 1
-        assert str(exc_info.value.exceptions[0]) == "Failed to create SLA"
+        await deployment._create_slas(deployment_id, client)
+        assert client.apply_slas_for_deployment.called is True
 
 
 class TestDeploymentCLI:
     class TestSlaSyncing:
-        async def test_initialize_slas(self):
+        async def test_initialize_slas(self, deployment_id):
             sla_spec = {
                 "name": "test-sla",
                 "duration": 1800,
                 "severity": "high",
             }
 
-            deployment_id = uuid4()
             slas = _initialize_deployment_slas(deployment_id, [sla_spec])
             assert slas == [
                 TimeToCompletionSla(
