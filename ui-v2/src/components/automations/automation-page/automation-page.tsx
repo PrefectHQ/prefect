@@ -1,8 +1,8 @@
 import { Automation, buildGetAutomationQuery } from "@/api/automations";
+import { ActionDetails } from "@/components/automations/action-details";
 import { AutomationEnableToggle } from "@/components/automations/automation-enable-toggle";
 import { AutomationsActionsMenu } from "@/components/automations/automations-actions-menu";
 import { useDeleteAutomationConfirmationDialog } from "@/components/automations/use-delete-automation-confirmation-dialog";
-import { Card } from "@/components/ui/card";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { Typography } from "@/components/ui/typography";
 import { useSuspenseQuery } from "@tanstack/react-query";
@@ -98,9 +98,7 @@ const AutomationActions = ({ data }: AutomationActionsProps) => {
 			<ul className="flex flex-col gap-2">
 				{actions.map((action, i) => (
 					<li key={i}>
-						<Card className="p-4 border-r-8">
-							<div>TODO: {JSON.stringify(action)}</div>
-						</Card>
+						<ActionDetails action={action} />
 					</li>
 				))}
 			</ul>
