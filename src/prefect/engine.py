@@ -9,7 +9,6 @@ from typing import Any, Callable
 from uuid import UUID
 
 import cloudpickle
-from uv import find_uv_bin
 
 from prefect._internal.compatibility.migration import getattr_migration
 from prefect.client.orchestration import get_client
@@ -50,9 +49,9 @@ if __name__ == "__main__":
             with tempfile.NamedTemporaryFile() as temp_file:
                 subprocess.check_output(
                     [
-                        find_uv_bin(),
+                        "uv",
                         "run",
-                        "--with",
+                        "--no-project" "--with",
                         "git+https://github.com/PrefectHQ/prefect.git@poc-adhoc-infra-docker#egg=prefect_aws#subdirectory=src/integrations/prefect-aws",
                         "python",
                         "-m",

@@ -1,3 +1,4 @@
+import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Optional
 
@@ -32,9 +33,9 @@ def upload(
     s3_client = credentials_block.get_s3_client()
 
     if bucket_path:
-        key = str(Path(bucket_path) / Path(bundle_path).name)
+        key = str(Path(bucket_path) / str(uuid.uuid4()))
     else:
-        key = str(Path(bundle_path).name)
+        key = str(uuid.uuid4())
 
     s3_client.upload_file(Bucket=bucket_name, Key=key, Filename=bundle_path)
 

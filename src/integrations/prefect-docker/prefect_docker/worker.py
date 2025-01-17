@@ -506,7 +506,7 @@ class DockerWorker(BaseWorker):
             job_variables={
                 "image": get_prefect_image_name(),
                 "env": {
-                    "PREFECT__BUNDLE_STORAGE_KEY": key,
+                    "PREFECT__BUNDLE_STORAGE_KEY": key.decode(),
                     "EXTRA_PIP_PACKAGES": "prefect-docker",
                 },
             },
