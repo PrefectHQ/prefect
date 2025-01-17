@@ -22,7 +22,7 @@ class SlaClient(BaseClient):
         Raises:
             httpx.RequestError: if the SLAs were not updated for any reason
         Returns:
-            the ID of the updated deployment in the backend
+            SlaMergeResponse: The response from the backend, containing the names of the created, updated, and deleted SLAs
         """
         resource_id = f"prefect.deployment.{deployment_id}"
 
@@ -63,7 +63,7 @@ class SlaAsyncClient(BaseAsyncClient):
         Raises:
             httpx.RequestError: if the SLAs were not updated for any reason
         Returns:
-            the ID of the updated deployment in the backend
+            SlaMergeResponse: The response from the backend, containing the names of the created, updated, and deleted SLAs
         """
         resource_id = f"prefect.deployment.{deployment_id}"
 
