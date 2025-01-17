@@ -8,12 +8,12 @@ from typing_extensions import TypeAlias
 
 from prefect.settings.base import (
     PrefectBaseSettings,
-    _build_settings_config,  # type: ignore[reportPrivateUsage]
+    build_settings_config,  # type: ignore[reportPrivateUsage]
 )
 
 
 class RedisMessagingSettings(PrefectBaseSettings):
-    model_config = _build_settings_config(
+    model_config = build_settings_config(
         (
             "redis",
             "messaging",

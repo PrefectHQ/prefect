@@ -1,12 +1,15 @@
 from typing import ClassVar, Optional, Union
 
-from pydantic import AliasChoices, AliasPath, ConfigDict, Field
+from pydantic import AliasChoices, AliasPath, Field
+from pydantic_settings import SettingsConfigDict
 
-from prefect.settings.base import PrefectBaseSettings, _build_settings_config
+from prefect.settings.base import PrefectBaseSettings, build_settings_config
 
 
 class TasksRunnerSettings(PrefectBaseSettings):
-    model_config: ClassVar[ConfigDict] = _build_settings_config(("tasks", "runner"))
+    model_config: ClassVar[SettingsConfigDict] = build_settings_config(
+        ("tasks", "runner")
+    )
 
     thread_pool_max_workers: Optional[int] = Field(
         default=None,
@@ -21,7 +24,9 @@ class TasksRunnerSettings(PrefectBaseSettings):
 
 
 class TasksSchedulingSettings(PrefectBaseSettings):
-    model_config: ClassVar[ConfigDict] = _build_settings_config(("tasks", "scheduling"))
+    model_config: ClassVar[SettingsConfigDict] = build_settings_config(
+        ("tasks", "scheduling")
+    )
 
     default_storage_block: Optional[str] = Field(
         default=None,
@@ -45,7 +50,7 @@ class TasksSchedulingSettings(PrefectBaseSettings):
 
 
 class TasksSettings(PrefectBaseSettings):
-    model_config: ClassVar[ConfigDict] = _build_settings_config(("tasks",))
+    model_config: ClassVar[SettingsConfigDict] = build_settings_config(("tasks",))
 
     refresh_cache: bool = Field(
         default=False,
