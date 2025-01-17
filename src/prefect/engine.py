@@ -2,13 +2,14 @@ import base64
 import gzip
 import json
 import os
+import subprocess
 import sys
-import urllib.parse
+import tempfile
 from typing import Any, Callable
 from uuid import UUID
 
 import cloudpickle
-import fsspec
+from uv import find_uv_bin
 
 from prefect._internal.compatibility.migration import getattr_migration
 from prefect.client.orchestration import get_client
@@ -43,15 +44,34 @@ if __name__ == "__main__":
             run_flow,
         )
 
-        bundle_storage = os.environ.get("PREFECT__BUNDLE_STORAGE")
+        bundle_storage = os.environ.get("PREFECT__BUNDLE_STORAGE_KEY")
 
         if bundle_storage:
-            scheme, netloc, urlpath, _, _ = urllib.parse.urlsplit(bundle_storage)
-            with fsspec.filesystem(scheme).open(f"{netloc}{urlpath}", "r") as f:
-                bundle = json.load(f)
-                flow = cloudpickle.loads(
-                    gzip.decompress(base64.b64decode(bundle["serialized_function"]))
+            with tempfile.NamedTemporaryFile() as temp_file:
+                subprocess.check_output(
+                    [
+                        find_uv_bin(),
+                        "run",
+                        "--with",
+                        "git+https://github.com/PrefectHQ/prefect.git@poc-adhoc-infra-docker#egg=prefect_aws#subdirectory=src/integrations/prefect-aws",
+                        "python",
+                        "-m",
+                        "prefect_aws.bundle_storage.download",
+                        "--bucket-name",
+                        "storage-blocks-test-bucket",
+                        "--credentials-block-name",
+                        "test-creds",
+                        "--key",
+                        bundle_storage,
+                        temp_file.name,
+                    ]
                 )
+                with open(temp_file.name, "r") as f:
+                    bundle = json.load(f)
+
+            flow = cloudpickle.loads(
+                gzip.decompress(base64.b64decode(bundle["serialized_function"]))
+            )
             flow_run = get_client(sync_client=True).read_flow_run(flow_run_id)
             context = cloudpickle.loads(
                 gzip.decompress(base64.b64decode(bundle["serialized_context"]))

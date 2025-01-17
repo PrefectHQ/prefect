@@ -20,12 +20,12 @@ import gzip
 import json
 import os
 import re
+import subprocess
 import sys
+import tempfile
 import urllib.parse
-import uuid
 import warnings
 from functools import wraps
-from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -41,13 +41,13 @@ import anyio.abc
 import cloudpickle
 import docker
 import docker.errors
-import fsspec
 import packaging.version
 from docker import DockerClient
 from docker.models.containers import Container
 from pydantic import AfterValidator, Field
 from slugify import slugify
 from typing_extensions import Annotated, Literal, ParamSpec
+from uv import find_uv_bin
 
 import prefect
 from prefect.client.orchestration import ServerType, get_client
@@ -426,14 +426,12 @@ class DockerWorker(BaseWorker):
         self,
         *args: Any,
         test_mode: Optional[bool] = None,
-        bundle_storage: Optional[str] = None,
         **kwargs: Any,
     ) -> None:
         if test_mode is None:
             self.test_mode = bool(os.getenv("PREFECT_DOCKER_TEST_MODE", False))
         else:
             self.test_mode = test_mode
-        self.bundle_storage = bundle_storage
         super().__init__(*args, **kwargs)
 
     async def setup(self):
@@ -467,11 +465,29 @@ class DockerWorker(BaseWorker):
             assert self._client is not None
 
         parameters = get_call_parameters(flow.fn, args, kwargs)
-        scheme, netloc, urlpath, _, _ = urllib.parse.urlsplit(self.bundle_storage)
-        remote_path = f"{netloc}{urlpath}/{uuid.uuid4()}.json"
-        with fsspec.filesystem(scheme).open(remote_path, "w") as f:
-            json.dump(bundle, f)
-        full_bundle_storage = f"{scheme}://{remote_path}"
+        with tempfile.NamedTemporaryFile() as temp_file:
+            with open(temp_file.name, "w") as f:
+                json.dump(bundle, f)
+            try:
+                key = subprocess.check_output(
+                    [
+                        find_uv_bin(),
+                        "run",
+                        "--with",
+                        "git+https://github.com/PrefectHQ/prefect.git@poc-adhoc-infra-docker#egg=prefect_aws#subdirectory=src/integrations/prefect-aws",
+                        "python",
+                        "-m",
+                        "prefect_aws.bundle_storage.upload",
+                        "--bucket-name",
+                        "storage-blocks-test-bucket",
+                        "--credentials-block-name",
+                        "test-creds",
+                        temp_file.name,
+                    ]
+                )
+            except Exception as e:
+                self._logger.error(f"Failed to upload bundle: {e}")
+                raise e
 
         parent_task_run = None
         if flow_run_ctx := FlowRunContext.get():
@@ -490,10 +506,9 @@ class DockerWorker(BaseWorker):
             job_variables={
                 "image": get_prefect_image_name(),
                 "env": {
-                    "PREFECT__BUNDLE_STORAGE": full_bundle_storage,
-                    "EXTRA_PIP_PACKAGES": "s3fs prefect-docker",
+                    "PREFECT__BUNDLE_STORAGE_KEY": key,
+                    "EXTRA_PIP_PACKAGES": "prefect-docker",
                 },
-                "volumes": [f"{str(Path.home())}/.aws:/root/.aws:ro"],
             },
         )
 
@@ -838,13 +853,12 @@ class DockerWorker(BaseWorker):
         )
 
 
-def docker_container(work_pool_name: str, bundle_storage: str):
+def docker_container(work_pool_name: str):
     def decorator(fn):
         @wraps(fn)
         async def wrapper(*args, **kwargs):
             async with DockerWorker(
                 work_pool_name=work_pool_name,
-                bundle_storage=bundle_storage,
             ) as worker:
                 return await worker.submit(fn, *args, **kwargs)
 
