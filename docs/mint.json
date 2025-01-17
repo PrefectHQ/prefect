@@ -116,8 +116,7 @@
             "v3/develop/pause-resume",
             "v3/develop/cancel",
             "v3/develop/inputs",
-            "v3/develop/runtime-context",
-            "v3/develop/interact-with-api"
+            "v3/develop/runtime-context"
           ],
           "version": "v3"
         },
@@ -148,6 +147,8 @@
             "v3/develop/settings-ref"
           ]
         },
+        "v3/develop/interact-with-api",
+        "v3/develop/interact-with-rest-api",
         "v3/develop/test-workflows"
       ],
       "version": "v3"

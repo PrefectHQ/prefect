@@ -17,7 +17,7 @@ prefect version
 You should see output similar to:
 
 ```bash
-Version:             3.0.0
+Version:             3.1.10
 API version:         0.8.4
 Python version:      3.12.2
 Git commit:          d6bdb075
@@ -54,6 +54,47 @@ To install the latest release of `prefect-client`, run:
 ```bash
 pip install -U prefect-client
 ```
+
+<Details>
+
+<Summary>Commands for power users</Summary>
+
+### If you use `uv`
+
+start an `ipython` shell with python 3.12 and `prefect` installed:
+
+```bash
+uvx -p 3.12 --with prefect ipython
+```
+
+to install prefect into a `uv` virtual environment:
+
+```bash
+uv venv --python 3.12 && source .venv/bin/activate
+uv pip install -U prefect
+```
+
+to add prefect to an active project:
+
+```bash
+uv add prefect
+```
+
+to run a prefect server in an ephemeral python environment with `uvx`:
+
+```bash
+uvx prefect server start
+```
+
+### If you use `docker`
+
+to run a prefect server in a container port-forwarded to your local machine's 4200 port:
+
+```bash
+docker run -d -p 4200:4200 prefecthq/prefect:3-latest -- prefect server start --host 0.0.0.0
+```
+
+</Details>
 
 ## Next steps
 
