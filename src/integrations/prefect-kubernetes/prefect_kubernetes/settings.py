@@ -2,11 +2,11 @@ from typing import Optional
 
 from pydantic import AliasChoices, AliasPath, Field
 
-from prefect.settings.base import PrefectBaseSettings, _build_settings_config
+from prefect.settings.base import PrefectBaseSettings, build_settings_config
 
 
 class KubernetesWorkerSettings(PrefectBaseSettings):
-    model_config = _build_settings_config(("integrations", "kubernetes", "worker"))
+    model_config = build_settings_config(("integrations", "kubernetes", "worker"))
 
     api_key_secret_name: Optional[str] = Field(
         default=None,
@@ -35,7 +35,7 @@ class KubernetesWorkerSettings(PrefectBaseSettings):
 
 
 class KubernetesSettings(PrefectBaseSettings):
-    model_config = _build_settings_config(("integrations", "kubernetes"))
+    model_config = build_settings_config(("integrations", "kubernetes"))
 
     cluster_uid: Optional[str] = Field(
         default=None,

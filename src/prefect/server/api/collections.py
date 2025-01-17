@@ -8,9 +8,11 @@ from fastapi import HTTPException, status
 
 from prefect.server.utilities.server import PrefectRouter
 
-router = PrefectRouter(prefix="/collections", tags=["Collections"])
+router: PrefectRouter = PrefectRouter(prefix="/collections", tags=["Collections"])
 
-GLOBAL_COLLECTIONS_VIEW_CACHE: TTLCache = TTLCache(maxsize=200, ttl=60 * 10)
+GLOBAL_COLLECTIONS_VIEW_CACHE: TTLCache[str, dict[str, Any]] = TTLCache(
+    maxsize=200, ttl=60 * 10
+)
 
 REGISTRY_VIEWS = (
     "https://raw.githubusercontent.com/PrefectHQ/prefect-collection-registry/main/views"
@@ -43,7 +45,7 @@ async def read_view_content(view: str) -> Dict[str, Any]:
             raise
 
 
-async def get_collection_view(view: str):
+async def get_collection_view(view: str) -> dict[str, Any]:
     try:
         return GLOBAL_COLLECTIONS_VIEW_CACHE[view]
     except KeyError:

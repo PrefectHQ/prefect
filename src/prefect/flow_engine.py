@@ -146,7 +146,7 @@ class BaseFlowRunEngine(Generic[P, R]):
     _flow_run_name_set: bool = False
     _telemetry: RunTelemetry = field(default_factory=RunTelemetry)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.flow is None and self.flow_run_id is None:
             raise ValueError("Either a flow or a flow_run_id must be provided.")
 
@@ -167,7 +167,7 @@ class BaseFlowRunEngine(Generic[P, R]):
             return False  # TODO: handle this differently?
         return getattr(self, "flow_run").state.is_pending()
 
-    def cancel_all_tasks(self):
+    def cancel_all_tasks(self) -> None:
         if hasattr(self.flow.task_runner, "cancel_all"):
             self.flow.task_runner.cancel_all()  # type: ignore
 
@@ -208,6 +208,8 @@ class BaseFlowRunEngine(Generic[P, R]):
 @dataclass
 class FlowRunEngine(BaseFlowRunEngine[P, R]):
     _client: Optional[SyncPrefectClient] = None
+    flow_run: FlowRun | None = None
+    parameters: dict[str, Any] | None = None
 
     @property
     def client(self) -> SyncPrefectClient:
@@ -502,7 +504,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
             tags=TagsContext.get().current_tags,
         )
 
-    def call_hooks(self, state: Optional[State] = None):
+    def call_hooks(self, state: Optional[State] = None) -> None:
         if state is None:
             state = self.state
         flow = self.flow
@@ -600,7 +602,9 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
 
             # set the logger to the flow run logger
 
-            self.logger = flow_run_logger(flow_run=self.flow_run, flow=self.flow)
+            self.logger: "logging.Logger" = flow_run_logger(
+                flow_run=self.flow_run, flow=self.flow
+            )  # type: ignore
 
             # update the flow run name if necessary
             if not self._flow_run_name_set and self.flow.flow_run_name:
@@ -768,6 +772,8 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
     """
 
     _client: Optional[PrefectClient] = None
+    parameters: dict[str, Any] | None = None
+    flow_run: FlowRun | None = None
 
     @property
     def client(self) -> PrefectClient:
@@ -1061,7 +1067,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             tags=TagsContext.get().current_tags,
         )
 
-    async def call_hooks(self, state: Optional[State] = None):
+    async def call_hooks(self, state: Optional[State] = None) -> None:
         if state is None:
             state = self.state
         flow = self.flow
@@ -1158,7 +1164,9 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             stack.enter_context(ConcurrencyContext())
 
             # set the logger to the flow run logger
-            self.logger = flow_run_logger(flow_run=self.flow_run, flow=self.flow)
+            self.logger: "logging.Logger" = flow_run_logger(
+                flow_run=self.flow_run, flow=self.flow
+            )
 
             # update the flow run name if necessary
 
@@ -1320,7 +1328,7 @@ def run_flow_sync(
     flow: Flow[P, R],
     flow_run: Optional[FlowRun] = None,
     parameters: Optional[Dict[str, Any]] = None,
-    wait_for: Optional[Iterable[PrefectFuture]] = None,
+    wait_for: Optional[Iterable[PrefectFuture[Any]]] = None,
     return_type: Literal["state", "result"] = "result",
 ) -> Union[R, State, None]:
     engine = FlowRunEngine[P, R](
@@ -1342,7 +1350,7 @@ async def run_flow_async(
     flow: Flow[P, R],
     flow_run: Optional[FlowRun] = None,
     parameters: Optional[Dict[str, Any]] = None,
-    wait_for: Optional[Iterable[PrefectFuture]] = None,
+    wait_for: Optional[Iterable[PrefectFuture[Any]]] = None,
     return_type: Literal["state", "result"] = "result",
 ) -> Union[R, State, None]:
     engine = AsyncFlowRunEngine[P, R](
@@ -1361,7 +1369,7 @@ def run_generator_flow_sync(
     flow: Flow[P, R],
     flow_run: Optional[FlowRun] = None,
     parameters: Optional[Dict[str, Any]] = None,
-    wait_for: Optional[Iterable[PrefectFuture]] = None,
+    wait_for: Optional[Iterable[PrefectFuture[Any]]] = None,
     return_type: Literal["state", "result"] = "result",
 ) -> Generator[R, None, None]:
     if return_type != "result":

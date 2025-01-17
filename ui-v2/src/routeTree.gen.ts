@@ -601,7 +601,7 @@ export const routeTree = rootRoute
       "filePath": "runs/index.tsx"
     },
     "/automations/automation/$id": {
-      "filePath": "automations/automation.$id.ts",
+      "filePath": "automations/automation.$id.tsx",
       "children": [
         "/automations/automation/$id/edit"
       ]

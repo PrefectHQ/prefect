@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from urllib.parse import quote
 from uuid import UUID
 
@@ -19,7 +19,10 @@ from prefect.server.schemas.filters import VariableFilter, VariableFilterName
 from prefect.server.schemas.responses import DeploymentResponse, OrchestrationResult
 from prefect.types import StrictVariableValue
 
-logger = get_logger(__name__)
+if TYPE_CHECKING:
+    import logging
+
+logger: "logging.Logger" = get_logger(__name__)
 
 
 class BaseClient:
