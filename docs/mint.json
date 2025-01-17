@@ -148,7 +148,6 @@
           ]
         },
         "v3/develop/interact-with-api",
-        "v3/develop/interact-with-rest-api",
         "v3/develop/test-workflows"
       ],
       "version": "v3"
