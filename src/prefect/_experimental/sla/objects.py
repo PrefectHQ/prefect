@@ -49,5 +49,13 @@ class TimeToCompletionSla(ServiceLevelAgreement):
     )
 
 
+class SlaMergeResponse(PrefectBaseModel):
+    """A response object for the apply_slas_for_deployment method. Contains the names of the created, updated, and deleted SLAs."""
+
+    created: list[str]
+    updated: list[str]
+    deleted: list[str]
+
+
 # Concrete SLA types
 SlaTypes: TypeAlias = Union[TimeToCompletionSla]

@@ -750,13 +750,15 @@ async def _run_single_deploy(
 
     await _create_deployment_triggers(client, deployment_id, triggers)
 
-    if sla_specs := _gather_deployment_sla_definitions(
+    # We want to ensure that if a user passes an empty list of SLAs, we call the
+    # apply endpoint to remove existing SLAs for the deployment.
+    # If the argument is not provided, we will not call the endpoint.
+    sla_specs = _gather_deployment_sla_definitions(
         options.get("sla"), deploy_config.get("sla")
-    ):
+    )
+    if sla_specs is not None:
         slas = _initialize_deployment_slas(deployment_id, sla_specs)
-        await _create_slas(client, slas)
-    else:
-        slas = []
+        await _create_slas(client, deployment_id, slas)
 
     app.console.print(
         Panel(
@@ -1776,7 +1778,7 @@ def _gather_deployment_sla_definitions(
     """Parses SLA flags from CLI and existing deployment config in `prefect.yaml`.
     Prefers CLI-provided SLAs over config in `prefect.yaml`.
     """
-    if sla_flags:
+    if sla_flags is not None:
         sla_specs = []
         for s in sla_flags:
             try:
@@ -1807,6 +1809,9 @@ def _initialize_deployment_slas(
     Returns:
         List of SLAs.
     """
+    if sla_specs == [] or sla_specs == [[]]:
+        return []
+
     slas = [pydantic.TypeAdapter(SlaTypes).validate_python(spec) for spec in sla_specs]
 
     for sla in slas:
@@ -1817,21 +1822,11 @@ def _initialize_deployment_slas(
 
 async def _create_slas(
     client: "PrefectClient",
+    deployment_id: UUID,
     slas: List[SlaTypes],
 ):
     if client.server_type == ServerType.CLOUD:
-        exceptions = []
-        for sla in slas:
-            try:
-                await client.create_sla(sla)
-            except Exception as e:
-                app.console.print(
-                    f"""Failed to create SLA: {sla.get("name")}. Error: {str(e)}""",
-                    style="red",
-                )
-                exceptions.append((f"""Failed to create SLA: {sla.get('name')}""", e))
-        if exceptions:
-            raise ValueError("Failed to create one or more SLAs.", exceptions)
+        await client.apply_slas_for_deployment(deployment_id, slas)
     else:
         raise ValueError(
             "SLA configuration is currently only supported on Prefect Cloud."
