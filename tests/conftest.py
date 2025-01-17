@@ -477,7 +477,9 @@ async def generate_test_database_connection_url(
 
 
 @pytest.fixture(scope="session", autouse=True)
-def test_database_connection_url(generate_test_database_connection_url):
+def test_database_connection_url(
+    generate_test_database_connection_url: Optional[str],
+) -> Generator[Optional[str], None, None]:
     """
     Update the setting for the database connection url to the generated value from
     `generate_test_database_connection_url`
@@ -489,7 +491,9 @@ def test_database_connection_url(generate_test_database_connection_url):
     if url is None:
         yield None
     else:
-        with temporary_settings({PREFECT_SERVER_DATABASE_CONNECTION_URL: url}):
+        with temporary_settings(
+            updates={PREFECT_SERVER_DATABASE_CONNECTION_URL: url},
+        ):
             yield url
 
 

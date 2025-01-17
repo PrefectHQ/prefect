@@ -804,7 +804,7 @@ The log level of the runner's webserver.
 
 **Type**: `string`
 
-**Default**: `error`
+**Default**: `ERROR`
 
 **Constraints**:
 - Allowed values: 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'
@@ -870,6 +870,58 @@ Number of seconds a runner should wait between heartbeats for flow runs.
 **Type**: [RunnerServerSettings](#runnerserversettings)
 
 **TOML dotted key path**: `runner.server`
+
+---
+## SQLAlchemySettings
+Settings for controlling SQLAlchemy behavior; note that these settings only take effect when
+using a PostgreSQL database.
+### `pool_size`
+Controls connection pool size of database connection pools from the Prefect backend.
+
+**Type**: `integer`
+
+**Default**: `5`
+
+**TOML dotted key path**: `server.database.sqlalchemy.pool_size`
+
+**Supported environment variables**:
+`PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_SIZE`, `PREFECT_SQLALCHEMY_POOL_SIZE`
+
+### `pool_recycle`
+This setting causes the pool to recycle connections after the given number of seconds has passed; set it to -1 to avoid recycling entirely.
+
+**Type**: `integer`
+
+**Default**: `3600`
+
+**TOML dotted key path**: `server.database.sqlalchemy.pool_recycle`
+
+**Supported environment variables**:
+`PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_RECYCLE`
+
+### `pool_timeout`
+Number of seconds to wait before giving up on getting a connection from the pool. Defaults to 30 seconds.
+
+**Type**: `number | None`
+
+**Default**: `30.0`
+
+**TOML dotted key path**: `server.database.sqlalchemy.pool_timeout`
+
+**Supported environment variables**:
+`PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_TIMEOUT`
+
+### `max_overflow`
+Controls maximum overflow of the connection pool. To prevent overflow, set to -1.
+
+**Type**: `integer`
+
+**Default**: `10`
+
+**TOML dotted key path**: `server.database.sqlalchemy.max_overflow`
+
+**Supported environment variables**:
+`PREFECT_SERVER_DATABASE_SQLALCHEMY_MAX_OVERFLOW`, `PREFECT_SQLALCHEMY_MAX_OVERFLOW`
 
 ---
 ## ServerAPISettings
@@ -1039,6 +1091,13 @@ The default limit applied to queries that can return multiple objects, such as `
 ---
 ## ServerDatabaseSettings
 Settings for controlling server database behavior
+### `sqlalchemy`
+Settings for controlling SQLAlchemy behavior
+
+**Type**: [SQLAlchemySettings](#sqlalchemysettings)
+
+**TOML dotted key path**: `server.database.sqlalchemy`
+
 ### `connection_url`
 
         A database connection URL in a SQLAlchemy-compatible
@@ -1159,7 +1218,7 @@ If `True`, the database will be migrated on application startup.
 `PREFECT_SERVER_DATABASE_MIGRATE_ON_START`, `PREFECT_API_DATABASE_MIGRATE_ON_START`
 
 ### `timeout`
-A statement timeout, in seconds, applied to all database interactions made by the API. Defaults to 10 seconds.
+A statement timeout, in seconds, applied to all database interactions made by the Prefect backend. Defaults to 10 seconds.
 
 **Type**: `number | None`
 
@@ -1182,20 +1241,8 @@ A connection timeout, in seconds, applied to database connections. Defaults to `
 **Supported environment variables**:
 `PREFECT_SERVER_DATABASE_CONNECTION_TIMEOUT`, `PREFECT_API_DATABASE_CONNECTION_TIMEOUT`
 
-### `sqlalchemy_pool_size`
-Controls connection pool size of database connection pools from the Prefect API. If not set, the default SQLAlchemy pool size will be used.
-
-**Type**: `integer | None`
-
-**Default**: `None`
-
-**TOML dotted key path**: `server.database.sqlalchemy_pool_size`
-
-**Supported environment variables**:
-`PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_SIZE`, `PREFECT_SQLALCHEMY_POOL_SIZE`
-
 ### `connection_app_name`
-Controls the application_name field for connections opened from the connection pool when using a PostgreSQL database with the Prefect API.
+Controls the application_name field for connections opened from the connection pool when using a PostgreSQL database with the Prefect backend.
 
 **Type**: `string | None`
 
@@ -1205,18 +1252,6 @@ Controls the application_name field for connections opened from the connection p
 
 **Supported environment variables**:
 `PREFECT_SERVER_DATABASE_CONNECTION_APP_NAME`
-
-### `sqlalchemy_max_overflow`
-Controls maximum overflow of the connection pool when using a PostgreSQL database with the Prefect API. If not set, the default SQLAlchemy maximum overflow value will be used.
-
-**Type**: `integer | None`
-
-**Default**: `None`
-
-**TOML dotted key path**: `server.database.sqlalchemy_max_overflow`
-
-**Supported environment variables**:
-`PREFECT_SERVER_DATABASE_SQLALCHEMY_MAX_OVERFLOW`, `PREFECT_SQLALCHEMY_MAX_OVERFLOW`
 
 ---
 ## ServerDeploymentsSettings
