@@ -1190,6 +1190,32 @@ class TestDatabaseSettings:
         assert Settings().server.database.sqlalchemy.pool_size == 128
         assert Settings().server.database.sqlalchemy.max_overflow == 9001
 
+    def test_sqlalchemy_settings_migration_via_toml(
+        self, temporary_toml_file: Callable[..., None]
+    ):
+        """Test that SQLAlchemy settings can be configured via TOML files."""
+        toml_data: dict[str, Any] = {
+            "server": {
+                "database": {
+                    "sqlalchemy": {
+                        "pool_size": 42,
+                        "max_overflow": 37,
+                    }
+                }
+            }
+        }
+        temporary_toml_file(toml_data)
+
+        settings = Settings()
+        assert settings.server.database.sqlalchemy.pool_size == 42
+        assert settings.server.database.sqlalchemy.max_overflow == 37
+
+        with pytest.warns(
+            DeprecationWarning, match="moved to the `sqlalchemy` settings group."
+        ):
+            assert settings.server.database.sqlalchemy_pool_size == 42
+            assert settings.server.database.sqlalchemy_max_overflow == 37
+
 
 class TestTemporarySettings:
     def test_temporary_settings(self):
