@@ -51,8 +51,8 @@ if __name__ == "__main__":
                     [
                         "uv",
                         "run",
-                        "--no-project" "--with",
-                        "git+https://github.com/PrefectHQ/prefect.git@poc-adhoc-infra-docker#egg=prefect_aws#subdirectory=src/integrations/prefect-aws",
+                        "--with",
+                        "git+https://github.com/PrefectHQ/prefect.git@poc-adhoc-infra-docker#subdirectory=src/integrations/prefect-aws",
                         "python",
                         "-m",
                         "prefect_aws.bundle_storage.download",
@@ -67,6 +67,8 @@ if __name__ == "__main__":
                 )
                 with open(temp_file.name, "r") as f:
                     bundle = json.load(f)
+
+            print(type(bundle), bundle.keys())
 
             flow = cloudpickle.loads(
                 gzip.decompress(base64.b64decode(bundle["serialized_function"]))

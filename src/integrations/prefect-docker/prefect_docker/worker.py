@@ -473,8 +473,9 @@ class DockerWorker(BaseWorker):
                     [
                         find_uv_bin(),
                         "run",
+                        "--no-project",
                         "--with",
-                        "git+https://github.com/PrefectHQ/prefect.git@poc-adhoc-infra-docker#egg=prefect_aws#subdirectory=src/integrations/prefect-aws",
+                        "git+https://github.com/PrefectHQ/prefect.git@poc-adhoc-infra-docker#subdirectory=src/integrations/prefect-aws",
                         "python",
                         "-m",
                         "prefect_aws.bundle_storage.upload",
@@ -506,7 +507,7 @@ class DockerWorker(BaseWorker):
             job_variables={
                 "image": get_prefect_image_name(),
                 "env": {
-                    "PREFECT__BUNDLE_STORAGE_KEY": key.decode(),
+                    "PREFECT__BUNDLE_STORAGE_KEY": key.decode().strip(),
                     "EXTRA_PIP_PACKAGES": "prefect-docker",
                 },
             },
