@@ -39,7 +39,7 @@ def upload(
 
     s3_client.upload_file(Bucket=bucket_name, Key=key, Filename=bundle_path)
 
-    return key
+    print(key)
 
 
 if __name__ == "__main__":
