@@ -919,10 +919,8 @@ def _construct_schedules(
     Returns:
         A list of schedule objects
     """
-    schedules = []
-    schedule_configs: list[dict[str, Any]] | NotSet = (
-        deploy_config.get("schedules", []) or []
-    )
+    schedules: list[DeploymentScheduleCreate] = []  # Initialize with empty list
+    schedule_configs = deploy_config.get("schedules", NotSet) or []
 
     if schedule_configs is not NotSet:
         schedules = [
