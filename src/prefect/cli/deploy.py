@@ -91,9 +91,9 @@ SlaAdapter: TypeAdapter[SlaTypes] = TypeAdapter(SlaTypes)
 
 @app.command()
 async def init(
-    name: str | None = None,
-    recipe: str | None = None,
-    fields: list[str] | None = typer.Option(
+    name: Optional[str] = None,
+    recipe: Optional[str] = None,
+    fields: Optional[list[str]] = typer.Option(
         None,
         "-f",
         "--field",
