@@ -10,3 +10,4 @@ export { createFakeSchedule } from "./create-fake-schedule";
 export { createFakeState } from "./create-fake-state";
 export { createFakeTaskRunConcurrencyLimit } from "./create-fake-take-run-concurrency-limit";
 export { createFakeTaskRun } from "./create-fake-task-run";
+export { createFakeWorkPool } from "./create-fake-work-pool";

@@ -27,7 +27,7 @@ describe("deployments api", () => {
 					limit: 10,
 				});
 			}),
-			http.post("/deployments/count", () => {
+			http.post(buildApiUrl("/deployments/count"), () => {
 				return HttpResponse.json(total);
 			}),
 		);
