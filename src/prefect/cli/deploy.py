@@ -44,6 +44,7 @@ from prefect.cli._utilities import (
 )
 from prefect.cli.root import app, is_interactive
 from prefect.client.base import ServerType
+from prefect.client.orchestration import get_client
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.filters import WorkerFilter
 from prefect.client.schemas.objects import ConcurrencyLimitConfig
@@ -52,7 +53,6 @@ from prefect.client.schemas.schedules import (
     IntervalSchedule,
     RRuleSchedule,
 )
-from prefect.client.utilities import inject_client
 from prefect.deployments import initialize_project
 from prefect.deployments.base import (
     _format_deployment_for_saving_to_prefect_file,
@@ -477,7 +477,6 @@ async def deploy(
         exit_with_error(str(exc))
 
 
-@inject_client
 async def _run_single_deploy(
     deploy_config: dict[str, Any],
     actions: dict[str, Any],
@@ -485,6 +484,7 @@ async def _run_single_deploy(
     client: Optional["PrefectClient"] = None,
     prefect_file: Path = Path("prefect.yaml"),
 ):
+    client = client or get_client()
     deploy_config = deepcopy(deploy_config) if deploy_config else {}
     actions = deepcopy(actions) if actions else {}
     options = deepcopy(options) if options else {}
@@ -919,10 +919,8 @@ def _construct_schedules(
     Returns:
         A list of schedule objects
     """
-    schedules = []
-    schedule_configs: list[dict[str, Any]] | NotSet = (
-        deploy_config.get("schedules", []) or []
-    )
+    schedules: list[DeploymentScheduleCreate] = []  # Initialize with empty list
+    schedule_configs = deploy_config.get("schedules", NotSet) or []
 
     if schedule_configs is not NotSet:
         schedules = [
@@ -932,8 +930,6 @@ def _construct_schedules(
     elif schedule_configs is NotSet:
         if is_interactive():
             schedules = prompt_schedules(app.console)
-        else:
-            schedules = []
 
     return schedules
 
