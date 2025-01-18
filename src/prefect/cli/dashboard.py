@@ -28,6 +28,9 @@ async def open() -> None:
 
     await run_sync_in_worker_thread(webbrowser.open_new_tab, ui_url)
 
+    if "prefect.cloud" not in ui_url:
+        exit_with_success(f"Opened {ui_url!r} in browser.")
+
     async with get_cloud_client() as client:
         try:
             current_workspace = get_current_workspace(await client.read_workspaces())
