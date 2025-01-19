@@ -101,15 +101,20 @@ def test_open_current_workspace_in_browser_failure_no_workspace_set(
         )
     )
 
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json=[],
+    if "prefect.cloud" in api_url:
+        respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
+            return_value=httpx.Response(
+                status.HTTP_200_OK,
+                json=[],
+            )
         )
-    )
 
     with _use_profile("logged-in-profile"):
-        invoke_and_assert(["dashboard", "open"], expected_code=0)
+        invoke_and_assert(
+            ["dashboard", "open"],
+            expected_code=0,
+            expected_output_contains=f"Opened {api_url!r} in browser.",
+        )
 
 
 @pytest.mark.usefixtures("mock_webbrowser")
@@ -130,12 +135,13 @@ def test_open_current_workspace_in_browser_failure_unauthorized(respx_mock, api_
         )
     )
 
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
-        return_value=httpx.Response(
-            status.HTTP_401_UNAUTHORIZED,
-            json={"detail": "Unauthorized"},
+    if "prefect.cloud" in api_url:
+        respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
+            return_value=httpx.Response(
+                status.HTTP_401_UNAUTHORIZED,
+                json={"detail": "Unauthorized"},
+            )
         )
-    )
 
     with _use_profile("logged-in-profile"):
         invoke_and_assert(
