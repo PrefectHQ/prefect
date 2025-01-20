@@ -99,6 +99,16 @@ const variablesHandlers = [
 	}),
 ];
 
+const workPoolsHandlers = [
+	http.post(buildApiUrl("/work_pools/filter"), () => {
+		return HttpResponse.json([]);
+	}),
+
+	http.post(buildApiUrl("/work_pools/count"), () => {
+		return HttpResponse.json(0);
+	}),
+];
+
 export const handlers = [
 	...automationsHandlers,
 	...deploymentsHandlers,
@@ -107,4 +117,5 @@ export const handlers = [
 	...globalConcurrencyLimitsHandlers,
 	...taskRunConcurrencyLimitsHandlers,
 	...variablesHandlers,
+	...workPoolsHandlers,
 ];
