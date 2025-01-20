@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/work-pools")({
+export const Route = createFileRoute("/work-pools/")({
 	component: RouteComponent,
 });
 
