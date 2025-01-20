@@ -158,6 +158,37 @@ class TestCompoundPolicy:
         )
         assert compound_key is None
 
+    def test_compound_policy_deduplicates_inputs_on_subtraction(self):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/16773"""
+        # Create a compound policy with multiple Inputs policies
+        policy = CompoundCachePolicy(
+            policies=[
+                Inputs(),
+                TaskSource(),
+                Inputs(exclude=["x"]),
+                Inputs(exclude=["y"]),
+            ]
+        )
+
+        # Subtract a new key
+        new_policy = policy - "z"
+
+        # Verify that all Inputs policies were merged into one
+        inputs_policies = [p for p in new_policy.policies if isinstance(p, Inputs)]
+        assert len(inputs_policies) == 1
+
+        # Verify that all excludes were preserved
+        assert sorted(inputs_policies[0].exclude) == ["x", "y", "z"]
+
+        # Each non-Inputs policy gets converted to a CompoundCachePolicy with an Inputs policy
+        # So we should have one merged Inputs policy and one CompoundCachePolicy containing TaskSource
+        assert len(new_policy.policies) == 2
+        assert any(
+            isinstance(p, CompoundCachePolicy)
+            and any(isinstance(sp, TaskSource) for sp in p.policies)
+            for p in new_policy.policies
+        )
+
 
 class TestTaskSourcePolicy:
     def test_initializes(self):
