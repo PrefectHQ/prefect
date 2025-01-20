@@ -192,8 +192,13 @@ class CompoundCachePolicy(CachePolicy):
         # Call the superclass add method to handle validation
         super().__add__(other)
 
+        if isinstance(other, CompoundCachePolicy):
+            policies = [*self.policies, *other.policies]
+        else:
+            policies = [*self.policies, other]
+
         return CompoundCachePolicy(
-            policies=[*self.policies, other],
+            policies=policies,
             key_storage=self.key_storage or other.key_storage,
             isolation_level=self.isolation_level or other.isolation_level,
             lock_manager=self.lock_manager or other.lock_manager,
