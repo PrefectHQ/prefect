@@ -74,6 +74,7 @@
 		"@storybook/react-vite": "^8.5.0",
 		"@storybook/test": "^8.4.2",
 		"@storybook/theming": "^8.4.7",
+		"@storybook/types": "^8.5.0",
 		"@tanstack/eslint-plugin-query": "^5.64.2",
 		"@tanstack/eslint-plugin-router": "^1.97.0",
 		"@tanstack/router-devtools": "^1.97.3",

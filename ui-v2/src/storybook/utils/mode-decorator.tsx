@@ -1,9 +1,10 @@
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { StoryFn } from "@storybook/react";
+import { ReactRenderer } from "@storybook/react";
+import { DecoratorFunction } from "@storybook/types";
 import { useEffect, useState } from "react";
 
-export const ModeDecorator = (Story: StoryFn) => {
+export const ModeDecorator: DecoratorFunction<ReactRenderer> = (Story) => {
 	const [isDarkMode, setIsDarkMode] = useState(false);
 	const toggleMode = () => {
 		setIsDarkMode((curr) => !curr);
@@ -24,7 +25,6 @@ export const ModeDecorator = (Story: StoryFn) => {
 					</Label>
 				</div>
 			</div>
-			{/** @ts-expect-error Error typing from React 19 types upgrade. Will need to wait for this up be updated */}
 			<Story />
 		</>
 	);
