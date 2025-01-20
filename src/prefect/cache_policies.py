@@ -188,6 +188,17 @@ class CompoundCachePolicy(CachePolicy):
             return None
         return hash_objects(*keys, raise_on_failure=True)
 
+    def __add__(self, other: "CachePolicy") -> "CachePolicy":
+        # Call the superclass add method to handle validation
+        super().__add__(other)
+
+        return CompoundCachePolicy(
+            policies=[*self.policies, other],
+            key_storage=self.key_storage or other.key_storage,
+            isolation_level=self.isolation_level or other.isolation_level,
+            lock_manager=self.lock_manager or other.lock_manager,
+        )
+
     def __sub__(self, other: str) -> "CachePolicy":
         if not isinstance(other, str):  # type: ignore[reportUnnecessaryIsInstance]
             raise TypeError("Can only subtract strings from key policies.")
