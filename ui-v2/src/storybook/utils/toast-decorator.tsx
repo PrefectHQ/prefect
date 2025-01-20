@@ -1,5 +1,6 @@
 import { Toaster } from "@/components/ui/toaster";
-import { StoryFn } from "@storybook/react";
+import type { ReactRenderer } from "@storybook/react";
+import type { DecoratorFunction } from "@storybook/types";
 
 /**
  *
@@ -15,9 +16,8 @@ import { StoryFn } from "@storybook/react";
  *
  * export default meta;
  */
-export const toastDecorator = (Story: StoryFn) => (
+export const toastDecorator: DecoratorFunction<ReactRenderer> = (Story) => (
 	<>
-		{/** @ts-expect-error Error typing from React 19 types upgrade. Will need to wait for this up be updated */}
 		<Story />
 		<Toaster />
 	</>
