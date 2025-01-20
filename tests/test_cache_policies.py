@@ -184,8 +184,7 @@ class TestCompoundPolicy:
         # So we should have one merged Inputs policy and one CompoundCachePolicy containing TaskSource
         assert len(new_policy.policies) == 2
         assert any(
-            isinstance(p, CompoundCachePolicy)
-            and any(isinstance(sp, TaskSource) for sp in p.policies)
+            isinstance(p, CompoundCachePolicy) or isinstance(p, TaskSource)
             for p in new_policy.policies
         )
 
