@@ -1,59 +1,94 @@
 import { Automation } from "@/api/automations";
+import { Deployment } from "@/api/deployments";
 import { Card } from "@/components/ui/card";
+import { Icon, IconId } from "@/components/ui/icons";
 import { Typography } from "@/components/ui/typography";
+import { createFakeAutomation, createFakeDeployment } from "@/mocks";
+import { Link } from "@tanstack/react-router";
+
+const ACTION_TYPE_TO_STRING = {
+	"cancel-flow-run": "Cancel flow run",
+	"suspend-flow-run": "Suspend flow run",
+	"resume-flow-run": "Resume a flow run",
+	"change-flow-run-state": "Change state of a flow run",
+	"run-deployment": "Run deployment",
+	"pause-deployment": "Pause deployment",
+	"resume-deployment": "Resume deployment",
+	"pause-work-queue": "Pause work queue",
+	"resume-work-queue": "Resume work queue",
+	"pause-work-pool": "Pause work pool",
+	"resume-work-pool": "Resume work pool",
+	"pause-automation": "Pause automation",
+	"resume-automation": "Resume automation",
+	"call-webhook": "Call a custom webhook notification",
+	"send-notification": "Send a notification",
+	"do-nothing": "Do nothing",
+} as const;
+type ActionLabel =
+	(typeof ACTION_TYPE_TO_STRING)[keyof typeof ACTION_TYPE_TO_STRING];
+
 type AutomationAction = Automation["actions"][number];
 
 type ActionDetailsProps = {
 	action: AutomationAction;
 };
 export const ActionDetails = ({ action }: ActionDetailsProps) => (
-	<Card className="p-4 border-r-8">
+	<Card className="p-4">
 		<ActionDetailsType action={action} />
 	</Card>
 );
 
 export const ActionDetailsType = ({ action }: ActionDetailsProps) => {
+	const label = ACTION_TYPE_TO_STRING[action.type];
 	switch (action.type) {
 		// Non-inferrable Actions
 		case "do-nothing":
 		case "cancel-flow-run":
 		case "suspend-flow-run":
 		case "resume-flow-run":
-			return <NoninferredAction action={action} />;
+			return <NoninferredAction label={label} />;
 		// Inferable actions
 		case "run-deployment":
 			return action.deployment_id && action.source == "selected" ? (
 				"TODO"
 			) : (
-				<InferredAction action={action} />
+				<InferredAction label={label} />
 			);
 		case "pause-deployment":
 		case "resume-deployment":
 			return action.deployment_id && action.source == "selected" ? (
-				"TODO"
+				// TODO: Pass a real deployment from API
+				<DeploymentActionDetails
+					label={label}
+					deployment={createFakeDeployment()}
+				/>
 			) : (
-				<InferredAction action={action} />
+				<InferredAction label={label} />
 			);
 		case "pause-work-queue":
 		case "resume-work-queue":
 			return action.work_queue_id && action.source == "selected" ? (
 				"TODO"
 			) : (
-				<InferredAction action={action} />
+				<InferredAction label={label} />
 			);
 		case "pause-automation":
 		case "resume-automation":
 			return action.automation_id && action.source == "selected" ? (
-				"TODO"
+				// TODO: Pass a real automation from API
+				<AutomationActionDetails
+					label={label}
+					automation={createFakeAutomation()}
+				/>
 			) : (
-				<InferredAction action={action} />
+				<InferredAction label={label} />
 			);
 		case "pause-work-pool":
 		case "resume-work-pool":
 			return action.work_pool_id && action.source == "selected" ? (
 				"TODO"
 			) : (
-				<InferredAction action={action} />
+				<InferredAction label={label} />
 			);
 		// Other actions
 		case "send-notification":
@@ -65,32 +100,73 @@ export const ActionDetailsType = ({ action }: ActionDetailsProps) => {
 	}
 };
 
-const ACTION_TYPE_TO_STRING: Record<AutomationAction["type"], string> = {
-	"cancel-flow-run": "Cancel flow run",
-	"suspend-flow-run": "Suspend flow run",
-	"resume-flow-run": "Resume a flow run",
-	"change-flow-run-state": "Change state of a flow run",
-	"run-deployment": "Run deployment",
-	"pause-deployment": "Pause deployment",
-	"resume-deployment": "Resume deployment",
-	"pause-work-queue": "Pause work queue",
-	"resume-work-queue": "Resume work queue",
-	"pause-work-pool": "Pause work queue",
-	"resume-work-pool": "Resume work queue",
-	"pause-automation": "Pause automation",
-	"resume-automation": "Resume automation",
-	"call-webhook": "Call a custom webhook notification",
-	"send-notification": "Send a notification",
-	"do-nothing": "Do nothing",
-} as const;
+const ActionResource = ({ children }: { children: React.ReactNode }) => (
+	<div className="text-sm flex items-center gap-1">{children}</div>
+);
 
-const NoninferredAction = ({ action }: ActionDetailsProps) => (
+const ActionResourceName = ({
+	iconId,
+	name,
+}: { name: string; iconId: IconId }) => (
+	<div className="text-xs flex items-center">
+		<Icon id={iconId} className="h-4 w-4 mr-1" />
+		{name}
+	</div>
+);
+
+export { ActionResource, ActionResourceName };
+
+const NoninferredAction = ({ label }: { label: ActionLabel }) => (
+	<Typography variant="bodySmall">{label} from the triggering event</Typography>
+);
+
+const InferredAction = ({ label }: { label: ActionLabel }) => (
 	<Typography variant="bodySmall">
-		{`${ACTION_TYPE_TO_STRING[action.type]} from the triggering event`}
+		{label} inferred from the triggering event
 	</Typography>
 );
-const InferredAction = ({ action }: ActionDetailsProps) => (
-	<Typography variant="bodySmall">
-		{`${ACTION_TYPE_TO_STRING[action.type]} inferred from the triggering event`}
-	</Typography>
-);
+
+// Selected resources
+type DeploymentActionDetailsProps = {
+	label: ActionLabel;
+	deployment: Deployment;
+};
+export const DeploymentActionDetails = ({
+	label,
+	deployment,
+}: DeploymentActionDetailsProps) => {
+	return (
+		<ActionResource>
+			<label>{label}:</label>
+			<Link
+				to="/deployments/deployment/$id"
+				params={{ id: deployment.id }}
+				aria-label={deployment.name}
+			>
+				<ActionResourceName iconId="Rocket" name={deployment.name} />
+			</Link>
+		</ActionResource>
+	);
+};
+
+type AutomationActionDetailsProps = {
+	label: ActionLabel;
+	automation: Automation;
+};
+export const AutomationActionDetails = ({
+	label,
+	automation,
+}: AutomationActionDetailsProps) => {
+	return (
+		<ActionResource>
+			<label>{label}:</label>
+			<Link
+				to="/automations/automation/$id"
+				params={{ id: automation.id }}
+				aria-label={automation.name}
+			>
+				<ActionResourceName iconId="Bot" name={automation.name} />
+			</Link>
+		</ActionResource>
+	);
+};
