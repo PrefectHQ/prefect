@@ -25,6 +25,7 @@ import { Route as DeploymentsIndexImport } from './routes/deployments/index'
 import { Route as ConcurrencyLimitsIndexImport } from './routes/concurrency-limits/index'
 import { Route as AutomationsIndexImport } from './routes/automations/index'
 import { Route as AutomationsCreateImport } from './routes/automations/create'
+import { Route as WorkPoolsWorkPoolWorkPoolIdImport } from './routes/work-pools/work-pool.$workPoolId'
 import { Route as WorkPoolsWorkPoolIdImport } from './routes/work-pools/work-pool.$id'
 import { Route as RunsTaskRunIdImport } from './routes/runs/task-run.$id'
 import { Route as RunsFlowRunIdImport } from './routes/runs/flow-run.$id'
@@ -33,6 +34,7 @@ import { Route as DeploymentsDeploymentIdImport } from './routes/deployments/dep
 import { Route as ConcurrencyLimitsConcurrencyLimitIdImport } from './routes/concurrency-limits/concurrency-limit.$id'
 import { Route as AutomationsAutomationIdImport } from './routes/automations/automation.$id'
 import { Route as AutomationsAutomationIdEditImport } from './routes/automations/automation.$id.edit'
+import { Route as WorkPoolsWorkPoolWorkPoolIdQueueWorkQueueIdImport } from './routes/work-pools/work-pool.$workPoolId.queue.$workQueueId'
 
 // Create/Update Routes
 
@@ -120,6 +122,13 @@ const AutomationsCreateRoute = AutomationsCreateImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
+const WorkPoolsWorkPoolWorkPoolIdRoute =
+  WorkPoolsWorkPoolWorkPoolIdImport.update({
+    id: '/work-pools/work-pool/$workPoolId',
+    path: '/work-pools/work-pool/$workPoolId',
+    getParentRoute: () => rootRoute,
+  } as any)
+
 const WorkPoolsWorkPoolIdRoute = WorkPoolsWorkPoolIdImport.update({
   id: '/work-pools/work-pool/$id',
   path: '/work-pools/work-pool/$id',
@@ -168,6 +177,13 @@ const AutomationsAutomationIdEditRoute =
     id: '/edit',
     path: '/edit',
     getParentRoute: () => AutomationsAutomationIdRoute,
+  } as any)
+
+const WorkPoolsWorkPoolWorkPoolIdQueueWorkQueueIdRoute =
+  WorkPoolsWorkPoolWorkPoolIdQueueWorkQueueIdImport.update({
+    id: '/queue/$workQueueId',
+    path: '/queue/$workQueueId',
+    getParentRoute: () => WorkPoolsWorkPoolWorkPoolIdRoute,
   } as any)
 
 // Populate the FileRoutesByPath interface
@@ -321,12 +337,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkPoolsWorkPoolIdImport
       parentRoute: typeof rootRoute
     }
+    '/work-pools/work-pool/$workPoolId': {
+      id: '/work-pools/work-pool/$workPoolId'
+      path: '/work-pools/work-pool/$workPoolId'
+      fullPath: '/work-pools/work-pool/$workPoolId'
+      preLoaderRoute: typeof WorkPoolsWorkPoolWorkPoolIdImport
+      parentRoute: typeof rootRoute
+    }
     '/automations/automation/$id/edit': {
       id: '/automations/automation/$id/edit'
       path: '/edit'
       fullPath: '/automations/automation/$id/edit'
       preLoaderRoute: typeof AutomationsAutomationIdEditImport
       parentRoute: typeof AutomationsAutomationIdImport
+    }
+    '/work-pools/work-pool/$workPoolId/queue/$workQueueId': {
+      id: '/work-pools/work-pool/$workPoolId/queue/$workQueueId'
+      path: '/queue/$workQueueId'
+      fullPath: '/work-pools/work-pool/$workPoolId/queue/$workQueueId'
+      preLoaderRoute: typeof WorkPoolsWorkPoolWorkPoolIdQueueWorkQueueIdImport
+      parentRoute: typeof WorkPoolsWorkPoolWorkPoolIdImport
     }
   }
 }
@@ -345,6 +375,21 @@ const AutomationsAutomationIdRouteChildren: AutomationsAutomationIdRouteChildren
 const AutomationsAutomationIdRouteWithChildren =
   AutomationsAutomationIdRoute._addFileChildren(
     AutomationsAutomationIdRouteChildren,
+  )
+
+interface WorkPoolsWorkPoolWorkPoolIdRouteChildren {
+  WorkPoolsWorkPoolWorkPoolIdQueueWorkQueueIdRoute: typeof WorkPoolsWorkPoolWorkPoolIdQueueWorkQueueIdRoute
+}
+
+const WorkPoolsWorkPoolWorkPoolIdRouteChildren: WorkPoolsWorkPoolWorkPoolIdRouteChildren =
+  {
+    WorkPoolsWorkPoolWorkPoolIdQueueWorkQueueIdRoute:
+      WorkPoolsWorkPoolWorkPoolIdQueueWorkQueueIdRoute,
+  }
+
+const WorkPoolsWorkPoolWorkPoolIdRouteWithChildren =
+  WorkPoolsWorkPoolWorkPoolIdRoute._addFileChildren(
+    WorkPoolsWorkPoolWorkPoolIdRouteChildren,
   )
 
 export interface FileRoutesByFullPath {
@@ -369,7 +414,9 @@ export interface FileRoutesByFullPath {
   '/runs/flow-run/$id': typeof RunsFlowRunIdRoute
   '/runs/task-run/$id': typeof RunsTaskRunIdRoute
   '/work-pools/work-pool/$id': typeof WorkPoolsWorkPoolIdRoute
+  '/work-pools/work-pool/$workPoolId': typeof WorkPoolsWorkPoolWorkPoolIdRouteWithChildren
   '/automations/automation/$id/edit': typeof AutomationsAutomationIdEditRoute
+  '/work-pools/work-pool/$workPoolId/queue/$workQueueId': typeof WorkPoolsWorkPoolWorkPoolIdQueueWorkQueueIdRoute
 }
 
 export interface FileRoutesByTo {
@@ -394,7 +441,9 @@ export interface FileRoutesByTo {
   '/runs/flow-run/$id': typeof RunsFlowRunIdRoute
   '/runs/task-run/$id': typeof RunsTaskRunIdRoute
   '/work-pools/work-pool/$id': typeof WorkPoolsWorkPoolIdRoute
+  '/work-pools/work-pool/$workPoolId': typeof WorkPoolsWorkPoolWorkPoolIdRouteWithChildren
   '/automations/automation/$id/edit': typeof AutomationsAutomationIdEditRoute
+  '/work-pools/work-pool/$workPoolId/queue/$workQueueId': typeof WorkPoolsWorkPoolWorkPoolIdQueueWorkQueueIdRoute
 }
 
 export interface FileRoutesById {
@@ -420,7 +469,9 @@ export interface FileRoutesById {
   '/runs/flow-run/$id': typeof RunsFlowRunIdRoute
   '/runs/task-run/$id': typeof RunsTaskRunIdRoute
   '/work-pools/work-pool/$id': typeof WorkPoolsWorkPoolIdRoute
+  '/work-pools/work-pool/$workPoolId': typeof WorkPoolsWorkPoolWorkPoolIdRouteWithChildren
   '/automations/automation/$id/edit': typeof AutomationsAutomationIdEditRoute
+  '/work-pools/work-pool/$workPoolId/queue/$workQueueId': typeof WorkPoolsWorkPoolWorkPoolIdQueueWorkQueueIdRoute
 }
 
 export interface FileRouteTypes {
@@ -447,7 +498,9 @@ export interface FileRouteTypes {
     | '/runs/flow-run/$id'
     | '/runs/task-run/$id'
     | '/work-pools/work-pool/$id'
+    | '/work-pools/work-pool/$workPoolId'
     | '/automations/automation/$id/edit'
+    | '/work-pools/work-pool/$workPoolId/queue/$workQueueId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -471,7 +524,9 @@ export interface FileRouteTypes {
     | '/runs/flow-run/$id'
     | '/runs/task-run/$id'
     | '/work-pools/work-pool/$id'
+    | '/work-pools/work-pool/$workPoolId'
     | '/automations/automation/$id/edit'
+    | '/work-pools/work-pool/$workPoolId/queue/$workQueueId'
   id:
     | '__root__'
     | '/'
@@ -495,7 +550,9 @@ export interface FileRouteTypes {
     | '/runs/flow-run/$id'
     | '/runs/task-run/$id'
     | '/work-pools/work-pool/$id'
+    | '/work-pools/work-pool/$workPoolId'
     | '/automations/automation/$id/edit'
+    | '/work-pools/work-pool/$workPoolId/queue/$workQueueId'
   fileRoutesById: FileRoutesById
 }
 
@@ -521,6 +578,7 @@ export interface RootRouteChildren {
   RunsFlowRunIdRoute: typeof RunsFlowRunIdRoute
   RunsTaskRunIdRoute: typeof RunsTaskRunIdRoute
   WorkPoolsWorkPoolIdRoute: typeof WorkPoolsWorkPoolIdRoute
+  WorkPoolsWorkPoolWorkPoolIdRoute: typeof WorkPoolsWorkPoolWorkPoolIdRouteWithChildren
 }
 
 const rootRouteChildren: RootRouteChildren = {
@@ -546,6 +604,8 @@ const rootRouteChildren: RootRouteChildren = {
   RunsFlowRunIdRoute: RunsFlowRunIdRoute,
   RunsTaskRunIdRoute: RunsTaskRunIdRoute,
   WorkPoolsWorkPoolIdRoute: WorkPoolsWorkPoolIdRoute,
+  WorkPoolsWorkPoolWorkPoolIdRoute:
+    WorkPoolsWorkPoolWorkPoolIdRouteWithChildren,
 }
 
 export const routeTree = rootRoute
@@ -578,7 +638,8 @@ export const routeTree = rootRoute
         "/flows/flow/$id",
         "/runs/flow-run/$id",
         "/runs/task-run/$id",
-        "/work-pools/work-pool/$id"
+        "/work-pools/work-pool/$id",
+        "/work-pools/work-pool/$workPoolId"
       ]
     },
     "/": {
@@ -647,9 +708,19 @@ export const routeTree = rootRoute
     "/work-pools/work-pool/$id": {
       "filePath": "work-pools/work-pool.$id.tsx"
     },
+    "/work-pools/work-pool/$workPoolId": {
+      "filePath": "work-pools/work-pool.$workPoolId.tsx",
+      "children": [
+        "/work-pools/work-pool/$workPoolId/queue/$workQueueId"
+      ]
+    },
     "/automations/automation/$id/edit": {
       "filePath": "automations/automation.$id.edit.ts",
       "parent": "/automations/automation/$id"
+    },
+    "/work-pools/work-pool/$workPoolId/queue/$workQueueId": {
+      "filePath": "work-pools/work-pool.$workPoolId.queue.$workQueueId.tsx",
+      "parent": "/work-pools/work-pool/$workPoolId"
     }
   }
 }
