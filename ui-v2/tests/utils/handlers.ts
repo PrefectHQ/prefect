@@ -103,9 +103,14 @@ const workPoolsHandlers = [
 	http.post(buildApiUrl("/work_pools/filter"), () => {
 		return HttpResponse.json([]);
 	}),
-
 	http.post(buildApiUrl("/work_pools/count"), () => {
 		return HttpResponse.json(0);
+	}),
+];
+
+const workeQueuesHandlers = [
+	http.post(buildApiUrl("/work_queues/filter"), () => {
+		return HttpResponse.json([]);
 	}),
 ];
 
@@ -118,4 +123,5 @@ export const handlers = [
 	...taskRunConcurrencyLimitsHandlers,
 	...variablesHandlers,
 	...workPoolsHandlers,
+	...workeQueuesHandlers,
 ];
