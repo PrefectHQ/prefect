@@ -157,6 +157,40 @@ class CompoundCachePolicy(CachePolicy):
 
     policies: list[CachePolicy] = field(default_factory=list)
 
+    def __sub__(self, other: str) -> CachePolicy:
+        if not isinstance(other, str):  # type: ignore[reportUnnecessaryIsInstance]
+            raise TypeError("Can only subtract strings from key policies.")
+
+        # Subtract from each sub-policy; this may stack new Inputs(...) layers
+        new_subpolicies: list[CachePolicy] = [p - other for p in self.policies]
+
+        # If there are multiple Inputs, unify them all into one
+        inputs_policies = [p for p in new_subpolicies if isinstance(p, Inputs)]
+        if inputs_policies:
+            # Gather all excludes into a single set
+            all_excludes: set[str] = set()
+            for inputs_policy in inputs_policies:
+                all_excludes.update(inputs_policy.exclude)
+
+            # Remove all old Inputs from the subpolicy list
+            new_subpolicies = [p for p in new_subpolicies if not isinstance(p, Inputs)]
+
+            # Append one merged Inputs that excludes the union
+            merged_inputs = Inputs(exclude=sorted(all_excludes))
+            new_subpolicies.append(merged_inputs)
+
+        # If no sub‐policies exist after this, create an Inputs with [other]
+        # (to preserve the "always add an Inputs" behavior)
+        if not new_subpolicies:
+            new_subpolicies = [Inputs(exclude=[other])]
+
+        return CompoundCachePolicy(
+            policies=new_subpolicies,
+            key_storage=self.key_storage,
+            isolation_level=self.isolation_level,
+            lock_manager=self.lock_manager,
+        )
+
     def compute_key(
         self,
         task_ctx: TaskRunContext,
