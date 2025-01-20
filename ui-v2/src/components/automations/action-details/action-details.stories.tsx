@@ -1,4 +1,5 @@
 import { Automation } from "@/api/automations";
+import { routerDecorator } from "@/storybook/utils";
 import type { Meta, StoryObj } from "@storybook/react";
 import { ActionDetails } from "./action-details";
 
@@ -11,12 +12,20 @@ const ACTIONS: Array<Automation["actions"][number]> = [
 	{ type: "run-deployment", deployment_id: null, source: "inferred" },
 	{ type: "run-deployment", deployment_id: "abc", source: "selected" },
 	{ type: "pause-deployment", deployment_id: null, source: "inferred" },
+	{ type: "pause-deployment", deployment_id: "abc", source: "selected" },
+	{ type: "resume-deployment", deployment_id: null, source: "inferred" },
 	{ type: "resume-deployment", deployment_id: "abc", source: "selected" },
 	{ type: "pause-work-queue", work_queue_id: null, source: "inferred" },
+	{ type: "pause-work-queue", work_queue_id: "abc", source: "selected" },
+	{ type: "resume-work-queue", work_queue_id: null, source: "inferred" },
 	{ type: "resume-work-queue", work_queue_id: "abc", source: "selected" },
 	{ type: "pause-work-pool", work_pool_id: null, source: "inferred" },
+	{ type: "pause-work-pool", work_pool_id: "abc", source: "selected" },
+	{ type: "resume-work-pool", work_pool_id: null, source: "inferred" },
 	{ type: "resume-work-pool", work_pool_id: "abc", source: "selected" },
 	{ type: "pause-automation", automation_id: null, source: "inferred" },
+	{ type: "pause-automation", automation_id: "abc", source: "selected" },
+	{ type: "resume-automation", automation_id: null, source: "inferred" },
 	{ type: "resume-automation", automation_id: "abc", source: "selected" },
 	{
 		type: "send-notification",
@@ -72,6 +81,7 @@ const ACTIONS: Array<Automation["actions"][number]> = [
 const meta = {
 	title: "Components/Automations/ActionDetails",
 	component: ActionDetailsStory,
+	decorators: [routerDecorator],
 } satisfies Meta<typeof ActionDetails>;
 
 export default meta;
