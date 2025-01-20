@@ -291,9 +291,7 @@ def start(
             pid_file, server_settings, host, port, keep_alive_timeout, no_services
         )
     else:
-        _run_in_foreground(
-            pid_file, server_settings, host, port, keep_alive_timeout, no_services
-        )
+        _run_in_foreground(server_settings, host, port, keep_alive_timeout, no_services)
 
 
 def _run_in_background(
@@ -342,7 +340,6 @@ def _run_in_background(
 
 
 def _run_in_foreground(
-    pid_file: Path,
     server_settings: dict[str, str],
     host: str,
     port: int,
@@ -351,16 +348,22 @@ def _run_in_foreground(
 ) -> None:
     from prefect.server.api.server import create_app
 
-    with temporary_settings(
-        {getattr(prefect.settings, k): v for k, v in server_settings.items()}
-    ):
-        uvicorn.run(
-            app=create_app(final=True, webserver_only=no_services),
-            app_dir=str(prefect.__module_path__.parent),
-            host=host,
-            port=port,
-            timeout_keep_alive=keep_alive_timeout,
-        )
+    try:
+        with temporary_settings(
+            {getattr(prefect.settings, k): v for k, v in server_settings.items()}
+        ):
+            uvicorn.run(
+                app=create_app(final=True, webserver_only=no_services),
+                app_dir=str(prefect.__module_path__.parent),
+                host=host,
+                port=port,
+                timeout_keep_alive=keep_alive_timeout,
+                log_level=server_settings.get(
+                    "PREFECT_SERVER_LOGGING_LEVEL", "info"
+                ).lower(),
+            )
+    finally:
+        app.console.print("Server stopped!")
 
 
 @server_app.command()
