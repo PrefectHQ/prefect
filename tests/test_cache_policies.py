@@ -169,9 +169,12 @@ class TestCompoundPolicy:
         assert TaskSource() in policy.policies
 
     def test_nested_compound_policies_are_flattened(self):
-        one = CompoundCachePolicy(policies=[Inputs(), TaskSource()])
-        two = CompoundCachePolicy(policies=[RunId()])
-        policy = one + two
+        policy = CompoundCachePolicy(
+            policies=[
+                CompoundCachePolicy(policies=[Inputs(), TaskSource()]),
+                CompoundCachePolicy(policies=[RunId()]),
+            ]
+        )
         assert isinstance(policy, CompoundCachePolicy)
         assert len(policy.policies) == 3
         assert Inputs() in policy.policies
