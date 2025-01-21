@@ -17,7 +17,7 @@ export const ModeDecorator: DecoratorFunction<ReactRenderer> = (Story) => {
 
 	return (
 		<>
-			<div className="absolute bottom-4 left-4 z-50">
+			<div className="fixed bottom-4 left-4 z-50">
 				<div className="flex items-center space-x-2">
 					<Switch id="theme-mode" checked={isDarkMode} onClick={toggleMode} />
 					<Label htmlFor="theme-mode">
