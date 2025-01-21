@@ -38,6 +38,7 @@ import asyncio
 import datetime
 import inspect
 import logging
+import multiprocessing
 import os
 import shutil
 import signal
@@ -45,6 +46,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+from concurrent.futures import ProcessPoolExecutor
 from copy import deepcopy
 from functools import partial
 from pathlib import Path
@@ -111,6 +113,7 @@ from prefect.utilities.asyncutils import (
     is_async_fn,
     sync_compatible,
 )
+from prefect.utilities.callables import cloudpickle_wrapped_call
 from prefect.utilities.engine import propose_state
 from prefect.utilities.processutils import (
     get_sys_executable,
@@ -234,6 +237,9 @@ class Runner:
             maxsize=100
         )
         self._flow_cache: LRUCache[UUID, "APIFlow"] = LRUCache(maxsize=100)
+
+        # Experimental stuff
+        self._process_pool: Optional[ProcessPoolExecutor] = None
 
     @sync_compatible
     async def add_deployment(
@@ -537,6 +543,20 @@ class Runner:
                 "Exception encountered while shutting down", exc_info=True
             )
 
+    def _run_flow_in_subprocess(
+        self, flow: "Flow[..., Any]", flow_run: "FlowRun"
+    ) -> int:
+        from prefect.flow_engine import run_flow
+
+        process = multiprocessing.Process(
+            target=cloudpickle_wrapped_call(run_flow, flow=flow, flow_run=flow_run)
+        )
+        process.start()
+        if process.pid is None:
+            raise RuntimeError("Process did not start")
+
+        return process.pid
+
     async def execute_flow_run(
         self, flow_run_id: UUID, entrypoint: Optional[str] = None
     ) -> None:
@@ -546,6 +566,9 @@ class Runner:
         Execution will wait to monitor for cancellation requests. Exits once
         the flow run process has exited.
         """
+        from prefect.flow_engine import load_flow
+        from prefect.flows import load_flow_from_entrypoint
+
         self.pause_on_shutdown = False
         context = self if not self.started else asyncnullcontext()
 
@@ -558,13 +581,12 @@ class Runner:
                     self._submitting_flow_run_ids.add(flow_run_id)
                     flow_run = await self._client.read_flow_run(flow_run_id)
 
-                    pid = await self._runs_task_group.start(
-                        partial(
-                            self._submit_run_and_capture_errors,
-                            flow_run=flow_run,
-                            entrypoint=entrypoint,
-                        ),
-                    )
+                    if entrypoint:
+                        flow = load_flow_from_entrypoint(entrypoint)
+                    else:
+                        flow = load_flow(flow_run)
+
+                    pid = self._run_flow_in_subprocess(flow, flow_run)
 
                     self._flow_run_process_map[flow_run.id] = ProcessMapEntry(
                         pid=pid, flow_run=flow_run
