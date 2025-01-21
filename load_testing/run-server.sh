@@ -2,7 +2,7 @@
 
 DB_TYPE=${1:-sqlite}  # Default to sqlite if no argument provided
 NO_SERVICES=${2:-False}  # Default to False if no argument provided
-SERVER_LOGGING_LEVEL=${3:-info}
+SERVER_LOGGING_LEVEL=${3:-warning}
 
 # Function to start postgres container
 start_postgres() {
