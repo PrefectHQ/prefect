@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
 DB_TYPE=${1:-sqlite}  # Default to sqlite if no argument provided
+NO_SERVICES=${2:-False}  # Default to False if no argument provided
+SERVER_LOGGING_LEVEL=${3:-info}
 
 # Function to start postgres container
 start_postgres() {
@@ -81,20 +83,19 @@ PREFECT_SERVER_ANALYTICS_ENABLED=false \
 PREFECT_API_SERVICES_SCHEDULER_ENABLED=true \
 PREFECT_API_SERVICES_LATE_RUNS_ENABLED=true \
 PREFECT_UI_ENABLED=true \
-PREFECT_SERVER_LOGGING_LEVEL=info \
 PYTHONPATH=src \
 opentelemetry-instrument \
 python -c "
 import uvicorn
 from prefect.server.api.server import create_app
 
-app = create_app(final=True, webserver_only=False)
+app = create_app(final=True, webserver_only=eval('${NO_SERVICES}'.title()))
 uvicorn.run(
     app=app,
     app_dir='src',
     host='127.0.0.1',
     port=4200,
     timeout_keep_alive=5,
-    log_level='info'
+    log_level='${SERVER_LOGGING_LEVEL}'
 )
 "
