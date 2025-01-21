@@ -157,7 +157,7 @@ export const ChangeFlowRunStateActionDetails = ({
 }: ChangeFlowRunStateActionDetailsProps) => {
 	return (
 		<ActionResource>
-			<InferredAction label={label} /> to <StateBadge state={{ type, name }} />
+			<InferredAction label={label} /> to <StateBadge type={type} name={name} />
 		</ActionResource>
 	);
 };

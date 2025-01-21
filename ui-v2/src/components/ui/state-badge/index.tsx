@@ -36,14 +36,17 @@ const stateBadgeVariants = cva("gap-1", {
 	},
 });
 
-export const StateBadge = ({
-	state,
-}: { state: Omit<components["schemas"]["State"], "id"> & { id?: string } }) => {
-	const Icon = ICONS[state.type];
+type StateBadgeProps = {
+	type: components["schemas"]["StateType"];
+	name?: string | null;
+};
+
+export const StateBadge = ({ type, name }: StateBadgeProps) => {
+	const Icon = ICONS[type];
 	return (
-		<Badge className={stateBadgeVariants({ state: state.type })}>
+		<Badge className={stateBadgeVariants({ state: type })}>
 			<Icon size={16} />
-			{state.name ?? capitalize(state.type)}
+			{name ?? capitalize(type)}
 		</Badge>
 	);
 };
