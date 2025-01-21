@@ -158,6 +158,16 @@ class TestCompoundPolicy:
         )
         assert compound_key is None
 
+    def test_adding_two_compound_policies_merges_policies(self):
+        one = CompoundCachePolicy(policies=[Inputs(), TaskSource()])
+        two = CompoundCachePolicy(policies=[RunId()])
+        policy = one + two
+        assert isinstance(policy, CompoundCachePolicy)
+        assert len(policy.policies) == 3
+        assert Inputs() in policy.policies
+        assert RunId() in policy.policies
+        assert TaskSource() in policy.policies
+
     def test_compound_policy_deduplicates_inputs_on_subtraction(self):
         """Regression test for https://github.com/PrefectHQ/prefect/issues/16773"""
         # Create a compound policy with multiple Inputs policies
@@ -169,6 +179,8 @@ class TestCompoundPolicy:
                 Inputs(exclude=["y"]),
             ]
         )
+        # Inputs get combined into a single policy
+        assert len(policy.policies) == 2
 
         # Subtract a new key
         new_policy = policy - "z"
@@ -184,8 +196,7 @@ class TestCompoundPolicy:
         # So we should have one merged Inputs policy and one CompoundCachePolicy containing TaskSource
         assert len(new_policy.policies) == 2
         assert any(
-            isinstance(p, CompoundCachePolicy)
-            and any(isinstance(sp, TaskSource) for sp in p.policies)
+            isinstance(p, CompoundCachePolicy) or isinstance(p, TaskSource)
             for p in new_policy.policies
         )
 
