@@ -10,7 +10,7 @@ export const createFakeWorkPool = (
 		created: faker.date.past().toISOString(),
 		description: `${faker.word.adjective()} ${faker.word.noun()}`,
 		id: faker.string.uuid(),
-		name: `${faker.word.adjective()} automation`,
+		name: `${faker.word.adjective()} work pool`,
 		updated: faker.date.past().toISOString(),
 		base_job_template: {},
 		concurrency_limit: faker.number.int({ min: 0, max: 1_000 }),

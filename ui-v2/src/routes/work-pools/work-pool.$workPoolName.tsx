@@ -1,8 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute(
-	"/work-pools/work-pool/$workPoolId/queue/$workQueueId",
-)({
+export const Route = createFileRoute("/work-pools/work-pool/$workPoolName")({
 	component: RouteComponent,
 });
 

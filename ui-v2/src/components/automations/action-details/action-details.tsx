@@ -1,9 +1,16 @@
-import { Automation } from "@/api/automations";
-import { Deployment } from "@/api/deployments";
+import type { Automation } from "@/api/automations";
+import type { Deployment } from "@/api/deployments";
+import type { WorkPool } from "@/api/work-pools";
+import type { WorkQueue } from "@/api/work-queues";
 import { Card } from "@/components/ui/card";
 import { Icon, IconId } from "@/components/ui/icons";
 import { Typography } from "@/components/ui/typography";
-import { createFakeAutomation, createFakeDeployment } from "@/mocks";
+import {
+	createFakeAutomation,
+	createFakeDeployment,
+	createFakeWorkPool,
+	createFakeWorkQueue,
+} from "@/mocks";
 import { Link } from "@tanstack/react-router";
 
 const ACTION_TYPE_TO_STRING = {
@@ -68,7 +75,11 @@ export const ActionDetailsType = ({ action }: ActionDetailsProps) => {
 		case "pause-work-queue":
 		case "resume-work-queue":
 			return action.work_queue_id && action.source == "selected" ? (
-				"TODO"
+				// TODO: Pass a real work queue from API
+				<WorkQueueActionDetails
+					label={label}
+					workQueue={createFakeWorkQueue()}
+				/>
 			) : (
 				<InferredAction label={label} />
 			);
@@ -86,7 +97,8 @@ export const ActionDetailsType = ({ action }: ActionDetailsProps) => {
 		case "pause-work-pool":
 		case "resume-work-pool":
 			return action.work_pool_id && action.source == "selected" ? (
-				"TODO"
+				// TODO: Pass a real work pool from API
+				<WorkPoolActionDetails label={label} workPool={createFakeWorkPool()} />
 			) : (
 				<InferredAction label={label} />
 			);
@@ -166,6 +178,53 @@ export const AutomationActionDetails = ({
 				aria-label={automation.name}
 			>
 				<ActionResourceName iconId="Bot" name={automation.name} />
+			</Link>
+		</ActionResource>
+	);
+};
+
+type WorkPoolActionDetailsProps = {
+	label: ActionLabel;
+	workPool: WorkPool;
+};
+export const WorkPoolActionDetails = ({
+	label,
+	workPool,
+}: WorkPoolActionDetailsProps) => {
+	return (
+		<ActionResource>
+			<label>{label}:</label>
+			<Link
+				to="/work-pools/work-pool/$workPoolName"
+				params={{ workPoolName: workPool.name }}
+				aria-label={workPool.name}
+			>
+				<ActionResourceName iconId="Cpu" name={workPool.name} />
+			</Link>
+		</ActionResource>
+	);
+};
+
+type WorkQueueActionDetailsProps = {
+	label: ActionLabel;
+	workQueue: WorkQueue;
+};
+export const WorkQueueActionDetails = ({
+	label,
+	workQueue,
+}: WorkQueueActionDetailsProps) => {
+	return (
+		<ActionResource>
+			<label>{label}:</label>
+			<Link
+				to="/work-pools/work-pool/$workPoolName/queue/$workQueueName"
+				params={{
+					workPoolName: workQueue.name,
+					workQueueName: workQueue.name,
+				}}
+				aria-label={workQueue.name}
+			>
+				<ActionResourceName iconId="Cpu" name={workQueue.name} />
 			</Link>
 		</ActionResource>
 	);
