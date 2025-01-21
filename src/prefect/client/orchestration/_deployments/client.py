@@ -1031,8 +1031,8 @@ class DeploymentAsyncClient(BaseAsyncClient):
         deployment_ids: list["UUID"],
         scheduled_before: "datetime.datetime | None" = None,
         limit: int | None = None,
-    ) -> list["FlowRunResponse"]:
-        from prefect.client.schemas.responses import FlowRunResponse
+    ) -> list["FlowRun"]:
+        from prefect.client.schemas.objects import FlowRun
 
         body: dict[str, Any] = dict(deployment_ids=[str(id) for id in deployment_ids])
         if scheduled_before:
@@ -1046,7 +1046,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
             json=body,
         )
 
-        return FlowRunResponse.model_validate_list(response.json())
+        return FlowRun.model_validate_list(response.json())
 
     async def create_flow_run_from_deployment(
         self,
