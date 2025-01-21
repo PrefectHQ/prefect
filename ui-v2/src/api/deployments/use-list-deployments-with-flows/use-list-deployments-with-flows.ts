@@ -1,10 +1,15 @@
 import {
+	Deployment,
 	DeploymentsPaginationFilter,
 	buildPaginateDeploymentsQuery,
 } from "@/api/deployments";
 import { Flow, buildListFlowsQuery } from "@/api/flows";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
+
+export type DeploymentWithFlow = Deployment & {
+	flow: Flow | undefined;
+};
 
 /**
  * A hook that is used to get a pagination list of Deployments, with flow data joined

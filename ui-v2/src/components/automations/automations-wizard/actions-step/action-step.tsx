@@ -6,6 +6,7 @@ import { useWatch } from "react-hook-form";
 import { ActionTypeSelect } from "./action-type-select";
 import { AutomationsSelectStateFields } from "./automations-select-state-fields";
 import { ChangeFlowRunStateFields } from "./change-flow-run-fields";
+import { DeploymentsSelectStateFields } from "./deployments-select-state-fields";
 
 type ActionStepProps = {
 	index: number;
@@ -49,9 +50,11 @@ const ActionTypeAdditionalFields = ({
 		case "change-flow-run-state":
 			return <ChangeFlowRunStateFields index={index} />;
 		case "run-deployment":
+			return <DeploymentsSelectStateFields action="Run" index={index} />;
 		case "pause-deployment":
+			return <DeploymentsSelectStateFields action="Pause" index={index} />;
 		case "resume-deployment":
-			return <div>TODO Deployment</div>;
+			return <DeploymentsSelectStateFields action="Resume" index={index} />;
 		case "pause-work-queue":
 		case "resume-work-queue":
 			return <div>TODO Work Queue</div>;
