@@ -349,15 +349,21 @@ class PrefectEventsClient(EventsClient):
         return await super().__aexit__(exc_type, exc_val, exc_tb)
 
     async def _reconnect(self) -> None:
+        logger.debug("Reconnecting websocket connection.")
+
         if self._websocket:
             self._websocket = None
             await self._connect.__aexit__(None, None, None)
+            logger.debug("Cleared existing websocket connection.")
 
         try:
+            logger.debug("Opening websocket connection")
             self._websocket = await self._connect.__aenter__()
             # make sure we have actually connected
+            logger.debug("Pinging to ensure websocket connected.")
             pong = await self._websocket.ping()
             await pong
+            logger.debug("Pong received. Websocket connected.")
         except Exception as e:
             # The client is frequently run in a background thread
             # so we log an additional warning to ensure
@@ -375,11 +381,13 @@ class PrefectEventsClient(EventsClient):
             raise
 
         events_to_resend = self._unconfirmed_events
+        logger.debug("Resending %s unconfirmed events.", len(events_to_resend))
         # Clear the unconfirmed events here, because they are going back through emit
         # and will be added again through the normal checkpointing process
         self._unconfirmed_events = []
         for event in events_to_resend:
             await self.emit(event)
+        logger.debug("Finished resending unconfirmed events.")
 
     async def _checkpoint(self, event: Event) -> None:
         assert self._websocket
@@ -387,11 +395,20 @@ class PrefectEventsClient(EventsClient):
         self._unconfirmed_events.append(event)
 
         unconfirmed_count = len(self._unconfirmed_events)
+
+        logger.debug(
+            "Added event id=%s to unconfirmed events list. "
+            "There is now %s unconfirmed events.",
+            event.id,
+            unconfirmed_count,
+        )
         if unconfirmed_count < self._checkpoint_every:
             return
 
+        logger.debug("Pinging to checkpoint unconfirmed events")
         pong = await self._websocket.ping()
         await pong
+        logger.debug("Pong received. Events checkpointed.")
 
         # once the pong returns, we know for sure that we've sent all the messages
         # we had enqueued prior to that.  There could be more that came in after, so
@@ -401,7 +418,9 @@ class PrefectEventsClient(EventsClient):
         EVENT_WEBSOCKET_CHECKPOINTS.labels(self.client_name).inc()
 
     async def _emit(self, event: Event) -> None:
+        logger.debug("Emitting event id=%s", event.id)
         for i in range(self._reconnection_attempts + 1):
+            logger.debug("Reconnection attempt %s", i)
             try:
                 # If we're here and the websocket is None, then we've had a failure in a
                 # previous reconnection attempt.
@@ -410,14 +429,18 @@ class PrefectEventsClient(EventsClient):
                 # from a ConnectionClosed, so reconnect now, resending any unconfirmed
                 # events before we send this one.
                 if not self._websocket or i > 0:
+                    logger.debug("Attempting websocket reconnection.")
                     await self._reconnect()
                     assert self._websocket
 
+                logger.debug("Sending event id=%s", event.id)
                 await self._websocket.send(event.model_dump_json())
+                logger.debug("Checkpoint event id=%s", event.id)
                 await self._checkpoint(event)
 
                 return
             except ConnectionClosed:
+                logger.debug("Connection closed")
                 if i == self._reconnection_attempts:
                     # this was our final chance, raise the most recent error
                     raise
@@ -426,6 +449,9 @@ class PrefectEventsClient(EventsClient):
                     # let the first two attempts happen quickly in case this is just
                     # a standard load balancer timeout, but after that, just take a
                     # beat to let things come back around.
+                    logger.debug(
+                        "Sleeping for 1 second before next reconnection attempt."
+                    )
                     await asyncio.sleep(1)
 
 
