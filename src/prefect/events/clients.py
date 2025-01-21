@@ -357,7 +357,7 @@ class PrefectEventsClient(EventsClient):
             logger.debug("Cleared existing websocket connection.")
 
         try:
-            logger.debug("Opening websocket connection")
+            logger.debug("Opening websocket connection.")
             self._websocket = await self._connect.__aenter__()
             # make sure we have actually connected
             logger.debug("Pinging to ensure websocket connected.")
@@ -398,14 +398,14 @@ class PrefectEventsClient(EventsClient):
 
         logger.debug(
             "Added event id=%s to unconfirmed events list. "
-            "There is now %s unconfirmed events.",
+            "There are now %s unconfirmed events.",
             event.id,
             unconfirmed_count,
         )
         if unconfirmed_count < self._checkpoint_every:
             return
 
-        logger.debug("Pinging to checkpoint unconfirmed events")
+        logger.debug("Pinging to checkpoint unconfirmed events.")
         pong = await self._websocket.ping()
         await pong
         logger.debug("Pong received. Events checkpointed.")
@@ -418,9 +418,9 @@ class PrefectEventsClient(EventsClient):
         EVENT_WEBSOCKET_CHECKPOINTS.labels(self.client_name).inc()
 
     async def _emit(self, event: Event) -> None:
-        logger.debug("Emitting event id=%s", event.id)
+        logger.debug("Emitting event id=%s.", event.id)
         for i in range(self._reconnection_attempts + 1):
-            logger.debug("Reconnection attempt %s", i)
+            logger.debug("Emit reconnection attempt %s.", i)
             try:
                 # If we're here and the websocket is None, then we've had a failure in a
                 # previous reconnection attempt.
@@ -433,14 +433,14 @@ class PrefectEventsClient(EventsClient):
                     await self._reconnect()
                     assert self._websocket
 
-                logger.debug("Sending event id=%s", event.id)
+                logger.debug("Sending event id=%s.", event.id)
                 await self._websocket.send(event.model_dump_json())
-                logger.debug("Checkpoint event id=%s", event.id)
+                logger.debug("Checkpointing event id=%s.", event.id)
                 await self._checkpoint(event)
 
                 return
             except ConnectionClosed:
-                logger.debug("Connection closed")
+                logger.debug("Got ConnectionClosed error.")
                 if i == self._reconnection_attempts:
                     # this was our final chance, raise the most recent error
                     raise
