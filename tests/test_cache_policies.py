@@ -168,6 +168,16 @@ class TestCompoundPolicy:
         assert RunId() in policy.policies
         assert TaskSource() in policy.policies
 
+    def test_nested_compound_policies_are_flattened(self):
+        one = CompoundCachePolicy(policies=[Inputs(), TaskSource()])
+        two = CompoundCachePolicy(policies=[RunId()])
+        policy = one + two
+        assert isinstance(policy, CompoundCachePolicy)
+        assert len(policy.policies) == 3
+        assert Inputs() in policy.policies
+        assert RunId() in policy.policies
+        assert TaskSource() in policy.policies
+
     def test_compound_policy_deduplicates_inputs_on_subtraction(self):
         """Regression test for https://github.com/PrefectHQ/prefect/issues/16773"""
         # Create a compound policy with multiple Inputs policies

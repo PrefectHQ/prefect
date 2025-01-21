@@ -158,6 +158,13 @@ class CompoundCachePolicy(CachePolicy):
     policies: list[CachePolicy] = field(default_factory=list)
 
     def __post_init__(self) -> None:
+        # flatten any CompoundCachePolicies
+        self.policies = [
+            policy
+            for p in self.policies
+            for policy in (p.policies if isinstance(p, CompoundCachePolicy) else [p])
+        ]
+
         # deduplicate any Inputs policies
         inputs_policies = [p for p in self.policies if isinstance(p, Inputs)]
         self.policies = [p for p in self.policies if not isinstance(p, Inputs)]
