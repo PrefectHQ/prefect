@@ -6,6 +6,7 @@ import {
 	createFakeAutomation,
 	createFakeDeployment,
 	createFakeFlow,
+	createFakeWorkPool,
 } from "@/mocks";
 import { reactQueryDecorator } from "@/storybook/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -26,6 +27,7 @@ const MOCK_FLOWS_DATA = [
 	createFakeFlow({ id: "a" }),
 	createFakeFlow({ id: "b" }),
 ];
+const MOCK_WORK_POOLS_DATA = Array.from({ length: 5 }, createFakeWorkPool);
 
 const meta = {
 	title: "Components/Automations/Wizard/ActionsStep",
@@ -52,6 +54,9 @@ const meta = {
 				}),
 				http.post(buildApiUrl("/flows/filter"), () => {
 					return HttpResponse.json(MOCK_FLOWS_DATA);
+				}),
+				http.post(buildApiUrl("/work_pools/filter"), () => {
+					return HttpResponse.json(MOCK_WORK_POOLS_DATA);
 				}),
 			],
 		},
