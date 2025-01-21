@@ -46,15 +46,15 @@ const getButtonLabel = (
 	return <DeploymentLabel deploymentWithFlow={deployment} />;
 };
 
-type DeploymentsSelectStateFieldsProps = {
+type SelectDeploymentsFieldsProps = {
 	action: "Run" | "Pause" | "Resume";
 	index: number;
 };
 
-export const DeploymentsSelectStateFields = ({
+export const SelectDeploymentsFields = ({
 	action,
 	index,
-}: DeploymentsSelectStateFieldsProps) => {
+}: SelectDeploymentsFieldsProps) => {
 	const [search, setSearch] = useState("");
 	const form = useFormContext<AutomationWizardSchema>();
 	const actionType = form.watch(`actions.${index}.type`);
