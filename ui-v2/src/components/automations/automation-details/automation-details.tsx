@@ -1,27 +1,58 @@
-import { Automation, buildGetAutomationQuery } from "@/api/automations";
+import { type Automation } from "@/api/automations";
 import { ActionDetails } from "@/components/automations/action-details";
 import { AutomationEnableToggle } from "@/components/automations/automation-enable-toggle";
 import { AutomationsActionsMenu } from "@/components/automations/automations-actions-menu";
 import { useDeleteAutomationConfirmationDialog } from "@/components/automations/use-delete-automation-confirmation-dialog";
+import {
+	Breadcrumb,
+	BreadcrumbItem,
+	BreadcrumbLink,
+	BreadcrumbList,
+	BreadcrumbPage,
+	BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import { Card } from "@/components/ui/card";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { Typography } from "@/components/ui/typography";
-import { useSuspenseQuery } from "@tanstack/react-query";
-import { NavHeader } from "./nav-header";
 
-type AutomationPageProps = {
-	id: string;
+type DisplayType = "page" | "item";
+
+type AutomationDetailsProps = {
+	data: Automation;
+	displayType: DisplayType;
 };
 
-export const AutomationPage = ({ id }: AutomationPageProps) => {
-	const { data } = useSuspenseQuery(buildGetAutomationQuery(id));
+export const AutomationDetails = ({
+	data,
+	displayType,
+}: AutomationDetailsProps) => {
+	if (displayType === "item") {
+		return (
+			<Card className="p-4 pt-5">
+				<AutomationDetailsContent data={data} displayType={displayType} />
+			</Card>
+		);
+	}
+	return <AutomationDetailsContent data={data} displayType={displayType} />;
+};
+
+const AutomationDetailsContent = ({
+	data,
+	displayType,
+}: AutomationDetailsProps) => {
 	const [dialogState, confirmDelete] = useDeleteAutomationConfirmationDialog();
 
-	const handleDelete = () => confirmDelete(data, { shouldNavigate: true });
+	const handleDelete = () =>
+		confirmDelete(data, { shouldNavigate: displayType === "page" });
 
 	return (
 		<>
 			<div className="flex flex-col gap-4">
-				<AutomationPageHeader data={data} onDelete={handleDelete} />
+				<AutomationDetailsHeader
+					displayType={displayType}
+					data={data}
+					onDelete={handleDelete}
+				/>
 				<div className="flex flex-col gap-4">
 					<AutomationDescription data={data} />
 					<AutomationTrigger data={data} />
@@ -33,18 +64,20 @@ export const AutomationPage = ({ id }: AutomationPageProps) => {
 	);
 };
 
-type AutomationPageHeaderProps = {
+type AutomationDetailsHeaderProps = {
 	data: Automation;
+	displayType: DisplayType;
 	onDelete: () => void;
 };
 
-const AutomationPageHeader = ({
+const AutomationDetailsHeader = ({
 	data,
 	onDelete,
-}: AutomationPageHeaderProps) => {
+	displayType,
+}: AutomationDetailsHeaderProps) => {
 	return (
 		<div className="flex items-center justify-between">
-			<NavHeader name={data.name} />
+			<NavHeader displayType={displayType} data={data} />
 			<div className="flex items-center gap-2">
 				<AutomationEnableToggle data={data} />
 				<AutomationsActionsMenu id={data.id} onDelete={onDelete} />
@@ -103,5 +136,51 @@ const AutomationActions = ({ data }: AutomationActionsProps) => {
 				))}
 			</ul>
 		</div>
+	);
+};
+
+type NavHeaderProps = {
+	data: Automation;
+	displayType: DisplayType;
+};
+
+const NavHeader = ({ displayType, data }: NavHeaderProps) => {
+	if (displayType === "page") {
+		return (
+			<div className="flex items-center gap-2">
+				<Breadcrumb>
+					<BreadcrumbList>
+						<BreadcrumbItem>
+							<BreadcrumbLink
+								to="/automations"
+								className="text-xl font-semibold"
+							>
+								Automations
+							</BreadcrumbLink>
+						</BreadcrumbItem>
+						<BreadcrumbSeparator />
+						<BreadcrumbItem className="text-xl font-semibold">
+							<BreadcrumbPage>{data.name}</BreadcrumbPage>
+						</BreadcrumbItem>
+					</BreadcrumbList>
+				</Breadcrumb>
+			</div>
+		);
+	}
+
+	return (
+		<Breadcrumb>
+			<BreadcrumbList>
+				<BreadcrumbItem className="text-xl">
+					<BreadcrumbLink
+						to="/automations/automation/$id"
+						params={{ id: data.id }}
+						className="text-lg"
+					>
+						{data.name}
+					</BreadcrumbLink>
+				</BreadcrumbItem>
+			</BreadcrumbList>
+		</Breadcrumb>
 	);
 };

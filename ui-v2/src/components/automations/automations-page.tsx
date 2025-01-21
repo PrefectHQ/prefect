@@ -1,5 +1,6 @@
 import { buildListAutomationsQuery } from "@/api/automations";
 import { useSuspenseQuery } from "@tanstack/react-query";
+import { AutomationDetails } from "./automation-details";
 import { AutomationsEmptyState } from "./automations-empty-state";
 import { AutomationsHeader } from "./automations-header";
 
@@ -12,7 +13,16 @@ export const AutomationsPage = () => {
 			{data.length === 0 ? (
 				<AutomationsEmptyState />
 			) : (
-				<div>TODO: AUTOMATIONS_LIST</div>
+				<ul className="flex flex-col gap-2">
+					{data.map((automation) => (
+						<li
+							key={automation.id}
+							aria-label={`automation item ${automation.name}`}
+						>
+							<AutomationDetails data={automation} displayType="item" />
+						</li>
+					))}
+				</ul>
 			)}
 		</div>
 	);
