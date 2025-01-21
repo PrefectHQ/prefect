@@ -4,9 +4,10 @@ import { Icon } from "@/components/ui/icons";
 import { Typography } from "@/components/ui/typography";
 import { useWatch } from "react-hook-form";
 import { ActionTypeSelect } from "./action-type-select";
-import { AutomationsSelectStateFields } from "./automations-select-state-fields";
 import { ChangeFlowRunStateFields } from "./change-flow-run-fields";
-import { DeploymentsSelectStateFields } from "./deployments-select-state-fields";
+import { SelectAutomationsFields } from "./select-automations-fields";
+import { SelectDeploymentsFields } from "./select-deployments-fields";
+import { SelectWorkPoolsFields } from "./select-work-pools-fields";
 
 type ActionStepProps = {
 	index: number;
@@ -50,21 +51,22 @@ const ActionTypeAdditionalFields = ({
 		case "change-flow-run-state":
 			return <ChangeFlowRunStateFields index={index} />;
 		case "run-deployment":
-			return <DeploymentsSelectStateFields action="Run" index={index} />;
+			return <SelectDeploymentsFields action="Run" index={index} />;
 		case "pause-deployment":
-			return <DeploymentsSelectStateFields action="Pause" index={index} />;
+			return <SelectDeploymentsFields action="Pause" index={index} />;
 		case "resume-deployment":
-			return <DeploymentsSelectStateFields action="Resume" index={index} />;
+			return <SelectDeploymentsFields action="Resume" index={index} />;
 		case "pause-work-queue":
 		case "resume-work-queue":
 			return <div>TODO Work Queue</div>;
 		case "pause-work-pool":
+			return <SelectWorkPoolsFields action="Pause" index={index} />;
 		case "resume-work-pool":
-			return <div>TODO Work pool</div>;
+			return <SelectWorkPoolsFields action="Resume" index={index} />;
 		case "pause-automation":
-			return <AutomationsSelectStateFields action="Pause" index={index} />;
+			return <SelectAutomationsFields action="Pause" index={index} />;
 		case "resume-automation":
-			return <AutomationsSelectStateFields action="Resume" index={index} />;
+			return <SelectAutomationsFields action="Resume" index={index} />;
 		case "send-notification":
 			return <div>TODO send notification</div>;
 		case "cancel-flow-run":
