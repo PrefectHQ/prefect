@@ -91,9 +91,9 @@ SlaAdapter: TypeAdapter[SlaTypes] = TypeAdapter(SlaTypes)
 
 @app.command()
 async def init(
-    name: Optional[str] = None,
-    recipe: Optional[str] = None,
-    fields: Optional[list[str]] = typer.Option(
+    name: str | None = None,
+    recipe: str | None = None,
+    fields: list[str] | None = typer.Option(
         None,
         "-f",
         "--field",
@@ -919,8 +919,10 @@ def _construct_schedules(
     Returns:
         A list of schedule objects
     """
-    schedules: list[DeploymentScheduleCreate] = []  # Initialize with empty list
-    schedule_configs = deploy_config.get("schedules", NotSet) or []
+    schedules = []
+    schedule_configs: list[dict[str, Any]] | NotSet = (
+        deploy_config.get("schedules", []) or []
+    )
 
     if schedule_configs is not NotSet:
         schedules = [
