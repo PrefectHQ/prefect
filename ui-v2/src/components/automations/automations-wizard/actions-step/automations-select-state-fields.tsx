@@ -20,17 +20,15 @@ import {
 	FormLabel,
 	FormMessage,
 } from "@/components/ui/form";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { useDeferredValue, useMemo, useState } from "react";
 import { useFormContext } from "react-hook-form";
+import { LoadingSelectState } from "./loading-select-state";
 
-const INFER_AUTOMATION = {
+const INFER_OPTION = {
 	value: UNASSIGNED,
-	name: "Infer Automation" as const,
+	name: "Infer Automation",
 } as const;
-
-const NUM_SKELETONS = 4;
 
 type AutomationsSelectStateFieldsProps = {
 	action: "Pause" | "Resume";
@@ -41,8 +39,8 @@ const getButtonLabel = (
 	data: Array<Automation> | undefined,
 	fieldValue: string | null,
 ) => {
-	if (fieldValue === INFER_AUTOMATION.value) {
-		return INFER_AUTOMATION.name;
+	if (fieldValue === INFER_OPTION.value) {
+		return INFER_OPTION.name;
 	}
 	const automation = data?.find((automation) => automation.id === fieldValue);
 	if (automation) {
@@ -70,7 +68,7 @@ export const AutomationsSelectStateFields = ({
 		);
 	}, [data, deferredSearch]);
 
-	const isInferredOptionFiltered = INFER_AUTOMATION.name
+	const isInferredOptionFiltered = INFER_OPTION.name
 		.toLowerCase()
 		.includes(deferredSearch.toLowerCase());
 
@@ -101,14 +99,14 @@ export const AutomationsSelectStateFields = ({
 									<ComboboxCommandGroup>
 										{isInferredOptionFiltered && (
 											<ComboboxCommandItem
-												selected={field.value === INFER_AUTOMATION.value}
+												selected={field.value === INFER_OPTION.value}
 												onSelect={(value) => {
 													field.onChange(value);
 													setSearch("");
 												}}
-												value={INFER_AUTOMATION.value}
+												value={INFER_OPTION.value}
 											>
-												{INFER_AUTOMATION.name}
+												{INFER_OPTION.name}
 											</ComboboxCommandItem>
 										)}
 										{isSuccess ? (
@@ -126,7 +124,7 @@ export const AutomationsSelectStateFields = ({
 												</ComboboxCommandItem>
 											))
 										) : (
-											<AutomationLoadingState length={NUM_SKELETONS} />
+											<LoadingSelectState />
 										)}
 									</ComboboxCommandGroup>
 								</ComboboxCommandList>
@@ -139,8 +137,3 @@ export const AutomationsSelectStateFields = ({
 		/>
 	);
 };
-
-const AutomationLoadingState = ({ length }: { length: number }) =>
-	Array.from({ length }, (_, index) => (
-		<Skeleton key={index} className="mt-2 p-4 h-2 w-full" />
-	));

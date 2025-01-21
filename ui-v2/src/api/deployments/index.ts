@@ -1,6 +1,7 @@
 import type { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
 import {
+	keepPreviousData,
 	queryOptions,
 	useMutation,
 	useQueryClient,
@@ -80,6 +81,7 @@ export const buildPaginateDeploymentsQuery = (
 			});
 			return res.data;
 		},
+		placeholderData: keepPreviousData,
 	});
 
 /**

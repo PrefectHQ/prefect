@@ -1,12 +1,16 @@
-import { createFakeAutomation } from "@/mocks";
-import { ActionsStep } from "./actions-step";
-
-import { Automation } from "@/api/automations";
+import type { Automation } from "@/api/automations";
+import type { Deployment } from "@/api/deployments";
+import type { Flow } from "@/api/flows";
 import {
 	AutomationWizardSchema,
 	type AutomationWizardSchema as TAutomationWizardSchema,
 } from "@/components/automations/automations-wizard/automation-schema";
 import { Form } from "@/components/ui/form";
+import {
+	createFakeAutomation,
+	createFakeDeployment,
+	createFakeFlow,
+} from "@/mocks";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -15,6 +19,7 @@ import { mockPointerEvents } from "@tests/utils/browser";
 import { http, HttpResponse } from "msw";
 import { useForm } from "react-hook-form";
 import { beforeAll, describe, expect, it } from "vitest";
+import { ActionsStep } from "./actions-step";
 
 const ActionStepFormContainer = () => {
 	const form = useForm<TAutomationWizardSchema>({
@@ -239,5 +244,104 @@ describe("ActionsStep", () => {
 			expect(screen.getAllByText("Pause an automation")).toBeTruthy();
 			expect(screen.getAllByText("my automation 1")).toBeTruthy();
 		});
+	});
+
+	describe("action type -- deployments", () => {
+		const mockPaginateDeploymentsAPI = (deployments: Array<Deployment>) => {
+			server.use(
+				http.post(buildApiUrl("/deployments/paginate"), () => {
+					return HttpResponse.json({
+						results: deployments,
+						count: deployments.length,
+						page: 1,
+						pages: 1,
+						limit: 10,
+					});
+				}),
+			);
+		};
+		const mockListFlowsAPI = (flows: Array<Flow>) => {
+			server.use(
+				http.post(buildApiUrl("/flows/filter"), () => {
+					return HttpResponse.json(flows);
+				}),
+			);
+		};
+
+		it("able to configure pause a deployment action type", async () => {
+			const DEPLOYMENTS_DATA = [
+				createFakeDeployment({ name: "my deployment 0", flow_id: "a" }),
+				createFakeDeployment({ name: "my deployment 1", flow_id: "a" }),
+			];
+			const FLOWS_DATA = [createFakeFlow({ id: "a" })];
+
+			mockPaginateDeploymentsAPI(DEPLOYMENTS_DATA);
+			mockListFlowsAPI(FLOWS_DATA);
+
+			const user = userEvent.setup();
+
+			// ------------ Setup
+			render(<ActionStepFormContainer />, {
+				wrapper: createWrapper(),
+			});
+
+			// ------------ Act
+			await user.click(
+				screen.getByRole("combobox", { name: /select action/i }),
+			);
+			await user.click(
+				screen.getByRole("option", { name: "Pause a deployment" }),
+			);
+
+			expect(screen.getAllByText("Infer Deployment")).toBeTruthy();
+			await user.click(
+				screen.getByRole("combobox", { name: /select deployment to pause/i }),
+			);
+
+			await user.click(screen.getByRole("option", { name: "my deployment 0" }));
+			// ------------ Assert
+			expect(screen.getAllByText("Pause a deployment")).toBeTruthy();
+			expect(screen.getAllByText("my deployment 0")).toBeTruthy();
+		});
+
+		it("able to configure resume a deployment action type", async () => {
+			const DEPLOYMENTS_DATA = [
+				createFakeDeployment({ name: "my deployment 0", flow_id: "a" }),
+				createFakeDeployment({ name: "my deployment 1", flow_id: "a" }),
+			];
+			const FLOWS_DATA = [createFakeFlow({ id: "a" })];
+
+			mockPaginateDeploymentsAPI(DEPLOYMENTS_DATA);
+			mockListFlowsAPI(FLOWS_DATA);
+			const user = userEvent.setup();
+
+			// ------------ Setup
+			render(<ActionStepFormContainer />, {
+				wrapper: createWrapper(),
+			});
+
+			// ------------ Act
+			await user.click(
+				screen.getByRole("combobox", { name: /select action/i }),
+			);
+			await user.click(
+				screen.getByRole("option", { name: "Resume a deployment" }),
+			);
+
+			expect(screen.getAllByText("Infer Deployment")).toBeTruthy();
+			await user.click(
+				screen.getByRole("combobox", {
+					name: /select deployment to resume/i,
+				}),
+			);
+
+			await user.click(screen.getByRole("option", { name: "my deployment 1" }));
+
+			// ------------ Assert
+			expect(screen.getAllByText("Pause a deployment")).toBeTruthy();
+			expect(screen.getAllByText("my deployment 1")).toBeTruthy();
+		});
+
+		it.todo("able to configure run a deployment action type", async () => {});
 	});
 });
