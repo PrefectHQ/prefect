@@ -46,9 +46,8 @@ import subprocess
 import sys
 import tempfile
 import threading
-from concurrent.futures import ProcessPoolExecutor
 from copy import deepcopy
-from functools import partial
+from functools import partial, wraps
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -111,14 +110,11 @@ from prefect.types.entrypoint import EntrypointType
 from prefect.utilities.asyncutils import (
     asyncnullcontext,
     is_async_fn,
+    run_sync_in_worker_thread,
     sync_compatible,
 )
 from prefect.utilities.callables import cloudpickle_wrapped_call
 from prefect.utilities.engine import propose_state
-from prefect.utilities.processutils import (
-    get_sys_executable,
-    run_process,
-)
 from prefect.utilities.services import (
     critical_service_loop,
     start_client_metrics_server,
@@ -237,9 +233,6 @@ class Runner:
             maxsize=100
         )
         self._flow_cache: LRUCache[UUID, "APIFlow"] = LRUCache(maxsize=100)
-
-        # Experimental stuff
-        self._process_pool: Optional[ProcessPoolExecutor] = None
 
     @sync_compatible
     async def add_deployment(
@@ -545,17 +538,42 @@ class Runner:
 
     def _run_flow_in_subprocess(
         self, flow: "Flow[..., Any]", flow_run: "FlowRun"
-    ) -> int:
+    ) -> multiprocessing.Process:
         from prefect.flow_engine import run_flow
 
+        # We must add creationflags to a dict so it is only passed as a function
+        # parameter on Windows, because the presence of creationflags causes
+        # errors on Unix even if set to None
+        kwargs: Dict[str, object] = {}
+        if sys.platform == "win32":
+            kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+
+        @wraps(run_flow)
+        def run_flow_with_env(
+            *args: Any, env: dict[str, str] | None = None, **kwargs: Any
+        ):
+            """
+            Wrapper function to update environment variables before running the flow.
+            """
+            os.environ.update(env or {})
+            return run_flow(*args, **kwargs)
+
         process = multiprocessing.Process(
-            target=cloudpickle_wrapped_call(run_flow, flow=flow, flow_run=flow_run)
+            target=cloudpickle_wrapped_call(
+                run_flow_with_env,
+                env=get_current_settings().to_environment_variables(exclude_unset=True)
+                | os.environ
+                | {
+                    "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS": "false",
+                },
+                flow=flow,
+                flow_run=flow_run,
+                **kwargs,
+            ),
         )
         process.start()
-        if process.pid is None:
-            raise RuntimeError("Process did not start")
 
-        return process.pid
+        return process
 
     async def execute_flow_run(
         self, flow_run_id: UUID, entrypoint: Optional[str] = None
@@ -566,9 +584,6 @@ class Runner:
         Execution will wait to monitor for cancellation requests. Exits once
         the flow run process has exited.
         """
-        from prefect.flow_engine import load_flow
-        from prefect.flows import load_flow_from_entrypoint
-
         self.pause_on_shutdown = False
         context = self if not self.started else asyncnullcontext()
 
@@ -581,12 +596,13 @@ class Runner:
                     self._submitting_flow_run_ids.add(flow_run_id)
                     flow_run = await self._client.read_flow_run(flow_run_id)
 
-                    if entrypoint:
-                        flow = load_flow_from_entrypoint(entrypoint)
-                    else:
-                        flow = load_flow(flow_run)
-
-                    pid = self._run_flow_in_subprocess(flow, flow_run)
+                    pid = await self._runs_task_group.start(
+                        partial(
+                            self._submit_run_and_capture_errors,
+                            flow_run=flow_run,
+                            entrypoint=entrypoint,
+                        ),
+                    )
 
                     self._flow_run_process_map[flow_run.id] = ProcessMapEntry(
                         pid=pid, flow_run=flow_run
@@ -644,32 +660,11 @@ class Runner:
             task_status: anyio task status used to send a message to the caller
                 than the flow run process has started.
         """
-        command = [get_sys_executable(), "-m", "prefect.engine"]
-
         flow_run_logger = self._get_flow_run_logger(flow_run)
 
-        # We must add creationflags to a dict so it is only passed as a function
-        # parameter on Windows, because the presence of creationflags causes
-        # errors on Unix even if set to None
-        kwargs: Dict[str, object] = {}
-        if sys.platform == "win32":
-            kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+        flow_run_logger.debug("Opening process...")
 
-        flow_run_logger.info("Opening process...")
-
-        env = get_current_settings().to_environment_variables(exclude_unset=True)
-        env.update(
-            {
-                **{
-                    "PREFECT__FLOW_RUN_ID": str(flow_run.id),
-                    "PREFECT__STORAGE_BASE_PATH": str(self._tmp_dir),
-                    "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS": "false",
-                },
-                **({"PREFECT__FLOW_ENTRYPOINT": entrypoint} if entrypoint else {}),
-            }
-        )
-        env.update(**os.environ)  # is this really necessary??
-
+        # TODO: Move storage loading into a separate method. Possibly the same method as the one that loads the flow.
         storage = (
             self._deployment_storage_map.get(flow_run.deployment_id)
             if flow_run.deployment_id
@@ -694,23 +689,35 @@ class Runner:
                 await storage.pull_code()
                 setattr(storage, "last_adhoc_pull", datetime.datetime.now())
 
-        process = await run_process(
-            command=command,
-            stream_output=True,
-            task_status=task_status,
-            task_status_handler=None,
-            env=env,
-            cwd=storage.destination if storage else None,
-            **kwargs,
-        )
+        # TODO: Move flow loading into a separate method
+        from prefect.flows import load_flow_from_entrypoint, load_flow_from_flow_run
 
-        if process.returncode is None:
+        if entrypoint:
+            flow = load_flow_from_entrypoint(entrypoint, use_placeholder_flow=False)
+        else:
+            flow_coro = load_flow_from_flow_run(
+                flow_run,
+                storage_base_path=str(self._tmp_dir),
+                use_placeholder_flow=False,
+            )
+            if TYPE_CHECKING:
+                assert inspect.isawaitable(flow_coro)
+            flow = await flow_coro
+
+        process = self._run_flow_in_subprocess(flow, flow_run)
+
+        if task_status and process.pid is not None:
+            task_status.started(process.pid)
+
+        await run_sync_in_worker_thread(process.join)
+
+        if process.exitcode is None:
             raise RuntimeError("Process exited with None return code")
 
-        if process.returncode:
+        if process.exitcode:
             help_message = None
             level = logging.ERROR
-            if process.returncode == -9:
+            if process.exitcode == -9:
                 level = logging.INFO
                 help_message = (
                     "This indicates that the process exited due to a SIGKILL signal. "
@@ -718,13 +725,13 @@ class Runner:
                     "high memory usage causing the operating system to "
                     "terminate the process."
                 )
-            if process.returncode == -15:
+            if process.exitcode == -15:
                 level = logging.INFO
                 help_message = (
                     "This indicates that the process exited due to a SIGTERM signal. "
                     "Typically, this is caused by manual cancellation."
                 )
-            elif process.returncode == 247:
+            elif process.exitcode == 247:
                 help_message = (
                     "This indicates that the process was terminated due to high "
                     "memory usage."
@@ -741,15 +748,14 @@ class Runner:
             flow_run_logger.log(
                 level,
                 f"Process for flow run {flow_run.name!r} exited with status code:"
-                f" {process.returncode}"
-                + (f"; {help_message}" if help_message else ""),
+                f" {process.exitcode}" + (f"; {help_message}" if help_message else ""),
             )
         else:
             flow_run_logger.info(
                 f"Process for flow run {flow_run.name!r} exited cleanly."
             )
 
-        return process.returncode
+        return process.exitcode
 
     async def _kill_process(
         self,
