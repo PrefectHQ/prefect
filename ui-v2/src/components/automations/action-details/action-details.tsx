@@ -1,9 +1,11 @@
 import type { Automation } from "@/api/automations";
 import type { Deployment } from "@/api/deployments";
+import type { components } from "@/api/prefect";
 import type { WorkPool } from "@/api/work-pools";
 import type { WorkQueue } from "@/api/work-queues";
 import { Card } from "@/components/ui/card";
 import { Icon, IconId } from "@/components/ui/icons";
+import { StateBadge } from "@/components/ui/state-badge";
 import { Typography } from "@/components/ui/typography";
 import {
 	createFakeAutomation,
@@ -106,7 +108,13 @@ export const ActionDetailsType = ({ action }: ActionDetailsProps) => {
 		case "send-notification":
 			return "TODO";
 		case "change-flow-run-state":
-			return "TODO";
+			return (
+				<ChangeFlowRunStateActionDetails
+					label={label}
+					type={action.state}
+					name={action.name}
+				/>
+			);
 		case "call-webhook":
 			return "TODO";
 	}
@@ -126,8 +134,6 @@ const ActionResourceName = ({
 	</div>
 );
 
-export { ActionResource, ActionResourceName };
-
 const NoninferredAction = ({ label }: { label: ActionLabel }) => (
 	<Typography variant="bodySmall">{label} from the triggering event</Typography>
 );
@@ -137,6 +143,24 @@ const InferredAction = ({ label }: { label: ActionLabel }) => (
 		{label} inferred from the triggering event
 	</Typography>
 );
+
+type ChangeFlowRunStateActionDetailsProps = {
+	label: ActionLabel;
+	type: components["schemas"]["StateType"];
+	name?: string | null;
+};
+
+export const ChangeFlowRunStateActionDetails = ({
+	label,
+	type,
+	name,
+}: ChangeFlowRunStateActionDetailsProps) => {
+	return (
+		<ActionResource>
+			<InferredAction label={label} /> to <StateBadge state={{ type, name }} />
+		</ActionResource>
+	);
+};
 
 // Selected resources
 type DeploymentActionDetailsProps = {

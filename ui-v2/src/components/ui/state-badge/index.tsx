@@ -38,12 +38,16 @@ const stateBadgeVariants = cva("gap-1", {
 
 export const StateBadge = ({
 	state,
-}: { state: components["schemas"]["State"] }) => {
+}: { state: Omit<components["schemas"]["State"], "id"> & { id?: string } }) => {
 	const Icon = ICONS[state.type];
 	return (
 		<Badge className={stateBadgeVariants({ state: state.type })}>
 			<Icon size={16} />
-			{state.name}
+			{state.name ?? capitalize(state.type)}
 		</Badge>
 	);
+};
+
+const capitalize = (str: string) => {
+	return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 };
