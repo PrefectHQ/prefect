@@ -28,12 +28,6 @@ const ACTIONS: Array<Automation["actions"][number]> = [
 	{ type: "resume-automation", automation_id: null, source: "inferred" },
 	{ type: "resume-automation", automation_id: "abc", source: "selected" },
 	{
-		type: "send-notification",
-		block_document_id: "abc",
-		body: "my_body",
-		subject: "my_subject",
-	},
-	{
 		type: "change-flow-run-state",
 		state: "CANCELLED",
 	},
@@ -70,6 +64,12 @@ const ACTIONS: Array<Automation["actions"][number]> = [
 	{
 		type: "change-flow-run-state",
 		state: "SCHEDULED",
+	},
+	{
+		type: "send-notification",
+		block_document_id: "abc",
+		body: "my_body",
+		subject: "my_subject",
 	},
 	{
 		type: "call-webhook",
