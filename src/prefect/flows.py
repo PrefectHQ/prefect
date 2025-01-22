@@ -127,9 +127,9 @@ if TYPE_CHECKING:
     import logging
 
     from prefect.client.orchestration import PrefectClient
+    from prefect.client.schemas.objects import FlowRun
     from prefect.client.types.flexible_schedule_list import FlexibleScheduleList
     from prefect.deployments.runner import RunnerDeployment
-    from prefect.flows import FlowRun
     from prefect.runner.storage import RunnerStorage
 
 logger: "logging.Logger" = get_logger("flows")
