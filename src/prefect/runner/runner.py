@@ -47,6 +47,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+from contextlib import nullcontext
 from copy import deepcopy
 from functools import partial, wraps
 from pathlib import Path
@@ -118,6 +119,7 @@ from prefect.utilities.asyncutils import (
 )
 from prefect.utilities.callables import cloudpickle_wrapped_call
 from prefect.utilities.engine import propose_state
+from prefect.utilities.filesystem import tmpchdir
 from prefect.utilities.services import (
     critical_service_loop,
     start_client_metrics_server,
@@ -540,7 +542,10 @@ class Runner:
             )
 
     def _run_flow_in_subprocess(
-        self, flow: "Flow[..., Any]", flow_run: "FlowRun"
+        self,
+        flow: "Flow[..., Any]",
+        flow_run: "FlowRun",
+        working_directory: Path | None = None,
     ) -> multiprocessing.context.SpawnProcess:
         from prefect.flow_engine import run_flow
 
@@ -553,11 +558,17 @@ class Runner:
 
         @wraps(run_flow)
         def run_flow_with_env(
-            *args: Any, env: dict[str, str] | None = None, **kwargs: Any
+            *args: Any,
+            env: dict[str, str] | None = None,
+            working_directory: Path | None = None,
+            **kwargs: Any,
         ):
             """
             Wrapper function to update environment variables and settings before running the flow.
             """
+            cwd_context = (
+                tmpchdir(str(working_directory)) if working_directory else nullcontext()
+            )
             os.environ.update(env or {})
             settings_context = get_settings_context()
             with SettingsContext(
@@ -565,7 +576,8 @@ class Runner:
                 # Create a new settings object to pick up the new environment variables
                 settings=Settings(),
             ):
-                return run_flow(*args, **kwargs)
+                with cwd_context:
+                    return run_flow(*args, **kwargs)
 
         ctx = multiprocessing.get_context("spawn")
 
@@ -578,6 +590,7 @@ class Runner:
                     # TODO: make this a thing we can pass into the engine
                     "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS": "false",
                 },
+                working_directory=working_directory,
                 flow=flow,
                 flow_run=flow_run,
                 **kwargs,
@@ -711,12 +724,15 @@ class Runner:
                 flow_run,
                 storage_base_path=str(self._tmp_dir),
                 use_placeholder_flow=False,
+                change_working_directory=False,
             )
             if TYPE_CHECKING:
                 assert inspect.isawaitable(flow_coro)
-            flow = await flow_coro
+            flow, new_working_directory = await flow_coro
 
-        process = self._run_flow_in_subprocess(flow, flow_run)
+        process = self._run_flow_in_subprocess(
+            flow, flow_run, working_directory=new_working_directory
+        )
 
         if task_status and process.pid is not None:
             task_status.started(process.pid)

@@ -2006,6 +2006,28 @@ def _display_serve_start_message(*args: "RunnerDeployment"):
     console.print(Group(help_message_top, table, help_message_bottom), soft_wrap=True)
 
 
+@overload
+async def load_flow_from_flow_run(
+    flow_run: "FlowRun",
+    ignore_storage: bool = False,
+    storage_base_path: Optional[str] = None,
+    use_placeholder_flow: bool = True,
+    change_working_directory: Literal[True] = True,
+) -> Flow[..., Any]:
+    ...
+
+
+@overload
+async def load_flow_from_flow_run(
+    flow_run: "FlowRun",
+    ignore_storage: bool = False,
+    storage_base_path: Optional[str] = None,
+    use_placeholder_flow: bool = True,
+    change_working_directory: Literal[False] = False,
+) -> tuple[Flow[..., Any], Path | None]:
+    ...
+
+
 @client_injector
 async def load_flow_from_flow_run(
     client: "PrefectClient",
@@ -2013,7 +2035,8 @@ async def load_flow_from_flow_run(
     ignore_storage: bool = False,
     storage_base_path: Optional[str] = None,
     use_placeholder_flow: bool = True,
-) -> Flow[..., Any]:
+    change_working_directory: bool = True,
+) -> Flow[..., Any] | tuple[Flow[..., Any], Path | None]:
     """
     Load a flow from the location/script provided in a deployment's storage document.
 
@@ -2035,6 +2058,7 @@ async def load_flow_from_flow_run(
     runner_storage_base_path = storage_base_path or os.environ.get(
         "PREFECT__STORAGE_BASE_PATH"
     )
+    new_working_directory = None
 
     # If there's no colon, assume it's a module path
     if ":" not in deployment.entrypoint:
@@ -2079,11 +2103,15 @@ async def load_flow_from_flow_run(
         from prefect.deployments.steps.core import run_steps
 
         output = await run_steps(deployment.pull_steps)
-        if output.get("directory"):
-            run_logger.debug(f"Changing working directory to {output['directory']!r}")
-            os.chdir(output["directory"])
+        if (
+            new_working_directory := output.get("directory")
+        ) and change_working_directory:
+            run_logger.debug(f"Changing working directory to {new_working_directory!r}")
+            os.chdir(new_working_directory)
 
     import_path = relative_path_to_current_platform(deployment.entrypoint)
+    if new_working_directory and not change_working_directory:
+        import_path = Path(new_working_directory) / import_path
     run_logger.debug(f"Importing flow code from '{import_path}'")
 
     flow = await run_sync_in_worker_thread(
@@ -2092,7 +2120,10 @@ async def load_flow_from_flow_run(
         use_placeholder_flow=use_placeholder_flow,
     )
 
-    return flow
+    if not change_working_directory:
+        return flow, Path(new_working_directory) if new_working_directory else None
+    else:
+        return flow
 
 
 def load_placeholder_flow(entrypoint: str, raises: Exception) -> Flow[P, Any]:
