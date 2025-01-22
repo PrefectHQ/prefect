@@ -3,6 +3,7 @@ import {
 	createFakeDeployment,
 	createFakeFlow,
 	createFakeWorkPool,
+	createFakeWorkQueue,
 } from "@/mocks";
 import { reactQueryDecorator, routerDecorator } from "@/storybook/utils";
 import type { Meta, StoryObj } from "@storybook/react";
@@ -22,6 +23,14 @@ const MOCK_FLOWS_DATA = [
 	createFakeFlow({ id: "b" }),
 ];
 const MOCK_WORK_POOLS_DATA = Array.from({ length: 5 }, createFakeWorkPool);
+
+const MOCK_WORK_QUEUES_DATA = [
+	createFakeWorkQueue({ work_pool_name: "My workpool A" }),
+	createFakeWorkQueue({ work_pool_name: "My workpool A" }),
+	createFakeWorkQueue({ work_pool_name: "My workpool A" }),
+	createFakeWorkQueue({ work_pool_name: "My workpool B" }),
+	createFakeWorkQueue({ work_pool_name: "My workpool B" }),
+];
 
 const meta = {
 	title: "Components/Automations/Wizard/AutomationWizard",
@@ -50,6 +59,9 @@ const meta = {
 				}),
 				http.post(buildApiUrl("/work_pools/filter"), () => {
 					return HttpResponse.json(MOCK_WORK_POOLS_DATA);
+				}),
+				http.post(buildApiUrl("/work_queues/filter"), () => {
+					return HttpResponse.json(MOCK_WORK_QUEUES_DATA);
 				}),
 			],
 		},

@@ -8,6 +8,7 @@ import { ChangeFlowRunStateFields } from "./change-flow-run-fields";
 import { SelectAutomationsFields } from "./select-automations-fields";
 import { SelectDeploymentsFields } from "./select-deployments-fields";
 import { SelectWorkPoolsFields } from "./select-work-pools-fields";
+import { SelectWorkQueuesFields } from "./select-work-queues-fields";
 
 type ActionStepProps = {
 	index: number;
@@ -57,8 +58,9 @@ const ActionTypeAdditionalFields = ({
 		case "resume-deployment":
 			return <SelectDeploymentsFields action="Resume" index={index} />;
 		case "pause-work-queue":
+			return <SelectWorkQueuesFields action="Pause" index={index} />;
 		case "resume-work-queue":
-			return <div>TODO Work Queue</div>;
+			return <SelectWorkQueuesFields action="Resume" index={index} />;
 		case "pause-work-pool":
 			return <SelectWorkPoolsFields action="Pause" index={index} />;
 		case "resume-work-pool":
