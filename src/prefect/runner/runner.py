@@ -88,6 +88,7 @@ from prefect.client.schemas.objects import (
     StateType,
 )
 from prefect.client.schemas.objects import Flow as APIFlow
+from prefect.context import SettingsContext, get_settings_context
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.events.related import tags_as_related_resources
 from prefect.events.schemas.events import RelatedResource
@@ -101,6 +102,7 @@ from prefect.settings import (
     PREFECT_RUNNER_SERVER_ENABLE,
     get_current_settings,
 )
+from prefect.settings.models.root import Settings
 from prefect.states import (
     Crashed,
     Pending,
@@ -553,10 +555,16 @@ class Runner:
             *args: Any, env: dict[str, str] | None = None, **kwargs: Any
         ):
             """
-            Wrapper function to update environment variables before running the flow.
+            Wrapper function to update environment variables and settings before running the flow.
             """
             os.environ.update(env or {})
-            return run_flow(*args, **kwargs)
+            settings_context = get_settings_context()
+            with SettingsContext(
+                profile=settings_context.profile,
+                # Create a new settings object to pick up the new environment variables
+                settings=Settings(),
+            ):
+                return run_flow(*args, **kwargs)
 
         process = multiprocessing.Process(
             target=cloudpickle_wrapped_call(
