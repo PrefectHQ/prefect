@@ -20,6 +20,7 @@ import pendulum
 import pytest
 from starlette import status
 
+import prefect.runner
 from prefect import __version__, aserve, flow, serve, task
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.actions import DeploymentScheduleCreate
@@ -288,7 +289,7 @@ class TestServe:
 
         mock_runner_start.assert_awaited_once()
 
-    def test_log_level_lowercasing(self):
+    def test_log_level_lowercasing(self, monkeypatch):
         runner_mock = mock.MagicMock()
         log_level = "DEBUG"
 
@@ -885,6 +886,75 @@ class TestRunner:
 
             flow_run = await prefect_client.read_flow_run(flow_run_id=bad_run.id)
             assert flow_run.state.is_completed()
+
+    async def test_handles_spaces_in_sys_executable(self, monkeypatch, prefect_client):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/10820
+        """
+        import sys
+
+        mock_process = AsyncMock()
+        mock_process.returncode = 0
+        mock_process.pid = 4242
+
+        mock_run_process_call = AsyncMock(
+            return_value=mock_process,
+        )
+
+        monkeypatch.setattr(prefect.runner.runner, "run_process", mock_run_process_call)
+
+        monkeypatch.setattr(sys, "executable", "C:/Program Files/Python38/python.exe")
+
+        runner = Runner()
+
+        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+        await runner._run_process(flow_run)
+
+        # Previously the command would have been
+        # ["C:/Program", "Files/Python38/python.exe", "-m", "prefect.engine"]
+        assert mock_run_process_call.call_args[1]["command"] == [
+            "C:/Program Files/Python38/python.exe",
+            "-m",
+            "prefect.engine",
+        ]
+
+    async def test_runner_sets_flow_run_env_var_with_dashes(
+        self, monkeypatch, prefect_client
+    ):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/10851
+        """
+        env_var_value = None
+
+        mock_process = AsyncMock()
+        mock_process.returncode = 0
+        mock_process.pid = 4242
+
+        def capture_env_var(*args, **kwargs):
+            nonlocal env_var_value
+            nonlocal mock_process
+            env_var_value = kwargs["env"].get("PREFECT__FLOW_RUN_ID")
+            return mock_process
+
+        mock_run_process_call = AsyncMock(side_effect=capture_env_var)
+
+        monkeypatch.setattr(prefect.runner.runner, "run_process", mock_run_process_call)
+
+        runner = Runner()
+
+        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+        await runner._run_process(flow_run)
+
+        assert env_var_value == str(flow_run.id)
+        assert env_var_value != flow_run.id.hex
 
     @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_runner_runs_a_remotely_stored_flow(
