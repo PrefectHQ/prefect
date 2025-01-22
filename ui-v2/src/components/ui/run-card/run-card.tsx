@@ -60,7 +60,7 @@ export const RunCard = ({ flow, flowRun, taskRun }: RunCardProps) => {
 				</div>
 			</div>
 			<div className="flex gap-2 items-center text-slate-600">
-				{state && <StateBadge state={state} />}
+				{state && <StateBadge type={state.type} name={state.name} />}
 				{start_time && <StartTime time={start_time} />}
 				<TimeRan duration={estimated_run_time} />
 			</div>
