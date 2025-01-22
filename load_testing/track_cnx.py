@@ -1,4 +1,5 @@
 import asyncio
+from typing import Any
 
 import asyncpg
 from rich.console import Console
@@ -8,7 +9,7 @@ from rich.table import Table
 from rich.text import Text
 
 
-def make_table(connections: list[dict]) -> tuple[Table, list[str]]:
+def make_table(connections: list[dict[str, Any]]) -> tuple[Table, list[str]]:
     table = Table(show_header=True, expand=True)
 
     table.add_column("PID", style="cyan")
@@ -18,9 +19,9 @@ def make_table(connections: list[dict]) -> tuple[Table, list[str]]:
     table.add_column("Query", max_width=60)
 
     # Track problem states
-    stuck_reads = []
-    long_transactions = []
-    blocked_queries = []
+    stuck_reads: list[int] = []
+    long_transactions: list[int] = []
+    blocked_queries: list[int] = []
 
     for conn in sorted(
         connections, key=lambda c: c["state_duration"] or 0, reverse=True
@@ -54,7 +55,7 @@ def make_table(connections: list[dict]) -> tuple[Table, list[str]]:
 
         table.add_row(str(pid), str(state), str(duration), wait_event, query)
 
-    summary = []
+    summary: list[str] = []
     if stuck_reads:
         summary.append(
             f"[red]PIDs stuck in ClientRead > 5s: {', '.join(str(p) for p in stuck_reads)}[/]"
