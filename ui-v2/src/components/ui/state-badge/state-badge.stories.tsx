@@ -25,7 +25,8 @@ export default {
 					names.map((name) => (
 						<StateBadge
 							key={name}
-							state={{ type, name } as components["schemas"]["State"]}
+							type={type as components["schemas"]["StateType"]}
+							name={name}
 						/>
 					)),
 				)}

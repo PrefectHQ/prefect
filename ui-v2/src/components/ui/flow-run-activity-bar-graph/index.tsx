@@ -400,7 +400,7 @@ const FlowRunTooltip = ({
 					</CardTitle>
 					{flowRun.state && (
 						<CardDescription>
-							<StateBadge state={flowRun.state} />
+							<StateBadge type={flowRun.state.type} name={flowRun.state.name} />
 						</CardDescription>
 					)}
 				</CardHeader>
