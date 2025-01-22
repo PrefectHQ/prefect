@@ -24,7 +24,6 @@ else:
         LoggingAdapter = logging.LoggerAdapter
 
 if TYPE_CHECKING:
-    from prefect.client.schemas import FlowRun as ClientFlowRun
     from prefect.client.schemas.objects import FlowRun, TaskRun
     from prefect.context import RunContext
     from prefect.flows import Flow
@@ -164,7 +163,7 @@ def get_run_logger(
 
 
 def flow_run_logger(
-    flow_run: Union["FlowRun", "ClientFlowRun"],
+    flow_run: "FlowRun",
     flow: Optional["Flow[Any, Any]"] = None,
     **kwargs: str,
 ) -> PrefectLogAdapter:
