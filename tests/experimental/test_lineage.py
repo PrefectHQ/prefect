@@ -4,6 +4,7 @@ import pytest
 
 from prefect import flow
 from prefect._experimental.lineage import (
+    emit_external_resource_lineage,
     emit_lineage_event,
     emit_result_read_event,
     emit_result_write_event,
@@ -208,6 +209,150 @@ class TestEmitLineageEvent:
                 }
             ],
         )
+        mock_emit_event.assert_not_called()
+
+
+class TestEmitExternalResourceLineage:
+    async def test_emit_external_resource_lineage_with_upstream_only(
+        self, enable_lineage_events, mock_emit_event
+    ):
+        upstream_resources = [
+            {
+                "prefect.resource.id": "upstream1",
+                "prefect.resource.role": "data-source",
+            }
+        ]
+
+        @flow
+        async def test_flow():
+            await emit_external_resource_lineage(upstream_resources=upstream_resources)
+
+        await test_flow()
+
+        # Should emit one event per context resource (flow and flow-run)
+        assert mock_emit_event.call_count == 2
+        for call in mock_emit_event.call_args_list:
+            assert call.kwargs["event"] == "prefect.resource.consumed"
+            assert "prefect.resource.role" in call.kwargs["resource"]
+            assert call.kwargs["related"] == [
+                {
+                    "prefect.resource.id": "upstream1",
+                    "prefect.resource.role": "data-source",
+                    "prefect.resource.lineage-group": "global",
+                }
+            ]
+
+    async def test_emit_external_resource_lineage_with_downstream_only(
+        self, enable_lineage_events, mock_emit_event
+    ):
+        downstream_resources = [
+            {
+                "prefect.resource.id": "downstream1",
+                "prefect.resource.role": "data-destination",
+            }
+        ]
+
+        @flow
+        async def test_flow():
+            await emit_external_resource_lineage(
+                downstream_resources=downstream_resources
+            )
+
+        await test_flow()
+
+        mock_emit_event.assert_called_once()
+        call_args = mock_emit_event.call_args.kwargs
+        assert call_args["event"] == "prefect.resource.produced"
+        assert call_args["resource"] == {
+            "prefect.resource.id": "downstream1",
+            "prefect.resource.role": "data-destination",
+            "prefect.resource.lineage-group": "global",
+        }
+        assert len(call_args["related"]) == 2  # flow and flow-run
+        assert call_args["related"][0]["prefect.resource.role"] == "flow-run"
+        assert call_args["related"][1]["prefect.resource.role"] == "flow"
+
+    async def test_emit_external_resource_lineage_with_both(
+        self, enable_lineage_events, mock_emit_event
+    ):
+        upstream_resources = [
+            {
+                "prefect.resource.id": "upstream1",
+                "prefect.resource.role": "data-source",
+            }
+        ]
+        downstream_resources = [
+            {
+                "prefect.resource.id": "downstream1",
+                "prefect.resource.role": "data-destination",
+            }
+        ]
+
+        @flow
+        async def test_flow():
+            await emit_external_resource_lineage(
+                upstream_resources=upstream_resources,
+                downstream_resources=downstream_resources,
+            )
+
+        await test_flow()
+
+        # Should have events for context resources (flow and flow-run) consuming upstream
+        # plus one event for downstream resource
+        assert mock_emit_event.call_count == 3
+
+        # Check downstream event
+        downstream_call = mock_emit_event.call_args_list[-1]
+        assert downstream_call.kwargs["event"] == "prefect.resource.produced"
+        assert downstream_call.kwargs["resource"] == {
+            "prefect.resource.id": "downstream1",
+            "prefect.resource.role": "data-destination",
+            "prefect.resource.lineage-group": "global",
+        }
+        assert len(downstream_call.kwargs["related"]) == 2  # flow + flow-run
+        assert any(
+            r["prefect.resource.role"] == "flow-run"
+            for r in downstream_call.kwargs["related"]
+        )
+        assert any(
+            r["prefect.resource.role"] == "flow"
+            for r in downstream_call.kwargs["related"]
+        )
+
+        # Check upstream events (flow and flow-run consuming upstream)
+        for call in mock_emit_event.call_args_list[:-1]:
+            assert call.kwargs["event"] == "prefect.resource.consumed"
+            assert "prefect.resource.role" in call.kwargs["resource"]
+            assert call.kwargs["related"] == [
+                {
+                    "prefect.resource.id": "upstream1",
+                    "prefect.resource.role": "data-source",
+                    "prefect.resource.lineage-group": "global",
+                }
+            ]
+
+    async def test_emit_external_resource_lineage_with_neither(
+        self, enable_lineage_events, mock_emit_event
+    ):
+        @flow
+        async def test_flow():
+            await emit_external_resource_lineage()
+
+        await test_flow()
+        mock_emit_event.assert_not_called()
+
+    async def test_emit_external_resource_lineage_disabled(self, mock_emit_event):
+        upstream_resources = [{"prefect.resource.id": "upstream1"}]
+        downstream_resources = [{"prefect.resource.id": "downstream1"}]
+
+        @flow
+        async def test_flow():
+            await emit_external_resource_lineage(
+                upstream_resources=upstream_resources,
+                downstream_resources=downstream_resources,
+            )
+
+        await test_flow()
         mock_emit_event.assert_not_called()
 
 
