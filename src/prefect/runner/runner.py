@@ -39,6 +39,7 @@ import datetime
 import inspect
 import logging
 import multiprocessing
+import multiprocessing.context
 import os
 import shutil
 import signal
@@ -540,7 +541,7 @@ class Runner:
 
     def _run_flow_in_subprocess(
         self, flow: "Flow[..., Any]", flow_run: "FlowRun"
-    ) -> multiprocessing.Process:
+    ) -> multiprocessing.context.SpawnProcess:
         from prefect.flow_engine import run_flow
 
         # We must add creationflags to a dict so it is only passed as a function
@@ -566,12 +567,15 @@ class Runner:
             ):
                 return run_flow(*args, **kwargs)
 
-        process = multiprocessing.Process(
+        ctx = multiprocessing.get_context("spawn")
+
+        process = ctx.Process(
             target=cloudpickle_wrapped_call(
                 run_flow_with_env,
                 env=get_current_settings().to_environment_variables(exclude_unset=True)
                 | os.environ
                 | {
+                    # TODO: make this a thing we can pass into the engine
                     "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS": "false",
                 },
                 flow=flow,
