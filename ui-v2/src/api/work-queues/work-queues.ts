@@ -2,7 +2,7 @@ import type { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
 import { queryOptions } from "@tanstack/react-query";
 
-export type WorkQueue = components["schemas"]["WorkQueue"];
+export type WorkQueue = components["schemas"]["WorkQueueResponse"];
 export type WorkQueuesFilter =
 	components["schemas"]["Body_read_work_queues_work_queues_filter_post"];
 

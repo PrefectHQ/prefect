@@ -111,15 +111,17 @@ const ComboboxCommandGroup = ({ children }: { children: React.ReactNode }) => {
 
 const ComboboxCommandItem = ({
 	"aria-label": ariaLabel,
+	disabled = false,
 	onSelect,
 	selected = false,
 	value,
 	children,
 }: {
 	"aria-label"?: string;
-	onSelect: (value: string) => void;
+	disabled?: boolean;
+	onSelect?: (value: string) => void;
 	selected?: boolean;
-	value: string;
+	value?: string;
 	children: React.ReactNode;
 }) => {
 	const comboboxCtx = use(ComboboxContext);
@@ -130,11 +132,14 @@ const ComboboxCommandItem = ({
 
 	return (
 		<CommandItem
+			disabled={disabled}
 			aria-label={ariaLabel}
 			value={value}
 			onSelect={() => {
 				setOpen(false);
-				onSelect(value);
+				if (onSelect && value) {
+					onSelect(value);
+				}
 			}}
 		>
 			{children}

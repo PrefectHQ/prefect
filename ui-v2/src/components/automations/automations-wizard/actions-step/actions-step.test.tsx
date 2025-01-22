@@ -2,6 +2,7 @@ import type { Automation } from "@/api/automations";
 import type { Deployment } from "@/api/deployments";
 import type { Flow } from "@/api/flows";
 import type { WorkPool } from "@/api/work-pools";
+import { WorkQueue } from "@/api/work-queues";
 import {
 	AutomationWizardSchema,
 	type AutomationWizardSchema as TAutomationWizardSchema,
@@ -12,6 +13,7 @@ import {
 	createFakeDeployment,
 	createFakeFlow,
 	createFakeWorkPool,
+	createFakeWorkQueue,
 } from "@/mocks";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { render, screen } from "@testing-library/react";
@@ -420,6 +422,96 @@ describe("ActionsStep", () => {
 			// ------------ Assert
 			expect(screen.getAllByText("Pause a work pool")).toBeTruthy();
 			expect(screen.getAllByText("my work pool 1")).toBeTruthy();
+		});
+	});
+
+	describe("action type -- work queues", () => {
+		const mockListWorkQueuesAPI = (workQueues: Array<WorkQueue>) => {
+			server.use(
+				http.post(buildApiUrl("/work_queues/filter"), () => {
+					return HttpResponse.json(workQueues);
+				}),
+			);
+		};
+
+		it("able to configure pause a work queue action type", async () => {
+			mockListWorkQueuesAPI([
+				createFakeWorkQueue({
+					name: "my work queue 0",
+					work_pool_name: "Work Pool A",
+				}),
+				createFakeWorkQueue({
+					name: "my work queue 1",
+					work_pool_name: "Work Pool A",
+				}),
+			]);
+
+			const user = userEvent.setup();
+
+			// ------------ Setup
+			render(<ActionStepFormContainer />, {
+				wrapper: createWrapper(),
+			});
+
+			// ------------ Act
+			await user.click(
+				screen.getByRole("combobox", { name: /select action/i }),
+			);
+			await user.click(
+				screen.getByRole("option", { name: "Pause a work queue" }),
+			);
+
+			expect(screen.getAllByText("Infer Work Queue")).toBeTruthy();
+			await user.click(
+				screen.getByRole("combobox", { name: /select work queue to pause/i }),
+			);
+
+			expect(screen.getByText("Work Pool A")).toBeVisible();
+			await user.click(screen.getByRole("option", { name: "my work queue 0" }));
+			// ------------ Assert
+			expect(screen.getAllByText("Pause a work queue")).toBeTruthy();
+			expect(screen.getAllByText("my work queue 0")).toBeTruthy();
+		});
+
+		it("able to configure resume a work queue action type", async () => {
+			mockListWorkQueuesAPI([
+				createFakeWorkQueue({
+					name: "my work queue 0",
+					work_pool_name: "Work Pool A",
+				}),
+				createFakeWorkQueue({
+					name: "my work queue 1",
+					work_pool_name: "Work Pool A",
+				}),
+			]);
+			const user = userEvent.setup();
+
+			// ------------ Setup
+			render(<ActionStepFormContainer />, {
+				wrapper: createWrapper(),
+			});
+
+			// ------------ Act
+			await user.click(
+				screen.getByRole("combobox", { name: /select action/i }),
+			);
+			await user.click(
+				screen.getByRole("option", { name: "Resume a work queue" }),
+			);
+
+			expect(screen.getAllByText("Infer Work Queue")).toBeTruthy();
+			await user.click(
+				screen.getByRole("combobox", {
+					name: /select work queue to resume/i,
+				}),
+			);
+
+			expect(screen.getByText("Work Pool A")).toBeVisible();
+			await user.click(screen.getByRole("option", { name: "my work queue 1" }));
+
+			// ------------ Assert
+			expect(screen.getAllByText("Pause a work queue")).toBeTruthy();
+			expect(screen.getAllByText("my work queue 1")).toBeTruthy();
 		});
 	});
 });
