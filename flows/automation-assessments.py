@@ -6,7 +6,6 @@ from typing import Any, AsyncGenerator, Dict
 from uuid import uuid4
 
 import anyio
-import pendulum
 
 from prefect import flow
 from prefect.client.orchestration import get_client
@@ -19,6 +18,8 @@ from prefect.events.filters import (
     EventResourceFilter,
 )
 from prefect.logging import get_run_logger
+from prefect.types import DateTime
+from prefect.types._datetime import parse_datetime
 
 
 @asynccontextmanager
@@ -34,7 +35,9 @@ async def create_or_replace_automation(
         for existing in response.json():
             name = str(existing["name"])
             if name.startswith(automation["name"]):
-                age = pendulum.now("UTC") - pendulum.parse(existing["created"])
+                parsed_datetime = parse_datetime(existing["created"])
+                assert isinstance(parsed_datetime, DateTime)
+                age = DateTime.now("UTC") - parsed_datetime
                 assert isinstance(age, timedelta)
                 if age > timedelta(minutes=10):
                     logger.info(
@@ -68,7 +71,7 @@ async def wait_for_event(
     logger = get_run_logger()
 
     filter = EventFilter(
-        occurred=EventOccurredFilter(since=pendulum.now("UTC")),
+        occurred=EventOccurredFilter(since=DateTime.now("UTC")),
         event=EventNameFilter(name=[]),
         resource=EventResourceFilter(id=[resource_id]),
     )
