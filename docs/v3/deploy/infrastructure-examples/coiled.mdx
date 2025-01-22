@@ -1,5 +1,5 @@
 ---
-title: Run flows on cloud with Coiled
+title: Run flows on the cloud with Coiled
 description: Deploy cloud infrastructure without expertise with Coiled
 ---
 
@@ -8,7 +8,7 @@ account using two technologies:
 
 -  [Serverless push work pools](serverless), which remove the need to
    host any always-on Prefect worker
--  [Coiled](https://coiled.io), which manages cloud VMs in your account like
+-  [Coiled](https://coiled.io?utm_source=prefect-docs), which manages cloud VMs in your account like
    ECS/Cloud Run/ACI, but in a way that is more ergonomic and accessible.
 
 We like this combination because it combines the cost efficiency and security
@@ -41,7 +41,7 @@ If you haven't used Prefect Cloud before, you'll need to [create an account](htt
 prefect cloud login
 ```
 
-If you haven't used Coiled before, you'll need to [create a Coiled account](https://cloud.coiled.io/signup) and log in:
+If you haven't used Coiled before, you'll need to [create a Coiled account](https://cloud.coiled.io/signup?utm_source=prefect-docs) and log in:
 
 ```
 coiled login
@@ -220,7 +220,7 @@ my_flow.deploy(
 )
 ```
 
-For a full list of possible configuration options see [Coiled API Documentation](https://docs.coiled.io/user_guide/api.html#coiled-batch-run)
+For a full list of possible configuration options see [Coiled API Documentation](https://docs.coiled.io/user_guide/api.html?utm_source=prefect-docs#coiled-batch-run).
 
 ## Extra: Scale Out
 
@@ -276,7 +276,7 @@ Coiled uses raw VM services (like AWS EC2) rather than systems like Kubernetes o
 - **Good:** there is no cloud infrastructure to maintain and keep up-to-date
 - **Good:** Raw VMs are cheap. They cost from $0.02 to $0.05 per CPU-hour.
 
-See [Coiled Documentation](https://docs.coiled.io/user_guide/why.html) to learn more about Coiled architecture and design decisions.
+See [Coiled Documentation](https://docs.coiled.io/user_guide/why.html?utm_source=prefect-docs) to learn more about Coiled architecture and design decisions.
 
 ## FAQ
 
