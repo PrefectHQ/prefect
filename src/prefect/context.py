@@ -373,7 +373,7 @@ class EngineContext(RunContext):
     __var__: ClassVar[ContextVar[Self]] = ContextVar("flow_run")
 
     def serialize(self: Self, include_secrets: bool = True) -> dict[str, Any]:
-        return self.model_dump(
+        serialized = self.model_dump(
             include={
                 "flow_run",
                 "flow",
@@ -381,13 +381,18 @@ class EngineContext(RunContext):
                 "log_prints",
                 "start_time",
                 "input_keyset",
-                "result_store",
                 "persist_result",
             },
             exclude_unset=True,
-            serialize_as_any=True,
             context={"include_secrets": include_secrets},
         )
+        if self.result_store:
+            serialized["result_store"] = self.result_store.model_dump(
+                serialize_as_any=True,
+                exclude_unset=True,
+                context={"include_secrets": include_secrets},
+            )
+        return serialized
 
 
 FlowRunContext = EngineContext  # for backwards compatibility
