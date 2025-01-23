@@ -916,7 +916,7 @@ class KubernetesWorker(BaseWorker):
                         func=batch_client.list_namespaced_job,
                         namespace=namespace,
                         field_selector=f"metadata.name={job_name}",
-                        _request_timeout=aiohttp.ClientTimeout(),
+                        _request_timeout=aiohttp.ClientTimeout(total=None),
                         **watch_kwargs,
                     ):
                         yield event
@@ -925,7 +925,7 @@ class KubernetesWorker(BaseWorker):
                         job_list = await batch_client.list_namespaced_job(
                             namespace=namespace,
                             field_selector=f"metadata.name={job_name}",
-                            _request_timeout=aiohttp.ClientTimeout(),
+                            _request_timeout=aiohttp.ClientTimeout(total=None),
                         )
 
                         resource_version = job_list.metadata.resource_version
