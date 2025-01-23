@@ -19,7 +19,7 @@ export const useDeleteAutomationConfirmationDialog = () => {
 		}: {
 			/** Should navigate back to /automations */
 			shouldNavigate?: boolean;
-		},
+		} = {},
 	) =>
 		confirmDelete({
 			title: "Delete Automation",

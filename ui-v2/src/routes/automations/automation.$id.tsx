@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { buildGetAutomationQuery } from "@/api/automations";
-import { AutomationPage } from "@/components/automations/automation-page";
+import { AutomationDetailsPage } from "@/components/automations/automation-details-page";
 
 export const Route = createFileRoute("/automations/automation/$id")({
 	component: RouteComponent,
@@ -12,5 +12,5 @@ export const Route = createFileRoute("/automations/automation/$id")({
 
 function RouteComponent() {
 	const { id } = Route.useParams();
-	return <AutomationPage id={id} />;
+	return <AutomationDetailsPage id={id} />;
 }
