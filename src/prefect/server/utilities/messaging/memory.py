@@ -5,12 +5,14 @@ from contextlib import asynccontextmanager
 from dataclasses import asdict, dataclass
 from datetime import timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union
+from types import TracebackType
+from typing import TYPE_CHECKING, Any, Optional, Type, TypeVar, Union
 from uuid import uuid4
 
 import anyio
 from cachetools import TTLCache
 from pydantic_core import to_json
+from typing_extensions import Self
 
 from prefect.logging import get_logger
 from prefect.server.utilities.messaging import Cache as _Cache
@@ -236,7 +238,15 @@ class Publisher(_Publisher):
         self.deduplicate_by = deduplicate_by
         self._cache = cache
 
-    async def __aexit__(self, *args: Any) -> None:
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> None:
         return None
 
     async def publish_data(self, data: bytes, attributes: Mapping[str, str]) -> None:

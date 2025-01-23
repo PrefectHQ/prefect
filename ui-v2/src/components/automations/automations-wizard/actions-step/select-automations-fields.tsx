@@ -1,4 +1,4 @@
-import { Automation, buildListAutomationsQuery } from "@/api/automations";
+import { type Automation, buildListAutomationsQuery } from "@/api/automations";
 import {
 	type AutomationWizardSchema,
 	UNASSIGNED,
@@ -30,7 +30,7 @@ const INFER_OPTION = {
 	name: "Infer Automation",
 } as const;
 
-type AutomationsSelectStateFieldsProps = {
+type SelectAutomationsFieldsProps = {
 	action: "Pause" | "Resume";
 	index: number;
 };
@@ -49,10 +49,10 @@ const getButtonLabel = (
 	return undefined;
 };
 
-export const AutomationsSelectStateFields = ({
+export const SelectAutomationsFields = ({
 	action,
 	index,
-}: AutomationsSelectStateFieldsProps) => {
+}: SelectAutomationsFieldsProps) => {
 	const [search, setSearch] = useState("");
 	const form = useFormContext<AutomationWizardSchema>();
 	const { data, isSuccess } = useQuery(buildListAutomationsQuery());

@@ -10,7 +10,15 @@ const ACTIONS: Array<Automation["actions"][number]> = [
 	{ type: "cancel-flow-run" },
 	{ type: "resume-flow-run" },
 	{ type: "run-deployment", deployment_id: null, source: "inferred" },
-	{ type: "run-deployment", deployment_id: "abc", source: "selected" },
+	{
+		type: "run-deployment",
+		deployment_id: "abc",
+		source: "selected",
+		// @ts-expect-error Need to fix typings with open API
+		parameters: { Hello: "World", Goodbye: "World" },
+		// @ts-expect-error Need to fix typings with open API
+		job_variables: { var1: "abc", var2: { foo: "bar" } },
+	},
 	{ type: "pause-deployment", deployment_id: null, source: "inferred" },
 	{ type: "pause-deployment", deployment_id: "abc", source: "selected" },
 	{ type: "resume-deployment", deployment_id: null, source: "inferred" },
@@ -27,12 +35,6 @@ const ACTIONS: Array<Automation["actions"][number]> = [
 	{ type: "pause-automation", automation_id: "abc", source: "selected" },
 	{ type: "resume-automation", automation_id: null, source: "inferred" },
 	{ type: "resume-automation", automation_id: "abc", source: "selected" },
-	{
-		type: "send-notification",
-		block_document_id: "abc",
-		body: "my_body",
-		subject: "my_subject",
-	},
 	{
 		type: "change-flow-run-state",
 		state: "CANCELLED",
@@ -70,6 +72,12 @@ const ACTIONS: Array<Automation["actions"][number]> = [
 	{
 		type: "change-flow-run-state",
 		state: "SCHEDULED",
+	},
+	{
+		type: "send-notification",
+		block_document_id: "abc",
+		body: "my_body",
+		subject: "my_subject",
 	},
 	{
 		type: "call-webhook",
