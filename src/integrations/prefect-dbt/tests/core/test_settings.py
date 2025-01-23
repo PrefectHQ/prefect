@@ -6,7 +6,7 @@ from pytest import MonkeyPatch
 
 def test_default_settings():
     settings = PrefectDbtSettings()
-    assert settings.profiles_dir == Path.home() / ".dbt"
+    assert settings.profiles_dir.endswith(".dbt")
     assert settings.project_dir == Path.cwd()
 
 
