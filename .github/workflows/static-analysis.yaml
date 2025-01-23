@@ -68,8 +68,8 @@ jobs:
         run: |
           pre-commit run --show-diff-on-failure --color=always --all-files
 
-  type-completeness-check:
-    name: Type Completeness Check
+  type-checks:
+    name: Type Checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -84,7 +84,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "requirements**.txt"
 
-      - name: Run type-completeness-check
+      - name: Run type completeness check
         run: >-
           uv tool run
           --with-editable .
@@ -94,23 +94,7 @@ jobs:
           --ignoreexternal
           --verifytypes prefect
 
-  pyright-check:
-    name: Pyright Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v5
-        with:
-          python-version: "3.12"
-          enable-cache: true
-          cache-dependency-glob: "requirements**.txt"
-
-      - name: Run pyright
+      - name: Run pyright check
         run: >-
           uv tool run
           --with-editable .
