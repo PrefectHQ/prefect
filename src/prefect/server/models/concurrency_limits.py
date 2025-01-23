@@ -122,6 +122,9 @@ async def filter_concurrency_limits_for_orchestration(
     the concurrency limit on these tags from being temporarily exceeded.
     """
 
+    if not tags:
+        return []
+
     query = (
         sa.select(db.ConcurrencyLimit)
         .filter(db.ConcurrencyLimit.tag.in_(tags))
