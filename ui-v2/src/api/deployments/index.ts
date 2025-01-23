@@ -26,18 +26,25 @@ export type DeploymentsPaginationFilter =
  * @property {function} count - Generates key for specific filtered count queries
  *
  * ```
- * all    =>   ['deployments']
- * lists  =>   ['deployments', 'list']
- * list   =>   ['deployments', 'list', { ...filter }]
- * counts =>   ['deployments', 'counts']
- * count  =>   ['deployments', 'counts', { ...filter }]
+ * all				=>   ['deployments']
+ * lists			=>   ['deployments', 'list']
+ * lists-paginate	=>   ['deployments', 'list', 'paginate']
+ * list-paginate	=>   ['deployments', 'list', 'paginate', { ...filter }]
+ * lists-filter		=>   ['deployments', 'list', 'filter']
+ * list-filter		=>   ['deployments', 'list', 'filter', { ...filter }]
+ * counts			=>   ['deployments', 'counts']
+ * count			=>   ['deployments', 'counts', { ...filter }]
  * ```
  */
 export const queryKeyFactory = {
 	all: () => ["deployments"] as const,
 	lists: () => [...queryKeyFactory.all(), "list"] as const,
-	list: (filter: DeploymentsFilter | DeploymentsPaginationFilter) =>
-		[...queryKeyFactory.lists(), filter] as const,
+	"lists-paginate": () => [...queryKeyFactory.lists(), "paginate"] as const,
+	"list-paginate": (filter: DeploymentsPaginationFilter) =>
+		[...queryKeyFactory["lists-paginate"](), filter] as const,
+	"lists-filter": () => [...queryKeyFactory.lists(), "filter"] as const,
+	"list-filter": (filter: DeploymentsFilter) =>
+		[...queryKeyFactory["lists-filter"](), filter] as const,
 	counts: () => [...queryKeyFactory.all(), "counts"] as const,
 	count: (filter: DeploymentsFilter) =>
 		[...queryKeyFactory.counts(), filter] as const,
@@ -74,12 +81,48 @@ export const buildPaginateDeploymentsQuery = (
 	},
 ) =>
 	queryOptions({
-		queryKey: queryKeyFactory.list(filter),
+		queryKey: queryKeyFactory["list-paginate"](filter),
 		queryFn: async () => {
 			const res = await getQueryService().POST("/deployments/paginate", {
 				body: filter,
 			});
+			if (!res.data) {
+				throw new Error("'data' expected");
+			}
 			return res.data;
+		},
+		placeholderData: keepPreviousData,
+	});
+
+/**
+ * Builds a query configuration for fetching filtered deployments
+ *
+ * @param filter - Pagination and filter options including:
+ *   - sort: Sort order for results (default: "NAME_ASC")
+ *   - offset: offset number of the payload being sent
+ * @returns Query configuration object for use with TanStack Query
+ *
+ * @example
+ * ```ts
+ * const query = buildFilterDeploymentsQuery({
+ *   offset: 0,
+ *   sort: "CREATED_DESC"
+ * });
+ * ```
+ */
+export const buildFilterDeploymentsQuery = (
+	filter: DeploymentsFilter = {
+		offset: 0,
+		sort: "CREATED_DESC",
+	},
+) =>
+	queryOptions({
+		queryKey: queryKeyFactory["list-filter"](filter),
+		queryFn: async () => {
+			const res = await getQueryService().POST("/deployments/filter", {
+				body: filter,
+			});
+			return res.data ?? [];
 		},
 		placeholderData: keepPreviousData,
 	});
@@ -109,7 +152,7 @@ export const buildCountDeploymentsQuery = (
 	filter: DeploymentsFilter = { offset: 0, sort: "NAME_ASC" },
 ) =>
 	queryOptions({
-		queryKey: queryKeyFactory.list(filter),
+		queryKey: queryKeyFactory.count(filter),
 		queryFn: async () => {
 			const res = await getQueryService().POST("/deployments/count", {
 				body: filter,

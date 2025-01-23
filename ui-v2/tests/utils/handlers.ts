@@ -22,6 +22,10 @@ const automationsHandlers = [
 ];
 
 const deploymentsHandlers = [
+	http.post(buildApiUrl("/deployments/filter"), () => {
+		return HttpResponse.json([]);
+	}),
+
 	http.delete(buildApiUrl("/deployments/:id"), () => {
 		return HttpResponse.json({ status: 204 });
 	}),
