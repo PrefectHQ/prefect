@@ -20,6 +20,7 @@ from prefect.concurrency.asyncio import concurrency as aconcurrency
 from prefect.concurrency.sync import concurrency
 from prefect.context import (
     FlowRunContext,
+    TagsContext,
     TaskRunContext,
     get_run_context,
 )
@@ -317,6 +318,19 @@ class TestFlowRunsAsync:
         # assert the parent of the dummy task is task 2
         assert l3_dummy.task_inputs["__parents__"][0].id == tracker["task_2"]
 
+    async def test_with_provided_context(self, prefect_client: PrefectClient):
+        tags_context = TagsContext(current_tags={"foo", "bar"})
+
+        @flow
+        async def foo():
+            return TagsContext.get().current_tags
+
+        context = {"tags_context": tags_context.serialize()}
+
+        result = await run_flow_async(foo, context=context)
+
+        assert result == {"foo", "bar"}
+
 
 class TestFlowRunsSync:
     async def test_basic(self):
@@ -459,6 +473,19 @@ class TestFlowRunsSync:
         run = sync_prefect_client.read_flow_run(ID)
 
         assert run.state_type == StateType.FAILED
+
+    async def test_with_provided_context(self, prefect_client: PrefectClient):
+        tags_context = TagsContext(current_tags={"foo", "bar"})
+
+        @flow
+        def foo():
+            return TagsContext.get().current_tags
+
+        context = {"tags_context": tags_context.serialize()}
+
+        result = run_flow_sync(foo, context=context)
+
+        assert result == {"foo", "bar"}
 
 
 class TestFlowRetries:
