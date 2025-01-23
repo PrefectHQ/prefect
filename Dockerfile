@@ -114,7 +114,7 @@ RUN --mount=type=bind,source=requirements-client.txt,target=/tmp/requirements-cl
 COPY --from=python-builder /opt/prefect/dist ./dist
 
 # Extras to include during installation
-ARG PREFECT_EXTRAS
+ARG PREFECT_EXTRAS=[redis]
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv pip install "./dist/prefect.tar.gz${PREFECT_EXTRAS:-""}" && \
     rm -rf dist/
