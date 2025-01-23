@@ -38,8 +38,6 @@ import asyncio
 import datetime
 import inspect
 import logging
-import multiprocessing
-import multiprocessing.context
 import os
 import shutil
 import signal
@@ -47,9 +45,8 @@ import subprocess
 import sys
 import tempfile
 import threading
-from contextlib import nullcontext
 from copy import deepcopy
-from functools import partial, wraps
+from functools import partial
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -59,6 +56,7 @@ from typing import (
     Dict,
     Iterable,
     List,
+    Literal,
     Optional,
     TypedDict,
     Union,
@@ -90,13 +88,13 @@ from prefect.client.schemas.objects import (
     StateType,
 )
 from prefect.client.schemas.objects import Flow as APIFlow
-from prefect.context import SettingsContext, get_settings_context
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.events.related import tags_as_related_resources
 from prefect.events.schemas.events import RelatedResource
 from prefect.events.utilities import emit_event
 from prefect.exceptions import Abort, ObjectNotFound
 from prefect.flows import Flow, FlowStateHook, load_flow_from_flow_run
+from prefect.futures import PrefectFuture
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
 from prefect.runner.storage import RunnerStorage
 from prefect.settings import (
@@ -104,7 +102,6 @@ from prefect.settings import (
     PREFECT_RUNNER_SERVER_ENABLE,
     get_current_settings,
 )
-from prefect.settings.models.root import Settings
 from prefect.states import (
     Crashed,
     Pending,
@@ -114,11 +111,10 @@ from prefect.types.entrypoint import EntrypointType
 from prefect.utilities.asyncutils import (
     asyncnullcontext,
     is_async_fn,
+    run_sync_in_worker_thread,
     sync_compatible,
 )
-from prefect.utilities.callables import cloudpickle_wrapped_call
 from prefect.utilities.engine import propose_state
-from prefect.utilities.filesystem import tmpchdir
 from prefect.utilities.processutils import get_sys_executable, run_process
 from prefect.utilities.services import (
     critical_service_loop,
@@ -541,64 +537,66 @@ class Runner:
                 "Exception encountered while shutting down", exc_info=True
             )
 
-    def _run_flow_in_subprocess(
+    async def run_flow(
         self,
-        flow: "Flow[..., Any]",
-        flow_run: "FlowRun",
-        working_directory: Path | None = None,
-    ) -> multiprocessing.context.SpawnProcess:
-        from prefect.flow_engine import run_flow
+        flow: Flow[Any, Any],
+        flow_run: FlowRun,
+        parameters: dict[str, Any] | None = None,
+        wait_for: Iterable[PrefectFuture[Any]] | None = None,
+        return_type: Literal["state", "result"] = "result",
+    ) -> Any:
+        from prefect.flow_engine import run_flow_in_subprocess
 
-        # We must add creationflags to a dict so it is only passed as a function
-        # parameter on Windows, because the presence of creationflags causes
-        # errors on Unix even if set to None
-        kwargs: Dict[str, object] = {}
-        if sys.platform == "win32":
-            kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+        self.pause_on_shutdown = False
+        context = self if not self.started else asyncnullcontext()
 
-        @wraps(run_flow)
-        def run_flow_with_env(
-            *args: Any,
-            env: dict[str, str] | None = None,
-            working_directory: Path | None = None,
-            **kwargs: Any,
-        ):
-            """
-            Wrapper function to update environment variables and settings before running the flow.
-            """
-            cwd_context = (
-                tmpchdir(str(working_directory)) if working_directory else nullcontext()
-            )
-            os.environ.update(env or {})
-            settings_context = get_settings_context()
-            with SettingsContext(
-                profile=settings_context.profile,
-                # Create a new settings object to pick up the new environment variables
-                settings=Settings(),
-            ):
-                with cwd_context:
-                    return run_flow(*args, **kwargs)
+        async with context:
+            if not self._acquire_limit_slot(flow_run.id):
+                return
 
-        ctx = multiprocessing.get_context("spawn")
+            async with anyio.create_task_group() as tg:
+                with anyio.CancelScope():
+                    process = run_flow_in_subprocess(
+                        flow=flow,
+                        flow_run=flow_run,
+                        parameters=parameters,
+                        wait_for=wait_for,
+                        return_type=return_type,
+                    )
+                    if process.pid is None:
+                        raise RuntimeError("Failed to start flow run process")
 
-        process = ctx.Process(
-            target=cloudpickle_wrapped_call(
-                run_flow_with_env,
-                env=get_current_settings().to_environment_variables(exclude_unset=True)
-                | os.environ
-                | {
-                    # TODO: make this a thing we can pass into the engine
-                    "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS": "false",
-                },
-                working_directory=working_directory,
-                flow=flow,
-                flow_run=flow_run,
-                **kwargs,
-            ),
-        )
-        process.start()
+                    self._flow_run_process_map[flow_run.id] = ProcessMapEntry(
+                        pid=process.pid, flow_run=flow_run
+                    )
 
-        return process
+                    tg.start_soon(
+                        partial(
+                            critical_service_loop,
+                            workload=self._check_for_cancelled_flow_runs,
+                            interval=self.query_seconds,
+                            jitter_range=0.3,
+                        )
+                    )
+                    if self.heartbeat_seconds is not None:
+                        tg.start_soon(
+                            partial(
+                                critical_service_loop,
+                                workload=self._emit_flow_run_heartbeats,
+                                interval=self.heartbeat_seconds,
+                                jitter_range=0.3,
+                            )
+                        )
+
+                    await run_sync_in_worker_thread(process.join)
+
+                    tg.cancel_scope.cancel()
+
+                    self._flow_run_process_map.pop(flow_run.id)
+
+                    self._release_limit_slot(flow_run.id)
+
+                    return process.exitcode
 
     async def execute_flow_run(
         self, flow_run_id: UUID, entrypoint: Optional[str] = None

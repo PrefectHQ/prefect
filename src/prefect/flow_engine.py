@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import multiprocessing
+import multiprocessing.context
 import os
 import time
 from contextlib import ExitStack, asynccontextmanager, contextmanager, nullcontext
 from dataclasses import dataclass, field
+from functools import wraps
 from typing import (
     Any,
     AsyncGenerator,
@@ -37,8 +40,10 @@ from prefect.concurrency.v1.context import ConcurrencyContext as ConcurrencyCont
 from prefect.context import (
     AsyncClientContext,
     FlowRunContext,
+    SettingsContext,
     SyncClientContext,
     TagsContext,
+    get_settings_context,
     hydrated_context,
 )
 from prefect.exceptions import (
@@ -62,6 +67,8 @@ from prefect.results import (
     should_persist_result,
 )
 from prefect.settings import PREFECT_DEBUG_MODE
+from prefect.settings.context import get_current_settings
+from prefect.settings.models.root import Settings
 from prefect.states import (
     Failed,
     Pending,
@@ -83,6 +90,7 @@ from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.callables import (
     call_with_parameters,
+    cloudpickle_wrapped_call,
     get_call_parameters,
     parameters_to_args_kwargs,
 )
@@ -1533,3 +1541,103 @@ def _flow_parameters(
     parameters = flow_run.parameters if flow_run else {}
     call_args, call_kwargs = parameters_to_args_kwargs(flow.fn, parameters)
     return get_call_parameters(flow.fn, call_args, call_kwargs)
+
+
+def run_flow_in_subprocess(
+    flow: "Flow[..., Any]",
+    flow_run: "FlowRun",
+    parameters: Optional[Dict[str, Any]] = None,
+    wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
+    return_type: Literal["state", "result"] = "result",
+) -> multiprocessing.context.SpawnProcess:
+    """
+    Run a flow in a subprocess.
+
+    Args:
+        flow: The flow to run.
+        flow_run: The flow run to run.
+        parameters: The parameters to pass to the flow.
+        wait_for: The futures to wait for.
+        return_type: The type of return value to return.
+
+    Returns:
+        A multiprocessing.context.SpawnProcess that is running the flow.
+    """
+    from prefect.flow_engine import run_flow
+
+    @wraps(run_flow)
+    def run_flow_with_env(
+        *args: Any,
+        env: dict[str, str] | None = None,
+        **kwargs: Any,
+    ):
+        """
+        Wrapper function to update environment variables and settings before running the flow.
+        """
+        engine_logger = logging.getLogger("prefect.engine")
+
+        os.environ.update(env or {})
+        settings_context = get_settings_context()
+        with SettingsContext(
+            profile=settings_context.profile,
+            # Create a new settings object to pick up the new environment variables
+            settings=Settings(),
+        ):
+            try:
+                maybe_coro = run_flow(*args, **kwargs)
+                if asyncio.iscoroutine(maybe_coro):
+                    asyncio.run(maybe_coro)
+            except Abort as abort_signal:
+                abort_signal: Abort
+                engine_logger.info(
+                    f"Engine execution of flow run '{flow_run.id}' aborted by orchestrator:"
+                    f" {abort_signal}"
+                )
+                exit(0)
+            except Pause as pause_signal:
+                pause_signal: Pause
+                engine_logger.info(
+                    f"Engine execution of flow run '{flow_run.id}' is paused: {pause_signal}"
+                )
+                exit(0)
+            except Exception:
+                engine_logger.error(
+                    (
+                        f"Engine execution of flow run '{flow_run.id}' exited with unexpected "
+                        "exception"
+                    ),
+                    exc_info=True,
+                )
+                exit(1)
+            except BaseException:
+                engine_logger.error(
+                    (
+                        f"Engine execution of flow run '{flow_run.id}' interrupted by base "
+                        "exception"
+                    ),
+                    exc_info=True,
+                )
+                # Let the exit code be determined by the base exception type
+                raise
+
+    ctx = multiprocessing.get_context("spawn")
+
+    process = ctx.Process(
+        target=cloudpickle_wrapped_call(
+            run_flow_with_env,
+            env=get_current_settings().to_environment_variables(exclude_unset=True)
+            | os.environ
+            | {
+                # TODO: make this a thing we can pass into the engine
+                "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS": "false",
+            },
+            flow=flow,
+            flow_run=flow_run,
+            parameters=parameters,
+            wait_for=wait_for,
+            return_type=return_type,
+        ),
+    )
+    process.start()
+
+    return process
