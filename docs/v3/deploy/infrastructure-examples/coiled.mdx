@@ -1,0 +1,306 @@
+---
+title: Run flows on the cloud with Coiled
+description: Deploy cloud infrastructure without expertise with Coiled
+---
+
+This page provides a step-by-step guide to run Prefect flows in your own cloud
+account using two technologies:
+
+-  [Serverless push work pools](serverless), which remove the need to
+   host any always-on Prefect worker
+-  [Coiled](https://coiled.io?utm_source=prefect-docs), which manages cloud VMs such as
+   ECS, Cloud Run, and ACI in your account ergonomically and accessibly.
+
+This combination combines the cost efficiency and security
+of a cloud VM with easy setup and zero-maintenance infrastructure.
+
+Coiled is a for-profit service, but its free tier is usually enough for most
+Prefect users.  Coiled is provided by the makers of Dask.  This video
+walks through the steps in this article:
+
+<script src="https://fast.wistia.com/embed/medias/lhn157i193.jsonp" async></script>
+<script src="https://fast.wistia.com/assets/external/E-v1.js" async></script>
+<div class="wistia_responsive_padding"  style={{padding: '45% 0 0 0', position: 'relative', width: '100%', margin: 'auto' }}>
+  <div class="wistia_responsive_wrapper" style={{height:"100%", left:0, position:"absolute", top:0, width:"100%"}}>
+    <div class="wistia_embed wistia_async_lhn157i193 seo=true videoFoam=true" style={{height:"100%", position:"relative", width:"100%"}}>
+    &nbsp;
+    </div>
+  </div>
+</div>
+
+
+## Install and set up accounts 
+
+```
+pip install prefect coiled prefect-coiled
+```
+
+If you haven't used Prefect Cloud before, you'll need to [create a Prefect account](https://app.prefect.cloud) and log in:
+
+```
+prefect cloud login
+```
+
+If you haven't used Coiled before, you'll need to [create a Coiled account](https://cloud.coiled.io/signup?utm_source=prefect-docs) and log in:
+
+```
+coiled login
+```
+
+and then connect Coiled to your cloud account (AWS, Google Cloud, or Azure) where Coiled will run your flows. You can either use our interactive setup CLI:
+
+```
+coiled setup
+```
+
+or via the web app UI at [cloud.coiled.io/settings/setup](https://cloud.coiled.io/settings/setup).
+
+## Create the Prefect push work pool
+
+To create the push work pool:
+
+```
+prefect work-pool create --type coiled:push --provision-infra 'example-coiled-pool'
+```
+
+## Create flow and create deployment
+
+We write our flow in Python as normal, using the work pool `"example-coiled-pool"` that we created in the last step.
+
+<Tabs>
+<Tab title="example_flow.py">
+
+```py
+#example_flow.py
+from prefect import flow, task
+
+@task
+def f(n):
+    return n**2
+
+@task
+def do_something(x):
+    print(x)
+
+@flow(log_prints=True)
+def my_flow():
+    print("Hello from your Prefect flow!")
+    X = f.map(list(range(10)))
+    do_something(X)
+    return X
+
+
+if __name__ == "__main__":
+    my_flow.deploy(
+        name="example-coiled-deployment",
+        work_pool_name="example-coiled-pool",
+        image="my-image",
+    )
+```
+</Tab>
+</Tabs>
+
+
+```
+python example_flow.py
+```
+
+Here we specified the Docker image `”my-image”` that you would replace with your own image location.  Alternatively, if you don’t enjoy working with Docker, see the section [Dockerless Execution](#dockerless-execution) below.
+
+Our deployment is now launched and we can execute runs either on the command line using the command printed out:
+
+```
+prefect deployment run 'my-flow/example-coiled-deployment'
+```
+
+Or by going to the deployment at the URL that Prefect prints in the CLI.
+
+## Dockerless execution 
+
+You don’t have to use Docker if you don’t want to.  In our example above we used Docker to build an image locally and push up to our Docker image repository:
+
+{/* pmd-metadata: notest */}
+```python
+if __name__ == "__main__":
+    my_flow.deploy(
+        name="example-coiled-deployment",
+        work_pool_name="example-coiled-pool",
+        image="my-image",                       # <--------
+    )
+```
+
+This works well if you and your team are familiar with Docker.  However, if you’re not familiar, then it can cause confusion in a variety of ways:
+
+- You may not have Docker installed
+- You may be on a Mac, and be generating ARM-based Docker images for Intel-based cloud machines
+- You may need to rebuild your Docker image each time you update libraries
+- People on your team may not know how Docker works, limiting who can use Prefect
+
+Because of this, Coiled also provides a Dockerless execution process that called [Package Sync](#how-environment-synchronization).  Coiled can automatically inspect your local environment and build a remote cloud environment on the fly.  This can be more ergonomic and accessible to everyone on the team.
+
+To invoke this feature today you need to have both a Python file such as `example_flow.py` with your flow defined, and a `prefect.yaml` deployment configuration file .
+
+<Tabs>
+<Tab title="example_flow.py">
+
+```py
+from prefect import flow, task
+
+@task
+def foo(n):
+    return n**2
+
+@task
+def do_something(x):
+    print(x)
+
+@flow(log_prints=True)
+def my_flow():
+    print("Hello from your Prefect flow!")
+    X = foo.map(list(range(10)))
+    do_something(X)
+    return X
+```
+</Tab>
+<Tab title="prefect.yaml">
+
+```yaml
+push:
+- prefect_coiled.deployments.steps.build_package_sync_senv:
+    id: coiled_senv
+
+pull:
+- prefect.deployments.steps.set_working_directory:
+    directory: /scratch/batch
+
+deployments:
+- name: example-coiled-deploy
+  build: null
+  entrypoint: example_flow:my_flow
+  work_pool:
+    name: example-coiled-pool
+    job_variables:
+      software: '{{ coiled_senv.name }}'
+```
+</Tab>
+</Tabs>
+
+You can deploy this flow to Prefect Cloud with the `prefect deploy` command, which makes it ready to run in the cloud.
+
+```
+prefect deploy --prefect-file prefect.yaml --all
+```
+
+You can then run this flow as follows:
+
+```
+prefect deployment run 'my-flow/example-coiled-deployment'
+```
+
+If the Docker example above didn’t work for you (for example because you didn’t have Docker installed, or because you have a Mac) then you may find this approach to be more robust.
+
+
+## Configure hardware
+
+One of the great things about the cloud is that you can experiment with different kinds of machines.  Need lots of memory?  No problem.  A big GPU?  Of course!  Want to try ARM architectures for cost efficiency?  Sure!
+
+If you’re using Coiled’s Dockerless framework you can specify the following variables in your `prefect.yaml` file:
+
+```
+job_variables:
+  cpu: 16
+  memory: 32GB
+```
+
+If you’re operating straight from Python you can add these as a keyword in the `.deploy` call.
+
+{/* pmd-metadata: notest */}
+```py
+my_flow.deploy(
+    ...,
+    job_variables={"cpu": 16, "memory": "32GB"}
+)
+```
+
+For a full list of possible configuration options see [Coiled API Documentation](https://docs.coiled.io/user_guide/api.html?utm_source=prefect-docs#coiled-batch-run).
+
+## Extra: scale out
+
+Coiled makes it simple to parallelize individual flows on distributed cloud hardware.  The easiest way to do this is to annotate your Prefect tasks with the `@coiled.function` decorator.
+
+Let’s modify our example from above:
+
+{/* pmd-metadata: notest */}
+```python
+from prefect import flow, task
+import coiled                               # new!
+
+@task
+def f(n):
+    return n**2
+
+@task
+@coiled.function(memory="64 GiB")           # new!
+def do_something(x):
+    print(x)
+
+@flow(log_prints=True)
+def my_flow():
+    print("Hello from your Prefect flow!")
+    X = f.map(list(range(10)))
+```
+
+If you’re using Docker, then you’ll have to rerun the Python script to rebuild the image.  If you’re using the Dockerless approach, then you’ll need to redeploy your flow.
+
+```
+prefect deploy --prefect-file prefect.yaml --all
+```
+
+And then you can re-run things to see the new machines show up:
+
+```
+prefect deployment run 'my-flow/example-coiled-deployment'
+```
+
+## Architecture: How does this work?
+
+It’s important to know where work happens so that you can understand the security and cost implications involved.
+
+Coiled runs flows on VMs spun up in *your* cloud account (this is why you had to setup Coiled with your cloud account earlier). This means that …
+
+- You’ll be charged directly by your cloud provider for any computation used.
+- Your data stays within your cloud account.  Neither Prefect nor Coiled ever see your data.
+
+Coiled uses raw VM services (like AWS EC2) rather than systems like Kubernetes or Fargate, which has both good and bad tradeoffs:
+
+- **Bad:** there will be a 30-60 second spin-up time on any new flow.
+- **Good:** there is no resting infrastructure like a Kubernetes controller or long-standing VM, so there are no standing costs when you aren’t actively running flows.
+- **Good:** you can use any VM type available on the cloud, like big memory machines or GPUs.
+- **Good:** there is no cloud infrastructure to maintain and keep up-to-date.
+- **Good:** Raw VMs are cheap. They cost from $0.02 to $0.05 per CPU-hour.
+
+See [Coiled Documentation](https://docs.coiled.io/user_guide/why.html?utm_source=prefect-docs) to learn more about Coiled architecture and design decisions.
+
+## FAQ
+
+-  **Q:** Where do my computations run?<br/>
+   **A:** Coiled deploys VMs inside your account.<br/>
+
+-  **Q:** Can anyone see my data?<br/>
+   **A:** Only you and people in your own cloud account.<br/>
+
+-  **Q:** When I update my software libraries how does that software get on my cloud machines?<br/>
+   **A:** If you’re using Docker then you handle this.  Otherwise, when you redeploy your flow Coiled scans your local Python environment and ships a specification of all libraries you’re using, along with any local .py files you have lying around.  These live in a secure S3 bucket while waiting for your VMs.<br/>
+
+-  **Q:** How much does this cost?<br/>
+   **A:** You’ll have to pay your cloud provider for compute that you use.  Additionally, if you use more than 10,000 CPU-hours per month, you’ll have to pay Coiled \$0.05 per CPU-hour.<br/>
+  The average cost we see of Prefect flows is less than \$0.02.<br/>
+
+-  **Q:** Will this leave expensive things running in my cloud account?<br/>
+   **A:** No.  We clean everything up very thoroughly (VMs, storage, …)  It is safe to try and cheap to run.<br/>
+
+-  **Q:** What permissions do I need to give Coiled?<br/>
+   **A:** In the [cloud setup process above](#install-and-setup-accounts) you give us permissions to do things like turn on and off VMs, set up security groups, and put logs into your cloud logging systems.  You do not give us any access to your data.<br/>
+   Coiled is happy to talk briefly to your IT group if they’re concerned.  Reach out at [support@coiled.io](mailto:support@coiled.io)<br/>
+
+
