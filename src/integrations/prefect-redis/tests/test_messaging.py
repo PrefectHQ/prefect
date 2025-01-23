@@ -1,5 +1,7 @@
 import asyncio
 import json
+import uuid
+from datetime import datetime, timezone
 from typing import AsyncGenerator, Generator, Optional
 
 import anyio
@@ -13,6 +15,10 @@ from prefect_redis.messaging import (
     StopConsumer,
 )
 
+from prefect.server.events import Event
+from prefect.server.events.clients import PrefectServerEventsClient
+from prefect.server.events.messaging import EventPublisher
+from prefect.server.events.schemas.events import ReceivedEvent, Resource
 from prefect.server.utilities.messaging import (
     create_cache,
     create_consumer,
@@ -338,3 +344,34 @@ async def test_publisher_respects_batch_size(
     for i, message in enumerate(captured_messages):
         assert message.data == f"message-{i}"
         assert message.attributes == {"id": str(i)}
+
+
+async def test_can_be_used_as_event_publisher(broker: str, cache: Cache):
+    """Test that a Redis publisher can be used with an events client."""
+    async with ephemeral_subscription("events") as consumer_kwargs:
+        consumer = create_consumer(**consumer_kwargs)
+
+        captured_events: list[ReceivedEvent] = []
+
+        async def handler(message: Message):
+            event = ReceivedEvent.model_validate_json(message.data)
+            captured_events.append(event)
+            if len(captured_events) == 1:
+                raise StopConsumer(ack=True)
+
+        consumer_task = asyncio.create_task(consumer.run(handler))
+
+        async with PrefectServerEventsClient() as client:
+            assert isinstance(client._publisher, EventPublisher)
+            assert isinstance(client._publisher._publisher, Publisher)
+            emitted_event = await client.emit(
+                Event(
+                    id=uuid.uuid4(),
+                    occurred=datetime.now(tz=timezone.utc),
+                    event="testing",
+                    resource=Resource({"prefect.resource.id": "testing"}),
+                )
+            )
+        await consumer_task
+
+    assert captured_events == [emitted_event]
