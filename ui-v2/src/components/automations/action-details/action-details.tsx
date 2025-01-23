@@ -1,4 +1,5 @@
 import type { Automation } from "@/api/automations";
+import type { BlockDocument } from "@/api/block-documents";
 import type { Deployment } from "@/api/deployments";
 import type { components } from "@/api/prefect";
 import type { WorkPool } from "@/api/work-pools";
@@ -18,6 +19,7 @@ import { StateBadge } from "@/components/ui/state-badge";
 import { Typography } from "@/components/ui/typography";
 import {
 	createFakeAutomation,
+	createFakeBlockDocument,
 	createFakeDeployment,
 	createFakeWorkPool,
 	createFakeWorkQueue,
@@ -39,7 +41,8 @@ const ACTION_TYPE_TO_STRING = {
 	"pause-automation": "Pause automation",
 	"resume-automation": "Resume automation",
 	"call-webhook": "Call a custom webhook notification",
-	"send-notification": "Send a notification",
+	/** Default string if `block_type_name` is not found. */
+	"send-notification": "Send a notification using",
 	"do-nothing": "Do nothing",
 } as const;
 type ActionLabel =
@@ -60,10 +63,11 @@ export const ActionDetailsType = ({ action }: ActionDetailsProps) => {
 	const label = ACTION_TYPE_TO_STRING[action.type];
 	switch (action.type) {
 		// Non-inferrable Actions
-		case "do-nothing":
 		case "cancel-flow-run":
 		case "suspend-flow-run":
 		case "resume-flow-run":
+		case "call-webhook": // Not used
+		case "do-nothing": // not used
 			return <NoninferredAction label={label} />;
 		// Inferable actions
 		case "run-deployment":
@@ -120,7 +124,15 @@ export const ActionDetailsType = ({ action }: ActionDetailsProps) => {
 			);
 		// Other actions
 		case "send-notification":
-			return "TODO";
+			// TODO: Pass a real block document from API
+			return (
+				<BlockDocumentActionDetails
+					label={label}
+					blockDocument={createFakeBlockDocument({
+						block_type_name: "Mattermost Webhook",
+					})}
+				/>
+			);
 		case "change-flow-run-state":
 			return (
 				<ChangeFlowRunStateActionDetails
@@ -129,8 +141,8 @@ export const ActionDetailsType = ({ action }: ActionDetailsProps) => {
 					name={action.name}
 				/>
 			);
-		case "call-webhook":
-			return "TODO";
+		default:
+			return null;
 	}
 };
 
@@ -257,6 +269,36 @@ export const AutomationActionDetails = ({
 				aria-label={automation.name}
 			>
 				<ActionResourceName iconId="Bot" name={automation.name} />
+			</Link>
+		</ActionResource>
+	);
+};
+
+type BlockDocumentActionDetailsProps = {
+	label: ActionLabel;
+	blockDocument: BlockDocument;
+};
+export const BlockDocumentActionDetails = ({
+	label,
+	blockDocument,
+}: BlockDocumentActionDetailsProps) => {
+	if (!blockDocument.name) {
+		return <Typography>Block not found</Typography>;
+	}
+
+	const _label = blockDocument.block_type_name
+		? `Send a ${blockDocument.block_type_name.toLowerCase()} using`
+		: label;
+
+	return (
+		<ActionResource>
+			<label>{_label}</label>
+			<Link
+				to="/blocks/block/$id"
+				params={{ id: blockDocument.id }}
+				aria-label={blockDocument.name}
+			>
+				<ActionResourceName iconId="Box" name={blockDocument.name} />
 			</Link>
 		</ActionResource>
 	);
