@@ -1,3 +1,7 @@
+"""
+A class for configuring or automatically discovering settings to be used with PrefectDbtRunner.
+"""
+
 from pathlib import Path
 
 from dbt_common.events.base_types import EventLevel
