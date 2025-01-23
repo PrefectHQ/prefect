@@ -119,6 +119,7 @@ Or by going to the flow webpage with the address that Prefect prints out for you
 
 You don’t have to use Docker if you don’t want to.  In our example above we used Docker to build an image locally and push up to our Docker image repository:
 
+{/* pmd-metadata: notest */}
 ```python
 if __name__ == "__main__":
     my_flow.deploy(
@@ -228,6 +229,7 @@ Coiled makes it easy to parallelize individual flows on distributed cloud hardwa
 
 Let’s modify our example from above:
 
+{/* pmd-metadata: notest */}
 ```python
 from prefect import flow, task
 import coiled                               # new!
