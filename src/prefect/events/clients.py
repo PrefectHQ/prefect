@@ -348,6 +348,10 @@ class PrefectEventsClient(EventsClient):
         await self._connect.__aexit__(exc_type, exc_val, exc_tb)
         return await super().__aexit__(exc_type, exc_val, exc_tb)
 
+    def _log_debug(self, message: str, *args, **kwargs) -> None:
+        message = f"EventsClient(id={id(self)}): " + message
+        logger.debug(message, *args, **kwargs)
+
     async def _reconnect(self) -> None:
         logger.debug("Reconnecting websocket connection.")
 
@@ -408,7 +412,7 @@ class PrefectEventsClient(EventsClient):
         logger.debug("Pinging to checkpoint unconfirmed events.")
         pong = await self._websocket.ping()
         await pong
-        logger.debug("Pong received. Events checkpointed.")
+        self._log_debug("Pong received. Events checkpointed.")
 
         # once the pong returns, we know for sure that we've sent all the messages
         # we had enqueued prior to that.  There could be more that came in after, so
@@ -418,9 +422,9 @@ class PrefectEventsClient(EventsClient):
         EVENT_WEBSOCKET_CHECKPOINTS.labels(self.client_name).inc()
 
     async def _emit(self, event: Event) -> None:
-        logger.debug("Emitting event id=%s.", event.id)
+        self._log_debug("Emitting event id=%s.", event.id)
         for i in range(self._reconnection_attempts + 1):
-            logger.debug("Emit reconnection attempt %s.", i)
+            self._log_debug("Emit reconnection attempt %s.", i)
             try:
                 # If we're here and the websocket is None, then we've had a failure in a
                 # previous reconnection attempt.
@@ -429,18 +433,18 @@ class PrefectEventsClient(EventsClient):
                 # from a ConnectionClosed, so reconnect now, resending any unconfirmed
                 # events before we send this one.
                 if not self._websocket or i > 0:
-                    logger.debug("Attempting websocket reconnection.")
+                    self._log_debug("Attempting websocket reconnection.")
                     await self._reconnect()
                     assert self._websocket
 
-                logger.debug("Sending event id=%s.", event.id)
+                self._log_debug("Sending event id=%s.", event.id)
                 await self._websocket.send(event.model_dump_json())
-                logger.debug("Checkpointing event id=%s.", event.id)
+                self._log_debug("Checkpointing event id=%s.", event.id)
                 await self._checkpoint(event)
 
                 return
             except ConnectionClosed:
-                logger.debug("Got ConnectionClosed error.")
+                self._log_debug("Got ConnectionClosed error.")
                 if i == self._reconnection_attempts:
                     # this was our final chance, raise the most recent error
                     raise
