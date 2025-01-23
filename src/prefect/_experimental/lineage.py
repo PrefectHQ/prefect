@@ -178,3 +178,66 @@ async def emit_result_write_event(
             downstream_resources=downstream_resources,
             direction_of_run_from_event="upstream",
         )
+
+
+async def emit_external_resource_lineage(
+    upstream_resources: Optional[UpstreamResources] = None,
+    downstream_resources: Optional[DownstreamResources] = None,
+) -> None:
+    """Emit lineage events connecting external resources to Prefect context resources.
+
+    This function emits events that place the current Prefect context resources
+    (like flow runs, task runs) as:
+    1. Downstream of any provided upstream external resources
+    2. Upstream of any provided downstream external resources
+
+    Args:
+        upstream_resources: Optional sequence of resources that are upstream of the
+            current Prefect context
+        downstream_resources: Optional sequence of resources that are downstream of
+            the current Prefect context
+    """
+    from prefect.client.orchestration import get_client
+
+    if not get_current_settings().experiments.lineage_events_enabled:
+        return
+
+    upstream_resources = list(upstream_resources) if upstream_resources else []
+    downstream_resources = list(downstream_resources) if downstream_resources else []
+
+    # Get the current Prefect context resources (flow runs, task runs, etc.)
+    async with get_client() as client:
+        context_resources = await related_resources_from_run_context(client)
+
+    # Add lineage group label to all resources
+    for res in upstream_resources + downstream_resources:
+        if "prefect.resource.lineage-group" not in res:
+            res["prefect.resource.lineage-group"] = "global"
+
+    # For each context resource, emit an event showing it as downstream of upstream resources
+    if upstream_resources:
+        for context_resource in context_resources:
+            emit_kwargs: Dict[str, Any] = {
+                "event": "prefect.resource.consumed",
+                "resource": context_resource,
+                "related": upstream_resources,
+            }
+            emit_event(**emit_kwargs)
+
+    # For each downstream resource, emit an event showing it as downstream of context resources
+    for downstream_resource in downstream_resources:
+        emit_kwargs: Dict[str, Any] = {
+            "event": "prefect.resource.produced",
+            "resource": downstream_resource,
+            "related": context_resources,
+        }
+        emit_event(**emit_kwargs)
+
+        # For each downstream resource, emit an event showing it as downstream of upstream resources
+        if upstream_resources:
+            direct_emit_kwargs = {
+                "event": "prefect.resource.direct-lineage",
+                "resource": downstream_resource,
+                "related": upstream_resources,
+            }
+            emit_event(**direct_emit_kwargs)
