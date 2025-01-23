@@ -337,10 +337,15 @@ class EngineContext(RunContext):
         flow: The flow instance associated with the run
         flow_run: The API metadata for the flow run
         task_runner: The task runner instance being used for the flow run
-        task_run_futures: A list of futures for task runs submitted within this flow run
-        task_run_states: A list of states for task runs created within this flow run
         task_run_results: A mapping of result ids to task run states for this flow run
-        flow_run_states: A list of states for flow runs created within this flow run
+        log_prints: Whether to log print statements from the flow run
+        parameters: The parameters passed to the flow run
+        detached: Flag indicating if context has been serialized and sent to remote infrastructure
+        result_store: The result store used to persist results
+        persist_result: Whether to persist the flow run result
+        task_run_dynamic_keys: Counter for task calls allowing unique keys
+        observed_flow_pauses: Counter for flow pauses
+        events: Events worker to emit events
     """
 
     flow: Optional["Flow[Any, Any]"] = None
