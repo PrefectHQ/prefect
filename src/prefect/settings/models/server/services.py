@@ -404,6 +404,14 @@ class ServerServicesTaskRunRecorderSettings(PrefectBaseSettings):
         ),
     )
 
+    max_queue_depth: int = Field(
+        default=0,
+        description=(
+            "The maximum number of messages the task run recorder will queue. Defaults to `0`, which "
+            "means the queue can grow indefinitely."
+        ),
+    )
+
 
 class ServerServicesTriggersSettings(PrefectBaseSettings):
     """

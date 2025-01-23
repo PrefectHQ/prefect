@@ -1948,6 +1948,18 @@ Whether or not to start the task run recorder service in the server application.
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_ENABLED`, `PREFECT_API_SERVICES_TASK_RUN_RECORDER_ENABLED`
 
+### `max_queue_depth`
+The maximum number of messages the task run recorder will queue. Defaults to `0`, which means the queue can grow indefinitely.
+
+**Type**: `integer`
+
+**Default**: `0`
+
+**TOML dotted key path**: `server.services.task_run_recorder.max_queue_depth`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_MAX_QUEUE_DEPTH`
+
 ---
 ## ServerServicesTriggersSettings
 Settings for controlling the triggers service

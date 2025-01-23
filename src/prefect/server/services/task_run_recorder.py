@@ -25,11 +25,32 @@ from prefect.server.utilities.messaging import (
     MessageHandler,
     create_consumer,
 )
+from prefect.server.utilities.messaging.memory import (
+    METRICS,
+    _metrics_lock,  # type: ignore
+)
+from prefect.settings import get_current_settings
 
 if TYPE_CHECKING:
     import logging
 
 logger: "logging.Logger" = get_logger(__name__)
+
+
+async def log_metrics_periodically(interval: float = 2.0) -> None:
+    while True:
+        await asyncio.sleep(interval)
+        async with _metrics_lock:
+            for topic, data in METRICS.items():
+                depth = data["published"] - data["consumed"]
+                logger.warning(
+                    "Topic=%r | published=%d consumed=%d retried=%d depth=%d",
+                    topic,
+                    data["published"],
+                    data["consumed"],
+                    data["retried"],
+                    depth,
+                )
 
 
 def causal_ordering() -> CausalOrdering:
@@ -161,7 +182,7 @@ async def record_task_run_event(event: ReceivedEvent) -> None:
     }
 
     db = provide_database_interface()
-    async with db.session_context() as session:
+    async with db.session_context(begin_transaction=False) as session:
         await _insert_task_run(session, task_run, task_run_attributes)
         await _insert_task_run_state(session, task_run)
         await _update_task_run_with_state(
@@ -218,6 +239,7 @@ class TaskRunRecorder:
     name: str = "TaskRunRecorder"
 
     consumer_task: asyncio.Task[None] | None = None
+    metrics_task: asyncio.Task[None] | None = None
 
     def __init__(self):
         self._started_event: Optional[asyncio.Event] = None
@@ -234,10 +256,15 @@ class TaskRunRecorder:
 
     async def start(self) -> None:
         assert self.consumer_task is None, "TaskRunRecorder already started"
-        self.consumer: Consumer = create_consumer("events")
+        self.consumer: Consumer = create_consumer(
+            "events",
+            max_queue_depth=get_current_settings().server.services.task_run_recorder.max_queue_depth,
+        )
 
         async with consumer() as handler:
             self.consumer_task = asyncio.create_task(self.consumer.run(handler))
+            self.metrics_task = asyncio.create_task(log_metrics_periodically())
+
             logger.debug("TaskRunRecorder started")
             self.started_event.set()
 
@@ -249,10 +276,15 @@ class TaskRunRecorder:
     async def stop(self) -> None:
         assert self.consumer_task is not None, "Logger not started"
         self.consumer_task.cancel()
+        if self.metrics_task:
+            self.metrics_task.cancel()
         try:
             await self.consumer_task
+            if self.metrics_task:
+                await self.metrics_task
         except asyncio.CancelledError:
             pass
         finally:
             self.consumer_task = None
+            self.metrics_task = None
         logger.debug("TaskRunRecorder stopped")

@@ -1697,6 +1697,15 @@
                     ],
                     "title": "Enabled",
                     "type": "boolean"
+                },
+                "max_queue_depth": {
+                    "default": 0,
+                    "description": "The maximum number of messages the task run recorder will queue. Defaults to `0`, which means the queue can grow indefinitely.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_MAX_QUEUE_DEPTH"
+                    ],
+                    "title": "Max Queue Depth",
+                    "type": "integer"
                 }
             },
             "title": "ServerServicesTaskRunRecorderSettings",

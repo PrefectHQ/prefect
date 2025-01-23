@@ -1,18 +1,19 @@
+from __future__ import annotations
+
 import asyncio
 import copy
+from collections import defaultdict
 from collections.abc import AsyncGenerator, Iterable, Mapping, MutableMapping
 from contextlib import asynccontextmanager
 from dataclasses import asdict, dataclass
 from datetime import timedelta
 from pathlib import Path
-from types import TracebackType
-from typing import TYPE_CHECKING, Any, Optional, Type, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union
 from uuid import uuid4
 
 import anyio
 from cachetools import TTLCache
 from pydantic_core import to_json
-from typing_extensions import Self
 
 from prefect.logging import get_logger
 from prefect.server.utilities.messaging import Cache as _Cache
@@ -25,6 +26,21 @@ if TYPE_CHECKING:
     import logging
 
 logger: "logging.Logger" = get_logger(__name__)
+
+# Simple global counters by topic with thread-safe access
+_metrics_lock = asyncio.Lock()
+METRICS: dict[str, dict[str, int]] = defaultdict(
+    lambda: {
+        "published": 0,
+        "retried": 0,
+        "consumed": 0,
+    }
+)
+
+
+async def update_metric(topic: str, key: str, amount: int = 1) -> None:
+    async with _metrics_lock:
+        METRICS[topic][key] += amount
 
 
 @dataclass
@@ -58,7 +74,8 @@ class Subscription:
         self,
         topic: "Topic",
         max_retries: int = 3,
-        dead_letter_queue_path: Union[Path, str, None] = None,
+        dead_letter_queue_path: Path | str | None = None,
+        max_queue_depth: int = 0,
     ) -> None:
         self.topic = topic
         self.max_retries = max_retries
@@ -67,7 +84,12 @@ class Subscription:
             if dead_letter_queue_path
             else get_current_settings().home / "dlq"
         )
-        self._queue: asyncio.Queue[MemoryMessage] = asyncio.Queue()
+        logger.warning(
+            f"topic {self.topic.name} using max_queue_depth {max_queue_depth}"
+        )
+        self._queue: asyncio.Queue[MemoryMessage] = asyncio.Queue(
+            maxsize=max_queue_depth
+        )
         self._retry: asyncio.Queue[MemoryMessage] = asyncio.Queue()
 
     async def deliver(self, message: MemoryMessage) -> None:
@@ -78,6 +100,13 @@ class Subscription:
             message: The message to deliver.
         """
         await self._queue.put(message)
+        await update_metric(self.topic.name, "published")
+        logger.debug(
+            "Delivered message to topic=%r queue_size=%d retry_queue_size=%d",
+            self.topic.name,
+            self._queue.qsize(),
+            self._retry.qsize(),
+        )
 
     async def retry(self, message: MemoryMessage) -> None:
         """
@@ -99,13 +128,33 @@ class Subscription:
             await self.send_to_dead_letter_queue(message)
         else:
             await self._retry.put(message)
+            await update_metric(self.topic.name, "retried")
+            logger.debug(
+                "Retried message on topic=%r retry_count=%d queue_size=%d retry_queue_size=%d",
+                self.topic.name,
+                message.retry_count,
+                self._queue.qsize(),
+                self._retry.qsize(),
+            )
 
     async def get(self) -> MemoryMessage:
         """
         Get a message from the subscription's queue.
         """
         if not self._retry.empty():
+            logger.debug(
+                "Getting message from RETRY queue on topic=%r queue_size=%d retry_queue_size=%d",
+                self.topic.name,
+                self._queue.qsize(),
+                self._retry.qsize(),
+            )
             return await self._retry.get()
+        logger.debug(
+            "Getting message from MAIN queue on topic=%r queue_size=%d retry_queue_size=%d",
+            self.topic.name,
+            self._queue.qsize(),
+            self._retry.qsize(),
+        )
         return await self._queue.get()
 
     async def send_to_dead_letter_queue(self, message: MemoryMessage) -> None:
@@ -152,8 +201,9 @@ class Topic:
             topic.clear()
         cls._topics = {}
 
-    def subscribe(self) -> Subscription:
-        subscription = Subscription(self)
+    def subscribe(self, **subscription_kwargs: Any) -> Subscription:
+        logger.warning(f"topic {self.name} using consumer kwargs {subscription_kwargs}")
+        subscription = Subscription(self, **subscription_kwargs)
         self._subscriptions.append(subscription)
         return subscription
 
@@ -238,15 +288,7 @@ class Publisher(_Publisher):
         self.deduplicate_by = deduplicate_by
         self._cache = cache
 
-    async def __aenter__(self) -> Self:
-        return self
-
-    async def __aexit__(
-        self,
-        exc_type: Optional[Type[BaseException]],
-        exc_val: Optional[BaseException],
-        exc_tb: Optional[TracebackType],
-    ) -> None:
+    async def __aexit__(self, *args: Any) -> None:
         return None
 
     async def publish_data(self, data: bytes, attributes: Mapping[str, str]) -> None:
@@ -266,24 +308,37 @@ class Publisher(_Publisher):
 
 
 class Consumer(_Consumer):
-    def __init__(self, topic: str, subscription: Optional[Subscription] = None):
+    def __init__(
+        self,
+        topic: str,
+        subscription: Optional[Subscription] = None,
+        max_queue_depth: int = 0,
+        concurrency: int = 4,
+    ):
         self.topic: Topic = Topic.by_name(topic)
         if not subscription:
-            subscription = self.topic.subscribe()
+            subscription = self.topic.subscribe(max_queue_depth=max_queue_depth)
         assert subscription.topic is self.topic
         self.subscription = subscription
+        self.concurrency = concurrency
 
     async def run(self, handler: MessageHandler) -> None:
+        async with anyio.create_task_group() as tg:
+            for _ in range(self.concurrency):
+                tg.start_soon(self._consume_loop, handler)
+
+    async def _consume_loop(self, handler: MessageHandler) -> None:
         while True:
-            message = await self.subscription.get()
+            msg = await self.subscription.get()
             try:
-                await handler(message)
+                await handler(msg)
+                await update_metric(self.topic.name, "consumed")
             except StopConsumer as e:
                 if not e.ack:
-                    await self.subscription.retry(message)
-                return
+                    await self.subscription.retry(msg)
+                raise  # ends task group
             except Exception:
-                await self.subscription.retry(message)
+                await self.subscription.retry(msg)
 
 
 @asynccontextmanager
