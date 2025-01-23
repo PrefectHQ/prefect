@@ -93,11 +93,23 @@ class TestInputsPolicy:
             )
             assert new_key == key
 
-    def test_subtraction_results_in_new_policy(self):
+    def test_subtraction_results_in_new_policy_for_inputs(self):
         policy = Inputs()
         new_policy = policy - "foo"
         assert policy != new_policy
         assert policy.exclude != new_policy.exclude
+
+    def test_subtraction_is_noop_for_non_inputs_policies(self):
+        policy = RunId()
+        new_policy = policy - "foo"
+        assert policy is new_policy
+        assert policy.compute_key(
+            task_ctx=None,
+            inputs={"foo": 42, "y": "changing-value"},
+            flow_parameters=None,
+        ) == policy.compute_key(
+            task_ctx=None, inputs={"foo": 42, "y": "changed"}, flow_parameters=None
+        )
 
     def test_excluded_can_be_manipulated_via_subtraction(self):
         policy = Inputs() - "y"
@@ -137,7 +149,7 @@ class TestCompoundPolicy:
         assert policy.policies != new_policy.policies
 
     def test_creation_via_subtraction(self):
-        one = RunId()
+        one = DEFAULT
         policy = one - "y"
         assert isinstance(policy, CompoundCachePolicy)
 
