@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
 DB_TYPE=${1:-sqlite}  # Default to sqlite if no argument provided
-NO_SERVICES=${2:-false}  # Default to false if no argument provided
+NO_SERVICES=${2:-False}  # Default to False if no argument provided
+SERVER_LOGGING_LEVEL=${3:-warning}
 
 # Function to start postgres container
 start_postgres() {
@@ -73,17 +74,28 @@ else
 fi
 
 PREFECT_API_URL=http://localhost:4200/api \
-PREFECT__SERVER_WEBSERVER_ONLY=$NO_SERVICES \
 OTEL_SERVICE_NAME=prefect-server \
 OTEL_TRACES_EXPORTER=otlp \
 OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317 \
 OTEL_EXPORTER_OTLP_PROTOCOL=grpc \
 OTEL_LOG_LEVEL=debug \
+PREFECT_SERVER_ANALYTICS_ENABLED=false \
+PREFECT_API_SERVICES_SCHEDULER_ENABLED=true \
+PREFECT_API_SERVICES_LATE_RUNS_ENABLED=true \
+PREFECT_UI_ENABLED=true \
 PYTHONPATH=src \
-  opentelemetry-instrument \
-  uvicorn \
-  --app-dir src \
-  --factory prefect.server.api.server:create_app \
-  --host 127.0.0.1 \
-  --port 4200 \
-  --timeout-keep-alive 5
+opentelemetry-instrument \
+python -c "
+import uvicorn
+from prefect.server.api.server import create_app
+
+app = create_app(final=True, webserver_only=eval('${NO_SERVICES}'.title()))
+uvicorn.run(
+    app=app,
+    app_dir='src',
+    host='127.0.0.1',
+    port=4200,
+    timeout_keep_alive=5,
+    log_level='${SERVER_LOGGING_LEVEL}'
+)
+"
