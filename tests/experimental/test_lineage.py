@@ -297,30 +297,15 @@ class TestEmitExternalResourceLineage:
 
         await test_flow()
 
-        # Should have events for context resources (flow and flow-run) consuming upstream
-        # plus one event for downstream resource
-        assert mock_emit_event.call_count == 3
+        # Should have:
+        # - 2 events for context resources (flow and flow-run) consuming upstream
+        # - 1 event for downstream resource being produced by context
+        # - 1 event for direct lineage between upstream and downstream
+        assert mock_emit_event.call_count == 4
 
-        # Check downstream event
-        downstream_call = mock_emit_event.call_args_list[-1]
-        assert downstream_call.kwargs["event"] == "prefect.resource.produced"
-        assert downstream_call.kwargs["resource"] == {
-            "prefect.resource.id": "downstream1",
-            "prefect.resource.role": "data-destination",
-            "prefect.resource.lineage-group": "global",
-        }
-        assert len(downstream_call.kwargs["related"]) == 2  # flow + flow-run
-        assert any(
-            r["prefect.resource.role"] == "flow-run"
-            for r in downstream_call.kwargs["related"]
-        )
-        assert any(
-            r["prefect.resource.role"] == "flow"
-            for r in downstream_call.kwargs["related"]
-        )
-
-        # Check upstream events (flow and flow-run consuming upstream)
-        for call in mock_emit_event.call_args_list[:-1]:
+        # Check context resources consuming upstream (first two events)
+        context_calls = mock_emit_event.call_args_list[:2]
+        for call in context_calls:
             assert call.kwargs["event"] == "prefect.resource.consumed"
             assert "prefect.resource.role" in call.kwargs["resource"]
             assert call.kwargs["related"] == [
@@ -330,6 +315,40 @@ class TestEmitExternalResourceLineage:
                     "prefect.resource.lineage-group": "global",
                 }
             ]
+
+        # Check downstream produced by context (third event)
+        produced_call = mock_emit_event.call_args_list[2]
+        assert produced_call.kwargs["event"] == "prefect.resource.produced"
+        assert produced_call.kwargs["resource"] == {
+            "prefect.resource.id": "downstream1",
+            "prefect.resource.role": "data-destination",
+            "prefect.resource.lineage-group": "global",
+        }
+        assert len(produced_call.kwargs["related"]) == 2  # flow + flow-run
+        assert any(
+            r["prefect.resource.role"] == "flow-run"
+            for r in produced_call.kwargs["related"]
+        )
+        assert any(
+            r["prefect.resource.role"] == "flow"
+            for r in produced_call.kwargs["related"]
+        )
+
+        # Check direct lineage event (fourth event)
+        direct_call = mock_emit_event.call_args_list[3]
+        assert direct_call.kwargs["event"] == "prefect.resource.direct-lineage"
+        assert direct_call.kwargs["resource"] == {
+            "prefect.resource.id": "downstream1",
+            "prefect.resource.role": "data-destination",
+            "prefect.resource.lineage-group": "global",
+        }
+        assert direct_call.kwargs["related"] == [
+            {
+                "prefect.resource.id": "upstream1",
+                "prefect.resource.role": "data-source",
+                "prefect.resource.lineage-group": "global",
+            }
+        ]
 
     async def test_emit_external_resource_lineage_with_neither(
         self, enable_lineage_events, mock_emit_event

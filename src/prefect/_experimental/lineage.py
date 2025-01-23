@@ -232,3 +232,12 @@ async def emit_external_resource_lineage(
             "related": context_resources,
         }
         emit_event(**emit_kwargs)
+
+        # For each downstream resource, emit an event showing it as downstream of upstream resources
+        if upstream_resources:
+            direct_emit_kwargs = {
+                "event": "prefect.resource.direct-lineage",
+                "resource": downstream_resource,
+                "related": upstream_resources,
+            }
+            emit_event(**direct_emit_kwargs)
