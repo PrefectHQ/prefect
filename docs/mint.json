@@ -181,7 +181,8 @@
             "v3/deploy/infrastructure-examples/managed",
             "v3/deploy/infrastructure-examples/serverless",
             "v3/deploy/infrastructure-examples/docker",
-            "v3/deploy/infrastructure-examples/kubernetes"
+            "v3/deploy/infrastructure-examples/kubernetes",
+            "v3/deploy/infrastructure-examples/coiled"
           ],
           "version": "v3"
         },
