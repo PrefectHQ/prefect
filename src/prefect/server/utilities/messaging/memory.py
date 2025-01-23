@@ -8,12 +8,14 @@ from contextlib import asynccontextmanager
 from dataclasses import asdict, dataclass
 from datetime import timedelta
 from pathlib import Path
+from types import TracebackType
 from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union
 from uuid import uuid4
 
 import anyio
 from cachetools import TTLCache
 from pydantic_core import to_json
+from typing_extensions import Self
 
 from prefect.logging import get_logger
 from prefect.server.utilities.messaging import Cache as _Cache
@@ -288,7 +290,15 @@ class Publisher(_Publisher):
         self.deduplicate_by = deduplicate_by
         self._cache = cache
 
-    async def __aexit__(self, *args: Any) -> None:
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         return None
 
     async def publish_data(self, data: bytes, attributes: Mapping[str, str]) -> None:
@@ -329,16 +339,16 @@ class Consumer(_Consumer):
 
     async def _consume_loop(self, handler: MessageHandler) -> None:
         while True:
-            msg = await self.subscription.get()
+            message = await self.subscription.get()
             try:
-                await handler(msg)
+                await handler(message)
                 await update_metric(self.topic.name, "consumed")
             except StopConsumer as e:
                 if not e.ack:
-                    await self.subscription.retry(msg)
+                    await self.subscription.retry(message)
                 raise  # ends task group
             except Exception:
-                await self.subscription.retry(msg)
+                await self.subscription.retry(message)
 
 
 @asynccontextmanager
