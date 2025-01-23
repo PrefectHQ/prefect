@@ -80,10 +80,12 @@ class CachePolicy:
         raise NotImplementedError
 
     def __sub__(self, other: str) -> "CachePolicy":
+        "No-op for all policies except Inputs and Compound"
+
+        # for interface compatibility
         if not isinstance(other, str):  # type: ignore[reportUnnecessaryIsInstance]
             raise TypeError("Can only subtract strings from key policies.")
-        new = Inputs(exclude=[other])
-        return CompoundCachePolicy(policies=[self, new])
+        return self
 
     def __add__(self, other: "CachePolicy") -> "CachePolicy":
         # adding _None is a no-op
@@ -214,8 +216,15 @@ class CompoundCachePolicy(CachePolicy):
     def __sub__(self, other: str) -> "CachePolicy":
         if not isinstance(other, str):  # type: ignore[reportUnnecessaryIsInstance]
             raise TypeError("Can only subtract strings from key policies.")
-        new = Inputs(exclude=[other])
-        return CompoundCachePolicy(policies=[*self.policies, new])
+
+        inputs_policies = [p for p in self.policies if isinstance(p, Inputs)]
+
+        if inputs_policies:
+            new = Inputs(exclude=[other])
+            return CompoundCachePolicy(policies=[*self.policies, new])
+        else:
+            # no dependency on inputs already
+            return self
 
 
 @dataclass
