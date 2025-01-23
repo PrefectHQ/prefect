@@ -5,12 +5,14 @@ import uuid
 from contextlib import asynccontextmanager
 from datetime import timedelta
 from functools import partial
+from types import TracebackType
 from typing import (
     Any,
     AsyncGenerator,
     Awaitable,
     Callable,
     Optional,
+    Type,
     TypeVar,
     Union,
     cast,
@@ -149,7 +151,15 @@ class Publisher(_Publisher):
 
         return self
 
-    async def __aexit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> None:
+        if not hasattr(self, "_batch"):
+            raise RuntimeError("Use this publisher as an async context manager")
+
         try:
             if self._periodic_task:
                 self._periodic_task.cancel()

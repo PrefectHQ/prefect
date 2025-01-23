@@ -1,6 +1,8 @@
 import asyncio
 import importlib
 import json
+import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import (
     AsyncContextManager,
@@ -14,6 +16,9 @@ from typing import (
 import anyio
 import pytest
 
+from prefect.server.events.clients import PrefectServerEventsClient
+from prefect.server.events.messaging import EventPublisher
+from prefect.server.events.schemas.events import Event, ReceivedEvent, Resource
 from prefect.server.utilities.messaging import (
     BrokerModule,
     Cache,
@@ -498,3 +503,34 @@ async def test_repeatedly_failed_message_is_moved_to_dead_letter_queue(
 
     remaining_message = await drain_one(consumer)
     assert not remaining_message
+
+
+async def test_can_be_used_as_event_publisher(broker: str, cache: Cache):
+    """Test that a memory broker can be used as an event publisher"""
+    async with ephemeral_subscription("events") as consumer_kwargs:
+        consumer = create_consumer(**consumer_kwargs)
+
+        captured_events: list[ReceivedEvent] = []
+
+        async def handler(message: Message):
+            event = ReceivedEvent.model_validate_json(message.data)
+            captured_events.append(event)
+            if len(captured_events) == 1:
+                raise StopConsumer(ack=True)
+
+        consumer_task = asyncio.create_task(consumer.run(handler))
+
+        async with PrefectServerEventsClient() as client:
+            assert isinstance(client._publisher, EventPublisher)
+            assert isinstance(client._publisher._publisher, Publisher)
+            emitted_event = await client.emit(
+                Event(
+                    id=uuid.uuid4(),
+                    occurred=datetime.now(tz=timezone.utc),
+                    event="testing",
+                    resource=Resource({"prefect.resource.id": "testing"}),
+                )
+            )
+        await consumer_task
+
+    assert captured_events == [emitted_event]
