@@ -99,8 +99,8 @@ class TestInputsPolicy:
         assert policy != new_policy
         assert policy.exclude != new_policy.exclude
 
-    def test_subtraction_is_noop_for_non_inputs_policies(self):
-        policy = RunId()
+    @pytest.mark.parametrize("policy", [RunId(), RunId() + TaskSource()])
+    def test_subtraction_is_noop_for_non_inputs_policies(self, policy):
         new_policy = policy - "foo"
         assert policy is new_policy
         assert policy.compute_key(
@@ -141,8 +141,8 @@ class TestCompoundPolicy:
         assert policy != two
         assert policy.policies != two.policies
 
-    def test_subtraction_creates_new_policies(self):
-        policy = CompoundCachePolicy(policies=[])
+    def test_subtraction_creates_new_policies_if_input_dependency(self):
+        policy = CompoundCachePolicy(policies=[Inputs()])
         new_policy = policy - "foo"
         assert isinstance(new_policy, CompoundCachePolicy)
         assert policy != new_policy
