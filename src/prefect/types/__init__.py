@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from functools import partial
 from typing import Annotated, Any, Dict, List, Optional, Set, TypeVar, Union
-from typing_extensions import Literal, TypeAlias
+from typing_extensions import Literal
 import orjson
 import pydantic
-from pydantic_extra_types.pendulum_dt import DateTime as PydanticDateTime
-from pydantic_extra_types.pendulum_dt import Date as PydanticDate
+
+
+from ._datetime import DateTime, Date
 from pydantic import (
     BeforeValidator,
     Field,
@@ -37,8 +38,6 @@ TimeZone = Annotated[
     ),
 ]
 
-DateTime: TypeAlias = PydanticDateTime
-Date: TypeAlias = PydanticDate
 
 BANNED_CHARACTERS = ["/", "%", "&", ">", "<"]
 
@@ -171,6 +170,8 @@ KeyValueLabelsField = Annotated[
 
 __all__ = [
     "ClientRetryExtraCodes",
+    "Date",
+    "DateTime",
     "LogLevel",
     "KeyValueLabelsField",
     "NonNegativeInteger",
