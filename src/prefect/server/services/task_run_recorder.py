@@ -167,7 +167,6 @@ async def record_task_run_event(event: ReceivedEvent) -> None:
         await _update_task_run_with_state(
             session, task_run, denormalized_state_attributes
         )
-        await session.commit()
 
     logger.debug(
         "Recorded task run state change",

@@ -215,14 +215,28 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
             app_name = connect_args.pop("application_name", None)
 
             if self.timeout is not None:
-                connect_args["command_timeout"] = self.timeout
+                # Set both statement_timeout and command_timeout:
+                # - statement_timeout: Database-level timeout that cancels long-running queries
+                # - command_timeout: Driver-level timeout that must be higher to allow for proper error handling
+                connect_args["command_timeout"] = (
+                    self.timeout * 1.2
+                )  # 20% higher than statement_timeout
+
+                # Set statement_timeout at connection level instead of session level
+                if "server_settings" not in connect_args:
+                    connect_args["server_settings"] = {}
+                connect_args["server_settings"]["statement_timeout"] = str(
+                    int(self.timeout * 1000)
+                )
 
             if self.connection_timeout is not None:
                 connect_args["timeout"] = self.connection_timeout
 
             if self.connection_app_name is not None or app_name is not None:
-                connect_args["server_settings"] = dict(
-                    application_name=self.connection_app_name or app_name
+                if "server_settings" not in connect_args:
+                    connect_args["server_settings"] = {}
+                connect_args["server_settings"]["application_name"] = (
+                    self.connection_app_name or app_name
                 )
 
             if connect_args:
