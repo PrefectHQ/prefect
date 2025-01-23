@@ -12,6 +12,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class PrefectDbtSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="DBT_")
 
-    profiles_dir: Path = Field(default_factory=lambda: Path.home() / ".dbt")
+    profiles_dir: Path = Field(default=Path.home() / ".dbt")
     project_dir: Path = Field(default_factory=Path.cwd)
     log_level: EventLevel = Field(default=EventLevel.INFO)
