@@ -85,7 +85,14 @@ jobs:
           cache-dependency-glob: "requirements**.txt"
 
       - name: Run type-completeness-check
-        run: uv tool run --with-editable . pyright --ignoreexternal --verifytypes prefect
+        run: >-
+          uv tool run
+          --with-editable .
+          --with-requirements requirements-otel.txt
+          --with-requirements requirements-dev.txt
+          pyright
+          --ignoreexternal
+          --verifytypes prefect
 
   pyright-check:
     name: Pyright Check
@@ -104,6 +111,12 @@ jobs:
           cache-dependency-glob: "requirements**.txt"
 
       - name: Run pyright
-        run: uv tool run --with-editable . pyright -p pyrightconfig-ci.json
+        run: >-
+          uv tool run
+          --with-editable .
+          --with-requirements requirements-otel.txt
+          --with-requirements requirements-dev.txt
+          pyright
+          -p pyrightconfig-ci.json
 
 
