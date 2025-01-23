@@ -183,12 +183,17 @@ class AssertingEventsClient(EventsClient):
     {payload=}
 
 # of captured events: {len(emitted_events)}
-{chr(10).join(dedent(f'''
+{
+            chr(10).join(
+                dedent(f'''
                     Expected:
                         {expected}
                     Received:
                         {received}
-                ''') for expected, received in mismatch_reasons)}
+                ''')
+                for expected, received in mismatch_reasons
+            )
+        }
 """
 
     @classmethod
@@ -211,7 +216,8 @@ class PrefectServerEventsClient(EventsClient):
     _publisher: messaging.EventPublisher
 
     async def __aenter__(self) -> Self:
-        self._publisher = messaging.create_event_publisher()
+        publisher = messaging.create_event_publisher()
+        self._publisher = await publisher.__aenter__()
         return self
 
     async def __aexit__(
@@ -230,6 +236,7 @@ class PrefectServerEventsClient(EventsClient):
                 "Events may only be emitted while this client is being used as a "
                 "context manager"
             )
+
         received_event = event.receive()
         await self._publisher.publish_event(received_event)
         return received_event
