@@ -108,7 +108,15 @@ class CapturingPublisher(Publisher):
         self.cache: Cache = cache or create_cache()
         self.deduplicate_by = deduplicate_by
 
-    async def __aexit__(self, *args: Any) -> None:
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> None:
         pass
 
     async def publish_data(self, data: bytes, attributes: Mapping[str, str]) -> None:
