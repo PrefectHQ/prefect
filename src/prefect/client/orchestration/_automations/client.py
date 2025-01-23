@@ -45,6 +45,8 @@ class AutomationClient(BaseClient):
         return Automation.model_validate_list(response.json())
 
     def find_automation(self, id_or_name: "str | UUID") -> "Automation | None":
+        from uuid import UUID
+
         if isinstance(id_or_name, str):
             name = id_or_name
             try:
@@ -202,6 +204,8 @@ class AutomationAsyncClient(BaseAsyncClient):
         return Automation.model_validate_list(response.json())
 
     async def find_automation(self, id_or_name: "str | UUID") -> "Automation | None":
+        from uuid import UUID
+
         if isinstance(id_or_name, str):
             name = id_or_name
             try:

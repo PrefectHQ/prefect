@@ -6,6 +6,7 @@ from prefect import flow
 from prefect.automations import Automation, DoNothing
 from prefect.events import ResourceSpecification
 from prefect.events.schemas.automations import EventTrigger, Posture
+from prefect.exceptions import ObjectNotFound
 from prefect.settings import PREFECT_API_SERVICES_TRIGGERS_ENABLED, temporary_settings
 
 
@@ -206,3 +207,33 @@ def test_disabled_automation_can_be_enabled_sync(automation: Automation):
 
     updated_automation = Automation.read(id=automation.id)
     assert updated_automation.enabled is True
+
+
+async def test_find_automation(automation: Automation):
+    from prefect.client.orchestration import get_client
+
+    client = get_client()
+
+    # Test finding by UUID
+    found = await client.find_automation(automation.id)
+    assert found == automation
+
+    # Test finding by UUID string
+    found = await client.find_automation(str(automation.id))
+    assert found == automation
+
+    # Test finding by exact name
+    found = await client.find_automation(automation.name)
+    assert found == automation
+
+    # Test finding by case-insensitive name
+    found = await client.find_automation(automation.name.upper())
+    assert found == automation
+
+    # Test finding nonexistent UUID raises ObjectNotFound
+    with pytest.raises(ObjectNotFound):
+        await client.find_automation(UUID("6d222a09-3c68-42d4-b019-bd331a3abb88"))
+
+    # Test finding nonexistent name returns None
+    found = await client.find_automation("nonexistent_name")
+    assert found is None
