@@ -2,17 +2,20 @@ import abc
 from contextlib import asynccontextmanager, AbstractAsyncContextManager
 from dataclasses import dataclass
 import importlib
+from types import TracebackType
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
     Optional,
     Protocol,
+    Type,
     TypeVar,
     Union,
     runtime_checkable,
 )
 from collections.abc import AsyncGenerator, Awaitable, Iterable, Mapping
+from typing_extensions import Self
 
 from prefect.settings import PREFECT_MESSAGING_CACHE, PREFECT_MESSAGING_BROKER
 from prefect.logging import get_logger
@@ -69,6 +72,19 @@ class Publisher(AbstractAsyncContextManager["Publisher"], abc.ABC):
 
     @abc.abstractmethod
     async def publish_data(self, data: bytes, attributes: Mapping[str, str]) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def __aenter__(self) -> Self:
+        ...
+
+    @abc.abstractmethod
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> None:
         ...
 
 
