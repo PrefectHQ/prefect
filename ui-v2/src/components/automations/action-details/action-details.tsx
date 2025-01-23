@@ -3,8 +3,17 @@ import type { Deployment } from "@/api/deployments";
 import type { components } from "@/api/prefect";
 import type { WorkPool } from "@/api/work-pools";
 import type { WorkQueue } from "@/api/work-queues";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from "@/components/ui/dialog";
 import { Icon, IconId } from "@/components/ui/icons";
+import { JsonInput } from "@/components/ui/json-input";
 import { StateBadge } from "@/components/ui/state-badge";
 import { Typography } from "@/components/ui/typography";
 import {
@@ -59,7 +68,12 @@ export const ActionDetailsType = ({ action }: ActionDetailsProps) => {
 		// Inferable actions
 		case "run-deployment":
 			return action.deployment_id && action.source == "selected" ? (
-				"TODO"
+				<DeploymentActionDetails
+					label={label}
+					deployment={createFakeDeployment()}
+					parameters={action.parameters}
+					job_variables={action.job_variables}
+				/>
 			) : (
 				<InferredAction label={label} />
 			);
@@ -166,22 +180,63 @@ export const ChangeFlowRunStateActionDetails = ({
 type DeploymentActionDetailsProps = {
 	label: ActionLabel;
 	deployment: Deployment;
+	parameters?: Record<string, unknown> | null;
+	job_variables?: Record<string, unknown> | null;
 };
 export const DeploymentActionDetails = ({
 	label,
 	deployment,
+	parameters,
+	job_variables,
 }: DeploymentActionDetailsProps) => {
 	return (
-		<ActionResource>
-			<label>{label}:</label>
-			<Link
-				to="/deployments/deployment/$id"
-				params={{ id: deployment.id }}
-				aria-label={deployment.name}
-			>
-				<ActionResourceName iconId="Rocket" name={deployment.name} />
-			</Link>
-		</ActionResource>
+		<>
+			<ActionResource>
+				<label>{label}:</label>
+				<Link
+					to="/deployments/deployment/$id"
+					params={{ id: deployment.id }}
+					aria-label={deployment.name}
+				>
+					<ActionResourceName iconId="Rocket" name={deployment.name} />
+				</Link>
+				{parameters !== undefined && (
+					<RunDeploymentJsonDialog title="Parameters" payload={parameters} />
+				)}
+				{job_variables !== undefined && (
+					<RunDeploymentJsonDialog
+						title="Job Variables"
+						payload={job_variables}
+					/>
+				)}
+			</ActionResource>
+		</>
+	);
+};
+
+type RunDeploymentJsonDialogProps = {
+	title: string;
+	payload: Record<string, unknown> | null | undefined;
+};
+
+const RunDeploymentJsonDialog = ({
+	title,
+	payload,
+}: RunDeploymentJsonDialogProps) => {
+	return (
+		<Dialog>
+			<DialogTrigger asChild>
+				<Button variant="secondary" size="sm">
+					Show {title.charAt(0).toUpperCase() + title.slice(1).toLowerCase()}
+				</Button>
+			</DialogTrigger>
+			<DialogContent aria-describedby={undefined}>
+				<DialogHeader>
+					<DialogTitle>{title}</DialogTitle>
+				</DialogHeader>
+				<JsonInput value={JSON.stringify(payload)} disabled />
+			</DialogContent>
+		</Dialog>
 	);
 };
 
