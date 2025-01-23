@@ -1,6 +1,7 @@
 import asyncio
 import json
 import socket
+import time
 import uuid
 from contextlib import asynccontextmanager
 from datetime import timedelta
@@ -221,6 +222,7 @@ class Consumer(_Consumer):
         starting_message_id: str = "0",
         automatically_acknowledge: bool = True,
         max_retries: int = 3,
+        trim_every: timedelta = timedelta(seconds=60),
     ):
         self.name = name or topic
         self.stream = topic  # Use topic as stream name
@@ -233,6 +235,9 @@ class Consumer(_Consumer):
 
         self.subscription = Subscription(max_retries=max_retries)
         self._retry_counts: dict[str, int] = {}
+
+        self.trim_every = trim_every
+        self._last_trimmed: Optional[float] = None
 
     async def _ensure_stream_and_group(self, redis_client: Redis) -> None:
         """Ensure the stream and consumer group exist."""
@@ -306,6 +311,7 @@ class Consumer(_Consumer):
                 raise
 
             if not stream_entries:
+                await self.trim_stream_if_necessary()
                 continue
 
             acker = partial(redis_client.xack, self.stream, self.group)
@@ -334,18 +340,21 @@ class Consumer(_Consumer):
         )
 
         try:
-            await handler(redis_stream_message)
-            if self.automatically_acknowledge:
-                await redis_stream_message.acknowledge()
-        except StopConsumer as e:
-            if not e.ack:
-                await self._on_message_failure(redis_stream_message, msg_id_str)
-            else:
+            try:
+                await handler(redis_stream_message)
                 if self.automatically_acknowledge:
                     await redis_stream_message.acknowledge()
-            raise
-        except Exception:
-            await self._on_message_failure(redis_stream_message, msg_id_str)
+            except StopConsumer as e:
+                if not e.ack:
+                    await self._on_message_failure(redis_stream_message, msg_id_str)
+                else:
+                    if self.automatically_acknowledge:
+                        await redis_stream_message.acknowledge()
+                raise
+            except Exception:
+                await self._on_message_failure(redis_stream_message, msg_id_str)
+        finally:
+            await self.trim_stream_if_necessary()
 
     async def _on_message_failure(self, msg: RedisStreamsMessage, msg_id_str: str):
         current_count = self._retry_counts.get(msg_id_str, 0) + 1
@@ -380,6 +389,15 @@ class Consumer(_Consumer):
         # Add to a Redis set for easy retrieval
         await redis_client.sadd(self.subscription.dlq_key, message_id)
 
+    async def trim_stream_if_necessary(self) -> None:
+        now = time.monotonic()
+        if self._last_trimmed is None:
+            self._last_trimmed = now
+
+        if now - self._last_trimmed > self.trim_every.total_seconds():
+            await trim_stream_to_lowest_delivered_id(self.stream)
+            self._last_trimmed = now
+
 
 @asynccontextmanager
 async def ephemeral_subscription(
@@ -409,3 +427,41 @@ async def break_topic():
         publishing_mock,
     ):
         yield
+
+
+async def trim_stream_to_lowest_delivered_id(stream_name: str) -> None:
+    """
+    Trims a Redis stream by removing all messages that have been delivered to and
+    acknowledged by all consumer groups.
+
+    This function finds the lowest last-delivered-id across all consumer groups and
+    trims the stream up to that point, as we know all consumers have processed those
+    messages.
+
+    Args:
+        stream_name: The name of the Redis stream to trim
+    """
+    redis_client: Redis = get_async_redis_client()
+
+    # Get information about all consumer groups for this stream
+    groups = await redis_client.xinfo_groups(stream_name)
+    if not groups:
+        logger.debug(f"No consumer groups found for stream {stream_name}")
+        return
+
+    # Find the lowest last-delivered-id across all groups
+    # The last-delivered-id is stored as 'last-delivered-id' in group info
+    lowest_id = min(
+        group["last-delivered-id"]
+        for group in groups
+        if group["last-delivered-id"]
+        != "0-0"  # Skip groups that haven't consumed anything
+    )
+
+    if lowest_id == "0-0":
+        logger.debug(f"No messages have been delivered in stream {stream_name}")
+        return
+
+    # Trim the stream up to (and including) the lowest ID
+    # XTRIM with MINID will remove all entries with IDs lower than or equal to the given ID
+    await redis_client.xtrim(stream_name, minid=lowest_id, approximate=True)
