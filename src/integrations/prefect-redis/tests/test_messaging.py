@@ -52,9 +52,8 @@ def pytest_generate_tests(metafunc: pytest.Metafunc):
 @pytest.fixture
 async def redis() -> AsyncGenerator[Redis, None]:
     redis = get_async_redis_client()
-    await redis.flushdb()
+    await redis.delete("message-tests")
     yield redis
-    await redis.flushdb()
 
 
 @pytest.fixture
