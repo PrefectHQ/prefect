@@ -21,6 +21,11 @@ from prefect.server.schemas.responses import (
     SetStateStatus,
 )
 from prefect.server.schemas.states import Paused, Suspended
+from prefect.settings import (
+    PREFECT_API_AUTH_STRING,
+    PREFECT_SERVER_API_AUTH_STRING,
+    temporary_settings,
+)
 
 if TYPE_CHECKING:
     from prefect.server.database.orm_models import ORMDeployment, ORMVariable
@@ -84,6 +89,16 @@ async def suspended_flow_run(session: AsyncSession) -> FlowRun:
     )
     await session.commit()
     return FlowRun.model_validate(flow_run, from_attributes=True)
+
+
+async def test_get_client_includes_auth_string_from_context():
+    with temporary_settings(updates={PREFECT_API_AUTH_STRING: "admin:test"}):
+        async with OrchestrationClient() as client:
+            assert "Authorization" not in client._http_client.headers
+
+    with temporary_settings(updates={PREFECT_SERVER_API_AUTH_STRING: "admin:test"}):
+        async with OrchestrationClient() as client:
+            assert client._http_client.headers["Authorization"].startswith("Basic")
 
 
 async def test_read_deployment(
