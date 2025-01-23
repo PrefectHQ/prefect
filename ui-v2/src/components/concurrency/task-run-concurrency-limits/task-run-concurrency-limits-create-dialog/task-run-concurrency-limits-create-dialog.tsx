@@ -74,7 +74,7 @@ export const TaskRunConcurrencyLimitsCreateDialog = ({
 
 	return (
 		<Dialog open onOpenChange={onOpenChange}>
-			<DialogContent>
+			<DialogContent aria-describedby={undefined}>
 				<DialogHeader>
 					<DialogTitle>Add Task Run Concurrency Limit</DialogTitle>
 				</DialogHeader>

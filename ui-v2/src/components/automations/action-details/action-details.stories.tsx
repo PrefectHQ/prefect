@@ -10,7 +10,15 @@ const ACTIONS: Array<Automation["actions"][number]> = [
 	{ type: "cancel-flow-run" },
 	{ type: "resume-flow-run" },
 	{ type: "run-deployment", deployment_id: null, source: "inferred" },
-	{ type: "run-deployment", deployment_id: "abc", source: "selected" },
+	{
+		type: "run-deployment",
+		deployment_id: "abc",
+		source: "selected",
+		// @ts-expect-error Need to fix typings with open API
+		parameters: { Hello: "World", Goodbye: "World" },
+		// @ts-expect-error Need to fix typings with open API
+		job_variables: { var1: "abc", var2: { foo: "bar" } },
+	},
 	{ type: "pause-deployment", deployment_id: null, source: "inferred" },
 	{ type: "pause-deployment", deployment_id: "abc", source: "selected" },
 	{ type: "resume-deployment", deployment_id: null, source: "inferred" },

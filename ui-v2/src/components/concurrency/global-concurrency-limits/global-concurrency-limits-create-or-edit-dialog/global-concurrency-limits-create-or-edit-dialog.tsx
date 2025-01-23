@@ -44,7 +44,7 @@ export const GlobalConcurrencyLimitsCreateOrEditDialog = ({
 
 	return (
 		<Dialog open onOpenChange={onOpenChange}>
-			<DialogContent>
+			<DialogContent aria-describedby={undefined}>
 				<DialogHeader>
 					<DialogTitle>{dialogTitle}</DialogTitle>
 				</DialogHeader>
