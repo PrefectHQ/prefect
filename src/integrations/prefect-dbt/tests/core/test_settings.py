@@ -1,13 +1,15 @@
 from pathlib import Path
 
+from dbt_common.events.base_types import EventLevel
 from prefect_dbt.core.settings import PrefectDbtSettings
 from pytest import MonkeyPatch
 
 
 def test_default_settings():
     settings = PrefectDbtSettings()
-    assert settings.profiles_dir.__str__().endswith(".dbt")
+    assert settings.profiles_dir == Path.home() / ".dbt"
     assert settings.project_dir == Path.cwd()
+    assert settings.log_level == EventLevel.INFO
 
 
 def test_custom_settings():
