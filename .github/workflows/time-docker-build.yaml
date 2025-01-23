@@ -30,6 +30,7 @@ jobs:
         with:
           ref: ${{ github.base_ref }}
           clean: true
+          fetch-depth: 0
 
       - name: Clean Docker system
         run: |
@@ -53,6 +54,7 @@ jobs:
         with:
           ref: ${{ github.head_ref }}
           clean: true
+          fetch-depth: 0
 
       - name: Clean Docker system again
         run: |
@@ -74,16 +76,16 @@ jobs:
 
           if [ "${{ github.base_ref }}" != "" ]; then
             BASE_TIME=${{ steps.base_build_time.outputs.base_time }}
-            
+
             echo "### 🏗️ Docker Build Time Comparison" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "| Branch | Build Time | Difference |" >> $GITHUB_STEP_SUMMARY
             echo "|--------|------------|------------|" >> $GITHUB_STEP_SUMMARY
             echo "| base (${{ github.base_ref }}) | ${BASE_TIME}s | - |" >> $GITHUB_STEP_SUMMARY
-            
+
             DIFF=$((CURRENT_TIME - BASE_TIME))
             PERCENT=$(echo "scale=2; ($CURRENT_TIME - $BASE_TIME) * 100 / $BASE_TIME" | bc)
-            
+
             if [ $DIFF -gt 0 ]; then
               DIFF_TEXT="⬆️ +${DIFF}s (+${PERCENT}%)"
             elif [ $DIFF -lt 0 ]; then
@@ -91,9 +93,9 @@ jobs:
             else
               DIFF_TEXT="✨ No change"
             fi
-            
+
             echo "| current (${{ github.head_ref }}) | ${CURRENT_TIME}s | $DIFF_TEXT |" >> $GITHUB_STEP_SUMMARY
-            
+
             # Fail if build time increased by more than 5%
             if (( $(echo "$PERCENT > 5" | bc -l) )); then
               echo "" >> $GITHUB_STEP_SUMMARY
