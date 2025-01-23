@@ -5,11 +5,9 @@ from prefect_dbt.core.settings import PrefectDbtSettings
 from pytest import MonkeyPatch
 
 
-def test_default_settings(monkeypatch: MonkeyPatch, tmp_path: Path):
-    monkeypatch.setattr(Path, "home", lambda: tmp_path)
-
+def test_default_settings():
     settings = PrefectDbtSettings()
-    assert settings.profiles_dir == Path(tmp_path / ".dbt")
+    assert settings.profiles_dir == Path.home() / ".dbt"
     assert settings.project_dir == Path.cwd()
     assert settings.log_level == EventLevel.INFO
 
