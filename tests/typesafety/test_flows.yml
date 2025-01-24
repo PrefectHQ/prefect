@@ -35,3 +35,15 @@
   out: "main:5: note: Revealed type is \"\
       prefect.flows.Flow[[bar: builtins.str], builtins.int]\
     \""
+
+- case: prefect_flow_decorator_with_task_runner_arg
+  main: |
+    from prefect import flow
+    from prefect.task_runners import ThreadPoolTaskRunner
+    @flow(task_runner=ThreadPoolTaskRunner[object](max_workers=42))
+    def foo(bar: str) -> int:
+        return 42
+    reveal_type(foo)
+  out: "main:5: note: Revealed type is \"\
+      prefect.flows.Flow[[bar: builtins.str], builtins.int]\
+    \""
