@@ -54,6 +54,7 @@ from prefect.server.schemas.actions import LogCreate
 from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_LOGGING_COLORS,
+    PREFECT_LOGGING_EXTRA_LOGGERS,
     PREFECT_LOGGING_LEVEL,
     PREFECT_LOGGING_MARKUP,
     PREFECT_LOGGING_SETTINGS_PATH,
@@ -220,6 +221,66 @@ def test_default_level_is_applied_to_interpolated_yaml_values(dictConfigMock):
         setup_logging()
 
     dictConfigMock.assert_called_once_with(expected_config)
+
+
+@pytest.fixture()
+def external_logger_setup(request):
+    # This fixture will create a logger with the specified name, level, and propagate value
+    name, level = request.param
+    logger = logging.getLogger(name)
+    old_level, old_propagate = logger.level, logger.propagate
+    assert logger.level == logging.NOTSET, "Logger should start with NOTSET level"
+    assert logger.handlers == [], "Logger should start with no handlers"
+    logger.setLevel(level)
+    yield name, level, old_propagate
+    # Reset the logger to its original state
+    logger.setLevel(old_level)
+    logger.propagate = old_propagate
+    logger.handlers = []
+
+
+@pytest.mark.parametrize(
+    "external_logger_setup",
+    [
+        ("foo", logging.DEBUG),
+        ("foo.child", logging.DEBUG),
+        ("foo", logging.INFO),
+        ("foo.child", logging.INFO),
+        ("foo", logging.WARNING),
+        ("foo.child", logging.WARNING),
+        ("foo", logging.ERROR),
+        ("foo.child", logging.ERROR),
+        ("foo", logging.CRITICAL),
+        ("foo.child", logging.CRITICAL),
+    ],
+    indirect=True,
+    ids=lambda x: f"logger='{x[0]}'-level='{logging.getLevelName(x[1])}'",
+)
+def test_setup_logging_extra_loggers_does_not_modify_external_logger_level(
+    dictConfigMock, external_logger_setup
+):
+    ext_name, ext_level, ext_propagate = external_logger_setup
+    with temporary_settings(
+        {
+            PREFECT_LOGGING_LEVEL: "WARNING",
+            PREFECT_TEST_MODE: False,
+            PREFECT_LOGGING_EXTRA_LOGGERS: ext_name,
+        }
+    ):
+        expected_config = load_logging_config(DEFAULT_LOGGING_SETTINGS_PATH)
+        expected_config["incremental"] = False
+        setup_logging()
+
+    dictConfigMock.assert_called_once_with(expected_config)
+    external_logger = logging.getLogger(ext_name)
+    assert external_logger.level == ext_level, "External logger level was not preserved"
+    if ext_level > logging.NOTSET:
+        assert external_logger.isEnabledFor(
+            ext_level
+        ), "External effective level was not preserved"
+    assert (
+        external_logger.propagate == ext_propagate
+    ), "External logger propagate was not preserved"
 
 
 @pytest.fixture
