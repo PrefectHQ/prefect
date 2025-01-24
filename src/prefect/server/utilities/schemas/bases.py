@@ -233,4 +233,4 @@ class ORMBaseModel(IDBaseModel):
 
 
 class ActionBaseModel(PrefectBaseModel):
-    model_config: ConfigDict = ConfigDict(extra="forbid")
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
