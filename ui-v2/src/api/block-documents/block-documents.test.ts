@@ -4,14 +4,17 @@ import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 
-import { createFakeBlock } from "@/mocks";
+import { createFakeBlockDocument } from "@/mocks";
 
-import { type Block, buildFilterBlocksQuery } from "./blocks";
+import {
+	type BlockDocument,
+	buildFilterBlockDocumentsQuery,
+} from "./block-documents";
 
-describe("blocks queries", () => {
-	const seedBlocksData = () => [createFakeBlock()];
+describe("block documents queries", () => {
+	const seedBlocksData = () => [createFakeBlockDocument()];
 
-	const mockFilterBlocksAPI = (blocks: Array<Block>) => {
+	const mockFilterBlocksAPI = (blocks: Array<BlockDocument>) => {
 		server.use(
 			http.post(buildApiUrl("/block_documents/filter"), () => {
 				return HttpResponse.json(blocks);
@@ -19,14 +22,14 @@ describe("blocks queries", () => {
 		);
 	};
 
-	it("is stores blocks list data", async () => {
+	it("is stores block documents list data", async () => {
 		// ------------ Mock API requests when cache is empty
 		const mockList = seedBlocksData();
 		mockFilterBlocksAPI(mockList);
 
 		// ------------ Initialize hooks to test
 		const { result } = renderHook(
-			() => useSuspenseQuery(buildFilterBlocksQuery()),
+			() => useSuspenseQuery(buildFilterBlockDocumentsQuery()),
 			{ wrapper: createWrapper() },
 		);
 

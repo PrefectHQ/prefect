@@ -2,29 +2,30 @@ import type { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
 import { queryOptions } from "@tanstack/react-query";
 
-export type Block = components["schemas"]["BlockDocument"];
-export type BlocksFilter =
+export type BlockDocument = components["schemas"]["BlockDocument"];
+export type BlockDocumentsFilter =
 	components["schemas"]["Body_read_block_documents_block_documents_filter_post"];
 
 /**
  * ```
- *  🏗️ Blocks queries construction 👷
- *  all   =>   ['blocks'] // key to match ['blocks', ...
- *  list  =>   ['blocks', 'list'] // key to match ['blocks, 'list', ...
- *             ['blocks', 'list', { ...filter1 }]
- *             ['blocks', 'list', { ...filter2 }]
+ *  🏗️ Block documents queries construction 👷
+ *  all   =>   ['"block-documents'] // key to match ['"block-documents', ...
+ *  list  =>   ['"block-documents', 'list'] // key to match ['"block-documents, 'list', ...
+ *             ['"block-documents', 'list', { ...filter1 }]
+ *             ['"block-documents', 'list', { ...filter2 }]
  * ```
  * */
 export const queryKeyFactory = {
-	all: () => ["blocks"] as const,
+	all: () => ["block-documents"] as const,
 	lists: () => [...queryKeyFactory.all(), "list"] as const,
-	list: (filter: BlocksFilter) => [...queryKeyFactory.lists(), filter] as const,
+	list: (filter: BlockDocumentsFilter) =>
+		[...queryKeyFactory.lists(), filter] as const,
 };
 
 // ----- 🔑 Queries 🗄️
 // ----------------------------
-export const buildFilterBlocksQuery = (
-	filter: BlocksFilter = {
+export const buildFilterBlockDocumentsQuery = (
+	filter: BlockDocumentsFilter = {
 		offset: 0,
 		sort: "BLOCK_TYPE_AND_NAME_ASC",
 		include_secrets: false,

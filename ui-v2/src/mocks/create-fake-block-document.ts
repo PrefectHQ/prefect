@@ -1,7 +1,7 @@
 import type { components } from "@/api/prefect";
 import { faker } from "@faker-js/faker";
 
-export const createFakeBlock = (
+export const createFakeBlockDocument = (
 	overrides?: Partial<components["schemas"]["BlockDocument"]>,
 ): components["schemas"]["BlockDocument"] => {
 	return {

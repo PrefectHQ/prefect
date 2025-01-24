@@ -1,5 +1,5 @@
 export { createFakeAutomation } from "./create-fake-automation";
-export { createFakeBlock } from "./create-fake-block";
+export { createFakeBlockDocument } from "./create-fake-block-document";
 export {
 	createFakeDeployment,
 	createFakeDeploymentWithFlow,
