@@ -1,8 +1,8 @@
 """Module containing credentials for interacting with dbt CLI"""
 
-from typing import Any, Dict, Optional, Union
+from typing import Annotated, Any, Dict, Optional, Union
 
-from pydantic import Field
+from pydantic import Discriminator, Field, Tag
 
 from prefect.blocks.core import Block
 from prefect_dbt.cli.configs import GlobalConfigs, TargetConfigs
@@ -21,6 +21,29 @@ try:
     from prefect_dbt.cli.configs.postgres import PostgresTargetConfigs
 except ImportError:
     PostgresTargetConfigs = None
+
+
+def target_configs_discriminator(v: Any) -> str:
+    """
+    Discriminator function for target configs. Returns the block type slug.
+    """
+    if isinstance(v, dict):
+        # When loading from storage, we get a dict with block_type_slug
+        # Handle schema_ -> schema conversion at all levels
+        def fix_schema_fields(d: dict[str, Any]) -> None:
+            if "schema_" in d:
+                d["schema"] = d.pop("schema_")
+            # Handle nested blocks
+            for value in d.values():
+                if isinstance(value, dict):
+                    fix_schema_fields(value)
+
+        fix_schema_fields(v)
+        return v.get("block_type_slug", "dbt-cli-target-configs")
+    if isinstance(v, Block):
+        # When creating a new instance, we get a concrete Block type
+        return v.get_block_type_slug()
+    return "dbt-cli-target-configs"  # Default to base type
 
 
 class DbtCliProfile(Block):
@@ -116,11 +139,14 @@ class DbtCliProfile(Block):
     target: str = Field(
         default=..., description="The default target your dbt project will use."
     )
-    target_configs: Union[
-        SnowflakeTargetConfigs,
-        BigQueryTargetConfigs,
-        PostgresTargetConfigs,
-        TargetConfigs,
+    target_configs: Annotated[
+        Union[
+            Annotated[SnowflakeTargetConfigs, Tag("dbt-cli-snowflake-target-configs")],
+            Annotated[BigQueryTargetConfigs, Tag("dbt-cli-bigquery-target-configs")],
+            Annotated[PostgresTargetConfigs, Tag("dbt-cli-postgres-target-configs")],
+            Annotated[TargetConfigs, Tag("dbt-cli-target-configs")],
+        ],
+        Discriminator(target_configs_discriminator),
     ] = Field(
         default=...,
         description=(
