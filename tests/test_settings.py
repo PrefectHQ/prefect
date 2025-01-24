@@ -184,6 +184,10 @@ SUPPORTED_SETTINGS = {
         "test_value": True,
         "legacy": True,
     },
+    "PREFECT_API_SERVICES_TASK_RUN_RECORDER_MAX_QUEUE_DEPTH": {
+        "test_value": 10,
+        "legacy": True,
+    },
     "PREFECT_API_SERVICES_TRIGGERS_ENABLED": {"test_value": True, "legacy": True},
     "PREFECT_API_SSL_CERT_FILE": {"test_value": "/path/to/cert"},
     "PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH": {"test_value": 10, "legacy": True},

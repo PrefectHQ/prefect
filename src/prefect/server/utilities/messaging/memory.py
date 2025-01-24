@@ -323,30 +323,22 @@ class Consumer(_Consumer):
         topic: str,
         subscription: Optional[Subscription] = None,
         max_queue_depth: int = 0,
-        concurrency: int = 4,
     ):
         self.topic: Topic = Topic.by_name(topic)
         if not subscription:
             subscription = self.topic.subscribe(max_queue_depth=max_queue_depth)
         assert subscription.topic is self.topic
         self.subscription = subscription
-        self.concurrency = concurrency
 
     async def run(self, handler: MessageHandler) -> None:
-        async with anyio.create_task_group() as tg:
-            for _ in range(self.concurrency):
-                tg.start_soon(self._consume_loop, handler)
-
-    async def _consume_loop(self, handler: MessageHandler) -> None:
         while True:
             message = await self.subscription.get()
             try:
                 await handler(message)
-                await update_metric(self.topic.name, "consumed")
             except StopConsumer as e:
                 if not e.ack:
                     await self.subscription.retry(message)
-                raise  # ends task group
+                return
             except Exception:
                 await self.subscription.retry(message)
 
