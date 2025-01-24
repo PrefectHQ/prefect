@@ -86,8 +86,8 @@ async def adownload_from_bucket(
     return output
 
 
-@task
 @async_dispatch(adownload_from_bucket)
+@task
 def download_from_bucket(
     bucket: str,
     key: str,
@@ -217,8 +217,8 @@ async def aupload_to_bucket(
     return key
 
 
-@task
 @async_dispatch(aupload_to_bucket)
+@task
 def upload_to_bucket(
     data: bytes,
     bucket: str,
@@ -386,8 +386,8 @@ async def acopy_objects(
     return target_path
 
 
-@task
 @async_dispatch(acopy_objects)
+@task
 def copy_objects(
     source_path: str,
     target_path: str,
@@ -549,8 +549,8 @@ async def amove_objects(
     return target_path
 
 
-@task
 @async_dispatch(amove_objects)
+@task
 def move_objects(
     source_path: str,
     target_path: str,
@@ -695,8 +695,8 @@ async def alist_objects(
     return await run_sync_in_worker_thread(_list_objects_sync, page_iterator)
 
 
-@task
 @async_dispatch(alist_objects)
+@task
 def list_objects(
     bucket: str,
     aws_credentials: AwsCredentials,
