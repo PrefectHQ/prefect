@@ -4,7 +4,7 @@ import abc
 from pathlib import Path
 from typing import Any, Dict, Optional, Type
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from typing_extensions import Self
 
 from prefect.blocks.core import Block
@@ -119,6 +119,19 @@ class BaseTargetConfigs(DbtConfigs, abc.ABC):
             "of paths through the graph dbt may work on at once."
         ),
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def handle_target_configs(cls, v: Any) -> Any:
+        """Handle target configs field aliasing during validation"""
+        if isinstance(v, dict):
+            if "schema_" in v:
+                v["schema"] = v.pop("schema_")
+            # Handle nested blocks
+            for value in v.values():
+                if isinstance(value, dict) and "schema_" in value:
+                    value["schema"] = value.pop("schema_")
+        return v
 
 
 class TargetConfigs(BaseTargetConfigs):

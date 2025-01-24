@@ -2,7 +2,7 @@
 
 from typing import Annotated, Any, Dict, Optional, Union
 
-from pydantic import Discriminator, Field, Tag, field_validator
+from pydantic import Discriminator, Field, Tag
 
 from prefect.blocks.core import Block
 from prefect_dbt.cli.configs import GlobalConfigs, TargetConfigs
@@ -167,16 +167,3 @@ class DbtCliProfile(Block):
             },
         }
         return profile
-
-    @field_validator("target_configs", mode="before")
-    @classmethod
-    def handle_target_configs(cls, v: Any) -> Any:
-        """Handle target configs field aliasing during validation"""
-        if isinstance(v, dict):
-            if "schema_" in v:
-                v["schema"] = v.pop("schema_")
-            # Handle nested blocks
-            for value in v.values():
-                if isinstance(value, dict) and "schema_" in value:
-                    value["schema"] = value.pop("schema_")
-        return v
