@@ -1,5 +1,6 @@
 from . import _version
 
+from .core import PrefectDbtSettings
 from .cloud import DbtCloudCredentials, DbtCloudJob  # noqa
 from .cli import (  # noqa
     DbtCliProfile,

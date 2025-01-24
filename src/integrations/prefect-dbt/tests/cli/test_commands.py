@@ -1,5 +1,4 @@
 import datetime
-import os
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -409,12 +408,14 @@ def test_trigger_dbt_cli_command_find_home(dbt_cli_profile_bare):
 
 
 @pytest.mark.usefixtures("dbt_runner_ls_result")
-def test_trigger_dbt_cli_command_find_env(profiles_dir, dbt_cli_profile_bare):
+def test_trigger_dbt_cli_command_find_env(
+    profiles_dir, dbt_cli_profile_bare, monkeypatch
+):
     @flow
     def test_flow():
         return trigger_dbt_cli_command("ls", dbt_cli_profile=dbt_cli_profile_bare)
 
-    os.environ["DBT_PROFILES_DIR"] = str(profiles_dir)
+    monkeypatch.setenv("DBT_PROFILES_DIR", str(profiles_dir))
     result = test_flow()
     assert isinstance(result, dbtRunnerResult)
 
@@ -474,9 +475,9 @@ class TestDbtCoreOperation:
         )
 
     def test_find_valid_profiles_dir_default_env(
-        self, tmp_path, mock_open_process, mock_shell_process
+        self, tmp_path, mock_open_process, mock_shell_process, monkeypatch
     ):
-        os.environ["DBT_PROFILES_DIR"] = str(tmp_path)
+        monkeypatch.setenv("DBT_PROFILES_DIR", str(tmp_path))
         (tmp_path / "profiles.yml").write_text("test")
         DbtCoreOperation(commands=["dbt debug"]).run()
         actual = str(mock_open_process.call_args_list[0][1]["env"]["DBT_PROFILES_DIR"])
