@@ -103,6 +103,13 @@ def apply_values(
     ...
 
 
+@overload
+def apply_values(
+    template: T, values: dict[str, Any], remove_notset: bool = False
+) -> Union[T, type[NotSet]]:
+    ...
+
+
 def apply_values(
     template: T, values: dict[str, Any], remove_notset: bool = True
 ) -> Union[T, type[NotSet]]:
