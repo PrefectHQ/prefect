@@ -177,7 +177,7 @@ async def _get_state_result(
     return result
 
 
-def format_exception(exc: BaseException, tb: TracebackType = None) -> str:
+def format_exception(exc: BaseException, tb: Optional[TracebackType] = None) -> str:
     exc_type = type(exc)
     if tb is not None:
         formatted = "".join(list(traceback.format_exception(exc_type, exc, tb=tb)))
@@ -439,7 +439,6 @@ async def return_value_to_state(
         return Completed(data=result_record)
 
 
-@sync_compatible
 async def get_state_exception(state: State) -> BaseException:
     """
     If not given a FAILED or CRASHED state, this raise a value error.

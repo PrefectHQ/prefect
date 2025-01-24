@@ -216,7 +216,7 @@ async def _in_process_pause(
     timeout: int = 3600,
     poll_interval: int = 10,
     key: Optional[str] = None,
-    client=None,
+    client: Optional[PrefectClient] = None,
     wait_for_input: Optional[T] = None,
 ) -> Optional[T]:
     if TaskRunContext.get():

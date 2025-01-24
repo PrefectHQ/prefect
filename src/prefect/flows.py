@@ -1980,8 +1980,7 @@ def _display_serve_start_message(*args: "RunnerDeployment"):
     from rich.table import Table
 
     help_message_top = (
-        "[green]Your deployments are being served and polling for"
-        " scheduled runs!\n[/]"
+        "[green]Your deployments are being served and polling for scheduled runs!\n[/]"
     )
 
     table = Table(title="Deployments", show_header=False)
