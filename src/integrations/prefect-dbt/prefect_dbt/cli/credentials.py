@@ -2,7 +2,7 @@
 
 from typing import Annotated, Any, Dict, Optional, Union
 
-from pydantic import Discriminator, Field, Tag
+from pydantic import Discriminator, Field, Tag, field_validator
 
 from prefect.blocks.core import Block
 from prefect_dbt.cli.configs import GlobalConfigs, TargetConfigs
@@ -28,17 +28,6 @@ def target_configs_discriminator(v: Any) -> str:
     Discriminator function for target configs. Returns the block type slug.
     """
     if isinstance(v, dict):
-        # When loading from storage, we get a dict with block_type_slug
-        # Handle schema_ -> schema conversion at all levels
-        def fix_schema_fields(d: dict[str, Any]) -> None:
-            if "schema_" in d:
-                d["schema"] = d.pop("schema_")
-            # Handle nested blocks
-            for value in d.values():
-                if isinstance(value, dict):
-                    fix_schema_fields(value)
-
-        fix_schema_fields(v)
         return v.get("block_type_slug", "dbt-cli-target-configs")
     if isinstance(v, Block):
         # When creating a new instance, we get a concrete Block type
@@ -178,3 +167,16 @@ class DbtCliProfile(Block):
             },
         }
         return profile
+
+    @field_validator("target_configs", mode="before")
+    @classmethod
+    def handle_target_configs(cls, v: Any) -> Any:
+        """Handle target configs field aliasing during validation"""
+        if isinstance(v, dict):
+            if "schema_" in v:
+                v["schema"] = v.pop("schema_")
+            # Handle nested blocks
+            for value in v.values():
+                if isinstance(value, dict) and "schema_" in value:
+                    value["schema"] = value.pop("schema_")
+        return v
