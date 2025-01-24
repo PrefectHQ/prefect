@@ -1,10 +1,11 @@
 import pytest
 from prefect_dbt.cli.credentials import DbtCliProfile, GlobalConfigs, TargetConfigs
 from pydantic import ValidationError
+from typing_extensions import Literal
 
 
 @pytest.mark.parametrize("configs_type", ["dict", "model"])
-def test_dbt_cli_profile_init(configs_type):
+def test_dbt_cli_profile_init(configs_type: Literal["dict", "model"]):
     target_configs = dict(type="snowflake", schema="schema")
     global_configs = dict(use_colors=False)
     if configs_type == "model":
@@ -60,7 +61,9 @@ def test_dbt_cli_profile_get_profile():
         "class_target_configs",
     ],
 )
-async def test_dbt_cli_profile_save_load_roundtrip(target_configs_request, request):
+async def test_dbt_cli_profile_save_load_roundtrip(
+    target_configs_request: str, request: pytest.FixtureRequest
+):
     target_configs = request.getfixturevalue(target_configs_request)
     dbt_cli_profile = DbtCliProfile(
         name="my_name",
