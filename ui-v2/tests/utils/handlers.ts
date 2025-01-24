@@ -21,7 +21,17 @@ const automationsHandlers = [
 	}),
 ];
 
+const blocksHandelrs = [
+	http.post(buildApiUrl("/blocks/filter"), () => {
+		return HttpResponse.json([]);
+	}),
+];
+
 const deploymentsHandlers = [
+	http.post(buildApiUrl("/deployments/filter"), () => {
+		return HttpResponse.json([]);
+	}),
+
 	http.delete(buildApiUrl("/deployments/:id"), () => {
 		return HttpResponse.json({ status: 204 });
 	}),
@@ -116,6 +126,7 @@ const workeQueuesHandlers = [
 
 export const handlers = [
 	...automationsHandlers,
+	...blocksHandelrs,
 	...deploymentsHandlers,
 	...flowHandlers,
 	...flowRunHandlers,

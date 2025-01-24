@@ -65,7 +65,7 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
         # failure to process items. This is particularly relevant for services
         # which use an httpx client. See related issue at
         # https://github.com/python/cpython/issues/86813
-        threading._register_atexit(self._at_exit)  # pyright: ignore[reportUnknownVariableType, reportAttributeAccessIssue]
+        threading._register_atexit(self._at_exit)  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
 
     def _at_exit(self) -> None:
         self.drain(at_exit=True)
