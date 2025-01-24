@@ -181,6 +181,7 @@ async def emit_result_write_event(
 
 
 async def emit_external_resource_lineage(
+    event_name: str = "prefect.lineage.event",
     upstream_resources: Optional[UpstreamResources] = None,
     downstream_resources: Optional[DownstreamResources] = None,
 ) -> None:
@@ -210,7 +211,7 @@ async def emit_external_resource_lineage(
         context_resources = await related_resources_from_run_context(client)
 
     # Add lineage group label to all resources
-    for res in upstream_resources + downstream_resources:
+    for res in upstream_resources + downstream_resources + context_resources:
         if "prefect.resource.lineage-group" not in res:
             res["prefect.resource.lineage-group"] = "global"
 
@@ -218,7 +219,7 @@ async def emit_external_resource_lineage(
     if upstream_resources:
         for context_resource in context_resources:
             emit_kwargs: Dict[str, Any] = {
-                "event": "prefect.resource.consumed",
+                "event": "prefect.lineage.upstream-interaction",
                 "resource": context_resource,
                 "related": upstream_resources,
             }
@@ -227,7 +228,7 @@ async def emit_external_resource_lineage(
     # For each downstream resource, emit an event showing it as downstream of context resources
     for downstream_resource in downstream_resources:
         emit_kwargs: Dict[str, Any] = {
-            "event": "prefect.resource.produced",
+            "event": "prefect.lineage.downstream-interaction",
             "resource": downstream_resource,
             "related": context_resources,
         }
@@ -236,7 +237,7 @@ async def emit_external_resource_lineage(
         # For each downstream resource, emit an event showing it as downstream of upstream resources
         if upstream_resources:
             direct_emit_kwargs = {
-                "event": "prefect.resource.direct-lineage",
+                "event": event_name,
                 "resource": downstream_resource,
                 "related": upstream_resources,
             }
