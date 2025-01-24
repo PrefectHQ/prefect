@@ -75,8 +75,8 @@ async def abatch_submit(
     return response["jobId"]
 
 
-@task
 @async_dispatch(abatch_submit)
+@task
 def batch_submit(
     job_name: str,
     job_queue: str,
