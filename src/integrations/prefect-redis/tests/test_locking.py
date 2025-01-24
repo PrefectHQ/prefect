@@ -38,19 +38,37 @@ class TestRedisLockManager:
     def test_read_locked_key(self, store):
         key = str(uuid4())
         read_queue = queue.Queue()
+        thread_started = threading.Event()
+
+        import logging
+
+        logger = logging.getLogger("prefect.test")
 
         def read_locked_key():
+            thread_started.set()
+
+            # This read should block until the lock is released
+            logger.info("Reading from key")
             record = store.read(key)
+            logger.info("Read from key")
             assert record is not None
             read_queue.put(record.result, block=False)
 
-        thread = threading.Thread(
-            target=read_locked_key,
-        )
+        thread = threading.Thread(target=read_locked_key)
+
+        logger.info("Acquiring lock")
         assert store.acquire_lock(key, holder="holder1")
+        logger.info("Lock acquired")
+
+        logger.info("Starting thread")
         thread.start()
+        thread_started.wait()
+        logger.info("Thread started")
+        logger.info("Writing to key")
         store.write(key=key, obj={"test": "value"}, holder="holder1")
+        logger.info("Releasing lock")
         store.release_lock(key, holder="holder1")
+        logger.info("Lock released")
         # the read should have been blocked until the lock was released
         assert read_queue.get(timeout=10) == {"test": "value"}
         thread.join()

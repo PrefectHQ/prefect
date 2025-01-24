@@ -8,7 +8,6 @@ from typing import AsyncGenerator, Generator, Optional
 
 import anyio
 import pytest
-from prefect_redis.client import get_async_redis_client
 from prefect_redis.messaging import (
     Cache,
     Consumer,
@@ -47,13 +46,6 @@ def pytest_generate_tests(metafunc: pytest.Metafunc):
             "cache_name",
             ["prefect_redis.messaging"],
         )
-
-
-@pytest.fixture
-async def redis() -> AsyncGenerator[Redis, None]:
-    redis = get_async_redis_client()
-    await redis.delete("message-tests")
-    yield redis
 
 
 @pytest.fixture
