@@ -1,6 +1,5 @@
 import asyncio
 import json
-import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 from functools import partial
@@ -388,9 +387,6 @@ async def test_trimming_streams(
         sequence = int(message.attributes["sequence"])
         seen_messages[consumer_name].add(sequence)
         total_seen = sum(len(seen) for seen in seen_messages.values())
-        logging.getLogger("prefect.tests").info(
-            f"{consumer_name}: Seen message {sequence}"
-        )
         if total_seen == TO_SEND:
             raise StopConsumer(ack=True)
 

@@ -311,7 +311,7 @@ class Consumer(_Consumer):
                 raise
 
             if not stream_entries:
-                await self.trim_stream_if_necessary()
+                await self._trim_stream_if_necessary()
                 continue
 
             acker = partial(redis_client.xack, self.stream, self.group)
@@ -340,21 +340,20 @@ class Consumer(_Consumer):
         )
 
         try:
-            try:
-                await handler(redis_stream_message)
+            await handler(redis_stream_message)
+            if self.automatically_acknowledge:
+                await redis_stream_message.acknowledge()
+        except StopConsumer as e:
+            if not e.ack:
+                await self._on_message_failure(redis_stream_message, msg_id_str)
+            else:
                 if self.automatically_acknowledge:
                     await redis_stream_message.acknowledge()
-            except StopConsumer as e:
-                if not e.ack:
-                    await self._on_message_failure(redis_stream_message, msg_id_str)
-                else:
-                    if self.automatically_acknowledge:
-                        await redis_stream_message.acknowledge()
-                raise
-            except Exception:
-                await self._on_message_failure(redis_stream_message, msg_id_str)
+            raise
+        except Exception:
+            await self._on_message_failure(redis_stream_message, msg_id_str)
         finally:
-            await self.trim_stream_if_necessary()
+            await self._trim_stream_if_necessary()
 
     async def _on_message_failure(self, msg: RedisStreamsMessage, msg_id_str: str):
         current_count = self._retry_counts.get(msg_id_str, 0) + 1
@@ -389,13 +388,13 @@ class Consumer(_Consumer):
         # Add to a Redis set for easy retrieval
         await redis_client.sadd(self.subscription.dlq_key, message_id)
 
-    async def trim_stream_if_necessary(self) -> None:
+    async def _trim_stream_if_necessary(self) -> None:
         now = time.monotonic()
         if self._last_trimmed is None:
             self._last_trimmed = now
 
         if now - self._last_trimmed > self.trim_every.total_seconds():
-            await trim_stream_to_lowest_delivered_id(self.stream)
+            await _trim_stream_to_lowest_delivered_id(self.stream)
             self._last_trimmed = now
 
 
@@ -429,7 +428,7 @@ async def break_topic():
         yield
 
 
-async def trim_stream_to_lowest_delivered_id(stream_name: str) -> None:
+async def _trim_stream_to_lowest_delivered_id(stream_name: str) -> None:
     """
     Trims a Redis stream by removing all messages that have been delivered to and
     acknowledged by all consumer groups.
