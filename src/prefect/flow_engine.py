@@ -1546,9 +1546,10 @@ def _flow_parameters(
 def run_flow_in_subprocess(
     flow: "Flow[..., Any]",
     flow_run: "FlowRun",
-    parameters: Optional[Dict[str, Any]] = None,
-    wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
+    parameters: Dict[str, Any] | None = None,
+    wait_for: Iterable[PrefectFuture[R]] | None = None,
     return_type: Literal["state", "result"] = "result",
+    context: dict[str, Any] | None = None,
 ) -> multiprocessing.context.SpawnProcess:
     """
     Run a flow in a subprocess.
@@ -1559,6 +1560,7 @@ def run_flow_in_subprocess(
         parameters: The parameters to pass to the flow.
         wait_for: The futures to wait for.
         return_type: The type of return value to return.
+        context: A serialized context to hydrate before running the flow.
 
     Returns:
         A multiprocessing.context.SpawnProcess that is running the flow.
@@ -1636,6 +1638,7 @@ def run_flow_in_subprocess(
             parameters=parameters,
             wait_for=wait_for,
             return_type=return_type,
+            context=context,
         ),
     )
     process.start()

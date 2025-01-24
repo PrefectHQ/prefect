@@ -65,6 +65,7 @@ from uuid import UUID, uuid4
 
 import anyio
 import anyio.abc
+import anyio.to_thread
 import pendulum
 from cachetools import LRUCache
 from typing_extensions import Self
@@ -111,7 +112,6 @@ from prefect.types.entrypoint import EntrypointType
 from prefect.utilities.asyncutils import (
     asyncnullcontext,
     is_async_fn,
-    run_sync_in_worker_thread,
     sync_compatible,
 )
 from prefect.utilities.engine import propose_state
@@ -544,13 +544,31 @@ class Runner:
         parameters: dict[str, Any] | None = None,
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
         return_type: Literal["state", "result"] = "result",
-    ) -> Any:
+        context: dict[str, Any] | None = None,
+    ) -> int | None:
+        """
+        Runs a flow in a subprocess and returns the exit code.
+
+        The runner will monitor for cancellation requests and send heartbeats to the
+        for the flow run (if enabled).
+
+        Args:
+            flow: The flow to run.
+            flow_run: The flow run to run.
+            parameters: The parameters to pass to the flow.
+            wait_for: A list of futures to wait for before starting the flow run.
+            return_type: Whether to return the state or the result of the flow run.
+            context: A serialized context to hydrate before running the flow.
+
+        Returns:
+            The exit code of the flow run process.
+        """
         from prefect.flow_engine import run_flow_in_subprocess
 
         self.pause_on_shutdown = False
-        context = self if not self.started else asyncnullcontext()
+        runner_context = self if not self.started else asyncnullcontext()
 
-        async with context:
+        async with runner_context:
             if not self._acquire_limit_slot(flow_run.id):
                 return
 
@@ -562,6 +580,7 @@ class Runner:
                         parameters=parameters,
                         wait_for=wait_for,
                         return_type=return_type,
+                        context=context,
                     )
                     if process.pid is None:
                         raise RuntimeError("Failed to start flow run process")
@@ -588,7 +607,8 @@ class Runner:
                             )
                         )
 
-                    await run_sync_in_worker_thread(process.join)
+                    # Wait for process to join in a thread to avoid blocking the event loop
+                    await anyio.to_thread.run_sync(process.join)
 
                     tg.cancel_scope.cancel()
 
@@ -674,6 +694,7 @@ class Runner:
     ) -> int:
         """
         Runs the given flow run in a subprocess.
+
         Args:
             flow_run: Flow run to execute via process. The ID of this flow run
                 is stored in the PREFECT__FLOW_RUN_ID environment variable to
@@ -775,6 +796,7 @@ class Runner:
                     "Process was terminated due to a Ctrl+C or Ctrl+Break signal. "
                     "Typically, this is caused by manual cancellation."
                 )
+
             flow_run_logger.log(
                 level,
                 f"Process for flow run {flow_run.name!r} exited with status code:"
