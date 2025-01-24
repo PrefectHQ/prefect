@@ -1,5 +1,4 @@
 import datetime
-import os
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -409,7 +408,9 @@ def test_trigger_dbt_cli_command_find_home(dbt_cli_profile_bare):
 
 
 @pytest.mark.usefixtures("dbt_runner_ls_result")
-def test_trigger_dbt_cli_command_find_env(profiles_dir, dbt_cli_profile_bare, monkeypatch):
+def test_trigger_dbt_cli_command_find_env(
+    profiles_dir, dbt_cli_profile_bare, monkeypatch
+):
     @flow
     def test_flow():
         return trigger_dbt_cli_command("ls", dbt_cli_profile=dbt_cli_profile_bare)
