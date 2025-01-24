@@ -40,15 +40,15 @@ class DbtConfigs(Block, abc.ABC):
 
     def _populate_configs_json(
         self,
-        configs_json: Dict[str, Any],
-        fields: Dict[str, Any],
-        model: BaseModel = None,
-    ) -> Dict[str, Any]:
+        configs_json: dict[str, Any],
+        fields: dict[str, Any],
+        model: Optional[BaseModel] = None,
+    ) -> dict[str, Any]:
         """
         Recursively populate configs_json.
         """
         # if allow_field_overrides is True keys from TargetConfigs take precedence
-        override_configs_json = {}
+        override_configs_json: dict[str, Any] = {}
 
         for field_name, field in fields.items():
             if model is not None:
@@ -93,7 +93,7 @@ class DbtConfigs(Block, abc.ABC):
         configs_json.update(override_configs_json)
         return configs_json
 
-    def get_configs(self) -> Dict[str, Any]:
+    def get_configs(self) -> dict[str, Any]:
         """
         Returns the dbt configs, likely used eventually for writing to profiles.yml.
 
@@ -289,7 +289,7 @@ class GlobalConfigs(DbtConfigs):
     write_json: Optional[bool] = Field(
         default=None,
         description=(
-            "Determines whether dbt writes JSON artifacts to " "the target/ directory."
+            "Determines whether dbt writes JSON artifacts to the target/ directory."
         ),
     )
     warn_error: Optional[bool] = Field(
@@ -321,9 +321,7 @@ class GlobalConfigs(DbtConfigs):
     )
     use_experimental_parser: Optional[bool] = Field(
         default=None,
-        description=(
-            "Opt into the latest experimental version " "of the static parser."
-        ),
+        description=("Opt into the latest experimental version of the static parser."),
     )
     static_parser: Optional[bool] = Field(
         default=None,

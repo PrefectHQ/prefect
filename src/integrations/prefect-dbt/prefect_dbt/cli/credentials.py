@@ -1,8 +1,8 @@
 """Module containing credentials for interacting with dbt CLI"""
 
-from typing import Any, Dict, Optional, Union
+from typing import Annotated, Any, Dict, Optional, Union
 
-from pydantic import Field
+from pydantic import Discriminator, Field, Tag, field_validator
 
 from prefect.blocks.core import Block
 from prefect_dbt.cli.configs import GlobalConfigs, TargetConfigs
@@ -21,6 +21,18 @@ try:
     from prefect_dbt.cli.configs.postgres import PostgresTargetConfigs
 except ImportError:
     PostgresTargetConfigs = None
+
+
+def target_configs_discriminator(v: Any) -> str:
+    """
+    Discriminator function for target configs. Returns the block type slug.
+    """
+    if isinstance(v, dict):
+        return v.get("block_type_slug", "dbt-cli-target-configs")
+    if isinstance(v, Block):
+        # When creating a new instance, we get a concrete Block type
+        return v.get_block_type_slug()
+    return "dbt-cli-target-configs"  # Default to base type
 
 
 class DbtCliProfile(Block):
@@ -116,11 +128,14 @@ class DbtCliProfile(Block):
     target: str = Field(
         default=..., description="The default target your dbt project will use."
     )
-    target_configs: Union[
-        SnowflakeTargetConfigs,
-        BigQueryTargetConfigs,
-        PostgresTargetConfigs,
-        TargetConfigs,
+    target_configs: Annotated[
+        Union[
+            Annotated[SnowflakeTargetConfigs, Tag("dbt-cli-snowflake-target-configs")],
+            Annotated[BigQueryTargetConfigs, Tag("dbt-cli-bigquery-target-configs")],
+            Annotated[PostgresTargetConfigs, Tag("dbt-cli-postgres-target-configs")],
+            Annotated[TargetConfigs, Tag("dbt-cli-target-configs")],
+        ],
+        Discriminator(target_configs_discriminator),
     ] = Field(
         default=...,
         description=(
@@ -152,3 +167,16 @@ class DbtCliProfile(Block):
             },
         }
         return profile
+
+    @field_validator("target_configs", mode="before")
+    @classmethod
+    def handle_target_configs(cls, v: Any) -> Any:
+        """Handle target configs field aliasing during validation"""
+        if isinstance(v, dict):
+            if "schema_" in v:
+                v["schema"] = v.pop("schema_")
+            # Handle nested blocks
+            for value in v.values():
+                if isinstance(value, dict) and "schema_" in value:
+                    value["schema"] = value.pop("schema_")
+        return v
