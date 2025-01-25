@@ -223,6 +223,19 @@ class TestSnowflakeConnector:
         connector = SnowflakeConnector(**connector_params)
         return connector
 
+    def test_block_initialization_handles_schema_alias(self, connector_params):
+        # First, test the case where the schema is set with the alias
+        connector_params["schema"] = "schema_input"
+        connector_params.pop("schema_", None)
+        connector = SnowflakeConnector(**connector_params)
+        assert connector.schema_ == "schema_input"
+
+        # Now, test the case where the schema is set with the field name
+        connector_params["schema_"] = "schema_input"
+        connector_params.pop("schema", None)
+        connector = SnowflakeConnector(**connector_params)
+        assert connector.schema_ == "schema_input"
+
     def test_block_initialization(self, snowflake_connector):
         assert snowflake_connector._connection is None
         assert snowflake_connector._unique_cursors is None

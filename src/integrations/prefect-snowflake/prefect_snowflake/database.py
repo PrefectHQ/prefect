@@ -4,7 +4,7 @@ import asyncio
 from time import sleep
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Type, Union
 
-from pydantic import Field
+from pydantic import AliasChoices, Field
 from snowflake.connector.connection import SnowflakeConnection
 from snowflake.connector.cursor import SnowflakeCursor
 
@@ -89,7 +89,9 @@ class SnowflakeConnector(DatabaseBlock):
     )
     schema_: str = Field(
         default=...,
-        alias="schema",
+        serialization_alias="schema",
+        # Handles cases where the model was dumped with `by_alias=False` or `by_alias=True`
+        validation_alias=AliasChoices("schema_", "schema"),
         description="The name of the default schema to use.",
     )
     fetch_size: int = Field(
