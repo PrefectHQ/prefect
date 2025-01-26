@@ -1,6 +1,7 @@
 import { type Automation } from "@/api/automations";
 import { ActionDetails } from "@/components/automations/action-details";
 import { Typography } from "@/components/ui/typography";
+import { pluralize } from "@/utils";
 
 type AutomationDetailsProps = {
 	data: Automation;
@@ -43,7 +44,7 @@ const AutomationActions = ({ data }: AutomationDetailsProps) => {
 	const { actions } = data;
 	return (
 		<div className="flex flex-col gap-1">
-			<Typography>{`Action${actions.length > 1 ? "s" : ""}`}</Typography>
+			<Typography>{pluralize(actions.length, "Action")}</Typography>
 			<ul className="flex flex-col gap-2">
 				{actions.map((action, i) => (
 					<li key={i}>

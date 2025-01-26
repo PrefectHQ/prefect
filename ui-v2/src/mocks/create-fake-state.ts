@@ -1,4 +1,5 @@
 import type { components } from "@/api/prefect";
+import { capitalize } from "@/utils";
 import { faker } from "@faker-js/faker";
 
 type StateType = components["schemas"]["StateType"];
@@ -17,8 +18,7 @@ const STATE_TYPE_VALUES = [
 
 export const createFakeState = () => {
 	const stateType = faker.helpers.arrayElement(STATE_TYPE_VALUES);
-	const stateName =
-		stateType.charAt(0).toUpperCase() + stateType.slice(1).toLowerCase();
+	const stateName = capitalize(stateType);
 
 	return { stateType, stateName };
 };

@@ -3,6 +3,7 @@ import { cva } from "class-variance-authority";
 
 import { ICONS as COMPONENT_ICONS } from "@/components/ui/icons";
 
+import { capitalize } from "@/utils";
 import { Badge } from "../badge";
 
 const ICONS = {
@@ -49,8 +50,4 @@ export const StateBadge = ({ type, name }: StateBadgeProps) => {
 			{name ?? capitalize(type)}
 		</Badge>
 	);
-};
-
-const capitalize = (str: string) => {
-	return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 };

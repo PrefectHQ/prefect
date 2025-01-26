@@ -22,6 +22,7 @@ import {
 	createFakeWorkPool,
 	createFakeWorkQueue,
 } from "@/mocks";
+import { capitalize } from "@/utils";
 import { Link } from "@tanstack/react-router";
 
 const ACTION_TYPE_TO_STRING = {
@@ -227,7 +228,7 @@ const RunDeploymentJsonDialog = ({
 		<Dialog>
 			<DialogTrigger asChild>
 				<Button variant="secondary" size="sm">
-					Show {title.charAt(0).toUpperCase() + title.slice(1).toLowerCase()}
+					Show {capitalize(title)}
 				</Button>
 			</DialogTrigger>
 			<DialogContent aria-describedby={undefined}>
