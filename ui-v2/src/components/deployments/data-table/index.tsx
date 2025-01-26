@@ -23,6 +23,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
 import { TagsInput } from "@/components/ui/tags-input";
 import { useToast } from "@/hooks/use-toast";
+import { pluralize } from "@/utils";
 import type {
 	ColumnFiltersState,
 	OnChangeFn,
@@ -249,8 +250,8 @@ export const DeploymentsDataTable = ({
 			<div className="grid sm:grid-cols-2 md:grid-cols-6 lg:grid-cols-12 gap-2 pb-4 items-center">
 				<div className="sm:col-span-2 md:col-span-6 lg:col-span-4 order-last lg:order-first">
 					<p className="text-sm text-muted-foreground">
-						{currentDeploymentsCount} Deployment
-						{currentDeploymentsCount === 1 ? "" : "s"}
+						{currentDeploymentsCount}{" "}
+						{pluralize(currentDeploymentsCount, "Deployment")}
 					</p>
 				</div>
 				<div className="sm:col-span-2 md:col-span-2 lg:col-span-3">
