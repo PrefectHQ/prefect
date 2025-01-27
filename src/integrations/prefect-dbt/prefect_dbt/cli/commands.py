@@ -870,7 +870,7 @@ def create_summary_markdown(run_results: dict, command: str) -> str:
             if isinstance(r, RunResult):
                 successful_runs_str += f"* {r.node.name}\n"
             elif isinstance(r, RunResultOutput):
-                successful_runs_str += f"* {r.relation_name}\n"
+                successful_runs_str += f"* {r.unique_id}\n"
         markdown += f"""\n## Successful Nodes ✅\n\n{successful_runs_str}\n\n"""
 
     return markdown
