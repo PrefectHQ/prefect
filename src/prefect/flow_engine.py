@@ -45,6 +45,7 @@ from prefect.context import (
     TagsContext,
     get_settings_context,
     hydrated_context,
+    serialize_context,
 )
 from prefect.exceptions import (
     Abort,
@@ -1545,10 +1546,9 @@ def _flow_parameters(
 
 def run_flow_in_subprocess(
     flow: "Flow[..., Any]",
-    flow_run: "FlowRun",
-    parameters: Dict[str, Any] | None = None,
+    flow_run: "FlowRun | None" = None,
+    parameters: dict[str, Any] | None = None,
     wait_for: Iterable[PrefectFuture[R]] | None = None,
-    return_type: Literal["state", "result"] = "result",
     context: dict[str, Any] | None = None,
 ) -> multiprocessing.context.SpawnProcess:
     """
@@ -1556,10 +1556,9 @@ def run_flow_in_subprocess(
 
     Args:
         flow: The flow to run.
-        flow_run: The flow run to run.
+        flow_run: The flow run object containing run metadata.
         parameters: The parameters to pass to the flow.
         wait_for: The futures to wait for.
-        return_type: The type of return value to return.
         context: A serialized context to hydrate before running the flow.
 
     Returns:
@@ -1591,38 +1590,39 @@ def run_flow_in_subprocess(
                     asyncio.run(maybe_coro)
             except Abort as abort_signal:
                 abort_signal: Abort
-                engine_logger.info(
-                    f"Engine execution of flow run '{flow_run.id}' aborted by orchestrator:"
-                    f" {abort_signal}"
-                )
+                if flow_run:
+                    msg = f"Execution of flow run '{flow_run.id}' aborted by orchestrator: {abort_signal}"
+                else:
+                    msg = f"Execution aborted by orchestrator: {abort_signal}"
+                engine_logger.info(msg)
                 exit(0)
             except Pause as pause_signal:
                 pause_signal: Pause
-                engine_logger.info(
-                    f"Engine execution of flow run '{flow_run.id}' is paused: {pause_signal}"
-                )
+                if flow_run:
+                    msg = f"Execution of flow run '{flow_run.id}' is paused: {pause_signal}"
+                else:
+                    msg = f"Execution is paused: {pause_signal}"
+                engine_logger.info(msg)
                 exit(0)
             except Exception:
-                engine_logger.error(
-                    (
-                        f"Engine execution of flow run '{flow_run.id}' exited with unexpected "
-                        "exception"
-                    ),
-                    exc_info=True,
-                )
+                if flow_run:
+                    msg = f"Execution of flow run '{flow_run.id}' exited with unexpected exception"
+                else:
+                    msg = "Execution exited with unexpected exception"
+                engine_logger.error(msg, exc_info=True)
                 exit(1)
             except BaseException:
-                engine_logger.error(
-                    (
-                        f"Engine execution of flow run '{flow_run.id}' interrupted by base "
-                        "exception"
-                    ),
-                    exc_info=True,
-                )
+                if flow_run:
+                    msg = f"Execution of flow run '{flow_run.id}' interrupted by base exception"
+                else:
+                    msg = "Execution interrupted by base exception"
+                engine_logger.error(msg, exc_info=True)
                 # Let the exit code be determined by the base exception type
                 raise
 
     ctx = multiprocessing.get_context("spawn")
+
+    context = context or serialize_context()
 
     process = ctx.Process(
         target=cloudpickle_wrapped_call(
@@ -1637,7 +1637,6 @@ def run_flow_in_subprocess(
             flow_run=flow_run,
             parameters=parameters,
             wait_for=wait_for,
-            return_type=return_type,
             context=context,
         ),
     )
