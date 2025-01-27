@@ -2892,6 +2892,51 @@ class TestSchedules:
 
         assert deployment.schedules == []
 
+    @pytest.mark.usefixtures("project_dir")
+    async def test_yaml_with_shell_script_step_to_determine_schedule_is_active(
+        self, prefect_client, work_pool
+    ):
+        prefect_yaml = Path("prefect.yaml")
+        with prefect_yaml.open(mode="r") as f:
+            contents = yaml.safe_load(f)
+
+        contents["deployments"] = [
+            {
+                "entrypoint": "./flows/hello.py:my_flow",
+                "name": "test-name",
+                "work_pool": {"name": work_pool.name},
+                "build": [
+                    {
+                        "prefect.deployments.steps.run_shell_script": {
+                            "id": "get-schedule-isactive",
+                            "script": "echo 'false'",
+                        }
+                    }
+                ],
+                "schedules": [
+                    {
+                        "active": "{{ get-schedule-isactive.stdout }}",
+                        "cron": "0 * * * *",
+                        "timezone": "America/Chicago",
+                    }
+                ],
+            }
+        ]
+
+        with prefect_yaml.open(mode="w") as f:
+            yaml.safe_dump(contents, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy --all",
+            expected_code=0,
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.schedules[0].active is False
+
 
 class TestMultiDeploy:
     @pytest.mark.usefixtures("project_dir")
