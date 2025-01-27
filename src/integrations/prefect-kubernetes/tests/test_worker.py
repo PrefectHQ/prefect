@@ -7,6 +7,7 @@ from time import monotonic, sleep
 from unittest import mock
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import aiohttp
 import anyio
 import anyio.abc
 import kubernetes_asyncio
@@ -2409,7 +2410,7 @@ class TestKubernetesWorker:
                 func=mock_batch_client.return_value.list_namespaced_job,
                 namespace=mock.ANY,
                 field_selector=mock.ANY,
-                _request_timeout=mock.ANY,
+                _request_timeout=aiohttp.ClientTimeout(),
             )
 
             if job_timeout is not None:
@@ -2431,7 +2432,7 @@ class TestKubernetesWorker:
                         namespace=mock.ANY,
                         label_selector=mock.ANY,
                         timeout_seconds=42,
-                        _request_timeout=mock.ANY,
+                        _request_timeout=aiohttp.ClientTimeout(),
                     ),
                     mock.call(**expected_job_call_kwargs),
                 ]
@@ -2475,13 +2476,13 @@ class TestKubernetesWorker:
                         namespace=mock.ANY,
                         label_selector=mock.ANY,
                         timeout_seconds=mock.ANY,
-                        _request_timeout=mock.ANY,
+                        _request_timeout=aiohttp.ClientTimeout(),
                     ),
                     mock.call(
                         func=mock_batch_client.return_value.list_namespaced_job,
                         namespace=mock.ANY,
                         field_selector=mock.ANY,
-                        _request_timeout=mock.ANY,
+                        _request_timeout=aiohttp.ClientTimeout(),
                         # Note: timeout_seconds is excluded here
                     ),
                 ]
@@ -2522,13 +2523,13 @@ class TestKubernetesWorker:
                         namespace="my-awesome-flows",
                         label_selector=mock.ANY,
                         timeout_seconds=60,
-                        _request_timeout=mock.ANY,
+                        _request_timeout=aiohttp.ClientTimeout(),
                     ),
                     mock.call(
                         func=mock_batch_client.return_value.list_namespaced_job,
                         namespace="my-awesome-flows",
                         field_selector=mock.ANY,
-                        _request_timeout=mock.ANY,
+                        _request_timeout=aiohttp.ClientTimeout(),
                     ),
                 ]
             )
@@ -2665,7 +2666,7 @@ class TestKubernetesWorker:
                         namespace=mock.ANY,
                         label_selector=mock.ANY,
                         timeout_seconds=mock.ANY,
-                        _request_timeout=mock.ANY,
+                        _request_timeout=aiohttp.ClientTimeout(),
                     ),
                     # Starts with the full timeout minus the amount we slept streaming logs
                     mock.call(
@@ -2673,7 +2674,7 @@ class TestKubernetesWorker:
                         field_selector=mock.ANY,
                         namespace=mock.ANY,
                         timeout_seconds=pytest.approx(50, 1),
-                        _request_timeout=mock.ANY,
+                        _request_timeout=aiohttp.ClientTimeout(),
                     ),
                 ]
             )
@@ -2892,14 +2893,14 @@ class TestKubernetesWorker:
                         func=mock_batch_client.return_value.list_namespaced_job,
                         namespace=mock.ANY,
                         field_selector="metadata.name=mock-job",
-                        _request_timeout=mock.ANY,
+                        _request_timeout=aiohttp.ClientTimeout(),
                     ),
                     mock.call(
                         func=mock_batch_client.return_value.list_namespaced_job,
                         namespace=mock.ANY,
                         field_selector="metadata.name=mock-job",
                         resource_version="1",
-                        _request_timeout=mock.ANY,
+                        _request_timeout=aiohttp.ClientTimeout(),
                     ),
                 ]
             )
