@@ -1757,22 +1757,9 @@ def _handle_deprecated_schedule_fields(deploy_config: dict[str, Any]):
         )
 
     if legacy_schedule and isinstance(legacy_schedule, dict):
-        # The yaml has a legacy schedule key, we should honor whatever
+        # The yaml has the original schedule key, we should honor whatever
         # is there while still appending these new schedules.
         deploy_config["schedules"] = [deploy_config["schedule"]]
-
-        app.console.print(
-            generate_deprecation_message(
-                "Defining a schedule via the `schedule` key in the deployment",
-                start_date="Mar 2024",
-                help=(
-                    "Please use `schedules` instead by renaming the "
-                    "`schedule` key to `schedules` and providing a list of "
-                    "schedule objects."
-                ),
-            ),
-            style="yellow",
-        )
 
     return deploy_config
 

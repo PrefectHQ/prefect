@@ -2613,27 +2613,6 @@ class TestSchedules:
         )
 
     @pytest.mark.usefixtures("project_dir")
-    async def test_yaml_with_schedule_prints_deprecation_warning(self, work_pool):
-        prefect_yaml = Path("prefect.yaml")
-        with prefect_yaml.open(mode="r") as f:
-            deploy_config = yaml.safe_load(f)
-
-        deploy_config["deployments"][0]["name"] = "test-name"
-        deploy_config["deployments"][0]["schedule"]["interval"] = 42
-
-        with prefect_yaml.open(mode="w") as f:
-            yaml.safe_dump(deploy_config, f)
-
-        await run_sync_in_worker_thread(
-            invoke_and_assert,
-            command=(
-                f"deploy ./flows/hello.py:my_flow -n test-name --pool {work_pool.name}"
-            ),
-            expected_code=0,
-            expected_output_contains="Defining a schedule via the `schedule` key in the deployment",
-        )
-
-    @pytest.mark.usefixtures("project_dir")
     async def test_can_provide_multiple_schedules_of_the_same_type_via_command(
         self, prefect_client, work_pool
     ):
