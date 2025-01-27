@@ -866,7 +866,6 @@ class KubernetesWorker(BaseWorker):
         configuration: KubernetesWorkerJobConfiguration,
         client,
     ):
-        timeout = aiohttp.ClientTimeout(total=None)
         core_client = CoreV1Api(client)
 
         logs = await core_client.read_namespaced_pod_log(
@@ -875,7 +874,6 @@ class KubernetesWorker(BaseWorker):
             follow=True,
             _preload_content=False,
             container="prefect-job",
-            _request_timeout=timeout,
         )
         try:
             async for line in logs.content:
@@ -916,7 +914,6 @@ class KubernetesWorker(BaseWorker):
                         func=batch_client.list_namespaced_job,
                         namespace=namespace,
                         field_selector=f"metadata.name={job_name}",
-                        _request_timeout=aiohttp.ClientTimeout(),
                         **watch_kwargs,
                     ):
                         yield event
@@ -925,7 +922,6 @@ class KubernetesWorker(BaseWorker):
                         job_list = await batch_client.list_namespaced_job(
                             namespace=namespace,
                             field_selector=f"metadata.name={job_name}",
-                            _request_timeout=aiohttp.ClientTimeout(),
                         )
 
                         resource_version = job_list.metadata.resource_version
