@@ -529,11 +529,9 @@ async def _run_single_deploy(
 
     deploy_config["parameter_openapi_schema"] = parameter_schema(flow)
 
-    deploy_config["schedules"] = _construct_schedules(
-        deploy_config,
-    )
-    # determine work pool
     work_pool_name = get_from_dict(deploy_config, "work_pool.name")
+
+    # determine work pool
     if work_pool_name:
         try:
             work_pool = await client.read_work_pool(deploy_config["work_pool"]["name"])
@@ -706,6 +704,8 @@ async def _run_single_deploy(
 
     if not deploy_config.get("description"):
         deploy_config["description"] = flow.description
+
+    deploy_config["schedules"] = _construct_schedules(deploy_config)
 
     # save deploy_config before templating
     deploy_config_before_templating = deepcopy(deploy_config)

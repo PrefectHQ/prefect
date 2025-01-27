@@ -4308,10 +4308,6 @@ class TestSaveUserInputs:
                 # Accept default deployment name
                 readchar.key.ENTER
                 +
-                # decline schedule
-                "n"
-                + readchar.key.ENTER
-                +
                 # accept create work pool
                 readchar.key.ENTER
                 +
@@ -4321,8 +4317,12 @@ class TestSaveUserInputs:
                 # enter work pool name
                 "inflatable"
                 + readchar.key.ENTER
-                # Decline remote storage
+                # decline schedule
                 + "n"
+                + readchar.key.ENTER
+                +
+                # Decline remote storage
+                "n"
                 + readchar.key.ENTER
                 # accept save user inputs
                 + "y"
@@ -4358,10 +4358,6 @@ class TestSaveUserInputs:
                 # Accept default deployment name
                 readchar.key.ENTER
                 +
-                # decline schedule
-                "n"
-                + readchar.key.ENTER
-                +
                 # accept create work pool
                 readchar.key.ENTER
                 +
@@ -4370,6 +4366,9 @@ class TestSaveUserInputs:
                 +
                 # enter work pool name
                 "inflatable"
+                + readchar.key.ENTER
+                # decline schedule
+                + "n"
                 + readchar.key.ENTER
                 # accept save user inputs
                 + "y"
@@ -4399,14 +4398,14 @@ class TestSaveUserInputs:
             command="deploy flows/hello.py:my_flow",
             prompts_and_responses=[
                 ("? Deployment name (default)", ""),
+                ("you don't have any work pools", "y"),
+                ("What infrastructure type", "", "process"),
+                ("Work pool name", "inflatable"),
                 ("Would you like to configure schedules for this deployment?", ""),
                 ("What type of schedule would you like to use?", "", "Interval"),
                 ("Seconds between scheduled runs", "3600"),
                 ("Would you like to activate this schedule?", "y"),
                 ("Would you like to add another schedule?", "n"),
-                ("you don't have any work pools", "y"),
-                ("What infrastructure type", "", "process"),
-                ("Work pool name", "inflatable"),
                 ("Would you like to save configuration", "y"),
             ],
             expected_code=0,
@@ -4438,15 +4437,15 @@ class TestSaveUserInputs:
             command="deploy flows/hello.py:my_flow",
             prompts_and_responses=[
                 ("? Deployment name (default)", ""),
+                ("you don't have any work pools", "y"),
+                ("What infrastructure type", "", "process"),
+                ("Work pool name", "inflatable"),
                 ("Would you like to configure schedules for this deployment?", ""),
                 ("What type of schedule would you like to use?", "↓", "Cron"),
                 ("Cron string (0 0 * * *)", "* * * * *"),
                 ("Timezone (UTC)", ""),
                 ("Would you like to activate this schedule?", "y"),
                 ("Would you like to add another schedule?", "n"),
-                ("you don't have any work pools", "y"),
-                ("What infrastructure type", "", "process"),
-                ("Work pool name", "inflatable"),
                 ("Would you like to save configuration", "y"),
             ],
             expected_code=0,
@@ -4481,15 +4480,15 @@ class TestSaveUserInputs:
             command="deploy flows/hello.py:my_flow",
             prompts_and_responses=[
                 ("? Deployment name (default)", "existing-deployment"),
+                ("you don't have any work pools", "y"),
+                ("What infrastructure type", "", "process"),
+                ("Work pool name", "inflatable"),
                 ("Would you like to configure schedules for this deployment?", ""),
                 ("What type of schedule would you like to use?", "↓", "Cron"),
                 ("Cron string (0 0 * * *)", "* * * * *"),
                 ("Timezone (UTC)", ""),
                 ("Would you like to activate this schedule?", "y"),
                 ("Would you like to add another schedule?", "n"),
-                ("you don't have any work pools", "y"),
-                ("What infrastructure type", "", "process"),
-                ("Work pool name", "inflatable"),
                 ("Would you like to save configuration", "y"),
             ],
             expected_code=0,
@@ -4557,9 +4556,6 @@ class TestSaveUserInputs:
                 # enter deployment name
                 "existing-deployment"
                 + readchar.key.ENTER
-                # reject create schedule
-                + "n"
-                + readchar.key.ENTER
                 +
                 # accept create work pool
                 readchar.key.ENTER
@@ -4569,6 +4565,9 @@ class TestSaveUserInputs:
                 +
                 # enter work pool name
                 "inflatable"
+                + readchar.key.ENTER
+                # reject create schedule
+                + "n"
                 + readchar.key.ENTER
                 # accept save user inputs
                 + "y"
@@ -4639,9 +4638,16 @@ class TestSaveUserInputs:
             user_input=(
                 # Accept default deployment name
                 readchar.key.ENTER
+                # accept create work pool
+                + readchar.key.ENTER
                 +
-                # accept schedule
+                # create process work pool
                 readchar.key.ENTER
+                # enter work pool name
+                + "inflatable"
+                + readchar.key.ENTER
+                # accept schedule
+                + readchar.key.ENTER
                 +
                 # select rrule schedule
                 readchar.key.DOWN
@@ -4651,21 +4657,11 @@ class TestSaveUserInputs:
                 # enter rrule schedule
                 "FREQ=MINUTELY"
                 + readchar.key.ENTER
+                # accept default timezone
+                + readchar.key.ENTER
                 # accept schedule being active
                 + readchar.key.ENTER
                 # decline adding another schedule
-                + readchar.key.ENTER
-                # accept create work pool
-                + readchar.key.ENTER
-                +
-                # accept create work pool
-                readchar.key.ENTER
-                +
-                # choose process work pool
-                readchar.key.ENTER
-                +
-                # enter work pool name
-                "inflatable"
                 + readchar.key.ENTER
                 # accept save user inputs
                 + "y"
@@ -4821,15 +4817,15 @@ class TestSaveUserInputs:
             user_input=(
                 # Accept default deployment name
                 readchar.key.ENTER
-                # decline schedule
-                + "n"
-                + readchar.key.ENTER
                 # accept create work pool
                 + readchar.key.ENTER
                 # choose process work pool
                 + readchar.key.ENTER
                 # enter work pool name
                 + "inflatable"
+                + readchar.key.ENTER
+                # decline schedule configuration
+                + "n"
                 + readchar.key.ENTER
                 # accept save user inputs
                 + "y"
@@ -4861,16 +4857,6 @@ class TestSaveUserInputs:
                 "n"
                 + readchar.key.ENTER
                 +
-                # accept schedule
-                readchar.key.ENTER
-                +
-                # select interval schedule
-                readchar.key.ENTER
-                +
-                # enter interval schedule
-                "3600"
-                + readchar.key.ENTER
-                +
                 # accept create work pool
                 readchar.key.ENTER
                 +
@@ -4879,6 +4865,19 @@ class TestSaveUserInputs:
                 +
                 # enter work pool name
                 "inflatable"
+                + readchar.key.ENTER
+                # accept schedule
+                + readchar.key.ENTER
+                +
+                # select interval schedule
+                readchar.key.ENTER
+                +
+                # enter interval schedule
+                "3600"
+                + readchar.key.ENTER
+                # accept activating schedule
+                + readchar.key.ENTER
+                # decline adding another schedule
                 + readchar.key.ENTER
                 # accept save user inputs
                 + "y"
@@ -4910,10 +4909,6 @@ class TestSaveUserInputs:
                 # accept default deployment name
                 readchar.key.ENTER
                 +
-                # decline schedule
-                "n"
-                + readchar.key.ENTER
-                +
                 # accept create work pool
                 readchar.key.ENTER
                 +
@@ -4922,6 +4917,9 @@ class TestSaveUserInputs:
                 +
                 # enter work pool name
                 "inflatable"
+                + readchar.key.ENTER
+                # decline schedule
+                + "n"
                 + readchar.key.ENTER
                 # accept save user inputs
                 + "y"
@@ -5160,12 +5158,12 @@ class TestDeployWithoutEntrypoint:
                 # Accept default deployment name
                 readchar.key.ENTER
                 +
+                # accept first work pool
+                readchar.key.ENTER
+                +
                 # decline schedule
                 "n"
                 + readchar.key.ENTER
-                +
-                # accept first work pool
-                readchar.key.ENTER
                 +
                 # Decline remote storage
                 "n"
@@ -5209,12 +5207,12 @@ class TestDeployWithoutEntrypoint:
                 # Accept default deployment name
                 readchar.key.ENTER
                 +
+                # accept first work pool
+                readchar.key.ENTER
+                +
                 # decline schedule
                 "n"
                 + readchar.key.ENTER
-                +
-                # accept first work pool
-                readchar.key.ENTER
                 +
                 # Decline remote storage
                 "n"
@@ -5266,12 +5264,12 @@ class TestDeployWithoutEntrypoint:
                 # Accept default deployment name
                 readchar.key.ENTER
                 +
+                # accept first work pool
+                readchar.key.ENTER
+                +
                 # decline schedule
                 "n"
                 + readchar.key.ENTER
-                +
-                # accept first work pool
-                readchar.key.ENTER
                 +
                 # Decline remote storage
                 "n"
