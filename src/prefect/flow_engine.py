@@ -1554,15 +1554,21 @@ def run_flow_in_subprocess(
     """
     Run a flow in a subprocess.
 
+    Note the result of the flow will only be accessible if the flow is configured to
+    persist its result.
+
     Args:
         flow: The flow to run.
         flow_run: The flow run object containing run metadata.
-        parameters: The parameters to pass to the flow.
-        wait_for: The futures to wait for.
-        context: A serialized context to hydrate before running the flow.
+        parameters: The parameters to use when invoking the flow.
+        wait_for: The futures to wait for before starting the flow.
+        context: A serialized context to hydrate before running the flow. If not provided,
+            the current context will be used. A serialized context should be provided if
+            this function is called in a separate memory space from the parent run (e.g.
+            in a subprocess or on another machine).
 
     Returns:
-        A multiprocessing.context.SpawnProcess that is running the flow.
+        A multiprocessing.context.SpawnProcess representing the process that is running the flow.
     """
     from prefect.flow_engine import run_flow
 
@@ -1579,14 +1585,17 @@ def run_flow_in_subprocess(
 
         os.environ.update(env or {})
         settings_context = get_settings_context()
+        # Create a new settings context with a new settings object to pick up the updated
+        # environment variables
         with SettingsContext(
             profile=settings_context.profile,
-            # Create a new settings object to pick up the new environment variables
             settings=Settings(),
         ):
             try:
                 maybe_coro = run_flow(*args, **kwargs)
                 if asyncio.iscoroutine(maybe_coro):
+                    # This is running in a brand new process, so there won't be an existing
+                    # event loop.
                     asyncio.run(maybe_coro)
             except Abort as abort_signal:
                 abort_signal: Abort
