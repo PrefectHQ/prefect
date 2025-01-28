@@ -14,6 +14,7 @@ from uuid import uuid4
 
 import anyio
 from cachetools import TTLCache
+from exceptiongroup import BaseExceptionGroup  # novermin
 from pydantic_core import to_json
 from typing_extensions import Self
 
@@ -333,9 +334,18 @@ class Consumer(_Consumer):
         self.concurrency = concurrency
 
     async def run(self, handler: MessageHandler) -> None:
-        async with anyio.create_task_group() as tg:
-            for _ in range(self.concurrency):
-                tg.start_soon(self._consume_loop, handler)
+        try:
+            async with anyio.create_task_group() as tg:
+                for _ in range(self.concurrency):
+                    tg.start_soon(self._consume_loop, handler)
+        except BaseExceptionGroup as group:  # novermin
+            if all(isinstance(exc, StopConsumer) for exc in group.exceptions):
+                logger.debug("StopConsumer received")
+            else:
+                for exc in group.exceptions:
+                    if not isinstance(exc, StopConsumer):
+                        raise exc from None
+                raise group.exceptions[0] from None
 
     async def _consume_loop(self, handler: MessageHandler) -> None:
         while True:
