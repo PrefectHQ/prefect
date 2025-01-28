@@ -162,17 +162,60 @@ async def find_flow_functions_in_file(path: anyio.Path) -> list[dict[str, str]]:
     return decorated_functions
 
 
-async def search_for_flow_functions(directory: str = ".") -> list[dict[str, str]]:
+async def _find_py_files(
+    path: anyio.Path, exclude_patterns: list[str] | None = None
+) -> list[anyio.Path]:
+    """
+    Recursively find Python files in a directory while excluding certain patterns.
+
+    Args:
+        path: The directory to search in
+        exclude_patterns: List of directory names to exclude from the search.
+            Defaults to ["site-packages"]
+
+    Returns:
+        List of paths to Python files
+    """
+    exclude_patterns = exclude_patterns or ["site-packages"]
+
+    py_files: list[anyio.Path] = []
+    try:
+        async for p in path.iterdir():
+            try:
+                # Check if any part of the path matches the exclude patterns
+                if any(pattern in p.parts for pattern in exclude_patterns):
+                    continue
+
+                if await p.is_dir():
+                    py_files.extend(await _find_py_files(p, exclude_patterns))
+                elif p.suffix == ".py":
+                    py_files.append(p)
+            except (PermissionError, OSError):
+                continue
+    except (PermissionError, OSError):
+        return []
+    return py_files
+
+
+async def search_for_flow_functions(
+    directory: str = ".", exclude_patterns: list[str] | None = None
+) -> list[dict[str, str]]:
     """
     Search for flow functions in the provided directory. If no directory is provided,
     the current working directory is used.
+
+    Args:
+        directory: The directory to search in
+        exclude_patterns: List of directory names to exclude from the search.
+            Defaults to ["site-packages"]
 
     Returns:
         List[Dict]: the flow name, function name, and filepath of all flow functions found
     """
     path = anyio.Path(directory)
     coros: list[Coroutine[list[dict[str, str]], Any, Any]] = []
-    async for file in path.rglob("*.py"):
+
+    for file in await _find_py_files(path, exclude_patterns):
         coros.append(find_flow_functions_in_file(file))
 
     return [fn for file_fns in await asyncio.gather(*coros) for fn in file_fns]
