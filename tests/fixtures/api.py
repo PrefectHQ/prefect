@@ -21,7 +21,7 @@ def app() -> FastAPI:
 
 @pytest.fixture
 def test_client(app: FastAPI) -> TestClient:
-    return TestClient(app)
+    return TestClient(app, base_url="https://test/api")
 
 
 @pytest.fixture
