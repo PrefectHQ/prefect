@@ -5,6 +5,8 @@ from pathlib import Path, PosixPath
 from typing import Any, Dict, List, Optional, Union
 
 import yaml
+from dbt.artifacts.schemas.freshness.v3.freshness import FreshnessResult
+from dbt.artifacts.schemas.run.v5.run import RunResult, RunResultOutput
 from dbt.cli.main import dbtRunner, dbtRunnerResult
 from dbt.contracts.results import ExecutionResult, NodeStatus
 from prefect_shell.commands import ShellOperation
@@ -864,9 +866,14 @@ def create_summary_markdown(run_results: dict, command: str) -> str:
         markdown += _create_unsuccessful_markdown(run_results=run_results)
 
     if run_results["Success"] != []:
-        successful_runs_str = "\n".join(
-            [f"* {r.node.name}" for r in run_results["Success"]]
-        )
+        successful_runs_str = ""
+        for r in run_results["Success"]:
+            if isinstance(r, (RunResult, FreshnessResult)):
+                successful_runs_str += f"* {r.node.name}\n"
+            elif isinstance(r, RunResultOutput):
+                successful_runs_str += f"* {r.unique_id}\n"
+            else:
+                successful_runs_str += f"* {r}\n"
         markdown += f"""\n## Successful Nodes ✅\n\n{successful_runs_str}\n\n"""
 
     return markdown
