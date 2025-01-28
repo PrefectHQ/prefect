@@ -3,6 +3,7 @@ from itertools import combinations
 
 import pytest
 
+from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
@@ -90,4 +91,37 @@ class TestConstructSchedule:
         assert result == IntervalSchedule(
             interval=datetime.timedelta(seconds=300),
             anchor_date=DateTime.fromisoformat(anchor),
+        )
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "not even almost a boolean",
+            "{{ to.be.templated }}",
+        ],
+    )
+    def test_invalid_active_value(self, value: str):
+        with pytest.raises(
+            ValueError, match="active must be able to be parsed as a boolean"
+        ):
+            schedule = IntervalSchedule(interval=datetime.timedelta(seconds=300))
+            DeploymentScheduleCreate(active=value, schedule=schedule)
+
+    @pytest.mark.parametrize(
+        "value,expected",
+        [
+            ("True", True),
+            ("False", False),
+            ("true", True),
+            ("false", False),
+            ("TRUE", True),
+            ("FALSE", False),
+            ("1", True),
+            ("0", False),
+        ],
+    )
+    def test_parsable_active_value(self, value: str, expected: bool):
+        schedule = IntervalSchedule(interval=datetime.timedelta(seconds=300))
+        assert (
+            DeploymentScheduleCreate(active=value, schedule=schedule).active == expected
         )

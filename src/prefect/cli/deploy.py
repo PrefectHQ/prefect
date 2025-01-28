@@ -529,11 +529,9 @@ async def _run_single_deploy(
 
     deploy_config["parameter_openapi_schema"] = parameter_schema(flow)
 
-    deploy_config["schedules"] = _construct_schedules(
-        deploy_config,
-    )
-    # determine work pool
     work_pool_name = get_from_dict(deploy_config, "work_pool.name")
+
+    # determine work pool
     if work_pool_name:
         try:
             work_pool = await client.read_work_pool(deploy_config["work_pool"]["name"])
@@ -706,6 +704,8 @@ async def _run_single_deploy(
 
     if not deploy_config.get("description"):
         deploy_config["description"] = flow.description
+
+    deploy_config["schedules"] = _construct_schedules(deploy_config, step_outputs)
 
     # save deploy_config before templating
     deploy_config_before_templating = deepcopy(deploy_config)
@@ -909,13 +909,14 @@ async def _run_multi_deploy(
 
 def _construct_schedules(
     deploy_config: dict[str, Any],
+    step_outputs: dict[str, Any],
 ) -> list[DeploymentScheduleCreate]:
     """
     Constructs a schedule from a deployment configuration.
 
     Args:
         deploy_config: A deployment configuration
-
+        step_outputs: A dictionary of step outputs
     Returns:
         A list of schedule objects
     """
@@ -925,7 +926,7 @@ def _construct_schedules(
     if schedule_configs is not NotSet:
         schedules = [
             _schedule_config_to_deployment_schedule(schedule_config)
-            for schedule_config in schedule_configs
+            for schedule_config in apply_values(schedule_configs, step_outputs)
         ]
     elif schedule_configs is NotSet:
         if is_interactive():
