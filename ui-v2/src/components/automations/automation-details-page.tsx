@@ -9,10 +9,13 @@ import {
 } from "@/components/ui/breadcrumb";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { AutomationDetails } from "./automation-details";
+import {
+	AutomationActions,
+	AutomationDescription,
+	AutomationTrigger,
+} from "./automation-details";
 import { AutomationEnableToggle } from "./automation-enable-toggle";
 import { AutomationsActionsMenu } from "./automations-actions-menu";
-
 import { useDeleteAutomationConfirmationDialog } from "./use-delete-automation-confirmation-dialog";
 
 type AutomationsDetailsPageProps = {
@@ -35,7 +38,11 @@ export const AutomationDetailsPage = ({ id }: AutomationsDetailsPageProps) => {
 						<AutomationsActionsMenu id={data.id} onDelete={handleDelete} />
 					</div>
 				</div>
-				<AutomationDetails data={data} />
+				<div className="flex flex-col gap-4">
+					<AutomationDescription data={data} />
+					<AutomationTrigger data={data} />
+					<AutomationActions data={data} />
+				</div>
 			</div>
 			<DeleteConfirmationDialog {...dialogState} />
 		</>
