@@ -771,7 +771,7 @@ class TestUpdateArtifacts:
         await my_flow()
 
     def test_update_progress_artifact_updates_progress_sync(
-        self, test_client: TestClient
+        self, sync_client: TestClient
     ):
         progress = 0.0
 
@@ -780,14 +780,14 @@ class TestUpdateArtifacts:
             artifact_id = create_progress_artifact(progress)
             assert isinstance(artifact_id, UUID)
 
-            response = test_client.get(f"/artifacts/{artifact_id}")
+            response = sync_client.get(f"/artifacts/{artifact_id}")
             my_artifact = schemas.core.Artifact.model_validate(response.json())
             assert my_artifact.data == progress
             assert my_artifact.type == "progress"
 
             new_progress = 50.0
             update_progress_artifact(artifact_id, new_progress)
-            response = test_client.get(f"/artifacts/{artifact_id}")
+            response = sync_client.get(f"/artifacts/{artifact_id}")
             assert response.status_code == 200
             my_artifact = schemas.core.Artifact.model_validate(response.json())
             assert my_artifact.data == new_progress

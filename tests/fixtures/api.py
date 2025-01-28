@@ -21,7 +21,7 @@ def app() -> FastAPI:
 
 @pytest.fixture
 def test_client(app: FastAPI) -> TestClient:
-    return TestClient(app, base_url="https://test/api")
+    return TestClient(app)
 
 
 @pytest.fixture
@@ -33,6 +33,11 @@ async def client(app) -> AsyncGenerator[AsyncClient, Any]:
         transport=ASGITransport(app=app), base_url="https://test/api"
     ) as async_client:
         yield async_client
+
+
+@pytest.fixture
+def sync_client(app: FastAPI) -> TestClient:
+    return TestClient(app, base_url="https://test/api")
 
 
 @pytest.fixture
