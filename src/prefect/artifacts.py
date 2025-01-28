@@ -14,23 +14,21 @@ from uuid import UUID
 from typing_extensions import Self
 
 from prefect._internal.compatibility.async_dispatch import async_dispatch
+from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.actions import ArtifactCreate as ArtifactRequest
 from prefect.client.schemas.actions import ArtifactUpdate
 from prefect.client.schemas.filters import ArtifactFilter, ArtifactFilterKey
+from prefect.client.schemas.objects import Artifact as ArtifactResponse
 from prefect.client.schemas.sorting import ArtifactSort
-from prefect.client.utilities import get_or_create_client
+from prefect.context import MissingContextError, get_run_context
 from prefect.logging.loggers import get_logger
-from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
+from prefect.utilities.asyncutils import asyncnullcontext
 from prefect.utilities.context import get_task_and_flow_run_ids
 
 if TYPE_CHECKING:
     import logging
 
 logger: "logging.Logger" = get_logger("artifacts")
-
-if TYPE_CHECKING:
-    from prefect.client.orchestration import PrefectClient
-    from prefect.client.schemas.objects import Artifact as ArtifactResponse
 
 
 class Artifact(ArtifactRequest):
@@ -59,8 +57,6 @@ class Artifact(ArtifactRequest):
         Returns:
             - The created artifact.
         """
-        from prefect.client.orchestration import get_client
-        from prefect.context import MissingContextError, get_run_context
 
         local_client_context = nullcontext(client) if client else get_client()
         async with local_client_context as client:
@@ -99,8 +95,6 @@ class Artifact(ArtifactRequest):
         Returns:
             - The created artifact.
         """
-        from prefect.client.orchestration import get_client
-        from prefect.context import MissingContextError, get_run_context
 
         # Create sync client since this is a sync method.
         sync_client = get_client(sync_client=True)
@@ -141,7 +135,6 @@ class Artifact(ArtifactRequest):
         Returns:
             The artifact (if found).
         """
-        from prefect.client.orchestration import get_client
 
         local_client_context = asyncnullcontext(client) if client else get_client()
         async with local_client_context as client:
@@ -170,7 +163,6 @@ class Artifact(ArtifactRequest):
         Returns:
             The artifact (if found).
         """
-        from prefect.client.orchestration import get_client
 
         # Create sync client since this is a sync method.
         sync_client = get_client(sync_client=True)
@@ -282,15 +274,12 @@ class MarkdownArtifact(Artifact):
     markdown: str
     type: Optional[str] = "markdown"
 
-    def _format(self) -> str:
-        return self.markdown
-
     async def aformat(self) -> str:
-        return self._format()
+        return self.markdown
 
     @async_dispatch(aformat)
     def format(self) -> str:
-        return self._format()
+        return self.markdown
 
 
 class TableArtifact(Artifact):
@@ -314,15 +303,12 @@ class TableArtifact(Artifact):
         else:
             return item
 
-    def _format(self) -> str:
-        return json.dumps(self._sanitize(self.table))
-
     async def aformat(self) -> str:
-        return self._format()
+        return json.dumps(self._sanitize(self.table))
 
     @async_dispatch(aformat)
     def format(self) -> str:
-        return self._format()
+        return json.dumps(self._sanitize(self.table))
 
 
 class ProgressArtifact(Artifact):
@@ -361,11 +347,8 @@ class ImageArtifact(Artifact):
     image_url: str
     type: Optional[str] = "image"
 
-    def _format(self) -> str:
-        return self.image_url
-
     async def aformat(self) -> str:
-        return self._format()
+        return self.image_url
 
     @async_dispatch(aformat)
     def format(self) -> str:
@@ -379,8 +362,7 @@ class ImageArtifact(Artifact):
         return self.image_url
 
 
-@sync_compatible
-async def create_link_artifact(
+async def acreate_link_artifact(
     link: str,
     link_text: Optional[str] = None,
     key: Optional[str] = None,
@@ -413,8 +395,41 @@ async def create_link_artifact(
     return artifact.id
 
 
-@sync_compatible
-async def create_markdown_artifact(
+@async_dispatch(acreate_link_artifact)
+def create_link_artifact(
+    link: str,
+    link_text: Optional[str] = None,
+    key: Optional[str] = None,
+    description: Optional[str] = None,
+    client: Optional["PrefectClient"] = None,
+) -> UUID:
+    """
+    Create a link artifact.
+
+    Arguments:
+        link: The link to create.
+        link_text: The link text.
+        key: A user-provided string identifier.
+          Required for the artifact to show in the Artifacts page in the UI.
+          The key must only contain lowercase letters, numbers, and dashes.
+        description: A user-specified description of the artifact.
+
+
+    Returns:
+        The table artifact ID.
+    """
+    new_artifact = LinkArtifact(
+        key=key,
+        description=description,
+        link=link,
+        link_text=link_text,
+    )
+    artifact = cast(ArtifactResponse, new_artifact.create(_sync=True))  # pyright: ignore[reportCallIssue] _sync is valid because .create is wrapped in async_dispatch
+
+    return artifact.id
+
+
+async def acreate_markdown_artifact(
     markdown: str,
     key: Optional[str] = None,
     description: Optional[str] = None,
@@ -442,8 +457,66 @@ async def create_markdown_artifact(
     return artifact.id
 
 
-@sync_compatible
-async def create_table_artifact(
+@async_dispatch(acreate_markdown_artifact)
+def create_markdown_artifact(
+    markdown: str,
+    key: Optional[str] = None,
+    description: Optional[str] = None,
+) -> UUID:
+    """
+    Create a markdown artifact.
+
+    Arguments:
+        markdown: The markdown to create.
+        key: A user-provided string identifier.
+          Required for the artifact to show in the Artifacts page in the UI.
+          The key must only contain lowercase letters, numbers, and dashes.
+        description: A user-specified description of the artifact.
+
+    Returns:
+        The table artifact ID.
+    """
+    new_artifact = MarkdownArtifact(
+        key=key,
+        description=description,
+        markdown=markdown,
+    )
+    artifact = cast(ArtifactResponse, new_artifact.create(_sync=True))  # pyright: ignore[reportCallIssue] _sync is valid because .create is wrapped in async_dispatch
+
+    return artifact.id
+
+
+async def acreate_table_artifact(
+    table: Union[dict[str, list[Any]], list[dict[str, Any]], list[list[Any]]],
+    key: Optional[str] = None,
+    description: Optional[str] = None,
+) -> UUID:
+    """
+    Create a table artifact asynchronously.
+
+    Arguments:
+        table: The table to create.
+        key: A user-provided string identifier.
+          Required for the artifact to show in the Artifacts page in the UI.
+          The key must only contain lowercase letters, numbers, and dashes.
+        description: A user-specified description of the artifact.
+
+    Returns:
+        The table artifact ID.
+    """
+
+    new_artifact = TableArtifact(
+        key=key,
+        description=description,
+        table=table,
+    )
+    artifact = await new_artifact.acreate()
+
+    return artifact.id
+
+
+@async_dispatch(acreate_table_artifact)
+def create_table_artifact(
     table: Union[dict[str, list[Any]], list[dict[str, Any]], list[list[Any]]],
     key: Optional[str] = None,
     description: Optional[str] = None,
@@ -467,13 +540,42 @@ async def create_table_artifact(
         description=description,
         table=table,
     )
+    artifact = cast(ArtifactResponse, new_artifact.create(_sync=True))  # pyright: ignore[reportCallIssue] _sync is valid because .create is wrapped in async_dispatch
+
+    return artifact.id
+
+
+async def acreate_progress_artifact(
+    progress: float,
+    key: Optional[str] = None,
+    description: Optional[str] = None,
+) -> UUID:
+    """
+    Create a progress artifact asynchronously.
+
+    Arguments:
+        progress: The percentage of progress represented by a float between 0 and 100.
+        key: A user-provided string identifier.
+          Required for the artifact to show in the Artifacts page in the UI.
+          The key must only contain lowercase letters, numbers, and dashes.
+        description: A user-specified description of the artifact.
+
+    Returns:
+        The progress artifact ID.
+    """
+
+    new_artifact = ProgressArtifact(
+        key=key,
+        description=description,
+        progress=progress,
+    )
     artifact = await new_artifact.acreate()
 
     return artifact.id
 
 
-@sync_compatible
-async def create_progress_artifact(
+@async_dispatch(acreate_progress_artifact)
+def create_progress_artifact(
     progress: float,
     key: Optional[str] = None,
     description: Optional[str] = None,
@@ -497,13 +599,54 @@ async def create_progress_artifact(
         description=description,
         progress=progress,
     )
-    artifact = await new_artifact.acreate()
+    artifact = cast(ArtifactResponse, new_artifact.create(_sync=True))  # pyright: ignore[reportCallIssue] _sync is valid because .create is wrapped in async_dispatch
 
     return artifact.id
 
 
-@sync_compatible
-async def update_progress_artifact(
+async def aupdate_progress_artifact(
+    artifact_id: UUID,
+    progress: float,
+    description: Optional[str] = None,
+    client: Optional["PrefectClient"] = None,
+) -> UUID:
+    """
+    Update a progress artifact asynchronously.
+
+    Arguments:
+        artifact_id: The ID of the artifact to update.
+        progress: The percentage of progress represented by a float between 0 and 100.
+        description: A user-specified description of the artifact.
+
+    Returns:
+        The progress artifact ID.
+    """
+
+    local_client_context = nullcontext(client) if client else get_client()
+    async with local_client_context as client:
+        artifact = ProgressArtifact(
+            description=description,
+            progress=progress,
+        )
+        update = (
+            ArtifactUpdate(
+                description=artifact.description,
+                data=await artifact.aformat(),
+            )
+            if description
+            else ArtifactUpdate(data=await artifact.aformat())
+        )
+
+        await client.update_artifact(
+            artifact_id=artifact_id,
+            artifact=update,
+        )
+
+        return artifact_id
+
+
+@async_dispatch(aupdate_progress_artifact)
+def update_progress_artifact(
     artifact_id: UUID,
     progress: float,
     description: Optional[str] = None,
@@ -521,7 +664,7 @@ async def update_progress_artifact(
         The progress artifact ID.
     """
 
-    client, _ = get_or_create_client(client)
+    sync_client = get_client(sync_client=True)
 
     artifact = ProgressArtifact(
         description=description,
@@ -530,13 +673,13 @@ async def update_progress_artifact(
     update = (
         ArtifactUpdate(
             description=artifact.description,
-            data=await artifact.aformat(),
+            data=cast(float, artifact.format(_sync=True)),  # pyright: ignore[reportCallIssue] _sync is valid because .format is wrapped in async_dispatch
         )
         if description
-        else ArtifactUpdate(data=await artifact.aformat())
+        else ArtifactUpdate(data=cast(float, artifact.format(_sync=True)))  # pyright: ignore[reportCallIssue] _sync is valid because .format is wrapped in async_dispatch
     )
 
-    await client.update_artifact(
+    sync_client.update_artifact(
         artifact_id=artifact_id,
         artifact=update,
     )
@@ -544,8 +687,37 @@ async def update_progress_artifact(
     return artifact_id
 
 
-@sync_compatible
-async def create_image_artifact(
+async def acreate_image_artifact(
+    image_url: str,
+    key: Optional[str] = None,
+    description: Optional[str] = None,
+) -> UUID:
+    """
+    Create an image artifact asynchronously.
+
+    Arguments:
+        image_url: The URL of the image to display.
+        key: A user-provided string identifier.
+          Required for the artifact to show in the Artifacts page in the UI.
+          The key must only contain lowercase letters, numbers, and dashes.
+        description: A user-specified description of the artifact.
+
+    Returns:
+        The image artifact ID.
+    """
+
+    new_artifact = ImageArtifact(
+        key=key,
+        description=description,
+        image_url=image_url,
+    )
+    artifact = await new_artifact.acreate()
+
+    return artifact.id
+
+
+@async_dispatch(acreate_image_artifact)
+def create_image_artifact(
     image_url: str,
     key: Optional[str] = None,
     description: Optional[str] = None,
@@ -569,6 +741,6 @@ async def create_image_artifact(
         description=description,
         image_url=image_url,
     )
-    artifact = await new_artifact.acreate()
+    artifact = cast(ArtifactResponse, new_artifact.create(_sync=True))  # pyright: ignore[reportCallIssue] _sync is valid because .create is wrapped in async_dispatch
 
     return artifact.id
