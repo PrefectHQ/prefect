@@ -56,7 +56,6 @@ from typing import (
     Dict,
     Iterable,
     List,
-    Literal,
     Optional,
     TypedDict,
     Union,
@@ -65,7 +64,6 @@ from uuid import UUID, uuid4
 
 import anyio
 import anyio.abc
-import anyio.to_thread
 import pendulum
 from cachetools import LRUCache
 from typing_extensions import Self
@@ -95,7 +93,6 @@ from prefect.events.schemas.events import RelatedResource
 from prefect.events.utilities import emit_event
 from prefect.exceptions import Abort, ObjectNotFound
 from prefect.flows import Flow, FlowStateHook, load_flow_from_flow_run
-from prefect.futures import PrefectFuture
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
 from prefect.runner.storage import RunnerStorage
 from prefect.settings import (
@@ -115,7 +112,10 @@ from prefect.utilities.asyncutils import (
     sync_compatible,
 )
 from prefect.utilities.engine import propose_state
-from prefect.utilities.processutils import get_sys_executable, run_process
+from prefect.utilities.processutils import (
+    get_sys_executable,
+    run_process,
+)
 from prefect.utilities.services import (
     critical_service_loop,
     start_client_metrics_server,
@@ -536,87 +536,6 @@ class Runner:
             self._logger.exception(
                 "Exception encountered while shutting down", exc_info=True
             )
-
-    async def run_flow(
-        self,
-        flow: Flow[Any, Any],
-        flow_run: FlowRun,
-        parameters: dict[str, Any] | None = None,
-        wait_for: Iterable[PrefectFuture[Any]] | None = None,
-        return_type: Literal["state", "result"] = "result",
-        context: dict[str, Any] | None = None,
-    ) -> int | None:
-        """
-        Runs a flow in a subprocess and returns the exit code.
-
-        The runner will monitor for cancellation requests and send heartbeats to the
-        for the flow run (if enabled).
-
-        Args:
-            flow: The flow to run.
-            flow_run: The flow run to run.
-            parameters: The parameters to pass to the flow.
-            wait_for: A list of futures to wait for before starting the flow run.
-            return_type: Whether to return the state or the result of the flow run.
-            context: A serialized context to hydrate before running the flow.
-
-        Returns:
-            The exit code of the flow run process.
-        """
-        from prefect.flow_engine import run_flow_in_subprocess
-
-        self.pause_on_shutdown = False
-        runner_context = self if not self.started else asyncnullcontext()
-
-        async with runner_context:
-            if not self._acquire_limit_slot(flow_run.id):
-                return
-
-            async with anyio.create_task_group() as tg:
-                with anyio.CancelScope():
-                    process = run_flow_in_subprocess(
-                        flow=flow,
-                        flow_run=flow_run,
-                        parameters=parameters,
-                        wait_for=wait_for,
-                        return_type=return_type,
-                        context=context,
-                    )
-                    if process.pid is None:
-                        raise RuntimeError("Failed to start flow run process")
-
-                    self._flow_run_process_map[flow_run.id] = ProcessMapEntry(
-                        pid=process.pid, flow_run=flow_run
-                    )
-
-                    tg.start_soon(
-                        partial(
-                            critical_service_loop,
-                            workload=self._check_for_cancelled_flow_runs,
-                            interval=self.query_seconds,
-                            jitter_range=0.3,
-                        )
-                    )
-                    if self.heartbeat_seconds is not None:
-                        tg.start_soon(
-                            partial(
-                                critical_service_loop,
-                                workload=self._emit_flow_run_heartbeats,
-                                interval=self.heartbeat_seconds,
-                                jitter_range=0.3,
-                            )
-                        )
-
-                    # Wait for process to join in a thread to avoid blocking the event loop
-                    await anyio.to_thread.run_sync(process.join)
-
-                    tg.cancel_scope.cancel()
-
-                    self._flow_run_process_map.pop(flow_run.id)
-
-                    self._release_limit_slot(flow_run.id)
-
-                    return process.exitcode
 
     async def execute_flow_run(
         self, flow_run_id: UUID, entrypoint: Optional[str] = None

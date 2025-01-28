@@ -2514,3 +2514,47 @@ class TestDockerImage:
     def test_no_default_registry_url_by_default(self):
         image = DockerImage(name="my-org/test-image")
         assert image.name == "my-org/test-image"
+
+
+class TestRunFlow:
+    async def test_runner_can_execute_a_single_flow_run(
+        self, prefect_client: PrefectClient, asserting_events_worker: EventsWorker
+    ):
+        runner = Runner(heartbeat_seconds=30)
+
+        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+        await runner.execute_flow_run(flow_run.id)
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+        assert flow_run.state
+        assert flow_run.state.is_completed()
+
+        await asserting_events_worker.drain()
+
+        heartbeat_events = list(
+            filter(
+                lambda e: e.event == "prefect.flow-run.heartbeat",
+                asserting_events_worker._client.events,
+            )
+        )
+        assert len(heartbeat_events) == 1
+        assert heartbeat_events[0].resource.id == f"prefect.flow-run.{flow_run.id}"
+
+        related = [dict(r.items()) for r in heartbeat_events[0].related]
+
+        assert related == [
+            {
+                "prefect.resource.id": f"prefect.deployment.{deployment_id}",
+                "prefect.resource.role": "deployment",
+                "prefect.resource.name": "test_runner",
+            },
+            {
+                "prefect.resource.id": f"prefect.flow.{flow_run.flow_id}",
+                "prefect.resource.role": "flow",
+                "prefect.resource.name": dummy_flow_1.name,
+            },
+        ]
