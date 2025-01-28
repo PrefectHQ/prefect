@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 logger: "logging.Logger" = get_logger(__name__)
 
 # Simple global counters by topic with thread-safe access
-_metrics_lock = asyncio.Lock()
+_metrics_lock: asyncio.Lock | None = None
 METRICS: dict[str, dict[str, int]] = defaultdict(
     lambda: {
         "published": 0,
@@ -42,6 +42,9 @@ METRICS: dict[str, dict[str, int]] = defaultdict(
 
 
 async def update_metric(topic: str, key: str, amount: int = 1) -> None:
+    global _metrics_lock
+    if _metrics_lock is None:
+        _metrics_lock = asyncio.Lock()
     async with _metrics_lock:
         METRICS[topic][key] += amount
 
