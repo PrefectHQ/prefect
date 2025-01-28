@@ -58,7 +58,7 @@ class Artifact(ArtifactRequest):
             - The created artifact.
         """
 
-        local_client_context = nullcontext(client) if client else get_client()
+        local_client_context = asyncnullcontext(client) if client else get_client()
         async with local_client_context as client:
             task_run_id, flow_run_id = get_task_and_flow_run_ids()
 
@@ -148,8 +148,8 @@ class Artifact(ArtifactRequest):
             )
             return None if not artifacts else artifacts[0]
 
-    @async_dispatch(aget)
     @classmethod
+    @async_dispatch(aget)
     def get(
         cls, key: str | None = None, client: "PrefectClient | None" = None
     ) -> "ArtifactResponse | None":
@@ -207,8 +207,8 @@ class Artifact(ArtifactRequest):
         created_artifact = await new_artifact.acreate(client)
         return created_artifact, True
 
-    @async_dispatch(aget_or_create)
     @classmethod
+    @async_dispatch(aget_or_create)
     def get_or_create(
         cls,
         key: Optional[str] = None,

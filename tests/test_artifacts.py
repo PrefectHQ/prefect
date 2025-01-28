@@ -1,6 +1,6 @@
 import asyncio
 import json
-from typing import List
+from typing import List, cast
 from uuid import UUID
 
 import httpx
@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 
 from prefect import flow, task
 from prefect.artifacts import (
+    Artifact,
     acreate_link_artifact,
     acreate_progress_artifact,
     acreate_table_artifact,
@@ -20,6 +21,8 @@ from prefect.artifacts import (
     create_table_artifact,
     update_progress_artifact,
 )
+from prefect.client.orchestration import PrefectClient
+from prefect.client.schemas.objects import Artifact as ArtifactResponse
 from prefect.context import FlowRunContext, TaskRunContext, get_run_context
 from prefect.server import schemas
 from prefect.server.schemas.actions import ArtifactCreate
@@ -734,9 +737,12 @@ class TestCreateArtifacts:
         assert my_image_artifact.type == "image"
         assert my_image_artifact.description == "my-artifact-description"
 
-    def test_creating_artifact_outside_of_flow_run_context_warns(self):
+    async def test_creating_artifact_outside_of_flow_run_context_warns(self):
         with pytest.warns(FutureWarning):
-            create_link_artifact("https://www.google.com", "Google")
+            create_link_artifact("https://www.google.com", "Google", _sync=True)  # pyright: ignore[reportCallIssue]
+
+        with pytest.warns(FutureWarning):
+            await acreate_link_artifact("https://www.google.com", "Google")
 
 
 class TestUpdateArtifacts:
@@ -939,3 +945,151 @@ class TestUpdateArtifacts:
         assert my_progress_artifact.data == 50.0
         assert my_progress_artifact.type == "progress"
         assert my_progress_artifact.description == "my-artifact-description"
+
+
+class TestArtifact:
+    async def test_artifact_format(self):
+        """Test creating an artifact and formatting its data"""
+        data = {"key": "value"}
+        artifact = Artifact(
+            type="test", key="test-artifact", description="Test artifact", data=data
+        )
+
+        formatted_data = await artifact.aformat()
+        assert formatted_data == '{"key": "value"}'
+
+        sync_formatted = cast(str, artifact.format(_sync=True))  # pyright: ignore[reportCallIssue]
+        assert sync_formatted == '{"key": "value"}'
+
+    async def test_artifact_create_methods(self, prefect_client: PrefectClient):
+        """Test both sync and async create methods"""
+        data = {"test": "data"}
+        artifact = Artifact(
+            type="test", key="test-artifact", description="Test artifact", data=data
+        )
+
+        # Test async create
+        @flow
+        async def my_async_flow():
+            return await artifact.acreate(prefect_client)
+
+        response = await my_async_flow()
+        assert response.key == "test-artifact"
+        assert response.type == "test"
+        assert response.description == "Test artifact"
+
+        # Test sync create
+        @flow
+        def my_sync_flow():
+            return artifact.create()
+
+        response = my_sync_flow()
+        assert isinstance(response, ArtifactResponse)
+        assert response.key == "test-artifact"
+        assert response.type == "test"
+        assert response.description == "Test artifact"
+
+    async def test_artifact_get_async(self, prefect_client: PrefectClient):
+        """Test both sync and async get methods"""
+        # Create an artifact first
+        artifact = Artifact(
+            type="test", key="get-test", description="Test get", data={"test": "get"}
+        )
+
+        @flow
+        async def my_flow():
+            return await artifact.acreate(prefect_client)
+
+        await my_flow()
+
+        # Test async get
+        retrieved = await Artifact.aget("get-test", prefect_client)
+        assert retrieved is not None
+        assert retrieved.key == "get-test"
+        assert retrieved.type == "test"
+
+    def test_artifact_get_sync(self, prefect_client: PrefectClient):
+        # Create an artifact first
+        artifact = Artifact(
+            type="test", key="get-test", description="Test get", data={"test": "get"}
+        )
+
+        @flow
+        def my_flow():
+            artifact.create()
+
+        my_flow()
+
+        # Test sync get
+        retrieved = Artifact.get("get-test")
+        assert isinstance(retrieved, ArtifactResponse)
+        assert retrieved.key == "get-test"
+        assert retrieved.type == "test"
+
+    def test_artifact_get_or_create_sync(self):
+        # Test sync get_or_create
+
+        @flow
+        def my_flow():
+            return Artifact.get_or_create(
+                key="get-or-create-test-sync",
+                type="test",
+                description="Test sync get or create",
+                data={"test": "sync"},
+            )
+
+        get_or_create_result = my_flow()
+        assert isinstance(get_or_create_result, tuple)
+        artifact, created = get_or_create_result
+        assert created is True
+        assert artifact.key == "get-or-create-test-sync"
+
+        get_or_create_result = my_flow()
+        assert isinstance(get_or_create_result, tuple)
+        artifact, created = get_or_create_result
+        assert created is False
+        assert artifact.key == "get-or-create-test-sync"
+
+    async def test_artifact_get_or_create_async(self):
+        @flow
+        async def my_flow():
+            return await Artifact.aget_or_create(
+                key="get-or-create-test",
+                type="test",
+                description="Test get or create",
+                data={"test": "get-or-create"},
+            )
+
+        artifact, created = await my_flow()
+        assert created is True
+        assert artifact.key == "get-or-create-test"
+
+        # Test getting existing - should not create new
+        artifact, created = await my_flow()
+        assert created is False
+        assert artifact.key == "get-or-create-test"
+
+    async def test_artifact_creation_outside_run_context_warns(self):
+        """Test that creating artifacts outside run context raises warning"""
+        artifact = Artifact(
+            type="test",
+            key="warning-test",
+            description="Test warning",
+            data={"test": "warning"},
+        )
+
+        with pytest.warns(FutureWarning):
+            await artifact.acreate()
+
+        with pytest.warns(FutureWarning):
+            artifact.create(_sync=True)  # pyright: ignore[reportCallIssue]
+
+    def test_get_nonexistent_artifact_sync(self):
+        """Test getting an artifact that doesn't exist returns None"""
+        retrieved = Artifact.get("nonexistent-key")
+        assert retrieved is None
+
+    async def test_get_nonexistent_artifact_async(self, prefect_client: PrefectClient):
+        """Test getting an artifact that doesn't exist returns None"""
+        retrieved = await Artifact.aget("nonexistent-key", prefect_client)
+        assert retrieved is None
