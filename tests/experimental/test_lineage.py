@@ -232,7 +232,7 @@ class TestEmitExternalResourceLineage:
         # Should emit one event per context resource (flow and flow-run)
         assert mock_emit_event.call_count == 2
         for call in mock_emit_event.call_args_list:
-            assert call.kwargs["event"] == "prefect.resource.consumed"
+            assert call.kwargs["event"] == "prefect.lineage.upstream-interaction"
             assert "prefect.resource.role" in call.kwargs["resource"]
             assert call.kwargs["related"] == [
                 {
@@ -262,7 +262,7 @@ class TestEmitExternalResourceLineage:
 
         mock_emit_event.assert_called_once()
         call_args = mock_emit_event.call_args.kwargs
-        assert call_args["event"] == "prefect.resource.produced"
+        assert call_args["event"] == "prefect.lineage.downstream-interaction"
         assert call_args["resource"] == {
             "prefect.resource.id": "downstream1",
             "prefect.resource.role": "data-destination",
@@ -306,7 +306,7 @@ class TestEmitExternalResourceLineage:
         # Check context resources consuming upstream (first two events)
         context_calls = mock_emit_event.call_args_list[:2]
         for call in context_calls:
-            assert call.kwargs["event"] == "prefect.resource.consumed"
+            assert call.kwargs["event"] == "prefect.lineage.upstream-interaction"
             assert "prefect.resource.role" in call.kwargs["resource"]
             assert call.kwargs["related"] == [
                 {
@@ -318,7 +318,7 @@ class TestEmitExternalResourceLineage:
 
         # Check downstream produced by context (third event)
         produced_call = mock_emit_event.call_args_list[2]
-        assert produced_call.kwargs["event"] == "prefect.resource.produced"
+        assert produced_call.kwargs["event"] == "prefect.lineage.downstream-interaction"
         assert produced_call.kwargs["resource"] == {
             "prefect.resource.id": "downstream1",
             "prefect.resource.role": "data-destination",
@@ -336,7 +336,7 @@ class TestEmitExternalResourceLineage:
 
         # Check direct lineage event (fourth event)
         direct_call = mock_emit_event.call_args_list[3]
-        assert direct_call.kwargs["event"] == "prefect.resource.direct-lineage"
+        assert direct_call.kwargs["event"] == "prefect.lineage.event"
         assert direct_call.kwargs["resource"] == {
             "prefect.resource.id": "downstream1",
             "prefect.resource.role": "data-destination",
@@ -373,6 +373,67 @@ class TestEmitExternalResourceLineage:
 
         await test_flow()
         mock_emit_event.assert_not_called()
+
+    async def test_emit_external_resource_lineage_custom_event_name(
+        self, enable_lineage_events, mock_emit_event
+    ):
+        upstream_resources = [
+            {
+                "prefect.resource.id": "upstream1",
+                "prefect.resource.role": "data-source",
+            }
+        ]
+        downstream_resources = [
+            {
+                "prefect.resource.id": "downstream1",
+                "prefect.resource.role": "data-destination",
+            }
+        ]
+
+        @flow
+        async def test_flow():
+            # Test with custom event name
+            await emit_external_resource_lineage(
+                event_name="custom.lineage.event",
+                upstream_resources=upstream_resources,
+                downstream_resources=downstream_resources,
+            )
+
+            # Test with default event name
+            await emit_external_resource_lineage(
+                upstream_resources=upstream_resources,
+                downstream_resources=downstream_resources,
+            )
+
+        await test_flow()
+
+        # We expect 8 total events (4 for each call):
+        # - 2 upstream interaction events
+        # - 1 downstream interaction event
+        # - 1 direct lineage event
+        assert mock_emit_event.call_count == 8
+
+        # Check the direct lineage events (4th and 8th calls)
+        custom_direct_call = mock_emit_event.call_args_list[3]
+        assert custom_direct_call.kwargs["event"] == "custom.lineage.event"
+
+        default_direct_call = mock_emit_event.call_args_list[7]
+        assert default_direct_call.kwargs["event"] == "prefect.lineage.event"
+
+        # Verify the rest of the event structure remains correct
+        for direct_call in [custom_direct_call, default_direct_call]:
+            assert direct_call.kwargs["resource"] == {
+                "prefect.resource.id": "downstream1",
+                "prefect.resource.role": "data-destination",
+                "prefect.resource.lineage-group": "global",
+            }
+            assert direct_call.kwargs["related"] == [
+                {
+                    "prefect.resource.id": "upstream1",
+                    "prefect.resource.role": "data-source",
+                    "prefect.resource.lineage-group": "global",
+                }
+            ]
 
 
 class TestEmitResultEvents:
