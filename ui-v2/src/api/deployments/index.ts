@@ -115,6 +115,7 @@ export const buildFilterDeploymentsQuery = (
 		offset: 0,
 		sort: "CREATED_DESC",
 	},
+	{ enabled = true }: { enabled?: boolean } = {},
 ) =>
 	queryOptions({
 		queryKey: queryKeyFactory["list-filter"](filter),
@@ -125,6 +126,7 @@ export const buildFilterDeploymentsQuery = (
 			return res.data ?? [];
 		},
 		placeholderData: keepPreviousData,
+		enabled,
 	});
 
 /**

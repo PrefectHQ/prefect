@@ -1,6 +1,17 @@
-import { Automation } from "@/api/automations";
+import type { Automation } from "@/api/automations";
+import type { BlockDocument } from "@/api/block-documents";
+import type { Deployment } from "@/api/deployments";
+import type { WorkPool } from "@/api/work-pools";
+import type { WorkQueue } from "@/api/work-queues";
+import {
+	createFakeAutomation,
+	createFakeBlockDocument,
+	createFakeDeployment,
+	createFakeWorkPool,
+	createFakeWorkQueue,
+} from "@/mocks";
 import { routerDecorator } from "@/storybook/utils";
-import type { Meta, StoryObj } from "@storybook/react";
+import { Meta, StoryObj } from "@storybook/react";
 import { ActionDetails } from "./action-details";
 
 const ACTIONS: Array<Automation["actions"][number]> = [
@@ -86,6 +97,26 @@ const ACTIONS: Array<Automation["actions"][number]> = [
 	},
 ];
 
+const MOCK_AUTOMATIONS_MAP = new Map<string, Automation>([
+	["abc", createFakeAutomation({ id: "abc" })],
+]);
+
+const MOCK_BLOCK_DOCUMENTS_MAP = new Map<string, BlockDocument>([
+	["abc", createFakeBlockDocument({ id: "abc" })],
+]);
+
+const MOCK_DEPLOYMENTS_MAP = new Map<string, Deployment>([
+	["abc", createFakeDeployment({ id: "abc" })],
+]);
+
+const MOCK_WORK_POOLS_MAP = new Map<string, WorkPool>([
+	["abc", createFakeWorkPool({ id: "abc" })],
+]);
+
+const MOCK_WORK_QUEUES_MAP = new Map<string, WorkQueue>([
+	["abc", createFakeWorkQueue({ id: "abc" })],
+]);
+
 const meta = {
 	title: "Components/Automations/ActionDetails",
 	component: ActionDetailsStory,
@@ -103,7 +134,15 @@ function ActionDetailsStory() {
 		<ul className="flex flex-col gap-4">
 			{ACTIONS.map((action, i) => (
 				<li key={i}>
-					<ActionDetails key={i} action={action} />
+					<ActionDetails
+						key={i}
+						action={action}
+						automationsMap={MOCK_AUTOMATIONS_MAP}
+						blockDocumentsMap={MOCK_BLOCK_DOCUMENTS_MAP}
+						deploymentsMap={MOCK_DEPLOYMENTS_MAP}
+						workPoolsMap={MOCK_WORK_POOLS_MAP}
+						workQueuesMap={MOCK_WORK_QUEUES_MAP}
+					/>
 				</li>
 			))}
 		</ul>

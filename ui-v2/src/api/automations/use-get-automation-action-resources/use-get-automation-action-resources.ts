@@ -1,10 +1,9 @@
 import { Automation, buildGetAutomationQuery } from "@/api/automations";
+import { buildFilterBlockDocumentsQuery } from "@/api/block-documents";
 import { buildFilterDeploymentsQuery } from "@/api/deployments";
 import { buildFilterWorkPoolsQuery } from "@/api/work-pools";
 import { buildFilterWorkQueuesQuery } from "@/api/work-queues";
 import { useQueries } from "@tanstack/react-query";
-
-// TODO: Add to this hooks to support blocks and other missing sources
 
 /**
  *
@@ -13,18 +12,19 @@ import { useQueries } from "@tanstack/react-query";
  *
  * @example
  * ```ts
- * const { pending, data } = useGetAutomationActionResources(MY_AUTOMATION);
+ * const { loading, data } = useGetAutomationActionResources(MY_AUTOMATION);
  *
  *
- * if (pending) {
+ * if (loading) {
  *   return "Loading..."
  * }
  *
- * const { automationsMap, deploymentsMap, workPoolsMap, workQueuesMap } = data
+ * const { automationsMap, blockDocumentsMap, deploymentsMap, workPoolsMap, workQueuesMap } = data
  * return (
  * 		<ActionDetails
  *			automation={MY_AUTOMATION}
  *			automations={automationsMap}
+ *			blockDocumentsMap={blockDocumentsMap}
  *			deployments={deploymentsMap}
  *			workPools={workPoolsMap}
  *			workQueues={workQueuesMap}
@@ -32,56 +32,85 @@ import { useQueries } from "@tanstack/react-query";
  * ```
  */
 export const useGetAutomationActionResources = (automation: Automation) => {
-	const { automationIds, deploymentIds, workPoolIds, workQueueIds } =
-		getResourceSets(automation.actions);
+	const {
+		automationIds,
+		blockDocumentIds,
+		deploymentIds,
+		workPoolIds,
+		workQueueIds,
+	} = getResourceSets(automation.actions);
 
 	// nb: Automations /filter doesn't support `id`. Need to do it per GET call
-	const { data: automationsData, pending: automationsPending } =
+	const { data: automationsData, loading: automationsLoading } =
 		useListAutomationsQueries(Array.from(automationIds));
 
 	// Need to do deployments filter API
 	const remainingQueries = useQueries({
 		queries: [
-			buildFilterDeploymentsQuery({
-				offset: 0,
-				sort: "CREATED_DESC",
-				deployments: {
-					id: { any_: Array.from(deploymentIds) },
-					operator: "and_",
+			buildFilterBlockDocumentsQuery(
+				{
+					offset: 0,
+					sort: "BLOCK_TYPE_AND_NAME_ASC",
+					include_secrets: false,
+					block_documents: {
+						operator: "and_",
+						id: { any_: Array.from(blockDocumentIds) },
+						is_anonymous: {},
+					},
 				},
-			}),
-			buildFilterWorkPoolsQuery({
-				offset: 0,
-				work_pools: {
-					id: { any_: Array.from(workPoolIds) },
-					operator: "and_",
+				{ enabled: blockDocumentIds.size > 0 },
+			),
+			buildFilterDeploymentsQuery(
+				{
+					offset: 0,
+					sort: "CREATED_DESC",
+					deployments: {
+						id: { any_: Array.from(deploymentIds) },
+						operator: "and_",
+					},
 				},
-			}),
-			buildFilterWorkQueuesQuery({
-				offset: 0,
-				work_queues: {
-					id: { any_: Array.from(workQueueIds) },
-					operator: "and_",
+				{ enabled: deploymentIds.size > 0 },
+			),
+			buildFilterWorkPoolsQuery(
+				{
+					offset: 0,
+					work_pools: {
+						id: { any_: Array.from(workPoolIds) },
+						operator: "and_",
+					},
 				},
-			}),
+				{ enabled: workPoolIds.size > 0 },
+			),
+			buildFilterWorkQueuesQuery(
+				{
+					offset: 0,
+					work_queues: {
+						id: { any_: Array.from(workQueueIds) },
+						operator: "and_",
+					},
+				},
+				{ enabled: workQueueIds.size > 0 },
+			),
 		],
 		combine: (results) => {
-			const [deployments, workPools, workQueues] = results;
+			const [blockDocuments, deployments, workPools, workQueues] = results;
 			return {
 				data: {
+					blockDocuments: blockDocuments.data,
 					deployments: deployments.data,
 					workPools: workPools.data,
 					workQueues: workQueues.data,
 				},
-				pending: results.some((result) => result.isPending),
+				loading: results.some((result) => result.isLoading),
 			};
 		},
 	});
 
 	return {
-		pending: automationsPending || remainingQueries.pending,
+		loading: automationsLoading || remainingQueries.loading,
 		data: {
 			automationsMap: automationsData,
+			blockDocumentsMap: listToMap(remainingQueries.data.blockDocuments),
 			deploymentsMap: listToMap(remainingQueries.data.deployments),
 			workPoolsMap: listToMap(remainingQueries.data.workPools),
 			workQueuesMap: listToMap(remainingQueries.data.workQueues),
@@ -103,13 +132,14 @@ const useListAutomationsQueries = (automationIds: Array<string>) =>
 			});
 			return {
 				data: retMap,
-				pending: results.some((result) => result.isPending),
+				loading: results.some((result) => result.isLoading),
 			};
 		},
 	});
 
 export const getResourceSets = (actions: Automation["actions"]) => {
 	const automationIds = new Set<string>();
+	const blockDocumentIds = new Set<string>();
 	const deploymentIds = new Set<string>();
 	const workPoolIds = new Set<string>();
 	const workQueueIds = new Set<string>();
@@ -141,11 +171,13 @@ export const getResourceSets = (actions: Automation["actions"]) => {
 					workPoolIds.add(action.work_pool_id);
 				}
 				return;
+			case "send-notification":
+			case "call-webhook":
+				blockDocumentIds.add(action.block_document_id);
+				return;
 			case "do-nothing":
 			case "cancel-flow-run":
 			case "change-flow-run-state":
-			case "send-notification":
-			case "call-webhook":
 			case "suspend-flow-run":
 			case "resume-flow-run":
 			default:
@@ -155,6 +187,7 @@ export const getResourceSets = (actions: Automation["actions"]) => {
 
 	return {
 		automationIds,
+		blockDocumentIds,
 		deploymentIds,
 		workPoolIds,
 		workQueueIds,

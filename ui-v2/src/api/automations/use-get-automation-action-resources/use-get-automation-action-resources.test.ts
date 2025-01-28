@@ -1,13 +1,15 @@
 import {
 	createFakeAutomation,
+	createFakeBlockDocument,
 	createFakeDeployment,
 	createFakeWorkPool,
 	createFakeWorkQueue,
 } from "@/mocks";
 
-import { Deployment } from "@/api/deployments";
-import { WorkPool } from "@/api/work-pools";
-import { WorkQueue } from "@/api/work-queues";
+import type { BlockDocument } from "@/api/block-documents";
+import type { Deployment } from "@/api/deployments";
+import type { WorkPool } from "@/api/work-pools";
+import type { WorkQueue } from "@/api/work-queues";
 import { QueryClient } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
@@ -24,6 +26,12 @@ describe("getResourceSet", () => {
 		// SETUP
 		const MOCK_AUTOMATION = createFakeAutomation({
 			actions: [
+				{
+					type: "send-notification",
+					block_document_id: "block-document-id-0",
+					body: "my body",
+					subject: "my subject",
+				},
 				{
 					type: "pause-automation",
 					source: "selected",
@@ -77,6 +85,7 @@ describe("getResourceSet", () => {
 		// ASSERT
 		const EXPECTED = {
 			automationIds: new Set(["automation-id-0", "automation-id-1"]),
+			blockDocumentIds: new Set(["block-document-id-0"]),
 			deploymentIds: new Set([
 				"deployment-id-0",
 				"deployment-id-1",
@@ -93,16 +102,21 @@ describe("getResourceSet", () => {
 describe("useGetAutomationActionResources", () => {
 	const mockSourcesAPI = ({
 		automations,
+		blockDocuments,
 		deployments,
 		workPools,
 		workQueues,
 	}: {
 		automations: Array<Automation>;
+		blockDocuments: Array<BlockDocument>;
 		deployments: Array<Deployment>;
 		workPools: Array<WorkPool>;
 		workQueues: Array<WorkQueue>;
 	}) => {
 		server.use(
+			http.post(buildApiUrl("/block_documents/filter"), () => {
+				return HttpResponse.json(blockDocuments);
+			}),
 			http.post(buildApiUrl("/deployments/filter"), () => {
 				return HttpResponse.json(deployments);
 			}),
@@ -122,6 +136,12 @@ describe("useGetAutomationActionResources", () => {
 
 	const MOCK_AUTOMATION = createFakeAutomation({
 		actions: [
+			{
+				type: "send-notification",
+				block_document_id: "block-document-id-0",
+				body: "my body",
+				subject: "my subject",
+			},
 			{
 				type: "pause-automation",
 				source: "selected",
@@ -167,6 +187,10 @@ describe("useGetAutomationActionResources", () => {
 
 	const MOCK_AUTOMATION_0 = createFakeAutomation({ id: "automation-id-0" });
 
+	const MOCK_BLOCK_DOCUMENT_0 = createFakeBlockDocument({
+		id: "block-document-id-0",
+	});
+
 	const MOCK_DEPLOYMENT_0 = createFakeDeployment({ id: "deployment-id-0" });
 	const MOCK_DEPLOYMENT_1 = createFakeDeployment({ id: "deployment-id-1" });
 	const MOCK_DEPLOYMENT_2 = createFakeDeployment({ id: "deployment-id-2" });
@@ -182,6 +206,7 @@ describe("useGetAutomationActionResources", () => {
 		const queryClient = new QueryClient();
 		mockSourcesAPI({
 			automations: [MOCK_AUTOMATION_0],
+			blockDocuments: [MOCK_BLOCK_DOCUMENT_0],
 			deployments: [MOCK_DEPLOYMENT_0, MOCK_DEPLOYMENT_1, MOCK_DEPLOYMENT_2],
 			workPools: [MOCK_WORK_POOL_0, MOCK_WORK_POOL_1],
 			workQueues: [MOCK_WORK_QUEUE_0, MOCK_WORK_QUEUE_1],
@@ -193,12 +218,15 @@ describe("useGetAutomationActionResources", () => {
 			{ wrapper: createWrapper({ queryClient }) },
 		);
 
-		await waitFor(() => expect(result.current.pending).toBe(false));
+		await waitFor(() => expect(result.current.loading).toBe(false));
 
 		// ASSERT
 		const EXPECTED = {
 			automationsMap: new Map<string, Automation>([
 				[MOCK_AUTOMATION_0.id, MOCK_AUTOMATION_0],
+			]),
+			blockDocumentsMap: new Map<string, BlockDocument>([
+				[MOCK_BLOCK_DOCUMENT_0.id, MOCK_BLOCK_DOCUMENT_0],
 			]),
 			deploymentsMap: new Map<string, Deployment>([
 				[MOCK_DEPLOYMENT_0.id, MOCK_DEPLOYMENT_0],

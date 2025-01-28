@@ -8,8 +8,12 @@ import {
 import { Card } from "@/components/ui/card";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { useSuspenseQuery } from "@tanstack/react-query";
-
-import { AutomationDetails } from "./automation-details";
+import { Typography } from "../ui/typography";
+import {
+	AutomationActions,
+	AutomationDescription,
+	AutomationTrigger,
+} from "./automation-details";
 import { AutomationEnableToggle } from "./automation-enable-toggle";
 import { AutomationsActionsMenu } from "./automations-actions-menu";
 import { AutomationsEmptyState } from "./automations-empty-state";
@@ -29,19 +33,25 @@ export const AutomationsPage = () => {
 				{data.length === 0 ? (
 					<AutomationsEmptyState />
 				) : (
-					<ul className="flex flex-col gap-2">
-						{data.map((automation) => (
-							<li
-								key={automation.id}
-								aria-label={`automation item ${automation.name}`}
-							>
-								<AutomationCardDetails
-									data={automation}
-									onDelete={() => handleDelete(automation)}
-								/>
-							</li>
-						))}
-					</ul>
+					<div className="flex flex-col gap-4">
+						<Typography variant="bodySmall" className="text-muted-foreground">
+							{data.length}{" "}
+							{`${data.length === 1 ? "automation" : "automations"}`}
+						</Typography>
+						<ul className="flex flex-col gap-2">
+							{data.map((automation) => (
+								<li
+									key={automation.id}
+									aria-label={`automation item ${automation.name}`}
+								>
+									<AutomationCardDetails
+										data={automation}
+										onDelete={() => handleDelete(automation)}
+									/>
+								</li>
+							))}
+						</ul>
+					</div>
 				)}
 			</div>
 			<DeleteConfirmationDialog {...dialogState} />
@@ -66,7 +76,11 @@ const AutomationCardDetails = ({
 					<AutomationsActionsMenu id={data.id} onDelete={onDelete} />
 				</div>
 			</div>
-			<AutomationDetails data={data} />
+			<div className="flex flex-col gap-4">
+				{data.description && <AutomationDescription data={data} />}
+				<AutomationTrigger data={data} />
+				<AutomationActions data={data} />
+			</div>
 		</Card>
 	);
 };

@@ -30,6 +30,7 @@ export const buildFilterBlockDocumentsQuery = (
 		sort: "BLOCK_TYPE_AND_NAME_ASC",
 		include_secrets: false,
 	},
+	{ enabled = true }: { enabled?: boolean } = {},
 ) =>
 	queryOptions({
 		queryKey: queryKeyFactory.list(filter),
@@ -39,4 +40,5 @@ export const buildFilterBlockDocumentsQuery = (
 			});
 			return res.data ?? [];
 		},
+		enabled,
 	});

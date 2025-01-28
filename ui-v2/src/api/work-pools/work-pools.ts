@@ -58,6 +58,7 @@ export const queryKeyFactory = {
  */
 export const buildFilterWorkPoolsQuery = (
 	filter: WorkPoolsFilter = { offset: 0 },
+	{ enabled = true }: { enabled?: boolean } = {},
 ) =>
 	queryOptions({
 		queryKey: queryKeyFactory.list(filter),
@@ -70,6 +71,7 @@ export const buildFilterWorkPoolsQuery = (
 			}
 			return res.data;
 		},
+		enabled,
 	});
 
 /**
