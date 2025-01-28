@@ -118,7 +118,6 @@ from typing import (
     Union,
 )
 
-import aiohttp
 import anyio.abc
 import kubernetes_asyncio
 from jsonpatch import JsonPatch
@@ -1125,7 +1124,6 @@ class KubernetesWorker(BaseWorker):
                 namespace=configuration.namespace,
                 label_selector=f"job-name={job_name}",
                 timeout_seconds=configuration.pod_watch_timeout_seconds,
-                _request_timeout=aiohttp.ClientTimeout(),
             ):
                 pod: V1Pod = event["object"]
                 last_pod_name = pod.metadata.name
