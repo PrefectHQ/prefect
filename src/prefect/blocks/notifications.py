@@ -814,9 +814,11 @@ class CustomWebhookNotificationBlock(NotificationBlock):
         # use 'null' when subject is None
         values.update(
             {
-                "subject": "null" if subject is None else subject,
-                "body": body,
-                "name": self.name,
+                "json": {
+                    "subject": "null" if subject is None else subject,
+                    "body": body,
+                    "name": self.name,
+                }
             }
         )
         # do substution
@@ -826,7 +828,7 @@ class CustomWebhookNotificationBlock(NotificationBlock):
                 "url": self.url,
                 "params": self.params,
                 "data": self.form_data,
-                "json": self.json_data,
+                "json": values['json'],
                 "headers": self.headers,
                 "cookies": self.cookies,
                 "timeout": self.timeout,
