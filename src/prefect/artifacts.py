@@ -2,22 +2,25 @@
 Interface for creating and reading artifacts.
 """
 
-import asyncio
+from __future__ import annotations
+
 import json  # noqa: I001
 import math
 import warnings
-from typing import TYPE_CHECKING, Any, Optional, Union
+from contextlib import nullcontext
+from typing import TYPE_CHECKING, Any, Optional, Union, cast
 from uuid import UUID
 
 from typing_extensions import Self
 
+from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect.client.schemas.actions import ArtifactCreate as ArtifactRequest
 from prefect.client.schemas.actions import ArtifactUpdate
 from prefect.client.schemas.filters import ArtifactFilter, ArtifactFilterKey
 from prefect.client.schemas.sorting import ArtifactSort
 from prefect.client.utilities import get_or_create_client
 from prefect.logging.loggers import get_logger
-from prefect.utilities.asyncutils import sync_compatible
+from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
 from prefect.utilities.context import get_task_and_flow_run_ids
 
 if TYPE_CHECKING:
@@ -43,10 +46,49 @@ class Artifact(ArtifactRequest):
         data: A JSON payload that allows for a result to be retrieved.
     """
 
-    @sync_compatible
-    async def create(
+    async def acreate(
+        self,
+        client: "PrefectClient | None" = None,
+    ) -> "ArtifactResponse":
+        """
+        An async method to create an artifact.
+
+        Arguments:
+            client: The PrefectClient
+
+        Returns:
+            - The created artifact.
+        """
+        from prefect.client.orchestration import get_client
+        from prefect.context import MissingContextError, get_run_context
+
+        local_client_context = nullcontext(client) if client else get_client()
+        async with local_client_context as client:
+            task_run_id, flow_run_id = get_task_and_flow_run_ids()
+
+            try:
+                get_run_context()
+            except MissingContextError:
+                warnings.warn(
+                    "Artifact creation outside of a flow or task run is deprecated and will be removed in a later version.",
+                    FutureWarning,
+                )
+
+            return await client.create_artifact(
+                artifact=ArtifactRequest(
+                    type=self.type,
+                    key=self.key,
+                    description=self.description,
+                    task_run_id=self.task_run_id or task_run_id,
+                    flow_run_id=self.flow_run_id or flow_run_id,
+                    data=await self.aformat(),
+                )
+            )
+
+    @async_dispatch(acreate)
+    def create(
         self: Self,
-        client: Optional["PrefectClient"] = None,
+        client: "PrefectClient | None" = None,
     ) -> "ArtifactResponse":
         """
         A method to create an artifact.
@@ -57,9 +99,11 @@ class Artifact(ArtifactRequest):
         Returns:
             - The created artifact.
         """
+        from prefect.client.orchestration import get_client
         from prefect.context import MissingContextError, get_run_context
 
-        client, _ = get_or_create_client(client)
+        # Create sync client since this is a sync method.
+        sync_client = get_client(sync_client=True)
         task_run_id, flow_run_id = get_task_and_flow_run_ids()
 
         try:
@@ -70,35 +114,69 @@ class Artifact(ArtifactRequest):
                 FutureWarning,
             )
 
-        return await client.create_artifact(
+        return sync_client.create_artifact(
             artifact=ArtifactRequest(
                 type=self.type,
                 key=self.key,
                 description=self.description,
                 task_run_id=self.task_run_id or task_run_id,
                 flow_run_id=self.flow_run_id or flow_run_id,
-                data=await self.format(),
+                data=cast(str, self.format(_sync=True)),  # pyright: ignore[reportCallIssue] _sync is valid because .format is wrapped in async_dispatch
             )
         )
 
     @classmethod
-    @sync_compatible
-    async def get(
-        cls, key: Optional[str] = None, client: Optional["PrefectClient"] = None
-    ) -> Optional["ArtifactResponse"]:
+    async def aget(
+        cls,
+        key: str | None = None,
+        client: "PrefectClient | None" = None,
+    ) -> "ArtifactResponse | None":
+        """
+        A async method to get an artifact.
+
+        Arguments:
+            key: The key of the artifact to get.
+            client: A client to use when calling the Prefect API.
+
+        Returns:
+            The artifact (if found).
+        """
+        from prefect.client.orchestration import get_client
+
+        local_client_context = asyncnullcontext(client) if client else get_client()
+        async with local_client_context as client:
+            filter_key_value = None if key is None else [key]
+            artifacts = await client.read_artifacts(
+                limit=1,
+                sort=ArtifactSort.UPDATED_DESC,
+                artifact_filter=ArtifactFilter(
+                    key=ArtifactFilterKey(any_=filter_key_value)
+                ),
+            )
+            return None if not artifacts else artifacts[0]
+
+    @async_dispatch(aget)
+    @classmethod
+    def get(
+        cls, key: str | None = None, client: "PrefectClient | None" = None
+    ) -> "ArtifactResponse | None":
         """
         A method to get an artifact.
 
         Arguments:
-            key (str, optional): The key of the artifact to get.
-            client (PrefectClient, optional): The PrefectClient
+            key: The key of the artifact to get.
+            client: A client to use when calling the Prefect API.
 
         Returns:
-            (ArtifactResponse, optional): The artifact (if found).
+            The artifact (if found).
         """
-        client, _ = get_or_create_client(client)
+        from prefect.client.orchestration import get_client
+
+        # Create sync client since this is a sync method.
+        sync_client = get_client(sync_client=True)
+
         filter_key_value = None if key is None else [key]
-        artifacts = await client.read_artifacts(
+        artifacts = sync_client.read_artifacts(
             limit=1,
             sort=ArtifactSort.UPDATED_DESC,
             artifact_filter=ArtifactFilter(
@@ -108,8 +186,38 @@ class Artifact(ArtifactRequest):
         return None if not artifacts else artifacts[0]
 
     @classmethod
-    @sync_compatible
-    async def get_or_create(
+    async def aget_or_create(
+        cls,
+        key: Optional[str] = None,
+        description: Optional[str] = None,
+        data: Optional[Union[dict[str, Any], Any]] = None,
+        client: Optional["PrefectClient"] = None,
+        **kwargs: Any,
+    ) -> tuple["ArtifactResponse", bool]:
+        """
+        A async method to get or create an artifact.
+
+        Arguments:
+            key: The key of the artifact to get or create.
+            description: The description of the artifact to create.
+            data: The data of the artifact to create.
+            client: The PrefectClient
+            **kwargs: Additional keyword arguments to use when creating the artifact.
+
+        Returns:
+            The artifact, either retrieved or created.
+        """
+        artifact = await cls.aget(key, client)
+        if artifact:
+            return artifact, False
+
+        new_artifact = cls(key=key, description=description, data=data, **kwargs)
+        created_artifact = await new_artifact.acreate(client)
+        return created_artifact, True
+
+    @async_dispatch(aget_or_create)
+    @classmethod
+    def get_or_create(
         cls,
         key: Optional[str] = None,
         description: Optional[str] = None,
@@ -121,28 +229,32 @@ class Artifact(ArtifactRequest):
         A method to get or create an artifact.
 
         Arguments:
-            key (str, optional): The key of the artifact to get or create.
-            description (str, optional): The description of the artifact to create.
-            data (Union[Dict[str, Any], Any], optional): The data of the artifact to create.
-            client (PrefectClient, optional): The PrefectClient
+            key: The key of the artifact to get or create.
+            description: The description of the artifact to create.
+            data: The data of the artifact to create.
+            client: The PrefectClient
+            **kwargs: Additional keyword arguments to use when creating the artifact.
 
         Returns:
-            (ArtifactResponse): The artifact, either retrieved or created.
+            The artifact, either retrieved or created.
         """
-        artifact_coro = cls.get(key, client)
-        if TYPE_CHECKING:
-            assert asyncio.iscoroutine(artifact_coro)
-        artifact = await artifact_coro
+        artifact = cast(ArtifactResponse, cls.get(key, _sync=True))  # pyright: ignore[reportCallIssue] _sync is valid because .get is wrapped in async_dispatch
         if artifact:
             return artifact, False
 
         new_artifact = cls(key=key, description=description, data=data, **kwargs)
-        create_coro = new_artifact.create(client)
-        if TYPE_CHECKING:
-            assert asyncio.iscoroutine(create_coro)
-        return await create_coro, True
+        created_artifact = cast(
+            ArtifactResponse,
+            new_artifact.create(_sync=True),  # pyright: ignore[reportCallIssue] _sync is valid because .create is wrapped in async_dispatch
+        )
+        return created_artifact, True
 
-    async def format(self) -> Optional[Union[dict[str, Any], Any]]:
+    # TODO: Remove this when we remove async_dispatch because it doesn't need to be async
+    async def aformat(self) -> str | float | int | dict[str, Any]:
+        return json.dumps(self.data)
+
+    @async_dispatch(aformat)
+    def format(self) -> str | float | int | dict[str, Any]:
         return json.dumps(self.data)
 
 
@@ -151,20 +263,34 @@ class LinkArtifact(Artifact):
     link_text: Optional[str] = None
     type: Optional[str] = "markdown"
 
-    async def format(self) -> str:
+    def _format(self) -> str:
         return (
             f"[{self.link_text}]({self.link})"
             if self.link_text
             else f"[{self.link}]({self.link})"
         )
 
+    async def aformat(self) -> str:
+        return self._format()
+
+    @async_dispatch(aformat)
+    def format(self) -> str:
+        return self._format()
+
 
 class MarkdownArtifact(Artifact):
     markdown: str
     type: Optional[str] = "markdown"
 
-    async def format(self) -> str:
+    def _format(self) -> str:
         return self.markdown
+
+    async def aformat(self) -> str:
+        return self._format()
+
+    @async_dispatch(aformat)
+    def format(self) -> str:
+        return self._format()
 
 
 class TableArtifact(Artifact):
@@ -188,15 +314,22 @@ class TableArtifact(Artifact):
         else:
             return item
 
-    async def format(self) -> str:
+    def _format(self) -> str:
         return json.dumps(self._sanitize(self.table))
+
+    async def aformat(self) -> str:
+        return self._format()
+
+    @async_dispatch(aformat)
+    def format(self) -> str:
+        return self._format()
 
 
 class ProgressArtifact(Artifact):
     progress: float
     type: Optional[str] = "progress"
 
-    async def format(self) -> float:
+    def _format(self) -> float:
         # Ensure progress is between 0 and 100
         min_progress = 0.0
         max_progress = 100.0
@@ -208,6 +341,13 @@ class ProgressArtifact(Artifact):
             logger.warning(f"Interpreting as {self.progress}% progress")
 
         return self.progress
+
+    async def aformat(self) -> float:
+        return self._format()
+
+    @async_dispatch(aformat)
+    def format(self) -> float:
+        return self._format()
 
 
 class ImageArtifact(Artifact):
@@ -221,11 +361,17 @@ class ImageArtifact(Artifact):
     image_url: str
     type: Optional[str] = "image"
 
-    async def format(self) -> str:
+    def _format(self) -> str:
+        return self.image_url
+
+    async def aformat(self) -> str:
+        return self._format()
+
+    @async_dispatch(aformat)
+    def format(self) -> str:
         """
         This method is used to format the artifact data so it can be properly sent
-        to the API when the .create() method is called. It is async because the
-        method is awaited in the parent class.
+        to the API when the .create() method is called.
 
         Returns:
             str: The image URL.
@@ -262,10 +408,7 @@ async def create_link_artifact(
         link=link,
         link_text=link_text,
     )
-    create_coro = new_artifact.create(client)
-    if TYPE_CHECKING:
-        assert asyncio.iscoroutine(create_coro)
-    artifact = await create_coro
+    artifact = await new_artifact.acreate(client)
 
     return artifact.id
 
@@ -294,10 +437,7 @@ async def create_markdown_artifact(
         description=description,
         markdown=markdown,
     )
-    create_coro = new_artifact.create()
-    if TYPE_CHECKING:
-        assert asyncio.iscoroutine(create_coro)
-    artifact = await create_coro
+    artifact = await new_artifact.acreate()
 
     return artifact.id
 
@@ -327,10 +467,7 @@ async def create_table_artifact(
         description=description,
         table=table,
     )
-    create_coro = new_artifact.create()
-    if TYPE_CHECKING:
-        assert asyncio.iscoroutine(create_coro)
-    artifact = await create_coro
+    artifact = await new_artifact.acreate()
 
     return artifact.id
 
@@ -360,10 +497,7 @@ async def create_progress_artifact(
         description=description,
         progress=progress,
     )
-    create_coro = new_artifact.create()
-    if TYPE_CHECKING:
-        assert asyncio.iscoroutine(create_coro)
-    artifact = await create_coro
+    artifact = await new_artifact.acreate()
 
     return artifact.id
 
@@ -396,10 +530,10 @@ async def update_progress_artifact(
     update = (
         ArtifactUpdate(
             description=artifact.description,
-            data=await artifact.format(),
+            data=await artifact.aformat(),
         )
         if description
-        else ArtifactUpdate(data=await artifact.format())
+        else ArtifactUpdate(data=await artifact.aformat())
     )
 
     await client.update_artifact(
@@ -435,9 +569,6 @@ async def create_image_artifact(
         description=description,
         image_url=image_url,
     )
-    create_coro = new_artifact.create()
-    if TYPE_CHECKING:
-        assert asyncio.iscoroutine(create_coro)
-    artifact = await create_coro
+    artifact = await new_artifact.acreate()
 
     return artifact.id
