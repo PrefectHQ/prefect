@@ -1548,7 +1548,7 @@ def run_flow_in_subprocess(
     flow: "Flow[..., Any]",
     flow_run: "FlowRun | None" = None,
     parameters: dict[str, Any] | None = None,
-    wait_for: Iterable[PrefectFuture[R]] | None = None,
+    wait_for: Iterable[PrefectFuture[Any]] | None = None,
     context: dict[str, Any] | None = None,
 ) -> multiprocessing.context.SpawnProcess:
     """
