@@ -10,12 +10,11 @@ from __future__ import annotations
 import os
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, Dict, List, Optional
 
 import yaml
 from ruamel.yaml import YAML
 
-from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.objects import ConcurrencyLimitStrategy
 from prefect.client.schemas.schedules import IntervalSchedule
 from prefect.utilities._git import get_git_branch, get_git_remote_origin_url
@@ -207,8 +206,8 @@ def initialize_project(
 
 
 def _format_deployment_for_saving_to_prefect_file(
-    deployment: Dict,
-) -> Dict:
+    deployment: dict[str, Any],
+) -> dict[str, Any]:
     """
     Formats a deployment into a templated deploy config for saving to prefect.yaml.
 
@@ -227,10 +226,8 @@ def _format_deployment_for_saving_to_prefect_file(
     deployment.pop("flow_name", None)
 
     if deployment.get("schedules"):
-        schedules = []
-        for deployment_schedule in cast(
-            List[DeploymentScheduleCreate], deployment["schedules"]
-        ):
+        schedules: list[dict[str, Any]] = []
+        for deployment_schedule in deployment["schedules"]:
             if isinstance(deployment_schedule.schedule, IntervalSchedule):
                 schedule_config = _interval_schedule_to_dict(
                     deployment_schedule.schedule
@@ -257,7 +254,7 @@ def _format_deployment_for_saving_to_prefect_file(
     return deployment
 
 
-def _interval_schedule_to_dict(schedule: IntervalSchedule) -> Dict:
+def _interval_schedule_to_dict(schedule: IntervalSchedule) -> dict[str, Any]:
     """
     Converts an IntervalSchedule to a dictionary.
 
@@ -265,7 +262,7 @@ def _interval_schedule_to_dict(schedule: IntervalSchedule) -> Dict:
         - schedule (IntervalSchedule): the schedule to convert
 
     Returns:
-        - Dict: the schedule as a dictionary
+        - dict[str, Any]: the schedule as a dictionary
     """
     schedule_config = schedule.model_dump()
     schedule_config["interval"] = schedule_config["interval"].total_seconds()
@@ -275,12 +272,12 @@ def _interval_schedule_to_dict(schedule: IntervalSchedule) -> Dict:
 
 
 def _save_deployment_to_prefect_file(
-    deployment: Dict,
-    build_steps: Optional[List[Dict]] = None,
-    push_steps: Optional[List[Dict]] = None,
-    pull_steps: Optional[List[Dict]] = None,
-    triggers: Optional[List[Dict]] = None,
-    sla: Optional[list[dict]] = None,
+    deployment: dict[str, Any],
+    build_steps: list[dict[str, Any]] | None = None,
+    push_steps: list[dict[str, Any]] | None = None,
+    pull_steps: list[dict[str, Any]] | None = None,
+    triggers: list[dict[str, Any]] | None = None,
+    sla: list[dict[str, Any]] | None = None,
     prefect_file: Path = Path("prefect.yaml"),
 ):
     """
