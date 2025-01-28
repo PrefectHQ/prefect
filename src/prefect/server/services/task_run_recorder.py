@@ -43,7 +43,7 @@ async def log_metrics_periodically(interval: float = 2.0) -> None:
         async with _metrics_lock:
             for topic, data in METRICS.items():
                 depth = data["published"] - data["consumed"]
-                logger.warning(
+                logger.debug(
                     "Topic=%r | published=%d consumed=%d retried=%d depth=%d",
                     topic,
                     data["published"],
