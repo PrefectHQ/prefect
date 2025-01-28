@@ -341,11 +341,9 @@ class Consumer(_Consumer):
         except BaseExceptionGroup as group:  # novermin
             if all(isinstance(exc, StopConsumer) for exc in group.exceptions):
                 logger.debug("StopConsumer received")
-            else:
-                for exc in group.exceptions:
-                    if not isinstance(exc, StopConsumer):
-                        raise exc from None
-                raise group.exceptions[0] from None
+                return  # Exit cleanly when all tasks stop
+            # Re-raise if any non-StopConsumer exceptions
+            raise group
 
     async def _consume_loop(self, handler: MessageHandler) -> None:
         while True:
@@ -356,7 +354,7 @@ class Consumer(_Consumer):
             except StopConsumer as e:
                 if not e.ack:
                     await self.subscription.retry(msg)
-                raise  # ends task group
+                raise  # Propagate to task group
             except Exception:
                 await self.subscription.retry(msg)
 
