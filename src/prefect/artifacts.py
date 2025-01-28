@@ -4,7 +4,7 @@ Interface for creating and reading artifacts.
 
 from __future__ import annotations
 
-import json  # noqa: I001
+import json
 import math
 import warnings
 from contextlib import nullcontext
@@ -180,10 +180,10 @@ class Artifact(ArtifactRequest):
     @classmethod
     async def aget_or_create(
         cls,
-        key: Optional[str] = None,
-        description: Optional[str] = None,
-        data: Optional[Union[dict[str, Any], Any]] = None,
-        client: Optional["PrefectClient"] = None,
+        key: str | None = None,
+        description: str | None = None,
+        data: dict[str, Any] | Any | None = None,
+        client: "PrefectClient | None" = None,
         **kwargs: Any,
     ) -> tuple["ArtifactResponse", bool]:
         """
@@ -211,10 +211,10 @@ class Artifact(ArtifactRequest):
     @async_dispatch(aget_or_create)
     def get_or_create(
         cls,
-        key: Optional[str] = None,
-        description: Optional[str] = None,
-        data: Optional[Union[dict[str, Any], Any]] = None,
-        client: Optional["PrefectClient"] = None,
+        key: str | None = None,
+        description: str | None = None,
+        data: dict[str, Any] | Any | None = None,
+        client: "PrefectClient | None" = None,
         **kwargs: Any,
     ) -> tuple["ArtifactResponse", bool]:
         """
@@ -288,8 +288,8 @@ class TableArtifact(Artifact):
 
     @classmethod
     def _sanitize(
-        cls, item: Union[dict[str, Any], list[Any], float]
-    ) -> Union[dict[str, Any], list[Any], int, float, None]:
+        cls, item: dict[str, Any] | list[Any] | float
+    ) -> dict[str, Any] | list[Any] | int | float | None:
         """
         Sanitize NaN values in a given item.
         The item can be a dict, list or float.
@@ -364,10 +364,10 @@ class ImageArtifact(Artifact):
 
 async def acreate_link_artifact(
     link: str,
-    link_text: Optional[str] = None,
-    key: Optional[str] = None,
-    description: Optional[str] = None,
-    client: Optional["PrefectClient"] = None,
+    link_text: str | None = None,
+    key: str | None = None,
+    description: str | None = None,
+    client: "PrefectClient | None" = None,
 ) -> UUID:
     """
     Create a link artifact.
@@ -398,10 +398,10 @@ async def acreate_link_artifact(
 @async_dispatch(acreate_link_artifact)
 def create_link_artifact(
     link: str,
-    link_text: Optional[str] = None,
-    key: Optional[str] = None,
-    description: Optional[str] = None,
-    client: Optional["PrefectClient"] = None,
+    link_text: str | None = None,
+    key: str | None = None,
+    description: str | None = None,
+    client: "PrefectClient | None" = None,
 ) -> UUID:
     """
     Create a link artifact.
@@ -431,8 +431,8 @@ def create_link_artifact(
 
 async def acreate_markdown_artifact(
     markdown: str,
-    key: Optional[str] = None,
-    description: Optional[str] = None,
+    key: str | None = None,
+    description: str | None = None,
 ) -> UUID:
     """
     Create a markdown artifact.
@@ -460,8 +460,8 @@ async def acreate_markdown_artifact(
 @async_dispatch(acreate_markdown_artifact)
 def create_markdown_artifact(
     markdown: str,
-    key: Optional[str] = None,
-    description: Optional[str] = None,
+    key: str | None = None,
+    description: str | None = None,
 ) -> UUID:
     """
     Create a markdown artifact.
@@ -487,9 +487,9 @@ def create_markdown_artifact(
 
 
 async def acreate_table_artifact(
-    table: Union[dict[str, list[Any]], list[dict[str, Any]], list[list[Any]]],
-    key: Optional[str] = None,
-    description: Optional[str] = None,
+    table: dict[str, list[Any]] | list[dict[str, Any]] | list[list[Any]],
+    key: str | None = None,
+    description: str | None = None,
 ) -> UUID:
     """
     Create a table artifact asynchronously.
@@ -517,9 +517,9 @@ async def acreate_table_artifact(
 
 @async_dispatch(acreate_table_artifact)
 def create_table_artifact(
-    table: Union[dict[str, list[Any]], list[dict[str, Any]], list[list[Any]]],
-    key: Optional[str] = None,
-    description: Optional[str] = None,
+    table: dict[str, list[Any]] | list[dict[str, Any]] | list[list[Any]],
+    key: str | None = None,
+    description: str | None = None,
 ) -> UUID:
     """
     Create a table artifact.
@@ -547,8 +547,8 @@ def create_table_artifact(
 
 async def acreate_progress_artifact(
     progress: float,
-    key: Optional[str] = None,
-    description: Optional[str] = None,
+    key: str | None = None,
+    description: str | None = None,
 ) -> UUID:
     """
     Create a progress artifact asynchronously.
@@ -577,8 +577,8 @@ async def acreate_progress_artifact(
 @async_dispatch(acreate_progress_artifact)
 def create_progress_artifact(
     progress: float,
-    key: Optional[str] = None,
-    description: Optional[str] = None,
+    key: str | None = None,
+    description: str | None = None,
 ) -> UUID:
     """
     Create a progress artifact.
@@ -607,8 +607,8 @@ def create_progress_artifact(
 async def aupdate_progress_artifact(
     artifact_id: UUID,
     progress: float,
-    description: Optional[str] = None,
-    client: Optional["PrefectClient"] = None,
+    description: str | None = None,
+    client: "PrefectClient | None" = None,
 ) -> UUID:
     """
     Update a progress artifact asynchronously.
@@ -649,8 +649,8 @@ async def aupdate_progress_artifact(
 def update_progress_artifact(
     artifact_id: UUID,
     progress: float,
-    description: Optional[str] = None,
-    client: Optional["PrefectClient"] = None,
+    description: str | None = None,
+    client: "PrefectClient | None" = None,
 ) -> UUID:
     """
     Update a progress artifact.
@@ -689,8 +689,8 @@ def update_progress_artifact(
 
 async def acreate_image_artifact(
     image_url: str,
-    key: Optional[str] = None,
-    description: Optional[str] = None,
+    key: str | None = None,
+    description: str | None = None,
 ) -> UUID:
     """
     Create an image artifact asynchronously.
@@ -719,8 +719,8 @@ async def acreate_image_artifact(
 @async_dispatch(acreate_image_artifact)
 def create_image_artifact(
     image_url: str,
-    key: Optional[str] = None,
-    description: Optional[str] = None,
+    key: str | None = None,
+    description: str | None = None,
 ) -> UUID:
     """
     Create an image artifact.

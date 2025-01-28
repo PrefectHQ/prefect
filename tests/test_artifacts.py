@@ -1,6 +1,6 @@
 import asyncio
 import json
-from typing import List, cast
+from typing import cast
 from uuid import UUID
 
 import httpx
@@ -168,7 +168,7 @@ class TestCreateArtifacts:
             return x + 10
 
         @flow
-        def simple_map(nums: List[int]):
+        def simple_map(nums: list[int]):
             big_nums = add_ten.map(nums)
             return [big_num.result() for big_num in big_nums]
 
@@ -282,7 +282,7 @@ class TestCreateArtifacts:
             return x + 10
 
         @flow
-        def simple_map(nums: List[int]) -> List[int]:
+        def simple_map(nums: list[int]) -> list[int]:
             big_nums = add_ten.map(nums)
             return [big_num.result() for big_num in big_nums]
 
@@ -474,7 +474,7 @@ class TestCreateArtifacts:
             return x + 10
 
         @flow
-        def simple_map(nums: List[int]):
+        def simple_map(nums: list[int]):
             big_nums = add_ten.map(nums)
             return [big_num.result() for big_num in big_nums]
 
