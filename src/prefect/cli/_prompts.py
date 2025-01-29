@@ -50,7 +50,7 @@ from prefect.settings import PREFECT_DEBUG_MODE
 from prefect.utilities import urls
 from prefect.utilities._git import get_git_remote_origin_url
 from prefect.utilities.asyncutils import LazySemaphore
-from prefect.utilities.filesystem import get_open_file_limit
+from prefect.utilities.filesystem import filter_files, get_open_file_limit
 from prefect.utilities.processutils import get_sys_executable, run_process
 from prefect.utilities.slugify import slugify
 
@@ -162,41 +162,6 @@ async def find_flow_functions_in_file(path: anyio.Path) -> list[dict[str, str]]:
     return decorated_functions
 
 
-async def _find_py_files(
-    path: anyio.Path, exclude_patterns: list[str] | None = None
-) -> list[anyio.Path]:
-    """
-    Recursively find Python files in a directory while excluding certain patterns.
-
-    Args:
-        path: The directory to search in
-        exclude_patterns: List of directory names to exclude from the search.
-            Defaults to ["site-packages"]
-
-    Returns:
-        List of paths to Python files
-    """
-    exclude_patterns = exclude_patterns or ["site-packages"]
-
-    py_files: list[anyio.Path] = []
-    try:
-        async for p in path.iterdir():
-            try:
-                # Check if any part of the path matches the exclude patterns
-                if any(pattern in p.parts for pattern in exclude_patterns):
-                    continue
-
-                if await p.is_dir():
-                    py_files.extend(await _find_py_files(p, exclude_patterns))
-                elif p.suffix == ".py":
-                    py_files.append(p)
-            except (PermissionError, OSError):
-                continue
-    except (PermissionError, OSError):
-        return []
-    return py_files
-
-
 async def search_for_flow_functions(
     directory: str = ".", exclude_patterns: list[str] | None = None
 ) -> list[dict[str, str]]:
@@ -206,17 +171,25 @@ async def search_for_flow_functions(
 
     Args:
         directory: The directory to search in
-        exclude_patterns: List of directory names to exclude from the search.
-            Defaults to ["site-packages"]
+        exclude_patterns: List of patterns to exclude from the search.
 
     Returns:
         List[Dict]: the flow name, function name, and filepath of all flow functions found
     """
     path = anyio.Path(directory)
+    exclude_patterns = exclude_patterns or ["**/site-packages/**"]
     coros: list[Coroutine[list[dict[str, str]], Any, Any]] = []
 
-    for file in await _find_py_files(path, exclude_patterns):
-        coros.append(find_flow_functions_in_file(file))
+    try:
+        for file in filter_files(
+            root=str(path),
+            ignore_patterns=["*", "!**/*.py", *exclude_patterns],
+            include_dirs=False,
+        ):
+            coros.append(find_flow_functions_in_file(anyio.Path(str(path / file))))
+
+    except (PermissionError, OSError):
+        return []
 
     return [fn for file_fns in await asyncio.gather(*coros) for fn in file_fns]
 
