@@ -170,6 +170,30 @@ class TestMattermostWebhook:
                 body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
             )
 
+    def test_notify_secure(self):
+        with patch("apprise.Apprise", autospec=True) as AppriseMock:
+            apprise_instance_mock = AppriseMock.return_value
+            apprise_instance_mock.async_notify = AsyncMock()
+
+            mm_block = MattermostWebhook(
+                hostname="example.com", token="token", secure=True, port=443
+            )
+
+            @flow
+            def test_flow():
+                mm_block.notify("test")
+
+            test_flow()
+
+            AppriseMock.assert_called_once()
+            apprise_instance_mock.add.assert_called_once_with(
+                f"mmosts://{mm_block.hostname}/{mm_block.token.get_secret_value()}/"
+                "?image=no&format=text&overflow=upstream"
+            )
+            apprise_instance_mock.async_notify.assert_called_once_with(
+                body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
+            )
+
     def test_notify_sync(self):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
             apprise_instance_mock = AppriseMock.return_value
