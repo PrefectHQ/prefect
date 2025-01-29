@@ -29,7 +29,6 @@ from prefect.server.utilities.messaging.memory import (
     METRICS,
     _metrics_lock,  # type: ignore
 )
-from prefect.settings import get_current_settings
 
 if TYPE_CHECKING:
     import logging
@@ -257,10 +256,7 @@ class TaskRunRecorder:
 
     async def start(self) -> None:
         assert self.consumer_task is None, "TaskRunRecorder already started"
-        self.consumer: Consumer = create_consumer(
-            "events",
-            max_queue_depth=get_current_settings().server.services.task_run_recorder.max_queue_depth,
-        )
+        self.consumer: Consumer = create_consumer("events")
 
         async with consumer() as handler:
             self.consumer_task = asyncio.create_task(self.consumer.run(handler))

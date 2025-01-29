@@ -81,7 +81,6 @@ class Subscription:
         topic: "Topic",
         max_retries: int = 3,
         dead_letter_queue_path: Path | str | None = None,
-        max_queue_depth: int = 0,
     ) -> None:
         self.topic = topic
         self.max_retries = max_retries
@@ -90,12 +89,7 @@ class Subscription:
             if dead_letter_queue_path
             else get_current_settings().home / "dlq"
         )
-        logger.warning(
-            f"topic {self.topic.name} using max_queue_depth {max_queue_depth}"
-        )
-        self._queue: asyncio.Queue[MemoryMessage] = asyncio.Queue(
-            maxsize=max_queue_depth
-        )
+        self._queue: asyncio.Queue[MemoryMessage] = asyncio.Queue()
         self._retry: asyncio.Queue[MemoryMessage] = asyncio.Queue()
 
     async def deliver(self, message: MemoryMessage) -> None:
@@ -208,7 +202,6 @@ class Topic:
         cls._topics = {}
 
     def subscribe(self, **subscription_kwargs: Any) -> Subscription:
-        logger.warning(f"topic {self.name} using consumer kwargs {subscription_kwargs}")
         subscription = Subscription(self, **subscription_kwargs)
         self._subscriptions.append(subscription)
         return subscription
@@ -326,12 +319,11 @@ class Consumer(_Consumer):
         self,
         topic: str,
         subscription: Optional[Subscription] = None,
-        max_queue_depth: int = 0,
         concurrency: int = 2,
     ):
         self.topic: Topic = Topic.by_name(topic)
         if not subscription:
-            subscription = self.topic.subscribe(max_queue_depth=max_queue_depth)
+            subscription = self.topic.subscribe()
         assert subscription.topic is self.topic
         self.subscription = subscription
         self.concurrency = concurrency
