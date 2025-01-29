@@ -9,7 +9,6 @@ from typing import (
     AsyncGenerator,
     Callable,
     Generator,
-    List,
     Optional,
 )
 
@@ -124,11 +123,11 @@ async def publisher(broker: str, cache: Cache) -> Publisher:
 
 @pytest.fixture
 async def consumer(broker: str, clear_topics: None) -> Consumer:
-    return create_consumer("my-topic")
+    return create_consumer("my-topic", concurrency=1)
 
 
 async def drain_one(consumer: Consumer) -> Optional[Message]:
-    captured_messages: List[Message] = []
+    captured_messages: list[Message] = []
 
     async def handler(message: Message):
         captured_messages.append(message)
@@ -143,7 +142,7 @@ async def drain_one(consumer: Consumer) -> Optional[Message]:
 async def test_publishing_and_consuming_a_single_message(
     publisher: Publisher, consumer: Consumer
 ) -> None:
-    captured_messages: List[Message] = []
+    captured_messages: list[Message] = []
 
     async def handler(message: Message):
         captured_messages.append(message)
@@ -169,7 +168,7 @@ async def test_publishing_and_consuming_a_single_message(
 async def test_stopping_consumer_without_acking(
     publisher: Publisher, consumer: Consumer
 ) -> None:
-    captured_messages: List[Message] = []
+    captured_messages: list[Message] = []
 
     async def handler(message: Message):
         captured_messages.append(message)
@@ -195,7 +194,7 @@ async def test_stopping_consumer_without_acking(
 async def test_erroring_handler_does_not_ack(
     publisher: Publisher, consumer: Consumer
 ) -> None:
-    captured_messages: List[Message] = []
+    captured_messages: list[Message] = []
 
     async def handler(message: Message):
         captured_messages.append(message)
@@ -228,7 +227,7 @@ def deduplicating_publisher(broker: str, cache: Cache) -> Publisher:
 async def test_publisher_will_avoid_sending_duplicate_messages_in_same_batch(
     deduplicating_publisher: Publisher, consumer: Consumer
 ):
-    captured_messages: List[Message] = []
+    captured_messages: list[Message] = []
 
     async def handler(message: Message):
         captured_messages.append(message)
@@ -259,7 +258,7 @@ async def test_publisher_will_avoid_sending_duplicate_messages_in_same_batch(
 async def test_publisher_will_avoid_sending_duplicate_messages_in_different_batches(
     deduplicating_publisher: Publisher, consumer: Consumer
 ):
-    captured_messages: List[Message] = []
+    captured_messages: list[Message] = []
 
     async def handler(message: Message):
         captured_messages.append(message)
@@ -328,7 +327,7 @@ async def test_publisher_will_forget_duplicate_messages_on_error(
     assert not remaining_message
 
     # but on a subsequent attempt, the message is published and not considered duplicate
-    captured_messages: List[Message] = []
+    captured_messages: list[Message] = []
 
     async def handler(message: Message):
         captured_messages.append(message)
@@ -356,7 +355,7 @@ async def test_publisher_will_forget_duplicate_messages_on_error(
 async def test_publisher_does_not_interfere_with_duplicate_messages_without_id(
     deduplicating_publisher: Publisher, consumer: Consumer
 ):
-    captured_messages: List[Message] = []
+    captured_messages: list[Message] = []
 
     async def handler(message: Message):
         captured_messages.append(message)
@@ -402,7 +401,7 @@ async def test_publisher_does_not_interfere_with_duplicate_messages_without_id_o
     assert not remaining_message
 
     # but on a subsequent attempt, the message is published
-    captured_messages: List[Message] = []
+    captured_messages: list[Message] = []
 
     async def handler(message: Message):
         captured_messages.append(message)
@@ -427,7 +426,7 @@ async def test_publisher_does_not_interfere_with_duplicate_messages_without_id_o
 
 
 async def test_ephemeral_subscription(broker: str, publisher: Publisher):
-    captured_messages: List[Message] = []
+    captured_messages: list[Message] = []
 
     async def handler(message: Message):
         captured_messages.append(message)
@@ -461,7 +460,7 @@ async def test_repeatedly_failed_message_is_moved_to_dead_letter_queue(
     consumer: MemoryConsumer,
     tmp_path: Path,
 ):
-    captured_messages: List[Message] = []
+    captured_messages: list[Message] = []
 
     async def handler(message: Message):
         captured_messages.append(message)
@@ -534,3 +533,70 @@ async def test_can_be_used_as_event_publisher(broker: str, cache: Cache):
         await consumer_task
 
     assert captured_events == [emitted_event]
+
+
+@pytest.mark.usefixtures("broker", "clear_topics")
+@pytest.mark.parametrize("concurrency,num_messages", [(2, 4), (4, 8)])
+async def test_concurrent_consumers_process_messages(
+    publisher: Publisher, concurrency: int, num_messages: int
+) -> None:
+    """Test that messages are fairly distributed across concurrent consumers"""
+    concurrent_consumer = create_consumer("my-topic", concurrency=concurrency)
+    processed_messages: list[Message] = []
+    processed_by_consumer: dict[int, list[Message]] = {
+        i + 1: [] for i in range(concurrency)
+    }
+    consumer_seen = 0
+    processing_order: list[int] = []
+
+    async def handler(message: Message):
+        nonlocal consumer_seen
+        # Track which consumer got the message
+        consumer_id = consumer_seen % concurrency + 1
+        consumer_seen += 1
+        processed_by_consumer[consumer_id].append(message)
+        processed_messages.append(message)
+        processing_order.append(consumer_id)
+
+        # First consumer is slow but should still get its fair share
+        if consumer_id == 1:
+            await asyncio.sleep(0.1)
+
+        if len(processed_messages) >= num_messages:
+            raise StopConsumer(ack=True)
+
+    consumer_task = asyncio.create_task(concurrent_consumer.run(handler))
+
+    try:
+        async with publisher as p:
+            # Send multiple messages
+            for i in range(num_messages):
+                await p.publish_data(f"message-{i}".encode(), {"index": str(i)})
+    finally:
+        await consumer_task
+
+    # Verify total messages processed
+    assert len(processed_messages) == num_messages
+
+    # Verify all consumers processed equal number of messages
+    messages_per_consumer = num_messages // concurrency
+    for consumer_id in range(1, concurrency + 1):
+        assert (
+            len(processed_by_consumer[consumer_id]) == messages_per_consumer
+        ), f"Consumer {consumer_id} should process exactly {messages_per_consumer} messages"
+
+    # Verify messages were processed in round-robin order
+    expected_order = [(i % concurrency) + 1 for i in range(num_messages)]
+    assert (
+        processing_order == expected_order
+    ), "Messages should be distributed in round-robin fashion"
+
+    # Verify each consumer got the correct messages
+    for consumer_id in range(1, concurrency + 1):
+        expected_indices = list(range(consumer_id - 1, num_messages, concurrency))
+        actual_indices = [
+            int(msg.attributes["index"]) for msg in processed_by_consumer[consumer_id]
+        ]
+        assert (
+            actual_indices == expected_indices
+        ), f"Consumer {consumer_id} should process messages {expected_indices}"
