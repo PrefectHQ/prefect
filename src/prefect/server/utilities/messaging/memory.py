@@ -162,6 +162,8 @@ class Subscription:
         """
         Get a message from the subscription's queue.
         """
+        if not self._retry.empty():
+            return await self._retry.get()
         return await self._queue.get()
 
     async def send_to_dead_letter_queue(self, message: MemoryMessage) -> None:
@@ -349,16 +351,16 @@ class Consumer(_Consumer):
 
     async def _consume_loop(self, handler: MessageHandler) -> None:
         while True:
-            msg = await self.subscription.get()
+            message = await self.subscription.get()
             try:
-                await handler(msg)
+                await handler(message)
                 await update_metric(self.topic.name, "consumed")
             except StopConsumer as e:
                 if not e.ack:
-                    await self.subscription.retry(msg)
+                    await self.subscription.retry(message)
                 raise  # Propagate to task group
             except Exception:
-                await self.subscription.retry(msg)
+                await self.subscription.retry(message)
 
 
 @asynccontextmanager
