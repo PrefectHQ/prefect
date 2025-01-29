@@ -7,24 +7,26 @@ import { Typography } from "@/components/ui/typography";
 import { pluralize } from "@/utils";
 
 type AutomationDetailsProps = {
-	data: Automation;
+	automation: Automation;
 };
 
-export const AutomationDescription = ({ data }: AutomationDetailsProps) => {
+export const AutomationDescription = ({
+	automation,
+}: AutomationDetailsProps) => {
 	return (
 		<div className="flex flex-col gap-1">
 			<Typography className="text-muted-foreground" variant="bodySmall">
 				Description
 			</Typography>
 			<Typography className="text-muted-foreground">
-				{data.description || "None"}
+				{automation.description || "None"}
 			</Typography>
 		</div>
 	);
 };
 
-export const AutomationTrigger = ({ data }: AutomationDetailsProps) => {
-	const { trigger } = data;
+export const AutomationTrigger = ({ automation }: AutomationDetailsProps) => {
+	const { trigger } = automation;
 	return (
 		<div className="flex flex-col gap-1">
 			<Typography>Trigger</Typography>
@@ -35,8 +37,9 @@ export const AutomationTrigger = ({ data }: AutomationDetailsProps) => {
 	);
 };
 
-export const AutomationActions = ({ data }: AutomationDetailsProps) => {
-	const { data: resources, loading } = useGetAutomationActionResources(data);
+export const AutomationActions = ({ automation }: AutomationDetailsProps) => {
+	const { data: resources, loading } =
+		useGetAutomationActionResources(automation);
 
 	const {
 		automationsMap,
@@ -48,15 +51,15 @@ export const AutomationActions = ({ data }: AutomationDetailsProps) => {
 
 	return (
 		<div className="flex flex-col gap-1">
-			<Typography>{pluralize(data.actions.length, "Action")}</Typography>
+			<Typography>{pluralize(automation.actions.length, "Action")}</Typography>
 			<ul className="flex flex-col gap-2">
 				{loading
-					? Array.from({ length: data.actions.length }, (_, i) => (
+					? Array.from({ length: automation.actions.length }, (_, i) => (
 							<Card className="p-4" key={i}>
 								<Skeleton className="p-2 h-2 w-full" />
 							</Card>
 						))
-					: data.actions.map((action, i) => (
+					: automation.actions.map((action, i) => (
 							<li key={i}>
 								<ActionDetails
 									action={action}
