@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any, List, NoReturn, Optional, overload
 import anyio
 
 from prefect.logging import get_logger
+from prefect.server.services.base import Service
 from prefect.settings import PREFECT_API_LOG_RETRYABLE_ERRORS
 from prefect.types import DateTime
 from prefect.utilities.processutils import (
@@ -22,7 +23,7 @@ if TYPE_CHECKING:
     import logging
 
 
-class LoopService:
+class LoopService(Service):
     """
     Loop services are relatively lightweight maintenance routines that need to run periodically.
 
@@ -71,6 +72,10 @@ class LoopService:
         """
         self._is_running = False
         self.logger.debug(f"Stopped {self.name}")
+
+    @overload
+    async def start(self) -> NoReturn:
+        ...
 
     @overload
     async def start(self, loops: None = None) -> NoReturn:
