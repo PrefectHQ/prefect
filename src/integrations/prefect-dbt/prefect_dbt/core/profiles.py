@@ -30,7 +30,6 @@ if TYPE_CHECKING:
 T = TypeVar("T", str, int, float, bool, dict[Any, Any], list[Any], None)
 
 BLOCK_DOCUMENT_PLACEHOLDER_PREFIX = "prefect.blocks."
-VARIABLE_PLACEHOLDER_PREFIX = "prefect.variables."
 
 
 def get_profiles_dir() -> str:
