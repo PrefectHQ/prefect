@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Sequence, TypeAlias, Union
 
 from prefect.events.related import related_resources_from_run_context
 from prefect.events.schemas.events import RelatedResource
