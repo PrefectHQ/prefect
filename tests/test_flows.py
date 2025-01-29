@@ -7,6 +7,7 @@ import signal
 import sys
 import threading
 import time
+import uuid
 import warnings
 from functools import partial
 from itertools import combinations
@@ -553,24 +554,24 @@ class TestFlowWithOptions:
 
 class TestFlowCall:
     async def test_call_creates_flow_run_and_runs(self):
-        @flow(version="test")
+        @flow(version="test", name=f"foo-{uuid.uuid4()}")
         def foo(x, y=3, z=3):
             return x + y + z
 
         assert foo(1, 2) == 6
 
-        flow_run = await get_most_recent_flow_run()
+        flow_run = await get_most_recent_flow_run(flow_name=foo.name)
         assert flow_run.parameters == {"x": 1, "y": 2, "z": 3}
         assert flow_run.flow_version == foo.version
 
     async def test_async_call_creates_flow_run_and_runs(self):
-        @flow(version="test")
+        @flow(version="test", name=f"foo-{uuid.uuid4()}")
         async def foo(x, y=3, z=3):
             return x + y + z
 
         assert await foo(1, 2) == 6
 
-        flow_run = await get_most_recent_flow_run()
+        flow_run = await get_most_recent_flow_run(flow_name=foo.name)
         assert flow_run.parameters == {"x": 1, "y": 2, "z": 3}
         assert flow_run.flow_version == foo.version
 

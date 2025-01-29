@@ -742,7 +742,7 @@ class RunnerDeployment(BaseModel):
         work_queue_name: Optional[str] = None,
         job_variables: Optional[dict[str, Any]] = None,
         _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,  # experimental
-    ):
+    ) -> "RunnerDeployment":
         """
         Create a RunnerDeployment from a flow located at a given entrypoint and stored in a
         local storage location.
@@ -857,7 +857,7 @@ class RunnerDeployment(BaseModel):
         work_queue_name: Optional[str] = None,
         job_variables: Optional[dict[str, Any]] = None,
         _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,  # experimental
-    ):
+    ) -> "RunnerDeployment":
         """
         Create a RunnerDeployment from a flow located at a given entrypoint and stored in a
         local storage location.
