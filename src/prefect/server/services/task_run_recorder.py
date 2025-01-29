@@ -25,6 +25,7 @@ from prefect.server.utilities.messaging import (
     MessageHandler,
     create_consumer,
 )
+from prefect.server.utilities.messaging.memory import log_metrics_periodically
 
 if TYPE_CHECKING:
     import logging
@@ -219,6 +220,7 @@ class TaskRunRecorder:
     name: str = "TaskRunRecorder"
 
     consumer_task: asyncio.Task[None] | None = None
+    metrics_task: asyncio.Task[None] | None = None
 
     def __init__(self):
         self._started_event: Optional[asyncio.Event] = None
@@ -239,6 +241,8 @@ class TaskRunRecorder:
 
         async with consumer() as handler:
             self.consumer_task = asyncio.create_task(self.consumer.run(handler))
+            self.metrics_task = asyncio.create_task(log_metrics_periodically())
+
             logger.debug("TaskRunRecorder started")
             self.started_event.set()
 
@@ -250,10 +254,15 @@ class TaskRunRecorder:
     async def stop(self) -> None:
         assert self.consumer_task is not None, "Logger not started"
         self.consumer_task.cancel()
+        if self.metrics_task:
+            self.metrics_task.cancel()
         try:
             await self.consumer_task
+            if self.metrics_task:
+                await self.metrics_task
         except asyncio.CancelledError:
             pass
         finally:
             self.consumer_task = None
+            self.metrics_task = None
         logger.debug("TaskRunRecorder stopped")

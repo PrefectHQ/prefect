@@ -1,16 +1,21 @@
+from __future__ import annotations
+
 import asyncio
 import copy
+import threading
+from collections import defaultdict
 from collections.abc import AsyncGenerator, Iterable, Mapping, MutableMapping
 from contextlib import asynccontextmanager
 from dataclasses import asdict, dataclass
 from datetime import timedelta
 from pathlib import Path
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, Optional, Type, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union
 from uuid import uuid4
 
 import anyio
 from cachetools import TTLCache
+from exceptiongroup import BaseExceptionGroup  # novermin
 from pydantic_core import to_json
 from typing_extensions import Self
 
@@ -25,6 +30,44 @@ if TYPE_CHECKING:
     import logging
 
 logger: "logging.Logger" = get_logger(__name__)
+
+# Simple global counters by topic with thread-safe access
+_metrics_lock: threading.Lock | None = None
+METRICS: dict[str, dict[str, int]] = defaultdict(
+    lambda: {
+        "published": 0,
+        "retried": 0,
+        "consumed": 0,
+    }
+)
+
+
+async def log_metrics_periodically(interval: float = 2.0) -> None:
+    if _metrics_lock is None:
+        return
+    while True:
+        await asyncio.sleep(interval)
+        with _metrics_lock:
+            for topic, data in METRICS.items():
+                if data["published"] == 0:
+                    continue
+                depth = data["published"] - data["consumed"]
+                logger.debug(
+                    "Topic=%r | published=%d consumed=%d retried=%d depth=%d",
+                    topic,
+                    data["published"],
+                    data["consumed"],
+                    data["retried"],
+                    depth,
+                )
+
+
+async def update_metric(topic: str, key: str, amount: int = 1) -> None:
+    global _metrics_lock
+    if _metrics_lock is None:
+        _metrics_lock = threading.Lock()
+    with _metrics_lock:
+        METRICS[topic][key] += amount
 
 
 @dataclass
@@ -58,7 +101,7 @@ class Subscription:
         self,
         topic: "Topic",
         max_retries: int = 3,
-        dead_letter_queue_path: Union[Path, str, None] = None,
+        dead_letter_queue_path: Path | str | None = None,
     ) -> None:
         self.topic = topic
         self.max_retries = max_retries
@@ -78,6 +121,13 @@ class Subscription:
             message: The message to deliver.
         """
         await self._queue.put(message)
+        await update_metric(self.topic.name, "published")
+        logger.debug(
+            "Delivered message to topic=%r queue_size=%d retry_queue_size=%d",
+            self.topic.name,
+            self._queue.qsize(),
+            self._retry.qsize(),
+        )
 
     async def retry(self, message: MemoryMessage) -> None:
         """
@@ -99,6 +149,14 @@ class Subscription:
             await self.send_to_dead_letter_queue(message)
         else:
             await self._retry.put(message)
+            await update_metric(self.topic.name, "retried")
+            logger.debug(
+                "Retried message on topic=%r retry_count=%d queue_size=%d retry_queue_size=%d",
+                self.topic.name,
+                message.retry_count,
+                self._queue.qsize(),
+                self._retry.qsize(),
+            )
 
     async def get(self) -> MemoryMessage:
         """
@@ -152,8 +210,8 @@ class Topic:
             topic.clear()
         cls._topics = {}
 
-    def subscribe(self) -> Subscription:
-        subscription = Subscription(self)
+    def subscribe(self, **subscription_kwargs: Any) -> Subscription:
+        subscription = Subscription(self, **subscription_kwargs)
         self._subscriptions.append(subscription)
         return subscription
 
@@ -243,9 +301,9 @@ class Publisher(_Publisher):
 
     async def __aexit__(
         self,
-        exc_type: Optional[Type[BaseException]],
-        exc_val: Optional[BaseException],
-        exc_tb: Optional[TracebackType],
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
     ) -> None:
         return None
 
@@ -266,22 +324,41 @@ class Publisher(_Publisher):
 
 
 class Consumer(_Consumer):
-    def __init__(self, topic: str, subscription: Optional[Subscription] = None):
+    def __init__(
+        self,
+        topic: str,
+        subscription: Optional[Subscription] = None,
+        concurrency: int = 2,
+    ):
         self.topic: Topic = Topic.by_name(topic)
         if not subscription:
             subscription = self.topic.subscribe()
         assert subscription.topic is self.topic
         self.subscription = subscription
+        self.concurrency = concurrency
 
     async def run(self, handler: MessageHandler) -> None:
+        try:
+            async with anyio.create_task_group() as tg:
+                for _ in range(self.concurrency):
+                    tg.start_soon(self._consume_loop, handler)
+        except BaseExceptionGroup as group:  # novermin
+            if all(isinstance(exc, StopConsumer) for exc in group.exceptions):
+                logger.debug("StopConsumer received")
+                return  # Exit cleanly when all tasks stop
+            # Re-raise if any non-StopConsumer exceptions
+            raise group
+
+    async def _consume_loop(self, handler: MessageHandler) -> None:
         while True:
             message = await self.subscription.get()
             try:
                 await handler(message)
+                await update_metric(self.topic.name, "consumed")
             except StopConsumer as e:
                 if not e.ack:
                     await self.subscription.retry(message)
-                return
+                raise  # Propagate to task group
             except Exception:
                 await self.subscription.retry(message)
 
