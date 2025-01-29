@@ -1,16 +1,19 @@
+from __future__ import annotations
+
 import contextlib
 import re
 import textwrap
-from typing import Iterable, List, Tuple, Union
+from typing import Iterable
 
 import readchar
+from rich.console import Console
 from typer.testing import CliRunner, Result  # type: ignore
 
 from prefect.cli import app
 from prefect.utilities.asyncutils import in_async_main_thread
 
 
-def check_contains(cli_result: Result, content: str, should_contain: bool):
+def check_contains(cli_result: Result, content: str, should_contain: bool) -> None:
     """
     Utility function to see if content is or is not in a CLI result.
 
@@ -46,16 +49,16 @@ def check_contains(cli_result: Result, content: str, should_contain: bool):
 
 
 def invoke_and_assert(
-    command: Union[str, List[str]],
-    user_input: Union[str, None] = None,
-    prompts_and_responses: List[Union[Tuple[str, str], Tuple[str, str, str]]] = [],
-    expected_output: Union[str, None] = None,
-    expected_output_contains: Union[str, Iterable[str], None] = None,
-    expected_output_does_not_contain: Union[str, Iterable[str], None] = None,
-    expected_line_count: Union[int, None] = None,
-    expected_code: int = 0,
+    command: str | list[str],
+    user_input: str | None = None,
+    prompts_and_responses: list[tuple[str, str] | tuple[str, str, str]] | None = None,
+    expected_output: str | None = None,
+    expected_output_contains: str | Iterable[str] | None = None,
+    expected_output_does_not_contain: str | Iterable[str] | None = None,
+    expected_line_count: int | None = None,
+    expected_code: int | None = 0,
     echo: bool = True,
-    temp_dir: Union[str, None] = None,
+    temp_dir: str | None = None,
 ) -> Result:
     """
     Test utility for the Prefect CLI application, asserts exact match with CLI output.
@@ -75,6 +78,7 @@ def invoke_and_assert(
         temp_dir: if provided, the CLI command will be run with this as its present
             working directory.
     """
+    prompts_and_responses = prompts_and_responses or []
     if in_async_main_thread():
         raise RuntimeError(
             textwrap.dedent(
@@ -192,11 +196,11 @@ def invoke_and_assert(
 
 
 @contextlib.contextmanager
-def temporary_console_width(console, width):
+def temporary_console_width(console: Console, width: int):
     original = console.width
 
     try:
-        console._width = width
+        console._width = width  # type: ignore
         yield
     finally:
-        console._width = original
+        console._width = original  # type: ignore

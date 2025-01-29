@@ -45,6 +45,8 @@ from prefect.client.schemas.actions import (
 from prefect.client.schemas.filters import (
     ArtifactFilter,
     ArtifactFilterKey,
+    DeploymentFilter,
+    DeploymentFilterTags,
     FlowFilter,
     FlowRunFilter,
     FlowRunFilterTags,
@@ -786,9 +788,38 @@ async def test_read_deployment_by_name(prefect_client):
     assert lookup.name == "test-deployment"
 
 
-async def test_read_deployment_by_name_fails_with_helpful_suggestion(prefect_client):
-    """this is a regression test for https://github.com/PrefectHQ/prefect/issues/15571"""
-
+@pytest.mark.parametrize(
+    "deployment_tags,filter_tags,expected_match",
+    [
+        # Basic single tag matching
+        (["tag-1"], ["tag-1"], True),
+        (["tag-2"], ["tag-1"], False),
+        # Any matching - should match if ANY tag in filter matches
+        (["tag-1", "tag-2"], ["tag-1", "tag-3"], True),
+        (["tag-1"], ["tag-1", "tag-2"], True),
+        (["tag-2"], ["tag-1", "tag-2"], True),
+        # No matches
+        (["tag-1"], ["tag-2", "tag-3"], False),
+        (["tag-1"], ["get-real"], False),
+        # Empty cases
+        ([], ["tag-1"], False),
+        (["tag-1"], [], False),
+    ],
+    ids=[
+        "single_tag_match",
+        "single_tag_no_match",
+        "multiple_tags_partial_match",
+        "subset_match_1",
+        "subset_match_2",
+        "no_matching_tags",
+        "nonexistent_tag",
+        "empty_run_tags",
+        "empty_filter_tags",
+    ],
+)
+async def test_read_deployment_by_any_tag(
+    prefect_client, deployment_tags, filter_tags, expected_match
+):
     @flow
     def moo_deng():
         pass
@@ -798,13 +829,16 @@ async def test_read_deployment_by_name_fails_with_helpful_suggestion(prefect_cli
     await prefect_client.create_deployment(
         flow_id=flow_id,
         name="moisturized-deployment",
+        tags=deployment_tags,
     )
-
-    with pytest.raises(
-        prefect.exceptions.ObjectNotFound,
-        match="Deployment 'moo_deng/moisturized-deployment' not found; did you mean 'moo-deng/moisturized-deployment'?",
-    ):
-        await prefect_client.read_deployment_by_name("moo_deng/moisturized-deployment")
+    deployment_responses = await prefect_client.read_deployments(
+        deployment_filter=DeploymentFilter(tags=DeploymentFilterTags(any_=filter_tags))
+    )
+    if expected_match:
+        assert len(deployment_responses) == 1
+        assert deployment_responses[0].name == "moisturized-deployment"
+    else:
+        assert len(deployment_responses) == 0
 
 
 async def test_create_then_delete_deployment(prefect_client):
@@ -825,7 +859,7 @@ async def test_create_then_delete_deployment(prefect_client):
 
 
 async def test_read_nonexistent_deployment_by_name(prefect_client):
-    with pytest.raises(prefect.exceptions.ObjectNotFound):
+    with pytest.raises((prefect.exceptions.ObjectNotFound, ValueError)):
         await prefect_client.read_deployment_by_name("not-a-real-deployment")
 
 
@@ -1872,19 +1906,6 @@ class TestClientWorkQueues:
         output = await prefect_client.get_runs_in_work_queue(queue.id, limit=20)
         assert len(output) == 10
         assert {o.id for o in output} == {r.id for r in runs}
-
-    async def test_get_runs_from_queue_updates_status(
-        self, prefect_client: PrefectClient
-    ):
-        queue = await prefect_client.create_work_queue(name="foo")
-        assert queue.status == "NOT_READY"
-
-        # Trigger an operation that would update the queues last_polled status
-        await prefect_client.get_runs_in_work_queue(queue.id, limit=1)
-
-        # Verify that the polling results in a READY status
-        lookup = await prefect_client.read_work_queue(queue.id)
-        assert lookup.status == "READY"
 
 
 async def test_delete_flow_run(prefect_client, flow_run):

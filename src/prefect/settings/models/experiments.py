@@ -1,6 +1,9 @@
-from pydantic import AliasChoices, AliasPath, Field
+from typing import ClassVar
 
-from prefect.settings.base import PrefectBaseSettings, _build_settings_config
+from pydantic import AliasChoices, AliasPath, Field
+from pydantic_settings import SettingsConfigDict
+
+from prefect.settings.base import PrefectBaseSettings, build_settings_config
 
 
 class ExperimentsSettings(PrefectBaseSettings):
@@ -8,7 +11,7 @@ class ExperimentsSettings(PrefectBaseSettings):
     Settings for configuring experimental features
     """
 
-    model_config = _build_settings_config(("experiments",))
+    model_config: ClassVar[SettingsConfigDict] = build_settings_config(("experiments",))
 
     warn: bool = Field(
         default=True,
@@ -16,11 +19,6 @@ class ExperimentsSettings(PrefectBaseSettings):
         validation_alias=AliasChoices(
             AliasPath("warn"), "prefect_experiments_warn", "prefect_experimental_warn"
         ),
-    )
-
-    telemetry_enabled: bool = Field(
-        default=False,
-        description="Enables sending telemetry to Prefect Cloud.",
     )
 
     lineage_events_enabled: bool = Field(

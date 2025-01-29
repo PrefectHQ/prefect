@@ -13,6 +13,7 @@ to poll for flow runs.
 For more information about work pools and workers,
 checkout out the [Prefect docs](/concepts/work-pools/).
 """
+from __future__ import annotations
 
 import contextlib
 import os
@@ -30,7 +31,7 @@ import anyio
 import anyio.abc
 from pydantic import Field, field_validator
 
-from prefect._internal.schemas.validators import validate_command
+from prefect._internal.schemas.validators import validate_working_dir
 from prefect.client.schemas import FlowRun
 from prefect.client.schemas.filters import (
     FlowRunFilter,
@@ -85,19 +86,21 @@ class ProcessJobConfiguration(BaseJobConfiguration):
 
     @field_validator("working_dir")
     @classmethod
-    def validate_command(cls, v):
-        return validate_command(v)
+    def validate_working_dir(cls, v: Path | str | None) -> Path | None:
+        if isinstance(v, str):
+            return validate_working_dir(v)
+        return v
 
     def prepare_for_flow_run(
         self,
         flow_run: "FlowRun",
         deployment: Optional["DeploymentResponse"] = None,
         flow: Optional["Flow"] = None,
-    ):
+    ) -> None:
         super().prepare_for_flow_run(flow_run, deployment, flow)
 
-        self.env = {**os.environ, **self.env}
-        self.command = (
+        self.env: dict[str, str | None] = {**os.environ, **self.env}
+        self.command: str | None = (
             f"{get_sys_executable()} -m prefect.engine"
             if self.command == self._base_flow_run_command()
             else self.command
@@ -134,10 +137,12 @@ class ProcessWorkerResult(BaseWorkerResult):
     """Contains information about the final state of a completed process"""
 
 
-class ProcessWorker(BaseWorker):
+class ProcessWorker(
+    BaseWorker[ProcessJobConfiguration, ProcessVariables, ProcessWorkerResult]
+):
     type = "process"
-    job_configuration = ProcessJobConfiguration
-    job_configuration_variables = ProcessVariables
+    job_configuration: type[ProcessJobConfiguration] = ProcessJobConfiguration
+    job_configuration_variables: type[ProcessVariables] | None = ProcessVariables
 
     _description = (
         "Execute flow runs as subprocesses on a worker. Works well for local execution"
@@ -152,7 +157,7 @@ class ProcessWorker(BaseWorker):
         run_once: bool = False,
         with_healthcheck: bool = False,
         printer: Callable[..., None] = print,
-    ):
+    ) -> None:
         """
         Starts the worker and runs the main worker loops.
 
@@ -241,8 +246,8 @@ class ProcessWorker(BaseWorker):
         self,
         flow_run: FlowRun,
         configuration: ProcessJobConfiguration,
-        task_status: Optional[anyio.abc.TaskStatus] = None,
-    ):
+        task_status: Optional[anyio.abc.TaskStatus[int]] = None,
+    ) -> ProcessWorkerResult:
         command = configuration.command
         if not command:
             command = f"{get_sys_executable()} -m prefect.engine"
@@ -322,7 +327,7 @@ class ProcessWorker(BaseWorker):
         self,
         infrastructure_pid: str,
         grace_seconds: int = 30,
-    ):
+    ) -> None:
         hostname, pid = _parse_infrastructure_pid(infrastructure_pid)
 
         if hostname != socket.gethostname():
@@ -372,7 +377,7 @@ class ProcessWorker(BaseWorker):
                 # process ended right after the check above.
                 return
 
-    async def check_for_cancelled_flow_runs(self):
+    async def check_for_cancelled_flow_runs(self) -> list["FlowRun"]:
         if not self.is_setup:
             raise RuntimeError(
                 "Worker is not set up. Please make sure you are running this worker "
@@ -429,7 +434,7 @@ class ProcessWorker(BaseWorker):
 
         return cancelling_flow_runs
 
-    async def cancel_run(self, flow_run: "FlowRun"):
+    async def cancel_run(self, flow_run: "FlowRun") -> None:
         run_logger = self.get_flow_run_logger(flow_run)
 
         try:

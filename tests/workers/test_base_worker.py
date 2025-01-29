@@ -2119,3 +2119,23 @@ async def test_worker_gives_labels_to_flow_runs_when_using_cloud_api(
 
     for key, value in expected_labels.items():
         assert flow_run.labels[key] == value
+
+
+async def test_worker_removes_flow_run_from_submitting_when_not_ready(
+    prefect_client: PrefectClient, worker_deployment_wq1, work_pool
+):
+    """
+    Regression test for https://github.com/PrefectHQ/prefect/issues/16027
+    """
+
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        worker_deployment_wq1.id, state=Pending()
+    )
+
+    async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+        # Mock _propose_pending_state to return False
+        worker._propose_pending_state = AsyncMock(return_value=False)
+
+        await worker.get_and_submit_flow_runs()
+        # Verify the flow run was removed from _submitting_flow_run_ids
+        assert flow_run.id not in worker._submitting_flow_run_ids

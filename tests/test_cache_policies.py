@@ -93,11 +93,23 @@ class TestInputsPolicy:
             )
             assert new_key == key
 
-    def test_subtraction_results_in_new_policy(self):
+    def test_subtraction_results_in_new_policy_for_inputs(self):
         policy = Inputs()
         new_policy = policy - "foo"
         assert policy != new_policy
         assert policy.exclude != new_policy.exclude
+
+    @pytest.mark.parametrize("policy", [RunId(), RunId() + TaskSource()])
+    def test_subtraction_is_noop_for_non_inputs_policies(self, policy):
+        new_policy = policy - "foo"
+        assert policy is new_policy
+        assert policy.compute_key(
+            task_ctx=None,
+            inputs={"foo": 42, "y": "changing-value"},
+            flow_parameters=None,
+        ) == policy.compute_key(
+            task_ctx=None, inputs={"foo": 42, "y": "changed"}, flow_parameters=None
+        )
 
     def test_excluded_can_be_manipulated_via_subtraction(self):
         policy = Inputs() - "y"
@@ -129,15 +141,15 @@ class TestCompoundPolicy:
         assert policy != two
         assert policy.policies != two.policies
 
-    def test_subtraction_creates_new_policies(self):
-        policy = CompoundCachePolicy(policies=[])
+    def test_subtraction_creates_new_policies_if_input_dependency(self):
+        policy = CompoundCachePolicy(policies=[Inputs()])
         new_policy = policy - "foo"
         assert isinstance(new_policy, CompoundCachePolicy)
         assert policy != new_policy
         assert policy.policies != new_policy.policies
 
     def test_creation_via_subtraction(self):
-        one = RunId()
+        one = DEFAULT
         policy = one - "y"
         assert isinstance(policy, CompoundCachePolicy)
 
@@ -157,6 +169,61 @@ class TestCompoundPolicy:
             task_ctx=None, inputs=dict(z=[1, 2]), flow_parameters=fparams
         )
         assert compound_key is None
+
+    def test_adding_two_compound_policies_merges_policies(self):
+        one = CompoundCachePolicy(policies=[Inputs(), TaskSource()])
+        two = CompoundCachePolicy(policies=[RunId()])
+        policy = one + two
+        assert isinstance(policy, CompoundCachePolicy)
+        assert len(policy.policies) == 3
+        assert Inputs() in policy.policies
+        assert RunId() in policy.policies
+        assert TaskSource() in policy.policies
+
+    def test_nested_compound_policies_are_flattened(self):
+        policy = CompoundCachePolicy(
+            policies=[
+                CompoundCachePolicy(policies=[Inputs(), TaskSource()]),
+                CompoundCachePolicy(policies=[RunId()]),
+            ]
+        )
+        assert isinstance(policy, CompoundCachePolicy)
+        assert len(policy.policies) == 3
+        assert Inputs() in policy.policies
+        assert RunId() in policy.policies
+        assert TaskSource() in policy.policies
+
+    def test_compound_policy_deduplicates_inputs_on_subtraction(self):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/16773"""
+        # Create a compound policy with multiple Inputs policies
+        policy = CompoundCachePolicy(
+            policies=[
+                Inputs(),
+                TaskSource(),
+                Inputs(exclude=["x"]),
+                Inputs(exclude=["y"]),
+            ]
+        )
+        # Inputs get combined into a single policy
+        assert len(policy.policies) == 2
+
+        # Subtract a new key
+        new_policy = policy - "z"
+
+        # Verify that all Inputs policies were merged into one
+        inputs_policies = [p for p in new_policy.policies if isinstance(p, Inputs)]
+        assert len(inputs_policies) == 1
+
+        # Verify that all excludes were preserved
+        assert sorted(inputs_policies[0].exclude) == ["x", "y", "z"]
+
+        # Each non-Inputs policy gets converted to a CompoundCachePolicy with an Inputs policy
+        # So we should have one merged Inputs policy and one CompoundCachePolicy containing TaskSource
+        assert len(new_policy.policies) == 2
+        assert any(
+            isinstance(p, CompoundCachePolicy) or isinstance(p, TaskSource)
+            for p in new_policy.policies
+        )
 
 
 class TestTaskSourcePolicy:

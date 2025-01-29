@@ -1,5 +1,5 @@
+import type { GlobalConcurrencyLimit } from "@/api/global-concurrency-limits";
 import { DataTable } from "@/components/ui/data-table";
-import type { GlobalConcurrencyLimit } from "@/hooks/global-concurrency-limits";
 import { getRouteApi } from "@tanstack/react-router";
 import {
 	createColumnHelper,
@@ -54,7 +54,7 @@ const createColumns = ({
 	}),
 ];
 
-type Props = {
+type GlobalConcurrencyLimitsDataTableProps = {
 	data: Array<GlobalConcurrencyLimit>;
 	onEditRow: (row: GlobalConcurrencyLimit) => void;
 	onDeleteRow: (row: GlobalConcurrencyLimit) => void;
@@ -64,7 +64,7 @@ export const GlobalConcurrencyLimitsDataTable = ({
 	data,
 	onEditRow,
 	onDeleteRow,
-}: Props) => {
+}: GlobalConcurrencyLimitsDataTableProps) => {
 	const navigate = routeApi.useNavigate();
 	const { search } = routeApi.useSearch();
 	const deferredSearch = useDeferredValue(search ?? "");

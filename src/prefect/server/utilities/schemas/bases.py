@@ -72,7 +72,7 @@ class PrefectBaseModel(BaseModel):
 
     _reset_fields: ClassVar[set[str]] = set()
 
-    model_config = ConfigDict(
+    model_config: ClassVar[ConfigDict] = ConfigDict(
         ser_json_timedelta="float",
         extra=(
             "ignore"
@@ -202,7 +202,7 @@ class IDBaseModel(PrefectBaseModel):
     The ID is reset on copy() and not included in equality comparisons.
     """
 
-    model_config = ConfigDict(
+    model_config: ClassVar[ConfigDict] = ConfigDict(
         json_schema_extra=partial(_ensure_fields_required, ["id"])
     )
 
@@ -221,7 +221,7 @@ class ORMBaseModel(IDBaseModel):
 
     _reset_fields: ClassVar[set[str]] = {"id", "created", "updated"}
 
-    model_config = ConfigDict(
+    model_config: ClassVar[ConfigDict] = ConfigDict(
         from_attributes=True,
         json_schema_extra=partial(
             _ensure_fields_required, ["id", "created", "updated"]
@@ -233,4 +233,4 @@ class ORMBaseModel(IDBaseModel):
 
 
 class ActionBaseModel(PrefectBaseModel):
-    model_config: ConfigDict = ConfigDict(extra="forbid")
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")

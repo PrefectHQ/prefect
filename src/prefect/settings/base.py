@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import inspect
 from functools import partial
 from typing import Any, Dict, Tuple, Type
@@ -43,13 +45,17 @@ class PrefectBaseSettings(BaseSettings):
 
         See https://docs.pydantic.dev/latest/concepts/pydantic_settings/#customise-settings-sources
         """
-        env_filter = set()
+        env_filter: set[str] = set()
         for field_name, field in settings_cls.model_fields.items():
             if field.validation_alias is not None and isinstance(
                 field.validation_alias, AliasChoices
             ):
                 for alias in field.validation_alias.choices:
-                    if isinstance(alias, AliasPath) and len(alias.path) > 0:
+                    if (
+                        isinstance(alias, AliasPath)
+                        and len(alias.path) > 0
+                        and isinstance(alias.path[0], str)
+                    ):
                         env_filter.add(alias.path[0])
             env_filter.add(field_name)
         return (
@@ -88,13 +94,12 @@ class PrefectBaseSettings(BaseSettings):
         include_secrets: bool = True,
     ) -> Dict[str, str]:
         """Convert the settings object to a dictionary of environment variables."""
-
         env: Dict[str, Any] = self.model_dump(
             exclude_unset=exclude_unset,
             mode="json",
             context={"include_secrets": include_secrets},
         )
-        env_variables = {}
+        env_variables: dict[str, str] = {}
         for key in self.model_fields.keys():
             if isinstance(child_settings := getattr(self, key), PrefectBaseSettings):
                 child_env = child_settings.to_environment_variables(
@@ -175,7 +180,7 @@ def _add_environment_variables(
     schema: Dict[str, Any], model: Type[PrefectBaseSettings]
 ) -> None:
     for property in schema["properties"]:
-        env_vars = []
+        env_vars: list[str] = []
         schema["properties"][property]["supported_environment_variables"] = env_vars
         field = model.model_fields[property]
         if inspect.isclass(field.annotation) and issubclass(
@@ -191,7 +196,7 @@ def _add_environment_variables(
             env_vars.append(f"{model.model_config.get('env_prefix')}{property.upper()}")
 
 
-def _build_settings_config(
+def build_settings_config(
     path: Tuple[str, ...] = tuple(), frozen: bool = False
 ) -> PrefectSettingsConfigDict:
     env_prefix = f"PREFECT_{'_'.join(path).upper()}_" if path else "PREFECT_"
@@ -207,7 +212,12 @@ def _build_settings_config(
     )
 
 
-def _to_environment_variable_value(value: Any) -> str:
+_build_settings_config = build_settings_config  # noqa # TODO: remove once all usage updated
+
+
+def _to_environment_variable_value(
+    value: list[object] | set[object] | tuple[object] | Any,
+) -> str:
     if isinstance(value, (list, set, tuple)):
         return ",".join(str(v) for v in value)
     return str(value)

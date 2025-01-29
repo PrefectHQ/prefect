@@ -32,7 +32,7 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
         self._task: Optional[asyncio.Task[None]] = None
         self._stopped: bool = False
         self._started: bool = False
-        self._key = hash(args)
+        self._key = hash((self.__class__, *args))
         self._lock = threading.Lock()
         self._queue_get_thread = WorkerThread(
             # TODO: This thread should not need to be a daemon but when it is not, it
@@ -65,7 +65,7 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
         # failure to process items. This is particularly relevant for services
         # which use an httpx client. See related issue at
         # https://github.com/python/cpython/issues/86813
-        threading._register_atexit(self._at_exit)  # pyright: ignore[reportUnknownVariableType, reportAttributeAccessIssue]
+        threading._register_atexit(self._at_exit)  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
 
     def _at_exit(self) -> None:
         self.drain(at_exit=True)
@@ -256,7 +256,7 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
         If an instance already exists with the given arguments, it will be returned.
         """
         with cls._instance_lock:
-            key = hash(args)
+            key = hash((cls, *args))
             if key not in cls._instances:
                 cls._instances[key] = cls._new_instance(*args)
 

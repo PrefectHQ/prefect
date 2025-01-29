@@ -2,11 +2,14 @@
 Command line interface for working with blocks.
 """
 
+from __future__ import annotations
+
 import inspect
 from importlib import import_module
 from pathlib import Path
 from types import ModuleType
-from typing import List, Optional, Type
+from typing import TYPE_CHECKING, Any, Optional
+from uuid import UUID
 
 import typer
 import yaml
@@ -28,21 +31,28 @@ from prefect.settings import PREFECT_UI_URL
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.importtools import load_script_as_module
 
-blocks_app = PrefectTyper(name="block", help="Manage blocks.")
-blocktypes_app = PrefectTyper(name="type", help="Inspect and delete block types.")
+if TYPE_CHECKING:
+    from prefect.client.schemas.objects import BlockDocument, BlockType
+
+blocks_app: PrefectTyper = PrefectTyper(name="block", help="Manage blocks.")
+blocktypes_app: PrefectTyper = PrefectTyper(
+    name="type", help="Inspect and delete block types."
+)
 app.add_typer(blocks_app, aliases=["blocks"])
 blocks_app.add_typer(blocktypes_app, aliases=["types"])
 
 
-def display_block(block_document):
-    block_slug = f"{block_document.block_type.slug}/{block_document.name}"
+def display_block(block_document: "BlockDocument") -> Table:
+    block_slug = (
+        f"{getattr(block_document.block_type, 'slug', '')}/{block_document.name}"
+    )
     block_table = Table(
         title=block_slug, show_header=False, show_footer=False, expand=True
     )
     block_table.add_column(style="italic cyan")
     block_table.add_column(style="blue")
 
-    block_table.add_row("Block Type", block_document.block_type.name)
+    block_table.add_row("Block Type", getattr(block_document.block_type, "name", ""))
     block_table.add_row("Block id", str(block_document.id), end_section=True)
     for k, v in block_document.data.items():
         block_table.add_row(k, str(v))
@@ -50,7 +60,7 @@ def display_block(block_document):
     return block_table
 
 
-def display_block_type(block_type):
+def display_block_type(block_type: "BlockType") -> Table:
     block_type_table = Table(
         title=block_type.name, show_header=False, show_footer=False, expand=True
     )
@@ -72,7 +82,7 @@ def display_block_type(block_type):
     return block_type_table
 
 
-def display_block_schema_properties(block_schema_fields):
+def display_block_schema_properties(block_schema_fields: dict[str, Any]) -> Table:
     required = block_schema_fields.get("required", [])
     properties = block_schema_fields.get("properties", {})
 
@@ -97,7 +107,9 @@ def display_block_schema_properties(block_schema_fields):
     return block_schema_yaml_table
 
 
-def display_block_schema_extra_definitions(block_schema_definitions):
+def display_block_schema_extra_definitions(
+    block_schema_definitions: dict[str, Any],
+) -> Table:
     extra_definitions_table = Table(
         title="Extra Definitions", show_header=False, show_footer=False, expand=True
     )
@@ -120,12 +132,15 @@ def display_block_schema_extra_definitions(block_schema_definitions):
     return extra_definitions_table
 
 
-async def _register_blocks_in_module(module: ModuleType) -> List[Type[Block]]:
-    registered_blocks = []
+async def _register_blocks_in_module(module: ModuleType) -> list[type[Block]]:
+    registered_blocks: list[type[Block]] = []
     for _, cls in inspect.getmembers(module):
-        if Block.is_block_class(cls):
+        if cls is not None and Block.is_block_class(cls):
             try:
-                await cls.register_type_and_schema()
+                coro = cls.register_type_and_schema()
+                if TYPE_CHECKING:
+                    assert inspect.isawaitable(coro)
+                await coro
                 registered_blocks.append(cls)
             except InvalidBlockRegistration:
                 # Attempted to register Block base class or a Block interface
@@ -133,7 +148,7 @@ async def _register_blocks_in_module(module: ModuleType) -> List[Type[Block]]:
     return registered_blocks
 
 
-def _build_registered_blocks_table(registered_blocks: List[Type[Block]]):
+def _build_registered_blocks_table(registered_blocks: list[type[Block]]) -> Table:
     table = Table("Registered Blocks")
     for block in registered_blocks:
         table.add_row(block.get_block_type_name())
@@ -178,6 +193,7 @@ async def register(
             " registered, but not both."
         )
 
+    imported_module: Optional[ModuleType] = None
     if module_name:
         try:
             imported_module = import_module(name=module_name)
@@ -205,6 +221,8 @@ async def register(
                 "is correct and the file contains valid Python."
             )
 
+    if TYPE_CHECKING:
+        assert imported_module is not None
     registered_blocks = await _register_blocks_in_module(imported_module)
     number_of_registered_blocks = len(registered_blocks)
 
@@ -248,12 +266,14 @@ async def block_ls():
     table.add_column("Name", style="blue", no_wrap=True)
     table.add_column("Slug", style="blue", no_wrap=True)
 
-    for block in sorted(blocks, key=lambda x: f"{x.block_type.slug}/{x.name}"):
+    for block in sorted(
+        blocks, key=lambda x: f"{getattr(x.block_type, 'slug', '')}/{x.name}"
+    ):
         table.add_row(
             str(block.id),
-            block.block_type.name,
+            getattr(block.block_type, "name", ""),
             str(block.name),
-            f"{block.block_type.slug}/{block.name}",
+            f"{getattr(block.block_type, 'slug', '')}/{block.name}",
         )
 
     app.console.print(table)
@@ -264,7 +284,7 @@ async def block_delete(
     slug: Optional[str] = typer.Argument(
         None, help="A block slug. Formatted as '<BLOCK_TYPE_SLUG>/<BLOCK_NAME>'"
     ),
-    block_id: Optional[str] = typer.Option(None, "--id", help="A block id."),
+    block_id: Optional[UUID] = typer.Option(None, "--id", help="A block id."),
 ):
     """
     Delete a configured block.
@@ -280,7 +300,7 @@ async def block_delete(
                 await client.delete_block_document(block_id)
                 exit_with_success(f"Deleted Block '{block_id}'.")
             except ObjectNotFound:
-                exit_with_error(f"Deployment {block_id!r} not found!")
+                exit_with_error(f"Block {block_id!r} not found!")
         elif slug is not None:
             if "/" not in slug:
                 exit_with_error(
@@ -342,7 +362,7 @@ async def block_inspect(
     slug: Optional[str] = typer.Argument(
         None, help="A Block slug: <BLOCK_TYPE_SLUG>/<BLOCK_NAME>"
     ),
-    block_id: Optional[str] = typer.Option(
+    block_id: Optional[UUID] = typer.Option(
         None, "--id", help="A Block id to search for if no slug is given"
     ),
 ):
@@ -356,7 +376,7 @@ async def block_inspect(
                     block_id, include_secrets=False
                 )
             except ObjectNotFound:
-                exit_with_error(f"Deployment {block_id!r} not found!")
+                exit_with_error(f"Block {block_id!r} not found!")
         elif slug is not None:
             if "/" not in slug:
                 exit_with_error(
@@ -428,6 +448,9 @@ async def blocktype_inspect(
             )
         except Exception:
             exit_with_error(f"Failed to fetch latest schema for the {slug} block type")
+
+        if latest_schema is None:
+            exit_with_error(f"No schema found for the {slug} block type")
 
         app.console.print(display_block_schema_properties(latest_schema.fields))
 

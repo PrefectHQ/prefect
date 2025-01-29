@@ -4,7 +4,7 @@ import asyncio
 from time import sleep
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Type, Union
 
-from pydantic import Field
+from pydantic import AliasChoices, Field
 from snowflake.connector.connection import SnowflakeConnection
 from snowflake.connector.cursor import SnowflakeCursor
 
@@ -89,7 +89,9 @@ class SnowflakeConnector(DatabaseBlock):
     )
     schema_: str = Field(
         default=...,
-        alias="schema",
+        serialization_alias="schema",
+        # Handles cases where the model was dumped with `by_alias=False` or `by_alias=True`
+        validation_alias=AliasChoices("schema_", "schema"),
         description="The name of the default schema to use.",
     )
     fetch_size: int = Field(
@@ -307,9 +309,7 @@ class SnowflakeConnector(DatabaseBlock):
         )
         new, cursor = self._get_cursor(inputs, cursor_type=cursor_type)
         if new:
-            self.execute(
-                operation, parameters, cursor_type=cursor_type, **execute_kwargs
-            )
+            cursor.execute(operation, params=parameters, **execute_kwargs)
         self.logger.debug("Preparing to fetch a row.")
         return cursor.fetchone()
 
@@ -439,7 +439,7 @@ class SnowflakeConnector(DatabaseBlock):
         )
         new, cursor = self._get_cursor(inputs, cursor_type)
         if new:
-            self.execute(cursor, inputs)
+            cursor.execute(operation, params=parameters, **execute_kwargs)
         size = size or self.fetch_size
         self.logger.debug(f"Preparing to fetch {size} rows.")
         return cursor.fetchmany(size=size)

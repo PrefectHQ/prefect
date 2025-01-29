@@ -1,3 +1,4 @@
+import { useCreateTaskRunConcurrencyLimit } from "@/api/task-run-concurrency-limits";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -16,7 +17,6 @@ import {
 	FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useCreateTaskRunConcurrencyLimit } from "@/hooks/task-run-concurrency-limits";
 import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -37,7 +37,7 @@ const DEFAULT_VALUES = {
 	concurrency_limit: 0,
 } as const;
 
-type Props = {
+type TaskRunConcurrencyLimitsCreateDialogProps = {
 	onOpenChange: (open: boolean) => void;
 	onSubmit: () => void;
 };
@@ -45,7 +45,7 @@ type Props = {
 export const TaskRunConcurrencyLimitsCreateDialog = ({
 	onOpenChange,
 	onSubmit,
-}: Props) => {
+}: TaskRunConcurrencyLimitsCreateDialogProps) => {
 	const { toast } = useToast();
 
 	const { createTaskRunConcurrencyLimit, isPending } =
@@ -74,7 +74,7 @@ export const TaskRunConcurrencyLimitsCreateDialog = ({
 
 	return (
 		<Dialog open onOpenChange={onOpenChange}>
-			<DialogContent>
+			<DialogContent aria-describedby={undefined}>
 				<DialogHeader>
 					<DialogTitle>Add Task Run Concurrency Limit</DialogTitle>
 				</DialogHeader>

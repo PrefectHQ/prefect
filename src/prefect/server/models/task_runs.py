@@ -4,7 +4,17 @@ Intended for internal use by the Prefect REST API.
 """
 
 import contextlib
-from typing import Any, Dict, Optional, Sequence, Type, TypeVar, Union, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Optional,
+    Sequence,
+    Type,
+    TypeVar,
+    Union,
+    cast,
+)
 from uuid import UUID
 
 import pendulum
@@ -23,13 +33,18 @@ from prefect.server.orchestration.core_policy import (
     MinimalTaskPolicy,
 )
 from prefect.server.orchestration.global_policy import GlobalTaskPolicy
-from prefect.server.orchestration.policies import BaseOrchestrationPolicy
+from prefect.server.orchestration.policies import (
+    TaskRunOrchestrationPolicy,
+)
 from prefect.server.orchestration.rules import TaskOrchestrationContext
 from prefect.server.schemas.responses import OrchestrationResult
 
-T = TypeVar("T", bound=tuple)
+if TYPE_CHECKING:
+    import logging
 
-logger = get_logger("server")
+T = TypeVar("T", bound=tuple[Any, ...])
+
+logger: "logging.Logger" = get_logger("server")
 
 
 @db_injector
@@ -419,7 +434,7 @@ async def set_task_run_state(
     task_run_id: UUID,
     state: schemas.states.State,
     force: bool = False,
-    task_policy: Optional[Type[BaseOrchestrationPolicy]] = None,
+    task_policy: Optional[Type[TaskRunOrchestrationPolicy]] = None,
     orchestration_parameters: Optional[Dict[str, Any]] = None,
 ) -> OrchestrationResult:
     """

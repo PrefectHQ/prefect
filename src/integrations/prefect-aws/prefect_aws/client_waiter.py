@@ -75,8 +75,8 @@ async def aclient_waiter(
     await run_sync_in_worker_thread(waiter.wait, **waiter_kwargs)
 
 
-@task
 @async_dispatch(aclient_waiter)
+@task
 def client_waiter(
     client: str,
     waiter_name: str,

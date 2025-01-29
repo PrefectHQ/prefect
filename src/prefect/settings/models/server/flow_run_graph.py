@@ -1,6 +1,9 @@
-from pydantic import AliasChoices, AliasPath, Field
+from typing import ClassVar
 
-from prefect.settings.base import PrefectBaseSettings, _build_settings_config
+from pydantic import AliasChoices, AliasPath, Field
+from pydantic_settings import SettingsConfigDict
+
+from prefect.settings.base import PrefectBaseSettings, build_settings_config
 
 
 class ServerFlowRunGraphSettings(PrefectBaseSettings):
@@ -8,7 +11,9 @@ class ServerFlowRunGraphSettings(PrefectBaseSettings):
     Settings for controlling behavior of the flow run graph
     """
 
-    model_config = _build_settings_config(("server", "flow_run_graph"))
+    model_config: ClassVar[SettingsConfigDict] = build_settings_config(
+        ("server", "flow_run_graph")
+    )
 
     max_nodes: int = Field(
         default=10000,

@@ -2,9 +2,11 @@
 Reduced schemas for accepting API actions.
 """
 
+from __future__ import annotations
+
 import json
 from copy import deepcopy
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, ClassVar, Dict, List, Optional, Union
 from uuid import UUID, uuid4
 
 import pendulum
@@ -31,6 +33,7 @@ from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
 from prefect.types import (
     MAX_VARIABLE_NAME_LENGTH,
     DateTime,
+    KeyValueLabels,
     Name,
     NonEmptyishName,
     NonNegativeFloat,
@@ -43,30 +46,30 @@ from prefect.utilities.names import generate_slug
 from prefect.utilities.templating import find_placeholders
 
 
-def validate_block_type_slug(value):
+def validate_block_type_slug(value: str) -> str:
     raise_on_name_alphanumeric_dashes_only(value, field_name="Block type slug")
     return value
 
 
-def validate_block_document_name(value):
+def validate_block_document_name(value: str | None) -> str | None:
     if value is not None:
         raise_on_name_alphanumeric_dashes_only(value, field_name="Block document name")
     return value
 
 
-def validate_artifact_key(value):
+def validate_artifact_key(value: str | None) -> str | None:
     if value is not None:
         raise_on_name_alphanumeric_dashes_only(value, field_name="Artifact key")
     return value
 
 
-def validate_variable_name(value):
+def validate_variable_name(value: str) -> str:
     raise_on_name_alphanumeric_underscores_only(value, field_name="Variable name")
     return value
 
 
 class ActionBaseModel(PrefectBaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
 
 class FlowCreate(ActionBaseModel):
@@ -80,7 +83,7 @@ class FlowCreate(ActionBaseModel):
         description="A list of flow tags",
         examples=[["tag-1", "tag-2"]],
     )
-    labels: Union[schemas.core.KeyValueLabels, None] = Field(
+    labels: Union[KeyValueLabels, None] = Field(
         default_factory=dict,
         description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
         examples=[{"key": "value1", "key2": 42}],
@@ -111,7 +114,9 @@ class DeploymentScheduleCreate(ActionBaseModel):
 
     @field_validator("max_scheduled_runs")
     @classmethod
-    def validate_max_scheduled_runs(cls, v):
+    def validate_max_scheduled_runs(
+        cls, v: PositiveInteger | None
+    ) -> PositiveInteger | None:
         return validate_schedule_max_scheduled_runs(
             v, PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS.value()
         )
@@ -132,7 +137,9 @@ class DeploymentScheduleUpdate(ActionBaseModel):
 
     @field_validator("max_scheduled_runs")
     @classmethod
-    def validate_max_scheduled_runs(cls, v):
+    def validate_max_scheduled_runs(
+        cls, v: PositiveInteger | None
+    ) -> PositiveInteger | None:
         return validate_schedule_max_scheduled_runs(
             v, PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS.value()
         )
@@ -181,12 +188,12 @@ class DeploymentCreate(ActionBaseModel):
         description="A list of deployment tags.",
         examples=[["tag-1", "tag-2"]],
     )
-    labels: Union[schemas.core.KeyValueLabels, None] = Field(
+    labels: Union[KeyValueLabels, None] = Field(
         default_factory=dict,
         description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
         examples=[{"key": "value1", "key2": 42}],
     )
-    pull_steps: Optional[List[dict]] = Field(None)
+    pull_steps: Optional[List[dict[str, Any]]] = Field(None)
 
     work_queue_name: Optional[str] = Field(None)
     work_pool_name: Optional[str] = Field(
@@ -205,7 +212,7 @@ class DeploymentCreate(ActionBaseModel):
         description="Overrides for the flow's infrastructure configuration.",
     )
 
-    def check_valid_configuration(self, base_job_template: dict):
+    def check_valid_configuration(self, base_job_template: dict[str, Any]) -> None:
         """
         Check that the combination of base_job_template defaults and job_variables
         conforms to the specified schema.
@@ -231,11 +238,13 @@ class DeploymentCreate(ActionBaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def remove_old_fields(cls, values):
+    def remove_old_fields(cls, values: dict[str, Any]) -> dict[str, Any]:
         return remove_old_deployment_fields(values)
 
     @model_validator(mode="before")
-    def _validate_parameters_conform_to_schema(cls, values):
+    def _validate_parameters_conform_to_schema(
+        cls, values: dict[str, Any]
+    ) -> dict[str, Any]:
         values["parameters"] = validate_parameters_conform_to_schema(
             values.get("parameters", {}), values
         )
@@ -250,7 +259,7 @@ class DeploymentUpdate(ActionBaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def remove_old_fields(cls, values):
+    def remove_old_fields(cls, values: dict[str, Any]) -> dict[str, Any]:
         return remove_old_deployment_fields(values)
 
     version: Optional[str] = Field(None)
@@ -297,9 +306,9 @@ class DeploymentUpdate(ActionBaseModel):
             "Whether or not the deployment should enforce the parameter schema."
         ),
     )
-    model_config = ConfigDict(populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(populate_by_name=True)
 
-    def check_valid_configuration(self, base_job_template: dict):
+    def check_valid_configuration(self, base_job_template: dict[str, Any]) -> None:
         """
         Check that the combination of base_job_template defaults and job_variables
         conforms to the schema specified in the base_job_template.
@@ -314,7 +323,7 @@ class DeploymentUpdate(ActionBaseModel):
 
         variables_schema = deepcopy(base_job_template.get("variables"))
 
-        if variables_schema is not None:
+        if variables_schema is not None and self.job_variables is not None:
             errors = validate(
                 self.job_variables,
                 variables_schema,
@@ -342,7 +351,7 @@ class FlowRunUpdate(ActionBaseModel):
 
     @field_validator("name", mode="before")
     @classmethod
-    def set_name(cls, name):
+    def set_name(cls, name: str) -> str:
         return get_or_create_run_name(name)
 
 
@@ -437,7 +446,7 @@ class TaskRunCreate(ActionBaseModel):
         description="A list of tags for the task run.",
         examples=[["tag-1", "tag-2"]],
     )
-    labels: Union[schemas.core.KeyValueLabels, None] = Field(
+    labels: Union[KeyValueLabels, None] = Field(
         default_factory=dict,
         description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
         examples=[{"key": "value1", "key2": 42}],
@@ -458,12 +467,12 @@ class TaskRunCreate(ActionBaseModel):
 
     @field_validator("name", mode="before")
     @classmethod
-    def set_name(cls, name):
+    def set_name(cls, name: str) -> str:
         return get_or_create_run_name(name)
 
     @field_validator("cache_key")
     @classmethod
-    def validate_cache_key(cls, cache_key):
+    def validate_cache_key(cls, cache_key: str | None) -> str | None:
         return validate_cache_key_length(cache_key)
 
 
@@ -476,7 +485,7 @@ class TaskRunUpdate(ActionBaseModel):
 
     @field_validator("name", mode="before")
     @classmethod
-    def set_name(cls, name):
+    def set_name(cls, name: str) -> str:
         return get_or_create_run_name(name)
 
 
@@ -517,7 +526,7 @@ class FlowRunCreate(ActionBaseModel):
         description="A list of tags for the flow run.",
         examples=[["tag-1", "tag-2"]],
     )
-    labels: Union[schemas.core.KeyValueLabels, None] = Field(
+    labels: Union[KeyValueLabels, None] = Field(
         default_factory=dict,
         description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
         examples=[{"key": "value1", "key2": 42}],
@@ -543,7 +552,7 @@ class FlowRunCreate(ActionBaseModel):
 
     @field_validator("name", mode="before")
     @classmethod
-    def set_name(cls, name):
+    def set_name(cls, name: str) -> str:
         return get_or_create_run_name(name)
 
 
@@ -585,13 +594,18 @@ class DeploymentFlowRunCreate(ActionBaseModel):
             " has already been created, the existing flow run will be returned."
         ),
     )
+    labels: Union[KeyValueLabels, None] = Field(
+        None,
+        description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
+        examples=[{"key": "value1", "key2": 42}],
+    )
     parent_task_run_id: Optional[UUID] = Field(None)
     work_queue_name: Optional[str] = Field(None)
     job_variables: Optional[Dict[str, Any]] = Field(None)
 
     @field_validator("name", mode="before")
     @classmethod
-    def set_name(cls, name):
+    def set_name(cls, name: str) -> str:
         return get_or_create_run_name(name)
 
 
@@ -677,7 +691,7 @@ class BlockTypeUpdate(ActionBaseModel):
     code_example: Optional[str] = Field(None)
 
     @classmethod
-    def updatable_fields(cls) -> set:
+    def updatable_fields(cls) -> set[str]:
         return get_class_fields_only(cls)
 
 
@@ -774,7 +788,7 @@ class LogCreate(ActionBaseModel):
     task_run_id: Optional[UUID] = Field(None)
 
 
-def validate_base_job_template(v):
+def validate_base_job_template(v: dict[str, Any]) -> dict[str, Any]:
     if v == dict():
         return v
 
@@ -785,7 +799,7 @@ def validate_base_job_template(v):
             "The `base_job_template` must contain both a `job_configuration` key"
             " and a `variables` key."
         )
-    template_variables = set()
+    template_variables: set[str] = set()
     for template in job_config.values():
         # find any variables inside of double curly braces, minus any whitespace
         # e.g. "{{ var1 }}.{{var2}}" -> ["var1", "var2"]
@@ -830,10 +844,10 @@ class WorkPoolCreate(ActionBaseModel):
 class WorkPoolUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a work pool."""
 
-    description: Optional[str] = Field(None)
-    is_paused: Optional[bool] = Field(None)
-    base_job_template: Optional[Dict[str, Any]] = Field(None)
-    concurrency_limit: Optional[NonNegativeInteger] = Field(None)
+    description: Optional[str] = Field(default=None)
+    is_paused: Optional[bool] = Field(default=None)
+    base_job_template: Optional[Dict[str, Any]] = Field(default=None)
+    concurrency_limit: Optional[NonNegativeInteger] = Field(default=None)
 
     _validate_base_job_template = field_validator("base_job_template")(
         validate_base_job_template
@@ -921,7 +935,7 @@ class FlowRunNotificationPolicyCreate(ActionBaseModel):
 
     @field_validator("message_template")
     @classmethod
-    def validate_message_template_variables(cls, v):
+    def validate_message_template_variables(cls, v: str | None) -> str | None:
         return validate_message_template_variables(v)
 
 
@@ -936,7 +950,7 @@ class FlowRunNotificationPolicyUpdate(ActionBaseModel):
 
     @field_validator("message_template")
     @classmethod
-    def validate_message_template_variables(cls, v):
+    def validate_message_template_variables(cls, v: str | None) -> str | None:
         return validate_message_template_variables(v)
 
 
@@ -978,8 +992,8 @@ class ArtifactCreate(ActionBaseModel):
     )
 
     @classmethod
-    def from_result(cls, data: Any):
-        artifact_info = dict()
+    def from_result(cls, data: Any | dict[str, Any]) -> "ArtifactCreate":
+        artifact_info: dict[str, Any] = dict()
         if isinstance(data, dict):
             artifact_key = data.pop("artifact_key", None)
             if artifact_key:

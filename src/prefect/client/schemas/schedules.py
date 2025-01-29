@@ -33,6 +33,23 @@ MAX_ITERATIONS = 1000
 MAX_RRULE_LENGTH = 6500
 
 
+def is_valid_timezone(v: str) -> bool:
+    """
+    Validate that the provided timezone is a valid IANA timezone.
+
+    Unfortunately this list is slightly different from the list of valid
+    timezones in pendulum that we use for cron and interval timezone validation.
+    """
+    from prefect._internal.pytz import HAS_PYTZ
+
+    if HAS_PYTZ:
+        import pytz
+    else:
+        from prefect._internal import pytz
+
+    return v in pytz.all_timezones_set
+
+
 class IntervalSchedule(PrefectBaseModel):
     """
     A schedule formed by adding `interval` increments to an `anchor_date`. If no
@@ -128,7 +145,7 @@ class CronSchedule(PrefectBaseModel):
 
     @field_validator("timezone")
     @classmethod
-    def valid_timezone(cls, v: Optional[str]) -> str:
+    def valid_timezone(cls, v: Optional[str]) -> Optional[str]:
         return default_timezone(v)
 
     @field_validator("cron")
@@ -259,7 +276,7 @@ class RRuleSchedule(PrefectBaseModel):
                 kwargs.update(
                     until=until.replace(tzinfo=timezone),
                 )
-            return rrule.replace(**kwargs)
+            return rrule.replace(**kwargs)  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType] missing type hints
 
         # update rrules
         localized_rrules: list[dateutil.rrule.rrule] = []
@@ -269,7 +286,7 @@ class RRuleSchedule(PrefectBaseModel):
             kwargs: dict[str, Any] = dict(dtstart=dtstart.replace(tzinfo=timezone))
             if until := _rrule_dt(rr, "_until"):
                 kwargs.update(until=until.replace(tzinfo=timezone))
-            localized_rrules.append(rr.replace(**kwargs))
+            localized_rrules.append(rr.replace(**kwargs))  # pyright: ignore[reportUnknownArgumentType, reportUnknownMemberType] missing type hints
         setattr(rrule, "_rrule", localized_rrules)
 
         # update exrules
@@ -280,7 +297,7 @@ class RRuleSchedule(PrefectBaseModel):
             kwargs = dict(dtstart=dtstart.replace(tzinfo=timezone))
             if until := _rrule_dt(exr, "_until"):
                 kwargs.update(until=until.replace(tzinfo=timezone))
-            localized_exrules.append(exr.replace(**kwargs))
+            localized_exrules.append(exr.replace(**kwargs))  # pyright: ignore[reportUnknownArgumentType, reportUnknownMemberType] missing type hints
         setattr(rrule, "_exrule", localized_exrules)
 
         # update rdates
@@ -305,18 +322,13 @@ class RRuleSchedule(PrefectBaseModel):
         Unfortunately this list is slightly different from the list of valid
         timezones in pendulum that we use for cron and interval timezone validation.
         """
-        from prefect._internal.pytz import HAS_PYTZ
-
-        if HAS_PYTZ:
-            import pytz
-        else:
-            from prefect._internal import pytz
-
-        if v and v not in pytz.all_timezones_set:
-            raise ValueError(f'Invalid timezone: "{v}"')
-        elif v is None:
+        if v is None:
             return "UTC"
-        return v
+
+        if is_valid_timezone(v):
+            return v
+
+        raise ValueError(f'Invalid timezone: "{v}"')
 
 
 class NoSchedule(PrefectBaseModel):

@@ -1,8 +1,7 @@
-import {
-	createFakeTaskRunConcurrencyLimit,
-	reactQueryDecorator,
-} from "@/storybook/utils";
+import { createFakeTaskRunConcurrencyLimit } from "@/mocks";
+import { reactQueryDecorator } from "@/storybook/utils";
 import type { Meta, StoryObj } from "@storybook/react";
+import { fn } from "@storybook/test";
 import { TaskRunConcurrencyLimitsDeleteDialog } from "./task-run-concurrency-limits-delete-dialog";
 
 const meta = {
@@ -12,8 +11,8 @@ const meta = {
 	decorators: [reactQueryDecorator],
 	args: {
 		data: createFakeTaskRunConcurrencyLimit(),
-		onOpenChange: () => {},
-		onDelete: () => {},
+		onOpenChange: fn(),
+		onDelete: fn(),
 	},
 } satisfies Meta<typeof TaskRunConcurrencyLimitsDeleteDialog>;
 

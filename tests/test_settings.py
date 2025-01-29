@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 import copy
 import os
 import textwrap
 import warnings
 from datetime import timedelta
 from pathlib import Path
+from typing import Any, Callable, Generator
 
 import pydantic
 import pytest
@@ -54,6 +57,7 @@ from prefect.settings import (
 from prefect.settings.base import _to_environment_variable_value
 from prefect.settings.constants import DEFAULT_PROFILES_PATH
 from prefect.settings.legacy import (
+    Setting,
     _env_var_to_accessor,
     _get_settings_fields,
     _get_valid_setting_names,
@@ -63,6 +67,10 @@ from prefect.settings.models.client import ClientSettings
 from prefect.settings.models.logging import LoggingSettings
 from prefect.settings.models.server import ServerSettings
 from prefect.settings.models.server.api import ServerAPISettings
+from prefect.settings.models.server.database import (
+    ServerDatabaseSettings,
+    SQLAlchemySettings,
+)
 from prefect.utilities.collections import get_from_dict, set_in_dict
 from prefect.utilities.filesystem import tmpchdir
 
@@ -194,6 +202,7 @@ SUPPORTED_SETTINGS = {
     "PREFECT_CLI_PROMPT": {"test_value": True},
     "PREFECT_CLI_WRAP_LINES": {"test_value": True},
     "PREFECT_CLOUD_API_URL": {"test_value": "https://cloud.prefect.io"},
+    "PREFECT_CLOUD_ENABLE_ORCHESTRATION_TELEMETRY": {"test_value": True},
     "PREFECT_CLOUD_UI_URL": {"test_value": "https://cloud.prefect.io"},
     "PREFECT_DEBUG_MODE": {"test_value": True},
     "PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE": {"test_value": "prefect", "legacy": True},
@@ -230,7 +239,6 @@ SUPPORTED_SETTINGS = {
     },
     "PREFECT_EVENTS_WEBSOCKET_BACKFILL_PAGE_SIZE": {"test_value": 10, "legacy": True},
     "PREFECT_EXPERIMENTAL_WARN": {"test_value": True, "legacy": True},
-    "PREFECT_EXPERIMENTS_TELEMETRY_ENABLED": {"test_value": False},
     "PREFECT_EXPERIMENTS_WARN": {"test_value": True},
     "PREFECT_EXPERIMENTS_LINEAGE_EVENTS_ENABLED": {"test_value": True},
     "PREFECT_FLOW_DEFAULT_RETRIES": {"test_value": 10, "legacy": True},
@@ -306,8 +314,13 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SERVER_DATABASE_NAME": {"test_value": "prefect"},
     "PREFECT_SERVER_DATABASE_PASSWORD": {"test_value": "password"},
     "PREFECT_SERVER_DATABASE_PORT": {"test_value": 5432},
+    "PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_APPLICATION_NAME": {
+        "test_value": "prefect"
+    },
     "PREFECT_SERVER_DATABASE_SQLALCHEMY_MAX_OVERFLOW": {"test_value": 10},
+    "PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_RECYCLE": {"test_value": 10},
     "PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_SIZE": {"test_value": 10},
+    "PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_TIMEOUT": {"test_value": 10.0},
     "PREFECT_SERVER_DATABASE_TIMEOUT": {"test_value": 10.0},
     "PREFECT_SERVER_DATABASE_USER": {"test_value": "user"},
     "PREFECT_SERVER_DEPLOYMENTS_CONCURRENCY_SLOT_WAIT_SECONDS": {"test_value": 10.0},
@@ -449,11 +462,11 @@ SUPPORTED_SETTINGS = {
 
 
 @pytest.fixture
-def temporary_env_file(tmp_path):
-    with tmpchdir(tmp_path):
+def temporary_env_file(tmp_path: Path) -> Generator[Callable[[str], None], None, None]:
+    with tmpchdir(str(tmp_path)):
         env_file = Path(".env")
 
-        def _create_temp_env(content):
+        def _create_temp_env(content: str) -> None:
             env_file.write_text(content)
 
         yield _create_temp_env
@@ -463,14 +476,14 @@ def temporary_env_file(tmp_path):
 
 
 @pytest.fixture
-def temporary_toml_file(tmp_path):
-    with tmpchdir(tmp_path):
+def temporary_toml_file(tmp_path: Path) -> Generator[Callable[[str], None], None, None]:
+    with tmpchdir(str(tmp_path)):
         toml_file = Path("prefect.toml")
 
-        def _create_temp_toml(content, path=toml_file):
+        def _create_temp_toml(content: str, path: Path = toml_file) -> None:
             nonlocal toml_file
             with path.open("w") as f:
-                toml.dump(content, f)
+                toml.dump(content, f)  # type: ignore
             toml_file = path  # update toml_file in case path was changed
 
         yield _create_temp_toml
@@ -542,7 +555,9 @@ class TestSettingsClass:
             ), "Changed, existing value was default"
             assert new_settings.client.retry_extra_codes == {400, 500}
 
-    def test_settings_copy_with_update_restore_defaults(self, monkeypatch):
+    def test_settings_copy_with_update_restore_defaults(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
         monkeypatch.setenv("PREFECT_TESTING_TEST_SETTING", "Not the default")
         settings = Settings()
         assert settings.testing.test_setting == "Not the default"
@@ -551,16 +566,17 @@ class TestSettingsClass:
         )
         assert new_settings.testing.test_setting == "FOO"
 
-    def test_settings_loads_environment_variables_at_instantiation(self, monkeypatch):
+    def test_settings_loads_environment_variables_at_instantiation(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
         assert PREFECT_TEST_MODE.value() is True
 
         monkeypatch.setenv("PREFECT_TESTING_TEST_MODE", "0")
         new_settings = Settings()
         assert PREFECT_TEST_MODE.value_from(new_settings) is False
 
-    def test_settings_to_environment_includes_all_settings_with_non_null_values(
-        self, disable_hosted_api_server
-    ):
+    @pytest.mark.usefixtures("disable_hosted_api_server")
+    def test_settings_to_environment_includes_all_settings_with_non_null_values(self):
         settings = Settings()
         expected_names = {
             s.name
@@ -621,7 +637,11 @@ class TestSettingsClass:
         )
 
     @pytest.mark.parametrize("exclude_unset", [True, False])
-    def test_settings_to_environment_roundtrip(self, exclude_unset, monkeypatch):
+    def test_settings_to_environment_roundtrip(
+        self,
+        exclude_unset: bool,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
         settings = Settings()
         variables = settings.to_environment_variables(exclude_unset=exclude_unset)
         for key, value in variables.items():
@@ -645,12 +665,16 @@ class TestSettingsClass:
             PREFECT_LOGGING_SERVER_LEVEL,
         ],
     )
-    def test_settings_validates_log_levels(self, log_level_setting, monkeypatch):
+    def test_settings_validates_log_levels(
+        self,
+        log_level_setting: Setting,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
         with pytest.raises(
             pydantic.ValidationError,
             match="should be 'DEBUG', 'INFO', 'WARNING', 'ERROR' or 'CRITICAL'",
         ):
-            kwargs = {}
+            kwargs: dict[str, Any] = {}
             set_in_dict(kwargs, log_level_setting.accessor, "FOOBAR")
             Settings(**kwargs)
 
@@ -661,7 +685,10 @@ class TestSettingsClass:
             PREFECT_SERVER_LOGGING_LEVEL,
         ],
     )
-    def test_settings_uppercases_log_levels(self, log_level_setting):
+    def test_settings_uppercases_log_levels(
+        self,
+        log_level_setting: Setting,
+    ):
         with temporary_settings({log_level_setting: "debug"}):
             assert log_level_setting.value() == "DEBUG"
 
@@ -694,7 +721,9 @@ class TestSettingsClass:
             == "test"
         )
 
-    def test_loads_when_profile_path_does_not_exist(self, monkeypatch):
+    def test_loads_when_profile_path_does_not_exist(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
         monkeypatch.setenv("PREFECT_PROFILES_PATH", str(Path.home() / "nonexistent"))
         monkeypatch.delenv("PREFECT_TESTING_TEST_MODE", raising=False)
         monkeypatch.delenv("PREFECT_TESTING_UNIT_TEST_MODE", raising=False)
@@ -702,7 +731,9 @@ class TestSettingsClass:
         # Should default to ephemeral profile
         assert Settings().server.ephemeral.enabled
 
-    def test_loads_when_profile_path_is_not_a_toml_file(self, monkeypatch, tmp_path):
+    def test_loads_when_profile_path_is_not_a_toml_file(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ):
         monkeypatch.setenv("PREFECT_PROFILES_PATH", str(tmp_path / "profiles.toml"))
         monkeypatch.delenv("PREFECT_TESTING_TEST_MODE", raising=False)
         monkeypatch.delenv("PREFECT_TESTING_UNIT_TEST_MODE", raising=False)
@@ -778,7 +809,7 @@ class TestSettingAccess:
             "python_list",
         ],
     )
-    def test_extra_loggers(self, value, expected):
+    def test_extra_loggers(self, value: str | list[str], expected: list[str]):
         settings = Settings(logging=LoggingSettings(extra_loggers=value))
         assert set(PREFECT_LOGGING_EXTRA_LOGGERS.value_from(settings)) == set(expected)
 
@@ -798,7 +829,7 @@ class TestSettingAccess:
             ("https://api.foo.bar", "https://api.foo.bar"),
         ],
     )
-    def test_ui_url_inferred_from_api_url(self, api_url, ui_url):
+    def test_ui_url_inferred_from_api_url(self, api_url: str, ui_url: str):
         with temporary_settings({PREFECT_API_URL: api_url}):
             assert PREFECT_UI_URL.value() == ui_url
 
@@ -838,7 +869,7 @@ class TestSettingAccess:
             ("https://api.foo.bar", "https://api.foo.bar"),
         ],
     )
-    def test_cloud_ui_url_inferred_from_cloud_api_url(self, api_url, ui_url):
+    def test_cloud_ui_url_inferred_from_cloud_api_url(self, api_url: str, ui_url: str):
         with temporary_settings({PREFECT_CLOUD_API_URL: api_url}):
             assert PREFECT_CLOUD_UI_URL.value() == ui_url
 
@@ -871,7 +902,7 @@ class TestSettingAccess:
             ("400, 401, 402", {400, 401, 402}),
         ],
     )
-    def test_client_retry_extra_codes(self, extra_codes, expected):
+    def test_client_retry_extra_codes(self, extra_codes: str, expected: set[int]):
         with temporary_settings({PREFECT_CLIENT_RETRY_EXTRA_CODES: extra_codes}):
             assert PREFECT_CLIENT_RETRY_EXTRA_CODES.value() == expected
 
@@ -886,7 +917,7 @@ class TestSettingAccess:
             "400,500,foo",
         ],
     )
-    def test_client_retry_extra_codes_invalid(self, extra_codes):
+    def test_client_retry_extra_codes_invalid(self, extra_codes: str):
         with pytest.raises(ValueError):
             with temporary_settings({PREFECT_CLIENT_RETRY_EXTRA_CODES: extra_codes}):
                 PREFECT_CLIENT_RETRY_EXTRA_CODES.value()
@@ -908,7 +939,7 @@ class TestSettingAccess:
 
         assert value == settings.testing.test_mode
 
-    def test_settings_with_serialization_alias(self, monkeypatch):
+    def test_settings_with_serialization_alias(self, monkeypatch: pytest.MonkeyPatch):
         assert not Settings().client.metrics.enabled
         # Use old value
         monkeypatch.setenv("PREFECT_CLIENT_ENABLE_METRICS", "True")
@@ -923,9 +954,12 @@ class TestSettingAccess:
 
         # Check both can be imported
         from prefect.settings import (
-            PREFECT_CLIENT_ENABLE_METRICS,  # noqa
-            PREFECT_CLIENT_METRICS_ENABLED,  # noqa
+            PREFECT_CLIENT_ENABLE_METRICS,
+            PREFECT_CLIENT_METRICS_ENABLED,
         )
+
+        assert isinstance(PREFECT_CLIENT_ENABLE_METRICS, Setting)
+        assert isinstance(PREFECT_CLIENT_METRICS_ENABLED, Setting)
 
 
 class TestDatabaseSettings:
@@ -990,6 +1024,26 @@ class TestDatabaseSettings:
             assert url.username == "the-user"
             assert url.database == "the-database"
             assert url.password == "the-password"
+
+    def test_postgres_connection_url_is_secret_when_parts_are_individually_set(self):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/16657
+        """
+        with temporary_settings(
+            {
+                PREFECT_SERVER_DATABASE_CONNECTION_URL: None,
+                PREFECT_API_DATABASE_DRIVER: "postgresql+asyncpg",
+                PREFECT_API_DATABASE_HOST: "the-database-server.example.com",
+                PREFECT_API_DATABASE_PORT: 15432,
+                PREFECT_API_DATABASE_USER: "the-user",
+                PREFECT_API_DATABASE_NAME: "the-database",
+                PREFECT_API_DATABASE_PASSWORD: "the-password",
+            }
+        ):
+            assert isinstance(
+                get_current_settings().server.database.connection_url,
+                pydantic.SecretStr,
+            )
 
     def test_postgres_password_is_quoted(self):
         with temporary_settings(
@@ -1089,6 +1143,81 @@ class TestDatabaseSettings:
             assert url.database == "the-database"
             assert url.password == "the-$password"
 
+    def test_sqlalchemy_settings_migration(self):
+        """Test that SQLAlchemy settings work with both old and new structures."""
+
+        with pytest.warns(
+            DeprecationWarning, match="moved to the `sqlalchemy` settings group."
+        ):
+            settings_with_old_keys = Settings(
+                server=ServerSettings(
+                    database=ServerDatabaseSettings(
+                        sqlalchemy_pool_size=42,
+                        sqlalchemy_max_overflow=37,
+                    )
+                )
+            )
+            assert settings_with_old_keys.server.database.sqlalchemy_pool_size == 42
+            assert settings_with_old_keys.server.database.sqlalchemy_max_overflow == 37
+
+        assert settings_with_old_keys.server.database.sqlalchemy.pool_size == 42
+        assert settings_with_old_keys.server.database.sqlalchemy.max_overflow == 37
+
+        settings_with_new_keys = Settings(
+            server=ServerSettings(
+                database=ServerDatabaseSettings(
+                    sqlalchemy=SQLAlchemySettings(
+                        pool_size=42,
+                        max_overflow=37,
+                    )
+                )
+            )
+        )
+
+        with pytest.warns(
+            DeprecationWarning, match="moved to the `sqlalchemy` settings group."
+        ):
+            assert settings_with_new_keys.server.database.sqlalchemy_pool_size == 42
+            assert settings_with_new_keys.server.database.sqlalchemy_max_overflow == 37
+
+        # new keys are updated by setting new keys
+        assert settings_with_new_keys.server.database.sqlalchemy.pool_size == 42
+        assert settings_with_new_keys.server.database.sqlalchemy.max_overflow == 37
+
+    def test_sqlalchemy_settings_migration_via_env_var(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setenv("PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_SIZE", "128")
+        monkeypatch.setenv("PREFECT_SERVER_DATABASE_SQLALCHEMY_MAX_OVERFLOW", "9001")
+        assert Settings().server.database.sqlalchemy.pool_size == 128
+        assert Settings().server.database.sqlalchemy.max_overflow == 9001
+
+    def test_sqlalchemy_settings_migration_via_toml(
+        self, temporary_toml_file: Callable[..., None]
+    ):
+        """Test that SQLAlchemy settings can be configured via TOML files."""
+        toml_data: dict[str, Any] = {
+            "server": {
+                "database": {
+                    "sqlalchemy": {
+                        "pool_size": 42,
+                        "max_overflow": 37,
+                    }
+                }
+            }
+        }
+        temporary_toml_file(toml_data)
+
+        settings = Settings()
+        assert settings.server.database.sqlalchemy.pool_size == 42
+        assert settings.server.database.sqlalchemy.max_overflow == 37
+
+        with pytest.warns(
+            DeprecationWarning, match="moved to the `sqlalchemy` settings group."
+        ):
+            assert settings.server.database.sqlalchemy_pool_size == 42
+            assert settings.server.database.sqlalchemy_max_overflow == 37
+
 
 class TestTemporarySettings:
     def test_temporary_settings(self):
@@ -1132,7 +1261,7 @@ class TestTemporarySettings:
 
 
 class TestSettingsSources:
-    def test_env_source(self, temporary_env_file):
+    def test_env_source(self, temporary_env_file: Callable[[str], None]):
         temporary_env_file("PREFECT_CLIENT_RETRY_EXTRA_CODES=420,500")
 
         assert Settings().client.retry_extra_codes == {420, 500}
@@ -1141,7 +1270,12 @@ class TestSettingsSources:
 
         assert Settings().client.retry_extra_codes == set()
 
-    def test_resolution_order(self, temporary_env_file, monkeypatch, tmp_path):
+    def test_resolution_order(
+        self,
+        temporary_env_file: Callable[[str], None],
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ):
         profiles_path = tmp_path / "profiles.toml"
 
         monkeypatch.delenv("PREFECT_TESTING_TEST_MODE", raising=False)
@@ -1197,7 +1331,11 @@ class TestSettingsSources:
 
         assert Settings().client.retry_extra_codes == set()
 
-    def test_read_legacy_setting_from_profile(self, monkeypatch, tmp_path):
+    def test_read_legacy_setting_from_profile(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ):
         Settings().client.metrics.enabled = False
         profiles_path = tmp_path / "profiles.toml"
 
@@ -1219,7 +1357,10 @@ class TestSettingsSources:
         assert Settings().client.metrics.enabled is True
 
     def test_resolution_order_with_nested_settings(
-        self, temporary_env_file, monkeypatch, tmp_path
+        self,
+        temporary_env_file: Callable[[str], None],
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
     ):
         profiles_path = tmp_path / "profiles.toml"
 
@@ -1249,7 +1390,10 @@ class TestSettingsSources:
         assert Settings().api.url == "http://example.com:4200"
 
     def test_profiles_path_from_env_source(
-        self, temporary_env_file, monkeypatch, tmp_path
+        self,
+        temporary_env_file: Callable[[str], None],
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
     ):
         profiles_path = tmp_path / "custom_profiles.toml"
 
@@ -1280,7 +1424,10 @@ class TestSettingsSources:
         assert Settings().client.retry_extra_codes == set()
 
     def test_profiles_path_from_toml_source(
-        self, temporary_toml_file, monkeypatch, tmp_path
+        self,
+        temporary_toml_file: Callable[[str], None],
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
     ):
         profiles_path = tmp_path / "custom_profiles.toml"
 
@@ -1311,7 +1458,10 @@ class TestSettingsSources:
         assert Settings().client.retry_extra_codes == set()
 
     def test_profiles_path_from_pyproject_source(
-        self, temporary_toml_file, monkeypatch, tmp_path
+        self,
+        temporary_toml_file: Callable[[str], None],
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
     ):
         monkeypatch.delenv("PREFECT_TESTING_TEST_MODE", raising=False)
         monkeypatch.delenv("PREFECT_TESTING_UNIT_TEST_MODE", raising=False)
@@ -1344,7 +1494,10 @@ class TestSettingsSources:
         assert Settings().client.retry_extra_codes == set()
 
     def test_profiles_path_resolution_order_from_sources(
-        self, temporary_env_file, monkeypatch, tmp_path
+        self,
+        temporary_env_file: Callable[[str], None],
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
     ):
         monkeypatch.delenv("PREFECT_TESTING_TEST_MODE", raising=False)
         monkeypatch.delenv("PREFECT_TESTING_UNIT_TEST_MODE", raising=False)
@@ -1422,7 +1575,10 @@ class TestSettingsSources:
 
         assert Settings().client.retry_extra_codes == set()
 
-    def test_dot_env_filters_as_expected(self, temporary_env_file):
+    def test_dot_env_filters_as_expected(
+        self,
+        temporary_env_file: Callable[[str], None],
+    ):
         expected_home = Settings().home
         expected_db_name = Settings().server.database.name
         temporary_env_file("HOME=foo\nNAME=bar")
@@ -1432,7 +1588,9 @@ class TestSettingsSources:
         assert Settings().server.database.name != "bar"
 
     def test_environment_variables_take_precedence_over_toml_settings(
-        self, monkeypatch, temporary_toml_file
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        temporary_toml_file: Callable[[str], None],
     ):
         """
         Test to ensure that fields with multiple validation aliases respect the
@@ -1452,7 +1610,9 @@ class TestSettingsSources:
         assert not PREFECT_SERVER_ALLOW_EPHEMERAL_MODE.value()
 
     def test_handle_profile_settings_without_active_profile(
-        self, monkeypatch, tmp_path
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
     ):
         profiles_path = tmp_path / "profiles.toml"
 
@@ -1471,7 +1631,9 @@ class TestSettingsSources:
         assert Settings().server.ephemeral.enabled
 
     def test_handle_profile_settings_with_invalid_active_profile(
-        self, monkeypatch, tmp_path
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
     ):
         profiles_path = tmp_path / "profiles.toml"
 
@@ -1495,7 +1657,9 @@ class TestSettingsSources:
         assert Settings().logging.level != "DEBUG"
 
     def test_handle_profile_settings_with_missing_profile_data(
-        self, monkeypatch, tmp_path
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
     ):
         profiles_path = tmp_path / "profiles.toml"
 
@@ -1517,7 +1681,7 @@ class TestSettingsSources:
 
 class TestLoadProfiles:
     @pytest.fixture(autouse=True)
-    def temporary_profiles_path(self, tmp_path):
+    def temporary_profiles_path(self, tmp_path: Path):
         path = tmp_path / "profiles.toml"
         with temporary_settings(updates={PREFECT_PROFILES_PATH: path}):
             yield path
@@ -1525,7 +1689,10 @@ class TestLoadProfiles:
     def test_load_profiles_no_profiles_file(self):
         assert load_profiles()
 
-    def test_env_variables_respected_when_no_profiles_file(self, monkeypatch):
+    def test_env_variables_respected_when_no_profiles_file(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
         """
         Regression test for https://github.com/PrefectHQ/prefect/issues/15981
         """
@@ -1539,7 +1706,10 @@ class TestLoadProfiles:
         assert not Settings().server.ephemeral.enabled
         assert not PREFECT_SERVER_ALLOW_EPHEMERAL_MODE.value()
 
-    def test_load_profiles_missing_ephemeral(self, temporary_profiles_path):
+    def test_load_profiles_missing_ephemeral(
+        self,
+        temporary_profiles_path: Path,
+    ):
         temporary_profiles_path.write_text(
             textwrap.dedent(
                 """
@@ -1551,7 +1721,7 @@ class TestLoadProfiles:
         assert load_profiles()["foo"].settings == {PREFECT_API_KEY: "bar"}
         assert isinstance(load_profiles()["ephemeral"].settings, dict)
 
-    def test_load_profiles_only_active_key(self, temporary_profiles_path):
+    def test_load_profiles_only_active_key(self, temporary_profiles_path: Path):
         temporary_profiles_path.write_text(
             textwrap.dedent(
                 """
@@ -1562,12 +1732,12 @@ class TestLoadProfiles:
         assert load_profiles().active_name == "ephemeral"
         assert isinstance(load_profiles()["ephemeral"].settings, dict)
 
-    def test_load_profiles_empty_file(self, temporary_profiles_path):
+    def test_load_profiles_empty_file(self, temporary_profiles_path: Path):
         temporary_profiles_path.touch()
         assert load_profiles().active_name == "ephemeral"
         assert isinstance(load_profiles()["ephemeral"].settings, dict)
 
-    def test_load_profiles_with_ephemeral(self, temporary_profiles_path):
+    def test_load_profiles_with_ephemeral(self, temporary_profiles_path: Path):
         temporary_profiles_path.write_text(
             """
             [profiles.ephemeral]
@@ -1600,7 +1770,7 @@ class TestLoadProfiles:
         with pytest.raises(ValueError, match="Profile 'foo' not found."):
             load_profile("foo")
 
-    def test_load_profile(self, temporary_profiles_path):
+    def test_load_profile(self, temporary_profiles_path: Path):
         temporary_profiles_path.write_text(
             textwrap.dedent(
                 """
@@ -1619,7 +1789,9 @@ class TestLoadProfiles:
             source=temporary_profiles_path,
         )
 
-    def test_load_profile_does_not_allow_nested_data(self, temporary_profiles_path):
+    def test_load_profile_does_not_allow_nested_data(
+        self, temporary_profiles_path: Path
+    ):
         temporary_profiles_path.write_text(
             textwrap.dedent(
                 """
@@ -1648,12 +1820,14 @@ class TestLoadProfiles:
 
 class TestSaveProfiles:
     @pytest.fixture(autouse=True)
-    def temporary_profiles_path(self, tmp_path):
+    def temporary_profiles_path(self, tmp_path: Path):
         path = tmp_path / "profiles.toml"
         with temporary_settings(updates={PREFECT_PROFILES_PATH: path}):
             yield path
 
-    def test_save_profiles_does_not_include_default(self, temporary_profiles_path):
+    def test_save_profiles_does_not_include_default(
+        self, temporary_profiles_path: Path
+    ):
         """
         Including the default has a tendency to bake in settings the user may not want, and
         can prevent them from gaining new defaults.
@@ -1661,7 +1835,7 @@ class TestSaveProfiles:
         save_profiles(ProfilesCollection(active=None, profiles=[]))
         assert "profiles.default" not in temporary_profiles_path.read_text()
 
-    def test_save_profiles_additional_profiles(self, temporary_profiles_path):
+    def test_save_profiles_additional_profiles(self, temporary_profiles_path: Path):
         save_profiles(
             ProfilesCollection(
                 profiles=[
@@ -1705,7 +1879,9 @@ class TestProfile:
         ):
             profile.validate_settings()
 
-    def test_validate_settings_ignores_environment_variables(self, monkeypatch):
+    def test_validate_settings_ignores_environment_variables(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
         """
         If using `context.use_profile` to validate settings, environment variables may
         override the setting and hide validation errors
@@ -1966,23 +2142,29 @@ class TestProfilesCollection:
 
 class TestSettingValues:
     @pytest.fixture(autouse=True)
-    def clear_env_vars(self, monkeypatch):
+    def clear_env_vars(self, monkeypatch: pytest.MonkeyPatch):
         for env_var in os.environ:
             if env_var.startswith("PREFECT_"):
                 monkeypatch.delenv(env_var, raising=False)
 
     @pytest.fixture(scope="function", params=list(SUPPORTED_SETTINGS.keys()))
-    def setting_and_value(self, request):
+    def setting_and_value(self, request: pytest.FixtureRequest) -> tuple[str, Any]:
         setting = request.param
         return setting, SUPPORTED_SETTINGS[setting]["test_value"]
 
     @pytest.fixture(autouse=True)
-    def temporary_profiles_path(self, tmp_path, monkeypatch):
+    def temporary_profiles_path(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> Generator[Path, None, None]:
         path = tmp_path / "profiles.toml"
         monkeypatch.setenv("PREFECT_PROFILES_PATH", str(path))
         yield path
 
-    def check_setting_value(self, setting, value):
+    def check_setting_value(
+        self,
+        setting: str,
+        value: Any,
+    ):
         # create new root context to pick up the env var changes
         warnings.filterwarnings("ignore", category=UserWarning)
         with prefect.context.root_settings_context():
@@ -2020,7 +2202,11 @@ class TestSettingValues:
                         to_jsonable_python(value)
                     )
 
-    def test_set_via_env_var(self, setting_and_value, monkeypatch):
+    def test_set_via_env_var(
+        self,
+        setting_and_value: tuple[str, Any],
+        monkeypatch: pytest.MonkeyPatch,
+    ):
         setting, value = setting_and_value
 
         if (
@@ -2035,7 +2221,10 @@ class TestSettingValues:
         self.check_setting_value(setting, value)
 
     def test_set_via_profile(
-        self, temporary_profiles_path, setting_and_value, monkeypatch
+        self,
+        temporary_profiles_path: Path,
+        setting_and_value: tuple[str, Any],
+        monkeypatch: pytest.MonkeyPatch,
     ):
         setting, value = setting_and_value
         if setting == "PREFECT_PROFILES_PATH":
@@ -2060,7 +2249,10 @@ class TestSettingValues:
         self.check_setting_value(setting, value)
 
     def test_set_via_dot_env_file(
-        self, setting_and_value, temporary_env_file, monkeypatch
+        self,
+        setting_and_value: tuple[str, Any],
+        temporary_env_file: Callable[[str], None],
+        monkeypatch: pytest.MonkeyPatch,
     ):
         setting, value = setting_and_value
         if setting == "PREFECT_PROFILES_PATH":
@@ -2076,7 +2268,10 @@ class TestSettingValues:
         self.check_setting_value(setting, value)
 
     def test_set_via_prefect_toml_file(
-        self, setting_and_value, temporary_toml_file, monkeypatch
+        self,
+        setting_and_value: tuple[str, Any],
+        temporary_toml_file: Callable[[dict[str, Any], Path], None],
+        monkeypatch: pytest.MonkeyPatch,
     ):
         setting, value = setting_and_value
         if setting == "PREFECT_PROFILES_PATH":
@@ -2097,7 +2292,10 @@ class TestSettingValues:
         self.check_setting_value(setting, value)
 
     def test_set_via_pyproject_toml_file(
-        self, setting_and_value, temporary_toml_file, monkeypatch
+        self,
+        setting_and_value: tuple[str, Any],
+        temporary_toml_file: Callable[[dict[str, Any], Path], None],
+        monkeypatch: pytest.MonkeyPatch,
     ):
         setting, value = setting_and_value
         if setting == "PREFECT_PROFILES_PATH":

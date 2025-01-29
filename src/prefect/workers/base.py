@@ -1,9 +1,22 @@
+from __future__ import annotations
+
 import abc
 import asyncio
 import threading
 from contextlib import AsyncExitStack
 from functools import partial
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Type, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Generic,
+    List,
+    Optional,
+    Set,
+    Type,
+    Union,
+)
 from uuid import UUID, uuid4
 
 import anyio
@@ -13,7 +26,7 @@ import pendulum
 from importlib_metadata import distributions
 from pydantic import BaseModel, Field, PrivateAttr, field_validator
 from pydantic.json_schema import GenerateJsonSchema
-from typing_extensions import Literal
+from typing_extensions import Literal, Self, TypeVar
 
 import prefect
 from prefect._internal.schemas.validators import return_v_or_none
@@ -104,7 +117,7 @@ class BaseJobConfiguration(BaseModel):
     _related_objects: Dict[str, Any] = PrivateAttr(default_factory=dict)
 
     @property
-    def is_using_a_runner(self):
+    def is_using_a_runner(self) -> bool:
         return self.command is not None and "prefect flow-run execute" in self.command
 
     @field_validator("command")
@@ -175,7 +188,7 @@ class BaseJobConfiguration(BaseModel):
         return cls(**populated_configuration)
 
     @classmethod
-    def json_template(cls) -> dict:
+    def json_template(cls) -> dict[str, Any]:
         """Returns a dict with job configuration as keys and the corresponding templates as values
 
         Defaults to using the job configuration parameter name as the template variable name.
@@ -186,7 +199,7 @@ class BaseJobConfiguration(BaseModel):
             key2: '{{ template2 }}', # `template2` specifically provide as template
         }
         """
-        configuration = {}
+        configuration: dict[str, Any] = {}
         properties = cls.model_json_schema()["properties"]
         for k, v in properties.items():
             if v.get("template"):
@@ -202,7 +215,7 @@ class BaseJobConfiguration(BaseModel):
         flow_run: "FlowRun",
         deployment: Optional["DeploymentResponse"] = None,
         flow: Optional["Flow"] = None,
-    ):
+    ) -> None:
         """
         Prepare the job configuration for a flow run.
 
@@ -368,15 +381,20 @@ class BaseWorkerResult(BaseModel, abc.ABC):
     identifier: str
     status_code: int
 
-    def __bool__(self):
+    def __bool__(self) -> bool:
         return self.status_code == 0
 
 
+C = TypeVar("C", bound=BaseJobConfiguration)
+V = TypeVar("V", bound=BaseVariables)
+R = TypeVar("R", bound=BaseWorkerResult)
+
+
 @register_base_type
-class BaseWorker(abc.ABC):
+class BaseWorker(abc.ABC, Generic[C, V, R]):
     type: str
-    job_configuration: Type[BaseJobConfiguration] = BaseJobConfiguration
-    job_configuration_variables: Optional[Type[BaseVariables]] = None
+    job_configuration: Type[C] = BaseJobConfiguration  # type: ignore
+    job_configuration_variables: Optional[Type[V]] = None
 
     _documentation_url = ""
     _logo_url = ""
@@ -418,7 +436,7 @@ class BaseWorker(abc.ABC):
         """
         if name and ("/" in name or "%" in name):
             raise ValueError("Worker name cannot contain '/' or '%'")
-        self.name = name or f"{self.__class__.__name__} {uuid4()}"
+        self.name: str = name or f"{self.__class__.__name__} {uuid4()}"
         self._started_event: Optional[Event] = None
         self.backend_id: Optional[UUID] = None
         self._logger = get_worker_logger(self)
@@ -432,7 +450,7 @@ class BaseWorker(abc.ABC):
         self._prefetch_seconds: float = (
             prefetch_seconds or PREFECT_WORKER_PREFETCH_SECONDS.value()
         )
-        self.heartbeat_interval_seconds = (
+        self.heartbeat_interval_seconds: int = (
             heartbeat_interval_seconds or PREFECT_WORKER_HEARTBEAT_SECONDS.value()
         )
 
@@ -461,7 +479,7 @@ class BaseWorker(abc.ABC):
         return cls._description
 
     @classmethod
-    def get_default_base_job_template(cls) -> Dict:
+    def get_default_base_job_template(cls) -> dict[str, Any]:
         if cls.job_configuration_variables is None:
             schema = cls.job_configuration.model_json_schema()
             # remove "template" key from all dicts in schema['properties'] because it is not a
@@ -479,7 +497,9 @@ class BaseWorker(abc.ABC):
         }
 
     @staticmethod
-    def get_worker_class_from_type(type: str) -> Optional[Type["BaseWorker"]]:
+    def get_worker_class_from_type(
+        type: str,
+    ) -> Optional[Type["BaseWorker[Any, Any, Any]"]]:
         """
         Returns the worker class for a given worker type. If the worker type
         is not recognized, returns None.
@@ -500,7 +520,7 @@ class BaseWorker(abc.ABC):
             return list(worker_registry.keys())
         return []
 
-    def get_name_slug(self):
+    def get_name_slug(self) -> str:
         return slugify(self.name)
 
     def get_flow_run_logger(self, flow_run: "FlowRun") -> PrefectLogAdapter:
@@ -524,7 +544,7 @@ class BaseWorker(abc.ABC):
         run_once: bool = False,
         with_healthcheck: bool = False,
         printer: Callable[..., None] = print,
-    ):
+    ) -> None:
         """
         Starts the worker and runs the main worker loops.
 
@@ -603,9 +623,9 @@ class BaseWorker(abc.ABC):
     async def run(
         self,
         flow_run: "FlowRun",
-        configuration: BaseJobConfiguration,
-        task_status: Optional[anyio.abc.TaskStatus] = None,
-    ) -> BaseWorkerResult:
+        configuration: C,
+        task_status: Optional[anyio.abc.TaskStatus[int]] = None,
+    ) -> R:
         """
         Runs a given flow run on the current worker.
         """
@@ -614,12 +634,12 @@ class BaseWorker(abc.ABC):
         )
 
     @classmethod
-    def __dispatch_key__(cls):
+    def __dispatch_key__(cls) -> str | None:
         if cls.__name__ == "BaseWorker":
             return None  # The base class is abstract
         return cls.type
 
-    async def setup(self):
+    async def setup(self) -> None:
         """Prepares the worker to run."""
         self._logger.debug("Setting up worker...")
         self._runs_task_group = anyio.create_task_group()
@@ -637,10 +657,10 @@ class BaseWorker(abc.ABC):
 
         self.is_setup = True
 
-    async def teardown(self, *exc_info):
+    async def teardown(self, *exc_info: Any) -> None:
         """Cleans up resources after the worker is stopped."""
         self._logger.debug("Tearing down worker...")
-        self.is_setup = False
+        self.is_setup: bool = False
         for scope in self._scheduled_task_scopes:
             scope.cancel()
 
@@ -684,14 +704,16 @@ class BaseWorker(abc.ABC):
 
         return is_still_polling
 
-    async def get_and_submit_flow_runs(self):
+    async def get_and_submit_flow_runs(self) -> list["FlowRun"]:
         runs_response = await self._get_scheduled_flow_runs()
 
         self._last_polled_time = pendulum.now("utc")
 
         return await self._submit_scheduled_flow_runs(flow_run_response=runs_response)
 
-    async def _update_local_work_pool_info(self):
+    async def _update_local_work_pool_info(self) -> None:
+        if TYPE_CHECKING:
+            assert self._client is not None
         try:
             work_pool = await self._client.read_work_pool(
                 work_pool_name=self._work_pool_name
@@ -803,7 +825,7 @@ class BaseWorker(abc.ABC):
 
         return worker_id
 
-    async def sync_with_backend(self):
+    async def sync_with_backend(self) -> None:
         """
         Updates the worker's local information about it's current work pool and
         queues. Sends a worker heartbeat to the API.
@@ -866,6 +888,9 @@ class BaseWorker(abc.ABC):
 
         for flow_run in submittable_flow_runs:
             if flow_run.id in self._submitting_flow_run_ids:
+                self._logger.debug(
+                    f"Skipping {flow_run.id} because it's already being submitted"
+                )
                 continue
             try:
                 if self._limiter:
@@ -945,7 +970,7 @@ class BaseWorker(abc.ABC):
             return
 
         ready_to_submit = await self._propose_pending_state(flow_run)
-
+        self._logger.debug(f"Ready to submit {flow_run.id}: {ready_to_submit}")
         if ready_to_submit:
             readiness_result = await self._runs_task_group.start(
                 self._submit_run_and_capture_errors, flow_run
@@ -969,10 +994,9 @@ class BaseWorker(abc.ABC):
             else:
                 # If the run is not ready to submit, release the concurrency slot
                 self._release_limit_slot(flow_run.id)
-
-            self._submitting_flow_run_ids.remove(flow_run.id)
         else:
             self._release_limit_slot(flow_run.id)
+        self._submitting_flow_run_ids.remove(flow_run.id)
 
     async def _submit_run_and_capture_errors(
         self, flow_run: "FlowRun", task_status: Optional[anyio.abc.TaskStatus] = None
@@ -1040,7 +1064,7 @@ class BaseWorker(abc.ABC):
             self._limiter.release_on_behalf_of(flow_run_id)
             self._logger.debug("Limit slot released for flow run '%s'", flow_run_id)
 
-    def get_status(self):
+    def get_status(self) -> dict[str, Any]:
         """
         Retrieves the status of the current worker including its name, current worker
         pool, the work pool queues it is polling, and its local settings.
@@ -1102,6 +1126,7 @@ class BaseWorker(abc.ABC):
                     f"Server sent an abort signal: {exc}"
                 ),
             )
+
             return False
         except Exception:
             run_logger.exception(
@@ -1231,17 +1256,17 @@ class BaseWorker(abc.ABC):
 
             await self._client.update_flow_run_labels(flow_run_id, labels)
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> Self:
         self._logger.debug("Entering worker context...")
         await self.setup()
 
         return self
 
-    async def __aexit__(self, *exc_info):
+    async def __aexit__(self, *exc_info: Any) -> None:
         self._logger.debug("Exiting worker context...")
         await self.teardown(*exc_info)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"Worker(pool={self._work_pool_name!r}, name={self.name!r})"
 
     def _event_resource(self):

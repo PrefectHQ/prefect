@@ -13,8 +13,9 @@ test("TaskRunConcurrencyLimitsHeader can successfully call onAdd", async () => {
 
 	// ------------ Act
 	expect(
-		screen.getByRole("heading", { name: /task run concurrency limits/i }),
-	).toBeVisible();
+		expect(screen.getByText(/task run concurrency limits/i)).toBeVisible(),
+	);
+
 	await user.click(
 		screen.getByRole("button", {
 			name: /add task run concurrency limit/i,

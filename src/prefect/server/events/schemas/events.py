@@ -1,7 +1,9 @@
 import copy
 from collections import defaultdict
 from typing import (
+    TYPE_CHECKING,
     Any,
+    ClassVar,
     Dict,
     Iterable,
     List,
@@ -34,7 +36,10 @@ from prefect.settings import (
 )
 from prefect.types import DateTime
 
-logger = get_logger(__name__)
+if TYPE_CHECKING:
+    import logging
+
+    logger: "logging.Logger" = get_logger(__name__)
 
 
 class Resource(Labelled):
@@ -119,11 +124,11 @@ class Event(PrefectBaseModel):
     resource: Resource = Field(
         description="The primary Resource this event concerns",
     )
-    related: List[RelatedResource] = Field(
+    related: list[RelatedResource] = Field(
         default_factory=list,
         description="A list of additional Resources involved in this event",
     )
-    payload: Dict[str, Any] = Field(
+    payload: dict[str, Any] = Field(
         default_factory=dict,
         description="An open-ended set of data describing what happened",
     )
@@ -131,7 +136,7 @@ class Event(PrefectBaseModel):
         description="The client-provided identifier of this event",
     )
     follows: Optional[UUID] = Field(
-        None,
+        default=None,
         description=(
             "The ID of an event that is known to have occurred prior to this one. "
             "If set, this may be used to establish a more precise ordering of causally-"
@@ -159,7 +164,9 @@ class Event(PrefectBaseModel):
 
     @field_validator("related")
     @classmethod
-    def enforce_maximum_related_resources(cls, value: List[RelatedResource]):
+    def enforce_maximum_related_resources(
+        cls, value: List[RelatedResource]
+    ) -> List[RelatedResource]:
         if len(value) > PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES.value():
             raise ValueError(
                 "The maximum number of related resources "
@@ -191,14 +198,16 @@ class ReceivedEvent(Event):
     """The server-side view of an event that has happened to a Resource after it has
     been received by the server"""
 
-    model_config = ConfigDict(extra="ignore", from_attributes=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(
+        extra="ignore", from_attributes=True
+    )
 
     received: DateTime = Field(
         default_factory=lambda: pendulum.now("UTC"),
         description="When the event was received by Prefect Cloud",
     )
 
-    def as_database_row(self) -> Dict[str, Any]:
+    def as_database_row(self) -> dict[str, Any]:
         row = self.model_dump()
         row["resource_id"] = self.resource.id
         row["recorded"] = pendulum.now("UTC")

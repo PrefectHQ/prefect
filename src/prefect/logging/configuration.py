@@ -6,7 +6,7 @@ import string
 import warnings
 from functools import partial
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 
 import yaml
 
@@ -24,10 +24,10 @@ DEFAULT_LOGGING_SETTINGS_PATH = Path(__file__).parent / "logging.yml"
 PROCESS_LOGGING_CONFIG: Optional[Dict[str, Any]] = None
 
 # Regex call to replace non-alphanumeric characters to '_' to create a valid env var
-to_envvar = partial(re.sub, re.compile(r"[^0-9a-zA-Z]+"), "_")
+to_envvar: Callable[[str], str] = partial(re.sub, re.compile(r"[^0-9a-zA-Z]+"), "_")
 
 
-def load_logging_config(path: Path) -> dict:
+def load_logging_config(path: Path) -> dict[str, Any]:
     """
     Loads logging configuration from a path allowing override from the environment
     """
@@ -94,12 +94,9 @@ def setup_logging(incremental: Optional[bool] = None) -> dict[str, Any]:
 
     for logger_name in PREFECT_LOGGING_EXTRA_LOGGERS.value():
         logger = logging.getLogger(logger_name)
-        for handler in extra_config.handlers:
-            if not config["incremental"]:
+        if not config["incremental"]:
+            for handler in extra_config.handlers:
                 logger.addHandler(handler)
-            if logger.level == logging.NOTSET:
-                logger.setLevel(extra_config.level)
-            logger.propagate = extra_config.propagate
 
     PROCESS_LOGGING_CONFIG = config
 

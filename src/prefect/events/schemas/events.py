@@ -1,7 +1,9 @@
 import copy
 from collections import defaultdict
 from typing import (
+    TYPE_CHECKING,
     Any,
+    ClassVar,
     Dict,
     Iterable,
     List,
@@ -31,7 +33,10 @@ from prefect.types import DateTime
 
 from .labelling import Labelled
 
-logger = get_logger(__name__)
+if TYPE_CHECKING:
+    import logging
+
+logger: "logging.Logger" = get_logger(__name__)
 
 
 class Resource(Labelled):
@@ -108,7 +113,7 @@ def _validate_related_resources(value) -> List:
 class Event(PrefectBaseModel):
     """The client-side view of an event that has happened to a Resource"""
 
-    model_config = ConfigDict(extra="ignore")
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="ignore")
 
     occurred: DateTime = Field(
         default_factory=lambda: DateTime.now("UTC"),
@@ -177,7 +182,7 @@ class ReceivedEvent(Event):
     """The server-side view of an event that has happened to a Resource after it has
     been received by the server"""
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(from_attributes=True)
 
     received: DateTime = Field(
         ...,

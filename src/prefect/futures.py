@@ -5,7 +5,7 @@ import threading
 import uuid
 from collections.abc import Generator, Iterator
 from functools import partial
-from typing import Any, Callable, Generic, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Generic, Optional, Union
 
 from typing_extensions import NamedTuple, Self, TypeVar
 
@@ -22,7 +22,10 @@ from prefect.utilities.timeout import timeout as timeout_context
 F = TypeVar("F")
 R = TypeVar("R")
 
-logger = get_logger(__name__)
+if TYPE_CHECKING:
+    import logging
+
+logger: "logging.Logger" = get_logger(__name__)
 
 
 class PrefectFuture(abc.ABC, Generic[R]):
@@ -90,7 +93,7 @@ class PrefectFuture(abc.ABC, Generic[R]):
         """
 
     @abc.abstractmethod
-    def add_done_callback(self, fn: Callable[["PrefectFuture[R]"], None]):
+    def add_done_callback(self, fn: Callable[["PrefectFuture[R]"], None]) -> None:
         """
         Add a callback to be run when the future completes or is cancelled.
 
@@ -173,7 +176,7 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[R, concurrent.futures.Future[
             _result = run_coro_as_sync(_result)
         return _result
 
-    def __del__(self):
+    def __del__(self) -> None:
         if self._final_state or self._wrapped_future.done():
             return
         try:
@@ -202,7 +205,7 @@ class PrefectDistributedFuture(PrefectFuture[R]):
     def wait(self, timeout: Optional[float] = None) -> None:
         return run_coro_as_sync(self.wait_async(timeout=timeout))
 
-    async def wait_async(self, timeout: Optional[float] = None):
+    async def wait_async(self, timeout: Optional[float] = None) -> None:
         if self._final_state:
             logger.debug(
                 "Final state already set for %s. Returning...", self.task_run_id
@@ -216,6 +219,10 @@ class PrefectDistributedFuture(PrefectFuture[R]):
         # Read task run to see if it is still running
         async with get_client() as client:
             task_run = await client.read_task_run(task_run_id=self._task_run_id)
+            if task_run.state is None:
+                raise RuntimeError(
+                    f"Task run {self.task_run_id} has no state which means it hasn't started yet."
+                )
             if task_run.state.is_final():
                 logger.debug(
                     "Task run %s already finished. Returning...",
@@ -260,7 +267,7 @@ class PrefectDistributedFuture(PrefectFuture[R]):
             raise_on_failure=raise_on_failure, fetch=True
         )
 
-    def add_done_callback(self, fn: Callable[[PrefectFuture[R]], None]):
+    def add_done_callback(self, fn: Callable[[PrefectFuture[R]], None]) -> None:
         if self._final_state:
             fn(self)
             return
@@ -278,7 +285,7 @@ class PrefectDistributedFuture(PrefectFuture[R]):
             return False
         return self.task_run_id == other.task_run_id
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self.task_run_id)
 
 

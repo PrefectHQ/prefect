@@ -9,10 +9,12 @@ import {
 } from "@/components/ui/empty-state";
 import { Icon } from "@/components/ui/icons";
 
-type Props = {
+type GlobalConcurrencyLimitsEmptyStateProps = {
 	onAdd: () => void;
 };
-export const GlobalConcurrencyLimitsEmptyState = ({ onAdd }: Props) => (
+export const GlobalConcurrencyLimitsEmptyState = ({
+	onAdd,
+}: GlobalConcurrencyLimitsEmptyStateProps) => (
 	<EmptyState>
 		<EmptyStateIcon id="AlignVerticalJustifyStart" />
 		<EmptyStateTitle>Add a concurrency limit</EmptyStateTitle>

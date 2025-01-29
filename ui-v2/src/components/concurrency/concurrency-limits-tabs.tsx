@@ -24,7 +24,7 @@ const TAB_OPTIONS: Record<TabOptions, TabOptionValues> = {
 	},
 } as const;
 
-type Props = {
+type ConcurrencyLimitsTabsProps = {
 	globalView: React.ReactNode;
 	taskRunView: React.ReactNode;
 };
@@ -34,13 +34,13 @@ type Props = {
 export const ConcurrencyLimitsTabs = ({
 	globalView,
 	taskRunView,
-}: Props): JSX.Element => {
+}: ConcurrencyLimitsTabsProps): JSX.Element => {
 	const { tab } = routeApi.useSearch();
 	const navigate = routeApi.useNavigate();
 
 	return (
-		<Tabs className="flex flex-col gap-4" defaultValue="Global" value={tab}>
-			<TabsList className="grid w-full grid-cols-2">
+		<Tabs defaultValue="Global" value={tab}>
+			<TabsList>
 				<TabsTrigger
 					value={TAB_OPTIONS.global.tabSearchValue}
 					onClick={() => {

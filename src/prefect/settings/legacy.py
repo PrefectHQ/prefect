@@ -23,16 +23,16 @@ class Setting:
         self._default = default
         self._type = type_
         if accessor is None:
-            self.accessor = _env_var_to_accessor(name)
+            self.accessor: str = _env_var_to_accessor(name)
         else:
-            self.accessor = accessor
+            self.accessor: str = accessor
 
     @property
-    def name(self):
+    def name(self) -> str:
         return self._name
 
     @property
-    def is_secret(self):
+    def is_secret(self) -> bool:
         if self._type in _SECRET_TYPES:
             return True
         for secret_type in _SECRET_TYPES:
@@ -40,7 +40,7 @@ class Setting:
                 return True
         return False
 
-    def default(self):
+    def default(self) -> Any:
         return self._default
 
     def value(self: Self) -> Any:
@@ -58,7 +58,7 @@ class Setting:
 
         return self.value_from(get_current_settings())
 
-    def value_from(self: Self, settings: "Settings") -> Any:
+    def value_from(self: Self, settings: Settings) -> Any:
         path = self.accessor.split(".")
         current_value = settings
         for key in path:
@@ -97,7 +97,7 @@ def _get_valid_setting_names(cls: type[BaseSettings]) -> Set[str]:
     """
     A set of valid setting names, e.g. "PREFECT_API_URL" or "PREFECT_API_KEY".
     """
-    settings_fields = set()
+    settings_fields: set[str] = set()
     for field_name, field in cls.model_fields.items():
         if inspect.isclass(field.annotation) and issubclass(
             field.annotation, PrefectBaseSettings
@@ -123,7 +123,7 @@ def _get_settings_fields(
     settings: Type[BaseSettings], accessor_prefix: Optional[str] = None
 ) -> Dict[str, "Setting"]:
     """Get the settings fields for the settings object"""
-    settings_fields: Dict[str, Setting] = {}
+    settings_fields: dict[str, Setting] = {}
     for field_name, field in settings.model_fields.items():
         if inspect.isclass(field.annotation) and issubclass(
             field.annotation, PrefectBaseSettings

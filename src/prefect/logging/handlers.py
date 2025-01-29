@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import logging
 import sys
@@ -6,7 +8,7 @@ import traceback
 import uuid
 import warnings
 from contextlib import asynccontextmanager
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import TYPE_CHECKING, Any, Dict, List, TextIO, Type
 
 import pendulum
 from rich.console import Console
@@ -33,6 +35,14 @@ from prefect.settings import (
     PREFECT_LOGGING_TO_API_MAX_LOG_SIZE,
     PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW,
 )
+
+if sys.version_info >= (3, 12):
+    StreamHandler = logging.StreamHandler[TextIO]
+else:
+    if TYPE_CHECKING:
+        StreamHandler = logging.StreamHandler[TextIO]
+    else:
+        StreamHandler = logging.StreamHandler
 
 
 class APILogWorker(BatchedQueueService[Dict[str, Any]]):
@@ -90,7 +100,7 @@ class APILogHandler(logging.Handler):
     """
 
     @classmethod
-    def flush(cls):
+    def flush(cls) -> None:
         """
         Tell the `APILogWorker` to send any currently enqueued logs and block until
         completion.
@@ -107,8 +117,8 @@ class APILogHandler(logging.Handler):
                 )
 
             # Not ideal, but this method is called by the stdlib and cannot return a
-            # coroutine so we just schedule the drain in the global loop thread and continue
-            from_sync.call_soon_in_loop_thread(create_call(APILogWorker.drain_all))
+            # coroutine so we just schedule the drain in a new thread and continue
+            from_sync.call_soon_in_new_thread(create_call(APILogWorker.drain_all))
             return None
         else:
             # We set a timeout of 5s because we don't want to block forever if the worker
@@ -118,7 +128,7 @@ class APILogHandler(logging.Handler):
             return APILogWorker.drain_all(timeout=5)
 
     @classmethod
-    async def aflush(cls):
+    async def aflush(cls) -> bool:
         """
         Tell the `APILogWorker` to send any currently enqueued logs and block until
         completion.
@@ -126,7 +136,7 @@ class APILogHandler(logging.Handler):
 
         return await APILogWorker.drain_all()
 
-    def emit(self, record: logging.LogRecord):
+    def emit(self, record: logging.LogRecord) -> None:
         """
         Send a log to the `APILogWorker`
         """
@@ -239,7 +249,7 @@ class APILogHandler(logging.Handler):
 
 
 class WorkerAPILogHandler(APILogHandler):
-    def emit(self, record: logging.LogRecord):
+    def emit(self, record: logging.LogRecord) -> None:
         # Open-source API servers do not currently support worker logs, and
         # worker logs only have an associated worker ID when connected to Cloud,
         # so we won't send worker logs to the API unless they have a worker ID.
@@ -278,13 +288,13 @@ class WorkerAPILogHandler(APILogHandler):
         return log
 
 
-class PrefectConsoleHandler(logging.StreamHandler):
+class PrefectConsoleHandler(StreamHandler):
     def __init__(
         self,
-        stream=None,
-        highlighter: Highlighter = PrefectConsoleHighlighter,
-        styles: Optional[Dict[str, str]] = None,
-        level: Union[int, str] = logging.NOTSET,
+        stream: TextIO | None = None,
+        highlighter: type[Highlighter] = PrefectConsoleHighlighter,
+        styles: dict[str, str] | None = None,
+        level: int | str = logging.NOTSET,
     ):
         """
         The default console handler for Prefect, which highlights log levels,
@@ -307,14 +317,14 @@ class PrefectConsoleHandler(logging.StreamHandler):
             theme = Theme(inherit=False)
 
         self.level = level
-        self.console = Console(
+        self.console: Console = Console(
             highlighter=highlighter,
             theme=theme,
             file=self.stream,
             markup=markup_console,
         )
 
-    def emit(self, record: logging.LogRecord):
+    def emit(self, record: logging.LogRecord) -> None:
         try:
             message = self.format(record)
             self.console.print(message, soft_wrap=True)

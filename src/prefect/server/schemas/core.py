@@ -1,9 +1,10 @@
 """
 Full schemas of Prefect REST API objects.
 """
+from __future__ import annotations
 
 import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type, Union
+from typing import TYPE_CHECKING, Any, ClassVar, Dict, List, Optional, Type, Union
 from uuid import UUID
 
 import pendulum
@@ -17,11 +18,11 @@ from pydantic import (
     field_validator,
     model_validator,
 )
+from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import Literal, Self
 
 from prefect._internal.schemas.validators import (
     get_or_create_run_name,
-    list_length_50_or_less,
     raise_on_name_alphanumeric_dashes_only,
     set_run_policy_deprecated_fields,
     validate_cache_key_length,
@@ -123,7 +124,7 @@ class FlowRunPolicy(PrefectBaseModel):
     retry_delay: Optional[int] = Field(
         default=None, description="The delay time between retries, in seconds."
     )
-    pause_keys: Optional[set] = Field(
+    pause_keys: Optional[set[str]] = Field(
         default_factory=set, description="Tracks pauses this run has observed."
     )
     resuming: Optional[bool] = Field(
@@ -134,7 +135,7 @@ class FlowRunPolicy(PrefectBaseModel):
     )
 
     @model_validator(mode="before")
-    def populate_deprecated_fields(cls, values):
+    def populate_deprecated_fields(cls, values: dict[str, Any]) -> dict[str, Any]:
         return set_run_policy_deprecated_fields(values)
 
 
@@ -321,7 +322,7 @@ class FlowRun(ORMBaseModel):
 
     @field_validator("name", mode="before")
     @classmethod
-    def set_name(cls, name):
+    def set_name(cls, name: str) -> str:
         return get_or_create_run_name(name)
 
     def __eq__(self, other: Any) -> bool:
@@ -368,17 +369,21 @@ class TaskRunPolicy(PrefectBaseModel):
     )
 
     @model_validator(mode="before")
-    def populate_deprecated_fields(cls, values):
+    def populate_deprecated_fields(cls, values: dict[str, Any]) -> dict[str, Any]:
         return set_run_policy_deprecated_fields(values)
 
     @field_validator("retry_delay")
     @classmethod
-    def validate_configured_retry_delays(cls, v):
-        return list_length_50_or_less(v)
+    def validate_configured_retry_delays(
+        cls, v: int | list[int] | None
+    ) -> int | list[int] | None:
+        if isinstance(v, list) and (len(v) > 50):
+            raise ValueError("Can not configure more than 50 retry delays per task.")
+        return v
 
     @field_validator("retry_jitter_factor")
     @classmethod
-    def validate_jitter_factor(cls, v):
+    def validate_jitter_factor(cls, v: float | None) -> float | None:
         return validate_not_negative(v)
 
 
@@ -388,7 +393,7 @@ class TaskRunInput(PrefectBaseModel):
     could include, constants, parameters, or other task runs.
     """
 
-    model_config = ConfigDict(frozen=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(frozen=True)
 
     input_type: str
 
@@ -527,12 +532,12 @@ class TaskRun(ORMBaseModel):
 
     @field_validator("name", mode="before")
     @classmethod
-    def set_name(cls, name):
+    def set_name(cls, name: str) -> str:
         return get_or_create_run_name(name)
 
     @field_validator("cache_key")
     @classmethod
-    def validate_cache_key(cls, cache_key):
+    def validate_cache_key(cls, cache_key: str) -> str:
         return validate_cache_key_length(cache_key)
 
 
@@ -554,7 +559,7 @@ class DeploymentSchedule(ORMBaseModel):
 
     @field_validator("max_scheduled_runs")
     @classmethod
-    def validate_max_scheduled_runs(cls, v):
+    def validate_max_scheduled_runs(cls, v: int) -> int:
         return validate_schedule_max_scheduled_runs(
             v, PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS.value()
         )
@@ -563,7 +568,7 @@ class DeploymentSchedule(ORMBaseModel):
 class Deployment(ORMBaseModel):
     """An ORM representation of deployment data."""
 
-    model_config = ConfigDict(populate_by_name=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(populate_by_name=True)
 
     name: NameOrEmpty = Field(default=..., description="The name of the deployment.")
     version: Optional[str] = Field(
@@ -595,7 +600,7 @@ class Deployment(ORMBaseModel):
         default_factory=dict,
         description="Parameters for flow runs scheduled by the deployment.",
     )
-    pull_steps: Optional[List[dict]] = Field(
+    pull_steps: Optional[list[dict[str, Any]]] = Field(
         default=None,
         description="Pull steps for cloning and running this deployment.",
     )
@@ -773,7 +778,7 @@ class BlockDocument(ORMBaseModel):
             "The block document's name. Not required for anonymous block documents."
         ),
     )
-    data: Dict[str, Any] = Field(
+    data: dict[str, Any] = Field(
         default_factory=dict, description="The block document's data"
     )
     block_schema_id: UUID = Field(default=..., description="A block schema ID")
@@ -787,7 +792,7 @@ class BlockDocument(ORMBaseModel):
     block_type: Optional[BlockType] = Field(
         default=None, description="The associated block type"
     )
-    block_document_references: Dict[str, Dict[str, Any]] = Field(
+    block_document_references: dict[str, dict[str, Any]] = Field(
         default_factory=dict, description="Record of the block document's references"
     )
     is_anonymous: bool = Field(
@@ -799,13 +804,15 @@ class BlockDocument(ORMBaseModel):
     )
 
     @model_validator(mode="before")
-    def validate_name_is_present_if_not_anonymous(cls, values):
+    def validate_name_is_present_if_not_anonymous(
+        cls, values: dict[str, Any]
+    ) -> dict[str, Any]:
         return validate_name_present_on_nonanonymous_blocks(values)
 
     @classmethod
     async def from_orm_model(
         cls: type[Self],
-        session,
+        session: AsyncSession,
         orm_block_document: "orm_models.ORMBlockDocument",
         include_secrets: bool = False,
     ) -> Self:
@@ -1062,7 +1069,7 @@ class FlowRunNotificationPolicy(ORMBaseModel):
 
     @field_validator("message_template")
     @classmethod
-    def validate_message_template_variables(cls, v):
+    def validate_message_template_variables(cls, v: str) -> str:
         return validate_message_template_variables(v)
 
 
@@ -1115,7 +1122,7 @@ class WorkPool(ORMBaseModel):
     )
 
     @field_validator("default_queue_id")
-    def helpful_error_for_missing_default_queue_id(cls, v):
+    def helpful_error_for_missing_default_queue_id(cls, v: UUID | None) -> UUID:
         return validate_default_queue_id_not_none(v)
 
     @classmethod
@@ -1180,7 +1187,7 @@ class Artifact(ORMBaseModel):
             " the artifact type."
         ),
     )
-    metadata_: Optional[Dict[str, str]] = Field(
+    metadata_: Optional[dict[str, str]] = Field(
         default=None,
         description=(
             "User-defined artifact metadata. Content must be string key and value"
@@ -1195,8 +1202,8 @@ class Artifact(ORMBaseModel):
     )
 
     @classmethod
-    def from_result(cls, data: Any):
-        artifact_info = dict()
+    def from_result(cls, data: Any | dict[str, Any]) -> "Artifact":
+        artifact_info: dict[str, Any] = dict()
         if isinstance(data, dict):
             artifact_key = data.pop("artifact_key", None)
             if artifact_key:
@@ -1214,7 +1221,7 @@ class Artifact(ORMBaseModel):
 
     @field_validator("metadata_")
     @classmethod
-    def validate_metadata_length(cls, v):
+    def validate_metadata_length(cls, v: dict[str, str]) -> dict[str, str]:
         return validate_max_metadata_length(v)
 
 
@@ -1282,7 +1289,7 @@ class FlowRunInput(ORMBaseModel):
 
     @field_validator("key", check_fields=False)
     @classmethod
-    def validate_name_characters(cls, v):
+    def validate_name_characters(cls, v: str) -> str:
         raise_on_name_alphanumeric_dashes_only(v)
         return v
 

@@ -1,10 +1,11 @@
-from typing import Optional
+from typing import ClassVar, Optional
 
 from pydantic import Field
+from pydantic_settings import SettingsConfigDict
 
 from prefect.settings.base import (
     PrefectBaseSettings,
-    _build_settings_config,
+    build_settings_config,
 )
 
 
@@ -13,7 +14,7 @@ class CLISettings(PrefectBaseSettings):
     Settings for controlling CLI behavior
     """
 
-    model_config = _build_settings_config(("cli",))
+    model_config: ClassVar[SettingsConfigDict] = build_settings_config(("cli",))
 
     colors: bool = Field(
         default=True,

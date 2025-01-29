@@ -3,9 +3,11 @@ The MarkLateRuns service. Responsible for putting flow runs in a Late state if t
 The threshold for a late run can be configured by changing `PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS`.
 """
 
+from __future__ import annotations
+
 import asyncio
 import datetime
-from typing import Optional
+from typing import TYPE_CHECKING, Any
 
 import pendulum
 import sqlalchemy as sa
@@ -13,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.models as models
 from prefect.server.database import PrefectDBInterface, inject_db
+from prefect.server.database.dependencies import db_injector
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.orchestration.core_policy import MarkLateRunsPolicy
 from prefect.server.schemas import states
@@ -21,6 +24,9 @@ from prefect.settings import (
     PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS,
     PREFECT_API_SERVICES_LATE_RUNS_LOOP_SECONDS,
 )
+
+if TYPE_CHECKING:
+    from uuid import UUID
 
 
 class MarkLateRuns(LoopService):
@@ -32,7 +38,7 @@ class MarkLateRuns(LoopService):
     Prefect REST API Settings.
     """
 
-    def __init__(self, loop_seconds: Optional[float] = None, **kwargs):
+    def __init__(self, loop_seconds: float | None = None, **kwargs: Any):
         super().__init__(
             loop_seconds=loop_seconds
             or PREFECT_API_SERVICES_LATE_RUNS_LOOP_SECONDS.value(),
@@ -47,8 +53,8 @@ class MarkLateRuns(LoopService):
         # query for this many runs to mark as late at once
         self.batch_size = 400
 
-    @inject_db
-    async def run_once(self, db: PrefectDBInterface):
+    @db_injector
+    async def run_once(self, db: PrefectDBInterface) -> None:
         """
         Mark flow runs as late by:
 
@@ -81,7 +87,7 @@ class MarkLateRuns(LoopService):
     @inject_db
     def _get_select_late_flow_runs_query(
         self, scheduled_to_start_before: datetime.datetime, db: PrefectDBInterface
-    ):
+    ) -> sa.Select[tuple["UUID", pendulum.DateTime | None]]:
         """
         Returns a sqlalchemy query for late flow runs.
 
@@ -106,7 +112,9 @@ class MarkLateRuns(LoopService):
         return query
 
     async def _mark_flow_run_as_late(
-        self, session: AsyncSession, flow_run: PrefectDBInterface.FlowRun
+        self,
+        session: AsyncSession,
+        flow_run: sa.Row[tuple["UUID", pendulum.DateTime | None]],
     ) -> None:
         """
         Mark a flow run as late.

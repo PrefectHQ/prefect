@@ -106,14 +106,15 @@ COPY --from=ghcr.io/astral-sh/uv:0.5.8 /uv /uvx /bin/
 # Install dependencies using a temporary mount for requirements files
 RUN --mount=type=bind,source=requirements-client.txt,target=/tmp/requirements-client.txt \
     --mount=type=bind,source=requirements.txt,target=/tmp/requirements.txt \
+    --mount=type=bind,source=requirements-otel.txt,target=/tmp/requirements-otel.txt \
     --mount=type=cache,target=/root/.cache/uv \
-    uv pip install --system -r /tmp/requirements.txt -r /tmp/requirements-client.txt
+    uv pip install --system -r /tmp/requirements.txt -r /tmp/requirements-client.txt -r /tmp/requirements-otel.txt
 
 # Install prefect from the sdist
 COPY --from=python-builder /opt/prefect/dist ./dist
 
 # Extras to include during installation
-ARG PREFECT_EXTRAS
+ARG PREFECT_EXTRAS=[redis]
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv pip install "./dist/prefect.tar.gz${PREFECT_EXTRAS:-""}" && \
     rm -rf dist/

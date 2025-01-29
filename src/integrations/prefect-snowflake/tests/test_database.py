@@ -223,6 +223,19 @@ class TestSnowflakeConnector:
         connector = SnowflakeConnector(**connector_params)
         return connector
 
+    def test_block_initialization_handles_schema_alias(self, connector_params):
+        # First, test the case where the schema is set with the alias
+        connector_params["schema"] = "schema_input"
+        connector_params.pop("schema_", None)
+        connector = SnowflakeConnector(**connector_params)
+        assert connector.schema_ == "schema_input"
+
+        # Now, test the case where the schema is set with the field name
+        connector_params["schema_"] = "schema_input"
+        connector_params.pop("schema", None)
+        connector = SnowflakeConnector(**connector_params)
+        assert connector.schema_ == "schema_input"
+
     def test_block_initialization(self, snowflake_connector):
         assert snowflake_connector._connection is None
         assert snowflake_connector._unique_cursors is None
@@ -294,6 +307,36 @@ class TestSnowflakeConnector:
         mock_cursor.execute.assert_called_once_with("SELECT 1", params=None)
         mock_cursor.fetchall.assert_called_once()
         assert result == [(1,)]
+
+    def test_fetch_one_executes_directly_on_cursor(
+        self, snowflake_connector: SnowflakeConnector
+    ):
+        """Test that fetch_one executes directly on the cursor instead of using self.execute."""
+        snowflake_connector._start_connection()
+        mock_cursor = MagicMock()
+        snowflake_connector._connection.cursor.return_value = mock_cursor
+        mock_cursor.fetchone.return_value = (1,)
+
+        result = snowflake_connector.fetch_one("SELECT 1")
+
+        mock_cursor.execute.assert_called_once_with("SELECT 1", params=None)
+        mock_cursor.fetchone.assert_called_once()
+        assert result == (1,)
+
+    def test_fetch_many_executes_directly_on_cursor(
+        self, snowflake_connector: SnowflakeConnector
+    ):
+        """Test that fetch_many executes directly on the cursor instead of using self.execute."""
+        snowflake_connector._start_connection()
+        mock_cursor = MagicMock()
+        snowflake_connector._connection.cursor.return_value = mock_cursor
+        mock_cursor.fetchmany.return_value = [(1,), (2,)]
+
+        result = snowflake_connector.fetch_many("SELECT 1", size=2)
+
+        mock_cursor.execute.assert_called_once_with("SELECT 1", params=None)
+        mock_cursor.fetchmany.assert_called_once_with(size=2)
+        assert result == [(1,), (2,)]
 
     @pytest.mark.parametrize("fetch_function_name", ["fetch_many", "fetch_many_async"])
     async def test_fetch_many(self, fetch_function_name, snowflake_connector):

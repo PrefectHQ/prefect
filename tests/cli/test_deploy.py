@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import io
 import json
 import os
@@ -7,7 +9,7 @@ import sys
 import tempfile
 from datetime import timedelta
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 from unittest import mock
 from uuid import UUID, uuid4
 
@@ -290,7 +292,7 @@ class TestProjectDeploy:
         assert deployment.enforce_parameter_schema
 
     async def test_deploy_with_no_enforce_parameter_schema(
-        self, project_dir, work_pool, prefect_client
+        self, project_dir: Path, work_pool: WorkPool, prefect_client: PrefectClient
     ):
         await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -1490,7 +1492,10 @@ class TestProjectDeploy:
 
     @pytest.mark.usefixtures("project_dir")
     async def test_project_deploy_templates_env_var_values(
-        self, prefect_client, work_pool, monkeypatch
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+        monkeypatch: pytest.MonkeyPatch,
     ):
         # prepare a templated deployment
         prefect_file = Path("prefect.yaml")
@@ -1553,7 +1558,7 @@ class TestProjectDeploy:
 
     @pytest.mark.usefixtures("project_dir")
     async def test_project_deploy_with_default_parameters(
-        self, prefect_client, work_pool
+        self, prefect_client: PrefectClient, work_pool: WorkPool
     ):
         prefect_file = Path("prefect.yaml")
         with prefect_file.open(mode="r") as f:
@@ -1617,7 +1622,7 @@ class TestProjectDeploy:
 
     @pytest.mark.usefixtures("project_dir")
     async def test_project_deploy_templates_pull_step_safely(
-        self, prefect_client, work_pool
+        self, prefect_client: PrefectClient, work_pool: WorkPool
     ):
         """
         We want step outputs to get templated, but block references to only be
@@ -1686,7 +1691,7 @@ class TestProjectDeploy:
 
     @pytest.mark.usefixtures("project_dir")
     async def test_project_deploy_templates_pull_step_in_deployments_section_safely(
-        self, prefect_client, work_pool
+        self, prefect_client: PrefectClient, work_pool: WorkPool
     ):
         """
         We want step outputs to get templated, but block references to only be
@@ -1754,7 +1759,9 @@ class TestProjectDeploy:
         ]
 
     @pytest.mark.usefixtures("project_dir")
-    async def test_project_deploy_reads_entrypoint_from_prefect_yaml(self, work_pool):
+    async def test_project_deploy_reads_entrypoint_from_prefect_yaml(
+        self, work_pool: WorkPool
+    ):
         prefect_file = Path("prefect.yaml")
         with prefect_file.open(mode="r") as f:
             deploy_config = yaml.safe_load(f)
@@ -1774,7 +1781,9 @@ class TestProjectDeploy:
         )
 
     @pytest.mark.usefixtures("project_dir")
-    async def test_project_deploy_exits_with_no_entrypoint_configured(self, work_pool):
+    async def test_project_deploy_exits_with_no_entrypoint_configured(
+        self, work_pool: WorkPool
+    ):
         prefect_file = Path("prefect.yaml")
         with prefect_file.open(mode="r") as f:
             deploy_config = yaml.safe_load(f)
@@ -1793,7 +1802,9 @@ class TestProjectDeploy:
         )
 
     @pytest.mark.usefixtures("interactive_console", "project_dir")
-    async def test_deploy_without_name_interactive(self, work_pool, prefect_client):
+    async def test_deploy_without_name_interactive(
+        self, work_pool: WorkPool, prefect_client: PrefectClient
+    ):
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
@@ -1837,7 +1848,7 @@ class TestProjectDeploy:
 
     @pytest.mark.usefixtures("interactive_console", "project_dir")
     async def test_deploy_without_work_pool_interactive(
-        self, work_pool, prefect_client
+        self, work_pool: WorkPool, prefect_client: PrefectClient
     ):
         await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -1885,7 +1896,10 @@ class TestProjectDeploy:
 
     @pytest.mark.usefixtures("interactive_console", "project_dir")
     async def test_deploy_with_prefect_agent_work_pool_interactive(
-        self, work_pool, prefect_client, default_agent_pool
+        self,
+        work_pool: WorkPool,
+        prefect_client: PrefectClient,
+        default_agent_pool: WorkPool,
     ):
         await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -1921,7 +1935,9 @@ class TestProjectDeploy:
         assert deployment.entrypoint == "./flows/hello.py:my_flow"
 
     @pytest.mark.usefixtures("interactive_console", "project_dir")
-    async def test_deploy_with_push_pool_no_worker_start_message(self, push_work_pool):
+    async def test_deploy_with_push_pool_no_worker_start_message(
+        self, push_work_pool: WorkPool
+    ):
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
@@ -1943,7 +1959,9 @@ class TestProjectDeploy:
         )
 
     @pytest.mark.usefixtures("interactive_console", "project_dir")
-    async def test_deploy_with_no_available_work_pool_interactive(self, prefect_client):
+    async def test_deploy_with_no_available_work_pool_interactive(
+        self, prefect_client: PrefectClient
+    ):
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command="deploy ./flows/hello.py:my_flow -n test-name --interval 3600",
@@ -1985,7 +2003,7 @@ class TestProjectDeploy:
 
     @pytest.mark.usefixtures("project_dir")
     async def test_deploy_with_entrypoint_does_not_fail_with_missing_prefect_folder(
-        self, work_pool
+        self, work_pool: WorkPool
     ):
         Path(".prefect").rmdir()
         await run_sync_in_worker_thread(
@@ -2000,7 +2018,7 @@ class TestProjectDeploy:
     @pytest.mark.parametrize("schedule_value", [None, {}])
     @pytest.mark.usefixtures("project_dir", "interactive_console")
     async def test_deploy_does_not_prompt_schedule_when_empty_schedule_prefect_yaml(
-        self, schedule_value, work_pool, prefect_client
+        self, schedule_value: Any, work_pool: WorkPool, prefect_client: PrefectClient
     ):
         prefect_yaml_file = Path("prefect.yaml")
         with prefect_yaml_file.open(mode="r") as f:
@@ -2042,7 +2060,7 @@ class TestProjectDeploy:
     @pytest.mark.parametrize("build_value", [None, {}])
     @pytest.mark.usefixtures("project_dir", "interactive_console")
     async def test_deploy_does_not_prompt_build_docker_image_when_empty_build_action_prefect_yaml(
-        self, build_value, work_pool, prefect_client
+        self, build_value, work_pool: WorkPool, prefect_client: PrefectClient
     ):
         prefect_yaml_file = Path("prefect.yaml")
         with prefect_yaml_file.open(mode="r") as f:
@@ -2083,7 +2101,7 @@ class TestProjectDeploy:
         )
 
     async def test_deploy_with_bad_run_shell_script_raises(
-        self, project_dir, work_pool
+        self, project_dir: Path, work_pool: WorkPool
     ):
         """
         Regression test for a bug where deployment steps would continue even when
@@ -2117,7 +2135,10 @@ class TestProjectDeploy:
 
     @pytest.mark.usefixtures("project_dir")
     async def test_deploy_templates_env_vars(
-        self, prefect_client, monkeypatch, work_pool
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+        monkeypatch: pytest.MonkeyPatch,
     ):
         # set up environment variables
         monkeypatch.setenv("WORK_POOL", work_pool.name)
@@ -2188,7 +2209,10 @@ class TestProjectDeploy:
     class TestRemoteStoragePicklist:
         @pytest.mark.usefixtures("uninitialized_project_dir_with_git_no_remote")
         async def test_no_git_option_when_no_remote_url(
-            self, docker_work_pool, aws_credentials, monkeypatch
+            self,
+            docker_work_pool: WorkPool,
+            aws_credentials: Any,
+            monkeypatch: pytest.MonkeyPatch,
         ):
             mock_step = mock.MagicMock()
             monkeypatch.setattr(
@@ -2232,7 +2256,7 @@ class TestProjectDeploy:
 
         @pytest.mark.usefixtures("uninitialized_project_dir_with_git_with_remote")
         async def test_git_option_present_when_remote_url(
-            self, docker_work_pool, monkeypatch
+            self, docker_work_pool: WorkPool, monkeypatch: pytest.MonkeyPatch
         ):
             mock_step = mock.MagicMock()
             monkeypatch.setattr(
@@ -2274,10 +2298,45 @@ class TestProjectDeploy:
                 ),
             )
 
+    @pytest.mark.usefixtures("project_dir")
+    async def test_deploy_respects_yaml_enforce_parameter_schema(
+        self, work_pool: WorkPool, prefect_client: PrefectClient
+    ):
+        prefect_yaml_file = Path("prefect.yaml")
+        with prefect_yaml_file.open(mode="r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        deploy_config["deployments"] = [
+            {
+                "name": "test-name",
+                "entrypoint": "flows/hello.py:my_flow",
+                "work_pool": {
+                    "name": work_pool.name,
+                },
+                "enforce_parameter_schema": False,
+            }
+        ]
+
+        with prefect_yaml_file.open(mode="w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy -n test-name",
+            expected_code=0,
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert not deployment.enforce_parameter_schema
+
 
 class TestSchedules:
     @pytest.mark.usefixtures("project_dir")
-    async def test_passing_cron_schedules_to_deploy(self, work_pool, prefect_client):
+    async def test_passing_cron_schedules_to_deploy(
+        self, work_pool: WorkPool, prefect_client: PrefectClient
+    ):
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
@@ -2296,7 +2355,9 @@ class TestSchedules:
         assert schedule.timezone == "Europe/Berlin"
 
     @pytest.mark.usefixtures("project_dir")
-    async def test_deployment_yaml_cron_schedule(self, work_pool, prefect_client):
+    async def test_deployment_yaml_cron_schedule(
+        self, work_pool: WorkPool, prefect_client: PrefectClient
+    ):
         prefect_file = Path("prefect.yaml")
         with prefect_file.open(mode="r") as f:
             deploy_config = yaml.safe_load(f)
@@ -2325,7 +2386,7 @@ class TestSchedules:
 
     @pytest.mark.usefixtures("project_dir")
     async def test_deployment_yaml_cron_schedule_timezone_cli(
-        self, work_pool, prefect_client
+        self, work_pool: WorkPool, prefect_client: PrefectClient
     ):
         prefect_file = Path("prefect.yaml")
         with prefect_file.open(mode="r") as f:
@@ -2357,7 +2418,7 @@ class TestSchedules:
 
     @pytest.mark.usefixtures("project_dir")
     async def test_passing_interval_schedules_to_deploy(
-        self, work_pool, prefect_client
+        self, work_pool: WorkPool, prefect_client: PrefectClient
     ):
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -2411,7 +2472,7 @@ class TestSchedules:
 
     @pytest.mark.usefixtures("project_dir")
     async def test_parsing_rrule_schedule_string_literal(
-        self, prefect_client, work_pool
+        self, prefect_client: PrefectClient, work_pool: WorkPool
     ):
         await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -2433,7 +2494,9 @@ class TestSchedules:
         )
 
     @pytest.mark.usefixtures("project_dir")
-    async def test_rrule_deployment_yaml(self, work_pool, prefect_client):
+    async def test_rrule_deployment_yaml(
+        self, work_pool: WorkPool, prefect_client: PrefectClient
+    ):
         prefect_file = Path("prefect.yaml")
         with prefect_file.open(mode="r") as f:
             deploy_config = yaml.safe_load(f)
@@ -2466,7 +2529,7 @@ class TestSchedules:
 
     @pytest.mark.usefixtures("project_dir")
     async def test_can_provide_multiple_schedules_via_command(
-        self, prefect_client, work_pool
+        self, prefect_client: PrefectClient, work_pool: WorkPool
     ):
         await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -2501,7 +2564,7 @@ class TestSchedules:
 
     @pytest.mark.usefixtures("project_dir")
     async def test_can_provide_multiple_schedules_via_yaml(
-        self, prefect_client, work_pool
+        self, prefect_client: PrefectClient, work_pool: WorkPool
     ):
         prefect_yaml = Path("prefect.yaml")
         with prefect_yaml.open(mode="r") as f:
@@ -2549,7 +2612,9 @@ class TestSchedules:
         }
 
     @pytest.mark.usefixtures("project_dir")
-    async def test_yaml_with_schedule_and_schedules_raises_error(self, work_pool):
+    async def test_yaml_with_schedule_and_schedules_raises_error(
+        self, work_pool: WorkPool
+    ):
         prefect_yaml = Path("prefect.yaml")
         with prefect_yaml.open(mode="r") as f:
             deploy_config = yaml.safe_load(f)
@@ -2571,29 +2636,8 @@ class TestSchedules:
         )
 
     @pytest.mark.usefixtures("project_dir")
-    async def test_yaml_with_schedule_prints_deprecation_warning(self, work_pool):
-        prefect_yaml = Path("prefect.yaml")
-        with prefect_yaml.open(mode="r") as f:
-            deploy_config = yaml.safe_load(f)
-
-        deploy_config["deployments"][0]["name"] = "test-name"
-        deploy_config["deployments"][0]["schedule"]["interval"] = 42
-
-        with prefect_yaml.open(mode="w") as f:
-            yaml.safe_dump(deploy_config, f)
-
-        await run_sync_in_worker_thread(
-            invoke_and_assert,
-            command=(
-                f"deploy ./flows/hello.py:my_flow -n test-name --pool {work_pool.name}"
-            ),
-            expected_code=0,
-            expected_output_contains="Defining a schedule via the `schedule` key in the deployment",
-        )
-
-    @pytest.mark.usefixtures("project_dir")
     async def test_can_provide_multiple_schedules_of_the_same_type_via_command(
-        self, prefect_client, work_pool
+        self, prefect_client: PrefectClient, work_pool: WorkPool
     ):
         await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -2621,7 +2665,7 @@ class TestSchedules:
 
     @pytest.mark.usefixtures("interactive_console", "project_dir")
     async def test_deploy_interval_schedule_interactive(
-        self, prefect_client, work_pool
+        self, prefect_client: PrefectClient, work_pool: WorkPool
     ):
         await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -2665,7 +2709,7 @@ class TestSchedules:
 
     @pytest.mark.usefixtures("interactive_console", "project_dir")
     async def test_deploy_default_interval_schedule_interactive(
-        self, prefect_client, work_pool
+        self, prefect_client: PrefectClient, work_pool: WorkPool
     ):
         await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -2699,7 +2743,9 @@ class TestSchedules:
         assert deployment.schedules[0].schedule.interval == timedelta(seconds=3600)
 
     @pytest.mark.usefixtures("interactive_console", "project_dir")
-    async def test_deploy_cron_schedule_interactive(self, prefect_client, work_pool):
+    async def test_deploy_cron_schedule_interactive(
+        self, prefect_client: PrefectClient, work_pool: WorkPool
+    ):
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
@@ -2745,7 +2791,9 @@ class TestSchedules:
         assert deployment.schedules[0].schedule.cron == "* * * * *"
 
     @pytest.mark.usefixtures("interactive_console", "project_dir")
-    async def test_deploy_rrule_schedule_interactive(self, prefect_client, work_pool):
+    async def test_deploy_rrule_schedule_interactive(
+        self, prefect_client: PrefectClient, work_pool: WorkPool
+    ):
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
@@ -2789,7 +2837,9 @@ class TestSchedules:
         )
 
     @pytest.mark.usefixtures("interactive_console", "project_dir")
-    async def test_deploy_no_schedule_interactive(self, prefect_client, work_pool):
+    async def test_deploy_no_schedule_interactive(
+        self, prefect_client: PrefectClient, work_pool: WorkPool
+    ):
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
@@ -2815,7 +2865,9 @@ class TestSchedules:
         assert len(deployment.schedules) == 0
 
     @pytest.mark.usefixtures("project_dir")
-    async def test_deploy_with_inactive_schedule(self, work_pool, prefect_client):
+    async def test_deploy_with_inactive_schedule(
+        self, work_pool: WorkPool, prefect_client: PrefectClient
+    ):
         prefect_file = Path("prefect.yaml")
         with prefect_file.open(mode="r") as f:
             deploy_config = yaml.safe_load(f)
@@ -2846,7 +2898,9 @@ class TestSchedules:
         assert deployment_schedule.schedule.timezone == "America/Chicago"
 
     @pytest.mark.usefixtures("project_dir")
-    async def test_yaml_null_schedules(self, prefect_client, work_pool):
+    async def test_yaml_null_schedules(
+        self, prefect_client: PrefectClient, work_pool: WorkPool
+    ):
         prefect_yaml_content = f"""
         deployments:
           - name: test-name
@@ -2871,10 +2925,101 @@ class TestSchedules:
 
         assert deployment.schedules == []
 
+    @pytest.mark.usefixtures("project_dir")
+    async def test_yaml_with_shell_script_step_to_determine_schedule_is_active(
+        self, prefect_client: PrefectClient, work_pool: WorkPool
+    ):
+        prefect_yaml = Path("prefect.yaml")
+        with prefect_yaml.open(mode="r") as f:
+            contents = yaml.safe_load(f)
+
+        contents["deployments"] = [
+            {
+                "entrypoint": "./flows/hello.py:my_flow",
+                "name": "test-name",
+                "work_pool": {"name": work_pool.name},
+                "build": [
+                    {
+                        "prefect.deployments.steps.run_shell_script": {
+                            "id": "get-schedule-isactive",
+                            "script": "echo 'false'",
+                        }
+                    }
+                ],
+                "schedules": [
+                    {
+                        "active": "{{ get-schedule-isactive.stdout }}",
+                        "cron": "0 * * * *",
+                        "timezone": "America/Chicago",
+                    }
+                ],
+            }
+        ]
+
+        with prefect_yaml.open(mode="w") as f:
+            yaml.safe_dump(contents, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy --all",
+            expected_code=0,
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.schedules[0].active is False
+
+    @pytest.mark.parametrize("schedule_is_active", [True, False])
+    @pytest.mark.usefixtures("project_dir")
+    async def test_yaml_with_env_var_to_determine_schedule_is_active(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+        monkeypatch: pytest.MonkeyPatch,
+        schedule_is_active: bool,
+    ):
+        monkeypatch.setenv(
+            "SCHEDULE_IS_ACTIVE", "true" if schedule_is_active else "false"
+        )
+
+        prefect_yaml = Path("prefect.yaml")
+        with prefect_yaml.open(mode="r") as f:
+            contents = yaml.safe_load(f)
+
+        contents["deployments"] = [
+            {
+                "entrypoint": "./flows/hello.py:my_flow",
+                "name": "test-name",
+                "work_pool": {"name": work_pool.name},
+                "schedules": [
+                    {
+                        "active": "{{ $SCHEDULE_IS_ACTIVE }}",
+                        "cron": "0 * * * *",
+                        "timezone": "America/Chicago",
+                    }
+                ],
+            }
+        ]
+
+        with prefect_yaml.open(mode="w") as f:
+            yaml.safe_dump(contents, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy --name test-name",
+            expected_code=0,
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.schedules[0].active is schedule_is_active
+
 
 class TestMultiDeploy:
     @pytest.mark.usefixtures("project_dir")
-    async def test_deploy_all(self, prefect_client, work_pool):
+    async def test_deploy_all(self, prefect_client: PrefectClient, work_pool: WorkPool):
         prefect_file = Path("prefect.yaml")
         with prefect_file.open(mode="r") as f:
             contents = yaml.safe_load(f)
@@ -2926,7 +3071,7 @@ class TestMultiDeploy:
 
     @pytest.mark.usefixtures("project_dir")
     async def test_deploy_all_schedules_remain_inactive(
-        self, prefect_client, work_pool
+        self, prefect_client: PrefectClient, work_pool: WorkPool
     ):
         prefect_file = Path("prefect.yaml")
         with prefect_file.open(mode="r") as f:
@@ -2978,7 +3123,7 @@ class TestMultiDeploy:
         assert deployment2.schedules[0].active is False
 
     async def test_deploy_selected_deployments(
-        self, project_dir, prefect_client, work_pool
+        self, project_dir: Path, prefect_client: PrefectClient, work_pool: WorkPool
     ):
         prefect_file = Path("prefect.yaml")
         with prefect_file.open(mode="r") as f:
@@ -3056,7 +3201,7 @@ class TestMultiDeploy:
             )
 
     async def test_deploy_single_with_cron_schedule(
-        self, project_dir, prefect_client, work_pool
+        self, project_dir: Path, prefect_client: PrefectClient, work_pool: WorkPool
     ):
         prefect_file = Path("prefect.yaml")
         with prefect_file.open(mode="r") as f:
@@ -3112,7 +3257,11 @@ class TestMultiDeploy:
         "deployment_selector_options", ["--all", "-n test-name-1 -n test-name-2"]
     )
     async def test_deploy_multiple_with_cli_options(
-        self, project_dir, prefect_client, work_pool, deployment_selector_options
+        self,
+        project_dir: Path,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+        deployment_selector_options: str,
     ):
         prefect_file = Path("prefect.yaml")
         with prefect_file.open(mode="r") as f:
@@ -3209,7 +3358,9 @@ class TestMultiDeploy:
         deployment.name = "from-cli-name"
 
     @pytest.mark.usefixtures("project_dir")
-    async def test_deploy_without_name_in_prefect_yaml(self, prefect_client, work_pool):
+    async def test_deploy_without_name_in_prefect_yaml(
+        self, prefect_client: PrefectClient, work_pool: WorkPool
+    ):
         prefect_file = Path("prefect.yaml")
         with prefect_file.open(mode="r") as f:
             contents = yaml.safe_load(f)
@@ -3248,7 +3399,7 @@ class TestMultiDeploy:
 
     @pytest.mark.usefixtures("interactive_console", "project_dir")
     async def test_deploy_without_name_in_prefect_yaml_interactive(
-        self, prefect_client, work_pool
+        self, prefect_client: PrefectClient, work_pool: WorkPool
     ):
         prefect_file = Path("prefect.yaml")
         with prefect_file.open(mode="r") as f:
@@ -3308,7 +3459,7 @@ class TestMultiDeploy:
 
     @pytest.mark.usefixtures("interactive_console", "project_dir")
     async def test_deploy_without_name_in_prefect_yaml_interactive_user_skips(
-        self, prefect_client: PrefectClient, work_pool
+        self, prefect_client: PrefectClient, work_pool: WorkPool
     ):
         prefect_file = Path("prefect.yaml")
         with prefect_file.open(mode="r") as f:
@@ -3359,7 +3510,7 @@ class TestMultiDeploy:
         assert len(await prefect_client.read_deployments()) == 1
 
     async def test_deploy_with_name_not_in_prefect_yaml(
-        self, project_dir, prefect_client, work_pool
+        self, project_dir: Path, prefect_client: PrefectClient, work_pool: WorkPool
     ):
         prefect_file = Path("prefect.yaml")
         with prefect_file.open(mode="r") as f:
@@ -3406,7 +3557,7 @@ class TestMultiDeploy:
             )
 
     async def test_deploy_with_single_deployment_with_name_in_file(
-        self, project_dir, prefect_client, work_pool
+        self, project_dir: Path, prefect_client: PrefectClient, work_pool: WorkPool
     ):
         prefect_file = Path("prefect.yaml")
         with prefect_file.open(mode="r") as f:
@@ -3462,7 +3613,7 @@ class TestMultiDeploy:
         )
 
     async def test_deploy_single_allows_options_override(
-        self, project_dir, prefect_client, work_pool
+        self, project_dir: Path, prefect_client: PrefectClient, work_pool: WorkPool
     ):
         prefect_file = Path("prefect.yaml")
         with prefect_file.open(mode="r") as f:
@@ -3500,7 +3651,7 @@ class TestMultiDeploy:
         assert deployment.job_variables == {"env": "prod"}
 
     async def test_deploy_single_deployment_with_name_in_cli(
-        self, project_dir, prefect_client, work_pool
+        self, project_dir: Path, prefect_client: PrefectClient, work_pool: WorkPool
     ):
         prefect_file = Path("prefect.yaml")
         with prefect_file.open(mode="r") as f:
@@ -3549,7 +3700,11 @@ class TestMultiDeploy:
         ],
     )
     async def test_deploy_existing_deployment_and_nonexistent_deployment_deploys_former(
-        self, deploy_names, project_dir, prefect_client, work_pool
+        self,
+        deploy_names: tuple[str, str],
+        project_dir: Path,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
     ):
         prefect_file = Path("prefect.yaml")
         with prefect_file.open(mode="r") as f:
@@ -3617,7 +3772,11 @@ class TestDeployPattern:
         ],
     )
     async def test_pattern_deploy_multiple_existing_deployments(
-        self, deploy_name, project_dir, prefect_client, work_pool
+        self,
+        deploy_name: str | tuple[str, ...],
+        project_dir: Path,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
     ):
         prefect_file = Path("prefect.yaml")
         with prefect_file.open(mode="r") as f:
@@ -3777,7 +3936,11 @@ class TestDeployPattern:
         ],
     )
     async def test_pattern_deploy_one_existing_deployment_one_nonexistent_deployment(
-        self, project_dir, prefect_client, work_pool, deploy_name
+        self,
+        project_dir: Path,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+        deploy_name: tuple[str, str],
     ):
         prefect_file = Path("prefect.yaml")
         with prefect_file.open(mode="r") as f:
@@ -3857,7 +4020,10 @@ class TestDeployPattern:
     )
     @pytest.mark.usefixtures("project_dir")
     async def test_deploy_multiple_nonexistent_deployments_raises(
-        self, deploy_names, work_pool, prefect_client
+        self,
+        deploy_names: tuple[str, str],
+        work_pool: WorkPool,
+        prefect_client: PrefectClient,
     ):
         prefect_file = Path("prefect.yaml")
         with prefect_file.open(mode="r") as f:
@@ -4287,10 +4453,6 @@ class TestSaveUserInputs:
                 # Accept default deployment name
                 readchar.key.ENTER
                 +
-                # decline schedule
-                "n"
-                + readchar.key.ENTER
-                +
                 # accept create work pool
                 readchar.key.ENTER
                 +
@@ -4300,8 +4462,12 @@ class TestSaveUserInputs:
                 # enter work pool name
                 "inflatable"
                 + readchar.key.ENTER
-                # Decline remote storage
+                # decline schedule
                 + "n"
+                + readchar.key.ENTER
+                +
+                # Decline remote storage
+                "n"
                 + readchar.key.ENTER
                 # accept save user inputs
                 + "y"
@@ -4337,10 +4503,6 @@ class TestSaveUserInputs:
                 # Accept default deployment name
                 readchar.key.ENTER
                 +
-                # decline schedule
-                "n"
-                + readchar.key.ENTER
-                +
                 # accept create work pool
                 readchar.key.ENTER
                 +
@@ -4349,6 +4511,9 @@ class TestSaveUserInputs:
                 +
                 # enter work pool name
                 "inflatable"
+                + readchar.key.ENTER
+                # decline schedule
+                + "n"
                 + readchar.key.ENTER
                 # accept save user inputs
                 + "y"
@@ -4378,14 +4543,14 @@ class TestSaveUserInputs:
             command="deploy flows/hello.py:my_flow",
             prompts_and_responses=[
                 ("? Deployment name (default)", ""),
+                ("you don't have any work pools", "y"),
+                ("What infrastructure type", "", "process"),
+                ("Work pool name", "inflatable"),
                 ("Would you like to configure schedules for this deployment?", ""),
                 ("What type of schedule would you like to use?", "", "Interval"),
                 ("Seconds between scheduled runs", "3600"),
                 ("Would you like to activate this schedule?", "y"),
                 ("Would you like to add another schedule?", "n"),
-                ("you don't have any work pools", "y"),
-                ("What infrastructure type", "", "process"),
-                ("Work pool name", "inflatable"),
                 ("Would you like to save configuration", "y"),
             ],
             expected_code=0,
@@ -4417,15 +4582,15 @@ class TestSaveUserInputs:
             command="deploy flows/hello.py:my_flow",
             prompts_and_responses=[
                 ("? Deployment name (default)", ""),
+                ("you don't have any work pools", "y"),
+                ("What infrastructure type", "", "process"),
+                ("Work pool name", "inflatable"),
                 ("Would you like to configure schedules for this deployment?", ""),
                 ("What type of schedule would you like to use?", "↓", "Cron"),
                 ("Cron string (0 0 * * *)", "* * * * *"),
                 ("Timezone (UTC)", ""),
                 ("Would you like to activate this schedule?", "y"),
                 ("Would you like to add another schedule?", "n"),
-                ("you don't have any work pools", "y"),
-                ("What infrastructure type", "", "process"),
-                ("Work pool name", "inflatable"),
                 ("Would you like to save configuration", "y"),
             ],
             expected_code=0,
@@ -4460,15 +4625,15 @@ class TestSaveUserInputs:
             command="deploy flows/hello.py:my_flow",
             prompts_and_responses=[
                 ("? Deployment name (default)", "existing-deployment"),
+                ("you don't have any work pools", "y"),
+                ("What infrastructure type", "", "process"),
+                ("Work pool name", "inflatable"),
                 ("Would you like to configure schedules for this deployment?", ""),
                 ("What type of schedule would you like to use?", "↓", "Cron"),
                 ("Cron string (0 0 * * *)", "* * * * *"),
                 ("Timezone (UTC)", ""),
                 ("Would you like to activate this schedule?", "y"),
                 ("Would you like to add another schedule?", "n"),
-                ("you don't have any work pools", "y"),
-                ("What infrastructure type", "", "process"),
-                ("Work pool name", "inflatable"),
                 ("Would you like to save configuration", "y"),
             ],
             expected_code=0,
@@ -4536,9 +4701,6 @@ class TestSaveUserInputs:
                 # enter deployment name
                 "existing-deployment"
                 + readchar.key.ENTER
-                # reject create schedule
-                + "n"
-                + readchar.key.ENTER
                 +
                 # accept create work pool
                 readchar.key.ENTER
@@ -4548,6 +4710,9 @@ class TestSaveUserInputs:
                 +
                 # enter work pool name
                 "inflatable"
+                + readchar.key.ENTER
+                # reject create schedule
+                + "n"
                 + readchar.key.ENTER
                 # accept save user inputs
                 + "y"
@@ -4618,9 +4783,16 @@ class TestSaveUserInputs:
             user_input=(
                 # Accept default deployment name
                 readchar.key.ENTER
+                # accept create work pool
+                + readchar.key.ENTER
                 +
-                # accept schedule
+                # create process work pool
                 readchar.key.ENTER
+                # enter work pool name
+                + "inflatable"
+                + readchar.key.ENTER
+                # accept schedule
+                + readchar.key.ENTER
                 +
                 # select rrule schedule
                 readchar.key.DOWN
@@ -4630,21 +4802,11 @@ class TestSaveUserInputs:
                 # enter rrule schedule
                 "FREQ=MINUTELY"
                 + readchar.key.ENTER
+                # accept default timezone
+                + readchar.key.ENTER
                 # accept schedule being active
                 + readchar.key.ENTER
                 # decline adding another schedule
-                + readchar.key.ENTER
-                # accept create work pool
-                + readchar.key.ENTER
-                +
-                # accept create work pool
-                readchar.key.ENTER
-                +
-                # choose process work pool
-                readchar.key.ENTER
-                +
-                # enter work pool name
-                "inflatable"
                 + readchar.key.ENTER
                 # accept save user inputs
                 + "y"
@@ -4800,15 +4962,15 @@ class TestSaveUserInputs:
             user_input=(
                 # Accept default deployment name
                 readchar.key.ENTER
-                # decline schedule
-                + "n"
-                + readchar.key.ENTER
                 # accept create work pool
                 + readchar.key.ENTER
                 # choose process work pool
                 + readchar.key.ENTER
                 # enter work pool name
                 + "inflatable"
+                + readchar.key.ENTER
+                # decline schedule configuration
+                + "n"
                 + readchar.key.ENTER
                 # accept save user inputs
                 + "y"
@@ -4840,16 +5002,6 @@ class TestSaveUserInputs:
                 "n"
                 + readchar.key.ENTER
                 +
-                # accept schedule
-                readchar.key.ENTER
-                +
-                # select interval schedule
-                readchar.key.ENTER
-                +
-                # enter interval schedule
-                "3600"
-                + readchar.key.ENTER
-                +
                 # accept create work pool
                 readchar.key.ENTER
                 +
@@ -4858,6 +5010,19 @@ class TestSaveUserInputs:
                 +
                 # enter work pool name
                 "inflatable"
+                + readchar.key.ENTER
+                # accept schedule
+                + readchar.key.ENTER
+                +
+                # select interval schedule
+                readchar.key.ENTER
+                +
+                # enter interval schedule
+                "3600"
+                + readchar.key.ENTER
+                # accept activating schedule
+                + readchar.key.ENTER
+                # decline adding another schedule
                 + readchar.key.ENTER
                 # accept save user inputs
                 + "y"
@@ -4889,10 +5054,6 @@ class TestSaveUserInputs:
                 # accept default deployment name
                 readchar.key.ENTER
                 +
-                # decline schedule
-                "n"
-                + readchar.key.ENTER
-                +
                 # accept create work pool
                 readchar.key.ENTER
                 +
@@ -4901,6 +5062,9 @@ class TestSaveUserInputs:
                 +
                 # enter work pool name
                 "inflatable"
+                + readchar.key.ENTER
+                # decline schedule
+                + "n"
                 + readchar.key.ENTER
                 # accept save user inputs
                 + "y"
@@ -5139,12 +5303,12 @@ class TestDeployWithoutEntrypoint:
                 # Accept default deployment name
                 readchar.key.ENTER
                 +
+                # accept first work pool
+                readchar.key.ENTER
+                +
                 # decline schedule
                 "n"
                 + readchar.key.ENTER
-                +
-                # accept first work pool
-                readchar.key.ENTER
                 +
                 # Decline remote storage
                 "n"
@@ -5157,14 +5321,15 @@ class TestDeployWithoutEntrypoint:
             expected_code=0,
             expected_output_contains=[
                 "Select a flow to deploy",
-                "test_flow",
+                "test",
                 "import-project/my_module/flow.py",
-                "prod_flow",
+                "test",
                 "import-project/my_module/flow.py",
                 "foobar",
                 "nested-project/implicit_relative.py",
                 "nested-project/explicit_relative.py",
-                "my_flow",
+                "An important name",
+                "Second important name",
                 "flows/hello.py",
                 "successfully created",
             ],
@@ -5187,12 +5352,12 @@ class TestDeployWithoutEntrypoint:
                 # Accept default deployment name
                 readchar.key.ENTER
                 +
+                # accept first work pool
+                readchar.key.ENTER
+                +
                 # decline schedule
                 "n"
                 + readchar.key.ENTER
-                +
-                # accept first work pool
-                readchar.key.ENTER
                 +
                 # Decline remote storage
                 "n"
@@ -5244,12 +5409,12 @@ class TestDeployWithoutEntrypoint:
                 # Accept default deployment name
                 readchar.key.ENTER
                 +
+                # accept first work pool
+                readchar.key.ENTER
+                +
                 # decline schedule
                 "n"
                 + readchar.key.ENTER
-                +
-                # accept first work pool
-                readchar.key.ENTER
                 +
                 # Decline remote storage
                 "n"

@@ -1,9 +1,10 @@
 """
 Schedule schemas
 """
+from __future__ import annotations
 
 import datetime
-from typing import Annotated, Any, Generator, List, Optional, Tuple, Union
+from typing import Annotated, Any, ClassVar, Generator, List, Optional, Tuple, Union
 
 import dateutil
 import dateutil.rrule
@@ -69,7 +70,7 @@ class IntervalSchedule(PrefectBaseModel):
         timezone (str, optional): a valid timezone string.
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
     interval: datetime.timedelta = Field(gt=datetime.timedelta(0))
     anchor_date: Annotated[DateTime, AfterValidator(default_anchor_date)] = Field(
@@ -207,7 +208,7 @@ class CronSchedule(PrefectBaseModel):
 
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
     cron: str = Field(default=..., examples=["0 0 * * *"])
     timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
@@ -225,7 +226,7 @@ class CronSchedule(PrefectBaseModel):
 
     @field_validator("cron")
     @classmethod
-    def valid_cron_string(cls, v):
+    def valid_cron_string(cls, v: str) -> str:
         return validate_cron_string(v)
 
     async def get_dates(
@@ -361,18 +362,20 @@ class RRuleSchedule(PrefectBaseModel):
         timezone (str, optional): a valid timezone string
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
     rrule: str
     timezone: Optional[TimeZone] = Field(default="UTC", examples=["America/New_York"])
 
     @field_validator("rrule")
     @classmethod
-    def validate_rrule_str(cls, v):
+    def validate_rrule_str(cls, v: str) -> str:
         return validate_rrule_string(v)
 
     @classmethod
-    def from_rrule(cls, rrule: dateutil.rrule.rrule):
+    def from_rrule(
+        cls, rrule: dateutil.rrule.rrule | dateutil.rrule.rruleset
+    ) -> "RRuleSchedule":
         if isinstance(rrule, dateutil.rrule.rrule):
             if rrule._dtstart.tzinfo is not None:
                 timezone = rrule._dtstart.tzinfo.name

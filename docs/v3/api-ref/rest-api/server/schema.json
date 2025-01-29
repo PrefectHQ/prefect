@@ -20,7 +20,10 @@
                         "description": "Successful Response",
                         "content": {
                             "application/json": {
-                                "schema": {}
+                                "schema": {
+                                    "type": "boolean",
+                                    "title": "Response Health Check Health Get"
+                                }
                             }
                         }
                     }
@@ -39,7 +42,10 @@
                         "description": "Successful Response",
                         "content": {
                             "application/json": {
-                                "schema": {}
+                                "schema": {
+                                    "type": "string",
+                                    "title": "Response Server Version Version Get"
+                                }
                             }
                         }
                     }
@@ -9349,7 +9355,10 @@
                         "description": "Successful Response",
                         "content": {
                             "application/json": {
-                                "schema": {}
+                                "schema": {
+                                    "type": "object",
+                                    "title": "Response Validate Obj Ui Schemas Validate Post"
+                                }
                             }
                         }
                     },
@@ -9721,7 +9730,10 @@
                         "description": "Successful Response",
                         "content": {
                             "application/json": {
-                                "schema": {}
+                                "schema": {
+                                    "type": "string",
+                                    "title": "Response Hello Hello Get"
+                                }
                             }
                         }
                     },
@@ -15735,6 +15747,27 @@
                             ]
                         ]
                     },
+                    "any_": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Any",
+                        "description": "A list of tags to include",
+                        "examples": [
+                            [
+                                "tag-1",
+                                "tag-2"
+                            ]
+                        ]
+                    },
                     "is_null_": {
                         "anyOf": [
                             {
@@ -15864,6 +15897,40 @@
                         ],
                         "title": "Idempotency Key",
                         "description": "An optional idempotency key. If a flow run with the same idempotency key has already been created, the existing flow run will be returned."
+                    },
+                    "labels": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": {
+                                    "anyOf": [
+                                        {
+                                            "type": "boolean"
+                                        },
+                                        {
+                                            "type": "integer"
+                                        },
+                                        {
+                                            "type": "number"
+                                        },
+                                        {
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Labels",
+                        "description": "A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
+                        "examples": [
+                            {
+                                "key": "value1",
+                                "key2": 42
+                            }
+                        ]
                     },
                     "parent_task_run_id": {
                         "anyOf": [
@@ -19447,7 +19514,9 @@
                     "pause_keys": {
                         "anyOf": [
                             {
-                                "items": {},
+                                "items": {
+                                    "type": "string"
+                                },
                                 "type": "array",
                                 "uniqueItems": true
                             },
@@ -22531,6 +22600,9 @@
                 "description": "An ORM representation of task run data."
             },
             "TaskRunCount": {
+                "additionalProperties": {
+                    "type": "integer"
+                },
                 "type": "object"
             },
             "TaskRunCreate": {

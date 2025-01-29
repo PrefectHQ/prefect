@@ -5,12 +5,14 @@ from contextlib import asynccontextmanager
 from dataclasses import asdict, dataclass
 from datetime import timedelta
 from pathlib import Path
-from typing import Any, Optional, TypeVar, Union
+from types import TracebackType
+from typing import TYPE_CHECKING, Any, Optional, Type, TypeVar, Union
 from uuid import uuid4
 
 import anyio
 from cachetools import TTLCache
 from pydantic_core import to_json
+from typing_extensions import Self
 
 from prefect.logging import get_logger
 from prefect.server.utilities.messaging import Cache as _Cache
@@ -19,7 +21,10 @@ from prefect.server.utilities.messaging import Message, MessageHandler, StopCons
 from prefect.server.utilities.messaging import Publisher as _Publisher
 from prefect.settings.context import get_current_settings
 
-logger = get_logger(__name__)
+if TYPE_CHECKING:
+    import logging
+
+logger: "logging.Logger" = get_logger(__name__)
 
 
 @dataclass
@@ -57,7 +62,7 @@ class Subscription:
     ) -> None:
         self.topic = topic
         self.max_retries = max_retries
-        self.dead_letter_queue_path = (
+        self.dead_letter_queue_path: Path = (
             Path(dead_letter_queue_path)
             if dead_letter_queue_path
             else get_current_settings().home / "dlq"
@@ -155,7 +160,7 @@ class Topic:
     def unsubscribe(self, subscription: Subscription) -> None:
         self._subscriptions.remove(subscription)
 
-    def clear(self):
+    def clear(self) -> None:
         for subscription in self._subscriptions:
             self.unsubscribe(subscription)
         self._subscriptions = []
@@ -229,11 +234,19 @@ class Cache(_Cache):
 
 class Publisher(_Publisher):
     def __init__(self, topic: str, cache: Cache, deduplicate_by: Optional[str] = None):
-        self.topic = Topic.by_name(topic)
+        self.topic: Topic = Topic.by_name(topic)
         self.deduplicate_by = deduplicate_by
         self._cache = cache
 
-    async def __aexit__(self, *args: Any) -> None:
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> None:
         return None
 
     async def publish_data(self, data: bytes, attributes: Mapping[str, str]) -> None:
@@ -254,7 +267,7 @@ class Publisher(_Publisher):
 
 class Consumer(_Consumer):
     def __init__(self, topic: str, subscription: Optional[Subscription] = None):
-        self.topic = Topic.by_name(topic)
+        self.topic: Topic = Topic.by_name(topic)
         if not subscription:
             subscription = self.topic.subscribe()
         assert subscription.topic is self.topic

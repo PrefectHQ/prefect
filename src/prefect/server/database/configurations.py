@@ -26,9 +26,8 @@ from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_TIMEOUT,
     PREFECT_API_DATABASE_ECHO,
     PREFECT_API_DATABASE_TIMEOUT,
-    PREFECT_SQLALCHEMY_MAX_OVERFLOW,
-    PREFECT_SQLALCHEMY_POOL_SIZE,
     PREFECT_TESTING_UNIT_TEST_MODE,
+    get_current_settings,
 )
 from prefect.utilities.asyncutils import add_event_loop_shutdown_callback
 
@@ -121,6 +120,7 @@ class BaseDatabaseConfiguration(ABC):
         connection_timeout: Optional[float] = None,
         sqlalchemy_pool_size: Optional[int] = None,
         sqlalchemy_max_overflow: Optional[int] = None,
+        connection_app_name: Optional[str] = None,
     ) -> None:
         self.connection_url = connection_url
         self.echo: bool = echo or PREFECT_API_DATABASE_ECHO.value()
@@ -129,10 +129,16 @@ class BaseDatabaseConfiguration(ABC):
             connection_timeout or PREFECT_API_DATABASE_CONNECTION_TIMEOUT.value()
         )
         self.sqlalchemy_pool_size: Optional[int] = (
-            sqlalchemy_pool_size or PREFECT_SQLALCHEMY_POOL_SIZE.value()
+            sqlalchemy_pool_size
+            or get_current_settings().server.database.sqlalchemy.pool_size
         )
         self.sqlalchemy_max_overflow: Optional[int] = (
-            sqlalchemy_max_overflow or PREFECT_SQLALCHEMY_MAX_OVERFLOW.value()
+            sqlalchemy_max_overflow
+            or get_current_settings().server.database.sqlalchemy.max_overflow
+        )
+        self.connection_app_name: Optional[str] = (
+            connection_app_name
+            or get_current_settings().server.database.sqlalchemy.connect_args.application_name
         )
 
     def unique_key(self) -> tuple[Hashable, ...]:
@@ -200,15 +206,24 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
             self.timeout,
         )
         if cache_key not in ENGINES:
-            # apply database timeout
-            kwargs: dict[str, Any] = dict()
-            connect_args: dict[str, Any] = dict()
+            kwargs: dict[
+                str, Any
+            ] = get_current_settings().server.database.sqlalchemy.model_dump(
+                mode="json",
+            )
+            connect_args: dict[str, Any] = kwargs.pop("connect_args")
+            app_name = connect_args.pop("application_name", None)
 
             if self.timeout is not None:
                 connect_args["command_timeout"] = self.timeout
 
             if self.connection_timeout is not None:
                 connect_args["timeout"] = self.connection_timeout
+
+            if self.connection_app_name is not None or app_name is not None:
+                connect_args["server_settings"] = dict(
+                    application_name=self.connection_app_name or app_name
+                )
 
             if connect_args:
                 kwargs["connect_args"] = connect_args
@@ -327,7 +342,7 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
                 f"{sqlite3.sqlite_version}"
             )
 
-        kwargs: dict[str, Any] = {}
+        kwargs: dict[str, Any] = dict()
 
         loop = get_running_loop()
 

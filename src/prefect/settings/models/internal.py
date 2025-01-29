@@ -1,11 +1,14 @@
-from pydantic import AliasChoices, AliasPath, Field
+from typing import ClassVar
 
-from prefect.settings.base import PrefectBaseSettings, _build_settings_config
+from pydantic import AliasChoices, AliasPath, Field
+from pydantic_settings import SettingsConfigDict
+
+from prefect.settings.base import PrefectBaseSettings, build_settings_config
 from prefect.types import LogLevel
 
 
 class InternalSettings(PrefectBaseSettings):
-    model_config = _build_settings_config(("internal",))
+    model_config: ClassVar[SettingsConfigDict] = build_settings_config(("internal",))
 
     logging_level: LogLevel = Field(
         default="ERROR",

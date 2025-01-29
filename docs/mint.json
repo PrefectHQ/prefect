@@ -1,5 +1,11 @@
 {
   "$schema": "https://mintlify.com/schema.json",
+  "rounded": "sharp",
+  "analytics": {
+    "ga4": {
+      "measurementId": "G-8GR5P04T5Y"
+    }
+  },
   "anchors": [
     {
       "icon": "github",
@@ -53,8 +59,8 @@
       "group": "Get started",
       "pages": [
         "v3/get-started/index",
-        "v3/get-started/whats-new-prefect-3",
         "v3/get-started/install",
+        "v3/get-started/whats-new-prefect-3",
         "v3/get-started/quickstart"
       ],
       "version": "v3"
@@ -67,7 +73,8 @@
           "pages": [
             "v3/tutorials/schedule",
             "v3/tutorials/pipelines",
-            "v3/tutorials/scraping"
+            "v3/tutorials/scraping",
+            "v3/tutorials/ml"
           ]
         },
         {
@@ -114,8 +121,7 @@
             "v3/develop/pause-resume",
             "v3/develop/cancel",
             "v3/develop/inputs",
-            "v3/develop/runtime-context",
-            "v3/develop/interact-with-api"
+            "v3/develop/runtime-context"
           ],
           "version": "v3"
         },
@@ -146,6 +152,7 @@
             "v3/develop/settings-ref"
           ]
         },
+        "v3/develop/interact-with-api",
         "v3/develop/test-workflows"
       ],
       "version": "v3"
@@ -174,7 +181,8 @@
             "v3/deploy/infrastructure-examples/managed",
             "v3/deploy/infrastructure-examples/serverless",
             "v3/deploy/infrastructure-examples/docker",
-            "v3/deploy/infrastructure-examples/kubernetes"
+            "v3/deploy/infrastructure-examples/kubernetes",
+            "v3/deploy/infrastructure-examples/coiled"
           ],
           "version": "v3"
         },
@@ -197,7 +205,8 @@
         "v3/automate/events/events",
         "v3/automate/events/automations-triggers",
         "v3/automate/events/custom-triggers",
-        "v3/automate/events/webhook-triggers"
+        "v3/automate/events/webhook-triggers",
+        "v3/automate/events/slas"
       ],
       "version": "v3"
     },
