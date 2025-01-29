@@ -1,3 +1,8 @@
+"""
+Utilities for working with dbt profiles.yml files, including resolving 
+block document and variable references.
+"""
+
 import contextlib
 import os
 import shutil
