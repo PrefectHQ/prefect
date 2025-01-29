@@ -128,6 +128,11 @@ def pytest_addoption(parser):
     )
 
 
+# The following tests are excluded from the clear_db fixture because they are
+# are safe to run without first clearing the database. Not clearing the database
+# after each run generally results in a 25 to 100% speed up of the test suite, so
+# if you run across tests that don't rely on a clean database, you can add them
+# to this list to speed up the test suite.
 EXCLUDE_FROM_CLEAR_DB_AUTO_MARK = [
     "tests/utilities",
     "tests/agent",

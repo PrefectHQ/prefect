@@ -2052,6 +2052,7 @@ class TestFlowRunLogs:
 
 @pytest.mark.enable_api_log_handler
 class TestSubflowRunLogs:
+    @pytest.mark.clear_db
     async def test_subflow_logs_are_written_correctly(self, prefect_client):
         @flow
         def my_subflow():
@@ -3902,221 +3903,347 @@ class TestFlowHooksOnRunning:
 
 
 class TestFlowToDeployment:
-    @property
-    def flow(self):
-        @flow
-        def test_flow():
-            pass
+    class TestSync:
+        @property
+        def flow(self):
+            @flow
+            def test_flow():
+                pass
 
-        return test_flow
+            return test_flow
 
-    def test_to_deployment_returns_runner_deployment(self):
-        deployment = self.flow.to_deployment(
-            name="test",
-            tags=["price", "luggage"],
-            parameters={"name": "Arthur"},
-            concurrency_limit=42,
-            description="This is a test",
-            version="alpha",
-            enforce_parameter_schema=True,
-            triggers=[
-                {
-                    "name": "Happiness",
-                    "enabled": True,
-                    "match": {"prefect.resource.id": "prefect.flow-run.*"},
-                    "expect": ["prefect.flow-run.Completed"],
-                    "match_related": {
-                        "prefect.resource.name": "seed",
-                        "prefect.resource.role": "flow",
-                    },
-                }
-            ],
-        )
-
-        assert isinstance(deployment, RunnerDeployment)
-        assert deployment.name == "test"
-        assert deployment.tags == ["price", "luggage"]
-        assert deployment.parameters == {"name": "Arthur"}
-        assert deployment.concurrency_limit == 42
-        assert deployment.description == "This is a test"
-        assert deployment.version == "alpha"
-        assert deployment.enforce_parameter_schema
-        assert deployment.triggers == [
-            DeploymentEventTrigger(
-                name="Happiness",
-                enabled=True,
-                posture=Posture.Reactive,
-                match={"prefect.resource.id": "prefect.flow-run.*"},
-                expect=["prefect.flow-run.Completed"],
-                match_related={
-                    "prefect.resource.name": "seed",
-                    "prefect.resource.role": "flow",
-                },
-            )
-        ]
-
-    async def test_to_deployment_returns_runner_deployment_async(self):
-        deployment = await self.flow.ato_deployment(
-            name="test",
-            tags=["price", "luggage"],
-            parameters={"name": "Arthur"},
-            concurrency_limit=42,
-            description="This is a test",
-            version="alpha",
-            enforce_parameter_schema=True,
-            triggers=[
-                {
-                    "name": "Happiness",
-                    "enabled": True,
-                    "match": {"prefect.resource.id": "prefect.flow-run.*"},
-                    "expect": ["prefect.flow-run.Completed"],
-                    "match_related": {
-                        "prefect.resource.name": "seed",
-                        "prefect.resource.role": "flow",
-                    },
-                }
-            ],
-        )
-
-        assert isinstance(deployment, RunnerDeployment)
-        assert deployment.name == "test"
-        assert deployment.tags == ["price", "luggage"]
-        assert deployment.parameters == {"name": "Arthur"}
-        assert deployment.concurrency_limit == 42
-        assert deployment.description == "This is a test"
-        assert deployment.version == "alpha"
-        assert deployment.enforce_parameter_schema
-        assert deployment.triggers == [
-            DeploymentEventTrigger(
-                name="Happiness",
-                enabled=True,
-                posture=Posture.Reactive,
-                match={"prefect.resource.id": "prefect.flow-run.*"},
-                expect=["prefect.flow-run.Completed"],
-                match_related={
-                    "prefect.resource.name": "seed",
-                    "prefect.resource.role": "flow",
-                },
-            )
-        ]
-
-    async def test_to_deployment_accepts_interval(self):
-        deployment = await self.flow.to_deployment(name="test", interval=3600)
-
-        assert deployment.schedules
-        assert isinstance(deployment.schedules[0].schedule, IntervalSchedule)
-        assert deployment.schedules[0].schedule.interval == datetime.timedelta(
-            seconds=3600
-        )
-
-    async def test_to_deployment_can_produce_a_module_path_entrypoint(self):
-        deployment = await self.flow.to_deployment(
-            name="test", entrypoint_type=EntrypointType.MODULE_PATH
-        )
-
-        assert deployment.entrypoint == f"{self.flow.__module__}.{self.flow.__name__}"
-
-    async def test_to_deployment_accepts_cron(self):
-        deployment = await self.flow.to_deployment(name="test", cron="* * * * *")
-
-        assert deployment.schedules
-        assert deployment.schedules[0].schedule == CronSchedule(cron="* * * * *")
-
-    async def test_to_deployment_accepts_rrule(self):
-        deployment = await self.flow.to_deployment(name="test", rrule="FREQ=MINUTELY")
-
-        assert deployment.schedules
-        assert deployment.schedules[0].schedule == RRuleSchedule(rrule="FREQ=MINUTELY")
-
-    async def test_to_deployment_invalid_name_raises(self):
-        with pytest.raises(InvalidNameError, match="contains an invalid character"):
-            await self.flow.to_deployment("test/deployment")
-
-    @pytest.mark.parametrize(
-        "kwargs",
-        [
-            {**d1, **d2}
-            for d1, d2 in combinations(
-                [
-                    {"interval": 3600},
-                    {"cron": "* * * * *"},
-                    {"rrule": "FREQ=MINUTELY"},
+        def test_to_deployment_returns_runner_deployment(self):
+            deployment = self.flow.to_deployment(
+                name="test",
+                tags=["price", "luggage"],
+                parameters={"name": "Arthur"},
+                concurrency_limit=42,
+                description="This is a test",
+                version="alpha",
+                enforce_parameter_schema=True,
+                triggers=[
+                    {
+                        "name": "Happiness",
+                        "enabled": True,
+                        "match": {"prefect.resource.id": "prefect.flow-run.*"},
+                        "expect": ["prefect.flow-run.Completed"],
+                        "match_related": {
+                            "prefect.resource.name": "seed",
+                            "prefect.resource.role": "flow",
+                        },
+                    }
                 ],
-                2,
             )
-        ],
-    )
-    async def test_to_deployment_raises_on_multiple_schedule_parameters(self, kwargs):
-        with warnings.catch_warnings():
-            # `schedule` parameter is deprecated and will raise a warning
-            warnings.filterwarnings("ignore", category=DeprecationWarning)
-            expected_message = (
-                "Only one of interval, cron, rrule, or schedules can be provided."
+
+            assert isinstance(deployment, RunnerDeployment)
+            assert deployment.name == "test"
+            assert deployment.tags == ["price", "luggage"]
+            assert deployment.parameters == {"name": "Arthur"}
+            assert deployment.concurrency_limit == 42
+            assert deployment.description == "This is a test"
+            assert deployment.version == "alpha"
+            assert deployment.enforce_parameter_schema
+            assert deployment.triggers == [
+                DeploymentEventTrigger(
+                    name="Happiness",
+                    enabled=True,
+                    posture=Posture.Reactive,
+                    match={"prefect.resource.id": "prefect.flow-run.*"},
+                    expect=["prefect.flow-run.Completed"],
+                    match_related={
+                        "prefect.resource.name": "seed",
+                        "prefect.resource.role": "flow",
+                    },
+                )
+            ]
+
+        def test_to_deployment_accepts_interval(self):
+            deployment = self.flow.to_deployment(name="test", interval=3600)
+
+            assert deployment.schedules
+            assert isinstance(deployment.schedules[0].schedule, IntervalSchedule)
+            assert deployment.schedules[0].schedule.interval == datetime.timedelta(
+                seconds=3600
             )
-            with pytest.raises(ValueError, match=expected_message):
-                await self.flow.to_deployment(__file__, **kwargs)
 
-    async def test_to_deployment_respects_with_options_name_from_flow(self):
-        """regression test for https://github.com/PrefectHQ/prefect/issues/15380"""
+        def test_to_deployment_accepts_cron(self):
+            deployment = self.flow.to_deployment(name="test", cron="* * * * *")
 
-        @flow(name="original-name")
-        def test_flow():
-            pass
+            assert deployment.schedules
+            assert deployment.schedules[0].schedule == CronSchedule(cron="* * * * *")
 
-        flow_with_new_name = test_flow.with_options(name="new-name")
-        deployment = await flow_with_new_name.to_deployment(name="test-deployment")
+        def test_to_deployment_accepts_rrule(self):
+            deployment = self.flow.to_deployment(name="test", rrule="FREQ=MINUTELY")
 
-        assert isinstance(deployment, RunnerDeployment)
-        assert deployment.name == "test-deployment"
-        assert deployment.flow_name == "new-name"
-
-    async def test_to_deployment_respects_with_options_name_from_storage(
-        self, monkeypatch
-    ):
-        """regression test for https://github.com/PrefectHQ/prefect/issues/15380"""
-
-        @flow(name="original-name")
-        def test_flow():
-            pass
-
-        flow_with_new_name = test_flow.with_options(name="new-name")
-
-        mock_storage = MagicMock(spec=RunnerStorage)
-        mock_entrypoint = "fake_module:test_flow"
-        mock_from_storage = AsyncMock(
-            return_value=RunnerDeployment(
-                name="test-deployment", flow_name="new-name", entrypoint=mock_entrypoint
+            assert deployment.schedules
+            assert deployment.schedules[0].schedule == RRuleSchedule(
+                rrule="FREQ=MINUTELY"
             )
+
+        def test_to_deployment_invalid_name_raises(self):
+            with pytest.raises(InvalidNameError, match="contains an invalid character"):
+                self.flow.to_deployment("test/deployment")
+
+        @pytest.mark.parametrize(
+            "kwargs",
+            [
+                {**d1, **d2}
+                for d1, d2 in combinations(
+                    [
+                        {"interval": 3600},
+                        {"cron": "* * * * *"},
+                        {"rrule": "FREQ=MINUTELY"},
+                    ],
+                    2,
+                )
+            ],
         )
-        monkeypatch.setattr(RunnerDeployment, "afrom_storage", mock_from_storage)
+        def test_to_deployment_raises_on_multiple_schedule_parameters(self, kwargs):
+            with warnings.catch_warnings():
+                # `schedule` parameter is deprecated and will raise a warning
+                warnings.filterwarnings("ignore", category=DeprecationWarning)
+                expected_message = (
+                    "Only one of interval, cron, rrule, or schedules can be provided."
+                )
+                with pytest.raises(ValueError, match=expected_message):
+                    self.flow.to_deployment(__file__, **kwargs)
 
-        flow_with_new_name._storage = mock_storage
-        flow_with_new_name._entrypoint = mock_entrypoint
+        def test_to_deployment_respects_with_options_name_from_flow(self):
+            """regression test for https://github.com/PrefectHQ/prefect/issues/15380"""
 
-        deployment = await flow_with_new_name.ato_deployment(name="test-deployment")
+            @flow(name="original-name")
+            def test_flow():
+                pass
 
-        assert isinstance(deployment, RunnerDeployment)
-        assert deployment.name == "test-deployment"
-        assert deployment.flow_name == "new-name"
-        assert deployment.entrypoint == mock_entrypoint
+            flow_with_new_name = test_flow.with_options(name="new-name")
+            deployment = flow_with_new_name.to_deployment(name="test-deployment")
 
-        mock_from_storage.assert_awaited_once()
-        call_args = mock_from_storage.call_args[1]
-        assert call_args["storage"] == mock_storage
-        assert call_args["entrypoint"] == mock_entrypoint
-        assert call_args["name"] == "test-deployment"
-        assert call_args["flow_name"] == "new-name"
+            assert isinstance(deployment, RunnerDeployment)
+            assert deployment.name == "test-deployment"
+            assert deployment.flow_name == "new-name"
 
-    async def test_to_deployment_accepts_concurrency_limit(self):
-        concurrency_limit = ConcurrencyLimitConfig(
-            limit=42, collision_strategy="CANCEL_NEW"
+        def test_to_deployment_respects_with_options_name_from_storage(
+            self, monkeypatch
+        ):
+            """regression test for https://github.com/PrefectHQ/prefect/issues/15380"""
+
+            @flow(name="original-name")
+            def test_flow():
+                pass
+
+            flow_with_new_name = test_flow.with_options(name="new-name")
+
+            mock_storage = MagicMock(spec=RunnerStorage)
+            mock_entrypoint = "fake_module:test_flow"
+            mock_from_storage = MagicMock(
+                return_value=RunnerDeployment(
+                    name="test-deployment",
+                    flow_name="new-name",
+                    entrypoint=mock_entrypoint,
+                )
+            )
+            monkeypatch.setattr(RunnerDeployment, "from_storage", mock_from_storage)
+
+            flow_with_new_name._storage = mock_storage
+            flow_with_new_name._entrypoint = mock_entrypoint
+
+            deployment = flow_with_new_name.to_deployment(name="test-deployment")
+
+            assert isinstance(deployment, RunnerDeployment)
+            assert deployment.name == "test-deployment"
+            assert deployment.flow_name == "new-name"
+            assert deployment.entrypoint == mock_entrypoint
+
+            mock_from_storage.assert_called_once()
+            call_args = mock_from_storage.call_args[1]
+            assert call_args["storage"] == mock_storage
+            assert call_args["entrypoint"] == mock_entrypoint
+            assert call_args["name"] == "test-deployment"
+            assert call_args["flow_name"] == "new-name"
+
+        def test_to_deployment_accepts_concurrency_limit(self):
+            concurrency_limit = ConcurrencyLimitConfig(
+                limit=42, collision_strategy="CANCEL_NEW"
+            )
+            deployment = self.flow.to_deployment(
+                name="test", concurrency_limit=concurrency_limit
+            )
+
+            assert deployment.concurrency_limit == 42
+            assert deployment.concurrency_options.collision_strategy == "CANCEL_NEW"
+
+    class TestAsync:
+        @property
+        def flow(self):
+            @flow
+            async def test_flow():
+                pass
+
+            return test_flow
+
+        async def test_to_deployment_returns_runner_deployment(self):
+            deployment = await self.flow.ato_deployment(
+                name="test",
+                tags=["price", "luggage"],
+                parameters={"name": "Arthur"},
+                concurrency_limit=42,
+                description="This is a test",
+                version="alpha",
+                enforce_parameter_schema=True,
+                triggers=[
+                    {
+                        "name": "Happiness",
+                        "enabled": True,
+                        "match": {"prefect.resource.id": "prefect.flow-run.*"},
+                        "expect": ["prefect.flow-run.Completed"],
+                        "match_related": {
+                            "prefect.resource.name": "seed",
+                            "prefect.resource.role": "flow",
+                        },
+                    }
+                ],
+            )
+
+            assert isinstance(deployment, RunnerDeployment)
+            assert deployment.name == "test"
+            assert deployment.tags == ["price", "luggage"]
+            assert deployment.parameters == {"name": "Arthur"}
+            assert deployment.concurrency_limit == 42
+            assert deployment.description == "This is a test"
+            assert deployment.version == "alpha"
+            assert deployment.enforce_parameter_schema
+            assert deployment.triggers == [
+                DeploymentEventTrigger(
+                    name="Happiness",
+                    enabled=True,
+                    posture=Posture.Reactive,
+                    match={"prefect.resource.id": "prefect.flow-run.*"},
+                    expect=["prefect.flow-run.Completed"],
+                    match_related={
+                        "prefect.resource.name": "seed",
+                        "prefect.resource.role": "flow",
+                    },
+                )
+            ]
+
+        async def test_to_deployment_can_produce_a_module_path_entrypoint(self):
+            deployment = await self.flow.ato_deployment(
+                name="test", entrypoint_type=EntrypointType.MODULE_PATH
+            )
+
+            assert (
+                deployment.entrypoint == f"{self.flow.__module__}.{self.flow.__name__}"
+            )
+
+        async def test_to_deployment_accepts_cron(self):
+            deployment = await self.flow.ato_deployment(name="test", cron="* * * * *")
+
+            assert deployment.schedules
+            assert deployment.schedules[0].schedule == CronSchedule(cron="* * * * *")
+
+        async def test_to_deployment_accepts_rrule(self):
+            deployment = await self.flow.ato_deployment(
+                name="test", rrule="FREQ=MINUTELY"
+            )
+
+            assert deployment.schedules
+            assert deployment.schedules[0].schedule == RRuleSchedule(
+                rrule="FREQ=MINUTELY"
+            )
+
+        async def test_to_deployment_invalid_name_raises(self):
+            with pytest.raises(InvalidNameError, match="contains an invalid character"):
+                await self.flow.ato_deployment("test/deployment")
+
+        @pytest.mark.parametrize(
+            "kwargs",
+            [
+                {**d1, **d2}
+                for d1, d2 in combinations(
+                    [
+                        {"interval": 3600},
+                        {"cron": "* * * * *"},
+                        {"rrule": "FREQ=MINUTELY"},
+                    ],
+                    2,
+                )
+            ],
         )
-        deployment = await self.flow.to_deployment(
-            name="test", concurrency_limit=concurrency_limit
-        )
+        async def test_to_deployment_raises_on_multiple_schedule_parameters(
+            self, kwargs
+        ):
+            with warnings.catch_warnings():
+                # `schedule` parameter is deprecated and will raise a warning
+                warnings.filterwarnings("ignore", category=DeprecationWarning)
+                expected_message = (
+                    "Only one of interval, cron, rrule, or schedules can be provided."
+                )
+                with pytest.raises(ValueError, match=expected_message):
+                    await self.flow.ato_deployment(__file__, **kwargs)
 
-        assert deployment.concurrency_limit == 42
-        assert deployment.concurrency_options.collision_strategy == "CANCEL_NEW"
+        async def test_to_deployment_respects_with_options_name_from_flow(self):
+            """regression test for https://github.com/PrefectHQ/prefect/issues/15380"""
+
+            @flow(name="original-name")
+            def test_flow():
+                pass
+
+            flow_with_new_name = test_flow.with_options(name="new-name")
+            deployment = await flow_with_new_name.ato_deployment(name="test-deployment")
+
+            assert isinstance(deployment, RunnerDeployment)
+            assert deployment.name == "test-deployment"
+            assert deployment.flow_name == "new-name"
+
+        async def test_to_deployment_respects_with_options_name_from_storage(
+            self, monkeypatch
+        ):
+            """regression test for https://github.com/PrefectHQ/prefect/issues/15380"""
+
+            @flow(name="original-name")
+            def test_flow():
+                pass
+
+            flow_with_new_name = test_flow.with_options(name="new-name")
+
+            mock_storage = MagicMock(spec=RunnerStorage)
+            mock_entrypoint = "fake_module:test_flow"
+            mock_from_storage = AsyncMock(
+                return_value=RunnerDeployment(
+                    name="test-deployment",
+                    flow_name="new-name",
+                    entrypoint=mock_entrypoint,
+                )
+            )
+            monkeypatch.setattr(RunnerDeployment, "afrom_storage", mock_from_storage)
+
+            flow_with_new_name._storage = mock_storage
+            flow_with_new_name._entrypoint = mock_entrypoint
+
+            deployment = await flow_with_new_name.ato_deployment(name="test-deployment")
+
+            assert isinstance(deployment, RunnerDeployment)
+            assert deployment.name == "test-deployment"
+            assert deployment.flow_name == "new-name"
+            assert deployment.entrypoint == mock_entrypoint
+
+            mock_from_storage.assert_awaited_once()
+            call_args = mock_from_storage.call_args[1]
+            assert call_args["storage"] == mock_storage
+            assert call_args["entrypoint"] == mock_entrypoint
+            assert call_args["name"] == "test-deployment"
+            assert call_args["flow_name"] == "new-name"
+
+        async def test_to_deployment_accepts_concurrency_limit(self):
+            concurrency_limit = ConcurrencyLimitConfig(
+                limit=42, collision_strategy="CANCEL_NEW"
+            )
+            deployment = await self.flow.ato_deployment(
+                name="test", concurrency_limit=concurrency_limit
+            )
+
+            assert deployment.concurrency_limit == 42
+            assert deployment.concurrency_options.collision_strategy == "CANCEL_NEW"
 
 
 class TestFlowServe:
@@ -4430,7 +4557,7 @@ class TestFlowFromSource:
             pull_code_spy.assert_not_called()
 
     class TestAsync:
-        async def test_load_flow_from_source_with_storage_async(self):
+        async def test_load_flow_from_source_with_storage(self):
             storage = MockStorage()
 
             loaded_flow: Flow = await Flow.from_source(
@@ -4442,7 +4569,7 @@ class TestFlowFromSource:
             assert loaded_flow.name == "test-flow"
             assert loaded_flow() == 1
 
-        async def test_loaded_flow_to_deployment_has_storage_async(self):
+        async def test_loaded_flow_to_deployment_has_storage(self):
             storage = MockStorage()
 
             loaded_flow = await Flow.from_source(
@@ -4453,7 +4580,7 @@ class TestFlowFromSource:
 
             assert deployment.storage == storage
 
-        async def test_loaded_flow_can_be_updated_with_options_async(self):
+        async def test_loaded_flow_can_be_updated_with_options(self):
             storage = MockStorage()
             storage.set_base_path(Path.cwd())
 
@@ -4467,7 +4594,7 @@ class TestFlowFromSource:
 
             assert deployment.storage == storage
 
-        async def test_load_flow_from_source_with_url_async(
+        async def test_load_flow_from_source_with_url(
             self, monkeypatch: pytest.MonkeyPatch
         ):
             def mock_create_storage_from_source(url):
@@ -4488,7 +4615,7 @@ class TestFlowFromSource:
             assert loaded_flow.name == "test-flow"
             assert loaded_flow() == 1
 
-        async def test_accepts_storage_blocks_async(self):
+        async def test_accepts_storage_blocks(self):
             class FakeStorageBlock(Block):
                 _block_type_slug = "fake-storage-block"
 
@@ -4513,9 +4640,7 @@ class TestFlowFromSource:
 
             assert loaded_flow() == 1
 
-        async def test_no_pull_for_local_storage_async(
-            self, monkeypatch: pytest.MonkeyPatch
-        ):
+        async def test_no_pull_for_local_storage(self, monkeypatch: pytest.MonkeyPatch):
             from prefect.runner.storage import LocalStorage
 
             storage = LocalStorage(path="/tmp/test")
