@@ -518,6 +518,116 @@ class TestEmitExternalResourceLineage:
             assert len(tag_resources) == 1
             assert tag_resources[0]["prefect.resource.id"] == "prefect.tag.test-tag"
 
+    async def test_emit_external_resource_lineage_with_context_resources(
+        self, enable_lineage_events, mock_emit_event
+    ):
+        upstream_resources = [
+            {
+                "prefect.resource.id": "upstream1",
+                "prefect.resource.role": "data-source",
+            }
+        ]
+        downstream_resources = [
+            {
+                "prefect.resource.id": "downstream1",
+                "prefect.resource.role": "data-destination",
+            }
+        ]
+        context_resources = [
+            {
+                "prefect.resource.id": "context1",
+                "prefect.resource.role": "flow-run",
+            },
+            {
+                "prefect.resource.id": "context2",
+                "prefect.resource.role": "flow",
+            },
+            {
+                "prefect.resource.id": "tag1",
+                "prefect.resource.role": "tag",
+            },
+        ]
+
+        await emit_external_resource_lineage(
+            upstream_resources=upstream_resources,
+            downstream_resources=downstream_resources,
+            context_resources=context_resources,
+        )
+
+        # Should have:
+        # - 2 events for context resources consuming upstream
+        # - 1 event for downstream resource being produced by context
+        # - 1 event for direct lineage between upstream and downstream
+        assert mock_emit_event.call_count == 4
+
+        # Check context resources consuming upstream
+        context_calls = mock_emit_event.call_args_list[:2]
+        for i, call in enumerate(context_calls):
+            assert call.kwargs["event"] == "prefect.lineage.upstream-interaction"
+            assert call.kwargs["resource"] == {
+                "prefect.resource.id": f"context{i+1}",
+                "prefect.resource.role": "flow-run" if i == 0 else "flow",
+                "prefect.resource.lineage-group": "global",
+            }
+            assert call.kwargs["related"] == [
+                {
+                    "prefect.resource.id": "upstream1",
+                    "prefect.resource.role": "data-source",
+                    "prefect.resource.lineage-group": "global",
+                },
+                {
+                    "prefect.resource.id": "tag1",
+                    "prefect.resource.role": "tag",
+                },
+            ]
+
+        # Check downstream produced by context
+        downstream_call = mock_emit_event.call_args_list[2]
+        assert (
+            downstream_call.kwargs["event"] == "prefect.lineage.downstream-interaction"
+        )
+        assert downstream_call.kwargs["resource"] == {
+            "prefect.resource.id": "downstream1",
+            "prefect.resource.role": "data-destination",
+            "prefect.resource.lineage-group": "global",
+        }
+        assert downstream_call.kwargs["related"] == [
+            {
+                "prefect.resource.id": "context1",
+                "prefect.resource.role": "flow-run",
+                "prefect.resource.lineage-group": "global",
+            },
+            {
+                "prefect.resource.id": "context2",
+                "prefect.resource.role": "flow",
+                "prefect.resource.lineage-group": "global",
+            },
+            {
+                "prefect.resource.id": "tag1",
+                "prefect.resource.role": "tag",
+            },
+        ]
+
+        # Check direct lineage
+        direct_call = mock_emit_event.call_args_list[3]
+        assert direct_call.kwargs["event"] == "prefect.lineage.event"
+        assert direct_call.kwargs["resource"] == {
+            "prefect.resource.id": "downstream1",
+            "prefect.resource.role": "data-destination",
+            "prefect.resource.lineage-group": "global",
+        }
+        assert direct_call.kwargs["related"] == [
+            {
+                "prefect.resource.id": "upstream1",
+                "prefect.resource.role": "data-source",
+                "prefect.resource.lineage-group": "global",
+            },
+            {
+                "prefect.resource.id": "tag1",
+                "prefect.resource.role": "tag",
+            },
+        ]
+
 
 class TestEmitResultEvents:
     async def test_emit_result_read_event(
