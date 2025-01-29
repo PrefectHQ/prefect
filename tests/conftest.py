@@ -140,6 +140,7 @@ EXCLUDE_FROM_CLEAR_DB_AUTO_MARK = [
     "tests/_internal",
     "tests/server/orchestration/test_rules.py",
     "tests/test_flows.py",
+    "tests/runner/test_runner.py",
 ]
 
 
