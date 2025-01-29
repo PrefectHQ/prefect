@@ -21,7 +21,7 @@ const automationsHandlers = [
 	}),
 ];
 
-const blocksHandelrs = [
+const blocksHandlers = [
 	http.post(buildApiUrl("/blocks/filter"), () => {
 		return HttpResponse.json([]);
 	}),
@@ -126,7 +126,7 @@ const workeQueuesHandlers = [
 
 export const handlers = [
 	...automationsHandlers,
-	...blocksHandelrs,
+	...blocksHandlers,
 	...deploymentsHandlers,
 	...flowHandlers,
 	...flowRunHandlers,

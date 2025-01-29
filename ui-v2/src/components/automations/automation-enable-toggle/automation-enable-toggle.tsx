@@ -3,10 +3,10 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 
 type AutomationEnableToggleProps = {
-	data: Automation;
+	automation: Automation;
 };
 export const AutomationEnableToggle = ({
-	data,
+	automation,
 }: AutomationEnableToggleProps) => {
 	const { toast } = useToast();
 
@@ -36,8 +36,8 @@ export const AutomationEnableToggle = ({
 	return (
 		<Switch
 			aria-label="toggle automation"
-			checked={data.enabled}
-			onCheckedChange={(checked) => handleCheckedChange(checked, data.id)}
+			checked={automation.enabled}
+			onCheckedChange={(checked) => handleCheckedChange(checked, automation.id)}
 		/>
 	);
 };
