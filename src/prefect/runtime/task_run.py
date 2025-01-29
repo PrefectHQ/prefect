@@ -18,11 +18,21 @@ Available attributes:
 from __future__ import annotations
 
 import os
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable
 
 from prefect.context import TaskRunContext
+from prefect.settings import get_current_settings
 
-__all__ = ["id", "tags", "name", "parameters", "run_count", "task_name"]
+__all__ = [
+    "id",
+    "tags",
+    "name",
+    "parameters",
+    "run_count",
+    "task_name",
+    "api_url",
+    "ui_url",
+]
 
 
 type_cast: dict[
@@ -72,17 +82,17 @@ def __getattr__(name: str) -> Any:
         return real_value
 
 
-def __dir__() -> List[str]:
+def __dir__() -> list[str]:
     return sorted(__all__)
 
 
-def get_id() -> str:
+def get_id() -> str | None:
     task_run_ctx = TaskRunContext.get()
     if task_run_ctx is not None:
         return str(task_run_ctx.task_run.id)
 
 
-def get_tags() -> List[str]:
+def get_tags() -> list[str]:
     task_run_ctx = TaskRunContext.get()
     if task_run_ctx is None:
         return []
@@ -98,7 +108,7 @@ def get_run_count() -> int:
         return task_run_ctx.task_run.run_count
 
 
-def get_name() -> Optional[str]:
+def get_name() -> str | None:
     task_run_ctx = TaskRunContext.get()
     if task_run_ctx is None:
         return None
@@ -106,7 +116,7 @@ def get_name() -> Optional[str]:
         return task_run_ctx.task_run.name
 
 
-def get_task_name() -> Optional[str]:
+def get_task_name() -> str | None:
     task_run_ctx = TaskRunContext.get()
     if task_run_ctx is None:
         return None
@@ -114,7 +124,7 @@ def get_task_name() -> Optional[str]:
         return task_run_ctx.task.name
 
 
-def get_parameters() -> Dict[str, Any]:
+def get_parameters() -> dict[str, Any]:
     task_run_ctx = TaskRunContext.get()
     if task_run_ctx is not None:
         return task_run_ctx.parameters
@@ -122,11 +132,29 @@ def get_parameters() -> Dict[str, Any]:
         return {}
 
 
-FIELDS: dict[str, Callable[[], Any]] = {
+def get_task_run_api_url() -> str | None:
+    if (api_url := get_current_settings().api.url) is None:
+        return None
+    if (task_run_id := get_id()) is None:
+        return None
+    return f"{api_url}/runs/task-run/{task_run_id}"
+
+
+def get_task_run_ui_url() -> str | None:
+    if (ui_url := get_current_settings().ui_url) is None:
+        return None
+    if (task_run_id := get_id()) is None:
+        return None
+    return f"{ui_url}/runs/task-run/{task_run_id}"
+
+
+FIELDS: dict[str, Callable[[], Any | None]] = {
     "id": get_id,
     "tags": get_tags,
     "name": get_name,
     "parameters": get_parameters,
     "run_count": get_run_count,
     "task_name": get_task_name,
+    "api_url": get_task_run_api_url,
+    "ui_url": get_task_run_ui_url,
 }
