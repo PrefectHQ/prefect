@@ -1978,6 +1978,7 @@ class TestFlowRunLogs:
         logs = await _wait_for_logs(prefect_client, expected_num_logs=6)
         assert {"Hello 1", "Hello 2"}.issubset({log.message for log in logs})
 
+    @pytest.mark.clear_db
     async def test_exception_info_is_included_in_log(self, prefect_client):
         @flow
         def my_flow():
@@ -2019,6 +2020,7 @@ class TestFlowRunLogs:
         assert "Traceback" in error_logs
         assert "ValueError: Hello!" in error_logs, "References the exception"
 
+    @pytest.mark.clear_db
     async def test_opt_out_logs_are_not_sent_to_api(self, prefect_client):
         @flow
         def my_flow():
@@ -2323,7 +2325,7 @@ class TestFlowRetries:
         flow_run_count = 0
 
         @flow
-        def child_flow():
+        def child_flow_with_failure():
             nonlocal child_flow_run_count
             child_flow_run_count += 1
 
@@ -2334,11 +2336,11 @@ class TestFlowRetries:
             return "hello"
 
         @flow(retries=1)
-        def parent_flow():
+        def parent_flow_with_failure():
             nonlocal flow_run_count
             flow_run_count += 1
 
-            state = child_flow(return_state=True)
+            state = child_flow_with_failure(return_state=True)
 
             # It is important that the flow run fails after the child flow run is created
             if flow_run_count == 1:
@@ -2346,7 +2348,7 @@ class TestFlowRetries:
 
             return state
 
-        parent_state = parent_flow(return_state=True)
+        parent_state = parent_flow_with_failure(return_state=True)
         child_state = await parent_state.result()
         assert await child_state.result() == "hello"
         assert flow_run_count == 2
@@ -3908,8 +3910,53 @@ class TestFlowToDeployment:
 
         return test_flow
 
-    async def test_to_deployment_returns_runner_deployment(self):
-        deployment = await self.flow.to_deployment(
+    def test_to_deployment_returns_runner_deployment(self):
+        deployment = self.flow.to_deployment(
+            name="test",
+            tags=["price", "luggage"],
+            parameters={"name": "Arthur"},
+            concurrency_limit=42,
+            description="This is a test",
+            version="alpha",
+            enforce_parameter_schema=True,
+            triggers=[
+                {
+                    "name": "Happiness",
+                    "enabled": True,
+                    "match": {"prefect.resource.id": "prefect.flow-run.*"},
+                    "expect": ["prefect.flow-run.Completed"],
+                    "match_related": {
+                        "prefect.resource.name": "seed",
+                        "prefect.resource.role": "flow",
+                    },
+                }
+            ],
+        )
+
+        assert isinstance(deployment, RunnerDeployment)
+        assert deployment.name == "test"
+        assert deployment.tags == ["price", "luggage"]
+        assert deployment.parameters == {"name": "Arthur"}
+        assert deployment.concurrency_limit == 42
+        assert deployment.description == "This is a test"
+        assert deployment.version == "alpha"
+        assert deployment.enforce_parameter_schema
+        assert deployment.triggers == [
+            DeploymentEventTrigger(
+                name="Happiness",
+                enabled=True,
+                posture=Posture.Reactive,
+                match={"prefect.resource.id": "prefect.flow-run.*"},
+                expect=["prefect.flow-run.Completed"],
+                match_related={
+                    "prefect.resource.name": "seed",
+                    "prefect.resource.role": "flow",
+                },
+            )
+        ]
+
+    async def test_to_deployment_returns_runner_deployment_async(self):
+        deployment = await self.flow.ato_deployment(
             name="test",
             tags=["price", "luggage"],
             parameters={"name": "Arthur"},
@@ -4041,12 +4088,12 @@ class TestFlowToDeployment:
                 name="test-deployment", flow_name="new-name", entrypoint=mock_entrypoint
             )
         )
-        monkeypatch.setattr(RunnerDeployment, "from_storage", mock_from_storage)
+        monkeypatch.setattr(RunnerDeployment, "afrom_storage", mock_from_storage)
 
         flow_with_new_name._storage = mock_storage
         flow_with_new_name._entrypoint = mock_entrypoint
 
-        deployment = await flow_with_new_name.to_deployment(name="test-deployment")
+        deployment = await flow_with_new_name.ato_deployment(name="test-deployment")
 
         assert isinstance(deployment, RunnerDeployment)
         assert deployment.name == "test-deployment"
@@ -4262,112 +4309,228 @@ def test_flow():
 
 
 class TestFlowFromSource:
-    async def test_load_flow_from_source_with_storage(self):
-        storage = MockStorage()
-
-        loaded_flow: Flow = await Flow.from_source(
-            entrypoint="flows.py:test_flow", source=storage
-        )
-
-        # Check that the loaded flow is indeed an instance of Flow and has the expected name
-        assert isinstance(loaded_flow, Flow)
-        assert loaded_flow.name == "test-flow"
-        assert loaded_flow() == 1
-
-    async def test_loaded_flow_to_deployment_has_storage(self):
-        storage = MockStorage()
-
-        loaded_flow = await Flow.from_source(
-            entrypoint="flows.py:test_flow", source=storage
-        )
-
-        deployment = await loaded_flow.to_deployment(name="test")
-
-        assert deployment.storage == storage
-
-    async def test_loaded_flow_can_be_updated_with_options(self):
-        storage = MockStorage()
-        storage.set_base_path(Path.cwd())
-
-        loaded_flow = await Flow.from_source(
-            entrypoint="flows.py:test_flow", source=storage
-        )
-
-        flow_with_options = loaded_flow.with_options(name="with_options")
-
-        deployment = await flow_with_options.to_deployment(name="test")
-
-        assert deployment.storage == storage
-
-    async def test_load_flow_from_source_with_url(self, monkeypatch):
-        def mock_create_storage_from_source(url):
-            return MockStorage()
-
-        monkeypatch.setattr(
-            "prefect.runner.storage.create_storage_from_source",
-            mock_create_storage_from_source,
-        )
-
-        loaded_flow = await Flow.from_source(
-            source="https://github.com/org/repo.git", entrypoint="flows.py:test_flow"
-        )
-
-        # Check that the loaded flow is indeed an instance of Flow and has the expected name
-        assert isinstance(loaded_flow, Flow)
-        assert loaded_flow.name == "test-flow"
-        assert loaded_flow() == 1
-
-    async def test_accepts_storage_blocks(self):
-        class FakeStorageBlock(Block):
-            _block_type_slug = "fake-storage-block"
-
-            code: str = dedent(
-                """\
-                from prefect import flow
-
-                @flow
-                def test_flow():
-                    return 1
-                """
-            )
-
-            async def get_directory(self, local_path: str):
-                (Path(local_path) / "flows.py").write_text(self.code)
-
-        block = FakeStorageBlock()
-
-        loaded_flow = await Flow.from_source(
-            entrypoint="flows.py:test_flow", source=block
-        )
-
-        assert loaded_flow() == 1
-
-    async def test_raises_on_unsupported_type(self):
-        class UnsupportedType:
-            what_i_do_here = "who knows?"
-
-        with pytest.raises(TypeError, match="Unsupported source type"):
-            await Flow.from_source(
-                entrypoint="flows.py:test_flow", source=UnsupportedType()
-            )
-
     def test_load_flow_from_source_on_flow_function(self):
         assert hasattr(flow, "from_source")
 
-    async def test_no_pull_for_local_storage(self, monkeypatch):
-        from prefect.runner.storage import LocalStorage
+    class TestSync:
+        def test_load_flow_from_source_with_storage(self):
+            storage = MockStorage()
 
-        storage = LocalStorage(path="/tmp/test")
+            loaded_flow: Flow = Flow.from_source(
+                entrypoint="flows.py:test_flow", source=storage
+            )
 
-        mock_load_flow = AsyncMock(return_value=MagicMock(spec=Flow))
-        monkeypatch.setattr("prefect.flows.load_flow_from_entrypoint", mock_load_flow)
+            # Check that the loaded flow is indeed an instance of Flow and has the expected name
+            assert isinstance(loaded_flow, Flow)
+            assert loaded_flow.name == "test-flow"
+            assert loaded_flow() == 1
 
-        pull_code_spy = AsyncMock()
-        monkeypatch.setattr(LocalStorage, "pull_code", pull_code_spy)
+        def test_loaded_flow_to_deployment_has_storage(self):
+            storage = MockStorage()
 
-        await Flow.from_source(entrypoint="flows.py:test_flow", source=storage)
+            loaded_flow = Flow.from_source(
+                entrypoint="flows.py:test_flow", source=storage
+            )
 
-        pull_code_spy.assert_not_called()
+            deployment = loaded_flow.to_deployment(name="test")
+
+            assert deployment.storage == storage
+
+        def test_loaded_flow_can_be_updated_with_options(self):
+            storage = MockStorage()
+            storage.set_base_path(Path.cwd())
+
+            loaded_flow = Flow.from_source(
+                entrypoint="flows.py:test_flow", source=storage
+            )
+
+            flow_with_options = loaded_flow.with_options(name="with_options")
+
+            deployment = flow_with_options.to_deployment(name="test")
+
+            assert deployment.storage == storage
+
+        def test_load_flow_from_source_with_url(self, monkeypatch: pytest.MonkeyPatch):
+            def mock_create_storage_from_source(url):
+                return MockStorage()
+
+            monkeypatch.setattr(
+                "prefect.runner.storage.create_storage_from_source",
+                mock_create_storage_from_source,
+            )
+
+            loaded_flow = Flow.from_source(
+                source="https://github.com/org/repo.git",
+                entrypoint="flows.py:test_flow",
+            )
+
+            # Check that the loaded flow is indeed an instance of Flow and has the expected name
+            assert isinstance(loaded_flow, Flow)
+            assert loaded_flow.name == "test-flow"
+            assert loaded_flow() == 1
+
+        def test_accepts_storage_blocks(self):
+            class FakeStorageBlock(Block):
+                _block_type_slug = "fake-storage-block"
+
+                code: str = dedent(
+                    """\
+                    from prefect import flow
+
+                    @flow
+                    def test_flow():
+                        return 1
+                    """
+                )
+
+                async def get_directory(self, local_path: str):
+                    (Path(local_path) / "flows.py").write_text(self.code)
+
+            block = FakeStorageBlock()
+
+            loaded_flow = Flow.from_source(
+                entrypoint="flows.py:test_flow", source=block
+            )
+
+            assert loaded_flow() == 1
+
+        def test_raises_on_unsupported_type(self):
+            class UnsupportedType:
+                what_i_do_here = "who knows?"
+
+            with pytest.raises(TypeError, match="Unsupported source type"):
+                Flow.from_source(
+                    entrypoint="flows.py:test_flow", source=UnsupportedType()
+                )
+
+        async def test_raises_on_unsupported_type_async(self):
+            class UnsupportedType:
+                what_i_do_here = "who knows?"
+
+            with pytest.raises(TypeError, match="Unsupported source type"):
+                await Flow.afrom_source(
+                    entrypoint="flows.py:test_flow", source=UnsupportedType()
+                )
+
+        def test_no_pull_for_local_storage(self, monkeypatch: pytest.MonkeyPatch):
+            from prefect.runner.storage import LocalStorage
+
+            storage = LocalStorage(path="/tmp/test")
+
+            mock_load_flow = MagicMock(return_value=MagicMock(spec=Flow))
+            monkeypatch.setattr(
+                "prefect.flows.load_flow_from_entrypoint", mock_load_flow
+            )
+
+            pull_code_spy = AsyncMock()
+            monkeypatch.setattr(LocalStorage, "pull_code", pull_code_spy)
+
+            Flow.from_source(entrypoint="flows.py:test_flow", source=storage)
+
+            pull_code_spy.assert_not_called()
+
+    class TestAsync:
+        async def test_load_flow_from_source_with_storage_async(self):
+            storage = MockStorage()
+
+            loaded_flow: Flow = await Flow.from_source(
+                entrypoint="flows.py:test_flow", source=storage
+            )
+
+            # Check that the loaded flow is indeed an instance of Flow and has the expected name
+            assert isinstance(loaded_flow, Flow)
+            assert loaded_flow.name == "test-flow"
+            assert loaded_flow() == 1
+
+        async def test_loaded_flow_to_deployment_has_storage_async(self):
+            storage = MockStorage()
+
+            loaded_flow = await Flow.from_source(
+                entrypoint="flows.py:test_flow", source=storage
+            )
+
+            deployment = await loaded_flow.ato_deployment(name="test")
+
+            assert deployment.storage == storage
+
+        async def test_loaded_flow_can_be_updated_with_options_async(self):
+            storage = MockStorage()
+            storage.set_base_path(Path.cwd())
+
+            loaded_flow = await Flow.afrom_source(
+                entrypoint="flows.py:test_flow", source=storage
+            )
+
+            flow_with_options = loaded_flow.with_options(name="with_options")
+
+            deployment = await flow_with_options.ato_deployment(name="test")
+
+            assert deployment.storage == storage
+
+        async def test_load_flow_from_source_with_url_async(
+            self, monkeypatch: pytest.MonkeyPatch
+        ):
+            def mock_create_storage_from_source(url):
+                return MockStorage()
+
+            monkeypatch.setattr(
+                "prefect.runner.storage.create_storage_from_source",
+                mock_create_storage_from_source,
+            )
+
+            loaded_flow = await Flow.afrom_source(
+                source="https://github.com/org/repo.git",
+                entrypoint="flows.py:test_flow",
+            )
+
+            # Check that the loaded flow is indeed an instance of Flow and has the expected name
+            assert isinstance(loaded_flow, Flow)
+            assert loaded_flow.name == "test-flow"
+            assert loaded_flow() == 1
+
+        async def test_accepts_storage_blocks_async(self):
+            class FakeStorageBlock(Block):
+                _block_type_slug = "fake-storage-block"
+
+                code: str = dedent(
+                    """\
+                    from prefect import flow
+
+                    @flow
+                    def test_flow():
+                        return 1
+                    """
+                )
+
+                async def get_directory(self, local_path: str):
+                    (Path(local_path) / "flows.py").write_text(self.code)
+
+            block = FakeStorageBlock()
+
+            loaded_flow = await Flow.afrom_source(
+                entrypoint="flows.py:test_flow", source=block
+            )
+
+            assert loaded_flow() == 1
+
+        async def test_no_pull_for_local_storage_async(
+            self, monkeypatch: pytest.MonkeyPatch
+        ):
+            from prefect.runner.storage import LocalStorage
+
+            storage = LocalStorage(path="/tmp/test")
+
+            mock_load_flow = AsyncMock(return_value=MagicMock(spec=Flow))
+            monkeypatch.setattr(
+                "prefect.flows.load_flow_from_entrypoint", mock_load_flow
+            )
+
+            pull_code_spy = AsyncMock()
+            monkeypatch.setattr(LocalStorage, "pull_code", pull_code_spy)
+
+            await Flow.afrom_source(entrypoint="flows.py:test_flow", source=storage)
+
+            pull_code_spy.assert_not_called()
 
 
 class TestFlowDeploy:
