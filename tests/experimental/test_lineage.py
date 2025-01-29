@@ -2,7 +2,7 @@ from unittest.mock import patch
 
 import pytest
 
-from prefect import flow
+from prefect import flow, tags
 from prefect._experimental.lineage import (
     emit_external_resource_lineage,
     emit_lineage_event,
@@ -10,7 +10,7 @@ from prefect._experimental.lineage import (
     emit_result_write_event,
     get_result_resource_uri,
 )
-from prefect.events.schemas.events import RelatedResource
+from prefect.events.schemas.events import Event, RelatedResource
 from prefect.filesystems import (
     LocalFileSystem,
     WritableDeploymentStorage,
@@ -59,7 +59,9 @@ class CustomStorage(WritableFileSystem, WritableDeploymentStorage):
         raise NotImplementedError
 
 
-async def test_get_result_resource_uri_with_local_storage(local_storage):
+async def test_get_result_resource_uri_with_local_storage(
+    local_storage: LocalFileSystem,
+):
     uri = get_result_resource_uri(ResultStore(result_storage=local_storage), "test-key")
     assert uri is not None
     assert uri.startswith("file://")
@@ -87,7 +89,9 @@ async def test_get_resource_uri_with_unknown_storage():
         ("azure-blob-storage", "azure-blob://"),
     ],
 )
-async def test_get_resource_uri_block_type_mapping(block_type, expected_prefix):
+async def test_get_resource_uri_block_type_mapping(
+    block_type: str, expected_prefix: str
+):
     if block_type == "local-file-system":
         cls = LocalFileSystem
     else:
@@ -116,8 +120,9 @@ async def test_get_resource_uri_block_type_mapping(block_type, expected_prefix):
 
 
 class TestEmitLineageEvent:
+    @pytest.mark.usefixtures("enable_lineage_events")
     async def test_emit_lineage_event_with_upstream_and_downstream(
-        self, enable_lineage_events, mock_emit_event
+        self, mock_emit_event: Event
     ):
         await emit_lineage_event(
             event_name="test.event",
@@ -187,13 +192,12 @@ class TestEmitLineageEvent:
             },
         ]
 
-    async def test_emit_lineage_event_with_no_resources(
-        self, enable_lineage_events, mock_emit_event
-    ):
+    @pytest.mark.usefixtures("enable_lineage_events")
+    async def test_emit_lineage_event_with_no_resources(self, mock_emit_event: Event):
         await emit_lineage_event(event_name="test.event")
         mock_emit_event.assert_not_called()
 
-    async def test_emit_lineage_event_disabled(self, mock_emit_event):
+    async def test_emit_lineage_event_disabled(self, mock_emit_event: Event):
         await emit_lineage_event(
             event_name="test.event",
             upstream_resources=[
@@ -211,10 +215,52 @@ class TestEmitLineageEvent:
         )
         mock_emit_event.assert_not_called()
 
+    @pytest.mark.usefixtures("enable_lineage_events")
+    async def test_emit_lineage_event_includes_tags(self, mock_emit_event: Event):
+        upstream_resources = [
+            {
+                "prefect.resource.id": "upstream1",
+                "prefect.resource.role": "data-source",
+            }
+        ]
+        downstream_resources = [
+            {
+                "prefect.resource.id": "downstream1",
+                "prefect.resource.role": "data-destination",
+            }
+        ]
+
+        @flow
+        async def test_flow():
+            await emit_lineage_event(
+                event_name="test.event",
+                upstream_resources=upstream_resources,
+                downstream_resources=downstream_resources,
+            )
+
+        with tags("test-tag"):
+            await test_flow()
+
+        # Should have:
+        # - 1 event for downstream1
+        # - 1 event for flow
+        # - 1 event for flow run
+        assert mock_emit_event.call_count == 3
+
+        # Check that all events include the tag in related resources
+        for call in mock_emit_event.call_args_list:
+            related_resources = call.kwargs["related"]
+            tag_resources = [
+                r for r in related_resources if r.get("prefect.resource.role") == "tag"
+            ]
+            assert len(tag_resources) == 1
+            assert tag_resources[0]["prefect.resource.id"] == "prefect.tag.test-tag"
+
 
 class TestEmitExternalResourceLineage:
+    @pytest.mark.usefixtures("enable_lineage_events")
     async def test_emit_external_resource_lineage_with_upstream_only(
-        self, enable_lineage_events, mock_emit_event
+        self, mock_emit_event: Event
     ):
         upstream_resources = [
             {
@@ -242,8 +288,9 @@ class TestEmitExternalResourceLineage:
                 }
             ]
 
+    @pytest.mark.usefixtures("enable_lineage_events")
     async def test_emit_external_resource_lineage_with_downstream_only(
-        self, enable_lineage_events, mock_emit_event
+        self, mock_emit_event: Event
     ):
         downstream_resources = [
             {
@@ -272,8 +319,9 @@ class TestEmitExternalResourceLineage:
         assert call_args["related"][0]["prefect.resource.role"] == "flow-run"
         assert call_args["related"][1]["prefect.resource.role"] == "flow"
 
+    @pytest.mark.usefixtures("enable_lineage_events")
     async def test_emit_external_resource_lineage_with_both(
-        self, enable_lineage_events, mock_emit_event
+        self, mock_emit_event: Event
     ):
         upstream_resources = [
             {
@@ -350,8 +398,9 @@ class TestEmitExternalResourceLineage:
             }
         ]
 
+    @pytest.mark.usefixtures("enable_lineage_events")
     async def test_emit_external_resource_lineage_with_neither(
-        self, enable_lineage_events, mock_emit_event
+        self, mock_emit_event: Event
     ):
         @flow
         async def test_flow():
@@ -360,7 +409,9 @@ class TestEmitExternalResourceLineage:
         await test_flow()
         mock_emit_event.assert_not_called()
 
-    async def test_emit_external_resource_lineage_disabled(self, mock_emit_event):
+    async def test_emit_external_resource_lineage_disabled(
+        self, mock_emit_event: Event
+    ):
         upstream_resources = [{"prefect.resource.id": "upstream1"}]
         downstream_resources = [{"prefect.resource.id": "downstream1"}]
 
@@ -374,8 +425,9 @@ class TestEmitExternalResourceLineage:
         await test_flow()
         mock_emit_event.assert_not_called()
 
+    @pytest.mark.usefixtures("enable_lineage_events")
     async def test_emit_external_resource_lineage_custom_event_name(
-        self, enable_lineage_events, mock_emit_event
+        self, mock_emit_event: Event
     ):
         upstream_resources = [
             {
@@ -435,10 +487,164 @@ class TestEmitExternalResourceLineage:
                 }
             ]
 
+    @pytest.mark.usefixtures("enable_lineage_events")
+    async def test_emit_external_resource_lineage_includes_tags(
+        self, mock_emit_event: Event
+    ):
+        upstream_resources = [
+            {
+                "prefect.resource.id": "upstream1",
+                "prefect.resource.role": "data-source",
+            }
+        ]
+        downstream_resources = [
+            {
+                "prefect.resource.id": "downstream1",
+                "prefect.resource.role": "data-destination",
+            }
+        ]
+
+        @flow
+        async def test_flow():
+            await emit_external_resource_lineage(
+                upstream_resources=upstream_resources,
+                downstream_resources=downstream_resources,
+            )
+
+        with tags("test-tag"):
+            await test_flow()
+
+        # Should have:
+        # - 2 events for context resources consuming upstream
+        # - 1 event for downstream resource being produced by context
+        # - 1 event for direct lineage between upstream and downstream
+        assert mock_emit_event.call_count == 4
+
+        # Check that all events include the tag in related resources
+        for call in mock_emit_event.call_args_list:
+            related_resources = call.kwargs["related"]
+            tag_resources = [
+                r for r in related_resources if r.get("prefect.resource.role") == "tag"
+            ]
+            assert len(tag_resources) == 1
+            assert tag_resources[0]["prefect.resource.id"] == "prefect.tag.test-tag"
+
+    @pytest.mark.usefixtures("enable_lineage_events")
+    async def test_emit_external_resource_lineage_with_context_resources(
+        self, mock_emit_event: Event
+    ):
+        upstream_resources = [
+            {
+                "prefect.resource.id": "upstream1",
+                "prefect.resource.role": "data-source",
+            }
+        ]
+        downstream_resources = [
+            {
+                "prefect.resource.id": "downstream1",
+                "prefect.resource.role": "data-destination",
+            }
+        ]
+        context_resources = [
+            {
+                "prefect.resource.id": "context1",
+                "prefect.resource.role": "flow-run",
+            },
+            {
+                "prefect.resource.id": "context2",
+                "prefect.resource.role": "flow",
+            },
+            {
+                "prefect.resource.id": "tag1",
+                "prefect.resource.role": "tag",
+            },
+        ]
+
+        await emit_external_resource_lineage(
+            upstream_resources=upstream_resources,
+            downstream_resources=downstream_resources,
+            context_resources=context_resources,
+        )
+
+        # Should have:
+        # - 2 events for context resources consuming upstream
+        # - 1 event for downstream resource being produced by context
+        # - 1 event for direct lineage between upstream and downstream
+        assert mock_emit_event.call_count == 4
+
+        # Check context resources consuming upstream
+        context_calls = mock_emit_event.call_args_list[:2]
+        for i, call in enumerate(context_calls):
+            assert call.kwargs["event"] == "prefect.lineage.upstream-interaction"
+            assert call.kwargs["resource"] == {
+                "prefect.resource.id": f"context{i+1}",
+                "prefect.resource.role": "flow-run" if i == 0 else "flow",
+                "prefect.resource.lineage-group": "global",
+            }
+            assert call.kwargs["related"] == [
+                {
+                    "prefect.resource.id": "upstream1",
+                    "prefect.resource.role": "data-source",
+                    "prefect.resource.lineage-group": "global",
+                },
+                {
+                    "prefect.resource.id": "tag1",
+                    "prefect.resource.role": "tag",
+                },
+            ]
+
+        # Check downstream produced by context
+        downstream_call = mock_emit_event.call_args_list[2]
+        assert (
+            downstream_call.kwargs["event"] == "prefect.lineage.downstream-interaction"
+        )
+        assert downstream_call.kwargs["resource"] == {
+            "prefect.resource.id": "downstream1",
+            "prefect.resource.role": "data-destination",
+            "prefect.resource.lineage-group": "global",
+        }
+        assert downstream_call.kwargs["related"] == [
+            {
+                "prefect.resource.id": "context1",
+                "prefect.resource.role": "flow-run",
+                "prefect.resource.lineage-group": "global",
+            },
+            {
+                "prefect.resource.id": "context2",
+                "prefect.resource.role": "flow",
+                "prefect.resource.lineage-group": "global",
+            },
+            {
+                "prefect.resource.id": "tag1",
+                "prefect.resource.role": "tag",
+            },
+        ]
+
+        # Check direct lineage
+        direct_call = mock_emit_event.call_args_list[3]
+        assert direct_call.kwargs["event"] == "prefect.lineage.event"
+        assert direct_call.kwargs["resource"] == {
+            "prefect.resource.id": "downstream1",
+            "prefect.resource.role": "data-destination",
+            "prefect.resource.lineage-group": "global",
+        }
+        assert direct_call.kwargs["related"] == [
+            {
+                "prefect.resource.id": "upstream1",
+                "prefect.resource.role": "data-source",
+                "prefect.resource.lineage-group": "global",
+            },
+            {
+                "prefect.resource.id": "tag1",
+                "prefect.resource.role": "tag",
+            },
+        ]
+
 
 class TestEmitResultEvents:
+    @pytest.mark.usefixtures("enable_lineage_events")
     async def test_emit_result_read_event(
-        self, result_store, enable_lineage_events, mock_emit_event
+        self, result_store: ResultStore, mock_emit_event: Event
     ):
         await emit_result_read_event(
             result_store,
@@ -471,8 +677,9 @@ class TestEmitResultEvents:
             )
         ]
 
+    @pytest.mark.usefixtures("enable_lineage_events")
     async def test_emit_result_write_event(
-        self, result_store, enable_lineage_events, mock_emit_event
+        self, result_store: ResultStore, mock_emit_event: Event
     ):
         @flow
         async def foo():
@@ -498,9 +705,8 @@ class TestEmitResultEvents:
         assert related["prefect.resource.role"] == "flow"
         assert related["prefect.resource.lineage-group"] == "global"
 
-    async def test_emit_result_read_event_with_none_uri(
-        self, enable_lineage_events, mock_emit_event
-    ):
+    @pytest.mark.usefixtures("enable_lineage_events")
+    async def test_emit_result_read_event_with_none_uri(self, mock_emit_event: Event):
         store = ResultStore(result_storage=None)
         await emit_result_read_event(
             store,
@@ -514,15 +720,15 @@ class TestEmitResultEvents:
         )
         mock_emit_event.assert_not_called()
 
-    async def test_emit_result_write_event_with_none_uri(
-        self, enable_lineage_events, mock_emit_event
-    ):
+    @pytest.mark.usefixtures("enable_lineage_events")
+    async def test_emit_result_write_event_with_none_uri(self, mock_emit_event: Event):
         store = ResultStore(result_storage=None)
         await emit_result_write_event(store, "test-key")
         mock_emit_event.assert_not_called()
 
+    @pytest.mark.usefixtures("enable_lineage_events")
     async def test_emit_result_read_event_with_downstream_resources(
-        self, result_store, enable_lineage_events, mock_emit_event
+        self, result_store: ResultStore, mock_emit_event: Event
     ):
         await emit_result_read_event(
             result_store,
@@ -554,8 +760,9 @@ class TestEmitResultEvents:
                 )
             ]
 
+    @pytest.mark.usefixtures("enable_lineage_events")
     async def test_emit_result_write_event_with_upstream_resources(
-        self, result_store, enable_lineage_events, mock_emit_event
+        self, result_store: ResultStore, mock_emit_event: Event
     ):
         await emit_result_write_event(
             result_store,
