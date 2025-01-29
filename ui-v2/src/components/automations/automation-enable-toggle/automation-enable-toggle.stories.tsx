@@ -9,7 +9,7 @@ const meta = {
 	title: "Components/Automations/AutomationEnableToggle",
 	component: AutomationEnableToggle,
 	decorators: [reactQueryDecorator, toastDecorator],
-	args: { data: MOCK_DATA },
+	args: { automation: MOCK_DATA },
 } satisfies Meta<typeof AutomationEnableToggle>;
 
 export default meta;

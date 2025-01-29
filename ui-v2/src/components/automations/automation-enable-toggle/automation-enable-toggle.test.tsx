@@ -14,7 +14,7 @@ test("AutomationEnableToggle can toggle switch", async () => {
 	render(
 		<>
 			<Toaster />
-			<AutomationEnableToggle data={MOCK_DATA} />
+			<AutomationEnableToggle automation={MOCK_DATA} />
 		</>,
 		{ wrapper: createWrapper() },
 	);

@@ -32,16 +32,16 @@ export const AutomationDetailsPage = ({ id }: AutomationsDetailsPageProps) => {
 		<>
 			<div className="flex flex-col gap-6">
 				<div className="flex items-center justify-between">
-					<NavHeader data={data} />
+					<NavHeader automation={data} />
 					<div className="flex items-center gap-2">
-						<AutomationEnableToggle data={data} />
+						<AutomationEnableToggle automation={data} />
 						<AutomationsActionsMenu id={data.id} onDelete={handleDelete} />
 					</div>
 				</div>
 				<div className="flex flex-col gap-4">
-					<AutomationDescription data={data} />
-					<AutomationTrigger data={data} />
-					<AutomationActions data={data} />
+					<AutomationDescription automation={data} />
+					<AutomationTrigger automation={data} />
+					<AutomationActions automation={data} />
 				</div>
 			</div>
 			<DeleteConfirmationDialog {...dialogState} />
@@ -50,9 +50,9 @@ export const AutomationDetailsPage = ({ id }: AutomationsDetailsPageProps) => {
 };
 
 type NavHeaderProps = {
-	data: Automation;
+	automation: Automation;
 };
-const NavHeader = ({ data }: NavHeaderProps) => {
+const NavHeader = ({ automation }: NavHeaderProps) => {
 	return (
 		<Breadcrumb>
 			<BreadcrumbList>
@@ -63,7 +63,7 @@ const NavHeader = ({ data }: NavHeaderProps) => {
 				</BreadcrumbItem>
 				<BreadcrumbSeparator />
 				<BreadcrumbItem className="text-xl font-semibold">
-					<BreadcrumbPage>{data.name}</BreadcrumbPage>
+					<BreadcrumbPage>{automation.name}</BreadcrumbPage>
 				</BreadcrumbItem>
 			</BreadcrumbList>
 		</Breadcrumb>
