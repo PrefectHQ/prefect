@@ -965,7 +965,7 @@ class Task(Generic[P, R]):
     def __call__(
         self: "Task[P, NoReturn]",
         *args: P.args,
-        return_state: Literal[False],
+        return_state: Literal[False] = False,
         wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         **kwargs: P.kwargs,
     ) -> None:
@@ -977,20 +977,22 @@ class Task(Generic[P, R]):
     def __call__(
         self: "Task[P, R]",
         *args: P.args,
-        return_state: Literal[True],
-        wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         **kwargs: P.kwargs,
-    ) -> State[R]:
+    ) -> R:
         ...
 
+    # Keyword parameters `return_state` and `wait_for` aren't allowed after the
+    # ParamSpec `*args` parameter, so we lose return type typing when either of
+    # those are provided.
+    # TODO: Find a way to expose this functionality without losing type information
     @overload
     def __call__(
         self: "Task[P, R]",
         *args: P.args,
-        return_state: Literal[False],
+        return_state: Literal[True] = True,
         wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         **kwargs: P.kwargs,
-    ) -> R:
+    ) -> State[R]:
         ...
 
     @overload
