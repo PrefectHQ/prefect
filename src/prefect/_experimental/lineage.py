@@ -73,7 +73,14 @@ async def emit_lineage_event(
     downstream_resources = list(downstream_resources) if downstream_resources else []
 
     async with get_client() as client:
-        related_resources = await related_resources_from_run_context(client)
+        context_resources = await related_resources_from_run_context(client)
+
+    tag_resources = [
+        res for res in context_resources if res.get("prefect.resource.role") == "tag"
+    ]
+    context_resources = [
+        res for res in context_resources if res.get("prefect.resource.role") != "tag"
+    ]
 
     # NOTE: We handle adding run-related resources to the event here instead of in
     # the EventsWorker because not all run-related resources are upstream from
@@ -82,9 +89,9 @@ async def emit_lineage_event(
     # lineage-related events, tracks upstream resources only. For downstream
     # resources, we need to emit an event for each downstream resource.
     if direction_of_run_from_event == "downstream":
-        downstream_resources.extend(related_resources)
+        downstream_resources.extend(context_resources)
     else:
-        upstream_resources.extend(related_resources)
+        upstream_resources.extend(context_resources)
 
     # We want to consider all resources upstream and downstream of the event as
     # lineage-related, including flows, flow runs, etc., so we add the label to
@@ -101,7 +108,7 @@ async def emit_lineage_event(
         emit_kwargs: Dict[str, Any] = {
             "event": event_name,
             "resource": resource,
-            "related": upstream_resources,
+            "related": upstream_resources + tag_resources,
         }
 
         emit_event(**emit_kwargs)
