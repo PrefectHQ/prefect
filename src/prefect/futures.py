@@ -19,8 +19,9 @@ from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import StopVisiting, visit_collection
 from prefect.utilities.timeout import timeout as timeout_context
 
-F = TypeVar("F")
+F_co = TypeVar("F_co", covariant=True)
 R = TypeVar("R")
+R_co = TypeVar("R_co", covariant=True)
 
 if TYPE_CHECKING:
     import logging
@@ -28,7 +29,7 @@ if TYPE_CHECKING:
 logger: "logging.Logger" = get_logger(__name__)
 
 
-class PrefectFuture(abc.ABC, Generic[R]):
+class PrefectFuture(abc.ABC, Generic[R_co]):
     """
     Abstract base class for Prefect futures. A Prefect future is a handle to the
     asynchronous execution of a task run. It provides methods to wait for the task
@@ -37,7 +38,7 @@ class PrefectFuture(abc.ABC, Generic[R]):
 
     def __init__(self, task_run_id: uuid.UUID):
         self._task_run_id = task_run_id
-        self._final_state: Optional[State[R]] = None
+        self._final_state: Optional[State[R_co]] = None
 
     @property
     def task_run_id(self) -> uuid.UUID:
@@ -76,7 +77,7 @@ class PrefectFuture(abc.ABC, Generic[R]):
         self,
         timeout: Optional[float] = None,
         raise_on_failure: bool = True,
-    ) -> R:
+    ) -> R_co:
         ...
         """
         Get the result of the task run associated with this future.
@@ -93,7 +94,7 @@ class PrefectFuture(abc.ABC, Generic[R]):
         """
 
     @abc.abstractmethod
-    def add_done_callback(self, fn: Callable[["PrefectFuture[R]"], None]) -> None:
+    def add_done_callback(self, fn: Callable[["PrefectFuture[R_co]"], None]) -> None:
         """
         Add a callback to be run when the future completes or is cancelled.
 
@@ -103,29 +104,29 @@ class PrefectFuture(abc.ABC, Generic[R]):
         ...
 
 
-class PrefectWrappedFuture(PrefectFuture[R], abc.ABC, Generic[R, F]):
+class PrefectWrappedFuture(PrefectFuture[R_co], abc.ABC, Generic[R_co, F_co]):
     """
     A Prefect future that wraps another future object.
 
     Type Parameters:
-        R: The return type of the future
-        F: The type of the wrapped future
+        R_co: The return type of the future
+        F_co: The type of the wrapped future
     """
 
-    def __init__(self, task_run_id: uuid.UUID, wrapped_future: F):
-        self._wrapped_future: F = wrapped_future
+    def __init__(self, task_run_id: uuid.UUID, wrapped_future: F_co):
+        self._wrapped_future: F_co = wrapped_future
         super().__init__(task_run_id)
 
     @property
-    def wrapped_future(self) -> F:
+    def wrapped_future(self) -> F_co:
         """The underlying future object wrapped by this Prefect future"""
         return self._wrapped_future
 
-    def add_done_callback(self, fn: Callable[[PrefectFuture[R]], None]) -> None:
+    def add_done_callback(self, fn: Callable[[PrefectFuture[R_co]], None]) -> None:
         """Add a callback to be executed when the future completes."""
         if not self._final_state:
 
-            def call_with_self(future: F):
+            def call_with_self(future: F_co):
                 """Call the callback with self as the argument, this is necessary to ensure we remove the future from the pending set"""
                 fn(self)
 
@@ -199,7 +200,7 @@ class PrefectDistributedFuture(PrefectFuture[R]):
     any task run scheduled in Prefect's API.
     """
 
-    done_callbacks: list[Callable[[PrefectFuture[R]], None]] = []
+    done_callbacks: list[Callable[[PrefectFuture[R_co]], None]] = []
     waiter = None
 
     def wait(self, timeout: Optional[float] = None) -> None:
@@ -274,6 +275,8 @@ class PrefectDistributedFuture(PrefectFuture[R]):
         TaskRunWaiter.instance()
         with get_client(sync_client=True) as client:
             task_run = client.read_task_run(task_run_id=self._task_run_id)
+            if TYPE_CHECKING:
+                assert task_run.state is not None
             if task_run.state.is_final():
                 self._final_state = task_run.state
                 fn(self)
