@@ -25,31 +25,12 @@ from prefect.server.utilities.messaging import (
     MessageHandler,
     create_consumer,
 )
-from prefect.server.utilities.messaging.memory import (
-    METRICS,
-    _metrics_lock,  # type: ignore
-)
+from prefect.server.utilities.messaging.memory import log_metrics_periodically
 
 if TYPE_CHECKING:
     import logging
 
 logger: "logging.Logger" = get_logger(__name__)
-
-
-async def log_metrics_periodically(interval: float = 2.0) -> None:
-    while True:
-        await asyncio.sleep(interval)
-        async with _metrics_lock:
-            for topic, data in METRICS.items():
-                depth = data["published"] - data["consumed"]
-                logger.debug(
-                    "Topic=%r | published=%d consumed=%d retried=%d depth=%d",
-                    topic,
-                    data["published"],
-                    data["consumed"],
-                    data["retried"],
-                    depth,
-                )
 
 
 def causal_ordering() -> CausalOrdering:

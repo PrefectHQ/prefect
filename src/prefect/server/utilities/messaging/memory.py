@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import threading
 from collections import defaultdict
 from collections.abc import AsyncGenerator, Iterable, Mapping, MutableMapping
 from contextlib import asynccontextmanager
@@ -31,7 +32,7 @@ if TYPE_CHECKING:
 logger: "logging.Logger" = get_logger(__name__)
 
 # Simple global counters by topic with thread-safe access
-_metrics_lock: asyncio.Lock | None = None
+_metrics_lock: threading.Lock | None = None
 METRICS: dict[str, dict[str, int]] = defaultdict(
     lambda: {
         "published": 0,
@@ -41,11 +42,31 @@ METRICS: dict[str, dict[str, int]] = defaultdict(
 )
 
 
+async def log_metrics_periodically(interval: float = 2.0) -> None:
+    if _metrics_lock is None:
+        return
+    while True:
+        await asyncio.sleep(interval)
+        with _metrics_lock:
+            for topic, data in METRICS.items():
+                if data["published"] == 0:
+                    continue
+                depth = data["published"] - data["consumed"]
+                logger.debug(
+                    "Topic=%r | published=%d consumed=%d retried=%d depth=%d",
+                    topic,
+                    data["published"],
+                    data["consumed"],
+                    data["retried"],
+                    depth,
+                )
+
+
 async def update_metric(topic: str, key: str, amount: int = 1) -> None:
     global _metrics_lock
     if _metrics_lock is None:
-        _metrics_lock = asyncio.Lock()
-    async with _metrics_lock:
+        _metrics_lock = threading.Lock()
+    with _metrics_lock:
         METRICS[topic][key] += amount
 
 
@@ -141,20 +162,6 @@ class Subscription:
         """
         Get a message from the subscription's queue.
         """
-        if not self._retry.empty():
-            logger.debug(
-                "Getting message from RETRY queue on topic=%r queue_size=%d retry_queue_size=%d",
-                self.topic.name,
-                self._queue.qsize(),
-                self._retry.qsize(),
-            )
-            return await self._retry.get()
-        logger.debug(
-            "Getting message from MAIN queue on topic=%r queue_size=%d retry_queue_size=%d",
-            self.topic.name,
-            self._queue.qsize(),
-            self._retry.qsize(),
-        )
         return await self._queue.get()
 
     async def send_to_dead_letter_queue(self, message: MemoryMessage) -> None:
