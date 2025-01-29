@@ -1,15 +1,16 @@
 from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Sequence, Union
 
+from typing_extensions import TypeAlias
+
 from prefect.events.related import related_resources_from_run_context
-from prefect.events.schemas.events import RelatedResource, Resource
+from prefect.events.schemas.events import RelatedResource
 from prefect.events.utilities import emit_event
 from prefect.settings import get_current_settings
 
 if TYPE_CHECKING:
     from prefect.results import ResultStore
 
-UpstreamResources = Sequence[Union[RelatedResource, dict[str, str]]]
-DownstreamResources = Sequence[Union[Resource, dict[str, str]]]
+LineageResources: TypeAlias = Sequence[Union[RelatedResource, dict[str, str]]]
 
 # Map block types to their URI schemes
 STORAGE_URI_SCHEMES = {
@@ -47,8 +48,8 @@ def get_result_resource_uri(
 
 async def emit_lineage_event(
     event_name: str,
-    upstream_resources: Optional[UpstreamResources] = None,
-    downstream_resources: Optional[DownstreamResources] = None,
+    upstream_resources: Optional[LineageResources] = None,
+    downstream_resources: Optional[LineageResources] = None,
     direction_of_run_from_event: Literal["upstream", "downstream"] = "downstream",
 ) -> None:
     """Emit lineage events showing relationships between resources.
@@ -73,7 +74,14 @@ async def emit_lineage_event(
     downstream_resources = list(downstream_resources) if downstream_resources else []
 
     async with get_client() as client:
-        related_resources = await related_resources_from_run_context(client)
+        context_resources = await related_resources_from_run_context(client)
+
+    tag_resources = [
+        res for res in context_resources if res.get("prefect.resource.role") == "tag"
+    ]
+    context_resources = [
+        res for res in context_resources if res.get("prefect.resource.role") != "tag"
+    ]
 
     # NOTE: We handle adding run-related resources to the event here instead of in
     # the EventsWorker because not all run-related resources are upstream from
@@ -82,9 +90,9 @@ async def emit_lineage_event(
     # lineage-related events, tracks upstream resources only. For downstream
     # resources, we need to emit an event for each downstream resource.
     if direction_of_run_from_event == "downstream":
-        downstream_resources.extend(related_resources)
+        downstream_resources.extend(context_resources)
     else:
-        upstream_resources.extend(related_resources)
+        upstream_resources.extend(context_resources)
 
     # We want to consider all resources upstream and downstream of the event as
     # lineage-related, including flows, flow runs, etc., so we add the label to
@@ -101,7 +109,7 @@ async def emit_lineage_event(
         emit_kwargs: Dict[str, Any] = {
             "event": event_name,
             "resource": resource,
-            "related": upstream_resources,
+            "related": upstream_resources + tag_resources,
         }
 
         emit_event(**emit_kwargs)
@@ -110,7 +118,7 @@ async def emit_lineage_event(
 async def emit_result_read_event(
     store: "ResultStore",
     result_key: str,
-    downstream_resources: Optional[DownstreamResources] = None,
+    downstream_resources: Optional[LineageResources] = None,
     cached: bool = False,
 ) -> None:
     """
@@ -150,7 +158,7 @@ async def emit_result_read_event(
 async def emit_result_write_event(
     store: "ResultStore",
     result_key: str,
-    upstream_resources: Optional[UpstreamResources] = None,
+    upstream_resources: Optional[LineageResources] = None,
 ) -> None:
     """
     Emit a lineage event showing a task or flow result was written.
@@ -182,8 +190,9 @@ async def emit_result_write_event(
 
 async def emit_external_resource_lineage(
     event_name: str = "prefect.lineage.event",
-    upstream_resources: Optional[UpstreamResources] = None,
-    downstream_resources: Optional[DownstreamResources] = None,
+    upstream_resources: Optional[LineageResources] = None,
+    downstream_resources: Optional[LineageResources] = None,
+    context_resources: Optional[LineageResources] = None,
 ) -> None:
     """Emit lineage events connecting external resources to Prefect context resources.
 
@@ -207,8 +216,16 @@ async def emit_external_resource_lineage(
     downstream_resources = list(downstream_resources) if downstream_resources else []
 
     # Get the current Prefect context resources (flow runs, task runs, etc.)
-    async with get_client() as client:
-        context_resources = await related_resources_from_run_context(client)
+    if not context_resources:
+        async with get_client() as client:
+            context_resources = await related_resources_from_run_context(client)
+
+    tag_resources = [
+        res for res in context_resources if res.get("prefect.resource.role") == "tag"
+    ]
+    context_resources = [
+        res for res in context_resources if res.get("prefect.resource.role") != "tag"
+    ]
 
     # Add lineage group label to all resources
     for res in upstream_resources + downstream_resources + context_resources:
@@ -221,7 +238,7 @@ async def emit_external_resource_lineage(
             emit_kwargs: Dict[str, Any] = {
                 "event": "prefect.lineage.upstream-interaction",
                 "resource": context_resource,
-                "related": upstream_resources,
+                "related": upstream_resources + tag_resources,
             }
             emit_event(**emit_kwargs)
 
@@ -230,7 +247,7 @@ async def emit_external_resource_lineage(
         emit_kwargs: Dict[str, Any] = {
             "event": "prefect.lineage.downstream-interaction",
             "resource": downstream_resource,
-            "related": context_resources,
+            "related": context_resources + tag_resources,
         }
         emit_event(**emit_kwargs)
 
@@ -239,6 +256,6 @@ async def emit_external_resource_lineage(
             direct_emit_kwargs = {
                 "event": event_name,
                 "resource": downstream_resource,
-                "related": upstream_resources,
+                "related": upstream_resources + tag_resources,
             }
             emit_event(**direct_emit_kwargs)
