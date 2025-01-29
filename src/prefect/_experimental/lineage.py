@@ -8,7 +8,7 @@ from prefect.settings import get_current_settings
 if TYPE_CHECKING:
     from prefect.results import ResultStore
 
-LineageResources = Sequence[Union[RelatedResource, dict[str, str]]]
+LineageResources: TypeAlias = Sequence[Union[RelatedResource, dict[str, str]]]
 
 # Map block types to their URI schemes
 STORAGE_URI_SCHEMES = {
