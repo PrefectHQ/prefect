@@ -45,7 +45,7 @@ export const AutomationsPage = () => {
 									aria-label={`automation item ${automation.name}`}
 								>
 									<AutomationCardDetails
-										data={automation}
+										automation={automation}
 										onDelete={() => handleDelete(automation)}
 									/>
 								</li>
@@ -60,46 +60,48 @@ export const AutomationsPage = () => {
 };
 
 type AutomationCardDetailsProps = {
-	data: Automation;
+	automation: Automation;
 	onDelete: () => void;
 };
 const AutomationCardDetails = ({
-	data,
+	automation,
 	onDelete,
 }: AutomationCardDetailsProps) => {
 	return (
 		<Card className="p-4 pt-5 flex flex-col gap-6">
 			<div className="flex items-center justify-between">
-				<NavHeader data={data} />
+				<NavHeader automation={automation} />
 				<div className="flex items-center gap-2">
-					<AutomationEnableToggle data={data} />
-					<AutomationsActionsMenu id={data.id} onDelete={onDelete} />
+					<AutomationEnableToggle automation={automation} />
+					<AutomationsActionsMenu id={automation.id} onDelete={onDelete} />
 				</div>
 			</div>
 			<div className="flex flex-col gap-4">
-				{data.description && <AutomationDescription data={data} />}
-				<AutomationTrigger data={data} />
-				<AutomationActions data={data} />
+				{automation.description && (
+					<AutomationDescription automation={automation} />
+				)}
+				<AutomationTrigger automation={automation} />
+				<AutomationActions automation={automation} />
 			</div>
 		</Card>
 	);
 };
 
 type NavHeaderProps = {
-	data: Automation;
+	automation: Automation;
 };
 
-const NavHeader = ({ data }: NavHeaderProps) => {
+const NavHeader = ({ automation }: NavHeaderProps) => {
 	return (
 		<Breadcrumb>
 			<BreadcrumbList>
 				<BreadcrumbItem className="text-xl">
 					<BreadcrumbLink
 						to="/automations/automation/$id"
-						params={{ id: data.id }}
+						params={{ id: automation.id }}
 						className="text-lg"
 					>
-						{data.name}
+						{automation.name}
 					</BreadcrumbLink>
 				</BreadcrumbItem>
 			</BreadcrumbList>

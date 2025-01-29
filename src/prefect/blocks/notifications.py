@@ -570,6 +570,10 @@ class MattermostWebhook(AbstractAppriseNotificationBlock):
         description="The hostname of your Mattermost server.",
         examples=["Mattermost.example.com"],
     )
+    secure: bool = Field(
+        default=False,
+        description="Whether to use secure https connection.",
+    )
 
     token: SecretStr = Field(
         default=...,
@@ -621,6 +625,7 @@ class MattermostWebhook(AbstractAppriseNotificationBlock):
                 channels=self.channels,
                 include_image=self.include_image,
                 port=self.port,
+                secure=self.secure,
             ).url()  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType] incomplete type hints in apprise
         )
         self._start_apprise_client(url)
