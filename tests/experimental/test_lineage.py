@@ -2,7 +2,7 @@ from unittest.mock import patch
 
 import pytest
 
-from prefect import flow
+from prefect import flow, tags
 from prefect._experimental.lineage import (
     emit_external_resource_lineage,
     emit_lineage_event,
@@ -434,6 +434,47 @@ class TestEmitExternalResourceLineage:
                     "prefect.resource.lineage-group": "global",
                 }
             ]
+
+    async def test_emit_external_resource_lineage_includes_tags(
+        self, enable_lineage_events, mock_emit_event
+    ):
+        upstream_resources = [
+            {
+                "prefect.resource.id": "upstream1",
+                "prefect.resource.role": "data-source",
+            }
+        ]
+        downstream_resources = [
+            {
+                "prefect.resource.id": "downstream1",
+                "prefect.resource.role": "data-destination",
+            }
+        ]
+
+        @flow
+        async def test_flow():
+            await emit_external_resource_lineage(
+                upstream_resources=upstream_resources,
+                downstream_resources=downstream_resources,
+            )
+
+        with tags("test-tag"):
+            await test_flow()
+
+        # Should have:
+        # - 2 events for context resources consuming upstream
+        # - 1 event for downstream resource being produced by context
+        # - 1 event for direct lineage between upstream and downstream
+        assert mock_emit_event.call_count == 4
+
+        # Check that all events include the tag in related resources
+        for call in mock_emit_event.call_args_list:
+            related_resources = call.kwargs["related"]
+            tag_resources = [
+                r for r in related_resources if r.get("prefect.resource.role") == "tag"
+            ]
+            assert len(tag_resources) == 1
+            assert tag_resources[0]["prefect.resource.id"] == "prefect.tag.test-tag"
 
 
 class TestEmitResultEvents:

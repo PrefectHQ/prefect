@@ -210,10 +210,16 @@ async def emit_external_resource_lineage(
     async with get_client() as client:
         context_resources = await related_resources_from_run_context(client)
 
+    tag_resources = [
+        res for res in context_resources if res.get("prefect.resource.role") == "tag"
+    ]
+    context_resources = [
+        res for res in context_resources if res.get("prefect.resource.role") != "tag"
+    ]
+
     # Add lineage group label to all resources
     for res in upstream_resources + downstream_resources + context_resources:
-        if "prefect.resource.lineage-group" not in res:
-            res["prefect.resource.lineage-group"] = "global"
+        res["prefect.resource.lineage-group"] = "global"
 
     # For each context resource, emit an event showing it as downstream of upstream resources
     if upstream_resources:
@@ -221,7 +227,7 @@ async def emit_external_resource_lineage(
             emit_kwargs: Dict[str, Any] = {
                 "event": "prefect.lineage.upstream-interaction",
                 "resource": context_resource,
-                "related": upstream_resources,
+                "related": upstream_resources + tag_resources,
             }
             emit_event(**emit_kwargs)
 
@@ -230,7 +236,7 @@ async def emit_external_resource_lineage(
         emit_kwargs: Dict[str, Any] = {
             "event": "prefect.lineage.downstream-interaction",
             "resource": downstream_resource,
-            "related": context_resources,
+            "related": context_resources + tag_resources,
         }
         emit_event(**emit_kwargs)
 
@@ -239,6 +245,6 @@ async def emit_external_resource_lineage(
             direct_emit_kwargs = {
                 "event": event_name,
                 "resource": downstream_resource,
-                "related": upstream_resources,
+                "related": upstream_resources + tag_resources,
             }
             emit_event(**direct_emit_kwargs)
