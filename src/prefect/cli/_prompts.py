@@ -50,7 +50,7 @@ from prefect.settings import PREFECT_DEBUG_MODE
 from prefect.utilities import urls
 from prefect.utilities._git import get_git_remote_origin_url
 from prefect.utilities.asyncutils import LazySemaphore
-from prefect.utilities.filesystem import get_open_file_limit
+from prefect.utilities.filesystem import filter_files, get_open_file_limit
 from prefect.utilities.processutils import get_sys_executable, run_process
 from prefect.utilities.slugify import slugify
 
@@ -74,6 +74,8 @@ REQUIRED_FIELDS_FOR_CREDS_BLOCK = {
 # Only allow half of the open file limit to be open at once to allow for other
 # actors to open files.
 OPEN_FILE_SEMAPHORE = LazySemaphore(lambda: math.floor(get_open_file_limit() * 0.5))
+
+logger = get_logger(__name__)
 
 
 async def find_flow_functions_in_file(path: anyio.Path) -> list[dict[str, str]]:
@@ -162,18 +164,36 @@ async def find_flow_functions_in_file(path: anyio.Path) -> list[dict[str, str]]:
     return decorated_functions
 
 
-async def search_for_flow_functions(directory: str = ".") -> list[dict[str, str]]:
+async def search_for_flow_functions(
+    directory: str = ".", exclude_patterns: list[str] | None = None
+) -> list[dict[str, str]]:
     """
     Search for flow functions in the provided directory. If no directory is provided,
     the current working directory is used.
+
+    Args:
+        directory: The directory to search in
+        exclude_patterns: List of patterns to exclude from the search, defaults to
+            ["**/site-packages/**"]
 
     Returns:
         List[Dict]: the flow name, function name, and filepath of all flow functions found
     """
     path = anyio.Path(directory)
+    exclude_patterns = exclude_patterns or ["**/site-packages/**"]
     coros: list[Coroutine[list[dict[str, str]], Any, Any]] = []
-    async for file in path.rglob("*.py"):
-        coros.append(find_flow_functions_in_file(file))
+
+    try:
+        for file in filter_files(
+            root=str(path),
+            ignore_patterns=["*", "!**/*.py", *exclude_patterns],
+            include_dirs=False,
+        ):
+            coros.append(find_flow_functions_in_file(anyio.Path(str(path / file))))
+
+    except (PermissionError, OSError) as e:
+        logger.error(f"Error searching for flow functions: {e}")
+        return []
 
     return [fn for file_fns in await asyncio.gather(*coros) for fn in file_fns]
 

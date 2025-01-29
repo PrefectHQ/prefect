@@ -95,6 +95,28 @@ class TestDiscoverFlows:
             assert await find_flow_functions_in_file(AnyioPath("foo.py")) == []
             assert "Could not open foo.py" in caplog.text
 
+    async def test_excludes_site_packages(self, project_dir: Path):
+        """Test that search_for_flow_functions excludes site-packages directories."""
+        site_packages = project_dir / "lib" / "python3.8" / "site-packages"
+        site_packages.mkdir(parents=True)
+        (site_packages / "package" / "flows").mkdir(parents=True)
+        (site_packages / "package" / "flows" / "flow.py").write_text(
+            "from prefect import flow\n@flow\ndef site_pkg_flow(): pass"
+        )
+
+        (project_dir / "flow.py").write_text(
+            "from prefect import flow\n@flow\ndef regular_flow(): pass"
+        )
+
+        flows = await search_for_flow_functions(str(project_dir))
+
+        assert not any("site-packages" in flow["filepath"] for flow in flows)
+
+        assert any(
+            flow["flow_name"] == "regular_flow" and flow["filepath"].endswith("flow.py")
+            for flow in flows
+        )
+
     async def test_prefect_can_be_imported_from_non_main_thread(self):
         """testing due to `asyncio.Semaphore` error when importing prefect from a worker thread
         in python <= 3.9
