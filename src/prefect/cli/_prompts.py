@@ -173,7 +173,8 @@ async def search_for_flow_functions(
 
     Args:
         directory: The directory to search in
-        exclude_patterns: List of patterns to exclude from the search.
+        exclude_patterns: List of patterns to exclude from the search, defaults to
+            ["**/site-packages/**"]
 
     Returns:
         List[Dict]: the flow name, function name, and filepath of all flow functions found
