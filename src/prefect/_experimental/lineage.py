@@ -226,7 +226,8 @@ async def emit_external_resource_lineage(
 
     # Add lineage group label to all resources
     for res in upstream_resources + downstream_resources + context_resources:
-        res["prefect.resource.lineage-group"] = "global"
+        if "prefect.resource.lineage-group" not in res:
+            res["prefect.resource.lineage-group"] = "global"
 
     # For each context resource, emit an event showing it as downstream of upstream resources
     if upstream_resources:
