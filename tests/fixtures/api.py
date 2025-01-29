@@ -36,6 +36,11 @@ async def client(app) -> AsyncGenerator[AsyncClient, Any]:
 
 
 @pytest.fixture
+def sync_client(app: FastAPI) -> TestClient:
+    return TestClient(app, base_url="https://test/api")
+
+
+@pytest.fixture
 async def hosted_api_client(use_hosted_api_server) -> AsyncGenerator[AsyncClient, Any]:
     async with httpx.AsyncClient(base_url=use_hosted_api_server) as async_client:
         yield async_client
