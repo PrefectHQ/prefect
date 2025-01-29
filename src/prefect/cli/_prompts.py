@@ -75,6 +75,8 @@ REQUIRED_FIELDS_FOR_CREDS_BLOCK = {
 # actors to open files.
 OPEN_FILE_SEMAPHORE = LazySemaphore(lambda: math.floor(get_open_file_limit() * 0.5))
 
+logger = get_logger(__name__)
+
 
 async def find_flow_functions_in_file(path: anyio.Path) -> list[dict[str, str]]:
     decorator_name = "flow"
@@ -188,7 +190,8 @@ async def search_for_flow_functions(
         ):
             coros.append(find_flow_functions_in_file(anyio.Path(str(path / file))))
 
-    except (PermissionError, OSError):
+    except (PermissionError, OSError) as e:
+        logger.error(f"Error searching for flow functions: {e}")
         return []
 
     return [fn for file_fns in await asyncio.gather(*coros) for fn in file_fns]
