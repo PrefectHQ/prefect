@@ -5,6 +5,7 @@ import asyncio
 import inspect
 import signal
 from abc import ABC, abstractmethod
+from logging import Logger
 from operator import methodcaller
 from types import ModuleType
 from typing import Any, List, NoReturn, Optional, Sequence, overload
@@ -50,6 +51,9 @@ def _known_service_modules() -> list[ModuleType]:
 
 
 class Service(ABC):
+    name: str
+    logger: Logger
+
     @classmethod
     @abstractmethod
     def enabled_setting(cls) -> prefect.settings.Setting:
