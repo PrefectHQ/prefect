@@ -59,6 +59,17 @@ class ResizeObserverMock {
 
 global.ResizeObserver = ResizeObserverMock;
 
+// Mock localStorage
+const localStorageMock: Storage = {
+	key: vi.fn(),
+	length: 0,
+	getItem: vi.fn(),
+	setItem: vi.fn(),
+	removeItem: vi.fn(),
+	clear: vi.fn(),
+};
+global.localStorage = localStorageMock;
+
 // Add this along with the ResizeObserver mock
 Element.prototype.getBoundingClientRect = vi.fn(() => ({
 	width: 500,
