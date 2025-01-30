@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, NoReturn, Optional
 
 from prefect.logging import get_logger
 from prefect.server.events import triggers
+from prefect.server.services.base import Service
 from prefect.server.services.loop_service import LoopService
 from prefect.server.utilities.messaging import Consumer, create_consumer
 from prefect.settings import PREFECT_EVENTS_PROACTIVE_GRANULARITY
@@ -15,7 +16,7 @@ if TYPE_CHECKING:
 logger: "logging.Logger" = get_logger(__name__)
 
 
-class ReactiveTriggers:
+class ReactiveTriggers(Service):
     """Runs the reactive triggers consumer"""
 
     name: str = "ReactiveTriggers"
