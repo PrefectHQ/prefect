@@ -108,7 +108,7 @@ async def test_provision(
         "work-pool-name-coiled-credentials", "coiled-credentials"
     )
 
-    assert block_document.data["api_token"], str == "mock_token"
+    assert block_document.data["api_token"] == "mock_token"
 
     # Check if the base job template was updated
     assert result["variables"]["properties"]["credentials"] == {
@@ -176,7 +176,7 @@ async def test_provision_existing_coiled_credentials(
         "work-pool-name-coiled-credentials", "coiled-credentials"
     )
 
-    assert block_document.data["api_token"], str == "mock_token"
+    assert block_document.data["api_token"] == "mock_token"
 
     # Check if the base job template was updated
     assert result["variables"]["properties"]["credentials"] == {

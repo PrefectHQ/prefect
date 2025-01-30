@@ -56,14 +56,12 @@ class CoreFlowPolicyWithoutDeploymentConcurrency(FlowRunOrchestrationPolicy):
     """
 
     @staticmethod
-    def priority() -> (
-        list[
-            Union[
-                type[BaseUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy],],
-                type[BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]],
-            ]
+    def priority() -> list[
+        Union[
+            type[BaseUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy],],
+            type[BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]],
         ]
-    ):
+    ]:
         return cast(
             list[
                 Union[
@@ -96,14 +94,12 @@ class CoreFlowPolicy(FlowRunOrchestrationPolicy):
     """
 
     @staticmethod
-    def priority() -> (
-        list[
-            Union[
-                type[BaseUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy]],
-                type[BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]],
-            ]
+    def priority() -> list[
+        Union[
+            type[BaseUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy]],
+            type[BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]],
         ]
-    ):
+    ]:
         return cast(
             list[
                 Union[
@@ -138,14 +134,12 @@ class CoreTaskPolicy(TaskRunOrchestrationPolicy):
     """
 
     @staticmethod
-    def priority() -> (
-        list[
-            Union[
-                type[BaseUniversalTransform[orm_models.TaskRun, core.TaskRunPolicy]],
-                type[BaseOrchestrationRule[orm_models.TaskRun, core.TaskRunPolicy]],
-            ]
+    def priority() -> list[
+        Union[
+            type[BaseUniversalTransform[orm_models.TaskRun, core.TaskRunPolicy]],
+            type[BaseOrchestrationRule[orm_models.TaskRun, core.TaskRunPolicy]],
         ]
-    ):
+    ]:
         return cast(
             list[
                 Union[
@@ -178,14 +172,12 @@ class ClientSideTaskOrchestrationPolicy(TaskRunOrchestrationPolicy):
     """
 
     @staticmethod
-    def priority() -> (
-        list[
-            Union[
-                type[BaseUniversalTransform[orm_models.TaskRun, core.TaskRunPolicy]],
-                type[BaseOrchestrationRule[orm_models.TaskRun, core.TaskRunPolicy]],
-            ]
+    def priority() -> list[
+        Union[
+            type[BaseUniversalTransform[orm_models.TaskRun, core.TaskRunPolicy]],
+            type[BaseOrchestrationRule[orm_models.TaskRun, core.TaskRunPolicy]],
         ]
-    ):
+    ]:
         return cast(
             list[
                 Union[
@@ -216,12 +208,10 @@ class BackgroundTaskPolicy(TaskRunOrchestrationPolicy):
     """
 
     @staticmethod
-    def priority() -> (
-        list[
-            type[BaseUniversalTransform[orm_models.TaskRun, core.TaskRunPolicy]]
-            | type[BaseOrchestrationRule[orm_models.TaskRun, core.TaskRunPolicy]]
-        ]
-    ):
+    def priority() -> list[
+        type[BaseUniversalTransform[orm_models.TaskRun, core.TaskRunPolicy]]
+        | type[BaseOrchestrationRule[orm_models.TaskRun, core.TaskRunPolicy]]
+    ]:
         return cast(
             list[
                 Union[
@@ -251,14 +241,12 @@ class BackgroundTaskPolicy(TaskRunOrchestrationPolicy):
 
 class MinimalFlowPolicy(FlowRunOrchestrationPolicy):
     @staticmethod
-    def priority() -> (
-        list[
-            Union[
-                type[BaseUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy]],
-                type[BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]],
-            ]
+    def priority() -> list[
+        Union[
+            type[BaseUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy]],
+            type[BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]],
         ]
-    ):
+    ]:
         return [
             BypassCancellingFlowRunsWithNoInfra,  # cancel scheduled or suspended runs from the UI
             InstrumentFlowRunStateTransitions,
@@ -268,14 +256,12 @@ class MinimalFlowPolicy(FlowRunOrchestrationPolicy):
 
 class MarkLateRunsPolicy(FlowRunOrchestrationPolicy):
     @staticmethod
-    def priority() -> (
-        list[
-            Union[
-                type[BaseUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy]],
-                type[BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]],
-            ]
+    def priority() -> list[
+        Union[
+            type[BaseUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy]],
+            type[BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]],
         ]
-    ):
+    ]:
         return [
             EnsureOnlyScheduledFlowsMarkedLate,
             InstrumentFlowRunStateTransitions,
@@ -284,14 +270,12 @@ class MarkLateRunsPolicy(FlowRunOrchestrationPolicy):
 
 class MinimalTaskPolicy(TaskRunOrchestrationPolicy):
     @staticmethod
-    def priority() -> (
-        list[
-            Union[
-                type[BaseUniversalTransform[orm_models.TaskRun, core.TaskRunPolicy]],
-                type[BaseOrchestrationRule[orm_models.TaskRun, core.TaskRunPolicy]],
-            ]
+    def priority() -> list[
+        Union[
+            type[BaseUniversalTransform[orm_models.TaskRun, core.TaskRunPolicy]],
+            type[BaseOrchestrationRule[orm_models.TaskRun, core.TaskRunPolicy]],
         ]
-    ):
+    ]:
         return [
             ReleaseTaskConcurrencySlots,  # always release concurrency slots
         ]
@@ -1202,9 +1186,9 @@ class HandleFlowTerminalStateTransitions(FlowRunOrchestrationRule):
         if initial_state is None or proposed_state is None:
             return
 
-        self.original_flow_policy: dict[
-            str, Any
-        ] = context.run.empirical_policy.model_dump()
+        self.original_flow_policy: dict[str, Any] = (
+            context.run.empirical_policy.model_dump()
+        )
 
         # Do not allow runs to be marked as crashed, paused, or cancelling if already terminal
         if proposed_state.type in {

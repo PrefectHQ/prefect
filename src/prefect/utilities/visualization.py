@@ -42,8 +42,7 @@ def track_viz_task(
     task_name: str,
     parameters: dict[str, Any],
     viz_return_value: Optional[Any] = None,
-) -> Coroutine[Any, Any, Any]:
-    ...
+) -> Coroutine[Any, Any, Any]: ...
 
 
 @overload
@@ -52,8 +51,7 @@ def track_viz_task(
     task_name: str,
     parameters: dict[str, Any],
     viz_return_value: Optional[Any] = None,
-) -> Any:
-    ...
+) -> Any: ...
 
 
 def track_viz_task(

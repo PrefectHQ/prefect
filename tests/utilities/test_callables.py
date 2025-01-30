@@ -315,8 +315,7 @@ class TestFunctionToSchema:
         class Foo(pydantic.BaseModel):
             bar: str
 
-        def f(foo: Foo = Foo(bar="baz")):
-            ...
+        def f(foo: Foo = Foo(bar="baz")): ...
 
         schema = callables.parameter_schema(f)
         assert schema.model_dump_for_openapi() == {
@@ -365,8 +364,7 @@ class TestFunctionToSchema:
             pdate: pendulum.Date = pendulum.date(2025, 1, 1),
             pduration: pendulum.Duration = pendulum.duration(seconds=5),
             c: Color = Color.BLUE,
-        ):
-            ...
+        ): ...
 
         datetime_schema = {
             "title": "pdt",

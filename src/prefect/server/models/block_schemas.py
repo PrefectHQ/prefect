@@ -40,7 +40,7 @@ async def create_block_schema(
         "ClientBlockSchema",
     ],
     override: bool = False,
-    definitions: Optional[dict[str, Any]] = None,
+    definitions: Optional[Dict[str, Any]] = None,
 ) -> Union[BlockSchema, orm_models.BlockSchema]:
     """
     Create a new block schema.
@@ -97,10 +97,10 @@ async def create_block_schema(
             insert_values["fields"], definitions
         )
         if non_block_definitions:
-            insert_values["fields"][
-                "definitions"
-            ] = _get_non_block_reference_definitions(
-                insert_values["fields"], definitions
+            insert_values["fields"]["definitions"] = (
+                _get_non_block_reference_definitions(
+                    insert_values["fields"], definitions
+                )
             )
         else:
             # Prevent storing definitions for blocks. Those are reconstructed on read.
@@ -452,7 +452,7 @@ def _construct_block_schema_spec_definitions(
     Constructs field definitions for a block schema based on the nested block schemas
     as defined in the block_schemas_with_references list.
     """
-    definitions: dict[str, Any] = {}
+    definitions: Dict[str, Any] = {}
     for _, block_schema_references in root_block_schema.fields[
         "block_schema_references"
     ].items():
@@ -548,9 +548,9 @@ def _construct_block_schema_fields_with_block_references(
         parent_block_schema_id,
     ) in block_schemas_with_references:
         if parent_block_schema_id == parent_block_schema.id:
-            assert (
-                nested_block_schema.block_type
-            ), f"{nested_block_schema} has no block type"
+            assert nested_block_schema.block_type, (
+                f"{nested_block_schema} has no block type"
+            )
 
             new_block_schema_reference = {
                 "block_schema_checksum": nested_block_schema.checksum,
@@ -558,9 +558,9 @@ def _construct_block_schema_fields_with_block_references(
             }
             # A block reference for this key does not yet exist
             if name not in block_schema_fields_copy["block_schema_references"]:
-                block_schema_fields_copy["block_schema_references"][
-                    name
-                ] = new_block_schema_reference
+                block_schema_fields_copy["block_schema_references"][name] = (
+                    new_block_schema_reference
+                )
             else:
                 # List of block references for this key already exist and the block
                 # reference that we are attempting add isn't present
