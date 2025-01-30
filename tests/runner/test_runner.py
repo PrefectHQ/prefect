@@ -988,7 +988,7 @@ class TestRunner:
 
         with tempfile.TemporaryDirectory() as temp_dir:
             storage = MockStorage(base_path=Path(temp_dir), pull_code_spy=pull_code_spy)
-            deployment = await RunnerDeployment.from_storage(
+            deployment = await RunnerDeployment.afrom_storage(
                 storage=storage,
                 entrypoint="flows.py:test_flow",
                 name=__file__,
@@ -1660,13 +1660,51 @@ class TestRunnerDeployment:
         ):
             await deployment.apply()
 
-    async def test_create_runner_deployment_from_storage(
+    def test_create_runner_deployment_from_storage(self, temp_storage: MockStorage):
+        concurrency_limit_config = ConcurrencyLimitConfig(
+            limit=42, collision_strategy="CANCEL_NEW"
+        )
+        deployment = RunnerDeployment.from_storage(
+            storage=temp_storage,
+            entrypoint="flows.py:test_flow",
+            name="test-deployment",
+            interval=datetime.timedelta(seconds=30),
+            description="Test Deployment Description",
+            tags=["tag1", "tag2"],
+            version="1.0.0",
+            enforce_parameter_schema=True,
+            concurrency_limit=concurrency_limit_config,
+        )
+        assert isinstance(deployment, RunnerDeployment)
+
+        # Verify the created RunnerDeployment's attributes
+        assert deployment.name == "test-deployment"
+        assert deployment.flow_name == "test-flow"
+        assert deployment.schedules
+        assert deployment.schedules[0].schedule.interval == datetime.timedelta(
+            seconds=30
+        )
+        assert deployment.tags == ["tag1", "tag2"]
+        assert deployment.version == "1.0.0"
+        assert deployment.description == "Test Deployment Description"
+        assert deployment.enforce_parameter_schema is True
+        assert deployment.concurrency_limit == concurrency_limit_config.limit
+        assert (
+            deployment.concurrency_options.collision_strategy
+            == concurrency_limit_config.collision_strategy
+        )
+        assert deployment._path
+        assert "$STORAGE_BASE_PATH" in deployment._path
+        assert deployment.entrypoint == "flows.py:test_flow"
+        assert deployment.storage == temp_storage
+
+    async def test_create_runner_deployment_from_storage_async(
         self, temp_storage: MockStorage
     ):
         concurrency_limit_config = ConcurrencyLimitConfig(
             limit=42, collision_strategy="CANCEL_NEW"
         )
-        deployment = await RunnerDeployment.from_storage(
+        deployment = await RunnerDeployment.afrom_storage(
             storage=temp_storage,
             entrypoint="flows.py:test_flow",
             name="test-deployment",
@@ -1699,8 +1737,33 @@ class TestRunnerDeployment:
         assert deployment.entrypoint == "flows.py:test_flow"
         assert deployment.storage == temp_storage
 
-    async def test_from_storage_accepts_schedules(self, temp_storage: MockStorage):
-        deployment = await RunnerDeployment.from_storage(
+    def test_from_storage_accepts_schedules(self, temp_storage: MockStorage):
+        deployment = RunnerDeployment.from_storage(
+            storage=temp_storage,
+            entrypoint="flows.py:test_flow",
+            name="test-deployment",
+            schedules=[
+                DeploymentScheduleCreate(
+                    schedule=CronSchedule(cron="* * * * *"), active=True
+                ),
+                IntervalSchedule(interval=datetime.timedelta(days=1)),
+                {
+                    "schedule": IntervalSchedule(interval=datetime.timedelta(days=2)),
+                    "active": False,
+                },
+            ],
+        )
+        assert isinstance(deployment, RunnerDeployment)
+        assert deployment.schedules
+        assert deployment.schedules[0].schedule.cron == "* * * * *"
+        assert deployment.schedules[0].active is True
+        assert deployment.schedules[1].schedule.interval == datetime.timedelta(days=1)
+        assert deployment.schedules[1].active is True
+        assert deployment.schedules[2].schedule.interval == datetime.timedelta(days=2)
+        assert deployment.schedules[2].active is False
+
+    async def test_afrom_storage_accepts_schedules(self, temp_storage: MockStorage):
+        deployment = await RunnerDeployment.afrom_storage(
             storage=temp_storage,
             entrypoint="flows.py:test_flow",
             name="test-deployment",
@@ -1727,10 +1790,27 @@ class TestRunnerDeployment:
         "value,expected",
         [(True, True), (False, False), (None, False)],
     )
-    async def test_from_storage_accepts_paused(
+    def test_from_storage_accepts_paused(
         self, value: Union[bool, None], expected: bool, temp_storage: MockStorage
     ):
-        deployment = await RunnerDeployment.from_storage(
+        deployment = RunnerDeployment.from_storage(
+            storage=temp_storage,
+            entrypoint="flows.py:test_flow",
+            name="test-deployment",
+            paused=value,
+        )
+        assert isinstance(deployment, RunnerDeployment)
+
+        assert deployment.paused is expected
+
+    @pytest.mark.parametrize(
+        "value,expected",
+        [(True, True), (False, False), (None, False)],
+    )
+    async def test_afrom_storage_accepts_paused(
+        self, value: Union[bool, None], expected: bool, temp_storage: MockStorage
+    ):
+        deployment = await RunnerDeployment.afrom_storage(
             storage=temp_storage,
             entrypoint="flows.py:test_flow",
             name="test-deployment",
@@ -1871,10 +1951,8 @@ class TestDeploy:
         assert deployment_2.pull_steps == [{"prefect.fake.module": {}}]
 
         console_output = capsys.readouterr().out
-        assert (
-            f"prefect worker start --pool {work_pool_with_image_variable.name!r}"
-            in console_output
-        )
+        assert "prefect worker start --pool" in console_output
+        assert work_pool_with_image_variable.name in console_output
         assert "prefect deployment run [DEPLOYMENT_NAME]" in console_output
 
     async def test_deploy_to_default_work_pool(
@@ -1926,10 +2004,8 @@ class TestDeploy:
             assert deployment_2.pull_steps == [{"prefect.fake.module": {}}]
 
             console_output = capsys.readouterr().out
-            assert (
-                f"prefect worker start --pool {work_pool_with_image_variable.name!r}"
-                in console_output
-            )
+            assert "prefect worker start --pool" in console_output
+            assert work_pool_with_image_variable.name in console_output
             assert "prefect deployment run [DEPLOYMENT_NAME]" in console_output
 
     async def test_deploy_with_active_workers(

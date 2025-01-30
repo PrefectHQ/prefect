@@ -18,6 +18,7 @@ import prefect.settings
 from prefect.blocks.core import Block
 from prefect.client.orchestration import get_client
 from prefect.client.schemas import sorting
+from prefect.client.schemas.filters import FlowFilter, FlowFilterName
 from prefect.client.utilities import inject_client
 from prefect.logging.handlers import APILogWorker
 from prefect.results import (
@@ -181,12 +182,18 @@ def prefect_test_harness(server_startup_timeout: int | None = 30):
         test_server.stop()
 
 
-async def get_most_recent_flow_run(client: "PrefectClient | None" = None) -> "FlowRun":
+async def get_most_recent_flow_run(
+    client: "PrefectClient | None" = None, flow_name: str | None = None
+) -> "FlowRun":
     if client is None:
         client = get_client()
 
     flow_runs = await client.read_flow_runs(
-        sort=sorting.FlowRunSort.EXPECTED_START_TIME_ASC, limit=1
+        sort=sorting.FlowRunSort.EXPECTED_START_TIME_ASC,
+        limit=1,
+        flow_filter=FlowFilter(name=FlowFilterName(any_=[flow_name]))
+        if flow_name
+        else None,
     )
 
     return flow_runs[0]

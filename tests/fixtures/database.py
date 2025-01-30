@@ -688,7 +688,7 @@ async def work_pool_with_image_variable(session):
     model = await models.workers.create_work_pool(
         session=session,
         work_pool=schemas.actions.WorkPoolCreate(
-            name="test-work-pool",
+            name=f"test-work-pool-{uuid.uuid4()}",
             type="test-type",
             base_job_template={
                 "job_configuration": {
@@ -727,7 +727,7 @@ async def process_work_pool(session):
     model = await models.workers.create_work_pool(
         session=session,
         work_pool=schemas.actions.WorkPoolCreate(
-            name="process-work-pool",
+            name=f"process-work-pool-{uuid.uuid4()}",
             type=ProcessWorker.type,
             base_job_template=ProcessWorker.get_default_base_job_template(),
         ),
@@ -741,7 +741,7 @@ async def push_work_pool(session):
     model = await models.workers.create_work_pool(
         session=session,
         work_pool=schemas.actions.WorkPoolCreate(
-            name="push-work-pool",
+            name=f"push-work-pool-{uuid.uuid4()}",
             type="push-work-pool:push",
             base_job_template={
                 "job_configuration": {
@@ -773,7 +773,7 @@ async def managed_work_pool(session):
     model = await models.workers.create_work_pool(
         session=session,
         work_pool=schemas.actions.WorkPoolCreate(
-            name="mex-work-pool",
+            name=f"mex-work-pool-{uuid.uuid4()}",
             type="mex-work-pool:managed",
             base_job_template={
                 "job_configuration": {
@@ -805,7 +805,7 @@ async def prefect_agent_work_pool(session):
     model = await models.workers.create_work_pool(
         session=session,
         work_pool=schemas.actions.WorkPoolCreate(
-            name="process-work-pool",
+            name=f"process-work-pool-{uuid.uuid4()}",
             type="prefect-agent",
         ),
     )
