@@ -247,3 +247,12 @@ Alternatively, the Prefect library connects to the API through any proxies you h
 You may also use the `NO_PROXY` environment variable to specify which hosts should not pass through the proxy.
 
 For more information about these environment variables, see the [cURL documentation](https://everything.curl.dev/usingcurl/proxies/env).
+
+#### UI
+
+When self-hosting the UI behind a proxy or reverse proxy, there are a few settings you may need to keep in mind:
+
+- `PREFECT_UI_API_URL`: the connection URL for communication from the UI to the API
+- `PREFECT_UI_SERVE_BASE`: the base URL path to serve the UI from
+- `PREFECT_UI_URL`: this is a convenience setting for _clients_ that print or log UI URLs (for example, the Prefect CLI)
+
