@@ -1,0 +1,245 @@
+// nb: Open API typings need to be updated from {}
+type ServerSettings = Record<string, unknown>;
+
+export const createFakeServerSettings = (
+	overrides?: Partial<ServerSettings>,
+): ServerSettings => {
+	return {
+		home: "/some/path/.prefect",
+		profiles_path: "/some/path/.prefect/profiles.toml",
+		debug_mode: false,
+		api: {
+			url: "http://127.0.0.1:4200/api",
+			auth_string: null,
+			key: null,
+			tls_insecure_skip_verify: false,
+			ssl_cert_file: null,
+			enable_http2: false,
+			request_timeout: 60.0,
+		},
+		cli: {
+			colors: true,
+			prompt: null,
+			wrap_lines: true,
+		},
+		client: {
+			max_retries: 5,
+			retry_jitter_factor: 0.2,
+			retry_extra_codes: [],
+			csrf_support_enabled: true,
+			metrics: {
+				enabled: false,
+				port: 4201,
+			},
+		},
+		cloud: {
+			api_url: "https://api.prefect.cloud/api",
+			ui_url: "https://app.prefect.cloud",
+		},
+		deployments: {
+			default_work_pool_name: null,
+			default_docker_build_namespace: null,
+		},
+		experiments: {
+			warn: true,
+			telemetry_enabled: false,
+			lineage_events_enabled: false,
+		},
+		flows: {
+			default_retries: 0,
+			default_retry_delay_seconds: 0,
+		},
+		internal: {
+			logging_level: "ERROR",
+		},
+		logging: {
+			level: "INFO",
+			config_path: "/Users/devinvillarosa/.prefect/logging.yml",
+			extra_loggers: [],
+			log_prints: false,
+			colors: true,
+			markup: false,
+			to_api: {
+				enabled: true,
+				batch_interval: 2.0,
+				batch_size: 4000000,
+				max_log_size: 1000000,
+				when_missing_flow: "warn",
+			},
+		},
+		results: {
+			default_serializer: "pickle",
+			persist_by_default: false,
+			default_storage_block: null,
+			local_storage_path: "/Users/devinvillarosa/.prefect/storage",
+		},
+		runner: {
+			process_limit: 5,
+			poll_frequency: 10,
+			heartbeat_frequency: null,
+			server: {
+				enable: false,
+				host: "localhost",
+				port: 8080,
+				log_level: "ERROR",
+				missed_polls_tolerance: 2,
+			},
+		},
+		server: {
+			logging_level: "WARNING",
+			analytics_enabled: true,
+			metrics_enabled: false,
+			log_retryable_errors: false,
+			register_blocks_on_start: true,
+			memoize_block_auto_registration: true,
+			memo_store_path: "/Users/devinvillarosa/.prefect/memo_store.toml",
+			deployment_schedule_max_scheduled_runs: 50,
+			api: {
+				auth_string: null,
+				host: "127.0.0.1",
+				port: 4200,
+				default_limit: 200,
+				keepalive_timeout: 5,
+				csrf_protection_enabled: false,
+				csrf_token_expiration: "PT1H",
+				cors_allowed_origins: "*",
+				cors_allowed_methods: "*",
+				cors_allowed_headers: "*",
+			},
+			database: {
+				connection_url: "**********",
+				driver: null,
+				host: null,
+				port: null,
+				user: null,
+				name: null,
+				password: null,
+				echo: false,
+				migrate_on_start: true,
+				timeout: 10.0,
+				connection_timeout: 5.0,
+				sqlalchemy_pool_size: null,
+				sqlalchemy_max_overflow: null,
+			},
+			deployments: {
+				concurrency_slot_wait_seconds: 30.0,
+			},
+			ephemeral: {
+				enabled: false,
+				startup_timeout_seconds: 20,
+			},
+			events: {
+				stream_out_enabled: true,
+				related_resource_cache_ttl: "PT5M",
+				maximum_labels_per_resource: 500,
+				maximum_related_resources: 500,
+				maximum_size_bytes: 1500000,
+				expired_bucket_buffer: "PT1M",
+				proactive_granularity: "PT5S",
+				retention_period: "P7D",
+				maximum_websocket_backfill: "PT15M",
+				websocket_backfill_page_size: 250,
+				messaging_broker: "prefect.server.utilities.messaging.memory",
+				messaging_cache: "prefect.server.utilities.messaging.memory",
+				maximum_event_name_length: 1024,
+			},
+			flow_run_graph: {
+				max_nodes: 10000,
+				max_artifacts: 10000,
+			},
+			services: {
+				cancellation_cleanup: {
+					enabled: true,
+					loop_seconds: 20.0,
+				},
+				event_persister: {
+					enabled: true,
+					batch_size: 20,
+					flush_interval: 5.0,
+				},
+				flow_run_notifications: {
+					enabled: true,
+				},
+				foreman: {
+					enabled: true,
+					loop_seconds: 15.0,
+					inactivity_heartbeat_multiple: 3,
+					fallback_heartbeat_interval_seconds: 30,
+					deployment_last_polled_timeout_seconds: 60,
+					work_queue_last_polled_timeout_seconds: 60,
+				},
+				late_runs: {
+					enabled: true,
+					loop_seconds: 5.0,
+					after_seconds: "PT15S",
+				},
+				scheduler: {
+					enabled: true,
+					loop_seconds: 60.0,
+					deployment_batch_size: 100,
+					max_runs: 100,
+					min_runs: 3,
+					max_scheduled_time: "P100D",
+					min_scheduled_time: "PT1H",
+					insert_batch_size: 500,
+				},
+				pause_expirations: {
+					enabled: true,
+					loop_seconds: 5.0,
+				},
+				task_run_recorder: {
+					enabled: true,
+				},
+				triggers: {
+					enabled: true,
+				},
+			},
+			tasks: {
+				tag_concurrency_slot_wait_seconds: 30.0,
+				max_cache_key_length: 2000,
+				scheduling: {
+					max_scheduled_queue_size: 1000,
+					max_retry_queue_size: 100,
+					pending_task_timeout: "PT0S",
+				},
+			},
+			ui: {
+				enabled: true,
+				api_url: "http://127.0.0.1:4200/api",
+				serve_base: "/",
+				static_directory: null,
+			},
+		},
+		tasks: {
+			refresh_cache: false,
+			default_retries: 0,
+			default_retry_delay_seconds: 0,
+			default_persist_result: null,
+			runner: {
+				thread_pool_max_workers: null,
+			},
+			scheduling: {
+				default_storage_block: null,
+				delete_failed_submissions: true,
+			},
+		},
+		testing: {
+			test_mode: false,
+			unit_test_mode: false,
+			unit_test_loop_debug: true,
+			test_setting: "FOO",
+		},
+		worker: {
+			heartbeat_seconds: 30.0,
+			query_seconds: 10.0,
+			prefetch_seconds: 10.0,
+			webserver: {
+				host: "0.0.0.0",
+				port: 8080,
+			},
+		},
+		ui_url: "http://127.0.0.1:4200",
+		silence_api_url_misconfiguration: false,
+		...overrides,
+	};
+};
