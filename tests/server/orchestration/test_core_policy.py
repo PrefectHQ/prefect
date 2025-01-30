@@ -3587,7 +3587,7 @@ class TestFlowConcurrencyLimits:
         )
 
         with mock.patch(
-            "prefect.server.orchestration.core_policy.pendulum.now"
+            "prefect.server.orchestration.core_policy.DateTime.now"
         ) as mock_pendulum_now:
             expected_now: pendulum.DateTime = pendulum.parse("2024-01-01T00:00:00Z")  # type: ignore
             mock_pendulum_now.return_value = expected_now
@@ -3646,7 +3646,7 @@ class TestFlowConcurrencyLimits:
             )
 
             with mock.patch(
-                "prefect.server.orchestration.core_policy.pendulum.now"
+                "prefect.server.orchestration.core_policy.DateTime.now"
             ) as mock_pendulum_now:
                 expected_now: pendulum.DateTime = pendulum.parse("2024-01-01T00:00:00Z")  # type: ignore
                 mock_pendulum_now.return_value = expected_now
@@ -3779,7 +3779,7 @@ class TestFlowConcurrencyLimits:
         )
 
         with mock.patch(
-            "prefect.server.orchestration.core_policy.pendulum.now"
+            "prefect.server.orchestration.core_policy.DateTime.now"
         ) as mock_pendulum_now:
             expected_now: pendulum.DateTime = pendulum.parse("2024-01-01T00:00:00Z")  # type: ignore
             mock_pendulum_now.return_value = expected_now
@@ -3864,7 +3864,7 @@ class TestFlowConcurrencyLimits:
         )
 
         with mock.patch(
-            "prefect.server.orchestration.core_policy.pendulum.now"
+            "prefect.server.orchestration.core_policy.DateTime.now"
         ) as mock_pendulum_now:
             expected_now: pendulum.DateTime = pendulum.parse("2024-01-01T00:00:00Z")  # type: ignore
             mock_pendulum_now.return_value = expected_now
