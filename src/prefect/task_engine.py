@@ -28,7 +28,6 @@ from typing import (
 from uuid import UUID
 
 import anyio
-import pendulum
 from opentelemetry import trace
 from typing_extensions import ParamSpec, Self
 
@@ -80,6 +79,7 @@ from prefect.states import (
 )
 from prefect.telemetry.run_telemetry import RunTelemetry
 from prefect.transactions import IsolationLevel, Transaction, transaction
+from prefect.types._datetime import DateTime, PendulumDuration
 from prefect.utilities._engine import get_hook_name
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_coro_as_sync
@@ -437,7 +437,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if last_state.timestamp == new_state.timestamp:
             # Ensure that the state timestamp is unique, or at least not equal to the last state.
             # This might occur especially on Windows where the timestamp resolution is limited.
-            new_state.timestamp += pendulum.duration(microseconds=1)
+            new_state.timestamp += PendulumDuration(microseconds=1)
 
         # Ensure that the state_details are populated with the current run IDs
         new_state.state_details.task_run_id = self.task_run.id
@@ -486,7 +486,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
     def handle_success(self, result: R, transaction: Transaction) -> R:
         if self.task.cache_expiration is not None:
-            expiration = pendulum.now("utc") + self.task.cache_expiration
+            expiration = DateTime.now("utc") + self.task.cache_expiration
         else:
             expiration = None
 
@@ -535,7 +535,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     else self.task.retry_delay_seconds
                 )
                 new_state = AwaitingRetry(
-                    scheduled_time=pendulum.now("utc").add(seconds=delay)
+                    scheduled_time=DateTime.now("utc").add(seconds=delay)
                 )
             else:
                 delay = None
@@ -728,7 +728,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     async def wait_until_ready(self) -> None:
         """Waits until the scheduled time (if its the future), then enters Running."""
         if scheduled_time := self.state.state_details.scheduled_time:
-            sleep_time = (scheduled_time - pendulum.now("utc")).total_seconds()
+            sleep_time = (scheduled_time - DateTime.now("utc")).total_seconds()
             await anyio.sleep(sleep_time if sleep_time > 0 else 0)
             new_state = Retrying() if self.state.name == "AwaitingRetry" else Running()
             self.set_state(
@@ -970,7 +970,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if last_state.timestamp == new_state.timestamp:
             # Ensure that the state timestamp is unique, or at least not equal to the last state.
             # This might occur especially on Windows where the timestamp resolution is limited.
-            new_state.timestamp += pendulum.duration(microseconds=1)
+            new_state.timestamp += DateTime.duration(microseconds=1)
 
         # Ensure that the state_details are populated with the current run IDs
         new_state.state_details.task_run_id = self.task_run.id
@@ -1020,7 +1020,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
     async def handle_success(self, result: R, transaction: Transaction) -> R:
         if self.task.cache_expiration is not None:
-            expiration = pendulum.now("utc") + self.task.cache_expiration
+            expiration = DateTime.now("utc") + self.task.cache_expiration
         else:
             expiration = None
 
@@ -1068,7 +1068,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     else self.task.retry_delay_seconds
                 )
                 new_state = AwaitingRetry(
-                    scheduled_time=pendulum.now("utc").add(seconds=delay)
+                    scheduled_time=DateTime.now("utc").add(seconds=delay)
                 )
             else:
                 delay = None
@@ -1259,7 +1259,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     async def wait_until_ready(self) -> None:
         """Waits until the scheduled time (if its the future), then enters Running."""
         if scheduled_time := self.state.state_details.scheduled_time:
-            sleep_time = (scheduled_time - pendulum.now("utc")).total_seconds()
+            sleep_time = (scheduled_time - DateTime.now("utc")).total_seconds()
             await anyio.sleep(sleep_time if sleep_time > 0 else 0)
             new_state = Retrying() if self.state.name == "AwaitingRetry" else Running()
             await self.set_state(
