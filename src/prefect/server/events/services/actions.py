@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, NoReturn
 
 from prefect.logging import get_logger
 from prefect.server.events import actions
+from prefect.server.services.base import Service
 from prefect.server.utilities.messaging import Consumer, create_consumer
 
 if TYPE_CHECKING:
@@ -13,7 +14,7 @@ if TYPE_CHECKING:
 logger: "logging.Logger" = get_logger(__name__)
 
 
-class Actions:
+class Actions(Service):
     """Runs actions triggered by Automatinos"""
 
     name: str = "Actions"
