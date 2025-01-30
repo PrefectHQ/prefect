@@ -16,7 +16,7 @@ import prefect.server.models as models
 from prefect.server.database import PrefectDBInterface
 from prefect.server.database.dependencies import db_injector
 from prefect.server.schemas.states import StateType
-from prefect.server.services.loop_service import LoopService, run_multiple_services
+from prefect.server.services.base import LoopService, run_multiple_services
 from prefect.settings import (
     PREFECT_API_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE,
     PREFECT_API_SERVICES_SCHEDULER_INSERT_BATCH_SIZE,
@@ -26,6 +26,8 @@ from prefect.settings import (
     PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS,
     PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME,
 )
+from prefect.settings.context import get_current_settings
+from prefect.settings.models.server.services import ServicesBaseSetting
 from prefect.utilities.collections import batched_iterable
 
 
@@ -35,12 +37,16 @@ class TryAgain(Exception):
 
 class Scheduler(LoopService):
     """
-    A loop service that schedules flow runs from deployments.
+    Schedules flow runs from deployments.
     """
 
     # the main scheduler takes its loop interval from
     # PREFECT_API_SERVICES_SCHEDULER_LOOP_SECONDS
     loop_seconds: float
+
+    @classmethod
+    def service_settings(cls) -> ServicesBaseSetting:
+        return get_current_settings().server.services.scheduler
 
     def __init__(self, loop_seconds: float | None = None, **kwargs: Any):
         super().__init__(
@@ -298,7 +304,8 @@ class Scheduler(LoopService):
 
 class RecentDeploymentsScheduler(Scheduler):
     """
-    A scheduler that only schedules deployments that were updated very recently.
+    Schedules deployments that were updated very recently
+
     This scheduler can run on a tight loop and ensure that runs from
     newly-created or updated deployments are rapidly scheduled without having to
     wait for the "main" scheduler to complete its loop.
@@ -310,6 +317,10 @@ class RecentDeploymentsScheduler(Scheduler):
 
     # this scheduler runs on a tight loop
     loop_seconds: float = 5
+
+    @classmethod
+    def service_settings(cls) -> ServicesBaseSetting:
+        return get_current_settings().server.services.scheduler
 
     @db_injector
     def _get_select_deployments_to_schedule_query(

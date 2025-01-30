@@ -19,11 +19,13 @@ from prefect.server.database.dependencies import db_injector
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.orchestration.core_policy import MarkLateRunsPolicy
 from prefect.server.schemas import states
-from prefect.server.services.loop_service import LoopService
+from prefect.server.services.base import LoopService
 from prefect.settings import (
     PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS,
     PREFECT_API_SERVICES_LATE_RUNS_LOOP_SECONDS,
 )
+from prefect.settings.context import get_current_settings
+from prefect.settings.models.server.services import ServicesBaseSetting
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -31,12 +33,16 @@ if TYPE_CHECKING:
 
 class MarkLateRuns(LoopService):
     """
-    A simple loop service responsible for identifying flow runs that are "late".
+    Finds flow runs that are later than their scheduled start time
 
     A flow run is defined as "late" if has not scheduled within a certain amount
     of time after its scheduled start time. The exact amount is configurable in
     Prefect REST API Settings.
     """
+
+    @classmethod
+    def service_settings(cls) -> ServicesBaseSetting:
+        return get_current_settings().server.services.late_runs
 
     def __init__(self, loop_seconds: float | None = None, **kwargs: Any):
         super().__init__(

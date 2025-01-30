@@ -19,6 +19,7 @@ from prefect.server.events.ordering import CausalOrdering, EventArrivedEarly
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.schemas.core import TaskRun
 from prefect.server.schemas.states import State
+from prefect.server.services.base import Service
 from prefect.server.utilities.messaging import (
     Consumer,
     Message,
@@ -26,6 +27,8 @@ from prefect.server.utilities.messaging import (
     create_consumer,
 )
 from prefect.server.utilities.messaging.memory import log_metrics_periodically
+from prefect.settings.context import get_current_settings
+from prefect.settings.models.server.services import ServicesBaseSetting
 
 if TYPE_CHECKING:
     import logging
@@ -214,15 +217,18 @@ async def consumer() -> AsyncGenerator[MessageHandler, None]:
     yield message_handler
 
 
-class TaskRunRecorder:
-    """A service to record task run and task run states from events."""
-
-    name: str = "TaskRunRecorder"
+class TaskRunRecorder(Service):
+    """Constructs task runs and states from client-emitted events"""
 
     consumer_task: asyncio.Task[None] | None = None
     metrics_task: asyncio.Task[None] | None = None
 
+    @classmethod
+    def service_settings(cls) -> ServicesBaseSetting:
+        return get_current_settings().server.services.task_run_recorder
+
     def __init__(self):
+        super().__init__()
         self._started_event: Optional[asyncio.Event] = None
 
     @property

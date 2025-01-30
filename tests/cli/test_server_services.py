@@ -2,6 +2,8 @@ from pathlib import Path
 
 import pytest
 
+from prefect import settings
+from prefect.server.services.base import Service
 from prefect.settings import PREFECT_HOME
 from prefect.settings.context import temporary_settings
 from prefect.testing.cli import invoke_and_assert
@@ -9,12 +11,11 @@ from prefect.testing.cli import invoke_and_assert
 
 @pytest.fixture(autouse=True)
 def enable_all_services():
-    from prefect.cli.server import (
-        _get_service_settings,  # type: ignore[reportPrivateUsage]
-    )
-
     with temporary_settings(
-        {enable_service: True for enable_service in _get_service_settings().values()}
+        {
+            getattr(settings, enable_service.environment_variable_name()): True
+            for enable_service in Service.all_services()
+        }
     ):
         yield
 
@@ -123,9 +124,10 @@ class TestBackgroundServices:
             ],
             expected_output_contains=[
                 "Available Services",
-                "Name",
-                "Enabled?",
-                "Description",
+                "MarkLateRuns",
+                "PREFECT_SERVER_SERVICES_LATE_RUNS_ENABLED",
+                "Telemetry",
+                "PREFECT_SERVER_ANALYTICS_ENABLED",
             ],
             expected_code=0,
         )

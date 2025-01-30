@@ -29,6 +29,8 @@ from prefect.settings import (
     PREFECT_API_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL,
     PREFECT_EVENTS_RETENTION_PERIOD,
 )
+from prefect.settings.context import get_current_settings
+from prefect.settings.models.server.services import ServicesBaseSetting
 
 if TYPE_CHECKING:
     import logging
@@ -39,11 +41,14 @@ logger: "logging.Logger" = get_logger(__name__)
 class EventPersister(Service):
     """A service that persists events to the database as they arrive."""
 
-    name: str = "EventLogger"
-
     consumer_task: asyncio.Task[None] | None = None
 
+    @classmethod
+    def service_settings(cls) -> ServicesBaseSetting:
+        return get_current_settings().server.services.event_persister
+
     def __init__(self):
+        super().__init__()
         self._started_event: asyncio.Event | None = None
 
     @property
