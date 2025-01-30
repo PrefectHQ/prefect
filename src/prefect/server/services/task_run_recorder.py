@@ -9,7 +9,6 @@ import pendulum
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
-import prefect.settings
 from prefect.logging import get_logger
 from prefect.server.database import (
     PrefectDBInterface,
@@ -28,6 +27,8 @@ from prefect.server.utilities.messaging import (
     create_consumer,
 )
 from prefect.server.utilities.messaging.memory import log_metrics_periodically
+from prefect.settings.context import get_current_settings
+from prefect.settings.models.server.services import ServicesBaseSetting
 
 if TYPE_CHECKING:
     import logging
@@ -223,8 +224,8 @@ class TaskRunRecorder(Service):
     metrics_task: asyncio.Task[None] | None = None
 
     @classmethod
-    def enabled_setting(cls) -> prefect.settings.Setting:
-        return prefect.settings.PREFECT_API_SERVICES_TASK_RUN_RECORDER_ENABLED
+    def service_settings(cls) -> ServicesBaseSetting:
+        return get_current_settings().server.services.task_run_recorder
 
     def __init__(self):
         super().__init__()

@@ -3,11 +3,12 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, NoReturn
 
-import prefect.settings
 from prefect.logging import get_logger
 from prefect.server.events import actions
 from prefect.server.services.base import Service
 from prefect.server.utilities.messaging import Consumer, create_consumer
+from prefect.settings.context import get_current_settings
+from prefect.settings.models.server.services import ServicesBaseSetting
 
 if TYPE_CHECKING:
     import logging
@@ -21,8 +22,8 @@ class Actions(Service):
     consumer_task: asyncio.Task[None] | None = None
 
     @classmethod
-    def enabled_setting(cls) -> prefect.settings.Setting:
-        return prefect.settings.PREFECT_API_SERVICES_TRIGGERS_ENABLED
+    def service_settings(cls) -> ServicesBaseSetting:
+        return get_current_settings().server.services.triggers
 
     async def start(self) -> NoReturn:
         assert self.consumer_task is None, "Actions already started"

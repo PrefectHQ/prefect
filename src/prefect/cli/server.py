@@ -610,11 +610,14 @@ def list_services():
 
     for svc in Service.all_services():
         name = svc.__name__
+
+        setting_text = Text(f"✓ {svc.environment_variable_name()}", style="green")
+        if not svc.enabled():
+            setting_text = Text(f"x {svc.environment_variable_name()}", style="gray50")
+
         doc = inspect.getdoc(svc) or ""
         description = doc.split("\n", 1)[0].strip()
-        setting_text = Text(f"✓ {svc.enabled_setting().name}", style="green")
-        if not svc.enabled():
-            setting_text = Text(f"x {svc.enabled_setting().name}", style="gray50")
+
         table.add_row(name, setting_text, description)
 
     app.console.print(table)

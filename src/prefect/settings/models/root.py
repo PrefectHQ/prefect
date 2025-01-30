@@ -441,3 +441,8 @@ def _default_database_connection_url(settings: "Settings") -> SecretStr:
             f"Unsupported database driver: {settings.server.database.driver}"
         )
     return SecretStr(value)
+
+
+def canonical_environment_prefix(settings: "Settings") -> str:
+    print(repr(settings))
+    return settings.model_config.get("env_prefix", "")

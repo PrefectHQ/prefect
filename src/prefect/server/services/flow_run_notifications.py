@@ -10,12 +10,13 @@ from uuid import UUID
 
 import sqlalchemy as sa
 
-import prefect.settings
 from prefect.server import models, schemas
 from prefect.server.database import PrefectDBInterface
 from prefect.server.database.dependencies import db_injector
 from prefect.server.database.query_components import FlowRunNotificationsFromQueue
 from prefect.server.services.base import LoopService
+from prefect.settings import get_current_settings
+from prefect.settings.models.server.services import ServicesBaseSetting
 from prefect.utilities import urls
 
 
@@ -29,8 +30,8 @@ class FlowRunNotifications(LoopService):
     loop_seconds: float = 4
 
     @classmethod
-    def enabled_setting(cls) -> prefect.settings.Setting:
-        return prefect.settings.PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED
+    def service_settings(cls) -> ServicesBaseSetting:
+        return get_current_settings().server.services.flow_run_notifications
 
     @db_injector
     async def run_once(self, db: PrefectDBInterface) -> None:

@@ -10,13 +10,14 @@ import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.models as models
-import prefect.settings
 from prefect.server.database import PrefectDBInterface
 from prefect.server.database.dependencies import db_injector
 from prefect.server.database.orm_models import FlowRun
 from prefect.server.schemas import states
 from prefect.server.services.base import LoopService
 from prefect.settings import PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS
+from prefect.settings.context import get_current_settings
+from prefect.settings.models.server.services import ServicesBaseSetting
 
 
 class FailExpiredPauses(LoopService):
@@ -25,8 +26,8 @@ class FailExpiredPauses(LoopService):
     """
 
     @classmethod
-    def enabled_setting(cls) -> prefect.settings.Setting:
-        return prefect.settings.PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED
+    def service_settings(cls) -> ServicesBaseSetting:
+        return get_current_settings().server.services.pause_expirations
 
     def __init__(self, loop_seconds: Optional[float] = None, **kwargs: Any):
         super().__init__(

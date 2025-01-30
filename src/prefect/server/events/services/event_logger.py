@@ -6,11 +6,12 @@ from typing import TYPE_CHECKING, NoReturn
 import pendulum
 import rich
 
-import prefect.settings
 from prefect.logging import get_logger
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.services.base import Service
 from prefect.server.utilities.messaging import Consumer, Message, create_consumer
+from prefect.settings.context import get_current_settings
+from prefect.settings.models.server.services import ServicesBaseSetting
 
 if TYPE_CHECKING:
     import logging
@@ -24,8 +25,8 @@ class EventLogger(Service):
     consumer_task: asyncio.Task[None] | None = None
 
     @classmethod
-    def enabled_setting(cls) -> prefect.settings.Setting:
-        return prefect.settings.PREFECT_API_SERVICES_EVENT_LOGGER_ENABLED
+    def service_settings(cls) -> ServicesBaseSetting:
+        return get_current_settings().server.services.event_logger
 
     async def start(self) -> NoReturn:
         assert self.consumer_task is None, "Logger already started"

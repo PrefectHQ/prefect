@@ -13,7 +13,6 @@ from typing import TYPE_CHECKING, AsyncGenerator, List, NoReturn
 import pendulum
 import sqlalchemy as sa
 
-import prefect.settings
 from prefect.logging import get_logger
 from prefect.server.database import provide_database_interface
 from prefect.server.events.schemas.events import ReceivedEvent
@@ -30,6 +29,8 @@ from prefect.settings import (
     PREFECT_API_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL,
     PREFECT_EVENTS_RETENTION_PERIOD,
 )
+from prefect.settings.context import get_current_settings
+from prefect.settings.models.server.services import ServicesBaseSetting
 
 if TYPE_CHECKING:
     import logging
@@ -43,8 +44,8 @@ class EventPersister(Service):
     consumer_task: asyncio.Task[None] | None = None
 
     @classmethod
-    def enabled_setting(cls) -> prefect.settings.Setting:
-        return prefect.settings.PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED
+    def service_settings(cls) -> ServicesBaseSetting:
+        return get_current_settings().server.services.event_persister
 
     def __init__(self):
         super().__init__()

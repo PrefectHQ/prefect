@@ -13,9 +13,10 @@ from typing import Any, List, NoReturn, Optional, Sequence, overload
 import anyio
 from typing_extensions import Self
 
-import prefect.settings
 from prefect.logging.loggers import get_logger
 from prefect.settings import PREFECT_API_LOG_RETRYABLE_ERRORS
+from prefect.settings.models.root import canonical_environment_prefix
+from prefect.settings.models.server.services import ServicesBaseSetting
 from prefect.types import DateTime
 from prefect.utilities.processutils import (
     _register_signal,  # type: ignore[reportPrivateUsage]
@@ -56,14 +57,18 @@ class Service(ABC):
 
     @classmethod
     @abstractmethod
-    def enabled_setting(cls) -> prefect.settings.Setting:
+    def service_settings(cls) -> ServicesBaseSetting:
         """The Prefect setting that controls whether the service is enabled"""
         ...
 
     @classmethod
+    def environment_variable_name(cls) -> str:
+        return canonical_environment_prefix(cls.service_settings()) + "ENABLED"
+
+    @classmethod
     def enabled(cls) -> bool:
         """Whether the service is enabled"""
-        return cls.enabled_setting().value()
+        return cls.service_settings().enabled
 
     @classmethod
     def all_services(cls) -> Sequence[type[Self]]:

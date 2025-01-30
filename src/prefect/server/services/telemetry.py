@@ -19,6 +19,8 @@ from prefect.server.models import configuration
 from prefect.server.schemas.core import Configuration
 from prefect.server.services.base import LoopService
 from prefect.settings import PREFECT_DEBUG_MODE
+from prefect.settings.context import get_current_settings
+from prefect.settings.models.server.services import ServicesBaseSetting
 
 
 class Telemetry(LoopService):
@@ -31,8 +33,16 @@ class Telemetry(LoopService):
     loop_seconds: float = 600
 
     @classmethod
-    def enabled_setting(cls) -> prefect.settings.Setting:
-        return prefect.settings.PREFECT_SERVER_ANALYTICS_ENABLED
+    def service_settings(cls) -> ServicesBaseSetting:
+        raise NotImplementedError("Telemetry service does not have settings")
+
+    @classmethod
+    def environment_variable_name(cls) -> str:
+        return "PREFECT_SERVER_ANALYTICS_ENABLED"
+
+    @classmethod
+    def enabled(cls) -> bool:
+        return get_current_settings().server.analytics_enabled
 
     def __init__(self, loop_seconds: Optional[int] = None, **kwargs: Any):
         super().__init__(loop_seconds=loop_seconds, **kwargs)

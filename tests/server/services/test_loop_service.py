@@ -5,7 +5,7 @@ import pendulum
 import pytest
 
 from prefect.server.services.base import LoopService
-from prefect.settings import Setting
+from prefect.settings.models.server.services import ServicesBaseSetting
 
 
 async def test_asyncio_sleep_accepts_negative_numbers():
@@ -16,12 +16,8 @@ async def test_asyncio_sleep_accepts_negative_numbers():
 
 
 class ExampleService(LoopService):
-    def enabled_setting(cls) -> Setting:
-        return Setting(
-            name="is_this_thing_on",
-            default=True,
-            description="Whether the example service is enabled",
-        )
+    def service_settings(cls) -> ServicesBaseSetting:
+        return ServicesBaseSetting(enabled=True)
 
     async def run_once(self) -> None:
         pass

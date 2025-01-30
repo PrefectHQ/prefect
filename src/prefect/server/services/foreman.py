@@ -8,7 +8,6 @@ from typing import Any, Optional
 import pendulum
 import sqlalchemy as sa
 
-import prefect.settings
 from prefect.server import models
 from prefect.server.database import PrefectDBInterface, db_injector
 from prefect.server.models.deployments import mark_deployments_not_ready
@@ -27,7 +26,9 @@ from prefect.settings import (
     PREFECT_API_SERVICES_FOREMAN_INACTIVITY_HEARTBEAT_MULTIPLE,
     PREFECT_API_SERVICES_FOREMAN_LOOP_SECONDS,
     PREFECT_API_SERVICES_FOREMAN_WORK_QUEUE_LAST_POLLED_TIMEOUT_SECONDS,
+    get_current_settings,
 )
+from prefect.settings.models.server.services import ServicesBaseSetting
 
 
 class Foreman(LoopService):
@@ -36,8 +37,8 @@ class Foreman(LoopService):
     """
 
     @classmethod
-    def enabled_setting(cls) -> prefect.settings.Setting:
-        return prefect.settings.PREFECT_API_SERVICES_FOREMAN_ENABLED
+    def service_settings(cls) -> ServicesBaseSetting:
+        return get_current_settings().server.services.foreman
 
     def __init__(
         self,

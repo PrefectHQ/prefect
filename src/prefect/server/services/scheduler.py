@@ -13,7 +13,6 @@ import pendulum
 import sqlalchemy as sa
 
 import prefect.server.models as models
-import prefect.settings
 from prefect.server.database import PrefectDBInterface
 from prefect.server.database.dependencies import db_injector
 from prefect.server.schemas.states import StateType
@@ -27,6 +26,8 @@ from prefect.settings import (
     PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS,
     PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME,
 )
+from prefect.settings.context import get_current_settings
+from prefect.settings.models.server.services import ServicesBaseSetting
 from prefect.utilities.collections import batched_iterable
 
 
@@ -44,8 +45,8 @@ class Scheduler(LoopService):
     loop_seconds: float
 
     @classmethod
-    def enabled_setting(cls) -> "prefect.settings.Setting":
-        return prefect.settings.PREFECT_API_SERVICES_SCHEDULER_ENABLED
+    def service_settings(cls) -> ServicesBaseSetting:
+        return get_current_settings().server.services.scheduler
 
     def __init__(self, loop_seconds: float | None = None, **kwargs: Any):
         super().__init__(
@@ -318,8 +319,8 @@ class RecentDeploymentsScheduler(Scheduler):
     loop_seconds: float = 5
 
     @classmethod
-    def enabled_setting(cls) -> prefect.settings.Setting:
-        return prefect.settings.PREFECT_API_SERVICES_SCHEDULER_ENABLED
+    def service_settings(cls) -> ServicesBaseSetting:
+        return get_current_settings().server.services.scheduler
 
     @db_injector
     def _get_select_deployments_to_schedule_query(
