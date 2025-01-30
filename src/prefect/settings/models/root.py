@@ -444,5 +444,4 @@ def _default_database_connection_url(settings: "Settings") -> SecretStr:
 
 
 def canonical_environment_prefix(settings: "Settings") -> str:
-    print(repr(settings))
-    return settings.model_config.get("env_prefix", "")
+    return settings.model_config.get("env_prefix") or ""
