@@ -14,17 +14,22 @@ import prefect.server.models as models
 from prefect.server.database import PrefectDBInterface, orm_models
 from prefect.server.database.dependencies import db_injector
 from prefect.server.schemas import filters, states
-from prefect.server.services.loop_service import LoopService
+from prefect.server.services.base import LoopService
 from prefect.settings import PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS
+from prefect.settings.context import get_current_settings
+from prefect.settings.models.server.services import ServicesBaseSetting
 
 NON_TERMINAL_STATES = list(set(states.StateType) - states.TERMINAL_STATES)
 
 
 class CancellationCleanup(LoopService):
     """
-    A simple loop service responsible for cancelling tasks and subflows left over from
-    cancelling flow runs
+    Cancels tasks and subflows of flow runs that have been cancelled
     """
+
+    @classmethod
+    def service_settings(cls) -> ServicesBaseSetting:
+        return get_current_settings().server.services.cancellation_cleanup
 
     def __init__(self, loop_seconds: Optional[float] = None, **kwargs: Any):
         super().__init__(
