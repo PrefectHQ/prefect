@@ -54,7 +54,7 @@ def test_errors_when_missing_api_url_and_ephemeral_disabled():
 
 
 async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_true(
-    monkeypatch, ephemeral_settings
+    monkeypatch: pytest.MonkeyPatch, ephemeral_settings: None
 ):
     with temporary_settings(updates={PREFECT_API_TLS_INSECURE_SKIP_VERIFY: True}):
         client = get_events_client()
