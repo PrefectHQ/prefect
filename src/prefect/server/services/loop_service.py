@@ -74,10 +74,6 @@ class LoopService(Service):
         self.logger.debug(f"Stopped {self.name}")
 
     @overload
-    async def start(self) -> NoReturn:
-        ...
-
-    @overload
     async def start(self, loops: None = None) -> NoReturn:
         ...
 
