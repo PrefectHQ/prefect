@@ -970,7 +970,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if last_state.timestamp == new_state.timestamp:
             # Ensure that the state timestamp is unique, or at least not equal to the last state.
             # This might occur especially on Windows where the timestamp resolution is limited.
-            new_state.timestamp += DateTime.duration(microseconds=1)
+            new_state.timestamp += PendulumDuration(microseconds=1)
 
         # Ensure that the state_details are populated with the current run IDs
         new_state.state_details.task_run_id = self.task_run.id
