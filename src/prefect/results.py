@@ -21,7 +21,6 @@ from typing import (
 )
 from uuid import UUID
 
-import pendulum
 from cachetools import LRUCache
 from pydantic import (
     BaseModel,
@@ -503,7 +502,7 @@ class ResultStore(BaseModel):
         if metadata.expiration:
             # if the result has an expiration,
             # check if it is still in the future
-            exists = metadata.expiration > pendulum.now("utc")
+            exists = metadata.expiration > DateTime.now("utc")
         else:
             exists = True
         return exists
