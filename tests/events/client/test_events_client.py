@@ -1,4 +1,5 @@
 import logging
+import ssl
 from typing import Type
 from unittest import mock
 
@@ -13,6 +14,7 @@ from prefect.events.clients import (
 )
 from prefect.settings import (
     PREFECT_API_KEY,
+    PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
     PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
@@ -49,6 +51,20 @@ def test_errors_when_missing_api_url_and_ephemeral_disabled():
     ):
         with pytest.raises(ValueError, match="PREFECT_API_URL"):
             get_events_client()
+
+
+async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_true(
+    monkeypatch, ephemeral_settings
+):
+    with temporary_settings(updates={PREFECT_API_TLS_INSECURE_SKIP_VERIFY: True}):
+        client = get_events_client()
+
+    ssl_ctx = client._connect._kwargs["ssl"]
+
+    # Verify it's an SSL context with the correct insecure settings
+    assert isinstance(ssl_ctx, ssl.SSLContext)
+    assert ssl_ctx.verify_mode == ssl.CERT_NONE
+    assert ssl_ctx.check_hostname is False
 
 
 @pytest.fixture
