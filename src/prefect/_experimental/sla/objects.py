@@ -86,4 +86,4 @@ class SlaMergeResponse(PrefectBaseModel):
 
 
 # Concrete SLA types
-SlaTypes: TypeAlias = TimeToCompletionSla | LatenessSla | FrequencySla
+SlaTypes: TypeAlias = Union[TimeToCompletionSla, LatenessSla, FrequencySla]
