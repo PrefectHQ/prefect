@@ -127,16 +127,25 @@ async def create_handler(
 
         try:
             async with db.session_context() as session:
-                result = await session.execute(
+                resource_result = await session.execute(
+                    sa.delete(db.EventResource).where(
+                        db.EventResource.occurred < older_than
+                    )
+                )
+                event_result = await session.execute(
                     sa.delete(db.Event).where(db.Event.occurred < older_than)
                 )
                 await session.commit()
-                if result.rowcount:
+
+                if resource_result.rowcount or event_result.rowcount:
                     logger.debug(
-                        "Trimmed %s events older than %s.", result.rowcount, older_than
+                        "Trimmed %s events and %s event resources older than %s.",
+                        event_result.rowcount,
+                        resource_result.rowcount,
+                        older_than,
                     )
         except Exception:
-            logger.exception("Error trimming events", exc_info=True)
+            logger.exception("Error trimming events and resources", exc_info=True)
 
     async def flush_periodically():
         try:
