@@ -17,6 +17,7 @@ from prefect.logging import get_logger
 from prefect.server.database import provide_database_interface
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.events.storage.database import write_events
+from prefect.server.services.base import Service
 from prefect.server.utilities.messaging import (
     Consumer,
     Message,
@@ -35,7 +36,7 @@ if TYPE_CHECKING:
 logger: "logging.Logger" = get_logger(__name__)
 
 
-class EventPersister:
+class EventPersister(Service):
     """A service that persists events to the database as they arrive."""
 
     name: str = "EventLogger"

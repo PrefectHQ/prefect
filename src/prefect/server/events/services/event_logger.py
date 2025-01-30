@@ -8,6 +8,7 @@ import rich
 
 from prefect.logging import get_logger
 from prefect.server.events.schemas.events import ReceivedEvent
+from prefect.server.services.base import Service
 from prefect.server.utilities.messaging import Consumer, Message, create_consumer
 
 if TYPE_CHECKING:
@@ -16,7 +17,7 @@ if TYPE_CHECKING:
 logger: "logging.Logger" = get_logger(__name__)
 
 
-class EventLogger:
+class EventLogger(Service):
     """A debugging service that logs events to the console as they arrive."""
 
     name: str = "EventLogger"
