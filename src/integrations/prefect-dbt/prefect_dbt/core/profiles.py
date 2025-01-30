@@ -5,15 +5,22 @@ block document and variable references.
 
 import contextlib
 import os
-import shutil
 import tempfile
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    AsyncGenerator,
+    Generator,
+    Optional,
+    TypeVar,
+    Union,
+)
 
 import slugify
 import yaml
 
-from prefect.client.utilities import inject_client
+from prefect import get_client
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import get_from_dict
@@ -66,7 +73,9 @@ def load_profiles_yml(profiles_dir: Optional[str]) -> dict[str, Any]:
 
 
 @contextlib.asynccontextmanager
-async def aresolve_profiles_yml(profiles_dir: Optional[str] = None):
+async def aresolve_profiles_yml(
+    profiles_dir: Optional[str] = None,
+) -> AsyncGenerator[str, None]:
     """
     Asynchronous context manager that creates a temporary directory with a resolved profiles.yml file.
 
@@ -84,22 +93,23 @@ async def aresolve_profiles_yml(profiles_dir: Optional[str] = None):
             # use temp_dir for dbt operations
         # temp_dir is automatically cleaned up        ```
     """
-    temp_dir = Path(tempfile.mkdtemp())
-    try:
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_dir_path = Path(temp_dir)
         profiles_yml: dict[str, Any] = load_profiles_yml(profiles_dir)
-        profiles_yml = await resolve_block_document_references(profiles_yml)
+        profiles_yml = await convert_block_references_to_env_vars(profiles_yml)
         profiles_yml = await resolve_variables(profiles_yml)
 
-        temp_profiles_path = temp_dir / "profiles.yml"
-        temp_profiles_path.write_text(yaml.dump(profiles_yml, default_flow_style=False))
-
-        yield str(temp_dir)
-    finally:
-        shutil.rmtree(temp_dir)
+        temp_profiles_path = temp_dir_path / "profiles.yml"
+        temp_profiles_path.write_text(
+            yaml.dump(profiles_yml, default_style=None, default_flow_style=False)
+        )
+        yield str(temp_dir_path)
 
 
 @contextlib.contextmanager
-def resolve_profiles_yml(profiles_dir: Optional[str] = None):
+def resolve_profiles_yml(
+    profiles_dir: Optional[str] = None,
+) -> Generator[str, None, None]:
     """
     Synchronous context manager that creates a temporary directory with a resolved profiles.yml file.
 
@@ -117,24 +127,22 @@ def resolve_profiles_yml(profiles_dir: Optional[str] = None):
             # use temp_dir for dbt operations
         # temp_dir is automatically cleaned up        ```
     """
-    temp_dir = Path(tempfile.mkdtemp())
-    try:
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_dir_path = Path(temp_dir)
         profiles_yml: dict[str, Any] = load_profiles_yml(profiles_dir)
-        profiles_yml = run_coro_as_sync(resolve_block_document_references(profiles_yml))
+        profiles_yml = run_coro_as_sync(
+            convert_block_references_to_env_vars(profiles_yml)
+        )
         profiles_yml = run_coro_as_sync(resolve_variables(profiles_yml))
 
-        temp_profiles_path = temp_dir / "profiles.yml"
+        temp_profiles_path = temp_dir_path / "profiles.yml"
         temp_profiles_path.write_text(
             yaml.dump(profiles_yml, default_style=None, default_flow_style=False)
         )
-
-        yield str(temp_dir)
-    finally:
-        shutil.rmtree(temp_dir)
+        yield str(temp_dir_path)
 
 
-@inject_client
-async def resolve_block_document_references(
+async def convert_block_references_to_env_vars(
     template: T, client: Optional["PrefectClient"] = None
 ) -> Union[T, dict[str, Any]]:
     """
@@ -152,81 +160,79 @@ async def resolve_block_document_references(
     Returns:
         The template with block documents resolved
     """
-    if TYPE_CHECKING:
-        # The @inject_client decorator takes care of providing the client, but
-        # the function signature must mark it as optional to callers.
-        assert client is not None
-
-    if isinstance(template, dict):
-        block_document_id = template.get("$ref", {}).get("block_document_id")
-        if block_document_id:
-            block_document = await client.read_block_document(block_document_id)
-            return block_document.data
-        updated_template: dict[str, Any] = {}
-        for key, value in template.items():
-            updated_value = await resolve_block_document_references(
-                value, client=client
+    async with get_client() as client:
+        if isinstance(template, dict):
+            block_document_id = template.get("$ref", {}).get("block_document_id")
+            if block_document_id:
+                block_document = await client.read_block_document(block_document_id)
+                return block_document.data
+            updated_template: dict[str, Any] = {}
+            for key, value in template.items():
+                updated_value = await convert_block_references_to_env_vars(
+                    value, client=client
+                )
+                updated_template[key] = updated_value
+            return updated_template
+        elif isinstance(template, list):
+            return [
+                await convert_block_references_to_env_vars(item, client=client)
+                for item in template
+            ]
+        elif isinstance(template, str):
+            placeholders = find_placeholders(template)
+            has_block_document_placeholder = any(
+                placeholder.type is PlaceholderType.BLOCK_DOCUMENT
+                for placeholder in placeholders
             )
-            updated_template[key] = updated_value
-        return updated_template
-    elif isinstance(template, list):
-        return [
-            await resolve_block_document_references(item, client=client)
-            for item in template
-        ]
-    elif isinstance(template, str):
-        placeholders = find_placeholders(template)
-        has_block_document_placeholder = any(
-            placeholder.type is PlaceholderType.BLOCK_DOCUMENT
-            for placeholder in placeholders
-        )
-        if not (placeholders and has_block_document_placeholder):
-            return template
-        elif (
-            len(placeholders) == 1
-            and list(placeholders)[0].full_match == template
-            and list(placeholders)[0].type is PlaceholderType.BLOCK_DOCUMENT
-        ):
-            # value_keypath will be a list containing a dot path if additional
-            # attributes are accessed and an empty list otherwise.
-            [placeholder] = placeholders
-            parts = placeholder.name.replace(
-                BLOCK_DOCUMENT_PLACEHOLDER_PREFIX, ""
-            ).split(".", 2)
-            block_type_slug, block_document_name, *value_keypath = parts
-            block_document = await client.read_block_document_by_name(
-                name=block_document_name, block_type_slug=block_type_slug
-            )
-            data = block_document.data
-            value: Union[T, dict[str, Any]] = data
+            if not (placeholders and has_block_document_placeholder):
+                return template
+            elif (
+                len(placeholders) == 1
+                and list(placeholders)[0].full_match == template
+                and list(placeholders)[0].type is PlaceholderType.BLOCK_DOCUMENT
+            ):
+                # value_keypath will be a list containing a dot path if additional
+                # attributes are accessed and an empty list otherwise.
+                [placeholder] = placeholders
+                parts = placeholder.name.replace(
+                    BLOCK_DOCUMENT_PLACEHOLDER_PREFIX, ""
+                ).split(".", 2)
+                block_type_slug, block_document_name, *value_keypath = parts
+                block_document = await client.read_block_document_by_name(
+                    name=block_document_name, block_type_slug=block_type_slug
+                )
+                data = block_document.data
+                value: Union[T, dict[str, Any]] = data
 
-            # resolving system blocks to their data for backwards compatibility
-            if len(data) == 1 and "value" in data:
-                # only resolve the value if the keypath is not already pointing to "value"
-                if not (value_keypath and value_keypath[0].startswith("value")):
-                    data = value = value["value"]
+                # resolving system blocks to their data for backwards compatibility
+                if len(data) == 1 and "value" in data:
+                    # only resolve the value if the keypath is not already pointing to "value"
+                    if not (value_keypath and value_keypath[0].startswith("value")):
+                        data = value = value["value"]
 
-            # resolving keypath/block attributes
-            if value_keypath:
-                from_dict: Any = get_from_dict(data, value_keypath[0], default=NotSet)
-                if from_dict is NotSet:
-                    raise ValueError(
-                        f"Invalid template: {template!r}. Could not resolve the"
-                        " keypath in the block document data."
+                # resolving keypath/block attributes
+                if value_keypath:
+                    from_dict: Any = get_from_dict(
+                        data, value_keypath[0], default=NotSet
                     )
-                value = from_dict
+                    if from_dict is NotSet:
+                        raise ValueError(
+                            f"Invalid template: {template!r}. Could not resolve the"
+                            " keypath in the block document data."
+                        )
+                    value = from_dict
 
-            env_var_name = slugify.slugify(placeholder[0], separator="_").upper()
+                env_var_name = slugify.slugify(placeholder[0], separator="_").upper()
 
-            os.environ[env_var_name] = str(value)
+                os.environ[env_var_name] = str(value)
 
-            template_text = f"{{{{ env_var('{env_var_name}') }}}}"
+                template_text = f"{{{{ env_var('{env_var_name}') }}}}"
 
-            return template_text
-        else:
-            raise ValueError(
-                f"Invalid template: {template!r}. Only a single block placeholder is"
-                " allowed in a string and no surrounding text is allowed."
-            )
+                return template_text
+            else:
+                raise ValueError(
+                    f"Invalid template: {template!r}. Only a single block placeholder is"
+                    " allowed in a string and no surrounding text is allowed."
+                )
 
     return template
