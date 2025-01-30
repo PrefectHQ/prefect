@@ -5,7 +5,7 @@ import uuid
 from contextlib import asynccontextmanager
 from time import monotonic, sleep
 from unittest import mock
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import anyio
 import anyio.abc
@@ -2409,7 +2409,6 @@ class TestKubernetesWorker:
                 func=mock_batch_client.return_value.list_namespaced_job,
                 namespace=mock.ANY,
                 field_selector=mock.ANY,
-                _request_timeout=mock.ANY,
             )
 
             if job_timeout is not None:
@@ -2431,7 +2430,6 @@ class TestKubernetesWorker:
                         namespace=mock.ANY,
                         label_selector=mock.ANY,
                         timeout_seconds=42,
-                        _request_timeout=mock.ANY,
                     ),
                     mock.call(**expected_job_call_kwargs),
                 ]
@@ -2475,13 +2473,11 @@ class TestKubernetesWorker:
                         namespace=mock.ANY,
                         label_selector=mock.ANY,
                         timeout_seconds=mock.ANY,
-                        _request_timeout=mock.ANY,
                     ),
                     mock.call(
                         func=mock_batch_client.return_value.list_namespaced_job,
                         namespace=mock.ANY,
                         field_selector=mock.ANY,
-                        _request_timeout=mock.ANY,
                         # Note: timeout_seconds is excluded here
                     ),
                 ]
@@ -2522,13 +2518,11 @@ class TestKubernetesWorker:
                         namespace="my-awesome-flows",
                         label_selector=mock.ANY,
                         timeout_seconds=60,
-                        _request_timeout=mock.ANY,
                     ),
                     mock.call(
                         func=mock_batch_client.return_value.list_namespaced_job,
                         namespace="my-awesome-flows",
                         field_selector=mock.ANY,
-                        _request_timeout=mock.ANY,
                     ),
                 ]
             )
@@ -2665,7 +2659,6 @@ class TestKubernetesWorker:
                         namespace=mock.ANY,
                         label_selector=mock.ANY,
                         timeout_seconds=mock.ANY,
-                        _request_timeout=mock.ANY,
                     ),
                     # Starts with the full timeout minus the amount we slept streaming logs
                     mock.call(
@@ -2673,7 +2666,6 @@ class TestKubernetesWorker:
                         field_selector=mock.ANY,
                         namespace=mock.ANY,
                         timeout_seconds=pytest.approx(50, 1),
-                        _request_timeout=mock.ANY,
                     ),
                 ]
             )
@@ -2892,14 +2884,12 @@ class TestKubernetesWorker:
                         func=mock_batch_client.return_value.list_namespaced_job,
                         namespace=mock.ANY,
                         field_selector="metadata.name=mock-job",
-                        _request_timeout=mock.ANY,
                     ),
                     mock.call(
                         func=mock_batch_client.return_value.list_namespaced_job,
                         namespace=mock.ANY,
                         field_selector="metadata.name=mock-job",
                         resource_version="1",
-                        _request_timeout=mock.ANY,
                     ),
                 ]
             )
@@ -2940,6 +2930,50 @@ class TestKubernetesWorker:
             async with KubernetesWorker(work_pool_name="test") as k8s_worker:
                 result = await k8s_worker.run(flow_run, default_configuration)
 
+            assert result.status_code == 0
+
+        async def test_watch_no_timeout_after_five_minutes_without_data(
+            self,
+            flow_run,
+            default_configuration,
+            mock_core_client,
+            mock_watch,
+            mock_batch_client,
+            mock_pod,
+            caplog: pytest.LogCaptureFixture,
+        ):
+            """
+            Regressio test for https://github.com/PrefectHQ/prefect/issues/16210
+            """
+            # The job should not be completed to start
+            mock_batch_client.return_value.read_namespaced_job.return_value.status.completion_time = None
+
+            async def mock_stream(*args, **kwargs):
+                if kwargs["func"] == mock_core_client.return_value.list_namespaced_pod:
+                    yield {"object": mock_pod, "type": "MODIFIED"}
+
+                if kwargs["func"] == mock_batch_client.return_value.list_namespaced_job:
+                    job = MagicMock(spec=kubernetes_asyncio.client.V1Job)
+                    job.status.completion_time = None
+                    job.status.failed = 0
+                    job.spec.backoff_limit = 6
+
+                    # First event
+                    yield {"object": job, "type": "ADDED"}
+
+                    # Simulate 5 minutes passing
+                    with patch("anyio.sleep", return_value=None):
+                        await anyio.sleep(310)
+
+                    # Send another event after the delay
+                    job.status.completion_time = pendulum.now("utc").timestamp()
+                    yield {"object": job, "type": "MODIFIED"}
+
+            mock_watch.return_value.stream = mock.Mock(side_effect=mock_stream)
+
+            async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+                result = await k8s_worker.run(flow_run, default_configuration)
+            assert "Error occurred while streaming logs" not in caplog.text
             assert result.status_code == 0
 
     @pytest.fixture
