@@ -583,6 +583,34 @@ class TestSetTaskRunState:
 
         assert response_2.status == responses.SetStateStatus.ABORT
 
+    async def test_set_task_run_state_with_long_cache_key_rejects_transition(
+        self, task_run, client, session
+    ):
+        await client.post(
+            f"/flow_runs/{task_run.flow_run_id}/set_state",
+            json=dict(state=dict(type="RUNNING")),
+        )
+
+        response = await client.post(
+            f"/task_runs/{task_run.id}/set_state",
+            json=dict(
+                state=dict(
+                    type="COMPLETED",
+                    name="Test State",
+                    state_details={"cache_key": "a" * 5000},
+                )
+            ),
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+
+        api_response = OrchestrationResult.model_validate(response.json())
+        assert api_response.status == responses.SetStateStatus.REJECT
+        assert isinstance(api_response.details, responses.StateRejectDetails)
+        assert (
+            api_response.details.reason
+            == "Cache key exceeded maximum allowed length of 2000 characters."
+        )
+
 
 class TestTaskRunHistory:
     async def test_history_interval_must_be_one_second_or_larger(self, client):
