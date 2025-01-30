@@ -10,25 +10,27 @@ from uuid import UUID
 
 import sqlalchemy as sa
 
+import prefect.settings
 from prefect.server import models, schemas
 from prefect.server.database import PrefectDBInterface
 from prefect.server.database.dependencies import db_injector
 from prefect.server.database.query_components import FlowRunNotificationsFromQueue
-from prefect.server.services.loop_service import LoopService
+from prefect.server.services.base import LoopService
 from prefect.utilities import urls
 
 
 class FlowRunNotifications(LoopService):
     """
-    A loop service that checks for flow run notifications that need to be sent.
-
-    Notifications are queued, and this service pulls them off the queue and
-    actually sends the notification.
+    Sends queued flow run notifications.
     """
 
     # check queue every 4 seconds
     # note: a tight loop is executed until the queue is exhausted
     loop_seconds: float = 4
+
+    @classmethod
+    def enabled_setting(cls) -> prefect.settings.Setting:
+        return prefect.settings.PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED
 
     @db_injector
     async def run_once(self, db: PrefectDBInterface) -> None:

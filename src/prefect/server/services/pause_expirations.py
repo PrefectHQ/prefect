@@ -10,18 +10,23 @@ import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.models as models
+import prefect.settings
 from prefect.server.database import PrefectDBInterface
 from prefect.server.database.dependencies import db_injector
 from prefect.server.database.orm_models import FlowRun
 from prefect.server.schemas import states
-from prefect.server.services.loop_service import LoopService
+from prefect.server.services.base import LoopService
 from prefect.settings import PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS
 
 
 class FailExpiredPauses(LoopService):
     """
-    A simple loop service responsible for identifying Paused flow runs that no longer can be resumed.
+    Fails flow runs that have been paused and never resumed
     """
+
+    @classmethod
+    def enabled_setting(cls) -> prefect.settings.Setting:
+        return prefect.settings.PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED
 
     def __init__(self, loop_seconds: Optional[float] = None, **kwargs: Any):
         super().__init__(
@@ -39,7 +44,8 @@ class FailExpiredPauses(LoopService):
         Mark flow runs as failed by:
 
         - Querying for flow runs in a Paused state that have timed out
-        - For any runs past the "expiration" threshold, setting the flow run state to a new `Failed` state
+        - For any runs past the "expiration" threshold, setting the flow run state to a
+          new `Failed` state
         """
         while True:
             async with db.session_context(begin_transaction=True) as session:

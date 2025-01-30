@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, NoReturn
 
+import prefect.settings
 from prefect.logging import get_logger
 from prefect.server.events import actions
 from prefect.server.services.base import Service
@@ -15,11 +16,13 @@ logger: "logging.Logger" = get_logger(__name__)
 
 
 class Actions(Service):
-    """Runs actions triggered by Automatinos"""
-
-    name: str = "Actions"
+    """Runs the actions triggered by automations"""
 
     consumer_task: asyncio.Task[None] | None = None
+
+    @classmethod
+    def enabled_setting(cls) -> prefect.settings.Setting:
+        return prefect.settings.PREFECT_API_SERVICES_TRIGGERS_ENABLED
 
     async def start(self) -> NoReturn:
         assert self.consumer_task is None, "Actions already started"

@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, AsyncGenerator, List, NoReturn
 import pendulum
 import sqlalchemy as sa
 
+import prefect.settings
 from prefect.logging import get_logger
 from prefect.server.database import provide_database_interface
 from prefect.server.events.schemas.events import ReceivedEvent
@@ -39,11 +40,14 @@ logger: "logging.Logger" = get_logger(__name__)
 class EventPersister(Service):
     """A service that persists events to the database as they arrive."""
 
-    name: str = "EventLogger"
-
     consumer_task: asyncio.Task[None] | None = None
 
+    @classmethod
+    def enabled_setting(cls) -> prefect.settings.Setting:
+        return prefect.settings.PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED
+
     def __init__(self):
+        super().__init__()
         self._started_event: asyncio.Event | None = None
 
     @property

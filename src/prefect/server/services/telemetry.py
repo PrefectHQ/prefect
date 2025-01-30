@@ -12,21 +12,27 @@ import httpx
 import pendulum
 
 import prefect
+import prefect.settings
 from prefect.server.database import PrefectDBInterface
 from prefect.server.database.dependencies import db_injector
 from prefect.server.models import configuration
 from prefect.server.schemas.core import Configuration
-from prefect.server.services.loop_service import LoopService
+from prefect.server.services.base import LoopService
 from prefect.settings import PREFECT_DEBUG_MODE
 
 
 class Telemetry(LoopService):
     """
-    This service sends anonymous data (e.g. count of flow runs) to Prefect to help us
-    improve. It can be toggled off with the PREFECT_SERVER_ANALYTICS_ENABLED setting.
+    Sends anonymous data to Prefect to help us improve
+
+    It can be toggled off with the PREFECT_SERVER_ANALYTICS_ENABLED setting.
     """
 
     loop_seconds: float = 600
+
+    @classmethod
+    def enabled_setting(cls) -> prefect.settings.Setting:
+        return prefect.settings.PREFECT_SERVER_ANALYTICS_ENABLED
 
     def __init__(self, loop_seconds: Optional[int] = None, **kwargs: Any):
         super().__init__(loop_seconds=loop_seconds, **kwargs)

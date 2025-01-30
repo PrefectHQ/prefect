@@ -8,6 +8,7 @@ from typing import Any, Optional
 import pendulum
 import sqlalchemy as sa
 
+import prefect.settings
 from prefect.server import models
 from prefect.server.database import PrefectDBInterface, db_injector
 from prefect.server.models.deployments import mark_deployments_not_ready
@@ -19,7 +20,7 @@ from prefect.server.schemas.statuses import (
     WorkerStatus,
     WorkPoolStatus,
 )
-from prefect.server.services.loop_service import LoopService
+from prefect.server.services.base import LoopService
 from prefect.settings import (
     PREFECT_API_SERVICES_FOREMAN_DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS,
     PREFECT_API_SERVICES_FOREMAN_FALLBACK_HEARTBEAT_INTERVAL_SECONDS,
@@ -31,10 +32,12 @@ from prefect.settings import (
 
 class Foreman(LoopService):
     """
-    A loop service responsible for monitoring the status of workers.
-
-    Handles updating the status of workers and their associated work pools.
+    Monitors the status of workers and their associated work pools
     """
+
+    @classmethod
+    def enabled_setting(cls) -> prefect.settings.Setting:
+        return prefect.settings.PREFECT_API_SERVICES_FOREMAN_ENABLED
 
     def __init__(
         self,

@@ -9,6 +9,7 @@ import pendulum
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import prefect.settings
 from prefect.logging import get_logger
 from prefect.server.database import (
     PrefectDBInterface,
@@ -19,6 +20,7 @@ from prefect.server.events.ordering import CausalOrdering, EventArrivedEarly
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.schemas.core import TaskRun
 from prefect.server.schemas.states import State
+from prefect.server.services.base import Service
 from prefect.server.utilities.messaging import (
     Consumer,
     Message,
@@ -214,15 +216,18 @@ async def consumer() -> AsyncGenerator[MessageHandler, None]:
     yield message_handler
 
 
-class TaskRunRecorder:
-    """A service to record task run and task run states from events."""
-
-    name: str = "TaskRunRecorder"
+class TaskRunRecorder(Service):
+    """Constructs task runs and states from client-emitted events"""
 
     consumer_task: asyncio.Task[None] | None = None
     metrics_task: asyncio.Task[None] | None = None
 
+    @classmethod
+    def enabled_setting(cls) -> prefect.settings.Setting:
+        return prefect.settings.PREFECT_API_SERVICES_TASK_RUN_RECORDER_ENABLED
+
     def __init__(self):
+        super().__init__()
         self._started_event: Optional[asyncio.Event] = None
 
     @property

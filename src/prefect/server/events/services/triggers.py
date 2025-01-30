@@ -3,25 +3,28 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any, NoReturn, Optional
 
+import prefect.settings
 from prefect.logging import get_logger
 from prefect.server.events import triggers
-from prefect.server.services.base import Service
-from prefect.server.services.loop_service import LoopService
+from prefect.server.services.base import LoopService, Service
 from prefect.server.utilities.messaging import Consumer, create_consumer
 from prefect.settings import PREFECT_EVENTS_PROACTIVE_GRANULARITY
 
 if TYPE_CHECKING:
     import logging
 
+
 logger: "logging.Logger" = get_logger(__name__)
 
 
 class ReactiveTriggers(Service):
-    """Runs the reactive triggers consumer"""
-
-    name: str = "ReactiveTriggers"
+    """Evaluates reactive automation triggers"""
 
     consumer_task: asyncio.Task[None] | None = None
+
+    @classmethod
+    def enabled_setting(cls) -> prefect.settings.Setting:
+        return prefect.settings.PREFECT_API_SERVICES_TRIGGERS_ENABLED
 
     async def start(self) -> NoReturn:
         assert self.consumer_task is None, "Reactive triggers already started"
@@ -49,7 +52,11 @@ class ReactiveTriggers(Service):
 
 
 class ProactiveTriggers(LoopService):
-    """A loop service that runs the proactive triggers consumer"""
+    """Evaluates proactive automation triggers"""
+
+    @classmethod
+    def enabled_setting(cls) -> prefect.settings.Setting:
+        return prefect.settings.PREFECT_API_SERVICES_TRIGGERS_ENABLED
 
     def __init__(self, loop_seconds: Optional[float] = None, **kwargs: Any):
         super().__init__(

@@ -4,7 +4,8 @@ import signal
 import pendulum
 import pytest
 
-from prefect.server.services.loop_service import LoopService
+from prefect.server.services.base import LoopService
+from prefect.settings import Setting
 
 
 async def test_asyncio_sleep_accepts_negative_numbers():
@@ -14,22 +15,32 @@ async def test_asyncio_sleep_accepts_negative_numbers():
     await asyncio.sleep(-10.5)
 
 
+class ExampleService(LoopService):
+    def enabled_setting(cls) -> Setting:
+        return Setting(
+            name="is_this_thing_on",
+            default=True,
+            description="Whether the example service is enabled",
+        )
+
+    async def run_once(self) -> None:
+        pass
+
+
 async def test_loop_service_seconds_can_be_set_at_init():
-    l1 = LoopService()
-    l2 = LoopService(loop_seconds=100)
+    l1 = ExampleService()
     assert l1.loop_seconds == 60
+
+    l2 = ExampleService(loop_seconds=100)
     assert l2.loop_seconds == 100
 
 
 async def test_service_name_from_class():
-    class MyService(LoopService):
-        pass
-
-    assert MyService().name == "MyService"
+    assert ExampleService().name == "ExampleService"
 
 
 async def test_loop_service_run_once():
-    class Service(LoopService):
+    class MyService(ExampleService):
         loop_seconds = 0
         counter = 0
 
@@ -41,7 +52,7 @@ async def test_loop_service_run_once():
                 await self.stop(block=False)
 
     # run the service
-    service = Service()
+    service = MyService()
     await service.start()
     assert service.counter == 3
 
@@ -49,7 +60,7 @@ async def test_loop_service_run_once():
 
 
 async def test_loop_service_loops_kwarg():
-    class Service(LoopService):
+    class MyService(ExampleService):
         loop_seconds = 0
         counter = 0
 
@@ -59,7 +70,7 @@ async def test_loop_service_loops_kwarg():
             self.counter += 1
 
     # run the service
-    service = Service()
+    service = MyService()
     await service.start(loops=3)
     assert service.counter == 3
 
@@ -67,7 +78,7 @@ async def test_loop_service_loops_kwarg():
 
 
 async def test_loop_service_run_multiple_times():
-    class Service(LoopService):
+    class MyService(ExampleService):
         loop_seconds = 0
         counter = 0
 
@@ -75,7 +86,7 @@ async def test_loop_service_run_multiple_times():
             self.counter += 1
 
     # run the service
-    service = Service()
+    service = MyService()
     await service.start(loops=3)
     await service.start(loops=2)
     await service.start(loops=1)
@@ -83,7 +94,7 @@ async def test_loop_service_run_multiple_times():
 
 
 async def test_loop_service_calls_on_start_on_stop_once():
-    class Service(LoopService):
+    class MyService(ExampleService):
         state = []
         loop_seconds = 0
 
@@ -98,7 +109,7 @@ async def test_loop_service_calls_on_start_on_stop_once():
             self.state.append("_on_stop")
             await super()._on_stop()
 
-    service = Service()
+    service = MyService()
     await service.start(loops=3)
     assert service.state == ["_on_start", "_on_stop"]
 
@@ -108,14 +119,7 @@ async def test_early_stop():
 
     LOOP_INTERVAL = 120
 
-    class Service(LoopService):
-        def __init__(self, loop_seconds: float = LOOP_INTERVAL):
-            super().__init__(loop_seconds)
-
-        async def run_once(self):
-            pass
-
-    service = Service()
+    service = ExampleService(loop_seconds=LOOP_INTERVAL)
     asyncio.create_task(service.start())
     # yield to let the service start
     await asyncio.sleep(0.1)
@@ -136,28 +140,30 @@ async def test_stop_block_escapes_deadlock(caplog):
 
     LOOP_INTERVAL = 0.1
 
-    class Service(LoopService):
-        def __init__(self, loop_seconds: float = LOOP_INTERVAL):
-            super().__init__(loop_seconds)
+    class MyService(ExampleService):
+        loop_seconds = LOOP_INTERVAL
 
         async def run_once(self):
             # calling a blocking stop inside run_once should create a deadlock
             await self.stop(block=True)
 
-    service = Service()
+    service = MyService()
     asyncio.create_task(service.start())
 
     # sleep for longer than one loop interval
     await asyncio.sleep(LOOP_INTERVAL * 5)
 
     assert service._is_running is False
-    assert "`stop(block=True)` was called on Service but" in caplog.text
+    assert "`stop(block=True)` was called on MyService but" in caplog.text
 
 
 class TestSignalHandling:
     @pytest.mark.parametrize("sig", [signal.SIGTERM, signal.SIGINT])
     async def test_can_handle_signals_to_shutdown(self, sig):
-        service = LoopService(handle_signals=True)
+        class MyService(ExampleService):
+            pass
+
+        service = MyService(handle_signals=True)
         assert service._should_stop is False
         signal.raise_signal(sig)
         # yield so the signal handler can run
@@ -165,7 +171,10 @@ class TestSignalHandling:
         assert service._should_stop is True
 
     async def test_does_not_handle_signals_by_default(self):
-        service = LoopService()
+        class MyService(ExampleService):
+            pass
+
+        service = MyService()
         assert service._should_stop is False
         signal.raise_signal(signal.SIGTERM)
         # yield so the signal handler would have time to run
