@@ -729,8 +729,10 @@ def Paused(
     if pause_expiration_time is None and timeout_seconds is None:
         pass
     else:
-        state_details.pause_timeout = DateTime.now("UTC") + PendulumDuration(
-            seconds=timeout_seconds or 0
+        state_details.pause_timeout = (
+            DateTime.instance(pause_expiration_time)
+            if pause_expiration_time
+            else DateTime.now("UTC") + PendulumDuration(seconds=timeout_seconds or 0)
         )
 
     state_details.pause_reschedule = reschedule
