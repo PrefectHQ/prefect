@@ -76,6 +76,12 @@ const globalConcurrencyLimitsHandlers = [
 	}),
 ];
 
+const settingsHandlers = [
+	http.post(buildApiUrl("/admin/settings"), () => {
+		return HttpResponse.json({});
+	}),
+];
+
 const taskRunConcurrencyLimitsHandlers = [
 	http.post(buildApiUrl("/concurrency_limits/filter"), () => {
 		return HttpResponse.json([]);
@@ -109,6 +115,12 @@ const variablesHandlers = [
 	}),
 ];
 
+const versionHandlers = [
+	http.post(buildApiUrl("/admin/version"), () => {
+		return HttpResponse.json("3.0.0");
+	}),
+];
+
 const workPoolsHandlers = [
 	http.post(buildApiUrl("/work_pools/filter"), () => {
 		return HttpResponse.json([]);
@@ -131,8 +143,10 @@ export const handlers = [
 	...flowHandlers,
 	...flowRunHandlers,
 	...globalConcurrencyLimitsHandlers,
+	...settingsHandlers,
 	...taskRunConcurrencyLimitsHandlers,
 	...variablesHandlers,
+	...versionHandlers,
 	...workPoolsHandlers,
 	...workeQueuesHandlers,
 ];
