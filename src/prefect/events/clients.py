@@ -1,6 +1,7 @@
 import abc
 import asyncio
 import os
+import ssl
 from types import TracebackType
 from typing import (
     TYPE_CHECKING,
@@ -37,6 +38,7 @@ from prefect.events import Event
 from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_API_KEY,
+    PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
     PREFECT_DEBUG_MODE,
@@ -119,6 +121,13 @@ class WebsocketProxyConnect(Connect):
         )
         self._host = host
         self._port = port
+
+        if PREFECT_API_TLS_INSECURE_SKIP_VERIFY:
+            # Create an unverified context for insecure connections
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            self._kwargs.setdefault("ssl", ctx)
 
     async def _proxy_connect(self: Self) -> WebSocketClientProtocol:
         if self._proxy:
