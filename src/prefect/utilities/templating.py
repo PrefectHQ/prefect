@@ -4,6 +4,7 @@ import re
 from typing import (
     TYPE_CHECKING,
     Any,
+    Callable,
     Literal,
     NamedTuple,
     Optional,
@@ -195,13 +196,20 @@ def apply_values(
         raise ValueError(f"Unexpected template type {type(template).__name__!r}")
 
 
+def replace_with_value(value: Any) -> Any:
+    """A block reference replacement function that returns the value unchanged."""
+    return value
+
+
 @inject_client
 async def resolve_block_document_references(
-    template: T, client: Optional["PrefectClient"] = None
+    template: T,
+    replacement_function: Callable[[Any], Any] = replace_with_value,
+    client: Optional["PrefectClient"] = None,
 ) -> Union[T, dict[str, Any]]:
     """
     Resolve block document references in a template by replacing each reference with
-    the data of the block document.
+    the return value of the replacement function.
 
     Recursively searches for block document references in dictionaries and lists.
 
@@ -326,7 +334,7 @@ async def resolve_block_document_references(
                     )
                 value = from_dict
 
-            return value
+            return replacement_function(value)
         else:
             raise ValueError(
                 f"Invalid template: {template!r}. Only a single block placeholder is"
