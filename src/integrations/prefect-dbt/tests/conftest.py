@@ -86,7 +86,7 @@ def dbt_cli_profile():
 
 
 @pytest.fixture
-def dbt_cli_profile_bare():
+def dbt_cli_profile_bare() -> DbtCliProfile:
     target_configs = TargetConfigs(
         type="custom", schema="my_schema", extras={"account": "fake"}
     )
