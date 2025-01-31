@@ -68,7 +68,6 @@ def replace_with_env_var_call(placeholder: str, value: Any) -> str:
     Returns:
         The template text for an env var call
     """
-    print("this is being called")
     env_var_name = slugify.slugify(placeholder, separator="_").upper()
 
     os.environ[env_var_name] = str(value)
