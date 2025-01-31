@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import uuid
 from functools import partial
 from typing import Any, Generator
