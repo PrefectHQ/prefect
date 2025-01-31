@@ -54,7 +54,7 @@ export const JsonInput = React.forwardRef<HTMLDivElement, JsonInputProps>(
 		return (
 			<div
 				className={cn(
-					"rounded-md border shadow-sm overflow-hidden focus-within:outline-none focus-within:ring-1 focus-within:ring-ring",
+					"rounded-md border shadow-xs overflow-hidden focus-within:outline-hidden focus-within:ring-1 focus-within:ring-ring",
 					className,
 				)}
 				ref={(node) => {
