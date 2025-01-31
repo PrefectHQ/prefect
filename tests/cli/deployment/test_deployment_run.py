@@ -1,5 +1,6 @@
 import uuid
 from functools import partial
+from typing import Any, Generator
 from unittest.mock import ANY, AsyncMock
 
 import pendulum
@@ -7,24 +8,27 @@ import pytest
 from pendulum.duration import Duration
 
 import prefect
-from prefect.client.schemas.objects import FlowRun
+from prefect.client.schemas.objects import Deployment, FlowRun
 from prefect.exceptions import FlowRunWaitTimeout
 from prefect.states import Completed, Failed
 from prefect.testing.cli import invoke_and_assert
-from prefect.types import DateTime
+from prefect.types._datetime import DateTime, local_timezone
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 
 @pytest.fixture
-async def deployment_name(deployment, prefect_client):
+async def deployment_name(
+    deployment: Deployment,
+    prefect_client: prefect.client.orchestration.PrefectClient,
+) -> str:
     flow = await prefect_client.read_flow(deployment.flow_id)
     return f"{flow.name}/{deployment.name}"
 
 
 @pytest.fixture
-def frozen_now(monkeypatch):
-    now = pendulum.now("UTC")
-    monkeypatch.setattr("pendulum.now", lambda *_: now)
+def frozen_now(monkeypatch: pytest.MonkeyPatch) -> Generator[DateTime, None, None]:
+    now = DateTime.now("UTC")
+    monkeypatch.setattr("prefect.types._datetime.DateTime.now", lambda *_: now)  # type: ignore
     yield now
 
 
@@ -43,7 +47,7 @@ def failed_flow_run():
 async def test_run_deployment_only_creates_one_flow_run(
     deployment_name: str,
     prefect_client: prefect.client.orchestration.PrefectClient,
-    deployment,
+    deployment: Deployment,
 ):
     await run_sync_in_worker_thread(
         invoke_and_assert,
@@ -138,7 +142,7 @@ async def test_start_at_option_displays_scheduled_start_time(
 async def test_start_at_option_with_tz_displays_scheduled_start_time(
     deployment_name: str, start_at: str, expected_start_time: DateTime
 ):
-    expected_start_time_local = expected_start_time.in_tz(pendulum.tz.local_timezone())
+    expected_start_time_local = expected_start_time.in_tz(local_timezone())
     expected_display = (
         expected_start_time_local.to_datetime_string()
         + " "
@@ -163,15 +167,15 @@ async def test_start_at_option_with_tz_displays_scheduled_start_time(
     [
         (
             "12/20/2022 1am",
-            DateTime(2022, 12, 20, 1, 0, 0, tzinfo=pendulum.tz.local_timezone()),
+            DateTime(2022, 12, 20, 1, 0, 0, tzinfo=local_timezone()),
         ),
         (
             "1-1-2020",
-            DateTime(2020, 1, 1, 0, 0, 0, tzinfo=pendulum.tz.local_timezone()),
+            DateTime(2020, 1, 1, 0, 0, 0, tzinfo=local_timezone()),
         ),
         (
             "5 June 2015",
-            DateTime(2015, 6, 5, 0, 0, 0, tzinfo=pendulum.tz.local_timezone()),
+            DateTime(2015, 6, 5, 0, 0, 0, tzinfo=local_timezone()),
         ),
     ],
 )
@@ -357,15 +361,15 @@ async def test_start_in_option_schedules_flow_run(
     [
         (
             "12/20/2030 1am",
-            DateTime(2030, 12, 20, 1, 0, 0, tzinfo=pendulum.tz.local_timezone()),
+            DateTime(2030, 12, 20, 1, 0, 0, tzinfo=local_timezone()),
         ),
         (
             "1-1-2020",
-            DateTime(2020, 1, 1, 0, 0, 0, tzinfo=pendulum.tz.local_timezone()),
+            DateTime(2020, 1, 1, 0, 0, 0, tzinfo=local_timezone()),
         ),
         (
             "5 June 2015",
-            DateTime(2015, 6, 5, 0, 0, 0, tzinfo=pendulum.tz.local_timezone()),
+            DateTime(2015, 6, 5, 0, 0, 0, tzinfo=local_timezone()),
         ),
     ],
 )
@@ -428,7 +432,10 @@ async def test_date_as_start_in_option_schedules_flow_run_equal_to_start_at(
     assert start_in_scheduled_time == expected_start_time
 
 
-async def test_print_parameter_validation_error(deployment_with_parameter_schema, flow):
+async def test_print_parameter_validation_error(
+    deployment_with_parameter_schema: Deployment,
+    flow: Any,
+):
     await run_sync_in_worker_thread(
         invoke_and_assert,
         command=[
@@ -473,15 +480,15 @@ async def test_print_parameter_validation_error(deployment_with_parameter_schema
     ids=["watch-pass", "watch-fail", "watch-timeout"],
 )
 async def test_run_deployment_watch(
-    monkeypatch,
-    deployment,
-    deployment_name,
-    prefect_client,
-    test_case,
-    mock_wait_for_flow_run,
-    timeout,
-    expected_output,
-    expected_code,
+    monkeypatch: pytest.MonkeyPatch,
+    deployment: Deployment,
+    deployment_name: str,
+    prefect_client: prefect.client.orchestration.PrefectClient,
+    test_case: str,
+    mock_wait_for_flow_run: AsyncMock,
+    timeout: int | None,
+    expected_output: str,
+    expected_code: int,
 ):
     monkeypatch.setattr(
         "prefect.cli.deployment.wait_for_flow_run", mock_wait_for_flow_run
