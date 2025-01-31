@@ -72,7 +72,8 @@ The SLA is triggered when a flow run takes longer than the specified duration to
 The Time to Completion SLA requires one unique parameter:
 - `duration`: The maximum allowed duration in seconds before the SLA is violated
 
-This SLA is useful for monitoring long-running flows and ensuring they complete within an expected timeframe. For example, if you set a Time to Completion SLA on your deployment with a `duration` of 600 seconds (10 minutes) the backend will emit an `prefect.sla.violation` event if a flow run takes longer than 10 minutes to complete.
+This SLA is useful for monitoring long-running flows and ensuring they complete within an expected timeframe.
+For example, if you set a Time to Completion SLA on your deployment with a `duration` of 600 seconds (10 minutes) the backend will emit an `prefect.sla.violation` event if a flow run does not complete within that timeframe.
 
 ### Frequency SLA
 
