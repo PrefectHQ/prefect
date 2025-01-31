@@ -174,7 +174,7 @@ async def _register_collection_blocks(session: AsyncSession) -> None:
 
     # due to schema reference dependencies, we need to register all block types first
     # and then register all block schemas
-    block_schemas: Dict[str, Dict[str, Any]] = {}
+    block_schemas: dict[str, dict[str, Any]] = {}
 
     async with session.begin():
         for block_type in block_types:
