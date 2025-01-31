@@ -90,9 +90,9 @@ This SLA triggers when more than an hour passes between `Completed` flow runs.
 A Lateness SLA describes the severity of a flow run failing to start at its scheduled time.
 
 The Lateness SLA requires one unique parameter:
-- `within`: The time within the previous flow run before the SLA is violated
+- `within`: The amount of startup time allotted to a flow run before the SLA is violated.
 
-For example, if a deployment with a Lateness SLA with a `within` of 5 minutes is scheduled to run every day at 10am, and a flow run is not started by 10:05am, the backend will emit an SLA violation event.
+For example, if a deployment is scheduled to run every day at 10am, and has a Lateness SLA of 5 minutes, the backend will emit an SLA violation event if a flow run does not start by 10:05am.
 
 ## Monitoring SLAs
 
