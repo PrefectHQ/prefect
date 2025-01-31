@@ -8,10 +8,11 @@ from __future__ import annotations
 import asyncio
 from contextlib import asynccontextmanager
 from datetime import timedelta
-from typing import TYPE_CHECKING, AsyncGenerator, List, NoReturn
+from typing import TYPE_CHECKING, Any, AsyncGenerator, List, NoReturn, Type, TypeVar
 
 import pendulum
 import sqlalchemy as sa
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.logging import get_logger
 from prefect.server.database import provide_database_interface
@@ -36,6 +37,43 @@ if TYPE_CHECKING:
     import logging
 
 logger: "logging.Logger" = get_logger(__name__)
+
+T = TypeVar("T")
+
+
+async def batch_delete(
+    session: AsyncSession,
+    model: Type[T],
+    condition: Any,
+    batch_size: int = 10_000,
+) -> int:
+    """
+    Perform a batch deletion of database records using a subquery with LIMIT. Works with both PostgreSQL and
+    SQLite. Compared to a basic delete(...).where(...), a batch deletion is more robust against timeouts
+    when handling large tables, which is especially the case if we first delete old entries from long
+    existing tables.
+
+    Returns:
+        Total number of deleted records
+    """
+    total_deleted = 0
+
+    while True:
+        subquery = (
+            sa.select(model.id).where(condition).limit(batch_size).scalar_subquery()
+        )
+        delete_stmt = sa.delete(model).where(model.id.in_(subquery))
+
+        result = await session.execute(delete_stmt)
+        batch_deleted = result.rowcount
+
+        if batch_deleted == 0:
+            break
+
+        total_deleted += batch_deleted
+        await session.commit()
+
+    return total_deleted
 
 
 class EventPersister(Service):
@@ -132,21 +170,22 @@ async def create_handler(
 
         try:
             async with db.session_context() as session:
-                resource_result = await session.execute(
-                    sa.delete(db.EventResource).where(
-                        db.EventResource.updated < older_than
-                    )
+                resource_count = await batch_delete(
+                    session,
+                    db.EventResource,
+                    db.EventResource.updated < older_than,
+                    batch_size=10_000,
                 )
-                event_result = await session.execute(
-                    sa.delete(db.Event).where(db.Event.occurred < older_than)
-                )
-                await session.commit()
 
-                if resource_result.rowcount or event_result.rowcount:
+                event_count = await batch_delete(
+                    session, db.Event, db.Event.occurred < older_than, batch_size=10_000
+                )
+
+                if resource_count or event_count:
                     logger.debug(
                         "Trimmed %s events and %s event resources older than %s.",
-                        event_result.rowcount,
-                        resource_result.rowcount,
+                        event_count,
+                        resource_count,
                         older_than,
                     )
         except Exception:
