@@ -1,4 +1,3 @@
-import pytest
 from prefect_dask.client import PrefectDaskClient
 
 from prefect.client.orchestration import get_client
@@ -13,12 +12,6 @@ from prefect.client.schemas.sorting import TaskRunSort
 from prefect.context import FlowRunContext
 from prefect.flows import flow
 from prefect.tasks import task
-from prefect.testing.fixtures import (  # noqa: F401
-    hosted_api_server,
-    use_hosted_api_server,
-)
-
-pytestmark = pytest.mark.usefixtures("use_hosted_api_server")
 
 
 class TestSubmit:
