@@ -89,7 +89,7 @@ Decorators are the easiest way to convert a Python script into a workflow.
 1. Add a `@flow` decorator to the script's entrypoint.
 1. Add `@task` decorators to any functions called by the flow.
 
-This will create a [flow](/v3/develop/write-flows/) and corresponding [tasks](/v3/develop/write-tasks/). 
+This will create a [flow](/v3/develop/write-flows/) and corresponding [tasks](/v3/develop/write-tasks/).
 Tasks receive metadata about upstream dependencies and the state of those dependencies before they run.
 Prefect records these dependencies and states as it orchestrates tasks.
 
