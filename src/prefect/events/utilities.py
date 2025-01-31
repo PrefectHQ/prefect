@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from typing import Any, Dict
+from typing import Any
 from uuid import UUID
 
 from prefect.types import DateTime
@@ -62,7 +62,7 @@ def emit_event(
     if worker_instance.client_type not in operational_clients:
         return None
 
-    event_kwargs: Dict[str, Any] = {
+    event_kwargs: dict[str, Any] = {
         "event": event,
         "resource": resource,
         **kwargs,
