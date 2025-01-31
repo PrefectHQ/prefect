@@ -23,7 +23,7 @@ from prefect.utilities.processutils import (
     _register_signal,  # type: ignore[reportPrivateUsage]
 )
 
-logger = get_logger(__name__)
+logger: Logger = get_logger(__name__)
 
 
 def _known_service_modules() -> list[ModuleType]:
