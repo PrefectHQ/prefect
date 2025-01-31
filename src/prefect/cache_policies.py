@@ -252,6 +252,8 @@ class _None(CachePolicy):
 class TaskSource(CachePolicy):
     """
     Policy for computing a cache key based on the source code of the task.
+
+    This policy only considers raw lines of code in the task, and not the source code of nested tasks.
     """
 
     def compute_key(
