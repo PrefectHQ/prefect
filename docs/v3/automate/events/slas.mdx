@@ -66,7 +66,8 @@ prefect deploy --sla '{"name": "my-time-to-completion-sla", "duration": 10, "sev
 
 ### Time to Completion SLA
 
-A Time to Completion SLA describes how long flow runs should take and how serious running over that time is. The SLA is triggered when a flow run takes longer than the specified duration to complete. 
+A Time to Completion SLA describes how long flow runs should take and the severity of going over that duration.
+The SLA is triggered when a flow run takes longer than the specified duration to complete.
 
 The Time to Completion SLA requires one unique parameter:
 - `duration`: The maximum allowed duration in seconds before the SLA is violated
