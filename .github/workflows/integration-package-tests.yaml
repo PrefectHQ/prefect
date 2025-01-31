@@ -50,7 +50,8 @@ jobs:
 
     name: Run Tests for ${{ matrix.package }} on Python ${{ matrix.python-version }}
     needs: prepare-matrix
-    runs-on: oss-larger-runners
+    runs-on: 
+       group: oss-larger-runners
     strategy:
       matrix: ${{fromJson(needs.prepare-matrix.outputs.matrix)}}
       fail-fast: false
