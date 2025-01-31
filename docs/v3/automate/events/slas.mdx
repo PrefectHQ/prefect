@@ -23,26 +23,34 @@ To define an SLA you can add it to the deployment through a `prefect.yaml` file,
 deployments:
   my-deployment:
     sla:
-        - name: "my-sla"
+        - name: "time-to-completion"
           duration: 10
+          severity: "high"
+        - name: "lateness"
+          within: 600
           severity: "high"
 ```
 </Accordion>
 
 <Accordion title="Defining SLAs using a .deploy method">
 ```python .deploy SLA
+    from prefect import flow
+    from prefect._experimental.sla.objects import TimeToCompletionSla, LatenessSla, FrequencySla
+
+    @flow
+    def my_flow():
+        pass
+
     flow.from_source(
         source=source,
         entrypoint="my_file.py:my_flow",
     ).deploy(
-        name="private-bitbucket-deploy",
+        name="my-deployment",
         work_pool_name="my_pool",
-        sla=[
-            {
-                "name": "my-sla",
-                "duration": 10,
-                "severity": "high"
-            }
+        _sla=[
+            TimeToCompletionSla(name="my-time-to-completion-sla", duration=30, severity="high"),
+            LatenessSla(name="my-lateness-sla", within=timedelta(minutes=10), severity="high"),
+            FrequencySla(name="my-frequency-sla", stale_after=timedelta(hours=1), severity="high"),
         ]
     )
 ```
@@ -50,10 +58,43 @@ deployments:
 
 <Accordion title="Defining SLAs with the Prefect CLI">
 ```bash CLI SLA
-prefect deploy --sla '{"name": "my-sla", "duration": 10, "severity": "high"}'
+prefect deploy --sla '{"name": "my-time-to-completion-sla", "duration": 10, "severity": "high"}'
 ```
 </Accordion>
 </AccordionGroup>
+
+## Types of SLAs
+
+### Time to Completion SLA
+
+A Time to Completion SLA describes how long flow runs should take and the severity of going over that duration.
+The SLA is triggered when a flow run takes longer than the specified duration to complete.
+
+The Time to Completion SLA requires one unique parameter:
+- `duration`: The maximum allowed duration in seconds before the SLA is violated
+
+This SLA is useful for monitoring long-running flows and ensuring they complete within an expected timeframe.
+For example, if you set a Time to Completion SLA on your deployment with a `duration` of 600 seconds (10 minutes) the backend will emit an `prefect.sla.violation` event if a flow run does not complete within that timeframe.
+
+### Frequency SLA
+
+A Frequency SLA describes the interval a deployment should run at and the severity of missing that interval.
+
+The Frequency SLA requires one unique parameter:
+- `stale_after`: The maximum allowed time between flow runs (e.g. `1 hour` for hourly jobs)
+
+For example, if you have a deployment that should run every hour, you can set up a Frequency SLA with a `stale_after` of 1 hour.
+This SLA triggers when more than an hour passes between `Completed` flow runs.
+
+### Lateness SLA
+
+A Lateness SLA describes the severity of a flow run failing to start at its scheduled time.
+
+The Lateness SLA requires one unique parameter:
+- `within`: The amount of startup time allotted to a flow run before the SLA is violated.
+
+For example, if a deployment is scheduled to run every day at 10am, and has a Lateness SLA of 5 minutes, the backend will emit an SLA violation event if a flow run does not start by 10:05am.
+
 ## Monitoring SLAs
 
 You can monitor SLAs in the Prefect Cloud UI. On the runs page you can see the SLA status in the top level metrics:
@@ -66,7 +107,7 @@ You can monitor SLAs in the Prefect Cloud UI. On the runs page you can see the S
 To set up an automation to notify a team or to take other actions when an SLA is triggered, you can use the [automations](/v3/automate/events/automations-triggers/) feature. To create the automation first you'll need to create a trigger.
 
 1. Choose trigger type 'Custom'.
-2. Choose any event matching: `prefect.sla.sla-violation`
+2. Choose any event matching: `prefect.sla.violation`
 3. For "From the Following Resources" choose: `prefect.flow-run.*`
 
 ![Create an automation](/v3/img/ui/sla-trigger-automation.png)
