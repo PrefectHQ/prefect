@@ -10,6 +10,8 @@ from prefect.logging import get_logger
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.services.base import Service
 from prefect.server.utilities.messaging import Consumer, Message, create_consumer
+from prefect.settings.context import get_current_settings
+from prefect.settings.models.server.services import ServicesBaseSetting
 
 if TYPE_CHECKING:
     import logging
@@ -20,9 +22,11 @@ logger: "logging.Logger" = get_logger(__name__)
 class EventLogger(Service):
     """A debugging service that logs events to the console as they arrive."""
 
-    name: str = "EventLogger"
-
     consumer_task: asyncio.Task[None] | None = None
+
+    @classmethod
+    def service_settings(cls) -> ServicesBaseSetting:
+        return get_current_settings().server.services.event_logger
 
     async def start(self) -> NoReturn:
         assert self.consumer_task is None, "Logger already started"
