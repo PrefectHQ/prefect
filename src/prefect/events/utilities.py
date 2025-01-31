@@ -27,7 +27,7 @@ def emit_event(
     **kwargs: Optional[Dict[str, Any]],
 ) -> Optional[Event]:
     """
-    Send an event to Prefect Cloud.
+    Send an event to Prefect.
 
     Args:
         event: The name of the event that happened.
