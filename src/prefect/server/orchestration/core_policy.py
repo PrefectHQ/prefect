@@ -41,6 +41,7 @@ from prefect.server.schemas import core, filters, states
 from prefect.server.schemas.states import StateType
 from prefect.server.task_queue import TaskQueue
 from prefect.settings import (
+    PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH,
     PREFECT_DEPLOYMENT_CONCURRENCY_SLOT_WAIT_SECONDS,
     PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS,
 )
@@ -588,6 +589,23 @@ class CacheInsertion(TaskRunOrchestrationRule):
 
     FROM_STATES = ALL_ORCHESTRATION_STATES
     TO_STATES = {StateType.COMPLETED}
+
+    async def before_transition(
+        self,
+        initial_state: states.State | None,
+        proposed_state: states.State | None,
+        context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy],
+    ) -> None:
+        if proposed_state is None:
+            return
+
+        cache_key = proposed_state.state_details.cache_key
+        if cache_key and len(cache_key) > PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH.value():
+            await self.reject_transition(
+                state=proposed_state,
+                reason=f"Cache key exceeded maximum allowed length of {PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH.value()} characters.",
+            )
+            return
 
     @db_injector
     async def after_transition(
