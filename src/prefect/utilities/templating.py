@@ -204,7 +204,7 @@ async def resolve_block_document_references(
 ) -> Union[T, dict[str, Any]]:
     """
     Resolve block document references in a template by replacing each reference with
-    the return value of the replacement function.
+    its value or the return value of the transformer function if provided.
 
     Recursively searches for block document references in dictionaries and lists.
 
