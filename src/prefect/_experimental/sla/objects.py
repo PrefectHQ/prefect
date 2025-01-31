@@ -54,7 +54,7 @@ class FrequencySla(ServiceLevelAgreement):
     """An SLA that triggers when a completed flow run is not detected in the specified time.
 
     For example, if stale_after is 1 hour, if a flow run does not complete
-    with an hour of the previous flow run, the SLA will trigger.
+    within an hour of the previous flow run, the SLA will trigger.
     """
 
     stale_after: timedelta = Field(
