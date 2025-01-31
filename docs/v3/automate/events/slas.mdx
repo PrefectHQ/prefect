@@ -67,30 +67,33 @@ prefect deploy --sla '{"name": "my-time-to-completion-sla", "duration": 10, "sev
 
 ### Time to Completion SLA
 
-A Time to Completion SLA describes how long flow runs should take and how serious running over that time is. The SLA is triggered when a flow run takes longer than the specified duration to complete. 
+A Time to Completion SLA describes how long flow runs should take and the severity of going over that duration.
+The SLA is triggered when a flow run takes longer than the specified duration to complete.
 
 The Time to Completion SLA requires one unique parameter:
 - `duration`: The maximum allowed duration in seconds before the SLA is violated
 
-This SLA is useful for monitoring long-running flows and ensuring they complete within an expected timeframe. For example, if you set a Time to Completion SLA on your deployment with a `duration` of 600 seconds (10 minutes) the backend will emit an `prefect.sla.violation` event if a flow run takes longer than 10 minutes to complete.
+This SLA is useful for monitoring long-running flows and ensuring they complete within an expected timeframe.
+For example, if you set a Time to Completion SLA on your deployment with a `duration` of 600 seconds (10 minutes) the backend will emit an `prefect.sla.violation` event if a flow run does not complete within that timeframe.
 
 ### Frequency SLA
 
-A Frequency SLA describes the interval a deployment should run at and how serious missing that interval is.
+A Frequency SLA describes the interval a deployment should run at and the severity of missing that interval.
 
 The Frequency SLA requires one unique parameter:
-- `stale_after`: The maximum allowed time between flow runs (e.g. 1 hour for hourly jobs)
+- `stale_after`: The maximum allowed time between flow runs (e.g. `1 hour` for hourly jobs)
 
-For example, if you have a deployment that should run every hour, you can set up a Frequency SLA with a `stale_after` of 1 hour - this will trigger if more than an hour passes between `Completed` flow runs.
+For example, if you have a deployment that should run every hour, you can set up a Frequency SLA with a `stale_after` of 1 hour.
+This SLA triggers when more than an hour passes between `Completed` flow runs.
 
 ### Lateness SLA
 
-A Lateness SLA describes how serious it is when a flow run fails to start at its scheduled time.
+A Lateness SLA describes the severity of a flow run failing to start at its scheduled time.
 
 The Lateness SLA requires one unique parameter:
-- `within`: The time within the previous flow run before the SLA is violated
+- `within`: The amount of startup time allotted to a flow run before the SLA is violated.
 
-For example, if a deployment with a Lateness SLA with a `within` of 5 minutes is scheduled to run every day at 10am, and a flow run is not started by 10:05am, the backend will emit an SLA violation event.
+For example, if a deployment is scheduled to run every day at 10am, and has a Lateness SLA of 5 minutes, the backend will emit an SLA violation event if a flow run does not start by 10:05am.
 
 ## Monitoring SLAs
 
