@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 from datetime import timedelta
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict
 from uuid import UUID
 
-import pendulum
+from prefect.types import DateTime
 
 from .clients import (
     AssertingEventsClient,
@@ -18,14 +20,14 @@ TIGHT_TIMING = timedelta(minutes=5)
 
 def emit_event(
     event: str,
-    resource: Dict[str, str],
-    occurred: Optional[pendulum.DateTime] = None,
-    related: Optional[Union[List[Dict[str, str]], List[RelatedResource]]] = None,
-    payload: Optional[Dict[str, Any]] = None,
-    id: Optional[UUID] = None,
-    follows: Optional[Event] = None,
-    **kwargs: Optional[Dict[str, Any]],
-) -> Optional[Event]:
+    resource: dict[str, str],
+    occurred: DateTime | None = None,
+    related: list[dict[str, str]] | list[RelatedResource] | None = None,
+    payload: dict[str, Any] | None = None,
+    id: UUID | None = None,
+    follows: Event | None = None,
+    **kwargs: dict[str, Any] | None,
+) -> Event | None:
     """
     Send an event to Prefect.
 
@@ -67,7 +69,7 @@ def emit_event(
     }
 
     if occurred is None:
-        occurred = pendulum.now("UTC")
+        occurred = DateTime.now("UTC")
     event_kwargs["occurred"] = occurred
 
     if related is not None:
