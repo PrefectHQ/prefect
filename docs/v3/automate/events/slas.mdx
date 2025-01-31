@@ -82,7 +82,8 @@ A Frequency SLA describes the interval a deployment should run at and the severi
 The Frequency SLA requires one unique parameter:
 - `stale_after`: The maximum allowed time between flow runs (e.g. `1 hour` for hourly jobs)
 
-For example, if you have a deployment that should run every hour, you can set up a Frequency SLA with a `stale_after` of 1 hour - this will trigger if more than an hour passes between `Completed` flow runs.
+For example, if you have a deployment that should run every hour, you can set up a Frequency SLA with a `stale_after` of 1 hour.
+This SLA triggers when more than an hour passes between `Completed` flow runs.
 
 ### Lateness SLA
 
