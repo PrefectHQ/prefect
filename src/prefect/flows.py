@@ -1312,8 +1312,7 @@ class Flow(Generic[P, R]):
 
         return flow
 
-    @sync_compatible
-    async def deploy(
+    async def adeploy(
         self,
         name: str,
         work_pool_name: Optional[str] = None,
@@ -1477,9 +1476,9 @@ class Flow(Generic[P, R]):
 
         deployment = await to_deployment_coro
 
-        from prefect.deployments.runner import deploy
+        from prefect.deployments.runner import adeploy
 
-        deploy_coro = deploy(
+        deployment_ids = await adeploy(
             deployment,
             work_pool_name=work_pool_name,
             image=image,
@@ -1488,10 +1487,219 @@ class Flow(Generic[P, R]):
             print_next_steps_message=False,
             ignore_warnings=ignore_warnings,
         )
-        if TYPE_CHECKING:
-            assert inspect.isawaitable(deploy_coro)
 
-        deployment_ids = await deploy_coro
+        if print_next_steps:
+            console = Console()
+            if (
+                not work_pool.is_push_pool
+                and not work_pool.is_managed_pool
+                and not active_workers
+            ):
+                console.print(
+                    "\nTo execute flow runs from this deployment, start a worker in a"
+                    " separate terminal that pulls work from the"
+                    f" {work_pool_name!r} work pool:"
+                )
+                console.print(
+                    f"\n\t$ prefect worker start --pool {work_pool_name!r}",
+                    style="blue",
+                )
+            console.print(
+                "\nTo schedule a run for this deployment, use the following command:"
+            )
+            console.print(
+                f"\n\t$ prefect deployment run '{self.name}/{name}'\n",
+                style="blue",
+            )
+            if PREFECT_UI_URL:
+                message = (
+                    "\nYou can also run your flow via the Prefect UI:"
+                    f" [blue]{PREFECT_UI_URL.value()}/deployments/deployment/{deployment_ids[0]}[/]\n"
+                )
+                console.print(message, soft_wrap=True)
+
+        return deployment_ids[0]
+
+    @async_dispatch(adeploy)
+    def deploy(
+        self,
+        name: str,
+        work_pool_name: Optional[str] = None,
+        image: Optional[Union[str, DockerImage]] = None,
+        build: bool = True,
+        push: bool = True,
+        work_queue_name: Optional[str] = None,
+        job_variables: Optional[dict[str, Any]] = None,
+        interval: Optional[Union[int, float, datetime.timedelta]] = None,
+        cron: Optional[str] = None,
+        rrule: Optional[str] = None,
+        paused: Optional[bool] = None,
+        schedules: Optional[list[DeploymentScheduleCreate]] = None,
+        concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
+        triggers: Optional[list[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
+        parameters: Optional[dict[str, Any]] = None,
+        description: Optional[str] = None,
+        tags: Optional[list[str]] = None,
+        version: Optional[str] = None,
+        enforce_parameter_schema: bool = True,
+        entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
+        print_next_steps: bool = True,
+        ignore_warnings: bool = False,
+        _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,
+    ) -> UUID:
+        """
+        Deploys a flow to run on dynamic infrastructure via a work pool.
+
+        By default, calling this method will build a Docker image for the flow, push it to a registry,
+        and create a deployment via the Prefect API that will run the flow on the given schedule.
+
+        If you want to use an existing image, you can pass `build=False` to skip building and pushing
+        an image.
+
+        Args:
+            name: The name to give the created deployment.
+            work_pool_name: The name of the work pool to use for this deployment. Defaults to
+                the value of `PREFECT_DEFAULT_WORK_POOL_NAME`.
+            image: The name of the Docker image to build, including the registry and
+                repository. Pass a DockerImage instance to customize the Dockerfile used
+                and build arguments.
+            build: Whether or not to build a new image for the flow. If False, the provided
+                image will be used as-is and pulled at runtime.
+            push: Whether or not to skip pushing the built image to a registry.
+            work_queue_name: The name of the work queue to use for this deployment's scheduled runs.
+                If not provided the default work queue for the work pool will be used.
+            job_variables: Settings used to override the values specified default base job template
+                of the chosen work pool. Refer to the base job template of the chosen work pool for
+                available settings.
+            interval: An interval on which to execute the deployment. Accepts a number or a
+                timedelta object to create a single schedule. If a number is given, it will be
+                interpreted as seconds. Also accepts an iterable of numbers or timedelta to create
+                multiple schedules.
+            cron: A cron schedule string of when to execute runs of this deployment.
+                Also accepts an iterable of cron schedule strings to create multiple schedules.
+            rrule: An rrule schedule string of when to execute runs of this deployment.
+                Also accepts an iterable of rrule schedule strings to create multiple schedules.
+            triggers: A list of triggers that will kick off runs of this deployment.
+            paused: Whether or not to set this deployment as paused.
+            schedules: A list of schedule objects defining when to execute runs of this deployment.
+                Used to define multiple schedules or additional scheduling options like `timezone`.
+            concurrency_limit: The maximum number of runs that can be executed concurrently.
+            parameters: A dictionary of default parameter values to pass to runs of this deployment.
+            description: A description for the created deployment. Defaults to the flow's
+                description if not provided.
+            tags: A list of tags to associate with the created deployment for organizational
+                purposes.
+            version: A version for the created deployment. Defaults to the flow's version.
+            enforce_parameter_schema: Whether or not the Prefect API should enforce the
+                parameter schema for the created deployment.
+            entrypoint_type: Type of entrypoint to use for the deployment. When using a module path
+                entrypoint, ensure that the module will be importable in the execution environment.
+            print_next_steps_message: Whether or not to print a message with next steps
+                after deploying the deployments.
+            ignore_warnings: Whether or not to ignore warnings about the work pool type.
+            _sla: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
+        Returns:
+            The ID of the created/updated deployment.
+
+        Examples:
+            Deploy a local flow to a work pool:
+
+            ```python
+            from prefect import flow
+
+            @flow
+            def my_flow(name):
+                print(f"hello {name}")
+
+            if __name__ == "__main__":
+                my_flow.deploy(
+                    "example-deployment",
+                    work_pool_name="my-work-pool",
+                    image="my-repository/my-image:dev",
+                )
+            ```
+
+            Deploy a remotely stored flow to a work pool:
+
+            ```python
+            from prefect import flow
+
+            if __name__ == "__main__":
+                flow.from_source(
+                    source="https://github.com/org/repo.git",
+                    entrypoint="flows.py:my_flow",
+                ).deploy(
+                    "example-deployment",
+                    work_pool_name="my-work-pool",
+                    image="my-repository/my-image:dev",
+                )
+            ```
+        """
+        if not (
+            work_pool_name := work_pool_name or PREFECT_DEFAULT_WORK_POOL_NAME.value()
+        ):
+            raise ValueError(
+                "No work pool name provided. Please provide a `work_pool_name` or set the"
+                " `PREFECT_DEFAULT_WORK_POOL_NAME` environment variable."
+            )
+
+        from prefect.client.orchestration import get_client
+
+        try:
+            with get_client(sync_client=True) as client:
+                work_pool = client.read_work_pool(work_pool_name)
+                active_workers = client.read_workers_for_work_pool(
+                    work_pool_name,
+                    worker_filter=WorkerFilter(
+                        status=WorkerFilterStatus(any_=["ONLINE"])
+                    ),
+                )
+        except ObjectNotFound as exc:
+            raise ValueError(
+                f"Could not find work pool {work_pool_name!r}. Please create it before"
+                " deploying this flow."
+            ) from exc
+
+        deployment = self.to_deployment(
+            name=name,
+            interval=interval,
+            cron=cron,
+            rrule=rrule,
+            schedules=schedules,
+            concurrency_limit=concurrency_limit,
+            paused=paused,
+            triggers=triggers,
+            parameters=parameters,
+            description=description,
+            tags=tags,
+            version=version,
+            enforce_parameter_schema=enforce_parameter_schema,
+            work_queue_name=work_queue_name,
+            job_variables=job_variables,
+            entrypoint_type=entrypoint_type,
+            _sla=_sla,
+        )
+
+        if TYPE_CHECKING:
+            assert not inspect.isawaitable(deployment)
+
+        from prefect.deployments.runner import deploy
+
+        deployment_ids = cast(
+            list[UUID],
+            deploy(
+                deployment,
+                work_pool_name=work_pool_name,
+                image=image,
+                build=build,
+                push=push,
+                print_next_steps_message=False,
+                ignore_warnings=ignore_warnings,
+                _sync=True,  # pyright: ignore[reportCallIssue]
+            ),
+        )
+        if TYPE_CHECKING:
+            assert not inspect.isawaitable(deployment_ids)
 
         if print_next_steps:
             console = Console()
