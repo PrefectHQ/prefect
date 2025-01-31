@@ -344,13 +344,22 @@ def test_create_profile_from_unknown_profile():
 
 
 def test_create_profile_with_existing_profile():
+    save_profiles(
+        ProfilesCollection(
+            profiles=[
+                Profile(name="foo", settings={PREFECT_API_KEY: "foo"}),
+            ],
+            active=None,
+        )
+    )
+
     invoke_and_assert(
-        ["profile", "create", "ephemeral"],
+        ["profile", "create", "foo"],
         expected_output="""
-            Profile 'ephemeral' already exists.
+            Profile 'foo' already exists.
             To create a new profile, remove the existing profile first:
 
-                prefect profile delete 'ephemeral'
+                prefect profile delete 'foo'
             """,
         expected_code=1,
     )
