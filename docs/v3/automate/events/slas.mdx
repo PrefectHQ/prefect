@@ -45,7 +45,7 @@ deployments:
         source=source,
         entrypoint="my_file.py:my_flow",
     ).deploy(
-        name="my deployment",
+        name="my-deployment",
         work_pool_name="my_pool",
         _sla=[
             TimeToCompletionSla(name="my-time-to-completion-sla", duration=10, severity="high"),
