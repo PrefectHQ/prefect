@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import abc
+from datetime import timedelta
 from typing import Literal, Optional, Union
 from uuid import UUID
 
@@ -49,6 +50,33 @@ class TimeToCompletionSla(ServiceLevelAgreement):
     )
 
 
+class FrequencySla(ServiceLevelAgreement):
+    """An SLA that triggers when a completed flow run is not detected in the specified time.
+
+    For example, if stale_after is 1 hour, if a flow run does not complete
+    within an hour of the previous flow run, the SLA will trigger.
+    """
+
+    stale_after: timedelta = Field(
+        default=...,
+        description="The amount of time after which a flow run is considered in violation.",
+    )
+
+
+class LatenessSla(ServiceLevelAgreement):
+    """An SLA that triggers when a flow run does not start within the specified window.
+
+    For example, if you schedule the deployment to run every day at 2:00pm and you pass
+    within=timedelta(minutes=10) to this SLA, if a run hasn't started by 2:10pm the SLA
+    violation will be recorded.
+    """
+
+    within: timedelta = Field(
+        default=...,
+        description="The amount of time before a flow run is considered in violation.",
+    )
+
+
 class SlaMergeResponse(PrefectBaseModel):
     """A response object for the apply_slas_for_deployment method. Contains the names of the created, updated, and deleted SLAs."""
 
@@ -58,4 +86,4 @@ class SlaMergeResponse(PrefectBaseModel):
 
 
 # Concrete SLA types
-SlaTypes: TypeAlias = Union[TimeToCompletionSla]
+SlaTypes: TypeAlias = Union[TimeToCompletionSla, LatenessSla, FrequencySla]
