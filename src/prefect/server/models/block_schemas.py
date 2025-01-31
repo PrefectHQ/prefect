@@ -40,7 +40,7 @@ async def create_block_schema(
         "ClientBlockSchema",
     ],
     override: bool = False,
-    definitions: Optional[Dict[str, Any]] = None,
+    definitions: Optional[dict[str, Any]] = None,
 ) -> Union[BlockSchema, orm_models.BlockSchema]:
     """
     Create a new block schema.
@@ -157,7 +157,7 @@ async def _register_nested_block_schemas(
     db: PrefectDBInterface,
     session: AsyncSession,
     parent_block_schema_id: UUID,
-    block_schema_references: Dict[str, Union[Dict[str, str], List[Dict[str, str]]]],
+    block_schema_references: dict[str, Union[dict[str, str], List[dict[str, str]]]],
     base_fields: Dict,
     definitions: Optional[Dict],
     override: bool = False,
@@ -248,7 +248,7 @@ def _get_fields_for_child_schema(
     base_fields: Dict,
     reference_name: str,
     reference_block_type: orm_models.BlockType,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Returns the field definitions for a child schema. The fields definitions are pulled from the provided `definitions`
     dictionary based on the information extracted from `base_fields` using the `reference_name`. `reference_block_type`
@@ -447,12 +447,12 @@ def _construct_block_schema_spec_definitions(
     block_schemas_with_references: List[
         Tuple[BlockSchema, Optional[str], Optional[UUID]]
     ],
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Constructs field definitions for a block schema based on the nested block schemas
     as defined in the block_schemas_with_references list.
     """
-    definitions: Dict[str, Any] = {}
+    definitions: dict[str, Any] = {}
     for _, block_schema_references in root_block_schema.fields[
         "block_schema_references"
     ].items():
@@ -498,7 +498,7 @@ def _find_block_schema_via_checksum(
 
 def _add_block_schemas_fields_to_definitions(
     definitions: Dict, child_block_schema: BlockSchema
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Returns a new definitions dict with the fields of a block schema and it's child
     block schemas added to the existing definitions.
@@ -522,7 +522,7 @@ def _construct_block_schema_fields_with_block_references(
     block_schemas_with_references: List[
         Tuple[BlockSchema, Optional[str], Optional[UUID]]
     ],
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Constructs the block_schema_references in a block schema's fields attributes. Returns
     a copy of the block schema with block_schema_references added.
