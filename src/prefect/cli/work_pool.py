@@ -5,7 +5,6 @@ Command line interface for working with work queues.
 import json
 import textwrap
 
-import pendulum
 import typer
 from rich.pretty import Pretty
 from rich.table import Table
@@ -20,12 +19,14 @@ from prefect.cli.root import app, is_interactive
 from prefect.client.collections import get_collections_metadata_client
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
+from prefect.client.schemas.objects import FlowRun, WorkPool
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 from prefect.infrastructure.provisioners import (
     _provisioners,
     get_infrastructure_provisioner_for_work_pool_type,
 )
 from prefect.settings import update_current_profile
+from prefect.types._datetime import DateTime, PendulumDuration
 from prefect.utilities import urls
 from prefect.workers.utilities import (
     get_available_work_pool_types,
@@ -278,8 +279,9 @@ async def ls(
     async with get_client() as client:
         pools = await client.read_work_pools()
 
-    def sort_by_created_key(q):
-        return pendulum.now("utc") - q.created
+    def sort_by_created_key(q: WorkPool) -> PendulumDuration:
+        assert q.created is not None
+        return DateTime.now("utc") - q.created
 
     for pool in sorted(pools, key=sort_by_created_key):
         row = [
@@ -649,18 +651,19 @@ async def preview(
     table.add_column("Name", style="green", no_wrap=True)
     table.add_column("Deployment ID", style="blue", no_wrap=True)
 
-    pendulum.now("utc").add(hours=hours or 1)
+    DateTime.now("utc").add(hours=hours or 1)
 
-    now = pendulum.now("utc")
+    now = DateTime.now("utc")
 
-    def sort_by_created_key(r):
+    def sort_by_created_key(r: FlowRun) -> PendulumDuration:
+        assert r.created is not None
         return now - r.created
 
     for run in sorted(runs, key=sort_by_created_key):
         table.add_row(
             (
                 f"{run.expected_start_time} [red](**)"
-                if run.expected_start_time < now
+                if run.expected_start_time and run.expected_start_time < now
                 else f"{run.expected_start_time}"
             ),
             str(run.id),
