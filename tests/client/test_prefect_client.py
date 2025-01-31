@@ -2872,7 +2872,7 @@ class TestPrefectClientWorkerHeartbeat:
         self, prefect_client: PrefectClient
     ):
         with mock.patch(
-            "prefect.client.orchestration.PrefectHttpxAsyncClient.post",
+            "prefect.client.orchestration.base.BaseAsyncClient.request",
             return_value=httpx.Response(status_code=204),
         ) as mock_post:
             await prefect_client.send_worker_heartbeat(
@@ -2895,7 +2895,7 @@ class TestPrefectClientWorkerHeartbeat:
         self, prefect_client: PrefectClient
     ):
         with mock.patch(
-            "prefect.client.orchestration.PrefectHttpxAsyncClient.post",
+            "prefect.client.orchestration.base.BaseAsyncClient.request",
             return_value=httpx.Response(status_code=204),
         ) as mock_post:
             await prefect_client.send_worker_heartbeat(
