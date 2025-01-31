@@ -114,9 +114,9 @@ class Service(ABC):
     async def run_services(cls) -> NoReturn:
         """Run enabled services until cancelled."""
         async with cls.running():
+            heat_death_of_the_universe = asyncio.get_running_loop().create_future()
             try:
-                while True:
-                    await asyncio.sleep(1)
+                await heat_death_of_the_universe
             except asyncio.CancelledError:
                 logger.info("Received cancellation, stopping services...")
 
