@@ -195,8 +195,7 @@ async def trigger_dbt_cli_command(
         run_results = consolidate_run_results(result)
         markdown = create_summary_markdown(run_results, command)
         artifact_id = await create_markdown_artifact(
-            markdown=markdown,
-            key=summary_artifact_key,
+            markdown=markdown, key=summary_artifact_key, _sync=False
         )
         if not artifact_id:
             logger.error(f"Summary Artifact was not created for dbt {command} task")
@@ -848,12 +847,13 @@ async def run_dbt_source_freshness(
     return results
 
 
-def create_summary_markdown(run_results: dict, command: str) -> str:
+def create_summary_markdown(run_results: dict[str, Any], command: str) -> str:
     """
     Creates a Prefect task artifact summarizing the results
     of the above predefined prefrect-dbt task.
     """
-    markdown = f"# dbt {command} Task Summary\n"
+    prefix = "dbt" if not command.startswith("dbt") else ""
+    markdown = f"# {prefix} {command} Task Summary\n"
     markdown += _create_node_summary_table_md(run_results=run_results)
 
     if (
