@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 from datetime import timedelta
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 from uuid import UUID
 
-import pendulum
+from prefect.types import DateTime
 
 from .clients import (
     AssertingEventsClient,
@@ -18,16 +20,16 @@ TIGHT_TIMING = timedelta(minutes=5)
 
 def emit_event(
     event: str,
-    resource: Dict[str, str],
-    occurred: Optional[pendulum.DateTime] = None,
-    related: Optional[Union[List[Dict[str, str]], List[RelatedResource]]] = None,
-    payload: Optional[Dict[str, Any]] = None,
-    id: Optional[UUID] = None,
-    follows: Optional[Event] = None,
-    **kwargs: Optional[Dict[str, Any]],
-) -> Optional[Event]:
+    resource: dict[str, str],
+    occurred: DateTime | None = None,
+    related: list[dict[str, str]] | list[RelatedResource] | None = None,
+    payload: dict[str, Any] | None = None,
+    id: UUID | None = None,
+    follows: Event | None = None,
+    **kwargs: dict[str, Any] | None,
+) -> Event | None:
     """
-    Send an event to Prefect Cloud.
+    Send an event to Prefect.
 
     Args:
         event: The name of the event that happened.
@@ -60,14 +62,14 @@ def emit_event(
     if worker_instance.client_type not in operational_clients:
         return None
 
-    event_kwargs: Dict[str, Any] = {
+    event_kwargs: dict[str, Any] = {
         "event": event,
         "resource": resource,
         **kwargs,
     }
 
     if occurred is None:
-        occurred = pendulum.now("UTC")
+        occurred = DateTime.now("UTC")
     event_kwargs["occurred"] = occurred
 
     if related is not None:
