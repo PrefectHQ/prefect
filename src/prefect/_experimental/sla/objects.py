@@ -59,7 +59,7 @@ class FrequencySla(ServiceLevelAgreement):
 
     stale_after: timedelta = Field(
         default=...,
-        description="The amount of time after a flow run is considered in violation.",
+        description="The amount of time after which a flow run is considered in violation.",
     )
 
 
