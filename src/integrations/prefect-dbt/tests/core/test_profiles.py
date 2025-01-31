@@ -7,16 +7,13 @@ import pytest
 import yaml
 from prefect_dbt.core.profiles import (
     aresolve_profiles_yml,
-    convert_block_references_to_env_vars,
     get_profiles_dir,
     load_profiles_yml,
+    replace_with_env_var_call,
     resolve_profiles_yml,
 )
 
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
-from prefect.blocks.core import Block
-from prefect.blocks.system import JSON, DateTime, Secret, String
-from prefect.blocks.webhook import Webhook
 from prefect.client.orchestration import get_client
 
 
@@ -87,7 +84,7 @@ VARIABLES_PROFILE = {
 }
 
 BLOCKS_PROFILE = {
-    "jaffle_shop_with_variable_reference": {
+    "jaffle_shop_with_blocks_reference": {
         "outputs": {
             "dev": {
                 "type": "duckdb",
@@ -289,7 +286,7 @@ async def test_aresolve_profiles_yml_resolves_blocks(temp_blocks_profiles_dir):
 
         loaded_profiles = yaml.safe_load(profiles_path.read_text())
         assert (
-            loaded_profiles["jaffle_shop_with_variable_reference"]["outputs"]["dev"][
+            loaded_profiles["jaffle_shop_with_blocks_reference"]["outputs"]["dev"][
                 "password"
             ]
             == "{{ env_var('PREFECT_BLOCKS_SECRET_MY_PASSWORD') }}"
@@ -308,261 +305,30 @@ def test_resolve_profiles_yml_resolves_blocks(temp_blocks_profiles_dir):
 
         loaded_profiles = yaml.safe_load(profiles_path.read_text())
         assert (
-            loaded_profiles["jaffle_shop_with_variable_reference"]["outputs"]["dev"][
+            loaded_profiles["jaffle_shop_with_blocks_reference"]["outputs"]["dev"][
                 "password"
             ]
             == "{{ env_var('PREFECT_BLOCKS_SECRET_MY_PASSWORD') }}"
         )
 
 
-class TestResolveBlockDocumentReferences:
-    @pytest.fixture(autouse=True)
-    def ignore_deprecation_warnings(self, ignore_prefect_deprecation_warnings):
-        """Remove references to deprecated blocks when deprecation period is over."""
-        pass
+def test_replace_with_env_var_call():
+    """Test that replace_with_env_var_call properly creates env vars and returns template text."""
+    # Test with a simple block reference
+    result = replace_with_env_var_call(
+        "prefect.blocks.secret.my-password.value", "test-value"
+    )
+    assert result == "{{ env_var('PREFECT_BLOCKS_SECRET_MY_PASSWORD_VALUE') }}"
+    assert os.environ["PREFECT_BLOCKS_SECRET_MY_PASSWORD_VALUE"] == "test-value"
 
-    @pytest.fixture()
-    async def block_document_id(self):
-        class ArbitraryBlock(Block):
-            a: int
-            b: str
+    # Test with a complex block instance name
+    result = replace_with_env_var_call(
+        "prefect.blocks.json.complex-name!@123.value", "complex-value"
+    )
+    assert result == "{{ env_var('PREFECT_BLOCKS_JSON_COMPLEX_NAME_123_VALUE') }}"
+    assert os.environ["PREFECT_BLOCKS_JSON_COMPLEX_NAME_123_VALUE"] == "complex-value"
 
-        return await ArbitraryBlock(a=1, b="hello").save(
-            name="arbitrary-block", overwrite=True
-        )
-
-    async def test_convert_block_references_to_env_vars_with_no_block_document_references(
-        self,
-    ):
-        assert await convert_block_references_to_env_vars({"key": "value"}) == {
-            "key": "value"
-        }
-
-    async def test_convert_block_references_to_env_vars_with_one_block_document_reference(
-        self, block_document_id
-    ):
-        async with get_client() as prefect_client:
-            assert {
-                "key": {"a": 1, "b": "hello"}
-            } == await convert_block_references_to_env_vars(
-                {"key": {"$ref": {"block_document_id": block_document_id}}},
-                client=prefect_client,
-            )
-
-    async def test_convert_block_references_to_env_vars_with_nested_block_document_references(
-        self, block_document_id
-    ):
-        async with get_client() as prefect_client:
-            template = {
-                "key": {
-                    "nested_key": {"$ref": {"block_document_id": block_document_id}},
-                    "other_nested_key": {
-                        "$ref": {"block_document_id": block_document_id}
-                    },
-                }
-            }
-            block_document = await prefect_client.read_block_document(block_document_id)
-
-            result = await convert_block_references_to_env_vars(
-                template, client=prefect_client
-            )
-
-            assert result == {
-                "key": {
-                    "nested_key": block_document.data,
-                    "other_nested_key": block_document.data,
-                }
-            }
-
-    async def test_convert_block_references_to_env_vars_with_list_of_block_document_references(
-        self, block_document_id
-    ):
-        async with get_client() as prefect_client:
-            template = [{"$ref": {"block_document_id": block_document_id}}]
-            block_document = await prefect_client.read_block_document(block_document_id)
-
-            result = await convert_block_references_to_env_vars(
-                template, client=prefect_client
-            )
-
-        assert result == [block_document.data]
-
-    async def test_convert_block_references_to_env_vars_with_dot_delimited_syntax(
-        self, block_document_id
-    ):
-        async with get_client() as prefect_client:
-            template = {"key": "{{ prefect.blocks.arbitraryblock.arbitrary-block }}"}
-
-            result = await convert_block_references_to_env_vars(
-                template, client=prefect_client
-            )
-
-        assert result == {
-            "key": "{{ env_var('PREFECT_BLOCKS_ARBITRARYBLOCK_ARBITRARY_BLOCK') }}"
-        }
-
-    async def test_convert_block_references_to_env_vars_raises_on_multiple_placeholders(
-        self, block_document_id
-    ):
-        async with get_client() as prefect_client:
-            template = {
-                "key": (
-                    "{{ prefect.blocks.arbitraryblock.arbitrary-block }} {{"
-                    " another_placeholder }}"
-                )
-            }
-
-            with pytest.raises(
-                ValueError,
-                match=(
-                    "Only a single block placeholder is allowed in a string and no"
-                    " surrounding text is allowed."
-                ),
-            ):
-                await convert_block_references_to_env_vars(
-                    template, client=prefect_client
-                )
-
-    async def test_convert_block_references_to_env_vars_raises_on_extra_text(
-        self, block_document_id
-    ):
-        async with get_client() as prefect_client:
-            template = {
-                "key": "{{ prefect.blocks.arbitraryblock.arbitrary-block }} extra text"
-            }
-
-            with pytest.raises(
-                ValueError,
-                match=(
-                    "Only a single block placeholder is allowed in a string and no"
-                    " surrounding text is allowed."
-                ),
-            ):
-                await convert_block_references_to_env_vars(
-                    template, client=prefect_client
-                )
-
-    async def test_convert_block_references_to_env_vars_does_not_change_standard_placeholders(
-        self,
-    ):
-        template = {"key": "{{ standard_placeholder }}"}
-
-        result = await convert_block_references_to_env_vars(template)
-
-        assert result == template
-
-    async def test_resolve_block_document_unpacks_system_blocks(self):
-        await JSON(value={"key": "value"}).save(name="json-block")
-        await Secret(value="N1nj4C0d3rP@ssw0rd!").save(name="secret-block")
-        await DateTime(value="2020-01-01T00:00:00Z").save(name="datetime-block")
-        await String(value="hello").save(name="string-block")
-
-        template = {
-            "json": "{{ prefect.blocks.json.json-block }}",
-            "secret": "{{ prefect.blocks.secret.secret-block }}",
-            "datetime": "{{ prefect.blocks.date-time.datetime-block }}",
-            "string": "{{ prefect.blocks.string.string-block }}",
-        }
-
-        result = await convert_block_references_to_env_vars(template)
-        assert result == {
-            "datetime": "{{ env_var('PREFECT_BLOCKS_DATE_TIME_DATETIME_BLOCK') }}",
-            "json": "{{ env_var('PREFECT_BLOCKS_JSON_JSON_BLOCK') }}",
-            "secret": "{{ env_var('PREFECT_BLOCKS_SECRET_SECRET_BLOCK') }}",
-            "string": "{{ env_var('PREFECT_BLOCKS_STRING_STRING_BLOCK') }}",
-        }
-
-    async def test_resolve_block_document_system_block_resolves_dict_keypath(self):
-        # for backwards compatibility system blocks can be referenced directly
-        # they should still be able to access nested keys
-        await JSON(value={"key": {"nested-key": "nested_value"}}).save(
-            name="nested-json-block"
-        )
-        template = {
-            "value": "{{ prefect.blocks.json.nested-json-block}}",
-            "keypath": "{{ prefect.blocks.json.nested-json-block.key }}",
-            "nested_keypath": "{{ prefect.blocks.json.nested-json-block.key.nested-key }}",
-        }
-
-        result = await convert_block_references_to_env_vars(template)
-        assert result == {
-            "keypath": "{{ env_var('PREFECT_BLOCKS_JSON_NESTED_JSON_BLOCK_KEY') }}",
-            "nested_keypath": "{{ env_var('PREFECT_BLOCKS_JSON_NESTED_JSON_BLOCK_KEY_NESTED_KEY') }}",
-            "value": "{{ env_var('PREFECT_BLOCKS_JSON_NESTED_JSON_BLOCK') }}",
-        }
-
-    async def test_resolve_block_document_resolves_dict_keypath(self):
-        await JSON(value={"key": {"nested-key": "nested_value"}}).save(
-            name="nested-json-block-2"
-        )
-        template = {
-            "value": "{{ prefect.blocks.json.nested-json-block-2.value }}",
-            "keypath": "{{ prefect.blocks.json.nested-json-block-2.value.key }}",
-            "nested_keypath": (
-                "{{ prefect.blocks.json.nested-json-block-2.value.key.nested-key }}"
-            ),
-        }
-
-        result = await convert_block_references_to_env_vars(template)
-        assert result == {
-            "keypath": "{{ env_var('PREFECT_BLOCKS_JSON_NESTED_JSON_BLOCK_2_VALUE_KEY') }}",
-            "nested_keypath": "{{ env_var('PREFECT_BLOCKS_JSON_NESTED_JSON_BLOCK_2_VALUE_KEY_NESTED_KEY') }}",
-            "value": "{{ env_var('PREFECT_BLOCKS_JSON_NESTED_JSON_BLOCK_2_VALUE') }}",
-        }
-
-    async def test_resolve_block_document_resolves_list_keypath(self):
-        await JSON(value={"key": ["value1", "value2"]}).save(name="json-list-block")
-        await JSON(value=["value1", "value2"]).save(name="list-block")
-        await JSON(
-            value={"key": ["value1", {"nested": ["value2", "value3"]}, "value4"]}
-        ).save(name="nested-json-list-block")
-        template = {
-            "json_list": "{{ prefect.blocks.json.json-list-block.value.key[0] }}",
-            "list": "{{ prefect.blocks.json.list-block.value[1] }}",
-            "nested_json_list": (
-                "{{ prefect.blocks.json.nested-json-list-block.value.key[1].nested[1] }}"
-            ),
-        }
-
-        result = await convert_block_references_to_env_vars(template)
-        assert result == {
-            "json_list": "{{ env_var('PREFECT_BLOCKS_JSON_JSON_LIST_BLOCK_VALUE_KEY_0') }}",
-            "list": "{{ env_var('PREFECT_BLOCKS_JSON_LIST_BLOCK_VALUE_1') }}",
-            "nested_json_list": "{{ env_var('PREFECT_BLOCKS_JSON_NESTED_JSON_LIST_BLOCK_VALUE_KEY_1_NESTED_1') }}",
-        }
-
-    async def test_resolve_block_document_raises_on_invalid_keypath(self):
-        await JSON(value={"key": {"nested_key": "value"}}).save(
-            name="nested-json-block-3"
-        )
-        json_template = {
-            "json": "{{ prefect.blocks.json.nested-json-block-3.value.key.does_not_exist }}",
-        }
-        with pytest.raises(ValueError, match="Could not resolve the keypath"):
-            await convert_block_references_to_env_vars(json_template)
-
-        await JSON(value=["value1", "value2"]).save(name="index-error-block")
-        index_error_template = {
-            "index_error": "{{ prefect.blocks.json.index-error-block.value[3] }}",
-        }
-        with pytest.raises(ValueError, match="Could not resolve the keypath"):
-            await convert_block_references_to_env_vars(index_error_template)
-
-        await Webhook(url="https://example.com").save(name="webhook-block")
-        webhook_template = {
-            "webhook": "{{ prefect.blocks.webhook.webhook-block.value }}",
-        }
-        with pytest.raises(ValueError, match="Could not resolve the keypath"):
-            await convert_block_references_to_env_vars(webhook_template)
-
-    async def test_resolve_block_document_resolves_block_attribute(self):
-        await Webhook(url="https://example.com").save(name="webhook-block-2")
-
-        template = {
-            "block_attribute": "{{ prefect.blocks.webhook.webhook-block-2.url }}",
-        }
-        result = await convert_block_references_to_env_vars(template)
-
-        assert result == {
-            "block_attribute": "{{ env_var('PREFECT_BLOCKS_WEBHOOK_WEBHOOK_BLOCK_2_URL') }}",
-        }
+    # Test with non-string value
+    result = replace_with_env_var_call("prefect.blocks.json.number-config.value", 42)
+    assert result == "{{ env_var('PREFECT_BLOCKS_JSON_NUMBER_CONFIG_VALUE') }}"
+    assert os.environ["PREFECT_BLOCKS_JSON_NUMBER_CONFIG_VALUE"] == "42"

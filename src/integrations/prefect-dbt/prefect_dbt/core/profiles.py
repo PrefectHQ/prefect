@@ -8,35 +8,20 @@ import os
 import tempfile
 from pathlib import Path
 from typing import (
-    TYPE_CHECKING,
     Any,
     AsyncGenerator,
     Generator,
     Optional,
-    TypeVar,
-    Union,
 )
 
 import slugify
 import yaml
 
-from prefect import get_client
-from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_coro_as_sync
-from prefect.utilities.collections import get_from_dict
 from prefect.utilities.templating import (
-    PlaceholderType,
-    find_placeholders,
+    resolve_block_document_references,
     resolve_variables,
 )
-
-if TYPE_CHECKING:
-    from prefect.client.orchestration import PrefectClient
-
-
-T = TypeVar("T", str, int, float, bool, dict[Any, Any], list[Any], None)
-
-BLOCK_DOCUMENT_PLACEHOLDER_PREFIX = "prefect.blocks."
 
 
 def get_profiles_dir() -> str:
@@ -72,6 +57,27 @@ def load_profiles_yml(profiles_dir: Optional[str]) -> dict[str, Any]:
         return yaml.safe_load(f)
 
 
+def replace_with_env_var_call(placeholder: str, value: Any) -> str:
+    """
+    A block reference replacement function that returns template text for an env var call.
+
+    Args:
+        placeholder: The placeholder text to replace
+        value: The value to replace the placeholder with
+
+    Returns:
+        The template text for an env var call
+    """
+    print("this is being called")
+    env_var_name = slugify.slugify(placeholder, separator="_").upper()
+
+    os.environ[env_var_name] = str(value)
+
+    template_text = f"{{{{ env_var('{env_var_name}') }}}}"
+
+    return template_text
+
+
 @contextlib.asynccontextmanager
 async def aresolve_profiles_yml(
     profiles_dir: Optional[str] = None,
@@ -81,22 +87,26 @@ async def aresolve_profiles_yml(
 
     Args:
         profiles_dir: Path to the directory containing profiles.yml.
-                     If None, uses the default profiles directory.
+                      If None, uses the default profiles directory.
 
     Yields:
         str: Path to temporary directory containing the resolved profiles.yml.
-            Directory and contents are automatically cleaned up after context exit.
+             Directory and contents are automatically cleaned up after context exit.
 
-    Example:        ```python
+    Example:
+    ```python
         async with aresolve_profiles_yml() as temp_dir:
             # temp_dir contains resolved profiles.yml
             # use temp_dir for dbt operations
-        # temp_dir is automatically cleaned up        ```
+        # temp_dir is automatically cleaned up
+    ```
     """
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_dir_path = Path(temp_dir)
         profiles_yml: dict[str, Any] = load_profiles_yml(profiles_dir)
-        profiles_yml = await convert_block_references_to_env_vars(profiles_yml)
+        profiles_yml = await resolve_block_document_references(
+            profiles_yml, replace_with_env_var_call
+        )
         profiles_yml = await resolve_variables(profiles_yml)
 
         temp_profiles_path = temp_dir_path / "profiles.yml"
@@ -115,23 +125,25 @@ def resolve_profiles_yml(
 
     Args:
         profiles_dir: Path to the directory containing profiles.yml.
-                     If None, uses the default profiles directory.
+                      If None, uses the default profiles directory.
 
     Yields:
         str: Path to temporary directory containing the resolved profiles.yml.
-            Directory and contents are automatically cleaned up after context exit.
+             Directory and contents are automatically cleaned up after context exit.
 
-    Example:        ```python
+    Example:
+    ```python
         with resolve_profiles_yml() as temp_dir:
             # temp_dir contains resolved profiles.yml
             # use temp_dir for dbt operations
-        # temp_dir is automatically cleaned up        ```
+        # temp_dir is automatically cleaned up
+    ```
     """
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_dir_path = Path(temp_dir)
         profiles_yml: dict[str, Any] = load_profiles_yml(profiles_dir)
         profiles_yml = run_coro_as_sync(
-            convert_block_references_to_env_vars(profiles_yml)
+            resolve_block_document_references(profiles_yml, replace_with_env_var_call)
         )
         profiles_yml = run_coro_as_sync(resolve_variables(profiles_yml))
 
@@ -140,99 +152,3 @@ def resolve_profiles_yml(
             yaml.dump(profiles_yml, default_style=None, default_flow_style=False)
         )
         yield str(temp_dir_path)
-
-
-async def convert_block_references_to_env_vars(
-    template: T, client: Optional["PrefectClient"] = None
-) -> Union[T, dict[str, Any]]:
-    """
-    Resolve block document references in a template by replacing each reference with
-    template text that calls dbt's env_var function, like
-    {{ env_var('PREFECT_BLOCK_SECRET_MYSECRET') }}. Creates environment variables
-    for each block document reference, with a name in the format
-    PREFECT_BLOCKS_BLOCK_TYPE_SLUG_BLOCK_DOCUMENT_NAME and optionally BLOCK_DOCUMENT_KEYPATH.
-
-    Recursively searches for block document references in dictionaries and lists.
-
-    Args:
-        template: The template to resolve block documents in
-
-    Returns:
-        The template with block documents resolved
-    """
-    async with get_client() as client:
-        if isinstance(template, dict):
-            block_document_id = template.get("$ref", {}).get("block_document_id")
-            if block_document_id:
-                block_document = await client.read_block_document(block_document_id)
-                return block_document.data
-            updated_template: dict[str, Any] = {}
-            for key, value in template.items():
-                updated_value = await convert_block_references_to_env_vars(
-                    value, client=client
-                )
-                updated_template[key] = updated_value
-            return updated_template
-        elif isinstance(template, list):
-            return [
-                await convert_block_references_to_env_vars(item, client=client)
-                for item in template
-            ]
-        elif isinstance(template, str):
-            placeholders = find_placeholders(template)
-            has_block_document_placeholder = any(
-                placeholder.type is PlaceholderType.BLOCK_DOCUMENT
-                for placeholder in placeholders
-            )
-            if not (placeholders and has_block_document_placeholder):
-                return template
-            elif (
-                len(placeholders) == 1
-                and list(placeholders)[0].full_match == template
-                and list(placeholders)[0].type is PlaceholderType.BLOCK_DOCUMENT
-            ):
-                # value_keypath will be a list containing a dot path if additional
-                # attributes are accessed and an empty list otherwise.
-                [placeholder] = placeholders
-                parts = placeholder.name.replace(
-                    BLOCK_DOCUMENT_PLACEHOLDER_PREFIX, ""
-                ).split(".", 2)
-                block_type_slug, block_document_name, *value_keypath = parts
-                block_document = await client.read_block_document_by_name(
-                    name=block_document_name, block_type_slug=block_type_slug
-                )
-                data = block_document.data
-                value: Union[T, dict[str, Any]] = data
-
-                # resolving system blocks to their data for backwards compatibility
-                if len(data) == 1 and "value" in data:
-                    # only resolve the value if the keypath is not already pointing to "value"
-                    if not (value_keypath and value_keypath[0].startswith("value")):
-                        data = value = value["value"]
-
-                # resolving keypath/block attributes
-                if value_keypath:
-                    from_dict: Any = get_from_dict(
-                        data, value_keypath[0], default=NotSet
-                    )
-                    if from_dict is NotSet:
-                        raise ValueError(
-                            f"Invalid template: {template!r}. Could not resolve the"
-                            " keypath in the block document data."
-                        )
-                    value = from_dict
-
-                env_var_name = slugify.slugify(placeholder[0], separator="_").upper()
-
-                os.environ[env_var_name] = str(value)
-
-                template_text = f"{{{{ env_var('{env_var_name}') }}}}"
-
-                return template_text
-            else:
-                raise ValueError(
-                    f"Invalid template: {template!r}. Only a single block placeholder is"
-                    " allowed in a string and no surrounding text is allowed."
-                )
-
-    return template
