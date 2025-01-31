@@ -25,7 +25,7 @@ def dask_task_runner_with_existing_cluster(use_hosted_api_server):  # noqa
     """
     Generate a dask task runner that's connected to a local cluster
     """
-    with distributed.LocalCluster(n_workers=2) as cluster:
+    with distributed.LocalCluster() as cluster:
         yield DaskTaskRunner(cluster=cluster)
 
 
@@ -34,7 +34,7 @@ def dask_task_runner_with_existing_cluster_address(use_hosted_api_server):  # no
     """
     Generate a dask task runner that's connected to a local cluster
     """
-    with distributed.LocalCluster() as cluster:
+    with distributed.LocalCluster(n_workers=2) as cluster:
         with distributed.Client(cluster) as client:
             address = client.scheduler.address
             yield DaskTaskRunner(address=address)
