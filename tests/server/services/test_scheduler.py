@@ -119,9 +119,9 @@ async def test_create_schedules_from_deployment(
         expected_dates.update(await schedule.get_dates(service.min_runs))
     assert set(expected_dates) == {r.state.state_details.scheduled_time for r in runs}
 
-    assert all(
-        [r.state_name == "Scheduled" for r in runs]
-    ), "Scheduler sets flow_run.state_name"
+    assert all([r.state_name == "Scheduled" for r in runs]), (
+        "Scheduler sets flow_run.state_name"
+    )
 
 
 async def test_create_schedule_respects_max_future_time(flow, session):

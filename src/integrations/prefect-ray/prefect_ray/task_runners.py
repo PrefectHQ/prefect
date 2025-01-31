@@ -70,6 +70,7 @@ Example:
     #9
     ```
 """
+
 from __future__ import annotations
 
 import asyncio  # noqa: I001
@@ -249,8 +250,7 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture[R]]):
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
         dependencies: dict[str, set[TaskRunInput]] | None = None,
-    ) -> PrefectRayFuture[R]:
-        ...
+    ) -> PrefectRayFuture[R]: ...
 
     @overload
     def submit(
@@ -259,8 +259,7 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture[R]]):
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
         dependencies: dict[str, set[TaskRunInput]] | None = None,
-    ) -> PrefectRayFuture[R]:
-        ...
+    ) -> PrefectRayFuture[R]: ...
 
     def submit(
         self,
@@ -307,8 +306,7 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture[R]]):
         task: "Task[P, Coroutine[Any, Any, R]]",
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
-    ) -> PrefectFutureList[PrefectRayFuture[R]]:
-        ...
+    ) -> PrefectFutureList[PrefectRayFuture[R]]: ...
 
     @overload
     def map(
@@ -316,8 +314,7 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture[R]]):
         task: "Task[Any, R]",
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
-    ) -> PrefectFutureList[PrefectRayFuture[R]]:
-        ...
+    ) -> PrefectFutureList[PrefectRayFuture[R]]: ...
 
     def map(
         self,

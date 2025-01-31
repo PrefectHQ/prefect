@@ -15,12 +15,10 @@ if TYPE_CHECKING:
     from opentelemetry.sdk.trace import TracerProvider
 
 
-def setup_telemetry() -> (
-    Union[
-        tuple["TracerProvider", "MeterProvider", "LoggerProvider"],
-        tuple[None, None, None],
-    ]
-):
+def setup_telemetry() -> Union[
+    tuple["TracerProvider", "MeterProvider", "LoggerProvider"],
+    tuple[None, None, None],
+]:
     settings = prefect.settings.get_current_settings()
 
     server_type = determine_server_type()

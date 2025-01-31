@@ -103,8 +103,7 @@ class IntervalSchedule(PrefectBaseModel):
                 Union[pendulum.DateTime, datetime.datetime, str]
             ] = None,
             timezone: Optional[str] = None,
-        ) -> None:
-            ...
+        ) -> None: ...
 
 
 class CronSchedule(PrefectBaseModel):
