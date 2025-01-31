@@ -356,6 +356,26 @@ def test_create_profile_with_existing_profile():
     )
 
 
+def test_create_profile_with_name_conflict_vs_unsaved_default():
+    """
+    Regression test for https://github.com/PrefectHQ/prefect/issues/15643
+    """
+    invoke_and_assert(
+        ["profile", "create", "local"],
+        expected_output="""
+            Created profile with properties:
+                name - 'local'
+                from name - None
+
+            Use created profile for future, subsequent commands:
+                prefect profile use 'local'
+
+            Use created profile temporarily for a single command:
+                prefect -p 'local' config view
+            """,
+    )
+
+
 def test_delete_profile():
     save_profiles(
         ProfilesCollection(

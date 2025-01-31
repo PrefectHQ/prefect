@@ -67,7 +67,7 @@ def create(
     Create a new profile.
     """
 
-    profiles = prefect.settings.load_profiles()
+    profiles = prefect.settings.load_profiles(include_defaults=False)
     if name in profiles:
         app.console.print(
             textwrap.dedent(
