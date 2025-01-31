@@ -134,7 +134,7 @@ async def create_handler(
             async with db.session_context() as session:
                 resource_result = await session.execute(
                     sa.delete(db.EventResource).where(
-                        db.EventResource.occurred < older_than
+                        db.EventResource.updated < older_than
                     )
                 )
                 event_result = await session.execute(

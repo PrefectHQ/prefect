@@ -3,6 +3,7 @@ from datetime import timedelta
 from typing import AsyncGenerator, Optional, Sequence
 from uuid import UUID, uuid4
 
+import pendulum
 import pytest
 import sqlalchemy as sa
 from pydantic import ValidationError
@@ -294,34 +295,43 @@ async def test_flushes_messages_periodically(
 async def test_trims_messages_periodically(
     event: ReceivedEvent, session: AsyncSession, db: PrefectDBInterface
 ):
-    await write_events(
-        session,
-        [
-            event.model_copy(
-                update={
-                    "id": uuid4(),
-                    "occurred": DateTime.now("UTC") - timedelta(days=i),
-                }
-            )
-            for i in range(10)
-        ],
-    )
-    await session.commit()
+    inserted_timestamps = []
+    # Create entries with slightly different insert times. Since the event_resources are filtered based on the
+    # "updated" column, where sqlite itself sets the timestamp, we need to actually delay the inserts.
+    for _ in range(10):
+        timestamp = pendulum.now("UTC")
+        await write_events(
+            session,
+            [
+                event.model_copy(
+                    update={
+                        "id": uuid4(),
+                        "occurred": timestamp,
+                    }
+                )
+            ],
+        )
+        inserted_timestamps.append(timestamp)
+        await asyncio.sleep(0.1)  # The whole insert should be 100ms * 10 = about 1s
 
-    five_days_ago = DateTime.now("UTC") - timedelta(days=5)
+    cutoff_date = inserted_timestamps[
+        4
+    ]  # Half the entries are older than this, half are younger
 
     initial_events, event_count, _ = await query_events(session, filter=EventFilter())
     assert event_count == 10
     assert len(initial_events) == 10
-    assert any(event.occurred < five_days_ago for event in initial_events)
-    assert any(event.occurred >= five_days_ago for event in initial_events)
+    assert any(event.occurred < cutoff_date for event in initial_events)
+    assert any(event.occurred >= cutoff_date for event in initial_events)
 
-    initial_resources = await get_resources(session, None, db)
+    initial_resources = list(await get_resources(session, None, db))
     assert len(initial_resources) == 40
-    assert any(resource.occurred < five_days_ago for resource in initial_resources)
-    assert any(resource.occurred >= five_days_ago for resource in initial_resources)
+    assert any(resource.occurred < cutoff_date for resource in initial_resources)
+    assert any(resource.occurred >= cutoff_date for resource in initial_resources)
 
-    with temporary_settings({PREFECT_EVENTS_RETENTION_PERIOD: timedelta(days=5)}):
+    # Prefect assumes a timedelta for the retention period, here we dynamically compute this to match the cutoff we want
+    retention_period = pendulum.now("UTC") - cutoff_date
+    with temporary_settings({PREFECT_EVENTS_RETENTION_PERIOD: retention_period}):
         async with event_persister.create_handler(
             flush_every=timedelta(seconds=0.001),
             trim_every=timedelta(seconds=0.001),
@@ -331,8 +341,8 @@ async def test_trims_messages_periodically(
     remaining_events, event_count, _ = await query_events(session, filter=EventFilter())
     assert event_count == 5
     assert len(remaining_events) == 5
-    assert all(event.occurred >= five_days_ago for event in remaining_events)
+    assert all(event.occurred >= cutoff_date for event in remaining_events)
 
     remaining_resources = await get_resources(session, None, db)
     assert len(remaining_resources) == 20
-    assert all(resource.occurred >= five_days_ago for resource in remaining_resources)
+    assert all(resource.occurred >= cutoff_date for resource in remaining_resources)
