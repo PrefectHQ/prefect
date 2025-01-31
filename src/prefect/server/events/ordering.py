@@ -54,8 +54,9 @@ class MaxDepthExceeded(Exception):
 
 
 class event_handler(Protocol):
-    async def __call__(self, event: ReceivedEvent, depth: int = 0) -> None:
-        ...  # pragma: no cover
+    async def __call__(
+        self, event: ReceivedEvent, depth: int = 0
+    ) -> None: ...  # pragma: no cover
 
 
 class CausalOrdering:

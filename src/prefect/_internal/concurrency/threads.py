@@ -135,9 +135,9 @@ class EventLoopThread(Portal):
         self.thread = threading.Thread(
             name=name, daemon=daemon, target=self._entrypoint
         )
-        self._ready_future: concurrent.futures.Future[
-            bool
-        ] = concurrent.futures.Future()
+        self._ready_future: concurrent.futures.Future[bool] = (
+            concurrent.futures.Future()
+        )
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._shutdown_event: Event = Event()
         self._run_once: bool = run_once

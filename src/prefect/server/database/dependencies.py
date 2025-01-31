@@ -168,13 +168,11 @@ def inject_db(fn: Callable[P, R]) -> Callable[P, R]:
 
 
 @overload
-def db_injector(func: _DBMethod[T, P, R]) -> _Method[T, P, R]:
-    ...
+def db_injector(func: _DBMethod[T, P, R]) -> _Method[T, P, R]: ...
 
 
 @overload
-def db_injector(func: _DBFunction[P, R]) -> _Function[P, R]:
-    ...
+def db_injector(func: _DBFunction[P, R]) -> _Function[P, R]: ...
 
 
 def db_injector(
@@ -265,17 +263,14 @@ class DBInjector(
     if TYPE_CHECKING:
 
         @overload
-        def __new__(cls, func: _DBMethod[T, P, R]) -> "DBInjector[T, P, R]":
-            ...
+        def __new__(cls, func: _DBMethod[T, P, R]) -> "DBInjector[T, P, R]": ...
 
         @overload
-        def __new__(cls, func: _DBFunction[P, R]) -> "DBInjector[None, P, R]":
-            ...
+        def __new__(cls, func: _DBFunction[P, R]) -> "DBInjector[None, P, R]": ...
 
         def __new__(
             cls, func: Union[_DBMethod[T, P, R], _DBFunction[P, R]]
-        ) -> Union["DBInjector[T, P, R]", "DBInjector[None, P, R]"]:
-            ...
+        ) -> Union["DBInjector[T, P, R]", "DBInjector[None, P, R]"]: ...
 
     def __init__(self, func: Union[_DBMethod[T, P, R], _DBFunction[P, R]]) -> None:
         super().__init__(cast(Callable[P, R], func))
@@ -289,18 +284,15 @@ class DBInjector(
         object.__setattr__(self, "__name__", name)
 
     @overload
-    def __get__(self, instance: None, owner: type[T]) -> Self:
-        ...
+    def __get__(self, instance: None, owner: type[T]) -> Self: ...
 
     @overload
     def __get__(
         self, instance: T, owner: Optional[type[T]] = None
-    ) -> "_DBInjectorMethod[T, P, R]":
-        ...
+    ) -> "_DBInjectorMethod[T, P, R]": ...
 
     @overload
-    def __get__(self, instance: None, owner: None) -> Never:
-        ...
+    def __get__(self, instance: None, owner: None) -> Never: ...
 
     def __get__(
         self, instance: Optional[T], owner: Optional[type[T]] = None

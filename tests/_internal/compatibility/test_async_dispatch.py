@@ -207,15 +207,15 @@ class TestIsInAsyncContext:
         try:
             loop.call_soon(check_context)
             loop.run_forever()
-            assert (
-                result is True
-            ), "the result we captured while loop was running should be True"
+            assert result is True, (
+                "the result we captured while loop was running should be True"
+            )
         finally:
             loop.close()
             asyncio.set_event_loop(None)
-            assert (
-                is_in_async_context() is False
-            ), "the loop should be closed and not considered an async context"
+            assert is_in_async_context() is False, (
+                "the loop should be closed and not considered an async context"
+            )
 
 
 class TestIsInARunContext:

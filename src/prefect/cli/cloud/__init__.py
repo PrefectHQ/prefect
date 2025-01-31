@@ -1,6 +1,7 @@
 """
 Command line interface for interacting with Prefect Cloud
 """
+
 from __future__ import annotations
 
 import os
@@ -170,15 +171,15 @@ def get_current_workspace(workspaces: Iterable[Workspace]) -> Workspace | None:
 
 
 @overload
-def prompt_select_from_list(console: Console, prompt: str, options: list[str]) -> str:
-    ...
+def prompt_select_from_list(
+    console: Console, prompt: str, options: list[str]
+) -> str: ...
 
 
 @overload
 def prompt_select_from_list(
     console: Console, prompt: str, options: list[tuple[T, str]]
-) -> T:
-    ...
+) -> T: ...
 
 
 def prompt_select_from_list(

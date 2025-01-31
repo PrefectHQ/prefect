@@ -217,8 +217,7 @@ def prompt_select_from_table(
     table_kwargs: dict[str, Any] | None = None,
     opt_out_message: None = None,
     opt_out_response: Any = None,
-) -> dict[str, T]:
-    ...
+) -> dict[str, T]: ...
 
 
 @overload
@@ -230,8 +229,7 @@ def prompt_select_from_table(
     table_kwargs: dict[str, Any] | None = None,
     opt_out_message: str = "",
     opt_out_response: Any = None,
-) -> dict[str, T] | None:
-    ...
+) -> dict[str, T] | None: ...
 
 
 def prompt_select_from_table(
@@ -665,9 +663,9 @@ async def prompt_push_custom_docker_image(
                 import prefect_docker
 
             credentials_block = prefect_docker.DockerRegistryCredentials
-            push_step[
-                "credentials"
-            ] = "{{ prefect_docker.docker-registry-credentials.docker_registry_creds_name }}"
+            push_step["credentials"] = (
+                "{{ prefect_docker.docker-registry-credentials.docker_registry_creds_name }}"
+            )
             docker_registry_creds_name = f"deployment-{slugify(deployment_config['name'])}-{slugify(deployment_config['work_pool']['name'])}-registry-creds"
             create_new_block = False
             try:
@@ -981,7 +979,7 @@ async def prompt_select_blob_storage_credentials(
     url = urls.url_for(new_block_document)
     if url:
         console.print(
-            "\nView/Edit your new credentials block in the UI:" f"\n[blue]{url}[/]\n",
+            f"\nView/Edit your new credentials block in the UI:\n[blue]{url}[/]\n",
             soft_wrap=True,
         )
     return f"{{{{ prefect.blocks.{creds_block_type_slug}.{new_block_document.name} }}}}"

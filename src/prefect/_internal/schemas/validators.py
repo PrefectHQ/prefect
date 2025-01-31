@@ -40,13 +40,15 @@ LOWERCASE_LETTERS_NUMBERS_AND_UNDERSCORES_REGEX = "^[a-z0-9_]*$"
 
 
 @overload
-def raise_on_name_alphanumeric_dashes_only(value: str, field_name: str = ...) -> str:
-    ...
+def raise_on_name_alphanumeric_dashes_only(
+    value: str, field_name: str = ...
+) -> str: ...
 
 
 @overload
-def raise_on_name_alphanumeric_dashes_only(value: None, field_name: str = ...) -> None:
-    ...
+def raise_on_name_alphanumeric_dashes_only(
+    value: None, field_name: str = ...
+) -> None: ...
 
 
 def raise_on_name_alphanumeric_dashes_only(
@@ -64,15 +66,13 @@ def raise_on_name_alphanumeric_dashes_only(
 @overload
 def raise_on_name_alphanumeric_underscores_only(
     value: str, field_name: str = ...
-) -> str:
-    ...
+) -> str: ...
 
 
 @overload
 def raise_on_name_alphanumeric_underscores_only(
     value: None, field_name: str = ...
-) -> None:
-    ...
+) -> None: ...
 
 
 def raise_on_name_alphanumeric_underscores_only(
@@ -149,13 +149,13 @@ def validate_parameters_conform_to_schema(
 
 
 @overload
-def validate_parameter_openapi_schema(schema: M, values: Mapping[str, Any]) -> M:
-    ...
+def validate_parameter_openapi_schema(schema: M, values: Mapping[str, Any]) -> M: ...
 
 
 @overload
-def validate_parameter_openapi_schema(schema: None, values: Mapping[str, Any]) -> None:
-    ...
+def validate_parameter_openapi_schema(
+    schema: None, values: Mapping[str, Any]
+) -> None: ...
 
 
 def validate_parameter_openapi_schema(
@@ -198,13 +198,11 @@ def reconcile_schedules_runner(values: MM) -> MM:
 
 
 @overload
-def validate_schedule_max_scheduled_runs(v: int, limit: int) -> int:
-    ...
+def validate_schedule_max_scheduled_runs(v: int, limit: int) -> int: ...
 
 
 @overload
-def validate_schedule_max_scheduled_runs(v: None, limit: int) -> None:
-    ...
+def validate_schedule_max_scheduled_runs(v: None, limit: int) -> None: ...
 
 
 def validate_schedule_max_scheduled_runs(v: Optional[int], limit: int) -> Optional[int]:
@@ -260,15 +258,13 @@ def default_anchor_date(v: pendulum.DateTime) -> pendulum.DateTime:
 
 
 @overload
-def default_timezone(v: str, values: Optional[Mapping[str, Any]] = ...) -> str:
-    ...
+def default_timezone(v: str, values: Optional[Mapping[str, Any]] = ...) -> str: ...
 
 
 @overload
 def default_timezone(
     v: None, values: Optional[Mapping[str, Any]] = ...
-) -> Optional[str]:
-    ...
+) -> Optional[str]: ...
 
 
 def default_timezone(
@@ -411,13 +407,11 @@ def validate_load_kwargs(value: M) -> M:
 
 
 @overload
-def cast_type_names_to_serializers(value: str) -> "Serializer[Any]":
-    ...
+def cast_type_names_to_serializers(value: str) -> "Serializer[Any]": ...
 
 
 @overload
-def cast_type_names_to_serializers(value: "Serializer[T]") -> "Serializer[T]":
-    ...
+def cast_type_names_to_serializers(value: "Serializer[T]") -> "Serializer[T]": ...
 
 
 def cast_type_names_to_serializers(
@@ -457,13 +451,11 @@ def validate_compressionlib(value: str) -> str:
 
 # TODO: if we use this elsewhere we can change the error message to be more generic
 @overload
-def list_length_50_or_less(v: list[float]) -> list[float]:
-    ...
+def list_length_50_or_less(v: list[float]) -> list[float]: ...
 
 
 @overload
-def list_length_50_or_less(v: None) -> None:
-    ...
+def list_length_50_or_less(v: None) -> None: ...
 
 
 def list_length_50_or_less(v: Optional[list[float]]) -> Optional[list[float]]:
@@ -474,13 +466,11 @@ def list_length_50_or_less(v: Optional[list[float]]) -> Optional[list[float]]:
 
 # TODO: if we use this elsewhere we can change the error message to be more generic
 @overload
-def validate_not_negative(v: float) -> float:
-    ...
+def validate_not_negative(v: float) -> float: ...
 
 
 @overload
-def validate_not_negative(v: None) -> None:
-    ...
+def validate_not_negative(v: None) -> None: ...
 
 
 def validate_not_negative(v: Optional[float]) -> Optional[float]:
@@ -490,13 +480,11 @@ def validate_not_negative(v: Optional[float]) -> Optional[float]:
 
 
 @overload
-def validate_message_template_variables(v: str) -> str:
-    ...
+def validate_message_template_variables(v: str) -> str: ...
 
 
 @overload
-def validate_message_template_variables(v: None) -> None:
-    ...
+def validate_message_template_variables(v: None) -> None: ...
 
 
 def validate_message_template_variables(v: Optional[str]) -> Optional[str]:
@@ -521,13 +509,11 @@ def validate_default_queue_id_not_none(v: Optional[UUID]) -> UUID:
 
 
 @overload
-def validate_max_metadata_length(v: MM) -> MM:
-    ...
+def validate_max_metadata_length(v: MM) -> MM: ...
 
 
 @overload
-def validate_max_metadata_length(v: None) -> None:
-    ...
+def validate_max_metadata_length(v: None) -> None: ...
 
 
 def validate_max_metadata_length(v: Optional[MM]) -> Optional[MM]:
@@ -544,13 +530,11 @@ def validate_max_metadata_length(v: Optional[MM]) -> Optional[MM]:
 
 
 @overload
-def validate_cache_key_length(cache_key: str) -> str:
-    ...
+def validate_cache_key_length(cache_key: str) -> str: ...
 
 
 @overload
-def validate_cache_key_length(cache_key: None) -> None:
-    ...
+def validate_cache_key_length(cache_key: None) -> None: ...
 
 
 def validate_cache_key_length(cache_key: Optional[str]) -> Optional[str]:
@@ -587,13 +571,11 @@ def set_run_policy_deprecated_fields(values: MM) -> MM:
 
 
 @overload
-def return_v_or_none(v: str) -> str:
-    ...
+def return_v_or_none(v: str) -> str: ...
 
 
 @overload
-def return_v_or_none(v: None) -> None:
-    ...
+def return_v_or_none(v: None) -> None: ...
 
 
 def return_v_or_none(v: Optional[str]) -> Optional[str]:
@@ -629,13 +611,11 @@ def validate_name_present_on_nonanonymous_blocks(values: M) -> M:
 
 
 @overload
-def validate_working_dir(v: str) -> Path:
-    ...
+def validate_working_dir(v: str) -> Path: ...
 
 
 @overload
-def validate_working_dir(v: None) -> None:
-    ...
+def validate_working_dir(v: None) -> None: ...
 
 
 def validate_working_dir(v: Optional[Path | str]) -> Optional[Path]:
@@ -652,13 +632,11 @@ def validate_working_dir(v: Optional[Path | str]) -> Optional[Path]:
 
 
 @overload
-def validate_block_document_name(value: str) -> str:
-    ...
+def validate_block_document_name(value: str) -> str: ...
 
 
 @overload
-def validate_block_document_name(value: None) -> None:
-    ...
+def validate_block_document_name(value: None) -> None: ...
 
 
 def validate_block_document_name(value: Optional[str]) -> Optional[str]:
@@ -673,13 +651,11 @@ def validate_artifact_key(value: str) -> str:
 
 
 @overload
-def validate_variable_name(value: str) -> str:
-    ...
+def validate_variable_name(value: str) -> str: ...
 
 
 @overload
-def validate_variable_name(value: None) -> None:
-    ...
+def validate_variable_name(value: None) -> None: ...
 
 
 def validate_variable_name(value: Optional[str]) -> Optional[str]:

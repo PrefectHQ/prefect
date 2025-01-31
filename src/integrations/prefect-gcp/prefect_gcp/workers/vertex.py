@@ -525,8 +525,7 @@ class VertexAIWorker(BaseWorker):
                 )
 
         logger.info(
-            f"Job {job_name!r} created. "
-            f"The full job name is {custom_job_run.name!r}"
+            f"Job {job_name!r} created. The full job name is {custom_job_run.name!r}"
         )
 
         return custom_job_run

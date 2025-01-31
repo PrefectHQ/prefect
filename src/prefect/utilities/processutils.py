@@ -256,8 +256,7 @@ async def run_process(
     task_status: anyio.abc.TaskStatus[T] = ...,
     task_status_handler: Callable[[anyio.abc.Process], T] = ...,
     **kwargs: Any,
-) -> anyio.abc.Process:
-    ...
+) -> anyio.abc.Process: ...
 
 
 @overload
@@ -270,8 +269,7 @@ async def run_process(
     task_status: Optional[anyio.abc.TaskStatus[int]] = ...,
     task_status_handler: None = None,
     **kwargs: Any,
-) -> anyio.abc.Process:
-    ...
+) -> anyio.abc.Process: ...
 
 
 @overload
@@ -284,8 +282,7 @@ async def run_process(
     task_status: Optional[anyio.abc.TaskStatus[T]] = None,
     task_status_handler: Optional[Callable[[anyio.abc.Process], T]] = None,
     **kwargs: Any,
-) -> anyio.abc.Process:
-    ...
+) -> anyio.abc.Process: ...
 
 
 async def run_process(

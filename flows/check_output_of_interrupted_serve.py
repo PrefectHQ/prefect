@@ -35,14 +35,14 @@ async def main():
 
     # Check if each expected message is in the corresponding line
     for expected in expected_messages:
-        assert (
-            expected in stderr_output
-        ), f"Expected '{expected}' not found in '{stderr_output}'"
+        assert expected in stderr_output, (
+            f"Expected '{expected}' not found in '{stderr_output}'"
+        )
 
     for unexpected in unexpected_messages:
-        assert (
-            unexpected not in stderr_output
-        ), f"Unexpected '{unexpected}' found in '{stderr_output}'"
+        assert unexpected not in stderr_output, (
+            f"Unexpected '{unexpected}' found in '{stderr_output}'"
+        )
 
     print("All expected log messages were found")
 

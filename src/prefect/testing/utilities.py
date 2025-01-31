@@ -45,7 +45,7 @@ def exceptions_equal(a: Exception, b: Exception) -> bool:
     """
     if a == b:
         return True
-    return type(a) == type(b) and getattr(a, "args", None) == getattr(b, "args", None)
+    return type(a) is type(b) and getattr(a, "args", None) == getattr(b, "args", None)
 
 
 # AsyncMock has a new import path in Python 3.9+
@@ -202,9 +202,9 @@ async def get_most_recent_flow_run(
 def assert_blocks_equal(
     found: Block, expected: Block, exclude_private: bool = True, **kwargs: Any
 ) -> None:
-    assert isinstance(
-        found, type(expected)
-    ), f"Unexpected type {type(found).__name__}, expected {type(expected).__name__}"
+    assert isinstance(found, type(expected)), (
+        f"Unexpected type {type(found).__name__}, expected {type(expected).__name__}"
+    )
 
     if exclude_private:
         exclude = set(kwargs.pop("exclude", set()))

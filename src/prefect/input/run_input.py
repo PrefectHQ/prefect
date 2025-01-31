@@ -664,8 +664,7 @@ def receive_input(  # type: ignore[overload-overlap]
     key_prefix: Optional[str] = None,
     flow_run_id: Optional[UUID] = None,
     with_metadata: bool = False,
-) -> GetInputHandler[R]:
-    ...
+) -> GetInputHandler[R]: ...
 
 
 @overload
@@ -678,8 +677,7 @@ def receive_input(
     key_prefix: Optional[str] = None,
     flow_run_id: Optional[UUID] = None,
     with_metadata: bool = False,
-) -> GetAutomaticInputHandler[T]:
-    ...
+) -> GetAutomaticInputHandler[T]: ...
 
 
 def receive_input(
@@ -697,9 +695,9 @@ def receive_input(
     # the signature is the same as here:
     #   Union[Type[R], Type[T], pydantic.BaseModel],
     # Seems like a possible mypy bug, so we'll ignore the type check here.
-    input_cls: Union[
-        Type[AutomaticRunInput[T]], Type[R]
-    ] = run_input_subclass_from_type(input_type)  # type: ignore[arg-type]
+    input_cls: Union[Type[AutomaticRunInput[T]], Type[R]] = (
+        run_input_subclass_from_type(input_type)
+    )  # type: ignore[arg-type]
 
     if issubclass(input_cls, AutomaticRunInput):
         return input_cls.receive(

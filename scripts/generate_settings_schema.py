@@ -11,9 +11,9 @@ class SettingsGenerateJsonSchema(GenerateJsonSchema):
         json_schema = super().generate(schema, mode=mode)
         json_schema["title"] = "Prefect Settings"
         json_schema["$schema"] = self.schema_dialect
-        json_schema[
-            "$id"
-        ] = "https://github.com/PrefectHQ/prefect/schemas/settings.schema.json"
+        json_schema["$id"] = (
+            "https://github.com/PrefectHQ/prefect/schemas/settings.schema.json"
+        )
         return json_schema
 
 

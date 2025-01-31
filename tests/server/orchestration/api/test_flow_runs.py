@@ -1892,9 +1892,9 @@ class TestSetFlowRunState:
                 "headers": {},
             }
             if client_version:
-                post_kwargs["headers"][
-                    "User-Agent"
-                ] = f"prefect/{client_version} (API 2.19.3)"
+                post_kwargs["headers"]["User-Agent"] = (
+                    f"prefect/{client_version} (API 2.19.3)"
+                )
             response = await client.post(
                 f"/flow_runs/{flow_run_with_concurrency_limit.id}/set_state",
                 **post_kwargs,
@@ -1998,9 +1998,9 @@ class TestFlowRunHistory:
                 history_interval_seconds=0.9,
             ),
         )
-        assert (
-            response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
-        ), response.text
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY, (
+            response.text
+        )
         assert b"History interval must not be less than 1 second" in response.content
 
 
@@ -2895,6 +2895,6 @@ class TestDownloadFlowRunLogs:
             # number of logs generated plus 1 for the header row
             expected_line_count = len(flow_run_1_logs) + 1
 
-            assert (
-                line_count == expected_line_count
-            ), f"Expected {expected_line_count} lines, got {line_count}"
+            assert line_count == expected_line_count, (
+                f"Expected {expected_line_count} lines, got {line_count}"
+            )

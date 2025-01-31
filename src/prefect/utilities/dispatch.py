@@ -45,15 +45,13 @@ def get_registry_for_type(cls: T) -> Optional[dict[str, T]]:
 @overload
 def get_dispatch_key(
     cls_or_instance: Any, allow_missing: Literal[False] = False
-) -> str:
-    ...
+) -> str: ...
 
 
 @overload
 def get_dispatch_key(
     cls_or_instance: Any, allow_missing: Literal[True] = ...
-) -> Optional[str]:
-    ...
+) -> Optional[str]: ...
 
 
 def get_dispatch_key(

@@ -21,9 +21,9 @@ _UniqueKey: TypeAlias = tuple[Hashable, ...]
 class DBSingleton(type):
     """Ensures that only one database interface is created per unique key"""
 
-    _instances: dict[
-        tuple[str, _UniqueKey, _UniqueKey, _UniqueKey], "DBSingleton"
-    ] = dict()
+    _instances: dict[tuple[str, _UniqueKey, _UniqueKey, _UniqueKey], "DBSingleton"] = (
+        dict()
+    )
 
     def __call__(
         cls,

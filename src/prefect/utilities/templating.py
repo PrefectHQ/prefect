@@ -92,22 +92,19 @@ def find_placeholders(template: T) -> set[Placeholder]:
 @overload
 def apply_values(
     template: T, values: dict[str, Any], remove_notset: Literal[True] = True
-) -> T:
-    ...
+) -> T: ...
 
 
 @overload
 def apply_values(
     template: T, values: dict[str, Any], remove_notset: Literal[False] = False
-) -> Union[T, type[NotSet]]:
-    ...
+) -> Union[T, type[NotSet]]: ...
 
 
 @overload
 def apply_values(
     template: T, values: dict[str, Any], remove_notset: bool = False
-) -> Union[T, type[NotSet]]:
-    ...
+) -> Union[T, type[NotSet]]: ...
 
 
 def apply_values(

@@ -194,9 +194,9 @@ class JSON(TypeDecorator[Any]):
     to SQL compilation
     """
 
-    impl: type[postgresql.JSONB] | type[TypeEngine[Any]] | TypeEngine[
-        Any
-    ] = postgresql.JSONB
+    impl: type[postgresql.JSONB] | type[TypeEngine[Any]] | TypeEngine[Any] = (
+        postgresql.JSONB
+    )
     cache_ok: bool | None = True
 
     def load_dialect_impl(self, dialect: sa.Dialect) -> TypeEngine[Any]:
@@ -242,8 +242,7 @@ class Pydantic(TypeDecorator[T]):
         self,
         pydantic_type: type[T],
         sa_column_type: Optional[Union[type[TypeEngine[Any]], TypeEngine[Any]]] = None,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     # This overload is needed to allow for typing special forms (e.g.
     # Union[...], etc.) as these can't be married with `type[...]`. Also see
@@ -253,8 +252,7 @@ class Pydantic(TypeDecorator[T]):
         self: "Pydantic[Any]",
         pydantic_type: Any,
         sa_column_type: Optional[Union[type[TypeEngine[Any]], TypeEngine[Any]]] = None,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     def __init__(
         self,
@@ -264,9 +262,9 @@ class Pydantic(TypeDecorator[T]):
         super().__init__()
         self._pydantic_type = pydantic_type
         if sa_column_type is not None:
-            self.impl: type[JSON] | type[TypeEngine[Any]] | TypeEngine[
-                Any
-            ] = sa_column_type
+            self.impl: type[JSON] | type[TypeEngine[Any]] | TypeEngine[Any] = (
+                sa_column_type
+            )
 
     def process_bind_param(
         self, value: Optional[T], dialect: sa.Dialect

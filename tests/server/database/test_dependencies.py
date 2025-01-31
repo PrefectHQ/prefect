@@ -30,34 +30,28 @@ from prefect.server.schemas.graph import Graph
 async def test_injecting_an_existing_database_database_config(ConnectionConfig):
     with dependencies.temporary_database_config(ConnectionConfig(None)):
         db = dependencies.provide_database_interface()
-        assert type(db.database_config) == ConnectionConfig
+        assert type(db.database_config) is ConnectionConfig
 
 
 async def test_injecting_a_really_dumb_database_database_config():
     class UselessConfiguration(BaseDatabaseConfiguration):
-        async def engine(self):
-            ...
+        async def engine(self): ...
 
-        async def session(self, engine):
-            ...
+        async def session(self, engine): ...
 
-        async def create_db(self, connection, base_metadata):
-            ...
+        async def create_db(self, connection, base_metadata): ...
 
-        async def drop_db(self, connection, base_metadata):
-            ...
+        async def drop_db(self, connection, base_metadata): ...
 
-        def is_inmemory(self, engine):
-            ...
+        def is_inmemory(self, engine): ...
 
-        async def begin_transaction(self, session, locked):
-            ...
+        async def begin_transaction(self, session, locked): ...
 
     with dependencies.temporary_database_config(
         UselessConfiguration(connection_url=None)
     ):
         db = dependencies.provide_database_interface()
-        assert type(db.database_config) == UselessConfiguration
+        assert type(db.database_config) is UselessConfiguration
 
 
 @pytest.mark.parametrize(
@@ -66,35 +60,28 @@ async def test_injecting_a_really_dumb_database_database_config():
 async def test_injecting_existing_query_components(QueryComponents):
     with dependencies.temporary_query_components(QueryComponents()):
         db = dependencies.provide_database_interface()
-        assert type(db.queries) == QueryComponents
+        assert type(db.queries) is QueryComponents
 
 
 async def test_injecting_really_dumb_query_components():
     class ReallyBrokenQueries(BaseQueryComponents):
         # --- dialect-specific SqlAlchemy bindings
 
-        def insert(self, obj):
-            ...
+        def insert(self, obj): ...
 
-        def greatest(self, *values):
-            ...
+        def greatest(self, *values): ...
 
-        def least(self, *values):
-            ...
+        def least(self, *values): ...
 
         # --- dialect-specific JSON handling
 
-        def uses_json_strings(self) -> bool:
-            ...
+        def uses_json_strings(self) -> bool: ...
 
-        def cast_to_json(self, json_obj):
-            ...
+        def cast_to_json(self, json_obj): ...
 
-        def build_json_object(self, *args):
-            ...
+        def build_json_object(self, *args): ...
 
-        def json_arr_agg(self, json_array):
-            ...
+        def json_arr_agg(self, json_array): ...
 
         # --- dialect-optimized subqueries
 
@@ -103,8 +90,7 @@ async def test_injecting_really_dumb_query_components():
             start_time,
             end_time,
             interval,
-        ):
-            ...
+        ): ...
 
         def set_state_id_on_inserted_flow_runs_statement(
             self,
@@ -112,22 +98,18 @@ async def test_injecting_really_dumb_query_components():
             frs_model,
             inserted_flow_run_ids,
             insert_flow_run_states,
-        ):
-            ...
+        ): ...
 
         async def get_flow_run_notifications_from_queue(self, session, limit):
             pass
 
         def get_scheduled_flow_runs_from_work_queues(
             self, limit_per_queue, work_queue_ids, scheduled_before
-        ):
-            ...
+        ): ...
 
-        def _get_scheduled_flow_runs_from_work_pool_template_path(self):
-            ...
+        def _get_scheduled_flow_runs_from_work_pool_template_path(self): ...
 
-        def _build_flow_run_graph_v2_query(self):
-            ...
+        def _build_flow_run_graph_v2_query(self): ...
 
         async def flow_run_graph_v2(
             self,
@@ -140,7 +122,7 @@ async def test_injecting_really_dumb_query_components():
 
     with dependencies.temporary_query_components(ReallyBrokenQueries()):
         db = dependencies.provide_database_interface()
-        assert type(db.queries) == ReallyBrokenQueries
+        assert type(db.queries) is ReallyBrokenQueries
 
 
 @pytest.mark.parametrize(
@@ -149,7 +131,7 @@ async def test_injecting_really_dumb_query_components():
 async def test_injecting_existing_orm_configs(ORMConfig):
     with dependencies.temporary_orm_config(ORMConfig()):
         db = dependencies.provide_database_interface()
-        assert type(db.orm) == ORMConfig
+        assert type(db.orm) is ORMConfig
 
 
 async def test_inject_interface_class():

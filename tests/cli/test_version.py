@@ -77,7 +77,7 @@ def test_correct_output_ephemeral_sqlite(monkeypatch, disable_hosted_api_server)
                 Version:             {prefect.__version__}
                 API version:         {SERVER_API_VERSION}
                 Python version:      {platform.python_version()}
-                Git commit:          {version_info['full-revisionid'][:8]}
+                Git commit:          {version_info["full-revisionid"][:8]}
                 Built:               {built.to_day_datetime_string()}
                 OS/Arch:             {sys.platform}/{platform.machine()}
                 Profile:             {profile.name}
@@ -112,7 +112,7 @@ def test_correct_output_ephemeral_postgres(monkeypatch, disable_hosted_api_serve
                 Version:             {prefect.__version__}
                 API version:         {SERVER_API_VERSION}
                 Python version:      {platform.python_version()}
-                Git commit:          {version_info['full-revisionid'][:8]}
+                Git commit:          {version_info["full-revisionid"][:8]}
                 Built:               {built.to_day_datetime_string()}
                 OS/Arch:             {sys.platform}/{platform.machine()}
                 Profile:             {profile.name}
@@ -136,7 +136,7 @@ def test_correct_output_non_ephemeral_server_type():
         expected_output=f"""Version:             {prefect.__version__}
 API version:         {SERVER_API_VERSION}
 Python version:      {platform.python_version()}
-Git commit:          {version_info['full-revisionid'][:8]}
+Git commit:          {version_info["full-revisionid"][:8]}
 Built:               {built.to_day_datetime_string()}
 OS/Arch:             {sys.platform}/{platform.machine()}
 Profile:             {profile.name}

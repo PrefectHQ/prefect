@@ -151,9 +151,10 @@ class TestWebserverDeploymentRoutes:
             webserver = await build_server(runner)
             client = TestClient(webserver)
 
-            with mock.patch(
-                "prefect.runner.server.get_client", new=mock_get_client
-            ), mock.patch.object(runner, "execute_in_background"):
+            with (
+                mock.patch("prefect.runner.server.get_client", new=mock_get_client),
+                mock.patch.object(runner, "execute_in_background"),
+            ):
                 with client:
                     response = client.post(f"/deployment/{deployment_id}/run")
                 assert response.status_code == 201, response.json()

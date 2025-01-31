@@ -1061,6 +1061,6 @@ async def test_consistent_container_group_naming(
     name_without_prefix_and_id = container_group_name[8:-37]
     assert name_without_prefix_and_id.replace("-", " ").lower() in flow_name.lower()
 
-    assert (
-        len(container_group_name) <= max_length
-    ), f"Length: {len(container_group_name)}, Max: {max_length}"
+    assert len(container_group_name) <= max_length, (
+        f"Length: {len(container_group_name)}, Max: {max_length}"
+    )

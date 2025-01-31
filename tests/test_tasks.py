@@ -1285,9 +1285,9 @@ class TestTaskRetries:
 
             if i > 0:
                 last_start_time = start_times[i - 1]
-                assert (
-                    last_start_time < start_times[i]
-                ), "Timestamps should be increasing"
+                assert last_start_time < start_times[i], (
+                    "Timestamps should be increasing"
+                )
 
     async def test_global_task_retry_config(self):
         with temporary_settings(updates={PREFECT_TASK_DEFAULT_RETRIES: "1"}):
@@ -4810,8 +4810,7 @@ class TestTaskHooksOnFailure:
         with pytest.raises(TypeError):
 
             @task(retry_condition_fn="not a callable")
-            def my_task():
-                ...
+            def my_task(): ...
 
 
 class TestNestedTasks:

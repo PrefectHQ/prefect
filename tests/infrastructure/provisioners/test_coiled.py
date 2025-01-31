@@ -89,12 +89,6 @@ async def test_provision(
         mock_coiled,
         mock_coiled,
     ]
-    # simulate coiled token creation
-    mock_coiled.config.Config.return_value.get.side_effect = [
-        None,
-        None,
-        "mock_token",
-    ]
 
     work_pool_name = "work-pool-name"
     base_job_template = {"variables": {"properties": {"credentials": {}}}}
@@ -108,7 +102,7 @@ async def test_provision(
         "work-pool-name-coiled-credentials", "coiled-credentials"
     )
 
-    assert block_document.data["api_token"], str == "mock_token"
+    assert block_document.data["api_token"] == "local-api-token-from-dask-config"
 
     # Check if the base job template was updated
     assert result["variables"]["properties"]["credentials"] == {
@@ -160,9 +154,6 @@ async def test_provision_existing_coiled_credentials(
         mock_coiled,
         mock_coiled,
     ]  # coiled is already installed
-    mock_coiled.config.Config.return_value.get.side_effect = [
-        "mock_token",
-    ]  # coiled config exists
 
     work_pool_name = "work-pool-name"
     base_job_template = {"variables": {"properties": {"credentials": {}}}}
@@ -176,7 +167,7 @@ async def test_provision_existing_coiled_credentials(
         "work-pool-name-coiled-credentials", "coiled-credentials"
     )
 
-    assert block_document.data["api_token"], str == "mock_token"
+    assert block_document.data["api_token"] == "local-api-token-from-dask-config"
 
     # Check if the base job template was updated
     assert result["variables"]["properties"]["credentials"] == {

@@ -68,5 +68,5 @@ def obfuscate_string(s: str, show_tail: bool = False) -> str:
     # take up to 4 characters, but only after the 10th character
     suffix = s[10:][-4:]
     if suffix and show_tail:
-        result = f"{result[:-len(suffix)]}{suffix}"
+        result = f"{result[: -len(suffix)]}{suffix}"
     return result

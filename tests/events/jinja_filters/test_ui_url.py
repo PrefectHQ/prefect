@@ -76,7 +76,7 @@ def test_automation_url(chonk_party: Automation):
     rendered = template.render({"automation": chonk_party})
 
     assert rendered == (
-        "http://localhost:3000" f"/automations/automation/{chonk_party.id}"
+        f"http://localhost:3000/automations/automation/{chonk_party.id}"
     )
 
 
@@ -109,7 +109,7 @@ def test_flow_resource_url(chonk_party: Automation):
         }
     )
 
-    assert rendered == ("http://localhost:3000" f"/flows/flow/{flow_id}")
+    assert rendered == (f"http://localhost:3000/flows/flow/{flow_id}")
 
 
 def test_flow_run_resource_url(chonk_party: Automation):

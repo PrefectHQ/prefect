@@ -35,30 +35,25 @@ class Message(Protocol):
     """
 
     @property
-    def data(self) -> Union[str, bytes]:
-        ...
+    def data(self) -> Union[str, bytes]: ...
 
     @property
-    def attributes(self) -> Mapping[str, Any]:
-        ...
+    def attributes(self) -> Mapping[str, Any]: ...
 
 
 class Cache(abc.ABC):
     @abc.abstractmethod
-    async def clear_recently_seen_messages(self) -> None:
-        ...
+    async def clear_recently_seen_messages(self) -> None: ...
 
     @abc.abstractmethod
     async def without_duplicates(
         self, attribute: str, messages: Iterable[M]
-    ) -> list[M]:
-        ...
+    ) -> list[M]: ...
 
     @abc.abstractmethod
     async def forget_duplicates(
         self, attribute: str, messages: Iterable[Message]
-    ) -> None:
-        ...
+    ) -> None: ...
 
 
 class Publisher(AbstractAsyncContextManager["Publisher"], abc.ABC):
@@ -67,16 +62,15 @@ class Publisher(AbstractAsyncContextManager["Publisher"], abc.ABC):
         topic: str,
         cache: Optional[Cache] = None,
         deduplicate_by: Optional[str] = None,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @abc.abstractmethod
-    async def publish_data(self, data: bytes, attributes: Mapping[str, str]) -> None:
-        ...
+    async def publish_data(
+        self, data: bytes, attributes: Mapping[str, str]
+    ) -> None: ...
 
     @abc.abstractmethod
-    async def __aenter__(self) -> Self:
-        ...
+    async def __aenter__(self) -> Self: ...
 
     @abc.abstractmethod
     async def __aexit__(
@@ -84,8 +78,7 @@ class Publisher(AbstractAsyncContextManager["Publisher"], abc.ABC):
         exc_type: Optional[Type[BaseException]],
         exc_val: Optional[BaseException],
         exc_tb: Optional[TracebackType],
-    ) -> None:
-        ...
+    ) -> None: ...
 
 
 @dataclass
