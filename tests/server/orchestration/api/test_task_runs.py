@@ -3,6 +3,7 @@ from uuid import uuid4
 
 import pendulum
 import pytest
+from httpx import AsyncClient
 from starlette import status
 
 from prefect.client.orchestration import PrefectClient
@@ -584,7 +585,7 @@ class TestSetTaskRunState:
         assert response_2.status == responses.SetStateStatus.ABORT
 
     async def test_set_task_run_state_with_long_cache_key_rejects_transition(
-        self, task_run, client, session
+        self, task_run: TaskRun, client: AsyncClient
     ):
         await client.post(
             f"/flow_runs/{task_run.flow_run_id}/set_state",
