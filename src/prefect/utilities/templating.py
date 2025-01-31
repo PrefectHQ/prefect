@@ -196,16 +196,11 @@ def apply_values(
         raise ValueError(f"Unexpected template type {type(template).__name__!r}")
 
 
-def replace_with_value(placeholder: str, value: Any) -> Any:
-    """A block reference replacement function that returns the value unchanged."""
-    return value
-
-
 @inject_client
 async def resolve_block_document_references(
     template: T,
-    replacement_function: Callable[[str, Any], Any] = replace_with_value,
     client: Optional["PrefectClient"] = None,
+    value_transformer: Optional[Callable[[str, Any], Any]] = None,
 ) -> Union[T, dict[str, Any]]:
     """
     Resolve block document references in a template by replacing each reference with
@@ -266,7 +261,7 @@ async def resolve_block_document_references(
 
     Args:
         template: The template to resolve block documents in
-        replacement_function: A function that takes the block placeholder and the block value and returns replacement text for the template
+        value_transformer: A function that takes the block placeholder and the block value and returns replacement text for the template
 
     Returns:
         The template with block documents resolved
@@ -284,14 +279,14 @@ async def resolve_block_document_references(
         updated_template: dict[str, Any] = {}
         for key, value in template.items():
             updated_value = await resolve_block_document_references(
-                value, replacement_function=replacement_function, client=client
+                value, value_transformer=value_transformer, client=client
             )
             updated_template[key] = updated_value
         return updated_template
     elif isinstance(template, list):
         return [
             await resolve_block_document_references(
-                item, replacement_function=replacement_function, client=client
+                item, value_transformer=value_transformer, client=client
             )
             for item in template
         ]
@@ -337,7 +332,10 @@ async def resolve_block_document_references(
                     )
                 value = from_dict
 
-            return replacement_function(placeholder.full_match, value)
+            if value_transformer:
+                value = value_transformer(placeholder.full_match, value)
+
+            return value
         else:
             raise ValueError(
                 f"Invalid template: {template!r}. Only a single block placeholder is"

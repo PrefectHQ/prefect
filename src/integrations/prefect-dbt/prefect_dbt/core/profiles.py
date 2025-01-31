@@ -104,7 +104,7 @@ async def aresolve_profiles_yml(
         temp_dir_path = Path(temp_dir)
         profiles_yml: dict[str, Any] = load_profiles_yml(profiles_dir)
         profiles_yml = await resolve_block_document_references(
-            profiles_yml, replace_with_env_var_call
+            profiles_yml, value_transformer=replace_with_env_var_call
         )
         profiles_yml = await resolve_variables(profiles_yml)
 
@@ -142,7 +142,9 @@ def resolve_profiles_yml(
         temp_dir_path = Path(temp_dir)
         profiles_yml: dict[str, Any] = load_profiles_yml(profiles_dir)
         profiles_yml = run_coro_as_sync(
-            resolve_block_document_references(profiles_yml, replace_with_env_var_call)
+            resolve_block_document_references(
+                profiles_yml, value_transformer=replace_with_env_var_call
+            )
         )
         profiles_yml = run_coro_as_sync(resolve_variables(profiles_yml))
 
