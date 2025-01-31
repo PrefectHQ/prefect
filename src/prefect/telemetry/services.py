@@ -15,11 +15,9 @@ T_contra = TypeVar("T_contra", contravariant=True)
 
 
 class OTLPExporter(Protocol[T_contra]):
-    def export(self, __items: Sequence[T_contra]) -> Any:
-        ...
+    def export(self, __items: Sequence[T_contra]) -> Any: ...
 
-    def shutdown(self) -> Any:
-        ...
+    def shutdown(self) -> Any: ...
 
 
 class BaseQueueingExporter(BatchedQueueService[BatchItem]):

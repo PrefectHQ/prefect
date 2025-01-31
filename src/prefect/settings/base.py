@@ -108,9 +108,9 @@ class PrefectBaseSettings(BaseSettings):
                 )
                 env_variables.update(child_env)
             elif (value := env.get(key)) is not None:
-                env_variables[
-                    f"{self.model_config.get('env_prefix')}{key.upper()}"
-                ] = _to_environment_variable_value(value)
+                env_variables[f"{self.model_config.get('env_prefix')}{key.upper()}"] = (
+                    _to_environment_variable_value(value)
+                )
         return env_variables
 
     @model_serializer(

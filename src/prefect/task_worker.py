@@ -248,9 +248,9 @@ class TaskWorker:
 
             token_acquired = await self._acquire_token(task_run.id)
             if token_acquired:
-                assert (
-                    self._runs_task_group is not None
-                ), "Task group was not initialized"
+                assert self._runs_task_group is not None, (
+                    "Task group was not initialized"
+                )
                 self._runs_task_group.start_soon(
                     self._safe_submit_scheduled_task_run, task_run
                 )

@@ -277,8 +277,7 @@ class TestJobsRunsSubmitAndWaitForCompletion:
         )
 
         match = re.escape(  # escape to handle the parentheses
-            "Databricks Jobs Runs Submit (prefect-job ID 36108) "
-            "was skipped: testing."
+            "Databricks Jobs Runs Submit (prefect-job ID 36108) was skipped: testing."
         )
         with pytest.raises(DatabricksJobSkipped, match=match):
             await jobs_runs_submit_and_wait_for_completion(

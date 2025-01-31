@@ -38,8 +38,7 @@ class EventsClient(abc.ABC):
     """The abstract interface for a Prefect Events client"""
 
     @abc.abstractmethod
-    async def emit(self, event: Event) -> Optional[Event]:
-        ...
+    async def emit(self, event: Event) -> Optional[Event]: ...
 
     async def __aenter__(self) -> Self:
         return self
@@ -113,9 +112,9 @@ class AssertingEventsClient(EventsClient):
     def assert_emitted_event_count(cls, count: int) -> None:
         """Assert that the given number of events were emitted."""
         total_num_events = cls.emitted_events_count()
-        assert (
-            total_num_events == count
-        ), f"The number of emitted events did not match the expected count: {total_num_events=} != {count=}"
+        assert total_num_events == count, (
+            f"The number of emitted events did not match the expected count: {total_num_events=} != {count=}"
+        )
 
     @classmethod
     def assert_emitted_event_with(

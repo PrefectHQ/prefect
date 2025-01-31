@@ -101,8 +101,7 @@ def submit_to_runner(
     prefect_callable: Union[Flow[Any, Any], Task[Any, Any]],
     parameters: Dict[str, Any],
     retry_failed_submissions: bool = True,
-) -> FlowRun:
-    ...
+) -> FlowRun: ...
 
 
 @overload
@@ -110,8 +109,7 @@ def submit_to_runner(
     prefect_callable: Union[Flow[Any, Any], Task[Any, Any]],
     parameters: list[dict[str, Any]],
     retry_failed_submissions: bool = True,
-) -> list[FlowRun]:
-    ...
+) -> list[FlowRun]: ...
 
 
 @sync_compatible

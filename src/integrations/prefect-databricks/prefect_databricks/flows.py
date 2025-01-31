@@ -57,8 +57,7 @@ TERMINAL_STATUS_CODES = (
 @flow(
     name="Submit jobs runs and wait for completion",
     description=(
-        "Triggers a Databricks jobs runs and waits for the "
-        "triggered runs to complete."
+        "Triggers a Databricks jobs runs and waits for the triggered runs to complete."
     ),
 )
 async def jobs_runs_submit_and_wait_for_completion(
@@ -493,8 +492,7 @@ async def jobs_runs_wait_for_completion(
 @flow(
     name="Submit existing job runs and wait for completion",
     description=(
-        "Triggers a Databricks jobs runs and waits for the "
-        "triggered runs to complete."
+        "Triggers a Databricks jobs runs and waits for the triggered runs to complete."
     ),
 )
 async def jobs_runs_submit_by_id_and_wait_for_completion(

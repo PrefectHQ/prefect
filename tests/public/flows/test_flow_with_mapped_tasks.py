@@ -10,7 +10,7 @@ names = []
 
 
 def generate_task_run_name(parameters: dict) -> str:
-    names.append(f'{task_run.task_name} - input: {parameters["input"]["number"]}')
+    names.append(f"{task_run.task_name} - input: {parameters['input']['number']}")
     return names[-1]
 
 

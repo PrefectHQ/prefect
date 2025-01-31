@@ -179,13 +179,11 @@ class Automation(AutomationCore):
 
     @overload
     @classmethod
-    async def aread(cls, id: UUID, name: Optional[str] = ...) -> Self:
-        ...
+    async def aread(cls, id: UUID, name: Optional[str] = ...) -> Self: ...
 
     @overload
     @classmethod
-    async def aread(cls, id: None = None, name: str = ...) -> Self:
-        ...
+    async def aread(cls, id: None = None, name: str = ...) -> Self: ...
 
     @classmethod
     async def aread(cls, id: Optional[UUID] = None, name: Optional[str] = None) -> Self:
@@ -227,13 +225,11 @@ class Automation(AutomationCore):
 
     @overload
     @classmethod
-    async def read(cls, id: UUID, name: Optional[str] = ...) -> Self:
-        ...
+    async def read(cls, id: UUID, name: Optional[str] = ...) -> Self: ...
 
     @overload
     @classmethod
-    async def read(cls, id: None = None, name: str = ...) -> Self:
-        ...
+    async def read(cls, id: None = None, name: str = ...) -> Self: ...
 
     @classmethod
     @async_dispatch(aread)

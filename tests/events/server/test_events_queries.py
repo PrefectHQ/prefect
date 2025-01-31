@@ -179,7 +179,9 @@ def assert_events_ordered_descending(events: List[ReceivedEvent]):
 
     last = events[0]
     for i, event in enumerate(events[1:]):
-        assert event.occurred <= last.occurred, f"Event at index {i+1} is out of order"
+        assert event.occurred <= last.occurred, (
+            f"Event at index {i + 1} is out of order"
+        )
         last = event
 
 
@@ -189,7 +191,9 @@ def assert_events_ordered_ascending(events: List[ReceivedEvent]):
 
     last = events[0]
     for i, event in enumerate(events[1:]):
-        assert event.occurred >= last.occurred, f"Event at index {i+1} is out of order"
+        assert event.occurred >= last.occurred, (
+            f"Event at index {i + 1} is out of order"
+        )
         last = event
 
 

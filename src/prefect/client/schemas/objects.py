@@ -221,8 +221,7 @@ class State(ObjectBaseModel, Generic[R]):
         raise_on_failure: Literal[True] = ...,
         fetch: bool = ...,
         retry_result_failure: bool = ...,
-    ) -> R:
-        ...
+    ) -> R: ...
 
     @overload
     def result(
@@ -230,8 +229,7 @@ class State(ObjectBaseModel, Generic[R]):
         raise_on_failure: Literal[False] = False,
         fetch: bool = ...,
         retry_result_failure: bool = ...,
-    ) -> Union[R, Exception]:
-        ...
+    ) -> Union[R, Exception]: ...
 
     @overload
     def result(
@@ -239,8 +237,7 @@ class State(ObjectBaseModel, Generic[R]):
         raise_on_failure: bool = ...,
         fetch: bool = ...,
         retry_result_failure: bool = ...,
-    ) -> Union[R, Exception]:
-        ...
+    ) -> Union[R, Exception]: ...
 
     @deprecated.deprecated_parameter(
         "fetch",

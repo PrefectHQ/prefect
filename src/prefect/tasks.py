@@ -226,8 +226,7 @@ class TaskRunNameCallbackWithParameters(Protocol):
         sig = inspect.signature(callable)
         return "parameters" in sig.parameters
 
-    def __call__(self, parameters: dict[str, Any]) -> str:
-        ...
+    def __call__(self, parameters: dict[str, Any]) -> str: ...
 
 
 StateHookCallable: TypeAlias = Callable[
@@ -483,9 +482,9 @@ class Task(Generic[P, R]):
                 f"Invalid `retry_delay_seconds` provided; must be an int, float, list or callable. Received type {type(retry_delay_seconds)}"
             )
         else:
-            self.retry_delay_seconds: Union[
-                float, int, list[float], None
-            ] = retry_delay_seconds
+            self.retry_delay_seconds: Union[float, int, list[float], None] = (
+                retry_delay_seconds
+            )
 
         if isinstance(self.retry_delay_seconds, list) and (
             len(self.retry_delay_seconds) > 50
@@ -978,8 +977,7 @@ class Task(Generic[P, R]):
         self: "Task[P, R]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> R:
-        ...
+    ) -> R: ...
 
     # Keyword parameters `return_state` and `wait_for` aren't allowed after the
     # ParamSpec `*args` parameter, so we lose return type typing when either of
@@ -992,8 +990,7 @@ class Task(Generic[P, R]):
         return_state: Literal[True] = True,
         wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         **kwargs: P.kwargs,
-    ) -> State[R]:
-        ...
+    ) -> State[R]: ...
 
     @overload
     def __call__(
@@ -1002,8 +999,7 @@ class Task(Generic[P, R]):
         return_state: Literal[False] = False,
         wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         **kwargs: P.kwargs,
-    ) -> R:
-        ...
+    ) -> R: ...
 
     def __call__(
         self: "Union[Task[P, R], Task[P, NoReturn]]",
@@ -1046,8 +1042,7 @@ class Task(Generic[P, R]):
         self: "Task[P, R]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> PrefectFuture[R]:
-        ...
+    ) -> PrefectFuture[R]: ...
 
     @overload
     def submit(
@@ -1056,8 +1051,7 @@ class Task(Generic[P, R]):
         return_state: Literal[False],
         wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         **kwargs: P.kwargs,
-    ) -> PrefectFuture[R]:
-        ...
+    ) -> PrefectFuture[R]: ...
 
     @overload
     def submit(
@@ -1066,8 +1060,7 @@ class Task(Generic[P, R]):
         return_state: Literal[False],
         wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         **kwargs: P.kwargs,
-    ) -> PrefectFuture[R]:
-        ...
+    ) -> PrefectFuture[R]: ...
 
     @overload
     def submit(
@@ -1076,8 +1069,7 @@ class Task(Generic[P, R]):
         return_state: Literal[True],
         wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         **kwargs: P.kwargs,
-    ) -> State[R]:
-        ...
+    ) -> State[R]: ...
 
     @overload
     def submit(
@@ -1086,8 +1078,7 @@ class Task(Generic[P, R]):
         return_state: Literal[True],
         wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         **kwargs: P.kwargs,
-    ) -> State[R]:
-        ...
+    ) -> State[R]: ...
 
     def submit(
         self: "Union[Task[P, R], Task[P, Coroutine[Any, Any, R]]]",
@@ -1221,8 +1212,7 @@ class Task(Generic[P, R]):
         wait_for: Optional[Iterable[Union[PrefectFuture[R], R]]] = ...,
         deferred: bool = ...,
         **kwargs: Any,
-    ) -> list[State[R]]:
-        ...
+    ) -> list[State[R]]: ...
 
     @overload
     def map(
@@ -1231,8 +1221,7 @@ class Task(Generic[P, R]):
         wait_for: Optional[Iterable[Union[PrefectFuture[R], R]]] = ...,
         deferred: bool = ...,
         **kwargs: Any,
-    ) -> PrefectFutureList[R]:
-        ...
+    ) -> PrefectFutureList[R]: ...
 
     @overload
     def map(
@@ -1242,8 +1231,7 @@ class Task(Generic[P, R]):
         wait_for: Optional[Iterable[Union[PrefectFuture[R], R]]] = ...,
         deferred: bool = ...,
         **kwargs: Any,
-    ) -> list[State[R]]:
-        ...
+    ) -> list[State[R]]: ...
 
     @overload
     def map(
@@ -1252,8 +1240,7 @@ class Task(Generic[P, R]):
         wait_for: Optional[Iterable[Union[PrefectFuture[R], R]]] = ...,
         deferred: bool = ...,
         **kwargs: Any,
-    ) -> PrefectFutureList[R]:
-        ...
+    ) -> PrefectFutureList[R]: ...
 
     @overload
     def map(
@@ -1263,8 +1250,7 @@ class Task(Generic[P, R]):
         wait_for: Optional[Iterable[Union[PrefectFuture[R], R]]] = ...,
         deferred: bool = ...,
         **kwargs: Any,
-    ) -> list[State[R]]:
-        ...
+    ) -> list[State[R]]: ...
 
     @overload
     def map(
@@ -1274,8 +1260,7 @@ class Task(Generic[P, R]):
         wait_for: Optional[Iterable[Union[PrefectFuture[R], R]]] = ...,
         deferred: bool = ...,
         **kwargs: Any,
-    ) -> PrefectFutureList[R]:
-        ...
+    ) -> PrefectFutureList[R]: ...
 
     def map(
         self,
@@ -1610,8 +1595,7 @@ class Task(Generic[P, R]):
 
 
 @overload
-def task(__fn: Callable[P, R]) -> Task[P, R]:
-    ...
+def task(__fn: Callable[P, R]) -> Task[P, R]: ...
 
 
 # see https://github.com/PrefectHQ/prefect/issues/16380
@@ -1646,8 +1630,7 @@ def task(
     on_failure: Optional[list[StateHookCallable]] = None,
     retry_condition_fn: Literal[None] = None,
     viz_return_value: Any = None,
-) -> Callable[[Callable[P, R]], Task[P, R]]:
-    ...
+) -> Callable[[Callable[P, R]], Task[P, R]]: ...
 
 
 # see https://github.com/PrefectHQ/prefect/issues/16380
@@ -1682,8 +1665,7 @@ def task(
     on_failure: Optional[list[StateHookCallable]] = None,
     retry_condition_fn: Optional[Callable[[Task[P, R], TaskRun, State], bool]] = None,
     viz_return_value: Any = None,
-) -> Callable[[Callable[P, R]], Task[P, R]]:
-    ...
+) -> Callable[[Callable[P, R]], Task[P, R]]: ...
 
 
 @overload  # TODO: do we need this overload?
@@ -1719,8 +1701,7 @@ def task(
     on_failure: Optional[list[StateHookCallable]] = None,
     retry_condition_fn: Optional[Callable[[Task[P, Any], TaskRun, State], bool]] = None,
     viz_return_value: Any = None,
-) -> Callable[[Callable[P, R]], Task[P, R]]:
-    ...
+) -> Callable[[Callable[P, R]], Task[P, R]]: ...
 
 
 def task(

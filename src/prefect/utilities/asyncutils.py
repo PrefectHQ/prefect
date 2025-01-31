@@ -129,8 +129,7 @@ def run_coro_as_sync(
     *,
     force_new_thread: bool = ...,
     wait_for_result: Literal[True] = ...,
-) -> R:
-    ...
+) -> R: ...
 
 
 @overload
@@ -139,8 +138,7 @@ def run_coro_as_sync(
     *,
     force_new_thread: bool = ...,
     wait_for_result: Literal[False] = False,
-) -> R:
-    ...
+) -> R: ...
 
 
 def run_coro_as_sync(
@@ -366,15 +364,13 @@ def sync_compatible(
 @overload
 def asyncnullcontext(
     value: None = None, *args: Any, **kwargs: Any
-) -> AbstractAsyncContextManager[None, None]:
-    ...
+) -> AbstractAsyncContextManager[None, None]: ...
 
 
 @overload
 def asyncnullcontext(
     value: R, *args: Any, **kwargs: Any
-) -> AbstractAsyncContextManager[R, None]:
-    ...
+) -> AbstractAsyncContextManager[R, None]: ...
 
 
 @asynccontextmanager

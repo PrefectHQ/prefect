@@ -902,9 +902,9 @@ class ECSWorker(BaseWorker):
 
         # Check the status code of the Prefect container
         container = _get_container(task["containers"], container_name)
-        assert (
-            container is not None
-        ), f"'{container_name}' container missing from task: {task}"
+        assert container is not None, (
+            f"'{container_name}' container missing from task: {task}"
+        )
         status_code = container.get("exitCode")
         self._report_container_status_code(logger, container_name, status_code)
 
@@ -1552,12 +1552,12 @@ class ECSWorker(BaseWorker):
             and configuration.network_configuration
             and configuration.vpc_id
         ):
-            task_run_request[
-                "networkConfiguration"
-            ] = self._custom_network_configuration(
-                configuration.vpc_id,
-                configuration.network_configuration,
-                configuration,
+            task_run_request["networkConfiguration"] = (
+                self._custom_network_configuration(
+                    configuration.vpc_id,
+                    configuration.network_configuration,
+                    configuration,
+                )
             )
 
         # Ensure the container name is set if not provided at template time

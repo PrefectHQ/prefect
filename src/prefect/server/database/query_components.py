@@ -129,16 +129,14 @@ class BaseQueryComponents(ABC):
         start_time: pendulum.DateTime,
         end_time: pendulum.DateTime,
         interval: datetime.timedelta,
-    ) -> sa.Select[tuple[pendulum.DateTime, pendulum.DateTime]]:
-        ...
+    ) -> sa.Select[tuple[pendulum.DateTime, pendulum.DateTime]]: ...
 
     @abstractmethod
     def set_state_id_on_inserted_flow_runs_statement(
         self,
         inserted_flow_run_ids: Sequence[UUID],
         insert_flow_run_states: Iterable[dict[str, Any]],
-    ) -> sa.Update:
-        ...
+    ) -> sa.Update: ...
 
     @abstractmethod
     async def get_flow_run_notifications_from_queue(

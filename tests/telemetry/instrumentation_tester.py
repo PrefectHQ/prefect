@@ -52,8 +52,7 @@ def create_meter_provider(**kwargs) -> Tuple[MeterProvider, InMemoryMetricReader
 
 class HasAttributesViaProperty(Protocol):
     @property
-    def attributes(self) -> Attributes:
-        ...
+    def attributes(self) -> Attributes: ...
 
 
 class HasAttributesViaAttr(Protocol):

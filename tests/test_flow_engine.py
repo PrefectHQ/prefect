@@ -929,9 +929,9 @@ class TestFlowRetries:
 
         assert parent_flow() == "hello"
         assert flow_run_count == 2, "Parent flow should exhaust retries"
-        assert (
-            child_flow_run_count == 4
-        ), "Child flow should run 2 times for each parent run"
+        assert child_flow_run_count == 4, (
+            "Child flow should run 2 times for each parent run"
+        )
 
 
 class TestFlowCrashDetection:

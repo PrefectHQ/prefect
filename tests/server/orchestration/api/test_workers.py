@@ -144,16 +144,16 @@ class TestCreateWorkPool:
     @pytest.mark.parametrize("name", ["", "hi/there", "hi%there"])
     async def test_create_work_pool_with_invalid_name(self, client, name):
         response = await client.post("/work_pools/", json=dict(name=name))
-        assert (
-            response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
-        ), response.text
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY, (
+            response.text
+        )
 
     @pytest.mark.parametrize("name", ["''", " ", "' ' "])
     async def test_create_work_pool_with_emptyish_name(self, client, name):
         response = await client.post("/work_pools/", json=dict(name=name))
-        assert (
-            response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
-        ), response.text
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY, (
+            response.text
+        )
         assert "name cannot be an empty string" in response.content.decode()
 
     @pytest.mark.parametrize("type", ["PROCESS", "K8S", "AGENT"])
@@ -176,9 +176,9 @@ class TestCreateWorkPool:
             "/work_pools/",
             json=dict(name="Pool 1", base_job_template={"foo": "bar", "x": ["y"]}),
         )
-        assert (
-            response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
-        ), response.text
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY, (
+            response.text
+        )
         assert (
             "The `base_job_template` must contain both a `job_configuration` key and a"
             " `variables` key." in response.json()["exception_detail"][0]["msg"]
@@ -205,9 +205,9 @@ class TestCreateWorkPool:
             "/work_pools/",
             json=dict(name="Pool 1", base_job_template=missing_variable_template),
         )
-        assert (
-            response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
-        ), response.text
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY, (
+            response.text
+        )
         assert (
             "The variables specified in the job configuration template must be "
             "present as properties in the variables schema. "
@@ -241,9 +241,9 @@ class TestCreateWorkPool:
             "/work_pools/",
             json=dict(name="Pool 1", base_job_template=missing_variable_template),
         )
-        assert (
-            response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
-        ), response.text
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY, (
+            response.text
+        )
         assert (
             "The variables specified in the job configuration template must be "
             "present as properties in the variables schema. "
@@ -499,9 +499,9 @@ class TestUpdateWorkPool:
             f"/work_pools/{work_pool.name}",
             json=dict(concurrency_limit=-5),
         )
-        assert (
-            response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
-        ), response.text
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY, (
+            response.text
+        )
 
         session.expunge_all()
         result = await models.workers.read_work_pool(
@@ -588,9 +588,9 @@ class TestUpdateWorkPool:
             f"/work_pools/{name}",
             json=dict(name=name, base_job_template={"foo": "bar", "x": ["y"]}),
         )
-        assert (
-            response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
-        ), response.text
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY, (
+            response.text
+        )
         assert (
             "The `base_job_template` must contain both a `job_configuration` key and a"
             " `variables` key." in response.json()["exception_detail"][0]["msg"]
@@ -628,9 +628,9 @@ class TestUpdateWorkPool:
             f"/work_pools/{name}",
             json=dict(name=name, base_job_template=missing_variable_template),
         )
-        assert (
-            response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
-        ), response.text
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY, (
+            response.text
+        )
         assert (
             "The variables specified in the job configuration template must be "
             "present as properties in the variables schema. "
@@ -674,9 +674,9 @@ class TestUpdateWorkPool:
             f"/work_pools/{name}",
             json=dict(name="Pool 1", base_job_template=missing_variable_template),
         )
-        assert (
-            response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
-        ), response.text
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY, (
+            response.text
+        )
         assert (
             "The variables specified in the job configuration template must be "
             "present as properties in the variables schema. "
@@ -1408,9 +1408,9 @@ class TestWorkerProcess:
 
     async def test_heartbeat_worker_requires_name(self, client, work_pool):
         response = await client.post(f"/work_pools/{work_pool.name}/workers/heartbeat")
-        assert (
-            response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
-        ), response.text
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY, (
+            response.text
+        )
         assert b'"missing","loc":["body","name"]' in response.content
 
     async def test_heartbeat_worker_upserts_for_same_name(self, client, work_pool):
@@ -1904,9 +1904,9 @@ class TestGetScheduledRuns:
         work_queues = parse_obj_as(List[WorkQueue], work_queues_response.json())
 
         for work_queue in work_queues:
-            assert (
-                work_queue.last_polled is not None
-            ), "Work queue should have updated last_polled"
+            assert work_queue.last_polled is not None, (
+                "Work queue should have updated last_polled"
+            )
             assert work_queue.last_polled > now
 
     async def test_updates_statuses_on_a_full_work_pool(

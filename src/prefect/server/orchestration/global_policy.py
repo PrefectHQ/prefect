@@ -32,15 +32,13 @@ from prefect.server.schemas import core
 from prefect.server.schemas.core import FlowRunPolicy
 
 
-def COMMON_GLOBAL_TRANSFORMS() -> (
-    list[
-        type[
-            BaseUniversalTransform[
-                orm_models.Run, Union[core.FlowRunPolicy, core.TaskRunPolicy]
-            ]
+def COMMON_GLOBAL_TRANSFORMS() -> list[
+    type[
+        BaseUniversalTransform[
+            orm_models.Run, Union[core.FlowRunPolicy, core.TaskRunPolicy]
         ]
     ]
-):
+]:
     return [
         SetRunStateType,
         SetRunStateName,
@@ -63,14 +61,12 @@ class GlobalFlowPolicy(BaseOrchestrationPolicy[orm_models.FlowRun, core.FlowRunP
     """
 
     @staticmethod
-    def priority() -> (
-        list[
-            Union[
-                type[BaseUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy]],
-                type[BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]],
-            ]
+    def priority() -> list[
+        Union[
+            type[BaseUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy]],
+            type[BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]],
         ]
-    ):
+    ]:
         return cast(
             list[
                 Union[
@@ -98,14 +94,12 @@ class GlobalTaskPolicy(BaseOrchestrationPolicy[orm_models.TaskRun, core.TaskRunP
     """
 
     @staticmethod
-    def priority() -> (
-        list[
-            Union[
-                type[BaseUniversalTransform[orm_models.TaskRun, core.TaskRunPolicy]],
-                type[BaseOrchestrationRule[orm_models.TaskRun, core.TaskRunPolicy]],
-            ]
+    def priority() -> list[
+        Union[
+            type[BaseUniversalTransform[orm_models.TaskRun, core.TaskRunPolicy]],
+            type[BaseOrchestrationRule[orm_models.TaskRun, core.TaskRunPolicy]],
         ]
-    ):
+    ]:
         return cast(
             list[
                 Union[

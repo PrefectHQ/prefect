@@ -188,7 +188,7 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
                             self.field_is_complex(field),
                         )
 
-        name = f"{self.config.get('env_prefix','')}{field_name.upper()}"
+        name = f"{self.config.get('env_prefix', '')}{field_name.upper()}"
         value = self.profile_settings.get(name)
         return value, field_name, self.field_is_complex(field)
 
@@ -266,9 +266,9 @@ class PrefectTomlConfigSettingsSource(TomlConfigSettingsSourceBase):
         settings_cls: Type[BaseSettings],
     ):
         super().__init__(settings_cls)
-        self.toml_file_path: Path | str | Sequence[
-            Path | str
-        ] | None = settings_cls.model_config.get("toml_file", DEFAULT_PREFECT_TOML_PATH)
+        self.toml_file_path: Path | str | Sequence[Path | str] | None = (
+            settings_cls.model_config.get("toml_file", DEFAULT_PREFECT_TOML_PATH)
+        )
         self.toml_data: dict[str, Any] = self._read_files(self.toml_file_path)
         self.toml_table_header: tuple[str, ...] = settings_cls.model_config.get(
             "prefect_toml_table_header", tuple()

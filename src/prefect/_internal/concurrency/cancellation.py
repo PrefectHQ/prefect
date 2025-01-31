@@ -473,13 +473,11 @@ class WatcherThreadCancelScope(CancelScope):
 
 
 @overload
-def get_deadline(timeout: float) -> float:
-    ...
+def get_deadline(timeout: float) -> float: ...
 
 
 @overload
-def get_deadline(timeout: None) -> None:
-    ...
+def get_deadline(timeout: None) -> None: ...
 
 
 def get_deadline(timeout: Optional[float]) -> Optional[float]:

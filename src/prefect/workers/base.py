@@ -939,9 +939,9 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         was created from a deployment with a storage block.
         """
         if flow_run.deployment_id:
-            assert (
-                self._client and self._client._started
-            ), "Client must be started to check flow run deployment."
+            assert self._client and self._client._started, (
+                "Client must be started to check flow run deployment."
+            )
             deployment = await self._client.read_deployment(flow_run.deployment_id)
             if deployment.storage_document_id:
                 raise ValueError(

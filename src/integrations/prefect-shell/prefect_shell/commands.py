@@ -109,9 +109,7 @@ async def shell_run_command(
                 )
                 if not stderr and lines:
                     stderr = f"{lines[-1]}\n"
-                msg = (
-                    f"Command failed with exit code {process.returncode}:\n" f"{stderr}"
-                )
+                msg = f"Command failed with exit code {process.returncode}:\n{stderr}"
                 raise RuntimeError(msg)
     finally:
         if os.path.exists(tmp.name):

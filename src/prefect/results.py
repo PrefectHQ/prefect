@@ -575,19 +575,19 @@ class ResultStore(BaseModel):
                 {},
             )
             metadata = ResultRecordMetadata.load_bytes(metadata_content)
-            assert (
-                metadata.storage_key is not None
-            ), "Did not find storage key in metadata"
+            assert metadata.storage_key is not None, (
+                "Did not find storage key in metadata"
+            )
             result_content = await _call_explicitly_async_block_method(
                 self.result_storage,
                 "read_path",
                 (metadata.storage_key,),
                 {},
             )
-            result_record: ResultRecord[
-                Any
-            ] = ResultRecord.deserialize_from_result_and_metadata(
-                result=result_content, metadata=metadata_content
+            result_record: ResultRecord[Any] = (
+                ResultRecord.deserialize_from_result_and_metadata(
+                    result=result_content, metadata=metadata_content
+                )
             )
             await emit_result_read_event(self, resolved_key_path)
         else:
@@ -739,9 +739,9 @@ class ResultStore(BaseModel):
             result_record: The result record to persist.
             holder: The holder of the lock if a lock was set on the record.
         """
-        assert (
-            result_record.metadata.storage_key is not None
-        ), "Storage key is required on result record"
+        assert result_record.metadata.storage_key is not None, (
+            "Storage key is required on result record"
+        )
 
         key = result_record.metadata.storage_key
         if result_record.metadata.storage_block_id is None:

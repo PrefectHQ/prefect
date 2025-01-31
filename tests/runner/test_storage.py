@@ -221,9 +221,9 @@ class TestGitRepository:
         ]
 
         mock_run_process.assert_has_awaits(expected_calls)
-        assert (
-            mock_run_process.await_args_list == expected_calls
-        ), f"Unexpected calls: {mock_run_process.await_args_list}"
+        assert mock_run_process.await_args_list == expected_calls, (
+            f"Unexpected calls: {mock_run_process.await_args_list}"
+        )
 
     async def test_clone_existing_repo_sparse(
         self, mock_run_process: AsyncMock, monkeypatch
@@ -256,9 +256,9 @@ class TestGitRepository:
         ]
 
         mock_run_process.assert_has_awaits(expected_calls)
-        assert (
-            mock_run_process.await_args_list == expected_calls
-        ), f"Unexpected calls: {mock_run_process.await_args_list}"
+        assert mock_run_process.await_args_list == expected_calls, (
+            f"Unexpected calls: {mock_run_process.await_args_list}"
+        )
 
     async def test_pull_code_with_username_and_password(
         self,

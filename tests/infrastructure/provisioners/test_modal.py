@@ -99,7 +99,7 @@ async def test_provision(
     )
 
     assert block_document.data["token_id"] == "mock_id"
-    assert block_document.data["token_secret"], str == "mock_secret"
+    assert block_document.data["token_secret"] == "mock_secret"
 
     # Check if the base job template was updated
     assert result["variables"]["properties"]["modal_credentials"] == {
@@ -177,7 +177,7 @@ async def test_provision_existing_modal_credentials(
     )
 
     assert block_document.data["token_id"] == "mock_id"
-    assert block_document.data["token_secret"], str == "mock_secret"
+    assert block_document.data["token_secret"] == "mock_secret"
 
     # Check if the base job template was updated
     assert result["variables"]["properties"]["modal_credentials"] == {

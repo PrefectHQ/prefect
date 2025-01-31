@@ -34,7 +34,7 @@ Removed objects:
     ```python
     # at top
     from prefect._internal.compatibility.migration import getattr_migration
-    
+
     # at bottom
     __getattr__ = getattr_migration(__name__)
     ```

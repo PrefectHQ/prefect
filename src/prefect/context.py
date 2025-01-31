@@ -123,8 +123,7 @@ class ContextModel(BaseModel):
 
     if TYPE_CHECKING:
         # subclasses can pass through keyword arguments to the pydantic base model
-        def __init__(self, **kwargs: Any) -> None:
-            ...
+        def __init__(self, **kwargs: Any) -> None: ...
 
     # The context variable for storing data must be defined by the child class
     __var__: ClassVar[ContextVar[Self]]
