@@ -66,16 +66,16 @@ prefect deploy --sla '{"name": "my-time-to-completion-sla", "duration": 10, "sev
 
 ### Time to Completion SLA
 
-A Time to Completion SLA is triggered when a flow run takes longer than the specified duration to complete. This SLA is useful for monitoring long-running flows and ensuring they complete within an expected timeframe.
+A Time to Completion SLA describes how long flow runs should take and how serious running over that time is. The SLA is triggered when a flow run takes longer than the specified duration to complete. 
 
 The Time to Completion SLA requires one unique parameter:
 - `duration`: The maximum allowed duration in seconds before the SLA is violated
 
-For example, if you set a Time to Completion SLA on your deployment with a `duration` of 600 seconds (10 minutes) the backend will emit an `prefect.sla.violation` event if a flow run takes longer than 10 minutes to complete.
+This SLA is useful for monitoring long-running flows and ensuring they complete within an expected timeframe. For example, if you set a Time to Completion SLA on your deployment with a `duration` of 600 seconds (10 minutes) the backend will emit an `prefect.sla.violation` event if a flow run takes longer than 10 minutes to complete.
 
 ### Frequency SLA
 
-A Frequency SLA helps ensure that your deployments run at expected intervals.
+A Frequency SLA describes the interval a deployment should run at and how serious missing that interval is.
 
 The Frequency SLA requires one unique parameter:
 - `stale_after`: The maximum allowed time between flow runs (e.g. 1 hour for hourly jobs)
@@ -84,7 +84,7 @@ For example, if you have a deployment that should run every hour, you can set up
 
 ### Lateness SLA
 
-A Lateness SLA is triggered when a flow run is not started when there are flow runs scheduled.
+A Lateness SLA describes how serious it is when a flow run fails to start at its scheduled time.
 
 The Lateness SLA requires one unique parameter:
 - `within`: The time within the previous flow run before the SLA is violated
