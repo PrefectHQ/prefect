@@ -93,7 +93,7 @@ This will create a [flow](/v3/develop/write-flows/) and corresponding [tasks](/v
 Tasks receive metadata about upstream dependencies and the state of those dependencies before they run.
 Prefect records these dependencies and states as it orchestrates tasks.
 
-```python my_workflow.py
+```python my_script.py {3,6,20,26}
 import httpx
 
 from prefect import flow, task # Prefect flow and task decorators
@@ -143,7 +143,7 @@ The `log_prints=True` argument provided to the `@flow` decorator automatically c
 You can run your Prefect flow just as you would a Python script:
 
 ```bash
-python my_workflow.py
+python my_script.py
 ```
 
 The output in your terminal should look similar to this:
