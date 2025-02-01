@@ -72,7 +72,7 @@ If using the Python `deploy` method with a private repository that references a 
     if __name__ == "__main__":
 
         github_repo = GitRepository(
-            url="https://github.com/org/my-private-repo.git",
+            repository_url="https://github.com/org/my-private-repo.git",
             credentials=GitHubCredentials.load("my-github-credentials-block"),
         )
 
