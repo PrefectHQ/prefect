@@ -56,9 +56,9 @@ def mock_confirm():
 @pytest.fixture
 def mock_dask_config():
     with patch(
-        "prefect.infrastructure.provisioners.coiled.CoiledPushProvisioner._get_coiled_token"
+        "prefect.infrastructure.provisioners.coiled.CoiledPushProvisioner._get_coiled_creds"
     ) as mock:
-        mock.return_value = "local-api-token-from-dask-config"
+        mock.return_value = "local-api-token-from-dask-config", "my-workspace"
         yield mock
 
 
