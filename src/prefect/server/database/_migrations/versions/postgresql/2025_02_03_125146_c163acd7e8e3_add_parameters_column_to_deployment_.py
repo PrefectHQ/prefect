@@ -9,7 +9,7 @@ Create Date: 2025-02-03 12:51:46.641928
 import sqlalchemy as sa
 from alembic import op
 
-from prefect.server.database.utilities import JSON
+import prefect
 
 # revision identifiers, used by Alembic.
 revision = "c163acd7e8e3"
@@ -21,7 +21,12 @@ depends_on = None
 def upgrade():
     op.add_column(
         "deployment_schedule",
-        sa.Column("parameters", JSON, server_default="{}", nullable=False),
+        sa.Column(
+            "parameters",
+            prefect.server.utilities.database.JSON,
+            server_default="{}",
+            nullable=False,
+        ),
     )
 
 
