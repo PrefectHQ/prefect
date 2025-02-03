@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import { useListDeploymentsWithFlows } from "./use-list-deployments-with-flows";
 
 describe("buildPaginateDeploymentsWithFlowQuery", () => {
-	it("fetches deplyoments pagination and flow filter APIs and joins data", async () => {
+	it("fetches deployments pagination and flow filter APIs and joins data", async () => {
 		const MOCK_DEPLOYMENTS = [
 			createFakeDeployment({ id: "0", flow_id: "a" }),
 			createFakeDeployment({ id: "1", flow_id: "a" }),
