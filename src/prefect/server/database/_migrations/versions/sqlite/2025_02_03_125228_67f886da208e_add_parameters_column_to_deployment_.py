@@ -5,14 +5,15 @@ Revises: a49711513ad4
 Create Date: 2025-02-03 12:52:28.370958
 
 """
-from alembic import op
-import sqlalchemy as sa
-import prefect.server.database.utilities import JSON
 
+import sqlalchemy as sa
+from alembic import op
+
+from prefect.server.database.utilities import JSON
 
 # revision identifiers, used by Alembic.
-revision = '67f886da208e'
-down_revision = 'a49711513ad4'
+revision = "67f886da208e"
+down_revision = "a49711513ad4"
 branch_labels = None
 depends_on = None
 
