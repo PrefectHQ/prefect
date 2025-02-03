@@ -5,10 +5,11 @@ import asyncio
 import inspect
 import signal
 from abc import ABC, abstractmethod
+from contextlib import asynccontextmanager
 from logging import Logger
 from operator import methodcaller
 from types import ModuleType
-from typing import Any, List, NoReturn, Optional, Sequence, overload
+from typing import Any, AsyncGenerator, List, NoReturn, Optional, Sequence, overload
 
 import anyio
 from typing_extensions import Self
@@ -22,9 +23,12 @@ from prefect.utilities.processutils import (
     _register_signal,  # type: ignore[reportPrivateUsage]
 )
 
+logger: Logger = get_logger(__name__)
+
 
 def _known_service_modules() -> list[ModuleType]:
     """Get list of Prefect server modules containing Service subclasses"""
+    from prefect.server.events import stream
     from prefect.server.events.services import actions, triggers
     from prefect.server.services import (
         cancellation_cleanup,
@@ -48,6 +52,7 @@ def _known_service_modules() -> list[ModuleType]:
         telemetry,
         triggers,
         actions,
+        stream,
     ]
 
 
@@ -89,6 +94,32 @@ class Service(ABC):
         """Get list of enabled service classes"""
         return [svc for svc in cls.all_services() if svc.enabled()]
 
+    @classmethod
+    @asynccontextmanager
+    async def running(cls) -> AsyncGenerator[None, None]:
+        """A context manager that runs enabled services on entry and stops them on
+        exit."""
+        service_tasks: dict[Service, asyncio.Task[None]] = {}
+        for service_class in cls.enabled_services():
+            service = service_class()
+            service_tasks[service] = asyncio.create_task(service.start())
+
+        try:
+            yield
+        finally:
+            await asyncio.gather(*[service.stop() for service in service_tasks])
+            await asyncio.gather(*service_tasks.values(), return_exceptions=True)
+
+    @classmethod
+    async def run_services(cls) -> NoReturn:
+        """Run enabled services until cancelled."""
+        async with cls.running():
+            heat_death_of_the_universe = asyncio.get_running_loop().create_future()
+            try:
+                await heat_death_of_the_universe
+            except asyncio.CancelledError:
+                logger.info("Received cancellation, stopping services...")
+
     @abstractmethod
     async def start(self) -> NoReturn:
         """Start running the service, which may run indefinitely"""
@@ -102,6 +133,15 @@ class Service(ABC):
     def __init__(self):
         self.name = self.__class__.__name__
         self.logger = get_logger(f"server.services.{self.name.lower()}")
+
+
+class RunInAllServers(Service, abc.ABC):
+    """
+    A marker class for services that should run in all server processes, both the
+    web server and the standalone services process.
+    """
+
+    pass
 
 
 class LoopService(Service, abc.ABC):

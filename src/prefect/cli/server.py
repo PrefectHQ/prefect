@@ -523,28 +523,6 @@ async def stamp(revision: str):
     exit_with_success("Stamping database with revision succeeded!")
 
 
-async def _run_services(
-    service_classes: list[type[Service]],
-):
-    """Run the given service classes until cancelled."""
-    services = [cls() for cls in service_classes]
-    tasks: list[tuple[asyncio.Task[None], type[Service]]] = []
-
-    for service in services:
-        task = asyncio.create_task(service.start())
-        tasks.append((task, service))
-        logger.debug(f"Started service: {service.name}")
-
-    try:
-        await asyncio.gather(*(t for t, _ in tasks))
-    except asyncio.CancelledError:
-        logger.info("Received cancellation, stopping services...")
-        for task, service in tasks:
-            task.cancel()
-            logger.debug(f"Stopped service: {service.name}")
-        await asyncio.gather(*(t for t, _ in tasks), return_exceptions=True)
-
-
 def _is_process_running(pid: int) -> bool:
     """Check if a process is running by attempting to send signal 0."""
     try:
@@ -586,13 +564,13 @@ def run_manager_process():
 
     We do everything in sync so that the child won't exit until the user kills it.
     """
-    if not (enabled_services := Service.enabled_services()):
+    if not Service.enabled_services():
         logger.error("No services are enabled! Exiting manager.")
         sys.exit(1)
 
     logger.debug("Manager process started. Starting services...")
     try:
-        asyncio.run(_run_services(enabled_services))
+        asyncio.run(Service.run_services())
     except KeyboardInterrupt:
         pass
     finally:
@@ -644,21 +622,18 @@ def start_services(
             # Stale or invalid file
             _cleanup_pid_file(SERVICES_PID_FILE)
 
-    if not (enabled_services := Service.enabled_services()):
+    if not Service.enabled_services():
         app.console.print("[red]No services are enabled![/]")
         raise typer.Exit(code=1)
 
     if not background:
         app.console.print("\n[blue]Starting services... Press CTRL+C to stop[/]\n")
         try:
-            asyncio.run(_run_services(enabled_services))
+            asyncio.run(Service.run_services())
         except KeyboardInterrupt:
             pass
         app.console.print("\n[green]All services stopped.[/]")
         return
-
-    for service in enabled_services:
-        app.console.print(f"Starting service: [yellow]{service.__name__}[/]")
 
     process = subprocess.Popen(
         [
