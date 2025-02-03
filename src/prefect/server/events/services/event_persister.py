@@ -28,6 +28,7 @@ from prefect.settings import (
     PREFECT_API_SERVICES_EVENT_PERSISTER_BATCH_SIZE,
     PREFECT_API_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL,
     PREFECT_EVENTS_RETENTION_PERIOD,
+    PREFECT_SERVER_SERVICES_EVENT_PERSISTER_BATCH_SIZE_DELETE,
 )
 from prefect.settings.context import get_current_settings
 from prefect.settings.models.server.services import ServicesBaseSetting
@@ -167,18 +168,23 @@ async def create_handler(
 
     async def trim() -> None:
         older_than = DateTime.now("UTC") - PREFECT_EVENTS_RETENTION_PERIOD.value()
-
+        delete_batch_size = (
+            PREFECT_SERVER_SERVICES_EVENT_PERSISTER_BATCH_SIZE_DELETE.value()
+        )
         try:
             async with db.session_context() as session:
                 resource_count = await batch_delete(
                     session,
                     db.EventResource,
                     db.EventResource.updated < older_than,
-                    batch_size=10_000,
+                    batch_size=delete_batch_size,
                 )
 
                 event_count = await batch_delete(
-                    session, db.Event, db.Event.occurred < older_than, batch_size=10_000
+                    session,
+                    db.Event,
+                    db.Event.occurred < older_than,
+                    batch_size=delete_batch_size,
                 )
 
                 if resource_count or event_count:

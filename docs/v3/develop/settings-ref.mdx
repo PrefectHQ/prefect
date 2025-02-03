@@ -1580,6 +1580,18 @@ The maximum number of seconds between flushes of the event persister.
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL`, `PREFECT_API_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL`
 
+### `batch_size_delete`
+The number of expired events and event resources the event persister will attempt to delete in one batch.
+
+**Type**: `integer`
+
+**Default**: `10000`
+
+**TOML dotted key path**: `server.services.event_persister.batch_size_delete`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_EVENT_PERSISTER_BATCH_SIZE_DELETE`
+
 ---
 ## ServerServicesFlowRunNotificationsSettings
 Settings for controlling the flow run notifications service
