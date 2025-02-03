@@ -301,18 +301,10 @@ async def test_trims_messages_periodically(
     for _ in range(3):
         timestamp = DateTime.now("UTC")
         await write_events(
-            session,
-            [
-                event.model_copy(
-                    update={
-                        "id": uuid4(),
-                        "occurred": timestamp,
-                    }
-                )
-            ],
+            session, [event.model_copy(update={"id": uuid4(), "occurred": timestamp})]
         )
         inserted_timestamps.append(timestamp)
-        await asyncio.sleep(0.2)  # The whole insert should be 400ms * 3 = about 1.2s
+        await asyncio.sleep(0.4)  # The whole insert should be 400ms * 3 = about 1.2s
 
     # Half the entries are older than this, half are younger
     cutoff_date = inserted_timestamps[int(len(inserted_timestamps) / 2)] - timedelta(
