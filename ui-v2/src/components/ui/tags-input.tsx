@@ -72,7 +72,7 @@ const TagsInput = React.forwardRef<HTMLInputElement, TagsInputProps>(
 					onChange={handleInputChange}
 					onKeyDown={handleInputKeyDown}
 					onBlur={handleInputBlur(onBlur)}
-					className="flex-grow border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+					className="grow border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
 					placeholder={placeholder}
 					aria-label={placeholder}
 					{...props}
