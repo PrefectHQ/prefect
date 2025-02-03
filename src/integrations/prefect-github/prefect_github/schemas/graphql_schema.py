@@ -5,7 +5,7 @@ import sgqlc.types.relay
 graphql_schema = sgqlc.types.Schema()
 
 
-# Unexport Node/PageInfo, let schema re-declare them
+# Unexport Node/PageInfo, let schema redeclare them
 graphql_schema -= sgqlc.types.relay.Node
 graphql_schema -= sgqlc.types.relay.PageInfo
 

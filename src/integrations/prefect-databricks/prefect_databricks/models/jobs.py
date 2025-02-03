@@ -4098,7 +4098,7 @@ class Run(BaseModel):
         None,
         description=(
             "The list of tasks performed by the run. Each task has its own `run_id`"
-            " which you can use to call `JobsGetOutput` to retrieve the run resutls."
+            " which you can use to call `JobsGetOutput` to retrieve the run results."
         ),
         example=[
             {
