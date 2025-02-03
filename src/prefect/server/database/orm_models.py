@@ -784,7 +784,7 @@ class DeploymentSchedule(Base):
     )
     active: Mapped[bool] = mapped_column(default=True)
     max_scheduled_runs: Mapped[Optional[int]]
-    parameters: Mapped[dict] = mapped_column(
+    parameters: Mapped[dict[str, Any]] = mapped_column(
         JSON, server_default="{}", default=dict, nullable=False
     )
 
