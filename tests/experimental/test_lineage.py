@@ -577,7 +577,7 @@ class TestEmitExternalResourceLineage:
         for i, call in enumerate(context_calls):
             assert call.kwargs["event"] == "prefect.lineage.upstream-interaction"
             assert call.kwargs["resource"] == {
-                "prefect.resource.id": f"context{i+1}",
+                "prefect.resource.id": f"context{i + 1}",
                 "prefect.resource.role": "flow-run" if i == 0 else "flow",
                 "prefect.resource.lineage-group": "global",
             }
@@ -747,7 +747,7 @@ class TestEmitResultEvents:
             assert resource_uri is not None
             assert call.kwargs["event"] == "prefect.result.read"
             assert call.kwargs["resource"] == {
-                "prefect.resource.id": f"downstream{i+1}",
+                "prefect.resource.id": f"downstream{i + 1}",
                 "prefect.resource.lineage-group": "global",
             }
             assert call.kwargs["related"] == [

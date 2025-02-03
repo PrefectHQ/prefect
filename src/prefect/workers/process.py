@@ -13,6 +13,7 @@ to poll for flow runs.
 For more information about work pools and workers,
 checkout out the [Prefect docs](/concepts/work-pools/).
 """
+
 from __future__ import annotations
 
 import contextlib

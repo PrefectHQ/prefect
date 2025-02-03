@@ -120,8 +120,7 @@ class FlowStateHook(Protocol, Generic[P, R]):
 
     def __call__(
         self, flow: Flow[P, R], flow_run: FlowRun, state: State
-    ) -> Awaitable[None] | None:
-        ...
+    ) -> Awaitable[None] | None: ...
 
 
 if TYPE_CHECKING:
@@ -1535,16 +1534,14 @@ class Flow(Generic[P, R]):
     @overload
     def __call__(
         self: "Flow[P, Coroutine[Any, Any, T]]", *args: P.args, **kwargs: P.kwargs
-    ) -> Coroutine[Any, Any, T]:
-        ...
+    ) -> Coroutine[Any, Any, T]: ...
 
     @overload
     def __call__(
         self: "Flow[P, T]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> T:
-        ...
+    ) -> T: ...
 
     @overload
     def __call__(
@@ -1552,8 +1549,7 @@ class Flow(Generic[P, R]):
         *args: P.args,
         return_state: Literal[True],
         **kwargs: P.kwargs,
-    ) -> Awaitable[State[T]]:
-        ...
+    ) -> Awaitable[State[T]]: ...
 
     @overload
     def __call__(
@@ -1561,8 +1557,7 @@ class Flow(Generic[P, R]):
         *args: P.args,
         return_state: Literal[True],
         **kwargs: P.kwargs,
-    ) -> State[T]:
-        ...
+    ) -> State[T]: ...
 
     def __call__(
         self,
@@ -1701,8 +1696,7 @@ class Flow(Generic[P, R]):
 
 class FlowDecorator:
     @overload
-    def __call__(self, __fn: Callable[P, R]) -> Flow[P, R]:
-        ...
+    def __call__(self, __fn: Callable[P, R]) -> Flow[P, R]: ...
 
     @overload
     def __call__(
@@ -1728,8 +1722,7 @@ class FlowDecorator:
         on_cancellation: Optional[list[FlowStateHook[..., Any]]] = None,
         on_crashed: Optional[list[FlowStateHook[..., Any]]] = None,
         on_running: Optional[list[FlowStateHook[..., Any]]] = None,
-    ) -> Callable[[Callable[P, R]], Flow[P, R]]:
-        ...
+    ) -> Callable[[Callable[P, R]], Flow[P, R]]: ...
 
     @overload
     def __call__(
@@ -1755,8 +1748,7 @@ class FlowDecorator:
         on_cancellation: Optional[list[FlowStateHook[..., Any]]] = None,
         on_crashed: Optional[list[FlowStateHook[..., Any]]] = None,
         on_running: Optional[list[FlowStateHook[..., Any]]] = None,
-    ) -> Callable[[Callable[P, R]], Flow[P, R]]:
-        ...
+    ) -> Callable[[Callable[P, R]], Flow[P, R]]: ...
 
     def __call__(
         self,
@@ -1950,8 +1942,7 @@ class FlowDecorator:
         def from_source(
             source: Union[str, "RunnerStorage", ReadableDeploymentStorage],
             entrypoint: str,
-        ) -> Union["Flow[..., Any]", Coroutine[Any, Any, "Flow[..., Any]"]]:
-            ...
+        ) -> Union["Flow[..., Any]", Coroutine[Any, Any, "Flow[..., Any]"]]: ...
 
 
 flow: FlowDecorator = FlowDecorator()
@@ -2223,8 +2214,7 @@ def _display_serve_start_message(*args: "RunnerDeployment"):
     from rich.table import Table
 
     help_message_top = (
-        "[green]Your deployments are being served and polling for"
-        " scheduled runs!\n[/]"
+        "[green]Your deployments are being served and polling for scheduled runs!\n[/]"
     )
 
     table = Table(title="Deployments", show_header=False)

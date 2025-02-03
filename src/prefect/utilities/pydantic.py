@@ -52,15 +52,13 @@ def _unreduce_model(model_name: str, json: str) -> Any:
 
 
 @overload
-def add_cloudpickle_reduction(__model_cls: type[M]) -> type[M]:
-    ...
+def add_cloudpickle_reduction(__model_cls: type[M]) -> type[M]: ...
 
 
 @overload
 def add_cloudpickle_reduction(
     __model_cls: None = None, **kwargs: Any
-) -> Callable[[type[M]], type[M]]:
-    ...
+) -> Callable[[type[M]], type[M]]: ...
 
 
 def add_cloudpickle_reduction(
@@ -144,7 +142,7 @@ def add_type_dispatch(model_cls: type[M]) -> type[M]:
 
     elif not defines_dispatch_key and defines_type_field:
         field_type_annotation = model_cls.model_fields["type"].annotation
-        if field_type_annotation != str and field_type_annotation is not None:
+        if field_type_annotation is not str and field_type_annotation is not None:
             raise TypeError(
                 f"Model class {model_cls.__name__!r} defines a 'type' field with "
                 f"type {field_type_annotation.__name__!r} but it must be 'str'."
@@ -169,7 +167,7 @@ def add_type_dispatch(model_cls: type[M]) -> type[M]:
     def __init__(__pydantic_self__: M, **data: Any) -> None:
         type_string = (
             get_dispatch_key(__pydantic_self__)
-            if type(__pydantic_self__) != model_cls
+            if type(__pydantic_self__) is not model_cls
             else "__base__"
         )
         data.setdefault("type", type_string)
