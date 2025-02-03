@@ -124,6 +124,48 @@ async def test_create_schedules_from_deployment(
     )
 
 
+async def test_create_parametrized_schedules_from_deployment(
+    flow, session, simple_parameter_schema
+):
+    schedule = schemas.schedules.IntervalSchedule(
+        interval=datetime.timedelta(days=30),
+        anchor_date=pendulum.now("UTC"),
+        parameters={"name": "whoami"},
+    )
+
+    await models.deployments.create_deployment(
+        session=session,
+        deployment=schemas.core.Deployment(
+            name="test",
+            flow_id=flow.id,
+            parameter_openapi_schema=simple_parameter_schema.model_dump_for_openapi(),
+            schedules=[
+                schemas.core.DeploymentSchedule(
+                    schedule=schedule,
+                    active=True,
+                ),
+            ],
+        ),
+    )
+    await session.commit()
+
+    n_runs = await models.flow_runs.count_flow_runs(session)
+    assert n_runs == 0
+
+    service = Scheduler()
+    await service.start(loops=1)
+    runs = await models.flow_runs.read_flow_runs(session)
+    assert len(runs) == service.min_runs
+
+    expected_dates = await schedule.get_dates(service.min_runs)
+    assert set(expected_dates) == {r.state.state_details.scheduled_time for r in runs}
+
+    assert all([r.state_name == "Scheduled" for r in runs]), (
+        "Scheduler sets flow_run.state_name"
+    )
+    assert all([r.parameters["name"] == "whoami" for r in runs])
+
+
 async def test_create_schedule_respects_max_future_time(flow, session):
     schedule = schemas.schedules.IntervalSchedule(
         interval=datetime.timedelta(days=30), anchor_date=pendulum.now("UTC")

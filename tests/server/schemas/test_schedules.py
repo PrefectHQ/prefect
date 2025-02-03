@@ -36,6 +36,15 @@ class TestCreateIntervalSchedule:
         ):
             IntervalSchedule(interval=timedelta(minutes=minutes))
 
+    def test_interval_accepts_parameters(self):
+        schedule = IntervalSchedule(interval=timedelta(minutes=2))
+        assert schedule.parameters == {}
+
+        schedule = IntervalSchedule(
+            interval=timedelta(minutes=2), parameters={"config": {"foo": "bar"}}
+        )
+        assert schedule.parameters == dict(config={"foo": "bar"})
+
     def test_default_anchor(self):
         mock_now = pendulum.datetime(
             year=2022,
@@ -232,6 +241,13 @@ class TestCreateCronSchedule:
     def test_create_cron_schedule(self):
         clock = CronSchedule(cron="5 4 * * *")
         assert clock.cron == "5 4 * * *"
+
+    def test_cron_accepts_parameters(self):
+        schedule = CronSchedule(cron="5 4 * * *")
+        assert schedule.parameters == {}
+
+        schedule = CronSchedule(cron="5 4 * * *", parameters={"config": {"foo": "bar"}})
+        assert schedule.parameters == dict(config={"foo": "bar"})
 
     @pytest.mark.parametrize(
         "cron_string",
@@ -596,6 +612,13 @@ class TestCreateRRuleSchedule:
 
     async def test_create_from_rrule_str(self):
         assert RRuleSchedule(rrule=RRDaily)
+
+    def test_rrule_accepts_parameters(self):
+        schedule = RRuleSchedule(rrule=RRDaily)
+        assert schedule.parameters == {}
+
+        schedule = RRuleSchedule(rrule=RRDaily, parameters={"config": {"foo": "bar"}})
+        assert schedule.parameters == dict(config={"foo": "bar"})
 
     async def test_create_from_rrule_obj(self):
         s = RRuleSchedule.from_rrule(rrule.rrulestr("FREQ=DAILY"))

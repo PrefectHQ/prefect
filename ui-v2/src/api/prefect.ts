@@ -5125,6 +5125,7 @@ export interface components {
          *             OR. If the switch is set to False, the values are connected using AND. This
          *             behaves like fcron and enables you to e.g. define a job that executes each
          *             2nd friday of a month by setting the days of month and the weekday.
+         *         parameters (dict): a dictionary of parameter value overrides
          */
         CronSchedule: {
             /** Cron */
@@ -5137,6 +5138,8 @@ export interface components {
              * @default true
              */
             day_or: boolean;
+            /** Parameters */
+            parameters?: Record<string, never>;
         };
         /** CsrfToken */
         CsrfToken: {
@@ -7360,6 +7363,7 @@ export interface components {
          *         anchor_date (DateTime, optional): an anchor date to schedule increments against;
          *             if not provided, the current timestamp will be used.
          *         timezone (str, optional): a valid timezone string.
+         *         parameters (dict): a dictionary of parameter value overrides
          */
         IntervalSchedule: {
             /** Interval */
@@ -7371,6 +7375,8 @@ export interface components {
             anchor_date?: string;
             /** Timezone */
             timezone?: string | null;
+            /** Parameters */
+            parameters?: Record<string, never>;
         };
         /**
          * Log
@@ -7736,6 +7742,7 @@ export interface components {
          *     Args:
          *         rrule (str): a valid RRule string
          *         timezone (str, optional): a valid timezone string
+         *         parameters (dict): a dictionary of parameter value overrides
          */
         RRuleSchedule: {
             /** Rrule */
@@ -7745,6 +7752,8 @@ export interface components {
              * @default UTC
              */
             timezone: string | null;
+            /** Parameters */
+            parameters?: Record<string, never>;
         };
         /**
          * ReceivedEvent
