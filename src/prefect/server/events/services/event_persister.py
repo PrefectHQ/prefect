@@ -8,9 +8,8 @@ from __future__ import annotations
 import asyncio
 from contextlib import asynccontextmanager
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, AsyncGenerator, List, NoReturn, Type, TypeVar
+from typing import TYPE_CHECKING, Any, AsyncGenerator, List, NoReturn, TypeVar
 
-import pendulum
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,6 +31,7 @@ from prefect.settings import (
 )
 from prefect.settings.context import get_current_settings
 from prefect.settings.models.server.services import ServicesBaseSetting
+from prefect.types import DateTime
 
 if TYPE_CHECKING:
     import logging
@@ -43,7 +43,7 @@ T = TypeVar("T")
 
 async def batch_delete(
     session: AsyncSession,
-    model: Type[T],
+    model: type[T],
     condition: Any,
     batch_size: int = 10_000,
 ) -> int:
@@ -166,7 +166,7 @@ async def create_handler(
                 queue.put_nowait(event)
 
     async def trim() -> None:
-        older_than = pendulum.now("UTC") - PREFECT_EVENTS_RETENTION_PERIOD.value()
+        older_than = DateTime.now("UTC") - PREFECT_EVENTS_RETENTION_PERIOD.value()
 
         try:
             async with db.session_context() as session:

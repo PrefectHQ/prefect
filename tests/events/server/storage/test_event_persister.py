@@ -3,7 +3,6 @@ from datetime import timedelta
 from typing import AsyncGenerator, Optional, Sequence
 from uuid import UUID, uuid4
 
-import pendulum
 import pytest
 import sqlalchemy as sa
 from pydantic import ValidationError
@@ -299,8 +298,8 @@ async def test_trims_messages_periodically(
     inserted_timestamps = []
     # Create entries with slightly different insert times. Since the event_resources are filtered based on the
     # "updated" column, where sqlite itself sets the timestamp, we need to actually delay the inserts.
-    for _ in range(6):
-        timestamp = pendulum.now("UTC")
+    for _ in range(3):
+        timestamp = DateTime.now("UTC")
         await write_events(
             session,
             [
@@ -313,24 +312,26 @@ async def test_trims_messages_periodically(
             ],
         )
         inserted_timestamps.append(timestamp)
-        await asyncio.sleep(0.2)  # The whole insert should be 200ms * 6 = about 1.2s
+        await asyncio.sleep(0.2)  # The whole insert should be 400ms * 3 = about 1.2s
 
     # Half the entries are older than this, half are younger
-    cutoff_date = inserted_timestamps[2]
+    cutoff_date = inserted_timestamps[int(len(inserted_timestamps) / 2)] - timedelta(
+        milliseconds=200
+    )
 
     initial_events, event_count, _ = await query_events(session, filter=EventFilter())
-    assert event_count == 6
-    assert len(initial_events) == 6
+    assert event_count == 3
+    assert len(initial_events) == 3
     assert any(event.occurred < cutoff_date for event in initial_events)
     assert any(event.occurred >= cutoff_date for event in initial_events)
 
     initial_resources = list(await get_resources(session, None, db))
-    assert len(initial_resources) == 24
+    assert len(initial_resources) == 12
     assert any(resource.occurred < cutoff_date for resource in initial_resources)
     assert any(resource.occurred >= cutoff_date for resource in initial_resources)
 
     # Prefect assumes a timedelta for the retention period, here we dynamically compute this to match the cutoff we want
-    retention_period = pendulum.now("UTC") - cutoff_date
+    retention_period = DateTime.now("UTC") - cutoff_date
     with temporary_settings({PREFECT_EVENTS_RETENTION_PERIOD: retention_period}):
         async with event_persister.create_handler(
             flush_every=timedelta(seconds=0.001),
@@ -339,12 +340,12 @@ async def test_trims_messages_periodically(
             await asyncio.sleep(0.1)  # this is 100x the time necessary
 
     remaining_events, event_count, _ = await query_events(session, filter=EventFilter())
-    assert event_count == 3
-    assert len(remaining_events) == 3
+    assert event_count == 2
+    assert len(remaining_events) == 2
     assert all(event.occurred >= cutoff_date for event in remaining_events)
 
     remaining_resources = await get_resources(session, None, db)
-    assert len(remaining_resources) == 12
+    assert len(remaining_resources) == 8
     assert all(resource.occurred >= cutoff_date for resource in remaining_resources)
 
 
@@ -352,19 +353,11 @@ async def test_batch_delete(
     event: ReceivedEvent, session: AsyncSession, db: PrefectDBInterface
 ):
     await write_events(
-        session,
-        [
-            event.model_copy(
-                update={
-                    "id": uuid4(),
-                }
-            )
-            for _ in range(10)
-        ],
+        session, [event.model_copy(update={"id": uuid4()}) for _ in range(10)]
     )
 
     number_deleted = await batch_delete(
-        session, db.Event, db.Event.occurred <= pendulum.now("UTC"), batch_size=3
+        session, db.Event, db.Event.occurred <= DateTime.now("UTC"), batch_size=3
     )
 
     assert number_deleted == 10
