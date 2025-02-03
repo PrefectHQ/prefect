@@ -28,7 +28,7 @@ respx
 # Linters and dev tools that are also in .pre-commit-config.yaml, which
 # should usually be updated together.
 codespell==2.2.6
-ruff==0.9.2
+ruff==0.9.4
 mypy==1.14.1
 vermin==1.6.0
 
