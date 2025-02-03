@@ -872,9 +872,32 @@ Number of seconds a runner should wait between heartbeats for flow runs.
 **TOML dotted key path**: `runner.server`
 
 ---
+## SQLAlchemyConnectArgsSettings
+Settings for controlling SQLAlchemy connection behavior; note that these settings only take effect when
+using a PostgreSQL database.
+### `application_name`
+Controls the application_name field for connections opened from the connection pool when using a PostgreSQL database with the Prefect backend.
+
+**Type**: `string | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `server.database.sqlalchemy.connect_args.application_name`
+
+**Supported environment variables**:
+`PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_APPLICATION_NAME`
+
+---
 ## SQLAlchemySettings
 Settings for controlling SQLAlchemy behavior; note that these settings only take effect when
 using a PostgreSQL database.
+### `connect_args`
+Settings for controlling SQLAlchemy connection behavior
+
+**Type**: [SQLAlchemyConnectArgsSettings](#sqlalchemyconnectargssettings)
+
+**TOML dotted key path**: `server.database.sqlalchemy.connect_args`
+
 ### `pool_size`
 Controls connection pool size of database connection pools from the Prefect backend.
 
@@ -1241,18 +1264,6 @@ A connection timeout, in seconds, applied to database connections. Defaults to `
 **Supported environment variables**:
 `PREFECT_SERVER_DATABASE_CONNECTION_TIMEOUT`, `PREFECT_API_DATABASE_CONNECTION_TIMEOUT`
 
-### `connection_app_name`
-Controls the application_name field for connections opened from the connection pool when using a PostgreSQL database with the Prefect backend.
-
-**Type**: `string | None`
-
-**Default**: `None`
-
-**TOML dotted key path**: `server.database.connection_app_name`
-
-**Supported environment variables**:
-`PREFECT_SERVER_DATABASE_CONNECTION_APP_NAME`
-
 ---
 ## ServerDeploymentsSettings
 ### `concurrency_slot_wait_seconds`
@@ -1514,6 +1525,21 @@ The cancellation cleanup service will look for non-terminal tasks and subflows t
 
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS`, `PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS`
+
+---
+## ServerServicesEventLoggerSettings
+Settings for controlling the event logger service
+### `enabled`
+Whether or not to start the event logger service in the server application.
+
+**Type**: `boolean`
+
+**Default**: `False`
+
+**TOML dotted key path**: `server.services.event_logger.enabled`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_EVENT_LOGGER_ENABLED`, `PREFECT_API_SERVICES_EVENT_LOGGER_ENABLED`
 
 ---
 ## ServerServicesEventPersisterSettings
@@ -1879,6 +1905,12 @@ Settings for controlling server services
 **Type**: [ServerServicesEventPersisterSettings](#serverserviceseventpersistersettings)
 
 **TOML dotted key path**: `server.services.event_persister`
+
+### `event_logger`
+
+**Type**: [ServerServicesEventLoggerSettings](#serverserviceseventloggersettings)
+
+**TOML dotted key path**: `server.services.event_logger`
 
 ### `flow_run_notifications`
 

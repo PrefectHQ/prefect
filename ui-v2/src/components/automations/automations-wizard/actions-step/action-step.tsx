@@ -4,8 +4,11 @@ import { Icon } from "@/components/ui/icons";
 import { Typography } from "@/components/ui/typography";
 import { useWatch } from "react-hook-form";
 import { ActionTypeSelect } from "./action-type-select";
-import { AutomationsSelectStateFields } from "./automations-select-state-fields";
 import { ChangeFlowRunStateFields } from "./change-flow-run-fields";
+import { SelectAutomationsFields } from "./select-automations-fields";
+import { SelectDeploymentsFields } from "./select-deployments-fields";
+import { SelectWorkPoolsFields } from "./select-work-pools-fields";
+import { SelectWorkQueuesFields } from "./select-work-queues-fields";
 
 type ActionStepProps = {
 	index: number;
@@ -49,19 +52,23 @@ const ActionTypeAdditionalFields = ({
 		case "change-flow-run-state":
 			return <ChangeFlowRunStateFields index={index} />;
 		case "run-deployment":
+			return <SelectDeploymentsFields action="Run" index={index} />;
 		case "pause-deployment":
+			return <SelectDeploymentsFields action="Pause" index={index} />;
 		case "resume-deployment":
-			return <div>TODO Deployment</div>;
+			return <SelectDeploymentsFields action="Resume" index={index} />;
 		case "pause-work-queue":
+			return <SelectWorkQueuesFields action="Pause" index={index} />;
 		case "resume-work-queue":
-			return <div>TODO Work Queue</div>;
+			return <SelectWorkQueuesFields action="Resume" index={index} />;
 		case "pause-work-pool":
+			return <SelectWorkPoolsFields action="Pause" index={index} />;
 		case "resume-work-pool":
-			return <div>TODO Work pool</div>;
+			return <SelectWorkPoolsFields action="Resume" index={index} />;
 		case "pause-automation":
-			return <AutomationsSelectStateFields action="Pause" index={index} />;
+			return <SelectAutomationsFields action="Pause" index={index} />;
 		case "resume-automation":
-			return <AutomationsSelectStateFields action="Resume" index={index} />;
+			return <SelectAutomationsFields action="Resume" index={index} />;
 		case "send-notification":
 			return <div>TODO send notification</div>;
 		case "cancel-flow-run":

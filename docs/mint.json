@@ -1,6 +1,11 @@
 {
   "$schema": "https://mintlify.com/schema.json",
   "rounded": "sharp",
+  "analytics": {
+    "ga4": {
+      "measurementId": "G-8GR5P04T5Y"
+    }
+  },
   "anchors": [
     {
       "icon": "github",
@@ -116,8 +121,7 @@
             "v3/develop/pause-resume",
             "v3/develop/cancel",
             "v3/develop/inputs",
-            "v3/develop/runtime-context",
-            "v3/develop/interact-with-api"
+            "v3/develop/runtime-context"
           ],
           "version": "v3"
         },
@@ -148,6 +152,7 @@
             "v3/develop/settings-ref"
           ]
         },
+        "v3/develop/interact-with-api",
         "v3/develop/test-workflows"
       ],
       "version": "v3"
@@ -176,7 +181,8 @@
             "v3/deploy/infrastructure-examples/managed",
             "v3/deploy/infrastructure-examples/serverless",
             "v3/deploy/infrastructure-examples/docker",
-            "v3/deploy/infrastructure-examples/kubernetes"
+            "v3/deploy/infrastructure-examples/kubernetes",
+            "v3/deploy/infrastructure-examples/coiled"
           ],
           "version": "v3"
         },

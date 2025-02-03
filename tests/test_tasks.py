@@ -1285,9 +1285,9 @@ class TestTaskRetries:
 
             if i > 0:
                 last_start_time = start_times[i - 1]
-                assert (
-                    last_start_time < start_times[i]
-                ), "Timestamps should be increasing"
+                assert last_start_time < start_times[i], (
+                    "Timestamps should be increasing"
+                )
 
     async def test_global_task_retry_config(self):
         with temporary_settings(updates={PREFECT_TASK_DEFAULT_RETRIES: "1"}):
@@ -2020,6 +2020,11 @@ class TestTaskCaching:
         def foo_with_none_policy(x, lock_obj):
             return x
 
+        # Solution 3: Subtract the problematic argument from the cache policy
+        @task(cache_policy=DEFAULT - "lock_obj", persist_result=True)
+        def foo_with_subtraction(x, lock_obj):
+            return x
+
         @flow
         def test_flow():
             # Both approaches should work without errors
@@ -2028,9 +2033,11 @@ class TestTaskCaching:
                 foo_with_key_fn(42, lock_obj=lock, return_state=True),
                 foo_with_none_policy(42, lock_obj=lock, return_state=True),
                 foo_with_none_policy(42, lock_obj=lock, return_state=True),
+                foo_with_subtraction(42, lock_obj=lock, return_state=True),
+                foo_with_subtraction(42, lock_obj=lock, return_state=True),
             )
 
-        s1, s2, s3, s4 = test_flow()
+        s1, s2, s3, s4, s5, s6 = test_flow()
 
         # Key fn approach should still cache based on x
         assert s1.name == "Completed"
@@ -2043,6 +2050,12 @@ class TestTaskCaching:
         assert s4.name == "Completed"
         assert await s3.result() == 42
         assert await s4.result() == 42
+
+        # Subtraction approach should cache based on x
+        assert s5.name == "Completed"
+        assert s6.name == "Cached"
+        assert await s5.result() == 42
+        assert await s6.result() == 42
 
 
 class TestCacheFunctionBuiltins:
@@ -4797,8 +4810,7 @@ class TestTaskHooksOnFailure:
         with pytest.raises(TypeError):
 
             @task(retry_condition_fn="not a callable")
-            def my_task():
-                ...
+            def my_task(): ...
 
 
 class TestNestedTasks:

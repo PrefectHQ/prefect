@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import type { Deployment } from "./index";
 import {
 	buildCountDeploymentsQuery,
+	buildFilterDeploymentsQuery,
 	buildPaginateDeploymentsQuery,
 	queryKeyFactory,
 	useDeleteDeployment,
@@ -27,8 +28,16 @@ describe("deployments api", () => {
 					limit: 10,
 				});
 			}),
-			http.post("/deployments/count", () => {
+			http.post(buildApiUrl("/deployments/count"), () => {
 				return HttpResponse.json(total);
+			}),
+		);
+	};
+
+	const mockFilterDeploymentsAPI = (deployments: Array<Deployment>) => {
+		server.use(
+			http.post(buildApiUrl("/deployments/filter"), () => {
+				return HttpResponse.json(deployments);
 			}),
 		);
 	};
@@ -80,6 +89,23 @@ describe("deployments api", () => {
 				limit: 10,
 				count: 1,
 			});
+		});
+	});
+
+	describe("buildFilterDeploymentsQuery", () => {
+		it("fetches filtered deployments", async () => {
+			const queryClient = new QueryClient();
+
+			const mockResponse = [createFakeDeployment()];
+			mockFilterDeploymentsAPI(mockResponse);
+
+			const { result } = renderHook(
+				() => useSuspenseQuery(buildFilterDeploymentsQuery()),
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+
+			await waitFor(() => expect(result.current.isSuccess).toBe(true));
+			expect(result.current.data).toEqual(mockResponse);
 		});
 	});
 

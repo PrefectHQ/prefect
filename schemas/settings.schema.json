@@ -739,9 +739,37 @@
             "title": "RunnerSettings",
             "type": "object"
         },
+        "SQLAlchemyConnectArgsSettings": {
+            "description": "Settings for controlling SQLAlchemy connection behavior; note that these settings only take effect when\nusing a PostgreSQL database.",
+            "properties": {
+                "application_name": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "Controls the application_name field for connections opened from the connection pool when using a PostgreSQL database with the Prefect backend.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_APPLICATION_NAME"
+                    ],
+                    "title": "Application Name"
+                }
+            },
+            "title": "SQLAlchemyConnectArgsSettings",
+            "type": "object"
+        },
         "SQLAlchemySettings": {
             "description": "Settings for controlling SQLAlchemy behavior; note that these settings only take effect when\nusing a PostgreSQL database.",
             "properties": {
+                "connect_args": {
+                    "$ref": "#/$defs/SQLAlchemyConnectArgsSettings",
+                    "description": "Settings for controlling SQLAlchemy connection behavior",
+                    "supported_environment_variables": []
+                },
                 "pool_size": {
                     "default": 5,
                     "description": "Controls connection pool size of database connection pools from the Prefect backend.",
@@ -1092,22 +1120,6 @@
                         "PREFECT_API_DATABASE_CONNECTION_TIMEOUT"
                     ],
                     "title": "Connection Timeout"
-                },
-                "connection_app_name": {
-                    "anyOf": [
-                        {
-                            "type": "string"
-                        },
-                        {
-                            "type": "null"
-                        }
-                    ],
-                    "default": null,
-                    "description": "Controls the application_name field for connections opened from the connection pool when using a PostgreSQL database with the Prefect backend.",
-                    "supported_environment_variables": [
-                        "PREFECT_SERVER_DATABASE_CONNECTION_APP_NAME"
-                    ],
-                    "title": "Connection App Name"
                 }
             },
             "title": "ServerDatabaseSettings",
@@ -1351,6 +1363,23 @@
                 }
             },
             "title": "ServerServicesCancellationCleanupSettings",
+            "type": "object"
+        },
+        "ServerServicesEventLoggerSettings": {
+            "description": "Settings for controlling the event logger service",
+            "properties": {
+                "enabled": {
+                    "default": false,
+                    "description": "Whether or not to start the event logger service in the server application.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_EVENT_LOGGER_ENABLED",
+                        "PREFECT_API_SERVICES_EVENT_LOGGER_ENABLED"
+                    ],
+                    "title": "Enabled",
+                    "type": "boolean"
+                }
+            },
+            "title": "ServerServicesEventLoggerSettings",
             "type": "object"
         },
         "ServerServicesEventPersisterSettings": {
@@ -1639,6 +1668,10 @@
                 },
                 "event_persister": {
                     "$ref": "#/$defs/ServerServicesEventPersisterSettings",
+                    "supported_environment_variables": []
+                },
+                "event_logger": {
+                    "$ref": "#/$defs/ServerServicesEventLoggerSettings",
                     "supported_environment_variables": []
                 },
                 "flow_run_notifications": {

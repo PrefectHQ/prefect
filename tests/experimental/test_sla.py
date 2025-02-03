@@ -12,7 +12,6 @@ import pytest
 import readchar
 import respx
 import yaml
-from exceptiongroup import ExceptionGroup  # novermin
 from typer import Exit
 
 import prefect
@@ -112,42 +111,50 @@ class TestSla:
         assert sla.owner_resource == f"prefect.deployment.{deployment_id}"
 
 
-class TestClientCreateSla:
+class TestClientApplySla:
     async def test_create_sla_against_cloud(self):
         account_id = uuid4()
         workspace_id = uuid4()
+        deployment_id = uuid4()
+        prefect_api_url = f"https://api.prefect.cloud/api/accounts/{account_id}/workspaces/{workspace_id}/"
+
         with temporary_settings(
             updates={
-                PREFECT_API_URL: f"https://api.prefect.cloud/api/accounts/{account_id}/workspaces/{workspace_id}/"
+                PREFECT_API_URL: prefect_api_url,
             }
         ):
             with respx.mock(
                 assert_all_mocked=True,
                 assert_all_called=False,
-                base_url="https://api.prefect.cloud/api",
+                base_url=prefect_api_url,
                 using="httpx",
             ) as router:
-                sla_id = str(uuid4())
+                sla_name = "test-sla"
 
                 router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
                 router.post(
-                    f"/accounts/{account_id}/workspaces/{workspace_id}/slas/",
+                    f"/slas/apply-resource-slas/prefect.deployment.{deployment_id}",
                 ).mock(
                     return_value=httpx.Response(
                         status_code=201,
-                        json={"id": sla_id},
+                        json={
+                            "created": [{"name": sla_name}],
+                            "updated": [],
+                            "deleted": [],
+                        },
                     )
                 )
                 prefect_client = get_client()
 
-                deployment_id = uuid4()
                 sla = TimeToCompletionSla(
-                    name="test-sla",
+                    name=sla_name,
                     duration=timedelta(minutes=10).total_seconds(),
                 )
-                sla.set_deployment_id(deployment_id)
-                response_id = await prefect_client.create_sla(sla)
-                assert response_id == UUID(sla_id)
+                response = await prefect_client.apply_slas_for_deployment(
+                    deployment_id, [sla]
+                )
+
+                assert response.created[0] == sla.name
 
 
 class TestRunnerDeploymentApply:
@@ -172,16 +179,28 @@ class TestRunnerDeploymentApply:
         assert deployment._create_slas.called
 
     @pytest.fixture
-    def client(self, monkeypatch, prefect_client):
+    def deployment_id(self):
+        return UUID("89f0ac57-514a-4eb1-a068-dbbf44d2e199")
+
+    @pytest.fixture
+    def client(self, monkeypatch, prefect_client, deployment_id):
         monkeypatch.setattr(prefect_client, "server_type", ServerType.CLOUD)
 
         monkeypatch.setattr(
-            prefect_client, "create_sla", mock.AsyncMock(name="mock_create_sla")
+            prefect_client,
+            "apply_slas_for_deployment",
+            mock.AsyncMock(name="mock_apply_slas_for_deployment"),
+        )
+
+        monkeypatch.setattr(
+            prefect_client,
+            "create_deployment",
+            mock.AsyncMock(name="mock_create_deployment", return_value=deployment_id),
         )
         return prefect_client
 
     async def test_create_deployment_with_sla_config_against_cloud(
-        self, deployment, client
+        self, deployment, client, deployment_id
     ):
         sla = TimeToCompletionSla(
             name="test-sla",
@@ -192,11 +211,18 @@ class TestRunnerDeploymentApply:
             name=__file__,
             _sla=sla,
         )
-        await deployment._create_slas(uuid4(), client)
-        assert client.create_sla.await_args_list[0].args[0].name == sla.name
-        assert client.create_sla.await_args_list[0].args[0].duration == sla.duration
+        await deployment._create_slas(deployment_id, client)
+        assert (
+            client.apply_slas_for_deployment.await_args_list[0].args[0] == deployment_id
+        )
+        assert (
+            client.apply_slas_for_deployment.await_args_list[0].args[1][0].name
+            == sla.name
+        )
 
-    async def test_create_deployment_with_multiple_slas_against_cloud(self, client):
+    async def test_create_deployment_with_multiple_slas_against_cloud(
+        self, client, deployment_id
+    ):
         sla1 = TimeToCompletionSla(
             name="a little long",
             severity="moderate",
@@ -212,14 +238,14 @@ class TestRunnerDeploymentApply:
             name=__file__,
             _sla=[sla1, sla2],
         )
-        await deployment._create_slas(uuid4(), client)
-        calls = client.create_sla.await_args_list
-        assert len(calls) == 2
-        assert calls[0].args[0].name == sla1.name
-        assert calls[1].args[0].name == sla2.name
+        await deployment._create_slas(deployment_id, client)
+        calls = client.apply_slas_for_deployment.await_args_list
+        assert len(calls) == 1
+        assert calls[0].args[0] == deployment_id
+        assert [sla.name for sla in calls[0].args[1]] == [sla1.name, sla2.name]
 
     async def test_create_deployment_against_oss_server_produces_error_log(
-        self, prefect_client
+        self, prefect_client, deployment_id
     ):
         sla = TimeToCompletionSla(
             name="test-sla",
@@ -235,50 +261,69 @@ class TestRunnerDeploymentApply:
             ValueError,
             match="SLA configuration is currently only supported on Prefect Cloud.",
         ):
-            await deployment._create_slas(uuid4(), prefect_client)
+            await deployment._create_slas(deployment_id, prefect_client)
 
-    async def test_failure_to_create_one_sla_does_not_prevent_other_slas_from_being_created(
-        self, client
+    async def test_passing_empty_sla_list_calls_client_apply_slas_for_deployment(
+        self, client, deployment_id
     ):
-        sla1 = TimeToCompletionSla(
-            name="a little long",
-            duration=timedelta(minutes=10).total_seconds(),
-        )
-
-        sla2 = TimeToCompletionSla(
-            name="whoa this is bad",
-            duration=timedelta(minutes=30).total_seconds(),
-        )
-
-        client.create_sla.side_effect = [None, ValueError("Failed to create SLA")]
-
         deployment = RunnerDeployment.from_flow(
             flow=tired_flow,
             name=__file__,
-            _sla=[sla1, sla2],
+            _sla=[],
         )
-
-        with pytest.raises(ExceptionGroup) as exc_info:  # novermin
-            await deployment._create_slas(uuid4(), client)
-
-        assert len(client.create_sla.await_args_list) == 2
-        assert client.create_sla.await_args_list[0].args[0].name == sla1.name
-        assert client.create_sla.await_args_list[1].args[0].name == sla2.name
-        assert str(exc_info.value) == "Failed to create SLAs (1 sub-exception)"
-        assert len(exc_info.value.exceptions) == 1
-        assert str(exc_info.value.exceptions[0]) == "Failed to create SLA"
+        await deployment._create_slas(deployment_id, client)
+        assert client.apply_slas_for_deployment.called is True
 
 
 class TestDeploymentCLI:
+    @pytest.fixture
+    def deployment_id(self):
+        return UUID("89f0ac57-514a-4eb1-a068-dbbf44d2e199")
+
+    class TestClientMethodCall:
+        async def test_create_slas(self, prefect_client, monkeypatch, deployment_id):
+            monkeypatch.setattr(prefect_client, "server_type", ServerType.CLOUD)
+
+            monkeypatch.setattr(
+                prefect_client,
+                "apply_slas_for_deployment",
+                mock.AsyncMock(name="mock_apply_slas_for_deployment"),
+            )
+
+            monkeypatch.setattr(
+                prefect_client,
+                "create_deployment",
+                mock.AsyncMock(
+                    name="mock_create_deployment", return_value=deployment_id
+                ),
+            )
+
+            sla = TimeToCompletionSla(
+                name="test-sla",
+                duration=timedelta(minutes=10).total_seconds(),
+            )
+            await _create_slas(prefect_client, deployment_id, [sla])
+
+            assert prefect_client.apply_slas_for_deployment.called is True
+            assert (
+                prefect_client.apply_slas_for_deployment.await_args_list[0].args[0]
+                == deployment_id
+            )
+            assert (
+                prefect_client.apply_slas_for_deployment.await_args_list[0]
+                .args[1][0]
+                .name
+                == sla.name
+            )
+
     class TestSlaSyncing:
-        async def test_initialize_slas(self):
+        async def test_initialize_slas(self, deployment_id):
             sla_spec = {
                 "name": "test-sla",
                 "duration": 1800,
                 "severity": "high",
             }
 
-            deployment_id = uuid4()
             slas = _initialize_deployment_slas(deployment_id, [sla_spec])
             assert slas == [
                 TimeToCompletionSla(
@@ -328,14 +373,19 @@ class TestDeploymentCLI:
             deployment_id = uuid4()
             slas = _initialize_deployment_slas(deployment_id, [sla_spec])
 
-            await _create_slas(client, slas)
+            await _create_slas(client, deployment_id, slas)
 
             assert slas[0]._deployment_id == deployment_id
             assert slas[0].owner_resource == f"prefect.deployment.{deployment_id}"
-            client.create_sla.assert_called_once_with(slas[0])
+            client.apply_slas_for_deployment.assert_called_once_with(
+                deployment_id, slas
+            )
 
         async def test_sla_creation_orchestrated(
-            self, project_dir, prefect_client, work_pool
+            self,
+            project_dir,
+            prefect_client,
+            work_pool,
         ):
             prefect_file = Path("prefect.yaml")
             with prefect_file.open(mode="r") as f:
@@ -376,12 +426,11 @@ class TestDeploymentCLI:
 
                 assert create_slas.call_count == 1
 
-                client, slas = create_slas.call_args[0]
+                client, deployment_id, slas = create_slas.call_args[0]
                 assert isinstance(client, PrefectClient)
 
-                returned_deployment_id = slas[0]._deployment_id
                 for sla in expected_slas:
-                    sla.set_deployment_id(returned_deployment_id)
+                    sla.set_deployment_id(deployment_id)
 
                 assert slas == expected_slas
 
@@ -420,14 +469,37 @@ class TestDeploymentCLI:
 
                 assert create_slas.call_count == 1
 
-                client, slas = create_slas.call_args[0]
+                client, called_deployment_id, slas = create_slas.call_args[0]
                 assert isinstance(client, PrefectClient)
 
-                returned_deployment_id = slas[0]._deployment_id
                 for sla in expected_slas:
-                    sla.set_deployment_id(returned_deployment_id)
+                    sla.set_deployment_id(called_deployment_id)
 
                 assert slas == expected_slas
+
+        @pytest.mark.usefixtures("project_dir")
+        async def test_passing_an_empty_list_calls_create_sla_method(
+            self, docker_work_pool
+        ):
+            client = mock.AsyncMock()
+            client.server_type = ServerType.CLOUD
+
+            with mock.patch(
+                "prefect.cli.deploy._create_slas",
+                mock.AsyncMock(),
+            ) as create_slas:
+                await run_sync_in_worker_thread(
+                    invoke_and_assert,
+                    command=(
+                        "deploy ./flows/hello.py:my_flow -n test-name-1 --sla '[]' -p"
+                        f" {docker_work_pool.name}"
+                    ),
+                    expected_code=0,
+                )
+
+                assert create_slas.call_count == 1
+                _, _, slas = create_slas.call_args[0]
+                assert slas == []
 
         @pytest.mark.usefixtures("project_dir")
         async def test_json_file_sla(self, docker_work_pool):
@@ -466,12 +538,11 @@ class TestDeploymentCLI:
 
                 assert create_slas.call_count == 1
 
-                client, slas = create_slas.call_args[0]
+                client, called_deployment_id, slas = create_slas.call_args[0]
                 assert isinstance(client, PrefectClient)
 
-                returned_deployment_id = slas[0]._deployment_id
                 for sla in expected_slas:
-                    sla.set_deployment_id(returned_deployment_id)
+                    sla.set_deployment_id(called_deployment_id)
 
                 assert slas == expected_slas
 
@@ -511,14 +582,38 @@ class TestDeploymentCLI:
 
                 assert create_slas.call_count == 1
 
-                client, slas = create_slas.call_args[0]
+                client, called_deployment_id, slas = create_slas.call_args[0]
                 assert isinstance(client, PrefectClient)
 
-                returned_deployment_id = slas[0]._deployment_id
                 for sla in expected_slas:
-                    sla.set_deployment_id(returned_deployment_id)
+                    sla.set_deployment_id(called_deployment_id)
 
                 assert slas == expected_slas
+
+        @pytest.mark.usefixtures("project_dir")
+        async def test_passing_empty_list_to_yaml_file_calls_create_sla_method(
+            self, docker_work_pool
+        ):
+            with open("sla.yaml", "w") as f:
+                yaml.safe_dump({"sla": []}, f)
+
+            with mock.patch(
+                "prefect.cli.deploy._create_slas",
+                mock.AsyncMock(),
+            ) as create_slas:
+                await run_sync_in_worker_thread(
+                    invoke_and_assert,
+                    command=(
+                        "deploy ./flows/hello.py:my_flow -n test-name-1"
+                        f" --sla sla.yaml -p {docker_work_pool.name}"
+                    ),
+                    expected_code=0,
+                )
+
+                assert create_slas.call_count == 1
+
+                _, _, slas = create_slas.call_args[0]
+                assert slas == []
 
         @pytest.mark.usefixtures("project_dir")
         async def test_nested_yaml_file_sla(self, docker_work_pool, tmpdir):
@@ -558,12 +653,11 @@ class TestDeploymentCLI:
 
                 assert create_slas.call_count == 1
 
-                client, slas = create_slas.call_args[0]
+                client, called_deployment_id, slas = create_slas.call_args[0]
                 assert isinstance(client, PrefectClient)
 
-                returned_deployment_id = slas[0]._deployment_id
                 for sla in expected_slas:
-                    sla.set_deployment_id(returned_deployment_id)
+                    sla.set_deployment_id(called_deployment_id)
 
                 assert slas == expected_slas
 
@@ -616,12 +710,11 @@ class TestDeploymentCLI:
 
                 assert create_slas.call_count == 1
 
-                client, slas = create_slas.call_args[0]
+                client, called_deployment_id, slas = create_slas.call_args[0]
                 assert isinstance(client, PrefectClient)
 
-                returned_deployment_id = slas[0]._deployment_id
                 for sla in expected_slas:
-                    sla.set_deployment_id(returned_deployment_id)
+                    sla.set_deployment_id(called_deployment_id)
 
                 assert slas == expected_slas
 
@@ -682,12 +775,12 @@ class TestDeploymentCLI:
                     expected_code=0,
                 )
 
-                client, slas = create_slas.call_args[0]
+                client, called_deployment_id, slas = create_slas.call_args[0]
                 assert isinstance(client, PrefectClient)
                 assert len(slas) == 1
-                returned_deployment_id = slas[0]._deployment_id
+
                 for sla in expected_slas:
-                    sla.set_deployment_id(returned_deployment_id)
+                    sla.set_deployment_id(called_deployment_id)
                 assert slas == expected_slas
 
         @pytest.mark.usefixtures("project_dir")

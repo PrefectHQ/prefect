@@ -26,8 +26,6 @@ from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_TIMEOUT,
     PREFECT_API_DATABASE_ECHO,
     PREFECT_API_DATABASE_TIMEOUT,
-    PREFECT_SERVER_DATABASE_CONNECTION_APP_NAME,
-    PREFECT_SQLALCHEMY_MAX_OVERFLOW,
     PREFECT_TESTING_UNIT_TEST_MODE,
     get_current_settings,
 )
@@ -135,10 +133,12 @@ class BaseDatabaseConfiguration(ABC):
             or get_current_settings().server.database.sqlalchemy.pool_size
         )
         self.sqlalchemy_max_overflow: Optional[int] = (
-            sqlalchemy_max_overflow or PREFECT_SQLALCHEMY_MAX_OVERFLOW.value()
+            sqlalchemy_max_overflow
+            or get_current_settings().server.database.sqlalchemy.max_overflow
         )
         self.connection_app_name: Optional[str] = (
-            connection_app_name or PREFECT_SERVER_DATABASE_CONNECTION_APP_NAME.value()
+            connection_app_name
+            or get_current_settings().server.database.sqlalchemy.connect_args.application_name
         )
 
     def unique_key(self) -> tuple[Hashable, ...]:
@@ -206,12 +206,13 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
             self.timeout,
         )
         if cache_key not in ENGINES:
-            kwargs: dict[
-                str, Any
-            ] = get_current_settings().server.database.sqlalchemy.model_dump(
-                mode="json"
+            kwargs: dict[str, Any] = (
+                get_current_settings().server.database.sqlalchemy.model_dump(
+                    mode="json",
+                )
             )
-            connect_args: dict[str, Any] = dict()
+            connect_args: dict[str, Any] = kwargs.pop("connect_args")
+            app_name = connect_args.pop("application_name", None)
 
             if self.timeout is not None:
                 connect_args["command_timeout"] = self.timeout
@@ -219,9 +220,9 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
             if self.connection_timeout is not None:
                 connect_args["timeout"] = self.connection_timeout
 
-            if self.connection_app_name is not None:
+            if self.connection_app_name is not None or app_name is not None:
                 connect_args["server_settings"] = dict(
-                    application_name=self.connection_app_name
+                    application_name=self.connection_app_name or app_name
                 )
 
             if connect_args:

@@ -2,17 +2,20 @@ import abc
 from contextlib import asynccontextmanager, AbstractAsyncContextManager
 from dataclasses import dataclass
 import importlib
+from types import TracebackType
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
     Optional,
     Protocol,
+    Type,
     TypeVar,
     Union,
     runtime_checkable,
 )
 from collections.abc import AsyncGenerator, Awaitable, Iterable, Mapping
+from typing_extensions import Self
 
 from prefect.settings import PREFECT_MESSAGING_CACHE, PREFECT_MESSAGING_BROKER
 from prefect.logging import get_logger
@@ -32,30 +35,25 @@ class Message(Protocol):
     """
 
     @property
-    def data(self) -> Union[str, bytes]:
-        ...
+    def data(self) -> Union[str, bytes]: ...
 
     @property
-    def attributes(self) -> Mapping[str, Any]:
-        ...
+    def attributes(self) -> Mapping[str, Any]: ...
 
 
 class Cache(abc.ABC):
     @abc.abstractmethod
-    async def clear_recently_seen_messages(self) -> None:
-        ...
+    async def clear_recently_seen_messages(self) -> None: ...
 
     @abc.abstractmethod
     async def without_duplicates(
         self, attribute: str, messages: Iterable[M]
-    ) -> list[M]:
-        ...
+    ) -> list[M]: ...
 
     @abc.abstractmethod
     async def forget_duplicates(
         self, attribute: str, messages: Iterable[Message]
-    ) -> None:
-        ...
+    ) -> None: ...
 
 
 class Publisher(AbstractAsyncContextManager["Publisher"], abc.ABC):
@@ -64,12 +62,23 @@ class Publisher(AbstractAsyncContextManager["Publisher"], abc.ABC):
         topic: str,
         cache: Optional[Cache] = None,
         deduplicate_by: Optional[str] = None,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @abc.abstractmethod
-    async def publish_data(self, data: bytes, attributes: Mapping[str, str]) -> None:
-        ...
+    async def publish_data(
+        self, data: bytes, attributes: Mapping[str, str]
+    ) -> None: ...
+
+    @abc.abstractmethod
+    async def __aenter__(self) -> Self: ...
+
+    @abc.abstractmethod
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> None: ...
 
 
 @dataclass
@@ -92,7 +101,15 @@ class CapturingPublisher(Publisher):
         self.cache: Cache = cache or create_cache()
         self.deduplicate_by = deduplicate_by
 
-    async def __aexit__(self, *args: Any) -> None:
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> None:
         pass
 
     async def publish_data(self, data: bytes, attributes: Mapping[str, str]) -> None:

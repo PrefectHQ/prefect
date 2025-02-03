@@ -22,14 +22,14 @@ class AbstractAppriseNotificationBlock(NotificationBlock, ABC):
     An abstract class for sending notifications using Apprise.
     """
 
-    notify_type: Literal[
-        "prefect_default", "info", "success", "warning", "failure"
-    ] = Field(
-        default=PREFECT_NOTIFY_TYPE_DEFAULT,
-        description=(
-            "The type of notification being performed; the prefect_default "
-            "is a plain notification that does not attach an image."
-        ),
+    notify_type: Literal["prefect_default", "info", "success", "warning", "failure"] = (
+        Field(
+            default=PREFECT_NOTIFY_TYPE_DEFAULT,
+            description=(
+                "The type of notification being performed; the prefect_default "
+                "is a plain notification that does not attach an image."
+            ),
+        )
     )
 
     def __init__(self, *args: Any, **kwargs: Any):
@@ -570,6 +570,10 @@ class MattermostWebhook(AbstractAppriseNotificationBlock):
         description="The hostname of your Mattermost server.",
         examples=["Mattermost.example.com"],
     )
+    secure: bool = Field(
+        default=False,
+        description="Whether to use secure https connection.",
+    )
 
     token: SecretStr = Field(
         default=...,
@@ -621,6 +625,7 @@ class MattermostWebhook(AbstractAppriseNotificationBlock):
                 channels=self.channels,
                 include_image=self.include_image,
                 port=self.port,
+                secure=self.secure,
             ).url()  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType] incomplete type hints in apprise
         )
         self._start_apprise_client(url)

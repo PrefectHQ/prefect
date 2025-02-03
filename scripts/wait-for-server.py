@@ -13,7 +13,6 @@ Example:
     PREFECT_API_URL="http://localhost:4200" ./scripts/wait-for-server.py
 """
 
-
 import sys
 
 import anyio

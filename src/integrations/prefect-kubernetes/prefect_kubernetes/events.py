@@ -1,7 +1,6 @@
 import asyncio
 from typing import Dict, List, Optional
 
-import aiohttp
 import kubernetes_asyncio
 import kubernetes_asyncio.watch
 from kubernetes_asyncio.client import ApiClient, V1Pod
@@ -82,7 +81,6 @@ class KubernetesEventsReplicator:
                 namespace=self._namespace,
                 label_selector=f"job-name={self._job_name}",
                 timeout_seconds=self._timeout_seconds,
-                _request_timeout=aiohttp.ClientTimeout(),
             ):
                 phase = event["object"].status.phase
 
@@ -110,9 +108,9 @@ class KubernetesEventsReplicator:
             for container_status in pod.status.container_statuses:
                 if container_status.state.terminated.reason in EVICTED_REASONS:
                     pod_phase = "evicted"
-                    resource[
-                        "kubernetes.reason"
-                    ] = container_status.state.terminated.reason
+                    resource["kubernetes.reason"] = (
+                        container_status.state.terminated.reason
+                    )
                     break
 
         return emit_event(

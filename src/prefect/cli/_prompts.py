@@ -50,7 +50,7 @@ from prefect.settings import PREFECT_DEBUG_MODE
 from prefect.utilities import urls
 from prefect.utilities._git import get_git_remote_origin_url
 from prefect.utilities.asyncutils import LazySemaphore
-from prefect.utilities.filesystem import get_open_file_limit
+from prefect.utilities.filesystem import filter_files, get_open_file_limit
 from prefect.utilities.processutils import get_sys_executable, run_process
 from prefect.utilities.slugify import slugify
 
@@ -74,6 +74,8 @@ REQUIRED_FIELDS_FOR_CREDS_BLOCK = {
 # Only allow half of the open file limit to be open at once to allow for other
 # actors to open files.
 OPEN_FILE_SEMAPHORE = LazySemaphore(lambda: math.floor(get_open_file_limit() * 0.5))
+
+logger = get_logger(__name__)
 
 
 async def find_flow_functions_in_file(path: anyio.Path) -> list[dict[str, str]]:
@@ -162,18 +164,36 @@ async def find_flow_functions_in_file(path: anyio.Path) -> list[dict[str, str]]:
     return decorated_functions
 
 
-async def search_for_flow_functions(directory: str = ".") -> list[dict[str, str]]:
+async def search_for_flow_functions(
+    directory: str = ".", exclude_patterns: list[str] | None = None
+) -> list[dict[str, str]]:
     """
     Search for flow functions in the provided directory. If no directory is provided,
     the current working directory is used.
+
+    Args:
+        directory: The directory to search in
+        exclude_patterns: List of patterns to exclude from the search, defaults to
+            ["**/site-packages/**"]
 
     Returns:
         List[Dict]: the flow name, function name, and filepath of all flow functions found
     """
     path = anyio.Path(directory)
+    exclude_patterns = exclude_patterns or ["**/site-packages/**"]
     coros: list[Coroutine[list[dict[str, str]], Any, Any]] = []
-    async for file in path.rglob("*.py"):
-        coros.append(find_flow_functions_in_file(file))
+
+    try:
+        for file in filter_files(
+            root=str(path),
+            ignore_patterns=["*", "!**/*.py", *exclude_patterns],
+            include_dirs=False,
+        ):
+            coros.append(find_flow_functions_in_file(anyio.Path(str(path / file))))
+
+    except (PermissionError, OSError) as e:
+        logger.error(f"Error searching for flow functions: {e}")
+        return []
 
     return [fn for file_fns in await asyncio.gather(*coros) for fn in file_fns]
 
@@ -197,8 +217,7 @@ def prompt_select_from_table(
     table_kwargs: dict[str, Any] | None = None,
     opt_out_message: None = None,
     opt_out_response: Any = None,
-) -> dict[str, T]:
-    ...
+) -> dict[str, T]: ...
 
 
 @overload
@@ -210,8 +229,7 @@ def prompt_select_from_table(
     table_kwargs: dict[str, Any] | None = None,
     opt_out_message: str = "",
     opt_out_response: Any = None,
-) -> dict[str, T] | None:
-    ...
+) -> dict[str, T] | None: ...
 
 
 def prompt_select_from_table(
@@ -645,9 +663,9 @@ async def prompt_push_custom_docker_image(
                 import prefect_docker
 
             credentials_block = prefect_docker.DockerRegistryCredentials
-            push_step[
-                "credentials"
-            ] = "{{ prefect_docker.docker-registry-credentials.docker_registry_creds_name }}"
+            push_step["credentials"] = (
+                "{{ prefect_docker.docker-registry-credentials.docker_registry_creds_name }}"
+            )
             docker_registry_creds_name = f"deployment-{slugify(deployment_config['name'])}-{slugify(deployment_config['work_pool']['name'])}-registry-creds"
             create_new_block = False
             try:
@@ -961,7 +979,7 @@ async def prompt_select_blob_storage_credentials(
     url = urls.url_for(new_block_document)
     if url:
         console.print(
-            "\nView/Edit your new credentials block in the UI:" f"\n[blue]{url}[/]\n",
+            f"\nView/Edit your new credentials block in the UI:\n[blue]{url}[/]\n",
             soft_wrap=True,
         )
     return f"{{{{ prefect.blocks.{creds_block_type_slug}.{new_block_document.name} }}}}"

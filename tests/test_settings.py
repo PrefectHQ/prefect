@@ -109,6 +109,10 @@ SUPPORTED_SETTINGS = {
         "test_value": 10.0,
         "legacy": True,
     },
+    "PREFECT_API_SERVICES_EVENT_LOGGER_ENABLED": {
+        "test_value": True,
+        "legacy": True,
+    },
     "PREFECT_API_SERVICES_EVENT_PERSISTER_BATCH_SIZE": {
         "test_value": 100,
         "legacy": True,
@@ -305,7 +309,6 @@ SUPPORTED_SETTINGS = {
         "test_value": timedelta(seconds=10),
         "legacy": True,
     },
-    "PREFECT_SERVER_DATABASE_CONNECTION_APP_NAME": {"test_value": "testingconn"},
     "PREFECT_SERVER_DATABASE_CONNECTION_TIMEOUT": {"test_value": 10.0},
     "PREFECT_SERVER_DATABASE_CONNECTION_URL": {"test_value": "sqlite:///"},
     "PREFECT_SERVER_DATABASE_DRIVER": {"test_value": "sqlite+aiosqlite"},
@@ -315,6 +318,9 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SERVER_DATABASE_NAME": {"test_value": "prefect"},
     "PREFECT_SERVER_DATABASE_PASSWORD": {"test_value": "password"},
     "PREFECT_SERVER_DATABASE_PORT": {"test_value": 5432},
+    "PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_APPLICATION_NAME": {
+        "test_value": "prefect"
+    },
     "PREFECT_SERVER_DATABASE_SQLALCHEMY_MAX_OVERFLOW": {"test_value": 10},
     "PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_RECYCLE": {"test_value": 10},
     "PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_SIZE": {"test_value": 10},
@@ -354,6 +360,7 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SERVER_REGISTER_BLOCKS_ON_START": {"test_value": True},
     "PREFECT_SERVER_SERVICES_CANCELLATION_CLEANUP_ENABLED": {"test_value": True},
     "PREFECT_SERVER_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS": {"test_value": 10.0},
+    "PREFECT_SERVER_SERVICES_EVENT_LOGGER_ENABLED": {"test_value": True},
     "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_BATCH_SIZE": {"test_value": 10},
     "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_ENABLED": {"test_value": True},
     "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL": {"test_value": 10.0},
@@ -544,9 +551,9 @@ class TestSettingsClass:
                 updates={PREFECT_CLIENT_RETRY_EXTRA_CODES: "400,500"},
                 set_defaults={PREFECT_UNIT_TEST_MODE: False, PREFECT_API_KEY: "TEST"},
             )
-            assert (
-                new_settings.testing.unit_test_mode is True
-            ), "Not changed, existing value was not default"
+            assert new_settings.testing.unit_test_mode is True, (
+                "Not changed, existing value was not default"
+            )
             assert (
                 new_settings.api.key is not None
                 and new_settings.api.key.get_secret_value() == "TEST"
@@ -743,9 +750,11 @@ class TestSettingsClass:
             assert Settings().testing.test_setting == "FOO"
 
     def test_valid_setting_names_matches_supported_settings(self):
-        assert (
-            set(_get_valid_setting_names(Settings)) == set(SUPPORTED_SETTINGS.keys())
-        ), "valid_setting_names output did not match supported settings. Please update SUPPORTED_SETTINGS if you are adding or removing a setting."
+        assert set(_get_valid_setting_names(Settings)) == set(
+            SUPPORTED_SETTINGS.keys()
+        ), (
+            "valid_setting_names output did not match supported settings. Please update SUPPORTED_SETTINGS if you are adding or removing a setting."
+        )
 
 
 class TestSettingAccess:
@@ -1221,9 +1230,9 @@ class TestTemporarySettings:
     def test_temporary_settings(self):
         assert PREFECT_TEST_MODE.value() is True
         with temporary_settings(updates={PREFECT_TEST_MODE: False}) as new_settings:
-            assert (
-                PREFECT_TEST_MODE.value_from(new_settings) is False
-            ), "Yields the new settings"
+            assert PREFECT_TEST_MODE.value_from(new_settings) is False, (
+                "Yields the new settings"
+            )
             assert PREFECT_TEST_MODE.value() is False
 
         assert PREFECT_TEST_MODE.value() is True
@@ -1252,9 +1261,9 @@ class TestTemporarySettings:
             with temporary_settings(updates={PREFECT_TEST_MODE: False}):
                 raise ValueError()
 
-        assert (
-            os.environ["PREFECT_TESTING_TEST_MODE"] == "1"
-        ), "Does not alter os environ."
+        assert os.environ["PREFECT_TESTING_TEST_MODE"] == "1", (
+            "Does not alter os environ."
+        )
         assert PREFECT_TEST_MODE.value() is True
 
 
@@ -2094,21 +2103,21 @@ class TestProfilesCollection:
 
         assert ProfilesCollection(
             profiles=[foo, bar], active=None
-        ) == ProfilesCollection(
-            profiles=[foo, bar]
-        ), "Explicit and implicit null active should be equal"
+        ) == ProfilesCollection(profiles=[foo, bar]), (
+            "Explicit and implicit null active should be equal"
+        )
 
         assert ProfilesCollection(
             profiles=[foo, bar], active="foo"
-        ) != ProfilesCollection(
-            profiles=[foo, bar]
-        ), "One null active should be inequal"
+        ) != ProfilesCollection(profiles=[foo, bar]), (
+            "One null active should be inequal"
+        )
 
         assert ProfilesCollection(
             profiles=[foo, bar], active="foo"
-        ) != ProfilesCollection(
-            profiles=[foo, bar], active="bar"
-        ), "Different active should be inequal"
+        ) != ProfilesCollection(profiles=[foo, bar], active="bar"), (
+            "Different active should be inequal"
+        )
 
         assert ProfilesCollection(profiles=[foo, bar]) == ProfilesCollection(
             profiles=[

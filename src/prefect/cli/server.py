@@ -14,12 +14,12 @@ import subprocess
 import sys
 import textwrap
 from pathlib import Path
-from types import ModuleType
 from typing import TYPE_CHECKING
 
 import typer
 import uvicorn
 from rich.table import Table
+from rich.text import Text
 
 import prefect
 import prefect.settings
@@ -29,6 +29,7 @@ from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.cloud import prompt_select_from_list
 from prefect.cli.root import app, is_interactive
 from prefect.logging import get_logger
+from prefect.server.services.base import Service
 from prefect.settings import (
     PREFECT_API_SERVICES_LATE_RUNS_ENABLED,
     PREFECT_API_SERVICES_SCHEDULER_ENABLED,
@@ -291,9 +292,7 @@ def start(
             pid_file, server_settings, host, port, keep_alive_timeout, no_services
         )
     else:
-        _run_in_foreground(
-            pid_file, server_settings, host, port, keep_alive_timeout, no_services
-        )
+        _run_in_foreground(server_settings, host, port, keep_alive_timeout, no_services)
 
 
 def _run_in_background(
@@ -342,7 +341,6 @@ def _run_in_background(
 
 
 def _run_in_foreground(
-    pid_file: Path,
     server_settings: dict[str, str],
     host: str,
     port: int,
@@ -351,16 +349,22 @@ def _run_in_foreground(
 ) -> None:
     from prefect.server.api.server import create_app
 
-    with temporary_settings(
-        {getattr(prefect.settings, k): v for k, v in server_settings.items()}
-    ):
-        uvicorn.run(
-            app=create_app(final=True, webserver_only=no_services),
-            app_dir=str(prefect.__module_path__.parent),
-            host=host,
-            port=port,
-            timeout_keep_alive=keep_alive_timeout,
-        )
+    try:
+        with temporary_settings(
+            {getattr(prefect.settings, k): v for k, v in server_settings.items()}
+        ):
+            uvicorn.run(
+                app=create_app(final=True, webserver_only=no_services),
+                app_dir=str(prefect.__module_path__.parent),
+                host=host,
+                port=port,
+                timeout_keep_alive=keep_alive_timeout,
+                log_level=server_settings.get(
+                    "PREFECT_SERVER_LOGGING_LEVEL", "info"
+                ).lower(),
+            )
+    finally:
+        app.console.print("Server stopped!")
 
 
 @server_app.command()
@@ -519,90 +523,12 @@ async def stamp(revision: str):
     exit_with_success("Stamping database with revision succeeded!")
 
 
-def _get_service_settings() -> dict[str, "prefect.settings.Setting"]:
-    """Get mapping of service names to their enabled/disabled settings."""
-    return {
-        "Telemetry": prefect.settings.PREFECT_SERVER_ANALYTICS_ENABLED,
-        "Scheduler": prefect.settings.PREFECT_API_SERVICES_SCHEDULER_ENABLED,
-        "RecentDeploymentsScheduler": prefect.settings.PREFECT_API_SERVICES_SCHEDULER_ENABLED,
-        "MarkLateRuns": prefect.settings.PREFECT_API_SERVICES_LATE_RUNS_ENABLED,
-        "FailExpiredPauses": prefect.settings.PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED,
-        "CancellationCleanup": prefect.settings.PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED,
-        "FlowRunNotifications": prefect.settings.PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED,
-        "Foreman": prefect.settings.PREFECT_API_SERVICES_FOREMAN_ENABLED,
-        "ReactiveTriggers": prefect.settings.PREFECT_API_SERVICES_TRIGGERS_ENABLED,
-        "ProactiveTriggers": prefect.settings.PREFECT_API_SERVICES_TRIGGERS_ENABLED,
-        "Actions": prefect.settings.PREFECT_API_SERVICES_TRIGGERS_ENABLED,
-    }
-
-
-def _get_service_modules() -> list[ModuleType]:
-    """Get list of modules containing service implementations."""
-    from prefect.server.events.services import triggers
-    from prefect.server.services import (
-        cancellation_cleanup,
-        flow_run_notifications,
-        foreman,
-        late_runs,
-        pause_expirations,
-        scheduler,
-        task_run_recorder,
-        telemetry,
-    )
-
-    return [
-        cancellation_cleanup,
-        flow_run_notifications,
-        foreman,
-        late_runs,
-        pause_expirations,
-        scheduler,
-        task_run_recorder,
-        telemetry,
-        triggers,
-    ]
-
-
-def _discover_service_classes() -> (
-    list[type["prefect.server.services.loop_service.LoopService"]]
-):
-    """Discover all available service classes."""
-    from prefect.server.services.loop_service import LoopService
-
-    discovered: list[type[LoopService]] = []
-    for module in _get_service_modules():
-        for _, obj in inspect.getmembers(module):
-            if (
-                inspect.isclass(obj)
-                and issubclass(obj, LoopService)
-                and obj != LoopService
-            ):
-                discovered.append(obj)
-    return discovered
-
-
-def _get_enabled_services() -> (
-    list[type["prefect.server.services.loop_service.LoopService"]]
-):
-    """Get list of enabled service classes."""
-    service_settings = _get_service_settings()
-    return [
-        svc
-        for svc in _discover_service_classes()
-        if service_settings.get(svc.__name__, False).value()  # type: ignore
-    ]
-
-
 async def _run_services(
-    service_classes: list[type["prefect.server.services.loop_service.LoopService"]],
+    service_classes: list[type[Service]],
 ):
     """Run the given service classes until cancelled."""
     services = [cls() for cls in service_classes]
-    tasks: list[
-        tuple[
-            asyncio.Task[None], type["prefect.server.services.loop_service.LoopService"]
-        ]
-    ] = []
+    tasks: list[tuple[asyncio.Task[None], type[Service]]] = []
 
     for service in services:
         task = asyncio.create_task(service.start())
@@ -660,7 +586,7 @@ def run_manager_process():
 
     We do everything in sync so that the child won't exit until the user kills it.
     """
-    if not (enabled_services := _get_enabled_services()):
+    if not (enabled_services := Service.enabled_services()):
         logger.error("No services are enabled! Exiting manager.")
         sys.exit(1)
 
@@ -677,21 +603,22 @@ def run_manager_process():
 @services_app.command(aliases=["ls"])
 def list_services():
     """List all available services and their status."""
-    service_settings = _get_service_settings()
     table = Table(title="Available Services", expand=True)
-    table.add_column("Name", style="blue", no_wrap=True)
-    table.add_column("Enabled?", style="green", no_wrap=True)
+    table.add_column("Name", no_wrap=True)
+    table.add_column("Enabled?", no_wrap=True)
     table.add_column("Description", style="cyan", no_wrap=False)
 
-    for svc in _discover_service_classes():
+    for svc in Service.all_services():
         name = svc.__name__
-        setting = service_settings.get(name, False)
-        is_enabled = setting.value() if setting else False  # type: ignore
-        assert isinstance(is_enabled, bool), "Setting value is not a boolean"
+
+        setting_text = Text(f"✓ {svc.environment_variable_name()}", style="green")
+        if not svc.enabled():
+            setting_text = Text(f"x {svc.environment_variable_name()}", style="gray50")
 
         doc = inspect.getdoc(svc) or ""
         description = doc.split("\n", 1)[0].strip()
-        table.add_row(name, str(is_enabled), description)
+
+        table.add_row(name, setting_text, description)
 
     app.console.print(table)
 
@@ -717,7 +644,7 @@ def start_services(
             # Stale or invalid file
             _cleanup_pid_file(SERVICES_PID_FILE)
 
-    if not (enabled_services := _get_enabled_services()):
+    if not (enabled_services := Service.enabled_services()):
         app.console.print("[red]No services are enabled![/]")
         raise typer.Exit(code=1)
 

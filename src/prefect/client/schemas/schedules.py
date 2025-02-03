@@ -103,8 +103,7 @@ class IntervalSchedule(PrefectBaseModel):
                 Union[pendulum.DateTime, datetime.datetime, str]
             ] = None,
             timezone: Optional[str] = None,
-        ) -> None:
-            ...
+        ) -> None: ...
 
 
 class CronSchedule(PrefectBaseModel):
@@ -145,7 +144,7 @@ class CronSchedule(PrefectBaseModel):
 
     @field_validator("timezone")
     @classmethod
-    def valid_timezone(cls, v: Optional[str]) -> str:
+    def valid_timezone(cls, v: Optional[str]) -> Optional[str]:
         return default_timezone(v)
 
     @field_validator("cron")
@@ -276,7 +275,7 @@ class RRuleSchedule(PrefectBaseModel):
                 kwargs.update(
                     until=until.replace(tzinfo=timezone),
                 )
-            return rrule.replace(**kwargs)
+            return rrule.replace(**kwargs)  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType] missing type hints
 
         # update rrules
         localized_rrules: list[dateutil.rrule.rrule] = []
@@ -286,7 +285,7 @@ class RRuleSchedule(PrefectBaseModel):
             kwargs: dict[str, Any] = dict(dtstart=dtstart.replace(tzinfo=timezone))
             if until := _rrule_dt(rr, "_until"):
                 kwargs.update(until=until.replace(tzinfo=timezone))
-            localized_rrules.append(rr.replace(**kwargs))
+            localized_rrules.append(rr.replace(**kwargs))  # pyright: ignore[reportUnknownArgumentType, reportUnknownMemberType] missing type hints
         setattr(rrule, "_rrule", localized_rrules)
 
         # update exrules
@@ -297,7 +296,7 @@ class RRuleSchedule(PrefectBaseModel):
             kwargs = dict(dtstart=dtstart.replace(tzinfo=timezone))
             if until := _rrule_dt(exr, "_until"):
                 kwargs.update(until=until.replace(tzinfo=timezone))
-            localized_exrules.append(exr.replace(**kwargs))
+            localized_exrules.append(exr.replace(**kwargs))  # pyright: ignore[reportUnknownArgumentType, reportUnknownMemberType] missing type hints
         setattr(rrule, "_exrule", localized_exrules)
 
         # update rdates

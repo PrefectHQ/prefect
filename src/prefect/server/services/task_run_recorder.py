@@ -19,12 +19,16 @@ from prefect.server.events.ordering import CausalOrdering, EventArrivedEarly
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.schemas.core import TaskRun
 from prefect.server.schemas.states import State
+from prefect.server.services.base import Service
 from prefect.server.utilities.messaging import (
     Consumer,
     Message,
     MessageHandler,
     create_consumer,
 )
+from prefect.server.utilities.messaging.memory import log_metrics_periodically
+from prefect.settings.context import get_current_settings
+from prefect.settings.models.server.services import ServicesBaseSetting
 
 if TYPE_CHECKING:
     import logging
@@ -161,12 +165,13 @@ async def record_task_run_event(event: ReceivedEvent) -> None:
     }
 
     db = provide_database_interface()
-    async with db.session_context(begin_transaction=True) as session:
+    async with db.session_context() as session:
         await _insert_task_run(session, task_run, task_run_attributes)
         await _insert_task_run_state(session, task_run)
         await _update_task_run_with_state(
             session, task_run, denormalized_state_attributes
         )
+        await session.commit()
 
     logger.debug(
         "Recorded task run state change",
@@ -212,14 +217,18 @@ async def consumer() -> AsyncGenerator[MessageHandler, None]:
     yield message_handler
 
 
-class TaskRunRecorder:
-    """A service to record task run and task run states from events."""
-
-    name: str = "TaskRunRecorder"
+class TaskRunRecorder(Service):
+    """Constructs task runs and states from client-emitted events"""
 
     consumer_task: asyncio.Task[None] | None = None
+    metrics_task: asyncio.Task[None] | None = None
+
+    @classmethod
+    def service_settings(cls) -> ServicesBaseSetting:
+        return get_current_settings().server.services.task_run_recorder
 
     def __init__(self):
+        super().__init__()
         self._started_event: Optional[asyncio.Event] = None
 
     @property
@@ -238,6 +247,8 @@ class TaskRunRecorder:
 
         async with consumer() as handler:
             self.consumer_task = asyncio.create_task(self.consumer.run(handler))
+            self.metrics_task = asyncio.create_task(log_metrics_periodically())
+
             logger.debug("TaskRunRecorder started")
             self.started_event.set()
 
@@ -249,10 +260,15 @@ class TaskRunRecorder:
     async def stop(self) -> None:
         assert self.consumer_task is not None, "Logger not started"
         self.consumer_task.cancel()
+        if self.metrics_task:
+            self.metrics_task.cancel()
         try:
             await self.consumer_task
+            if self.metrics_task:
+                await self.metrics_task
         except asyncio.CancelledError:
             pass
         finally:
             self.consumer_task = None
+            self.metrics_task = None
         logger.debug("TaskRunRecorder stopped")

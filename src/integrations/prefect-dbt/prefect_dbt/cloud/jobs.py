@@ -689,8 +689,7 @@ class DbtCloudJobRun(JobRun):  # NOT A BLOCK
             elapsed_time_seconds = time.time() - start_time
             if elapsed_time_seconds > timeout_seconds:
                 raise DbtCloudJobRunTimedOut(
-                    f"Max wait time of {timeout_seconds} "
-                    "seconds exceeded while waiting"
+                    f"Max wait time of {timeout_seconds} seconds exceeded while waiting"
                 )
             await asyncio.sleep(interval_seconds)
 
@@ -752,7 +751,9 @@ class DbtCloudJobRun(JobRun):  # NOT A BLOCK
         run_status = DbtCloudJobRunStatus(run_data.get("status"))
         if run_status == DbtCloudJobRunStatus.SUCCESS:
             try:
-                async with self._dbt_cloud_credentials.get_administrative_client() as client:  # noqa
+                async with (
+                    self._dbt_cloud_credentials.get_administrative_client() as client
+                ):  # noqa
                     response = await client.list_run_artifacts(
                         run_id=self.run_id, step=step
                     )
@@ -1127,8 +1128,7 @@ async def run_dbt_cloud_job(
             return result
         except DbtCloudJobRunFailed:
             logger.info(
-                f"Retrying job run with ID: {run.run_id} "
-                f"{targeted_retries} more times"
+                f"Retrying job run with ID: {run.run_id} {targeted_retries} more times"
             )
             run = await task(run.retry_failed_steps.aio)(run)
             targeted_retries -= 1

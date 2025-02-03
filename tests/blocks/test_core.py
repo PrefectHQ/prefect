@@ -666,7 +666,7 @@ class TestAPICompatibility:
         )
 
         block = Block._from_block_document(api_block)
-        assert type(block) == self.MyRegisteredBlock
+        assert type(block) is self.MyRegisteredBlock
         assert block.x == "x"
         assert block._block_schema_id == block_schema_id
         assert block._block_document_id == api_block.id
@@ -683,7 +683,7 @@ class TestAPICompatibility:
         )
 
         block = Block._from_block_document(api_block)
-        assert type(block) == self.MyRegisteredBlock
+        assert type(block) is self.MyRegisteredBlock
         assert block.x == "x"
         assert block._block_schema_id == block_schema_id
         assert block._block_document_id == api_block.id
@@ -704,7 +704,7 @@ class TestAPICompatibility:
         )
 
         block = BlockyMcBlock._from_block_document(api_block)
-        assert type(block) == BlockyMcBlock
+        assert type(block) is BlockyMcBlock
         assert block.fizz == "buzz"
         assert block._block_schema_id == block_schema_id
         assert block._block_document_id == api_block.id
@@ -763,9 +763,9 @@ class TestAPICompatibility:
 
         assert block_schema.checksum == test_block._calculate_schema_checksum()
         assert block_schema.fields == test_block.model_json_schema()
-        assert (
-            block_schema.capabilities == []
-        ), "No capabilities should be defined for this Block and defaults to []"
+        assert block_schema.capabilities == [], (
+            "No capabilities should be defined for this Block and defaults to []"
+        )
         assert block_schema.version == DEFAULT_BLOCK_SCHEMA_VERSION
 
     def test_create_block_schema_from_block_with_capabilities(
@@ -775,9 +775,9 @@ class TestAPICompatibility:
 
         assert block_schema.checksum == test_block._calculate_schema_checksum()
         assert block_schema.fields == test_block.model_json_schema()
-        assert (
-            block_schema.capabilities == []
-        ), "No capabilities should be defined for this Block and defaults to []"
+        assert block_schema.capabilities == [], (
+            "No capabilities should be defined for this Block and defaults to []"
+        )
         assert block_schema.version == DEFAULT_BLOCK_SCHEMA_VERSION
 
     def test_create_block_schema_with_no_version_specified(
@@ -2514,24 +2514,24 @@ class TestTypeDispatch:
 
     def test_base_parse_works_for_base_instance(self):
         block = BaseBlock.model_validate(BaseBlock().model_dump())
-        assert type(block) == BaseBlock
+        assert type(block) is BaseBlock
 
         block = BaseBlock.model_validate(BaseBlock().model_dump())
-        assert type(block) == BaseBlock
+        assert type(block) is BaseBlock
 
     def test_base_parse_creates_child_instance_from_dict(self):
         block = BaseBlock.model_validate(AChildBlock().model_dump())
-        assert type(block) == AChildBlock
+        assert type(block) is AChildBlock
 
         block = BaseBlock.model_validate(BChildBlock().model_dump())
-        assert type(block) == BChildBlock
+        assert type(block) is BChildBlock
 
     def test_base_parse_creates_child_instance_from_json(self):
         block = BaseBlock.model_validate_json(AChildBlock().model_dump_json())
-        assert type(block) == AChildBlock
+        assert type(block) is AChildBlock
 
         block = BaseBlock.model_validate_json(BChildBlock().model_dump_json())
-        assert type(block) == BChildBlock
+        assert type(block) is BChildBlock
 
     def test_base_parse_retains_default_attributes(self):
         block = BaseBlock.model_validate(AChildBlock().model_dump())
@@ -2550,17 +2550,17 @@ class TestTypeDispatch:
 
     def test_base_field_creates_child_instance_from_object(self):
         model = ParentModel(block=AChildBlock())
-        assert type(model.block) == AChildBlock
+        assert type(model.block) is AChildBlock
 
         model = ParentModel(block=BChildBlock())
-        assert type(model.block) == BChildBlock
+        assert type(model.block) is BChildBlock
 
     def test_base_field_creates_child_instance_from_dict(self):
         model = ParentModel(block=AChildBlock().model_dump())
-        assert type(model.block) == AChildBlock
+        assert type(model.block) is AChildBlock
 
         model = ParentModel(block=BChildBlock().model_dump())
-        assert type(model.block) == BChildBlock
+        assert type(model.block) is BChildBlock
 
     def test_created_block_has_pydantic_attributes(self):
         block = BaseBlock.model_validate(AChildBlock().model_dump())
@@ -2602,30 +2602,30 @@ class TestTypeDispatch:
             block: Union[AChildBlock, BChildBlock]
 
         model = UnionParentModel(block=AChildBlock(a=3).model_dump())
-        assert type(model.block) == AChildBlock
+        assert type(model.block) is AChildBlock
 
         # Assignment with a copy works still
         model.block = model.block.model_copy()
-        assert type(model.block) == AChildBlock
+        assert type(model.block) is AChildBlock
         assert model.block
 
         model = UnionParentModel(block=BChildBlock(b=4).model_dump())
-        assert type(model.block) == BChildBlock
+        assert type(model.block) is BChildBlock
 
     def test_base_field_creates_child_instance_with_assignment_validation(self):
         class AssignmentParentModel(BaseModel, validate_assignment=True):
             block: BaseBlock
 
         model = AssignmentParentModel(block=AChildBlock(a=3).model_dump())
-        assert type(model.block) == AChildBlock
+        assert type(model.block) is AChildBlock
         assert model.block.a == 3
 
         model.block = model.block.model_copy()
-        assert type(model.block) == AChildBlock
+        assert type(model.block) is AChildBlock
         assert model.block.a == 3
 
         model.block = BChildBlock(b=4).model_dump()
-        assert type(model.block) == BChildBlock
+        assert type(model.block) is BChildBlock
         assert model.block.b == 4
 
 

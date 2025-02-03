@@ -1,1 +1,4 @@
-export { useListDeploymentsWithFlows } from "./use-list-deployments-with-flows";
+export {
+	useListDeploymentsWithFlows,
+	type DeploymentWithFlow,
+} from "./use-list-deployments-with-flows";

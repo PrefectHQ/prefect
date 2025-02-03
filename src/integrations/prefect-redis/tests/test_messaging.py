@@ -1,10 +1,12 @@
 import asyncio
 import json
+import uuid
+from datetime import datetime, timedelta, timezone
+from functools import partial
 from typing import AsyncGenerator, Generator, Optional
 
 import anyio
 import pytest
-from prefect_redis.client import get_async_redis_client
 from prefect_redis.messaging import (
     Cache,
     Consumer,
@@ -12,7 +14,12 @@ from prefect_redis.messaging import (
     Publisher,
     StopConsumer,
 )
+from redis.asyncio import Redis
 
+from prefect.server.events import Event
+from prefect.server.events.clients import PrefectServerEventsClient
+from prefect.server.events.messaging import EventPublisher
+from prefect.server.events.schemas.events import ReceivedEvent, Resource
 from prefect.server.utilities.messaging import (
     create_cache,
     create_consumer,
@@ -66,19 +73,31 @@ async def cache(configured_cache: str) -> AsyncGenerator[Cache, None]:
 @pytest.fixture
 async def publisher(broker: str, cache: Cache) -> Publisher:
     """Create a publisher instance for testing."""
-    return create_publisher("messaging-cache", cache=cache)
+    return create_publisher("message-tests", cache=cache)
 
 
 @pytest.fixture
 async def consumer(broker: str) -> Consumer:
     """Create a consumer instance for testing."""
-    return create_consumer("messaging-cache")
+    return create_consumer("message-tests")
+
+
+@pytest.fixture
+async def consumer_a(consumer: Consumer) -> Consumer:
+    """Create a consumer instance for testing."""
+    return consumer
+
+
+@pytest.fixture
+async def consumer_b(broker: str) -> Consumer:
+    """Create a second consumer instance for testing."""
+    return create_consumer("message-tests")
 
 
 @pytest.fixture
 def deduplicating_publisher(broker: str, cache: Cache) -> Publisher:
     """Create a publisher that deduplicates messages."""
-    return create_publisher("messaging-cache", cache, deduplicate_by="my-message-id")
+    return create_publisher("message-tests", cache, deduplicate_by="my-message-id")
 
 
 async def drain_one(consumer: Consumer) -> Optional[Message]:
@@ -212,6 +231,7 @@ async def test_publisher_will_avoid_sending_duplicate_messages_in_same_batch(
 
 
 async def test_repeatedly_failed_message_is_moved_to_dead_letter_queue(
+    redis: Redis,
     deduplicating_publisher: Publisher,
     consumer: Consumer,
 ):
@@ -224,7 +244,6 @@ async def test_repeatedly_failed_message_is_moved_to_dead_letter_queue(
 
     consumer_task = asyncio.create_task(consumer.run(handler))
 
-    redis = get_async_redis_client()
     try:
         async with deduplicating_publisher as p:
             await p.publish_data(
@@ -276,7 +295,7 @@ async def test_ephemeral_subscription(broker: str, publisher: Publisher):
         captured_messages.append(message)
         raise StopConsumer(ack=True)
 
-    async with ephemeral_subscription("messaging-cache") as consumer_kwargs:
+    async with ephemeral_subscription("message-tests") as consumer_kwargs:
         consumer = create_consumer(**consumer_kwargs)
         consumer_task = asyncio.create_task(consumer.run(handler))
 
@@ -295,18 +314,16 @@ async def test_ephemeral_subscription(broker: str, publisher: Publisher):
         assert not remaining_message
 
 
-async def test_verify_ephemeral_cleanup(broker: str):
+async def test_verify_ephemeral_cleanup(redis: Redis, broker: str):
     """Verify that ephemeral subscriptions clean up after themselves."""
-    redis = get_async_redis_client()
-
-    async with ephemeral_subscription("messaging-cache") as consumer_kwargs:
+    async with ephemeral_subscription("message-tests") as consumer_kwargs:
         group_name = consumer_kwargs["group"]
         # Verify group exists
-        groups = await redis.xinfo_groups("messaging-cache")
+        groups = await redis.xinfo_groups("message-tests")
         assert any(g["name"] == group_name for g in groups)
 
     # Verify group is cleaned up
-    groups = await redis.xinfo_groups("messaging-cache")
+    groups = await redis.xinfo_groups("message-tests")
     assert not any(g["name"] == group_name for g in groups)
 
 
@@ -327,7 +344,7 @@ async def test_publisher_respects_batch_size(
 
     try:
         async with Publisher(
-            "messaging-cache", cache=create_cache(), batch_size=batch_size
+            "message-tests", cache=create_cache(), batch_size=batch_size
         ) as p:
             for data, attributes in messages:
                 await p.publish_data(data, attributes)
@@ -338,3 +355,90 @@ async def test_publisher_respects_batch_size(
     for i, message in enumerate(captured_messages):
         assert message.data == f"message-{i}"
         assert message.attributes == {"id": str(i)}
+
+
+async def test_trimming_streams(
+    redis: Redis, publisher: Publisher, consumer_a: Consumer, consumer_b: Consumer
+) -> None:
+    """Test that streams are trimmed after messages are processed."""
+    # Given the consumers an aggressive trimming frequency for the tests
+    consumer_a.trim_every = timedelta(seconds=0)
+    consumer_b.trim_every = timedelta(seconds=0)
+
+    # Make sure we're starting with a clean slate
+    assert await redis.xlen("message-tests") == 0
+
+    # Publish a known number of messages to the stream
+    TO_SEND = 113
+    async with publisher as p:
+        for i in range(TO_SEND):
+            await p.publish_data(b"hello, world!", {"sequence": f"{i + 1}"})
+
+    assert await redis.xlen("message-tests") == TO_SEND
+
+    # ...then run two consumers that will each see some of the messages, capturing the
+    # ones they've seen along the way
+    seen_messages = {
+        "A": set(),
+        "B": set(),
+    }
+
+    async def handler(consumer_name: str, message: Message):
+        sequence = int(message.attributes["sequence"])
+        seen_messages[consumer_name].add(sequence)
+        total_seen = sum(len(seen) for seen in seen_messages.values())
+        if total_seen == TO_SEND:
+            raise StopConsumer(ack=True)
+
+    consumer_tasks = [
+        asyncio.create_task(consumer_a.run(partial(handler, "A"))),
+        asyncio.create_task(consumer_b.run(partial(handler, "B"))),
+    ]
+    for task in asyncio.as_completed(consumer_tasks):
+        await task
+        for task in consumer_tasks:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+        break
+
+    # ...then confirm that they have each seen some of the messages
+    assert seen_messages["A"] | seen_messages["B"]
+    assert seen_messages["A"], "Each consumer should have seen some messages"
+    assert seen_messages["B"], "Each consumer should have seen some messages"
+
+    # ...confirm that the stream has been trimmed at least partially
+    assert await redis.xlen("message-tests") < TO_SEND
+
+
+async def test_can_be_used_as_event_publisher(broker: str, cache: Cache):
+    """Test that a Redis publisher can be used with an events client."""
+    async with ephemeral_subscription("events") as consumer_kwargs:
+        consumer = create_consumer(**consumer_kwargs)
+
+        captured_events: list[ReceivedEvent] = []
+
+        async def handler(message: Message):
+            event = ReceivedEvent.model_validate_json(message.data)
+            captured_events.append(event)
+            if len(captured_events) == 1:
+                raise StopConsumer(ack=True)
+
+        consumer_task = asyncio.create_task(consumer.run(handler))
+
+        async with PrefectServerEventsClient() as client:
+            assert isinstance(client._publisher, EventPublisher)
+            assert isinstance(client._publisher._publisher, Publisher)
+            emitted_event = await client.emit(
+                Event(
+                    id=uuid.uuid4(),
+                    occurred=datetime.now(tz=timezone.utc),
+                    event="testing",
+                    resource=Resource({"prefect.resource.id": "testing"}),
+                )
+            )
+        await consumer_task
+
+    assert captured_events == [emitted_event]

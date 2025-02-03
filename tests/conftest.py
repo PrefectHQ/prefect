@@ -128,12 +128,19 @@ def pytest_addoption(parser):
     )
 
 
+# The following tests are excluded from the clear_db fixture because they are
+# are safe to run without first clearing the database. Not clearing the database
+# after each run generally results in a 25 to 100% speed up of the test suite, so
+# if you run across tests that don't rely on a clean database, you can add them
+# to this list to speed up the test suite.
 EXCLUDE_FROM_CLEAR_DB_AUTO_MARK = [
     "tests/utilities",
     "tests/agent",
     "tests/test_settings.py",
     "tests/_internal",
     "tests/server/orchestration/test_rules.py",
+    "tests/test_flows.py",
+    "tests/runner/test_runner.py",
 ]
 
 
@@ -385,13 +392,13 @@ def cleanup(drain_log_workers, drain_events_workers):
 @pytest.fixture(scope="session", autouse=True)
 def safety_check_settings():
     # Safety check for connection to an external API
-    assert (
-        PREFECT_API_URL.value() is None
-    ), "Tests should not be run connected to an external API."
+    assert PREFECT_API_URL.value() is None, (
+        "Tests should not be run connected to an external API."
+    )
     # Safety check for home directory
-    assert (
-        str(PREFECT_HOME.value()) == TEST_PREFECT_HOME
-    ), "Tests should use the temporary test directory"
+    assert str(PREFECT_HOME.value()) == TEST_PREFECT_HOME, (
+        "Tests should use the temporary test directory"
+    )
 
 
 @pytest.fixture(scope="session", autouse=True)

@@ -12,9 +12,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 from uuid import UUID
 
-import pydantic
 import typer
 import yaml
+from pydantic import TypeAdapter
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -44,6 +44,7 @@ from prefect.cli._utilities import (
 )
 from prefect.cli.root import app, is_interactive
 from prefect.client.base import ServerType
+from prefect.client.orchestration import get_client
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.filters import WorkerFilter
 from prefect.client.schemas.objects import ConcurrencyLimitConfig
@@ -52,7 +53,6 @@ from prefect.client.schemas.schedules import (
     IntervalSchedule,
     RRuleSchedule,
 )
-from prefect.client.utilities import inject_client
 from prefect.deployments import initialize_project
 from prefect.deployments.base import (
     _format_deployment_for_saving_to_prefect_file,
@@ -83,11 +83,17 @@ if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
 
 
+DeploymentTriggerAdapter: TypeAdapter[DeploymentTriggerTypes] = TypeAdapter(
+    DeploymentTriggerTypes
+)
+SlaAdapter: TypeAdapter[SlaTypes] = TypeAdapter(SlaTypes)
+
+
 @app.command()
 async def init(
     name: Optional[str] = None,
     recipe: Optional[str] = None,
-    fields: Optional[List[str]] = typer.Option(
+    fields: Optional[list[str]] = typer.Option(
         None,
         "-f",
         "--field",
@@ -100,7 +106,7 @@ async def init(
     """
     Initialize a new deployment configuration recipe.
     """
-    inputs = {}
+    inputs: dict[str, Any] = {}
     fields = fields or []
     recipe_paths = prefect.__module_path__ / "deployments" / "recipes"
 
@@ -110,7 +116,7 @@ async def init(
 
     if not recipe and is_interactive():
         recipe_paths = prefect.__module_path__ / "deployments" / "recipes"
-        recipes = []
+        recipes: list[dict[str, Any]] = []
 
         for r in recipe_paths.iterdir():
             if r.is_dir() and (r / "prefect.yaml").exists():
@@ -471,14 +477,14 @@ async def deploy(
         exit_with_error(str(exc))
 
 
-@inject_client
 async def _run_single_deploy(
     deploy_config: dict[str, Any],
     actions: dict[str, Any],
-    options: Optional[dict[str, Any]] = None,
+    options: dict[str, Any] | None = None,
     client: Optional["PrefectClient"] = None,
     prefect_file: Path = Path("prefect.yaml"),
 ):
+    client = client or get_client()
     deploy_config = deepcopy(deploy_config) if deploy_config else {}
     actions = deepcopy(actions) if actions else {}
     options = deepcopy(options) if options else {}
@@ -523,11 +529,9 @@ async def _run_single_deploy(
 
     deploy_config["parameter_openapi_schema"] = parameter_schema(flow)
 
-    deploy_config["schedules"] = _construct_schedules(
-        deploy_config,
-    )
-    # determine work pool
     work_pool_name = get_from_dict(deploy_config, "work_pool.name")
+
+    # determine work pool
     if work_pool_name:
         try:
             work_pool = await client.read_work_pool(deploy_config["work_pool"]["name"])
@@ -701,6 +705,8 @@ async def _run_single_deploy(
     if not deploy_config.get("description"):
         deploy_config["description"] = flow.description
 
+    deploy_config["schedules"] = _construct_schedules(deploy_config, step_outputs)
+
     # save deploy_config before templating
     deploy_config_before_templating = deepcopy(deploy_config)
     ## apply templating from build and push steps to the final deployment spec
@@ -750,13 +756,15 @@ async def _run_single_deploy(
 
     await _create_deployment_triggers(client, deployment_id, triggers)
 
-    if sla_specs := _gather_deployment_sla_definitions(
+    # We want to ensure that if a user passes an empty list of SLAs, we call the
+    # apply endpoint to remove existing SLAs for the deployment.
+    # If the argument is not provided, we will not call the endpoint.
+    sla_specs = _gather_deployment_sla_definitions(
         options.get("sla"), deploy_config.get("sla")
-    ):
+    )
+    if sla_specs is not None:
         slas = _initialize_deployment_slas(deployment_id, sla_specs)
-        await _create_slas(client, slas)
-    else:
-        slas = []
+        await _create_slas(client, deployment_id, slas)
 
     app.console.print(
         Panel(
@@ -861,9 +869,9 @@ async def _run_single_deploy(
 
 
 async def _run_multi_deploy(
-    deploy_configs: List[Dict],
-    actions: Dict,
-    names: Optional[List[str]] = None,
+    deploy_configs: list[dict[str, Any]],
+    actions: dict[str, Any],
+    names: Optional[list[str]] = None,
     deploy_all: bool = False,
     prefect_file: Path = Path("prefect.yaml"),
 ):
@@ -900,35 +908,35 @@ async def _run_multi_deploy(
 
 
 def _construct_schedules(
-    deploy_config: Dict,
-) -> List[DeploymentScheduleCreate]:
+    deploy_config: dict[str, Any],
+    step_outputs: dict[str, Any],
+) -> list[DeploymentScheduleCreate]:
     """
     Constructs a schedule from a deployment configuration.
 
     Args:
         deploy_config: A deployment configuration
-
+        step_outputs: A dictionary of step outputs
     Returns:
         A list of schedule objects
     """
+    schedules: list[DeploymentScheduleCreate] = []  # Initialize with empty list
     schedule_configs = deploy_config.get("schedules", NotSet) or []
 
     if schedule_configs is not NotSet:
         schedules = [
             _schedule_config_to_deployment_schedule(schedule_config)
-            for schedule_config in schedule_configs
+            for schedule_config in apply_values(schedule_configs, step_outputs)
         ]
     elif schedule_configs is NotSet:
         if is_interactive():
             schedules = prompt_schedules(app.console)
-        else:
-            schedules = []
 
     return schedules
 
 
 def _schedule_config_to_deployment_schedule(
-    schedule_config: Dict,
+    schedule_config: dict[str, Any],
 ) -> DeploymentScheduleCreate:
     anchor_date = schedule_config.get("anchor_date")
     timezone = schedule_config.get("timezone")
@@ -967,7 +975,7 @@ def _schedule_config_to_deployment_schedule(
     )
 
 
-def _merge_with_default_deploy_config(deploy_config: Dict):
+def _merge_with_default_deploy_config(deploy_config: dict[str, Any]) -> dict[str, Any]:
     """
     Merge a base deploy config with the default deploy config.
     If a key is missing in the base deploy config, it will be filled with the
@@ -981,7 +989,7 @@ def _merge_with_default_deploy_config(deploy_config: Dict):
         The merged deploy config.
     """
     deploy_config = deepcopy(deploy_config)
-    DEFAULT_DEPLOY_CONFIG = {
+    DEFAULT_DEPLOY_CONFIG: dict[str, Any] = {
         "name": None,
         "version": None,
         "tags": [],
@@ -1012,9 +1020,9 @@ def _merge_with_default_deploy_config(deploy_config: Dict):
 
 async def _generate_git_clone_pull_step(
     console: Console,
-    deploy_config: Dict,
+    deploy_config: dict[str, Any],
     remote_url: str,
-):
+) -> list[dict[str, Any]]:
     branch = get_git_branch() or "main"
 
     if not remote_url:
@@ -1102,9 +1110,9 @@ async def _generate_git_clone_pull_step(
 
 
 async def _generate_pull_step_for_build_docker_image(
-    console: Console, deploy_config: Dict, auto: bool = True
-):
-    pull_step = {}
+    console: Console, deploy_config: dict[str, Any], auto: bool = True
+) -> list[dict[str, Any]]:
+    pull_step: dict[str, Any] = {}
     dir_name = os.path.basename(os.getcwd())
     if auto:
         pull_step["directory"] = f"/opt/prefect/{dir_name}"
@@ -1136,9 +1144,9 @@ async def _check_for_build_docker_image_step(
 
 
 async def _generate_actions_for_remote_flow_storage(
-    console: Console, deploy_config: dict, actions: List[Dict]
-) -> Dict[str, List[Dict[str, Any]]]:
-    storage_provider_to_collection = {
+    console: Console, deploy_config: dict[str, Any], actions: list[dict[str, Any]]
+) -> dict[str, list[dict[str, Any]]]:
+    storage_provider_to_collection: dict[str, str] = {
         "s3": "prefect_aws",
         "gcs": "prefect_gcp",
         "azure_blob_storage": "prefect_azure",
@@ -1193,9 +1201,9 @@ async def _generate_actions_for_remote_flow_storage(
 
 async def _generate_default_pull_action(
     console: Console,
-    deploy_config: Dict,
-    actions: List[Dict],
-):
+    deploy_config: dict[str, Any],
+    actions: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
     build_docker_image_step = await _check_for_build_docker_image_step(
         deploy_config.get("build") or actions["build"]
     )
@@ -1222,7 +1230,7 @@ async def _generate_default_pull_action(
         entrypoint_path, _ = deploy_config["entrypoint"].split(":")
         console.print(
             "Your Prefect workers will attempt to load your flow from:"
-            f" [green]{(Path.cwd()/Path(entrypoint_path)).absolute().resolve()}[/]. To"
+            f" [green]{(Path.cwd() / Path(entrypoint_path)).absolute().resolve()}[/]. To"
             " see more options for managing your flow's code, run:\n\n\t[blue]$"
             " prefect init[/]\n"
         )
@@ -1316,10 +1324,12 @@ def _log_missing_deployment_names(missing_names, matched_deploy_configs, names):
         )
 
 
-def _filter_matching_deploy_config(name, deploy_configs):
+def _filter_matching_deploy_config(
+    name: str, deploy_configs: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
     # Logic to find the deploy_config matching the given name
     # This function handles both "flow-name/deployment-name" and just "deployment-name"
-    matching_deployments = []
+    matching_deployments: list[dict[str, Any]] = []
     if "/" in name:
         flow_name, deployment_name = name.split("/")
         flow_name = flow_name.replace("-", "_")
@@ -1635,7 +1645,7 @@ def _check_for_matching_deployment_name_and_entrypoint_in_prefect_file(
 
 
 def _check_if_identical_deployment_in_prefect_file(
-    untemplated_deploy_config: Dict, prefect_file: Path = Path("prefect.yaml")
+    untemplated_deploy_config: dict[str, Any], prefect_file: Path = Path("prefect.yaml")
 ) -> bool:
     """
     Check if the given deploy config is identical to an existing deploy config in the
@@ -1660,14 +1670,12 @@ def _check_if_identical_deployment_in_prefect_file(
 
 
 def _initialize_deployment_triggers(
-    deployment_name: str, triggers_spec: List[Dict[str, Any]]
-) -> List[DeploymentTriggerTypes]:
-    triggers = []
+    deployment_name: str, triggers_spec: list[dict[str, Any]]
+) -> list[DeploymentTriggerTypes]:
+    triggers: list[DeploymentTriggerTypes] = []
     for i, spec in enumerate(triggers_spec, start=1):
         spec.setdefault("name", f"{deployment_name}__automation_{i}")
-        triggers.append(
-            pydantic.TypeAdapter(DeploymentTriggerTypes).validate_python(spec)
-        )
+        triggers.append(DeploymentTriggerAdapter.validate_python(spec))
 
     return triggers
 
@@ -1675,7 +1683,7 @@ def _initialize_deployment_triggers(
 async def _create_deployment_triggers(
     client: "PrefectClient",
     deployment_id: UUID,
-    triggers: List[Union[DeploymentTriggerTypes, TriggerTypes]],
+    triggers: list[DeploymentTriggerTypes | TriggerTypes],
 ):
     try:
         # The triggers defined in the deployment spec are, essentially,
@@ -1699,8 +1707,8 @@ async def _create_deployment_triggers(
 
 
 def _gather_deployment_trigger_definitions(
-    trigger_flags: List[str], existing_triggers: List[Dict[str, Any]]
-) -> List[Dict[str, Any]]:
+    trigger_flags: list[str], existing_triggers: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
     """Parses trigger flags from CLI and existing deployment config in `prefect.yaml`.
 
     Args:
@@ -1715,7 +1723,7 @@ def _gather_deployment_trigger_definitions(
     """
 
     if trigger_flags:
-        trigger_specs = []
+        trigger_specs: list[dict[str, Any]] = []
         for t in trigger_flags:
             try:
                 if t.endswith(".yaml"):
@@ -1733,7 +1741,7 @@ def _gather_deployment_trigger_definitions(
     return existing_triggers
 
 
-def _handle_deprecated_schedule_fields(deploy_config: Dict):
+def _handle_deprecated_schedule_fields(deploy_config: dict[str, Any]):
     deploy_config = deepcopy(deploy_config)
 
     legacy_schedule = deploy_config.get("schedule", NotSet)
@@ -1750,22 +1758,9 @@ def _handle_deprecated_schedule_fields(deploy_config: Dict):
         )
 
     if legacy_schedule and isinstance(legacy_schedule, dict):
-        # The yaml has a legacy schedule key, we should honor whatever
+        # The yaml has the original schedule key, we should honor whatever
         # is there while still appending these new schedules.
         deploy_config["schedules"] = [deploy_config["schedule"]]
-
-        app.console.print(
-            generate_deprecation_message(
-                "Defining a schedule via the `schedule` key in the deployment",
-                start_date="Mar 2024",
-                help=(
-                    "Please use `schedules` instead by renaming the "
-                    "`schedule` key to `schedules` and providing a list of "
-                    "schedule objects."
-                ),
-            ),
-            style="yellow",
-        )
 
     return deploy_config
 
@@ -1776,8 +1771,8 @@ def _gather_deployment_sla_definitions(
     """Parses SLA flags from CLI and existing deployment config in `prefect.yaml`.
     Prefers CLI-provided SLAs over config in `prefect.yaml`.
     """
-    if sla_flags:
-        sla_specs = []
+    if sla_flags is not None:
+        sla_specs: list[dict[str, Any]] = []
         for s in sla_flags:
             try:
                 if s.endswith(".yaml"):
@@ -1807,7 +1802,10 @@ def _initialize_deployment_slas(
     Returns:
         List of SLAs.
     """
-    slas = [pydantic.TypeAdapter(SlaTypes).validate_python(spec) for spec in sla_specs]
+    if sla_specs == [] or sla_specs == [[]]:
+        return []
+
+    slas = [SlaAdapter.validate_python(spec) for spec in sla_specs]
 
     for sla in slas:
         sla.set_deployment_id(deployment_id)
@@ -1817,21 +1815,11 @@ def _initialize_deployment_slas(
 
 async def _create_slas(
     client: "PrefectClient",
+    deployment_id: UUID,
     slas: List[SlaTypes],
 ):
     if client.server_type == ServerType.CLOUD:
-        exceptions = []
-        for sla in slas:
-            try:
-                await client.create_sla(sla)
-            except Exception as e:
-                app.console.print(
-                    f"""Failed to create SLA: {sla.get("name")}. Error: {str(e)}""",
-                    style="red",
-                )
-                exceptions.append((f"""Failed to create SLA: {sla.get('name')}""", e))
-        if exceptions:
-            raise ValueError("Failed to create one or more SLAs.", exceptions)
+        await client.apply_slas_for_deployment(deployment_id, slas)
     else:
         raise ValueError(
             "SLA configuration is currently only supported on Prefect Cloud."

@@ -1,33 +1,117 @@
-"""
-The base class for all Prefect REST API loop services.
-"""
-
 from __future__ import annotations
 
+import abc
 import asyncio
+import inspect
 import signal
+from abc import ABC, abstractmethod
+from logging import Logger
 from operator import methodcaller
-from typing import TYPE_CHECKING, Any, List, NoReturn, Optional, overload
+from types import ModuleType
+from typing import Any, List, NoReturn, Optional, Sequence, overload
 
 import anyio
+from typing_extensions import Self
 
-from prefect.logging import get_logger
+from prefect.logging.loggers import get_logger
 from prefect.settings import PREFECT_API_LOG_RETRYABLE_ERRORS
+from prefect.settings.models.root import canonical_environment_prefix
+from prefect.settings.models.server.services import ServicesBaseSetting
 from prefect.types import DateTime
 from prefect.utilities.processutils import (
     _register_signal,  # type: ignore[reportPrivateUsage]
 )
 
-if TYPE_CHECKING:
-    import logging
+
+def _known_service_modules() -> list[ModuleType]:
+    """Get list of Prefect server modules containing Service subclasses"""
+    from prefect.server.events.services import actions, triggers
+    from prefect.server.services import (
+        cancellation_cleanup,
+        flow_run_notifications,
+        foreman,
+        late_runs,
+        pause_expirations,
+        scheduler,
+        task_run_recorder,
+        telemetry,
+    )
+
+    return [
+        cancellation_cleanup,
+        flow_run_notifications,
+        foreman,
+        late_runs,
+        pause_expirations,
+        scheduler,
+        task_run_recorder,
+        telemetry,
+        triggers,
+        actions,
+    ]
 
 
-class LoopService:
+class Service(ABC):
+    name: str
+    logger: Logger
+
+    @classmethod
+    @abstractmethod
+    def service_settings(cls) -> ServicesBaseSetting:
+        """The Prefect setting that controls whether the service is enabled"""
+        ...
+
+    @classmethod
+    def environment_variable_name(cls) -> str:
+        return canonical_environment_prefix(cls.service_settings()) + "ENABLED"
+
+    @classmethod
+    def enabled(cls) -> bool:
+        """Whether the service is enabled"""
+        return cls.service_settings().enabled
+
+    @classmethod
+    def all_services(cls) -> Sequence[type[Self]]:
+        """Get list of all service classes"""
+        discovered: list[type[Self]] = []
+        for module in _known_service_modules():
+            for _, obj in inspect.getmembers(module):
+                if (
+                    inspect.isclass(obj)
+                    and issubclass(obj, cls)
+                    and not inspect.isabstract(obj)
+                ):
+                    discovered.append(obj)
+        return discovered
+
+    @classmethod
+    def enabled_services(cls) -> list[type[Self]]:
+        """Get list of enabled service classes"""
+        return [svc for svc in cls.all_services() if svc.enabled()]
+
+    @abstractmethod
+    async def start(self) -> NoReturn:
+        """Start running the service, which may run indefinitely"""
+        ...
+
+    @abstractmethod
+    async def stop(self) -> None:
+        """Stop the service"""
+        ...
+
+    def __init__(self):
+        self.name = self.__class__.__name__
+        self.logger = get_logger(f"server.services.{self.name.lower()}")
+
+
+class LoopService(Service, abc.ABC):
     """
-    Loop services are relatively lightweight maintenance routines that need to run periodically.
+    Loop services are relatively lightweight maintenance routines that need to run
+    periodically.
 
     This class makes it straightforward to design and integrate them. Users only need to
-    define the `run_once` coroutine to describe the behavior of the service on each loop.
+    define the `run_once` coroutine to describe the behavior of the service on each
+    loop.
     """
 
     loop_seconds = 60
@@ -42,16 +126,14 @@ class LoopService:
             handle_signals (bool): if True, SIGINT and SIGTERM are
                 gracefully intercepted and shut down the running service.
         """
+        super().__init__()
+
         if loop_seconds:
             self.loop_seconds: float = loop_seconds  # seconds between runs
         self._should_stop: bool = (
             False  # flag for whether the service should stop running
         )
         self._is_running: bool = False  # flag for whether the service is running
-        self.name: str = type(self).__name__
-        self.logger: "logging.Logger" = get_logger(
-            f"server.services.{self.name.lower()}"
-        )
 
         if handle_signals:
             _register_signal(signal.SIGINT, self._stop)
@@ -74,10 +156,19 @@ class LoopService:
 
     @overload
     async def start(self, loops: None = None) -> NoReturn:
+        """
+        Run the service indefinitely.
+        """
         ...
 
     @overload
     async def start(self, loops: int) -> None:
+        """
+        Run the service `loops` time.
+
+        Args:
+            loops (int): the number of loops to run before exiting.
+        """
         ...
 
     async def start(self, loops: int | None = None) -> None | NoReturn:
@@ -96,9 +187,6 @@ class LoopService:
             try:
                 self.logger.debug(f"About to run {self.name}...")
                 await self.run_once()
-
-            except NotImplementedError as exc:
-                raise exc from None
 
             except asyncio.CancelledError:
                 self.logger.info(f"Received cancellation signal for {self.name}")
@@ -186,17 +274,18 @@ class LoopService:
         """
         self._should_stop = True
 
+    @abstractmethod
     async def run_once(self) -> None:
         """
         Represents one loop of the service.
 
-        Users should override this method.
+        Subclasses must override this method.
 
         To actually run the service once, call `LoopService().start(loops=1)`
         instead of `LoopService().run_once()`, because this method will not invoke setup
         and teardown methods properly.
         """
-        raise NotImplementedError("LoopService subclasses must implement this method.")
+        ...
 
 
 async def run_multiple_services(loop_services: List[LoopService]) -> NoReturn:

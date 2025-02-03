@@ -80,10 +80,12 @@ class CachePolicy:
         raise NotImplementedError
 
     def __sub__(self, other: str) -> "CachePolicy":
+        "No-op for all policies except Inputs and Compound"
+
+        # for interface compatibility
         if not isinstance(other, str):  # type: ignore[reportUnnecessaryIsInstance]
             raise TypeError("Can only subtract strings from key policies.")
-        new = Inputs(exclude=[other])
-        return CompoundCachePolicy(policies=[self, new])
+        return self
 
     def __add__(self, other: "CachePolicy") -> "CachePolicy":
         # adding _None is a no-op
@@ -157,6 +159,23 @@ class CompoundCachePolicy(CachePolicy):
 
     policies: list[CachePolicy] = field(default_factory=list)
 
+    def __post_init__(self) -> None:
+        # flatten any CompoundCachePolicies
+        self.policies = [
+            policy
+            for p in self.policies
+            for policy in (p.policies if isinstance(p, CompoundCachePolicy) else [p])
+        ]
+
+        # deduplicate any Inputs policies
+        inputs_policies = [p for p in self.policies if isinstance(p, Inputs)]
+        self.policies = [p for p in self.policies if not isinstance(p, Inputs)]
+        if inputs_policies:
+            all_excludes: set[str] = set()
+            for inputs_policy in inputs_policies:
+                all_excludes.update(inputs_policy.exclude)
+            self.policies.append(Inputs(exclude=sorted(all_excludes)))
+
     def compute_key(
         self,
         task_ctx: TaskRunContext,
@@ -177,6 +196,35 @@ class CompoundCachePolicy(CachePolicy):
         if not keys:
             return None
         return hash_objects(*keys, raise_on_failure=True)
+
+    def __add__(self, other: "CachePolicy") -> "CachePolicy":
+        # Call the superclass add method to handle validation
+        super().__add__(other)
+
+        if isinstance(other, CompoundCachePolicy):
+            policies = [*self.policies, *other.policies]
+        else:
+            policies = [*self.policies, other]
+
+        return CompoundCachePolicy(
+            policies=policies,
+            key_storage=self.key_storage or other.key_storage,
+            isolation_level=self.isolation_level or other.isolation_level,
+            lock_manager=self.lock_manager or other.lock_manager,
+        )
+
+    def __sub__(self, other: str) -> "CachePolicy":
+        if not isinstance(other, str):  # type: ignore[reportUnnecessaryIsInstance]
+            raise TypeError("Can only subtract strings from key policies.")
+
+        inputs_policies = [p for p in self.policies if isinstance(p, Inputs)]
+
+        if inputs_policies:
+            new = Inputs(exclude=[other])
+            return CompoundCachePolicy(policies=[*self.policies, new])
+        else:
+            # no dependency on inputs already
+            return self
 
 
 @dataclass
@@ -204,6 +252,8 @@ class _None(CachePolicy):
 class TaskSource(CachePolicy):
     """
     Policy for computing a cache key based on the source code of the task.
+
+    This policy only considers raw lines of code in the task, and not the source code of nested tasks.
     """
 
     def compute_key(

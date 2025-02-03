@@ -5,7 +5,10 @@ from typing import TYPE_CHECKING, NoReturn
 
 from prefect.logging import get_logger
 from prefect.server.events import actions
+from prefect.server.services.base import Service
 from prefect.server.utilities.messaging import Consumer, create_consumer
+from prefect.settings.context import get_current_settings
+from prefect.settings.models.server.services import ServicesBaseSetting
 
 if TYPE_CHECKING:
     import logging
@@ -13,12 +16,14 @@ if TYPE_CHECKING:
 logger: "logging.Logger" = get_logger(__name__)
 
 
-class Actions:
-    """Runs actions triggered by Automatinos"""
-
-    name: str = "Actions"
+class Actions(Service):
+    """Runs the actions triggered by automations"""
 
     consumer_task: asyncio.Task[None] | None = None
+
+    @classmethod
+    def service_settings(cls) -> ServicesBaseSetting:
+        return get_current_settings().server.services.triggers
 
     async def start(self) -> NoReturn:
         assert self.consumer_task is None, "Actions already started"
