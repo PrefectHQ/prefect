@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, NoReturn, Optional
 
 from prefect.logging import get_logger
 from prefect.server.events import triggers
-from prefect.server.services.base import LoopService, Service
+from prefect.server.services.base import LoopService, RunInAllServers, Service
 from prefect.server.utilities.messaging import Consumer, create_consumer
 from prefect.settings import PREFECT_EVENTS_PROACTIVE_GRANULARITY
 from prefect.settings.context import get_current_settings
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 logger: "logging.Logger" = get_logger(__name__)
 
 
-class ReactiveTriggers(Service):
+class ReactiveTriggers(RunInAllServers, Service):
     """Evaluates reactive automation triggers"""
 
     consumer_task: asyncio.Task[None] | None = None
@@ -52,7 +52,7 @@ class ReactiveTriggers(Service):
         logger.debug("Reactive triggers stopped")
 
 
-class ProactiveTriggers(LoopService):
+class ProactiveTriggers(RunInAllServers, LoopService):
     """Evaluates proactive automation triggers"""
 
     @classmethod
