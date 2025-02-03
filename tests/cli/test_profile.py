@@ -344,15 +344,44 @@ def test_create_profile_from_unknown_profile():
 
 
 def test_create_profile_with_existing_profile():
+    save_profiles(
+        ProfilesCollection(
+            profiles=[
+                Profile(name="foo", settings={PREFECT_API_KEY: "foo"}),
+            ],
+            active=None,
+        )
+    )
+
     invoke_and_assert(
-        ["profile", "create", "ephemeral"],
+        ["profile", "create", "foo"],
         expected_output="""
-            Profile 'ephemeral' already exists.
+            Profile 'foo' already exists.
             To create a new profile, remove the existing profile first:
 
-                prefect profile delete 'ephemeral'
+                prefect profile delete 'foo'
             """,
         expected_code=1,
+    )
+
+
+def test_create_profile_with_name_conflict_vs_unsaved_default():
+    """
+    Regression test for https://github.com/PrefectHQ/prefect/issues/15643
+    """
+    invoke_and_assert(
+        ["profile", "create", "local"],
+        expected_output="""
+            Created profile with properties:
+                name - 'local'
+                from name - None
+
+            Use created profile for future, subsequent commands:
+                prefect profile use 'local'
+
+            Use created profile temporarily for a single command:
+                prefect -p 'local' config view
+            """,
     )
 
 
