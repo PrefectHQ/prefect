@@ -67,7 +67,7 @@ def create(
     Create a new profile.
     """
 
-    profiles = prefect.settings.load_profiles()
+    profiles = prefect.settings.load_profiles(include_defaults=False)
     if name in profiles:
         app.console.print(
             textwrap.dedent(
@@ -211,7 +211,7 @@ def rename(name: str, new_name: str):
     """
     Change the name of a profile.
     """
-    profiles = prefect.settings.load_profiles()
+    profiles = prefect.settings.load_profiles(include_defaults=False)
     if name not in profiles:
         exit_with_error(f"Profile {name!r} not found.")
 
