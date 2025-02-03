@@ -185,12 +185,7 @@
               "title": "Launch Type",
               "description": "The type of ECS task run infrastructure that should be used. Note that 'FARGATE_SPOT' is not a formal ECS launch type, but we will configure the proper capacity provider strategy if set here.",
               "default": "FARGATE",
-              "enum": [
-                "FARGATE",
-                "EC2",
-                "EXTERNAL",
-                "FARGATE_SPOT"
-              ],
+              "enum": ["FARGATE", "EC2", "EXTERNAL", "FARGATE_SPOT"],
               "type": "string"
             },
             "capacity_provider_strategy": {
@@ -381,9 +376,7 @@
                 }
               },
               "block_type_slug": "aws-credentials",
-              "secret_fields": [
-                "aws_secret_access_key"
-              ],
+              "secret_fields": ["aws_secret_access_key"],
               "block_schema_references": {}
             },
             "CapacityProvider": {
@@ -404,11 +397,7 @@
                   "type": "integer"
                 }
               },
-              "required": [
-                "capacityProvider",
-                "weight",
-                "base"
-              ]
+              "required": ["capacityProvider", "weight", "base"]
             }
           }
         }
@@ -641,10 +630,7 @@
               "type": "number"
             }
           },
-          "required": [
-            "resource_group_name",
-            "subscription_id"
-          ],
+          "required": ["resource_group_name", "subscription_id"],
           "definitions": {
             "DockerRegistry": {
               "title": "DockerRegistry",
@@ -675,15 +661,9 @@
                   "type": "boolean"
                 }
               },
-              "required": [
-                "username",
-                "password",
-                "registry_url"
-              ],
+              "required": ["username", "password", "registry_url"],
               "block_type_slug": "docker-registry",
-              "secret_fields": [
-                "password"
-              ],
+              "secret_fields": ["password"],
               "block_schema_references": {}
             },
             "ACRManagedIdentity": {
@@ -702,10 +682,7 @@
                   "type": "string"
                 }
               },
-              "required": [
-                "registry_url",
-                "identity"
-              ]
+              "required": ["registry_url", "identity"]
             },
             "AzureContainerInstanceCredentials": {
               "title": "AzureContainerInstanceCredentials",
@@ -736,9 +713,7 @@
                 }
               },
               "block_type_slug": "azure-container-instance-credentials",
-              "secret_fields": [
-                "client_secret"
-              ],
+              "secret_fields": ["client_secret"],
               "block_schema_references": {}
             }
           }
@@ -821,11 +796,7 @@
             "image_pull_policy": {
               "title": "Image Pull Policy",
               "description": "The image pull policy to use when pulling images.",
-              "enum": [
-                "IfNotPresent",
-                "Always",
-                "Never"
-              ],
+              "enum": ["IfNotPresent", "Always", "Never"],
               "type": "string"
             },
             "networks": {
@@ -850,9 +821,7 @@
             "volumes": {
               "title": "Volumes",
               "description": "A list of volume to mount into created containers.",
-              "example": [
-                "/my/local/path:/path/in/container"
-              ],
+              "example": ["/my/local/path:/path/in/container"],
               "type": "array",
               "items": {
                 "type": "string"
@@ -912,15 +881,9 @@
                   "type": "boolean"
                 }
               },
-              "required": [
-                "username",
-                "password",
-                "registry_url"
-              ],
+              "required": ["username", "password", "registry_url"],
               "block_type_slug": "docker-registry-credentials",
-              "secret_fields": [
-                "password"
-              ],
+              "secret_fields": ["password"],
               "block_schema_references": {}
             }
           }
@@ -1107,9 +1070,7 @@
                 }
               },
               "block_type_slug": "gcp-credentials",
-              "secret_fields": [
-                "service_account_info.*"
-              ],
+              "secret_fields": ["service_account_info.*"],
               "block_schema_references": {}
             }
           }
@@ -1308,9 +1269,7 @@
                 }
               },
               "block_type_slug": "gcp-credentials",
-              "secret_fields": [
-                "service_account_info.*"
-              ],
+              "secret_fields": ["service_account_info.*"],
               "block_schema_references": {}
             }
           }
@@ -1472,10 +1431,7 @@
               "type": "number"
             }
           },
-          "required": [
-            "region",
-            "image"
-          ],
+          "required": ["region", "image"],
           "definitions": {
             "GcpCredentials": {
               "title": "GcpCredentials",
@@ -1500,9 +1456,7 @@
                 }
               },
               "block_type_slug": "gcp-credentials",
-              "secret_fields": [
-                "service_account_info.*"
-              ],
+              "secret_fields": ["service_account_info.*"],
               "block_schema_references": {}
             }
           }
@@ -1612,11 +1566,7 @@
               "title": "Image Pull Policy",
               "description": "The Kubernetes image pull policy to use for job containers.",
               "default": "IfNotPresent",
-              "enum": [
-                "IfNotPresent",
-                "Always",
-                "Never"
-              ],
+              "enum": ["IfNotPresent", "Always", "Never"],
               "type": "string"
             },
             "finished_job_ttl": {
@@ -1668,10 +1618,7 @@
                   "type": "string"
                 }
               },
-              "required": [
-                "config",
-                "context_name"
-              ],
+              "required": ["config", "context_name"],
               "block_type_slug": "kubernetes-cluster-config",
               "secret_fields": [],
               "block_schema_references": {}
@@ -1686,6 +1633,161 @@
       "is_beta": false,
       "logo_url": "https://cdn.sanity.io/images/3ugk85nk/production/2d0b896006ad463b49c28aaac14f31e00e32cfab-250x250.png",
       "type": "kubernetes"
+    }
+  },
+  "git+https://github.com/controlplane-com/prefect-cpln.git": {
+    "cpln": {
+      "default_base_job_configuration": {
+        "job_configuration": {
+          "config": "{{ config }}",
+          "org": "{{ org }}",
+          "namespace": "{{ namespace }}",
+          "location": "{{ location }}",
+          "name": "{{ name }}",
+          "labels": "{{ labels }}",
+          "command": "{{ command }}",
+          "env": "{{ env }}",
+          "job_manifest": {
+            "apiVersion": "batch/v1",
+            "kind": "Job",
+            "metadata": {
+              "labels": "{{ labels }}",
+              "namespace": "{{ namespace }}",
+              "generateName": "{{ name }}-"
+            },
+            "spec": {
+              "backoffLimit": 0,
+              "template": {
+                "spec": {
+                  "parallelism": 1,
+                  "completions": 1,
+                  "restartPolicy": "Never",
+                  "serviceAccountName": "{{ service_account_name }}",
+                  "containers": [
+                    {
+                      "name": "prefect-job",
+                      "env": "{{ env }}",
+                      "image": "{{ image }}",
+                      "args": "{{ command }}"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "job_watch_timeout_seconds": "{{ job_watch_timeout_seconds }}",
+          "pod_watch_timeout_seconds": "{{ pod_watch_timeout_seconds }}",
+          "stream_output": "{{ stream_output }}"
+        },
+        "variables": {
+          "description": "Default variables for the Control Plane worker.\n\nThe schema for this class is used to populate the `variables` section of the default\nbase job template.",
+          "type": "object",
+          "properties": {
+            "org": {
+              "title": "Organization",
+              "description": "The Control Plane organization to create jobs within. Defaults to the value in the environment variable CPLN_ORG. If you are hosting the worker on Control Plane, the environment variable will be automatically injected to your workload.",
+              "type": "string"
+            },
+            "namespace": {
+              "title": "Namespace",
+              "description": "The Control Plane GVC to create jobs within. Defaults to the value in the environment variable CPLN_GVC. If you are hosting the worker on Control Plane, the environment variable will be automatically injected to your workload.",
+              "type": "string"
+            },
+            "location": {
+              "title": "Location",
+              "description": "The Control Plane GVC location. Defaults to the value in the environment variable CPLN_LOCATION. If the location is still not found, the first location of the specified GVC will be used. If you are hosting the worker on Control Plane, the environment variable will be automatically injected to your workload.",
+              "type": "string"
+            },
+            "name": {
+              "title": "Name",
+              "description": "Name given to infrastructure created by a worker.",
+              "type": "string"
+            },
+            "command": {
+              "title": "Command",
+              "description": "The command to use when starting a flow run. In most cases, this should be left blank and the command will be automatically generated by the worker.",
+              "type": "string"
+            },
+            "labels": {
+              "title": "Labels",
+              "description": "Labels applied to infrastructure created by a worker.",
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "env": {
+              "title": "Environment Variables",
+              "description": "Environment variables to set when starting a flow run.",
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "image": {
+              "title": "Image",
+              "description": "The image reference of a container image to use for created jobs. If not set, the latest Prefect image will be used.",
+              "example": "docker.io/prefecthq/prefect:2-latest",
+              "type": "string"
+            },
+            "service_account_name": {
+              "title": "Service Account Name",
+              "description": "The Control Plane identity to attach to the workload.",
+              "type": "string"
+            },
+            "job_watch_timeout_seconds": {
+              "title": "Job Watch Timeout Seconds",
+              "description": "Number of seconds to wait for job logs before timing out. If not set, the worker will wait for job logs indefinitely.",
+              "type": "integer"
+            },
+            "pod_watch_timeout_seconds": {
+              "title": "Pod Watch Timeout Seconds",
+              "description": "Number of seconds to watch for workload creation before timing out.",
+              "default": 60,
+              "type": "integer"
+            },
+            "stream_output": {
+              "title": "Stream Output",
+              "description": "If set, output will be streamed from the job to local standard output.",
+              "default": true,
+              "type": "boolean"
+            },
+            "config": {
+              "title": "Control Plane Config",
+              "description": "The Control Plane config to use for job creation.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/CplnConfig"
+                }
+              ]
+            }
+          },
+          "definitions": {
+            "CplnConfig": {
+              "title": "CplnConfig",
+              "description": "Stores configuration for interaction with the Control Plane platform.",
+              "type": "object",
+              "properties": {
+                "token": {
+                  "title": "Token",
+                  "description": "The token to use for connecting to the Control Plane platform.",
+                  "type": "string"
+                }
+              },
+              "block_type_slug": "cpln-config",
+              "secret_fields": [],
+              "block_schema_references": {}
+            }
+          }
+        }
+      },
+      "description": "Execute flow runs within jobs scheduled on a Control Plane organization. Requires a Control Plane token and organization.",
+      "display_name": "Control Plane",
+      "documentation_url": "https://docs.controlplane.com/reference/workload/types#cron",
+      "install_command": "pip install prefect",
+      "is_beta": false,
+      "logo_url": "https://console.cpln.io/resources/logos/controlPlaneLogoOnly.svg",
+      "type": "cpln"
     }
   }
 }

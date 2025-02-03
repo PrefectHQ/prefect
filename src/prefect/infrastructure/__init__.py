@@ -1,5 +1,6 @@
 from prefect.infrastructure.base import Infrastructure, InfrastructureResult
 from prefect.infrastructure.container import DockerContainer, DockerContainerResult
+from prefect.blocks.cpln import CplnConfig
 from prefect.infrastructure.kubernetes import (
     KubernetesClusterConfig,
     KubernetesImagePullPolicy,
@@ -12,6 +13,7 @@ from prefect.infrastructure.process import Process, ProcessResult
 
 # Declare API
 __all__ = [
+    "CplnConfig",
     "DockerContainer",
     "DockerContainerResult",
     "Infrastructure",

@@ -117,6 +117,9 @@ RUN pip install --no-cache-dir "./dist/prefect.tar.gz${PREFECT_EXTRAS}"
 ARG EXTRA_PIP_PACKAGES=${EXTRA_PIP_PACKAGES:-""}
 RUN [ -z "${EXTRA_PIP_PACKAGES}" ] || pip install --no-cache-dir "${EXTRA_PIP_PACKAGES}"
 
+# Install prefect-cpln
+RUN pip install --no-cache-dir "git+https://github.com/controlplane-com/prefect-cpln.git"
+
 # Smoke test
 RUN prefect version
 
