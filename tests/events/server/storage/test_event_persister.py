@@ -303,12 +303,13 @@ async def test_trims_messages_periodically(
         await write_events(
             session, [event.model_copy(update={"id": uuid4(), "occurred": timestamp})]
         )
+        await session.commit()  # Each commit ensures a new transaction timestamp for PostgreSQL's now() function
         inserted_timestamps.append(timestamp)
-        await asyncio.sleep(0.4)  # The whole insert should be 400ms * 3 = about 1.2s
+        await asyncio.sleep(0.6)  # The whole insert should be 600ms * 3 = about 1.8s
 
     # Half the entries are older than this, half are younger
     cutoff_date = inserted_timestamps[int(len(inserted_timestamps) / 2)] - timedelta(
-        milliseconds=200
+        milliseconds=300
     )
 
     initial_events, event_count, _ = await query_events(session, filter=EventFilter())
