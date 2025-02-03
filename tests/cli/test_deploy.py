@@ -5532,6 +5532,7 @@ class TestDeploymentTrigger:
             trigger_spec = {
                 "name": "Trigger McTriggerson",
                 "enabled": True,
+                "description": "This is a test trigger",
                 "match": {"prefect.resource.id": "prefect.flow-run.*"},
                 "expect": ["prefect.flow-run.Completed"],
                 "match_related": {
@@ -5546,7 +5547,7 @@ class TestDeploymentTrigger:
                 DeploymentEventTrigger(
                     **{
                         "name": "Trigger McTriggerson",
-                        "description": "",
+                        "description": "This is a test trigger",
                         "enabled": True,
                         "match": {"prefect.resource.id": "prefect.flow-run.*"},
                         "match_related": {
