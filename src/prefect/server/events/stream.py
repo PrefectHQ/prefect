@@ -16,7 +16,10 @@ from typing import (
 from prefect.logging import get_logger
 from prefect.server.events.filters import EventFilter
 from prefect.server.events.schemas.events import ReceivedEvent
+from prefect.server.services.base import RunInAllServers, Service
 from prefect.server.utilities import messaging
+from prefect.settings.context import get_current_settings
+from prefect.settings.models.server.services import ServicesBaseSetting
 
 if TYPE_CHECKING:
     import logging
@@ -133,8 +136,20 @@ async def stop_distributor() -> None:
         pass
 
 
-class Distributor:
+class Distributor(RunInAllServers, Service):
     name: str = "Distributor"
+
+    @classmethod
+    def service_settings(cls) -> ServicesBaseSetting:
+        raise NotImplementedError("Distributor does not have settings")
+
+    @classmethod
+    def environment_variable_name(cls) -> dict[str, str]:
+        return "PREFECT_API_EVENTS_STREAM_OUT_ENABLED"
+
+    @classmethod
+    def enabled(cls) -> bool:
+        return get_current_settings().server.events.stream_out_enabled
 
     async def start(self) -> None:
         await start_distributor()
