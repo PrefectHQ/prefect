@@ -93,6 +93,11 @@ class DeploymentScheduleCreate(ActionBaseModel):
         description="The maximum number of scheduled runs for the schedule.",
     )
 
+    parameters: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Parameters for flow runs scheduled by the deployment.",
+    )
+
     @field_validator("active", mode="wrap")
     @classmethod
     def validate_active(cls, v: Any, handler: Callable[[Any], Any]) -> bool:
@@ -122,6 +127,11 @@ class DeploymentScheduleUpdate(ActionBaseModel):
     max_scheduled_runs: Optional[PositiveInteger] = Field(
         default=None,
         description="The maximum number of scheduled runs for the schedule.",
+    )
+
+    parameters: dict[str, Any] | None = Field(
+        default=None,
+        description="Parameters for flow runs scheduled by the deployment.",
     )
 
     @field_validator("max_scheduled_runs")

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import json
 from copy import deepcopy
-from typing import Any, ClassVar, Dict, List, Optional, Union
+from typing import Any, ClassVar, Dict, Optional, Union
 from uuid import UUID, uuid4
 
 import pendulum
@@ -78,7 +78,7 @@ class FlowCreate(ActionBaseModel):
     name: Name = Field(
         default=..., description="The name of the flow", examples=["my-flow"]
     )
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         default_factory=list,
         description="A list of flow tags",
         examples=[["tag-1", "tag-2"]],
@@ -93,7 +93,7 @@ class FlowCreate(ActionBaseModel):
 class FlowUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a flow."""
 
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         default_factory=list,
         description="A list of flow tags",
         examples=[["tag-1", "tag-2"]],
@@ -110,6 +110,10 @@ class DeploymentScheduleCreate(ActionBaseModel):
     max_scheduled_runs: Optional[PositiveInteger] = Field(
         default=None,
         description="The maximum number of scheduled runs for the schedule.",
+    )
+    parameters: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Parameters for flow runs scheduled by the deployment.",
     )
 
     @field_validator("max_scheduled_runs")
@@ -133,6 +137,11 @@ class DeploymentScheduleUpdate(ActionBaseModel):
     max_scheduled_runs: Optional[PositiveInteger] = Field(
         default=None,
         description="The maximum number of scheduled runs for the schedule.",
+    )
+
+    parameters: dict[str, Any] | None = Field(
+        default=None,
+        description="Parameters for flow runs scheduled by the deployment.",
     )
 
     @field_validator("max_scheduled_runs")
@@ -159,7 +168,7 @@ class DeploymentCreate(ActionBaseModel):
     paused: bool = Field(
         default=False, description="Whether or not the deployment is paused."
     )
-    schedules: List[DeploymentScheduleCreate] = Field(
+    schedules: list[DeploymentScheduleCreate] = Field(
         default_factory=list,
         description="A list of schedules for the deployment.",
     )
@@ -183,7 +192,7 @@ class DeploymentCreate(ActionBaseModel):
         default_factory=dict,
         description="Parameters for flow runs scheduled by the deployment.",
     )
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         default_factory=list,
         description="A list of deployment tags.",
         examples=[["tag-1", "tag-2"]],
@@ -193,7 +202,7 @@ class DeploymentCreate(ActionBaseModel):
         description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
         examples=[{"key": "value1", "key2": 42}],
     )
-    pull_steps: Optional[List[dict[str, Any]]] = Field(None)
+    pull_steps: Optional[list[dict[str, Any]]] = Field(None)
 
     work_queue_name: Optional[str] = Field(None)
     work_pool_name: Optional[str] = Field(
@@ -267,7 +276,7 @@ class DeploymentUpdate(ActionBaseModel):
     paused: bool = Field(
         default=False, description="Whether or not the deployment is paused."
     )
-    schedules: List[DeploymentScheduleCreate] = Field(
+    schedules: list[DeploymentScheduleCreate] = Field(
         default_factory=list,
         description="A list of schedules for the deployment.",
     )
@@ -281,7 +290,7 @@ class DeploymentUpdate(ActionBaseModel):
         default=None,
         description="Parameters for flow runs scheduled by the deployment.",
     )
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         default_factory=list,
         description="A list of deployment tags.",
         examples=[["tag-1", "tag-2"]],
@@ -345,7 +354,7 @@ class FlowRunUpdate(ActionBaseModel):
     empirical_policy: schemas.core.FlowRunPolicy = Field(
         default_factory=schemas.core.FlowRunPolicy
     )
-    tags: List[str] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
     infrastructure_pid: Optional[str] = Field(None)
     job_variables: Optional[Dict[str, Any]] = Field(None)
 
@@ -441,7 +450,7 @@ class TaskRunCreate(ActionBaseModel):
     empirical_policy: schemas.core.TaskRunPolicy = Field(
         default_factory=schemas.core.TaskRunPolicy,
     )
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         default_factory=list,
         description="A list of tags for the task run.",
         examples=[["tag-1", "tag-2"]],
@@ -453,7 +462,7 @@ class TaskRunCreate(ActionBaseModel):
     )
     task_inputs: Dict[
         str,
-        List[
+        list[
             Union[
                 schemas.core.TaskRunResult,
                 schemas.core.Parameter,
@@ -521,7 +530,7 @@ class FlowRunCreate(ActionBaseModel):
         default_factory=schemas.core.FlowRunPolicy,
         description="The empirical policy for the flow run.",
     )
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         default_factory=list,
         description="A list of tags for the flow run.",
         examples=[["tag-1", "tag-2"]],
@@ -582,7 +591,7 @@ class DeploymentFlowRunCreate(ActionBaseModel):
         default_factory=schemas.core.FlowRunPolicy,
         description="The empirical policy for the flow run.",
     )
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         default_factory=list,
         description="A list of tags for the flow run.",
         examples=[["tag-1", "tag-2"]],
@@ -613,7 +622,7 @@ class SavedSearchCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create a saved search."""
 
     name: str = Field(default=..., description="The name of the saved search.")
-    filters: List[schemas.core.SavedSearchFilter] = Field(
+    filters: list[schemas.core.SavedSearchFilter] = Field(
         default_factory=list, description="The filter set for the saved search."
     )
 
@@ -703,7 +712,7 @@ class BlockSchemaCreate(ActionBaseModel):
     )
     block_type_id: UUID = Field(default=..., description="A block type ID")
 
-    capabilities: List[str] = Field(
+    capabilities: list[str] = Field(
         default_factory=list,
         description="A list of Block capabilities",
     )
@@ -910,10 +919,10 @@ class FlowRunNotificationPolicyCreate(ActionBaseModel):
     is_active: bool = Field(
         default=True, description="Whether the policy is currently active"
     )
-    state_names: List[str] = Field(
+    state_names: list[str] = Field(
         default=..., description="The flow run states that trigger notifications"
     )
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         default=...,
         description="The flow run tags that trigger notifications (set [] to disable)",
     )
@@ -943,8 +952,8 @@ class FlowRunNotificationPolicyUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update a flow run notification policy."""
 
     is_active: Optional[bool] = Field(None)
-    state_names: Optional[List[str]] = Field(None)
-    tags: Optional[List[str]] = Field(None)
+    state_names: Optional[list[str]] = Field(None)
+    tags: Optional[list[str]] = Field(None)
     block_document_id: Optional[UUID] = Field(None)
     message_template: Optional[str] = Field(None)
 
@@ -1042,7 +1051,7 @@ class VariableCreate(ActionBaseModel):
         description="The value of the variable",
         examples=["my-value"],
     )
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         default_factory=list,
         description="A list of variable tags",
         examples=[["tag-1", "tag-2"]],
@@ -1066,7 +1075,7 @@ class VariableUpdate(ActionBaseModel):
         description="The value of the variable",
         examples=["my-value"],
     )
-    tags: Optional[List[str]] = Field(
+    tags: Optional[list[str]] = Field(
         default=None,
         description="A list of variable tags",
         examples=[["tag-1", "tag-2"]],

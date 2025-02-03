@@ -5664,6 +5664,11 @@ export interface components {
              * @description The maximum number of scheduled runs for the schedule.
              */
             max_scheduled_runs?: number | null;
+            /**
+             * Parameters
+             * @description Parameters for flow runs scheduled by the deployment.
+             */
+            parameters?: Record<string, never>;
         };
         /** DeploymentScheduleUpdate */
         DeploymentScheduleUpdate: {
@@ -5682,6 +5687,11 @@ export interface components {
              * @description The maximum number of scheduled runs for the schedule.
              */
             max_scheduled_runs?: number | null;
+            /**
+             * Parameters
+             * @description Parameters for flow runs scheduled by the deployment.
+             */
+            parameters?: Record<string, never> | null;
         };
         /**
          * DeploymentSort

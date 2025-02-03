@@ -16482,6 +16482,11 @@
                         ],
                         "title": "Max Scheduled Runs",
                         "description": "The maximum number of scheduled runs for the schedule."
+                    },
+                    "parameters": {
+                        "type": "object",
+                        "title": "Parameters",
+                        "description": "Parameters for flow runs scheduled by the deployment."
                     }
                 },
                 "additionalProperties": false,
@@ -16535,6 +16540,18 @@
                         ],
                         "title": "Max Scheduled Runs",
                         "description": "The maximum number of scheduled runs for the schedule."
+                    },
+                    "parameters": {
+                        "anyOf": [
+                            {
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Parameters",
+                        "description": "Parameters for flow runs scheduled by the deployment."
                     }
                 },
                 "additionalProperties": false,
