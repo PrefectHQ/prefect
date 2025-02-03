@@ -5,7 +5,7 @@ description: Convert a Python script into your first Prefect workflow
 
 import Installation from '/snippets/installation.mdx'
 
-Prefect makes it easy to deploy Python scripts, run them on a schedule, make them robust to failure, and observe them in a UI.
+Prefect makes it easy to deploy Python scripts, run them on a schedule, make them resilient to failure, and observe them in a UI.
 
 To do this, you need to perform the following tasks:
 
@@ -16,7 +16,7 @@ To do this, you need to perform the following tasks:
 Let's start with a Python script that fetches the number of stars for a list of GitHub repositories.
 
 
-```python my_script.py
+```python my_workflow.py
 import httpx
 
 
@@ -89,11 +89,11 @@ Decorators are the easiest way to convert a Python script into a workflow.
 1. Add a `@flow` decorator to the script's entrypoint.
 1. Add `@task` decorators to any functions called by the flow.
 
-This will create a [flow](/v3/develop/write-flows/) and corresponding [tasks](/v3/develop/write-tasks/). 
+This will create a [flow](/v3/develop/write-flows/) and corresponding [tasks](/v3/develop/write-tasks/).
 Tasks receive metadata about upstream dependencies and the state of those dependencies before they run.
 Prefect records these dependencies and states as it orchestrates tasks.
 
-```python my_workflow.py
+```python my_workflow.py {3,6,20,26}
 import httpx
 
 from prefect import flow, task # Prefect flow and task decorators
@@ -134,6 +134,8 @@ if __name__ == "__main__":
     ])
 ```
 
+This workflow is also available in the [`demos repository`](https://github.com/PrefectHQ/demos/blob/main/my_workflow.py).
+
 <Note>
 The `log_prints=True` argument provided to the `@flow` decorator automatically converts any `print` statements within the function to `INFO` level logs.
 </Note>
@@ -143,7 +145,7 @@ The `log_prints=True` argument provided to the `@flow` decorator automatically c
 You can run your Prefect flow just as you would a Python script:
 
 ```bash
-python my_workflow.py
+python my_script.py
 ```
 
 The output in your terminal should look similar to this:
