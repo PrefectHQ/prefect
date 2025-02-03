@@ -8,6 +8,10 @@ Each time a database migration is written, an entry is included here with:
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situations where a branch needs to be updated before merging.
 
+# Add parameters column to deployment schedules
+SQLite: `67f886da208e`
+Postgres: `c163acd7e8e3`
+
 # Bring ORM models and migrations back in sync
 SQLite: `a49711513ad4`
 Postgres: `5d03c01be85e`
