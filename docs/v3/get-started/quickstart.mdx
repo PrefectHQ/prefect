@@ -16,7 +16,7 @@ To do this, you need to perform the following tasks:
 Let's start with a Python script that fetches the number of stars for a list of GitHub repositories.
 
 
-```python my_script.py
+```python my_workflow.py
 import httpx
 
 
@@ -93,7 +93,7 @@ This will create a [flow](/v3/develop/write-flows/) and corresponding [tasks](/v
 Tasks receive metadata about upstream dependencies and the state of those dependencies before they run.
 Prefect records these dependencies and states as it orchestrates tasks.
 
-```python my_script.py {3,6,20,26}
+```python my_workflow.py {3,6,20,26}
 import httpx
 
 from prefect import flow, task # Prefect flow and task decorators
@@ -133,6 +133,8 @@ if __name__ == "__main__":
         "huggingface/transformers"
     ])
 ```
+
+This workflow is also available in the [`demos repository`](https://github.com/PrefectHQ/demos/blob/main/my_workflow.py).
 
 <Note>
 The `log_prints=True` argument provided to the `@flow` decorator automatically converts any `print` statements within the function to `INFO` level logs.
