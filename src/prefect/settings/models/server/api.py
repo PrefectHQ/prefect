@@ -18,7 +18,7 @@ class ServerAPISettings(PrefectBaseSettings):
 
     auth_string: Optional[SecretStr] = Field(
         default=None,
-        description="A string to use for basic authentication with the API; typically in the form 'user:password' but can be any string.",
+        description="A string to use for basic authentication with the API in the form 'user:password'.",
     )
 
     host: str = Field(
@@ -29,6 +29,11 @@ class ServerAPISettings(PrefectBaseSettings):
     port: int = Field(
         default=4200,
         description="The API's port address (defaults to `4200`).",
+    )
+
+    base_path: Optional[str] = Field(
+        default=None,
+        description="The base URL path to serve the API under, e.g., /v2/api",
     )
 
     default_limit: int = Field(
