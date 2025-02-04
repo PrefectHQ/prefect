@@ -48,12 +48,39 @@ def reload_prefect_base_model(
 
 
 class TestExtraForbidden:
-    @pytest.mark.parametrize("falsey_value", ["0", "False", "", None])
-    def test_extra_attributes_are_allowed(self, falsey_value: Optional[str]):
+    def test_extra_attributes_are_forbidden_during_unit_tests(self):
         class Model(PrefectBaseModel):
             x: int
 
+        with pytest.raises(
+            pydantic.ValidationError, match="Extra inputs are not permitted"
+        ):
+            Model(x=1, y=2)
+
+    @pytest.mark.parametrize("falsey_value", ["0", "False", "", None])
+    def test_extra_attributes_are_allowed_outside_test_mode(
+        self, falsey_value: Optional[str]
+    ):
+        with reload_prefect_base_model(falsey_value) as PrefectBaseModel:
+
+            class Model(PrefectBaseModel):
+                x: int
+
         Model(x=1, y=2)
+
+    @pytest.mark.parametrize("truthy_value", ["1", "True", "true"])
+    def test_extra_attributes_are_not_allowed_with_truthy_test_mode(
+        self, truthy_value: Optional[str]
+    ):
+        with reload_prefect_base_model(truthy_value) as PrefectBaseModel:
+
+            class Model(PrefectBaseModel):
+                x: int
+
+        with pytest.raises(
+            pydantic.ValidationError, match="Extra inputs are not permitted"
+        ):
+            Model(x=1, y=2)
 
 
 class TestNestedDict:
