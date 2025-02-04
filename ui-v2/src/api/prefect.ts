@@ -5645,6 +5645,11 @@ export interface components {
              * @description The maximum number of scheduled runs for the schedule.
              */
             max_scheduled_runs?: number | null;
+            /**
+             * Parameters
+             * @description A dictionary of parameter value overrides.
+             */
+            parameters?: Record<string, never>;
         };
         /** DeploymentScheduleCreate */
         DeploymentScheduleCreate: {
@@ -5664,6 +5669,11 @@ export interface components {
              * @description The maximum number of scheduled runs for the schedule.
              */
             max_scheduled_runs?: number | null;
+            /**
+             * Parameters
+             * @description A dictionary of parameter value overrides.
+             */
+            parameters?: Record<string, never>;
         };
         /** DeploymentScheduleUpdate */
         DeploymentScheduleUpdate: {
@@ -5682,6 +5692,11 @@ export interface components {
              * @description The maximum number of scheduled runs for the schedule.
              */
             max_scheduled_runs?: number | null;
+            /**
+             * Parameters
+             * @description A dictionary of parameter value overrides.
+             */
+            parameters?: Record<string, never>;
         };
         /**
          * DeploymentSort
