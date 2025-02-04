@@ -3,18 +3,12 @@ import json
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any
 
 from packaging.version import Version
 
 from prefect.server.api.server import create_app
 
-Mint = dict[str, Any]
-Navigation = list[dict[str, Any]]
-SinglePage = str
-PageGroup = dict[str, Any]
-
-MINTLIFY_SCRAPE = ["npx", "--yes", "@mintlify/scraping@3.0.123"]
+MINTLIFY_SCRAPE = ["npx", "--yes", "@mintlify/scraping@4.0.106"]
 
 
 def docs_path() -> Path:
@@ -22,8 +16,8 @@ def docs_path() -> Path:
 
 
 """Load the overall Mintlify configuration file"""
-with open(docs_path() / "mint.json", "r") as f:
-    mint_json = json.load(f)
+with open(docs_path() / "docs.json", "r") as f:
+    docs_json = json.load(f)
 
 
 def current_version() -> str:
@@ -45,19 +39,22 @@ def main():
     suggestions = generate_schema_documentation(version, server_docs_path)
 
     # Find the "Server API" section and replace the "pages" content other than the index
-    for group in mint_json["navigation"]:
-        if group["group"] == "APIs & SDK" and group["version"] == version:
-            for sub_group in group["pages"]:
-                if isinstance(sub_group, dict) and sub_group["group"] == "REST API":
-                    for rest_group in sub_group["pages"]:
-                        if (
-                            isinstance(rest_group, dict)
-                            and rest_group["group"] == "Server API"
-                        ):
-                            rest_group["pages"][1:] = suggestions
+    for version in docs_json["navigation"]["versions"]:
+        if version["version"] == "v3":
+            # Iterate over the tabs in version v3
+            for tab in version["tabs"]:
+                if tab["tab"] == "APIs & SDK":
+                    for group in tab["groups"]:
+                        if group["group"] == "APIs & SDK":
+                            for rest_group in group["pages"]:
+                                if (
+                                    isinstance(rest_group, dict)
+                                    and rest_group["group"] == "Server API"
+                                ):
+                                    rest_group["pages"][1:] = suggestions
 
-    # Write out the updated mint.json file
-    write_mint(mint_json)
+    # Write out the updated docs.json file
+    write_mint(docs_json)
 
 
 def ensure_npx_environment():
@@ -71,11 +68,11 @@ def ensure_npx_environment():
         sys.exit(1)
 
 
-def generate_schema_documentation(version: str, server_docs_path: Path) -> Navigation:
+def generate_schema_documentation(version: str, server_docs_path: Path):
     """Writes the current OpenAPI schema to the given path, generates documentation files
     from it, then returns Mintlify's recommended navigation updates."""
     openapi_schema = create_app().openapi()
-    openapi_schema["info"]["version"] = version
+    openapi_schema["info"]["version"] = "3.1.0"
 
     schema_path = server_docs_path / "schema.json"
     with open(schema_path, "w") as f:
@@ -108,10 +105,10 @@ def generate_schema_documentation(version: str, server_docs_path: Path) -> Navig
     return suggestions
 
 
-def write_mint(update_mint_json: Mint):
-    """Write updated mint.json file out"""
-    with open(docs_path() / "mint.json", "w") as f:
-        json.dump(update_mint_json, f, indent=2, ensure_ascii=False)
+def write_mint(update_docs_json):
+    """Write updated docs.json file out"""
+    with open(docs_path() / "docs.json", "w") as f:
+        json.dump(update_docs_json, f, indent=2, ensure_ascii=False)
 
 
 if __name__ == "__main__":
