@@ -6,6 +6,11 @@
 
 # documentation
 /docs                                @aaazzam @kevingrismore @daniel-prefect @seanpwlms
+
+# GitHub takes into account the last file ref for review requests
+# this resets the file to global owners to avoid huge review teams
+/docs/v3/develop/settings-ref.mdx
+
 # imports
 /src/prefect/__init__.py             @aaazzam @chrisguidry @cicdw @desertaxle @zzstoatzz
 /src/prefect/main.py                 @aaazzam @chrisguidry @cicdw @desertaxle @zzstoatzz
