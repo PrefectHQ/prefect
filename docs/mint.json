@@ -729,6 +729,17 @@
       "version": "v3"
     },
     {
+      "group": "Examples",
+      "pages": [
+        "v3/examples/index",
+        "v3/examples/flows",
+        "v3/examples/deployments",
+        "v3/examples/infrastructure",
+        "v3/examples/scripts"
+      ],
+      "version": "v3"
+    },
+    {
       "group": "Contribute",
       "pages": [
         "contribute/index",
@@ -1402,6 +1413,10 @@
     {
       "name": "APIs & SDK",
       "url": "v3/api-ref"
+    },
+    {
+      "name": "Examples",
+      "url": "v3/examples"
     },
     {
       "name": "Integrations",

@@ -1,0 +1,19 @@
+---
+title: Flow Examples
+sidebarTitle: Flows
+---
+
+The following examples demonstrate various features and patterns of Prefect [flows](/v3/develop/write-flows).
+These examples are sourced from the [PrefectHQ/examples](https://github.com/PrefectHQ/examples) repository.
+
+| Example | Description |
+|---------|-------------|
+| [hello-world.py](https://github.com/PrefectHQ/examples/blob/main/flows/hello-world.py) | A simple "Hello World" flow demonstrating basic flow creation and execution. |
+| [access-run-context.py](https://github.com/PrefectHQ/examples/blob/main/flows/access-run-context.py) | Shows how to access and use flow run context information within flows and tasks. |
+| [force-out-of-memory.py](https://github.com/PrefectHQ/examples/blob/main/flows/force-out-of-memory.py) | Demonstrates how to reproduce and diagnose memory issues in flows. |
+| [local-concurrency-with-async.py](https://github.com/PrefectHQ/examples/blob/main/flows/local-concurrency-with-async.py) | Implements concurrent API requests using Python's native async capabilities. |
+| [local-concurrency-with-task-runner.py](https://github.com/PrefectHQ/examples/blob/main/flows/local-concurrency-with-task-runner.py) | Shows how to achieve concurrency using Prefect's ThreadPoolTaskRunner. |
+| [return-custom-state.py](https://github.com/PrefectHQ/examples/blob/main/flows/return-custom-state.py) | Demonstrates returning custom states from tasks, specifically for implementing retry logic. |
+| [update-flow-run-state-from-hook.py](https://github.com/PrefectHQ/examples/blob/main/flows/update-flow-run-state-from-hook.py) | Shows how to update flow run states using hooks and the Prefect client. |
+| [update-flow-run-tags.py](https://github.com/PrefectHQ/examples/blob/main/flows/update-flow-run-tags.py) | Demonstrates updating flow run tags during execution. |
+| [whoami.py](https://github.com/PrefectHQ/examples/blob/main/flows/whoami.py) | A diagnostic flow that logs information about the current execution environment. |
