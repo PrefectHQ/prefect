@@ -206,7 +206,6 @@ class CronSchedule(PrefectBaseModel):
             OR. If the switch is set to False, the values are connected using AND. This
             behaves like fcron and enables you to e.g. define a job that executes each
             2nd friday of a month by setting the days of month and the weekday.
-
     """
 
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")

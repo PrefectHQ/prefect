@@ -154,6 +154,7 @@ async def create_deployment(
                 schemas.actions.DeploymentScheduleCreate(
                     schedule=schedule.schedule,
                     active=schedule.active,  # type: ignore[call-arg]
+                    parameters=schedule.parameters,
                 )
                 for schedule in schedules
             ],
@@ -712,6 +713,10 @@ async def _generate_scheduled_flow_runs(
         if auto_scheduled:
             tags = ["auto-scheduled"] + tags
 
+        parameters = {
+            **deployment.parameters,
+            **deployment_schedule.parameters,
+        }
         for date in dates:
             runs.append(
                 {
@@ -721,7 +726,7 @@ async def _generate_scheduled_flow_runs(
                     "deployment_version": deployment.version,
                     "work_queue_name": deployment.work_queue_name,
                     "work_queue_id": deployment.work_queue_id,
-                    "parameters": deployment.parameters,
+                    "parameters": parameters,
                     "infrastructure_document_id": deployment.infrastructure_document_id,
                     "idempotency_key": f"scheduled {deployment.id} {date}",
                     "tags": tags,

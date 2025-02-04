@@ -16436,6 +16436,11 @@
                         ],
                         "title": "Max Scheduled Runs",
                         "description": "The maximum number of scheduled runs for the schedule."
+                    },
+                    "parameters": {
+                        "type": "object",
+                        "title": "Parameters",
+                        "description": "A dictionary of parameter value overrides."
                     }
                 },
                 "type": "object",
@@ -16482,6 +16487,11 @@
                         ],
                         "title": "Max Scheduled Runs",
                         "description": "The maximum number of scheduled runs for the schedule."
+                    },
+                    "parameters": {
+                        "type": "object",
+                        "title": "Parameters",
+                        "description": "A dictionary of parameter value overrides."
                     }
                 },
                 "additionalProperties": false,
@@ -16535,6 +16545,11 @@
                         ],
                         "title": "Max Scheduled Runs",
                         "description": "The maximum number of scheduled runs for the schedule."
+                    },
+                    "parameters": {
+                        "type": "object",
+                        "title": "Parameters",
+                        "description": "A dictionary of parameter value overrides."
                     }
                 },
                 "additionalProperties": false,
