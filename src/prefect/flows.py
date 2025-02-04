@@ -49,7 +49,6 @@ from typing_extensions import Literal, ParamSpec
 from prefect._experimental.sla.objects import SlaTypes
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect.blocks.core import Block
-from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.filters import WorkerFilter, WorkerFilterStatus
 from prefect.client.schemas.objects import ConcurrencyLimitConfig, FlowRun
 from prefect.client.utilities import client_injector
@@ -69,6 +68,7 @@ from prefect.futures import PrefectFuture
 from prefect.logging import get_logger
 from prefect.logging.loggers import flow_run_logger
 from prefect.results import ResultSerializer, ResultStorage
+from prefect.schedules import Schedule
 from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
     PREFECT_FLOW_DEFAULT_RETRIES,
@@ -668,6 +668,7 @@ class Flow(Generic[P, R]):
         cron: Optional[Union[Iterable[str], str]] = None,
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
+        schedule: Optional[Schedule] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
         concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
         parameters: Optional[dict[str, Any]] = None,
@@ -692,6 +693,8 @@ class Flow(Generic[P, R]):
             cron: A cron schedule of when to execute runs of this deployment.
             rrule: An rrule schedule of when to execute runs of this deployment.
             paused: Whether or not to set this deployment as paused.
+            schedule: A schedule object defining when to execute runs of this deployment.
+                Used to define additional scheduling options like `timezone` or `parameters`.
             schedules: A list of schedule objects defining when to execute runs of this deployment.
                 Used to define multiple schedules or additional scheduling options such as `timezone`.
             concurrency_limit: The maximum number of runs of this deployment that can run at the same time.
@@ -799,6 +802,7 @@ class Flow(Generic[P, R]):
         cron: Optional[Union[Iterable[str], str]] = None,
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
+        schedule: Optional[Schedule] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
         concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
         parameters: Optional[dict[str, Any]] = None,
@@ -823,6 +827,8 @@ class Flow(Generic[P, R]):
             cron: A cron schedule of when to execute runs of this deployment.
             rrule: An rrule schedule of when to execute runs of this deployment.
             paused: Whether or not to set this deployment as paused.
+            schedule: A schedule object defining when to execute runs of this deployment.
+                Used to define additional scheduling options like `timezone` or `parameters`.
             schedules: A list of schedule objects defining when to execute runs of this deployment.
                 Used to define multiple schedules or additional scheduling options such as `timezone`.
             concurrency_limit: The maximum number of runs of this deployment that can run at the same time.
@@ -881,6 +887,7 @@ class Flow(Generic[P, R]):
                     cron=cron,
                     rrule=rrule,
                     paused=paused,
+                    schedule=schedule,
                     schedules=schedules,
                     concurrency_limit=concurrency_limit,
                     tags=tags,
@@ -904,6 +911,7 @@ class Flow(Generic[P, R]):
                 cron=cron,
                 rrule=rrule,
                 paused=paused,
+                schedule=schedule,
                 schedules=schedules,
                 concurrency_limit=concurrency_limit,
                 tags=tags,
@@ -953,6 +961,7 @@ class Flow(Generic[P, R]):
         cron: Optional[Union[Iterable[str], str]] = None,
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
+        schedule: Optional[Schedule] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
         global_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
         triggers: Optional[list[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
@@ -982,6 +991,8 @@ class Flow(Generic[P, R]):
                 Also accepts an iterable of rrule schedule strings to create multiple schedules.
             triggers: A list of triggers that will kick off runs of this deployment.
             paused: Whether or not to set this deployment as paused.
+            schedule: A schedule object defining when to execute runs of this deployment.
+                Used to define additional scheduling options like `timezone` or `parameters`.
             schedules: A list of schedule objects defining when to execute runs of this deployment.
                 Used to define multiple schedules or additional scheduling options like `timezone`.
             global_limit: The maximum number of concurrent runs allowed across all served flow instances associated with the same deployment.
@@ -1047,6 +1058,7 @@ class Flow(Generic[P, R]):
             cron=cron,
             rrule=rrule,
             paused=paused,
+            schedule=schedule,
             schedules=schedules,
             concurrency_limit=global_limit,
             parameters=parameters,
@@ -1326,7 +1338,8 @@ class Flow(Generic[P, R]):
         cron: Optional[str] = None,
         rrule: Optional[str] = None,
         paused: Optional[bool] = None,
-        schedules: Optional[list[DeploymentScheduleCreate]] = None,
+        schedule: Optional[Schedule] = None,
+        schedules: Optional[list[Schedule]] = None,
         concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
         triggers: Optional[list[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
         parameters: Optional[dict[str, Any]] = None,
@@ -1373,6 +1386,8 @@ class Flow(Generic[P, R]):
                 Also accepts an iterable of rrule schedule strings to create multiple schedules.
             triggers: A list of triggers that will kick off runs of this deployment.
             paused: Whether or not to set this deployment as paused.
+            schedule: A schedule object defining when to execute runs of this deployment.
+                Used to define additional scheduling options like `timezone` or `parameters`.
             schedules: A list of schedule objects defining when to execute runs of this deployment.
                 Used to define multiple schedules or additional scheduling options like `timezone`.
             concurrency_limit: The maximum number of runs that can be executed concurrently.
@@ -1457,6 +1472,7 @@ class Flow(Generic[P, R]):
             interval=interval,
             cron=cron,
             rrule=rrule,
+            schedule=schedule,
             schedules=schedules,
             concurrency_limit=concurrency_limit,
             paused=paused,

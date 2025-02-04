@@ -1915,12 +1915,28 @@ class TestDeploy:
         temp_storage: MockStorage,
     ):
         deployment_ids = await deploy(
-            await dummy_flow_1.to_deployment(__file__),
+            await dummy_flow_1.to_deployment(
+                __file__,
+                schedules=[
+                    DeploymentScheduleCreate(
+                        schedule=IntervalSchedule(interval=3600),
+                        parameters={"number": 42},
+                    ),
+                ],
+            ),
             await (
                 await flow.from_source(
                     source=temp_storage, entrypoint="flows.py:test_flow"
                 )
-            ).to_deployment(__file__),
+            ).to_deployment(
+                __file__,
+                schedules=[
+                    DeploymentScheduleCreate(
+                        schedule=IntervalSchedule(interval=3600),
+                        parameters={"number": 42},
+                    ),
+                ],
+            ),
             work_pool_name=work_pool_with_image_variable.name,
             image=DockerImage(
                 name="test-registry/test-image",
@@ -1943,12 +1959,24 @@ class TestDeploy:
             f"{dummy_flow_1.name}/test_runner"
         )
         assert deployment_1.id == deployment_ids[0]
+        assert len(deployment_1.schedules) == 1
+        assert isinstance(deployment_1.schedules[0].schedule, IntervalSchedule)
+        assert deployment_1.schedules[0].schedule.interval == datetime.timedelta(
+            seconds=3600
+        )
+        assert deployment_1.schedules[0].parameters == {"number": 42}
 
         deployment_2 = await prefect_client.read_deployment_by_name(
             "test-flow/test_runner"
         )
         assert deployment_2.id == deployment_ids[1]
         assert deployment_2.pull_steps == [{"prefect.fake.module": {}}]
+        assert len(deployment_2.schedules) == 1
+        assert isinstance(deployment_2.schedules[0].schedule, IntervalSchedule)
+        assert deployment_2.schedules[0].schedule.interval == datetime.timedelta(
+            seconds=3600
+        )
+        assert deployment_2.schedules[0].parameters == {"number": 42}
 
         console_output = capsys.readouterr().out
         assert "prefect worker start --pool" in console_output

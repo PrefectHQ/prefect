@@ -77,6 +77,7 @@ from prefect.exceptions import (
     PrefectHTTPStatusError,
 )
 from prefect.runner.storage import RunnerStorage
+from prefect.schedules import Schedule
 from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
     PREFECT_UI_URL,
@@ -390,7 +391,7 @@ class RunnerDeployment(BaseModel):
         cron: Optional[Union[Iterable[str], str]] = None,
         rrule: Optional[Union[Iterable[str], str]] = None,
         timezone: Optional[str] = None,
-        schedule: Optional[SCHEDULE_TYPES] = None,
+        schedule: Union[SCHEDULE_TYPES, Schedule, None] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
     ) -> Union[List[DeploymentScheduleCreate], "FlexibleScheduleList"]:
         """
@@ -483,6 +484,7 @@ class RunnerDeployment(BaseModel):
         cron: Optional[Union[Iterable[str], str]] = None,
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
+        schedule: Optional[Schedule] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
         concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
         parameters: Optional[dict[str, Any]] = None,
@@ -508,6 +510,8 @@ class RunnerDeployment(BaseModel):
             cron: A cron schedule of when to execute runs of this flow.
             rrule: An rrule schedule of when to execute runs of this flow.
             paused: Whether or not to set this deployment as paused.
+            schedule: A schedule object defining when to execute runs of this deployment.
+                Used to define additional scheduling options like `timezone` or `parameters`.
             schedules: A list of schedule objects defining when to execute runs of this deployment.
                 Used to define multiple schedules or additional scheduling options like `timezone`.
             concurrency_limit: The maximum number of concurrent runs this deployment will allow.
@@ -730,6 +734,7 @@ class RunnerDeployment(BaseModel):
         cron: Optional[Union[Iterable[str], str]] = None,
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
+        schedule: Optional[Schedule] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
         concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
         parameters: Optional[dict[str, Any]] = None,
@@ -758,6 +763,11 @@ class RunnerDeployment(BaseModel):
                 or a timedelta object. If a number is given, it will be interpreted as seconds.
             cron: A cron schedule of when to execute runs of this flow.
             rrule: An rrule schedule of when to execute runs of this flow.
+            paused: Whether or not the deployment is paused.
+            schedule: A schedule object defining when to execute runs of this deployment.
+                Used to define additional scheduling options like `timezone` or `parameters`.
+            schedules: A list of schedule objects defining when to execute runs of this deployment.
+                Used to define additional scheduling options like `timezone` or `parameters`.
             triggers: A list of triggers that should kick of a run of this flow.
             parameters: A dictionary of default parameter values to pass to runs of this flow.
             description: A description for the created deployment. Defaults to the flow's
@@ -845,6 +855,7 @@ class RunnerDeployment(BaseModel):
         cron: Optional[Union[Iterable[str], str]] = None,
         rrule: Optional[Union[Iterable[str], str]] = None,
         paused: Optional[bool] = None,
+        schedule: Optional[Schedule] = None,
         schedules: Optional["FlexibleScheduleList"] = None,
         concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
         parameters: Optional[dict[str, Any]] = None,
@@ -873,6 +884,11 @@ class RunnerDeployment(BaseModel):
                 or a timedelta object. If a number is given, it will be interpreted as seconds.
             cron: A cron schedule of when to execute runs of this flow.
             rrule: An rrule schedule of when to execute runs of this flow.
+            paused: Whether or not the deployment is paused.
+            schedule: A schedule object defining when to execute runs of this deployment.
+                Used to define additional scheduling options like `timezone` or `parameters`.
+            schedules: A list of schedule objects defining when to execute runs of this deployment.
+                Used to define additional scheduling options like `timezone` or `parameters`.
             triggers: A list of triggers that should kick of a run of this flow.
             parameters: A dictionary of default parameter values to pass to runs of this flow.
             description: A description for the created deployment. Defaults to the flow's
