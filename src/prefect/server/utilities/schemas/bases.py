@@ -1,5 +1,4 @@
 import datetime
-import os
 from abc import ABC, abstractmethod
 from functools import partial
 from typing import TYPE_CHECKING, Any, ClassVar, Optional, TypeVar
@@ -65,26 +64,19 @@ class PrefectBaseModel(BaseModel):
     fields that are passed to it at instantiation. Because adding new fields to
     API payloads is not considered a breaking change, this ensures that any
     Prefect client loading data from a server running a possibly-newer version
-    of Prefect will be able to process those new fields gracefully. However,
-    when PREFECT_TEST_MODE is on, extra fields are forbidden in order to catch
-    subtle unintentional testing errors.
+    of Prefect will be able to process those new fields gracefully.
     """
 
     _reset_fields: ClassVar[set[str]] = set()
 
     model_config: ClassVar[ConfigDict] = ConfigDict(
         ser_json_timedelta="float",
-        extra=(
-            "ignore"
-            if os.getenv("PREFECT_TEST_MODE", "0").lower() not in ["true", "1"]
-            and os.getenv("PREFECT_TESTING_TEST_MODE", "0").lower() not in ["true", "1"]
-            else "forbid"
-        ),
+        extra="ignore",
         ignored_types=(PrefectDescriptorBase,),
     )
 
     def __eq__(self, other: Any) -> bool:
-        """Equaltiy operator that ignores the resettable fields of the PrefectBaseModel.
+        """Equality operator that ignores the resettable fields of the PrefectBaseModel.
 
         NOTE: this equality operator will only be applied if the PrefectBaseModel is
         the left-hand operand. This is a limitation of Python.
