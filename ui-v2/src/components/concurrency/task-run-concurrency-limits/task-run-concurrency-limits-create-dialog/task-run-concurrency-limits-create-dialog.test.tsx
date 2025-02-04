@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createWrapper } from "@tests/utils";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { TaskRunConcurrencyLimitsCreateDialog } from "./task-run-concurrency-limits-create-dialog";
 
@@ -15,14 +15,6 @@ const MOCK_DATA = {
 };
 
 describe("TaskRunConcurrencyLimitsCreateDialog", () => {
-	beforeAll(() => {
-		class ResizeObserverMock {
-			observe() {}
-			unobserve() {}
-			disconnect() {}
-		}
-		global.ResizeObserver = ResizeObserverMock;
-	});
 	it.skip("calls onSubmit upon entering form data", async () => {
 		const user = userEvent.setup();
 
