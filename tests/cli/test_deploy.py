@@ -5737,6 +5737,7 @@ class TestDeploymentTrigger:
 
             trigger_spec = {
                 "enabled": True,
+                "description": "This is a test trigger",
                 "match": {"prefect.resource.id": "prefect.flow-run.*"},
                 "expect": ["prefect.flow-run.Completed"],
                 "job_variables": {"foo": "bar"},
@@ -5776,6 +5777,7 @@ class TestDeploymentTrigger:
 
             trigger_spec = {
                 "enabled": True,
+                "description": "This is a test trigger",
                 "match": {"prefect.resource.id": "prefect.flow-run.*"},
                 "expect": ["prefect.flow-run.Completed"],
                 "job_variables": {"foo": "bar"},
@@ -5816,6 +5818,7 @@ class TestDeploymentTrigger:
 
             trigger_spec = {
                 "enabled": True,
+                "description": "This is a test trigger",
                 "match": {"prefect.resource.id": "prefect.flow-run.*"},
                 "expect": ["prefect.flow-run.Completed"],
                 "job_variables": {"foo": "bar"},
@@ -5856,6 +5859,7 @@ class TestDeploymentTrigger:
 
             trigger_spec = {
                 "enabled": True,
+                "description": "This is a test trigger",
                 "match": {"prefect.resource.id": "prefect.flow-run.*"},
                 "expect": ["prefect.flow-run.Completed"],
             }
