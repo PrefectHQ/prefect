@@ -19,4 +19,4 @@ upstream dependency:
 ui-replatform:
   - changed-files:
       - any-glob-to-any-file: ui-v2/**
-      - all-globs-to-all-files: !ui-v2/src/api/prefect.ts
+      - all-globs-to-all-files: '!ui-v2/src/api/prefect.ts'
